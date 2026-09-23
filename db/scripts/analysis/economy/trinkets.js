@@ -12,7 +12,6 @@
 const fs = require("fs");
 const path = require("path");
 const trinketPass = require("../../../lib/trinketPass");
-const { cutOn } = require("./cut");
 
 const REPO = path.resolve(__dirname, "../../../..");
 
@@ -32,7 +31,8 @@ function readGate() {
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
-function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, moveValue }) {
+// `tax(gross)` is the model's sell tax at the run's rate: a Trinket is sold at the counter, so its price pays it.
+function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, moveValue, tax = () => 0 }) {
   const gate = readGate();
   const TIERS = trinketPass.TIERS.slice(1);
   const dieCost = gate.resources * rv.buy; // the ¢ a Trinket's ⬢ costs at the Depot
@@ -53,8 +53,8 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     });
     const eBase = TIERS.reduce((s, t, i) => s + tierP[i] * t.base, 0);
     const eMult = TIERS.reduce((s, t, i) => s + tierP[i] * t.mult, 0);
-    // What a bare Trinket clears, before and after the Merchant's cut, over the tiers the die can give.
-    const bare = (net) => TIERS.reduce((sum, t, i) => sum + tierP[i] * (net ? (t.base - dieCost) - cutOn(t.base - dieCost) : t.base - dieCost), 0);
+    // What a bare Trinket clears, before tax and at the run's sell tax, over the tiers the die can give.
+    const bare = (net) => TIERS.reduce((sum, t, i) => sum + tierP[i] * (t.base - dieCost - (net ? tax(t.base) : 0)), 0);
     return { ...h, tierP, eBase, eMult, bareRaw: bare(false), bareProfit: bare(true) };
   });
   const H = Object.fromEntries(holders.map((h) => [h.id, h]));
@@ -100,11 +100,11 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
   const combos = [];
   const eligible = (basis) => stones.filter((s) => (basis === "shelf" ? s.shelf != null : true));
   // Expected profit of one Trinket: each tier prices the stones its own way and is rounded like the game rounds
-  // it (`round(base + mult × inlay)`), and the Merchant's cut comes off whatever that tier clears.
+  // it (`round(base + mult × inlay)`), and the sell tax comes off that tier's sale price.
   const expected = (h, inlay, stoneCost, net) =>
     TIERS.reduce((sum, t, i) => {
-      const profit = Math.round(t.base + t.mult * inlay) - dieCost - stoneCost;
-      return sum + h.tierP[i] * (net ? profit - cutOn(profit) : profit);
+      const price = Math.round(t.base + t.mult * inlay);
+      return sum + h.tierP[i] * (price - dieCost - stoneCost - (net ? tax(price) : 0));
     }, 0);
   for (const basis of ["own", "shelf"]) {
     const pool = eligible(basis);
@@ -144,8 +144,10 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     const forgone = rows.reduce((n, r) => n + r.p * r.s.sold, 0);
     const revenue = trinkets * h.eBase + h.eMult * inlay;
     const raw = revenue - trinkets * dieCost - forgone;
-    // The cut is per Trinket; the average one clears raw / trinkets.
-    const net = raw - (trinkets > 0 ? trinkets * cutOn(raw / trinkets) : 0);
+    // The tax is per Trinket sold, on each tier's own price (as `expected` does), for a Trinket carrying the
+    // average stones.
+    const inlayEach = trinkets > 0 ? inlay / trinkets : 0;
+    const net = raw - trinkets * TIERS.reduce((sum, t, i) => sum + h.tierP[i] * tax(t.base + t.mult * inlayEach), 0);
     return { stones: stoneCount, trinkets, revenue, forgone, raw, net };
   };
   const prospector = {};
@@ -163,8 +165,8 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
   const topWage = profitTiers.length ? Math.max(...profitTiers.map((t) => t.rate)) : 0;
   // The doc's own hazard is "buy a stone, forge it, sell it at a profit"; the shelf round trip is that.
   const shelfLoop = { bestApprentice: bestShelfApprentice, bestSkilled: bestShelf[0], topWage };
-  // After the Merchant's cut the best shelf round trip for a Smithing smith can be to slot no stone at all, so the
-  // activity rows take the best set that does use one.
+  // The best shelf round trip for a Smithing smith can be to slot no stone at all, so the activity rows take the
+  // best set that does use one.
   const withStones = (holder) => combos.filter((c) => c.basis === "shelf" && c.stones.length > 0).sort((a, b) => b[holder] - a[holder])[0];
   shelfLoop.bestApprenticeWithStones = withStones("apprentice");
   shelfLoop.bestSkilledWithStones = withStones("skilled");
@@ -179,7 +181,7 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     prospector,
     shelfLoop,
     checks: { tiersMatchDoc, overShelf, offRule },
-    // Expected profit of one Trinket for a smith kind, given the inlay and what the stones cost, after the cut by default.
+    // Expected profit of one Trinket for a smith kind, given the inlay and what the stones cost, at the run's tax by default.
     expectedProfit: (id, inlay, stoneCost = 0, net = true) => expected(H[id], inlay, stoneCost, net),
     moveValue,
   };

@@ -25,6 +25,13 @@ import { useFolds } from "./foldStore";
 // nine call sites, so adding a sixth meant editing all nine. The grouping does
 // the reading once here and hands each section rows that already know what they
 // are.
+//
+// A SHUT FOLD STILL SHOWS WHAT IS NEW, the way a collapsed Discord category
+// does. Folding a section or a whole zone hides its rows, except any row that
+// is unread and the row you are reading now. The open row has to stay: it stops
+// counting as unread the moment it is selected, so without it the row would
+// vanish from under the click. Leave it once it is read and it goes back into
+// the fold. Nothing here writes to the fold store; the fold stays shut.
 
 function Row({ place, onSelect }) {
   const button = (
@@ -72,16 +79,21 @@ function Row({ place, onSelect }) {
   );
 }
 
+// What a shut fold still shows (see the header): anything unread, and the
+// place you are reading.
+const peeks = (place) => place.unread || place.active;
+
 const Section = memo(function Section({ title, places, foldKey, shut, onToggle, onSelect, heading = "sect" }) {
   if (places.length === 0) return null;
   const open = !shut;
+  const rows = open ? places : places.filter(peeks);
   return (
     <div className="chat-section">
       <button type="button" className={`${heading} fold`} aria-expanded={open} onClick={() => onToggle(foldKey)}>
         <ChevronDownIcon data-open={open ? "true" : undefined} />
         {title}
       </button>
-      {open && places.map((place) => <Row key={place.placeKey} place={place} onSelect={onSelect} />)}
+      {rows.map((place) => <Row key={place.placeKey} place={place} onSelect={onSelect} />)}
     </div>
   );
 });
@@ -231,18 +243,24 @@ export default function PlacesColumn({
                 {group.zoneName}
               </button>
             )}
-            {groupOpen &&
-              runs.map(([slug, title, rows]) => (
-                <Section
-                  key={slug}
-                  title={title}
-                  places={rows}
-                  foldKey={`${key}:${slug}`}
-                  shut={shut(`${key}:${slug}`)}
-                  onToggle={onToggle}
-                  onSelect={onSelect}
-                />
-              ))}
+            {groupOpen
+              ? runs.map(([slug, title, rows]) => (
+                  <Section
+                    key={slug}
+                    title={title}
+                    places={rows}
+                    foldKey={`${key}:${slug}`}
+                    shut={shut(`${key}:${slug}`)}
+                    onToggle={onToggle}
+                    onSelect={onSelect}
+                  />
+                ))
+              : // A shut zone shows its new rows flat under the divider, in
+                // server order, with no section headings — Discord draws a
+                // collapsed category the same way.
+                group.places
+                  .filter(peeks)
+                  .map((place) => <Row key={place.placeKey} place={place} onSelect={onSelect} />)}
           </div>
         );
       })}

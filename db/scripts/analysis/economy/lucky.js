@@ -5,7 +5,24 @@
 // Keeping the better of two d6: the chance of a face k is (2k - 1) / 36, so a 6 goes from 1 in 6 to 11 in 36,
 // and a 1 from 1 in 6 to 1 in 36. Most of the value is the 1 that never happens, not the 6 that does.
 
+const fs = require("fs");
+const path = require("path");
 const constants = require("../../../lib/constants");
+
+const REPO = path.resolve(__dirname, "../../../..");
+// The traits that make a die keep the WORSE of two, which cancels Lucky's better-of-two on that die (a tie rolls
+// once). They live as unexported sets in the game's code, so they are read out of the source; a changed shape
+// fails loudly rather than printing a stale list.
+function worseSlugs(rel, pattern) {
+  const src = fs.readFileSync(path.join(REPO, rel), "utf8");
+  const m = src.match(pattern);
+  if (!m) throw new Error(`lucky.js: could not read the worse-die set out of ${rel}; the file has changed shape.`);
+  return m[1]
+    .split(",")
+    .map((x) => x.trim())
+    .filter(Boolean)
+    .map((x) => (/^["']/.test(x) ? x.replace(/["']/g, "") : constants[x] ?? x));
+}
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 const plain = [1, 2, 3, 4, 5, 6].map(() => 1 / 6);
@@ -15,22 +32,31 @@ const within = (p, lo, hi) => p.slice(lo - 1, hi).reduce((a, b) => a + b, 0);
 const atLeast = (p, n) => within(p, n, 6);
 const mean = (p) => p.reduce((s, x, i) => s + x * (i + 1), 0);
 
-function buildLucky({ get, rv, caving, trinkets, moveValue, gameTurns }) {
+function buildLucky({ get, rv, params, caving, trinkets, moveValue, gameTurns }) {
+  const nameOf = (slug) => get(slug)?.name ?? slug;
+  const cancels = {
+    gambit: worseSlugs("db/lib/gambitDie.js", /GAMBIT_WORSE = Object\.freeze\(new Set\(\[([^\]]*)\]\)\)/).map(nameOf),
+    pushOn: worseSlugs("db/lib/locationTravel.js", /EXERT_WORSE_SLUGS = new Set\(\[([^\]]*)\]\)/).map(nameOf),
+  };
   const uses = [];
   const add = (u) => uses.push({ quantified: true, perTurnNote: "", ...u });
 
   // ---- the Caving Die ------------------------------------------------------------------------------
+  // A caver walks until they have eaten a set number of troubles (the trouble budget), so Lucky's worth is per
+  // expedition: more arrivals before the same number of 1s, and more finds among them.
   for (const [zone, label] of [["caves", "Caves"], ["depths", "Depths"]]) {
-    const z = caving.perZone[zone];
-    for (const n of [1, 4, 10]) {
+    for (const T of caving.BUDGETS) {
+      const plainX = caving.expedition(zone, T, "base");
+      const luckyX = caving.expedition(zone, T, "lucky");
       add({
-        id: `caving-${zone}-${n}`,
+        id: `caving-${zone}-${T}`,
         die: "Caving Die",
-        who: `A caver at the ${label}, ${n} arrival${n > 1 ? "s" : ""} a turn`,
-        gain: z.luckyGain * n,
-        basis: `${round1((z.lucky.loot - z.base.loot) * n)} ¢ more loot and ${round1((z.base.danger - z.lucky.danger) * n)} ¢ less wound cost`,
-        note: n === 1 ? "The figure the investment table used." : "Arrivals are only rationed by the 3-second walk cooldown, so this scales straight up.",
-        scales: true,
+        who: `A caver at the ${label}, stopping at ${T} trouble${T === 1 ? "" : "s"}`,
+        gain: luckyX.net - plainX.net,
+        basis: `${round1(luckyX.arrivals)} arrivals against ${round1(plainX.arrivals)} for the same ${T} trouble${T === 1 ? "" : "s"}, ${round1(luckyX.loot - plainX.loot)} ¢ more loot`,
+        note: "Per expedition, not per turn: the budget, not the clock, ends it.",
+        scales: false,
+        perExpedition: true,
         kind: "risk",
       });
     }
@@ -46,14 +72,14 @@ function buildLucky({ get, rv, caving, trinkets, moveValue, gameTurns }) {
   ];
   for (const [smith, plainId, luckyId] of [["Smithing", "apprentice", "apprentice-lucky"], ["Smithing II", "skilled", "skilled-lucky"]]) {
     for (const set of stoneSets) {
-      // After the Merchant's cut, so a Trinket that already clears a lot loses half of what Lucky adds.
+      // At the run's sell tax, which takes its share of the dearer Trinket Lucky makes.
       const d = trinkets.expectedProfit(luckyId, set.inlay) - trinkets.expectedProfit(plainId, set.inlay);
       add({
         id: `trinket-${plainId}-${set.inlay}`,
         die: "Forging a Trinket",
         who: `${smith}, forging with ${set.label}`,
         gain: d,
-        basis: `+${round1(H[luckyId].eBase - H[plainId].eBase)} ¢ on the bare price and +${round1(H[luckyId].eMult - H[plainId].eMult)} on the multiplier before the Merchant's cut`,
+        basis: `+${round1(H[luckyId].eBase - H[plainId].eBase)} ¢ on the bare price and +${round1(H[luckyId].eMult - H[plainId].eMult)} on the multiplier, before tax`,
         note: "Per Trinket, and a Trinket is a whole Move, so this is a Move's worth of gain. Stones are the limit, not the die.",
         scales: false,
         kind: "forge",
@@ -68,8 +94,8 @@ function buildLucky({ get, rv, caving, trinkets, moveValue, gameTurns }) {
     id: "trinket-prospector",
     die: "Forging a Trinket",
     who: "A Caves miner forging their own stones, Smithing",
-    gain: proGain * 0.5,
-    basis: `${round1(proGain)} ¢ more a press, a press every other turn`,
+    gain: proGain * params.mineDuty,
+    basis: `${round1(proGain)} ¢ more a press, a press one turn in ${round1(1 / params.mineDuty)}`,
     note: "Limited by how many stones drop, about one a press.",
     scales: false,
     kind: "forge",
@@ -88,7 +114,7 @@ function buildLucky({ get, rv, caving, trinkets, moveValue, gameTurns }) {
     who: "A walker who pushes on once a turn",
     gain: pushBase - pushLucky,
     basis: `a sprained ankle 1 in 6 → 1 in 36; Exhausted 2 in 6 → 8 in 36, priced at ${round1(ankleCost)} ¢, ${round1(moveValue)} ¢ and half of that for Tired`,
-    note: "A saving on the price of an extra crossing, so it only counts on a turn that would push on.",
+    note: `A saving on the price of an extra crossing, so it only counts on a turn that would push on. ${cancels.pushOn.join(" or ")} keeps the worse die here and cancels it (locationTravel.js).`,
     scales: false,
     kind: "risk",
   });
@@ -122,7 +148,7 @@ function buildLucky({ get, rv, caving, trinkets, moveValue, gameTurns }) {
 
   // ---- what it cannot price --------------------------------------------------------------------------------------
   const unpriced = [
-    { die: "Every Gambit", what: `The average die goes from ${mean(plain).toFixed(2)} to ${mean(lucky).toFixed(2)}, about a +1 on every Gambit, and a 1 in 36 chance of a 1. A GM decides what a Gambit is worth, so this has no ¢. It is the same size as the +1 an Arkenstone Trinket gives while held.`, note: "The biggest thing Lucky does, and none of it is money." },
+    { die: "Every Gambit", what: `${cancels.gambit.join(" or ")} keeps the worse of two on a Gambit and cancels Lucky there (gambitDie.js). The average die goes from ${mean(plain).toFixed(2)} to ${mean(lucky).toFixed(2)}, about a +1 on every Gambit, and a 1 in 36 chance of a 1. A GM decides what a Gambit is worth, so this has no ¢. It is the same size as the +1 an Arkenstone Trinket gives while held.`, note: "The biggest thing Lucky does, and none of it is money." },
     { die: "Search", what: `Reveals floor(die ÷ 6 × the hidden pile): the average share found goes from ${((mean(plain) / 6) * 100).toFixed(0)}% to ${((mean(lucky) / 6) * 100).toFixed(0)}%.`, note: "Nobody sees the die." },
     { die: "Steal and Pickpocket", what: `The failed band is a 1: it goes from ${((1 / 6) * 100).toFixed(1)}% of attempts to ${((1 / 36) * 100).toFixed(1)}%, and a clean take (4+, before Skilled's +1) from ${(atLeast(plain, 4) * 100).toFixed(0)}% to ${(atLeast(lucky, 4) * 100).toFixed(0)}%. A noticed steal still moves the goods, so what is bought is silence.`, note: "Worth the haul, up to 15 lb a pickpocket." },
     { die: "Heal Gambit, breaking in an arelitz, Torture, Confession, Break Restraints", what: "Each is a Gambit-shaped roll a GM or a table decides.", note: "Not priced." },
@@ -136,6 +162,7 @@ function buildLucky({ get, rv, caving, trinkets, moveValue, gameTurns }) {
     plain: { mean: mean(plain), find: plain[5], one: plain[0] },
     lucky: { mean: mean(lucky), find: lucky[5], one: lucky[0] },
     uses,
+    cancels,
     ranked,
     best,
     unpriced,

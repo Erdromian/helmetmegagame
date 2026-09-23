@@ -52,9 +52,11 @@ run 2 / 5 / 7 / 9 / 14, which bought about 3 ¢ of steel a point at the bottom
 of the ladder and 7 at the top. A piece worked from an ingot (Rapier, Katana,
 Brigandine, 52 ¢) is 7 pt, off the rung's 9 for the same reason its ⬢ column
 is. A piece then sits one point either side of its rung for what it does —
-the Halberd, Longbow, Battle Axe, Pavise, Brigandine, Breastplate, Bastard
-Sword, Lucerne, Zweihander, Bore Pistol, Shortbow and both Spears a point up,
-the Sabre a point down — by the rule in `TAGS.md` §4a, which lists them. The
+the Halberd, Longbow, Battle Axe, Brigandine, Breastplate, Bastard Sword,
+Lucerne, Zweihander, Bore Pistol, Shortbow and both Spears a point up, the
+Sabre a point down — by the rule in `TAGS.md` §4a, which lists them. The
+Pavise is the one piece off its rung by more than that: a Simple recipe at the
+Moderate rung's 30 ¢ and 5 pt since 2026-09-23 (§4a says why). The
 "Buyable gear, point for point" page of `npm run economy:report` is the check.
 
 Bows use `crafting` in place of `smithing` at every tier. The Crossbow does
