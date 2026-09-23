@@ -191,6 +191,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Modular | `modular`, `isOpen` | an Open/Close button on the **watchtower** at the gate; impassable while shut. Anyone the tower admits may work it |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
+| Tight squeeze | `tightSqueeze` | a hole no **Giant** fits through, full stop. Listed and refused to anyone holding the `giant` tag — unconditional, not a skill check |
 
 **A modular gate is also a window, open or shut.** A line said in a PUBLIC,
 non-soundproof Room at one end is echoed into every such Room at the other end,
@@ -318,6 +319,64 @@ means one close and one "somebody just did." Both endpoints are redrawn, since
 either may have a tower. **A re-sync never reopens a gate somebody shut in
 play** — `modular.open` in the YAML is the value a link is *born* with, not one
 the sync re-asserts.
+
+### Tight squeeze
+
+`tightSqueeze: true` on a `connections:` entry marks a hole no Giant fits
+through, full stop. Unlike `requiredTagSlug`, which is a reusable lock
+authored with whatever tag slug fits the door, this one is fixed and
+**unconditional**: it refuses exactly the `giant` tag, and nothing a Giant
+can hold opens it back up. `climbing` and `caving` are skills, and this is a
+body that does not fit — the two are not related, on purpose, and a Giant
+with either tag is refused exactly the same as one without. There is nothing
+else to author on the edge — the rule is the flag.
+
+It composes the same way `onFoot` does, checked right where `onFoot` is in
+`crossingCheck` (`db/lib/locationGraph.js`): listed, never hidden, because a
+Giant learning they cannot fit is not a secret the way a hidden crawl is. A
+character without the `giant` tag is never touched by it at all.
+
+**Because the block is unconditional, every `tightSqueeze` edge needs some
+OTHER route left standing for a Giant** — cutting a region off entirely from
+a sixth of the catalog's most expensive tag is a design mistake, not a
+feature. That other route can be a hard requirement (a Giant needs the tag,
+or the detour, to get there at all) or just a longer way round (a Giant
+loses the shortcut, not the destination) — both are fine, and which one an
+edge gets is a judgment call about how much friction that squeeze is meant
+to be. Authored today on three edges:
+
+- The Brooding Grounds (`caves-4 ↔ caves-5`) — "a winding forest of
+  mushrooms... any attempt to establish a proper path through has been
+  quashed by the fungi's competition over the limited space" (caves-4's own
+  description). **A hard cut**: the Depot's own back door into the Grounds,
+  `undertown-5 ↔ caves-4` (`hidden: caving`), is the only other way in — for
+  that tag alone, not `climbing` — and it doubles as the only way a Giant
+  reaches the Walkways beyond it too.
+- The Crystal Chambers (`depths-5 ↔ depths-6`) — the Razor Tunnels' own
+  "carefully climb through countless of these vicious crystals." **A hard
+  cut** again: the Chasm's own way up to the Grand Ravine, `depths-7 ↔
+  hills/grand-ravine` (`locked: climbing`), is the only other way in — for
+  `climbing` alone — and a Giant who takes it can still walk the plain edges
+  back to the Chambers and the Grand Chamber from that side.
+- Last Chance's own bored tunnel west into the Fork (`depths-3 ↔ depths-4`)
+  — "a tunnel has been bored into a smaller cavern system to the West"
+  (depths-3's own description). **An inconvenience, not a cut, but not a
+  free one**: `caves-5 ↔ depths-4` is a plain, unconditional edge that
+  already reaches the Fork directly, so a Giant only loses the shortcut
+  through Last Chance, not the Fork or anything beyond it — but that
+  detour crosses back out to the Caves zone and in again, and a zone
+  crossing costs the Move (§3) where the same-zone hop it replaces would
+  have been free. Deliberately the odd one out, to show the pattern isn't
+  "always gate the alternate" — sometimes a real cost, paid in Move rather
+  than in a locked door, is enough friction on its own.
+
+The two hard-cut alternates are ordinary `requiredTagSlug` edges that predate
+this feature; nothing new was authored to make them work as one, and the
+plain edge behind the inconvenience predates it too. `db:import-zones` never
+updates an edge that already exists (§2, additive-only), so flipping
+`tightSqueeze` on any other existing LocationLink is a GM's own call from
+`/gm/dev/zones/links`, not something a YAML edit alone reaches — and whoever
+makes that call is the one who has to check what a Giant loses by it.
 
 ### The railroad
 

@@ -1489,6 +1489,16 @@ model Vantage {
 ///                    hidden — which is the point: it is how somebody without
 ///                    the key can follow you through. Nothing closes it; the
 ///                    check just compares openUntil against now.
+///   tightSqueeze      TIGHT SQUEEZE. A hole no Giant fits through, full stop
+///                     — unconditional, unlike requiredTagSlug: holding
+///                     climbing or caving does not open it, because this is a
+///                     body-size rule, not a skill check. Listed and refused
+///                     to anyone holding the giant tag; nobody else is
+///                     touched. Fixed to that one tag, so there is nothing to
+///                     author per edge beyond the flag itself. Author one of
+///                     these only where a Giant still has some OTHER way
+///                     round to whatever it cuts off — MAP.md's "Tight
+///                     squeeze" section names the two that exist today.
 
 model LocationLink {
   id String @id @default(cuid())
@@ -1521,6 +1531,9 @@ model LocationLink {
   openUntil DateTime?
 
   onFoot Boolean @default(false)
+
+  // TIGHT SQUEEZE. See the field-doc block above the model.
+  tightSqueeze Boolean @default(false)
 
   // A rail tunnel. Crossing one while the cargo train is OUT ON THE LINE
   // (db/lib/train.js#trainHere, read against the OPEN turn's number) gibs the

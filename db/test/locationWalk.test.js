@@ -28,6 +28,7 @@ function way(aId, bId, extra = {}) {
     isOpen: true,
     keyed: false,
     onFoot: false,
+    tightSqueeze: false,
     openUntil: null,
     ...extra,
   };
@@ -109,6 +110,34 @@ test("a locked way is not walked without its tag, and is with it", async () => {
 
   assert.equal((await pathWithinZone(prisma, walker(), "keep", { known: ALL_KNOWN })).ok, false);
   assert.equal((await pathWithinZone(prisma, walker(["keys"]), "keep", { known: ALL_KNOWN })).hops, 3);
+});
+
+test("a tight squeeze is not walked by a giant, climbing or caving or not, and is fine for anyone else", async () => {
+  const links = [way("gate", "square"), way("market", "square", { tightSqueeze: true }), way("keep", "market")];
+  const prisma = fakePrisma(ROAD.locations, links);
+
+  assert.equal((await pathWithinZone(prisma, walker(["giant"]), "keep", { known: ALL_KNOWN })).ok, false);
+  assert.equal((await pathWithinZone(prisma, walker(["giant", "climbing"]), "keep", { known: ALL_KNOWN })).ok, false);
+  assert.equal((await pathWithinZone(prisma, walker(["giant", "caving"]), "keep", { known: ALL_KNOWN })).ok, false);
+  assert.equal((await pathWithinZone(prisma, walker(), "keep", { known: ALL_KNOWN })).hops, 3);
+});
+
+test("a giant blocked by a tight squeeze still gets there over a separate climbing-locked way", async () => {
+  // The docs/zones.yaml shape (MAP.md's "Tight squeeze" section): the squeeze
+  // itself never opens for a giant, but a second, ordinary requiredTagSlug
+  // edge elsewhere in the graph is left standing on purpose.
+  const locations = [...ROAD.locations, place("alley")];
+  const links = [
+    way("gate", "square"),
+    way("market", "square", { tightSqueeze: true }),
+    way("keep", "market"),
+    way("alley", "gate"),
+    way("alley", "keep", { requiredTagSlug: "climbing" }),
+  ];
+  const prisma = fakePrisma(locations, links);
+
+  assert.equal((await pathWithinZone(prisma, walker(["giant"]), "keep", { known: new Set([...ALL_KNOWN, "alley"]) })).ok, false);
+  assert.equal((await pathWithinZone(prisma, walker(["giant", "climbing"]), "keep", { known: new Set([...ALL_KNOWN, "alley"]) })).hops, 2);
 });
 
 test("a hidden crawl refuses in the very same words a place with no road refuses in", async () => {

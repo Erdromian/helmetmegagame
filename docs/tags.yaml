@@ -937,7 +937,11 @@ tags:
     # Giant, Strong and Pack Mule are one fiction — a big body that hauls —
     # so they never stack. Authored here and on Strong; db:sync-tags mirrors
     # the edges (TAGS.md §2).
-    conflictsWith: [strong, pack-mule]
+    # Tunnel Rat is the tag that gets you through the dug-through-wall
+    # passage into the Hole in the Wall (docs/zones.yaml's `hidden: tunnel-rat`
+    # edges) — a hole a Giant cannot fit through, whatever else they know.
+    # Authored here and on Tunnel Rat; db:sync-tags mirrors the edge.
+    conflictsWith: [strong, pack-mule, tunnel-rat]
 
   # +0.5 on both carry caps, i.e. ×1.5 on its own; adds with Cart
   # (docs/systemdocs/CARRY.md).
@@ -1431,6 +1435,9 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
+    # See the note on Giant: a body that size does not fit the hole this tag
+    # gets you through.
+    conflictsWith: [giant]
 
   tough:
     catalog: all
