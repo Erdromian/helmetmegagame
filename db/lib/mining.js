@@ -142,10 +142,11 @@ function computeMiningAccess(ctx) {
   // instead — docs/systemdocs/MINING.md §1). HELD, not equipped: the pick's own
   // `miningBonus` still wants to be worn for its +1, so carrying one in the
   // pack lets you dig at base, which is the right shape for a borrowed pick.
-  // The same gate in the hills, worded for the ground — the refusal is the one
-  // the button's tooltip shows, so it has to fit the verb the button wears.
-  if (!ctx.tagSlugs.has(PICKAXE_SLUG)) {
-    return { ok: false, reason: workVerbFor(ctx.zoneSlug).needsPickaxe };
+  // Only where the verb wants one: Gather in the Black Hills has no tool gate
+  // at all (db/lib/gathering.js), so a refusal of null means anybody may.
+  const needsPickaxe = workVerbFor(ctx.zoneSlug).needsPickaxe;
+  if (needsPickaxe && !ctx.tagSlugs.has(PICKAXE_SLUG)) {
+    return { ok: false, reason: needsPickaxe };
   }
   return { ok: true };
 }

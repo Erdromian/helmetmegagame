@@ -16,6 +16,12 @@
 // Zone slugs (docs/zones.yaml) where the work is gathering. A zone not listed
 // here mines, which is the right default: a new zone with a `mining:` value
 // is a seam until somebody says otherwise.
+//
+// Gathering wants no tool. The hills are poor ground (a coefficient of 0.2–0.3
+// against the caves' 0.9), and a pickaxe gate on turning over stones and
+// checking a river kept the one place anybody can find a meal behind a 13 ¢
+// purchase. Mining keeps its pick: there is no breaking rock without one. A
+// pick WORN while gathering still pays its +1 (db/lib/mining.js#toolsFor).
 const GATHERING_ZONE_SLUGS = ["hills"];
 
 function isGatheringZone(zoneSlug) {
@@ -33,6 +39,7 @@ const WORK_VERBS = {
     // The Action row's description, what the desk and the sheet's record print.
     description: "Working a seam.",
     nothingHere: "There's nothing to mine here.",
+    // The tool is the gate underground (MINING.md §1a), and its refusal.
     needsPickaxe: "You need a pickaxe to break rock.",
     paid: (value) => `You worked the seam, producing ${value} ⬢.`,
     audit: "worked a seam",
@@ -48,7 +55,8 @@ const WORK_VERBS = {
       "You spend the turn working the hills — turning stones, checking the river and the snares. You are paid immediately, and you may come back with something for the pot.",
     description: "Gathering in the hills.",
     nothingHere: "There's nothing to gather here.",
-    needsPickaxe: "You need a pickaxe to dig anything up out here.",
+    // No tool gate: null is what computeMiningAccess reads as "anybody may".
+    needsPickaxe: null,
     paid: (value) => `You worked the hills, producing ${value} ⬢.`,
     audit: "gathered in the hills",
     examineLabel: "Gathering",

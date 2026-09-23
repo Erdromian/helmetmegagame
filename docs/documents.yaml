@@ -47,7 +47,7 @@ documents:
     description: |-
       Mining yields resources and precious metals, which can be inlayed by smiths into the lucrative trinkets. To mine, you must have a Pickaxe. The Prospecting skill boosts both your resource and precious metal yield.
 
-      In the Black Hills the same day's work is called Gather. It still wants a pickaxe and still pays resources, but what you turn up beside them is something to eat rather than ore.
+      In the Black Hills the same day's work is called Gather. It needs no pickaxe, it still pays a few resources, and what you turn up beside them is something to eat rather than ore.
   combat:
     name: Combat
     public: true

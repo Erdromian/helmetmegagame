@@ -9,11 +9,11 @@ can dig, and gets ⬢ and a draw on the loot table for it. The skill multiplies
 the ⬢ by 1.7 and moves the draw to a richer column — it makes a day worth more,
 it never makes one possible.
 
-**In the Black Hills the same button says Gather.** Same gate, same rate, same
-press — but nobody up there is breaking a seam, so the verb is worded for the
-ground and the draw comes off a table of food rather than stone (§3c,
-`db/lib/gathering.js`). Everywhere this doc says Mine, read Gather for the
-hills unless it says otherwise.
+**In the Black Hills the same button says Gather.** Same rate, same press —
+but nobody up there is breaking a seam, so the verb is worded for the ground,
+the draw comes off a table of food rather than stone, and **no pickaxe is
+needed** (§3c, `db/lib/gathering.js`). Everywhere this doc says Mine, read
+Gather for the hills unless it says otherwise.
 
 Read this before touching `db/lib/mining.js`, `db/lib/miningYield.js`,
 `db/lib/gathering.js`, `web/app/(app)/character/actions/mine.js`, the
@@ -294,7 +294,7 @@ a day up there paid ⬢ and turned up nothing. From 2026-09-22 it turns up
 | | Underground | The Black Hills |
 |---|---|---|
 | The button | **Mine** | **Gather** |
-| The gate | a pickaxe | a pickaxe |
+| The gate | a pickaxe | **nothing** — Exhausted and incapacitation still refuse |
 | The ⬢ | `6–12` × the dials × the place, ×1.7 with Prospecting | the same |
 | The draw | the prospecting table, plain or skilled column | the gathering table, one column |
 | Examine's line | `**Mining**: Scarce` | `**Gathering**: Scarce` |
@@ -306,19 +306,21 @@ zone with a `mining:` value is a seam until somebody says otherwise. The module
 has zero requires, because the sheet's action registry is a client component
 and reads it for the label. `resolveMiningRateFrom` returns `verb` and
 `gathering` off it; the sheet page (`workVerb`), the confirm dialog, the help
-sentence, the refusals ("You need a pickaxe to dig anything up out here."), the
-paid line, the audit narrative (`details.verb`) and Examine all read the same
-entry rather than testing the zone themselves.
+sentence, the refusals, the paid line, the audit narrative (`details.verb`) and
+Examine all read the same entry rather than testing the zone themselves.
 
 **Prospecting changes nothing about the draw up there.** The skill reads ore,
 and there is no ore in the hills. It still multiplies the ⬢ by 1.7, because
 that half of the skill is knowing how to work a day, not what to look for.
 
-**The pickaxe is still the gate.** That is a flavour mismatch — you do not
-snare a hare with a pick — kept on purpose so this change alters no economy:
-who may press the button, and what a press pays in ⬢, are exactly what they
-were. If the hills should feed people who own no pick, that is a separate
-decision about the ⬢ side too, and the gate to loosen is `computeMiningAccess`.
+**No pickaxe.** The hills are poor ground — a coefficient of 0.2–0.3 against
+the caves' 0.9 — and a pickaxe gate on turning over stones kept the one place
+anybody can find a meal behind a 13 ¢ purchase. So a verb's `needsPickaxe` is
+its refusal string or null, and `computeMiningAccess` only asks for the tool
+where the verb names one. The ⬢ side of that is small by construction: a bare
+day in the hills is `6–12` × 0.9 × 0.25, about 1–3 ⬢. A pick **worn** while
+gathering still pays its +1 (§4); it just is not required. Underground nothing
+changed: there is no breaking rock without one.
 
 ### The gathering table
 
