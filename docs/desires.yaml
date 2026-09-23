@@ -550,10 +550,13 @@ desires:
     tier: 2
     families: [scheming, feud]
 
+  # Nothing is spent — the coin is only held, and stays yours — so this is a
+  # free tap and takes the ladder (COOLDOWN POLICY above), not the bare tier.
   hold-100:
     name: Have 100 ¢ in your inventory at once
     tier: 2
     families: [wealth]
+    cooldownTurns: 4
 
   get-someone-indebted:
     name: Have someone become indebted to you.
