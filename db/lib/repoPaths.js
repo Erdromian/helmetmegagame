@@ -32,15 +32,17 @@ function docsDir() {
 }
 
 // Joins onto docs/, or null when it cannot be found. Callers reading a YAML master should throw on null — a sync with no master is not a sync.
+//
+// `turbopackIgnore`: the web build traces every path.join it can see, and one it cannot pin to a subfolder makes it trace the WHOLE repo into the server output and print a warning on every build. Nothing needs collecting here — Railway runs `next start` from the checkout, so docs/ and web/public are on disk at runtime regardless.
 function docsPath(...segments) {
   const dir = docsDir();
-  return dir ? path.join(dir, ...segments) : null;
+  return dir ? path.join(/*turbopackIgnore: true*/ dir, ...segments) : null;
 }
 
 // Joins onto the repo ROOT. Used to reach web/public from db/ for syncTags.js's asset-existence checks, which treat a null as "cannot verify" — a sync must not fail over a check it cannot perform.
 function repoPath(...segments) {
   const dir = docsDir();
-  return dir ? path.join(path.dirname(dir), ...segments) : null;
+  return dir ? path.join(/*turbopackIgnore: true*/ path.dirname(dir), ...segments) : null;
 }
 
 module.exports = { docsPath, repoPath };
