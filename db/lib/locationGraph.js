@@ -92,6 +92,10 @@ function shouldPromptKeyed(link, { tagSlugs, now = new Date() } = {}) {
   return held.has(link.requiredTagSlug);
 }
 
+// TIGHT SQUEEZE: fixed to the one tag it blocks, unconditionally — see the
+// field-doc block on LocationLink.tightSqueeze in schema.prisma.
+const GIANT_TAG_SLUG = "giant";
+
 // The pure predicate: may a character holding `tagSlugs` cross this edge right now? Separated from the queries so the picker, mover and re-validation all reach the identical verdict from already-loaded data. `listed` is weaker than `passable`: a LOCKED edge is listed and refuses (so a player can see the door and learn they need the key), while a HIDDEN edge is not listed at all. A propped-open keyed edge satisfies its own tag requirement, which also makes a hidden one listed — deliberate: a door somebody held open must be visible to whoever is meant to follow them through it. `onFootBlocked` is the ONE input here about tags-you-have-out, not tags-you-hold — pass it from blocksOnFoot(equippedSlugs(tags)); an arelitz or cart in your pocket is not one you're riding or pushing.
 function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date() } = {}) {
   if (!link) {
@@ -110,6 +114,9 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
   }
   if (!hasTag) {
     return { listed: true, passable: false, refusal: "This way isn't open to you." };
+  }
+  if (link.tightSqueeze && held.has(GIANT_TAG_SLUG)) {
+    return { listed: true, passable: false, refusal: "You're too big to fit through here." };
   }
   if (link.modular && !link.isOpen) {
     return {
@@ -334,6 +341,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
           isOpen: true,
           keyed: true,
           onFoot: true,
+          tightSqueeze: true,
           openUntil: true,
         },
       }),
