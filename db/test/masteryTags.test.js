@@ -368,7 +368,7 @@ test("a rolled age spans 18-65 and reaches both ends", () => {
 
 test("the rolled band stops well below the catalog age ceiling", () => {
   assert.ok(REINCARNATION_AGE_MAX < AGE_MAX, "a roll must not reach the wizard's ceiling");
-  assert.equal(REINCARNATION_AGE_MAX, 65);
+  assert.equal(REINCARNATION_AGE_MAX, 49);
 });
 
 test("GENDERS is the three-value set the roll picks from", () => {

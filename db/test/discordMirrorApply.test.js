@@ -168,8 +168,11 @@ const CONFIG = {
   radioCategoryId: "cat-radio",
   cerberonChannelId: "chan-cerberon",
   freq27065ChannelId: "chan-27065",
+  freq243000ChannelId: "chan-243000",
   deadchatCategoryId: "cat-dead",
   deadchatChannelId: "chan-dead",
+  gameplayCategoryId: "cat-gameplay",
+  partyChannelId: "chan-party",
 };
 const CHARACTER = {
   id: "c1",
@@ -323,7 +326,9 @@ test("a rebuilt Location channel gets its occupant's overwrite in the same run",
     const newChannelId = rows.locations[0].discordChannelId;
     assert.ok(newChannelId && newChannelId !== "chan-1", "the channel was rebuilt");
 
-    const outboxTail = fs.readFileSync(outboxPath, "utf8").slice(outboxStart);
+    // outboxStart is a byte count, so cut the bytes before decoding — any
+    // non-ASCII line already in the log would shift a string slice mid-line.
+    const outboxTail = fs.readFileSync(outboxPath).subarray(outboxStart).toString("utf8");
     const entries = outboxTail
       .split("\n")
       .filter(Boolean)
