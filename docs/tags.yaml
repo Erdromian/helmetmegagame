@@ -11045,7 +11045,7 @@ tags:
   # cooked.mood, so a raw bite here nets +10 mood for free — at 3 c that beat
   # the Ration Box's own hunger+mood value per c (db/lib/hunger.js#foodHungerFor,
   # `npm run economy:report`'s foodFloor.anyone, mood weighted at 1.5 hunger —
-  # `--mood-weight 1.5`), which no purchasable raw food is meant to do. 5 c
+  # `--mood-weight 1.5`), which no purchasable raw food is meant to do. 8 c
   # brings it back under the Ration Box's rate.
   sugar:
     catalog: all
@@ -11055,7 +11055,7 @@ tags:
     sprite: sugar
     description: "A saccharine luxury from far away lands."
     pointCost: 0
-    depotPrice: 5
+    depotPrice: 8
     weight: 0.5
     stackable: true
     visible: false
@@ -11133,9 +11133,7 @@ tags:
     sellablePrice: 2
 
   # Deliberate near-duplicate of river-eel, not a rename — see the Soilery
-  # plan. Leave river-eel alone. river-eel's fishing source never carried
-  # over to this tag, so it needs a depotPrice — Fish Stew and Fried Fish
-  # (both cooking-basic) both name it as one of three interchangeable fish.
+  # plan. Leave river-eel alone.
   eel:
     catalog: all
     name: Eel
@@ -11144,7 +11142,6 @@ tags:
     sprite: fish
     description: "Slippery and covered in sharp bony spurs."
     pointCost: 0
-    depotPrice: 3
     weight: 0.5
     stackable: true
     visible: false
@@ -11160,10 +11157,6 @@ tags:
     sellable: true
     sellablePrice: 2
 
-  # No fishing verb grants this one, and its only room stash is a one-time
-  # seed (docs/zones.yaml) — a depotPrice is what makes it repeatably
-  # gettable, for Fish Stew/Fried Fish (the eel/haggar/tunnel-trout picker)
-  # and Northern Delight (which names it outright).
   dustfish:
     catalog: all
     name: Dustfish
@@ -11172,7 +11165,6 @@ tags:
     sprite: fish
     description: "A brightly speckled exterior warns any would-be predator to steer clear."
     pointCost: 0
-    depotPrice: 3
     weight: 0.5
     stackable: true
     visible: false
@@ -11189,8 +11181,6 @@ tags:
     sellable: true
     sellablePrice: 2
 
-  # Nothing drops or grows this one — a depotPrice is its only source, same
-  # gap as eel/tunnel-trout beside it (Fish Stew, Fried Fish).
   haggar:
     catalog: all
     name: Haggar
@@ -11198,7 +11188,6 @@ tags:
     group: items-food
     description: "Its eye sockets have sealed shut, rendering it completely blind."
     pointCost: 0
-    depotPrice: 3
     weight: 0.5
     stackable: true
     visible: false
@@ -11214,7 +11203,6 @@ tags:
     sellable: true
     sellablePrice: 2
 
-  # Same gap as eel/haggar above — nothing else grants this one.
   tunnel-trout:
     catalog: all
     name: Tunnel Trout
@@ -11223,7 +11211,6 @@ tags:
     sprite: fish
     description: "Lean and agile, with a great translucent fin to carry it through the water."
     pointCost: 0
-    depotPrice: 3
     weight: 0.5
     stackable: true
     visible: false
@@ -11495,11 +11482,6 @@ tags:
     purchasableAfterStart: false
     durationTurns: 1
 
-  # No hunting verb exists in code to drop this — COOKING.md used to credit
-  # "Hunting" as a source, but nothing ever wired one up. A depotPrice is the
-  # only way to actually hold one. Sell+1 already clears the Ration Box's
-  # hunger+mood ceiling here (mood 16 isn't quite enough to beat it at 5 c —
-  # see the note on `sugar`), so no extra bump is needed.
   boar-loin:
     catalog: all
     name: Boar Loin
@@ -11509,7 +11491,6 @@ tags:
     group: items-food
     sprite: meatstake
     pointCost: 0
-    depotPrice: 5
     weight: 3
     stackable: true
     visible: false
@@ -11524,8 +11505,6 @@ tags:
     sellable: true
     sellablePrice: 4
 
-  # Same gap as Boar Loin above — no hunting verb grants this, and Foie
-  # Gras names it with no substitute.
   deer-liver:
     catalog: all
     name: Deer Liver
@@ -11534,7 +11513,6 @@ tags:
     sprite: liver
     description: "A deer's liver. Best cooked."
     pointCost: 0
-    depotPrice: 4
     weight: 1
     stackable: true
     visible: false
@@ -11548,10 +11526,6 @@ tags:
     sellable: true
     sellablePrice: 3
 
-  # COOKING.md used to credit fishing as "everywhere" for this one, but no
-  # fishing verb exists in code and its only room stash is a one-time seed
-  # of 2 (docs/zones.yaml) — a depotPrice is the real, repeatable source,
-  # for Honeyed Crayfish (no substitute).
   crayfish:
     catalog: all
     name: Crayfish
@@ -11561,7 +11535,6 @@ tags:
     group: items-food
     sprite: fish
     pointCost: 0
-    depotPrice: 4
     weight: 1
     stackable: true
     visible: false
@@ -14796,16 +14769,8 @@ tags:
       taste: "sugar"
       mood: 20
 
-  # Used to be "caught rather than imported" — the labor loot pass dropped
-  # it (fishing). Laboring is gone and nothing replaced that drop, so it had
-  # no source at all until this depotPrice. Caviar spends two with no
-  # substitute.
-  #
-  # 7 rather than sell+1 (3): mood 28 is the second-highest in the catalog
-  # (behind only Saffron's 45), so at a plain staple's price a raw bite would
-  # have netted +18 mood for 3 c — well past what the Ration Box pays per c
-  # of hunger+mood combined (see the note on `sugar` above). 7 c brings it
-  # back under that ceiling.
+  # The delicacy that is caught rather than imported — the labor loot pass
+  # drops it (fishing).
   fish-roe:
     catalog: all
     name: Fish Roe
@@ -14813,7 +14778,6 @@ tags:
     group: items-food
     description: "A handful of glistening black eggs out of a fish's belly."
     pointCost: 0
-    depotPrice: 7
     sellable: true
     sellablePrice: 2
     weight: 0.5

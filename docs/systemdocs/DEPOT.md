@@ -988,23 +988,24 @@ exists. Boar Loin, Deer Liver and Crayfish were always credited to
 "Hunting"/"Fishing" in `COOKING.md`, and neither verb has ever existed in
 code.
 
-A `depotPrice` is the fix for the ones that are plain foodstuffs, sold back
-at 2–4 ¢ already, so the buy price starts one to two above that:
+A `depotPrice` is the fix for `cheese` and `sugar`, the two that are plain
+foodstuffs sold back at 2 ¢ already, so the buy price starts one to two
+above that:
 
 | Ware | ¢ | Sells back | Blocks (no substitute in the recipe) |
 |---|---|---|---|
-| `eel` | 3 | 2 | Fish Stew/Fried Fish's eel-or-haggar-or-tunnel-trout picker (`COOKING.md` §2a) |
-| `haggar` | 3 | 2 | same picker |
-| `tunnel-trout` | 3 | 2 | same picker |
 | `cheese` | 4 | 2 | Pizza Slice, Fondue — the starting-kit "Cheese x3" on four cook-adjacent roles runs out fast |
-| `deer-liver` | 4 | 3 | Foie Gras |
-| `crayfish` | 4 | 3 | Honeyed Crayfish |
-| `boar-loin` | 5 | 4 | nothing yet — it just had no source |
-| `sugar` | 5 | 2 | Honeyed Sweets/Carrot Cake/Fondue's honey-or-sugar picker still works without it, but nothing else did |
-| `fish-roe` | 7 | 2 | Caviar (spends two) |
+| `sugar` | 8 | 2 | Honeyed Sweets/Carrot Cake/Fondue's honey-or-sugar picker still works without it, but nothing else did |
 
-Four of these ¢ figures (`cheese`, `boar-loin`, `sugar`, `fish-roe`) are
-pushed above the plain sell+1/2 pattern the rest follow — see below.
+Both ¢ figures are pushed above the plain sell+1/2 pattern the rest of the
+catalog follows — see below.
+
+`eel`, `haggar`, `tunnel-trout`, `boar-loin`, `deer-liver`, `crayfish` and
+`fish-roe` carry the identical gap and are deliberately left off the shelf
+here rather than priced in — Fish Stew, Fried Fish, Foie Gras, Honeyed
+Crayfish and Caviar all still depend on whichever of these a table happens
+to have on hand. `COOKING.md` §11 tracks the gap; fixing it is a smaller,
+separate cut from this one.
 
 ### The raw-eating ceiling
 
@@ -1019,24 +1020,18 @@ of hunger for this comparison (`npm run economy:report -- --mood-weight
 priced against), which puts the Ration Box's own ceiling at 6.0 points/¢
 (`(25.5 + 1.5×−5) ÷ 3`).
 
-`sugar`, `cheese`, `fish-roe`, `boar-loin`, `honey` and `sugar-candy` were
-all checked against it. `fish-roe`'s mood (28) is the second-highest in the
-whole catalog, behind only Saffron's 45 — at a plain staple's price that's a
-huge free mood boost for skipping both farming and cooking. `honey` and
-`sugar-candy` carry the identical hunger (12, via `DEFAULT_FOOD_HUNGER` —
-neither sets its own `cooked.hunger`) and mood (20) `sugar` does, at the
-same 3 ¢ starting price, so the same failure and the same fix apply to all
-three alike. `boar-loin`'s mood (16) falls just short of failing the check
-at its plain sell+1 price, so it needed no bump beyond that:
+`sugar`, `cheese`, `honey` and `sugar-candy` were all checked against it.
+`honey` and `sugar-candy` carry the identical hunger (12, via
+`DEFAULT_FOOD_HUNGER` — neither sets its own `cooked.hunger`) and mood (20)
+`sugar` does, at the same 3 ¢ starting price, so the same failure and the
+same fix apply to all three alike:
 
 | Ware | Before | After | Why |
 |---|---|---|---|
-| `boar-loin` | 5 | 5 (no change) | mood 16 clears the ceiling already at the sell+1 price |
 | `cheese` | 3 | 4 | mood 15 |
-| `sugar` | 3 | 5 | mood 20 |
+| `sugar` | 3 | 8 | mood 20 |
 | `honey` | 3 | 5 | same shape as `sugar` — pre-existing, not a new addition |
 | `sugar-candy` | 3 | 5 | same shape again; "unrelated to cooking" (its own comment), so this is purely the raw-eating fix |
-| `fish-roe` | 3 | 7 | mood 28, the largest gap of the six |
 
 `aberrant-heart`, `ravens-eye` and `trout-heart` are the same shape of gap —
 `BREWING.md` §4 says so outright — but they stay off this shelf on purpose:

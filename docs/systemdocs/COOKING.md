@@ -481,13 +481,19 @@ retired (`SOILERY.md` §6). What's actually live:
 | A cook's starting kit | Servant, Geschef, Innkeeper and Inn Staff each start with 8 Wheat, 12 Potato, 6 Carrot, 8 Tomato and 6 Onion (`docs/roles.yaml`): 40 crops, which is 20 basic dishes for one whole Move and feeds 20 person-turns |
 | Caving | Cave Fungus, Purring Maggot and Rock Salt, `ultracommon` in `db/lib/cavingLoot.js` |
 | Room stashes | A handful of Deep Morels across the Caves and Depths; Cheese, Crayfish, Dustfish and Fish Roe stashed a few units at a time in the cellars and the caves |
-| The Depot | Saffron, Tinned Butter, Deep Morel, Rock Salt, Honey, Sugar Candy — and, having no other source at all, Sugar, Cheese, Eel, Haggar, Tunnel Trout, Fish Roe, Deer Liver, Crayfish and Boar Loin (`DEPOT.md`'s new "Cooking ingredients with no other source" table) |
+| The Depot | Saffron, Tinned Butter, Deep Morel, Rock Salt, Honey, Sugar Candy — and, having no other source at all, Sugar and Cheese (`DEPOT.md`'s "Cooking ingredients with no other source" table) |
 
 Room stashes are a **seed, never a top-up** — the "Seed these items now"
 action at `/gm/dev/zones` (`seedRoomStash`, `web/app/(app)/gm/dev/zones/actions.js`):
 once a stash is eaten there is no more, which is why the Depot rather than a
-stash is what makes Cheese, Crayfish, Dustfish and Fish Roe actually
-reliable.
+stash is what makes Cheese actually reliable.
+
+Eel, Dustfish, Haggar, Tunnel Trout, Boar Loin, Deer Liver, Crayfish and Fish
+Roe carry the same gap — no farming, no butchering, no caving loot, nothing
+past a one-time room-stash seed or starting-kit grant — and are left
+unfixed here rather than priced onto the Depot shelf. Fish Stew, Fried Fish,
+Northern Delight, Foie Gras, Honeyed Crayfish and Caviar all still depend on
+whichever of these a table happens to have on hand.
 
 Three more ingredients have the same gap and are documented in `BREWING.md`
 §4 rather than fixed here: `aberrant-heart`, `ravens-eye` and `trout-heart`
