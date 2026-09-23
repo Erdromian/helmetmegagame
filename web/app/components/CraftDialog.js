@@ -54,6 +54,8 @@ export default function CraftDialog({
   budget = null,
   moveCost = null,
   allowance = null,
+  // Whether the turn is a whole day (db/lib/turnClock.js#isDayLongTurn), so the ration says "today" or "this turn".
+  dayLongTurn = true,
   moveOk = true,
   // The one ingredient a recipe leaves to the player: { label, options } for
   // an `anyOf` entry, already narrowed to what this character holds, or null.
@@ -410,11 +412,11 @@ export default function CraftDialog({
                     ? chosen.requirementPerTurn != null
                       ? // This recipe rations ITSELF — the count only moves
                         // when you make more of this one thing.
-                        `No Move needed for the first ${allowance.per} of these a turn, and ${allowance.left} of those are left today.`
+                        `No Move needed for the first ${allowance.per} of these a turn, and ${allowance.left} of those are left ${dayLongTurn ? "today" : "this turn"}.`
                       : // The pool is SHARED across every Dead Simple recipe, so
                         // the count moves when you make a different simple item —
                         // said here, or the number reads as a per-recipe cap.
-                        `No Move needed for the first ${allowance.per} simple things a turn — shared across all of them — and ${allowance.left} of those are left today.`
+                        `No Move needed for the first ${allowance.per} simple things a turn — shared across all of them — and ${allowance.left} of those are left ${dayLongTurn ? "today" : "this turn"}.`
                     : "No Move needed."
                   : turns <= 1
                     ? moveCost?.kind === "share" && moveCost.allowance > 1

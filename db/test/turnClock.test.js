@@ -20,6 +20,7 @@ const {
   advanceDue,
   nextDayNumber,
   isDaylight,
+  isDayLongTurn,
 } = require("../lib/turnClock");
 
 // 2026-09-16 is CDT (UTC-5); 2026-01-16 is CST (UTC-6). Both appear below on purpose.
@@ -174,4 +175,12 @@ test("changing the turn length mid-game does not renumber the past", () => {
   const lastOfTheOldLength = { startedAt: new Date("2026-09-16T05:00:00Z"), dayNumber: 40 };
   assert.equal(nextDayNumber(lastOfTheOldLength, new Date("2026-09-16T11:00:00Z")), 40);
   assert.equal(nextDayNumber(lastOfTheOldLength, new Date("2026-09-17T05:00:00Z")), 41);
+});
+
+test("only a 24-hour turn is a day, for the wording that says so", () => {
+  assert.equal(isDayLongTurn({ turnLengthHours: 24 }), true);
+  for (const hours of [6, 8, 12]) assert.equal(isDayLongTurn({ turnLengthHours: hours }), false, `${hours}h`);
+  // A row selected without its length, or no row at all, keeps the old sentence rather than a wrong one.
+  assert.equal(isDayLongTurn({}), true);
+  assert.equal(isDayLongTurn(null), true);
 });

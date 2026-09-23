@@ -27,6 +27,7 @@ import {
   planDiscordEffects,
 } from "@/lib/characterWrite";
 import { deleteCorpseFor } from "@lifeweb/db/lib/corpseMint";
+import { isDayLongTurn } from "@lifeweb/db/lib/turnClock";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { readCharacterResources } from "@lifeweb/db/lib/resourceStack";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
@@ -482,7 +483,7 @@ async function spendTurnImpl({ characterId, description }) {
   notifyCharacter(
     session,
     character,
-    `Your turn was spent for you today.${description?.trim() ? `\n${description.trim()}` : ""}`,
+    `Your turn was spent for you ${isDayLongTurn(openTurn) ? "today" : "this turn"}.${description?.trim() ? `\n${description.trim()}` : ""}`,
   );
 
   repaint(characterId);

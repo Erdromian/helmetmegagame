@@ -7,6 +7,7 @@
 import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
+import { isDayLongTurn } from "@lifeweb/db/lib/turnClock";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import {
   isRefinery,
@@ -102,6 +103,8 @@ export async function refineRequestImpl() {
   revalidateAll();
 
   return {
-    line: "You spent the day on the floor. The cubes come off the line when the turn closes.",
+    line: isDayLongTurn(openTurn)
+      ? "You spent the day on the floor. The cubes come off the line when the turn closes."
+      : "You worked your shift on the floor. The cubes come off the line when the turn closes.",
   };
 }

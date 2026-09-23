@@ -163,7 +163,7 @@ function structureLines(ctx = {}) {
     const inscribed = structure.inscription?.trim();
     switch (structure.status) {
       case "UNDER_CONSTRUCTION":
-        return [`**${typeName}**: going up, ${structure.turnsDone} of ${structure.turnsNeeded} days done.`];
+        return [`**${typeName}**: going up, ${structure.turnsDone} of ${structure.turnsNeeded} ${ctx.dayLongTurn === false ? "turns" : "days"} done.`];
       case "COMPLETE":
         return [
           inscribed

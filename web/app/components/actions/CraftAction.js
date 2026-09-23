@@ -49,6 +49,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
     hasWorkshop = false,
     healParties = null,
     hasMoved = false,
+    dayLongTurn = true,
   } = useActionPools();
 
   const [tagId, setTagId] = useState(presets?.tagId ?? null);
@@ -494,6 +495,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
         budget={craftBudget}
         moveCost={craftCost}
         allowance={craftAllowance}
+        dayLongTurn={dayLongTurn}
         moveOk={craftMoveOk}
         ingredientPick={ingredientPick}
         ingredientChoice={ingredientChoiceValue}

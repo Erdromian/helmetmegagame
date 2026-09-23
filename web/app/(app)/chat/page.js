@@ -32,6 +32,7 @@ import { thingGroups } from "./thingRows";
 import { itemPools } from "@/lib/itemPools";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
+import { isDayLongTurn } from "@lifeweb/db/lib/turnClock";
 import { depotAccessFor } from "@lifeweb/db/lib/depotCounter";
 import { cookedTasteOnly, DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { chipContextFor, composeChipTag } from "@/lib/tagChipRows";
@@ -438,15 +439,19 @@ async function FreshChat({ userId }) {
           // whether there is a tool in hand is the dialog's sentence, not a
           // reason to hide the button.
           canSeeExtract: hasAttribute(boardLocation, GODFLESH_ATTRIBUTE),
+          // Wording only, for the Farm and Craft dialogs (db/lib/turnClock.js#isDayLongTurn).
+          dayLongTurn: isDayLongTurn(openTurn),
           canExtract:
             Boolean(extractToolFor(sheet?.tags ?? [])) && !extractedThisTurn(sheet, openTurn),
-          // Two reasons the button can grey, and having already cut today is
+          // Two reasons the button can grey, and having already cut this turn is
           // the one that outranks the tool — telling somebody to go find a
           // hatchet they cannot use until tomorrow is the wrong sentence.
           extractBlocked: !hasAttribute(boardLocation, GODFLESH_ATTRIBUTE)
             ? null
             : extractedThisTurn(sheet, openTurn)
-              ? "You already harvested Godflesh today."
+              ? isDayLongTurn(openTurn)
+                ? "You already harvested Godflesh today."
+                : "You already harvested Godflesh this turn."
               : !extractToolFor(sheet?.tags ?? [])
                 ? "You need a hatchet, a battle-axe or a chainsaw in your hands."
                 : null,
@@ -622,6 +627,7 @@ async function FreshChat({ userId }) {
         canSeeExtract: aside.canSeeExtract,
         canExtract: aside.canExtract,
         extractBlocked: aside.extractBlocked,
+        dayLongTurn: aside.dayLongTurn,
         // Whether this turn's Move is already filed — the same
         // `Boolean(action)` the sheet passes (character/page.js). Advisory
         // either way: requireFreeMove re-reads it.

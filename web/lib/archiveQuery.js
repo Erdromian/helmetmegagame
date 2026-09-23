@@ -13,7 +13,9 @@ export function parseArchiveParams(params = {}) {
     zone: get("zone"),
     character: get("character"),
     day,
-    dayTurns: dayNumber && dayNumber > 0 ? [dayNumber * 2 - 1, dayNumber * 2] : null,
+    // Matched against the row's own stamped day, never worked out from the turn number: a day is one to four turns now
+    // (TURN-ENGINE.md), so "turns 2N-1 and 2N" found the wrong rows at every length.
+    dayNumber: dayNumber && dayNumber > 0 ? dayNumber : null,
     q: get("q"),
     show: params?.show?.toString() === "all" ? "all" : "speech",
     order: params?.order?.toString() === "desc" ? "desc" : "asc",
@@ -39,7 +41,7 @@ export function archiveWhere(gameId, f) {
       : {}),
     ...(f.zone ? { zoneName: f.zone } : {}),
     ...(f.character ? { characterId: f.character } : {}),
-    ...(f.dayTurns ? { turnNumber: { in: f.dayTurns } } : {}),
+    ...(f.dayNumber ? { dayNumber: f.dayNumber } : {}),
     ...(f.q ? { content: { contains: f.q, mode: "insensitive" } } : {}),
   };
 }

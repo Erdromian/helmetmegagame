@@ -28,6 +28,14 @@ function normalizeTurnLength(hours) {
   return TURN_LENGTH_CHOICES.includes(Number(hours)) ? Number(hours) : DEFAULT_TURN_LENGTH_HOURS;
 }
 
+// Whether a turn is a whole day. The game's text has always called a 24-hour turn "the day", and on a 24-hour game that is
+// true. On a shorter one it is not: "today" tells a player they are waiting for midnight when the thing comes back at the
+// next close, a few hours off. Only the WORDING asks this. What a turn is worth is counted in turns either way. A turn row
+// with no length reads as 24, so a partial select keeps the old sentence rather than a wrong one.
+function isDayLongTurn(turn) {
+  return normalizeTurnLength(turn?.turnLengthHours) === 24;
+}
+
 // The local hours a turn may end on: 6 -> [0, 6, 12, 18]. Replaces the old TURN_BOUNDARY_HOURS constant, which had to be kept
 // in step by hand with a cron string that no longer exists — the bot polls `advanceDue` every minute now.
 function boundaryHours(lengthHours) {
@@ -197,6 +205,7 @@ module.exports = {
   TURN_CLOCK_SELECT,
   DEFAULT_TURN_LENGTH_HOURS,
   normalizeTurnLength,
+  isDayLongTurn,
   boundaryHours,
   adjudicationHours,
   nextBoundaryAfter,

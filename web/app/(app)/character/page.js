@@ -86,7 +86,7 @@ import {
 } from "@lifeweb/db/lib/lateJoin";
 import { moveWindow } from "@lifeweb/db/lib/turnClock";
 import { clockStatus, readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
-import { isDaylight } from "@lifeweb/db/lib/turnClock";
+import { isDaylight, isDayLongTurn } from "@lifeweb/db/lib/turnClock";
 import { deployVersion } from "@/lib/deployVersion";
 import { dynastyLastName } from "@/lib/dynasty";
 import { getOpenTurn } from "@/lib/turn";
@@ -1283,6 +1283,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       farmMaxCrops: gameConfig?.farmMaxCrops ?? undefined,
       // What the field would say to a farmer right now, in words (db/lib/fieldProductivity.js#fieldWarning): null while it is sound.
       fieldWarning: gameConfig?.farmFieldEnabled === false ? null : fieldWarning(standingField?.yieldMult ?? 1),
+      dayLongTurn: isDayLongTurn(openTurn),
       canSeeBreakIn: canSeeBreakIn,
       canBreakIn: canBreakIn,
       breakInBlocked: breakInBlocked,
