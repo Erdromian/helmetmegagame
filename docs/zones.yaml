@@ -217,6 +217,14 @@
 #                                  #   lapses — which is how somebody without
 #                                  #   the key follows them through. Needs a
 #                                  #   locked or hidden tag to hold open.
+#     tight_squeeze: true          # a hole no Giant fits through, full stop —
+#                                  #   unconditional, not a skill check.
+#                                  #   LISTED and refused to anyone holding
+#                                  #   the giant tag; nobody else is touched.
+#                                  #   Fixed to that one tag — there is
+#                                  #   nothing else to author here. Use it
+#                                  #   only where a Giant has some OTHER way
+#                                  #   round (MAP.md's "Tight squeeze").
 #
 # `locked` and `hidden` are the same requirement with different visibility, so
 # an entry may carry one or the other, never both. Role and Tag slugs are NOT
@@ -2371,14 +2379,46 @@ connections:
   - [caves/caves-1, caves/caves-2]
   - [caves/caves-2, caves/caves-5]
   - [caves/caves-3, caves/caves-4]
-  - [caves/caves-4, caves/caves-5]
+  # The Brooding Grounds are "a winding forest of mushrooms... any attempt to
+  # establish a proper path through has been quashed by the fungi's
+  # competition over the limited space" (caves-4's own description) — no
+  # giant forces a way through that, caving or not. This only costs a Giant
+  # the shortcut. The Grounds still open onto the Walkways (caves-3, just
+  # above), and the Walkways open onto the East River, so a Giant walks
+  # round: Camp, Approach, Entrance, out over the Bridge and the East River,
+  # and back in at the Walkways. That's six hops and two zone crossings
+  # where everyone else takes one. A Giant with caving can cut it shorter
+  # through the Depot's back door (`hidden: caving` below).
+  - pair: [caves/caves-4, caves/caves-5]
+    tight_squeeze: true
 
   # --- Depths -----------------------------------------------------------
   - [depths/depths-1, depths/depths-2]
   - [depths/depths-2, depths/depths-3]
-  - [depths/depths-3, depths/depths-4]
+  # "A tunnel has been bored into a smaller cavern system to the West"
+  # (depths-3's own description, of the Fork beyond it) — narrow enough that
+  # a Giant does not force it either. The shortest of the three detours:
+  # `caves-5 <-> depths-4`, further down among the between-zone edges,
+  # reaches the Fork directly, so a Giant goes Last Chance, Abandoned Camp,
+  # Fork. That's two hops instead of one, but both cross a zone line, so a
+  # Giant pays the Move twice for what's a free same-zone hop for anyone
+  # else.
+  - pair: [depths/depths-3, depths/depths-4]
+    tight_squeeze: true
   - [depths/depths-4, depths/depths-5]
-  - [depths/depths-5, depths/depths-6]
+  # The Crystal Chambers open through the Razor Tunnels, which "requires you
+  # carefully climb through countless of these vicious crystals" (depths-6-1's
+  # own description) — a giant does not force that either, climbing or not.
+  # A Giant comes at the Chambers from the Chasm side instead (depths-7 <->
+  # depths-6, just below). With no tags, that means the rail tunnel from the
+  # Depot (`railroad: true` below), which kills anyone inside while the
+  # train is out, so it's a question of timing, not a closed door. With
+  # climbing, it's the climb down from the Grand Ravine (`locked: climbing`
+  # below). From the Grand Chamber the tunnel route is six hops and two zone
+  # crossings: up to the Lake, through the Undertown to the Depot, and down
+  # the tunnel to the Chasm.
+  - pair: [depths/depths-5, depths/depths-6]
+    tight_squeeze: true
   - [depths/depths-6, depths/depths-7]
 
   # --- Between zones — each of these costs the Move ----------------------
@@ -2387,6 +2427,8 @@ connections:
   - [town/town-2, undertown/undertown-a]
   - [fortress/fortress-3, undertown/undertown-1]
   - [caves/caves-5, depths/depths-3]
+  # This is the way round the tight squeeze at depths-3 <-> depths-4 above,
+  # so if you ever gate it, check what a Giant loses.
   - [caves/caves-5, depths/depths-4]
   # Over the cave-river, from the sentry post to the shop. The Depot moved
   # into the Undertown with the rest of the town, so this crossing costs the

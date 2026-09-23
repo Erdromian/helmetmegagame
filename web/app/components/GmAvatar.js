@@ -16,6 +16,7 @@ export default function GmAvatar({ profile, size = 16 }) {
   if (avatarUrl) {
     return (
       <Tooltip text={username}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={avatarUrl}
           alt=""

@@ -424,7 +424,7 @@ entry shapes:
   lavish-meal:
     requirement:
       items:
-        - anyOf: [tea, sweets, honey]   # the player picks one — SPENT
+        - anyOf: [tea, sugar-candy, honey]   # the player picks one — SPENT
   bone-mask:
     requirement:
       skills: [butcher]            # a mask cut out of a human skull

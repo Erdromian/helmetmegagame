@@ -26,6 +26,7 @@ const { rollDie } = require("./rollDie");
 const { expiryFrom } = require("./turnFormat");
 const { applyFatigueStep, revertFatigueStep } = require("./fatigue");
 const { drawProspectingLoot } = require("./cavingLoot");
+const { isGatheringZone } = require("./gathering");
 const { PROSPECTING_SLUG } = require("./constants");
 const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
 const { reapDetailFor, harvestLine } = require("./soilery");
@@ -99,29 +100,33 @@ const MOVE_EFFECTS = {
   // else is digging. It reuses the Caving Die's table machinery (db/lib/cavingLoot.js), which is why there is no YAML behind it: the whole
   // MiningDropOption subsystem it replaced was deleted on 2026-09-18.
   //
-  // TWO gates, and they are different refusals. No Prospecting: no roll at all, ever — the skill is what turns rock into ore you can recognise
-  // (db/lib/mining.js). No column for the zone: no roll either, but that one is ordinary — the Black Hills are minable for ⬢ and hold nothing worth
-  // finding.
+  // In a gathering zone (db/lib/gathering.js — the Black Hills) the same press draws on the gathering table instead, and what comes up is food
+  // in a small stack rather than one stone; cavingLoot.js decides that by zone, so nothing here tells the two apart beyond the `quantity`.
+  // A zone with no column on either table draws nothing, and that is ordinary. Town never gets this far: its Locations carry no mining
+  // coefficient, so the Mine button there is always refused (db/lib/mining.js).
   //
   // The key, the AUTO_MINE_NOTE trigger and the { kind: "TAG", tagId, ... } snapshot shape are all unchanged on purpose, so Action rows written
   // under the old die still revert through the arm below.
   miningDrop: {
     read: (action) => (action.gmNotes === AUTO_MINE_NOTE ? 1 : 0),
     apply: async (tx, action) => {
-      // NOT a gate any anymore — the skill picks which column gets drawn, and an unskilled digger
-      // still turns up stones, just poorer ones (db/lib/cavingLoot.js). The gate on pressing Mine
-      // at all is the Pickaxe, and it is enforced upstream in db/lib/mining.js.
-      const prospecting = !!(await tx.characterTag.findFirst({
-        where: { characterId: action.characterId, tag: { slug: PROSPECTING_SLUG } },
-        select: { id: true },
-      }));
-
       // The table is keyed by zone SLUG; the Action carries the id it was filed at, which is the right one to read — a character who walked out of
-      // the caves after pressing Mine still dug where they dug.
+      // the caves after pressing Mine still dug where they dug. mine.js files the Location's own zone, the same one the verb was read off.
       const zone = action.zoneId
         ? await tx.zone.findUnique({ where: { id: action.zoneId }, select: { slug: true } })
         : null;
-      const drawn = zone ? drawProspectingLoot(zone.slug, { prospecting }) : null;
+      if (!zone) return 0;
+
+      // NOT a gate any more — underground the skill picks which column gets drawn, and an unskilled digger still turns up stones, just poorer
+      // ones (db/lib/cavingLoot.js). The gathering table ignores it, so a gathering zone skips the lookup. Whether the press was allowed at all
+      // (the pickaxe underground, nothing in the hills) is decided upstream in db/lib/mining.js.
+      const prospecting = isGatheringZone(zone.slug)
+        ? false
+        : !!(await tx.characterTag.findFirst({
+            where: { characterId: action.characterId, tag: { slug: PROSPECTING_SLUG } },
+            select: { id: true },
+          }));
+      const drawn = drawProspectingLoot(zone.slug, { prospecting });
       if (!drawn) return 0;
 
       const tag = await tx.tag.findUnique({
@@ -142,12 +147,15 @@ const MOVE_EFFECTS = {
       const turn = tag.defaultDurationTurns
         ? await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } })
         : null;
-      await addToStack(tx, action.characterId, tag.id, 1, {
+      // A gathering find comes as a stack; a stone is always one. addToStack pins a non-stackable tag at 1 whatever is asked, so the
+      // snapshot records what was actually granted and the revert takes back exactly that.
+      const quantity = tag.stackable === true ? Math.max(1, drawn.quantity ?? 1) : 1;
+      await addToStack(tx, action.characterId, tag.id, quantity, {
         source: "EVENT",
         stackable: tag.stackable === true,
         expiresTurn: turn ? expiryFrom(turn.number + 1, tag.defaultDurationTurns) : null,
       });
-      return { kind: "TAG", tier: drawn.tier, tagId: tag.id, tagSlug: tag.slug, tagName: tag.name ?? "something" };
+      return { kind: "TAG", tier: drawn.tier, tagId: tag.id, tagSlug: tag.slug, tagName: tag.name ?? "something", quantity };
     },
     revert: async (tx, action, snapshot) => {
       if (!snapshot) return;
@@ -156,9 +164,10 @@ const MOVE_EFFECTS = {
         await addResources(tx, action.characterId, -snapshot.amount);
         return;
       }
+      // `quantity` is absent on rows written before the gathering table existed, and those were always one stone.
       if (snapshot.kind === "TAG" && snapshot.tagId) {
         const { dropCharacterTag } = require("./tagWrites");
-        await dropCharacterTag(tx, action.characterId, snapshot.tagId, 1);
+        await dropCharacterTag(tx, action.characterId, snapshot.tagId, snapshot.quantity ?? 1);
       }
     },
   },
@@ -343,7 +352,7 @@ function describeMoveEffects(applied) {
     else if (key === "miningDrop") {
       parts.push(
         value.kind === "TAG"
-          ? `found ${value.tagName}`
+          ? `found ${value.tagName}${value.quantity > 1 ? ` ×${value.quantity}` : ""}`
           : `${value.amount > 0 ? "+" : ""}${value.amount} ⬢ (find)`,
       );
     }

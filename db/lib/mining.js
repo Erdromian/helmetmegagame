@@ -5,6 +5,7 @@ const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { LIFEWEB_SPUTTER_THRESHOLD } = require("./lifeweb");
 const { structuresAt } = require("./structures");
 const { EXHAUSTED_SLUG, PROSPECTING_SLUG, PICKAXE_SLUG, LAZY_SLUG } = require("./constants");
+const { workVerbFor } = require("./gathering");
 
 // What a day in the seam pays at a location coefficient of 1.0, before tools
 // and before either dial. ONE base for everybody who can swing a pick — there
@@ -56,7 +57,17 @@ async function buildMiningContext(prisma, characterId) {
     select: {
       locationId: true,
       location: {
-        select: { name: true, attributes: true, mining: { select: { current: true } }, zone: { select: { name: true } } },
+        select: {
+          name: true,
+          attributes: true,
+          mining: { select: { current: true } },
+          // The zone decides the VERB (db/lib/gathering.js): the Black Hills
+          // gather where the caves mine, with no pickaxe gate. The Mine action
+          // files this same zone id, so the loot table the press draws on
+          // (db/lib/moveEffects.js#miningDrop) is the one the button named.
+          zoneId: true,
+          zone: { select: { slug: true, name: true } },
+        },
       },
     },
   });
@@ -76,6 +87,8 @@ async function buildMiningContext(prisma, characterId) {
     locationName: character?.location?.name ?? null,
     zoneName: character?.location?.zone?.name ?? null,
     coefficient: character?.location?.mining?.current ?? null,
+    zoneId: character?.location?.zoneId ?? null,
+    zoneSlug: character?.location?.zone?.slug ?? null,
     tagSlugs: new Set(tags.map((t) => t.tag.slug)),
     tools: [...toolsFrom(tags), ...structureTools(structures)],
   };
@@ -130,12 +143,15 @@ function computeMiningAccess(ctx) {
   if (blocked) {
     return { ok: false, reason: "You can't work" };
   }
-  // The tool IS the gate now (Prospecting used to be, and is a multiplier
-  // instead — docs/systemdocs/MINING.md §1). HELD, not equipped: the pick's own
+  // Underground the tool is the gate (Prospecting used to be, and is a
+  // multiplier instead — docs/systemdocs/MINING.md §1). HELD, not equipped: the pick's own
   // `miningBonus` still wants to be worn for its +1, so carrying one in the
   // pack lets you dig at base, which is the right shape for a borrowed pick.
-  if (!ctx.tagSlugs.has(PICKAXE_SLUG)) {
-    return { ok: false, reason: "You need a pickaxe to break rock." };
+  // Only where the verb wants one: Gather in the Black Hills has no tool gate
+  // at all (db/lib/gathering.js), so a refusal of null means anybody may.
+  const needsPickaxe = workVerbFor(ctx.zoneSlug).needsPickaxe;
+  if (needsPickaxe && !ctx.tagSlugs.has(PICKAXE_SLUG)) {
+    return { ok: false, reason: needsPickaxe };
   }
   return { ok: true };
 }
@@ -180,8 +196,9 @@ function resolveMiningRateFrom(ctx, coefficient, { lifewebFailing = false } = {}
   // The row IS the gate, which is why no Location carries a "minable" flag.
   // No row, or a row that has bottomed out, and there is nothing here to
   // work.
+  const verb = workVerbFor(ctx.zoneSlug);
   if (!ctx.coefficient || ctx.coefficient <= 0) {
-    return { ok: false, reason: "There's nothing to mine here." };
+    return { ok: false, reason: verb.nothingHere };
   }
 
   // NOT a refusal, and not the loot gate either any more. Prospecting is a
@@ -212,6 +229,14 @@ function resolveMiningRateFrom(ctx, coefficient, { lifewebFailing = false } = {}
   return {
     ok: true,
     prospecting,
+    // Which verb this day is — "mine" or "gather" (db/lib/gathering.js). The
+    // button, the Action row and the paid line all read it from here rather
+    // than re-deriving it from the zone.
+    verb: verb.key,
+    gathering: verb.key === "gather",
+    // The zone the verb was read off. The Mine action files it on the Action
+    // row, and that row's zone is what picks the loot table at payout.
+    zoneId: ctx.zoneId ?? null,
     min,
     max,
     bonus,

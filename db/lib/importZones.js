@@ -240,6 +240,7 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
           keyed: entry.keyed,
           onFoot: entry.onFoot,
           railroad: entry.railroad,
+          tightSqueeze: entry.tightSqueeze,
         },
       });
     }

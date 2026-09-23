@@ -7,6 +7,7 @@
 // Scouting a place is the point, and a scout reporting back to a digger is a
 // conversation the game wants.
 const { qualityWord } = require("./miningYield");
+const { workVerbFor } = require("./gathering");
 const { linksFor, endpoints } = require("./locationGraph");
 const { describeLocation, hasAttribute } = require("./locationAttributes");
 const { loadDepot } = require("./depotState");
@@ -24,6 +25,9 @@ async function examineLines(prisma, locationId) {
       indoors: true,
       attributes: true,
       mining: { select: { current: true } },
+      // The verb the place wears — Mining underground, Gathering in the hills
+      // (db/lib/gathering.js) — so the readout says what the button says.
+      zone: { select: { slug: true } },
     },
   });
   if (!location) return { ok: false, error: "That place is gone." };
@@ -41,7 +45,7 @@ async function examineLines(prisma, locationId) {
   // drifted to 0 still prints — that is a place worth checking back on, not
   // one that can never pay.
   const miningLine = location.mining
-    ? `**Mining**: ${qualityWord(location.mining.current)}`
+    ? `**${workVerbFor(location.zone?.slug).examineLabel}**: ${qualityWord(location.mining.current)}`
     : null;
 
   // The Depot's machinery and anything standing on the ground are LIVE state,

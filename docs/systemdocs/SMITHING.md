@@ -52,7 +52,8 @@ were and the material moved to fit them, so the tiers ask for less than they use
 Simple 6 → 4, Moderate 13 → 7, High Quality 25 → 15, Gunpowder 28 → 15 (Bore Pistol 9; the Bomb keeps its 28, since saltpeter is scarce — `DEPOT.md` §4).
 The Spear, Dagger and Phrygian Spear take 3 ⬢ and sell for 9. Exceptional was not refitted, since
 nothing on the Merchant's list sits there. Recipes the Merchant also stocks sit off the column on
-purpose, each fitted to its shelf price: Cudgel 2, Trench Knife 5, Knuckle Duster 7, Gladiator
+purpose, each fitted to its shelf price: Cudgel 2, Trench Knife 1, Knuckle Duster 1 (a 6 ¢ and a 3 ¢ shelf cannot
+land on a rung at any whole ⬢, so they take scrap and the claims table holds them back), Gladiator
 Helmet 9, Wooden Leg and Iron Hook 6, Workshop Equipment 15. Recipes that work an input (Rapier,
 Katana, Brigandine, Plate Armor, Silver Spear) were fitted the same way.
 

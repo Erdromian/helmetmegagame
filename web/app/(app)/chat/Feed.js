@@ -875,7 +875,7 @@ export default function Feed({
       if (at > best) best = at;
     }
     return best > 0 ? best + slowmodeMs : 0;
-  }, [rows, slowmodeMs, self.characterId]);
+  }, [rows, slowmodeMs, self.characterId, self.speakerKey]);
 
   const deadline = Math.max(hold, ownDeadline);
 
@@ -1647,7 +1647,7 @@ export default function Feed({
       }
     }
     return null;
-  }, [rows, newMark, self.characterId]);
+  }, [rows, newMark, self.characterId, self.speakerKey]);
 
   // Looks BACK at the previous row rather than carrying a running variable
   // forward: react-hooks/immutability forbids reassigning a closure variable
@@ -1787,7 +1787,7 @@ export default function Feed({
           dayBreak,
         };
       }),
-    [rows, self.characterId, newAt, gm, speakers, ghost, hasCamera, openAction],
+    [rows, self.characterId, self.speakerKey, newAt, gm, speakers, ghost, hasCamera],
   );
 
   if (!place) {

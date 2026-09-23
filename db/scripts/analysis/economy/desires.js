@@ -119,7 +119,7 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   add("get-jewelry", "Buy Jewelry, and sell it back", { coin: jew.coin, how: jew.how, resale: jew.resale }, { note: "It has no cooldown of its own, so only the slots throttle it, and the Depot buys it back." });
   const box = unit("boombox");
   add("listen-to-boombox", "Own a Boombox, and play it", { coin: 0, capital: box.coin, how: `${box.coin} ¢ once, then free` }, { note: "One purchase, then a free claim every five turns." });
-  add("hold-100", "Carry 100 ¢", { coin: 0, capital: 100, how: "no spend, but 100 ¢ tied up" }, { note: "A gate is not a throttle: it costs nothing to keep 100 ¢ in the pocket, and its cooldown is the tier's own 2 turns." });
+  add("hold-100", "Carry 100 ¢", { coin: 0, capital: 100, how: "no spend, but 100 ¢ tied up" }, { note: "A gate is not a throttle: it costs nothing to keep 100 ¢ in the pocket, so it takes the free-tap ladder, a 4-turn cooldown rather than the tier's 2." });
   // gambling, on the Den's slot machine
   for (const [slug, n, label] of [["win-5-gambling", 5, "a 5 ¢ payout"], ["win-10-gambling", 10, "a 10 ¢ payout"], ["win-25-gambling-one-game", 25, "a 25 ¢ payout in one spin"], ["win-50-gambling-one-game", 50, "a 50 ¢ payout in one spin"]]) {
     const c = slotCost(n);

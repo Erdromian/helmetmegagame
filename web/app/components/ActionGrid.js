@@ -2,7 +2,7 @@
 
 import ActionButton from "./ActionButton";
 import { useRequestActions } from "./RequestActionsProvider";
-import { ACTION_SECTIONS, ACTION_HELP, labelFor, reasonFor } from "./actionRegistry";
+import { ACTION_SECTIONS, labelFor, helpFor, reasonFor } from "./actionRegistry";
 
 // Everything a player can do to a sheet, as captioned rows of buttons. The
 // list itself lives in actionRegistry.js; this only lays it out, and
@@ -43,7 +43,7 @@ export default function ActionGrid({ variant = "rack", children = null }) {
       variant={frame}
       icon={a.icon}
       label={labelFor(a, pools)}
-      help={ACTION_HELP[a.mode] ?? null}
+      help={helpFor(a, pools)}
       reason={reasonFor(a, pools)}
       disabled={a.gate ? !pools[a.gate] : false}
       busy={busy === a.mode}

@@ -537,11 +537,13 @@ nothing — the shipped table, `DEFAULT_TURRET_TABLE` in `db/lib/depotTurret.js`
 
 | graze | minor | deep | grievous | dying | dead |
 |---|---|---|---|---|---|
-| 6% | 14% | 16% | 24% | 22% | 18% |
+| 10% | 4% | 9% | 16% | 20% | 41% |
 
-Two fifths dying or dead, two fifths badly hurt, one fifth walking. Standing in
-front of an armed machinegun in shirtsleeves is not meant to be a coin flip on
-being fine.
+Three fifths dying or dead, a quarter wounded, one in ten untouched. Standing in
+front of an armed machinegun in shirtsleeves is meant to be close to fatal, not
+a coin flip on being fine. The graze is a **flat dodge**, rolled first and the
+same for everybody, armour or none: armour bends the rest of the curve, never
+that tenth.
 
 **Armour bends that curve; it does not replace it.** Every piece of gear carries
 `Tag.ballisticArmor`, 0.0–1.0, and only while `equipped`. Worn pieces combine
@@ -550,25 +552,33 @@ raises the roll to a power:
 
 ```
 protection = min(0.95, 1 - Π(1 - ballisticArmor))
-h          = random() ^ (1 + ARMOR_GAIN * protection)   // ARMOR_GAIN = 3
+odds       = protection / (1 - protection)
+h          = random() ^ (1 + ARMOR_GAIN * odds)   // ARMOR_GAIN = 0.25
 ```
 
-`h` then walks the table above. At zero protection the exponent is 1, so the
-draw *is* the table. The exponent is deliberate rather than a subtraction or a
+`h` then walks the five wound bands, renormalised over the nine tenths the dodge
+leaves. At zero protection the exponent is 1, so the draw *is* the table. The
+bend is on the **odds** rather than on the raw figure: linear in a number
+capped at 0.95, light infantry, heavy infantry and the best kit in the game
+landed within a couple of points of each other on every outcome, and half of all
+armoured wearers walked away untouched. The exponent is deliberate rather than a subtraction or a
 scale: both of those reach a point where death becomes literally impossible, and
 "there exists a jacket that makes a machinegun safe" is a worse rule than any
 number could fix.
 
 | kit | protection | graze | minor | deep | grievous | dying | dead |
 |---|---|---|---|---|---|---|---|
-| nothing | 0.00 | 6% | 14% | 16% | 24% | 22% | 18% |
-| a Censor's Helmet | 0.31 | 23% | 20% | 15% | 18% | 13% | 10% |
-| plate and a helm | 0.45 | 30% | 20% | 14% | 16% | 11% | 8% |
-| Heavy Infantry Armor | 0.70 | 40% | 19% | 12% | 13% | 9% | 6% |
-| a full infantry kit | 0.90 | 47% | 18% | 11% | 11% | 8% | 5% |
-| shield and armour both | 0.95 | 48% | 18% | 11% | 11% | 7% | 5% |
+| nothing | 0.00 | 10% | 4% | 9% | 16% | 20% | 41% |
+| a Censor's Helmet | 0.31 | 10% | 5% | 10% | 17% | 19% | 38% |
+| plate and a helm | 0.32 | 10% | 5% | 10% | 17% | 19% | 38% |
+| Light Infantry Armour | 0.66 | 10% | 10% | 14% | 18% | 18% | 31% |
+| Heavy Infantry Armor | 0.70 | 10% | 12% | 14% | 18% | 17% | 29% |
+| Cataphract Armor | 0.86 | 10% | 25% | 16% | 16% | 13% | 19% |
+| cataphract, Soulbreaker Helm and a Pavise | 0.94 | 10% | 46% | 14% | 11% | 8% | 11% |
 
-The best kit in the game still buries about one wearer in twenty.
+A helmet alone barely moves the needle; the curve only opens up past the
+infantry armours. Cataphract Armor still leaves a third of its wearers dying or
+dead, and the best kit in the game about one in five.
 
 Armour is read off `Tag.ballisticArmor` directly, so it can never fall behind
 the catalog. See `TAGS.md` for the two columns and the word scale players
@@ -879,12 +889,12 @@ buying one mid-game is still a real decision.
 | `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
 | `eth-lod` | 3 | — | Black Market. +20 mood, and it takes every pain tag off |
 | `honey` | 3 | 2 | Consumes into `ate-meal` |
-| `sweets` | 3 | 2 | Consumes into `ate-meal` |
+| `sugar-candy` | 3 | 2 | Consumes into `ate-meal` |
 | `alcohol` | 4 | — | He stocks the local brew too |
 | `kzozel-yantar` | 4 | — | Black Market. Consumes into `tipsy` |
 | `collar-key` | 4 | — | Black Market. Turns a shut collar back into a loose one, into the UNLOCKER's hands (`COLLAR.md`) |
 | `cigarette` | 4 | — | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
-| `coffee` | 5 | 1 | Consumes into `caffeinated` (2t) |
+| `coffee` | 5 | 3 | Consumes into `caffeinated` (2t) |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source, and it is priced below real gear on purpose: a paper-thin disguise shouldn't compete with it. |
 | `love-tablets` | 7 | — | Black Market. +80 on a kiss, to BOTH sides — the one appearance bonus that is not crossed (`KISS.md`) |
 | `black-market-autoinjector` | 8 | — | Black Market. The military autoinjector's whole cures list, and a stack of `damaged-vision` with it |
@@ -972,6 +982,77 @@ premium, not a monopoly.
 Both used to carry a Laboring bonus, which is where this section came
 from. Laboring is gone and only three tags pay into a day's work now
 (`MINING.md` §4) — one of which, the Mining Helmet, the Merchant does stock.
+
+### Cooking ingredients with no other source
+
+Ten cooking ingredients carry a `cooked:` block, `catalog: all` and a
+`sellablePrice`, but no ongoing way onto a sheet — no farming, no
+butchering, no caving loot, nothing past a one-time room-stash seed or
+starting-kit grant (`COOKING.md` §11 lists the real, repeatable sources; a
+stash or a starting kit is a seed, never a top-up — once it's spent, it's
+gone for the rest of the game). Most were left behind by a rename: `cheese`
+and `eel` are deliberate near-duplicates of `hard-cheese`/`river-eel`, and
+neither picked up the older tag's source; `fish-roe`, `ravens-eye` and
+`trout-heart` were all "dropped by the labor loot pass," which no longer
+exists. Boar Loin, Deer Liver and Crayfish were always credited to
+"Hunting"/"Fishing" in `COOKING.md`, and neither verb has ever existed in
+code.
+
+A `depotPrice` is the fix for `cheese` and `sugar`, the two that are plain
+foodstuffs sold back at 2 ¢ already, so the buy price starts one to two
+above that:
+
+| Ware | ¢ | Sells back | Blocks (no substitute in the recipe) |
+|---|---|---|---|
+| `cheese` | 4 | 2 | Pizza Slice, Fondue — the starting-kit "Cheese x3" on four cook-adjacent roles runs out fast |
+| `sugar` | 8 | 2 | Honeyed Sweets/Carrot Cake/Fondue's honey-or-sugar picker still works without it, but nothing else did |
+
+Both ¢ figures are pushed above the plain sell+1/2 pattern the rest of the
+catalog follows — see below.
+
+`eel`, `haggar`, `tunnel-trout`, `boar-loin`, `deer-liver`, `crayfish` and
+`fish-roe` carry the identical gap and are deliberately left off the shelf
+here rather than priced in — Fish Stew, Fried Fish, Foie Gras, Honeyed
+Crayfish and Caviar all still depend on whichever of these a table happens
+to have on hand. `COOKING.md` §11 tracks the gap; fixing it is a smaller,
+separate cut from this one.
+
+### The raw-eating ceiling
+
+**No purchasable raw food may be a better deal, hunger and mood combined,
+than a Ration Box.** Eating anything raw pays a flat −10 mood
+(`db/lib/hunger.js#RAW_FOOD_MOOD`) before the food's own `cooked.mood`
+lands, so an ingredient with a big enough mood figure can net a *better* raw
+bite than the Ration Box's own 25.5 hunger / −5 mood for 3 ¢, even while
+paying more ¢ per unit of hunger alone. A point of mood counts as 1.5 points
+of hunger for this comparison (`npm run economy:report -- --mood-weight
+1.5`; the report's own default is 2, but 1.5 is the number this catalog is
+priced against), which puts the Ration Box's own ceiling at 6.0 points/¢
+(`(25.5 + 1.5×−5) ÷ 3`).
+
+`sugar`, `cheese`, `honey` and `sugar-candy` were all checked against it.
+`honey` and `sugar-candy` carry the identical hunger (12, via
+`DEFAULT_FOOD_HUNGER` — neither sets its own `cooked.hunger`) and mood (20)
+`sugar` does, at the same 3 ¢ starting price, so the same failure and the
+same fix apply to all three alike:
+
+| Ware | Before | After | Why |
+|---|---|---|---|
+| `cheese` | 3 | 4 | mood 15 |
+| `sugar` | 3 | 8 | mood 20 |
+| `honey` | 3 | 5 | same shape as `sugar` — pre-existing, not a new addition |
+| `sugar-candy` | 3 | 5 | same shape again; "unrelated to cooking" (its own comment), so this is purely the raw-eating fix |
+
+`aberrant-heart`, `ravens-eye` and `trout-heart` are the same shape of gap —
+`BREWING.md` §4 says so outright — but they stay off this shelf on purpose:
+each is `catalog: gm`, and the doc names their intended fix as the
+prospecting loot table or a fallen monster, not an import. Stocking a
+fallen Aberrant's own heart at the counter would say the opposite of what
+the tag is for. `adders-bite` looks like the same shape (also `cooked:`,
+also no depotPrice) but isn't a gap at all: it already has a real,
+repeatable source on the Thanati's own black-market shelf (`THANATI_WARES`,
+`THANATI.md` §3), which is exactly the kind of restricted, narrative-gated
+source this section is protecting for the monster-trophy ingredients too.
 
 ## 4. Selling
 
@@ -1115,7 +1196,9 @@ Bore Pistol 18 → 9, Workshop Equipment 25 → 15, Longbow and Shield 6 → 5, 
 quarter-Move piece breaks even, like the other Dead Simple pieces. The rest is rounding: a quarter-Move craft moves
 in steps of 4 ¢ a turn, so the Pickaxe (2 ⬢, 8 ¢) clears 8 ¢ a turn raw, the Autoinjector (its
 inputs cost more than its shelf price) sits under its rung, and the Badge and the Mulligan Potion
-(a 2 ¢ price and a 17 ¢ shelf) cannot be fitted. The claims table leaves those four out by name.
+(a 2 ¢ price and a 17 ¢ shelf) cannot be fitted, and neither can the Trench Knife or the Knuckle
+Duster (a 6 ¢ and a 3 ¢ shelf; each takes 1 ⬢ of scrap so the maker is at least not out of
+pocket). The claims table leaves those six out by name.
 
 **A recipe that works an input is priced off the input instead.** Pure Luck is a brew of an
 Aberrant Heart; Black Powder is Saltpeter refined; a Silver Knife is a silver ingot worked. These are

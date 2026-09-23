@@ -272,7 +272,7 @@ they did before.
 | Consume anything that lands you tipsy / wasted / unconscious / high / euphoric | +35 | `consumeTagRequestImpl` |
 | Consume `tea`, `maggot-milk`, or anything granting `caffeinated` (Coffee) | +17 | same |
 | Eat a **cooked dish** | its own small figure plus its ingredients', §6a | `dishMoodTerms` |
-| Consume a treat — `sweets`, `honey`, `fish-roe`, `pumpkin` | +9 | same |
+| Consume a treat — `sugar-candy`, `honey`, `fish-roe`, `pumpkin` | +9 | same |
 | Consume a `cigarette` or a `firecracker` | +9 | same |
 | Consume anything at all that grants `ate-meal` | +6 | same |
 | Fulfil a Desire (player claim or GM award) | +12 per point | both award sites |

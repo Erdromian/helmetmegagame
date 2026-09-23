@@ -19,6 +19,7 @@ import {
 import { rollResourceRange } from "@lifeweb/db/lib/resourceDelta";
 import { applyMoveEffects } from "@lifeweb/db/lib/moveEffects";
 import { AUTO_MINE_NOTE } from "@lifeweb/db/lib/constants";
+import { workVerbByKey } from "@lifeweb/db/lib/gathering";
 import { requireFreeMove } from "@/lib/moveSpend";
 import { logAudit } from "@/lib/requests";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -32,6 +33,9 @@ export async function mineRequestImpl() {
   // the button's tooltip shows and the one a bypassed request hits can never drift apart.
   const rate = await resolveMiningRate(prisma, character.id);
   if (!rate.ok) throw new UserError(rate.reason);
+  // Mine or Gather (db/lib/gathering.js): the rate already knows which, off the zone the
+  // character stands in, so the row's description and the paid line match the button pressed.
+  const verb = workVerbByKey(rate.verb);
 
   // Bound, Dying, Paralyzed, Catatonic. computeMiningAccess already refuses these, but the
   // sentence it gives is deliberately vague ("You can't work"); this one names the reason.
@@ -68,11 +72,14 @@ export async function mineRequestImpl() {
           confirmedAt: new Date(),
           moveKind: "ROUTINE",
           moveReviewStatus: "PASSED",
-          description: "Working a seam.",
+          description: verb.description,
           resourceDelta: value,
           resourceRollExpression: expression,
           resourceRollValue: value,
-          zoneId: character.zoneId ?? null,
+          // The Location's own zone, the one the verb and the pickaxe gate were read off —
+          // not Character.zoneId, which is a copy that can drift. The loot table is picked
+          // by this at payout, so Gather always draws on the gathering table.
+          zoneId: rate.zoneId ?? character.zoneId ?? null,
           locationId: character.locationId ?? null,
           gmNotes: AUTO_MINE_NOTE,
         },
@@ -98,6 +105,8 @@ export async function mineRequestImpl() {
         value,
         expression,
         coefficient: rate.locationCoefficient,
+        // What the audit line says the day was (web/lib/auditNarrative.js).
+        verb: verb.key,
         // Named so the Desire desk's audit filter can find a dig by where it
         // happened ("Depths") — DESIRES.md §10.
         location: rate.locationName,
@@ -117,8 +126,11 @@ export async function mineRequestImpl() {
     // The clink of something coming out of the rock, in this player's own tab (sfx.js).
     sfx: SFX.MINE,
     line: [
-      `You worked the seam, producing ${value} ⬢.`,
-      drop?.kind === "TAG" ? `You turned up ${drop.tagName}.` : null,
+      verb.paid(value),
+      // A gathered find is a stack, printed the way the sheet prints one (`×3`).
+      drop?.kind === "TAG"
+        ? `You turned up ${drop.tagName}${drop.quantity > 1 ? ` ×${drop.quantity}` : ""}.`
+        : null,
       note,
     ]
       .filter(Boolean)
