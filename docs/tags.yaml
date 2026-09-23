@@ -15063,8 +15063,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.55
-    ballistic: 0.7
+    melee: 0.58
+    ballistic: 0.76
     weight: 30
     visible: true
     purchasable: false
@@ -17176,12 +17176,12 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    melee: 0.22
-    ballistic: 0.04
+    melee: 0.3
+    ballistic: 0.06
     concealsIdentity: true
     concealSprite: hauberkhood
     visible: worn
-    weight: 4
+    weight: 2
     stackable: true
     purchasable: true
     purchasableAfterStart: false
@@ -17224,7 +17224,7 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    melee: 0.31
+    melee: 0.33
     ballistic: 0.09
     concealsIdentity: true
     concealSprite: paladin1
@@ -17276,8 +17276,8 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    melee: 0.44
-    ballistic: 0.13
+    melee: 0.48
+    ballistic: 0.2
     concealsIdentity: true
     forcesConceal: true
     concealSprite: knight0
@@ -17296,11 +17296,15 @@ tags:
     sellable: true
     sellablePrice: 62
 
-  # The Bascinet and the Infantry Helmet are deliberate twins of the two above:
-  # same plates, same bench, different look. The Bascinet matches the Knight's
-  # Helmet exactly (Bascinet's call, 2026-09-19) and the Infantry Helmet matches
-  # the Simple Helm — so nobody has to weigh two numbers to pick a face, and a
-  # smith who can make one can make the other for the same 25 ⬢ or 6 ⬢.
+  # The Bascinet and the Infantry Helmet were exact twins of the Knight's
+  # Helmet and the Simple Helm until 2026-09-23 (same plates, same bench,
+  # different look). Each pair leans a different way now, so every helm has a
+  # reason to be picked: the Bascinet is the heaviest and best against a blade
+  # (0.54 melee, 8 lb) where the Knight's is lighter and better against a
+  # bullet (0.48 / 0.20, 6 lb); the Infantry Helmet is the one 2-pt helm that
+  # leans ballistic (0.28 / 0.15, 5 lb) where the Simple Helm leans melee
+  # (0.33 / 0.09, 4 lb) and the Mail Coif is the light one (0.30 / 0.06, 2 lb).
+  # Same bench and the same ⬢ across each pair. SMITHING.md §4a is the record.
   bascinet:
     catalog: all
     name: Bascinet
@@ -17311,13 +17315,13 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: HEAD
-    melee: 0.44
-    ballistic: 0.13
+    melee: 0.54
+    ballistic: 0.16
     concealsIdentity: true
     forcesConceal: true
     concealSprite: hevhelm
     visible: worn
-    weight: 6
+    weight: 8
     stackable: true
     purchasable: true
     purchasableAfterStart: false
@@ -17343,12 +17347,12 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: HEAD
-    melee: 0.31
-    ballistic: 0.09
+    melee: 0.28
+    ballistic: 0.15
     concealsIdentity: true
     concealSprite: openskulliron
     visible: worn
-    weight: 4
+    weight: 5
     stackable: true
     purchasable: true
     purchasableAfterStart: false
@@ -17364,7 +17368,7 @@ tags:
 
   # The Bastard's own, so GM-granted rather than forged: nobody buys one and no
   # bench makes one. It sits under the Knight's Helmet by a step a player can
-  # actually see: 0.38 melee reads Sufficient where the Knight's 0.44 reads
+  # actually see: 0.38 melee reads Sufficient where the Knight's 0.48 reads
   # Good, since a band is 0.2 wide (TAGS.md, `melee` / `ballistic`).
   bastards-helmet:
     catalog: secret
@@ -17484,6 +17488,13 @@ tags:
     sellable: true
     sellablePrice: 17
 
+  # Priced off its rung since 2026-09-23: a Simple-tier `crafting` recipe that
+  # sells at the Moderate rung's 30 ¢ and costs 5 pt, because it stops as much
+  # as a High Quality helm — 0.44 / 0.24 was 3 pt, which outpriced the Knight's
+  # Helmet and the Brigandine three to one. 9 ⬢ rather than Moderate's 7 so a
+  # crafter still clears the `crafting` rung's 2 ¢ a Move and not a skilled
+  # smith's (DEPOT.md §4). Still the best thing a crafter without a forge can
+  # make to stand behind; it costs a hand and 25 lb.
   pavise:
     catalog: all
     name: Pavise
@@ -17491,11 +17502,11 @@ tags:
     group: items-armor
     sprite: largeshield-u
     description: "A shield tall enough to stand behind. It can be set on the ground as cover."
-    pointCost: 3
+    pointCost: 5
     equippable: true
     equipSlot: WEAPON
     melee: 0.44
-    ballistic: 0.22
+    ballistic: 0.24
     visible: true
     weight: 25
     stackable: true
@@ -17506,17 +17517,17 @@ tags:
     customizableSkill: smithing-skilled
     requirement:
       turnsCost: 1
-      resourceCost: 5
+      resourceCost: 9
       skills: [crafting]
     sellable: true
-    sellablePrice: 17
+    sellablePrice: 30
 
   # ─── Moderate (5 pt / 7 ⬢ / 1 turn, skilled smithing) ───
   # HIDDEN recipe (non-public ingredient, Chris 2026-09-07): the tailor's
-  # secret. Competes with Padded Armor for the layer-1 slot — worse against a
-  # blade (0.2 vs 0.3), better against a bullet (0.1 vs 0.05), 8 lb against
-  # 12, and it reads as a garment rather than armor. Also competes with the
-  # brewers for sacs, deliberately.
+  # secret. The lightest thing in the Over layer by a distance — 8 lb against
+  # Salvage Plate's 16 — for a little less against a blade (0.24 vs 0.31) and a
+  # little more against a bullet (0.12 vs 0.09), and it reads as a garment
+  # rather than armor. Also competes with the brewers for sacs, deliberately.
   graga-hide-cloak:
     catalog: gm
     name: Graga-Hide Cloak
@@ -17528,8 +17539,8 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.18
-    ballistic: 0.09
+    melee: 0.24
+    ballistic: 0.12
     visible: worn
     weight: 8
     stackable: true
@@ -17556,10 +17567,10 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 1
-    melee: 0.4
+    melee: 0.42
     ballistic: 0.09
     visible: true
-    weight: 25
+    weight: 20
     stackable: true
     purchasable: true
     purchasableAfterStart: false
@@ -17586,7 +17597,7 @@ tags:
     equipSlot: BODY
     equipLayer: 1
     melee: 0.5
-    ballistic: 0.16
+    ballistic: 0.18
     visible: worn
     weight: 25
     stackable: true
@@ -17664,10 +17675,10 @@ tags:
     equippable: true
     equipSlot: BODY
     equipLayer: 2
-    melee: 0.62
-    ballistic: 0.22
+    melee: 0.68
+    ballistic: 0.26
     visible: true
-    weight: 55
+    weight: 42
     stackable: true
     purchasable: true
     purchasableAfterStart: false
@@ -17701,7 +17712,7 @@ tags:
     melee: 0.31
     ballistic: 0.09
     visible: true
-    weight: 20
+    weight: 16
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -17713,7 +17724,7 @@ tags:
 
   # The Exactor's outfit. Salvage Plate's protection in a shape nobody reads as
   # armour — the padded vest is doing the work, and the numbers are deliberately
-  # copied from it rather than invented. Light, where the plate is 20 lb: what
+  # copied from it rather than invented. Light, where the plate is 16 lb: what
   # you pay for it is the point cost, not the weight.
   suit-and-tie:
     catalog: gm

@@ -109,6 +109,8 @@ function extractedThisTurn(character, openTurn) {
 
 module.exports = {
   GODFLESH_SLUG,
+  // Read by the economy report's armour page, so the gloves' real job shows as a perk there.
+  ARMORED_GLOVES_SLUG,
   extractToolFor,
   rollExtraction,
   extractionDm,

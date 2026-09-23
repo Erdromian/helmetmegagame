@@ -28,6 +28,7 @@ const { fatigueModel } = require("./fatigue");
 const { buildCombos } = require("./combos");
 const { buildInvestments } = require("./investments");
 const { buildEquipment } = require("./equipment");
+const { buildArmor } = require("./armor");
 const { buildCaving } = require("./caving");
 const { buildTrinkets } = require("./trinkets");
 const { buildCooking } = require("./cooking");
@@ -1528,6 +1529,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     params,
     pointValue,
   });
+  // Every wearable piece of armour against the others in its slot: what it stops, for what it costs.
+  const armor = buildArmor({ list, get, sources, pointsOf: (slug) => skillChain(slug).points });
   const desires = buildDesires({
     get,
     list,
@@ -1617,6 +1620,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     workedRows,
     investments,
     equipment,
+    armor,
     caving,
     trinkets,
     cooking,
