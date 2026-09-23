@@ -16,6 +16,16 @@ import { placePanel } from "./portalPlacement";
 // ActionButton.js's touch path, where the pinned panel IS the button. An
 // outside tap already unpins, but a tap on the panel's own button is inside it
 // by definition, so there has to be a way to ask.
+// A browser too old for the selector throws on it; treat that as keyboard focus,
+// which is what this component always assumed.
+function focusVisible(el) {
+  try {
+    return el.matches(":focus-visible");
+  } catch {
+    return true;
+  }
+}
+
 export default function HoverCard({ children, panel, className = "", pinnable = true, ...triggerProps }) {
   const triggerRef = useRef(null);
   const panelRef = useRef(null);
@@ -107,7 +117,13 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
         aria-describedby={open ? id : undefined}
         onPointerEnter={() => setHovering(true)}
         onPointerLeave={() => setHovering(false)}
-        onFocus={() => setHovering(true)}
+        onFocus={(e) => {
+          // Keyboard focus only. A tap focuses a tabIndex span too, and so
+          // does a dialog placing focus after a tap (Modal.js) — on iOS that
+          // popped a tag's panel open over a drawer nobody had touched it in.
+          // The tap itself still opens it, through the click's pin.
+          if (focusVisible(e.currentTarget)) setHovering(true);
+        }}
         onBlur={() => setHovering(false)}
         onClick={togglePin}
         onKeyDown={handleTriggerKeyDown}

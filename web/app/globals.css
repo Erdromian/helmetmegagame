@@ -147,15 +147,6 @@
     --fs-3xs: 0.6875rem; /* 11px */
     --fs-3xl: 1.75rem; /* 28px */
   }
-
-  /* iOS zooms a focused control under 16px. The chat composer already does
-     this; every other control needs it now that the body face is 12px. */
-  .field input,
-  .field textarea,
-  .field select,
-  .control {
-    font-size: max(16px, var(--fs-base));
-  }
 }
 
 /* Colour tokens. One look — the character-sheet mockup's own :root
@@ -430,6 +421,12 @@ html,
 body {
   height: 100%;
   overscroll-behavior: none;
+  /* iOS Safari enlarges text it judges too small when a phone is turned
+     sideways, one block at a time, so type grew out of the boxes it was
+     measured for and spilled over its neighbours. The sizes here are chosen;
+     take them as written. */
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 /* No scrollbar, anywhere, on purpose (Bascinet: "if an element can be
@@ -1200,6 +1197,25 @@ input[type="radio"]:focus-visible,
   border-radius: var(--r);
   font-family: inherit;
   font-size: var(--fs-2xs);
+}
+
+/* iOS zooms a focused control under 16px, and stays zoomed after. Every
+   control needs this floor now that the body face is 12px, and it has to sit
+   HERE, after the rule above: both are 0,1,1, so source order decides. It
+   used to live up in the 720px block, before the rule above, and lost to its
+   --fs-2xs on every phone, so tapping any .field box zoomed the page.
+
+   On any touch screen too, not just a narrow one: a phone held sideways is
+   844–932px wide, past every width query here. */
+@media (max-width: 720px), (pointer: coarse) {
+  .field input:not(:where([type="checkbox"], [type="radio"], [type="hidden"],
+                          [type="range"], [type="color"], [type="button"],
+                          [type="submit"], [type="reset"], [type="image"])),
+  .field textarea,
+  .field select,
+  .control {
+    font-size: max(16px, var(--fs-base));
+  }
 }
 
 .field textarea {
@@ -3551,6 +3567,20 @@ body:has(.chat-shell) .app-shell,
 body:has(.desk-shell) .app-shell,
 body:has(.map-shell) .app-shell {
   height: 100dvh;
+}
+
+/* And the document behind those three never scrolls. Their own columns do the
+   scrolling, but the page was still free to move: `height: 100%` on html is
+   iOS's LARGE viewport, taller than 100dvh while the toolbar shows, and a tap
+   that focused a tag chip had Safari scroll the whole document to "reveal" it,
+   which shifted the entire screen off by that much and left it there. */
+html:has(.chat-shell),
+html:has(.desk-shell),
+html:has(.map-shell),
+body:has(.chat-shell),
+body:has(.desk-shell),
+body:has(.map-shell) {
+  overflow: hidden;
 }
 
 .app-main {
@@ -6765,7 +6795,7 @@ button.chip[data-off="true"]:not([data-active]) {
   fill-opacity: 0.9;
 }
 
-.map-node[data-state="seen"] .map-node-label {
+.map-node-label[data-state="seen"] {
   fill: var(--muted);
   font-size: 6px;
 }
@@ -7155,18 +7185,30 @@ button.chip[data-off="true"]:not([data-active]) {
     font-size: var(--fs-sm);
   }
 
-  /* Gone on a phone. Pinch is the zoom here, and the bar sat over the top-left
-     corner of the plate — Headwaters and the Mountain live under it — to buy
-     back a control nobody was reaching for. Reset goes with it and is no loss:
-     the clamp in applyView means you cannot get lost off the plate, and
-     pinching out to the floor shows the whole thing. */
-  .map-controls {
+  /* Zoom and Reset are gone on a phone. Pinch is the zoom here, and the full
+     bar sat over the top-left corner of the plate — Headwaters and the
+     Mountain live under it — to buy back controls nobody was reaching for.
+     Reset is no loss: the clamp in applyView means you cannot get lost off the
+     plate, and pinching out to the floor shows the whole thing.
+
+     Names stays. Hiding the whole bar took it with it, and a phone had no
+     other way to turn the names on. What is left is one chip, riding in the
+     .map-hud column under the layer switch. */
+  .map-controls .btn-quiet,
+  .map-count {
     display: none;
   }
 
-  /* Only the layer switch is left up there, and it is small. The wrapper still
-     takes the position so nothing has to know the other's width; pointer-events
-     step aside so the column's own gaps stay draggable map. */
+  .map-controls {
+    padding: 0;
+    border: 0;
+    background: none;
+  }
+
+  /* Only the layer switch and Names are left up there, and both are small.
+     The wrapper still takes the position so nothing has to know the other's
+     width; pointer-events step aside so the column's own gaps stay draggable
+     map. */
   .map-hud {
     display: flex;
     position: absolute;
