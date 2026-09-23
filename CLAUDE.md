@@ -604,7 +604,11 @@ The player and spectator role IDs are **not** env vars. They're hardcoded in
 `db/lib/roleIds.js` — see "Discord permission model" below for why.
 
 `db/` has `node --test` under `db/test/`, and `web/` has the same under
-`web/lib/__tests__/`. The bot has no test setup.
+`web/lib/__tests__/`. The bot has no test setup. Both test scripts pass
+`--disable-warning=MODULE_TYPELESS_PACKAGE_JSON`: a few tests `import()` an
+ESM file out of `web/` by path, and `web/package.json` declares no `type`,
+so Node printed a "module type is not specified" warning on every run. The
+warning is about a package.json the app itself never reads.
 
 The web suite is narrow on purpose: it covers the localStorage-backed stores
 (`soundStore`, `asideTabStore`, `foldStore`, `seenStore`, `notifiedStore`),
