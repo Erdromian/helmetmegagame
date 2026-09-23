@@ -123,9 +123,8 @@ test("a tight squeeze is not walked by a giant, climbing or caving or not, and i
 });
 
 test("a giant blocked by a tight squeeze still gets there over a separate climbing-locked way", async () => {
-  // The docs/zones.yaml shape (MAP.md's "Tight squeeze" section): the squeeze
-  // itself never opens for a giant, but a second, ordinary requiredTagSlug
-  // edge elsewhere in the graph is left standing on purpose.
+  // The squeeze itself never opens for a giant, but an ordinary
+  // requiredTagSlug edge somewhere else in the graph still works as a way round.
   const locations = [...ROAD.locations, place("alley")];
   const links = [
     way("gate", "square"),

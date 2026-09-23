@@ -1498,7 +1498,8 @@ model Vantage {
 ///                     author per edge beyond the flag itself. Author one of
 ///                     these only where a Giant still has some OTHER way
 ///                     round to whatever it cuts off — MAP.md's "Tight
-///                     squeeze" section names the two that exist today.
+///                     squeeze" section lists the three that exist today
+///                     and each one's way round.
 
 model LocationLink {
   id String @id @default(cuid())
