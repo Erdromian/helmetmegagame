@@ -98,6 +98,10 @@ export async function mineRequestImpl() {
         value,
         expression,
         coefficient: rate.locationCoefficient,
+        // Named so the Desire desk's audit filter can find a dig by where it
+        // happened ("Depths") — DESIRES.md §10.
+        location: rate.locationName,
+        zone: rate.zoneName,
       },
     });
   });

@@ -2472,6 +2472,107 @@ desires:
     requires:
       anyTags: [thanati]
 
+  # === 6. Checkable additions (2026-09-22) ================================
+  # From the "Desire + Kit Reworks" sheet, keeping only the rows whose wording
+  # IS the mechanical check — an audit row the review desk can find, with no
+  # clause left over for a player to argue ("that was a meal", "he was my
+  # patron"). Each comment names the row. Anything on the sheet with a motive
+  # in it (paid FOR your company, sold FOR a profit, supplies the Keep NEEDS)
+  # stayed out: that is a GM reading the scene, not a search.
+
+  # slot_machine, any outcome. The Den's machine is the only slots in the
+  # game, so there is no other way to have done this.
+  play-the-slots:
+    name: Play the slots at the Casino
+    verify: "slots"
+    tier: 1
+    families: [gambling]
+
+  # Two or more slot_machine rows with outcome "nothing" in one turn — a spin
+  # stakes 5 ¢. The sheet's "and leave with none of the obols you brought"
+  # was dropped: what somebody brought is not written down anywhere.
+  lose-10-at-the-slots:
+    name: Lose 10 ¢ at the slots in one turn
+    verify: "slots"
+    tier: 1
+    families: [gambling]
+
+  # A request_mine row whose `zone` is the Depths. Distinct from
+  # enter-the-depths above, which is the walk in; this is the dig.
+  mine-in-the-depths:
+    name: Mine in the Depths
+    verify: "Depths"
+    tier: 2
+    families: [adventure, wealth]
+    requires:
+      anyRoles: [prospector]
+
+  # Three request_transfer_resources rows with the same `from` name on three
+  # different turns. "Paid" is coin changing hands, nothing about why; the
+  # desk shows the sender on each row.
+  gain-a-regular-patron:
+    name: Be paid by the same person on three different turns
+    tier: 2
+    families: [wealth, social, status]
+    requires:
+      anyRoles: [courtesan]
+
+  # A request_depot_drop whose tag also appears in an earlier steal or
+  # pickpocket_took row of the claimant's. Steal and Pickpocket are the two
+  # buttons; lifting something out of an unattended stash with Transfer is
+  # neither, and does not count. sell-stolen-jewelry above is the Servant's
+  # narrower version of this.
+  sell-stolen-goods:
+    name: Sell something you stole or pickpocketed to the Depot
+    tier: 1
+    families: [theft, wealth]
+    requires:
+      anyTags: [kleptomaniac]
+
+  # A request_mine, request_farm or request_extract_godflesh row in each of
+  # three consecutive turns, and no health tag granted across them (TAGS.md
+  # §5c is what counts as an injury). Other work does not count, on purpose:
+  # the sheet meant the Marshes and the Factory.
+  work-three-turns-uninjured:
+    name: Mine, farm or extract Godflesh three turns running without an injury
+    tier: 2
+    families: [duty, bravery]
+    requires:
+      anyRoles: [refugee]
+
+  # Three request_heal_character rows by the claimant in one turn, three
+  # different targets, none of them selfHeal. Those rows target the PATIENT,
+  # which is why the desk now also lists what the claimant's own account
+  # wrote (DESIRES.md §6a).
+  treat-three-in-one-turn:
+    name: Treat three other people in one turn
+    tier: 2
+    families: [medical, duty]
+    requires:
+      anyRoles: [esculap, serpent, bastard-healer]
+
+  # Three request_transfer_tag rows of a drink to three different `to` names
+  # in one turn. Sake, moonshine and Ravenheart Red count, the way the
+  # "Sample one of every alcohol" entry says they do; the verify string only
+  # finds the plain bottle, so look for the other three by name.
+  give-alcohol-to-three:
+    name: Give alcohol to three different people in one turn
+    verify: "Alcohol"
+    tier: 1
+    families: [alcohol, social]
+    requires:
+      anyTags: [alcoholic, charitable]
+
+  # Four request_transfer_tag rows of one of COOKING.md's meals to four
+  # different `to` names in one turn. A raw ingredient or a ration is not a
+  # dish.
+  hand-a-dish-to-four:
+    name: Hand a cooked dish to four different people in one turn
+    tier: 2
+    families: [food, social, charity]
+    requires:
+      anyTags: [glutton, charitable]
+
   # --- The Vampire's own Desires (VAMPIRE.md §9 — design doc pages 6-8).
   # "Desires relating to food and drink are unavailable to them, instead
   # they have vampire specific desires" — docs/tags.yaml's `vampire` tag

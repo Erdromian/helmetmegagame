@@ -56,7 +56,7 @@ async function buildMiningContext(prisma, characterId) {
     select: {
       locationId: true,
       location: {
-        select: { name: true, attributes: true, mining: { select: { current: true } } },
+        select: { name: true, attributes: true, mining: { select: { current: true } }, zone: { select: { name: true } } },
       },
     },
   });
@@ -74,6 +74,7 @@ async function buildMiningContext(prisma, characterId) {
 
   return {
     locationName: character?.location?.name ?? null,
+    zoneName: character?.location?.zone?.name ?? null,
     coefficient: character?.location?.mining?.current ?? null,
     tagSlugs: new Set(tags.map((t) => t.tag.slug)),
     tools: [...toolsFrom(tags), ...structureTools(structures)],
@@ -218,6 +219,11 @@ function resolveMiningRateFrom(ctx, coefficient, { lifewebFailing = false } = {}
     halvedBy,
     lifewebFailing,
     locationCoefficient: ctx.coefficient,
+    // Where the dig happened, for the audit row the Mine button writes. A Desire
+    // like "Mine in the Depths" is checked by searching that row for the zone's
+    // name (DESIRES.md §10), which the row could not say before this.
+    locationName: ctx.locationName ?? null,
+    zoneName: ctx.zoneName ?? null,
     // MACHINE format, parsed back by db/lib/resourceDelta.js#rollResourceRange (`/^(\d+)-(\d+)$/`) when paid. Anything appended ("(+3 Pick)") fails that regex and pays nothing — say the bonus in the note instead, never here.
     expression: `${min}-${max}`,
   };
