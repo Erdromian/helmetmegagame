@@ -128,38 +128,17 @@ import SnapshotFresh from "@/lib/snapshot/SnapshotFresh";
 import CharacterView from "./CharacterView";
 import Loading from "./Skeleton";
 
-// Everything the creation wizard needs, as the flat role list groupRoles()
-// buckets into the picker's social groups. Seat counts are computed here, not
-// the client, so the numbers aren't stale-rendered from a cached page.
-async function loadCreationData(discordUserId) {
-  const [roleRows, tags, config, state, member, dynastyName, preference] = await Promise.all([
-    prisma.role.findMany({
-      orderBy: { sortOrder: "asc" },
-      include: { startingLocation: { include: { zone: true } } },
-    }),
-    loadPointBuyCatalog([], { includeRoleStartingTags: true }),
+// Who may do what with no living character: the phase, the roster, the
+// whitelist. Split out of loadCreationData so the lobby — which every open tab
+// refreshes every 30 s — answers without loading the whole wizard behind it.
+async function loadCreationGate(discordUserId) {
+  const [config, state, member] = await Promise.all([
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     readGameState(prisma),
     // At most a minute old: a role handed out in Discord shows up on the next
     // reload, and the lobby refreshes itself every 30 s anyway.
     getGuildMember(discordUserId, 60_000),
-    dynastyLastName(),
-    prisma.playerPreference.findUnique({ where: { discordUserId }, select: { antagonistOptIns: true } }),
   ]);
-
-  // Seated (ALIVE, plus DEAD on every seat but Bum and Migrant) plus anyone
-  // else's live wizard-in-progress hold; excludes the viewer's own hold.
-  const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
-
-  // LATE JOINS (db/lib/lateJoin.js): the seats a GM has opened, drawn in their
-  // own "Special" section above the social buckets. `slots` is the cap here
-  // rather than roleCapacity() — a late join is a door somebody opened by hand,
-  // so the number of chairs is the GM's answer, not a function of the roster.
-  // `taken` still comes from takenCounts, so a live wizard hold counts against
-  // the seat exactly as it does on every other card.
-  const lateJoin = await loadLateJoinRoles(prisma, { roles: roleRows.filter((r) => LATE_JOIN_ROLE_SLUGS.includes(r.slug)) });
-
-  const cursed = await isPlayerCursed(prisma, discordUserId);
   // Presentation only; the server action re-checks regardless.
   const superadmin = isSuperadmin(discordUserId);
   const phase = state?.phase ?? "CLOSED";
@@ -178,11 +157,92 @@ async function loadCreationData(discordUserId) {
     masked: playtestMode && !approved,
   };
   const leaderWhitelisted = superadmin || isLeaderWhitelisted(member);
+  return { gate, config, state, leaderWhitelisted };
+}
+
+// The lobby's own load: the pickable roles, bucketed, and this player's row.
+// Never tags, seat counts or anything the wizard needs — only what Lobby.js draws.
+async function loadLobbyData(discordUserId, { leaderWhitelisted }) {
+  const [roleRows, preference, entry, readyCount] = await Promise.all([
+    prisma.role.findMany({
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        intro: true,
+        groupSlug: true,
+        requiresWhitelist: true,
+        startingLocation: { select: { zone: { select: { name: true } } } },
+      },
+    }),
+    prisma.playerPreference.findUnique({ where: { discordUserId } }),
+    prisma.lobbyEntry.findUnique({ where: { discordUserId } }),
+    prisma.lobbyEntry.count({ where: { status: "READY" } }),
+  ]);
+  return {
+    groups: groupRoles(roleRows)
+      .map((group) => ({
+        slug: group.slug,
+        name: group.name,
+        roles: group.roles
+          .filter((role) => !isSpawnOnly(role))
+          .map((r) => ({
+            id: r.id,
+            slug: r.slug,
+            name: r.name,
+            intro: r.intro,
+            startingZoneName: r.startingLocation?.zone?.name ?? null,
+            requiresWhitelist: r.requiresWhitelist,
+            whitelistBlocked: r.requiresWhitelist && !leaderWhitelisted,
+          })),
+      }))
+      .filter((g) => g.roles.length > 0),
+    initial: {
+      rolePriorities: preference?.rolePriorities ?? {},
+      antagonistOptIns: normalizeAntagonistSlugs(preference?.antagonistOptIns ?? [], {
+        whitelisted: leaderWhitelisted,
+      }),
+      joblessRole: preference?.joblessRole ?? "MIGRANT",
+    },
+    entry: entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null,
+    readyCount,
+    whitelisted: leaderWhitelisted,
+  };
+}
+
+// Everything the creation wizard needs, as the flat role list groupRoles()
+// buckets into the picker's social groups. Seat counts are computed here, not
+// the client, so the numbers aren't stale-rendered from a cached page. Takes
+// loadCreationGate's answer rather than reading the same three rows again.
+async function loadCreationData(discordUserId, { config, state, leaderWhitelisted }) {
+  const [roleRows, tags, dynastyName, preference] = await Promise.all([
+    prisma.role.findMany({
+      orderBy: { sortOrder: "asc" },
+      include: { startingLocation: { include: { zone: true } } },
+    }),
+    loadPointBuyCatalog([], { includeRoleStartingTags: true }),
+    dynastyLastName(),
+    prisma.playerPreference.findUnique({ where: { discordUserId }, select: { antagonistOptIns: true } }),
+  ]);
+
+  // Seated (ALIVE, plus DEAD on every seat but Bum and Migrant) plus anyone
+  // else's live wizard-in-progress hold; excludes the viewer's own hold.
+  const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
+
+  // LATE JOINS (db/lib/lateJoin.js): the seats a GM has opened, drawn in their
+  // own "Special" section above the social buckets. `slots` is the cap here
+  // rather than roleCapacity() — a late join is a door somebody opened by hand,
+  // so the number of chairs is the GM's answer, not a function of the roster.
+  // `taken` still comes from takenCounts, so a live wizard hold counts against
+  // the seat exactly as it does on every other card.
+  const lateJoin = await loadLateJoinRoles(prisma, { roles: roleRows.filter((r) => LATE_JOIN_ROLE_SLUGS.includes(r.slug)) });
+
+  const cursed = await isPlayerCursed(prisma, discordUserId);
   const playerCount = effectivePlayerCount(config, state);
   const roleCard = makeRoleCard({ leaderWhitelisted, takenByRole });
 
   return {
-    gate,
     cursed,
     dynastyName,
     whitelisted: leaderWhitelisted,
@@ -309,48 +369,19 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // No living character — this is the lobby, the wizard, or a closed door,
   // depending on the phase (docs/systemdocs/LOBBY.md §1).
   if (!character) {
-    const { gate, ...creation } = await loadCreationData(session.discordUserId);
+    const gateData = await loadCreationGate(session.discordUserId);
+    const { gate } = gateData;
     const { create } = (await searchParams) ?? {};
     const skipping = create === "1" && (gate.gm || gate.superadmin);
     if (gate.phase === "LOBBY" && !skipping) {
       if (!gate.approved) return fresh({ kind: "closed", open: !gate.masked, phase: gate.phase });
-      const [preference, entry, readyCount] = await Promise.all([
-        prisma.playerPreference.findUnique({ where: { discordUserId: session.discordUserId } }),
-        prisma.lobbyEntry.findUnique({ where: { discordUserId: session.discordUserId } }),
-        prisma.lobbyEntry.count({ where: { status: "READY" } }),
-      ]);
       // Six fields per role, not the wizard's whole card — never tags or seat counts.
-      const lobbyGroups = creation.groups.map((g) => ({
-        slug: g.slug,
-        name: g.name,
-        roles: g.roles.map((r) => ({
-          id: r.id,
-          slug: r.slug,
-          name: r.name,
-          intro: r.intro,
-          startingZoneName: r.startingZoneName,
-          requiresWhitelist: r.requiresWhitelist,
-          whitelistBlocked: r.whitelistBlocked,
-        })),
-      }));
-      return fresh({
-        kind: "lobby",
-        lobby: {
-          groups: lobbyGroups,
-          initial: {
-            rolePriorities: preference?.rolePriorities ?? {},
-            antagonistOptIns: creation.initialAntagonists,
-            joblessRole: preference?.joblessRole ?? "MIGRANT",
-          },
-          entry: entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null,
-          readyCount,
-          whitelisted: creation.whitelisted,
-          canSkip: gate.gm || gate.superadmin,
-        },
-      });
+      const lobby = await loadLobbyData(session.discordUserId, gateData);
+      return fresh({ kind: "lobby", lobby: { ...lobby, canSkip: gate.gm || gate.superadmin } });
     }
     if (!gate.open || !gate.approved)
       return fresh({ kind: "closed", open: gate.masked ? false : gate.open, phase: gate.phase });
+    const creation = await loadCreationData(session.discordUserId, gateData);
     // An unburied body stops creation dead (db/lib/curse.js). Shown here so a
     // player isn't handed a wizard that refuses on Confirm; createActions.js
     // re-checks it, since a server action is a public endpoint.
