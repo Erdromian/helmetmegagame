@@ -16,8 +16,14 @@
 // 2026-09-18, when the second was deleted and folded into the first. Keep them here together: a
 // second copy of drawLoot is how they drift apart.
 //
-// A zone with no column in a weights map simply does not roll on that table. That is what makes the
-// Black Hills minable for ⬢ but never for loot — the absence IS the rule, not an oversight.
+//   THE GATHERING TABLE (docs/systemdocs/MINING.md §3c) — drawn instead of the prospecting table when
+//   the press happens in a zone db/lib/gathering.js calls a gathering zone (the Black Hills). Food
+//   only, in small stacks: what a day of turning stones, checking the river and the snares brings home.
+//   Prospecting does not touch it — the skill reads ore, and there is no ore up there.
+//
+// A zone with no column in a weights map simply does not roll on that table. That is what keeps Town
+// out of every one of them — the absence IS the rule, not an oversight. The Black Hills used to be the
+// example here, minable for ⬢ and never for loot; since 2026-09-22 they draw on the gathering table.
 
 const TIERS = ["ultracommon", "common", "uncommon", "rare", "extremely-rare", "nearly-impossible"];
 
@@ -161,20 +167,78 @@ const PROSPECTING_TABLE = {
   "nearly-impossible": ["star-sapphire", "black-diamond", "arkenstone"],
 };
 
+// What a day in the hills brings home. Every entry is FOOD — a raw ingredient a cook turns into a
+// dish (docs/systemdocs/COOKING.md §11) or something edible as it is — and most come as a small stack,
+// because one onion is not a day's work. An entry is `{ slug, quantity }`; the two tables above are
+// bare slugs, and drawFrom reads either shape. Boar Loin and Deer Liver had no source at all before
+// this (the Hunting tier they came from is gone, MINING.md §0), so the rare rungs are where they
+// live now. The egg at the bottom is a wild arelitz clutch — carry it to a stable and it hatches
+// (ARELITZ.md §4). The weights are one column, `hills`, plain and skilled alike.
+const GATHERING_TABLE = {
+  ultracommon: [
+    { slug: "cave-fungus", quantity: 2 },
+    { slug: "onion", quantity: 2 },
+    { slug: "carrot", quantity: 2 },
+  ],
+  common: [
+    { slug: "crayfish", quantity: 2 },
+    { slug: "meat", quantity: 1 },
+    { slug: "skinned-cave-rat", quantity: 1 },
+  ],
+  uncommon: [
+    { slug: "deep-morel", quantity: 1 },
+    { slug: "honey", quantity: 1 },
+    { slug: "meat", quantity: 2 },
+  ],
+  rare: [
+    { slug: "boar-loin", quantity: 1 },
+    { slug: "deer-liver", quantity: 1 },
+  ],
+  "extremely-rare": [
+    { slug: "boar-loin", quantity: 2 },
+    { slug: "deer-liver", quantity: 2 },
+  ],
+  "nearly-impossible": [{ slug: "arelitz-egg", quantity: 1 }],
+};
+
+// Bottom-heavy on purpose: most days are fungus and roots, a good day is meat or a fish, and the
+// hunted cuts are a story to tell. Sums to 1 like every other column here.
+const GATHERING_WEIGHTS_BY_ZONE = {
+  hills: {
+    ultracommon: 0.5,
+    common: 0.3,
+    uncommon: 0.14,
+    rare: 0.045,
+    "extremely-rare": 0.01,
+    "nearly-impossible": 0.005,
+  },
+};
+
+// An entry is a bare slug or `{ slug, quantity }`; this is the one place that reads either.
+function entrySlug(entry) {
+  return typeof entry === "string" ? entry : entry?.slug;
+}
+
+function entryQuantity(entry) {
+  const q = typeof entry === "string" ? 1 : Number(entry?.quantity ?? 1);
+  return Number.isInteger(q) && q > 0 ? q : 1;
+}
+
 // Validated once at process startup (bot/src/index.js, web's instrumentation.js), not per roll —
 // throwing here means the loot table references something absent from docs/tags.yaml.
 async function validateCavingLoot(prisma) {
-  const tables = { LOOT_TABLE, PROSPECTING_TABLE };
-  const allSlugs = new Set(Object.values(tables).flatMap((table) => Object.values(table).flat()));
+  const tables = { LOOT_TABLE, PROSPECTING_TABLE, GATHERING_TABLE };
+  const slugsOf = (table) => Object.values(table).flat().map(entrySlug);
+  const allSlugs = new Set(Object.values(tables).flatMap(slugsOf));
   const found = await prisma.tag.findMany({ where: { slug: { in: [...allSlugs] } }, select: { slug: true } });
   const foundSlugs = new Set(found.map((t) => t.slug));
   for (const [name, table] of Object.entries(tables)) {
-    const missing = [...new Set(Object.values(table).flat())].filter((s) => !foundSlugs.has(s));
+    const missing = [...new Set(slugsOf(table))].filter((s) => !foundSlugs.has(s));
     if (missing.length) {
       throw new Error(`db/lib/cavingLoot.js: ${name} references unknown tag slug(s): ${missing.join(", ")}`);
     }
   }
-  const maps = { WEIGHTS_BY_ZONE, PROSPECTING_WEIGHTS_BY_ZONE, PROSPECTING_SKILLED_WEIGHTS_BY_ZONE };
+  const maps = { WEIGHTS_BY_ZONE, PROSPECTING_WEIGHTS_BY_ZONE, PROSPECTING_SKILLED_WEIGHTS_BY_ZONE, GATHERING_WEIGHTS_BY_ZONE };
   for (const [name, map] of Object.entries(maps)) {
     for (const [zoneSlug, weights] of Object.entries(map)) {
       const sum = TIERS.reduce((total, tier) => total + (weights[tier] ?? 0), 0);
@@ -198,8 +262,9 @@ function drawFrom(weights, table) {
     roll -= w;
   }
   const pool = table[tier];
-  const slug = pool[Math.floor(Math.random() * pool.length)];
-  return { tier, slug };
+  const entry = pool[Math.floor(Math.random() * pool.length)];
+  // `quantity` is 1 for the two bare-slug tables; only the gathering table stacks a find.
+  return { tier, slug: entrySlug(entry), quantity: entryQuantity(entry) };
 }
 
 // Draws for the given cave-level zone slug (caves/depths). THROWS on an unknown zone, because
@@ -212,10 +277,15 @@ function drawLoot(zoneSlug) {
 }
 
 // The prospecting twin, and the one place the two differ: this returns NULL for a zone with no
-// column rather than throwing. Mining happens in the Black Hills too, and "you dug and found no
-// stones" is an ordinary outcome there, not a misconfiguration — for a prospector as much as for
+// column rather than throwing. A press somewhere with a `mining:` value and no column ("you dug and
+// found nothing") is an ordinary outcome, not a misconfiguration — for a prospector as much as for
 // anybody else, so the skill does not buy a column where there is no column to have.
+//
+// A gathering zone draws on the GATHERING TABLE instead, skilled or not: what the Black Hills give
+// up is food, and Prospecting reads ore.
 function drawProspectingLoot(zoneSlug, { prospecting = false } = {}) {
+  const gathering = GATHERING_WEIGHTS_BY_ZONE[zoneSlug];
+  if (gathering) return drawFrom(gathering, GATHERING_TABLE);
   const map = prospecting ? PROSPECTING_SKILLED_WEIGHTS_BY_ZONE : PROSPECTING_WEIGHTS_BY_ZONE;
   const weights = map[zoneSlug];
   if (!weights) return null;
@@ -227,6 +297,8 @@ module.exports = {
   PROSPECTING_TABLE,
   PROSPECTING_WEIGHTS_BY_ZONE,
   PROSPECTING_SKILLED_WEIGHTS_BY_ZONE,
+  GATHERING_TABLE,
+  GATHERING_WEIGHTS_BY_ZONE,
   validateCavingLoot,
   drawLoot,
   drawProspectingLoot,

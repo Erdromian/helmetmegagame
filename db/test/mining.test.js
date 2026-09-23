@@ -15,9 +15,36 @@ const {
 const { EXHAUSTED_SLUG, PROSPECTING_SLUG, PICKAXE_SLUG } = require("../lib/constants");
 
 // A context of the shape buildMiningContext returns, with a workable seam under it.
-function ctx(slugs, { coefficient = 1, tools = [] } = {}) {
-  return { locationName: "A Seam", coefficient, tagSlugs: new Set(slugs), tools };
+function ctx(slugs, { coefficient = 1, tools = [], zoneSlug = "caves" } = {}) {
+  return { locationName: "A Seam", coefficient, zoneSlug, tagSlugs: new Set(slugs), tools };
 }
+
+// The same button says Gather in the Black Hills (db/lib/gathering.js): same
+// gate, same rate, different words — and the resolved rate says which.
+test("the Black Hills gather where the caves mine, on the same gate and rate", () => {
+  const caves = resolveMiningRateFrom(ctx([PICKAXE_SLUG]), 1);
+  const hills = resolveMiningRateFrom(ctx([PICKAXE_SLUG], { zoneSlug: "hills" }), 1);
+  assert.equal(caves.verb, "mine");
+  assert.equal(caves.gathering, false);
+  assert.equal(hills.verb, "gather");
+  assert.equal(hills.gathering, true);
+  assert.deepEqual([hills.min, hills.max], [caves.min, caves.max]);
+});
+
+test("the hills' refusals are worded for the ground, and still want a pickaxe", () => {
+  const noPick = computeMiningAccess(ctx([], { zoneSlug: "hills" }));
+  assert.equal(noPick.ok, false);
+  assert.match(noPick.reason, /pickaxe/i);
+  assert.doesNotMatch(noPick.reason, /rock/i);
+  const nothing = resolveMiningRateFrom(ctx([PICKAXE_SLUG], { zoneSlug: "hills", coefficient: 0 }), 1);
+  assert.equal(nothing.ok, false);
+  assert.match(nothing.reason, /nothing to gather/i);
+});
+
+test("a zone nobody named mines, so a new seam is never a hillside by accident", () => {
+  assert.equal(resolveMiningRateFrom(ctx([PICKAXE_SLUG], { zoneSlug: null }), 1).verb, "mine");
+  assert.equal(resolveMiningRateFrom(ctx([PICKAXE_SLUG], { zoneSlug: "depths" }), 1).verb, "mine");
+});
 
 test("a pickaxe is what opens the button", () => {
   assert.deepEqual(computeMiningAccess(ctx([PICKAXE_SLUG])), { ok: true });

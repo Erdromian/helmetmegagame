@@ -145,8 +145,10 @@ const R = {
   ],
   // Mining (web/app/(app)/character/actions/mine.js): paid at the press, so unlike Farm and
   // Refine below this row already knows what the day was worth.
+  // `verb` is "gather" in the Black Hills (db/lib/gathering.js); rows written before it
+  // existed carry none and were all seams.
   request_mine: (d) => [
-    actor(), t("worked a seam"),
+    actor(), t(d.verb === "gather" ? "gathered in the hills" : "worked a seam"),
     ...(d.value != null ? [t("for"), em(`${d.value} ⬢`)] : []),
     ...(d.expression ? [t("out of"), em(d.expression)] : []),
   ],

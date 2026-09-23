@@ -9,10 +9,16 @@ can dig, and gets ⬢ and a draw on the loot table for it. The skill multiplies
 the ⬢ by 1.7 and moves the draw to a richer column — it makes a day worth more,
 it never makes one possible.
 
+**In the Black Hills the same button says Gather.** Same gate, same rate, same
+press — but nobody up there is breaking a seam, so the verb is worded for the
+ground and the draw comes off a table of food rather than stone (§3c,
+`db/lib/gathering.js`). Everywhere this doc says Mine, read Gather for the
+hills unless it says otherwise.
+
 Read this before touching `db/lib/mining.js`, `db/lib/miningYield.js`,
-`web/app/(app)/character/actions/mine.js`, the prospecting half of
-`db/lib/cavingLoot.js`, the `mining:` values in `docs/zones.yaml`, or any
-`miningBonus:` in `docs/tags.yaml`.
+`db/lib/gathering.js`, `web/app/(app)/character/actions/mine.js`, the
+prospecting or gathering half of `db/lib/cavingLoot.js`, the `mining:` values in
+`docs/zones.yaml`, or any `miningBonus:` in `docs/tags.yaml`.
 
 Related: [`CAVING.md`](CAVING.md) (the Caving Die, whose table machinery the
 loot roll reuses), [`TRINKETS.md`](TRINKETS.md) and [`SMITHING.md`](SMITHING.md)
@@ -113,13 +119,12 @@ One `LocationMining` row per minable Location, and **the row is the gate**:
 - **A row drifted to 0** — the button still appears and Examine still prints a
   word. That *is* worth checking back on.
 
-**The sheet's Mine button only ever shows in the Caves.** `resolveMiningRateFrom`
-still reads whatever `LocationMining` row a character stands on, so the
-Black Hills and the Depths (`depths-7` included) are still priced and
-still drift, but `/character` (`web/app/(app)/character/page.js`) shows the
-button to anyone holding a pickaxe and greys it — "You need to be in the
-caves." — everywhere outside the `caves` zone. There is currently no player
-surface that reaches a mining payout anywhere but the Caves.
+**The button shows everywhere, and the row is what greys it** (§3a). It used
+to be shut outside the `caves` zone — "You need to be in the caves." — which
+kept the Depths and the Black Hills out of a system whose coefficients they
+both carry. That check is gone: `resolveMiningRateFrom` reads whatever
+`LocationMining` row a character stands on, and a place with none says
+"There's nothing to mine here." (or "…to gather here.", §3c).
 
 `base` is authored in `docs/zones.yaml` as a bare `mining:` value and is what
 `current` reverts toward. `current` is the live coefficient, re-drifted at
@@ -209,14 +214,14 @@ Two per zone, because Prospecting boosts the draw rather than unlocking it. The
 plain column is what a pickaxe alone gets you; the skilled one is what the tag
 buys, roughly 20% richer.
 
-| Tier | Caves | Caves +P | Depths | Depths +P | Black Hills |
-|---|---|---|---|---|---|
-| Ultracommon | 62% | 54.4% | 18% | 5% | — |
-| Common | 26% | 31.2% | 24% | 25% | — |
-| Uncommon | 9% | 10.8% | 28% | 32% | — |
-| Rare | 2.8% | 3.36% | 22% | 27% | — |
-| Extremely rare | 0.15% | 0.18% | 6% | 8% | — |
-| Nearly impossible | 0.05% | 0.06% | 2% | 3% | — |
+| Tier | Caves | Caves +P | Depths | Depths +P |
+|---|---|---|---|---|
+| Ultracommon | 62% | 54.4% | 18% | 5% |
+| Common | 26% | 31.2% | 24% | 25% |
+| Uncommon | 9% | 10.8% | 28% | 32% |
+| Rare | 2.8% | 3.36% | 22% | 27% |
+| Extremely rare | 0.15% | 0.18% | 6% | 8% |
+| Nearly impossible | 0.05% | 0.06% | 2% | 3% |
 
 The Caves' skilled column is computed: every tier above Ultracommon times 1.2,
 with the remainder taken off the top row. The Depths' is **hand-set**, because
@@ -224,13 +229,12 @@ the same arithmetic there lands Ultracommon at 1.6% — correct, and it reads as
 bug rather than a boost, since 82% of that column is already above Ultracommon.
 5% is the smallest number that still looks deliberate.
 
-**The Black Hills have no column at all, and that absence IS the rule.** They
-are minable for ⬢ and hold nothing worth finding — surface rock, worth working
-if you are already up there. `drawProspectingLoot` returns null for a zone with
-no column rather than throwing, which is the one way it differs from
-`drawLoot`: mining somewhere with no stones in it is an ordinary outcome, not a
-misconfiguration. The skill does not buy a column where there is none, so a
-prospector in the Hills finds nothing either.
+**The Black Hills are not on this table.** They draw on the gathering table
+instead (§3c). A zone on neither table — Town, the Forest — has no column at
+all, and that absence IS the rule: `drawProspectingLoot` returns null for it
+rather than throwing, which is the one way it differs from `drawLoot`. Working
+somewhere with nothing in the ground is an ordinary outcome, not a
+misconfiguration, and the skill does not buy a column where there is none.
 
 ### The contents
 
@@ -274,12 +278,77 @@ rather than **what**: `cavingPass` rolls 1d6 with advantage and only a 6 draws
 
 ### Validation
 
-`validateCavingLoot(prisma)` checks **both** tables' slugs against the live Tag
-catalog and **both** weight maps' columns for summing to 1, once at process
+`validateCavingLoot(prisma)` checks **all three** tables' slugs against the live
+Tag catalog and every weight map's columns for summing to 1, once at process
 startup (`bot/src/index.js`, the web's instrumentation hook), never per roll. A
 typo fails the boot rather than a player's press. That is the whole reason this
 is code and not YAML, and it is why deleting a tag the table names is caught
 loudly instead of quietly.
+
+## 3c. Gathering, in the Black Hills
+
+The Black Hills carry `mining:` coefficients (0.2–0.3, §2) and always did, so
+a day up there paid ⬢ and turned up nothing. From 2026-09-22 it turns up
+**food**. Nothing about the press changed except the words and the table:
+
+| | Underground | The Black Hills |
+|---|---|---|
+| The button | **Mine** | **Gather** |
+| The gate | a pickaxe | a pickaxe |
+| The ⬢ | `6–12` × the dials × the place, ×1.7 with Prospecting | the same |
+| The draw | the prospecting table, plain or skilled column | the gathering table, one column |
+| Examine's line | `**Mining**: Scarce` | `**Gathering**: Scarce` |
+| The Action row | "Working a seam." | "Gathering in the hills." |
+
+**The verb is decided in one place**, `db/lib/gathering.js`, by zone slug:
+`GATHERING_ZONE_SLUGS` is `["hills"]`, and a zone not on it mines, so a new
+zone with a `mining:` value is a seam until somebody says otherwise. The module
+has zero requires, because the sheet's action registry is a client component
+and reads it for the label. `resolveMiningRateFrom` returns `verb` and
+`gathering` off it; the sheet page (`workVerb`), the confirm dialog, the help
+sentence, the refusals ("You need a pickaxe to dig anything up out here."), the
+paid line, the audit narrative (`details.verb`) and Examine all read the same
+entry rather than testing the zone themselves.
+
+**Prospecting changes nothing about the draw up there.** The skill reads ore,
+and there is no ore in the hills. It still multiplies the ⬢ by 1.7, because
+that half of the skill is knowing how to work a day, not what to look for.
+
+**The pickaxe is still the gate.** That is a flavour mismatch — you do not
+snare a hare with a pick — kept on purpose so this change alters no economy:
+who may press the button, and what a press pays in ⬢, are exactly what they
+were. If the hills should feed people who own no pick, that is a separate
+decision about the ⬢ side too, and the gate to loosen is `computeMiningAccess`.
+
+### The gathering table
+
+`GATHERING_TABLE` in `db/lib/cavingLoot.js`. Every entry is food, and most come
+as a small **stack** — one onion is not a day's work. An entry is
+`{ slug, quantity }`; the two stone tables stay bare slugs, and `drawFrom` reads
+either. The `miningDrop` effect grants the stack and writes `quantity` into its
+snapshot, so Undo takes back exactly what was granted; a snapshot with no
+`quantity` predates the table and was always one stone.
+
+| Tier | Weight | What is in it |
+|---|---|---|
+| Ultracommon | 50% | Cave Fungus ×2, Onion ×2, Carrot ×2 |
+| Common | 30% | Crayfish ×2, Meat, Skinned Cave Rat |
+| Uncommon | 14% | Deep Morel, Honey, Meat ×2 |
+| Rare | 4.5% | Boar Loin, Deer Liver |
+| Extremely rare | 1% | Boar Loin ×2, Deer Liver ×2 |
+| Nearly impossible | 0.5% | Arelitz Egg |
+
+Boar Loin and Deer Liver had **no source at all** before this: `COOKING.md` §11
+listed them under Hunting, and the Hunting tier went with Laboring (§0). The
+rare rungs are where they live now. The egg at the bottom is a wild clutch —
+carried to a stable it hatches on the stable's own clock (`ARELITZ.md` §4).
+
+**What it is worth, honestly: a supplement, not a diet.** Hunger burns 35 a
+turn (`db/lib/hunger.js`), and an average press brings home somewhere around
+10–15 hunger once cooked — a third of a person-day, plus the ⬢. Three people
+gathering feed about one. It is the hills having a larder at all, so that a
+town with no Merchant's Licence and a worn-out field is not living on Ration
+Boxes alone; it is not a replacement for the Soilery.
 
 ## 4. Tools
 
@@ -387,9 +456,10 @@ At base, only `depths-7` wears Ample; nothing wears Bountiful.
 
 | File | What it owns |
 |---|---|
-| `db/lib/mining.js` | The two rates, the location cut, the tools |
-| `db/lib/cavingLoot.js` | `PROSPECTING_TABLE`, its zone weights, `drawProspectingLoot` |
-| `db/lib/moveEffects.js` | The `miningDrop` effect: the skill gate, the draw, the grant, the undo |
+| `db/lib/mining.js` | The two rates, the location cut, the tools, and which verb the place wears |
+| `db/lib/gathering.js` | `GATHERING_ZONE_SLUGS` and the words each verb carries — label, help, confirm, refusals, the paid line |
+| `db/lib/cavingLoot.js` | `PROSPECTING_TABLE` and `GATHERING_TABLE`, their zone weights, `drawProspectingLoot` |
+| `db/lib/moveEffects.js` | The `miningDrop` effect: the draw, the grant (a stack, for a gathered find), the undo |
 | `db/lib/miningYield.js` | Drift math, the turn pass, the quality words |
 | `web/app/(app)/character/actions/mine.js` | The button: files the Move and pays it |
 | `db/lib/fatigue.js` | The Tired → Exhausted ladder (shared, not ours) |

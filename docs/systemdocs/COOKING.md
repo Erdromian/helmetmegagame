@@ -471,8 +471,8 @@ adjudicating should see everything.
 
 | Source | What |
 |---|---|
-| Hunting | Boar Loin, Deer Liver, Goose Fat |
-| Fishing | Crayfish everywhere; River Eel in the Forest, Lamprey in the Marshes, Blind Fish in the Caves |
+| Gathering in the Black Hills (`MINING.md` §3c) | The Gather button's table: Cave Fungus, Onion and Carrot most days; Crayfish, Meat and a Skinned Cave Rat on a good one; Deep Morel and Honey; and Boar Loin and Deer Liver at the rare rungs — the only source those two have, since the Hunting labour tier went |
+| Fishing | No verb produces these today. River Eel, Lamprey and Blind Fish are catalog tags with no source; Crayfish come off the gathering table and a room stash |
 | Farming | Onion (the commonest and cheapest of the thirteen, on purpose) |
 | A cook's starting kit | Servant, Geschef, Innkeeper and Inn Staff each start with 8 Wheat, 12 Potato, 6 Carrot, 8 Tomato and 6 Onion (`docs/roles.yaml`): 40 crops, which is 20 basic dishes for one whole Move and feeds 20 person-turns |
 | Caving | Rock Salt, `ultracommon` in `db/lib/cavingLoot.js` |

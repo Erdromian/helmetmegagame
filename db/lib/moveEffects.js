@@ -99,9 +99,9 @@ const MOVE_EFFECTS = {
   // else is digging. It reuses the Caving Die's table machinery (db/lib/cavingLoot.js), which is why there is no YAML behind it: the whole
   // MiningDropOption subsystem it replaced was deleted on 2026-09-18.
   //
-  // TWO gates, and they are different refusals. No Prospecting: no roll at all, ever — the skill is what turns rock into ore you can recognise
-  // (db/lib/mining.js). No column for the zone: no roll either, but that one is ordinary — the Black Hills are minable for ⬢ and hold nothing worth
-  // finding.
+  // In a gathering zone (db/lib/gathering.js — the Black Hills) the same press draws on the gathering table instead, and what comes up is food
+  // in a small stack rather than one stone; cavingLoot.js decides that by zone, so nothing here tells the two apart beyond the `quantity`.
+  // A zone with no column on either table draws nothing, and that is ordinary — Town has a Mine button that never appears, not a bug.
   //
   // The key, the AUTO_MINE_NOTE trigger and the { kind: "TAG", tagId, ... } snapshot shape are all unchanged on purpose, so Action rows written
   // under the old die still revert through the arm below.
@@ -142,12 +142,15 @@ const MOVE_EFFECTS = {
       const turn = tag.defaultDurationTurns
         ? await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } })
         : null;
-      await addToStack(tx, action.characterId, tag.id, 1, {
+      // A gathering find comes as a stack; a stone is always one. addToStack pins a non-stackable tag at 1 whatever is asked, so the
+      // snapshot records what was actually granted and the revert takes back exactly that.
+      const quantity = tag.stackable === true ? Math.max(1, drawn.quantity ?? 1) : 1;
+      await addToStack(tx, action.characterId, tag.id, quantity, {
         source: "EVENT",
         stackable: tag.stackable === true,
         expiresTurn: turn ? expiryFrom(turn.number + 1, tag.defaultDurationTurns) : null,
       });
-      return { kind: "TAG", tier: drawn.tier, tagId: tag.id, tagSlug: tag.slug, tagName: tag.name ?? "something" };
+      return { kind: "TAG", tier: drawn.tier, tagId: tag.id, tagSlug: tag.slug, tagName: tag.name ?? "something", quantity };
     },
     revert: async (tx, action, snapshot) => {
       if (!snapshot) return;
@@ -156,9 +159,10 @@ const MOVE_EFFECTS = {
         await addResources(tx, action.characterId, -snapshot.amount);
         return;
       }
+      // `quantity` is absent on rows written before the gathering table existed, and those were always one stone.
       if (snapshot.kind === "TAG" && snapshot.tagId) {
         const { dropCharacterTag } = require("./tagWrites");
-        await dropCharacterTag(tx, action.characterId, snapshot.tagId, 1);
+        await dropCharacterTag(tx, action.characterId, snapshot.tagId, snapshot.quantity ?? 1);
       }
     },
   },
