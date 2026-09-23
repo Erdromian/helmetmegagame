@@ -332,6 +332,36 @@
   }
 }
 
+/* In a drawer the Modal panel is the one scroller (chat.css, "The two
+   drawers"), so the columns must not bring their own scroll boxes in with
+   them. chat.css already flattens them there, but this file loads after it at
+   the same weight, so `.chat-places` and `.chat-aside-stack` came back as
+   scrollers with overscroll-behavior: none. Chrome treats a box like that as a
+   wall even when it has nothing to scroll: a swipe that starts inside it stops
+   there and never reaches the drawer. On Android, neither drawer moved at all.
+   The heads and tails that stick inside the desktop column stay in the flow
+   here, because a pinned tail would park the app links over the last places.
+   The GM's tabbed pane (.chat-aside-panel) had the same trap by another road:
+   chat.css sets it `overflow-y: visible`, but beside `overflow-x: hidden` that
+   computes to `auto`, so it stayed a scroller too.
+   Unscoped by width, like chat.css's drawer rules: a drawer only exists when
+   its hook says the column has folded. `clip` rather than `hidden` on the x
+   axis still keeps the drawer from panning sideways, without making a
+   scroller of its own. */
+[data-chat-next] .chat-drawer .chat-places,
+[data-chat-next] .chat-drawer .chat-aside-stack,
+[data-chat-next] .chat-drawer .chat-aside-panel {
+  height: auto;
+  overflow-x: clip;
+  overflow-y: visible;
+  overscroll-behavior: auto;
+}
+
+[data-chat-next] .chat-drawer .chat-places > .bar,
+[data-chat-next] .chat-drawer .chat-places-tail {
+  position: static;
+}
+
 @media (max-width: 720px) {
   [data-chat-next] .chat-body {
     grid-template-columns: minmax(0, 1fr);
@@ -355,11 +385,40 @@
     height: 48px;
     min-height: 48px;
   }
+  /* Between two drawer buttons and Search there is room for about one word,
+     and it went to the crumb and "2 here" while the place's own name was cut
+     to "MERCHA…". The count is already on the 👥 button's badge, so it goes;
+     the crumb gives way before the name does. */
+  [data-chat-next] .chat-head > .sub {
+    display: none;
+  }
+  [data-chat-next] .chat-head > .crumb {
+    flex: 0 100 auto;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  /* 16px or more, or iOS zooms the whole page every time the box is tapped.
+     --fs-base is 14px at this width (globals.css), and `.field textarea`'s
+     own 16px floor there is outweighed by `.say` below (hence the `textarea`,
+     to outrank it from up here). The old composer had this; the rebuild lost it. */
+  [data-chat-next] textarea.say {
+    font-size: max(16px, var(--fs-base));
+  }
 }
 
 @media (pointer: coarse) {
   [data-chat-next] .row-line {
     min-height: var(--tap-sm);
+  }
+  /* Send is not an .icon-btn, so the app's 44px touch floor never reached
+     it: a 15px glyph with 2px round it, the most-tapped control in chat, right
+     above the keyboard. */
+  [data-chat-next] .chat-composer-send {
+    min-width: var(--tap);
+    min-height: var(--tap);
+    justify-content: center;
   }
 }
 

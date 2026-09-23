@@ -6,6 +6,7 @@ import FormError from "@/app/components/FormError";
 import HoverCard from "@/app/components/HoverCard";
 import ChipLabel from "@/app/components/ChipLabel";
 import TagDetails from "@/app/components/TagDetails";
+import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import ActionButton from "@/app/components/ActionButton";
@@ -182,6 +183,7 @@ function ThingMenu({ row, onClose, onEquip, onUnequip, onSound, soundPending, pe
 // above it.
 function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, onSound, soundPending, pending }) {
   const triggerRef = useRef(null);
+  const touch = useIsCoarsePointer();
   return (
     <span className="chat-thing-wrap">
       {/* The app's REAL tag chip on hover, the same as the floor's chips
@@ -220,6 +222,14 @@ function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, onSound
       </HoverCard>
       {isOpen && (
         <ClickMenu triggerRef={triggerRef} onClose={onClose} ariaLabel={row.tag.name}>
+          {/* A touch screen has no hover, so the details above could never
+              open there. The tap that opens this menu is the one moment the
+              player is looking at the item, so they ride at its top. */}
+          {touch && (
+            <div className="chat-menu-details">
+              <TagDetails tag={row.tag} quantity={row.quantity} poisonMarker={row.poisonMarker} />
+            </div>
+          )}
           <ThingMenu
             row={row}
             onClose={onClose}

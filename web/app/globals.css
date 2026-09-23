@@ -4696,6 +4696,16 @@ label.chip {
   cursor: pointer;
 }
 
+/* An option ChipPicker.js greys out. `.chip` sets its own colour, so the
+   browser's disabled grey never showed and an option you could not pick looked
+   exactly like one you could. Keyed on data-off rather than :disabled: an
+   option with a reason is only aria-disabled, so a tap can say why. A chosen
+   chip that is off (a filled ingredient slot) keeps its chosen look. */
+button.chip[data-off="true"]:not([data-active]) {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
 .desk-inspector-head {
   position: relative;
   display: flex;
