@@ -973,6 +973,82 @@ Both used to carry a Laboring bonus, which is where this section came
 from. Laboring is gone and only three tags pay into a day's work now
 (`MINING.md` §4) — one of which, the Mining Helmet, the Merchant does stock.
 
+### Cooking ingredients with no other source
+
+Ten cooking ingredients carry a `cooked:` block, `catalog: all` and a
+`sellablePrice`, but no ongoing way onto a sheet — no farming, no
+butchering, no caving loot, nothing past a one-time room-stash seed or
+starting-kit grant (`COOKING.md` §11 lists the real, repeatable sources; a
+stash or a starting kit is a seed, never a top-up — once it's spent, it's
+gone for the rest of the game). Most were left behind by a rename: `cheese`
+and `eel` are deliberate near-duplicates of `hard-cheese`/`river-eel`, and
+neither picked up the older tag's source; `fish-roe`, `ravens-eye` and
+`trout-heart` were all "dropped by the labor loot pass," which no longer
+exists. Boar Loin, Deer Liver and Crayfish were always credited to
+"Hunting"/"Fishing" in `COOKING.md`, and neither verb has ever existed in
+code.
+
+A `depotPrice` is the fix for the ones that are plain foodstuffs, sold back
+at 2–4 ¢ already, so the buy price starts one to two above that:
+
+| Ware | ¢ | Sells back | Blocks (no substitute in the recipe) |
+|---|---|---|---|
+| `eel` | 3 | 2 | Fish Stew/Fried Fish's eel-or-haggar-or-tunnel-trout picker (`COOKING.md` §2a) |
+| `haggar` | 3 | 2 | same picker |
+| `tunnel-trout` | 3 | 2 | same picker |
+| `cheese` | 4 | 2 | Pizza Slice, Fondue — the starting-kit "Cheese x3" on four cook-adjacent roles runs out fast |
+| `deer-liver` | 4 | 3 | Foie Gras |
+| `crayfish` | 4 | 3 | Honeyed Crayfish |
+| `boar-loin` | 5 | 4 | nothing yet — it just had no source |
+| `sugar` | 5 | 2 | Honeyed Sweets/Carrot Cake/Fondue's honey-or-sugar picker still works without it, but nothing else did |
+| `fish-roe` | 7 | 2 | Caviar (spends two) |
+
+Four of these ¢ figures (`cheese`, `boar-loin`, `sugar`, `fish-roe`) are
+pushed above the plain sell+1/2 pattern the rest follow — see below.
+
+### The raw-eating ceiling
+
+**No purchasable raw food may be a better deal, hunger and mood combined,
+than a Ration Box.** Eating anything raw pays a flat −10 mood
+(`db/lib/hunger.js#RAW_FOOD_MOOD`) before the food's own `cooked.mood`
+lands, so an ingredient with a big enough mood figure can net a *better* raw
+bite than the Ration Box's own 25.5 hunger / −5 mood for 3 ¢, even while
+paying more ¢ per unit of hunger alone. A point of mood counts as 1.5 points
+of hunger for this comparison (`npm run economy:report -- --mood-weight
+1.5`; the report's own default is 2, but 1.5 is the number this catalog is
+priced against), which puts the Ration Box's own ceiling at 6.0 points/¢
+(`(25.5 + 1.5×−5) ÷ 3`).
+
+`sugar`, `cheese`, `fish-roe`, `boar-loin`, `honey` and `sugar-candy` were
+all checked against it. `fish-roe`'s mood (28) is the second-highest in the
+whole catalog, behind only Saffron's 45 — at a plain staple's price that's a
+huge free mood boost for skipping both farming and cooking. `honey` and
+`sugar-candy` carry the identical hunger (12, via `DEFAULT_FOOD_HUNGER` —
+neither sets its own `cooked.hunger`) and mood (20) `sugar` does, at the
+same 3 ¢ starting price, so the same failure and the same fix apply to all
+three alike. `boar-loin`'s mood (16) falls just short of failing the check
+at its plain sell+1 price, so it needed no bump beyond that:
+
+| Ware | Before | After | Why |
+|---|---|---|---|
+| `boar-loin` | 5 | 5 (no change) | mood 16 clears the ceiling already at the sell+1 price |
+| `cheese` | 3 | 4 | mood 15 |
+| `sugar` | 3 | 5 | mood 20 |
+| `honey` | 3 | 5 | same shape as `sugar` — pre-existing, not a new addition |
+| `sugar-candy` | 3 | 5 | same shape again; "unrelated to cooking" (its own comment), so this is purely the raw-eating fix |
+| `fish-roe` | 3 | 7 | mood 28, the largest gap of the six |
+
+`aberrant-heart`, `ravens-eye` and `trout-heart` are the same shape of gap —
+`BREWING.md` §4 says so outright — but they stay off this shelf on purpose:
+each is `catalog: gm`, and the doc names their intended fix as the
+prospecting loot table or a fallen monster, not an import. Stocking a
+fallen Aberrant's own heart at the counter would say the opposite of what
+the tag is for. `adders-bite` looks like the same shape (also `cooked:`,
+also no depotPrice) but isn't a gap at all: it already has a real,
+repeatable source on the Thanati's own black-market shelf (`THANATI_WARES`,
+`THANATI.md` §3), which is exactly the kind of restricted, narrative-gated
+source this section is protecting for the monster-trophy ingredients too.
+
 ## 4. Selling
 
 What the station pays him, per unit. This is the other half of the loop —
