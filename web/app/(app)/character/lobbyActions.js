@@ -6,7 +6,7 @@ import { readGameState } from "@lifeweb/db/lib/gameState";
 import { normalizePriorities, normalizeJoblessRole } from "@lifeweb/db/lib/playerPreferences";
 import { auth } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { getGuildMember, isLeaderWhitelisted, onRoster } from "@/lib/discordGuild";
+import { getGuildMember, isLeaderWhitelisted, onRoster, playtestRosterClosed } from "@/lib/discordGuild";
 import { isSpawnOnly } from "@/lib/characterCreation";
 
 // The lobby's three verbs (docs/systemdocs/LOBBY.md §2). Every one re-derives
@@ -20,7 +20,7 @@ async function lobbyGate() {
 
   const [state, config, member, alive] = await Promise.all([
     readGameState(prisma, { phase: true }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playtestModeEnabled: true } }),
+    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playtestModeEnabled: true, playtestRequiresRole: true } }),
     // Same window the page that drew the button gated on (character/page.js),
     // so the action is never stricter than the render — and it shares that
     // render's memoized cache() entry. Asking for 0 instead skipped the roster
@@ -31,7 +31,7 @@ async function lobbyGate() {
   ]);
   const superadmin = isSuperadmin(discordUserId);
   if (state?.phase !== "LOBBY") return { error: "The lobby isn't open." };
-  const playtestMode = config?.playtestModeEnabled === true;
+  const playtestMode = playtestRosterClosed(config);
   if (!superadmin && !onRoster(member, { playtestMode })) {
     // In playtest mode this is not something a player can fix by asking, so
     // say the doors are shut rather than sending them to a GM for a role that

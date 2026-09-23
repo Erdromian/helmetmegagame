@@ -40,6 +40,7 @@ import {
   isLeaderWhitelisted,
   isGm,
   onRoster,
+  playtestRosterClosed,
 } from "@/lib/discordGuild";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { lateJoinOpeningFor, lateJoinCapacity } from "@lifeweb/db/lib/lateJoin";
@@ -162,7 +163,7 @@ export async function createCharacter(formData) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !onRoster(member, { playtestMode: config?.playtestModeEnabled === true })) {
+  if (!bypass && !onRoster(member, { playtestMode: playtestRosterClosed(config) })) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
 
@@ -578,7 +579,7 @@ export async function reserveRoleAction(roleId) {
   if (!bypass && !creationOpen(state?.phase, member)) {
     return { error: "Ravenheart isn't open yet. Character creation opens when the game begins." };
   }
-  if (!bypass && !onRoster(member, { playtestMode: config?.playtestModeEnabled === true })) {
+  if (!bypass && !onRoster(member, { playtestMode: playtestRosterClosed(config) })) {
     return { error: "You aren't on the roster for this game. Ask a GM if you think that's wrong." };
   }
   // Same late-join exception createCharacter makes, for the same reason: a

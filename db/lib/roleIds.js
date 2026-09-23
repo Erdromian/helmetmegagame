@@ -25,7 +25,8 @@ const LEADER_WHITELIST_ROLE_ID = "1545070354295169214";
 const PLAYTEST_ROLE_ID = "1546259369539280936";
 
 // The people building this game, distinct from the Playtest testing bypass.
-// Grants nothing on its own; read by exactly one gate — GameConfig.playtestModeEnabled.
+// Grants nothing on its own; read by exactly one gate — GameConfig.playtestModeEnabled,
+// while GameConfig.playtestRequiresRole is on.
 // Reads as "Contributor" in the guild.
 const CONTRIBUTOR_ROLE_ID = "1544753625526440027";
 

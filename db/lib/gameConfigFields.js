@@ -54,6 +54,11 @@ const FIELDS = [
     label: "Playtest",
     info: "Only GMs, playtesters, and contributors can join",
   },
+  {
+    key: "playtestRequiresRole", type: "bool", group: "creation", default: true,
+    label: "Require Playtest role",
+    info: "Only matters while Playtest is on. On: only GMs, playtesters, and contributors can join. Off: anyone with the Player role can join too",
+  },
 
   // --- Economy ---------------------------------------------------------------
   {

@@ -102,6 +102,7 @@ import {
   isGm,
   isLeaderWhitelisted,
   onRoster,
+  playtestRosterClosed,
 } from "@/lib/discordGuild";
 import {
   isSpawnOnly,
@@ -164,8 +165,8 @@ async function loadCreationData(discordUserId) {
   const phase = state?.phase ?? "CLOSED";
   // Only a GM skips the lobby — a playtester rehearses like everybody else (db/lib/roleIds.js).
   const skipper = isGm(member);
-  // Playtest mode narrows the roster to the build crew (LOBBY.md §2). Server-side gates re-check it regardless.
-  const playtestMode = config?.playtestModeEnabled === true;
+  // A closed playtest narrows the roster to the build crew (LOBBY.md §2). Server-side gates re-check it regardless.
+  const playtestMode = playtestRosterClosed(config);
   const approved = superadmin || onRoster(member, { playtestMode });
   const gate = {
     phase,
