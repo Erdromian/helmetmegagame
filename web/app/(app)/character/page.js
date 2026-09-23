@@ -77,6 +77,7 @@ import {
   freeZoneMovesReason,
 } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
+import { seatsAllocated } from "@lifeweb/db/lib/lobby";
 import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import {
   LATE_JOIN_GROUP,
@@ -228,7 +229,10 @@ async function loadCreationData(discordUserId, { config, state, leaderWhiteliste
 
   // Seated (ALIVE, plus DEAD on every seat but Bum and Migrant) plus anyone
   // else's live wizard-in-progress hold; excludes the viewer's own hold.
-  const takenByRole = await takenCounts(prisma, roleRows, discordUserId);
+  // Before Start Game holds don't count, so a GM skipping ahead sees only real characters (db/lib/lobby.js#seatsAllocated).
+  const takenByRole = await takenCounts(prisma, roleRows, discordUserId, {
+    countReservations: seatsAllocated(state?.phase),
+  });
 
   // LATE JOINS (db/lib/lateJoin.js): the seats a GM has opened, drawn in their
   // own "Special" section above the social buckets. `slots` is the cap here

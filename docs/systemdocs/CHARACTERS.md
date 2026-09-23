@@ -508,6 +508,14 @@ cron job. The picker (`/character`) counts seated characters (per
 own — so a held role reads as taken
 to other players and available to its holder.
 
+**No hold exists before Start Game.** In CLOSED and LOBBY the only way into
+the wizard is a GM's Skip, and seats are the roll's to hand out, so
+`reserveRoleAction` writes nothing and neither the picker nor
+`createCharacter` counts a hold (`db/lib/lobby.js#seatsAllocated`). One
+skipper's pick used to show as taken to the next. A character a skipper
+actually builds is still a seat. Start Game deletes any hold left over, so none
+can overfill a seat the roll just filled (LOBBY.md §2).
+
 ### The Leader Whitelist
 
 A role with `whitelist: true` in `docs/roles.yaml` — carried into the DB as
