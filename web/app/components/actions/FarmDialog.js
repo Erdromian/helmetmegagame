@@ -83,7 +83,9 @@ export default function FarmDialog({ onDone, onClose }) {
         {overCap ? `A farm holds at most ${maxCrops} plants at once.` : null}
       </p>
       <p className="text-xs text-muted">
-        Sowing takes the whole day, and the crop comes in when the day turns.
+        {pools.dayLongTurn === false
+          ? "Sowing takes the whole turn, and the crop comes in when the turn closes."
+          : "Sowing takes the whole day, and the crop comes in when the day turns."}
       </p>
       {pools.fieldWarning ? <p className="text-xs text-accent">{pools.fieldWarning}</p> : null}
     </ActionDialog>

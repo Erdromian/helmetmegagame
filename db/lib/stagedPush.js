@@ -26,6 +26,7 @@ const { ensureDeliveries } = require("./stagedDelivery");
 const { applyDeathWithVampireOverride, announceVampireAsh } = require("./vampireDeath");
 const { farmDm } = require("./soilery");
 const { breakInDm } = require("./arelitz");
+const { isDayLongTurn } = require("./turnClock");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -548,7 +549,7 @@ async function runStagedPushPass(prisma, turn) {
           // the time they started.
           notice = {
             discordUserId: action.character.discordUserId,
-            content: `*Your day on the Factory floor, turn ${turn.number}.*\n**Applied:** ${describeMoveEffects({ refined: applied.refined })}`,
+            content: `*Your ${isDayLongTurn(turn) ? "day" : "shift"} on the Factory floor, turn ${turn.number}.*\n**Applied:** ${describeMoveEffects({ refined: applied.refined })}`,
           };
         }
       });

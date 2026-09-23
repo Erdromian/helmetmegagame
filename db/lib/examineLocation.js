@@ -13,6 +13,7 @@ const { describeLocation, hasAttribute } = require("./locationAttributes");
 const { loadDepot } = require("./depotState");
 const { trainHere } = require("./train");
 const { structuresAt } = require("./structures");
+const { isDayLongTurn } = require("./turnClock");
 
 // Returns { ok: true, name, lines } or { ok: false, error }. `lines` is
 // plain text — whichever face is asking adds its own `»` or its own markup.
@@ -63,6 +64,11 @@ async function examineLines(prisma, locationId) {
     };
   }
   const structures = await structuresAt(prisma, locationId);
+  // A building going up counts its progress in turns, and only a whole-day turn is a day (turnClock.js#isDayLongTurn).
+  // Read only when there is one, so a place with nothing under construction costs no extra query.
+  const dayLongTurn = structures.some((s) => s.status === "UNDER_CONSTRUCTION")
+    ? isDayLongTurn(await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { turnLengthHours: true } }))
+    : true;
 
   return {
     ok: true,
@@ -70,7 +76,7 @@ async function examineLines(prisma, locationId) {
     // A place with no LocationMining row at all (Town) has nothing to say
     // here — dropped rather than printed as an empty line, same as every
     // other part of this readout that has nothing to say.
-    lines: [...(miningLine ? [miningLine] : []), ...describeLocation(location, { gates, depot, structures })],
+    lines: [...(miningLine ? [miningLine] : []), ...describeLocation(location, { gates, depot, structures, dayLongTurn })],
   };
 }
 

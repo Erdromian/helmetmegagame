@@ -199,6 +199,9 @@ export default function RequestActionsProvider({
   farmBlocked = null,
   farmMaxCrops,
   fieldWarning = null,
+  // Whether the open turn is a whole day (db/lib/turnClock.js#isDayLongTurn). Wording only: a dialog that says "the day"
+  // says "the turn" on a shorter game. Defaults to true, so a page that never passes it keeps the old sentence.
+  dayLongTurn = true,
   // Breaking in an unruly arelitz (db/lib/arelitz.js). Same posture as Farm
   // just above: whether there's a stable here is a fact about where you're
   // standing, resolved server-side in character/page.js. `breakInBlocked` is
@@ -366,6 +369,7 @@ export default function RequestActionsProvider({
     carry,
     farmMaxCrops,
     fieldWarning,
+    dayLongTurn,
     transferParties,
     lootTargets,
     consumeTargets,

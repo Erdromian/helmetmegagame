@@ -11,7 +11,8 @@ export {
 export async function findOpenTurnAction(prisma, characterId) {
   const openTurn = await prisma.turn.findFirst({
     where: { status: "OPEN" },
-    select: { id: true, number: true, dayNumber: true },
+    // `turnLengthHours` for wording only (db/lib/turnClock.js#isDayLongTurn).
+    select: { id: true, number: true, dayNumber: true, turnLengthHours: true },
   });
   if (!openTurn) return { openTurn: null, action: null };
 
