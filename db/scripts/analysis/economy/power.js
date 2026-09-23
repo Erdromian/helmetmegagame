@@ -2,13 +2,14 @@
 // pretending to be precise. Built entirely from what db/scripts/analysis/economy/starting.js already
 // worked out (docs/roles.yaml, docs/zones.yaml), so there is nothing new to read from disk here.
 //
-//   TAG VALUE      A role's whole point-buy budget at creation, in the Store's own points: what the
+//   TAG VALUE      What a role is handed at creation over everybody else, in the Store's own points: what the
 //                  free starting kit would have cost, point for point (a role's own starting_tags
 //                  priced the same way the point-buy store prices everyone else's purchases —
 //                  Tag.pointCost; Obols and Resources carry none, so a fat purse does not inflate
 //                  this), PLUS any extra_starting_points docs/roles.yaml gives the role on top of
 //                  GameConfig.startingTagPoints — the Baron's +5, the Courtier's +7, and so on. Both
-//                  halves are shown (kitValue, extraPoints) so the total is never a hidden sum.
+//                  halves are shown (kitValue, extraPoints) so the total is never a hidden sum. The base
+//                  GameConfig.startingTagPoints every role shares is NOT in it.
 //
 //   WEALTH         What a role could turn into spendable ¢ on day one, on its own: bank plus coin in
 //                  hand plus ⬢ on the person, the ⬢ valued at the Depot's sell-back (the guaranteed
@@ -24,13 +25,15 @@
 //   SOFT POWER     The vague one, on purpose — the user asked for it anyway, because "how much of a
 //                  big deal is this seat" is a real question a GM asks even though nothing in the
 //                  catalog prices it. Built from signals that ARE in the data, not from reading each
-//                  role's prose for the word "leader": whether it is a unique named seat
-//                  (`multiple: false` — Baron, Bishop, Sheriff, one to a game, docs/roles.yaml's own
-//                  header calls this out as the leadership tell), whether it is whitelisted (vetted
-//                  players only), how autonomous its bank account is (an OFFSHORE account answers to
-//                  nobody's Vault), how many keys and licences it starts with, how many locked rooms
-//                  those open, how much lore it starts already knowing (`doc_elements`), its own bonus
-//                  points at creation, and how rare the seat itself is. Every weight is a small,
+//                  role's prose for the word "leader": whether it is whitelisted (vetted players
+//                  only), how autonomous its bank account is (an OFFSHORE account answers to nobody's
+//                  Vault), how many keys and licences it starts with, how many locked rooms those
+//                  open, how much lore it starts already knowing (`doc_elements` — the Baron's power
+//                  is mostly this: every player is told who he is, and several roles are handed a
+//                  relationship with him), its own bonus points at creation, and how rare the seat
+//                  itself is. There used to be a flat bonus for a one-to-a-game seat (`multiple:
+//                  false`) on top of that; Bascinet took it out on 2026-09-23, so rarity is scored
+//                  once, on the scarcity line, with a unique seat counted as one seat. Every weight is a small,
 //                  round, shown number — see SOFT_POWER_WEIGHTS below — so a reader can add the
 //                  columns up by hand and see exactly why a role scored what it did. Change the
 //                  weights on a re-read; nothing else here depends on their exact values.
@@ -43,7 +46,6 @@
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
 const SOFT_POWER_WEIGHTS = {
-  uniqueSeat: 20, // multiple: false — Baron, Bishop, Sheriff, one to a game
   whitelisted: 15, // vetted players only (LEADER-WHITELIST-role gated at creation)
   bankAccount: { treasury: 5, offshore: 8, none: 0 }, // answering to nobody's Vault is its own kind of power
   perKeyOrLicence: 3, // capped below
@@ -60,20 +62,19 @@ const SOFT_POWER_WEIGHTS = {
 
 function softPowerFor(role, w = SOFT_POWER_WEIGHTS) {
   const parts = {
-    uniqueSeat: role.multiple === false ? w.uniqueSeat : 0,
     whitelisted: role.whitelist ? w.whitelisted : 0,
     bankAccount: w.bankAccount[role.account ?? "none"] ?? 0,
     keys: Math.min(w.maxKeys, role.keys.length) * w.perKeyOrLicence,
     rooms: Math.min(w.maxRooms, role.rooms.length) * w.perLockedRoom,
     docElements: Math.min(w.maxDocElements, role.docElements.length) * w.perDocElement,
     extraPoints: Math.min(w.maxExtraPoints, role.extraPoints) * w.perExtraPoint,
-    // A unique seat's scarcity is already counted by uniqueSeat above; an unlimited one (Migrant,
-    // the Bastard's rank and file) has no ceiling to be scarce against. Only an ordinary multi-seat
-    // role (Cerberus, Courtier, Serpent…) is scored here, on how few of it the town holds: full
-    // marks at 0 seats, none at scarcitySeatFloor or more, a straight line between.
-    scarcity: role.multiple === false || role.unlimited
+    // How few of this seat the town holds: a unique seat (Baron, Bishop, Sheriff) counts as one, an
+    // ordinary multi-seat role (Cerberus, Courtier, Serpent…) as its seat count, and an unlimited one
+    // (Migrant, the Bastard's rank and file) has no ceiling to be scarce against and scores nothing.
+    // Full marks at 0 seats, none at scarcitySeatFloor or more, a straight line between.
+    scarcity: role.unlimited
       ? 0
-      : Math.max(0, w.scarcity * (1 - (role.seats ?? 0) / w.scarcitySeatFloor)),
+      : Math.max(0, w.scarcity * (1 - (role.multiple === false ? 1 : role.seats ?? 0) / w.scarcitySeatFloor)),
   };
   const total = Object.values(parts).reduce((a, b) => a + b, 0);
   return { total: Math.round(total), parts };

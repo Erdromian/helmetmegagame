@@ -19,6 +19,8 @@ const hunger = require("../../../lib/hunger");
 const soilery = require("../../../lib/soilery");
 const { FAST_METABOLISM_SLUG, HUNGERLESS_SLUG } = require("../../../lib/constants");
 const { ALL_GROUPS } = require("../../../lib/roleGroups");
+const { median } = require("./stats");
+const { roleCapacity } = require("../../../lib/roleCapacity");
 
 const REPO = path.resolve(__dirname, "../../../..");
 const readYaml = (rel) => yaml.load(fs.readFileSync(path.join(REPO, rel), "utf8"));
@@ -72,8 +74,8 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
   const costPerPersonTurn = foodFloor?.anyone?.costPerPersonTurn ?? null; // ¢ to feed one person one turn, off the shelf
   const foodBy = new Map(foods.map((f) => [f.slug, f.hunger]));
   const recipeSlugs = new Set(sources.items.map((i) => i.slug));
-  // Farmed crops go into a dish two at a time: the best crops-only Basic dish gives 35 hunger for 0.05 of a Move
-  // (COOKING.md §2a), which is what a starting stock of crops turns into when a cook spends a turn on it.
+  // Farmed crops go into the best crops-only Basic dish (COOKING.md §2a), which is what a starting stock of crops
+  // turns into when a cook spends a turn on it.
   const cropDish = cooking.dishes.filter((d) => d.farmOnly && d.tier === "Basic").sort((a, b) => b.hungerPerUnit - a.hungerPerUnit)[0];
   const cookedPerCrop = cropDish?.hungerPerUnit ?? 0;
   const movesPerCrop = cropDish ? cropDish.moves / cropDish.units : 0;
@@ -145,7 +147,7 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
       const cracked = held.reduce((n, h) => n + (h.tag.consumesIntoResources && h.tag.slug !== RESOURCES ? h.quantity * h.tag.consumesIntoResources : 0), 0);
       const foodItems = held.filter((h) => foodHungerOf(h.tag) > 0);
       const food = foodItems.reduce((n, h) => n + h.quantity * foodHungerOf(h.tag), 0);
-      // Crops in the starting kit: eaten raw they are a few hunger a crop, cooked they are 17.5 each.
+      // Crops in the starting kit: eaten raw they are a few hunger a crop, cooked they are the crop dish's hunger a crop.
       const crops = held.filter((h) => cropSlugs.has(h.tag.slug)).reduce((n, h) => n + h.quantity, 0);
       const cropRawHunger = held.filter((h) => cropSlugs.has(h.tag.slug)).reduce((n, h) => n + h.quantity * foodHungerOf(h.tag), 0);
       const foodCooked = food - cropRawHunger + crops * cookedPerCrop;
@@ -168,7 +170,8 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
           unlimited = true;
           seats = null;
         } else {
-          seats = Math.round(Number(r.weight ?? 1) * players / 100);
+          // The game's own rule (db/lib/roleCapacity.js): never below one seat.
+          seats = roleCapacity({ weight: Number(r.weight ?? 1) }, players);
         }
       }
       roles.push({
@@ -340,6 +343,12 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
       foodTurns: sum("food") / decayBase,
       cropTurns: seated.filter((r) => r.crops >= 20).reduce((n, r) => n + r.crops * r.seats * cookedPerCrop, 0) / decayBase,
       cookSeats: seated.filter((r) => r.crops >= 20).reduce((n, r) => n + r.seats, 0),
+      // What one cooking seat starts with, and the meal everybody else carries: medians over the roles, for the prose.
+      cookKit: (() => {
+        const cooks = seated.filter((r) => r.crops >= 20);
+        return cooks.length ? { crops: median(cooks.map((r) => r.crops)), dishes: median(cooks.map((r) => r.dishes)), moves: median(cooks.map((r) => r.cookMoves)) } : null;
+      })(),
+      mealHunger: median(seated.filter((r) => r.crops < 20 && r.food > 0).map((r) => r.food)),
       needPerTurn: seatTotal * decayBase,
     },
     vault: vault ? { coin: vault.coin, resources: vault.resources } : null,
@@ -349,13 +358,6 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
     unresolved,
     checks: { unresolved },
   };
-}
-
-function median(values) {
-  if (!values.length) return null;
-  const s = [...values].sort((a, b) => a - b);
-  const m = Math.floor(s.length / 2);
-  return s.length % 2 ? s[m] : (s[m - 1] + s[m]) / 2;
 }
 
 module.exports = { buildStarting };

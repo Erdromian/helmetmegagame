@@ -347,8 +347,11 @@ above zero.
 
 - `BankAccount.balanceObols` is the claim. `Depot.accountObols` is gone.
 - The **Vault** is `undertown-1-7`, a real room behind the Baron's key,
-  carrying **480 obols** in `docs/zones.yaml`. Every TREASURY account draws on
-  that pile and nothing else.
+  carrying **250 obols** in `docs/zones.yaml`, deliberately short of the
+  roughly 315 ¢ the starting purses claim at 100 players (the comment on the
+  stash says why: a bank run is meant to be a live possibility from day one,
+  and the figure is not to be raised back to 480). Every TREASURY account
+  draws on that pile and nothing else.
 - **Nobody seeds that pile automatically, and this is the trap.**
   `db:import-zones` never writes a stash — it prints a warning telling you to
   seed it from `/gm/dev/zones` instead (`db/lib/importZones.js`). So the figure
@@ -395,10 +398,12 @@ fall while the pile holds still.
 it. Emptying it does not zero anybody's balance; it makes every balance
 unwithdrawable, which is a far more interesting thing to do to a town.
 
-**An account opens EMPTY.** A starting purse is physical obols from
-`docs/roles.yaml`, because a seeded balance on day one would be a claim with
-nothing behind it — exactly what the backing exists to prevent. Purses are
-granted with a `Name xN` suffix (`Obol x25`), parsed by `db/lib/startingTags.js`.
+**An account opens with its seat's `starting_account:` already in it.**
+`web/app/(app)/character/createActions.js` bumps the new account by
+`Role.startingAccountObols` at creation, so the claims exist from day one and
+the Vault above is stocked short of them on purpose. A seat may also carry
+physical obols in `starting_tags`, granted with a `Name xN` suffix
+(`Obol x25`), parsed by `db/lib/startingTags.js`.
 
 **Who gets one at creation** is `bank_account:` in `docs/roles.yaml`:
 `treasury` for nearly every seat, `offshore` for the Merchant and his Dockers,
