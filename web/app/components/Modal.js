@@ -133,7 +133,9 @@ export default function Modal({
     // whose click handler REMOVES it. Space or Enter right after opening
     // would silently drop it.
     const named = candidates.find((el) => el.hasAttribute("data-autofocus"));
-    const initial = named ?? candidates.find((el) => !el.closest(".modal-header")) ?? candidates[0];
+    // A tag chip is skipped the same way — it is a thing to read, not what the
+    // dialog was opened for, and the chat drawers often start with one.
+    const initial = named ?? candidates.find((el) => !el.closest(".modal-header, .tag-hover")) ?? candidates[0];
     (initial ?? panel)?.focus?.();
 
     const onKey = (e) => {

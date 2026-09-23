@@ -969,12 +969,31 @@ export default function MapBoard({ onClose = null, initial = null }) {
                       over busy art reads as nothing at all (MAP.md §6g). */}
                   <path className="map-cross-halo" transform="translate(1 1)" d={strong ? marks.locked : marks.faint} />
                   <path className="map-cross" d={strong ? marks.locked : marks.faint} />
-                  {(labels || strong) && (
-                    <text className="map-node-label" x={cell / 2} y={cell + 7} textAnchor="middle">
-                      {n.name}
-                    </text>
-                  )}
                 </g>
+                );
+              })}
+            </g>
+
+            {/* The names, in a layer of their own over every mark. Drawn inside
+                each node they sat UNDER every later node — its hit square, its
+                halo, its cross — so on a crowded stretch of the plate a name
+                was half painted over by its neighbours. Inert, the way
+                .map-node-label has always been, so a tap still reaches the node. */}
+            <g className="map-labels">
+              {drawn.map((n) => {
+                const strong = sel === n.id || n.state === "here";
+                if (!labels && !strong) return null;
+                return (
+                  <text
+                    key={n.id}
+                    className="map-node-label"
+                    data-state={n.state}
+                    x={n.x * cell + cell / 2}
+                    y={n.y * cell + cell + 7}
+                    textAnchor="middle"
+                  >
+                    {n.name}
+                  </text>
                 );
               })}
             </g>
