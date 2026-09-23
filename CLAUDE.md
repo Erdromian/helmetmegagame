@@ -505,6 +505,10 @@ npm run economy:report               # read-only: every wage, price and food fig
                                      #   `-- --mood-weight N` reprices every dish's worth
                                      #   with a point of mood counted as N points of
                                      #   hunger against the Ration Box (default 2).
+                                     #   `-- --point-value N` tries another ¢-a-point
+                                     #   scale for gear on the "Buyable gear" page
+                                     #   (default 7: TAGS.md §4a prices an Item or
+                                     #   Asset at 6–8 ¢ of kit a point).
 npm test --workspace=db              # node --test over db/test/ (the
                                      #   assignment roll, so far).
 npm test --workspace=web             # node --test over web/lib/__tests__/.

@@ -506,6 +506,9 @@ function buildSources({ list, bySlug, players }) {
     ranks: RANKS,
     recipes,
     items: itemRows,
+    // Every route to one of ANY slug, ranked, for a caller pricing something that is not a recipe
+    // input (equipment.js prices the creation picks this way). Memoised above, so it is cheap.
+    routesFor: (slug) => routesFor(slug).slice().sort((a, b) => a.rank - b.rank || (a.cost ?? 0) - (b.cost ?? 0)),
     drops: { prospecting, caving },
     monsterYields: monster,
     livestockAdultSlug: ARELITZ_SLUG,

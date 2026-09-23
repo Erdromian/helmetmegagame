@@ -9,6 +9,7 @@
 //   npm run economy:report -- --mined-value buy      # value a Prospector's ⬢ at the 3 ¢ import price (default: the midpoint of the Depot's two prices)
 //   npm run economy:report -- --obols off     # preview the game with obol payment for smithing removed (default: read the source)
 //   npm run economy:report -- --mood-weight 1 # weigh a point of mood the same as hunger, not double (default: 2)
+//   npm run economy:report -- --point-value 6 # try another ¢-a-point scale for gear (default: 7, the rule in TAGS.md §4a)
 //   npm run economy:report -- --out /tmp/x    # somewhere else
 //
 // Read-only: touches no database and posts nothing. The output directory is
@@ -35,8 +36,9 @@ const minedValue = flag("mined-value", "mid");
 const obolPath = flag("obols", "auto");
 const moveValueFlag = flag("move-value", null) == null ? null : Number(flag("move-value", null));
 const moodWeight = Number(flag("mood-weight", 2));
+const pointValue = flag("point-value", null) == null ? null : Number(flag("point-value", null));
 
-const model = buildModel({ players, gameTurns, freeMoves, resourceValue, minedValue, obolPath, moveValue: moveValueFlag, moodWeight });
+const model = buildModel({ players, gameTurns, freeMoves, resourceValue, minedValue, obolPath, moveValue: moveValueFlag, moodWeight, pointValue });
 const { params } = model;
 
 let commit = "unknown";
@@ -250,6 +252,10 @@ const headlines = [
   `Money a turn is worth: a miner with just a pickaxe earns about <b>${fmt(floorW)} ¢</b>, a Prospector <b>${fmt(proW)} ¢</b>, a farmer growing food <b>${fmt(farmW)} ¢</b> (valued at the Ration Box's price, since food crops do not sell), a farmer growing <b>tobacco ${fmt(tobW)} ¢, or ${fmt(tobFertW)} ¢ with Fertilizer</b>, and a solo Factory worker <b>${fmt(factW)} ¢</b>. Best to worst: ${wageOrder}. A fertilized tobacco farmer earns ${fmt(tobFertW / factW, 1)} times a Factory worker and ${fmt(tobFertW / proW, 1)} times a Prospector.`,
   `The field: at ${FLD.seats} seats the town eats ${fmt(FLD.eaten, 0)} crops a turn and a farming place refills ${fmt(FLD.rate, 0)}, so <b>${fmt(FLD.farmersToEat, 1)} farmers feed the town</b> and about ${fmt(FLD.farmersToFill, 1)} is the most a place can take. Past that the yield falls until output matches the refill: food farming alone never starves the town that way, but cash crops do, because they wear the field and cannot be eaten (3 food farmers and 3 on tobacco feed ${fmt(FLD.scenarios.find((x) => x.label === '3 food farmers and 3 on tobacco')?.fed, 0)} of ${FLD.seats}).`,
   `The starting economy: ${startingHeadline}`,
+  (() => {
+    const E = model.equipment;
+    return `Buyable gear: ${E.counts.picks} Items and Assets are creation picks, and a point spent on one buys a median <b>${fmt(E.medianRate, 1)} ¢</b> of kit at its in-play price${E.byPoints.filter((b) => b.rows >= 3 && b.medianRate != null).length >= 2 ? ` — ${E.byPoints.filter((b) => b.rows >= 3 && b.medianRate != null).map((b) => `${fmt(b.medianRate, 1)} at ${b.points} pt`).join(", ")}` : ""}. Against the ${fmt(E.pointValue, 1)} ¢ scale, ${E.counts.bargains} are bargains and ${E.counts.overpriced} overpriced; a point in a skill returns ${E.skillPoints.length ? `${fmt(E.skillPoints[Math.floor(E.skillPoints.length / 2)].overGamePerPoint, 0)} ¢` : "—"} over the game (see "Buyable gear, point for point").`;
+  })(),
   `Smithing's Trinkets, after the Merchant's cut: a Smithing II smith forging with shelf stones clears <b>${fmt(trinketW)} ¢ a turn</b>, and a miner who forges the stones they dig up earns <b>${fmt(minerForgeW)} ¢</b> instead of ${fmt(floorW)}. A Trinket is a whole Move and 4 ⬢, and the cash is set by a d6 and by the stones (see “Trinket forging”). Crafts are shown after the Merchant's half.`,
   `The easy-craft baselines, with ⬢ bought at the Depot: a starter smith ${fmt(baselineOf("Starter smith")?.value)} ¢ a turn (${baselineOf("Starter smith")?.key.split(": ")[1]}), a skilled smith ${fmt(baselineOf("Skilled smith")?.value)} ¢ (${baselineOf("Skilled smith")?.key.split(": ")[1]}), a crafter ${fmt(baselineOf("Crafter")?.value)} ¢, a skilled brewer ${fmt(baselineOf("Skilled brewer")?.value)} ¢. A cook earns nothing from the counter, since no dish can be sold there, but feeds ${fmt(model.cheapestMeal?.personTurnsPerMove, 0)} person-turns per Move for ${fmt(model.cheapestMeal?.costPerPersonTurn, 2)} ¢ each.`,
   `Mining is the only source of ⬢ (${fmt(params.minerResourcesPerTurn)} ⬢/turn for a Prospector at the Caves) yet a median smithing recipe burns <b>${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.medianBurn)} ⬢/turn</b> — roughly ${fmt(model.resourceBalance.find((r) => r.family === "smithing")?.minersPerCrafter, 1)} miners per smith just to keep one forge fed.`,
@@ -435,6 +441,129 @@ ${table({ cols, rows: all, filters: [{ label: "Group", get: (r) => r.group }, { 
 <p class="lede">Every other structure type in the catalog, scanned for anything that changes what somebody makes. None does. Their cost is the price of what they are for.</p>
 <div class="tablewrap"><table><thead><tr><th>Building</th><th class="num">Cost</th><th>What it does</th></tr></thead><tbody>${scanned}</tbody></table></div>
 <p class="lede">Also scanned and left out: ${model.counts?.carryTags ?? 30} tags carry a <code>carryBonus</code> (a Cart, a Pack Mule) and raise how much you can move, which matters to hauling but is not counted here, and <code>gambitBonus</code> perks change a roll's odds and no output.</p>
+</section>`;
+}
+
+// One dot a pick: what it costs in points along the bottom, what it is worth in ¢ up the side. The
+// dashed line is the scale — `pointValue` ¢ a point — so a dot on it costs exactly what its ¢ say it
+// should, one above it is more kit than the points paid for (a bargain), one below is fewer. Picks
+// sharing a point price and a ¢ figure (the whole Dead Simple rung at 2 pt and 6 ¢) are one larger
+// dot with every name in its hover text, so a stack does not hide behind its own front dot.
+function pointScaleChart({ rows, pointValue, width = 720, height = 380 }) {
+  const m = { l: 54, r: 16, t: 14, b: 40 };
+  const pts = rows.filter((r) => r.replace != null);
+  const xHi = Math.max(...pts.map((r) => r.points), 1) * 1.08;
+  const yHi = Math.max(...pts.map((r) => r.replace), 1) * 1.08;
+  const X = (v) => m.l + (v / xHi) * (width - m.l - m.r);
+  const Y = (v) => height - m.b - (v / yHi) * (height - m.t - m.b);
+  const gy = niceTicks(0, yHi, 6)
+    .map((v) => `<line x1="${m.l}" x2="${width - m.r}" y1="${Y(v)}" y2="${Y(v)}" class="grid"/><text x="${m.l - 6}" y="${Y(v) + 4}" text-anchor="end" class="tick">${fmt(v, 0)}</text>`)
+    .join("");
+  const gx = niceTicks(0, xHi, 7)
+    .map((v) => `<line x1="${X(v)}" x2="${X(v)}" y1="${m.t}" y2="${height - m.b}" class="grid"/><text x="${X(v)}" y="${height - m.b + 16}" text-anchor="middle" class="tick">${fmt(v, 0)}</text>`)
+    .join("");
+  const lineEndX = Math.min(xHi, yHi / pointValue);
+  const scale = `<line x1="${X(0)}" y1="${Y(0)}" x2="${X(lineEndX)}" y2="${Y(lineEndX * pointValue)}" stroke="var(--mute)" stroke-width="1.5" stroke-dasharray="5 4"/><text x="${X(lineEndX) - 4}" y="${Y(lineEndX * pointValue) - 6}" text-anchor="end" class="tick">${fmt(pointValue, 1)} ¢ a point</text>`;
+  const stacks = new Map();
+  for (const r of pts) {
+    const k = `${r.points}:${r.replace}`;
+    if (!stacks.has(k)) stacks.set(k, { points: r.points, replace: r.replace, verdict: r.verdict, names: [] });
+    stacks.get(k).names.push(r.name);
+  }
+  const color = (v) => (v === "a bargain" ? "var(--c1)" : v === "overpriced" ? "var(--bad)" : "var(--good)");
+  const dots = [...stacks.values()]
+    .map((s) => {
+      const tip = `${s.names.length > 6 ? `${s.names.slice(0, 6).join(", ")} and ${s.names.length - 6} more` : s.names.join(", ")} — ${s.points} pt, ${fmt(s.replace, 0)} ¢ (${s.verdict})`;
+      return `<circle cx="${X(s.points)}" cy="${Y(s.replace)}" r="${4 + Math.sqrt(s.names.length) * 1.6}" style="fill:${color(s.verdict)}" fill-opacity=".6" stroke="${color(s.verdict)}" tabindex="0" data-tip="${esc(tip)}"></circle>`;
+    })
+    .join("");
+  return `<svg viewBox="0 0 ${width} ${height}" role="img" class="chart">${gy}${gx}${scale}<text x="${(width + m.l) / 2}" y="${height - 4}" text-anchor="middle" class="tick">points at character creation</text><text transform="translate(12 ${height / 2}) rotate(-90)" text-anchor="middle" class="tick">¢ to replace it in play</text>${dots}</svg>`;
+}
+
+function sectionEquipment() {
+  const E = model.equipment;
+  const pv = E.pointValue;
+  const doesOf = (r) => {
+    const bits = [];
+    if (r.earnsPerTurn != null) bits.push(`earns ${fmt(r.earnsPerTurn, 1)} ¢ a turn (${fmt(r.earnsOverGame, 0)} ¢ net over ${params.gameTurns} turns)`);
+    if (r.fightTiers != null) bits.push(`+${r.fightTiers} fighting tier${r.fightTiers === 1 ? "" : "s"} (${r.fightClass}), so combat alone justifies at most ${fmt(r.fightCeiling, 1)} pt`);
+    if (r.armorWords) bits.push(r.armorWords);
+    if (r.carryBonus != null) bits.push(`carry ${r.carryBonus > 0 ? "+" : ""}${fmt(r.carryBonus * 100, 0)}% while in hand`);
+    if (r.miningBonus != null && r.earnsPerTurn == null) bits.push(`+${r.miningBonus} ⬢ a mining press`);
+    return bits.join("; ") || "";
+  };
+  const makeOf = (r) => (r.craft ? `${r.craft.resources} ⬢${r.craft.items ? ` + ${fmt(r.craft.items, 0)} ¢ of ${r.craft.inputs.join(", ")}` : ""}, ${fmt(r.craft.moves, 2)} Move${r.craft.moves === 1 ? "" : "s"}, ${r.craft.skills}${r.craft.skillPoints ? ` (${r.craft.skillPoints} pt)` : ""}${r.craft.workshop ? ", at a forge" : ""}: ${fmt(r.craft.allIn, 0)} ¢ all in` : "not craftable");
+  const cols = [
+    { h: "Pick", get: (r) => r.name },
+    { h: "Group", get: (r) => r.group },
+    { h: "Points", num: true, get: (r) => r.points, sort: (r) => r.points },
+    { h: "Band", get: (r) => r.band },
+    { h: "Also needs", get: (r) => r.requires ?? "" },
+    { h: "How hard in play", get: (r) => r.rankLabel, sort: (r) => r.rank },
+    { h: "Easiest route", get: (r) => r.route },
+    { h: "Free with", get: (r) => (r.kits.length ? r.kits.join(", ") : "") },
+    { h: "Depot ¢", num: true, get: (r) => r.depot ?? "—", sort: (r) => r.depot ?? -1 },
+    { h: "Sells for ¢", num: true, get: (r) => r.sell ?? "—", sort: (r) => r.sell ?? -1 },
+    { h: "To make one", get: makeOf },
+    { h: "Replace ¢", num: true, get: (r) => (r.replace == null ? "—" : fmt(r.replace, 0)), sort: (r) => r.replace ?? -1 },
+    { h: "Via", get: (r) => r.replaceHow ?? "no ¢ figure" },
+    { h: "¢ a point", num: true, get: (r) => (r.rate == null ? "—" : fmt(r.rate, 1)), sort: (r) => r.rate ?? -1 },
+    { h: `Fair at ${fmt(pv, 1)} ¢/pt`, num: true, get: (r) => r.fairPoints ?? "—", sort: (r) => r.fairPoints ?? -1 },
+    { h: "Drift", num: true, get: (r) => (r.drift == null ? "—" : r.drift > 0 ? `+${r.drift}` : String(r.drift)), sort: (r) => r.drift ?? 0, style: (r) => (r.drift == null || r.drift === 0 ? "" : r.drift > 0 ? "color:var(--bad)" : "color:var(--c1)") },
+    { h: "Verdict", get: (r) => r.verdict ?? "unpriced" },
+    { h: "What it does, in numbers", get: doesOf },
+    { h: "Caveat", get: (r) => r.flags.join("; ") },
+  ];
+  const pointCols = [
+    { h: "Points", num: true, get: (b) => b.points },
+    { h: "Band", get: (b) => b.band },
+    { h: "Picks", num: true, get: (b) => b.rows },
+    { h: "With a ¢ figure", num: true, get: (b) => b.priced },
+    { h: "Replace ¢, median", num: true, get: (b) => (b.medianReplace == null ? "—" : fmt(b.medianReplace, 0)) },
+    { h: "Lowest", num: true, get: (b) => (b.minReplace == null ? "—" : fmt(b.minReplace, 0)) },
+    { h: "Highest", num: true, get: (b) => (b.maxReplace == null ? "—" : fmt(b.maxReplace, 0)) },
+    { h: "¢ a point, median", num: true, get: (b) => (b.medianRate == null ? "—" : fmt(b.medianRate, 1)) },
+    { h: `At ${fmt(pv, 1)} ¢/pt it should buy`, num: true, get: (b) => `${fmt(b.atScale, 0)} ¢` },
+    { h: "For example", get: (b) => b.examples },
+  ];
+  const groupCols = [
+    { h: "Group", get: (g) => g.group },
+    { h: "Picks", num: true, get: (g) => g.rows },
+    { h: "¢ a point, median", num: true, get: (g) => (g.medianRate == null ? "—" : fmt(g.medianRate, 1)), sort: (g) => g.medianRate ?? -1 },
+    { h: "Lowest", num: true, get: (g) => (g.minRate == null ? "—" : fmt(g.minRate, 1)) },
+    { h: "Highest", num: true, get: (g) => (g.maxRate == null ? "—" : fmt(g.maxRate, 1)) },
+    { h: "Bargains", num: true, get: (g) => g.bargains },
+    { h: "Overpriced", num: true, get: (g) => g.overpriced },
+  ];
+  const skillCols = [
+    { h: "A point in…", get: (s) => s.name },
+    { h: "Group", get: (s) => s.group },
+    { h: "Points", num: true, get: (s) => s.points },
+    { h: "¢ a turn per point", num: true, get: (s) => fmt(s.perTurnPerPoint, 2) },
+    { h: `Over ${params.gameTurns} turns, per point`, num: true, get: (s) => fmt(s.overGamePerPoint, 0) },
+  ];
+  const curve = E.byPoints.filter((b) => b.medianRate != null && b.rows >= 3);
+  const curveLine = curve.length >= 2 ? `Read down the point column and the ¢ a point does not stay flat: ${curve.map((b) => `<b>${fmt(b.medianRate, 1)}</b> at ${b.points} pt`).join(", ")}. A scale where every point buys the same amount of kit would read as one number all the way down.` : "";
+  const skillMedian = E.skillPoints.length ? E.skillPoints[Math.floor(E.skillPoints.length / 2)].overGamePerPoint : null;
+  const unpriced = E.unpriced.map((u) => `<li><b>${esc(u.name)}</b> (${u.points} pt) — ${esc(u.route)}</li>`).join("");
+  return `<section><h2>Buyable gear, point for point</h2>
+<p class="lede">Every Item and Asset a player can pick at character creation — ${E.counts.picks} of them, all <code>purchasableAfterStart: false</code>, so the point price is only ever paid out of the ${E.budget.points}-point starting budget — set against what the same thing costs or earns once the game is running. <b>Replace ¢</b> is the cheapest way to come by one in play: the Depot's shelf price where it is stocked, what the counter pays a maker for one (the least a smith would take from you), or making it yourself with ⬢ at the Depot's ${params.rv.buy} ¢, inputs at their price and a Move at ${fmt(E.moveValue, 1)} ¢ (an average mining turn, <code>--move-value</code> changes it); a crate is what it opens into, and a thing nobody stocks or makes is worth at least what the counter pays for it. That is what a point is actually exchanged for, so <b>¢ a point</b> is built on it. <b>Sells for</b> is the counter's guaranteed floor, what the pick liquidates for. <b>How hard</b> is the sourcing model's rank of the easiest in-game route with the creation pick itself left out, and <b>Free with</b> lists the starting kits that hand it out (${E.counts.kits} of the ${E.counts.picks} come free with some role).</p>
+<p class="lede">The scale this page measures against is <b>${fmt(pv, 1)} ¢ a point</b>${E.pointValueSet ? ` (set with <code>--point-value</code>; the rule in TAGS.md §4a is 7)` : ` — the rule TAGS.md §4a sets for Items and Assets: a point buys 6–8 ¢ of kit at its in-play price, and 7 is the middle of that. <code>--point-value N</code> tries another`}. The catalog's own median today is ${fmt(E.medianRate, 1)}. On the scale, the whole ${E.budget.points}-point budget is <b>${fmt(E.budget.coin, 0)} ¢</b> of kit, about ${fmt(E.budget.miningTurns, 1)} turns of mining. <b>Fair</b> is what each pick would cost at that rate, <b>Drift</b> is the catalog's price minus that (positive means the player pays more points than the kit is worth), and the verdict says nothing inside ${fmt(E.pointValueRange[0], 1)}–${fmt(E.pointValueRange[1], 1)} ¢ a point. The rule then lets a piece sit one point either side of the line for what it does (TAGS.md §4a lists which), and this page scores by ¢ alone, so those show a point off here on purpose. Today: ${E.counts.bargains} bargains, ${E.counts.onScale} on the scale, ${E.counts.overpriced} overpriced, ${E.unpriced.length} with no ¢ figure at all.</p>
+<h3>What a point buys, by price</h3>
+<p class="lede">${curveLine} The dashed line in the chart is the scale; a dot above it is more kit than its points paid for, a dot below is less. A larger dot is several picks at the same price and worth, named in its hover text.</p>
+${pointScaleChart({ rows: E.rows, pointValue: pv })}
+${table({ cols: pointCols, rows: E.byPoints, id: "eqpoints" })}
+<h3>Against a point spent on a skill instead</h3>
+<p class="lede">The same budget buys skills, and the investments page already prices those in ¢ a turn per point. Played out over the game, a point in a skill returns a median of <b>${skillMedian == null ? "—" : fmt(skillMedian, 0)} ¢</b> against the <b>${fmt(pv, 1)} ¢</b> of kit a point buys here. The two are not the same shape of thing — a skill is paid back through the Moves it occupies, turn after turn, and a piece of gear is had outright on day one and can be sold, lent or stolen — but the gap is the number to hold in mind when asking whether a sword is worth its points.</p>
+${table({ cols: skillCols, rows: E.skillPoints, id: "eqskills" })}
+<h3>By group</h3>
+${table({ cols: groupCols, rows: E.byGroup, id: "eqgroups" })}
+<h3>Every pick</h3>
+<p class="lede">Weapons carry the tiers they add to the fighting band (COMBAT.md's scale) and the most that combat alone could justify charging for them, at about ${E.pointsPerTier} points a tier — a ceiling, that doc says, not a formula, since a tag's price pays for everything it does. Armour shows the two fractions it turns aside in the game's own words. The few pieces that raise somebody's output carry what the investments page says they clear.</p>
+${table({ cols, rows: E.rows, filters: [{ label: "Group", get: (r) => r.group }, { label: "How hard", get: (r) => r.rankLabel }, { label: "Verdict", get: (r) => r.verdict ?? "unpriced" }, { label: "Band", get: (r) => r.band }] })}
+<h3>No ¢ figure to price them by</h3>
+<p class="lede">Nothing stocks these, nobody makes them and the counter does not buy them, so what they are worth is what they do — a Bird carries letters, a Dog smells, a radio reaches every paired bracelet — and that is a judgement this page cannot make for you.</p>
+<ul class="head">${unpriced}</ul>
 </section>`;
 }
 
@@ -1537,6 +1666,7 @@ const SECTIONS = [
   { id: "wages", label: "What a turn is worth", build: sectionWages },
   { id: "baselines", label: "Baselines: the easy crafts", build: sectionBaselines },
   { id: "investments", label: "What each investment pays back", build: sectionInvestments },
+  { id: "equipment", label: "Buyable gear, point for point", build: sectionEquipment },
   { id: "combos", label: "Combining activities", build: sectionCombos },
   { id: "spread", label: "Every activity, by family", build: sectionSpread },
   { id: "fatigue", label: "Which work tires you", build: sectionFatigue },
@@ -1612,6 +1742,12 @@ const md = [
   "| Skills | Points | With the Factory | Without it |",
   "|---|---:|---:|---:|",
   ...model.combos.loadouts.filter((l) => l.points <= 8).sort((x, y) => y.withFactory.rate - x.withFactory.rate).filter((l, i, a) => a.findIndex((x) => x.skills.join() === l.skills.join()) === i).slice(0, 8).map((l) => `| ${l.skills.join(" + ")} | ${l.points} | ${fmt(l.withFactory.rate)} | ${fmt(l.noFactory.rate)} |`),
+  "",
+  `## Buyable gear, point for point (${fmt(model.equipment.pointValue, 1)} ¢ a point)`,
+  "",
+  "| Points | Band | Picks | Replace ¢, median | ¢ a point, median |",
+  "|---:|---|---:|---:|---:|",
+  ...model.equipment.byPoints.map((b) => `| ${b.points} | ${b.band} | ${b.rows} | ${b.medianReplace == null ? "—" : fmt(b.medianReplace, 0)} | ${b.medianRate == null ? "—" : fmt(b.medianRate, 1)} |`),
   "",
   "## Which work tires you",
   "",
@@ -1711,6 +1847,14 @@ const powerCsv = [
   ),
 ].join("\n");
 fs.writeFileSync(path.join(outDir, "power.csv"), powerCsv);
+
+const equipmentCsv = [
+  ["slug", "name", "category", "group", "points", "band", "requires", "howHard", "easiestRoute", "freeWith", "depot", "sell", "makeResources", "makeMoves", "makeSkill", "makeSkillPoints", "makeAllIn", "replace", "replaceVia", "centsPerPoint", "fairPoints", "drift", "verdict", "earnsPerTurn", "earnsOverGame", "fightTiers", "fightCeilingPoints", "meleeArmor", "ballisticArmor", "caveat"].join(","),
+  ...model.equipment.rows.map((r) =>
+    [r.slug, r.name, r.category, r.group, r.points, r.band, r.requires ?? "", r.rankLabel, r.route, r.kits.join("; "), r.depot ?? "", r.sell ?? "", r.craft?.resources ?? "", r.craft?.moves ?? "", r.craft?.skills ?? "", r.craft?.skillPoints ?? "", r.craft?.allIn ?? "", r.replace ?? "", r.replaceHow ?? "", r.rate ?? "", r.fairPoints ?? "", r.drift ?? "", r.verdict ?? "", r.earnsPerTurn ?? "", r.earnsOverGame ?? "", r.fightTiers ?? "", r.fightCeiling ?? "", r.armor?.melee ?? "", r.armor?.ballistic ?? "", r.flags.join("; ")].map(csvCell).join(","),
+  ),
+].join("\n");
+fs.writeFileSync(path.join(outDir, "equipment.csv"), equipmentCsv);
 
 fs.writeFileSync(path.join(outDir, "combos.csv"), combosCsv);
 fs.writeFileSync(path.join(outDir, "recipes.csv"), recipesCsv);
