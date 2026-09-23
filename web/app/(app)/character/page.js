@@ -65,6 +65,7 @@ import {
   REFINERY_FULL_MESSAGE,
 } from "@lifeweb/db/lib/refinery";
 import { resolveMiningRate } from "@lifeweb/db/lib/mining";
+import { workVerbFor } from "@lifeweb/db/lib/gathering";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
@@ -695,6 +696,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       ? "You already have an action this turn."
       : null;
   const canMine = !mineBlocked;
+  // Which word the button wears — Mine underground, Gather in the Black Hills.
+  // The rate resolved it off the zone (db/lib/gathering.js); a refusal carries
+  // no verb, so fall back to the zone directly rather than to "mine".
+  const workVerb = mineRate.ok ? mineRate.verb : workVerbFor(character.location?.zone?.slug).key;
   const canSeePackage = await hasEquipmentInReach(
     prisma,
     character,
@@ -1239,6 +1244,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canSeeMine: canSeeMine,
       canMine: canMine,
       mineBlocked: mineBlocked,
+      workVerb: workVerb,
       canSeeFarm: canSeeFarm,
       canFarm: canFarm,
       farmBlocked: farmBlocked,

@@ -167,6 +167,8 @@ export default function CharacterSheet({
   canSeeMine = false,
   canMine = false,
   mineBlocked = null,
+  // "mine" or "gather": the word the button wears (db/lib/gathering.js).
+  workVerb = "mine",
   canSeeFarm = false,
   canFarm = false,
   farmBlocked = null,
@@ -302,6 +304,7 @@ export default function CharacterSheet({
         canSeeMine={canSeeMine}
         canMine={canMine}
         mineBlocked={mineBlocked}
+        workVerb={workVerb}
         canSeeFarm={canSeeFarm}
         canFarm={canFarm}
         farmBlocked={farmBlocked}

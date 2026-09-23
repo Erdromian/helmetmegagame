@@ -11,7 +11,7 @@ import LookReadout from "@/app/components/LookReadout";
 import { EyeIcon, SpeakerIcon, SpeakerOffIcon } from "@/app/components/icons";
 import { toggleMutedPerformer, useMutedPerformers } from "@/app/components/performanceStore";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
-import { ACTION_HELP, actionFor, reasonFor } from "@/app/components/actionRegistry";
+import { ACTION_HELP, actionFor, helpFor, reasonFor } from "@/app/components/actionRegistry";
 import { lookAtRow } from "@/app/(app)/chat/actions";
 import { loadPeopleHere } from "@/app/(app)/character/rosterActions";
 import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
@@ -147,7 +147,7 @@ function PersonMenu({ person, isSelf = false, onLook = null, onClose, onConverse
         key={entry.mode}
         variant="menu"
         label={entry.label}
-        help={ACTION_HELP[entry.mode] ?? null}
+        help={action ? helpFor(action, pools) : (ACTION_HELP[entry.mode] ?? null)}
         disabled={action?.gate ? !pools?.[action.gate] : false}
         reason={action ? reasonFor(action, pools) : null}
         onClick={() => pick(entry)}

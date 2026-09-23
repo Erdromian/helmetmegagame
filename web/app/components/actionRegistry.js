@@ -68,6 +68,7 @@ import {
   AnkhIcon,
   MusicIcon,
 } from "./icons";
+import { workVerbByKey } from "@lifeweb/db/lib/gathering";
 
 export const ACTION_HELP = {
   examine:
@@ -137,8 +138,8 @@ export const ACTION_HELP = {
     "Harvest Godflesh, up to once a turn. It costs you no Move. You need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
   refine:
     "Spend your turn refining Godflesh into Squeeze. There must be some on the floor nearby or in your inventory.",
-  mine:
-    "Spend your turn mining in the caves, yielding resources and a small chance of ore.",
+  // The Mine entry lives in db/lib/gathering.js (helpFor below): the same
+  // button says Gather in the Black Hills, and the help has to follow.
   farm: "Sow the fields with seed you're licensed to plant. It takes your whole Move, and the harvest comes in when the turn closes.",
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
@@ -661,10 +662,20 @@ const RECOVER_NAMES = { "black-robes": "Robes", "thanati-mask": "Mask" };
 // The button's label, given the pools — the same word for every action but
 // Recover, whose label is what it would actually do.
 export function labelFor(action, pools) {
+  // Mine underground, Gather in the Black Hills — the same button, worded for
+  // the ground stood on (db/lib/gathering.js). The page keys pools.workVerb.
+  if (action.mode === "mine") return workVerbByKey(pools?.workVerb).label;
   if (action.mode !== "recover") return action.label;
   const missing = (pools?.recoverMissing ?? []).map((slug) => RECOVER_NAMES[slug]).filter(Boolean);
   if (missing.length === 0) return action.label;
   return `Recover ${missing.join(" & ")}`;
+}
+
+// The sentence under the label: ACTION_HELP's, except where the verb itself
+// depends on where you stand.
+export function helpFor(action, pools) {
+  if (action.mode === "mine") return workVerbByKey(pools?.workVerb).help;
+  return ACTION_HELP[action.mode] ?? null;
 }
 
 // Why a greyed button is greyed: the server's sharper sentence when it has

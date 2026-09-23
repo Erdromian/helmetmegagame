@@ -186,6 +186,9 @@ export default function RequestActionsProvider({
   canSeeMine = false,
   canMine = false,
   mineBlocked = null,
+  // "mine" or "gather" — the label, help and confirm the button wears, keyed
+  // into db/lib/gathering.js by the sheet page off the zone stood in.
+  workVerb = "mine",
   // The Farms placeholder (db/lib/soilery.js). Same posture as Extract just
   // above: whether this ground is a Soilery is a fact about where you're
   // standing, resolved server-side in character/page.js. `farmBlocked` is
@@ -462,9 +465,9 @@ export default function RequestActionsProvider({
     (next) => {
       const verb = INSTANT[next];
       if (!verb) return;
-      runNow(next, { ask: verb.confirm({ recoverMissing }), run: verb.run });
+      runNow(next, { ask: verb.confirm({ recoverMissing, workVerb }), run: verb.run });
     },
-    [runNow, recoverMissing],
+    [runNow, recoverMissing, workVerb],
   );
 
   const open = useCallback(
@@ -559,6 +562,7 @@ export default function RequestActionsProvider({
       canRefine,
       canSeeMine,
       canMine,
+      workVerb,
       canSeeFarm,
       canFarm,
       canSeeBreakIn,
@@ -630,6 +634,7 @@ export default function RequestActionsProvider({
       canRefine,
       canSeeMine,
       canMine,
+      workVerb,
       canSeeFarm,
       canFarm,
       canSeeBreakIn,

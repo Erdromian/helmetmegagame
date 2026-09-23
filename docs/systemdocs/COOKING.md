@@ -475,6 +475,7 @@ retired (`SOILERY.md` §6). What's actually live:
 
 | Source | What |
 |---|---|
+| Gathering in the Black Hills (`MINING.md` §3c) | The Gather button's table: Cave Fungus, Onion and Carrot most days; Crayfish, Meat and a Skinned Cave Rat on a good one; Deep Morel and Honey; Boar Loin and Deer Liver at the rare rungs — the only source those two have; and, once in a long while, a wild Arelitz Egg |
 | Farming (Soilery) | Wheat, Potato, Tomato, Carrot, Onion, Plump Helmet — `SOILERY.md` §3/§6 |
 | The Stable | Arelitz Egg, laid by a fed adult; Meat and Rendered Fat off a butchered arelitz or brood animal — `ARELITZ.md` §4/§5 |
 | Butchering | Human Flesh and organs off any corpse; Nekker Pheromones, Graga Sac and Skinless Brain off their own monster corpses — `CORPSES.md` §6 |
@@ -488,12 +489,13 @@ action at `/gm/dev/zones` (`seedRoomStash`, `web/app/(app)/gm/dev/zones/actions.
 once a stash is eaten there is no more, which is why the Depot rather than a
 stash is what makes Cheese actually reliable.
 
-Eel, Dustfish, Haggar, Tunnel Trout, Boar Loin, Deer Liver, Crayfish and Fish
-Roe carry the same gap — no farming, no butchering, no caving loot, nothing
-past a one-time room-stash seed or starting-kit grant — and are left
-unfixed here rather than priced onto the Depot shelf. Fish Stew, Fried Fish,
-Northern Delight, Foie Gras, Honeyed Crayfish and Caviar all still depend on
-whichever of these a table happens to have on hand.
+Eel, Dustfish, Haggar, Tunnel Trout and Fish Roe carry the same gap — no
+farming, no butchering, no caving loot, nothing past a one-time room-stash
+seed or starting-kit grant — and are left unfixed here rather than priced onto
+the Depot shelf. Fish Stew, Fried Fish, Northern Delight and Caviar all still
+depend on whichever of these a table happens to have on hand. Boar Loin, Deer
+Liver and Crayfish had the same gap until the gathering table gave them a
+repeatable source, which put Foie Gras and Honeyed Crayfish back in reach.
 
 Three more ingredients have the same gap and are documented in `BREWING.md`
 §4 rather than fixed here: `aberrant-heart`, `ravens-eye` and `trout-heart`
