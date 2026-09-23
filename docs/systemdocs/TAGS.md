@@ -1156,7 +1156,7 @@ them).
   has, and they go when the work *starts* rather than when it finishes. Three
   entry shapes — a tag slug (`items: [cave-fungus]`), a whole **group**
   (`items: [{ group: items-corpse }]`), or a player's pick
-  (`items: [{ anyOf: [tea, sweets, honey] }]`). The group form is not a
+  (`items: [{ anyOf: [tea, sugar-candy, honey] }]`). The group form is not a
   convenience but a necessity, since a corpse written at death is never in
   `docs/tags.yaml` for a slug to name — and it is always **kept**, never spent,
   because a group names no single stack to decrement (`keep: false` on one is

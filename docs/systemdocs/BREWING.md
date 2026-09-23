@@ -190,7 +190,7 @@ either the brewer's sheet carries the thing, or the craft is refused.
 | `ravens-eye` | forageable — the loot pass wires it | spent |
 | `trout-heart` | forageable — the loot pass wires it (a fishing find) | spent |
 | `honey` | Depot import, gm-catalog — the White Honey link is a secret | spent |
-| `tea` / `sweets` / `honey` | Depot imports; the cook picks one | spent (`anyOf`) |
+| `tea` / `sugar-candy` / `honey` | Depot imports; the cook picks one | spent (`anyOf`) |
 | **a corpse** (`items-corpse` group) | died, or was killed | **kept** |
 
 (`saltpeter` left this table with the grenade — powder is smith's business

@@ -901,6 +901,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     .sort((a, b) => a.price - b.price);
 
   // --- pricing-rule consistency ----------------------------------------------
+  // The three wares DEPOT.md §3 gives a wage floor instead of the 60% sell-back: each is craftable, so its
+  // sellablePrice is what a maker earns under §4, not what a reseller gets back. Still checked for arbitrage.
+  const WAGE_FLOOR = new Set(["trapping-gear", "gladiator-helmet", "workshop-equipment"]);
   const priceRule = list
     .filter((t) => t.depotPrice != null && t.sellablePrice != null && t.slug !== "resources")
     .map((t) => ({
@@ -911,6 +914,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ratio: t.sellablePrice / t.depotPrice,
       expected: Math.max(1, Math.round(t.depotPrice * 0.6)),
       craftable: !!t.craftable,
+      wageFloor: WAGE_FLOOR.has(t.slug),
     }))
     .map((r) => ({ ...r, off: r.sell - r.expected, arbitrage: r.sell >= r.buy }));
 
@@ -1092,7 +1096,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   // Depot shelf prices and previous sell prices are left alone, so a recipe is fitted to its price by moving its
   // ⬢ cost instead. Two cannot be fitted that way: the Pickaxe (a quarter-Move craft moves in steps of 4 ¢ a
   // turn) and the Autoinjector (its inputs cost more than its shelf price).
-  const HELD_BACK = new Set(["pickaxe", "autoinjector", "badge", "mulligan-potion"]);
+  // The Badge and the Mulligan Potion (a 2 ¢ price, a 17 ¢ shelf), the Trench Knife and the Knuckle Duster (a
+  // 6 ¢ and a 3 ¢ shelf) have no whole-⬢ recipe that lands on their rung either; the two weapons take 1 ⬢ of scrap.
+  const HELD_BACK = new Set(["pickaxe", "autoinjector", "badge", "mulligan-potion", "trench-knife", "knuckle-duster"]);
   // Bars are the one input-worked recipe priced by scarcity rather than by the formula: the ore cannot be
   // bought, so the ore is the bottleneck and the bar's price is free to be large next to it (Bascinet, 2026-09-20).
   const BARS = new Set(["iron", "copper", "nickel"]);
@@ -1183,7 +1189,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       docValue: `${profitRows.length} recipes on the table`,
       model: offRate.length ? `${offRate.length} off it: ${offRate.slice(0, 5).map((r) => `${r.name} ${round1(r.got)} against ${r.rate}`).join(", ")}${offRate.length > 5 ? ", …" : ""}` : `${profitRows.length} on it`,
       ok: offRate.length === 0,
-      note: "Slack is 2 ¢ a Move, half the rate, or a craft and a half of profit, whichever is widest. The Pickaxe, the Autoinjector, the Badge and the Mulligan Potion are held back: a shelf price or a 2 ¢ sell price leaves no whole-⬢ recipe that lands on the rung.",
+      note: "Slack is 2 ¢ a Move, half the rate, or a craft and a half of profit, whichever is widest. The Pickaxe, the Autoinjector, the Badge, the Mulligan Potion, the Trench Knife and the Knuckle Duster are held back: a shelf price or a 2 ¢ sell price leaves no whole-⬢ recipe that lands on the rung.",
     },
     {
       doc: "DEPOT.md §4",
@@ -1420,9 +1426,13 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       doc: "DEPOT.md §3",
       claim: "Sell-back is 60% of the buy price, rounded",
       docValue: "60%",
-      model: `${priceRule.filter((r) => Math.abs(r.off) <= 1).length} of ${priceRule.length} within ±1 ¢`,
-      ok: priceRule.every((r) => Math.abs(r.off) <= 1),
-      note: "Wage-floor wares and hand-priced entries are expected to differ; see the pricing table.",
+      model: (() => {
+        const rows = priceRule.filter((r) => !r.wageFloor);
+        const off = rows.filter((r) => Math.abs(r.off) > 1);
+        return off.length ? `${rows.length - off.length} of ${rows.length} within ±1 ¢; off: ${off.map((r) => `${r.slug} ${r.buy}→${r.sell} (rule says ${r.expected})`).join(", ")}` : `${rows.length} of ${rows.length} within ±1 ¢`;
+      })(),
+      ok: priceRule.every((r) => r.wageFloor || Math.abs(r.off) <= 1),
+      note: "The three wage-floor wares §3 names are left out. Anything else off the rule is a sell-back that did not follow a shelf-price change; see the pricing table.",
     },
     {
       doc: "DEPOT.md §4",
@@ -1455,15 +1465,15 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "DEPOT.md §0i",
-      claim: "Unarmoured, the turret grazes 6%, wounds 14/16/24%, leaves 22% dying and 18% dead",
-      docValue: "6/14/16/24/22/18 %",
+      claim: "Unarmoured, the turret's flat dodge is 10%, it wounds 3.6/9/16.2%, and leaves 19.8% dying and 41.4% dead",
+      docValue: "10/3.6/9/16.2/19.8/41.4 %",
       model: ["graze", "minor-wound", "deep-wound", "grievous-wound", "dying", "dead"]
         .map((k) => Math.round(turretTable(null)[k] * 1000) / 10)
         .join("/") + " %",
       ok: ["graze", "minor-wound", "deep-wound", "grievous-wound", "dying", "dead"].every(
-        (k, i) => Math.abs(turretTable(null)[k] - [0.06, 0.14, 0.16, 0.24, 0.22, 0.18][i]) < 0.005,
+        (k, i) => Math.abs(turretTable(null)[k] - [0.1, 0.036, 0.09, 0.162, 0.198, 0.414][i]) < 0.005,
       ),
-      note: "Code comment in depotTurret.js says three fifths dying or dead, and ARMOR_GAIN is 0.25, not the 3 the doc's armour formula uses.",
+      note: "The doc's table is DEFAULT_TURRET_TABLE verbatim, and its kit rows were computed from the same odds bend (ARMOR_GAIN 0.25). Both go stale together if depotTurret.js moves.",
     },
     {
       doc: "COOKING.md §2a",

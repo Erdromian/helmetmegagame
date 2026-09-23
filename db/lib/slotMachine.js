@@ -214,7 +214,9 @@ async function playSlots(prisma, discordUserId, { turn = null } = {}) {
           actionType: "slot_machine",
           targetCharacterId: character.id,
           turnId: turn?.id ?? null,
-          details: { faces, outcome: outcome ?? "nothing", stake: SLOT_COST, payout, house: seat.house.name },
+          // `game` is a fixed word the Desire desk's audit filter can search for
+          // ("slots" — DESIRES.md §10); the house's name changes with the Exactor.
+          details: { game: "slots", faces, outcome: outcome ?? "nothing", stake: SLOT_COST, payout, house: seat.house.name },
         },
       });
     });

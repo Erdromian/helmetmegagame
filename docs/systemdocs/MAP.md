@@ -191,6 +191,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Modular | `modular`, `isOpen` | an Open/Close button on the **watchtower** at the gate; impassable while shut. Anyone the tower admits may work it |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
+| Tight squeeze | `tightSqueeze` | a hole no **Giant** fits through, full stop. Listed and refused to anyone holding the `giant` tag — unconditional, not a skill check |
 
 **A modular gate is also a window, open or shut.** A line said in a PUBLIC,
 non-soundproof Room at one end is echoed into every such Room at the other end,
@@ -318,6 +319,68 @@ means one close and one "somebody just did." Both endpoints are redrawn, since
 either may have a tower. **A re-sync never reopens a gate somebody shut in
 play** — `modular.open` in the YAML is the value a link is *born* with, not one
 the sync re-asserts.
+
+### Tight squeeze
+
+`tightSqueeze: true` on a `connections:` entry marks a hole no Giant fits
+through, full stop. Unlike `requiredTagSlug`, which is a reusable lock
+authored with whatever tag slug fits the door, this one is fixed and
+**unconditional**: it refuses exactly the `giant` tag, and nothing a Giant
+can hold opens it back up. `climbing` and `caving` are skills, and this is a
+body that does not fit — the two are not related, on purpose, and a Giant
+with either tag is refused exactly the same as one without. There is nothing
+else to author on the edge — the rule is the flag.
+
+It composes the same way `onFoot` does, checked right where `onFoot` is in
+`crossingCheck` (`db/lib/locationGraph.js`): listed, never hidden, because a
+Giant learning they cannot fit is not a secret the way a hidden crawl is. A
+character without the `giant` tag is never touched by it at all.
+
+**Because the block is unconditional, every `tightSqueeze` edge needs some
+OTHER route left standing for a Giant.** Cutting a region off entirely from
+a sixth of the catalog's most expensive tag is a design mistake, not a
+feature. It's used on three edges today, and none of them closes anything
+off: with no tags at all, a Giant can still reach every Location anyone else
+can. What they lose is the shortcut. The way round is longer, and it crosses
+zone lines, and every crossing costs the Move (§3).
+
+- The Brooding Grounds (`caves-4 ↔ caves-5`) — "a winding forest of
+  mushrooms... any attempt to establish a proper path through has been
+  quashed by the fungi's competition over the limited space" (caves-4's own
+  description). The Grounds still open onto the Walkways (`caves-3 ↔
+  caves-4`), and the Walkways open onto the East River, so a Giant goes round
+  through the Hills: Camp, Approach, Entrance, Bridge, East River, Walkways,
+  Grounds. That's six hops and two zone crossings instead of one free hop. A
+  Giant with `caving` can cut it to four through the Depot's back door
+  (`undertown-5 ↔ caves-4`, `hidden: caving`).
+- The Crystal Chambers (`depths-5 ↔ depths-6`) — the Razor Tunnels' own
+  "carefully climb through countless of these vicious crystals." A Giant
+  comes at the Chambers from the Chasm instead (`depths-6 ↔ depths-7`). With
+  no tags, that means the rail tunnel from the Depot (`undertown-5 ↔
+  depths-7`, see "The railroad" below), which kills anyone inside while the train is
+  out on the line. So this one is about timing, not a closed door. From the
+  Grand Chamber it's six hops and two zone crossings: Lake, Slums, Merchant,
+  Depot, down the tunnel to the Chasm, then the Chambers. A Giant with
+  `climbing` can also come down from the Grand Ravine (`depths-7 ↔
+  hills/grand-ravine`, `locked: climbing`) and skip the train.
+- Last Chance's own bored tunnel west into the Fork (`depths-3 ↔ depths-4`)
+  — "a tunnel has been bored into a smaller cavern system to the West"
+  (depths-3's own description). The shortest detour of the three:
+  `caves-5 ↔ depths-4` already reaches the Fork directly, so a Giant goes
+  Last Chance, Abandoned Camp, Fork. That's two hops, but both cross the
+  Caves/Depths line, so a Giant pays the Move twice for what's a free
+  same-zone hop for anyone else.
+
+Every one of those ways round is an edge that was already on the map before
+this feature. Nothing new was added to make them work.
+
+**Flagging an edge that already exists takes more than a YAML edit.**
+`db:import-zones` never updates an edge that's already there (§2, it only
+adds). That's why the three edges above are also set by a migration
+(`20261022010000_tight_squeeze_existing_edges`), for any database that had
+them before the flag existed. To flag any other existing edge, a GM ticks it
+in `/gm/dev/zones/links`, and whoever does that needs to check what a Giant
+loses by it first.
 
 ### The railroad
 

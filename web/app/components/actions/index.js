@@ -7,6 +7,7 @@ import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActi
 import { checkWanted } from "@/app/(app)/character/cerberonActions";
 import { extractGodfleshRequest, refineRequest, mineRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
 import { formatMoveAmount } from "@/lib/craftBudget";
+import { workVerbByKey } from "@lifeweb/db/lib/gathering";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
 import CollarDialog from "./CollarDialog";
 import HarmDialog from "./HarmDialog";
@@ -97,14 +98,14 @@ export const INSTANT = {
       confirmLabel: "Refine",
     }),
   },
+  // Mine or Gather: one action, worded for the ground (db/lib/gathering.js).
+  // The provider hands the sheet's `workVerb` in; unknown means Mine.
   mine: {
     run: () => mineRequest(),
-    confirm: () => ({
-      title: "Mine?",
-      message:
-        "You spend the turn in the seam. You are paid immediately — and if you know what you are looking at, you might turn something up on top of it.",
-      confirmLabel: "Mine",
-    }),
+    confirm: ({ workVerb } = {}) => {
+      const verb = workVerbByKey(workVerb);
+      return { title: verb.title, message: verb.confirm, confirmLabel: verb.label };
+    },
   },
   // No question first — the tooltip already says what pressing it does, and
   // asking "Try to break free?" of somebody who is Bound is not a real choice.

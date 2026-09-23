@@ -18,6 +18,7 @@ const path = require("path");
 const yaml = require("js-yaml");
 
 const cavingLoot = require("../../../lib/cavingLoot");
+const { GATHERING_ZONE_SLUGS } = require("../../../lib/gathering");
 const corpses = require("../../../lib/corpses");
 const mutilate = require("../../../lib/mutilate");
 const godflesh = require("../../../lib/godflesh");
@@ -175,6 +176,9 @@ function buildSources({ list, bySlug, players }) {
     caves: { plain: lootDistribution(plainDraw, "caves"), skilled: lootDistribution(skilledDraw, "caves") },
     depths: { plain: lootDistribution(plainDraw, "depths"), skilled: lootDistribution(skilledDraw, "depths") },
   };
+  // Gathering (MINING.md §3c): the same press in a gathering zone draws food off its own table,
+  // with no tool and no skill in it. Counted per press, as a find, whatever its stack size.
+  const gathering = Object.fromEntries(GATHERING_ZONE_SLUGS.map((z) => [z, lootDistribution(plainDraw, z)]));
   const caving = {
     caves: lootDistribution(cavingLoot.drawLoot, "caves"),
     depths: lootDistribution(cavingLoot.drawLoot, "depths"),
@@ -283,6 +287,18 @@ function buildSources({ list, bySlug, players }) {
       }
     }
 
+    for (const [zone, { dist }] of Object.entries(gathering)) {
+      const rate = dist.get(slug) ?? 0;
+      if (rate) {
+        routes.push({
+          kind: "gathering",
+          label: `Gather in the ${zone === "hills" ? "Black Hills" : zone} (no tool needed): ${pct(rate)} of presses`,
+          rank: rate >= RULES.scarceBelow ? 1 : 4,
+          rate,
+        });
+      }
+    }
+
     // Bodies
     if (corpseGroup.includes(slug)) {
       routes.push({ kind: "death", label: "a death (a body in reach)", rank: 4 });
@@ -375,6 +391,7 @@ function buildSources({ list, bySlug, players }) {
       if (r.kind === "depot" && r.rank === 1) options.push({ pri: 1, kind: "depot", via: "Depot, general shelf" });
       else if (r.kind === "farm") options.push({ pri: 2, kind: "farm", via: "Farm" });
       else if (r.kind === "prospecting" && r.rate >= RULES.commonOre) options.push({ pri: 4, kind: "ore", via: `Ore, ${pct(r.rate)} of Caves presses`, rate: r.rate });
+      else if (r.kind === "gathering" && r.rate >= RULES.commonOre) options.push({ pri: 4, kind: "gather", via: `Gathered, ${pct(r.rate)} of hills presses`, rate: r.rate });
       else if (r.kind === "caving" && r.rate >= RULES.commonFind) options.push({ pri: 5, kind: "find", via: `Cave find, ${pct(r.rate)} of arrivals`, rate: r.rate });
     }
     if (t.craftable && t.requirement && !options.length) {
@@ -509,7 +526,7 @@ function buildSources({ list, bySlug, players }) {
     // Every route to one of ANY slug, ranked, for a caller pricing something that is not a recipe
     // input (equipment.js prices the creation picks this way). Memoised above, so it is cheap.
     routesFor: (slug) => routesFor(slug).slice().sort((a, b) => a.rank - b.rank || (a.cost ?? 0) - (b.cost ?? 0)),
-    drops: { prospecting, caving },
+    drops: { prospecting, gathering, caving },
     monsterYields: monster,
     livestockAdultSlug: ARELITZ_SLUG,
     livestockYoungSlug: "arelitz-youngling",

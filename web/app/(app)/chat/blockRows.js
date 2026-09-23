@@ -77,8 +77,11 @@ function turnBlock(row) {
     body: (
       <>
         {/* The one picture a turn can carry, the same one Discord's #turns
-            posts: the nuke's or the hellfire's (db/lib/turnBanner.js). */}
+            posts: the nuke's or the hellfire's (db/lib/turnBanner.js). A
+            plain <img>, not next/image: two fixed JPEGs off our own origin,
+            nothing for an optimizer to earn. */}
         {TURN_PLATES.has(turn.plate) ? (
+          // eslint-disable-next-line @next/next/no-img-element
           <img className="turn-plate" src={`/assets/turn/${turn.plate}.jpg`} alt="" loading="lazy" />
         ) : null}
         {turn.note ? <ChatMarkdown content={turn.note} /> : null}

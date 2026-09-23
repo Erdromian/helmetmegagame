@@ -15,9 +15,50 @@ const {
 const { EXHAUSTED_SLUG, PROSPECTING_SLUG, PICKAXE_SLUG } = require("../lib/constants");
 
 // A context of the shape buildMiningContext returns, with a workable seam under it.
-function ctx(slugs, { coefficient = 1, tools = [] } = {}) {
-  return { locationName: "A Seam", coefficient, tagSlugs: new Set(slugs), tools };
+function ctx(slugs, { coefficient = 1, tools = [], zoneSlug = "caves" } = {}) {
+  return { locationName: "A Seam", coefficient, zoneSlug, tagSlugs: new Set(slugs), tools };
 }
+
+// The same button says Gather in the Black Hills (db/lib/gathering.js): same
+// gate, same rate, different words — and the resolved rate says which.
+test("the Black Hills gather where the caves mine, on the same rate", () => {
+  const caves = resolveMiningRateFrom(ctx([PICKAXE_SLUG]), 1);
+  const hills = resolveMiningRateFrom(ctx([PICKAXE_SLUG], { zoneSlug: "hills" }), 1);
+  assert.equal(caves.verb, "mine");
+  assert.equal(caves.gathering, false);
+  assert.equal(hills.verb, "gather");
+  assert.equal(hills.gathering, true);
+  assert.deepEqual([hills.min, hills.max], [caves.min, caves.max]);
+});
+
+// The hills are poor ground and a meal should not sit behind a 13 ¢ tool:
+// Gather has no pickaxe gate. Everything else the gate refuses still refuses.
+test("gathering wants no pickaxe, but Exhausted and being tied up still refuse", () => {
+  assert.deepEqual(computeMiningAccess(ctx([], { zoneSlug: "hills" })), { ok: true });
+  assert.equal(computeMiningAccess(ctx([EXHAUSTED_SLUG], { zoneSlug: "hills" })).ok, false);
+  assert.equal(computeMiningAccess(ctx(["bound"], { zoneSlug: "hills" })).ok, false);
+  // Underground, the pick is still the gate.
+  assert.equal(computeMiningAccess(ctx([], { zoneSlug: "caves" })).ok, false);
+});
+
+test("the hills' place refusal is worded for the ground", () => {
+  const nothing = resolveMiningRateFrom(ctx([], { zoneSlug: "hills", coefficient: 0 }), 1);
+  assert.equal(nothing.ok, false);
+  assert.match(nothing.reason, /nothing to gather/i);
+});
+
+test("a pick worn while gathering still pays its bonus, it just is not required", () => {
+  const pick = { name: "Pickaxe", amount: 1, needsEquipped: true, equipped: true, isWeapon: false };
+  const bare = resolveMiningRateFrom(ctx([], { zoneSlug: "hills" }), 1);
+  const worn = resolveMiningRateFrom(ctx([PICKAXE_SLUG], { zoneSlug: "hills", tools: [pick] }), 1);
+  assert.equal(bare.ok, true);
+  assert.equal(worn.min, bare.min + 1);
+});
+
+test("a zone nobody named mines, so a new seam is never a hillside by accident", () => {
+  assert.equal(resolveMiningRateFrom(ctx([PICKAXE_SLUG], { zoneSlug: null }), 1).verb, "mine");
+  assert.equal(resolveMiningRateFrom(ctx([PICKAXE_SLUG], { zoneSlug: "depths" }), 1).verb, "mine");
+});
 
 test("a pickaxe is what opens the button", () => {
   assert.deepEqual(computeMiningAccess(ctx([PICKAXE_SLUG])), { ok: true });

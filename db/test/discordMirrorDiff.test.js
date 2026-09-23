@@ -62,8 +62,11 @@ const baseConfig = {
   radioCategoryId: "cat-radio",
   cerberonChannelId: "chan-cerberon",
   freq27065ChannelId: "chan-27065",
+  freq243000ChannelId: "chan-243000",
   deadchatCategoryId: "cat-dead",
   deadchatChannelId: "chan-dead",
+  gameplayCategoryId: "cat-gameplay",
+  partyChannelId: "chan-party",
 };
 
 // Builds desired twice: once to learn the hashes a matching world would carry,

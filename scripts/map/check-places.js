@@ -17,12 +17,19 @@
 //   5. Can you actually walk there? An unreachable Location is a Discord
 //      channel nobody can ever stand in.
 //
+// Two places are exempt on purpose. A Location carrying the `offMap`
+// attribute is drawn nowhere and linked to nothing by definition, so it
+// answers neither (4) nor (5); and the Charon on the ground has no road
+// because the Panic Room's button is its only door (db/lib/charonPlaces.js,
+// docs/systemdocs/CHARON.md), so it answers (4) but not (5).
+//
 // The zones not yet renumbered are listed in PENDING below; their Locations
 // are exempt from (4), and their unreachable places are reported as notes
 // rather than problems.
 const fs = require("node:fs");
 const path = require("node:path");
 const yaml = require("js-yaml");
+const { CHARON_SLUG } = require("../../db/lib/charonPlaces");
 
 const ROOT = path.resolve(__dirname, "..", "..");
 const read = (...p) => yaml.load(fs.readFileSync(path.join(ROOT, ...p), "utf8"));
@@ -40,7 +47,7 @@ function main() {
   const problems = [];
   const notes = [];
   const slugs = new Map();
-  const locations = new Map(); // "zone/loc" -> { zone, slug }
+  const locations = new Map(); // "zone/loc" -> { zone, slug, offMap }
   const claim = (slug, what) => {
     if (slugs.has(slug)) problems.push(`slug "${slug}" is used twice: ${slugs.get(slug)} and ${what}`);
     slugs.set(slug, what);
@@ -49,7 +56,7 @@ function main() {
   const walk = (zoneId, zone) => {
     for (const [locId, loc] of Object.entries(zone.locations ?? {})) {
       claim(locId, `location ${locId}`);
-      locations.set(`${zoneId}/${locId}`, { zone: zoneId, slug: locId });
+      locations.set(`${zoneId}/${locId}`, { zone: zoneId, slug: locId, offMap: Boolean(loc.attributes?.offMap) });
       for (const [roomId, room] of Object.entries(loc.rooms ?? {})) {
         claim(roomId, `room ${roomId}`);
         for (const slug of room.access ?? []) {
@@ -103,8 +110,8 @@ function main() {
       }
     }
   }
-  for (const { zone, slug } of locations.values()) {
-    if (PENDING.has(zone) || plated.has(slug)) continue;
+  for (const { zone, slug, offMap } of locations.values()) {
+    if (PENDING.has(zone) || plated.has(slug) || offMap) continue;
     problems.push(`location "${slug}" is in a renumbered zone but nothing on the plate draws it`);
   }
 
@@ -118,7 +125,8 @@ function main() {
     }
     for (const key of locations.keys()) {
       if (seen.has(key)) continue;
-      const { zone } = locations.get(key);
+      const { zone, slug, offMap } = locations.get(key);
+      if (offMap || slug === CHARON_SLUG) continue;
       // A skeleton Location with no rooms is one nobody has written yet; it
       // gets its edges when its zone's pass lands, so it is a note.
       const bare = !Object.keys(zonesDoc.zones[zone]?.locations?.[key.split("/")[1]]?.rooms ?? {}).length;
