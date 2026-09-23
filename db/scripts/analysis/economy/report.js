@@ -917,7 +917,7 @@ function sectionPower() {
     { h: "Role", get: (r) => r.name },
     { h: "Group", get: (r) => r.group },
     { h: "Seats", num: true, get: (r) => r.seats, sort: (r) => (r.seats === "no cap" ? 999 : r.seats) },
-    { h: "Tag value, pt", num: true, get: (r) => r.tagValue, sort: (r) => r.tagValue },
+    { h: "Tag value, pt", num: true, get: (r) => (r.extraPoints ? `${r.kitValue} + ${r.extraPoints} bonus = ${r.tagValue}` : `${r.tagValue}`), sort: (r) => r.tagValue },
     { h: "Wealth ¢", num: true, get: (r) => fmt(r.wealthCoin, 0), sort: (r) => r.wealthCoin },
     { h: "Reach ¢ (keyed rooms)", num: true, get: (r) => fmt(r.reachCoin, 0), sort: (r) => r.reachCoin },
     { h: "Soft power", num: true, get: (r) => r.softPower, sort: (r) => r.softPower },
@@ -942,7 +942,7 @@ function sectionPower() {
   ];
   const weightCols = [{ h: "Soft power adds…", get: (r) => r.knob }, { h: "Worth", get: (r) => r.value }];
   return `<section><h2>Starting power, by role</h2>
-<p class="lede">Three separate measures, not one number pretending to be precise, plus a fourth column that only exists to sort by. <b>Tag value</b> is what the free starting kit would have cost at character creation, point for point — a role's own starting tags priced the same way the Store prices everyone else's purchases (<code>Tag.pointCost</code>; Obols and Resources carry none, so a fat purse does not inflate this). <b>Wealth</b> is what a role could turn into spendable ¢ on its own on day one: bank plus coin in hand plus the ⬢ on its person, the ⬢ valued at the Depot's sell-back (${fmt(P.rvSell, 0)} ¢, the guaranteed floor — nobody can be paid less for it, so this is a liquidation value, never a replacement cost). <b>Reach</b> is the same, for what its own keys open beyond its own pocket — the ⬢ and ¢ sitting in the locked rooms its starting tags admit it to (<code>db/scripts/analysis/economy/starting.js</code>'s own keyed-room figures); several roles can share one key, so this is what a role <em>could</em> reach, the same honest limit that section states. Neither Wealth nor Reach folds ⬢ into ¢ silently — the rate is named right here, the way it is everywhere else in this report.</p>
+<p class="lede">Three separate measures, not one number pretending to be precise, plus a fourth column that only exists to sort by. <b>Tag value</b> is a role's whole point-buy budget at character creation: what the free starting kit would have cost, point for point — a role's own starting tags priced the same way the Store prices everyone else's purchases (<code>Tag.pointCost</code>; Obols and Resources carry none, so a fat purse does not inflate this) — plus any <code>extra_starting_points</code> <code>docs/roles.yaml</code> adds to <code>GameConfig.startingTagPoints</code> for that role, shown as kit + bonus so the total is never a hidden sum. <b>Wealth</b> is what a role could turn into spendable ¢ on its own on day one: bank plus coin in hand plus the ⬢ on its person, the ⬢ valued at the Depot's sell-back (${fmt(P.rvSell, 0)} ¢, the guaranteed floor — nobody can be paid less for it, so this is a liquidation value, never a replacement cost). <b>Reach</b> is the same, for what its own keys open beyond its own pocket — the ⬢ and ¢ sitting in the locked rooms its starting tags admit it to (<code>db/scripts/analysis/economy/starting.js</code>'s own keyed-room figures); several roles can share one key, so this is what a role <em>could</em> reach, the same honest limit that section states. Neither Wealth nor Reach folds ⬢ into ¢ silently — the rate is named right here, the way it is everywhere else in this report.</p>
 <h3>Soft power, the vague one</h3>
 <p class="lede">This is a house-rules score, not a catalog figure, and it says so on purpose. It answers "how much of a big deal is this seat", which is a real question a GM asks even though nothing prices it. It is built entirely from signals already in the data rather than from reading a role's own prose for the word "leader": whether it is a unique named seat (<code>multiple: false</code> — one to a game, and <code>docs/roles.yaml</code>'s own header points at this as the leadership tell), whether it is whitelisted, how autonomous its bank account is, how many keys and locked rooms it starts able to reach, how much lore it already knows (<code>doc_elements</code>), its own bonus points at creation, and how rare the seat itself is. Every weight below is a small, round, shown number, so the "why" column on each row adds up by hand to the total next to it — retune the numbers on a re-read; nothing else here depends on their exact values.</p>
 ${table({ cols: weightCols, rows: weightRows, id: "powerweights" })}
@@ -1705,9 +1705,9 @@ const startingCsv = [
 fs.writeFileSync(path.join(outDir, "starting.csv"), startingCsv);
 
 const powerCsv = [
-  ["role", "group", "seats", "tagValuePoints", "wealthCoin", "reachCoin", "softPower", "composite", "keys", "docElements"].join(","),
+  ["role", "group", "seats", "tagKitValuePoints", "tagBonusPoints", "tagValuePoints", "wealthCoin", "reachCoin", "softPower", "composite", "keys", "docElements"].join(","),
   ...model.power.rows.map((r) =>
-    [r.name, r.group, r.seats, r.tagValue, r.wealthCoin, r.reachCoin, r.softPower, r.composite, r.keys.join("; "), r.docElements.join("; ")].map(csvCell).join(","),
+    [r.name, r.group, r.seats, r.kitValue, r.extraPoints, r.tagValue, r.wealthCoin, r.reachCoin, r.softPower, r.composite, r.keys.join("; "), r.docElements.join("; ")].map(csvCell).join(","),
   ),
 ].join("\n");
 fs.writeFileSync(path.join(outDir, "power.csv"), powerCsv);

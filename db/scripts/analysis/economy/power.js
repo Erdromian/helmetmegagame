@@ -2,10 +2,13 @@
 // pretending to be precise. Built entirely from what db/scripts/analysis/economy/starting.js already
 // worked out (docs/roles.yaml, docs/zones.yaml), so there is nothing new to read from disk here.
 //
-//   TAG VALUE      What the free starting kit would have cost at character creation, point for
-//                  point — a role's own starting_tags priced the same way the point-buy store prices
-//                  everyone else's purchases (Tag.pointCost). Obols and Resources carry no pointCost,
-//                  so a fat purse does not inflate this; it is a skills-and-gear number, in points.
+//   TAG VALUE      A role's whole point-buy budget at creation, in the Store's own points: what the
+//                  free starting kit would have cost, point for point (a role's own starting_tags
+//                  priced the same way the point-buy store prices everyone else's purchases —
+//                  Tag.pointCost; Obols and Resources carry none, so a fat purse does not inflate
+//                  this), PLUS any extra_starting_points docs/roles.yaml gives the role on top of
+//                  GameConfig.startingTagPoints — the Baron's +5, the Courtier's +7, and so on. Both
+//                  halves are shown (kitValue, extraPoints) so the total is never a hidden sum.
 //
 //   WEALTH         What a role could turn into spendable ¢ on day one, on its own: bank plus coin in
 //                  hand plus ⬢ on the person, the ⬢ valued at the Depot's sell-back (the guaranteed
@@ -107,7 +110,8 @@ function buildPower({ starting, rv }) {
       multiple: role.multiple,
       whitelist: role.whitelist,
       account: role.account,
-      tagValue: role.tagPointValue,
+      tagValue: role.tagPointValue + role.extraPoints,
+      kitValue: role.tagPointValue,
       bank: role.bank,
       coinHand: role.coinHand,
       resources: role.resources + role.cracked,
