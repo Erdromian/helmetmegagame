@@ -4,6 +4,310 @@ explanation:
 # Documents are a map keyed by their document key (`lore:`, not
 # `- key: lore`) — see docs/tags.yaml's header, and db/lib/yamlEntries.js.
 documents:
+  # FATES — one per role, reached by `roles:` rather than the role's
+  # doc_elements, which count toward the role's power score
+  # (db/scripts/analysis/economy/power.js) and would shift balance for what is
+  # only flavour. Bascinet's text, from E:\Bascinet\V2\Fate Documents.docx —
+  # except Soiler, Innkeeper and Inn Staff, which come from
+  # E:\Bascinet\V3\Fates.docx. Edits are the {tag:…} tokens, straight quotes
+  # and a handful of typo fixes. The V2 Scholastic, Fisherman and Headman fates
+  # are not here: no role has those slugs.
+  # First in the file so a fate sits right under the pinned role charter.
+  fate-baron:
+    name: "Fate: Baron"
+    public: false
+    tags: []
+    roles: [baron]
+    description: |-
+      As the Baron, your rule is absolute. You have the authority to order around any, save for the church. Those who refuse to comply must be punished and made examples of.
+
+      Regardless of your characteristics, as a Baron you must be decisive and willing to have your men crack as many heads as needed in order to get what you want. This is a story about you, and you must steer it as such!
+  fate-baroness:
+    name: "Fate: Baroness"
+    public: false
+    tags: []
+    roles: [baroness]
+    description: |-
+      As the Baron's wife, you are simultaneously the closest person to him, and also the most distant. After years spent with him, you are accustomed to being ignored and overlooked, taken for granted and even mistreated.
+
+      However, this doesn't mean you can't play a significant and even pivotal role in the story, it only means it is up to you to make that happen. Pester your husband to lend his ear to you for once instead of his foolish courtiers, scheme behind his back either in support or against him. Act first and ask for permission later, as his wife you have similar authority to the Baron.
+  fate-heir:
+    name: "Fate: Heir"
+    public: false
+    tags: []
+    roles: [heir]
+    description: |-
+      Heir apparent! The future of the fortress rests on your shoulders, and you are keen to ignore that fact in favour of whatever fun activities you have planned for right now.
+
+      Parties, adventures, vices and all the other things that you won't be able to do when you are forced to take up responsibilities, they are your forte. The world is your oyster, and you can actually afford to make an impact on it!
+  fate-successor:
+    name: "Fate: Successor"
+    public: false
+    tags: []
+    roles: [successor]
+    description: |-
+      The sibling of your brother, that is all people know you as, and you are keen to change that. Thankfully your father is too unimportant amongst the kingdom's nobility for you to have been married off for some temporary alliance.
+
+      You still have your freedom to impact the world around you; you would be wise to make good use of it. Leave your mark on the world and maybe people will start to realise you are more than just some pretty-faced noble lady.
+  fate-hand:
+    name: "Fate: Hand"
+    public: false
+    tags: []
+    roles: [hand]
+    description: |-
+      Growing up with the Baron, you know him inside and out, and only you are privy to some of his most hare-brained ideas. You have made sure to gently let him down on many occasions, turning his deluded commands into sensible policies, all the while letting him take the credit for the prosperity you have created.
+
+      You are perhaps the only person in Ravenheart who can save the Baron from himself, good luck.
+  fate-meister:
+    name: "Fate: Meister"
+    public: false
+    tags: []
+    roles: [meister]
+    description: |-
+      Endlessly overworked, you must somehow turn failed harvests and catastrophic disasters into financial gains for the Baron. After all the economic miracles you have worked for the treasury in the past, expectations are high.
+
+      Micromanagement is key, the headman cannot be relied upon if experience has taught you anything. Make sure your presence is overbearing and scrutinize every {tag:obol} and resource they send your way. If the treasury winds up empty, you will be the one taking the fall along with the headman.
+  fate-arbiter:
+    name: "Fate: Arbiter"
+    public: false
+    tags: []
+    roles: [arbiter]
+    description: |-
+      The God-King has sent you here to ensure his will and laws are followed to the letter. Petty nobility like the Baron have a bad habit of warping the law to their own desires, make sure to remind them of their obligations.
+
+      If things are going wrong in Ravenheart, it is the Baron's fault and you must ensure he is accountable for it.
+  fate-courtier:
+    name: "Fate: Courtier"
+    public: false
+    tags: []
+    roles: [courtier]
+    description: |-
+      The Baron saw fit to recruit you to his court, and now he expects you to earn your keep. Show your liege how indispensable your skills, talents and advice are, or you might be quietly sent away.
+  fate-minstrel:
+    name: "Fate: Minstrel"
+    public: false
+    tags: []
+    roles: [minstrel]
+    description: |-
+      The court's entertainer, not everyone understands the appeal, but for some reason the Baron can't get enough of you! The keep can be a very tense place, and the Baron is no stranger to losing his temper. You must keep this place sane by providing the occasional whimsical routine, if tensions get too high perhaps the Baron will find your head on a spike to be the most entertaining thing to do with you.
+  fate-servant:
+    name: "Fate: Servant"
+    public: false
+    tags: []
+    roles: [servant]
+    description: |-
+      Cook, clean and serve! Your pay is meagre, but in return you are granted a place in the Lord's opulent keep. The Baron and his family expect hot food to be prepared without them even asking, fail at this and you might end up out in the cold.
+
+      Chop Chop!
+  fate-bishop:
+    name: "Fate: Bishop"
+    public: false
+    tags: []
+    roles: [bishop]
+    description: |-
+      Guide the faithful and let none stray from the church's strict doctrines! You have been the anointed Bishop of Ravenheart for quite some time, and despite all your efforts many of the flock seem more interested in worldly vices. You must redouble your efforts and enlighten them, lest they damn their immortal souls.
+
+      The inquisitor arrived in Ravenheart not too long ago, he will be your greatest ally in saving Ravenheart from damnation. Make sure you hold regular sermons, or the faithful will surely start losing sight of God-in-Coma.
+  fate-chaplain:
+    name: "Fate: Chaplain"
+    public: false
+    tags: []
+    roles: [chaplain]
+    description: |-
+      Man of the cloth, you have seen the light of God in Coma and dedicated your life to honouring him. Many in Ravenheart find themselves jaded and lost, it is your duty to provide them with a path back to grace. Counsel those who bear guilt, nourish those who might go hungry and enlighten those who have lost faith. All the while, inform the inquisition of exactly who might be a little too far from God…
+  fate-inquisitor:
+    name: "Fate: Inquisitor"
+    public: false
+    tags: []
+    roles: [inquisitor]
+    description: |-
+      This place is teeming with heresy. You could sense it, even when you first arrived. Since then, you have been working tirelessly to uproot the evildoers who hide amongst the flock. Asking nicely and observing passively will get you nowhere, evil knows how to hide itself and does so with ease. Answers must be beaten out if you are to ever get to the bottom of this.
+
+      Dispatch your practicii to ask around town, the faithful will either be eager or intimidated enough to share all the suspicious things they have seen. And those who lie you can always go back for later.
+
+      God be saved, dear inquisitor. You must succeed or else damnation is all but assured for this wretched place.
+  fate-practicus:
+    name: "Fate: Practicus"
+    public: false
+    tags: []
+    roles: [practicus]
+    description: |-
+      The inquisitor is many things, but they are still only one person. You must be their extra eyes and hands. Stick with your mentor as much as you can and do as they ask of you.
+
+      There is no such thing as unwarranted suspicion, and deeper evil is almost always behind those who seem out of place.
+  fate-preacher:
+    name: "Fate: Preacher"
+    public: false
+    tags: []
+    roles: [preacher]
+    description: |-
+      You came here as a part of the larger inquisitory effort. Your role is to radicalize the common people against the heresy and evil which plague them. Show them exactly what is the root of all their hardships and lead them forward in purging it from Ravenheart!
+
+      The minds of the faithful are as much a battlefield against the cultural poison of heresy as the physical realm. You are the inquisition's greatest asset in establishing religious purity in this place.
+
+      Call out the sinful, shame them for all to see!
+  fate-censor:
+    name: "Fate: Censor"
+    public: false
+    tags: []
+    roles: [censor]
+    description: |-
+      Captain of the guard, your existence is dedicated to serving the Baron. Your desire for self-preservation is derived only from your use as a tool to your liege. Enact his will without question and see that your subordinates possess the same zeal as yourself.
+
+      Give regular assignments to your cerberii and receive any reports of incidents in town. You are the Baron's first line of defence against those who seek to undermine his rule.
+  fate-incarn:
+    name: "Fate: Incarn"
+    public: false
+    tags: []
+    roles: [incarn]
+    description: |-
+      Stern and resolute, your service to protect your liege is a service in honour of God-in-Coma. You are tasked with manning the gates of the fortress, as none in the garrison have a better eye for evil than you. Grant passage to those who deserve it, and do not be afraid to reject or detain any who you suspect seek to enter the fortress with malicious intents.
+
+      As a warrior of God, one of the only things that can lure you from your post is the fear of missing one of the Bishop's sermons. God be saved, dear Incarnatus!
+  fate-cerberus:
+    name: "Fate: Cerberus"
+    public: false
+    tags: []
+    roles: [cerberus]
+    description: |-
+      Loyal dog of the Baron. You have been thoroughly trained to follow orders given by your liege and captain without thought. You pride yourself on your ability to fulfill the duties assigned to you and are haunted by the fear of failure.
+
+      Try and always have a duty assigned to you, seek out your superiors asking how you can serve. Do as they ask, and no more. If a criminal is ordered to be brought before the Lord's feet, do not maim them in the process, unless specifically ordered to.
+
+      Your zeal for serving your liege does not rival that of your captain. Nevertheless, your life revolves around your service to the Baron and you should follow all but the most preposterous orders without question.
+  fate-squire:
+    name: "Fate: Squire"
+    public: false
+    tags: []
+    roles: [squire]
+    description: |-
+      A Cerberus in training, stick to whoever is assigned to train you like glue. Help them in their assigned duties and learn the ropes along the way.
+
+      Time spent separate from your mentor is time wasted, if you ever wish to be promoted you need to always stay by their side. If you lack a mentor, you should be making every possible effort to find a new one straight away.
+
+      You lack the zeal and unquestioning loyalty of the cerberii to your liege, but you are no old dog and learning tricks is what you are good at.
+  fate-esculap:
+    name: "Fate: Esculap"
+    public: false
+    tags: []
+    roles: [esculap]
+    description: |-
+      It has been many years since you swore yourself to use your skills to heal and treat the sick. Since then, you have seen how the feckless bickering of the town leaves them broken and scarred, and how they all seem to expect you to fix it.
+
+      Your task is not an easy one, many cling to the assumption that treatment comes easy. The sanctuary was built on a brutal regime of profit driven healing, not charity.
+
+      Organise your serpents, delegating healing and preparation of tonics and medicines. Set reasonable but also profitable prices for each treatment, or your beloved sanctuary may go under. If all else fails, human organs will always fetch a high price, and there are plenty to go around.
+  fate-serpent:
+    name: "Fate: Serpent"
+    public: false
+    tags: []
+    roles: [serpent]
+    description: |-
+      Trained in the art of healing, your mentor and boss the Esculap both guides you and pays you for your help around the Sanctuary. There is a lot of work to do running the sanctuary, help them as best you can.
+
+      Stay up to date with the prices for each treatment as prescribed by your mentor. Consistent profits are what keeps the sanctuary running, and those who cannot pay should be turned away. Run errands, craft tonics and heal those the Esculap is too busy for. Anything in service of your beloved Sanctuary.
+  fate-merchant:
+    name: "Fate: Merchant"
+    public: false
+    tags: []
+    roles: [merchant]
+    description: |-
+      You have been granted an official monopoly on the import and export of goods to and from Ravenheart. Since then, your depot and storefront has grown to be very lucrative, and you have enjoyed a steady stream of profits. You were even able to finance an automated turret, it will gun down anyone in the depot except you, in case things go awry.
+
+      You have still yet to recoup the initial costs of setting up here and are very eager to do so as soon as possible. If you plan on turning a profit from this venture, you can't afford to offer fair prices. Your monopoly allows you to set whatever prices you want, and as the only supplier, the people will have no choice but to accept.
+
+      Your dockers live on your payroll, they are reliant on you and will follow your demands out of fear of ending up destitute. Make sure to remind them of who pays their salaries.
+
+      Your only loyalty is to your own profits. The people here are only as good to you as their ability to make you money, and you couldn't care less for their own internal squabbling unless it threatens your bottom line.
+  fate-docker:
+    name: "Fate: Docker"
+    public: false
+    tags: []
+    roles: [docker]
+    description: |-
+      You work for the merchant and are wholly reliant on them for your survival. You aren't originally from these parts; you were hired and brought here when the merchant first established themselves. Since then, you have become more accustomed to the locals of Ravenheart, but you can't relate to them the same way you can to your fellow dockers.
+
+      Do your best not to attract the ire of your boss. To lose your job would leave you stuck here, destitute and aimless. When you are being ordered around the depot, see what sort of entertainment there is to be had in town with your fellow dockers. The merchant has learned to accept you getting into the occasional bar fight as long as you get back in time to haul freight.
+  fate-banneret:
+    name: "Fate: Banneret"
+    public: false
+    tags: []
+    roles: [banneret]
+    description: |-
+      You are a distant relative of the Baron, continually overlooked until your assignment here. Managing the factory, you must keep those working here on track to harvest as much {tag:godflesh} as possible. Fulfilling the Baron's quotas is your only way to get out of this stinking place and get an assignment more befitting your noble stature.
+
+      Crack the whip and see to it that your geschef maintains maximum productivity amongst the workers with the occasional rough housing. Coordinate your progress in producing {tag:squeeze} with both the meister and merchant, they are the other two main links in the logistical chain that sees godflesh harvested, processed, exported and taxed.
+
+      Migrants are continually arriving in Ravenheart, seeking shelter from the terrors further South. See that their ultimate destination is the factory floor, replacing the regular casualties that occur here. You will likely need to coordinate this effort with the captain and garrison. Those who refuse to work to earn their keep in Ravenheart need to be made examples of.
+  fate-geschef:
+    name: "Fate: Geschef"
+    public: false
+    tags: []
+    roles: [geschef]
+    description: |-
+      You were once a worker on the factory floor, until the last geschef tried to prove how easy harvesting {tag:godflesh} was to the workers without proper protective equipment. Now it is your job to beat a satisfactory quota out of any would-be slackers.
+
+      Make an effort to take regular head counts and keep track of how much each worker produces. Someone making significantly less than their peers is a clear sign of slacking and should be treated as such.
+
+      Don't be afraid to put the boot to any who show signs of insubordination, injury is a normal part of this line of work and the workers organizing a strike would be the fastest way for you to end up with your head on a spike.
+  fate-refugee:
+    name: "Fate: Refugee"
+    public: false
+    tags: []
+    roles: [refugee]
+    description: |-
+      You fled to Ravenheart from the South, seeking safety. Now the local authorities have found a way for you to earn your keep, harvesting and processing {tag:godflesh}. The work is hard and dangerous, while your pay is almost nonexistent.
+
+      Meet your quotas, feign gratefulness for what little you earn and don't fuck up. Maybe then they will reassign you to a job breaking your back in the fields or mines.
+
+      Escape is always an option, but as the strung-up corpses of ungrateful refugees who refused to work outside the factory demonstrates, it comes with its own risks. For now, just hope you can make it another day without losing any fingers.
+  fate-sheriff:
+    name: "Fate: Sheriff"
+    public: false
+    tags: []
+    roles: [sheriff]
+    description: |-
+      Once a member of the guard, you haven't stepped foot in the cerberon for years. Your rigorous training in unquestioning loyalty to the Baron has decayed, and in its stead a new fondness for the townsfolk around you has grown.
+
+      Your work leaves you continually conflicted, having to watch as the guards drag away someone you know because they let slip their true thoughts on the Baron. If you try to intervene it will likely be the end for you, but just how much can you tolerate of his abuse of the people?
+
+      Walk this tightrope carefully, protecting those dear to you, while saving your own neck. Your people need you, good luck.
+  fate-soiler:
+    name: "Fate: Soiler"
+    public: false
+    tags: []
+    roles: [soiler]
+    description: |-
+      Working the soilery, you provide food for the town and rear {tag:arelitz}. Years of ensuring the townsfolk don't go hungry has led to many taking the steady supply of food for granted. Few realise just how quickly things would fall apart in your absence.
+
+      Sell your produce to any who can pay. Your most common customers are the inn staff and keep servants, both seeking to satisfy the appetites of those they serve. As the sole source of food in the fortress, you have a lot of leverage in how much people pay for food, exploit it.
+  fate-mortus:
+    name: "Fate: Mortus"
+    public: false
+    tags: []
+    roles: [mortus]
+    description: |-
+      Some days you simply stare into the shifting metal and curdling machinery. All things in life seem to have lost their meaning, except for the mistress.
+
+      The Lifeweb demands continual donations, and it is your duty to find donors. Ostracized and feared, the people have learnt that coming with you peacefully is rarely a good idea. As such, taking donors by force is often required if not expected.
+
+      Your loyalty is solely to the Lifeweb, providing her with a steady flow of blood is all you care for anymore. As for providing for yourself, you are under the employment of the Baron, as your work is vital to the upkeep of his barony. Seek to arrange a liveable wage through him, supplemented with the belongings of donors fed to the Lifeweb.
+  fate-innkeeper:
+    name: "Fate: Innkeeper"
+    public: false
+    tags: []
+    roles: [innkeeper]
+    description: |-
+      Overseeing the inn their family has run for generations, they strive to provide quality food and drink while earning a tidy profit. Their informal authority within the walls of their establishment is near absolute, reserving the right to deny service to any they dislike, short of nobles and the garrison.
+
+      Running the only place in town that reliably serves hot food often results in the innkeeper charging extortionate prices, much to the dismay of the townsfolk.
+  fate-inn-staff:
+    name: "Fate: Inn Staff"
+    public: false
+    tags: []
+    roles: [inn-staff]
+    description: |-
+      Eternally overworked, the inn staff are rarely seen outside their place of work. Running between the kitchen and dining room, serving drinks and food, working the inn is both the coziest and most stressful job in Ravenheart. They do whatever the innkeep asks of them, whether it's catching rats for sausages or haggling with the soilers.
   lore:
     name: Lore
     public: true
@@ -238,6 +542,59 @@ documents:
 
       There may be people in the area who want to use your power. They'll take your treasured independence — the demented, servile idiots.
 
+  # THE VAMPIRE (docs/systemdocs/VAMPIRE.md). Bascinet's text, from
+  # E:\Bascinet\V3\Vampires\Vampire document.docx; the edits are the {tag:…}
+  # tokens and "3 days" as a digit. Secret like the Demoness brief: the Vampire
+  # and Thrall tags hand them out, and otherwise only the host reads them.
+  vampire:
+    name: Vampire
+    public: false
+    secret: true
+    tags:
+      - Vampire
+    description: |-
+      Creature of the night, you have exchanged your mortal soul for eternal life. To sustain yourself, you must feed on the blood of mortals, lest your thirst overwhelm you. Temper yourself against needless slaughter, your connection to this mortal coil is frail as it is.
+
+      Vampires possess two main attributes, blood and humanity.
+
+      Your blood level will continually drain as time passes and must be quenched by submitting a hostile gambit against a mortal in the same location as you. Pick your targets wisely and strike without delay. If you go too long without sating your thirst, your monstrous nature will force your hand, and you will no longer have the luxury of choice as to who you victimise.
+
+      Your humanity is your connection to the mortal world around you, and your capacity to control yourself. Two main things can cause you to lose your sense of humanity, murder and bloodlust.
+
+      Slaying a mortal, regardless of your reason, will cause you to lose humanity. The manner in which you kill is important, to kill in self defence is significantly less severe than to kill wantonly.
+
+      Entering a bloodfrenzy ({tag:bloodcrazed}) occurs when you go too long without feeding and causes a major loss in your humanity. Avoid this at all costs.
+
+      Your humanity gradually recovers over time, however if you lose all sense of humanity, you will irreversibly give in to your bestial nature ({tag:bestial}).
+
+      Vampires possess many powerful abilities. In your character sheet the blood menu shows what abilities are available to you, and how much blood they will cost. You can unlock more abilities as well as other boons with tag points.
+
+      Enthralling someone ({tag:thrall}) will make them dependent on you to survive, you will have to repeatedly let them taste your eternal lifeforce, or they will perish. Have them complete your bidding, and reward them for their efforts.
+  thrall:
+    name: Thrall
+    public: false
+    secret: true
+    tags:
+      - Thrall
+    description: |-
+      Ensnared by the promise of eternal life, you cannot turn back now!
+
+      As a {tag:thrall}, you must taste eternal vigour from your vampiric master once every 3 days ({tag:vampire-blood-addict}). If you do not, you will perish. You are encouraged to serve them for your own self-preservation, but you can choose to sacrifice yourself to betray them if you would like.
+  # Bascinet's text, from E:\Bascinet\V3\Skill Documents\Farming.docx.
+  # Reached by the Soilery skill (the farming skill), and by the Soiler's
+  # doc_elements, which pointed at this key while it was still a stub.
+  farming:
+    name: Farming
+    public: false
+    tags:
+      - Soilery
+    description: |-
+      Growing food is an arduous process and can only be done in the soilery.
+
+      Consume a seed bag to be able to sow certain crops for a turn, then plant them with the farm action.
+
+      The soilery has a stable where you can keep {tag:arelitz}. Leaving food for them will nourish them to produce eggs, and eventually, more arelitz.
+
   # Referenced by roles via doc_elements but not yet written. Stubs keep the
   # reference resolvable (same posture as Guard Duty above) — fill in the
   # description when the content is ready.
@@ -248,11 +605,6 @@ documents:
     description: ""
   inn:
     name: The Inn
-    public: false
-    tags: []
-    description: ""
-  farming:
-    name: Farming
     public: false
     tags: []
     description: ""
