@@ -218,6 +218,8 @@ documents:
 
       Your dockers live on your payroll, they are reliant on you and will follow your demands out of fear of ending up destitute. Make sure to remind them of who pays their salaries.
 
+      You have an automated vendor that people can buy from, even when you are away. Make use of it for the more mundane goods you offer.
+
       Your only loyalty is to your own profits. The people here are only as good to you as their ability to make you money, and you couldn't care less for their own internal squabbling unless it threatens your bottom line.
   fate-docker:
     name: "Fate: Docker"
@@ -234,7 +236,7 @@ documents:
     tags: []
     roles: [banneret]
     description: |-
-      You are a distant relative of the Baron, continually overlooked until your assignment here. Managing the factory, you must keep those working here on track to harvest as much {tag:godflesh} as possible. Fulfilling the Baron's quotas is your only way to get out of this stinking place and get an assignment more befitting your noble stature.
+      You are a distant relative of the Baron, continually overlooked until your assignment here. Managing the factory, you must keep those working here on track to harvest as much {tag:godflesh} as possible. Fulfilling the Baron's quotas are your only way to get out of this stinking place and get an assignment more befitting your noble stature.
 
       Crack the whip and see to it that your geschef maintains maximum productivity amongst the workers with the occasional rough housing. Coordinate your progress in producing {tag:squeeze} with both the meister and merchant, they are the other two main links in the logistical chain that sees godflesh harvested, processed, exported and taxed.
 
@@ -298,16 +300,16 @@ documents:
     tags: []
     roles: [innkeeper]
     description: |-
-      Overseeing the inn their family has run for generations, they strive to provide quality food and drink while earning a tidy profit. Their informal authority within the walls of their establishment is near absolute, reserving the right to deny service to any they dislike, short of nobles and the garrison.
+      Overseeing the inn your family has run for generations, you strive to provide quality food and drink while earning a tidy profit. Your informal authority within the walls of your establishment is near absolute, and you reserve the right to deny service to any who cause trouble, short of nobles and the garrison.
 
-      Running the only place in town that reliably serves hot food often results in the innkeeper charging extortionate prices, much to the dismay of the townsfolk.
+      Running the only place in town that reliably serves hot food allows you to charge extortionate prices if you so choose, much to the dismay of the townsfolk.
   fate-inn-staff:
     name: "Fate: Inn Staff"
     public: false
     tags: []
     roles: [inn-staff]
     description: |-
-      Eternally overworked, the inn staff are rarely seen outside their place of work. Running between the kitchen and dining room, serving drinks and food, working the inn is both the coziest and most stressful job in Ravenheart. They do whatever the innkeep asks of them, whether it's catching rats for sausages or haggling with the soilers.
+      Eternally overworked, you rarely get a chance to get out of the inn for recreational time. Running between the kitchen and dining room, serving drinks and food, working the inn is both the coziest and most stressful job in Ravenheart. Perhaps tonight is the night you sneak out, and have some fun instead?
   lore:
     name: Lore
     public: true
