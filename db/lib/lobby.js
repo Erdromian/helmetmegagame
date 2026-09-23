@@ -21,6 +21,14 @@ const READY_HEADROOM = 1.09;
 // the two from spoiling the draft.
 const ROLL_PHASES = new Set(["LOBBY", "CLOSED"]);
 
+// Seats are handed out by Start Game. Before it, a GM skipping to the wizard
+// picks a role without taking it: no wizard hold is written or counted, so one
+// skipper's pick never reads as taken to the next, and the roll never loses a
+// seat to one. A character actually created still sits in its seat.
+function seatsAllocated(phase) {
+  return !ROLL_PHASES.has(phase);
+}
+
 // Everything assignRoles needs, read fresh. `memberRoles` maps discordUserId
 // -> Discord role ids (from listGuildMembers), the only Discord fact the roll reads.
 async function loadAssignmentInput(db, memberRoles) {
@@ -47,7 +55,7 @@ async function loadAssignmentInput(db, memberRoles) {
     };
   });
 
-  const heldById = await heldSeatsByRole(db, roles);
+  const heldById = await heldSeatsByRole(db, roles, { countReservations: false });
   const taken = new Map(roles.map((r) => [r.slug, heldById.get(r.id) ?? 0]));
 
   const playerCount = players.length > 0 ? Math.ceil(players.length * READY_HEADROOM) : (config.playerCount ?? 80);
@@ -96,7 +104,7 @@ async function validateDraft(db, draft) {
   const wanted = new Map();
   for (const row of draft.rows) if (row.roleSlug) wanted.set(row.roleSlug, (wanted.get(row.roleSlug) ?? 0) + 1);
   const wantedRoles = [...wanted.keys()].map((slug) => bySlug.get(slug)).filter(Boolean);
-  const heldById = await heldSeatsByRole(db, wantedRoles);
+  const heldById = await heldSeatsByRole(db, wantedRoles, { countReservations: false });
   for (const role of wantedRoles) {
     const count = wanted.get(role.slug);
     if ((heldById.get(role.id) ?? 0) + count > roleCapacity(role, playerCount)) {
@@ -166,6 +174,10 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
         returned.push({ discordUserId: row.discordUserId });
       }
     }
+
+    // A hold left from before Start was never a seat (seatsAllocated), and
+    // counted from here on it would overfill the role the roll just filled.
+    await tx.roleReservation.deleteMany({});
 
     await tx.gameState.update({
       where: { id: 1 },
@@ -341,6 +353,7 @@ async function declineAssignment(db, entryId, discordUserId) {
 module.exports = {
   LOBBY_DECLINE_PREFIX,
   ROLL_PHASES,
+  seatsAllocated,
   buildDraft,
   commitAssignment,
   assignmentMessage,

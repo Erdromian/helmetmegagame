@@ -54,12 +54,12 @@ async function reserveRole(prisma, discordUserId, roleId, playerCount) {
 
 // The picker's count, everyone EXCEPT the caller, so a player's own hold
 // renders their role available to them and taken to everyone else.
-async function takenCounts(prisma, roles, excludeDiscordUserId) {
+async function takenCounts(prisma, roles, excludeDiscordUserId, { countReservations = true } = {}) {
   if (roles.length === 0) return new Map();
   await prisma.roleReservation.deleteMany({
     where: { roleId: { in: roles.map((r) => r.id) }, expiresAt: { lt: new Date() } },
   });
-  return heldSeatsByRole(prisma, roles, { excludeDiscordUserId: excludeDiscordUserId ?? null });
+  return heldSeatsByRole(prisma, roles, { excludeDiscordUserId: excludeDiscordUserId ?? null, countReservations });
 }
 
 async function releaseRole(prisma, discordUserId) {

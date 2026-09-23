@@ -66,7 +66,7 @@ import {
 import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
 import { closeDeadchatTo } from "@lifeweb/db/lib/deadchat";
 import { heldSeats } from "@lifeweb/db/lib/seatCount";
-import { settleLobbyEntry } from "@lifeweb/db/lib/lobby";
+import { settleLobbyEntry, seatsAllocated } from "@lifeweb/db/lib/lobby";
 import { recordArchiveEvent } from "@/lib/archive";
 import {
   AGE_MIN,
@@ -358,7 +358,10 @@ export async function createCharacter(formData) {
       // The lock that actually closes the race — see the header comment.
       // heldSeats counts seated characters plus others' holds/assignments; the caller's own are left out.
       await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
-      const held = await heldSeats(tx, role, { excludeDiscordUserId: discordUserId });
+      const held = await heldSeats(tx, role, {
+        excludeDiscordUserId: discordUserId,
+        countReservations: seatsAllocated(state?.phase),
+      });
       // A late join's cap is the GM's number of chairs, not a share of the
       // roster — re-read under the lock, since a GM closing the door between
       // the check above and here must win.
@@ -601,6 +604,8 @@ export async function reserveRoleAction(roleId) {
     return { error: "That role isn't available to you." };
   }
 
+  // Before Start Game a pick holds nothing (db/lib/lobby.js#seatsAllocated).
+  if (!seatsAllocated(state?.phase)) return { ok: true, expiresAt: null };
   const result = await reserveRole(prisma, discordUserId, roleId, effectivePlayerCount(config, state));
   if (!result.ok) {
     return { error: `${role.name} was taken while you were deciding. Pick another role.` };

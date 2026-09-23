@@ -90,6 +90,16 @@ GMs and superadmins see a **Skip to character creation** button
 (`/character?create=1`), which opens the ordinary wizard in any phase. The
 server gate (`createActions.js#creationOpen`) is the same rule.
 
+**Before Start, picking a role in the wizard takes nothing.** Seats are the
+roll's to hand out, so in CLOSED and LOBBY a skipper's pick writes no wizard
+hold and the picker counts none (`db/lib/lobby.js#seatsAllocated`) — two GMs
+skipping ahead can both pick the Sheriff, and neither sees it as taken. The
+roll ignores holds too, and Start Game deletes any left over. A character a
+skipper actually **builds** is a real seat: the picker shows it taken, and the
+roll counts it, so nobody is rolled into it. A skipper still in the wizard
+when Start lands is checked against the new table at their next step, and
+told to pick again if the roll filled their role.
+
 The **Playtest** role (`PLAYTEST_ROLE_ID`, `db/lib/roleIds.js`) does *not* get
 that button. It passes the **roster** check without the Player role — the seat
 exists so a contributor can test creation and play without being seated as a
