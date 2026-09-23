@@ -537,11 +537,13 @@ nothing — the shipped table, `DEFAULT_TURRET_TABLE` in `db/lib/depotTurret.js`
 
 | graze | minor | deep | grievous | dying | dead |
 |---|---|---|---|---|---|
-| 6% | 14% | 16% | 24% | 22% | 18% |
+| 10% | 4% | 9% | 16% | 20% | 41% |
 
-Two fifths dying or dead, two fifths badly hurt, one fifth walking. Standing in
-front of an armed machinegun in shirtsleeves is not meant to be a coin flip on
-being fine.
+Three fifths dying or dead, a quarter wounded, one in ten untouched. Standing in
+front of an armed machinegun in shirtsleeves is meant to be close to fatal, not
+a coin flip on being fine. The graze is a **flat dodge**, rolled first and the
+same for everybody, armour or none: armour bends the rest of the curve, never
+that tenth.
 
 **Armour bends that curve; it does not replace it.** Every piece of gear carries
 `Tag.ballisticArmor`, 0.0–1.0, and only while `equipped`. Worn pieces combine
@@ -550,25 +552,33 @@ raises the roll to a power:
 
 ```
 protection = min(0.95, 1 - Π(1 - ballisticArmor))
-h          = random() ^ (1 + ARMOR_GAIN * protection)   // ARMOR_GAIN = 3
+odds       = protection / (1 - protection)
+h          = random() ^ (1 + ARMOR_GAIN * odds)   // ARMOR_GAIN = 0.25
 ```
 
-`h` then walks the table above. At zero protection the exponent is 1, so the
-draw *is* the table. The exponent is deliberate rather than a subtraction or a
+`h` then walks the five wound bands, renormalised over the nine tenths the dodge
+leaves. At zero protection the exponent is 1, so the draw *is* the table. The
+bend is on the **odds** rather than on the raw figure: linear in a number
+capped at 0.95, light infantry, heavy infantry and the best kit in the game
+landed within a couple of points of each other on every outcome, and half of all
+armoured wearers walked away untouched. The exponent is deliberate rather than a subtraction or a
 scale: both of those reach a point where death becomes literally impossible, and
 "there exists a jacket that makes a machinegun safe" is a worse rule than any
 number could fix.
 
 | kit | protection | graze | minor | deep | grievous | dying | dead |
 |---|---|---|---|---|---|---|---|
-| nothing | 0.00 | 6% | 14% | 16% | 24% | 22% | 18% |
-| a Censor's Helmet | 0.31 | 23% | 20% | 15% | 18% | 13% | 10% |
-| plate and a helm | 0.45 | 30% | 20% | 14% | 16% | 11% | 8% |
-| Heavy Infantry Armor | 0.70 | 40% | 19% | 12% | 13% | 9% | 6% |
-| a full infantry kit | 0.90 | 47% | 18% | 11% | 11% | 8% | 5% |
-| shield and armour both | 0.95 | 48% | 18% | 11% | 11% | 7% | 5% |
+| nothing | 0.00 | 10% | 4% | 9% | 16% | 20% | 41% |
+| a Censor's Helmet | 0.31 | 10% | 5% | 10% | 17% | 19% | 38% |
+| plate and a helm | 0.32 | 10% | 5% | 10% | 17% | 19% | 38% |
+| Light Infantry Armour | 0.66 | 10% | 10% | 14% | 18% | 18% | 31% |
+| Heavy Infantry Armor | 0.70 | 10% | 12% | 14% | 18% | 17% | 29% |
+| Cataphract Armor | 0.86 | 10% | 25% | 16% | 16% | 13% | 19% |
+| cataphract, Soulbreaker Helm and a Pavise | 0.94 | 10% | 46% | 14% | 11% | 8% | 11% |
 
-The best kit in the game still buries about one wearer in twenty.
+A helmet alone barely moves the needle; the curve only opens up past the
+infantry armours. Cataphract Armor still leaves a third of its wearers dying or
+dead, and the best kit in the game about one in five.
 
 Armour is read off `Tag.ballisticArmor` directly, so it can never fall behind
 the catalog. See `TAGS.md` for the two columns and the word scale players
@@ -879,12 +889,12 @@ buying one mid-game is still a real decision.
 | `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
 | `eth-lod` | 3 | — | Black Market. +20 mood, and it takes every pain tag off |
 | `honey` | 3 | 2 | Consumes into `ate-meal` |
-| `sweets` | 3 | 2 | Consumes into `ate-meal` |
+| `sugar-candy` | 3 | 2 | Consumes into `ate-meal` |
 | `alcohol` | 4 | — | He stocks the local brew too |
 | `kzozel-yantar` | 4 | — | Black Market. Consumes into `tipsy` |
 | `collar-key` | 4 | — | Black Market. Turns a shut collar back into a loose one, into the UNLOCKER's hands (`COLLAR.md`) |
 | `cigarette` | 4 | — | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
-| `coffee` | 5 | 1 | Consumes into `caffeinated` (2t) |
+| `coffee` | 5 | 3 | Consumes into `caffeinated` (2t) |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source, and it is priced below real gear on purpose: a paper-thin disguise shouldn't compete with it. |
 | `love-tablets` | 7 | — | Black Market. +80 on a kiss, to BOTH sides — the one appearance bonus that is not crossed (`KISS.md`) |
 | `black-market-autoinjector` | 8 | — | Black Market. The military autoinjector's whole cures list, and a stack of `damaged-vision` with it |
@@ -1186,7 +1196,9 @@ Bore Pistol 18 → 9, Workshop Equipment 25 → 15, Longbow and Shield 6 → 5, 
 quarter-Move piece breaks even, like the other Dead Simple pieces. The rest is rounding: a quarter-Move craft moves
 in steps of 4 ¢ a turn, so the Pickaxe (2 ⬢, 8 ¢) clears 8 ¢ a turn raw, the Autoinjector (its
 inputs cost more than its shelf price) sits under its rung, and the Badge and the Mulligan Potion
-(a 2 ¢ price and a 17 ¢ shelf) cannot be fitted. The claims table leaves those four out by name.
+(a 2 ¢ price and a 17 ¢ shelf) cannot be fitted, and neither can the Trench Knife or the Knuckle
+Duster (a 6 ¢ and a 3 ¢ shelf; each takes 1 ⬢ of scrap so the maker is at least not out of
+pocket). The claims table leaves those six out by name.
 
 **A recipe that works an input is priced off the input instead.** Pure Luck is a brew of an
 Aberrant Heart; Black Powder is Saltpeter refined; a Silver Knife is a silver ingot worked. These are

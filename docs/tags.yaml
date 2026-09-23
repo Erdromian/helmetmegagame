@@ -2474,7 +2474,7 @@ tags:
     name: Lucky
     category: general
     group: general-traits
-    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and the laboring die included."
+    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and every other die the game throws included."
     pointCost: 15
     visible: false
     purchasable: true
@@ -6072,7 +6072,9 @@ tags:
     visible: true
     depotPrice: 81
     sellable: true
-    sellablePrice: 54
+    # 60% of the 81 ¢ above (DEPOT.md §3). It was 54, which was 60% of the 90 ¢
+    # this cost before the 2026-09 price trims; the sell-back never followed.
+    sellablePrice: 49
 
   # Identical to a broken-in arelitz except not equippable — that omission IS
   # "cannot be ridden", the whole enforcement (mounts.js only ever reads the
@@ -9580,7 +9582,10 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 5
+      # Scrap. A 6 ¢ shelf leaves no whole-⬢ recipe on the smithing rung
+      # (DEPOT.md §4), so the report holds this one back by name; 1 ⬢ keeps a
+      # maker from paying 15 ¢ of material for a 4 ¢ knife, which it was.
+      resourceCost: 1
       skills: [smithing]
       gambit: false
     sellable: true
@@ -10103,7 +10108,9 @@ tags:
     craftable: true
     requirement:
       turnsCost: 1
-      resourceCost: 7
+      # Scrap, for the same reason as the Trench Knife: a 3 ¢ shelf cannot land
+      # on the skilled rung at any whole ⬢, and 7 ⬢ was a 19 ¢ loss a craft.
+      resourceCost: 1
       skills: [smithing-skilled]
       gambit: false
     sellable: true
@@ -14673,7 +14680,7 @@ tags:
     pointCost: 0
     depotPrice: 5
     sellable: true
-    sellablePrice: 1
+    sellablePrice: 3
     weight: 1
     stackable: true
     visible: false
@@ -14778,6 +14785,7 @@ tags:
     cooked:
       taste: "sugar"
       mood: 20
+      hunger: 6
 
   # The delicacy that is caught rather than imported — the labor loot pass
   # drops it (fishing).
@@ -16731,6 +16739,9 @@ tags:
     purchasableAfterStart: false
     consumable: true
     consumesInto: [ate-meal]
+    # A whole large fruit: the top of the raw band (TURN-ENGINE.md §5), and the
+    # figure is here so it stops riding on DEFAULT_FOOD_HUNGER.
+    mealHunger: 18
 
   # THE CULTIST ROBES (docs/systemdocs/THANATI.md). Wearing these is half of
   # what makes a chant count (the other half is Dark Inspiration), and every

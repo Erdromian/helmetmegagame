@@ -167,7 +167,7 @@ const WOUND_TAG_GROUPS = Object.freeze(["health-wounds", "health-maiming", "heal
 
 const LUCKY_SLUG = "lucky";
 // Lucky's opposite, and deliberately narrower: it pulls the Gambit die alone
-// (db/lib/gambitDie.js), never the Caving Die or the laboring die.
+// (db/lib/gambitDie.js), never the Caving Die or any other die the game throws.
 const MISFORTUNE_SLUG = "misfortune";
 const MANIC_SLUG = "manic";
 const METEMPSYCHOSIS_SLUG = "metempsychosis";
