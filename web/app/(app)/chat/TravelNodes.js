@@ -178,9 +178,13 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
             >
               <span className="chat-node-name">{option.name}</span>
               <span className="chat-node-zone">{option.zoneName}</span>
-              {/* Clamped in CSS rather than truncated here; the whole line is on the node's title either way. */}
-              {option.description && (
-                <span className="chat-node-desc">{option.description}</span>
+              {/* Clamped in CSS rather than truncated here; the whole line is on the node's title either way.
+                  A shut way says WHY in place of its description: the title is a tooltip, a touch
+                  screen never shows one, and a disabled button can't be tapped to ask. */}
+              {!option.passable && option.reason ? (
+                <span className="chat-node-desc">{option.reason}</span>
+              ) : (
+                option.description && <span className="chat-node-desc">{option.description}</span>
               )}
               {/* Flat ChipLabel, not TagChip — an interactive chip can't live inside this button. */}
               {via && <ChipLabel tag={via} />}
