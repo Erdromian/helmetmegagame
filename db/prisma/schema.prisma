@@ -430,8 +430,14 @@ model GameConfig {
   // GM, a playtester, or a Contributor. Needed because the bot hands the
   // Player role to everyone who joins the guild, so that role cannot say who a
   // playtest is for. Gates JOINING only: an existing character keeps playing.
-  // Read through web/lib/discordGuild.js#onRoster and nowhere else.
+  // The narrowing applies only while playtestRequiresRole is on too.
+  // Read through web/lib/discordGuild.js#playtestRosterClosed and nowhere else.
   playtestModeEnabled Boolean @default(false)
+
+  // Whether Playtest mode narrows the roster at all. Off is an open playtest:
+  // still marked as one, but anyone with the Player role may join. Default on,
+  // which is what Playtest mode always did.
+  playtestRequiresRole Boolean @default(true)
 
   // How long an assigned seat stays locked to its player after Start Game
   // before the lobby sweep releases it (docs/systemdocs/LOBBY.md §4). The

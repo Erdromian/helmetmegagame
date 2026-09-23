@@ -319,9 +319,16 @@ export function isApprovedPlayer(member) {
   return member.roles?.includes(PLAYER_ROLE_ID) ?? false;
 }
 
+// Whether the playtest door is shut to plain players: Playtest mode is on AND
+// it requires the role. With the second switch off it is an open playtest,
+// and the roster is the ordinary one. Takes the GameConfig row (LOBBY.md §2).
+export function playtestRosterClosed(config) {
+  return config?.playtestModeEnabled === true && config?.playtestRequiresRole !== false;
+}
+
 // Who counts as on the roster — the one answer the lobby and both creation
-// actions share. With GameConfig.playtestModeEnabled on, the door narrows
-// to GMs, playtesters and Contributors. Superadmins bypass this entirely.
+// actions share. With `playtestMode` (playtestRosterClosed above) the door
+// narrows to GMs, playtesters and Contributors. Superadmins bypass this entirely.
 export function onRoster(member, { playtestMode = false } = {}) {
   if (playtestMode) {
     return isGm(member) || isPlaytester(member) || isContributor(member);

@@ -117,6 +117,15 @@ strands nobody. All three gates read it through one helper,
 creation actions in `createActions.js`, and the presentation mirror in
 `character/page.js`.
 
+**Require Playtest role** (`GameConfig.playtestRequiresRole`), the switch
+under it, says whether that narrowing happens at all. It is on by default,
+which is everything above. Off makes an **open playtest**: the game is still
+marked as a playtest, but the roster is the ordinary one, so anyone with the
+Player role can ready up and create. `onRoster`'s callers ask
+`discordGuild.js#playtestRosterClosed`, which is true only with both switches
+on. With it off, joining works exactly as it does with Playtest off; the
+narrowing is the only thing the Playtest switch does today.
+
 Somebody turned away by it is told **"Ravenheart Is Not Open Yet"**, not "You
 Are Not On The Roster" (`gate.masked` in `character/page.js`). There is nothing
 for them to apply for, and a closed rehearsal has no reason to announce
