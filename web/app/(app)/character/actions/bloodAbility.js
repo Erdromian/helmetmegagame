@@ -19,6 +19,7 @@ import { syncVampireBandsNow } from "@lifeweb/db/lib/vampireBands";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
 import { abilityByKey, abilityCooldownTurns, isOnCooldown } from "@lifeweb/db/lib/vampireBloodAbilities";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
+import { cavingHoldFor } from "@lifeweb/db/lib/cavingPass";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { sendDm } from "@/lib/discordGuild";
 import { requireCharacter, revalidateAll, lockCharacter } from "./shared.js";
@@ -112,6 +113,19 @@ async function castBloodAbilityImpl({
         })
       : null;
     if (!destination) throw new UserError("Choose where to fly to.");
+
+    // An unresolved Caving 1 pins you in the zone until the push
+    // (docs/systemdocs/CAVING.md §2c), and flight is the one way out that
+    // never crosses a link — so without this, Bat Form walks a vampire out of
+    // their own unadjudicated encounter, the hole the Stepstone closed in
+    // misc.js. Refused outright rather than only for a flight out of the
+    // zone: a flight never rolls the Die, so a same-zone hop would be a free
+    // walk past it. Checked before any blood is spent.
+    if (await cavingHoldFor(prisma, character.id, character.zoneId)) {
+      throw new UserError(
+        "You rolled a 1 on the Caving Die, so you can't take Bat Form until the turn ends and you receive the results of your caving die.",
+      );
+    }
   }
 
   // Solidarity's message — required, and length-capped the way any

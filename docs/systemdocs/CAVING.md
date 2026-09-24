@@ -192,7 +192,7 @@ deliberately not the same thing:
   somebody out of the caves has therefore not also stranded them wherever
   they land.
 
-Four gates read it, and all four are player paths:
+Five gates read it, and all five are player paths:
 
 | Where | What it does |
 |---|---|
@@ -200,6 +200,7 @@ Four gates read it, and all four are player paths:
 | the same function's escort loop | A held follower is detached and left standing, `leftBehind` reason `caving` |
 | `db/lib/locationGraph.js#resolveNeighbors` | Draws every zone crossing **shut** with the same sentence, so no picker offers a hop the mover will refuse |
 | the Stepstone (`web/app/(app)/character/requestActions.js`) | The stone only lands on the SURFACE, so from underground it is exactly this crossing |
+| Bat Form (`web/app/(app)/character/actions/bloodAbility.js`) | Flight crosses no link, so it is refused outright while held — even a flight inside the zone, since it never rolls the Die |
 
 Every GM path is untouched on purpose — the Dev Panel's Teleport and Bulk
 Move and the staged **Relocate to** never call `performLocationMove`, and a GM
