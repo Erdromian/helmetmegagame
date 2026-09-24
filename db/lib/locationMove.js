@@ -178,7 +178,8 @@ async function materializeDiscordPresence(prisma, character) {
 async function rehomeStandingCharacters(prisma, { locationId, fromRoleId, toRoleId }) {
   if (!process.env.DISCORD_TOKEN) return;
   const rows = await prisma.character.findMany({
-    where: { locationId, discordMirrored: true, discordUserId: { not: null } },
+    // ALIVE only: a body keeps its locationId, and its player's account must not get a zone role back (the doctor's rule is the living alone), nor lose the one their new character is standing in.
+    where: { locationId, status: "ALIVE", discordMirrored: true, discordUserId: { not: null } },
     select: { id: true, discordUserId: true },
   });
   for (const row of rows) {
