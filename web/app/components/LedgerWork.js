@@ -26,7 +26,7 @@ export default function LedgerWork({ craftProjects = [], sitesHere = [] }) {
               {p.tagName}
             </span>
             <span className="mono text-muted">
-              {p.turnsDone}/{p.turnsNeeded} turns
+              {p.due ? "ready" : `${p.turnsDone}/${p.turnsNeeded} turns`}
             </span>
           </li>
         ))}

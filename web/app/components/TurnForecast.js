@@ -59,7 +59,8 @@ export default function TurnForecast({
   // Work that lands at the close: one more turn's progress takes it over the
   // line (db/lib/structures.js counts the same way).
   for (const p of craftProjects) {
-    if (p.turnsDone + 1 >= p.turnsNeeded) {
+    // A `due` project is already done and waits to be taken; the close doesn't finish it.
+    if (!p.due && p.turnsDone + 1 >= p.turnsNeeded) {
       items.push(
         <span key={`project-${p.id}`}>{`${p.quantity > 1 ? `${p.quantity}× ` : ""}${p.tagName} is finished`}</span>,
       );

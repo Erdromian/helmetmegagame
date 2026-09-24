@@ -336,8 +336,11 @@ and count toward carry.
   ingredients**, snapshotting them onto `consumed`; creates the project at
   `turnsDone: 1`; files the Action — `ROUTINE`, `CONFIRMED`, `PASSED`,
   `appliedEffects: {}`, `gmNotes: "auto:craft"`, description "Crafting 4×
-  Arrow (1/3).". A one-turn recipe finishes on the spot and puts the
-  snapshot straight on the request.
+  Arrow (1/3).". A recipe of one Move or less (`turnsCost ≤ 1`, part-turns
+  included) finishes on the spot and puts the snapshot straight on the
+  request. From 2026-09-17 to 2026-09-24 a part-turn recipe did not: the
+  check read `turns === 1`, so it was filed as a project and nothing was
+  handed over.
 - **Continue** (`continueCraft`): the Craft dialog lists active projects;
   pick one, choose *Keep working on it*. Same Move check; one advance per
   turn (`lastTurnId`); a claim on `turnsDone` so two clicks can't double an
@@ -346,6 +349,10 @@ and count toward carry.
   incapacitation, which this path was quietly missing. The **ingredients are
   not** re-checked, and must not be: they were spent at the start, so the
   check would fail on turn 2 for a project that is doing nothing wrong.
+  **A `due` project** (ACTIVE with `turnsDone ≥ turnsNeeded`, which only
+  that week's part-turn crafts can be) reads *Take it*: Continue finishes it
+  at once, with no Move and no wait. Its slotted cooking ingredients were
+  never saved, so a dish comes out as the plain recipe.
 - **Finish**: the last advance grants the tag and writes the
   `request_craft_tag` audit row (`details { tagId, quantity, resourcesSpent,
   payer, projectId, turnsNeeded, actionId, replaced, consumed }`), and the
