@@ -1029,20 +1029,15 @@ zones:
             stash:
               items:
                 tinned-butter: 10
-  # The town under the town. Codes 1-H come from the barony2 plate in
-  # docs/assets/maps/nodes.yaml, and every one of them has a Location here so
-  # the map can link to a real place. Most are SKELETONS on purpose — a name
-  # and a slug and nothing else — because Bascinet has not written the
-  # Undertown's rooms yet. The three that arrived with prose already attached
-  # (Undercroft and Lifeweb out of the Fortress, the Depot out of the Caves)
-  # kept theirs. An unwritten description is literally "".
-  undertown:
-    name: Undertown
-    kind: surface
-    sort: 3
-    description: >-
-      The Undertown is built below Ravenheart. It's where the population's poorer live. It's mostly built out of concrete and steel, with elements of ceramite below the keep. There are many forgotten rooms.
-    locations:
+      # The Undercroft is a FORTRESS Location, down the Court's stair. It was
+      # in the Undertown until 2026-09-23, which made every trip down to the
+      # Baron's own cellars a zone crossing — a Move each way for anybody who
+      # lives in the Keep. Now the stair is a free hop and the two ways OUT
+      # of the cellars (the pipes into the Hollows, the cellar door into the
+      # Old Town) are the crossings that cost. The slug stays `undertown-1`:
+      # it is the cell the barony2 plate draws it on (docs/assets/maps/
+      # nodes.yaml), `undertown-1-7` is the Vault in db/lib/bankAccounts.js,
+      # and a slug is a coordinate, not a zone (MAP.md §6g).
       undertown-1:
         name: Undercroft
         indoors: true
@@ -1097,6 +1092,21 @@ zones:
                 # can have the run of the lift too — that is a short list, and
                 # it is the Baron's own door either way.
                 elevator-key: 1
+  # The town under the town. Codes 1-H come from the barony2 plate in
+  # docs/assets/maps/nodes.yaml, and every one of them has a Location so the
+  # map can link to a real place — code 1, the Undercroft, is drawn on this
+  # plate but lives in the Fortress above. Most are SKELETONS on purpose — a name
+  # and a slug and nothing else — because Bascinet has not written the
+  # Undertown's rooms yet. The two that arrived with prose already attached
+  # (the Lifeweb out of the Fortress, the Depot out of the Caves) kept
+  # theirs. An unwritten description is literally "".
+  undertown:
+    name: Undertown
+    kind: surface
+    sort: 3
+    description: >-
+      The Undertown is built below Ravenheart. It's where the population's poorer live. It's mostly built out of concrete and steel, with elements of ceramite below the keep. There are many forgotten rooms.
+    locations:
       # The quarter that burnt. Nobody lives here, and the town says it is
       # cursed, which is most of why nobody has picked it over — the Burnt
       # Home is behind `tunnel-rat` and the cellar under it behind a key found
@@ -2337,6 +2347,9 @@ connections:
   - [fortress/fortress-1, fortress/fortress-3]
   - [fortress/fortress-2, fortress/fortress-3]
   - [fortress/fortress-3, fortress/fortress-4]
+  # Down the Court's stair into the Undercroft. A free hop since 2026-09-23;
+  # it used to cost the Move, because the cellars sat in the Undertown.
+  - [fortress/fortress-3, fortress/undertown-1]
   # Up into the Tower. Locked: the Baron, Hand, Meister and Censor carry
   # the Tower Key, and the Hand keeps two spares in their study.
   - pair: [fortress/fortress-4, fortress/fortress-5]
@@ -2425,7 +2438,6 @@ connections:
   - [town/town-9, fortress/fortress-2]
   - [town/town-a, fortress/fortress-2]
   - [town/town-2, undertown/undertown-a]
-  - [fortress/fortress-3, undertown/undertown-1]
   - [caves/caves-5, depths/depths-3]
   # This is the way round the tight squeeze at depths-3 <-> depths-4 above,
   # so if you ever gate it, check what a Giant loses.
@@ -2510,16 +2522,17 @@ connections:
   - [undertown/undertown-6, undertown/undertown-7]
   - [undertown/undertown-6, undertown/undertown-a]
 
-  # The Undercroft's own way out into the Alleys, for somebody who knows the
+  # The Undercroft's own way out into the Hollows, for somebody who knows the
   # pipes. Hidden, so a player without the knack never learns it is there.
-  - pair: [undertown/undertown-1, undertown/undertown-d]
+  # A zone crossing: the Undercroft is Fortress, the Hollows are Undertown.
+  - pair: [fortress/undertown-1, undertown/undertown-d]
     hidden: tunnel-rat
     on_foot: true
 
   # Out of the cellars into the burnt quarter. LOCKED rather than hidden:
   # everybody can see the door under the keep, and everybody knows whose key
-  # opens it.
-  - pair: [undertown/undertown-1, undertown/undertown-2]
+  # opens it. A zone crossing, same as the pipes above.
+  - pair: [fortress/undertown-1, undertown/undertown-2]
     locked: barons-key
     on_foot: true
 
@@ -2531,6 +2544,11 @@ connections:
     on_foot: true
 
   # --- The rest of the Undertown ----------------------------------------
+  # The burnt quarter off the freight platform. Plain, so the Old Town is
+  # reachable without the Baron's key now that its other door is a Fortress
+  # crossing — the Burnt Home and the cellar under it keep their own gates.
+  - [undertown/undertown-2, undertown/undertown-5]
+
   # The shelter sits between the pipes and the shanties, which is most of why
   # anybody ends up in it.
   - [undertown/undertown-4, undertown/undertown-7]

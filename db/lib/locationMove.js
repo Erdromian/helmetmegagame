@@ -174,6 +174,21 @@ async function materializeDiscordPresence(prisma, character) {
   );
 }
 
+// A Location moved into another zone under the people standing in it — the place editor's Zone control (DEV-PANEL.md §Zones). The database half is one updateMany on Character.zoneId, done by the caller; this is the Discord half for everyone left standing there: the zone role swapped and narrowcast reconciled, the same two calls a crossing makes when it changes zone (applyArrivalDiscord), and best-effort like everything else here — a miss is the channel doctor's next pass. The Location channel itself moves category through the mirror queue, not here.
+async function rehomeStandingCharacters(prisma, { locationId, fromRoleId, toRoleId }) {
+  if (!process.env.DISCORD_TOKEN) return;
+  const rows = await prisma.character.findMany({
+    where: { locationId, discordMirrored: true, discordUserId: { not: null } },
+    select: { id: true, discordUserId: true },
+  });
+  for (const row of rows) {
+    await swapRole(row.discordUserId, fromRoleId ?? null, toRoleId ?? null, "zone");
+    await reconcileNarrowcastAccess(prisma, row.id, row.discordUserId).catch((err) =>
+      console.error(`Zone change: narrowcast reconcile failed for ${row.id}:`, err.message ?? err),
+    );
+  }
+}
+
 // What a crossing actually says, once the traveller's own tags have had their say. Pure and exported so the rule is testable without a database (db/lib/inspectVision.js posture). Stealth takes the announcement down ONE step rather than silencing every gate — you can be quiet, but not quiet past somebody reading your papers.
 // unmanned (CONCEALED) -> NONE (nobody was watching); manned (TRUE_NAME) -> CONCEALED (what a passer-by saw, not your papers). So a stealthy traveller at the Fortress gatehouse lands where an ordinary one lands at the Town gates, and at the Town gates they vanish. NONE stays NONE: a gate that announces nothing cannot announce less.
 const STEALTH_DOWNGRADE = { TRUE_NAME: "CONCEALED", CONCEALED: "NONE" };
@@ -636,6 +651,7 @@ module.exports = {
   applyArrivalFacts,
   applyArrivalDiscord,
   materializeDiscordPresence,
+  rehomeStandingCharacters,
   reconcileNarrowcastAccess,
   announceLevelFor,
 };

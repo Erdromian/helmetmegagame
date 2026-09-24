@@ -6,7 +6,7 @@ import FormError from "@/app/components/FormError";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { updateLocation } from "../../actions";
 
-export default function LocationForm({ location, attributeSchema = [] }) {
+export default function LocationForm({ location, zones = [], attributeSchema = [] }) {
   const { call, pending, error } = useActionRunner();
   const confirm = useConfirm();
 
@@ -21,12 +21,22 @@ export default function LocationForm({ location, attributeSchema = [] }) {
         confirmLabel: "Rename",
       }))) return;
     }
+    const zoneId = form.get("zoneId") || location.zoneId;
+    if (zoneId !== location.zoneId) {
+      const zoneName = zones.find((z) => z.id === zoneId)?.name ?? "another zone";
+      if (!(await confirm({
+        title: `Move this location into ${zoneName}?`,
+        message: "Everyone standing here changes zone with it, and the ways into it from its old zone start costing the Move. Its channel moves category on the next mirror pass.",
+        confirmLabel: "Move",
+      }))) return;
+    }
     const attributes = {};
     for (const attr of attributeSchema) {
       attributes[attr.key] = attr.type === "boolean" ? form.get(`attr_${attr.key}`) === "on" : form.get(`attr_${attr.key}`);
     }
     call(updateLocation, location.id, location.updatedAt, {
       name,
+      zoneId,
       indoors: form.get("indoors") === "on",
       sortOrder: form.get("sortOrder"),
       description: form.get("description"),
@@ -45,6 +55,16 @@ export default function LocationForm({ location, attributeSchema = [] }) {
         <label className="field">
           <span className="field-label">Name</span>
           <input name="name" defaultValue={location.name} required className="control" />
+        </label>
+        <label className="field">
+          <span className="field-label">Zone</span>
+          <select name="zoneId" defaultValue={location.zoneId}>
+            {zones.map((z) => (
+              <option key={z.id} value={z.id}>
+                {z.name}
+              </option>
+            ))}
+          </select>
         </label>
         <label className="check-row">
           <input type="checkbox" name="indoors" defaultChecked={location.indoors} />

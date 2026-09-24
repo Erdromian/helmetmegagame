@@ -21,9 +21,10 @@
 
 const FORTRESS_CORE = ["fortress-1", "fortress-2", "fortress-3", "fortress-4", "fortress-5"];
 
-// The Undercroft is the inner circle's alone — the Baron's elevator starts
-// there, and a Squire who has never been told does not get to know. It sits
-// in the Undertown now, at the bottom of the Keep's lift.
+// The Undercroft is the inner circle's alone — the Baron's Vault is down
+// there, and a Squire who has never been told does not get to know. It is a
+// Fortress Location again (2026-09-23), down the Court's stair; the slug is
+// its cell on the Undertown plate and never moved.
 const FORTRESS_INNER = [...FORTRESS_CORE, "undertown-1"];
 
 // All ten of the town's places. It is one walled town underground now, so

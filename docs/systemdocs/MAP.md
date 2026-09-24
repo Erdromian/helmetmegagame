@@ -24,7 +24,12 @@ immediately, with Discord catching up behind it (`db/lib/discordMirror/`).
 `docs/zones.yaml` survives only as the one-shot **importer** for a fresh
 game's starting layout (`npm run db:import-zones -- --apply`): it's additive,
 never updates an existing row and never deletes one — see `SYNC.md` for the
-format and `DEV-PANEL.md` for the editor.
+format and `DEV-PANEL.md` for the editor. That includes which zone a
+Location is in: the Zone control on its form moves it, taking everyone
+standing there along and making the ways in from the old zone the crossings
+that cost — which is how the Undercroft came up out of the Undertown into
+the Fortress on 2026-09-23, so the Court's stair is a free hop and the pipes
+into the Hollows and the cellar door into the Old Town are what cost a Move.
 
 **How a Location is slugged: it is the map code.** A Location's slug is its
 zone plus its system code off the Playscii plate — `town-1` is the Gatehouse,
