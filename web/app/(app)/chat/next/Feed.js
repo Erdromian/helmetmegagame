@@ -10,6 +10,7 @@ import { Readout } from "@/app/components/ExamineDialog";
 import IconButton from "@/app/components/IconButton";
 import TranscriptLine from "@/app/components/TranscriptLine";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import { startsRun } from "@/lib/feedRuns";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { CameraIcon, EditIcon, EyeIcon, NotesIcon, TrashIcon } from "@/app/components/icons";
 import { formatTurnLabel } from "@/lib/turnFormat";
@@ -57,8 +58,6 @@ const REACH_BACK_PX = 400;
 // How far off the bottom still counts as "at the bottom", so a sticky scroll
 // survives a rounding error and a rubber band.
 const AT_BOTTOM_PX = 64;
-// A gap this long starts a new run — the same figure the old feed used.
-const RUN_GAP_MS = 7 * 60 * 1000;
 
 // The same five minutes db/lib/say.js#EDIT_WINDOW_MS enforces. A NUMBER
 // rather than an import: requiring from @lifeweb/db in a "use client" file
@@ -574,15 +573,12 @@ export default function Feed({
         const prev = i > 0 ? rows[i - 1] : null;
         const mine = isOwnRow(row, self?.characterId ?? null, self?.speakerKey ?? null);
         const system = !row.name;
-        // A run is one speaker talking without a long gap. Seven minutes, and
-        // a change of speaker always starts a new one.
-        const gap = prev && row.sentAt && prev.sentAt
-          ? new Date(row.sentAt) - new Date(prev.sentAt)
-          : Infinity;
-        const startsRun = !prev || prev.speakerKey !== row.speakerKey || gap > RUN_GAP_MS;
         return {
           row,
-          startsRun,
+          // A run is one speaker talking without a long gap: a change of
+          // speaker, a system line or seven minutes of silence starts a new
+          // one, and the portrait heads a run (@/lib/feedRuns).
+          startsRun: startsRun(prev, row),
           mine,
           system,
           live: Boolean(row.seq && paintedAt && BigInt(row.seq) > BigInt(paintedAt)),
