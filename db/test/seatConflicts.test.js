@@ -14,7 +14,7 @@ const TAGS = {
   judge: {
     id: "judge", name: "Judge", pointCost: 0, exclusive: false, groupId: null,
     requiredTagId: null, desireLocks: null, group: null,
-    conflictsWith: [{ id: "pacifist" }, { id: "saint" }, { id: "charitable" }, { id: "craven" }],
+    conflictsWith: [{ id: "pacifist" }, { id: "saint" }, { id: "charitable" }, { id: "craven" }, { id: "slow" }],
   },
   saint: {
     id: "saint", name: "Saint", pointCost: 14, exclusive: false, groupId: BELIEFS,
@@ -26,11 +26,28 @@ const TAGS = {
     requiredTagId: null, desireLocks: null, group: { slug: "general-personality" },
     conflictsWith: [{ id: "judge" }],
   },
-  // No seat names a drawback today; this stands in for the first one that does.
+  // A drawback on the seat's own list, like Hemophobia on the Vampire.
   craven: {
     id: "craven", name: "Craven", pointCost: -2, exclusive: false, groupId: "g-traits",
     requiredTagId: null, desireLocks: null, group: { slug: "general-traits" },
     conflictsWith: [{ id: "judge" }],
+  },
+  // Buyable perks a seat hands out, and what they clash with.
+  literacy: {
+    id: "literacy", name: "Literacy", pointCost: 4, exclusive: false, groupId: null,
+    requiredTagId: null, desireLocks: null, group: null,
+    conflictsWith: [{ id: "slow" }, { id: "calligraphy" }],
+  },
+  slow: {
+    id: "slow", name: "Slow", pointCost: -6, exclusive: false, groupId: "g-traits",
+    requiredTagId: null, desireLocks: null, group: { slug: "general-traits" },
+    conflictsWith: [{ id: "literacy" }, { id: "judge" }],
+  },
+  // Made up: a bought tag that clashes with a perk.
+  calligraphy: {
+    id: "calligraphy", name: "Calligraphy", pointCost: 2, exclusive: false, groupId: "g-traits",
+    requiredTagId: null, desireLocks: null, group: { slug: "general-traits" },
+    conflictsWith: [{ id: "literacy" }],
   },
   thanati: {
     id: "thanati", name: "Thanati", pointCost: 0, exclusive: true, groupId: BELIEFS,
@@ -138,6 +155,36 @@ test("a conflicting drawback goes too, and its points go back with it", async ()
   assert.deepEqual(out.stripped, [{ name: "Craven", points: -2 }]);
   assert.equal(out.clawedBack, 2);
   assert.equal(tx.calls.increment, -2);
+});
+
+test("a perk the seat hands out keeps the drawbacks it clashes with", async () => {
+  // Literacy is a perk, not the seat: Slow stays, and the DM says so.
+  const tx = fakeTx(["thanati", "literacy", "slow"], []);
+  const out = await resolveSeatConflicts(tx, "c1", ["thanati"], ["literacy"]);
+
+  assert.equal(tx.calls.deleted, null);
+  assert.deepEqual(out.kept, [{ name: "Slow", points: -6 }]);
+  assert.equal(tx.calls.increment, null);
+  assert.equal(describeSeatConflicts(out), "Kept, drawbacks and all: Slow.");
+});
+
+test("a perk still refunds a bought tag it clashes with", async () => {
+  const tx = fakeTx(["thanati", "literacy", "calligraphy"], []);
+  const out = await resolveSeatConflicts(tx, "c1", ["thanati"], ["literacy"]);
+
+  assert.deepEqual(tx.calls.deleted, ["calligraphy"]);
+  assert.deepEqual(out.refunded, [{ name: "Calligraphy", points: 2 }]);
+});
+
+test("when the seat and a perk both clash with a tag, the seat decides", async () => {
+  // Slow is on the Judge's own list here as well as Literacy's.
+  const tx = fakeTx(["judge", "literacy", "slow"], []);
+  const out = await resolveSeatConflicts(tx, "c1", ["judge"], ["literacy"]);
+
+  assert.deepEqual(tx.calls.deleted, ["slow"]);
+  assert.deepEqual(out.stripped, [{ name: "Slow", points: -6 }]);
+  assert.deepEqual(out.kept, []);
+  assert.equal(out.clawedBack, 6);
 });
 
 test("blocksSeatDesires ignores a tag that locks nothing", () => {

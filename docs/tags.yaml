@@ -361,6 +361,9 @@ tags:
     description: "Your body no longer needs sustenance."
     pointCost: 0
     purchasable: false
+    # Fast Metabolism's hunger never comes, so its points would be free. Any
+    # seat that hands out Hungerless takes it off (db/lib/seatConflicts.js).
+    conflictsWith: [fast-metabolism]
 
   turn-ping:
     catalog: gm
@@ -378,7 +381,9 @@ tags:
   # Catalog.
   # A seat's INCOMPATIBLE tags are its conflictsWith edges (THREATS.md §3).
   # The store and Add Tag refuse them for a holder; Assign removes what a
-  # character already had and refunds its cost (db/lib/seatConflicts.js).
+  # character already had and settles its cost (db/lib/seatConflicts.js).
+  # A drawback the seat forbids belongs HERE, not on a buyable perk the seat
+  # hands out: a perk's edges only take tags that cost points.
   judge:
     catalog: secret
     name: Judge
@@ -395,7 +400,9 @@ tags:
     description: '"Pleasure is so painful — ah~! I don''t care!" You can Break souls ({tag:broken}), turning their owners into walking, empty shells, by making them fall in love with you — and then sealing it with a (voluntary) kiss. If people want more after that, that''s your business, not mine.'
     pointCost: 0
     purchasable: false
-    conflictsWith: [pacifist, charitable, saint]
+    # Ugly and Pretty sit under the Beautiful the seat hands out; Prudish and
+    # Eunuch refuse the romance the seat runs on.
+    conflictsWith: [pacifist, charitable, saint, ugly, pretty, prudish, eunuch]
     desires:
       locks:
         - all: true
@@ -420,7 +427,8 @@ tags:
     # character if they become a vampire." threatActions.js#assignThreat
     # already strips conflictsWith edges off any seat tag it grants (same
     # mechanism Demoness above uses) — no new code needed, just this edge.
-    conflictsWith: [saint, pacifist]
+    # Hemophobia too: blood makes them dizzy, and a vampire lives on it.
+    conflictsWith: [saint, pacifist, hemophobia]
     # Food/drink Desires are unavailable to a vampire — VAMPIRE.md §9: "Do
     # not become hungry, nor... gain mood points from eating food or meals.
     # Desires relating to food and drink are unavailable to them, instead
@@ -2425,7 +2433,10 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     exclusive: true
-    conflictsWith: [pacifist, charitable, saint, pilgrim]
+    # Pious ("cannot be forcibly converted") goes too. The conversion rite
+    # bounces off a Pious target before it gets here, so this only bites on
+    # a GM's Assign.
+    conflictsWith: [pacifist, charitable, saint, pilgrim, pious]
     # A cultist wants what the cult wants, and past that only the ugly things.
     # The blood families stay open because hurting people is most of what a
     # Thanati actually does; everything else — dinner, romance, a promotion —

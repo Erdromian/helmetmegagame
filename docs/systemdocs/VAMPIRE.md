@@ -331,7 +331,8 @@ body once one lands.
 **"Mutually exclusive with tags that would inhibit them from feeding such as
 saint or pacifist. Such tags are removed from a character if they become a
 vampire."** Coded as a data-only edge, not new logic: `docs/tags.yaml`'s
-`vampire` tag carries `conflictsWith: [saint, pacifist]`, the exact mechanism
+`vampire` tag carries `conflictsWith: [saint, pacifist, hemophobia]` (blood
+makes a Hemophobe dizzy, and a vampire lives on it), the exact mechanism
 Demoness's own seat tag already uses (`THREATS.md` §3) —
 `threatActions.js#assignThreat` already strips a newly-granted seat's
 `conflictsWith` edges off the character it's handed to, so this needed no new

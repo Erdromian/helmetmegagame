@@ -108,12 +108,13 @@ export async function assignThreat({ characterId, threatSlug }) {
     rows.push({
       tagId: tag.id,
       name: tag.name,
+      purchasable: tag.purchasable,
       quantity: tag.stackable ? quantity : 1,
       expiresTurn: await expiryForGrant(prisma, tag, openTurn, { where: "assignThreat" }),
     });
   }
 
-  let conflicts = { refunded: [], removed: [], stripped: [], points: 0, clawedBack: 0 };
+  let conflicts = { refunded: [], removed: [], kept: [], stripped: [], points: 0, clawedBack: 0 };
   await prisma.$transaction(async (tx) => {
     for (const row of rows) {
       // Upsert rather than create: a GM may have granted the seat tag by hand
@@ -138,10 +139,17 @@ export async function assignThreat({ characterId, threatSlug }) {
     }
     // What the seat forbids and the character already had: every Addiction
     // and any Personality tag that locks one of the seat's own Desires taken
-    // outright (points clawed back with them), then every `conflictsWith`
-    // edge and second Belief removed, its cost refunded
+    // outright (points clawed back with them), then the pairwise rules. The
+    // tags nobody can buy (the seat tag, the Thanati Belief, Hungerless) are
+    // the role, and every clash they name goes; the buyable perks handed out
+    // with it (Literacy, Brave...) only take a clash that cost points
     // (db/lib/seatConflicts.js).
-    conflicts = await resolveSeatConflicts(tx, character.id, rows.map((r) => r.tagId));
+    conflicts = await resolveSeatConflicts(
+      tx,
+      character.id,
+      rows.filter((r) => !r.purchasable).map((r) => r.tagId),
+      rows.filter((r) => r.purchasable).map((r) => r.tagId),
+    );
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
@@ -153,6 +161,7 @@ export async function assignThreat({ characterId, threatSlug }) {
           tags: rows.map((r) => r.name),
           refunded: conflicts.refunded,
           removed: conflicts.removed,
+          kept: conflicts.kept,
           stripped: conflicts.stripped,
           clawedBack: conflicts.clawedBack,
         },
