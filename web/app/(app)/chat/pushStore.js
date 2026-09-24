@@ -7,7 +7,7 @@ import { useSyncExternalStore } from "react";
 // async questions about the browser asked outside a render. Nothing here is a permission
 // check — the routes it posts to resolve the account from the session (web/app/api/push/subscribe/route.js).
 
-let state = { ready: false, supported: false, key: null, on: false, busy: false };
+let state = { ready: false, supported: false, key: null, on: false, busy: false, denied: false };
 const listeners = new Set();
 
 function emit(next) {
@@ -24,7 +24,7 @@ function getSnapshot() {
   return state;
 }
 
-const SERVER = { ready: false, supported: false, key: null, on: false, busy: false };
+const SERVER = { ready: false, supported: false, key: null, on: false, busy: false, denied: false };
 
 function getServerSnapshot() {
   return SERVER;
@@ -76,7 +76,8 @@ export async function initPush() {
   } catch {
     // A browser that refuses to say is treated as not subscribed; pressing the button asks it properly.
   }
-  emit({ ready: true, supported: true, key, on });
+  // Denied is sticky: the browser will not ask again, so the bell has to say so.
+  emit({ ready: true, supported: true, key, on, denied: Notification.permission === "denied" });
 }
 
 // The toggle. Unsubscribing tells the browser and then the server, in that order, so a
@@ -103,8 +104,9 @@ export async function togglePush() {
 
     const permission = await Notification.requestPermission();
     if (permission !== "granted") {
-      // Denied is sticky in every browser: the button goes back to off.
-      emit({ on: false });
+      // Denied is sticky in every browser: the button goes back to off, and
+      // says why (ChatBarControls.js). A dismissed prompt is not a denial.
+      emit({ on: false, denied: permission === "denied" });
       return;
     }
     const registration = await navigator.serviceWorker.register("/sw.js");
@@ -117,8 +119,12 @@ export async function togglePush() {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ subscription: subscription.toJSON() }),
-    });
-    emit({ on: res.ok });
+    }).catch(() => null);
+    // The server has no row for a subscription it refused, so the browser must
+    // not keep one either: initPush reads the BROWSER's subscription on the
+    // next load, and would show a bell that is on for nobody.
+    if (!res?.ok) await subscription.unsubscribe().catch(() => {});
+    emit({ on: Boolean(res?.ok), denied: false });
   } catch {
     // Every failure here is the browser refusing something.
     emit({ on: false });

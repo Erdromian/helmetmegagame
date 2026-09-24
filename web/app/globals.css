@@ -263,6 +263,19 @@
      token. */
   --speech: #eeb086;
 
+  /* THE CHAT LOG'S OWN INK, and its own size (Chat Overhaul.docx: "The text
+     currently strains the eyes"). Picked by Bascinet on the Chat Type Bench on
+     2026-09-24, against the log's plain --bg ground, and taken verbatim: a
+     brown body at 600, pale speech inside quotes, and the game's own lines a
+     shade off the body. Their own tokens rather than --text/--speech/--muted,
+     which the rest of the app still reads. Deliberately softer than AA on
+     --bg; audit-contrast.js gates them at the values chosen (CHAT_INK_MIN) so
+     a later edit cannot push them further down unnoticed. */
+  --chat-said: #77623f;
+  --chat-speech: #b8a8a0;
+  --chat-scenery: #746460;
+  --fs-chat: 0.8125rem; /* 13px */
+
   --row-hover: rgba(255, 255, 255, 0.05);
   --shadow-color: rgba(0, 0, 0, 0.5);
 

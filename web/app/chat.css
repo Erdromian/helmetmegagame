@@ -468,6 +468,23 @@
   white-space: nowrap;
 }
 
+/* EXCEPT a person's name, which WRAPS. On a phone the Here list sits in a
+   drawer at most min(88vw, 24rem) wide, and each eye or speaker button beside a
+   name is floored at a 44px tap target (the coarse-pointer rule below), so a
+   one-line name was cut to "Solomon Ba…" — and " · you" / " · online" ride in
+   the same span, eating what little was left. A second line costs a few
+   pixels; a name you cannot read costs the whole row. The face never shrinks
+   to make room. */
+.chat-person .chat-person-name {
+  white-space: normal;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+}
+
+.chat-person > :not(.chat-person-name) {
+  flex-shrink: 0;
+}
+
 .place {
   /* INDENTED UNDER ITS HEADING, which is what makes this column read as
      sections with runs beneath them rather than one flat list. The mockup
@@ -919,10 +936,12 @@
 
 .tline[data-density="feed"] {
   display: block;
-  /* The mockup's .row: 12px, where the rest of the app sits a half-step up
-     at --fs-base. A scene is a wall of names and short lines, not prose. */
-  font-size: var(--fs-xs);
-  line-height: 1.3;
+  /* 13px, a touch tight, off the Chat Type Bench (--fs-chat, globals.css):
+     Chat Overhaul.docx asked for type that does not strain the eyes, and the
+     mockup's 11px row was the strain. */
+  font-size: var(--fs-chat);
+  line-height: 1.35;
+  letter-spacing: -0.01em;
   /* The mockup's `.row { margin: 0 0 3px }` — the distance between two lines
      from the same speaker. A new run stands off further (below), so a change
      of speaker reads at a glance even though the log names every line. */
@@ -1009,10 +1028,30 @@
    makes bold read as EMBOSSED rather than merely heavier. */
 .tline[data-density="feed"] .tline-name {
   text-shadow: 0 1px 0 var(--border-lo);
+  /* Heavier than the body's 600 (Chat Type Bench). A face with no 800 cut,
+     Verdana among them, draws its bold. */
+  font-weight: 800;
 }
 
 .tline[data-density="feed"] .tline-sep {
   color: var(--text);
+}
+
+/* THE STACKED SHAPE — /chat as a player reads it (Chat Overhaul.docx). The
+   name sits on a line of its own above what was said, with the clock beside
+   it, and a speaker's later lines carry no head at all (next/Feed.js passes
+   name={null} for them). The body still runs inline under the head, exactly
+   as it does in the log shape, so "(edited)" stays on the words' own line. */
+.tline[data-density="feed"][data-layout="stacked"] .tline-head {
+  display: block;
+  margin-bottom: 1px;
+}
+
+.tline[data-density="feed"][data-layout="stacked"] .tline-head .tline-clock {
+  width: auto;
+  text-align: left;
+  margin: 0 0 0 var(--sp-2);
+  visibility: visible;
 }
 
 /* THE BODY OF A ROW, in the ordinary text colour. It used to be painted
@@ -1029,7 +1068,16 @@
 .tline[data-density="feed"] .markdown-content,
 .tline[data-density="feed"] .markdown-content p {
   display: inline;
-  color: var(--text);
+  /* The log's own ink, not --text (globals.css, --chat-said). */
+  color: var(--chat-said);
+  font-weight: 600;
+}
+
+/* Quoted speech in the log, the pale tint off the Chat Type Bench. The
+   app-wide .chat-markdown .speech (--speech) still dresses every other place
+   ChatMarkdown draws. */
+.tline[data-density="feed"] .chat-markdown .speech {
+  color: var(--chat-speech);
 }
 
 /* The row lights up under the pointer, and under the keyboard: without this
@@ -1180,6 +1228,16 @@
   font-size: var(--fs-2xs);
   color: var(--muted);
   margin-top: var(--sp-2);
+}
+
+/* The game's own lines IN CHAT — arrivals, the vending machine, a smell, the
+   turret — off the Chat Type Bench (Chat Overhaul.docx): bold, in their own
+   ink. Scoped to the chat feed, since the archive and the desk draw these rows
+   too, and it leaves out the three kinds a PLAYER makes (a shout at either
+   distance, and OOC), which keep their own rules below. */
+:where(.chat-feed) .tline--system:not([data-kind="shout"], [data-kind="shout-near"], [data-kind="ooc"]) {
+  font-weight: 700;
+  color: var(--chat-scenery);
 }
 
 /* THE NOTICE BLOCK (REDESIGN.md §6). A bordered, full-width interruption that
@@ -3391,11 +3449,11 @@
 /* Chat text size, from the sound menu (components/chatTextStore.js). The
    feed's lines carry their size on .tline itself, not on a body wrapper. */
 .chat-shell[data-chat-text="small"] .tline {
-  font-size: calc(var(--fs-xs) * 0.88);
+  font-size: calc(var(--fs-chat) * 0.88);
 }
 
 .chat-shell[data-chat-text="large"] .tline {
-  font-size: calc(var(--fs-xs) * 1.25);
+  font-size: calc(var(--fs-chat) * 1.25);
 }
 
 .chat-text-size {

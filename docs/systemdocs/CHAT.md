@@ -5,6 +5,46 @@ mirroring the Location's Discord channel. Phase 0 shipped 2026-09-06; the rest
 of this document is the design it is growing into, so a later phase does not
 re-decide it.
 
+## 0. The Chat Overhaul (2026-09-24)
+
+Bascinet's design doc `E:\Bascinet\V3\UI\Chat Overhaul.docx` reshaped the live
+page (`web/app/(app)/chat/next/ChatNext.js`). Where an older passage below
+disagrees with this section, this section is right.
+
+- **The player's right column** runs Travel, then the room block when you are
+  in a room, then Here, then Turn. Waiting, the place card, the party rack and
+  Things follow. Travel entries print no description (a shut way still says
+  why, and the full text rides the hover title). The You plate, the Desires
+  fold and the `Sheet ›` link are gone from the column. The GM's tabbed column
+  is unchanged.
+- **The You plate** sits in the bottom-left corner, pinned in the foot of the
+  places column (`next/YouPlate.js`). On a phone it is at the foot of the ≡
+  drawer.
+- **A shut zone hides every row**, unread ones included, so a GM can put a
+  zone away. Its divider brightens and carries the count of lines addressed
+  to you, or a dot when there are none. **A shut section** (Here, Rooms, …)
+  still shows its unread rows, rows with a count, and the open place.
+- **The places column's foot** no longer carries the sound switches, the
+  volume, the text size, the bell or Mark all read. The bell and the tick sit
+  in the top bar beside the sound cluster (`components/ChatBarControls.js`,
+  handed chat's handler through `components/chatBarStore.js`). On a phone,
+  where chat hides the top bar, the tick and a ⋯ menu (bell, sound switches,
+  volume, text size) sit in the chat head. The tick clears the red counts as
+  well as the unread marks.
+- **The log's ground is plain `--bg`**, the player desk's. The top bar wears
+  the ground tile instead (`shell.css`).
+- **A player reads names above the words.** The name sits on its own line
+  with the clock beside it, and a speaker's following lines carry no name
+  (`TranscriptLine`'s `layout="stacked"`). A new turn or a line from the game
+  names the speaker again. A GM keeps the one-line `Name: said` log.
+- **The log's type** is Bascinet's pick from the Chat Type Bench: 13px Verdana
+  at 1.35, the words at weight 600 in `--chat-said`, names at 800, quoted
+  speech in `--chat-speech`, and the game's own lines bold in
+  `--chat-scenery` (`globals.css`, `chat.css`).
+- **Names in Here wrap** instead of being cut short. On a phone the drawer is
+  at most `min(88vw, 24rem)`, each eye button is floored at 44px, and
+  " · you · online" rode in the same one-line span, so names ended in "…".
+
 ## 1. Why it exists
 
 Two reasons, and both are Bascinet's.
@@ -1061,11 +1101,9 @@ a 48px head and a one-line composer:
   unread row and the row being read, like a collapsed Discord category; a shut
   zone lists them flat under its divider. Once read and left, a row goes back
   into its fold. An empty section still draws nothing at all, fold or not.
-- **The foot of the column** carries the sound cluster — the speaker, the music
-  switch and a 0–100 volume slider on its own line (`SoundControls.js` with
-  `layout="stack"`) — then the notification bell and Mark all read. The same
-  cluster is in the top bar on every page, minus the inline slider; they share
-  one store, so either one moves both. See `SOUND.md` §2.
+- **The foot of the column** carries the You plate (§0). The sound cluster,
+  the bell and Mark all read moved to the top bar, and on a phone to the chat
+  head. See `SOUND.md` §2.
 - **The column's own bar and its section names.** The places column opens with
   `.bar` reading Places, so all three columns start on the same line — it
   used to open straight onto its first section heading, which left two bars
@@ -1107,11 +1145,11 @@ a 48px head and a one-line composer:
   **Cleared on read**, the way Discord clears: opening the place clears its count,
   and so does bringing the tab back to a place that was already open. A count
   raised on a scene under somebody's eyes is never raised at all — the stream
-  handler checks that first. The tick in the column's foot clears every count
+  handler checks that first. The tick beside the bell clears every count
   along with every mark, or the control would be a half-truth.
 
   **Permission is never asked for by this.** Web Push already asks once, behind
-  the bell in the places column (§5a); nothing is shown until that is granted. A
+  the bell beside the sound switches (§5a); nothing is shown until that is granted. A
   page that prompts the first time somebody's name comes up is the pattern
   browsers added the permanent block for.
 
@@ -1185,9 +1223,10 @@ a 48px head and a one-line composer:
   is the newest seq **overall** — so reading a place to the bottom clears its
   dot however the dot was lit.
 
-  **Mark all read** is the tick in the column's foot, beside the notify
-  icon: `seenStore.js#markAllSeen` over every place's own `newest`,
-  forward-only per place and one repaint for the lot.
+  **Mark all read** is the tick beside the bell, in the top bar (in the chat
+  head on a phone): `seenStore.js#markAllSeen` over every place's own
+  `newest`, forward-only per place and one repaint for the lot, then
+  `notifiedStore.js#clearAllNotified` for the red counts.
 - **A ping in a conversation adds them to it**, the way Discord does when you
   @ a stranger in a thread. `POST /api/feed/say` calls
   `db/lib/conversations.js#pullMentionedIntoConversation` after the row is
@@ -2135,8 +2174,12 @@ the push service minted, and the two keys. Per BROWSER, not per character: one
 player may hold a laptop's row and a phone's, and a character dying does not
 end them.
 
-- **The toggle** sits in the foot of the places column: `Notify me`
-  / `Notifications on`, `aria-pressed`. Pressing it registers `/sw.js`, asks
+- **The toggle** sits in the top bar beside the sound switches (in the chat
+  head's ⋯ menu on a phone): `Notify me` / `Notifications on`, `aria-pressed`,
+  and a struck-through bell reading "Notifications are blocked in your
+  browser's settings" once the browser has refused for good. A subscription the
+  server would not store is dropped from the browser too, so a reload never
+  shows the bell on for nobody. Pressing it registers `/sw.js`, asks
   for permission, subscribes and posts the subscription; pressing it again
   unsubscribes. It draws only when the browser has a `PushManager` **and**
   `/api/push/key` answers — the state is a module store read through
@@ -2278,9 +2321,9 @@ reached and a lower default would just put the quietest files out of reach.
 
 The switch is per browser (`chat/soundStore.js`, localStorage through
 `useSyncExternalStore` like `seenStore.js` beside it), **on by default**, and
-mounted twice: `ChatHead`'s right edge and `.chat-places-foot` beside the bell and
-the checkmark. On a phone the places column is a drawer, so the head copy is the
-one that is always reachable.
+drawn in the top bar on a desktop and in the chat head's ⋯ menu on a phone,
+where chat hides the top bar (§0). They share one store, so either one moves
+both.
 
 A cue may name **several files instead of one**, and a play picks at random. So
 far that is the footsteps: `step-carpet`, `step-wood` and `step-earth` carry

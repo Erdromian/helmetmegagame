@@ -30,13 +30,25 @@
    glued to the browser's own edge. Left-justified rather than
    space-between now: there is no title/actions pair to push apart, just
    one row — links, then the clock — read in order. */
+/* It also wears the ground itself (Chat Overhaul.docx): the chatbg tile at
+   --ground-strength, the same recipe .grain uses behind every page. On most
+   pages the bar used to show .grain through a transparent fill, but /chat
+   switches .grain off (globals.css), which left the bar flat --bg there. The
+   tile is `fixed` so it lines up with .grain's, and elsewhere the bar reads
+   exactly as it did. The veil sits between tile and strip and dims only the
+   tile, because opacity would fade the links too. */
 .top-bar {
   padding: 6px 16px 7px;
   border-bottom: 1px solid var(--border);
-  background-image: url("/assets/chrome/bg.png");
-  background-repeat: repeat-x;
-  background-position: left bottom;
-  background-size: auto 6px;
+  background-color: var(--bg);
+  background-image:
+    url("/assets/chrome/bg.png"),
+    linear-gradient(var(--ground-veil), var(--ground-veil)),
+    url("/assets/chrome/chatbg.png");
+  background-repeat: repeat-x, no-repeat, repeat;
+  background-position: left bottom, 0 0, 0 0;
+  background-size: auto 6px, 100% 100%, 512px 512px;
+  background-attachment: scroll, scroll, fixed;
 }
 
 /* The clock block's own quiet text: ClockBlock.js's "Day 14 · 1098 · Turn 27"

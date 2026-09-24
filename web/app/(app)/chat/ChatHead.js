@@ -56,10 +56,9 @@ export default function ChatHead({
       )}
       <span className="spacer" />
       {hereCount != null && hereCount > 0 && <span className="sub">{hereCount} here</span>}
-      {/* The sound switch used to sit here as well as in the places column's foot.
-          It moved to the universal top bar (SoundControls.js, AppBar.js), which is on
-          screen in every state including on a phone — so a copy here would be the third
-          of one switch on one screen. DESIGN-SYSTEM.md: one control, one place. */}
+      {/* The sound switches, the bell and Mark all read live in the universal top
+          bar (AppBar.js). Chat hides that bar on a phone, so there, and only there,
+          ChatNext hands them in through `trailing` — still one copy on screen. */}
       {trailing}
       {onOpenAside && (
         <span className="chat-head-phone">

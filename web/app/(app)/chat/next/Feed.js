@@ -144,7 +144,7 @@ function useLongPress(onHold) {
 // memo'd, and the whole reason the store is keyed by seq: a line arriving
 // re-renders one of these, not the run of a hundred above it.
 const Row = memo(function Row({ line, handlers, editing = false }) {
-  const { row, realName, startsRun, mine, live, guards } = line;
+  const { row, realName, startsRun, stacked, mine, live, guards } = line;
   const [draft, setDraft] = useState(row.content ?? "");
 
   // WHETHER the bar exists is decided here; whether it is SEEN is decided in
@@ -172,10 +172,12 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
       // is worse than watching it sit there marked unsent.
       failed={row.failed}
       live={live}
-      // The log names EVERY line, not just the first of a run: a scene is read
-      // a name at a time, never a face. The real name behind an alias is
-      // printed in the parentheses and nowhere else.
-      name={realName ? `${row.name} (${realName})` : row.name}
+      // The GM's log names EVERY line, not just the first of a run: a desk is
+      // read a name at a time. A player's stacked scene names a speaker once,
+      // over their run. The real name behind an alias is printed in the
+      // parentheses and nowhere else.
+      layout={stacked ? "stacked" : "log"}
+      name={stacked && !startsRun ? null : realName ? `${row.name} (${realName})` : row.name}
       alias={Boolean(row.alias)}
       // Decided on the server and withheld on a hooded row
       // (db/lib/archive.js#feedRowShape), so a line with no colour is one whose
@@ -574,12 +576,21 @@ export default function Feed({
         const prev = i > 0 ? rows[i - 1] : null;
         const mine = isOwnRow(row, self?.characterId ?? null, self?.speakerKey ?? null);
         const system = !row.name;
+        // A rule wherever the scene crosses into a new turn. Never on the
+        // first row of a place: there is no "before" to have crossed from.
+        const dayBreak = Boolean(prev) && row.turnNumber != null && row.turnNumber !== prev?.turnNumber;
         return {
           row,
-          // A run is one speaker talking without a long gap: a change of
-          // speaker, a system line or seven minutes of silence starts a new
-          // one, and the portrait heads a run (@/lib/feedRuns).
-          startsRun: startsRun(prev, row),
+          // A run is one speaker talking: a change of speaker or a system line
+          // starts a new one, and the portrait heads it (@/lib/feedRuns). A GM
+          // reads the log shape, where seven minutes of silence also starts
+          // one. A player reads the stacked shape, where a run is what
+          // decides whether a line is named at all — so there it is the
+          // speaker alone, plus a new turn, never the clock (Chat
+          // Overhaul.docx: the name is omitted when the same character posts
+          // twice in a row).
+          startsRun: gm ? startsRun(prev, row) : startsRun(prev, row, Infinity) || dayBreak,
+          stacked: !gm,
           mine,
           system,
           live: Boolean(row.seq && paintedAt && BigInt(row.seq) > BigInt(paintedAt)),
@@ -599,9 +610,7 @@ export default function Feed({
             // A note is filed under a living character.
             canStar: row.seq != null && !gm && !ghost,
           },
-          // A rule wherever the scene crosses into a new turn. Never on the
-          // first row of a place: there is no "before" to have crossed from.
-          dayBreak: Boolean(prev) && row.turnNumber != null && row.turnNumber !== prev?.turnNumber,
+          dayBreak,
           newLine: Boolean(row.seq) && String(row.seq) === String(newAt),
         };
       }),
