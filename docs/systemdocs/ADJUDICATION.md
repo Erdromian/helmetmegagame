@@ -190,6 +190,12 @@ tray as "unattached" for the GM to keep or drop.
   Move the *game* filed (a craft, a burial, a torture, a travel stub, a
   lesson) is a receipt for something that already happened. `Action.playerFiled`
   is what tells those apart, and it defaults false so it fails closed.
+- **The lock shuts written Moves only.** A Move the game files for a player is
+  not waiting on a GM, so it is still accepted inside the adjudication window,
+  right up to the push (`db/lib/turnGate.js#autoMovesOpen`, `SESSIONS.md` §4).
+  Expect crafts, burials, mining and the like to keep landing on the desk after
+  the lock, as PASSED rows or as rows a turn-end pass settles (a Trinket, a heal
+  Gambit). None of them asks for a ruling.
 - **The Gambit's die is thrown at submit, and it belongs to the character and
   the turn rather than to the Move.** `db/lib/gambitDie.js`, called from
   `moveConfirm.js` inside the confirming transaction. One row per character per

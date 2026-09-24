@@ -8,6 +8,12 @@
 // THE ORDER OF THE CHECKS IS THE POINT. `moveWindow().locked` is false when the clock is frozen, on purpose: freezing
 // removes the DEADLINE (there is no scheduled end to count back from), it does not shut the game. So a gate that asked only
 // about `locked` would read "not in session" as "wide open" — the exact opposite. The session question comes first.
+//
+// THE LOCK IS FOR MOVES A GM HAS TO RULE ON, and nothing else. It is there to give the desk a quiet window to adjudicate
+// what was written, so it shuts `movesOpen`: filing, editing or withdrawing a written Move (db/lib/moves.js). A verb that
+// settles itself — every craft, Bury, Mine, Refine, Farm, a build site, a heal, a Trinket, a lesson, a confession — asks
+// `autoMovesOpen` instead, which is the same gate without the window. No GM reads those rows, so there is nothing for the
+// lock to protect, and a player can keep working right up to the push. Being out of session still refuses both.
 
 const { moveWindow } = require("./turnClock");
 const { clockStatus } = require("./gameState");
@@ -28,6 +34,15 @@ function gateMessage(reason) {
 // Takes the client as a parameter, the db/lib/dm.js convention — `db` may be a transaction, which several callers hand it.
 // `turn` is returned whether or not the gate opens, because a refusing caller usually still wants to name the turn.
 async function movesOpen(db, { now = new Date(), turn = null } = {}) {
+  return gate(db, { now, turn, lockApplies: true });
+}
+
+// The same gate for a verb no GM resolves: every refusal above, in the same order, except the lock. See the header.
+async function autoMovesOpen(db, { now = new Date(), turn = null } = {}) {
+  return gate(db, { now, turn, lockApplies: false });
+}
+
+async function gate(db, { now, turn, lockApplies }) {
   const [openTurn, status] = await Promise.all([
     turn ? Promise.resolve(turn) : db.turn.findFirst({ where: { status: "OPEN" } }),
     clockStatus(db),
@@ -44,7 +59,7 @@ async function movesOpen(db, { now = new Date(), turn = null } = {}) {
   if (!status.inSession) return refusal("NOT_IN_SESSION", openTurn, null);
 
   const window = moveWindow(openTurn, { now, clockFrozen: status.frozen });
-  if (window.locked) return refusal("LOCKED", openTurn, window);
+  if (lockApplies && window.locked) return refusal("LOCKED", openTurn, window);
 
   return { ok: true, reason: null, message: null, turn: openTurn, window };
 }
@@ -53,4 +68,4 @@ function refusal(reason, turn, window) {
   return { ok: false, reason, message: gateMessage(reason), turn, window };
 }
 
-module.exports = { movesOpen, gateMessage, GATE_MESSAGES };
+module.exports = { movesOpen, autoMovesOpen, gateMessage, GATE_MESSAGES };

@@ -25,7 +25,7 @@ import { dropCharacterTag, debitResources } from "@/lib/tagEffects";
 import { buildSkillAncestry, satisfiedSkillIds } from "@lifeweb/db/lib/medicalVision";
 import { cleanCustomText, CUSTOM_NAME_MAX, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
 import { resolveIngredientSlots, resolveCraftPayer } from "./actions/crafting";
-import { movesOpen } from "@lifeweb/db/lib/turnGate";
+import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
 
 // The recipe's own numbers (TRINKETS.md §1), authored as constants (see file header).
 const TRINKET_RESOURCE_COST = 4;
@@ -82,9 +82,9 @@ async function requireWorkshop(character) {
 
 async function requireFreeMoveForGambit(character, openTurn) {
   if (!openTurn) throw new UserError("No turn is open.");
-  // One gate, one sentence — db/lib/turnGate.js. It asks about the session BEFORE the lock window, because a frozen clock
-  // reports `locked: false` (freezing removes the deadline, it does not shut the game).
-  const gate = await movesOpen(prisma, { turn: openTurn });
+  // One gate, one sentence — db/lib/turnGate.js. The `auto` half: this verb settles itself with no GM, so the Move lock
+  // does not stop it, but the game being out of session still does.
+  const gate = await autoMovesOpen(prisma, { turn: openTurn });
   if (!gate.ok) throw new UserError(gate.message);
   const acted = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },

@@ -22,8 +22,6 @@ import {
 } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
 import { SFX } from "@lifeweb/db/lib/sfx";
-import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
   requireFreeMove,
@@ -78,7 +76,7 @@ import { placementOf } from "@lifeweb/db/lib/structures";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import { openBuildSiteImpl } from "./structures.js";
-import { movesOpen } from "@lifeweb/db/lib/turnGate";
+import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
 import {
   requireCharacter,
   revalidateAll,
@@ -776,9 +774,9 @@ export async function craftRequestImpl({
       let action = null;
       let budget = null;
       if (spend.kind === "spill") {
-        // The fast fail only ran resolveCraftMove when the OUTSIDE price already spilled, so a spill first seen here re-checks the Move window itself — a craft submitted after Moves lock must not write a ledger no matter how the race fell.
+        // The fast fail only ran resolveCraftMove when the OUTSIDE price already spilled, so a spill first seen here re-checks the gate itself — a craft submitted once the game is shut must not write a ledger no matter how the race fell.
         if (moveCost.kind !== "spill") {
-          const gate = await movesOpen(tx, { turn: openTurn });
+          const gate = await autoMovesOpen(tx, { turn: openTurn });
           if (!gate.ok) throw new UserError(gate.message);
         }
         ({ action, budget } = await spendCraftMove(tx, {

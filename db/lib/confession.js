@@ -14,7 +14,7 @@ const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./constants");
-const { movesOpen } = require("./turnGate");
+const { autoMovesOpen } = require("./turnGate");
 
 // mood feeds the penitent's Gambit modifier, same as a hand-filed Gambit
 // (Hunger comes off held tags instead, already part of `tags` below).
@@ -69,11 +69,11 @@ function confessableTags(penitent) {
 const GONE = "That confession's gone.";
 const LOCKED_IN = "You've already locked in a Move this turn.";
 
-// A thin shim over db/lib/turnGate.js#movesOpen, kept only because both call sites here want the turn row back as well as
-// the verdict. `blocked` is the reason to say out loud, null when the player may act — which covers the lock AND the game
-// being out of session, two things this used to have no way to tell apart.
+// A thin shim over db/lib/turnGate.js#autoMovesOpen, kept only because both call sites here want the turn row back as well as
+// the verdict. `blocked` is the reason to say out loud, null when the player may act. The Move lock is not one of those
+// reasons: this settles itself at the turn pass, so no GM needs the window, and only the game being shut refuses it.
 async function openTurnAndWindow(db) {
-  const gate = await movesOpen(db);
+  const gate = await autoMovesOpen(db);
   return { turn: gate.turn, locked: !gate.ok, blocked: gate.message };
 }
 
