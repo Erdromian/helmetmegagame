@@ -124,6 +124,9 @@ export default function CharacterSheet({
   knownRecipeIds = [],
   deathMaskCorpses = [],
   craftProjects = [],
+  // Crafts waiting on the turn push, and whether new ones will (CRAFTING.md §3a).
+  stagedCraftYields = [],
+  craftYieldStaged = false,
   // The turn's craft Move ledger and each ration's free units left, both
   // computed in character/page.js (web/lib/craftBudget.js).
   craftBudget = null,
@@ -271,6 +274,7 @@ export default function CharacterSheet({
         knownRecipeIds={knownRecipeIds}
         deathMaskCorpses={deathMaskCorpses}
         craftProjects={craftProjects}
+        craftYieldStaged={craftYieldStaged}
         craftBudget={craftBudget}
         craftAllowances={craftAllowances}
         sitesHere={sitesHere}
@@ -364,6 +368,7 @@ export default function CharacterSheet({
           moveState={moveState}
           pendingOffers={pendingOffers}
           craftProjects={craftProjects}
+          stagedCraftYields={stagedCraftYields}
           sitesHere={sitesHere}
           hasTrumpet={hasTrumpet}
           hasHorn={hasHorn}

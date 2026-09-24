@@ -344,6 +344,10 @@ async function craftGrantChecks(character, tag, db = prisma) {
   if (!tag.stackable && character.tags.some((ct) => ct.tagId === tag.id)) {
     throw new UserError("You already have that tag.");
   }
+  // A craft staged for the push isn't on the sheet yet, so the check above can't see it — and a second one would land on top of it and be lost.
+  if (!tag.stackable && (await stagedCraftRecipeIds(db, character.id)).has(tag.id)) {
+    throw new UserError(`You already have a ${tag.name} on its way to you at the turn push.`);
+  }
   return character.tags
     .filter((ct) =>
       chainSiblingsToRemove(tag, chainById, heldIds).includes(ct.tagId),
@@ -355,6 +359,29 @@ async function craftGrantChecks(character, tag, db = prisma) {
       expiresTurn: ct.expiresTurn,
       quantity: ct.quantity,
     }));
+}
+
+// Staged yields (CRAFTING.md §3a). With GameConfig.craftYieldTiming at STAGED, a finished craft is queued as a StagedEffect and lands at the turn-end push instead of on the press. No open turn means nothing to stage against, so the item lands at once.
+async function craftYieldStaged(openTurn) {
+  if (!openTurn) return false;
+  const config = await prisma.gameConfig.findUnique({
+    where: { id: 1 },
+    select: { craftYieldTiming: true },
+  });
+  return config?.craftYieldTiming === "STAGED";
+}
+
+// The recipes behind this character's staged yields that haven't landed yet — by the base RECIPE, so a custom-named hat still counts as a hat.
+async function stagedCraftRecipeIds(db, characterId) {
+  const rows = await db.stagedEffect.findMany({
+    where: {
+      targetCharacterId: characterId,
+      appliedAt: null,
+      payload: { path: ["craftYield"], equals: true },
+    },
+    select: { payload: true },
+  });
+  return new Set(rows.map((r) => r.payload?.craftRecipeTagId).filter(Boolean));
 }
 
 // The in-tx re-run, under the Character row lock, against the sheet as it is NOW rather than when the fast fail
@@ -440,10 +467,14 @@ async function grantCrafted(
     baseTag = null,
     // Recipe-specific extras for the audit row (the Death Mask records its source corpse here).
     extraDetails = {},
+    // craftYieldStaged(): queue the product for the turn-end push instead of handing it over now.
+    staged = false,
   },
 ) {
-  for (const snapshot of replaced)
-    await dropCharacterTag(tx, character.id, snapshot.tagId);
+  if (!staged) {
+    for (const snapshot of replaced)
+      await dropCharacterTag(tx, character.id, snapshot.tagId);
+  }
   // Brewing (Distilling): two items for the same cost. The doubling lives HERE, at the single grant every craft path funnels through, deliberately downstream of the ingredient plan and ⬢ spend (both computed from `quantity`, doubling the cost too would make the tag do nothing). Read off `baseTag ?? tag`, not `tag`: a minted custom row carries none of the recipe's own fields, so `tag` alone would quietly stop doubling.
   //
   // TWO SLUGS, not the brewing family (narrowed 2026-09-20). The family test doubled all 31
@@ -462,15 +493,41 @@ async function grantCrafted(
   // carries no `requirementYield` of its own.
   const yielded = quantity * (recipeTag.requirementYield ?? 1);
   const granted = distilled ? yielded * 2 : yielded;
-  await addToStack(tx, character.id, tag.id, granted, {
-    source: "CRAFT",
-    // Must arrive already stamped or it never expires — resolveNeeds()'s sweep matches on expiresTurn and nothing backfills it.
-    expiresTurn: await expiryForGrant(tx, tag, openTurn, {
-      characterId: character.id,
-      where: "craftRequest",
-    }),
-    stackable: tag.stackable,
-  });
+  let stagedEffect = null;
+  if (staged) {
+    // The same row a GM stages from the tray, applied by db/lib/stagedPush.js at the push: the lower tiers come off and the product goes on in one transaction, with its expiry stamped against the turn it lands in. A non-stackable is pinned at 1 here because validateTagOps refuses more, where addToStack would have pinned it quietly.
+    const landing = tag.stackable ? granted : 1;
+    stagedEffect = await tx.stagedEffect.create({
+      data: {
+        turnId: openTurn.id,
+        targetCharacterId: character.id,
+        createdByDiscordUserId: session.discordUserId,
+        // Files it under the craft's own Move on the desk; a free craft has none.
+        moveId: action?.id ?? null,
+        payload: {
+          tagOps: [
+            ...replaced.map((r) => ({ tagId: r.tagId, op: "remove" })),
+            { tagId: tag.id, op: "add", quantity: landing, source: "CRAFT" },
+          ],
+          // Marks the row as a craft's yield, not a GM's staging: the sheet's forecast lists these, and craftGrantChecks refuses a second non-stackable while one is on its way.
+          craftYield: true,
+          craftRecipeTagId: recipeTag.id,
+          craftLabel: craftLabel(tag, landing),
+        },
+      },
+      select: { id: true },
+    });
+  } else {
+    await addToStack(tx, character.id, tag.id, granted, {
+      source: "CRAFT",
+      // Must arrive already stamped or it never expires — resolveNeeds()'s sweep matches on expiresTurn and nothing backfills it.
+      expiresTurn: await expiryForGrant(tx, tag, openTurn, {
+        characterId: character.id,
+        where: "craftRequest",
+      }),
+      stackable: tag.stackable,
+    });
+  }
   const payerParty = { kind: payer.kind, id: payer.id, name: payer.name };
   return logAudit(tx, {
     actorDiscordUserId: session.discordUserId,
@@ -501,6 +558,8 @@ async function grantCrafted(
       ...(replaced.length ? { replaced } : {}),
       // What the ingredients cost, in the `replaced` shape. This row is the ONLY record of the spend now — a GM repairs by hand from here. A multi-turn project spent these when it STARTED and carried the snapshot on CraftProject.consumed until now.
       ...(consumed?.length ? { consumed } : {}),
+      // Written on the press all the same — the per-turn rations count this row — but the item itself is still waiting in the StagedEffect named here.
+      ...(stagedEffect ? { staged: true, stagedEffectId: stagedEffect.id } : {}),
       ...extraDetails,
     },
   });
@@ -644,6 +703,7 @@ export async function craftRequestImpl({
   const cost = ((tag.requirementResources ?? 0) + surcharge) * quantity;
   const payer = await resolveCraftPayer(character, payerKey, cost);
   const openTurn = await getOpenTurn();
+  const staged = await craftYieldStaged(openTurn);
 
   // No Move of its own, but rationed per turn where the recipe names its own `perTurn` (CRAFTING.md §2a). Units PAST the allowance no longer refuse — for a recipe with a craft family they spill into the Move at 1/allowance each, making a fifth cost something rather than be impossible. Priced twice: here for the fast fail, again inside the transaction under the row lock, since two simultaneous requests would otherwise both read the same count and pass.
   const perTurn = tag.requirementPerTurn ?? null;
@@ -723,6 +783,7 @@ export async function craftRequestImpl({
         cost,
         action,
         consumed,
+        staged,
       });
     });
     } catch (err) {
@@ -740,6 +801,7 @@ export async function craftRequestImpl({
       // A forge sounds nothing like a workbench, and the family is already worked out
       // above for the Move's sake (craftFamily, line ~387).
       sfx: craftFamily(tag) === "smithing" ? SFX.SMITH : SFX.CRAFT,
+      staged,
     };
   }
 
@@ -856,6 +918,7 @@ export async function craftRequestImpl({
         extraDetails: deathMask
           ? { sourceCorpseTagId: deathMask.tagId, sourceCorpseName: deathMask.name }
           : {},
+        staged,
       });
       await tx.craftProject.update({
         where: { id: project.id },
@@ -890,7 +953,7 @@ export async function craftRequestImpl({
   payerNotice(character, payer, cost, tag);
   revalidateAll();
   return done
-    ? { made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, quantity)) }
+    ? { made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, quantity)), staged }
     : { started: craftLabel(tag, quantity), turns };
 }
 
@@ -919,6 +982,7 @@ export async function continueCraftImpl({ projectId }) {
   await requireRecipeSkills(character, tag);
   await requireWorkshop(character, tag);
   const openTurn = await getOpenTurn();
+  const staged = await craftYieldStaged(openTurn);
   // Already worked off, and never handed over. Only one kind of row is ACTIVE with its turns done: a part-turn craft
   // filed as a project between 2026-09-17 and the fix in craftRequestImpl (`finishes`). The work was paid for, Move and
   // all, so taking it costs no Move and no wait. Its slotted ingredients were never saved on the project, so a dish
@@ -1014,6 +1078,7 @@ export async function continueCraftImpl({ projectId }) {
               sourceCorpseName: pendingMask.sourceCorpseName,
             }
           : {},
+        staged,
       });
       await tx.craftProject.update({
         where: { id: project.id },
@@ -1042,7 +1107,7 @@ export async function continueCraftImpl({ projectId }) {
   if (done) await afterInventoryChange(character.id);
   revalidateAll();
   return done
-    ? { made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, project.quantity)) }
+    ? { made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, project.quantity)), staged }
     : {
         continued: craftLabel(tag, project.quantity),
         turnsDone: next,

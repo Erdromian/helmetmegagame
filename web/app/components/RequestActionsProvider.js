@@ -86,6 +86,8 @@ export default function RequestActionsProvider({
   // theirs, server-computed in character/page.js. See ingredientPick below.
   deathMaskCorpses = [],
   craftProjects = [],
+  // GameConfig.craftYieldTiming is STAGED: what a craft makes lands at the turn push (CRAFTING.md §3a).
+  craftYieldStaged = false,
   // The craft Move budget (CRAFTING.md §2a), both server-computed in
   // character/page.js. `craftBudget` is this turn's ledger — which family of
   // work the Routine is committed to and how much of the Move is left, or
@@ -419,6 +421,7 @@ export default function RequestActionsProvider({
     heldIds,
     buildSites,
     craftProjects,
+    craftYieldStaged,
     craftBudget,
     craftAllowances,
     deathMaskCorpses,

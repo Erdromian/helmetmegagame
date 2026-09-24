@@ -646,6 +646,11 @@ model GameConfig {
   // The shape between: 1 is a straight line, more is gentle at first and steep at the end.
   farmCurveExp Float @default(1)
 
+  // When a finished craft hands over what it makes (CRAFTING.md §3a).
+  // IMMEDIATE: on the press. STAGED: queued as a StagedEffect and applied at
+  // the turn-end push. Edited on /gm/dev.
+  craftYieldTiming String @default("IMMEDIATE")
+
   // The most arelitz (adults + unruly + brood, all three growth rungs) one
   // `stable: true` Room may hold before db/lib/stablePass.js evicts the
   // excess to stableOverflowRoomSlug below. STABLE_CAPACITY is the fallback

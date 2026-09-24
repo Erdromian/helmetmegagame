@@ -25,6 +25,8 @@ export default function TurnForecast({
   tags = [],
   openTurnNumber = null,
   craftProjects = [],
+  // Crafts staged for the push (CRAFTING.md §3a), already labelled "4× Bread".
+  stagedCraftYields = [],
   sitesHere = [],
   resources = 0,
   // "hungry" | "starving" | null — resolved server-side, off the actual
@@ -65,6 +67,9 @@ export default function TurnForecast({
         <span key={`project-${p.id}`}>{`${p.quantity > 1 ? `${p.quantity}× ` : ""}${p.tagName} is finished`}</span>,
       );
     }
+  }
+  for (const y of stagedCraftYields) {
+    items.push(<span key={`yield-${y.id}`}>{`${y.label} arrives`}</span>);
   }
   for (const s of sitesHere) {
     if (s.status === "UNDER_CONSTRUCTION" && s.turnsDone + 1 >= s.turnsNeeded) {
