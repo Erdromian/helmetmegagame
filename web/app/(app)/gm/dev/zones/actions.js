@@ -9,6 +9,7 @@ import { retirePlace, unretirePlace, hardDeleteBlockers, hardDeletePlace } from 
 import { enqueueMirror } from "@lifeweb/db/lib/discordMirror/queue";
 import { ATTRIBUTES, attributesFromInput } from "@lifeweb/db/lib/locationAttributes";
 import { seedRoomStashRows } from "@lifeweb/db/lib/roomStashSeed";
+import { rehomeStandingCharacters } from "@lifeweb/db/lib/locationMove";
 
 // /gm/dev/zones — the GM place editor. Every writer here re-validates
 // everything server-side (a disabled button is a hint, not a lock), writes
@@ -213,9 +214,30 @@ export async function updateLocation(locationId, updatedAt, input) {
     const nameError = await validateUniqueName(prisma, "location", name, { excludeId: locationId });
     if (nameError) throw new UserError(nameError);
 
-    const before = await prisma.location.findUnique({ where: { id: locationId } });
+    const before = await prisma.location.findUnique({ where: { id: locationId }, include: { zone: true } });
     if (!before) throw new UserError("That location no longer exists.");
     const renamed = before.name !== name;
+
+    // Moving the place into another zone. The zone is where a hop starts
+    // costing the Move (MAP.md §3), so this is a real change to the map, not
+    // a filing detail: everyone standing here changes zone with it, and the
+    // channel moves category on the next mirror pass.
+    const zoneId = trimmed(input.zoneId) || before.zoneId;
+    const moved = zoneId !== before.zoneId;
+    let zone = before.zone;
+    let sortOrder = optionalInt(input.sortOrder, "Sort order");
+    if (moved) {
+      zone = await prisma.zone.findUnique({ where: { id: zoneId } });
+      if (!zone || zone.retiredAt) throw new UserError("That zone no longer exists.");
+      // A CAVE_GROUP is only ever a parent (MAP.md §1) — nobody stands in it.
+      if (zone.kind === "CAVE_GROUP") throw new UserError(`${zone.name} is a group of zones, not somewhere a place can be.`);
+      // Untouched sort order goes to the END of the new zone rather than
+      // colliding with whatever already holds that slot there.
+      if (sortOrder === before.sortOrder) {
+        const last = await prisma.location.aggregate({ where: { zoneId }, _max: { sortOrder: true } });
+        sortOrder = (last._max.sortOrder ?? 0) + 1;
+      }
+    }
 
     // Validated by the same registry the form's controls came from
     // (db/lib/locationAttributes.js) — a key it doesn't know can't reach
@@ -225,15 +247,38 @@ export async function updateLocation(locationId, updatedAt, input) {
 
     await claimRow(prisma.location, locationId, updatedAt, {
       name,
+      zoneId,
       indoors: Boolean(input.indoors),
-      sortOrder: optionalInt(input.sortOrder, "Sort order"),
+      sortOrder,
       description: trimmed(input.description),
       attributes,
     });
-    await audit(session, "gm_location_updated", { locationId, name, renamed, from: before.name });
-    await enqueueMirror(prisma, "location", locationId, renamed ? "renamed from /gm/dev/zones" : "edited from /gm/dev/zones");
+    if (moved) {
+      // Character.zoneId is a denormalized mirror of location.zoneId (MAP.md
+      // §1), and the channel doctor flags every row where the two disagree.
+      await prisma.character.updateMany({ where: { locationId }, data: { zoneId } });
+      await rehomeStandingCharacters(prisma, {
+        locationId,
+        fromRoleId: before.zone?.discordRoleId ?? null,
+        toRoleId: zone?.discordRoleId ?? null,
+      });
+    }
+    await audit(session, "gm_location_updated", {
+      locationId,
+      name,
+      renamed,
+      from: before.name,
+      ...(moved ? { movedFromZoneId: before.zoneId, movedToZoneId: zoneId } : {}),
+    });
+    await enqueueMirror(
+      prisma,
+      "location",
+      locationId,
+      moved ? `moved to ${zone.name} from /gm/dev/zones` : renamed ? "renamed from /gm/dev/zones" : "edited from /gm/dev/zones",
+    );
     revalidatePath(`/gm/dev/zones/locations/${locationId}`);
     revalidatePath(`/gm/dev/zones/${before.zoneId}`);
+    if (moved) revalidatePath(`/gm/dev/zones/${zoneId}`);
   });
 }
 

@@ -972,6 +972,19 @@ Rules the editor enforces, all server-side in `zones/actions.js`:
 - **Rename goes through a confirm dialog** — it also renames the live
   Discord object on the next mirror pass, which is a bigger deal than most
   edits here.
+- **A Location's Zone is a control on its form.** Picking another zone moves
+  the place: `Location.zoneId` changes, every character standing there gets
+  the same `Character.zoneId` (the denormalized mirror `MAP.md` §1 describes)
+  and has their zone role swapped and narrowcast reconciled on the spot
+  (`db/lib/locationMove.js#rehomeStandingCharacters`), and the channel is
+  reparented onto the new category by the next mirror pass. It goes through
+  a confirm dialog because it changes what travel costs — a hop across a
+  zone boundary is what spends the Move (`MAP.md` §3), so the edges into the
+  place from its old zone start costing and the ones from its new zone stop.
+  A `CAVE_GROUP` is refused as a target: nobody stands in one. A sort order
+  left untouched lands the place at the END of the new zone rather than on
+  top of whatever holds that slot there. The Undercroft went from the
+  Undertown into the Fortress this way on 2026-09-23.
 - **Every save posts back the row's `updatedAt`.** A stale write (someone
   else changed it since the page loaded) is refused with "Someone else
   changed this; reload and try again" rather than silently overwritten.

@@ -26,6 +26,14 @@ export default async function DevLocationPage({ params }) {
   });
   if (!location) notFound();
 
+  // Every zone a place may sit in: a CAVE_GROUP is only ever a parent, and a
+  // retired zone is not somewhere to move a live place into.
+  const zones = await prisma.zone.findMany({
+    where: { retiredAt: null, kind: { not: "CAVE_GROUP" } },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    select: { id: true, name: true },
+  });
+
   const mining = location.mining ? { base: location.mining.base, current: location.mining.current } : null;
   const rooms = location.rooms.map((r) => ({
     id: r.id,
@@ -53,12 +61,14 @@ export default async function DevLocationPage({ params }) {
             id: location.id,
             slug: location.slug,
             name: location.name,
+            zoneId: location.zoneId,
             indoors: location.indoors,
             sortOrder: location.sortOrder,
             description: location.description,
             attributes: location.attributes ?? {},
             updatedAt: location.updatedAt.toISOString(),
           }}
+          zones={zones}
           attributeSchema={Object.entries(ATTRIBUTES).map(([key, entry]) => ({
             key,
             type: entry.type ?? "boolean",
