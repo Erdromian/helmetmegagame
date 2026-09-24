@@ -103,7 +103,7 @@ export default function CraftDialog({
   const projectOptions = projects.map((p) => (
     <option key={p.id} value={`project:${p.id}`}>
       {p.quantity > 1 ? `${p.quantity}× ` : ""}
-      {p.tagName} — {p.turnsDone} of {p.turnsNeeded} turns
+      {p.tagName} — {p.due ? "ready" : `${p.turnsDone} of ${p.turnsNeeded} turns`}
     </option>
   ));
   const turns = chosen?.requirementTurns ?? 1;
@@ -218,9 +218,9 @@ export default function CraftDialog({
                 name="craft-project"
                 checked={projectChoice === "continue"}
                 onChange={() => onProjectChoice("continue")}
-                disabled={hasMoved || project.workedThisTurn}
+                disabled={!project.due && (hasMoved || project.workedThisTurn)}
               />
-              Keep working on it
+              {project.due ? "Take it" : "Keep working on it"}
             </label>
             <label className="flex items-center gap-2 text-sm">
               <input
@@ -233,14 +233,16 @@ export default function CraftDialog({
             </label>
           </div>
           <p className="text-xs text-muted">
-            {project.workedThisTurn
-              ? "You've already put this turn into it. Come back next turn."
-              : hasMoved
-                ? budget
-                  ? "A project's turn takes your whole Move, and part of this one is already spent."
-                  : "You've used your Move this turn, so the work waits."
-                : `One more turn of work — your Move for this turn. ${project.turnsNeeded - project.turnsDone === 1 ? "That finishes it." : `${project.turnsNeeded - project.turnsDone} to go.`}`}
-            {project.resourcesCost || project.spentIngredients
+            {project.due
+              ? "It's finished and waiting for you. Taking it costs no Move."
+              : project.workedThisTurn
+                ? "You've already put this turn into it. Come back next turn."
+                : hasMoved
+                  ? budget
+                    ? "A project's turn takes your whole Move, and part of this one is already spent."
+                    : "You've used your Move this turn, so the work waits."
+                  : `One more turn of work — your Move for this turn. ${project.turnsNeeded - project.turnsDone === 1 ? "That finishes it." : `${project.turnsNeeded - project.turnsDone} to go.`}`}
+            {!project.due && (project.resourcesCost || project.spentIngredients)
               ? ` The ${[
                   project.resourcesCost ? `${project.resourcesCost} ⬢` : null,
                   project.spentIngredients ? "ingredients" : null,

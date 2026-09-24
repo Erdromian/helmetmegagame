@@ -304,18 +304,19 @@ export default function CraftAction({ presets, onDone, onClose }) {
     // to buy more.
     const family = moveFamilyOf(chosen);
     const turns = chosen.requirementTurns ?? 1;
-    const perTurn = chosen.requirementPerTurn ?? null;
     if (turns === 0 && per != null) {
       // Free units first, then whatever the Move can still buy at 1/per each.
       max = Math.min(
         max,
         family ? left + unitsAffordable(craftRemaining, per) : left,
       );
-    } else if (turns === 1) {
-      // The server's batch rule: `perTurn` or ONE per turn of work. A family
-      // recipe stops where the Move does; the odd no-family one (holy water)
-      // stops at the count itself.
-      const batch = perTurn > 0 ? perTurn : 1;
+    } else if (turns > 0 && turns <= 1) {
+      // One Move or less a unit: as many as fit in a Routine (craftMoveCost's
+      // `allowance` — 4 at 0.25, 20 at 0.05), and no more than the Move has
+      // left. craftFamily always names a family, so only a never-spills recipe
+      // (none today) takes the plain count. The server's checkCraftMove holds
+      // the same line.
+      const batch = Math.max(1, Math.floor(1 / turns));
       max = Math.min(
         max,
         family ? unitsAffordable(craftRemaining, batch) : batch,
@@ -379,10 +380,10 @@ export default function CraftAction({ presets, onDone, onClose }) {
         onDone(
           giving
             ? "The work is given up."
-            : working
-              ? "Another turn goes into it."
-              : res.made
-                ? `${res.made} made.`
+            : res.made
+              ? `${res.made} made.`
+              : working
+                ? "Another turn goes into it."
                 : `${chosen?.name ?? "The work"} is begun.`,
         ),
     );
@@ -431,7 +432,9 @@ export default function CraftAction({ presets, onDone, onClose }) {
       const project = craftProjects.find((p) => p.id === projectId);
       if (!project) return false;
       return (
-        projectChoice === "cancel" || (!hasMoved && !project.workedThisTurn)
+        projectChoice === "cancel" ||
+        project.due ||
+        (!hasMoved && !project.workedThisTurn)
       );
     }
     if (!chosen) return false;
@@ -453,7 +456,15 @@ export default function CraftAction({ presets, onDone, onClose }) {
   return (
     <ActionDialog
       title={title}
-      submitLabel={projectId || siteId ? (projectChoice === "cancel" ? "Give it up" : "Keep working") : title}
+      submitLabel={
+        projectId || siteId
+          ? projectChoice === "cancel"
+            ? "Give it up"
+            : craftProjects.find((p) => p.id === projectId)?.due
+              ? "Take it"
+              : "Keep working"
+          : title
+      }
       width="wide"
       busy={busy}
       error={error}

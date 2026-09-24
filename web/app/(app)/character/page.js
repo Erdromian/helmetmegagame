@@ -871,6 +871,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     spentIngredients: Array.isArray(p.consumed) && p.consumed.length > 0, // the give-up note names them
     payerName: p.payerName,
     workedThisTurn: Boolean(openTurn && p.lastTurnId === openTurn.id), // Continue greys until next turn
+    // Worked off and never handed over (continueCraftImpl's `due`): Continue takes it now, Move or no Move.
+    due: p.turnsDone >= p.turnsNeeded,
   }));
 
   // The turn's craft ledger and each ration's free amount (CRAFTING.md §2a)

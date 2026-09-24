@@ -750,7 +750,7 @@ export async function craftRequestImpl({
     );
   }
   const moveCost = craftMoveCost(tag, { quantity });
-  // The cross-submission count — for a fractional recipe, `perTurn` holds its work denominator, so this and the budget agree by construction.
+  // The cross-submission count. `perTurn` is only legal at 0 turns now (normalizeTurnsCost), so this is a no-op on this path and the Move ledger is what stops a part-turn batch.
   const ration = async (db) => {
     if (perTurn == null || !openTurn) return;
     const already = await unitsOfTagThisTurn(
@@ -767,7 +767,12 @@ export async function craftRequestImpl({
   };
   await ration(prisma);
   await resolveCraftMove(character, openTurn, moveCost);
-  const finishes = turns === 1;
+  // A part-turn recipe (0.25, Bread's 0.05…) finishes this turn just as a whole-Move one does. This read `turns === 1`
+  // until 2026-09-24: work became a decimal on 2026-09-17 (ce75dcf6e), and from then every part-turn craft was filed as
+  // an unfinished project with the ingredients spent and nothing handed over. continueCraftImpl hands those out.
+  const finishes = turns <= 1;
+  // CraftProject.turnsNeeded is an Int, and Prisma writes a decimal into it without complaint.
+  const turnsNeeded = Math.max(1, Math.ceil(turns));
   let done = false;
   // A finishing craft mints now (outside the tx — mintCustomCraft says why); a longer project carries the words on CraftProject.custom instead and continueCraftImpl mints them on the finishing turn. The Death Mask's stamped name rides the same machinery in literal mode.
   const grant = finishes
@@ -811,7 +816,7 @@ export async function craftRequestImpl({
         characterId: character.id,
         tagId: tag.id,
         quantity,
-        turnsNeeded: turns,
+        turnsNeeded,
         turnsDone: 1,
         resourcesCost: cost,
         consumed: consumed.length ? consumed : undefined,
@@ -866,7 +871,7 @@ export async function craftRequestImpl({
           tagId: tag.id,
           tagName: tag.name,
           quantity,
-          turnsNeeded: turns,
+          turnsNeeded,
           resourcesCost: cost,
           payer: { kind: payer.kind, id: payer.id, name: payer.name },
           actionId: action.id,
@@ -914,11 +919,18 @@ export async function continueCraftImpl({ projectId }) {
   await requireRecipeSkills(character, tag);
   await requireWorkshop(character, tag);
   const openTurn = await getOpenTurn();
+  // Already worked off, and never handed over. Only one kind of row is ACTIVE with its turns done: a part-turn craft
+  // filed as a project between 2026-09-17 and the fix in craftRequestImpl (`finishes`). The work was paid for, Move and
+  // all, so taking it costs no Move and no wait. Its slotted ingredients were never saved on the project, so a dish
+  // comes out as the plain recipe.
+  const due = project.turnsDone >= project.turnsNeeded;
   // A turn on a project is the whole Move, so it demands a clean one: any fraction already spent on a batch craft blocks it, and it blocks everything after it (CRAFTING.md §2a).
   const moveCost = { family: craftFamily(tag), num: 1, den: 1 };
-  await resolveCraftMove(character, openTurn, moveCost);
-  if (project.lastTurnId === openTurn.id)
-    throw new UserError("You've already worked on that this turn.");
+  if (!due) {
+    await resolveCraftMove(character, openTurn, moveCost);
+    if (project.lastTurnId === openTurn.id)
+      throw new UserError("You've already worked on that this turn.");
+  }
 
   const payerKeyParts = (project.payerKey ?? "").split(":");
   const payer = {
@@ -926,7 +938,7 @@ export async function continueCraftImpl({ projectId }) {
     id: payerKeyParts[1] || character.id,
     name: project.payerName ?? character.name,
   };
-  const next = project.turnsDone + 1;
+  const next = due ? project.turnsDone : project.turnsDone + 1;
   const done = next >= project.turnsNeeded;
   const replaced = done ? await craftGrantChecks(character, tag) : [];
   // The words stored when the work began (already cleaned then; cleaned again here since re-sanitizing is free and stored JSON is still input). Minted outside the tx — mintCustomCraft says why — and unwound if the transaction fails.
@@ -955,11 +967,15 @@ export async function continueCraftImpl({ projectId }) {
   await prisma.$transaction(async (tx) => {
     const claim = await tx.craftProject.updateMany({
       where: { id: project.id, status: "ACTIVE", turnsDone: project.turnsDone },
-      data: { turnsDone: next, lastTurnId: openTurn.id },
+      data: due
+        ? { status: "DONE" }
+        : { turnsDone: next, lastTurnId: openTurn.id },
     });
     if (claim.count === 0)
       throw new UserError("That project moved on without you — reload.");
-    const { action, budget } = await spendCraftMove(tx, {
+    // No Move to spend, so take the row lock spendCraftMove would have taken.
+    if (due) await lockCharacter(tx, character.id);
+    const { action } = due ? { action: null } : await spendCraftMove(tx, {
       character,
       openTurn,
       need: moveCost,
