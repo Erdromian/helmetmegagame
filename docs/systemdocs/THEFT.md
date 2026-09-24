@@ -108,6 +108,54 @@ the server returns no die and the sentence never varies, so nothing there can
 be read backwards into whether the room saw you. The room's thread is what
 tells you that.
 
+### 1e. Caught means stuck
+
+**A noticed steal pins the thief where they stand for 5 minutes.** The room
+line is the victim's cue, and a cue is useless if the thief has already walked
+out of the Location by the time anybody reads it. So beside the line, the
+action writes `Character.heldUntil` — the same movement hold an intercept or
+an Attack uses (`INTERCEPT.md` §3) — for `CAUGHT_HOLD_MS`, with
+`heldReason: "caught"` (`HELD_REASON.CAUGHT`). Every picker and the mover's
+gate already read that column, so nothing new had to learn about it: the ways
+out draw shut with *"You were caught stealing. You can't leave for another
+Ns."*, an escort cannot carry them off, and the Charon stone refuses them.
+
+**This is the only theft hold in the game.** A successful Steal holds nobody,
+no Pickpocket band holds anybody (§2), and taking from a room with Transfer
+holds nobody either.
+
+Four things follow from reusing the hold rather than inventing one:
+
+- **It takes MOVEMENT only.** The thief can talk, hand the goods back, and
+  fight. That is the point — the victim gets a window to answer, in words or
+  with an Attack, and an Attack then holds both sides to the end of the turn
+  the ordinary way, since a longer hold always beats a shorter one.
+- **Nobody has hold of them.** `heldById` is null. The intercept Release
+  button, the holder-walks-off clear and the holder-dies clear all key on
+  `heldById`, so none of them can reach this one. It lapses on its own clock
+  and nothing else ends it. A leader they were following reads *"X couldn't
+  follow."*, not *"Somebody has hold of X."* (`INTERCEPT.md` §3).
+- **It never lands on a running fight.** `holdWhereTheyStand` leaves a longer
+  hold alone, and it leaves a fight alone even in the turn's last minutes,
+  when the fight's hold is the shorter one — overwriting it would swap the
+  reason out from under `attack.js#settleHold`.
+- **The line says so, when it is true.** *"…tried to steal an item. They
+  won't get far for the next 5 minutes."* Without the second sentence a victim
+  reading the thread assumes the thief is gone and never comes back to the
+  room. It is added only when the hold actually landed; a thief already held
+  longer, or in a fight, gets the first sentence alone.
+
+The goods have already moved by the time the hold is written, so a failed
+write is logged rather than thrown — the room still hears the line.
+
+**GMs see it on the Other lens** of `/gm/turns` (`ATTACK.md` §7), as a
+*Caught stealing* row read off the `steal` audit row. That row carries
+`held`, whether the hold actually landed, beside `unseen`.
+
+The dialog itself is still outcome-blind (§1d). The thief learns they were
+seen the same way everyone else does — the room line — and the first time
+they try to leave.
+
 ## 2. Pickpocket
 
 Going through a standing person's pockets. Needs the **Pickpocketing (Basic)**
@@ -241,6 +289,13 @@ happens here, and `ROBBED` especially must not: a mood hit on a clean roll
 would be a tell, and would give away a theft the die had just bought silence
 for. If a mood hit is ever wanted, it belongs on the **noticed** band alone.
 
+### 2g. No band holds anybody
+
+A pickpocket is never pinned where they stand, on any roll. The victim is
+DM'd on a noticed or failed roll and answers the way anyone answers anyone:
+words, or an Attack, which holds both sides to the end of the turn. The one
+theft hold in the game is a failed Steal's (§1e).
+
 ## 3. The two tags
 
 | | slug | cost | who |
@@ -285,7 +340,12 @@ mean the same thing.
 
 - **A failed Steal still moves the goods**, and a player reading the room line
   as "the theft was stopped" will be wrong. It is the settled rule, but it is
-  the thing a GM will be asked about first.
+  the thing a GM will be asked about first. What a failed Steal does cost is
+  5 minutes standing there (§1e).
+- **A caught thief's hold overwrites a shorter Safe intercept hold on them**,
+  and takes its `heldById` with it, so the interceptor's Release button no
+  longer finds them. Same shape as the Attack-over-Safe gap in
+  `attack.js#settleHold`, and the same small cost.
 - **The audit log is the only complete record of a stash now.** Anyone reading
   a Room thread has until now been able to treat "no line" as "nothing left
   here". After Steal, a missing item with no line is ordinary. Any tool

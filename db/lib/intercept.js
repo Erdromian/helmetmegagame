@@ -17,11 +17,13 @@ const { SFX } = require("./sfx");
 const { ambientLine } = require("./ambientLine");
 
 // WHY somebody cannot move, written onto Character.heldReason beside the timestamp.
-// Three values, not two: a fight holds BOTH sides and they're not in the same position, so the jumped and the jumper must not read the same sentence. A frozen table rather than hand-written strings across files — db/lib/characterDeath.js's clear once lacked this guard, and a typo'd literal is how that happens twice.
+// Four values, not two: a fight holds BOTH sides and they're not in the same position, so the jumped and the jumper must not read the same sentence. A frozen table rather than hand-written strings across files — db/lib/characterDeath.js's clear once lacked this guard, and a typo'd literal is how that happens twice.
+// CAUGHT is a thief the room saw, pinned where they stand for CAUGHT_HOLD_MS so whoever they robbed can answer — words, or an Attack. One writer: a Steal that failed its roll (THEFT.md §1e). NO heldById, because a stash has no owner, so nothing but the clock ends it.
 const HELD_REASON = Object.freeze({
   INTERCEPT: "intercept",
   ATTACK: "attack",
   ATTACKING: "attacking",
+  CAUGHT: "caught",
 });
 
 // The two that a fight writes. releaseHeldBy and every other heldById clear must leave these alone — only the Attack row knows whether either side is still in another fight (ATTACK.md §2).
@@ -35,6 +37,9 @@ const NOT_A_FIGHT = Object.freeze({
 
 // Two minutes, Bascinet's number — long enough to say something and be answered, short enough that walking into a checkpoint isn't a punishment.
 const SAFE_HOLD_MS = 2 * 60 * 1000;
+
+// Five minutes, Bascinet's number — how long a thief the room saw is stuck there. Longer than a Safe stop because the other side has to notice the line, read it and decide, and they weren't waiting for it the way an interceptor was. Under heldReasonFor's five-minute countdown ceiling on purpose, so the thief always sees seconds rather than "until the end of the turn".
+const CAUGHT_HOLD_MS = 5 * 60 * 1000;
 
 // What a watch may carry. The name cap is FULL_NAME_LIMIT's business; this is how MANY, a sanity bound not a design statement — wanting more than this means wanting "Any person".
 const MAX_NAMES = 12;
@@ -86,10 +91,32 @@ function heldReasonFor(character, now = new Date()) {
     return "You're in a fight. You can't move until the end of the turn.";
   }
   const seconds = Math.ceil((until.getTime() - now.getTime()) / 1000);
+  // Caught stealing. No "somebody" — a stash has no owner, so nobody has hold of them.
+  if (character.heldReason === HELD_REASON.CAUGHT) {
+    return `You were caught stealing. You can't leave for another ${seconds}s.`;
+  }
   // Under five minutes it's worth counting down; a hold that runs to the end of the turn isn't — "43188s" would be worse than saying nothing.
   return seconds <= 300
     ? `Somebody intercepted you. You can't move for another ${seconds}s.`
     : "Somebody ambushed you. You can't move until the end of the turn.";
+}
+
+// Pin somebody where they stand until `until`, held by nobody. Two rules in the WHERE:
+// - THE CLOCK RULE: a hold already running longer is left exactly where it is (the fireWatches and holdBothSides rule).
+// - A LIVE FIGHT IS NEVER OVERWRITTEN, however soon it ends. A fight's hold runs to the turn's end, so in a turn's last five minutes the clock rule alone would let this land on it — and swap the reason and heldById out from under attack.js#settleHold, which only re-points rows still carrying a fight reason. A fight that has already lapsed on its own clock still carries its reason (the turn advance releases by the clock, clearing nothing), so only a RUNNING one counts.
+// Resolves to whether the hold landed, so a caller never announces a hold that didn't happen.
+async function holdWhereTheyStand(db, characterId, { until, reason, now = new Date() }) {
+  const { count } = await db.character.updateMany({
+    where: {
+      id: characterId,
+      AND: [
+        { OR: [{ heldUntil: null }, { heldUntil: { lt: until } }] },
+        { OR: [{ heldUntil: null }, { heldUntil: { lte: now } }, ...NOT_A_FIGHT.OR] },
+      ],
+    },
+    data: { heldUntil: until, heldById: null, heldReason: reason },
+  });
+  return count === 1;
 }
 
 // The one write that ends a hold early — the holder's Release button on the web, the
@@ -435,12 +462,14 @@ module.exports = {
   FIGHT_REASONS,
   NOT_A_FIGHT,
   SAFE_HOLD_MS,
+  CAUGHT_HOLD_MS,
   MAX_NAMES,
   MESSAGE_LIMIT,
   INTERCEPT_RELEASE_PREFIX,
   cleanMessage,
   cleanNames,
   heldReasonFor,
+  holdWhereTheyStand,
   releaseHeldBy,
   anchorHolds,
   originHolds,

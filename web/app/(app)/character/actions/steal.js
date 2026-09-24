@@ -15,6 +15,7 @@ import { prisma, placeKeyForRoom } from "@lifeweb/db";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { stealModifiers, stealSucceeds, stealTotal } from "@lifeweb/db/lib/steal";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
+import { HELD_REASON, CAUGHT_HOLD_MS, holdWhereTheyStand } from "@lifeweb/db/lib/intercept";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
@@ -25,6 +26,10 @@ import { SFX } from "@lifeweb/db/lib/sfx";
 
 // Bascinet's words, verbatim.
 const CAUGHT_LINE = "tried to steal an item.";
+// ...and what the room can do about it. The thief is pinned for CAUGHT_HOLD_MS
+// (THEFT.md §1e), and the line has to say so, or whoever they robbed assumes
+// they're already gone and never answers.
+const STUCK_LINE = "They won't get far for the next 5 minutes.";
 
 export async function stealRequestImpl({ fromKey, tags }) {
   const { session, character } = await requireCharacter({ needs: ACT });
@@ -59,6 +64,23 @@ export async function stealRequestImpl({ fromKey, tags }) {
   });
   const openTurn = await getOpenTurn();
 
+  // Seen, so stuck: five minutes where they stand, so whoever they robbed can
+  // answer — with words, or with an Attack (THEFT.md §1e). The same
+  // Character.heldUntil every picker and the mover's gate already read, so
+  // nothing new has to learn about it. No heldById — the room has hold of
+  // them, not a person, so no Release button and no walk-off clear reaches it.
+  // A successful steal holds nobody. The goods have already moved by now, so a
+  // failed write is logged and the room still hears the line.
+  const pinned = unseen
+    ? false
+    : await holdWhereTheyStand(prisma, character.id, {
+        until: new Date(Date.now() + CAUGHT_HOLD_MS),
+        reason: HELD_REASON.CAUGHT,
+      }).catch((err) => {
+        console.error(`Steal: caught hold failed for ${character.id}:`, err.message ?? err);
+        return false;
+      });
+
   // The die lives here and NOWHERE a player can read it. The per-line
   // TRANSFER_TAG rows above are the record of what moved and the thing Undo
   // reads; this row is the record of the roll.
@@ -77,13 +99,20 @@ export async function stealRequestImpl({ fromKey, tags }) {
       modifiers,
       total: stealTotal(roll.die, modifiers),
       unseen,
+      // Whether the caught hold landed. The GM desk's Other lens reads it
+      // (web/lib/holdClusters.js#caughtStealRow) to say Holding or Seen.
+      held: pinned,
     },
   });
 
   // On a success, nothing is posted anywhere — no Discord line and no scene
   // row, which is the whole of the verb. announceInRoom already names the
   // thief by the face the room saw, so a hooded one reads as "A young man".
-  if (!unseen && room) after(() => announceInRoom(room, character, CAUGHT_LINE));
+  // The second sentence only when the hold actually landed: a thief already in
+  // a fight, or held longer by something else, keeps that hold instead, and
+  // the line must not promise a five-minute one.
+  if (!unseen && room)
+    after(() => announceInRoom(room, character, pinned ? `${CAUGHT_LINE} ${STUCK_LINE}` : CAUGHT_LINE));
 
   return { sfx: SFX.STASH };
 }

@@ -472,7 +472,9 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
           // Held where they stand — a follower is walked by an updateMany and never comes
           // past the mover's own gate, so without this a friend could carry somebody straight out of an ambush. ABOVE escortAuthority on purpose, though that refuses a held character too: its refusal reads here as "gone", while "held" is the ONE leftBehind reason told to the leader out loud (somebody holding your friend is plain to see) — ordered the other way, they'd never hear it.
           if (heldReasonFor(row)) {
-            outcome.leftBehind.push({ row, reason: "held" });
+            // "held" reads to the leader as "Somebody has hold of X", so it needs a somebody. A hold with no holder (a
+            // caught thief, THEFT.md §1e) is "stuck", which every reader draws as the plain "couldn't follow".
+            outcome.leftBehind.push({ row, reason: row.heldById ? "held" : "stuck" });
             continue;
           }
           // The Die has hold of them, same shape and reason: a follower never comes past

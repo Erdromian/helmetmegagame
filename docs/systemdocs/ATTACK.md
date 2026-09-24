@@ -26,9 +26,10 @@ closed on time would otherwise put the deadline in the past and hold nobody.
 **Both sides are held, each named as holding the other.** You do not start a
 fight and stroll off.
 
-`Character.heldReason` says WHY, and it has **three** values, not two —
-`intercept`, `attack`, `attacking` (`HELD_REASON` in `db/lib/intercept.js`).
-The third is the whole point: the person who was jumped and the person who did
+`Character.heldReason` says WHY, and it has **four** values, not two —
+`intercept`, `attack`, `attacking`, `caught` (`HELD_REASON` in
+`db/lib/intercept.js`; `caught` is a thief the room saw, `THEFT.md` §1e, and it
+never lands on a running fight). The third is the whole point: the person who was jumped and the person who did
 the jumping are both held, and telling the aggressor *"Somebody attacked you"*
 on every shut way and every banner would be a plain lie. A column rather than a
 query because `heldReasonFor` is pure and eight surfaces read it.
@@ -279,9 +280,10 @@ have been the cheapest unmasking in the game.
 ## 7. The GM's Other lens
 
 A fourth tab on `/gm/turns`, beside Moves / Caving / History, keyboard **o**.
-It lists everything holding somebody in place this turn — attacks, ambushes and
-Safe intercepts — because to a GM reading the queue those are one question: who
-cannot leave, and who is standing over them.
+It lists everything holding somebody in place this turn — attacks, ambushes,
+Safe intercepts and thieves the room caught (`THEFT.md` §1e) — because to a GM
+reading the queue those are one question: who cannot leave, and who is standing
+over them.
 
 Named for the shape rather than the contents. It is where the next thing that
 is neither a Move nor a die goes — the first thing to take that up being the
@@ -304,6 +306,13 @@ The row's **id comes off the oldest edge** (`hold:<attackId>`), never off the
 member set. A set-derived id is a new id the moment a fourth person joins,
 which drops the GM's keyboard cursor mid-read. The row is `Ambush` if any edge
 is, and `Holding` while any edge is live.
+
+**A caught thief is a row of their own**, kind *Caught stealing*: the thief →
+the room they stole from, with the thief alone in the strip. It is built from
+the turn's `steal` AuditLog rows with `unseen: false`, since a caught Steal
+has no table of its own. `Holding` while its five minutes run, `Seen` after —
+and `Seen` from the start when `details.held` is false, because a thief
+already in a fight keeps that hold instead. Nobody holds them, so there is no ✕.
 
 ### The strip
 
