@@ -47,6 +47,7 @@ export default function LedgerBand({
   moveState = null,
   pendingOffers = [],
   craftProjects = [],
+  stagedCraftYields = [],
   sitesHere = [],
   hasTrumpet = false,
   hasHorn = false,
@@ -252,6 +253,7 @@ export default function LedgerBand({
           tags={character.tags}
           openTurnNumber={openTurn?.number ?? null}
           craftProjects={craftProjects}
+          stagedCraftYields={stagedCraftYields}
           sitesHere={sitesHere}
           resources={heldResources}
           // Never on someone else's sheet — a hunger meter is a private fact

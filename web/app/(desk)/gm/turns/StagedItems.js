@@ -64,7 +64,9 @@ export function StagedEffectRow({
       title: batch ? "Delete this mass apply?" : "Delete this staged effect?",
       message: batch
         ? `Drops the effect for all ${batchCount ?? "its"} targets — ${effectSummary(effect, tagsById)}.`
-        : `${effect.targetName ?? effectTargetLabel(effect)} — ${effectSummary(effect, tagsById)}. It won't apply at the push.`,
+        : effect.craftYield
+          ? `${effect.targetName ?? effectTargetLabel(effect)} made this — ${effectSummary(effect, tagsById)}. Deleting it takes the item away; the Move, ingredients and ⬢ they spent stay spent.`
+          : `${effect.targetName ?? effectTargetLabel(effect)} — ${effectSummary(effect, tagsById)}. It won't apply at the push.`,
       confirmLabel: "Delete",
       cancelLabel: "Keep it",
     });
@@ -107,10 +109,15 @@ export function StagedEffectRow({
         </p>
         <p className="desk-staged-sub">
           {showBatch && effect.batchId ? <span>Mass apply</span> : null}
-          <span className="inline-flex items-center gap-1">
-            <GmAvatar profile={gmProfiles?.[effect.createdByDiscordUserId]} size={13} />
-            {effect.createdByUsername}
-          </span>
+          {effect.craftYield ? (
+            // Written by the player's own Craft button, so there is no GM to name.
+            <span>Crafted by {effect.targetName ?? "the player"}</span>
+          ) : (
+            <span className="inline-flex items-center gap-1">
+              <GmAvatar profile={gmProfiles?.[effect.createdByDiscordUserId]} size={13} />
+              {effect.createdByUsername}
+            </span>
+          )}
           {effect.turnNumber != null ? <span>turn {effect.turnNumber}</span> : null}
           {effect.appliedError ? <span className="text-danger">{effect.appliedError}</span> : null}
         </p>

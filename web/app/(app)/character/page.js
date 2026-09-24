@@ -492,6 +492,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         maxDrawbackPoints: true,
         farmMaxCrops: true,
         farmFieldEnabled: true,
+        craftYieldTiming: true,
       },
     }),
     findOpenTurnAction(prisma, character.id),
@@ -874,6 +875,18 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     // Worked off and never handed over (continueCraftImpl's `due`): Continue takes it now, Move or no Move.
     due: p.turnsDone >= p.turnsNeeded,
   }));
+  // Crafts made on the press but staged for the turn push (CRAFTING.md §3a): not on the sheet yet, so the forecast says they're coming.
+  const stagedCraftYields = (
+    await prisma.stagedEffect.findMany({
+      where: {
+        targetCharacterId: character.id,
+        appliedAt: null,
+        payload: { path: ["craftYield"], equals: true },
+      },
+      orderBy: { createdAt: "asc" },
+      select: { id: true, payload: true },
+    })
+  ).map((e) => ({ id: e.id, label: e.payload?.craftLabel ?? "Something you made" }));
 
   // The turn's craft ledger and each ration's free amount (CRAFTING.md §2a)
   // — the SERVER's arithmetic; craftRequest re-reads under a row lock regardless.
@@ -1248,6 +1261,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       knownRecipeIds: knownRecipeIds,
       deathMaskCorpses: deathMaskCorpses,
       craftProjects: craftProjects,
+      stagedCraftYields: stagedCraftYields,
+      // With no open turn a craft lands at once (craftYieldStaged in actions/crafting.js), so the dialog must not promise the push.
+      craftYieldStaged: gameConfig?.craftYieldTiming === "STAGED" && Boolean(openTurn),
       craftBudget: craftBudget,
       craftAllowances: craftAllowances,
       sitesHere: sitesHere,

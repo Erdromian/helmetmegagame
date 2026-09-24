@@ -43,6 +43,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
     heldIds = [],
     buildSites = [],
     craftProjects = [],
+    craftYieldStaged = false,
     craftBudget = null,
     craftAllowances = {},
     deathMaskCorpses = [],
@@ -381,7 +382,9 @@ export default function CraftAction({ presets, onDone, onClose }) {
           giving
             ? "The work is given up."
             : res.made
-              ? `${res.made} made.`
+              ? res.staged
+                ? `${res.made} made — it arrives when the turn pushes.`
+                : `${res.made} made.`
               : working
                 ? "Another turn goes into it."
                 : `${chosen?.name ?? "The work"} is begun.`,
@@ -472,6 +475,9 @@ export default function CraftAction({ presets, onDone, onClose }) {
       onClose={onClose}
       onSubmit={onSubmit}
     >
+      {craftYieldStaged && !siteId && (
+        <p className="text-xs text-muted">What you make arrives when the turn pushes.</p>
+      )}
       <CraftDialog
         hasWorkshop={hasWorkshop}
         projects={craftProjects}

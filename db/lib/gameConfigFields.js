@@ -109,6 +109,15 @@ const FIELDS = [
     info: "1 is a straight line from comfortable to empty. Above 1 is gentle at first and steep at the end, below 1 the opposite",
   },
   {
+    key: "craftYieldTiming", type: "select", group: "economy", default: "IMMEDIATE",
+    options: [
+      { value: "IMMEDIATE", label: "Same turn" },
+      { value: "STAGED", label: "At the turn push" },
+    ],
+    label: "Crafted items arrive",
+    info: "Same turn: the item lands the moment the player presses Craft. At the turn push: the Move, ingredients and ⬢ are still spent on the press, but the item is staged and lands when the turn pushes. See CRAFTING.md §3a",
+  },
+  {
     key: "stableCapacity", type: "int", group: "economy", default: 10, min: 1, max: 200,
     label: "Stable capacity",
     info: "Most arelitz (adults, unruly, and brood) one Stable room may hold before the excess is evicted",

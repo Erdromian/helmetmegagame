@@ -308,6 +308,16 @@ const R = {
     t("—"),
     ...(d.tags?.length ? [chip(tagOpSummary(d.tags))] : []),
   ],
+  // A craft staged for the push (CRAFTING.md §3a) landing — db/lib/stagedPush.js.
+  // The actor is the player who made it; a spare they already held went to a room.
+  craft_yield_arrived: (d) => [
+    actor(),
+    t("received what they made —"),
+    ...(d.tags?.length ? [chip(tagOpSummary(d.tags))] : []),
+    ...(d.spare
+      ? [t("already held"), chip((d.spare.tags ?? []).map((s) => s.name).join(", ")), t("so the spare went to"), zone(d.spare.roomName)]
+      : []),
+  ],
   gm_bulk_move: (d) => [actor(), t("moved"), recipients(d.characterIds?.length), t("to"), zone(d.locationName ?? d.zoneName)],
   gm_heal: (d) => [actor(), t("healed"), target(), ...(d.tagNames?.length ? [t("of"), ...joinChips(d.tagNames)] : [])],
   gm_custom_tag_created: (d) => [actor(), t("created the custom tag"), chip(d.name, d.tagId)],

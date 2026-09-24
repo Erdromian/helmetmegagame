@@ -365,6 +365,84 @@ The only grant row is the completion's. Mid-project turns leave their own
 audit rows (`craft_started`, `craft_continued`) and the Actions themselves,
 which the desk shows like any Routine.
 
+## 3a. When the product arrives: same turn or at the push
+
+`GameConfig.craftYieldTiming`, the **Crafted items arrive** control under
+Economy on `/gm/dev`, decides when a finished craft hands over what it makes:
+
+- **Same turn** (`IMMEDIATE`, the default, and how crafting has always
+  worked): the product lands on the sheet when the player presses Craft.
+- **At the turn push** (`STAGED`): the product lands at the turn-end push.
+
+Only the hand-over moves. Everything else still happens on the press, in the
+same transaction that stages the product: the Move share, the ingredients, the
+⬢, the Death Mask's face, the minted custom row, any lower tier the product
+replaces, and the `request_craft_tag` audit row. So nothing a recipe costs can
+be sold, handed on or spent again while the product is on its way. The audit
+row has to stay on the press anyway, because the per-turn rations count it
+(`REQUESTS.md` §1a).
+
+It covers every path that ends in `grantCrafted`: free and part-turn crafts, a
+one-turn craft, the last turn of a project, and Take it on a `due` project. Build
+sites (`placement:`) are left out, because they make a structure rather than an
+item. Trinkets have their own pass, and are left out too.
+
+**A staged product is a StagedEffect**, the same row a GM queues from the
+tray, so `db/lib/stagedPush.js` applies it with everything else at the push.
+`grantCrafted` writes it with the craft's Move as `moveId` (null for a free
+craft) and the player as `createdByDiscordUserId`:
+
+```json
+{ "tagOps": [{ "tagId": "…", "op": "add", "quantity": 4, "source": "CRAFT" }],
+  "craftYield": true, "craftRecipeTagId": "<the recipe>",
+  "craftProductTagId": "<what lands: the recipe, or its minted custom row>",
+  "craftLabel": "4× Bread" }
+```
+
+- `quantity` already includes Distilling and `requirementYield`. A
+  non-stackable is pinned at 1, because `validateTagOps` refuses more.
+  `craftLabel` leaves Distilling's doubling out, as the "made:" line does.
+- The expiry is stamped at the push against the turn the product lands in, so
+  a one-turn item lasts the turn it arrives.
+- The audit row gets `staged: true` and `stagedEffectId`. When the product
+  lands, the push writes a `craft_yield_arrived` row with the player as actor,
+  not the `gm_staged_tag_applied` a GM's row gets.
+
+**Nothing is lost at the push.** Four rules make sure of it:
+
+- **The turn is locked while the row is written.** `grantCrafted` reads the
+  turn `FOR SHARE` and stages only if it is still `OPEN`. `advanceTurn` closes
+  a turn by updating that row, so the close waits for the craft to commit and
+  the push is certain to see it. A turn that closed first means the product
+  lands at once.
+- **A spare is set down, not dropped.** If the player already holds the
+  non-stackable product by the push (handed one, bought one, picked one up),
+  the push puts the new one in a random public Room where they stand, the rule
+  an opened crate follows, and DMs them where. With no public Room there, the
+  row fails and the tray shows it. `addToStack` would otherwise have kept the
+  held one and quietly dropped the one they paid for.
+- **Staged crafts count as held.** `craftGrantChecks` weighs them for
+  exclusivity, named conflicts and tier chains, so two crafts the sheet would
+  refuse side by side can't both be staged. It refuses a second non-stackable
+  on its way by `craftProductTagId`, the tag that will land, which is the same
+  test the sheet uses: a custom-named hat blocks neither a plain one nor
+  another name. Crafting upward over a tier that is still on its way is
+  refused until the push.
+- **A GM edit keeps the markers.** `updateStagedEffect` carries the craft keys
+  and the product's `source: CRAFT` through an edit while the product is still
+  being added. A GM who takes the product out leaves an ordinary row.
+
+With no open turn there is nothing to stage against, so the craft lands at
+once whatever the setting says.
+
+The player is told on the press ("4× Bread made — it arrives when the turn
+pushes."), and the Craft dialog carries a one-line note while the setting is
+on and a turn is open. Until the push, the sheet's turn forecast lists each one
+as "4× Bread arrives". GMs see the row in the tray, marked "Crafted by" the
+player, and in the dev panel's "Staged for push" tile. Deleting it there takes
+the product away, and the Move and ingredients stay spent, as with any staged
+effect a GM deletes.
+
 ## 4. Reversing a craft
 
 There is no Undo. The `request_craft_tag` audit row is a finished craft's
