@@ -23,6 +23,8 @@ function offerLine(o) {
     switch (o.kind) {
       case "BIND":
         return `Waiting for ${o.otherName} to agree to be bound.`;
+      case "COLLAR":
+        return `Waiting for ${o.otherName} to agree to the collar.`;
       case "LESSON":
         return `Waiting for ${o.otherName} to accept ${lesson}.`;
       // The cult is never shown a name here, and neither is anybody else --
@@ -44,12 +46,16 @@ function offerLine(o) {
       return `${o.otherName} would like to kiss you. Answer in your DMs.`;
     case "SEARCH":
       return `${o.otherName} wants to search you. Answer in your DMs.`;
+    case "COLLAR":
+      return `${o.otherName} wants to put a collar on you. Answer in your DMs.`;
+    case "LESSON":
+      return `${o.otherName} offered ${lesson}. Answer in your DMs.`;
     // Deliberately says nothing about who, or about what: the vision itself
     // names nobody, and the sheet must not be the thing that does.
     case "CONVERSION":
       return "Something is waiting for an answer in your DMs.";
     default:
-      return `${o.otherName} offered a lesson${o.tagName ? ` in ${o.tagName}` : ""}. Answer in your DMs.`;
+      return `${o.otherName} is waiting on your answer. Answer in your DMs.`;
   }
 }
 

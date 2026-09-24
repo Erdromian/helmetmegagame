@@ -147,8 +147,7 @@ import {
 import { INTERCOM_ROOM_SLUG, broadcastIntercom } from "@lifeweb/db/lib/intercom";
 import { loadVoiceState } from "@lifeweb/db/lib/say";
 import { recordArchiveMessage } from "@lifeweb/db/lib/archive";
-import { declineOffer } from "@lifeweb/db/lib/lessons";
-import { acceptOffer } from "@lifeweb/db/lib/dmAnswer";
+import { acceptOffer, declineOfferOfKind } from "@lifeweb/db/lib/dmAnswer";
 import { settleCarry, deliverCarryDrop } from "@lifeweb/db/lib/carry";
 import { acceptThreatSpawn, declineThreatSpawn, applySpawnSideEffects } from "@lifeweb/db/lib/threatSpawn";
 import { declineAssignment } from "@lifeweb/db/lib/lobby";
@@ -743,7 +742,7 @@ export async function answerEscort({ offerId, accept } = {}) {
 
   const result = accept
     ? await acceptEscort(prisma, offer, me.character)
-    : await declineOffer(prisma, offer, me.character);
+    : await declineOfferOfKind(prisma, offer, me.character);
   for (const dm of result.dms ?? []) {
     await sendDm(dm.discordUserId, dm.content).catch(() => {});
   }
@@ -2206,8 +2205,12 @@ export async function desireCatalogView() {
 
 // Same words the offer's own DM uses. Every kind is named: an unlisted one
 // used to fall through to "offers a lesson", which is how a ride read as one.
+// One row per kind, and LESSON is a row rather than the default: anything
+// unlisted used to read as "offers a lesson", which is how a collar read here.
 function waitingOfferLabel(o, who) {
   switch (o.kind) {
+    case "LESSON":
+      return `${who} offers ${o.tag?.name ?? "a lesson"}.`;
     case "CONFESSION":
       return `${who} asks you to hear their confession.`;
     case "BIND":
@@ -2219,8 +2222,15 @@ function waitingOfferLabel(o, who) {
     case "SEARCH":
       // Says where to go, because this row deliberately offers no Accept.
       return `${who} wants to search you. Say yes in your DMs.`;
+    case "COLLAR":
+      return `${who} wants to put a collar on you.`;
+    // Names nobody, same as the sheet (SheetTurn.js): a conversion names
+    // nobody on any surface (THANATI.md). Answered in the DMs, where the
+    // vision itself is; this row carries no buttons for it.
+    case "CONVERSION":
+      return "Something is waiting for an answer in your DMs.";
     default:
-      return `${who} offers ${o.tag?.name ?? "a lesson"}.`;
+      return `${who} is waiting on your answer.`;
   }
 }
 
@@ -2299,8 +2309,10 @@ export async function waitingOnYou() {
       // control, so an Accept here would silently answer with nothing hidden
       // for somebody who never learned they could. Saying NO loses nothing, so
       // Decline stays. Yes lives on the DM card, which has all three buttons.
-      accept: o.kind !== "SEARCH",
-      decline: true,
+      // A CONVERSION gets neither: its refusal costs something, and a row that
+      // says nothing about who or what is no place to pay it.
+      accept: o.kind !== "SEARCH" && o.kind !== "CONVERSION",
+      decline: o.kind !== "CONVERSION",
     })),
     ...spawns.map((s) => ({
       key: `spawn:${s.id}`,
@@ -2352,9 +2364,11 @@ export async function answerWaiting({ kind, id, accept } = {}) {
     if (offer.responderId !== me.character.id) return { ok: false, error: "That's not yours to answer." };
     const responder = { id: me.character.id, name: me.character.name, discordUserId: me.discordUserId };
 
+    // declineOfferOfKind, never declineOffer: a CONVERSION refused from this
+    // list has to cost what the DM's Refuse button costs (THANATI.md).
     const result = accept
       ? await acceptOffer(prisma, offer, responder)
-      : await declineOffer(prisma, offer, responder);
+      : await declineOfferOfKind(prisma, offer, responder);
     if (!result.ok) return { ok: false, error: result.reason };
 
     // The same post-commit sync the DM handler runs: a fresh Bound tag

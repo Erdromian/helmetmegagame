@@ -244,4 +244,5 @@ async function answerDmAction(prisma, { action, choice, discordUserId, amount })
 module.exports = {
   answerDmAction,
   acceptOffer,
+  declineOfferOfKind,
 };
