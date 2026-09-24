@@ -252,6 +252,13 @@ themselves. A GM who judges a particular cast absurd (Bat Form mid-fight,
 say) still adjudicates it by hand, the same posture Feeding's own lethality
 gets.
 
+**Bat Form is also refused while the Caving Die holds you** (`CAVING.md` §2c):
+a 1 on the Die in your zone this turn means no flight at all until the push,
+even once a GM has marked it resolved.
+Flight is the one way out that crosses no link, so without this a vampire
+could fly out of their own unadjudicated encounter. It is checked before any
+blood is spent.
+
 **Spending blood re-syncs the checkpoint chips immediately**
 (`db/lib/vampireBands.js#syncVampireBandsNow`) rather than waiting for the
 next turn close — the same reasoning a GM's manual blood edit already gets.
