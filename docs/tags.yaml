@@ -1596,7 +1596,9 @@ tags:
     description: "Your priority in conflicts is to run away, no matter what goals or people you trample over. Locks all courage-related Desires. If you act bravely, a GM may bonk you."
     fighting: { tree: both, tiers: -0.4 }
     pointCost: -3
-    conflictsWith: [brave]
+    # Relentless will not give up in a fight; Craven runs from one. Brave was
+    # already here; the sync mirrors both edges.
+    conflictsWith: [brave, relentless]
     purchasable: true
     purchasableAfterStart: false
     desires:
@@ -1705,6 +1707,8 @@ tags:
     purchasable: true
     purchasableAfterStart: false
 
+  # Keen Hearing is this one's exact inverse; conflictsWith runs both ways
+  # once synced, so the edge is authored here on the drawback side only.
   hard-of-hearing:
     catalog: all
     name: Hard of Hearing
@@ -1713,6 +1717,7 @@ tags:
     description: "Eh? What's that? You can't hear very well."
     fighting: { tree: both, tiers: -0.5 }
     pointCost: -4
+    conflictsWith: [keen-hearing]
     purchasable: true
     purchasableAfterStart: false
 
@@ -2148,6 +2153,8 @@ tags:
 
   # Unrelated to the `stupid` health tag, which is Squeeze damage and garbles
   # speech in db/lib/babble.js. This one is prose a GM weighs, nothing more.
+  # Intelligent is this one's inverse; the edge is authored here on the
+  # drawback side and mirrored by the sync.
   dense:
     catalog: all
     name: Dense
@@ -2155,6 +2162,7 @@ tags:
     group: general-traits
     description: "You are somewhat stupid."
     pointCost: -3
+    conflictsWith: [intelligent]
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -2503,6 +2511,9 @@ tags:
     group: general-traits
     description: "You're unlucky. Your Gambits are rolled with disadvantage."
     pointCost: -6
+    # Holding both used to be a wash on the die (db/lib/gambitDie.js); now the
+    # pair is simply refused. Authored here, mirrored onto Lucky by the sync.
+    conflictsWith: [lucky]
     visible: false
     purchasable: true
     purchasableAfterStart: false
