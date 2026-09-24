@@ -796,6 +796,23 @@ async function updateStagedRoomEffectImpl({ stagedEffectId, roomResources, tagOp
   return { patch: await deskPatchFor({ stagedEffectIds: [existing.id] }) };
 }
 
+// A player's craft staged for the push (CRAFTING.md §3a) keeps what marks it through a GM edit, as long as its product is still being added: the sheet's forecast lists it by these keys, craftGrantChecks weighs it as held, and the push sets a spare down in a room rather than losing it. normalizeStagedOps drops `source`, so the product's CRAFT is put back. A GM who took the product out has made it an ordinary row, and it is left as one.
+function craftKeysAfterEdit(payload, ops, tagsById) {
+  if (payload?.craftYield !== true) return null;
+  const productId = payload.craftProductTagId ?? payload.craftRecipeTagId;
+  const add = ops.find((o) => o.op === "add" && o.tagId === productId);
+  if (!add) return null;
+  add.source = "CRAFT";
+  const name = tagsById.get(productId)?.name;
+  const quantity = add.quantity ?? 1;
+  return {
+    craftYield: true,
+    craftRecipeTagId: payload.craftRecipeTagId,
+    craftProductTagId: productId,
+    craftLabel: name ? (quantity > 1 ? `${quantity}× ${name}` : name) : payload.craftLabel,
+  };
+}
+
 async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, locationId }) {
   const session = await requireGm();
   const existing = await prisma.stagedEffect.findUnique({ where: { id: stagedEffectId ?? "" } });
@@ -809,15 +826,18 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
   if (!delta && !points && !ops.length && !place) {
     throw new UserError("Stage a resource, tag-point, tag change, or relocation.");
   }
+  let tagsById = new Map();
   if (ops.length) {
     const tags = await prisma.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
+    tagsById = new Map(tags.map((t) => [t.id, t]));
     try {
-      validateTagOps(ops, new Map(tags.map((t) => [t.id, t])), new Set());
+      validateTagOps(ops, tagsById, new Set());
     } catch (err) {
       if (err instanceof TagOpError) throw new UserError(err.message);
       throw err;
     }
   }
+  const craft = craftKeysAfterEdit(existing.payload, ops, tagsById);
 
   // Editing detaches the row from its batch — it no longer matches siblings.
   const claimed = await prisma.stagedEffect.updateMany({
@@ -828,6 +848,7 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
         ...(points ? { tagPoints: points } : {}),
         ...(ops.length ? { tagOps: ops } : {}),
         ...(place ? { locationId: place } : {}),
+        ...(craft ?? {}),
       },
       batchId: null,
     },

@@ -20,7 +20,9 @@ const { settleGambitDice } = require("./gambitCutoff");
 const { TagOpError, validateTagOps, applyTagOpsInTx } = require("./tagOps");
 const { summarizeTagOps } = require("./tagAudit");
 const { validateRoomTagOps, applyRoomTagOpsInTx } = require("./roomTagOps");
-const { addRoomResources } = require("./roomStash");
+const { addRoomResources, pickRandomPublicRoom } = require("./roomStash");
+const { addToRoomStack } = require("./tagWrites");
+const { expiryForGrant } = require("./grantExpiry");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
 const { ensureDeliveries } = require("./stagedDelivery");
 const { applyDeathWithVampireOverride, announceVampireAsh } = require("./vampireDeath");
@@ -80,7 +82,7 @@ class StagedZoneError extends Error {}
 // One transaction per row, never one around the batch: one bad row must not
 // roll back a hundred good ones. Returns what the row actually moved, for the
 // appliedEffect snapshot.
-async function applyOneStagedEffect(prisma, row, turn) {
+async function applyOneStagedEffect(prisma, row, turn, notices = []) {
   return prisma.$transaction(async (tx) => {
     // The claim IS the double-apply guard: a resumed pass re-selects
     // appliedAt: null, so this updateMany comes back 0 for anything the
@@ -189,7 +191,8 @@ async function applyOneStagedEffect(prisma, row, turn) {
       snapshot.tagPoints = tagPoints;
     }
 
-    const ops = Array.isArray(row.payload?.tagOps) ? row.payload.tagOps : [];
+    let ops = Array.isArray(row.payload?.tagOps) ? row.payload.tagOps : [];
+    const craftYield = row.payload?.craftYield === true;
     if (ops.length) {
       const tags = await tx.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
       const tagsById = new Map(tags.map((t) => [t.id, t]));
@@ -197,26 +200,92 @@ async function applyOneStagedEffect(prisma, row, turn) {
         where: { characterId: row.targetCharacterId },
         select: { tagId: true },
       });
+      const heldIds = new Set(heldRows.map((r) => r.tagId));
       // Validation runs before any tag write, so a TagOpError here rolls the
       // whole row back clean, including the claim.
-      validateTagOps(ops, tagsById, new Set(heldRows.map((r) => r.tagId)));
+      validateTagOps(ops, tagsById, heldIds);
+
+      // A player's craft (CRAFTING.md §3a) whose non-stackable product they
+      // already hold by push time — handed one, bought one, picked one up
+      // since the press. addToStack would keep the one on the sheet and
+      // quietly drop the one they paid for, so it is set down in a public room
+      // where they stand instead, the rule an opened crate follows
+      // (misc.js#openCrate). No room to set it in fails the row, which the
+      // tray shows, rather than losing it.
+      if (craftYield) {
+        const spares = ops.filter(
+          (o) => o.op === "add" && heldIds.has(o.tagId) && !tagsById.get(o.tagId)?.stackable,
+        );
+        if (spares.length) {
+          const character = await tx.character.findUnique({
+            where: { id: row.targetCharacterId },
+            select: { locationId: true, discordUserId: true },
+          });
+          const spareRoom = await pickRandomPublicRoom(tx, character?.locationId ?? null);
+          const names = spares.map((o) => tagsById.get(o.tagId).name).join(", ");
+          if (!spareRoom) {
+            throw new TagOpError(`Already holds ${names}, and there is nowhere here to set the spare down.`);
+          }
+          const landingTurn = { ...turn, number: turn.number + 1 };
+          for (const o of spares) {
+            const tag = tagsById.get(o.tagId);
+            await addToRoomStack(tx, spareRoom.id, o.tagId, 1, {
+              expiresTurn: await expiryForGrant(tx, tag, landingTurn, {
+                characterId: row.targetCharacterId,
+                where: "craftYieldSpare",
+              }),
+            });
+          }
+          ops = ops.filter((o) => !spares.includes(o));
+          snapshot.craftSpare = {
+            roomId: spareRoom.id,
+            roomName: spareRoom.name,
+            tags: spares.map((o) => ({ tagId: o.tagId, name: tagsById.get(o.tagId).name })),
+          };
+          if (character?.discordUserId) {
+            notices.push({
+              discordUserId: character.discordUserId,
+              content: `Your ${names} arrived, but you already carry one, so the spare was set down in ${spareRoom.name}.`,
+            });
+          }
+        }
+      }
+
       // The turn handed down is the NEXT one, not the closing one: these tags
       // land as that turn opens, so a 1-turn tag granted here survives this
       // rollover's own expiry sweep, same as one granted five minutes earlier.
-      snapshot.tags = await applyTagOpsInTx(tx, {
-        characterId: row.targetCharacterId,
-        ops,
-        tagsById,
-        openTurn: { ...turn, number: turn.number + 1 },
-      });
+      snapshot.tags = ops.length
+        ? await applyTagOpsInTx(tx, {
+            characterId: row.targetCharacterId,
+            ops,
+            tagsById,
+            openTurn: { ...turn, number: turn.number + 1 },
+          })
+        : [];
 
-      // The one place a staged tag change actually lands — audit it here,
-      // atomically with the write, rather than at staging time (where the
-      // GM's edits are still just a draft) or not at all (the gap this
-      // closes). "The GM responsible" is whoever solved the Move if it was
-      // solved; a Move a GM never got to (silently closed at push) falls
-      // back to whoever staged this specific effect.
-      if (snapshot.tags?.length) {
+      // A craft's own arrival is the player's doing, not a GM's: audited as
+      // that, so /gm/audit doesn't read "Ada resolved a gambit for Ada".
+      if (craftYield) {
+        await tx.auditLog.create({
+          data: {
+            actorDiscordUserId: row.createdByDiscordUserId ?? "system:staged_push",
+            actionType: "craft_yield_arrived",
+            targetCharacterId: row.targetCharacterId,
+            details: {
+              tags: summarizeTagOps(snapshot.tags),
+              label: row.payload?.craftLabel ?? null,
+              stagedEffectId: row.id,
+              ...(snapshot.craftSpare ? { spare: snapshot.craftSpare } : {}),
+            },
+          },
+        });
+      } else if (snapshot.tags?.length) {
+        // The one place a staged tag change actually lands — audit it here,
+        // atomically with the write, rather than at staging time (where the
+        // GM's edits are still just a draft) or not at all (the gap this
+        // closes). "The GM responsible" is whoever solved the Move if it was
+        // solved; a Move a GM never got to (silently closed at push) falls
+        // back to whoever staged this specific effect.
         const resolverId =
           row.move?.reviewedByDiscordUserId ?? row.createdByDiscordUserId ?? "system:staged_push";
         await tx.auditLog.create({
@@ -352,6 +421,8 @@ async function runStagedPushPass(prisma, turn) {
   // turnDeaths by db/index.js/turnSideEffects.js so a staged kill gets the
   // same Discord teardown, death DM and #leave rollup any other death does.
   const deaths = [];
+  // A craft whose spare was set down in a room (applyOneStagedEffect) — sent with the Routine notices.
+  const craftNotices = [];
   const stagedEffects = await prisma.stagedEffect.findMany({
     where: { turnId: turn.id, appliedAt: null },
     orderBy: { createdAt: "asc" },
@@ -373,9 +444,12 @@ async function runStagedPushPass(prisma, turn) {
   });
   for (const row of stagedEffects) {
     try {
-      const snapshot = await applyOneStagedEffect(prisma, row, turn);
+      // Queued per row and kept only once that row commits, so a rolled-back row never tells anyone anything.
+      const rowNotices = [];
+      const snapshot = await applyOneStagedEffect(prisma, row, turn, rowNotices);
       if (snapshot) {
         effectsApplied += 1;
+        craftNotices.push(...rowNotices);
         if (snapshot.location) {
           const target = row.targetCharacter;
           if (target?.status === "ALIVE" && target.discordUserId) {
@@ -446,7 +520,7 @@ async function runStagedPushPass(prisma, turn) {
       stagedEffects: { select: { targetCharacterId: true } },
     },
   });
-  const routineNotices = [];
+  const routineNotices = [...craftNotices];
   // Independent of the routine-closing logic below: the die was already
   // decided at submit, this pass just delivers the news. Every CONFIRMED
   // Gambit still unpaid this turn qualifies.

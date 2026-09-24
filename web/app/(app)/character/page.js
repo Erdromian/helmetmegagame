@@ -1262,7 +1262,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       deathMaskCorpses: deathMaskCorpses,
       craftProjects: craftProjects,
       stagedCraftYields: stagedCraftYields,
-      craftYieldStaged: gameConfig?.craftYieldTiming === "STAGED",
+      // With no open turn a craft lands at once (craftYieldStaged in actions/crafting.js), so the dialog must not promise the push.
+      craftYieldStaged: gameConfig?.craftYieldTiming === "STAGED" && Boolean(openTurn),
       craftBudget: craftBudget,
       craftAllowances: craftAllowances,
       sitesHere: sitesHere,
