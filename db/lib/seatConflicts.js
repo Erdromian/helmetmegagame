@@ -11,15 +11,15 @@
 // negative deliberately (the store's check is `cost > tagPoints`, so debt
 // just blocks further buying rather than being quietly forgiven).
 //
-// SWEEP 2 — older pairwise/exclusive rules: a pairwise conflict with
-// POSITIVE cost is removed and refunded; zero/negative cost is
-// GRANDFATHERED (a drawback refunded would be farmed); an exclusive-group
-// clash is always removed, refunding max(cost, 0).
+// SWEEP 2 — pairwise/exclusive rules: every clash is removed. A pairwise
+// conflict takes its `pointCost` back with it, same as sweep 1 — refunded if
+// it was bought, clawed back if it was a drawback, so neither is farmed. An
+// exclusive-group clash refunds max(cost, 0).
 //
-// Sweep 1 runs FIRST so the two never disagree about the same tag — e.g.
-// Pacifist is both a `conflictsWith` edge and a `violence` lock. Runs inside
-// Assign's transaction, AFTER seat tags land, and returns what it did so the
-// DM can say so. Never touches equipped state on what it keeps.
+// Sweep 1 runs FIRST so a tag both rules name — Pacifist is a `conflictsWith`
+// edge and a `violence` lock — is reported once. Runs inside Assign's
+// transaction, AFTER seat tags land, and returns what it did so the DM can
+// say so. Never touches equipped state on what it leaves.
 const { unionLockClauses, lockedReasonForTemplate } = require("./desireGates");
 const { joinList } = require("./roomStash");
 
@@ -87,7 +87,6 @@ async function resolveSeatConflicts(tx, characterId, seatTagIds) {
 
   const refunded = [];
   const removed = [];
-  const kept = [];
   const stripped = [];
   const toDelete = new Set();
   let points = 0;
@@ -120,15 +119,18 @@ async function resolveSeatConflicts(tx, characterId, seatTagIds) {
       const pairwise = pairwiseConflict(seat, tag);
       const exclusive = exclusiveClash(seat, tag);
       if (!pairwise && !exclusive) continue;
+      toDelete.add(other.tagId);
       const cost = tag.pointCost ?? 0;
-      if (exclusive || cost > 0) {
-        toDelete.add(other.tagId);
-        const back = Math.max(cost, 0);
-        points += back;
-        (back > 0 ? refunded : removed).push({ name: tag.name, points: back });
-      } else {
-        kept.push({ name: tag.name, points: cost });
+      if (!exclusive && cost < 0) {
+        // A drawback's points go back the way sweep 1 takes them.
+        points += cost;
+        clawedBack += -cost;
+        stripped.push({ name: tag.name, points: cost });
+        continue;
       }
+      const back = Math.max(cost, 0);
+      points += back;
+      (back > 0 ? refunded : removed).push({ name: tag.name, points: back });
     }
   }
 
@@ -139,11 +141,11 @@ async function resolveSeatConflicts(tx, characterId, seatTagIds) {
   if (points !== 0) {
     await tx.character.update({ where: { id: characterId }, data: { tagPoints: { increment: points } } });
   }
-  return { refunded, removed, kept, stripped, points, clawedBack };
+  return { refunded, removed, stripped, points, clawedBack };
 }
 
 // One line for the DM, or null when nothing happened.
-function describeSeatConflicts({ refunded, removed, kept, stripped = [], clawedBack = 0 }) {
+function describeSeatConflicts({ refunded, removed, stripped = [], clawedBack = 0 }) {
   const parts = [];
   if (stripped.length) {
     const names = joinList(stripped.map((s) => s.name));
@@ -160,7 +162,6 @@ function describeSeatConflicts({ refunded, removed, kept, stripped = [], clawedB
     );
   }
   if (removed.length) parts.push(`Dropped: ${removed.map((r) => r.name).join(", ")}.`);
-  if (kept.length) parts.push(`Kept, drawbacks and all: ${kept.map((r) => r.name).join(", ")}.`);
   return parts.length ? parts.join(" ") : null;
 }
 

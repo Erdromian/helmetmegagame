@@ -113,7 +113,7 @@ export async function assignThreat({ characterId, threatSlug }) {
     });
   }
 
-  let conflicts = { refunded: [], removed: [], kept: [], stripped: [], points: 0, clawedBack: 0 };
+  let conflicts = { refunded: [], removed: [], stripped: [], points: 0, clawedBack: 0 };
   await prisma.$transaction(async (tx) => {
     for (const row of rows) {
       // Upsert rather than create: a GM may have granted the seat tag by hand
@@ -138,9 +138,9 @@ export async function assignThreat({ characterId, threatSlug }) {
     }
     // What the seat forbids and the character already had: every Addiction
     // and any Personality tag that locks one of the seat's own Desires taken
-    // outright (points clawed back with them), then the older pairwise rules
-    // — refunded if it cost points, kept if it was a drawback, gone either
-    // way if it is a second Belief (db/lib/seatConflicts.js).
+    // outright (points clawed back with them), then every `conflictsWith`
+    // edge and second Belief removed, its cost refunded
+    // (db/lib/seatConflicts.js).
     conflicts = await resolveSeatConflicts(tx, character.id, rows.map((r) => r.tagId));
     await tx.auditLog.create({
       data: {
@@ -153,7 +153,6 @@ export async function assignThreat({ characterId, threatSlug }) {
           tags: rows.map((r) => r.name),
           refunded: conflicts.refunded,
           removed: conflicts.removed,
-          kept: conflicts.kept,
           stripped: conflicts.stripped,
           clawedBack: conflicts.clawedBack,
         },

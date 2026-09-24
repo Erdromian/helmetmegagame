@@ -96,7 +96,8 @@ hand already and a duplicate would violate `CharacterTag`'s
 
 **A seat's incompatible tags are `conflictsWith` edges on the seat tag** in
 `docs/tags.yaml` (Judge and Demoness against Pacifist, Charitable and Saint;
-the `thanati` Belief against those and Pilgrim, plus every other Belief by
+the Vampire against Saint and Pacifist; the `thanati` Belief against Pacifist,
+Charitable, Saint and Pilgrim, plus every other Belief by
 the group's `exclusive` rule). That is what makes the store and Add Tag refuse
 them for a holder without knowing what a threat is. What the character
 *already* holds is settled by `db/lib/seatConflicts.js#resolveSeatConflicts`,
@@ -127,23 +128,28 @@ the player banked 4 for Alcoholic, and the seat has just deleted Alcoholic.
 check is `cost > tagPoints`, so a character in debt simply buys nothing until
 they have worked it off. A floor at zero would quietly forgive the difference.
 
-**Sweep 2 — the older pairwise and exclusive rules**, unchanged:
+**Sweep 2 — every `conflictsWith` edge and every second Belief goes.**
+Nothing is grandfathered here either:
 
-- a pairwise conflict that **cost points** is removed and its `pointCost`
-  goes back to `Character.tagPoints` — refunded;
-- a pairwise conflict with a zero or negative cost is **kept** — a refunded
-  drawback would be a farmed one;
+- a pairwise conflict that **cost points** (Saint 14, Charitable 4, Pilgrim 1)
+  is removed and its `pointCost` goes back to `Character.tagPoints` — refunded;
+- a pairwise conflict that cost **nothing** (Pacifist) is removed with nothing
+  to give back — dropped. This used to be kept, which left a Pacifist Judge,
+  Demoness or Vampire; sweep 1 only ever caught it for the Thanati, whose
+  Desires it locks;
+- a pairwise conflict that was a **drawback** is removed and its points taken
+  back, the same way sweep 1 takes them, so it can't be farmed. No seat names
+  one today;
 - a second **Belief** always goes, refunding `max(cost, 0)`.
 
-**Sweep 1 runs first, and the order is load-bearing.** Pacifist is both a
-`conflictsWith` edge on the `thanati` tag *and* a `violence` lock. Taken by
-sweep 2 first it would land in the "kept, drawbacks and all" list, in the same
-DM that says it was stripped.
+**Sweep 1 runs first**, so a tag both sweeps name is reported once. Pacifist
+is both a `conflictsWith` edge on the `thanati` tag *and* a `violence` lock;
+for the Thanati it arrives in the sweep-1 sentence, never in "Dropped" as well.
 
 The DM leads with the sweep-1 sentence, because it is the one that costs the
 player points — "Your role conflicted with Alcoholic and Pacifist, so 4 tag
-points have been taken back with them." — then lists what was refunded,
-dropped and kept. The audit row carries all four lists plus `clawedBack`.
+points have been taken back with them." — then lists what was refunded and
+dropped. The audit row carries all three lists plus `clawedBack`.
 
 **The conversion rite is an Assign by another road.** `db/lib/riteEffects.js`'s
 `conversion` handler grants the `thanati` tag and calls the same function, so a

@@ -1,15 +1,37 @@
-// Sweep 1 of db/lib/seatConflicts.js — the tags an antagonist seat clears out
-// of its own way (THREATS.md §3). Sweep 2's pairwise/exclusive rules are
-// covered incidentally here, in the one case where the two sweeps could
-// disagree about the same tag.
+// db/lib/seatConflicts.js — the tags an antagonist seat clears out of its own
+// way (THREATS.md §3): sweep 1's Addictions and Desire locks, and sweep 2's
+// `conflictsWith` edges, which go whatever they cost.
 const test = require("node:test");
 const assert = require("node:assert");
 const { resolveSeatConflicts, describeSeatConflicts, blocksSeatDesires } = require("../lib/seatConflicts");
 
 const BELIEFS = "g-beliefs";
 
-// The Thanati Belief, plus four things a character might already be holding.
+// The Thanati Belief and a Judge-shaped seat, plus things a character might
+// already be holding.
 const TAGS = {
+  // No group, no Desires of its own — only conflictsWith edges.
+  judge: {
+    id: "judge", name: "Judge", pointCost: 0, exclusive: false, groupId: null,
+    requiredTagId: null, desireLocks: null, group: null,
+    conflictsWith: [{ id: "pacifist" }, { id: "saint" }, { id: "charitable" }, { id: "craven" }],
+  },
+  saint: {
+    id: "saint", name: "Saint", pointCost: 14, exclusive: false, groupId: BELIEFS,
+    requiredTagId: "pale", desireLocks: null, group: { slug: "general-beliefs" },
+    conflictsWith: [{ id: "judge" }],
+  },
+  charitable: {
+    id: "charitable", name: "Charitable", pointCost: 4, exclusive: false, groupId: "g-pers",
+    requiredTagId: null, desireLocks: null, group: { slug: "general-personality" },
+    conflictsWith: [{ id: "judge" }],
+  },
+  // No seat names a drawback today; this stands in for the first one that does.
+  craven: {
+    id: "craven", name: "Craven", pointCost: -2, exclusive: false, groupId: "g-traits",
+    requiredTagId: null, desireLocks: null, group: { slug: "general-traits" },
+    conflictsWith: [{ id: "judge" }],
+  },
   thanati: {
     id: "thanati", name: "Thanati", pointCost: 0, exclusive: true, groupId: BELIEFS,
     requiredTagId: null, desireLocks: null, group: { slug: "general-beliefs" },
@@ -74,14 +96,13 @@ test("the drawback's points go back with it, and the balance may go negative", a
   assert.equal(tx.calls.increment, -12);     // no floor at zero, on purpose
 });
 
-test("a tag both sweeps name is stripped, never reported as kept", async () => {
+test("a tag both sweeps name is reported once", async () => {
   // Pacifist is a conflictsWith edge on the seat tag AND a `violence` lock.
-  // Sweep 2 alone would grandfather it (cost 0); sweep 1 runs first.
   const tx = fakeTx(["thanati", "pacifist"]);
   const out = await resolveSeatConflicts(tx, "c1", ["thanati"]);
 
-  assert.deepEqual(out.kept, []);
   assert.deepEqual(out.stripped, [{ name: "Pacifist", points: 0 }]);
+  assert.deepEqual(out.removed, []);
 });
 
 test("a seat that opens no Desires still strips Addictions", async () => {
@@ -89,9 +110,34 @@ test("a seat that opens no Desires still strips Addictions", async () => {
   const out = await resolveSeatConflicts(tx, "c1", ["thanati"]);
 
   assert.deepEqual(out.stripped.map((s) => s.name), ["Alcoholic"]);
-  // With no seat Desires to block, Pacifist falls through to sweep 2 and is
-  // grandfathered the old way.
-  assert.deepEqual(out.kept, [{ name: "Pacifist", points: 0 }]);
+  // With no seat Desires to block, Pacifist falls through to sweep 2 — and
+  // still goes, as a conflictsWith edge.
+  assert.deepEqual(out.removed, [{ name: "Pacifist", points: 0 }]);
+  assert.deepEqual(tx.calls.deleted, ["alcoholic", "pacifist"]);
+});
+
+test("every conflictsWith edge goes, and what it cost comes back", async () => {
+  const tx = fakeTx(["judge", "pacifist", "saint", "charitable", "kleptomaniac"], []);
+  const out = await resolveSeatConflicts(tx, "c1", ["judge"]);
+
+  assert.deepEqual(tx.calls.deleted, ["charitable", "pacifist", "saint"]);
+  assert.deepEqual(out.refunded, [{ name: "Saint", points: 14 }, { name: "Charitable", points: 4 }]);
+  assert.deepEqual(out.removed, [{ name: "Pacifist", points: 0 }]);
+  assert.equal(tx.calls.increment, 18);
+  assert.equal(
+    describeSeatConflicts(out),
+    "Refunded, since the seat forbids them: Saint (+14), Charitable (+4). Dropped: Pacifist.",
+  );
+});
+
+test("a conflicting drawback goes too, and its points go back with it", async () => {
+  const tx = fakeTx(["judge", "craven"], []);
+  const out = await resolveSeatConflicts(tx, "c1", ["judge"]);
+
+  assert.deepEqual(tx.calls.deleted, ["craven"]);
+  assert.deepEqual(out.stripped, [{ name: "Craven", points: -2 }]);
+  assert.equal(out.clawedBack, 2);
+  assert.equal(tx.calls.increment, -2);
 });
 
 test("blocksSeatDesires ignores a tag that locks nothing", () => {
@@ -102,7 +148,7 @@ test("blocksSeatDesires ignores a tag that locks nothing", () => {
 
 test("the DM names what went and what it cost", () => {
   const line = describeSeatConflicts({
-    refunded: [], removed: [], kept: [],
+    refunded: [], removed: [],
     stripped: [{ name: "Alcoholic", points: -4 }, { name: "Pacifist", points: 0 }],
     clawedBack: 4,
   });
@@ -114,9 +160,9 @@ test("the DM names what went and what it cost", () => {
 
 test("nothing stripped costs nothing, and says no number", () => {
   const line = describeSeatConflicts({
-    refunded: [], removed: [], kept: [],
+    refunded: [], removed: [],
     stripped: [{ name: "Pacifist", points: 0 }], clawedBack: 0,
   });
   assert.equal(line, "Your role conflicted with Pacifist.");
-  assert.equal(describeSeatConflicts({ refunded: [], removed: [], kept: [] }), null);
+  assert.equal(describeSeatConflicts({ refunded: [], removed: [] }), null);
 });

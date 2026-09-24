@@ -377,8 +377,8 @@ tags:
   # is: an antagonist seat has no business showing up in the player's Tag
   # Catalog.
   # A seat's INCOMPATIBLE tags are its conflictsWith edges (THREATS.md §3).
-  # The store and Add Tag refuse them for a holder; Assign refunds or
-  # grandfathers what a character already had (db/lib/seatConflicts.js).
+  # The store and Add Tag refuse them for a holder; Assign removes what a
+  # character already had and refunds its cost (db/lib/seatConflicts.js).
   judge:
     catalog: secret
     name: Judge
