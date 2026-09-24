@@ -18,7 +18,7 @@ import {
 import { fileAutoRoutine } from "@/lib/moveSpend";
 import { after } from "next/server";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
-import { movesOpen } from "@lifeweb/db/lib/turnGate";
+import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
 
 // Helpers shared by 2+ action groups under actions/ (requestActions.js has the public server-action wrappers). Each action re-validates everything the client sent (a server action is a public endpoint) and writes its effect + AuditLog row in ONE transaction.
 
@@ -162,9 +162,9 @@ export function checkCraftMove(action, need) {
 // The fast fail, outside the transaction. Replaces requireFreeMove wherever a verb costs a FRACTION of the Move: every craft, plus Bury and Engrave at a half each. Extract and the build sites still take a whole clean Move.
 export async function resolveCraftMove(character, openTurn, need) {
   if (!openTurn) throw new UserError("No turn is open.");
-  // One gate, one sentence — db/lib/turnGate.js. It asks about the session BEFORE the lock window, because a frozen clock
-  // reports `locked: false` (freezing removes the deadline, it does not shut the game).
-  const gate = await movesOpen(prisma, { turn: openTurn });
+  // One gate, one sentence — db/lib/turnGate.js. The `auto` half: this verb settles itself with no GM, so the Move lock
+  // does not stop it, but the game being out of session still does.
+  const gate = await autoMovesOpen(prisma, { turn: openTurn });
   if (!gate.ok) throw new UserError(gate.message);
   const action = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },

@@ -12,8 +12,6 @@ import {
 import { craftMoveCost } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
 import { SFX } from "@lifeweb/db/lib/sfx";
-import { moveWindow } from "@lifeweb/db/lib/turnClock";
-import { clockFrozen } from "@lifeweb/db/lib/gameState";
 import {
   requireFreeMove,
   fileAutoRoutine,
@@ -61,7 +59,7 @@ import {
   applyMood,
   woundMoodFor,
 } from "@lifeweb/db/lib/mood";
-import { movesOpen } from "@lifeweb/db/lib/turnGate";
+import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
 import {
   requireCharacter,
   revalidateAll,
@@ -327,9 +325,9 @@ export async function healCharacterRequestImpl({
       acknowledgeBill(moveCost);
       if (moveCost) {
         // A heal that goes from free to billed only here (pool filled
-        // between reads) must re-check the window, the same race craftRequestImpl's spill re-check guards (review fix, M2).
+        // between reads) must re-check the gate, the same race craftRequestImpl's spill re-check guards (review fix, M2).
         if (!outsideMoveCost) {
-          const gate = await movesOpen(tx, { turn: openTurn });
+          const gate = await autoMovesOpen(tx, { turn: openTurn });
           if (!gate.ok) throw new UserError(gate.message);
         }
         await spendCraftMove(tx, {

@@ -85,7 +85,8 @@ So the session question is asked **first**, and separately, by the one gate:
 
 ```js
 // db/lib/turnGate.js
-async function movesOpen(db, { now, turn })  // -> { ok, reason, message, turn, window }
+async function movesOpen(db, { now, turn })      // -> { ok, reason, message, turn, window }
+async function autoMovesOpen(db, { now, turn })  // the same, without the lock window
 ```
 
 Order: no open turn, then **not in session**, then the lock window. Its
@@ -107,6 +108,19 @@ all go through `movesOpen` now: `db/lib/moves.js` (`fileMove`,
 near-identical private helpers collapsed into it), the four
 `character/actions/*` files, `trinketActions.js`, `web/lib/moveSpend.js`, and
 `bot/src/events/interactions/actions.js#moveLockNotice`.
+
+**The lock window is for Moves a GM has to rule on, and only those.** It exists
+to give the desk a quiet stretch to adjudicate what players wrote. So
+`movesOpen` — the whole gate — guards the written Move alone: `db/lib/moves.js`
+(`fileMove`, `moveIsEditable`) and the bot's `moveLockNotice`. Every verb that
+settles itself asks `autoMovesOpen`, which runs the same checks in the same
+order but never returns `LOCKED`: `resolveCraftMove` (every craft, Bury,
+Engrave, Administer) and the in-transaction re-checks in `crafting.js`,
+`medical.js` and `misc.js`; `requireFreeMove` (Mine, Refine, Farm, build sites,
+Thanati, arelitz break-in, heals, Break Restraints, Torture); the forge's
+Trinket; and the lesson and confession handshakes. None of those needs a GM —
+they are PASSED receipts or rows a turn-end pass settles — so a player can keep
+working right up to the push. Being out of session still refuses all of them.
 
 `moveIsEditable` stays pure and takes `inSession` as an option, checked before
 everything else for the same reason.

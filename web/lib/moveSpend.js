@@ -3,14 +3,14 @@
 // of the Move and share the rest with another craft (FACTORY.md §3).
 import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
-import { movesOpen } from "@lifeweb/db/lib/turnGate";
+import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
 import { sessionGate } from "@lifeweb/db/lib/betweenSessions";
 
 export async function requireFreeMove(character, openTurn) {
   if (!openTurn) throw new UserError("No turn is open.");
-  // One gate, one sentence — db/lib/turnGate.js. It asks about the session BEFORE the lock window, because a frozen clock
-  // reports `locked: false` (freezing removes the deadline, it does not shut the game).
-  const gate = await movesOpen(prisma, { turn: openTurn });
+  // One gate, one sentence — db/lib/turnGate.js. The `auto` half: this verb settles itself with no GM, so the Move lock
+  // does not stop it, but the game being out of session still does.
+  const gate = await autoMovesOpen(prisma, { turn: openTurn });
   if (!gate.ok) throw new UserError(gate.message);
   const acted = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: openTurn.id },
@@ -35,7 +35,7 @@ export async function fileAutoRoutine(
   { deferEffects = false, farmPlan = null } = {},
 ) {
   // The floor under the session gate (SESSIONS.md §5). Every verb that files a Move for a player is refused long before
-  // here by acting() in web/lib/actionResult.js, and movesOpen() refuses it again above — but nothing may write an
+  // here by acting() in web/lib/actionResult.js, and autoMovesOpen() refuses it again above — but nothing may write an
   // Action row between sittings, so the last word is asked on the caller's own transaction client.
   const session = await sessionGate(tx);
   if (!session.ok) throw new UserError(session.message);

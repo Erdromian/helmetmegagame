@@ -50,13 +50,13 @@ export default function LockChip() {
   // neighbours.
   if (locked) {
     return (
-      <span className="status-pill mono" data-tone="bad" title="Moves close before the turn ends, so the GMs can adjudicate">
+      <span className="status-pill mono" data-tone="bad" title="Written Moves close before the turn ends, so the GMs can adjudicate. Crafting and other automatic actions still work until the turn ends">
         MOVES LOCKED
       </span>
     );
   }
   return (
-    <span className="header-note mono" title="Moves close before the turn ends, so the GMs can adjudicate">
+    <span className="header-note mono" title="Written Moves close before the turn ends, so the GMs can adjudicate. Crafting and other automatic actions still work until the turn ends">
       {`LOCK ${clock} · ${countdown}`}
     </span>
   );

@@ -97,6 +97,7 @@ Bascinet runs on real time, in US Central. That is simply what time it is in Rav
 
 A turn is 6, 8, 12 or 24 hours long, and the GMs set which. Turns always end on a clean hour: a 24-hour turn ends at midnight, a 6-hour one at midnight, 6:00, noon and 6:00 again. An in-game day is however many turns fit in a real day, so on the longest setting one turn is one day.
 - **Your sheet and the `#turns` channel both say when the current turn ends.**
+- **Written Moves lock a few hours before the turn ends**, so the GMs have time to read them. Anything that needs no GM — crafting, mining, farming, healing and the like — keeps working right up to the end of the turn.
 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 

@@ -68,8 +68,7 @@ import { craftMoveCost } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
 import { SFX } from "@lifeweb/db/lib/sfx";
 import { describeTurn } from "@/lib/turnFormat";
-import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
-import { clockFrozen } from "@lifeweb/db/lib/gameState";
+import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
   requireFreeMove,
@@ -237,7 +236,7 @@ import {
   formatCharacterName,
 } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
-import { movesOpen } from "@lifeweb/db/lib/turnGate";
+import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
 import {
   requireCharacter,
   revalidateAll,
@@ -1001,11 +1000,11 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
 
     if (administerMoveCost) {
       // Re-checked here (review fix, round 3 — this was the one billed path
-      // without an in-transaction window check): resolveCraftMove checked it
+      // without an in-transaction gate check): resolveCraftMove checked it
       // outside, but that read and this spend are not atomic with each
       // other, the same reasoning craftRequestImpl's spill path and
       // healCharacterRequestImpl's own in-tx checks already act on.
-      const gate = await movesOpen(tx, { turn: openTurn });
+      const gate = await autoMovesOpen(tx, { turn: openTurn });
       if (!gate.ok) throw new UserError(gate.message);
       // The Move is claimed first: it is the contended thing, and a refusal
       // here rolls back everything below it (craftRequestImpl's project path

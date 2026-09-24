@@ -9,7 +9,7 @@ const assert = require("node:assert");
 
 const { inSession, isClockRunning, frozenReason, clockStatus } = require("../lib/gameState");
 const { sessionDue } = require("../lib/session");
-const { movesOpen, gateMessage, GATE_MESSAGES } = require("../lib/turnGate");
+const { movesOpen, autoMovesOpen, gateMessage, GATE_MESSAGES } = require("../lib/turnGate");
 const { moveWindow } = require("../lib/turnClock");
 
 const NOW = new Date("2026-09-16T20:00:00Z");
@@ -137,4 +137,31 @@ test("THE SECOND TRAP: a turn is open all through the lobby, so the gate must as
 test("no turn at all still outranks the phase", async () => {
   const gate = await movesOpen(fakeDb({ phase: "LOBBY", turn: null }), { now: NOW });
   assert.equal(gate.reason, "NO_TURN");
+});
+
+// Inside OPEN_TURN's lock: it ends 05:00Z and a 24-hour turn locks 3 hours early, at 02:00Z.
+const IN_LOCK = new Date("2026-09-17T03:00:00Z");
+
+test("the lock is for written Moves: movesOpen refuses in the window, autoMovesOpen does not", async () => {
+  assert.equal(moveWindow(OPEN_TURN, { now: IN_LOCK }).locked, true, "the fixture really is inside the lock");
+  const written = await movesOpen(fakeDb({ phase: "RUNNING", turn: OPEN_TURN }), { now: IN_LOCK });
+  assert.equal(written.ok, false);
+  assert.equal(written.reason, "LOCKED");
+  const auto = await autoMovesOpen(fakeDb({ phase: "RUNNING", turn: OPEN_TURN }), { now: IN_LOCK });
+  assert.equal(auto.ok, true, "a craft needs no GM, so the adjudication window does not stop it");
+  assert.equal(auto.turn, OPEN_TURN);
+  assert.equal(auto.window.locked, true, "the window still rides along for a caller that wants to say so");
+});
+
+test("autoMovesOpen skips the lock and nothing else", async () => {
+  for (const phase of ["LOBBY", "CLOSED", "ENDED"]) {
+    const gate = await autoMovesOpen(fakeDb({ phase, turn: OPEN_TURN }), { now: IN_LOCK });
+    assert.equal(gate.reason, "NOT_RUNNING", `${phase} must still refuse`);
+  }
+  const noTurn = await autoMovesOpen(fakeDb({ phase: "RUNNING", turn: null }), { now: IN_LOCK });
+  assert.equal(noTurn.reason, "NO_TURN");
+  const shut = await autoMovesOpen(fakeDb({ phase: "RUNNING", config: { gameMode: "SESSIONS" }, turn: OPEN_TURN }), {
+    now: IN_LOCK,
+  });
+  assert.equal(shut.reason, "NOT_IN_SESSION", "between sittings nothing may be spent, lock or no lock");
 });
