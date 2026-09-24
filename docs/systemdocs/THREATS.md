@@ -95,9 +95,17 @@ hand already and a duplicate would violate `CharacterTag`'s
 `(characterId, tagId)` unique. Then one `threat_assigned` audit row.
 
 **A seat's incompatible tags are `conflictsWith` edges on the seat tag** in
-`docs/tags.yaml` (Judge and Demoness against Pacifist, Charitable and Saint;
-the `thanati` Belief against those and Pilgrim, plus every other Belief by
-the group's `exclusive` rule). That is what makes the store and Add Tag refuse
+`docs/tags.yaml`:
+
+| Tag | Clashes with |
+|---|---|
+| `judge` | Pacifist, Charitable, Saint |
+| `demoness` | Pacifist, Charitable, Saint, Ugly, Pretty, Prudish, Eunuch |
+| `vampire` | Saint, Pacifist, Hemophobia |
+| `thanati` (Belief) | Pacifist, Charitable, Saint, Pilgrim, Pious, plus every other Belief by the group's `exclusive` rule |
+| `hungerless` (Demoness, Vampire) | Fast Metabolism |
+
+That is what makes the store and Add Tag refuse
 them for a holder without knowing what a threat is. What the character
 *already* holds is settled by `db/lib/seatConflicts.js#resolveSeatConflicts`,
 in the same transaction, in **two sweeps**.
@@ -127,23 +135,46 @@ the player banked 4 for Alcoholic, and the seat has just deleted Alcoholic.
 check is `cost > tagPoints`, so a character in debt simply buys nothing until
 they have worked it off. A floor at zero would quietly forgive the difference.
 
-**Sweep 2 — the older pairwise and exclusive rules**, unchanged:
+**Sweep 2 — the `conflictsWith` edges, at two strengths.** A seat hands out
+two kinds of tag, and `purchasable` tells them apart:
 
-- a pairwise conflict that **cost points** is removed and its `pointCost`
-  goes back to `Character.tagPoints` — refunded;
-- a pairwise conflict with a zero or negative cost is **kept** — a refunded
-  drawback would be a farmed one;
-- a second **Belief** always goes, refunding `max(cost, 0)`.
+- **The role** — the tags nobody can buy: the seat tag itself, the `thanati`
+  Belief (which is what carries the Thanati Leader's edges), `hungerless`, the
+  Tribunal kit. **Every clash they name goes:**
+  - one that **cost points** (Saint 14, Charitable 4, Pretty 3, Pilgrim 1) is
+    refunded;
+  - one that cost **nothing** (Pacifist, Pious) is dropped. Pacifist used to be
+    kept, which left a Pacifist Judge, Demoness or Vampire;
+  - one that was a **drawback** (Ugly, Prudish, Eunuch, Hemophobia, Fast
+    Metabolism) has its points taken back, the same way sweep 1 takes them, so
+    it can't be farmed.
+- **The perks** — buyable traits handed out free with the role: Literacy,
+  Brave, Outsider, Beautiful, Cruel, Tactician, Rough Camper. A clash with one
+  of these goes only if it **cost points**, refunded. A drawback it clashes
+  with is **kept**: Bascinet's call, so a Slow cultist stays Slow (with
+  Literacy), and so does a Craven or Agoraphobic Judge. A drawback the seat
+  really forbids goes on the role tag's own `conflictsWith` instead — that is
+  why Ugly sits on `demoness` as well as on `beautiful`. When a role tag and a
+  perk both clash with a tag, the role decides.
 
-**Sweep 1 runs first, and the order is load-bearing.** Pacifist is both a
-`conflictsWith` edge on the `thanati` tag *and* a `violence` lock. Taken by
-sweep 2 first it would land in the "kept, drawbacks and all" list, in the same
-DM that says it was stripped.
+A second **Belief** always goes, refunding `max(cost, 0)`.
+
+**Sweep 1 runs first**, so a tag both sweeps name is reported once. Pacifist
+is both a `conflictsWith` edge on the `thanati` tag *and* a `violence` lock;
+for the Thanati it arrives in the sweep-1 sentence, never in "Dropped" as well.
 
 The DM leads with the sweep-1 sentence, because it is the one that costs the
 player points — "Your role conflicted with Alcoholic and Pacifist, so 4 tag
 points have been taken back with them." — then lists what was refunded,
-dropped and kept. The audit row carries all four lists plus `clawedBack`.
+dropped and kept ("Kept, drawbacks and all: Slow."). The audit row carries all
+four lists plus `clawedBack`.
+
+**Left alone on purpose** (Bascinet, 2026-09-24): Old Ways (Xom) and Rage lock
+most Desires but stay on a Demoness or Vampire; Nobility, Iron Constitution and
+Mime's Vow stay; Frail, Old, Dwarf and Fat stay; Cerberon, Knighted and
+Sergeant stay on an invader; Depressed stays on a seat with no Desires of its
+own; Teratophobia stays. A tag the seat hands out that the character already
+bought is not refunded.
 
 **The conversion rite is an Assign by another road.** `db/lib/riteEffects.js`'s
 `conversion` handler grants the `thanati` tag and calls the same function, so a

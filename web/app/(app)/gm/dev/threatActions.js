@@ -108,6 +108,7 @@ export async function assignThreat({ characterId, threatSlug }) {
     rows.push({
       tagId: tag.id,
       name: tag.name,
+      purchasable: tag.purchasable,
       quantity: tag.stackable ? quantity : 1,
       expiresTurn: await expiryForGrant(prisma, tag, openTurn, { where: "assignThreat" }),
     });
@@ -138,10 +139,17 @@ export async function assignThreat({ characterId, threatSlug }) {
     }
     // What the seat forbids and the character already had: every Addiction
     // and any Personality tag that locks one of the seat's own Desires taken
-    // outright (points clawed back with them), then the older pairwise rules
-    // — refunded if it cost points, kept if it was a drawback, gone either
-    // way if it is a second Belief (db/lib/seatConflicts.js).
-    conflicts = await resolveSeatConflicts(tx, character.id, rows.map((r) => r.tagId));
+    // outright (points clawed back with them), then the pairwise rules. The
+    // tags nobody can buy (the seat tag, the Thanati Belief, Hungerless) are
+    // the role, and every clash they name goes; the buyable perks handed out
+    // with it (Literacy, Brave...) only take a clash that cost points
+    // (db/lib/seatConflicts.js).
+    conflicts = await resolveSeatConflicts(
+      tx,
+      character.id,
+      rows.filter((r) => !r.purchasable).map((r) => r.tagId),
+      rows.filter((r) => r.purchasable).map((r) => r.tagId),
+    );
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
