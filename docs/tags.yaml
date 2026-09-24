@@ -2720,7 +2720,7 @@ tags:
     category: skills
     group: skills-work
     teachable: true
-    description: "You obtain many resources while mining, plus have a chance to obtain ores and gemstones."
+    description: "You obtain many resources while mining, plus have a chance to obtain ores and gemstones. You still need a pickaxe to mine."
     pointCost: 7
     purchasable: true
     purchasableAfterStart: true
