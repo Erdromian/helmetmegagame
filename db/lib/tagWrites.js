@@ -373,7 +373,16 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null, options = {}) {
   await lockRoom(tx, roomId);
   if (quantity == null) {
     const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
-    await tx.roomTag.deleteMany({ where: { roomId, tagId } });
+    // The WHOLE visible holding, and not the row: units still under the floor (hiddenQuantity, SEARCH.md §9) are nobody's to drop from here, so a row keeping some is zeroed rather than deleted.
+    // The payload stays while poison is still under the floor with them (hiddenPoisonedCount); the floor clock goes with the floor.
+    if ((existing?.hiddenQuantity ?? 0) > 0) {
+      await tx.roomTag.updateMany({
+        where: { roomId, tagId },
+        data: { quantity: 0, poisonedCount: 0, floorDay: null, ...((existing.hiddenPoisonedCount ?? 0) > 0 ? {} : { poisonPayload: null }) },
+      });
+    } else {
+      await tx.roomTag.deleteMany({ where: { roomId, tagId } });
+    }
     // `quantity = null` drops the WHOLE holding — record `existing.quantity`, the actual amount, not a request naming no number.
     if (existing?.quantity) {
       await recordTagMoney(tx, roomParty({ id: roomId }), tagId, -existing.quantity, options.econ);
@@ -395,10 +404,12 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null, options = {}) {
   if (count === 0) return { ok: false, poisonedTaken: 0, poisonPayload: null };
   // Payload-clear invariant: the decrement can take poisonedCount to 0 in the same statement that shrinks quantity, so no single atomic write clears poisonPayload only then — a second, itself-guarded update covers it. Idempotent and cheap.
   await tx.roomTag.updateMany({
-    where: { roomId, tagId, poisonedCount: { lte: 0 }, poisonPayload: { not: null } },
+    where: { roomId, tagId, poisonedCount: { lte: 0 }, hiddenPoisonedCount: { lte: 0 }, poisonPayload: { not: null } },
     data: { poisonPayload: null },
   });
-  await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 } } });
+  // A row emptied ON the floor still stays while anything is under it (hiddenQuantity, SEARCH.md §9), and loses its floor clock (CARRY.md §6a): nothing is lying there to sink.
+  await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 }, hiddenQuantity: { lte: 0 } } });
+  await tx.roomTag.updateMany({ where: { roomId, tagId, quantity: { lte: 0 }, floorDay: { not: null } }, data: { floorDay: null } });
   await recordTagMoney(tx, roomParty({ id: roomId }), tagId, -n, options.econ);
   return { ok: true, poisonedTaken, poisonPayload };
 }

@@ -12,6 +12,7 @@
 const { hasNoticeboard } = require("./noticeboard");
 const { hasAttribute } = require("./locationAttributes");
 const { QUEST_INTERACT_PREFIX } = require("./questText");
+const { SEARCH_MOVE_LABEL } = require("./roomSearchCost");
 const { INTERCOM_ROOM_SLUG } = require("./intercom");
 const {
   MERCHANTS_OFFICE_ROOM_SLUG,
@@ -69,6 +70,7 @@ const CONVERSE_PREFIX = "loc:converse:";
 const GATE_PREFIX = "loc:gate:";
 const KEYED_PREFIX = "loc:keyed:";
 const ROOM_STORAGE_PREFIX = "room:storage:";
+const ROOM_SEARCH_PREFIX = "room:search:";
 const ROOM_INTERCOM_PREFIX = "room:intercom:";
 const ROOM_TURRET_PREFIX = "room:turret:";
 const ROOM_BELL_PREFIX = "room:bell:";
@@ -149,6 +151,12 @@ const ROOM_AFFORDANCES = [
     customId: (_id, room) => `${QUEST_INTERACT_PREFIX}${room?.questId ?? ""}`,
   },
   { id: "storage", label: "Storage", tone: PLAIN, prefix: ROOM_STORAGE_PREFIX },
+  // Going through the room for what is under the floor (SEARCH.md §9). On
+  // every room like Storage is; Storage is what says how many things are
+  // hidden, and a search of a room with none is refused. The price is in the
+  // label, because a Discord button has no confirm step and this one spends a
+  // third of the Move — a player should never learn that from the refusal.
+  { id: "search", label: `Search (${SEARCH_MOVE_LABEL} Move)`, tone: PLAIN, prefix: ROOM_SEARCH_PREFIX },
   {
     id: "intercom",
     label: "Intercom",
@@ -426,6 +434,7 @@ module.exports = {
   GATE_PREFIX,
   KEYED_PREFIX,
   ROOM_STORAGE_PREFIX,
+  ROOM_SEARCH_PREFIX,
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,

@@ -104,7 +104,9 @@ on 2026-09-10 a single `db:sync` put 139 items back into a live game that
 way. `Room.seededStashSlugs` still exists and still means "never seed this
 slug again", but the only writer of it now is the "Seed these items now"
 button on `/gm/dev/zones`. `db:dedupe-room-stash` (§4) is the cleanup that
-followed the 2026-09-10 incident.
+followed the 2026-09-10 incident. A `stash:` block may carry a `hidden:` map
+beside `items:` — stock under the floor until somebody searches
+(`SEARCH.md` §9); it rides the same seed, the same guard, and the same button.
 
 A Location's `structures:` is a promise the importer keeps at creation time
 only. It lists the slugs of placement tags that are always standing there

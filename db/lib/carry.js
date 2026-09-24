@@ -7,6 +7,7 @@
 // Takes `prisma` as a parameter and stays OFF the @lifeweb/db barrel — db/index.js's turn engine imports this, so requiring the barrel back would resolve to a partial exports object. Require it by path.
 const { OVERBURDENED_SLUG } = require("./constants");
 const { addToStack, dropCharacterTag, addToRoomStack } = require("./tagWrites");
+const { stampLeftOnFloor } = require("./floorSettle");
 const { pickRandomPublicRoom, formatManifest } = require("./roomStash");
 const { announceInRoom } = require("./roomAnnounce");
 const { sendDm } = require("./dm");
@@ -296,6 +297,8 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
             poisonPayload,
           });
         }
+        // A spill is left on the floor like a drop (CARRY.md §6a), and sinks the same way.
+        await stampLeftOnFloor(tx, room.id, tags.map((t) => t.tagId));
         if (tags.length) load = carryWeight(applyDrops(character.tags, tags));
         over = load > caps.weight;
 

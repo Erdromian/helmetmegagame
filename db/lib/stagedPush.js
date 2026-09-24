@@ -22,6 +22,7 @@ const { summarizeTagOps } = require("./tagAudit");
 const { validateRoomTagOps, applyRoomTagOpsInTx } = require("./roomTagOps");
 const { addRoomResources, pickRandomPublicRoom } = require("./roomStash");
 const { addToRoomStack } = require("./tagWrites");
+const { stampLeftOnFloor } = require("./floorSettle");
 const { expiryForGrant } = require("./grantExpiry");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
 const { ensureDeliveries } = require("./stagedDelivery");
@@ -236,6 +237,8 @@ async function applyOneStagedEffect(prisma, row, turn, notices = []) {
               }),
             });
           }
+          // The maker's own spare, set down beside them (CARRY.md §6a).
+          await stampLeftOnFloor(tx, spareRoom.id, spares.map((o) => o.tagId));
           ops = ops.filter((o) => !spares.includes(o));
           snapshot.craftSpare = {
             roomId: spareRoom.id,

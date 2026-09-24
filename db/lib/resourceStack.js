@@ -132,14 +132,18 @@ async function readCharacterResources(tx, characterId) {
   return row?.quantity ?? 0;
 }
 
-async function readRoomResources(tx, roomId) {
+// The ⬢ on a room's floor — what can be spent or taken from it. Pass
+// `includeHidden` for the WHOLE holding, floor and under it
+// (RoomTag.hiddenQuantity, SEARCH.md §9): what a hard delete would destroy,
+// not what a hand can reach.
+async function readRoomResources(tx, roomId, { includeHidden = false } = {}) {
   const tagId = await resourcesTagId(tx);
   if (!tagId || !roomId) return 0;
   const row = await tx.roomTag.findUnique({
     where: { roomId_tagId: { roomId, tagId } },
-    select: { quantity: true },
+    select: { quantity: true, hiddenQuantity: true },
   });
-  return row?.quantity ?? 0;
+  return (row?.quantity ?? 0) + (includeHidden ? (row?.hiddenQuantity ?? 0) : 0);
 }
 
 // Batch reads, for the desks and passes that hold a list of ids and would
@@ -156,15 +160,20 @@ async function resourcesByCharacterIds(tx, characterIds) {
   return new Map(rows.map((r) => [r.characterId, r.quantity ?? 0]));
 }
 
+// The room's WHOLE holding, hidden ⬢ included (SEARCH.md §9). This and
+// sumRoomResources below are the ledger's and the supply figure's readers: a
+// Search moving ⬢ from under the floor onto it changes nothing about how much
+// the room holds, so a reader that counted only the floor would report a
+// drift the size of every unfound cache in the game the day it was found.
 async function resourcesByRoomIds(tx, roomIds) {
   const ids = [...new Set((roomIds ?? []).filter(Boolean))];
   const tagId = await resourcesTagId(tx);
   if (!tagId || !ids.length) return new Map();
   const rows = await tx.roomTag.findMany({
     where: { tagId, roomId: { in: ids } },
-    select: { roomId: true, quantity: true },
+    select: { roomId: true, quantity: true, hiddenQuantity: true },
   });
-  return new Map(rows.map((r) => [r.roomId, r.quantity ?? 0]));
+  return new Map(rows.map((r) => [r.roomId, (r.quantity ?? 0) + (r.hiddenQuantity ?? 0)]));
 }
 
 // The world's ⬢, for a supply figure. `characterWhere` scopes it to
@@ -185,9 +194,9 @@ async function sumRoomResources(tx, roomWhere = {}) {
   if (!tagId) return 0;
   const agg = await tx.roomTag.aggregate({
     where: { tagId, room: roomWhere },
-    _sum: { quantity: true },
+    _sum: { quantity: true, hiddenQuantity: true },
   });
-  return agg._sum.quantity ?? 0;
+  return (agg._sum.quantity ?? 0) + (agg._sum.hiddenQuantity ?? 0);
 }
 
 // --- Writing -------------------------------------------------------------
@@ -293,7 +302,9 @@ async function takeRoomResources(tx, roomId, amount) {
     data: { quantity: { decrement: want } },
   });
   if (!count) return false;
-  await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 } } });
+  // Hidden ⬢ (RoomTag.hiddenQuantity, SEARCH.md §9) keep the row alive when the floor is bare, without its floor clock (CARRY.md §6a).
+  await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 }, hiddenQuantity: { lte: 0 } } });
+  await tx.roomTag.updateMany({ where: { roomId, tagId, quantity: { lte: 0 }, floorDay: { not: null } }, data: { floorDay: null } });
   return true;
 }
 

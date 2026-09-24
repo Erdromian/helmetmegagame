@@ -27,6 +27,9 @@ import { isTradeable } from "@lifeweb/db/lib/tradeable";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
+import { searchRoom as searchRoomInDb } from "@lifeweb/db/lib/roomSearch";
+import { countHiddenStacks, hiddenCountLine } from "@lifeweb/db/lib/roomStash";
+import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { parksMounts, hasAttribute } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
@@ -464,15 +467,42 @@ export async function readStash(roomId) {
   // A room you can't get into is a locked door, not an empty one.
   const room = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).find((r) => r.id === roomId);
   if (!room) return { ok: false, error: "You can't get in there." };
+  // What is under the floor, counted in stacks and said before anybody searches (SEARCH.md §9c).
+  const hidden = await countHiddenStacks(prisma, room.id);
   return {
     ok: true,
     name: room.name,
+    hidden,
+    hiddenLine: hiddenCountLine(hidden),
     resources: resourcesOf(room),
     // ⬢ is drawn as its own chip (RoomPanel.js), not as a pickable stack.
     items: (room.tags ?? [])
       .filter((rt) => (rt.quantity ?? 0) > 0 && !isResourcesRow(rt))
       .map((rt) => toChipRow(rt, ctx)),
   };
+}
+
+// Going through the open room for what is under the floor (SEARCH.md §9).
+// Every rule is db/lib/roomSearch.js#searchRoom, shared with the Discord
+// button; this is the session, the line back, and the room's ambient line.
+// The stash the panel shows is re-read by the caller afterwards, since a find
+// lands on the floor rather than in a pocket.
+export async function searchRoom(roomId) {
+  const me = await actor({
+    id: true,
+    status: true,
+    locationId: true,
+    discordUserId: true,
+    tags: { where: { quantity: { gt: 0 } }, select: { tag: { select: { slug: true, name: true } } } },
+  });
+  if (me.error) return { ok: false, error: me.error };
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
+  const out = await searchRoomInDb(prisma, { character: me.character, roomId, turn });
+  if (!out.ok) return { ok: false, error: out.reason };
+  // REST and best-effort, after the answer; the room hears that somebody went
+  // through it and not what they found.
+  after(() => announceInRoom(out.room, me.character, out.line).catch(() => {}));
+  return { ok: true, line: out.readout, found: out.found.length, sfx: SFX.STASH };
 }
 
 // ---------------------------------------------------------------- travelling

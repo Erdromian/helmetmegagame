@@ -1424,8 +1424,9 @@ on a node now means only one thing: that zone has not been renumbered yet.
 and exit-1 on a problem. It asks five questions:
 
 1. Is every slug unique across zones, locations and rooms?
-2. Does every `access:` and `stash:` slug name a real tag? Nothing else checks
-   this — the importer cannot, because tags sync *after* zones.
+2. Does every `access:` and `stash:` slug — `items:` and `hidden:` both — name
+   a real tag? Nothing else checks this — the importer cannot, because tags
+   sync *after* zones.
 3. Does every connection name two real Locations, each edge stated once?
 4. Does every node on the plate have a Location, and every Location in a
    renumbered zone have a node?
