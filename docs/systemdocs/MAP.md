@@ -196,7 +196,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Modular | `modular`, `isOpen` | an Open/Close button on the **watchtower** at the gate; impassable while shut. Anyone the tower admits may work it |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
-| Tight squeeze | `tightSqueeze` | a hole no **Giant** fits through, full stop. Listed and refused to anyone holding the `giant` tag — unconditional, not a skill check |
+| Tight squeeze | `tightSqueeze` | a hole no **Giant** fits through, full stop. Listed and refused to anyone holding the `giant` tag — unconditional, not a skill check. **Marked for everybody**, Giant or not, so a party can see where its Giant cannot follow |
 
 **A modular gate on a zone boundary must be the only plain edge between those
 two zones.** A hop inside a zone costs nothing, so a second tagless, unwinched
@@ -352,6 +352,32 @@ It composes the same way `onFoot` does, checked right where `onFoot` is in
 `crossingCheck` (`db/lib/locationGraph.js`): listed, never hidden, because a
 Giant learning they cannot fit is not a secret the way a hidden crawl is. A
 character without the `giant` tag is never touched by it at all.
+
+**But everybody is shown it.** `crossingCheck` returns `tightSqueeze: true`
+on every listed verdict, passable or not, and the walk resolver carries the
+flag stickily down a route the way it carries `dismounts` — a three-hop walk
+whose second hop is a squeeze is a walk with a squeeze on it. That is the
+opposite of how `railroad` and `openedBy` behave (passable branches only),
+and on purpose: the person who most needs to see a squeeze is the one it
+doesn't refuse, the party leader about to walk their Giant friend up to a
+hole and lose them there. A refusing branch says no more about its lock than
+it did before; the flag is about the shape of the hole, not the key. Every
+travel surface draws it:
+
+- `/chat`'s Travel panel and `/map`'s ways-out list and card: a quiet
+  **Tight squeeze** chip (`web/app/components/SqueezeChip.js`), with "A tight
+  squeeze. No Giant fits through here." on the hover — or "on the way" for a
+  walk. Label and sentence live in `web/lib/travelCost.js` beside
+  `openedByLabel`, so the two surfaces cannot word it differently.
+- `/map`'s board: the way draws **dotted** (`.map-edge[data-squeeze]`), a
+  pinched line, distinct from the dashed "shut to you". A Giant still sees it
+  in the gate colour, since for them it is shut.
+- The bot's picker: the option's description leads with "Tight squeeze, no
+  Giant fits —", and the confirm step under **Move to X?** carries the same
+  `-#` sentence the web card does.
+
+The Giant themselves sees none of the chips as news — they already read the
+refusal — but they get them too; there is no per-tag branch in any of it.
 
 **Because the block is unconditional, every `tightSqueeze` edge needs some
 OTHER route left standing for a Giant.** Cutting a region off entirely from

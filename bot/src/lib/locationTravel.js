@@ -81,10 +81,10 @@ function buildLocationSelectRow(entries, from) {
     .setCustomId(PICK_ID)
     .setPlaceholder("Choose where to go…")
     .addOptions(
-      shown.map(({ location, hops, through }) => ({
+      shown.map(({ location, hops, through, tightSqueeze }) => ({
         label: location.name.slice(0, 100),
         value: location.id,
-        description: describeDestination(location, from, hops, through).slice(0, 100),
+        description: describeDestination(location, from, hops, through, tightSqueeze).slice(0, 100),
       })),
     );
   return new ActionRowBuilder().addComponents(menu);
@@ -92,15 +92,21 @@ function buildLocationSelectRow(entries, from) {
 
 // One line under a destination's name. Naming the first stop on a walk where it
 // fits, because which way you are about to go is the thing worth knowing.
-function describeDestination(location, from, hops, through) {
+// `tightSqueeze` is a hole no Giant fits through, on the way or as the way
+// (MAP.md §2a) — said to everybody, not only the Giant it refuses, so a party
+// knows where its Giant friend cannot follow. It leads the line, because a
+// description is cut at 100 characters and the squeeze is the news.
+function describeDestination(location, from, hops, through, tightSqueeze = false) {
+  const squeeze = tightSqueeze ? "Tight squeeze, no Giant fits — " : "";
   if (!from) return location.zone?.name ?? "Somewhere";
   if (hops) {
     const far = hops === 1 ? "1 move" : `${hops} moves`;
     const first = through?.[0];
-    return first && `${far} — through ${first}`.length <= 100 ? `${far} — through ${first}` : `${far} away`;
+    const named = `${squeeze}${far} — through ${first}`;
+    return first && named.length <= 100 ? named : `${squeeze}${far} away`;
   }
-  if (location.zoneId === from.zoneId) return "Same zone";
-  return `Into ${location.zone?.name ?? "another zone"} — free, or costs a Move`;
+  if (location.zoneId === from.zoneId) return `${squeeze}Same zone`;
+  return `${squeeze}Into ${location.zone?.name ?? "another zone"} — free, or costs a Move`;
 }
 
 // Who you are taking with you — the Discord twin of the party rack on /chat. Null when nobody can

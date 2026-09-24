@@ -204,6 +204,24 @@ test("a narrow way does not change the road, but says the arelitz is coming off"
   assert.equal(riding.dismounts, true, "and it is said before they commit");
 });
 
+test("a tight squeeze on the road is said to everybody, sticky to the end of the walk", async () => {
+  // gate -> square -> market -> keep, with the squeeze in the middle. A walker
+  // with no giant tag is never refused it, but the walk still SAYS it is there,
+  // so a leader knows their Giant friend cannot finish this road (MAP.md §2a).
+  const links = [way("gate", "square"), way("market", "square", { tightSqueeze: true }), way("keep", "market")];
+  const prisma = fakePrisma(ROAD.locations, links);
+
+  const walk = await pathWithinZone(prisma, walker(), "keep", { known: ALL_KNOWN });
+  assert.equal(walk.hops, 3, "the squeeze is still walked");
+  assert.equal(walk.tightSqueeze, true, "and said before they commit");
+
+  const before = await pathWithinZone(prisma, walker(), "square", { known: ALL_KNOWN });
+  assert.equal(before.tightSqueeze, false, "a walk that stops short of the squeeze does not carry it");
+
+  const plain = await pathWithinZone(fakePrisma(ROAD.locations, [way("gate", "square"), way("market", "square"), way("keep", "market")]), walker(), "keep", { known: ALL_KNOWN });
+  assert.equal(plain.tightSqueeze, false);
+});
+
 test("no road answers, rather than throwing, and an empty fog goes nowhere", async () => {
   const locations = [place("gate"), place("island")];
   const prisma = fakePrisma(locations, []);

@@ -61,6 +61,7 @@ async function handleTravelOpen(interaction) {
   let destinations;
   let shut = [];
   let walks = [];
+  const squeezeIds = new Set();
   if (!character.locationId) {
     destinations = await prisma.location.findMany({
       where: { retiredAt: null, zone: { kind: { not: "CAVE_GROUP" } } },
@@ -77,6 +78,9 @@ async function handleTravelOpen(interaction) {
     const rows = await travelOptions(prisma, character, character.locationId);
     destinations = rows.filter((row) => row.passable).map((row) => row.location);
     shut = rows.filter((row) => !row.passable);
+    // A hole no Giant fits through (MAP.md §2a), named under the option for
+    // everybody — the Giant it refuses is already in `shut` with the reason.
+    for (const row of rows) if (row.passable && row.tightSqueeze) squeezeIds.add(row.location.id);
 
     // Farther in this zone, through places they already know (MAP.md §3c).
     // Appended AFTER the neighbours, which is the whole of the grouping Discord
@@ -94,11 +98,12 @@ async function handleTravelOpen(interaction) {
   }
 
   const entries = [
-    ...destinations.map((location) => ({ location, hops: null, through: null })),
+    ...destinations.map((location) => ({ location, hops: null, through: null, tightSqueeze: squeezeIds.has(location.id) })),
     ...walks.map((row) => ({
       location: row.location,
       hops: row.hops,
       through: row.path.slice(0, -1).map((l) => l.name),
+      tightSqueeze: Boolean(row.tightSqueeze),
     })),
   ];
   const truncated = entries.length - Math.min(entries.length, MENU_OPTION_LIMIT);
@@ -293,6 +298,17 @@ async function handleTravelPick(interaction) {
             ? `-# You have no free moves left and your Move is spent, so crossing into ${target.zone.name} means pushing on, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
             : `-# You have no free moves left and your Move is spent, so you can't cross into ${target.zone.name} this turn.${exertWhy ? ` ${exertWhy}` : ""}`;
 
+  // A tight squeeze, as the way or somewhere along a walk (MAP.md §2a). Said
+  // to everybody before Confirm, the way the web's card says it: the mover
+  // here is never the Giant it refuses (they were never offered the option),
+  // it is the friend about to walk on without them.
+  const squeezeLine =
+    adjacentLink?.tightSqueeze
+      ? "-# A tight squeeze. No Giant fits through here."
+      : walk?.ok && walk.tightSqueeze
+        ? "-# A tight squeeze on the way. No Giant fits through it."
+        : null;
+
   const stowed = crossing ? stowedMounts(character.tags) : [];
   const stowedLine =
     stowed.length > 0
@@ -305,6 +321,7 @@ async function handleTravelPick(interaction) {
       content: [
         railroad ? "Go into the tunnel?" : `Move to **${target.name}**?`,
         railroad ? "-# This is dangerous." : cost,
+        squeezeLine,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
         overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25.` : null,

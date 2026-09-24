@@ -220,7 +220,11 @@
 #     tight_squeeze: true          # a hole no Giant fits through, full stop —
 #                                  #   unconditional, not a skill check.
 #                                  #   LISTED and refused to anyone holding
-#                                  #   the giant tag; nobody else is touched.
+#                                  #   the giant tag; nobody else is touched,
+#                                  #   but EVERYBODY sees it marked on the
+#                                  #   map and in every travel list, so a
+#                                  #   party knows where its Giant can't
+#                                  #   follow.
 #                                  #   Fixed to that one tag — there is
 #                                  #   nothing else to author here. Use it
 #                                  #   only where a Giant has some OTHER way
