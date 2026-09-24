@@ -103,7 +103,7 @@ export const ACTION_HELP = {
   steal:
     "Steal items from a room so it doesn't show that you did it. You can do this multiple times per turn, and certain tags increase your success.",
   pickpocket:
-    "Pickpocket someone, allowing you to stealthily see their inventory and take whatever you want.",
+    "Pickpocket someone, allowing you to stealthily see their inventory and take one kind of thing, as much of it as you can carry off.",
   crucify:
     "Put someone standing here on the cross. It needs a Cross built where you stand, and it doesn't spend your Move. They hang there unable to act, and in a turn they are Dying.",
   shackle: "Shackle a bound person, binding them with no chance of escape.",

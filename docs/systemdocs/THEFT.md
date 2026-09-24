@@ -191,6 +191,13 @@ always succeeds" means.
 
 **15 lb**, or **30 lb** with Skilled. Weighed with `db/lib/tagWeight.js#rowWeight`.
 
+**One kind of thing per reach.** The thief picks a single tag and takes as
+many of it as fit in the budget — five 3 lb daggers out of ten, not two
+daggers and a lantern. The take refuses more than one line (*"Take one kind of
+thing."*), so this is a rule and not just the dialog's layout. In the dialog,
+picking a second row replaces the first, and each row's **All** stops at
+`pickpocketFitCount` — as many as fit, not as many as they hold.
+
 Three filters decide what a hand can reach, and the third is a hole rather than
 a nicety:
 
@@ -236,11 +243,17 @@ would be a free retry.
 
 And it is the **authorization** for the second half. Pickpocket is two acts —
 roll, then choose — and the take re-reads this row for whether it may happen at
-all and how many pounds are left. The die and the budget are columns rather
-than something handed to the browser, because an authorization that travelled
-through a client is not one. `spentLbs` is claimed by a conditional
-`updateMany` whose WHERE is the check, so two tabs cannot both spend the last
-pound.
+all and what the budget is. The die and the budget are columns rather than
+something handed to the browser, because an authorization that travelled
+through a client is not one.
+
+**One take per reach.** The take sets `spentLbs` to the **whole budget**,
+whatever it actually weighed, by a conditional `updateMany` on `spentLbs = 0`
+— so two tabs cannot both take, and a second take is refused. It has to be the
+whole budget rather than the pounds taken: obols weigh nothing, so a
+pounds-taken claim would leave `spentLbs` at 0 after lifting a purse and let
+the same hand go straight back in for something else. The real pounds are on
+the `pickpocket_took` audit row.
 
 **It is deliberately not an `Offer`.** Every Offer in the game is a consent
 handshake: it DMs buttons, `offerExpiryPass.js` expires it, `characterDeath.js`
@@ -358,3 +371,8 @@ mean the same thing.
   landing and shedding. That is not tidiness: past 1.5× the cap `settleCarry`
   sheds newest-first into a public room *with a line in it* (`CARRY.md` §5),
   which would announce a silent theft one second after it succeeded.
+- **Obols weigh nothing, so the budget cannot bound them.** The `obol` tag is
+  `weight: 0` and `category: items`, not an Asset, so §2b's Asset clause does
+  not catch it, and "as many as fit" is the whole purse. One kind of thing per
+  reach means a thief who goes for the coin takes nothing else, but the coin is
+  still all of it. Left as it is. Changing it is a balance call.
