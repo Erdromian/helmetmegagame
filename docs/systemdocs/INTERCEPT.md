@@ -167,12 +167,15 @@ keyed-way pattern (`MAP.md` §2b) applied to a person instead of a door.
   through `db/lib/attack.js#fileAttack` rather than here — see §5a.
 
 `Character.heldReason` says **which** has hold of somebody — `HELD_REASON` in
-this file, and there are four values rather than two because a fight holds both
+this file, and there are five values rather than two because a fight holds both
 sides and they must not read the same sentence (`ATTACK.md` §1), and because a
 thief who was caught (`caught`, five minutes) is held by nobody at all when the
 stash had no owner (`THEFT.md` §1e, no `heldById`, so only the clock ends it) and
 by the victim when there was one (§2g, a failed Pickpocket — `heldById` is the
-target, so every clear below works for them). A column rather than a lookup
+target, so every clear below works for them). The fifth, `pickup`, is anyone
+who just took something out of a public stash (`CARRY.md` §6a): five minutes,
+no holder. Every short hold is written by `holdWhereTheyStand`, which carries
+the clock rule below once. A column rather than a lookup
 because the predicate below is pure and eight surfaces read it.
 
 `heldReasonFor(character, now)` is the one predicate, pure, and it is what both

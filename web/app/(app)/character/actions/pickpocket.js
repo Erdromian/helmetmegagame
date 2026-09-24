@@ -27,7 +27,14 @@ import {
 import { isHere } from "@lifeweb/db/lib/presence";
 import { ACT, blockerFor } from "@lifeweb/db/lib/incapacitation";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
-import { seenAs, identityOf, IDENTITY_SELECT, HELD_REASON, CAUGHT_HOLD_MS } from "@lifeweb/db/lib/intercept";
+import {
+  seenAs,
+  identityOf,
+  IDENTITY_SELECT,
+  HELD_REASON,
+  CAUGHT_HOLD_MS,
+  holdWhereTheyStand,
+} from "@lifeweb/db/lib/intercept";
 import { CONCEALMENT_TAG_FIELDS } from "@lifeweb/db/lib/presentedIdentity";
 import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { carryAdmits } from "@lifeweb/db/lib/carry";
@@ -225,13 +232,14 @@ export async function pickpocketRequestImpl({ targetKey }) {
       // every picker and the mover's gate already read. heldById is the
       // target, so the victim gets the ordinary Let-them-go button, and
       // walking off or dying frees the thief the way it frees anyone they
-      // hold. Conditional on the clock, the fireWatches rule: a hold already
-      // running longer (a fight's) is left exactly where it is. `fresh` only —
-      // a reopened dialog rolled nothing and must not extend the hold.
-      const until = new Date(Date.now() + CAUGHT_HOLD_MS);
-      await prisma.character.updateMany({
-        where: { id: character.id, OR: [{ heldUntil: null }, { heldUntil: { lt: until } }] },
-        data: { heldUntil: until, heldById: target.id, heldReason: HELD_REASON.CAUGHT },
+      // hold. `fresh` only — a reopened dialog rolled nothing and must not
+      // extend the hold. A pickup hold on them is replaced, so they read the
+      // sentence about being caught.
+      await holdWhereTheyStand(prisma, character.id, {
+        until: new Date(Date.now() + CAUGHT_HOLD_MS),
+        reason: HELD_REASON.CAUGHT,
+        heldById: target.id,
+        replaces: [HELD_REASON.PICKUP],
       });
       notifyCharacter(target, `${FAILED_DM(capitalizeFirst(seenAs(identityOf(character))))} ${FAILED_STUCK}`);
     }

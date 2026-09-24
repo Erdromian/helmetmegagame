@@ -33,6 +33,7 @@ import {
 } from "@/lib/transferReach";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
+import { HELD_REASON, PICKUP_HOLD_MS, holdWhereTheyStand } from "@lifeweb/db/lib/intercept";
 import {
   dropRoomTag,
   lockRoom,
@@ -409,6 +410,19 @@ export async function transferRequestImpl(
       { id: to.id, discordUserId: to.discordUserId },
       `${giver} handed you ${goods}.`,
     );
+  }
+  // Taking anything out of a PUBLIC stash keeps you there five minutes
+  // (CARRY.md §6a) — the brake on running the whole map, lifting everything off
+  // every floor and being gone before anybody can answer. Public only: a
+  // private room is somebody's cupboard, reached with a key, and fetching your
+  // own kit from it is not the exploit. Held by nobody, so it lapses on its
+  // own; a fight's longer hold already on them is left alone. Steal rides
+  // this path too and REPLACES it with its own reason on a bad roll.
+  if (from.kind === "room" && from.roomKind === "PUBLIC" && to.kind === "character" && to.id === character.id) {
+    await holdWhereTheyStand(prisma, character.id, {
+      until: new Date(Date.now() + PICKUP_HOLD_MS),
+      reason: HELD_REASON.PICKUP,
+    });
   }
   // The room hears about it, aliased (CARRY.md): leaving something is public
   // by nature, and so is walking off with it.

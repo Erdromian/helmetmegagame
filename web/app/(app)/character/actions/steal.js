@@ -15,7 +15,7 @@ import { prisma, placeKeyForRoom } from "@lifeweb/db";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { stealModifiers, stealSucceeds, stealTotal } from "@lifeweb/db/lib/steal";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
-import { HELD_REASON, CAUGHT_HOLD_MS } from "@lifeweb/db/lib/intercept";
+import { HELD_REASON, CAUGHT_HOLD_MS, holdWhereTheyStand } from "@lifeweb/db/lib/intercept";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
@@ -67,15 +67,16 @@ export async function stealRequestImpl({ fromKey, tags }) {
   // Seen, so stuck: five minutes where they stand, so whoever they robbed can
   // answer — with words, or with an Attack (THEFT.md §1e). The same
   // Character.heldUntil every picker and the mover's gate already read, so
-  // nothing new has to learn about it. Conditional on the clock, the
-  // fireWatches rule: a hold already running longer (a fight's, to the end of
-  // the turn) is left exactly where it is. No heldById — the room has hold of
+  // nothing new has to learn about it. No heldById — the room has hold of
   // them, not a person, so no Release button and no walk-off clear reaches it.
+  // The transfer above already pinned them for picking something up
+  // (CARRY.md §6a); this REPLACES that one, so a caught thief reads the
+  // sentence about being caught rather than the one about picking things up.
   if (!unseen) {
-    const until = new Date(Date.now() + CAUGHT_HOLD_MS);
-    await prisma.character.updateMany({
-      where: { id: character.id, OR: [{ heldUntil: null }, { heldUntil: { lt: until } }] },
-      data: { heldUntil: until, heldById: null, heldReason: HELD_REASON.CAUGHT },
+    await holdWhereTheyStand(prisma, character.id, {
+      until: new Date(Date.now() + CAUGHT_HOLD_MS),
+      reason: HELD_REASON.CAUGHT,
+      replaces: [HELD_REASON.PICKUP],
     });
   }
 

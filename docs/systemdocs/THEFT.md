@@ -134,6 +134,13 @@ Three things follow from reusing the hold rather than inventing one:
   next 5 minutes."* Without the second sentence a victim reading the thread
   assumes the thief is gone and never comes back to the room.
 
+Because Steal is Transfer's room → you path, a **successful** Steal from a
+public stash is held too — five minutes, `heldReason: "pickup"`, the ordinary
+take hold (`CARRY.md` §6a). A bad roll replaces that reason with `caught`
+(`holdWhereTheyStand`'s `replaces`), so the thief reads the sentence about
+being seen rather than the one about picking things up. Either way they are
+not gone.
+
 The dialog itself is still outcome-blind (§1d). The thief learns they were
 seen the same way everyone else does — the room line — and the first time
 they try to leave.

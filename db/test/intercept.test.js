@@ -129,6 +129,19 @@ test("a caught thief reads their own sentence, and nobody is named as holding th
   );
 });
 
+test("picking something up reads its own sentence and lapses on the clock", () => {
+  const now = new Date("2026-09-14T12:00:00Z");
+  const { HELD_REASON, PICKUP_HOLD_MS } = require("../lib/intercept");
+  const held = heldReasonFor(
+    { heldUntil: new Date(now.getTime() + PICKUP_HOLD_MS), heldReason: HELD_REASON.PICKUP },
+    now,
+  );
+  assert.match(held, /picked something up/);
+  assert.match(held, /another 300s/);
+  assert.doesNotMatch(held, /Somebody|end of the turn/);
+  assert.equal(heldReasonFor({ heldUntil: now, heldReason: HELD_REASON.PICKUP }, now), null);
+});
+
 test("a player's line cannot ping the room", () => {
   assert.equal(cleanMessage("Halt! @everyone"), "Halt! everyone");
   assert.equal(cleanMessage("@here now"), "here now");
