@@ -312,8 +312,10 @@ export default function CraftAction({ presets, onDone, onClose }) {
       );
     } else if (turns > 0 && turns <= 1) {
       // One Move or less a unit: as many as fit in a Routine (craftMoveCost's
-      // `allowance` — 4 at 0.25, 20 at 0.05). A family recipe stops where the
-      // Move does; the odd no-family one (holy water) stops at the count itself.
+      // `allowance` — 4 at 0.25, 20 at 0.05), and no more than the Move has
+      // left. craftFamily always names a family, so only a never-spills recipe
+      // (none today) takes the plain count. The server's checkCraftMove holds
+      // the same line.
       const batch = Math.max(1, Math.floor(1 / turns));
       max = Math.min(
         max,
