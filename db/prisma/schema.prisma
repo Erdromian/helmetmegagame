@@ -4895,6 +4895,10 @@ model PickpocketAttempt {
 
   die     Int
   bonus   Int    @default(0)
+  // What the mark brought (THEFT.md §2h): Keen Hearing, Eagle Eyes and each
+  // Pickpocketing rung, one apiece, taken OFF the total. Beside `bonus` so the
+  // row reproduces its own outcome — die + bonus − defense is the band.
+  defense Int    @default(0)
   // "clean" | "noticed" | "failed" (db/lib/pickpocket.js). The die is shown to
   // nobody; this is the only record of which band it landed in.
   outcome String

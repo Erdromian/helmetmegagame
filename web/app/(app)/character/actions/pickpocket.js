@@ -20,6 +20,7 @@ import {
   holdsPickpocket,
   pickpocketBonus,
   pickpocketBudgetLbs,
+  pickpocketDefense,
   pickpocketOutcome,
   pickpocketTook,
   pickpocketableHoldings,
@@ -145,9 +146,13 @@ export async function pickpocketRequestImpl({ targetKey }) {
   if (!openTurn) throw new UserError("No turn is open.");
 
   const bonus = pickpocketBonus(character.tags);
+  // The mark's side of the die (THEFT.md §2h). Read off the target's sheet and
+  // never named to either side — the payload rule below is what keeps it from
+  // being readable off the dialog.
+  const defense = pickpocketDefense(target.tags);
   const budgetLbs = pickpocketBudgetLbs(character.tags);
   const roll = rollWithAdvantage(character.tags, 6);
-  const outcome = pickpocketOutcome(roll.die + bonus);
+  const outcome = pickpocketOutcome(roll.die + bonus - defense);
   // Read ONCE, here, and frozen onto the row below. See the reopen branch.
   const felt = holdingRows(target);
 
@@ -168,6 +173,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
         turnId: openTurn.id,
         die: roll.die,
         bonus,
+        defense,
         outcome,
         budgetLbs,
         revealed: felt,
@@ -188,6 +194,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
         rolls: roll.rolls,
         advantage: roll.advantage,
         bonus,
+        defense,
         outcome,
         budgetLbs,
       },

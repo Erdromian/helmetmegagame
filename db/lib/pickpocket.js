@@ -78,7 +78,24 @@ function pickpocketBudgetLbs(characterTags = []) {
   return isSkilled(characterTags) ? SKILLED_BUDGET_LBS : BUDGET_LBS;
 }
 
-// -> "clean" | "noticed" | "failed", off the die PLUS the bonus.
+// What the MARK brings to the roll (THEFT.md §2h): one off the thief's total
+// for each of these on the target's sheet. The two senses are the ones that
+// would catch a hand; the two rungs are there because a thief knows where a
+// hand goes. Counted, not looked up, so the ceiling is the length of this list
+// — 4, which is enough to put a clean take out of anybody's reach (a 6 and the
+// Skilled +1 still land on 3) while never closing the noticed band. Nothing
+// else on either sheet moves it: Stealth and the drink are Steal's table.
+const KEEN_HEARING_SLUG = "keen-hearing";
+const EAGLE_EYES_SLUG = "eagle-eyes";
+const DEFENSE_SLUGS = [KEEN_HEARING_SLUG, EAGLE_EYES_SLUG, PICKPOCKET_SLUG, PICKPOCKET_SKILLED_SLUG];
+
+function pickpocketDefense(characterTags = []) {
+  const held = slugsOf(characterTags);
+  return DEFENSE_SLUGS.filter((slug) => held.has(slug)).length;
+}
+
+// -> "clean" | "noticed" | "failed", off the die PLUS the thief's bonus MINUS
+// the mark's defense.
 function pickpocketOutcome(total) {
   const n = Number(total) || 0;
   if (n >= 4) return CLEAN;
@@ -125,6 +142,8 @@ module.exports = {
   isSkilled,
   pickpocketBonus,
   pickpocketBudgetLbs,
+  DEFENSE_SLUGS,
+  pickpocketDefense,
   pickpocketOutcome,
   pickpocketTook,
 };
