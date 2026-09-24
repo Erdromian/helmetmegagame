@@ -143,10 +143,16 @@
   background-color: var(--bg);
 }
 
+/* The whole centre column stands on plain --bg (Chat Overhaul.docx), not just
+   the log: painting the feed and the composer one at a time left the grid's
+   textured ground showing in every seam between them (the new-lines pill's
+   wrapper, the notice strip, the gap over the composer). Only the head's own
+   girder, and the side columns, keep the texture. */
 [data-chat-next] .chat-centre {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: var(--bg);
 }
 
 /* ── GIRDER (vocabulary §4) ───────────────────────────────────────────────
