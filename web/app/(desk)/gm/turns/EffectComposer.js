@@ -134,7 +134,15 @@ export default function EffectComposer({
     let cancelled = false;
     (async () => {
       setHeldFetchFailed(false);
-      const res = await getHeldTags({ characterId: soleTargetId });
+      // A thrown action (a dropped connection, a deploy that renamed the
+      // action) is a failure too — uncaught, it left the held list loading
+      // for good with no Retry. RoomEffectComposer's stash fetch is the twin.
+      let res;
+      try {
+        res = await getHeldTags({ characterId: soleTargetId });
+      } catch {
+        res = null;
+      }
       if (cancelled) return;
       if (!res?.ok) {
         setHeldFetchFailed(true);

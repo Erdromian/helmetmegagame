@@ -86,7 +86,15 @@ export default function RoomEffectComposer({
     let cancelled = false;
     (async () => {
       setStashFailed(false);
-      const res = await getRoomStash({ roomId });
+      // A thrown action (a dropped connection, a deploy that renamed the
+      // action) is a failure too — uncaught, it left "Loading the stash…" up
+      // for good with no Retry.
+      let res;
+      try {
+        res = await getRoomStash({ roomId });
+      } catch {
+        res = null;
+      }
       if (cancelled) return;
       if (!res?.ok) {
         setStashFailed(true);
@@ -100,11 +108,16 @@ export default function RoomEffectComposer({
   }, [roomId, stash, stashRetry]);
 
   const heldTagIds = useMemo(() => new Set((stash?.tags ?? []).map((t) => t.tagId)), [stash]);
-  const stagedByTagId = useMemo(() => {
-    const map = new Map();
-    for (const op of ops.values()) map.set(op.tagId, op);
-    return map;
-  }, [ops]);
+  // A label, not the op: TagCatalogBrowser prints it as "staged: …" and keys
+  // its outline off "add"/"remove", the same string EffectComposer.js builds.
+  // Handing it the op object crashed the whole desk on the first + Add.
+  const stagedByTagId = useMemo(
+    () =>
+      new Map(
+        [...ops.values()].map((op) => [op.tagId, op.op === "add" && op.quantity > 1 ? `add ×${op.quantity}` : op.op]),
+      ),
+    [ops],
+  );
 
   function stageOp(tagId, op, quantity = 1) {
     // Computed out here, not inside the functional updater — React may invoke
