@@ -25,7 +25,9 @@ export default async function DevRoomPage({ params }) {
   // stack row like everything else now, and a GM reading "12 ⬢" over a
   // "Resources ×12" line would reasonably think the room held both.
   const stash = withoutResources(room.tags)
-    .map((rt) => ({ id: rt.id, tagId: rt.tag.id, slug: rt.tag.slug, name: rt.tag.name, quantity: rt.quantity }));
+    .map((rt) => ({ id: rt.id, tagId: rt.tag.id, slug: rt.tag.slug, name: rt.tag.name, quantity: rt.quantity, hiddenQuantity: rt.hiddenQuantity }));
+  // Under the floor (SEARCH.md §9): shown beside the visible ⬢, never summed into it.
+  const hiddenResources = room.tags.find((rt) => rt.tag.slug === "resources")?.hiddenQuantity ?? 0;
 
   return (
     <>
@@ -55,9 +57,11 @@ export default async function DevRoomPage({ params }) {
         <StashPanel
           roomId={room.id}
           resources={resourcesOf(room)}
+          hiddenResources={hiddenResources}
           stash={stash}
           seededStashSlugs={room.seededStashSlugs}
           stashSeed={room.stashSeed ?? null}
+          destroysContents={room.destroysContents}
           canSuper={tier === "super"}
         />
       </PageShell>

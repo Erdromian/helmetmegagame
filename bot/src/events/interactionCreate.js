@@ -29,6 +29,7 @@ const {
 } = require("@lifeweb/db/lib/locationAnchorRow");
 const {
   ROOM_STORAGE_PREFIX,
+  ROOM_SEARCH_PREFIX,
   ROOM_ATM_PREFIX,
   ROOM_DROPBOX_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
@@ -117,6 +118,7 @@ const {
   handleEditSubmit,
 } = require("../lib/editModal");
 const { handleRoomStorage } = require("../lib/roomStorage");
+const { handleRoomSearch } = require("../lib/roomSearch");
 const {
   ZONE_VIEW_ID,
   handleZoneCommand,
@@ -346,6 +348,9 @@ module.exports = {
         }
         if (interaction.customId.startsWith(ROOM_STORAGE_PREFIX)) {
           return void (await handleRoomStorage(interaction, interaction.customId.slice(ROOM_STORAGE_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(ROOM_SEARCH_PREFIX)) {
+          return void (await handleRoomSearch(interaction, interaction.customId.slice(ROOM_SEARCH_PREFIX.length)));
         }
         // The Depot's counter (docs/systemdocs/DEPOT.md). The ATM's own button
         // acks and answers with a balance; its two amount buttons open modals,

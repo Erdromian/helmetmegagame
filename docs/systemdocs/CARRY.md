@@ -507,6 +507,12 @@ the point of a floor, and it is also a trace: the goods often say who passed
 through. Private rooms leak nothing to anyone their key — or their host — hasn't
 admitted.
 
+**Not every unit is on the floor.** A stack keeps a second count,
+`RoomTag.hiddenQuantity`, for what is under it; nothing here reads it, and the
+Search button is the one thing that moves it up into `quantity`. The whole of
+that lives in [`SEARCH.md`](SEARCH.md) §9, including the rule that every
+deleter of a row at zero must check both counts.
+
 The stash survives the message wipe (it lives in the database, not the thread),
 is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag`, ⬢
 included now that they are a stack) — and then poured straight back, because
@@ -595,7 +601,8 @@ still exist for their `LOOT` direction and for anything else that calls them.
 
 ## 8. The Storage button
 
-Every Room's starter post carries one button, **Storage**
+Every Room's starter post carries **Storage**, and beside it **Search**
+([`SEARCH.md`](SEARCH.md) §9). Storage is
 (`db/lib/roomStarterRow.js`, `room:storage:{roomId}`, hashed into
 `Room.postHash` with the body so existing threads get it on the next
 Discord mirror run and never again). `bot/src/lib/roomStorage.js` answers it,

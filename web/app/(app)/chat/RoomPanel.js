@@ -7,7 +7,8 @@ import HoverCard from "@/app/components/HoverCard";
 import ChipLabel from "@/app/components/ChipLabel";
 import TagDetails from "@/app/components/TagDetails";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
-import { readStash } from "./actions";
+import { readStash, searchRoom } from "./actions";
+import useActionRunner from "@/app/components/useActionRunner";
 import { TONE_CLASS } from "./PlacePanel";
 
 // THIS ROOM: storage and fixtures of the room whose feed is OPEN, and no
@@ -102,6 +103,9 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
   // Keyed by WHICH room is expanded so walking into another room collapses
   // its list with no effect resetting a boolean (react-hooks/set-state-in-effect is an error here).
   const [expanded, setExpanded] = useState(null);
+  // The last search's one line, stamped with its room the way the stash is.
+  const [searched, setSearched] = useState(null);
+  const search = useActionRunner();
   const actions = useRequestActions();
 
   // Answer is stamped with the room it came from, so a slow reply for a room
@@ -154,9 +158,25 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
     actions?.open?.("transfer");
   }
 
+  // Going through the room (SEARCH.md §9). A find lands on the floor, not in
+  // a pocket, so the stash is re-read and the new chips are Take-able like
+  // anything else. The line says what came up; the die is never in it.
+  function doSearch() {
+    search.run(searchRoom, roomId, {
+      onOk: (res) => {
+        setSearched({ roomId, line: res.line });
+        readStash(roomId)
+          .then((r) => setStash({ roomId, ...r }))
+          .catch(() => {});
+      },
+    });
+  }
+
   const here = stash?.roomId === roomId ? stash : null;
+  const searchLine = searched?.roomId === roomId ? searched.line : null;
+  // Storage and Search are drawn by this panel itself, not as fixtures.
   const fixtures = affordances.filter(
-    (entry) => entry.kind === "room" && entry.roomId === roomId && entry.id !== "storage",
+    (entry) => entry.kind === "room" && entry.roomId === roomId && entry.id !== "storage" && entry.id !== "search",
   );
 
   return (
@@ -192,8 +212,13 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
           <button type="button" className="btn-quiet" onClick={transfer}>
             Transfer
           </button>
+          <button type="button" className="btn-quiet" disabled={search.pending} onClick={doSearch}>
+            Search
+          </button>
         </div>
       )}
+      {searchLine && <p className="chat-quiet-line">{searchLine}</p>}
+      <FormError>{search.error}</FormError>
 
       {fixtures.length > 0 && (
         <div className="chat-buttons">

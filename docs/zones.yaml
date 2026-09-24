@@ -303,7 +303,7 @@ zones:
             description: >-
               Low-set vines spread on trellises, mixing in a polyculture of plump helmets, potatoes, and carrots. UV lights powered by the Lifeweb simulate sunlight.
             stash:
-              items:
+              hidden:
                 work-knife: 1
           town-3-2:
             name: Silo
@@ -691,8 +691,8 @@ zones:
             description: >-
               The Cerberon's few goods are stored here. There are tables, a bar, and a window looking into the courtyard.
             stash:
-              resources: 2
-              items:
+              hidden:
+                resources: 2
                 alcohol: 1
           fortress-1-5:
             name: Armory
@@ -843,7 +843,6 @@ zones:
               items:
                 paper: 23
                 the-wise-plague-doctor: 1
-                caspians-diary: 1
                 100-years-of-solitude: 1
                 the-art-of-war: 1
                 flatbreads-sweet-breads-and-red-breads: 1
@@ -857,8 +856,10 @@ zones:
                 10001-things-to-do-with-your-pet-rat: 1
                 magical-code-of-regulations-part-xxxii: 1
                 sword-in-high-heavens: 1
-                prophecies-of-sir-thomast: 1
                 basic-strategy: 1
+              hidden:
+                caspians-diary: 1
+                prophecies-of-sir-thomast: 1
           # Was one "Noble Chambers". Three rooms now, each with its own key —
           # and the Baron's opens all three, which is rather the point of being
           # the Baron. The Baroness's key opens his chambers alone.
@@ -1245,7 +1246,10 @@ zones:
             vending: true
             description: >-
               An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A vending machine stands against one wall, its front glassed over. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
-            stash: [tea, sugar-candy]
+            stash:
+              hidden:
+                tea: 1
+                sugar-candy: 1
           undertown-6-2:
             name: Merchant's Office
             access: [merchants-license]
@@ -1290,7 +1294,7 @@ zones:
             description: >-
               Blankets sewn together from scraps of cloth adorn the handful of remaining rusting bedframes. Most here simply sleep on the floor.
             stash:
-              items:
+              hidden:
                 poorhouse-key: 1
           undertown-7-2:
             name: Soup Kitchen
@@ -1325,7 +1329,7 @@ zones:
             description: >-
               You can buy all sorts of things here. There's a cash machine bolted to the wall at the end of the counter.
             stash:
-              items:
+              hidden:
                 alcohol: 4
                 cigarette: 6
           undertown-8-2:
@@ -1370,7 +1374,7 @@ zones:
             description: >-
               An unusually normal dining room, where the Den's staff meets and talks.
             stash:
-              items:
+              hidden:
                 ration-box: 1
           # The Pusher's homebase. It wears no `access:` of its own — the whole
           # basement is already behind the Den Key, and the Pusher's Key it
@@ -1380,9 +1384,10 @@ zones:
             description: >-
               The Pusher's homebase.
             stash:
-              resources: 8
               items:
                 cave-fungus: 2
+              hidden:
+                resources: 8
                 mindbreaker-toxin: 1
                 nekker-pheromones: 1
           undertown-9-3:
@@ -1446,7 +1451,7 @@ zones:
             description: >-
               Tool racks line the walls with cruel and unusual instruments. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
             stash:
-              items:
+              hidden:
                 torturing-equipment: 1
           undertown-b-2:
             name: Holding Cells
@@ -1535,14 +1540,14 @@ zones:
             description: >-
               The burnt remains of candles have welded themselves to the floor in the same place they were carefully placed long ago.
             stash:
-              items:
+              hidden:
                 dagger: 1
           undertown-e-4:
             name: Winery
             description: >-
               Broken glassware and equipment are scattered across the room. Unlabeled bottles stand on shelves, most empty.
             stash:
-              items:
+              hidden:
                 moonshine: 4
           # The drop into the underground river, which comes out in the Lake.
           # A Room is not an edge endpoint, so the fall IS the plain
@@ -1575,11 +1580,12 @@ zones:
             description: >-
               A wooden shack at the island's edge with a wide open window overlooking the lake, perfect for casting a line. Hidden under a rock, a hollowed out space contains anything and everything not worth risking carrying around the rest of town.
             stash:
-              resources: 8
               items:
+                moldy-bread: 2
+              hidden:
+                resources: 8
                 flooded-crate: 1
                 obol: 14
-                moldy-bread: 2
                 crayfish: 2
                 dustfish: 2
                 fish-roe: 3
@@ -1655,7 +1661,7 @@ zones:
             description: >-
               A great mound of garbage of all descriptions, dumped here far enough from town to be out of sight. Small lizards and mammals frantically appear and disappear in and out of the mound, seeking to find whatever missed morsels have yet to be plundered.
             stash:
-              items:
+              hidden:
                 skinned-cave-rat: 1
           passageway-rat-warren:
             name: Rat Warren
@@ -1869,14 +1875,14 @@ zones:
             description: >-
               The production room. Godflesh, suspended by hooks, slowly boils in big, wood-fired vats. Hydraulic pistons then senselessly compress it into cubes. Outside, the bridges have a few tables for people to kick their feet and relax. The Days Since Last Incident ticker is covered over by a hastily painted sign saying: "DO NOT EAT THE CUBES." A level up, the overseer box looks out onto the working floor.
             stash:
-              items:
+              hidden:
                 hatchet: 1
           factory-pub:
             name: Pub
             description: >-
               An old barge converted into a pub for the factory workers. When the nearby village was more active, there was an actual bar. Well, at least you have moonshine, and some interesting folks still pass by.
             stash:
-              items:
+              hidden:
                 hatchet: 1
           # `destroys` is the only room in the game with it. See CARRY.md.
           factory-spillway:
@@ -1936,7 +1942,9 @@ zones:
                 name: Customs
                 description: >-
                   Migrants set up tents here, awaiting someone to create their necessary paperwork. It's not safe here.
-                stash: [skinned-cave-rat]
+                stash:
+                  hidden:
+                    skinned-cave-rat: 1
           # Underground is where mining actually pays: 0.9 in the Caves and
           # 1.1 in the Depths, against 0.2–0.3 on the surface of the Black
           # Hills (MINING.md §3). Mines, tunnels and an ore vein were already
@@ -1955,7 +1963,7 @@ zones:
                   A small structure, once built by someone exiled from Ravenheart. It now serves as a rest stop for migrants on their way through the caves.
                 # One of five wheels of Cheese put away across the game's cellars and stores (docs/systemdocs/COOKING.md) — retired from Hard Cheese when that tag was removed (SOILERY.md). A seed, not a supply: the editor's seedRoomStash (web/app/(app)/gm/dev/zones/actions.js) never tops a room up, so once these five are eaten there are no more.
                 stash:
-                  items:
+                  hidden:
                     cheese: 1
               caves-2-2:
                 name: Old Mineshaft
@@ -1963,9 +1971,10 @@ zones:
                   A winding mineshaft burrowed into the cave wall. It once brought great wealth and prosperity to Ravenheart. Most of it has collapsed in on itself since then.
                 stash:
                   items:
+                    rock: 3
+                  hidden:
                     black-powder: 1
                     hematite: 1
-                    rock: 3
               caves-2-3:
                 name: Nekker Den
                 description: >-
@@ -2027,7 +2036,7 @@ zones:
                   A thick overgrowth of mycelial threads flow from the ceiling. You can barely see more than five feet ahead and moving through the dense fungi is a struggle.
                 # Deep Morels, scattered by hand (docs/systemdocs/COOKING.md). Raw they are a bad night; cooked they are one of the better things in the game, and they only grow down here.
                 stash:
-                  items:
+                  hidden:
                     deep-morel: 1
               caves-4-3:
                 name: Picnic Table
@@ -2059,15 +2068,16 @@ zones:
                   Some hefty stones are gathered in a circle at the centre. Dotted around are metal tent pegs buried too deeply in the stone to be stolen. The only other remaining evidence of this place ever being inhabited are the various piles of trash littering the campsite.
                 stash:
                   items:
-                    obol: 2
                     rock: 4
+                  hidden:
+                    obol: 2
               caves-5-2:
                 name: Shroom Mound
                 description: >-
                   Nearby to the former campsite are mounds of Earth have been piled up, with colonies of bright red mushrooms flourishing atop them. Clearly whatever is buried here is greatly to the mushroom's preference.
                 # Deep Morels, scattered by hand (docs/systemdocs/COOKING.md). Raw they are a bad night; cooked they are one of the better things in the game, and they only grow down here.
                 stash:
-                  items:
+                  hidden:
                     deep-morel: 1
               caves-5-3:
                 name: Stash

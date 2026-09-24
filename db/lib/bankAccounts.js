@@ -173,7 +173,8 @@ async function takeFromVault(tx, amount, { coin, room }) {
     err.userMessage = "ERROR: The treasury is empty.";
     throw err;
   }
-  await tx.roomTag.deleteMany({ where: { roomId: room.id, tagId: coin.id, quantity: { lte: 0 } } });
+  // Coin still under the Vault's floor (RoomTag.hiddenQuantity, SEARCH.md §9) keeps the row.
+  await tx.roomTag.deleteMany({ where: { roomId: room.id, tagId: coin.id, quantity: { lte: 0 }, hiddenQuantity: { lte: 0 } } });
 }
 
 module.exports = {

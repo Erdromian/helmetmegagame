@@ -296,22 +296,24 @@ function collectMining(location, problems) {
 }
 
 // A room's `stash:` in two shapes: a plain list of slugs (one each), or a map
-// with `resources:` and `items:` (slug -> count). Both normalise to
-// { resources, items: [[slug, quantity], ...] }. A count that isn't a
-// positive whole number is a PROBLEM, not a silent 1.
+// with `resources:`, `items:` (slug -> count) and `hidden:` (slug -> count,
+// under the floor until a Search turns it up — SEARCH.md §9; `resources` is
+// a valid slug there, since ⬢ are a stack like any other). Both normalise to
+// { resources, items: [[slug, quantity], ...], hidden: [[slug, quantity], ...] }.
+// A count that isn't a positive whole number is a PROBLEM, not a silent 1.
 function parseStash(raw, roomId, problems) {
-  const empty = { resources: 0, items: [] };
+  const empty = { resources: 0, items: [], hidden: [] };
   if (raw == null) return empty;
 
   if (Array.isArray(raw)) {
-    return { resources: 0, items: raw.map(String).filter(Boolean).map((slug) => [slug, 1]) };
+    return { resources: 0, items: raw.map(String).filter(Boolean).map((slug) => [slug, 1]), hidden: [] };
   }
   if (typeof raw !== "object") {
     problems.push(`room "${roomId}" has a stash that is neither a list nor a map`);
     return empty;
   }
 
-  const out = { resources: 0, items: [] };
+  const out = { resources: 0, items: [], hidden: [] };
   const count = (value, label) => {
     const n = Number(value);
     if (!Number.isInteger(n) || n < 1) {
@@ -335,8 +337,18 @@ function parseStash(raw, roomId, problems) {
       }
     }
   }
+  if (raw.hidden != null) {
+    if (typeof raw.hidden !== "object" || Array.isArray(raw.hidden)) {
+      problems.push(`room "${roomId}" stash hidden: must be a map of slug -> count`);
+    } else {
+      for (const [slug, value] of Object.entries(raw.hidden)) {
+        const n = count(value, `hidden.${slug}`);
+        if (n != null) out.hidden.push([slug, n]);
+      }
+    }
+  }
   for (const key of Object.keys(raw)) {
-    if (key !== "resources" && key !== "items") {
+    if (key !== "resources" && key !== "items" && key !== "hidden") {
       problems.push(`room "${roomId}" stash has unknown key "${key}"`);
     }
   }

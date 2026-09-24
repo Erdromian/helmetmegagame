@@ -192,7 +192,8 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
       // deliberately creates no items itself — it runs BEFORE db:sync-tags in
       // the working order (SYNC.md), so half the slugs would have no Tag row
       // to point at yet.
-      stashSeed: entry.stash?.resources > 0 || entry.stash?.items?.length ? entry.stash : undefined,
+      stashSeed:
+        entry.stash?.resources > 0 || entry.stash?.items?.length || entry.stash?.hidden?.length ? entry.stash : undefined,
     };
     if (apply) {
       const room = await prisma.room.create({ data });

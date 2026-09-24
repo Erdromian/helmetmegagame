@@ -69,6 +69,7 @@ const CONVERSE_PREFIX = "loc:converse:";
 const GATE_PREFIX = "loc:gate:";
 const KEYED_PREFIX = "loc:keyed:";
 const ROOM_STORAGE_PREFIX = "room:storage:";
+const ROOM_SEARCH_PREFIX = "room:search:";
 const ROOM_INTERCOM_PREFIX = "room:intercom:";
 const ROOM_TURRET_PREFIX = "room:turret:";
 const ROOM_BELL_PREFIX = "room:bell:";
@@ -149,6 +150,10 @@ const ROOM_AFFORDANCES = [
     customId: (_id, room) => `${QUEST_INTERACT_PREFIX}${room?.questId ?? ""}`,
   },
   { id: "storage", label: "Storage", tone: PLAIN, prefix: ROOM_STORAGE_PREFIX },
+  // Going through the room for what is under the floor (SEARCH.md §9). On
+  // every room like Storage is: a room with nothing hidden still rolls, or the
+  // button's absence would say so.
+  { id: "search", label: "Search", tone: PLAIN, prefix: ROOM_SEARCH_PREFIX },
   {
     id: "intercom",
     label: "Intercom",
@@ -426,6 +431,7 @@ module.exports = {
   GATE_PREFIX,
   KEYED_PREFIX,
   ROOM_STORAGE_PREFIX,
+  ROOM_SEARCH_PREFIX,
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,

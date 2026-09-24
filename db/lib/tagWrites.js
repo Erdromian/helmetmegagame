@@ -373,7 +373,12 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null, options = {}) {
   await lockRoom(tx, roomId);
   if (quantity == null) {
     const existing = await tx.roomTag.findUnique({ where: { roomId_tagId: { roomId, tagId } } });
-    await tx.roomTag.deleteMany({ where: { roomId, tagId } });
+    // The WHOLE visible holding, and not the row: units still under the floor (hiddenQuantity, SEARCH.md §9) are nobody's to drop from here, so a row keeping some is zeroed rather than deleted.
+    if ((existing?.hiddenQuantity ?? 0) > 0) {
+      await tx.roomTag.updateMany({ where: { roomId, tagId }, data: { quantity: 0, poisonedCount: 0, poisonPayload: null } });
+    } else {
+      await tx.roomTag.deleteMany({ where: { roomId, tagId } });
+    }
     // `quantity = null` drops the WHOLE holding — record `existing.quantity`, the actual amount, not a request naming no number.
     if (existing?.quantity) {
       await recordTagMoney(tx, roomParty({ id: roomId }), tagId, -existing.quantity, options.econ);
@@ -398,7 +403,8 @@ async function dropRoomTag(tx, roomId, tagId, quantity = null, options = {}) {
     where: { roomId, tagId, poisonedCount: { lte: 0 }, poisonPayload: { not: null } },
     data: { poisonPayload: null },
   });
-  await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 } } });
+  // A row emptied ON the floor still stays while anything is under it (hiddenQuantity, SEARCH.md §9).
+  await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 }, hiddenQuantity: { lte: 0 } } });
   await recordTagMoney(tx, roomParty({ id: roomId }), tagId, -n, options.econ);
   return { ok: true, poisonedTaken, poisonPayload };
 }
