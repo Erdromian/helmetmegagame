@@ -144,6 +144,11 @@ attachBreakerStore({
   write: (data) => prisma.gameConfig.updateMany({ where: { id: 1 }, data }),
 });
 
+// What a room row keeps when its visible units run out on the clock but some
+// are still under the floor: nothing on it, no clock, no poison. The hidden
+// units never carried the clock (a seed sets none), so they outlive it.
+const VISIBLE_SIDE_EXPIRED = { quantity: 0, poisonedCount: 0, poisonPayload: null, expiresTurn: null };
+
 // The stackable half of resolveNeeds()' expiry sweep: each expired stack
 // loses one unit and the remainder's clock restarts from the tag's catalog
 // duration, so a stack sheds one unit at a time rather than all at once.
@@ -162,17 +167,23 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
       id: true,
       quantity: true,
       poisonedCount: true,
+      // A room stack may have units under the floor (RoomTag.hiddenQuantity,
+      // SEARCH.md §9). The clock is the visible units': when the last of them
+      // expires the row is zeroed and kept, not deleted with the hidden ones.
+      ...(model === "roomTag" ? { hiddenQuantity: true } : {}),
       tag: { select: { defaultDurationTurns: true } },
     },
   });
   if (expired.length === 0) return;
 
   const spent = [];
+  const emptied = [];
   // new expiresTurn -> rows landing on it
   const rescheduled = new Map();
   for (const ct of expired) {
     if (ct.quantity <= 1) {
-      spent.push(ct.id);
+      if ((ct.hiddenQuantity ?? 0) > 0) emptied.push(ct.id);
+      else spent.push(ct.id);
       continue;
     }
     const next = expiryFrom(turn.number + 1, ct.tag.defaultDurationTurns ?? 1);
@@ -208,6 +219,7 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
     ...(spent.length
       ? [prisma[model].deleteMany({ where: { id: { in: spent } } })]
       : []),
+    ...(emptied.length ? [prisma.roomTag.updateMany({ where: { id: { in: emptied } }, data: VISIBLE_SIDE_EXPIRED })] : []),
     // decrement, not a computed literal, so a concurrent grant on the same
     // row can't be clobbered between the read above and this write.
     ...[...rescheduled].map(([expiresTurn, cts]) =>
@@ -790,8 +802,14 @@ async function resolveNeeds(turn, config) {
       // A stashed tag sheds on the same clock. The one progression that
       // reaches a floor is the corpse rot above, which has already nulled
       // expiresTurn on anything it turned, so this cannot see it.
+      // ...and only the visible side of it: a row still holding units under
+      // the floor (SEARCH.md §9) is zeroed and kept, never deleted with them.
       await prisma.roomTag.deleteMany({
-        where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
+        where: { expiresTurn: { lte: turn.number }, tag: { stackable: false }, hiddenQuantity: { lte: 0 } },
+      });
+      await prisma.roomTag.updateMany({
+        where: { expiresTurn: { lte: turn.number }, tag: { stackable: false }, hiddenQuantity: { gt: 0 } },
+        data: VISIBLE_SIDE_EXPIRED,
       });
       await sweepExpiredStacks(turn, "roomTag");
 

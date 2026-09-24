@@ -4796,7 +4796,7 @@ model InterceptWatch {
   // zone, so an escort party is judged one person at a time.
   outsideZoneOnly Boolean @default(false)
 
-  // Ask to search whoever this watch catches (docs/systemdocs/SEARCH.md §9).
+  // Ask to search whoever this watch catches (docs/systemdocs/SEARCH.md §6).
   // NOT a "who" and not a narrowing of one — it is what happens once you have
   // them, which is why it sits under the mode picker in the dialog rather than
   // in the dragnet row beside the two above. The search still asks consent

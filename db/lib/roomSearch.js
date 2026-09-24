@@ -37,9 +37,10 @@ function searchLedgerEntry(room) {
 const RUMMAGE_LINE = "rummages through the room.";
 
 // What sharpens or fogs the eyes. The list is CLOSED and deliberately narrower
-// than gambitModifiers(), the steal.js reasoning: this costs no Move and has no
-// cooldown, so Hunger and the mood bands folding in would make a hungry
-// character unable to find their own boots, with nothing they could do about it.
+// than gambitModifiers(), the steal.js reasoning: its only price is a share of
+// the Move, so Hunger and the mood bands folding in would make a hungry
+// character pay that share and still be unable to find their own boots, with
+// nothing they could do about it.
 const EYES = [
   ["eagle-eyes", "Eagle Eyes", 2],
   ["hallucinating", "Hallucinating", -2],

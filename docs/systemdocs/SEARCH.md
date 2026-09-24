@@ -347,11 +347,14 @@ Den's Bar would land on the hidden Alcohol row and vanish under the floor.
 hidden by accident.
 
 **Every writer that deletes a row at `quantity <= 0` must also require
-`hiddenQuantity <= 0`.** There are three — `tagWrites.js#dropRoomTag`,
-`resourceStack.js#takeRoomResources`, `bankAccounts.js#takeFromVault` — and
-each does. Without it, taking the last visible unit throws the hidden ones
-away. `dropRoomTag`'s whole-holding branch (`quantity = null`) zeroes the row
-instead of deleting it for the same reason.
+`hiddenQuantity <= 0`.** There are four — `tagWrites.js#dropRoomTag`,
+`resourceStack.js#takeRoomResources`, `bankAccounts.js#takeFromVault`, and the
+turn's expiry sweep in `db/index.js` — and each does. Without it, taking the
+last visible unit throws the hidden ones away. `dropRoomTag`'s whole-holding
+branch (`quantity = null`) zeroes the row instead of deleting it for the same
+reason, and so does the expiry sweep: **an expiry clock belongs to the visible
+units**, so when the last of them runs out the row is zeroed, its clock and
+poison cleared, and the hidden units stay.
 
 Hidden ⬢ are real ⬢. The readers that answer "how much does this room hold"
 for the ledger and the supply figure — `resourcesByRoomIds`, `sumRoomResources`,
@@ -442,8 +445,8 @@ outside, an empty room and an unlucky one look the same.
 
 A d6 through `rollWithAdvantage`, so Lucky applies, quietly (§3b's admission).
 Then a **closed** modifier table in `db/lib/roomSearch.js`, the `steal.js`
-discipline — Hunger and the mood bands do not apply, because a verb with no
-cooldown should not be blind for something the player cannot fix:
+discipline — Hunger and the mood bands do not apply, because a player who has
+paid their share of the Move should not be blind for something they cannot fix:
 
 | | value |
 |---|---|
@@ -504,8 +507,11 @@ db:hide-authored-stock` (dry run; `-- --apply` to write, behind
 `db-guard.py`'s `CONFIRMED=1` gate) reads each room's new `hidden:` list and
 moves what is STILL lying there under it — never adding a unit, never touching
 a slug the list does not name, and rewriting `Room.stashSeed` to the new shape
-so the panel and the next Restart Game read it right. A second run moves
-nothing twice.
+so the panel and the next Restart Game read it right. That rewrite is also the
+once-only marker: a room whose seed already carries its `hidden:` list is
+skipped, so a second run moves nothing, even after a Search has brought some
+of it back up and nobody has taken it yet. It moves clean units only; poisoned
+ones stay on the floor with the count they were drawn against.
 
 ### 9f. Where this half lives
 

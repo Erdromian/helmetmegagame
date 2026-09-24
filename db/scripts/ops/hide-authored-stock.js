@@ -11,6 +11,9 @@
 // name, so a bottle somebody dropped in the Bar since stays on the shelf. It
 // also rewrites Room.stashSeed to the new shape, so the GM panel reads
 // "Authored, hidden" correctly and a later Restart Game seeds it hidden.
+// That rewrite is also what makes it once-only per room: a room whose seed
+// already carries the list is skipped, so a second run moves nothing, even
+// after a Search has brought some of it back up.
 //
 // DRY RUN unless given `--apply`. It changes what players can see on the
 // floor mid-game, so it goes through .claude/hooks/db-guard.py's CONFIRMED=1
@@ -42,20 +45,26 @@ async function main() {
       slug: true,
       name: true,
       stashSeed: true,
-      tags: { select: { id: true, quantity: true, hiddenQuantity: true, tag: { select: { slug: true, name: true } } } },
+      tags: { select: { id: true, quantity: true, poisonedCount: true, tag: { select: { slug: true, name: true } } } },
     },
   });
 
+  // The rewritten stashSeed IS the once-only marker: a room whose seed already
+  // carries its authored hidden: list has been done (or was seeded that way at
+  // Start Game), and is never touched again. Counting what is already under
+  // the floor instead would re-hide a stack a Search surfaced and nobody has
+  // picked up yet.
+  const seedRewrites = rooms.filter((r) => JSON.stringify(r.stashSeed?.hidden ?? []) !== JSON.stringify(authored.get(r.slug).hidden));
+
   const moves = [];
-  for (const room of rooms) {
-    const seed = authored.get(room.slug);
-    const already = new Map(seed.hidden.map(([slug, n]) => [slug, n]));
+  for (const room of seedRewrites) {
+    const wanted = new Map(authored.get(room.slug).hidden.map(([slug, n]) => [slug, n]));
     for (const rt of room.tags) {
-      const wanted = already.get(rt.tag.slug);
-      if (!wanted) continue;
-      // What is authored hidden minus what is already under the floor (a re-run moves nothing twice).
-      const stillToHide = Math.max(0, wanted - (rt.hiddenQuantity ?? 0));
-      const n = Math.min(rt.quantity ?? 0, stillToHide);
+      const want = wanted.get(rt.tag.slug);
+      if (!want) continue;
+      // Clean units only: poison on the floor stays with the visible count it was drawn against.
+      const clean = Math.max(0, (rt.quantity ?? 0) - (rt.poisonedCount ?? 0));
+      const n = Math.min(clean, want);
       if (n > 0) moves.push({ room, rt, n });
     }
   }
@@ -63,7 +72,6 @@ async function main() {
   for (const { room, rt, n } of moves) {
     console.log(`${room.slug} (${room.name}): ${rt.tag.name} — ${n} of ${rt.quantity} on the floor go under it`);
   }
-  const seedRewrites = rooms.filter((r) => JSON.stringify(r.stashSeed?.hidden ?? []) !== JSON.stringify(authored.get(r.slug).hidden));
   for (const room of seedRewrites) console.log(`${room.slug}: stashSeed gains a hidden: list`);
   if (moves.length === 0 && seedRewrites.length === 0) {
     console.log("Nothing left on any of those floors to hide, and every seed already has its hidden: list.");
