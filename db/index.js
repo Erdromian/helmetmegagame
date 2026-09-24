@@ -55,6 +55,7 @@ const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
 const { runConfessionPass } = require("./lib/confessionPass");
 const { runHealGambitPass } = require("./lib/healGambitPass");
+const { runTrinketPass } = require("./lib/trinketPass");
 const { expireQuestsPass: runQuestExpiryPass } = require("./lib/quests");
 // Required by path, not through the barrel: see db/lib/dm.js for why there
 // are three same-named sendDm exports with three signatures.
@@ -232,6 +233,7 @@ const TURN_PASSES = [
   // Offer, so it has no ordering dependency on the offer-expiry pass either
   // of the other two shares.
   "healGambit",
+  "trinket",
   "stagedPush",
   "tagExpiry",
   // Counts Damaged Vision stacks and turns 5 of them into Blind. After
@@ -458,6 +460,17 @@ async function resolveNeeds(turn, config) {
   const { dms: healGambitDms = [], ...healGambitSummary } = healGambit ?? {};
   if (healGambit && (healGambit.resolved || healGambit.failed)) {
     await audit("heal_gambits_resolved", healGambitSummary, "Heal Gambits");
+  }
+
+  // Trinket (db/lib/trinketPass.js): the forge's own Gambit, same slot and the
+  // same reason as the three above — the die was thrown at file time, this is
+  // where it becomes a tier, a price and a minted item. It was wired in by the
+  // caving-hold change of 2026-09-12 and taken out again by that change's
+  // revert the same day, so until now no forge Gambit was ever resolved.
+  const trinket = await runPass("trinket", "Trinket", () => runTrinketPass(prisma, turn));
+  const { dms: trinketDms = [], ...trinketSummary } = trinket ?? {};
+  if (trinket && (trinket.resolved || trinket.failed)) {
+    await audit("trinket_resolved", trinketSummary, "Trinket");
   }
 
   // The staged-arbitration push (db/lib/stagedPush.js). Slot is
@@ -940,6 +953,7 @@ async function resolveNeeds(turn, config) {
     lessonDms,
     confessionDms,
     healGambitDms,
+    trinketDms,
     tagExpiryDms,
     catatonicDms,
     catatonicRoleUpdates,
@@ -1111,6 +1125,7 @@ async function advanceTurn() {
   let lessonDms = [];
   let confessionDms = [];
   let healGambitDms = [];
+  let trinketDms = [];
   let tagExpiryDms = [];
   let depotLines = [];
   let turretDms = [];
@@ -1171,6 +1186,7 @@ async function advanceTurn() {
         lessonDms,
       confessionDms,
       healGambitDms,
+      trinketDms,
       tagExpiryDms,
       catatonicDms,
       catatonicRoleUpdates,
@@ -1268,6 +1284,7 @@ async function advanceTurn() {
             lessonDms,
         confessionDms,
         healGambitDms,
+        trinketDms,
         tagExpiryDms,
         catatonicDms,
         catatonicRoleUpdates,
@@ -1378,6 +1395,7 @@ async function advanceTurn() {
     lessonDms,
     confessionDms,
     healGambitDms,
+    trinketDms,
     tagExpiryDms,
     turretBursts,
     depotLocationId,
