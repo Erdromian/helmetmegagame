@@ -237,6 +237,11 @@ async function buildMap({ character, unfogged }) {
       walkThrough: walk ? walk.path.slice(0, -1).map((l) => l.name) : null,
       // A narrow way somewhere along the road would take their horse off them.
       walkDismounts: Boolean(walk?.dismounts),
+      // A tight squeeze on the road, or AS the road (MAP.md §2a). Said to
+      // everybody, not only the Giant it refuses, so a party can see where
+      // its Giant friend cannot follow.
+      walkTightSqueeze: Boolean(walk?.tightSqueeze),
+      tightSqueeze: Boolean(near?.tightSqueeze),
       crossesZone: Boolean(near?.crossesZone),
       // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).
       railroad: Boolean(near?.railroad),
@@ -269,6 +274,8 @@ async function buildMap({ character, unfogged }) {
       b: link.bId,
       gate: gateOf(link, verdict),
       openedBy: verdict.openedBy ?? null,
+      // Drawn pinched on the board for everybody (MAP.md §2a).
+      squeeze: Boolean(link.tightSqueeze),
     });
   }
 

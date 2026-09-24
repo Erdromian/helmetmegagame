@@ -566,6 +566,9 @@ export async function loadTravel() {
         hops: row.hops,
         through: row.path.slice(0, -1).map((l) => l.name),
         dismounts: row.dismounts,
+        // A tight squeeze somewhere along the road (MAP.md §2a) — said to
+        // everybody, so a leader knows their Giant cannot finish this walk.
+        tightSqueeze: Boolean(row.tightSqueeze),
         indoors: parksMounts(row.location),
       })),
     options: options.map((row) => {
@@ -610,6 +613,10 @@ export async function loadTravel() {
         // A way too narrow to ride or push through — crossing it dismounts
         // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
         dismounts: Boolean(row.dismounts),
+        // A hole no Giant fits through (MAP.md §2a). Drawn as a chip for
+        // EVERYBODY, not only the Giant it refuses — so the rest of a party
+        // can see where their Giant friend cannot follow.
+        tightSqueeze: Boolean(row.tightSqueeze),
         // Which of this character's own tags opens the way, when one does — the
         // node draws it as that tag's chip, so a climb you paid Caving
         // for says so instead of looking like every other road. Only ever a tag

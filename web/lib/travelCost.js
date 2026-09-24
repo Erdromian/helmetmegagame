@@ -61,6 +61,20 @@ export function openedByLabel(tagName) {
   return `Opened by your ${tagName}.`;
 }
 
+// The chip on a way that is a tight squeeze (MAP.md §2a), and the sentence
+// behind it. Drawn for EVERYBODY, not only the Giant it refuses — the point of
+// marking it is that a party knows where its Giant friend cannot follow before
+// they set off. The chip is the two words; the hover and the screen reader get
+// the sentence. Same home as openedByLabel, for the same reason: /chat and
+// /map both draw it, and two copies would drift. `onWalk` is the several-hop
+// version, where the squeeze is somewhere along the road rather than the road.
+export const TIGHT_SQUEEZE_LABEL = "Tight squeeze";
+export function tightSqueezeNote(onWalk = false) {
+  return onWalk
+    ? "A tight squeeze on the way. No Giant fits through it."
+    : "A tight squeeze. No Giant fits through here.";
+}
+
 // Second-look warning before Go, null otherwise — CAVING.md §2a's Customs/Depot exemption is already in `caveLevel`.
 function crossingWarning(option) {
   if (!option.caveLevel) return null;

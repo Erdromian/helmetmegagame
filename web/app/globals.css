@@ -6718,6 +6718,17 @@ button.chip[data-off="true"]:not([data-active]) {
   stroke: var(--accent);
 }
 
+/* A tight squeeze (MAP.md §2a): a hole no Giant fits through. Drawn for
+   everybody, so a party can see where its Giant cannot follow. Dotted — a
+   pinched line — rather than dashed, because dashed is "shut to you" and this
+   way is open to whoever is looking at it. Below [data-gate] on purpose: the
+   Giant it refuses still sees it in the gate's colour, since for them it IS
+   shut. */
+.map-edge[data-squeeze]:not([data-gate]) {
+  stroke: var(--text);
+  stroke-dasharray: 0.6 2.4;
+}
+
 /* ----------------------------------------------------------- /map · nodes */
 
 .map-node {

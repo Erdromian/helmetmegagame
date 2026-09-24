@@ -112,25 +112,28 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     // Same wording a nonexistent edge gets, deliberately: a refusal that read differently would tell a player the hidden way is there.
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
+  // A tight squeeze is said to EVERYBODY on every listed branch, Giant or not, passable or not — unlike `railroad` and `openedBy`, which ride only the passable ones. The flag is never a secret (a squeeze is listed, never hidden), and the person who most needs to see it is the one it does not touch: a party leader walking their Giant friend to a hole the friend will be refused at (MAP.md §2a "Tight squeeze"). It says nothing about the lock a refusing branch is keeping quiet about, so it leaks nothing a refusal did not already.
+  const tightSqueeze = Boolean(link.tightSqueeze);
   if (!hasTag) {
-    return { listed: true, passable: false, refusal: "This way isn't open to you." };
+    return { listed: true, passable: false, refusal: "This way isn't open to you.", tightSqueeze };
   }
-  if (link.tightSqueeze && held.has(GIANT_TAG_SLUG)) {
-    return { listed: true, passable: false, refusal: "You're too big to fit through here." };
+  if (tightSqueeze && held.has(GIANT_TAG_SLUG)) {
+    return { listed: true, passable: false, refusal: "You're too big to fit through here.", tightSqueeze };
   }
   if (link.modular && !link.isOpen) {
     return {
       listed: true,
       passable: false,
       refusal: "The way is shut. Somebody in the watchtower would have to work the winch.",
+      tightSqueeze,
     };
   }
   // Dismounts the traveller rather than refusing — db/lib/indoors.js's dismountForNarrowWay, called from applyLocationMoveSideEffects the same way arriving indoors parks a mount at the door. `dismounts` is surfaced so the picker can say so before anyone commits.
   // `railroad` rides out on the PASSABLE branches only, beside `openedBy` and for the same reason: a refusal that said more than the last one would leak the edge. A tunnel nobody may enter is not a tunnel they get told about.
   if (link.onFoot && onFootBlocked) {
-    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy, railroad: Boolean(link.railroad) };
+    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy, railroad: Boolean(link.railroad), tightSqueeze };
   }
-  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy, railroad: Boolean(link.railroad) };
+  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy, railroad: Boolean(link.railroad), tightSqueeze };
 }
 
 // Does this edge have a gate to work at all? Only a modular edge does. The gate button renders off this, on the WATCHTOWER at the gate (db/lib/roomStarterRow.js) — getting into that room is the whole permission model (anyone who can see the winch may pull it), so there's no second predicate here; toggleGate only re-checks the clicker is standing at the gate.
@@ -402,7 +405,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
   const adjacency = new Map();
   const join = (a, b, verdict) => {
     if (!adjacency.has(a)) adjacency.set(a, []);
-    adjacency.get(a).push({ id: b, dismounts: Boolean(verdict.dismounts) });
+    adjacency.get(a).push({ id: b, dismounts: Boolean(verdict.dismounts), tightSqueeze: Boolean(verdict.tightSqueeze) });
   };
   for (const link of links) {
     if (!usable(link.aId) || !usable(link.bId)) continue;
@@ -421,20 +424,40 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
 
   const prev = new Map();
   const dismountBy = new Map([[from, false]]);
-  const claimed = new Set([from]);
+  // Same shape as dismountBy: a walk that goes through a tight squeeze at any hop is a walk a Giant companion cannot finish, and the party leader is told so before they commit rather than after the Giant is refused mid-road.
+  const squeezeBy = new Map([[from, false]]);
+  // Which hop first reached each place — a later road of the SAME length may
+  // still take it over (below); a longer one never does.
+  const claimedAt = new Map([[from, 0]]);
   const found = [];
   let frontier = [from];
+
+  const take = (nodeId, neighbor) => {
+    prev.set(neighbor.id, nodeId);
+    // Sticky: a route that took your arelitz off you at hop 2 is still a
+    // route you finish on foot.
+    dismountBy.set(neighbor.id, Boolean(dismountBy.get(nodeId)) || neighbor.dismounts);
+    squeezeBy.set(neighbor.id, Boolean(squeezeBy.get(nodeId)) || neighbor.tightSqueeze);
+  };
 
   for (let hops = 1; hops <= maxHops && frontier.length > 0; hops += 1) {
     const next = [];
     for (const nodeId of frontier) {
       for (const neighbor of adjacency.get(nodeId) ?? []) {
-        if (claimed.has(neighbor.id)) continue;
-        claimed.add(neighbor.id);
-        prev.set(neighbor.id, nodeId);
-        // Sticky: a route that took your arelitz off you at hop 2 is still a
-        // route you finish on foot.
-        dismountBy.set(neighbor.id, Boolean(dismountBy.get(nodeId)) || neighbor.dismounts);
+        const at = claimedAt.get(neighbor.id);
+        if (at !== undefined) {
+          // Two roads equally short, and the one already found goes through a
+          // tight squeeze this one avoids: walk the clear one, so a party is
+          // never led to lose its Giant when it had no need to (MAP.md §2a).
+          // Still deterministic — the frontier is walked in slug order, so the
+          // same clear road wins every time.
+          if (at === hops && squeezeBy.get(neighbor.id) && !squeezeBy.get(nodeId) && !neighbor.tightSqueeze) {
+            take(nodeId, neighbor);
+          }
+          continue;
+        }
+        claimedAt.set(neighbor.id, hops);
+        take(nodeId, neighbor);
         next.push(neighbor.id);
         found.push({ id: neighbor.id, hops });
       }
@@ -457,6 +480,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
       hops: row.hops,
       path: pathTo(row.id),
       dismounts: Boolean(dismountBy.get(row.id)),
+      tightSqueeze: Boolean(squeezeBy.get(row.id)),
     }))
     .sort((x, y) => x.hops - y.hops || x.location.slug.localeCompare(y.location.slug));
 }
@@ -472,7 +496,7 @@ async function pathWithinZone(prisma, character, targetLocationId, { known } = {
   const routes = await routesWithinZone(prisma, character, { known });
   const hit = routes.find((row) => row.location.id === targetLocationId);
   if (!hit) return { ok: false, reason: NO_WALK };
-  return { ok: true, hops: hit.hops, path: hit.path, dismounts: hit.dismounts };
+  return { ok: true, hops: hit.hops, path: hit.path, dismounts: hit.dismounts, tightSqueeze: hit.tightSqueeze };
 }
 
 // How long a propped door stays propped. Real hours, not turns: a physical door somebody wedged, and the point is that people can follow within the day.

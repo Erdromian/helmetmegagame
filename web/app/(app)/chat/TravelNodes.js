@@ -8,7 +8,8 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, tightSqueezeNote } from "@/lib/travelCost";
+import SqueezeChip from "@/app/components/SqueezeChip";
 import { loadTravel, travelTo } from "./actions";
 import { nudgePhase } from "../../components/PhaseProvider";
 import useNarrow from "./useNarrow";
@@ -26,7 +27,10 @@ import useNarrow from "./useNarrow";
 function titleFor(option, via) {
   if (!option.passable) return option.reason ?? option.name;
   const head = option.description ? `${option.name} — ${option.description}` : option.name;
-  return via ? `${head}\n${openedByLabel(via.name)}` : head;
+  const lines = [head];
+  if (via) lines.push(openedByLabel(via.name));
+  if (option.tightSqueeze) lines.push(tightSqueezeNote());
+  return lines.join("\n");
 }
 
 // `pick` is `/travel` reaching in from the composer: { locationId, at }, `at`
@@ -185,6 +189,9 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
               {!option.passable && option.reason && <span className="chat-node-desc">{option.reason}</span>}
               {/* Flat ChipLabel, not TagChip — an interactive chip can't live inside this button. */}
               {via && <ChipLabel tag={via} />}
+              {/* Where no Giant fits (MAP.md §2a) — on every player's list, so
+                  a party can see where its Giant can't follow. */}
+              <SqueezeChip show={option.tightSqueeze} />
               <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved)}</span>
             </button>
             );
@@ -207,7 +214,10 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
                 type="button"
                 className="chat-node"
                 data-active={target === option.id ? "true" : undefined}
-                title={option.description ? `${option.name} — ${option.description}` : option.name}
+                title={[
+                  option.description ? `${option.name} — ${option.description}` : option.name,
+                  option.tightSqueeze ? tightSqueezeNote(true) : null,
+                ].filter(Boolean).join("\n")}
                 disabled={pending}
                 onClick={(e) => {
                   e.currentTarget.focus();
@@ -219,6 +229,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
                 {/* The stops, where there is room for them — the same sentence
                     the strip spells out in full once this is picked. */}
                 <span className="chat-node-zone">{option.through.join(" · ")}</span>
+                <SqueezeChip show={option.tightSqueeze} onWalk />
                 <span className="chat-node-foot mono">{walkFoot(option, data.mounted)}</span>
               </button>
             ))}
