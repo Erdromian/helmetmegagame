@@ -158,7 +158,7 @@ Read off the die **plus** Skilled's +1:
 |---|---|
 | 4+ | **clean.** They are told nothing at all. |
 | 2–3 | **noticed.** You get the goods, and they are DM'd that you picked them. |
-| 1 | **failed.** Nothing moves, and they are DM'd that you tried and failed. |
+| 1 | **failed.** Nothing moves, they are DM'd that you tried and failed, and **you are stuck there for 5 minutes, held by them** (§2g). |
 
 The middle band is the whole texture, and collapsing it into a plain pass/fail
 is the easy accident — a verb that only ever succeeded silently or failed
@@ -270,6 +270,31 @@ Loot applies `ROBBED` and tells the target their body was searched. Neither
 happens here, and `ROBBED` especially must not: a mood hit on a clean roll
 would be a tell, and would give away a theft the die had just bought silence
 for. If a mood hit is ever wanted, it belongs on the **noticed** band alone.
+
+### 2g. A failed pickpocket is held by its victim
+
+The failed band writes the same 5-minute hold a noticed Steal does (§1e) —
+`Character.heldUntil`, `heldReason: "caught"` — with one difference that
+changes who is in charge of it: **`heldById` is the target.** A stash has no
+owner, so a caught Steal is held by nobody; a pickpocket's victim is a person,
+so they hold the thief the way an interceptor holds a catch.
+
+That buys the victim the whole intercept toolkit for free (`INTERCEPT.md` §3):
+
+- **Let them go** — the thief shows up in the victim's Intercept dialog
+  holding list with the ordinary Release button.
+- **Walking off frees them**, and so does the victim dying. You cannot keep a
+  hand on a shoulder from the next Location.
+- **An Attack from the victim** holds both sides to the end of the turn, since
+  a longer hold always beats a shorter one.
+
+The DM says so: *"…tried to pickpocket you, but failed! They won't get far for
+the next 5 minutes — you have hold of them."* Only a **fresh** roll writes the
+hold; a reopened dialog rolled nothing and must not extend it.
+
+The noticed band (2–3) does **not** hold. The goods moved, the victim is told
+at the take, and by then the thief may fairly be gone — that is what "noticed"
+rather than "caught" means.
 
 ## 3. The two tags
 

@@ -116,7 +116,7 @@ test("a caught thief reads their own sentence, and nobody is named as holding th
     { heldUntil: new Date(now.getTime() + CAUGHT_HOLD_MS), heldReason: HELD_REASON.CAUGHT },
     now,
   );
-  assert.match(caught, /seen stealing/);
+  assert.match(caught, /caught stealing/);
   assert.match(caught, /another 300s/);
   // "Somebody" is an intercept's word — nobody has hold of a caught thief, the room does.
   assert.doesNotMatch(caught, /Somebody/);

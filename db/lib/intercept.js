@@ -18,7 +18,7 @@ const { ambientLine } = require("./ambientLine");
 
 // WHY somebody cannot move, written onto Character.heldReason beside the timestamp.
 // Four values, not two: a fight holds BOTH sides and they're not in the same position, so the jumped and the jumper must not read the same sentence. A frozen table rather than hand-written strings across files — db/lib/characterDeath.js's clear once lacked this guard, and a typo'd literal is how that happens twice.
-// CAUGHT is the room's hand, not a person's: a Steal the room noticed (THEFT.md §1e) pins the thief where they stand for CAUGHT_HOLD_MS so whoever they robbed can answer — words, or an Attack. It has no heldById, so no Release button ever reaches it; it lapses on its own clock and nothing else.
+// CAUGHT is a thief the scene saw, pinned where they stand for CAUGHT_HOLD_MS so whoever they robbed can answer — words, or an Attack. Two writers: a Steal the room noticed (THEFT.md §1e), which has NO heldById because a stash has no owner, so nothing but the clock ends it; and a Pickpocket that failed (THEFT.md §2g), held BY THE VICTIM, so the ordinary Release, walk-off and death clears all work for them.
 const HELD_REASON = Object.freeze({
   INTERCEPT: "intercept",
   ATTACK: "attack",
@@ -91,9 +91,9 @@ function heldReasonFor(character, now = new Date()) {
     return "You're in a fight. You can't move until the end of the turn.";
   }
   const seconds = Math.ceil((until.getTime() - now.getTime()) / 1000);
-  // The room saw them at a stash. Nobody has hold of them, so no "somebody" — it is the scene that won't let them slip out.
+  // Caught stealing. No "somebody" — a stash has no owner, and a pickpocket's victim is already named in the DM that told them.
   if (character.heldReason === HELD_REASON.CAUGHT) {
-    return `You were seen stealing. You can't leave for another ${seconds}s.`;
+    return `You were caught stealing. You can't leave for another ${seconds}s.`;
   }
   // Under five minutes it's worth counting down; a hold that runs to the end of the turn isn't — "43188s" would be worse than saying nothing.
   return seconds <= 300

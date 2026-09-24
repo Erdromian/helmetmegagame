@@ -169,8 +169,10 @@ keyed-way pattern (`MAP.md` §2b) applied to a person instead of a door.
 `Character.heldReason` says **which** has hold of somebody — `HELD_REASON` in
 this file, and there are four values rather than two because a fight holds both
 sides and they must not read the same sentence (`ATTACK.md` §1), and because a
-thief the room saw is held by nobody at all (`caught`, `THEFT.md` §1e — five
-minutes, no `heldById`, so no Release reaches it). A column rather than a lookup
+thief who was caught (`caught`, five minutes) is held by nobody at all when the
+stash had no owner (`THEFT.md` §1e, no `heldById`, so only the clock ends it) and
+by the victim when there was one (§2g, a failed Pickpocket — `heldById` is the
+target, so every clear below works for them). A column rather than a lookup
 because the predicate below is pure and eight surfaces read it.
 
 `heldReasonFor(character, now)` is the one predicate, pure, and it is what both
@@ -410,8 +412,8 @@ could only ever answer *They're already free.*
 
 The authoritative control is the **You are fighting** list at the foot of the
 Attack dialog. The DM button is the convenience. The Intercept dialog's own
-holding list is Safe stops only — it excludes both fight reasons, for the
-reason §3 gives: listing a fight there would draw a Let-them-go button whose
+holding list is Safe stops and caught pickpockets (`THEFT.md` §2g) — it excludes
+both fight reasons, for the reason §3 gives: listing a fight there would draw a Let-them-go button whose
 only possible answer is *They're already free.*
 
 ## 8. The surface

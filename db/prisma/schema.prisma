@@ -2522,8 +2522,8 @@ model Character {
   holding   Character[] @relation("InterceptHold")
 
   // WHICH thing is holding them — "intercept", "attack", "attacking" or
-  // "caught" (a Steal the room saw, THEFT.md §1e, which has no heldById at
-  // all) — so that db/lib/intercept.js#heldReasonFor can name the right one
+  // "caught" (a thief who was seen, THEFT.md §1e and §2g — heldById is the
+  // pickpocket's victim, or null when a stash had no owner) — so that db/lib/intercept.js#heldReasonFor can name the right one
   // while staying PURE. That predicate is read by the mover's own gate and by every
   // picker that draws a way out, and a query inside it would have to be
   // awaited at eight call sites. A column is the cheaper half of that trade.
