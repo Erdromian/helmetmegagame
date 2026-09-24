@@ -3,6 +3,8 @@
 // character whose denormalized zoneId disagrees with their location, and the
 // bot's own role position. Missing Discord structure is the op list's job now
 // (db/lib/discordMirror/diff.js), not this sweep's.
+const { findGateBypasses } = require("../../gateBypass");
+
 async function runStructureSweep({ report, prisma, zones, rolesById, members, alive, locationsById }) {
   for (const zone of zones) {
     if (zone.kind !== "CAVE_GROUP" && zone.locations.length === 0) {
@@ -33,6 +35,23 @@ async function runStructureSweep({ report, prisma, zones, rolesById, members, al
       const kind = link.hidden ? "hidden" : "locked";
       await report("connection-slug", label, `names ${kind} tag "${link.requiredTagSlug}" — no such tag (check docs/zones.yaml)`);
     }
+  }
+
+  // A modular gate on a zone boundary with a plain second edge between the
+  // same two zones shuts nobody out, since a hop inside a zone is free
+  // (db/lib/gateBypass.js). Report-only: which edge is the mistake is a
+  // human decision, made at /gm/dev/zones/links.
+  const allLinks = await prisma.locationLink.findMany({ include: { a: true, b: true } });
+  const gateBypasses = findGateBypasses(
+    allLinks.map((link) => ({
+      a: { zone: link.a.zoneId, name: link.a.name },
+      b: { zone: link.b.zoneId, name: link.b.name },
+      modular: link.modular,
+      requiredTagSlug: link.requiredTagSlug,
+    })),
+  );
+  for (const { gate, bypasses } of gateBypasses) {
+    await report("gate-bypass", gate, `shutting this gate stops nobody — a plain way round it: ${bypasses.join(", ")}`);
   }
 
   // Character.zoneId is denormalized from location.zoneId; a mismatch means

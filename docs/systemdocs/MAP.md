@@ -193,6 +193,18 @@ is why `LocationLink` carries fields rather than one enum.
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
 | Tight squeeze | `tightSqueeze` | a hole no **Giant** fits through, full stop. Listed and refused to anyone holding the `giant` tag — unconditional, not a skill check |
 
+**A modular gate on a zone boundary must be the only plain edge between those
+two zones.** A hop inside a zone costs nothing, so a second tagless, unwinched
+edge joining the same two zones means dropping the gate shuts nobody out — they
+walk to the other Location and cross there. The Fortress had exactly that until
+2026-09-23: the Gatehouse opened onto the Residences (the portcullis) and also
+onto the Sanctuary and the Graveyard, so the winch was scenery. A locked or
+hidden way round is fine — a key past the gate is authored on purpose (the
+Baron's lift, the Undercroft's pipes) — and so is a second modular gate. The
+rule lives in `db/lib/gateBypass.js`; `db/test/gateBypass.test.js` runs it over
+`docs/zones.yaml`, and the doctor's `gate-bypass` check runs it over the live
+`LocationLink` rows on every bot start (`CHANNELS.md` §6).
+
 **A modular gate is also a window, open or shut.** A line said in a PUBLIC,
 non-soundproof Room at one end is echoed into every such Room at the other end,
 as the speaker, with each line `-#` (`db/lib/gateEcho.js`, called from

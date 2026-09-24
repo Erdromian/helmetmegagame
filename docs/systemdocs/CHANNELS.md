@@ -763,7 +763,11 @@ Two scopes:
   roles existing/orphaned, **`location-occupancy`** (below), a
   **`connection-slug`** check that every tag and Role a `LocationLink` names
   actually exists in the catalogs — they cannot be foreign keys, because tags
-  and roles sync *after* zones — and the structural checks: zone channels and
+  and roles sync *after* zones — a **`gate-bypass`** check that no modular gate
+  on a zone boundary has a plain second edge between the same two zones
+  (`db/lib/gateBypass.js`; a hop inside a zone is free, so such a gate shuts
+  nobody out — report-only, the fix is a delete at `/gm/dev/zones/links`), and
+  the structural checks: zone channels and
   roles exist, Location channels exist, a **`character-place` check** that
   `Character.zoneId` agrees with `location.zoneId` (repaired from the location,
   the authority), the **bot's own highest role sits above every zone role** (or
