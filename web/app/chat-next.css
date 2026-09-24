@@ -732,6 +732,28 @@
   margin-bottom: 0;
 }
 
+/* ── Travel, compact ─────────────────────────────────────────────────────
+   A node carries a name, its zone and the cost now — no description since
+   Chat Overhaul.docx — so it is sized to exactly that. The 6rem floor
+   chat.css gives it was room for a three-line description, and with that gone
+   it was mostly empty card. Bascinet asked for them as small as they go
+   without the words shrinking or being cut, so the TYPE is untouched, and so
+   is the column width: narrower cards would clip "UNDERTOWN" and
+   two-line names. Only the air goes — the floor, the padding, the gaps. */
+[data-chat-next] .chat-nodes {
+  gap: var(--sp-1);
+}
+
+[data-chat-next] .chat-node {
+  min-height: 0;
+  gap: 1px;
+  padding: 3px var(--sp-2) 2px;
+}
+
+[data-chat-next] .chat-node-foot {
+  padding-top: 2px;
+}
+
 /* ── The scene's own parts ───────────────────────────────────────────────── */
 
 /* The scroller needs a positioned parent for the pill to hang off, and the
