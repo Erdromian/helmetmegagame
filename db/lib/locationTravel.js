@@ -4,7 +4,7 @@
 const { recordArchiveEvent } = require("./archive");
 const { sessionGate } = require("./betweenSessions");
 const { seatZoneIdFor } = require("./seatZone");
-const { rollCavingOnArrival, cavingHoldFor, cavingHeldIds } = require("./cavingPass");
+const { rollCavingOnArrival, cavingRestrictionsFor, cavingPartyRestrictions } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG, TIRED_SLUG, EXHAUSTED_SLUG, LUCKY_SLUG } = require("./constants");
 const {
@@ -403,6 +403,20 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     return { ok: false, reason: "You can't walk into another zone." };
   }
 
+  // The Caving Die's two refusals, off one query, and only asked underground —
+  // a TROUBLE row only ever carries a CAVE_LEVEL zone, so on the surface the
+  // answer is always nothing and the query would be a wasted round trip.
+  const underground = currentLocation?.zone?.kind === "CAVE_LEVEL";
+  const caving = underground
+    ? await cavingRestrictionsFor(prisma, character.id, currentLocation.zoneId)
+    : { hold: null, stuck: null };
+  // Ten 1s this turn and they go nowhere at all (docs/systemdocs/CAVING.md
+  // §2e) — every hop, the next room included, which is why this sits OUTSIDE
+  // the crossing branch below where the plain hold lives. Ten unadjudicated
+  // encounters is a dead character whatever they are carrying; the walking is
+  // what farming the loot table needs, and the walking is what this takes.
+  if (caving.stuck) return { ok: false, reason: caving.stuck };
+
   let openTurn = null;
   if (crossedZone) {
     // A 1 on the Caving Die pins them where it happened until the turn ends —
@@ -410,8 +424,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     // and not beside the heldReasonFor gate above, because this one takes the
     // way OUT of the zone and nothing else — walking the level is still free,
     // which is also what lets a party regroup while they wait.
-    const cavingHold = await cavingHoldFor(prisma, character.id, currentLocation.zoneId);
-    if (cavingHold) return { ok: false, reason: cavingHold };
+    if (caving.hold) return { ok: false, reason: caving.hold };
 
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
@@ -463,10 +476,11 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
       const party = await partyOf(prisma, character.id, { tx });
       if (party.length > 0) {
         const mover = await tx.character.findUnique({ where: { id: character.id }, select: ESCORT_SELECT });
-        // Which of them the Caving Die has hold of — one query for the whole party rather than one per follower, and only on a crossing, since that's the only thing the hold takes.
-        const cavingHeld = crossedZone
-          ? await cavingHeldIds(tx, party.map((row) => row.id), currentLocation.zoneId)
-          : new Set();
+        // Which of them the Caving Die has hold of, and which it has stopped outright — one query for the whole party rather than one per follower, and only underground, since a surface follower can have neither. The hold only matters on a crossing; the stop matters on every hop.
+        const cavingParty = underground
+          ? await cavingPartyRestrictions(tx, party.map((row) => row.id), currentLocation.zoneId)
+          : { held: new Set(), stuck: new Set() };
+        const cavingHeld = crossedZone ? cavingParty.held : cavingParty.stuck;
         const coming = [];
         for (const row of party) {
           // Held where they stand — a follower is walked by an updateMany and never comes
@@ -478,7 +492,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
             continue;
           }
           // The Die has hold of them, same shape and reason: a follower never comes past
-          // the mover's own gate, so without this a friend carries the caver out of their own unadjudicated encounter. Its own reason, not "held" (intercept's word) — an unknown reason falls through to the plain "couldn't follow" everywhere it's read.
+          // the mover's own gate, so without this a friend carries the caver out of their own unadjudicated encounter — or, at ten 1s, walks somebody the Die has stopped into the next room. Its own reason, not "held" (intercept's word) — an unknown reason falls through to the plain "couldn't follow" everywhere it's read.
           if (cavingHeld.has(row.id)) {
             outcome.leftBehind.push({ row, reason: "caving" });
             continue;

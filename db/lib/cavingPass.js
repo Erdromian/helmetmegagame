@@ -1,7 +1,10 @@
 // The Caving Die (docs/systemdocs/CAVING.md). One trigger, rollCavingOnArrival(),
 // fires on every CAVE_LEVEL arrival; standing still costs nothing. EVERY
-// arrival rolls uncapped — the walk cooldown (GameConfig.locationMoveCooldownSeconds)
-// is the only brake. Takes `prisma` as a parameter — see db/lib/dm.js for why.
+// arrival rolls — the walk cooldown (GameConfig.locationMoveCooldownSeconds)
+// is the only brake on the ROLLING. The one ceiling is on the 1s: ten TROUBLE
+// rows in a zone on one turn and the caver goes nowhere until the push
+// (cavingRestrictionsFor, below). Takes `prisma` as a parameter — see
+// db/lib/dm.js for why.
 const { drawLoot } = require("./cavingLoot");
 const { addToStack } = require("./tagWrites");
 const { applyMood } = require("./mood");
@@ -15,6 +18,12 @@ function quietDm(die) {
 
 function troubleDm(die) {
   return `Caving Die: ${die} — Something is wrong down here. A GM has been notified.`;
+}
+
+// The tenth 1 of the turn, said in the same DM rather than a second one — the
+// player reads their roll and, in the same breath, that the walking is over.
+function stuckDm(die) {
+  return `${troubleDm(die)} That's ${CAVING_TROUBLE_CAP} this turn. Whatever is down here has you now — you can't go anywhere until the turn ends.`;
 }
 
 function findDm(die, tagName) {
@@ -49,12 +58,18 @@ async function rollCaving(prisma, character, turn, location) {
           resolvedAt: rowKind === "QUIET" ? new Date() : null,
         },
       });
-      if (rowKind === "TROUBLE") await applyMood(tx, character.id, { kind: "CAVE_TROUBLE" });
+      let stuck = false;
+      if (rowKind === "TROUBLE") {
+        await applyMood(tx, character.id, { kind: "CAVE_TROUBLE" });
+        // Counted INSIDE the transaction, after the row lands, so the DM that
+        // says "that's ten" is written by the same roll that made it ten.
+        stuck = (await tx.cavingRoll.count({ where: troubleWhere(character.id, zone.id) })) >= CAVING_TROUBLE_CAP;
+      }
       return {
         roll: row,
         dm: {
           discordUserId: character.discordUserId,
-          content: kind === "TROUBLE" ? troubleDm(die) : quietDm(die),
+          content: kind !== "TROUBLE" ? quietDm(die) : stuck ? stuckDm(die) : troubleDm(die),
         },
       };
     }
@@ -140,7 +155,7 @@ async function rollCavingOnArrival(prisma, character, location) {
   }
 }
 
-// ---- The hold a 1 puts on you --------------------------------------------
+// ---- The hold a 1 puts on you, and the stop ten of them put on you --------
 //
 // A TROUBLE row lands unresolved and waits for a GM. Until this existed the
 // caver did not wait with it — they walked out of the caves and a GM ended up
@@ -160,25 +175,68 @@ async function rollCavingOnArrival(prisma, character, location) {
 // is a hold on LEAVING one zone, not on walking, and a GM who relocates
 // somebody out of the caves has then not also stranded them wherever they
 // land.
+//
+// The STOP is the same query read at a higher number (CAVING.md §2e). Every
+// arrival rolls and nothing caps the rolling, so a caver who kept walking
+// could farm the loot table all turn with ten monsters queued behind them for
+// a GM to invent. At CAVING_TROUBLE_CAP 1s in a zone on the open turn they
+// go nowhere at all — not the next room, not the surface, not a Stepstone —
+// until the push. Ten unadjudicated encounters is a dead character whatever
+// they are carrying, and the walking is what the stop takes. Same scope as
+// the hold, for the same reason: a GM's Teleport out is the adjudication, and
+// must not strand them wherever they land.
+const CAVING_TROUBLE_CAP = 10;
+
 const CAVING_HOLD_REASON =
   "You rolled a 1, so you can't leave the zone until the turn ends and you receive the results of your caving die.";
 
-async function cavingHoldFor(prisma, characterId, zoneId) {
-  if (!characterId || !zoneId) return null;
-  const open = await prisma.cavingRoll.findFirst({
-    where: { characterId, zoneId, kind: "TROUBLE", turn: { status: "OPEN" } },
-    select: { id: true },
-  });
-  return open ? CAVING_HOLD_REASON : null;
+const CAVING_STUCK_REASON = `You've rolled a 1 on the Caving Die ${CAVING_TROUBLE_CAP} times this turn. Whatever is down here has you now — you can't go anywhere until the turn ends.`;
+
+// The whole rule is this WHERE: this character, this zone, a 1, on the turn
+// that is still open. NOT resolvedAt — see the hold's note above.
+function troubleWhere(characterId, zoneId) {
+  return { characterId, zoneId, kind: "TROUBLE", turn: { status: "OPEN" } };
 }
 
-async function cavingHeldIds(prisma, characterIds, zoneId) {
-  if (!zoneId || !characterIds?.length) return new Set();
+// Both answers off one count. `hold` shuts the ways OUT of the zone; `stuck`
+// shuts every way. A stuck caver is always also held — the cap is a count of
+// the very rows the hold reads — so a caller that only asks about crossings
+// can read `hold` and be right.
+async function cavingRestrictionsFor(prisma, characterId, zoneId) {
+  if (!characterId || !zoneId) return { hold: null, stuck: null };
+  const troubles = await prisma.cavingRoll.count({ where: troubleWhere(characterId, zoneId) });
+  return {
+    hold: troubles > 0 ? CAVING_HOLD_REASON : null,
+    stuck: troubles >= CAVING_TROUBLE_CAP ? CAVING_STUCK_REASON : null,
+  };
+}
+
+async function cavingHoldFor(prisma, characterId, zoneId) {
+  return (await cavingRestrictionsFor(prisma, characterId, zoneId)).hold;
+}
+
+// The party question, one query for everybody: which followers the Die has
+// hold of (may not leave the zone) and which it has stopped (may not walk at
+// all). Every stuck id is in `held` too.
+async function cavingPartyRestrictions(prisma, characterIds, zoneId) {
+  const held = new Set();
+  const stuck = new Set();
+  if (!zoneId || !characterIds?.length) return { held, stuck };
   const rows = await prisma.cavingRoll.findMany({
     where: { characterId: { in: characterIds }, zoneId, kind: "TROUBLE", turn: { status: "OPEN" } },
     select: { characterId: true },
   });
-  return new Set(rows.map((r) => r.characterId));
+  const counts = new Map();
+  for (const r of rows) counts.set(r.characterId, (counts.get(r.characterId) ?? 0) + 1);
+  for (const [id, n] of counts) {
+    held.add(id);
+    if (n >= CAVING_TROUBLE_CAP) stuck.add(id);
+  }
+  return { held, stuck };
+}
+
+async function cavingHeldIds(prisma, characterIds, zoneId) {
+  return (await cavingPartyRestrictions(prisma, characterIds, zoneId)).held;
 }
 
 // The push's release valve (docs/systemdocs/CAVING.md §2d).
@@ -230,8 +288,12 @@ async function releaseUnresolvedCavingRolls(prisma, turn) {
 
 module.exports = {
   rollCavingOnArrival,
+  cavingRestrictionsFor,
   cavingHoldFor,
+  cavingPartyRestrictions,
   cavingHeldIds,
   releaseUnresolvedCavingRolls,
   CAVING_HOLD_REASON,
+  CAVING_STUCK_REASON,
+  CAVING_TROUBLE_CAP,
 };

@@ -2,7 +2,7 @@
 const { heldTagSlugs } = require("./roomAccess");
 const { blocksOnFoot, equippedSlugs } = require("./mounts");
 const { heldReasonFor } = require("./intercept");
-const { cavingHoldFor } = require("./cavingPass");
+const { cavingRestrictionsFor } = require("./cavingPass");
 
 // The two endpoints of a link, oriented so `near` is the side you're standing on. Callers only ever want `far`.
 function endpoints(link, locationId) {
@@ -186,14 +186,15 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
         x.location.name.localeCompare(y.location.name),
     );
 
-  // An unresolved 1 on the Caving Die shuts the ways OUT of the zone, leaving the rest of the level open (CAVING.md §2c) — the whole difference from being held, and why it's applied here rather than above. Skipped unless a crossing is on offer to shut, so a picker anywhere but a cave mouth pays nothing.
-  if (character?.id && zoneId && rows.some((row) => row.crossesZone)) {
-    const cavingHold = await cavingHoldFor(prisma, character.id, zoneId);
-    if (cavingHold) {
+  // An unresolved 1 on the Caving Die shuts the ways OUT of the zone, leaving the rest of the level open (CAVING.md §2c) — the whole difference from being held, and why it's applied here rather than above. Ten 1s shut every way (§2e), the next room included, in their own words. One query, and only underground — a TROUBLE row only ever carries a CAVE_LEVEL zone — so a picker anywhere on the surface pays nothing. The crossing fallback keeps the old behaviour for a caller whose links carry no zone kind.
+  const underground = links.length > 0 && endpoints(links[0], locationId).near?.zone?.kind === "CAVE_LEVEL";
+  if (character?.id && zoneId && (underground || rows.some((row) => row.crossesZone))) {
+    const caving = await cavingRestrictionsFor(prisma, character.id, zoneId);
+    if (caving.stuck || caving.hold) {
       for (const row of rows) {
-        if (!row.crossesZone) continue;
+        if (!caving.stuck && !row.crossesZone) continue;
         row.passable = false;
-        row.refusal = cavingHold;
+        row.refusal = caving.stuck ?? caving.hold;
       }
     }
   }
@@ -307,14 +308,16 @@ const ALREADY_THERE = "You're already there.";
 // can see for a reason they cannot.
 //
 // Nothing here re-derives a gate: every edge is judged by crossingCheck, the
-// very verdict performLocationMove reaches again per hop. The Caving Die is
-// deliberately NOT asked — it only ever shuts a way OUT of the zone, which a
-// same-zone walk never crosses, so the mover asks it, in its own words, at the
-// hop that meets it, and a copy here would be a second rule to keep in
-// agreement. A HOLD is asked, once, up front: it shuts every way, adjacent or
-// not (INTERCEPT.md), so a held character has no first hop to take and there
-// is no walk to offer — not a per-edge re-check, just the one predicate
-// resolveNeighbors already calls the same way.
+// very verdict performLocationMove reaches again per hop. The Caving Die's
+// HOLD is deliberately NOT asked — it only ever shuts a way OUT of the zone,
+// which a same-zone walk never crosses, so the mover asks it, in its own
+// words, at the hop that meets it, and a copy here would be a second rule to
+// keep in agreement. Its STOP is asked (CAVING.md §2e), once, up front and
+// only underground, for the reason a HOLD is asked once up front: it shuts
+// every way, adjacent or not, so a stopped character has no first hop to take
+// and there is no walk to offer — not a per-edge re-check, just the one
+// predicate resolveNeighbors already calls the same way. Being held
+// (INTERCEPT.md) is the same shape and asked the same way.
 async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS, graph = null } = {}) {
   const from = character?.locationId ?? null;
   const zoneId = character?.zoneId ?? null;
@@ -369,6 +372,14 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
   // at the place. Everywhere else has to be somewhere they already know.
   const usable = (id) => byId.has(id) && (id === from || knownIds.has(id));
   if (!usable(from)) return [];
+
+  // Ten 1s this turn and there is no walk at all (CAVING.md §2e). Asked only
+  // underground, off the very Location rows just loaded, so a surface walker
+  // pays no query for a rule that cannot apply to them.
+  if (character?.id && byId.get(from)?.zone?.kind === "CAVE_LEVEL") {
+    const caving = await cavingRestrictionsFor(prisma, character.id, zoneId);
+    if (caving.stuck) return [];
+  }
 
   // Equip-shaped, not the flat set: heldTagSlugs returns bare slugs and a stowed
   // an arelitz would read as one you are riding (MAP.md §2c).

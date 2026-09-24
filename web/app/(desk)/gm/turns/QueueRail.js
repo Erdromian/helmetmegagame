@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import DeskRail from "@/app/components/DeskRail";
 import CheckField from "@/app/components/CheckField";
 import StatusPill from "@/app/components/StatusPill";
+import { troubleTallies, tallyLabel } from "@/lib/cavingLabels";
 import Select from "@/app/components/Select";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -284,9 +285,18 @@ function MoveRows({
 }
 
 
-function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "caving" }) {
+// `tallies` is troubleTallies() over the WHOLE turn's rolls, not the filtered
+// list — which 1 of the turn this is only means something against all of them.
+// Ten 1s in a zone stop the caver moving (CAVING.md §2e), and a GM working the
+// queue top-down would otherwise adjudicate the first as an ordinary encounter
+// with no sign the character is, by the game's own count, already as good as
+// dead. `showStuck` is off for History: a past turn's cavers were let go at
+// its push, so the pill would claim a stop that is no longer on them.
+function CavingRows({ rows, tallies, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "caving", showStuck = true }) {
   return rows.map((row) => {
     const active = selected?.type === "caving" && selected.id === row.id;
+    const tally = tallies?.get(row.id) ?? null;
+    const tallyText = tallyLabel(tally);
     return (
       <button
         key={row.id}
@@ -306,10 +316,14 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
             </span>
             <MatchHint match={matchFor(row)} />
           </span>
-          <StatusPill tone={CAVING_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
+          <span className="flex shrink-0 items-center gap-1">
+            {showStuck && tally?.stuck && <StatusPill tone="bad">Stuck</StatusPill>}
+            <StatusPill tone={CAVING_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
+          </span>
         </span>
         <span className="block truncate text-xs text-muted">
           {row.zoneName} · {row.kindLabel}
+          {tallyText && <> · {tallyText}</>}
         </span>
         {row.lootTagName && <span className="block truncate text-xs text-muted">{row.lootTier} → {row.lootTagName}</span>}
       </button>
@@ -780,6 +794,11 @@ export default function QueueRail({
     [historyMoves, inView],
   );
 
+  // Over every roll of the turn, before the zone filter and the search: a 1
+  // counts toward the stop whether or not this GM can see the row.
+  const cavingTallies = useMemo(() => troubleTallies(cavingRolls), [cavingRolls]);
+  const historyCavingTallies = useMemo(() => troubleTallies(historyCavingRolls), [historyCavingRolls]);
+
   const rankedCavingRolls = useMemo(
     () =>
       inView(cavingRolls).map((r) => ({
@@ -1199,12 +1218,14 @@ export default function QueueRail({
               <>
                 <CavingRows
                   rows={historyCavingTable.visible}
+                  tallies={historyCavingTallies}
                   matchFor={historyCavingTable.matchFor}
                   selected={selected}
                   onSelect={onSelect}
                   kbdId={kbdId}
                   kbdLens={lens}
                   lensKey="history"
+                  showStuck={false}
                 />
                 {historyError && <p className="p-3 text-sm form-error">{historyError}</p>}
                 {!historyError && historyLoading && (
@@ -1334,6 +1355,7 @@ export default function QueueRail({
           <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
             <CavingRows
               rows={cavingTable.visible}
+              tallies={cavingTallies}
               matchFor={cavingTable.matchFor}
               selected={selected}
               onSelect={onSelect}

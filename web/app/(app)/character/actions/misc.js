@@ -126,7 +126,7 @@ import {
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import {
   rollCavingOnArrival,
-  cavingHoldFor,
+  cavingRestrictionsFor,
 } from "@lifeweb/db/lib/cavingPass";
 import { revealSurface } from "@lifeweb/db/lib/locationVisits";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -3421,9 +3421,11 @@ export async function stepstoneRequestImpl({ locationId }) {
   // And an unresolved Caving 1 stops it for the same reason one step further
   // on (docs/systemdocs/CAVING.md §2c). The stone only ever lands on the
   // SURFACE, so used from underground it is exactly the crossing the hold
-  // exists to refuse — without this it is the one way out of the dark.
-  const cavingHold = await cavingHoldFor(prisma, character.id, character.zoneId);
-  if (cavingHold) throw new UserError(cavingHold);
+  // exists to refuse — without this it is the one way out of the dark. Ten
+  // 1s say so in their own words (§2e); the stone is a step like any other.
+  const caving = await cavingRestrictionsFor(prisma, character.id, character.zoneId);
+  if (caving.stuck) throw new UserError(caving.stuck);
+  if (caving.hold) throw new UserError(caving.hold);
 
   const targetId = String(locationId ?? "");
   if (!targetId) throw new UserError("Pick somewhere.");

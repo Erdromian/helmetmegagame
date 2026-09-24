@@ -9,6 +9,7 @@ import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
 import CavingDesk from "./CavingDesk";
+import { troubleTallies } from "@/lib/cavingLabels";
 import DesireDesk from "./DesireDesk";
 import OocDesk from "./OocDesk";
 import { getMoveHistory } from "./actions";
@@ -504,6 +505,15 @@ export default function Workspace({
   const selectedCavingTurnLabel = historyCaving
     ? (resolvedTurns?.find((t) => t.id === historyCaving.turnId)?.label ?? null)
     : null;
+  // Which 1 of its turn the open roll is, against that turn's whole list —
+  // the live rows for an open-turn roll, the cached turn's rows for a History
+  // pick (CAVING.md §2e). A plain lookup, not a memo: it is one Map build per
+  // render with a desk open, over one turn's rolls.
+  const selectedCavingTally = selectedCaving
+    ? (troubleTallies(
+        selectedCavingIsLive ? cavingRolls : (historyCache.get(historyCaving?.turnId)?.cavingRolls ?? []),
+      ).get(selectedCaving.id) ?? null)
+    : null;
   // A Desire claim, unlike a Move or Caving roll, is not turn-scoped — it has
   // no live/history split, so this looks straight at the page's own rows
   // (desireRows), the same way otherRows never gets a store or a history arm.
@@ -760,6 +770,7 @@ export default function Workspace({
             <CavingDesk
               key={selectedCaving.id}
               roll={selectedCaving}
+              tally={selectedCavingTally}
               readOnly={!selectedCavingIsLive}
               turnLabel={selectedCavingTurnLabel}
               staged={

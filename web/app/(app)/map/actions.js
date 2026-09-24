@@ -153,9 +153,10 @@ async function buildMap({ character, unfogged }) {
   }
 
   // WAVE B. All three read wave A and nothing from each other. travelOptions
-  // and routesWithinZone are handed `graph`, so between them they make at most
-  // one query (resolveNeighbors's caving hold, and only at a cave mouth) where
-  // they used to make three reads of Location and LocationLink.
+  // and routesWithinZone are handed `graph`, so they make no read of Location
+  // or LocationLink where they used to make three. Underground each still asks
+  // the Caving Die once (cavingRestrictionsFor — the hold and the ten-1s stop),
+  // so a caver's map costs two small counts; on the surface, none.
   const [neighbours, walks, inside] = await Promise.all([
     // Same call the Travel panel makes, so the two never disagree about a hop.
     character?.locationId ? travelOptions(prisma, character, character.locationId, { graph }) : [],

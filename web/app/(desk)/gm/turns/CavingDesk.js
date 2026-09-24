@@ -13,7 +13,8 @@ import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
 import StagingStrip from "./StagingStrip";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
+import StatusPill from "@/app/components/StatusPill";
+import { CAVING_KIND_LABELS, tallyLabel } from "@/lib/cavingLabels";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { resolveCavingRoll, undoCavingFind } from "./actions";
 import { applyDeskPatch } from "./deskStore";
@@ -37,6 +38,9 @@ import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDes
 
 export default function CavingDesk({
   roll,
+  // Which 1 of the turn this is — { nth, total, stuck } from troubleTallies,
+  // or null for a QUIET/FIND (CAVING.md §2e).
+  tally = null,
   staged,
   tagCatalog,
   roster,
@@ -148,8 +152,17 @@ export default function CavingDesk({
             {roll.roleTitle && <>{roll.roleTitle} · </>}
             {roll.locationName ? <>{roll.locationName} · </> : null}
             {roll.zoneName} · ⚀ {roll.die} · {roll.kindLabel ?? CAVING_KIND_LABELS[roll.kind] ?? roll.kind}
+            {tallyLabel(tally) ? <> · {tallyLabel(tally)}</> : null}
             {readOnly && turnLabel ? <> · {turnLabel}</> : null}
           </p>
+          {/* Not on a History pick: the push has already let them go. */}
+          {tally?.stuck && !readOnly && (
+            <p className="mt-1 flex items-center gap-2 text-sm">
+              <StatusPill tone="bad">Stuck</StatusPill>
+              {/* Bascinet's words, verbatim. */}
+              <span>{roll.characterName} has rolled ten 1s this turn and can&apos;t move until move resolution.</span>
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-2">
           <DevCharacterButton
