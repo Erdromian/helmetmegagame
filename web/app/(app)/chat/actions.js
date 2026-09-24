@@ -28,6 +28,7 @@ import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { searchRoom as searchRoomInDb } from "@lifeweb/db/lib/roomSearch";
+import { countHiddenStacks, hiddenCountLine } from "@lifeweb/db/lib/roomStash";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import { parksMounts, hasAttribute } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
@@ -466,9 +467,13 @@ export async function readStash(roomId) {
   // A room you can't get into is a locked door, not an empty one.
   const room = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).find((r) => r.id === roomId);
   if (!room) return { ok: false, error: "You can't get in there." };
+  // What is under the floor, counted in stacks and said before anybody searches (SEARCH.md §9c).
+  const hidden = await countHiddenStacks(prisma, room.id);
   return {
     ok: true,
     name: room.name,
+    hidden,
+    hiddenLine: hiddenCountLine(hidden),
     resources: resourcesOf(room),
     // ⬢ is drawn as its own chip (RoomPanel.js), not as a pickable stack.
     items: (room.tags ?? [])

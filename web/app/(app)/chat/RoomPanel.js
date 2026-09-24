@@ -168,11 +168,13 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
   // inside startTransition (DESIGN-SYSTEM.md §8). A find lands on the floor,
   // not in a pocket, so the stash is re-read and the new chips are Take-able
   // like anything else. The line says what came up; the die is never in it.
+  // The confirm repeats how many things are hidden, which the panel already
+  // shows under the stash, so the price and the prize are read together.
   async function doSearch() {
     const cost = SEARCH_MOVE_LABEL;
     const ask = {
       title: `Search the ${here?.name ?? "room"}?`,
-      message: `Searching takes ${cost} of your Move. Anything you turn up lands on the floor, where you can take it.`,
+      message: `${here?.hiddenLine ? `${here.hiddenLine} ` : ""}Searching takes ${cost} of your Move. Anything you turn up lands on the floor, where you can take it.`,
       confirmLabel: "Search",
     };
     if (!(await confirm(ask))) return;
@@ -211,6 +213,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
       ) : (
         <p className="chat-quiet-line">Looking…</p>
       )}
+      {here?.ok && here.hiddenLine && <p className="chat-quiet-line">{here.hiddenLine}</p>}
       {here?.ok && (
         <div className="chat-buttons chat-buttons--tight">
           {/* One Transfer dialog, three ways in: Drop/Take seed both ends, Transfer assumes nothing. */}
@@ -226,7 +229,8 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
           <button type="button" className="btn-quiet" onClick={transfer}>
             Transfer
           </button>
-          <button type="button" className="btn-quiet" disabled={search.pending} onClick={doSearch}>
+          {/* Nothing hidden is nothing to find; the server refuses it too. */}
+          <button type="button" className="btn-quiet" disabled={search.pending || here.hidden === 0} onClick={doSearch}>
             Search
           </button>
         </div>

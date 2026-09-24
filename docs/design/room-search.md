@@ -128,6 +128,8 @@ draw now) beside Storage. Both call one function in `db/lib/roomSearch.js`.
 - Blocked by anything that blocks `ACT`, and by `blind`.
 - A room with nothing hidden still rolls and still spends the ration. If it
   didn't, a search that came back instantly would tell you the room was empty.
+  *(Reversed 2026-09-25: Storage now says how many things are hidden before
+  anybody searches, and a room with none is refused — `SEARCH.md` §9c.)*
 
 ## 5. The die
 

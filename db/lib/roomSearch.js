@@ -20,6 +20,7 @@ const { RESOURCES_SLUG } = require("./resourceStack");
 const { autoMovesOpen } = require("./turnGate");
 const { checkLedgerMove, spendLedgerMove, lockCharacter } = require("./moveLedger");
 const { SEARCH_MOVE } = require("./roomSearchCost");
+const { hiddenCountLine, countHiddenStacks } = require("./roomStash");
 
 const ROOM_SEARCH_AUDIT_ACTION = "room_search";
 
@@ -121,9 +122,15 @@ function formatStack(row) {
 }
 
 // The searcher's line, and nobody else's. The die is not in it (SEARCH.md §3b).
-function roomSearchReadout({ roomName, found = [] }) {
-  if (found.length === 0) return `You search the ${roomName} and find nothing.`;
-  return `You search the ${roomName}. You find: ${found.map(formatStack).join(", ")}.`;
+// `remaining`, when given, closes it with what is still under the floor —
+// the same count Storage shows, so a second look is priced with it in view.
+function roomSearchReadout({ roomName, found = [], remaining = null }) {
+  const head =
+    found.length === 0
+      ? `You search the ${roomName} and find nothing.`
+      : `You search the ${roomName}. You find: ${found.map(formatStack).join(", ")}.`;
+  if (remaining == null) return head;
+  return `${head} ${hiddenCountLine(remaining, { after: true })}`;
 }
 
 // Everything that can refuse, in one place, so the two faces cannot disagree.
@@ -139,6 +146,11 @@ function roomSearchRefusal(character, room, { admitted = true, turn = null } = {
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) return `You're ${blocker.name}.`;
   if (slugsOf(character.tags).has(BLIND_SLUG)) return "You can't see.";
+  // Last, and only once `room.tags` is loaded (ROOM_SELECT reads the hidden
+  // stacks): the count is shown openly before a search (roomStash.js
+  // #hiddenCountLine), so a search of a room with nothing under its floor
+  // would be a third of a Move spent on a known answer. Refused, free.
+  if (Array.isArray(room.tags) && hiddenStacks(room.tags).length === 0) return "Nothing is hidden here.";
   return null;
 }
 
@@ -187,8 +199,8 @@ const ROOM_SELECT = {
 // rule is asked again, the third of a Move is spent, the search is recorded, the
 // die is thrown and the reveal is written. A refusal anywhere in that
 // transaction rolls the lot back, so a Move is never spent on a search that
-// did not happen. A bad roll rolls nothing back — an empty room and an
-// unlucky one look the same from outside.
+// did not happen. A bad roll rolls nothing back; the searcher is told how
+// many things are still hidden, the same count Storage shows anyone.
 //
 // The room's Discord line is NOT posted here — it is REST, and this runs the
 // reveal inside a transaction. The caller posts `line` through
@@ -287,7 +299,7 @@ async function searchRoom(prisma, { character, roomId, turn, rng = Math.random }
           },
         },
       });
-      return { surfaced };
+      return { surfaced, remaining: await countHiddenStacks(tx, room.id) };
     });
   } catch (err) {
     if (err instanceof Refused) return { ok: false, reason: err.message };
@@ -298,7 +310,7 @@ async function searchRoom(prisma, { character, roomId, turn, rng = Math.random }
     ok: true,
     room: { id: room.id, name: room.name, discordThreadId: room.discordThreadId },
     found: outcome.surfaced,
-    readout: roomSearchReadout({ roomName: room.name, found: outcome.surfaced }),
+    readout: roomSearchReadout({ roomName: room.name, found: outcome.surfaced, remaining: outcome.remaining }),
     line: RUMMAGE_LINE,
   };
 }

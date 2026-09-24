@@ -436,16 +436,25 @@ cannot disagree.
   doing with your hands.
 - Refused by anything that blocks `ACT`, by **Blind**, between sittings
   (`sessionGate`, so Discord and `/chat` refuse alike), and with no turn open.
-- **A room with nothing hidden still rolls and still costs its third of the
-  Move.** If it didn't, the button's behaviour would say the room was empty.
+- **How many things are hidden is said openly, before anybody searches.**
+  Storage (the Discord button) adds a second line — `-# 3 things are hidden
+  here.` or `-# Nothing is hidden here.` — and the `/chat` room panel shows
+  the same line under the stash and repeats it in the Search confirm. The
+  count is of **stacks**, distinct tags with `hiddenQuantity > 0`, because a
+  stack is what a search turns up (`roomStash.js#hiddenCountLine`,
+  `countHiddenStacks`). So a search of a room with nothing hidden is refused,
+  free, rather than charged a third of a Move for a known answer ("Nothing
+  is hidden here."), and the `/chat` button is disabled there.
+  *(Changed 2026-09-25. Until then the count was secret, and an empty room
+  still rolled and still cost the Move, so the button could not give it
+  away.)*
 
 The refusal ladder (`roomSearchRefusal`) runs in full first, then the turn
 gate (`autoMovesOpen`), then a cheap look at the room rule and the Move; only
 then does ONE transaction, under the Character row lock, ask the room rule
 again, spend the third, record the search, throw the die and write the reveal.
 A refusal anywhere inside rolls the lot back, so a Move is never spent on a
-search that did not happen. A bad roll rolls nothing back: from outside, an
-empty room and an unlucky one look the same.
+search that did not happen. A bad roll rolls nothing back.
 
 ### 9d. The die
 
@@ -480,8 +489,10 @@ A GM who wants a gradual find splits the stack across rooms.
 ### 9e. What everyone is told, and what moves
 
 - **The searcher** gets one line: `You search the Fishing Hut. You find:
-  Obol ×14, Flooded Crate.` or `You search the Fishing Hut and find nothing.`
-  The die is never in it.
+  Obol ×14, Flooded Crate. 2 things are still hidden here.` or `You search
+  the Fishing Hut and find nothing. 1 thing is still hidden here.` It closes
+  on the count left under the floor, read inside the transaction; the die is
+  never in it.
 - **The room thread** hears one ambient line through `roomAnnounce.js`, named
   by the face the room saw: `-# A young man rummages through the room.`
   Whether anything was found is not in the line; Storage says that to anyone

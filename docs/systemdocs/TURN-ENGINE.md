@@ -207,12 +207,13 @@ each arrived at by getting them wrong first.
    deleting the row only when the last unit goes. A room row that still has
    units under the floor (`SEARCH.md` §9a) is zeroed and kept instead.
 
-   **Then the floors settle** (`floorSettle`, `db/lib/floorSettle.js`): every
-   stack a character left in a public room that has lain there through a
-   whole in-game day sinks under the floor, measured against the day the next
-   turn opens on (`CARRY.md` §6a). After the sweep, so a stack whose clock ran
-   out is gone rather than sunk. One statement; a sunk stack loses its stamp,
-   so a resumed run finds nothing twice.
+   **Then the floors settle** (`floorSettle`, `db/lib/floorSettle.js`): a
+   loose object a character left in a public room that has lain there through
+   a whole in-game day sinks under the floor, measured against the day the
+   next turn opens on, one at a time and only while the room shows three or
+   more stacks (`CARRY.md` §6a). After the sweep, so a stack whose clock ran
+   out is gone rather than sunk. A sunk stack loses its stamp, so a resumed
+   run finds nothing twice.
 7. **Catatonic (AFK) pass** (`db/lib/catatonicPass.js`) — every ALIVE
    character's `lastActivityTurn` checked against `GameConfig.catatonicTurns`.
    Slotted **after** the sweep for the same reason Hunger is below: it reads

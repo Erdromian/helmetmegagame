@@ -20,6 +20,7 @@ const {
   otherRoomRefusal,
 } = require("../lib/roomSearch");
 const { SEARCH_MOVE_LABEL } = require("../lib/roomSearchCost");
+const { hiddenCountLine, formatStashLine } = require("../lib/roomStash");
 
 const held = (...slugs) => slugs.map((slug) => ({ tag: { slug, name: slug } }));
 const row = (slug, hiddenQuantity, name = slug) => ({ id: `rt-${slug}`, tagId: `t-${slug}`, hiddenQuantity, tag: { slug, name } });
@@ -90,6 +91,25 @@ test("the refusal ladder: dead, gone, elsewhere, locked out, no turn, blocked, b
   assert.equal(roomSearchRefusal(me(), room, { turn: null }), "No turn is open.");
   assert.equal(roomSearchRefusal(me({ tags: held("blind") }), room, { turn }), "You can't see.");
   assert.equal(roomSearchRefusal(me(), room, { turn }), null);
+  // The count is shown before a search, so a room known to be empty is refused, free.
+  assert.equal(roomSearchRefusal(me(), { ...room, tags: [] }, { turn }), "Nothing is hidden here.");
+  assert.equal(roomSearchRefusal(me(), { ...room, tags: [row("rock", 1)] }, { turn }), null);
+});
+
+test("the readout closes on what is still under the floor", () => {
+  assert.equal(roomSearchReadout({ roomName: "Fishing Hut", found: [], remaining: 2 }), "You search the Fishing Hut and find nothing. 2 things are still hidden here.");
+  assert.equal(roomSearchReadout({ roomName: "Fishing Hut", found: [], remaining: 1 }), "You search the Fishing Hut and find nothing. 1 thing is still hidden here.");
+  assert.equal(roomSearchReadout({ roomName: "Fishing Hut", found: [row("obol", 14, "Obol")], remaining: 0 }), "You search the Fishing Hut. You find: Obol ×14. Nothing else is hidden here.");
+});
+
+test("Storage says how many things are hidden, in stacks, before anybody searches", () => {
+  assert.equal(hiddenCountLine(0), "Nothing is hidden here.");
+  assert.equal(hiddenCountLine(1), "1 thing is hidden here.");
+  assert.equal(hiddenCountLine(4), "4 things are hidden here.");
+  const room = { tags: [{ quantity: 2, tag: { name: "Rock", slug: "rock" } }] };
+  assert.equal(formatStashLine(room), "-# 0 ⬢ | **Tags**: Rock ×2");
+  assert.equal(formatStashLine(room, { hidden: 3 }), "-# 0 ⬢ | **Tags**: Rock ×2\n-# 3 things are hidden here.");
+  assert.equal(formatStashLine({ tags: [] }, { hidden: 0 }), "-# Nothing is stored here.\n-# Nothing is hidden here.");
 });
 
 

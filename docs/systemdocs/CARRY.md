@@ -531,15 +531,31 @@ and from then on only a Search (`SEARCH.md` §9) brings it back up.
   coin, a Stable's foals, a structure's yield and a train's freight stay
   where they were put.
 - **The settle.** A turn pass, `floorSettle` (`TURN-ENGINE.md` §2), right
-  after the expiry sweep, sinks every stamped stack whose day is two or more
+  after the expiry sweep, sinks a stamped stack whose day is two or more
   behind the day the next turn opens on. Left on day 5, it is still there all
-  of day 6 and gone when day 7 begins — at least one full day in view, never
-  more than two. The stamp is cleared as it sinks, and when the floor count
-  runs out (a Take, a Steal).
-- **What never sinks**, even stamped: anything in a keyed room, the
-  Spillway, a Stable (the arelitz pass counts the herd on the floor), a
-  corpse (burial, rot and the death smell look for it there), and a stack on
-  an expiry clock, which rots in plain sight instead — so hidden stock never
+  of day 6 and can go when day 7 begins — at least one full day in view. The
+  stamp is cleared as it sinks, and when the floor count runs out (a Take, a
+  Steal).
+- **Only out of clutter.** A stack sinks only while the room shows **three
+  or more** stacks on its floor, counting itself and counting everything
+  there — ⬢, an arelitz, things that never sink. One at a time, oldest drop
+  first, each one taking one off the count, so a floor is never swallowed
+  below two things: two things lying in a room are two things anybody would
+  see. A stack held back keeps its stamp and goes on a later turn if the room
+  fills up. The pass counts each floor under that Room's row lock, so a Take
+  landing mid-pass is counted, not raced (`floorSettle.js#planSettle`).
+- **Only loose objects sink** (`floorSettle.js#canSink`): the Items
+  category, ⬢ and coin included. Never an **asset** — an arelitz or a
+  youngling, a dog, a hound, a monkey, a bird, a rat, a cart — and never a
+  **building** (every `placement:` tag: the forge, a watchtower, the
+  gallows). Never a **corpse** of either kind (`corpseKind`): burial, rot,
+  butchering and the death smell look for it on the floor. And never
+  anything of **40 lb or more**, too big to lose: the Workshop and Packaging
+  Equipment, plate and cataphract armour, the flamethrower, the spacesuit,
+  the device.
+- **Where nothing sinks**, even stamped: a keyed room, the Spillway, a Stable
+  (the arelitz pass counts the herd on the floor). Nor does a stack on an
+  expiry clock, which rots in plain sight instead — so hidden stock never
   carries a clock, which is what the expiry sweep relies on.
 - **Poison sinks with it.** `RoomTag.hiddenPoisonedCount` is
   `poisonedCount`'s twin: the poisoned units go under with the rest, the
@@ -548,7 +564,8 @@ and from then on only a Search (`SEARCH.md` §9) brings it back up.
   left on the shelf.
 
 The pass writes one `floor_settled` audit row a turn, naming the stacks it
-moved. Nobody is told in game; the next person to press Storage sees less.
+moved. Nobody is told in game; the next person to press Storage sees less
+on the shelf, and a higher count on the line under it.
 
 The stash survives the message wipe (it lives in the database, not the thread),
 is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag`, ⬢

@@ -4954,8 +4954,8 @@ model PickpocketAttempt {
 // same room again (each costs a third of the Move, so three times at most),
 // but never a second room. db/lib/roomSearch.js checks it under the Character
 // row lock, which serializes every share-of-a-Move verb, so no unique index —
-// several rows for one room are all legal. Written whether or not anything was found, so
-// an empty room cannot be told apart from an unlucky roll.
+// several rows for one room are all legal. Written whether or not anything
+// was found.
 //
 // Not an Offer: a room is never asked, so there is no consent handshake, no
 // DM with buttons and nothing in anybody's waiting-on-you list.

@@ -152,10 +152,10 @@ const ROOM_AFFORDANCES = [
   },
   { id: "storage", label: "Storage", tone: PLAIN, prefix: ROOM_STORAGE_PREFIX },
   // Going through the room for what is under the floor (SEARCH.md §9). On
-  // every room like Storage is: a room with nothing hidden still rolls, or the
-  // button's absence would say so. The price is in the label, because a
-  // Discord button has no confirm step and this one spends a third of the
-  // Move — a player should never learn that from the refusal.
+  // every room like Storage is; Storage is what says how many things are
+  // hidden, and a search of a room with none is refused. The price is in the
+  // label, because a Discord button has no confirm step and this one spends a
+  // third of the Move — a player should never learn that from the refusal.
   { id: "search", label: `Search (${SEARCH_MOVE_LABEL} Move)`, tone: PLAIN, prefix: ROOM_SEARCH_PREFIX },
   {
     id: "intercom",
