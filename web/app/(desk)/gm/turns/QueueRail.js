@@ -289,8 +289,9 @@ function MoveRows({
 // Ten 1s in a zone stop the caver moving (CAVING.md §2e), and a GM working the
 // queue top-down would otherwise adjudicate the first as an ordinary encounter
 // with no sign the character is, by the game's own count, already as good as
-// dead.
-function CavingRows({ rows, tallies, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "caving" }) {
+// dead. `showStuck` is off for History: a past turn's cavers were let go at
+// its push, so the pill would claim a stop that is no longer on them.
+function CavingRows({ rows, tallies, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "caving", showStuck = true }) {
   return rows.map((row) => {
     const active = selected?.type === "caving" && selected.id === row.id;
     const tally = tallies?.get(row.id) ?? null;
@@ -315,7 +316,7 @@ function CavingRows({ rows, tallies, matchFor, selected, onSelect, kbdId, kbdLen
             <MatchHint match={matchFor(row)} />
           </span>
           <span className="flex shrink-0 items-center gap-1">
-            {tally?.stuck && <StatusPill tone="bad">Stuck</StatusPill>}
+            {showStuck && tally?.stuck && <StatusPill tone="bad">Stuck</StatusPill>}
             <StatusPill tone={CAVING_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
           </span>
         </span>
@@ -1222,6 +1223,7 @@ export default function QueueRail({
                   kbdId={kbdId}
                   kbdLens={lens}
                   lensKey="history"
+                  showStuck={false}
                 />
                 {historyError && <p className="p-3 text-sm form-error">{historyError}</p>}
                 {!historyError && historyLoading && (

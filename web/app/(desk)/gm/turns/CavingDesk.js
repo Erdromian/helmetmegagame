@@ -155,7 +155,8 @@ export default function CavingDesk({
             {tallyLabel(tally) ? <> · {tallyLabel(tally)}</> : null}
             {readOnly && turnLabel ? <> · {turnLabel}</> : null}
           </p>
-          {tally?.stuck && (
+          {/* Not on a History pick: the push has already let them go. */}
+          {tally?.stuck && !readOnly && (
             <p className="mt-1 flex items-center gap-2 text-sm">
               <StatusPill tone="bad">Stuck</StatusPill>
               {/* Bascinet's words, verbatim. */}

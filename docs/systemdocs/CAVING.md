@@ -426,7 +426,9 @@ Rows show the die face, the kind, the character, the zone, and — for a `FIND`
 — the tier and what was found. A `TROUBLE` row that is one of several for the
 same character in the same zone also says which — *"3rd 1 this turn"* — and
 at ten (§2e) every one of them wears a **Stuck** pill, with the desk header
-saying so in a sentence. The count is `troubleTallies` in
+saying so in a sentence. The pill and the sentence are for the open turn only:
+History keeps the count but drops both, since that turn's push already let the
+caver go. The count is `troubleTallies` in
 `web/lib/cavingLabels.js`, recomputed from the rows the desk already holds
 rather than fetched, so the live stream keeps it current; that module carries
 its own copy of `CAVING_TROUBLE_CAP`, since `cavingPass.js` cannot reach a
