@@ -254,49 +254,59 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
   return granted;
 }
 
-// --- Stupid supersedes Slow ------------------------------------------------
-// Slow and Stupid answer the same question — can this person learn, can they
-// read — and Stupid is the harder answer. Holding both says nothing the
-// second one doesn't already say, and it would let a character sell the same
-// limitation twice at creation. So gaining Stupid takes Slow off.
+// --- A tag that takes another off when gained ------------------------------
+// `conflictsWith` refuses a PURCHASE; it never strips anything. These are the
+// pairs where gaining the first tag, by any route, should take the second one
+// off instead:
 //
-// Done here rather than as a catalog field because it is one pair, not a
-// mechanic: `conflictsWith` refuses a PURCHASE, it never strips anything, and
-// a whole `removesTags:` column for a single edge is more machinery than the
-// rule is worth. If a second pair ever wants this, that is the moment to make
-// it a field.
+// - Stupid takes Slow. They answer the same question (can this person learn,
+//   can they read) and Stupid is the harder answer. Holding both says nothing
+//   the second one doesn't already say, and it would let a character sell the
+//   same limitation twice at creation.
+// - Mute takes Subtle. Subtle whispers unheard, and a Mute cannot whisper.
+//   The two also conflict, so Subtle can't be bought back while Mute.
+// - Night Eyes takes Night Blind. A vampire may buy perfect sight in the dark
+//   whatever their eyes were before, so the two deliberately do NOT conflict:
+//   an edge would refuse that purchase at the /store.
+//
+// Kept here rather than as a catalog field while the list is this short; a
+// `removesTags:` column would be a schema change for three lines. Every grant
+// path reaches this: addToStack for a new row and grantTagSlugs for a slug list.
 //
 // The ids are cached the way pricedTags.js caches its own: a tag id is stable
 // for the life of a database, and a TTL picks up a `db:sync-tags` run without
 // a restart.
-const STUPID_SLUG = "stupid";
-const SLOW_SLUG = "slow";
+const SUPERSEDES = Object.freeze({
+  stupid: ["slow"],
+  mute: ["subtle"],
+  "night-eyes": ["night-blind"],
+});
 const SUPERSEDE_TTL_MS = 5 * 60 * 1000;
-let supersedeIds = null; // { stupidId, slowId }
+let supersedeIds = null; // Map: superseding tag id -> [superseded tag ids]
 let supersedeLoadedAt = 0;
 
-async function supersedePair(tx) {
+async function supersedeMap(tx) {
   if (supersedeIds && Date.now() - supersedeLoadedAt < SUPERSEDE_TTL_MS) return supersedeIds;
-  const rows = await tx.tag.findMany({
-    where: { slug: { in: [STUPID_SLUG, SLOW_SLUG] } },
-    select: { id: true, slug: true },
-  });
-  supersedeIds = {
-    stupidId: rows.find((r) => r.slug === STUPID_SLUG)?.id ?? null,
-    slowId: rows.find((r) => r.slug === SLOW_SLUG)?.id ?? null,
-  };
+  const slugs = [...new Set(Object.entries(SUPERSEDES).flat(2))];
+  const rows = await tx.tag.findMany({ where: { slug: { in: slugs } }, select: { id: true, slug: true } });
+  const idOf = new Map(rows.map((r) => [r.slug, r.id]));
+  supersedeIds = new Map();
+  for (const [slug, removes] of Object.entries(SUPERSEDES)) {
+    const ids = removes.map((s) => idOf.get(s)).filter(Boolean);
+    if (idOf.has(slug) && ids.length) supersedeIds.set(idOf.get(slug), ids);
+  }
   supersedeLoadedAt = Date.now();
   return supersedeIds;
 }
 
 // Call after any grant, with whatever tag ids were just written. A no-op
-// unless Stupid was one of them and the character is actually holding Slow.
+// unless one of them supersedes a tag the character is actually holding.
 async function applySupersededTags(tx, characterId, grantedTagIds) {
   if (!characterId || !grantedTagIds?.length) return;
-  const { stupidId, slowId } = await supersedePair(tx);
-  if (!stupidId || !slowId) return;
-  if (!grantedTagIds.includes(stupidId)) return;
-  await dropCharacterTag(tx, characterId, slowId);
+  const map = await supersedeMap(tx);
+  for (const tagId of grantedTagIds) {
+    for (const removeId of map.get(tagId) ?? []) await dropCharacterTag(tx, characterId, removeId);
+  }
 }
 
 // --- Room stashes (docs/systemdocs/CARRY.md) ---------------------------

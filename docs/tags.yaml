@@ -1104,7 +1104,8 @@ tags:
     group: general-traits
     description: "This person is too slow to learn. You can't learn skills, and you can't read."
     pointCost: -6
-    conflictsWith: [literacy]
+    # Intelligent joins Literacy here: too slow to learn is the inverse of it.
+    conflictsWith: [literacy, intelligent]
     purchasable: true
     purchasableAfterStart: false
 
@@ -1130,7 +1131,8 @@ tags:
     description: "Not a good thing to be in Ravenheart."
     fighting: { situational: true }
     pointCost: -2
-    conflictsWith: [light-sleeper]
+    # A deep sleeper is not also one who keeps waking up Exhausted.
+    conflictsWith: [light-sleeper, insomniac]
     purchasable: true
     purchasableAfterStart: false
 
@@ -1173,6 +1175,12 @@ tags:
       - prudish
       - hot-headed
       - corrupt
+      # Each gated in docs/desires.yaml, or (Manic) worthless with every
+      # Desire locked.
+      - dancer
+      - pilgrim
+      - fundamentalist
+      - manic
     desires:
       locks:
         - all: true
@@ -1596,7 +1604,11 @@ tags:
     description: "Your priority in conflicts is to run away, no matter what goals or people you trample over. Locks all courage-related Desires. If you act bravely, a GM may bonk you."
     fighting: { tree: both, tiers: -0.4 }
     pointCost: -3
-    conflictsWith: [brave]
+    # Relentless will not give up in a fight; Craven runs from one. Brave was
+    # already here; the sync mirrors both edges. Reckless Attacker puts
+    # everything on the line in a fight and Death Wish goes looking for the
+    # edge, both the opposite of running.
+    conflictsWith: [brave, relentless, reckless-attacker, death-wish]
     purchasable: true
     purchasableAfterStart: false
     desires:
@@ -1626,7 +1638,8 @@ tags:
     description: "You're loud and lack grace."
     fighting: { tree: both, tiers: -0.7 }
     pointCost: -5
-    conflictsWith: [stealth]
+    # "Loud and lack grace" against a fantastic dancer.
+    conflictsWith: [stealth, dancer]
     purchasable: true
     purchasableAfterStart: false
 
@@ -1701,10 +1714,13 @@ tags:
     description: "Things get blurry past arm's length. Forget aiming! Make sure you have {tag:spectacles}."
     fighting: { tree: ranged, tiers: -0.7 }
     pointCost: -5
-    conflictsWith: [eagle-eyes]
+    # "Forget aiming!" rules out the long-range specialist too.
+    conflictsWith: [eagle-eyes, ranged-sniper]
     purchasable: true
     purchasableAfterStart: false
 
+  # Keen Hearing is this one's exact inverse; conflictsWith runs both ways
+  # once synced, so the edge is authored here on the drawback side only.
   hard-of-hearing:
     catalog: all
     name: Hard of Hearing
@@ -1713,6 +1729,7 @@ tags:
     description: "Eh? What's that? You can't hear very well."
     fighting: { tree: both, tiers: -0.5 }
     pointCost: -4
+    conflictsWith: [keen-hearing]
     purchasable: true
     purchasableAfterStart: false
 
@@ -1795,6 +1812,10 @@ tags:
     description: "You will never attack someone except in self defense. And even in self defense, you won't kill. Fighting disgusts you. Locks all violent Desires, but unlocks a few of its own."
     fighting: { situational: true }
     pointCost: 0
+    # Never attacks first: Hot-Headed picks fights, Guerrilla only works when
+    # you open one with a surprise attack, and Cruel sits with Torturer, which
+    # already refuses this.
+    conflictsWith: [hot-headed, guerrilla, cruel]
     purchasable: true
     purchasableAfterStart: true
     desires:
@@ -1920,6 +1941,8 @@ tags:
     group: general-personality
     description: "You disapprove of drinking, doping, gambling, and whoring, and you intend to let everybody know. Locks Desires about all four, but gives you some new ones."
     pointCost: -2
+    # Bacchus the Shameless is everything this one disapproves of.
+    conflictsWith: [old-ways-bacchus]
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1935,6 +1958,10 @@ tags:
     description: "You possess an intense fear of uncontrolled fire."
     fighting: { tree: both, tiers: -0.3, situational: true }
     pointCost: -2
+    # Imperturbable pins the dial at Fine and Amor Fati replaces the whole
+    # multiplier chain (db/lib/mood.js), so beside either one a phobia refunds
+    # its points and never bites. Same edge on all five phobias.
+    conflictsWith: [imperturbable, amor-fati]
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1950,6 +1977,7 @@ tags:
     description: "Blood, especially your own blood, makes you dizzy…"
     fighting: { tree: both, tiers: -0.5, situational: true }
     pointCost: -4
+    conflictsWith: [imperturbable, amor-fati]
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1961,6 +1989,9 @@ tags:
     group: general-personality
     description: "Being outside makes you uncomfortable."
     pointCost: -4
+    # Outsider zeroes the wilderness hit this one doubles, so together it is
+    # 4 points for nothing. Rough Camper (×0.5 against ×2) was left alone.
+    conflictsWith: [outsider, imperturbable, amor-fati]
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1972,6 +2003,9 @@ tags:
     group: general-personality
     description: "You possess an intense fear of enclosed spaces."
     pointCost: -3
+    # Spelunker zeroes the cave hit this one doubles: the Agoraphobia and
+    # Outsider case, underground.
+    conflictsWith: [spelunker, imperturbable, amor-fati]
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -1984,6 +2018,7 @@ tags:
     description: "You possess an intense fear of monsters and unnatural creatures."
     fighting: { tree: both, tiers: -0.3, situational: true }
     pointCost: -2
+    conflictsWith: [imperturbable, amor-fati]
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -2148,6 +2183,8 @@ tags:
 
   # Unrelated to the `stupid` health tag, which is Squeeze damage and garbles
   # speech in db/lib/babble.js. This one is prose a GM weighs, nothing more.
+  # Intelligent is this one's inverse; the edge is authored here on the
+  # drawback side and mirrored by the sync.
   dense:
     catalog: all
     name: Dense
@@ -2155,6 +2192,7 @@ tags:
     group: general-traits
     description: "You are somewhat stupid."
     pointCost: -3
+    conflictsWith: [intelligent]
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -2238,6 +2276,8 @@ tags:
     group: general-beliefs
     description: "You have abstained from choosing a religion, a choice in its own right."
     pointCost: 0
+    # Pilgrim sits outside the one-Belief rule, so it is named here.
+    conflictsWith: [pilgrim]
     purchasable: true
     purchasableAfterStart: true
     exclusive: true
@@ -2363,6 +2403,9 @@ tags:
     # Migrants only: Pale is the Migrant role's starting tag and is
     # purchasable: false, so nobody else can pick it up.
     requiredTag: pale
+    # Cannot fight at all, so nothing that picks a fight or refuses to leave
+    # one, and nothing cruel (Torturer already refuses this).
+    conflictsWith: [hot-headed, relentless, cruel]
     purchasable: true
     purchasableAfterStart: true
 
@@ -2503,6 +2546,9 @@ tags:
     group: general-traits
     description: "You're unlucky. Your Gambits are rolled with disadvantage."
     pointCost: -6
+    # Holding both used to be a wash on the die (db/lib/gambitDie.js); now the
+    # pair is simply refused. Authored here, mirrored onto Lucky by the sync.
+    conflictsWith: [lucky]
     visible: false
     purchasable: true
     purchasableAfterStart: false
@@ -2683,6 +2729,8 @@ tags:
     group: general-traits
     description: "The Cerberon know your face and have a reward on your head."
     pointCost: -5
+    # Sergeant is a Cerberon rank, and the Cerberon want this one's head.
+    conflictsWith: [sergeant]
     # named, not true: they know your FACE. A hood or a Disguise Kit's false
     # name takes this off the read, which is what makes either worth buying.
     visible: named
@@ -5510,7 +5558,9 @@ tags:
     description: "You can't see."
     fighting: { tree: both, tiers: -2 }
     pointCost: -8
-    conflictsWith: [nearsighted, eagle-eyes]
+    # Night Eyes is a vampire boon (perfect sight in the dark) and Ranged:
+    # Sniper picks foes off at long range; neither means anything blind.
+    conflictsWith: [nearsighted, eagle-eyes, night-eyes, ranged-sniper]
     visible: true
     purchasable: true
     purchasableAfterStart: false
@@ -5544,7 +5594,10 @@ tags:
     visible: true
     purchasable: false
     purchasableAfterStart: false
-    conflictsWith: [stutter, mimes-vow]
+    # Subtle whispers unheard, and a Mute cannot whisper. The edge refuses
+    # buying Subtle while Mute; gaining Mute also takes Subtle off
+    # (db/lib/tagWrites.js#applySupersededTags).
+    conflictsWith: [stutter, mimes-vow, subtle]
 
   # --- Maiming -----------------------------------------------------------
 
@@ -5558,6 +5611,7 @@ tags:
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
     carryBonus: -0.1
+    conflictsWith: [quick-footed]
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5668,6 +5722,9 @@ tags:
     fighting: { tree: both, tiers: -1 }
     pointCost: -7
     carryBonus: -0.1
+    # You can hardly walk on it. Gained in play, so this stops a /store
+    # purchase of Quick-Footed while it is held. Limp, its cure, is left alone.
+    conflictsWith: [quick-footed]
     visible: true
     purchasable: false
     purchasableAfterStart: false
@@ -5777,6 +5834,8 @@ tags:
     purchasableAfterStart: false
     # Blind's removesInto lands here, so the two are the same eye at two
     # depths — holding both would be paying twice for one pair of eyes.
+    # Night Eyes is NOT an edge here on purpose: a vampire may buy it, and
+    # doing so takes this tag off (db/lib/tagWrites.js#applySupersededTags).
     conflictsWith: [blind]
 
   # Not purchasable: this is what the burn and pox chains HEAL INTO
