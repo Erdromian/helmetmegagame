@@ -261,6 +261,32 @@ test("a recorded thread absent from the active-thread snapshot is a finding, nev
   assert.match(missing[0].problem, /may just be archived/);
 });
 
+// diffThread used to be handed no prisma and read it anyway, so both of these
+// threw a ReferenceError out of buildOps and took the whole mirror run down
+// with them. Every other test here passes prisma: null and a world where the
+// threads already match, which is why none of them ever reached this far.
+test("a room starter that moved is a runnable rewrite op", () => {
+  const { rows } = provisioned();
+  rows.rooms = rows.rooms.map((r) => ({ ...r, postHash: "an older starter" }));
+  const desired = buildDesired(rows);
+
+  const { ops } = buildOps({ desired, live: liveFrom(desired), prisma: {} });
+  const rewrite = ops.filter((o) => o.targetId === "thread:room:r1");
+  assert.deepEqual(rewrite.map((o) => o.kind), ["rewrite"]);
+  assert.equal(typeof rewrite[0].run, "function");
+});
+
+test("a room with no thread yet is a runnable create op", () => {
+  const { rows } = provisioned();
+  rows.rooms = rows.rooms.map((r) => ({ ...r, discordThreadId: null, starterMessageId: null }));
+  const desired = buildDesired(rows);
+
+  const { ops } = buildOps({ desired, live: liveFrom(desired), prisma: {} });
+  const create = ops.filter((o) => o.targetId === "thread:room:r1");
+  assert.deepEqual(create.map((o) => o.kind), ["create"]);
+  assert.equal(typeof create[0].run, "function");
+});
+
 test("the radio channel's name never drifts on the dot Discord may have stripped", () => {
   for (const storedName of ["27.065", "27065"]) {
     const { desired } = provisioned();

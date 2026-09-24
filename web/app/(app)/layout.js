@@ -1,5 +1,4 @@
 import { redirect } from "next/navigation";
-import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { touchLastSeen } from "@lifeweb/db/lib/characterActivity";
 import { getGmSession } from "@/lib/discordGuild";
@@ -26,11 +25,17 @@ export default async function AppLayout({ children }) {
   if (!inGuild) redirect("/");
 
   // The "online" badge's clock (db/lib/whosHere.js) — any page view in this
-  // group counts as "used the website," Bascinet's call. After the response,
-  // not before it: a page render should never wait on this. touchLastSeen
-  // is itself debounced and swallows its own errors, so a hiccup here can
-  // never surface as a broken page.
-  after(() => touchLastSeen(prisma, session.discordUserId));
+  // group counts as "used the website," Bascinet's call. Not awaited: a page
+  // render should never wait on this. touchLastSeen is itself debounced and
+  // swallows its own errors, so a hiccup here can never surface as a broken
+  // page.
+  //
+  // NOT after(). Calling after() during a render tells Next to mark that
+  // render finished once the response closes. When a player navigates away or
+  // a load is cut off part-way, the page is often still rendering, and the
+  // next auth() or headers() anywhere under it throws "used headers() inside
+  // after()". /chat's waitingOnYou hit it.
+  void touchLastSeen(prisma, session.discordUserId);
 
   // No turn chip here any more. It used to be a bubble pinned to the corner of
   // the viewport for every route in this group, hidden by CSS on Chat because
