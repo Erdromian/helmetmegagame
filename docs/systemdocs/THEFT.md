@@ -120,9 +120,11 @@ gate already read that column, so nothing new had to learn about it: the ways
 out draw shut with *"You were caught stealing. You can't leave for another
 Ns."*, an escort cannot carry them off, and the Charon stone refuses them.
 
-**This is the only theft hold in the game.** A successful Steal holds nobody,
-no Pickpocket band holds anybody (§2), and taking from a room with Transfer
-holds nobody either.
+**Two theft holds share this reason.** A successful Steal holds nobody, and
+taking from a room with Transfer holds nobody either. The other writer is a
+**failed Pickpocket** (§2g), and it differs in one column: the victim is
+`heldById`, because a person can hold a thief the way a stash cannot. Either
+way, a caught hand also stays out of pockets until the clock runs (§2g).
 
 Four things follow from reusing the hold rather than inventing one:
 
@@ -163,6 +165,8 @@ tag (§3), costs no Move, and is rationed: **once per person per turn**, spent
 by reaching in whether or not it works.
 
 - Both sides at the same Location, both alive, neither blocked from `ACT`.
+- **Neither side in a running fight**, and the thief not under a caught hold
+  (§2g). Both are re-checked at the take as well as at the roll.
 - **A hood refuses nothing**, either end — `allowConcealed: true`, the Search
   posture (`SEARCH.md` §2a). A hood hides who you are, not what is in your
   pockets. Every line either side reads names people by the face the room saw.
@@ -176,7 +180,7 @@ Read off the die **plus** Skilled's +1:
 |---|---|
 | 4+ | **clean.** They are told nothing at all. |
 | 2–3 | **noticed.** You get the goods, and they are DM'd that you picked them. |
-| 1 | **failed.** Nothing moves, and they are DM'd that you tried and failed. |
+| 1 | **failed.** Nothing moves, they are DM'd that you tried and failed, and **you are stuck there for 5 minutes, held by them** (§2g). |
 
 The middle band is the whole texture, and collapsing it into a plain pass/fail
 is the easy accident — a verb that only ever succeeded silently or failed
@@ -302,12 +306,59 @@ happens here, and `ROBBED` especially must not: a mood hit on a clean roll
 would be a tell, and would give away a theft the die had just bought silence
 for. If a mood hit is ever wanted, it belongs on the **noticed** band alone.
 
-### 2g. No band holds anybody
+### 2g. A failed pickpocket is held by its victim, and a caught hand stays out of pockets
 
-A pickpocket is never pinned where they stand, on any roll. The victim is
-DM'd on a noticed or failed roll and answers the way anyone answers anyone:
-words, or an Attack, which holds both sides to the end of the turn. The one
-theft hold in the game is a failed Steal's (§1e).
+The failed band writes the same 5-minute hold a noticed Steal does (§1e) —
+`Character.heldUntil`, `heldReason: "caught"`, through `holdWhereTheyStand` —
+with one difference that changes who is in charge of it: **`heldById` is the
+target.** A stash has no owner, so a caught Steal is held by nobody; a
+pickpocket's victim is a person, so they hold the thief the way an interceptor
+holds a catch.
+
+That buys the victim the whole intercept toolkit for free (`INTERCEPT.md` §3):
+
+- **Let them go** — the thief shows up in the victim's Intercept dialog
+  holding list with the ordinary Release button.
+- **Walking off frees them**, and so does the victim dying. You cannot keep a
+  hand on a shoulder from the next Location.
+- **An Attack from the victim** holds both sides to the end of the turn, since
+  a longer hold always beats a shorter one.
+
+`holdWhereTheyStand`'s two rules apply unchanged: a hold already running
+longer is left alone, and a running fight is never overwritten. The DM says
+so only when the hold actually landed: *"…tried to pickpocket you, but failed!
+They won't get far for the next 5 minutes — you have hold of them."* A thief
+already held longer gets the first sentence alone. Only a **fresh** roll
+writes the hold; a reopened dialog rolled nothing and must not extend it.
+
+**While caught, the thief may not pick another pocket.** The hold takes
+movement everywhere else in the game (`INTERCEPT.md` §3); this is the one
+verb it takes besides. Without it, a thief pinned for five minutes would
+spend the wait working the rest of the room, which is the opposite of what
+being caught is for. `pickpocketAuthority` reads
+`intercept.js#caughtSecondsLeft` — pure, the same strict clock as
+`heldReasonFor` — and refuses with *"You were caught stealing. You can't pick
+a pocket for another Ns."* It keys on the `caught` reason, not on who holds
+it, so a Steal the room saw (§1e) shuts the hand the same way. An intercept
+or ambush hold does not: those take your feet, not your fingers.
+
+**Nobody picks a pocket in the middle of a fight, on either side of it.** The
+same gate reads `intercept.js#inFight` for both parties — a running hold
+carrying `attack` or `attacking` — and refuses with *"You're in a fight."* or
+*"Lord Greeblus is in a fight."* A lapsed fight that still carries its reason
+(the turn advance clears nothing) is no fight. `PICKPOCKET_SELECT` has to
+carry `heldUntil` and `heldReason` for this; drop them and every target reads
+as never fighting.
+
+Both refusals run at the **take** as well as at the roll, since the take
+re-runs `pickpocketAuthority` from scratch (§2d). So an Attack that lands
+between the roll and the take shuts the picker that was already open, and a
+thief caught at somebody else's pocket cannot come back to finish a clean
+reach they had left open.
+
+The noticed band (2–3) does **not** hold. The goods moved, the victim is told
+at the take, and by then the thief may fairly be gone — that is what "noticed"
+rather than "caught" means.
 
 ## 3. The two tags
 
@@ -359,6 +410,11 @@ mean the same thing.
   and takes its `heldById` with it, so the interceptor's Release button no
   longer finds them. Same shape as the Attack-over-Safe gap in
   `attack.js#settleHold`, and the same small cost.
+- **The Pickpocket button does not grey while caught or in a fight.**
+  `canPickpocket` (`web/lib/itemPools.js`) is a tag check, so a held thief
+  presses the button, picks a target, and only then reads the refusal from
+  the server. The greyed button was always a hint and the server the lock,
+  but this is the first gate on the verb that the hint knows nothing about.
 - **The audit log is the only complete record of a stash now.** Anyone reading
   a Room thread has until now been able to treat "no line" as "nothing left
   here". After Steal, a missing item with no line is ordinary. Any tool

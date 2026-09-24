@@ -58,7 +58,9 @@ function revalidate() {
 // Everyone this character is holding right now, as the sheet draws them —
 // by the face the room sees, never by their true name.
 //
-// INTERCEPT holds only. Somebody you are holding because you attacked them is
+// Safe stops and caught pickpockets (THEFT.md §2g: a thief who failed at your
+// pocket is held BY YOU for five minutes, and this is their Release button).
+// Never a fight. Somebody you are holding because you attacked them is
 // broken off from the Attack dialog, not let go from here: releaseHeldBy
 // refuses an attack hold outright (docs/systemdocs/ATTACK.md §4), so listing
 // one would draw a Let-them-go button whose only possible answer is "They're

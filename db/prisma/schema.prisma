@@ -2527,7 +2527,8 @@ model Character {
   holding   Character[] @relation("InterceptHold")
 
   // WHICH thing is holding them — "intercept", "attack", "attacking",
-  // or "caught" (a Steal the room noticed, THEFT.md §1e, heldById null) —
+  // or "caught" (a thief the scene saw, THEFT.md §1e and §2g: heldById is
+  // the pickpocket's victim, or null when a stash had no owner) —
   // so that db/lib/intercept.js#heldReasonFor can name the right one
   // while staying PURE. That predicate is read by the mover's own gate and by every
   // picker that draws a way out, and a query inside it would have to be
