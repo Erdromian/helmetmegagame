@@ -10,6 +10,8 @@ const {
   findSlotClash,
   findEquipProblem,
   describeEquipFit,
+  MAX_ACCESSORIES,
+  isLockedOn,
 } = require("../lib/equipSlots");
 
 const head = (name) => ({ tag: { name, equipSlot: "HEAD", equipLayer: null } });
@@ -46,4 +48,27 @@ test("a stack equipped twice clashes with itself — two hats are two hats", () 
 test("a shopper is told where a thing sits by name, not by layer number", () => {
   assert.equal(describeEquipFit({ equipSlot: "BODY", equipLayer: 2 }), "Body · Over");
   assert.equal(describeEquipFit({ equipSlot: "HEAD", equipLayer: null }), "Head");
+});
+
+// The locked bomb collar (docs/systemdocs/COLLAR.md): an ACCESSORY the wearer
+// never chose, so it is not one of their four.
+const accessory = (name, slug = null) => ({ tag: { name, slug, equipSlot: "ACCESSORY", equipLayer: null } });
+const collar = () => accessory("Bomb Collar (Locked)", "bomb-collar-locked");
+
+test("a locked-on accessory is known by slug alone", () => {
+  assert.equal(isLockedOn(collar().tag), true);
+  assert.equal(isLockedOn(collar()), true, "accepts the CharacterTag shape too");
+  assert.equal(isLockedOn(accessory("Sheriff's Badge", "sheriffs-badge").tag), false);
+  assert.equal(isLockedOn(null), false);
+});
+
+test("the collar does not spend one of the four accessory cells", () => {
+  const four = Array.from({ length: MAX_ACCESSORIES }, (_, i) => accessory(`Trinket ${i + 1}`, `trinket-${i + 1}`));
+  assert.equal(findEquipProblem(four), null);
+  assert.equal(findEquipProblem([...four, collar()]), null, "collared with full pockets is not an overflow");
+  assert.match(findEquipProblem([...four, accessory("Spectacles", "spectacles")]), /put away Spectacles/);
+  // And a fifth trinket on top of a collar names the trinket, never the collar.
+  const problem = findEquipProblem([collar(), ...four, accessory("Spectacles", "spectacles")]);
+  assert.match(problem, /Spectacles/);
+  assert.doesNotMatch(problem, /Collar/);
 });

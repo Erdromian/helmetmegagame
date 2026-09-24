@@ -6,7 +6,7 @@ import { prisma } from "@lifeweb/db";
 import { STOWABLE_SLUGS, FAST_TRAVEL_SLUGS } from "@lifeweb/db/lib/mounts";
 import { MOTION_SICKNESS_SLUG } from "@lifeweb/db/lib/constants";
 import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
-import { HANDS_TAG_FIELDS, findEquipProblem, handsFor } from "@lifeweb/db/lib/equipSlots";
+import { HANDS_TAG_FIELDS, findEquipProblem, handsFor, isLockedOn } from "@lifeweb/db/lib/equipSlots";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
@@ -93,7 +93,7 @@ export async function equipOne(characterTagId) {
         where: { characterId: character.id, equippedQuantity: { gt: 0 } },
         select: {
           equippedQuantity: true,
-          tag: { select: { name: true, equipSlot: true, equipLayer: true, twoHanded: true } },
+          tag: { select: { name: true, slug: true, equipSlot: true, equipLayer: true, twoHanded: true } },
         },
       });
       // The player's own toggle REFUSES rather than sheds — only an involuntary change sheds (db/lib/tagOps.js). Hands come from everything HELD (a maiming is never equipped); named `holdings` because `held` shadows the row bound above.
@@ -125,10 +125,12 @@ export async function unequipOne(characterTagId) {
 
   const held = await prisma.characterTag.findFirst({
     where: { id: characterTagId ?? "", characterId: character.id },
-    select: { id: true, equippedQuantity: true, tag: { select: { name: true } } },
+    select: { id: true, equippedQuantity: true, tag: { select: { name: true, slug: true } } },
   });
   if (!held) return { error: "You aren't holding that." };
   if (held.equippedQuantity <= 0) return { error: `${held.tag.name} isn't equipped.` };
+  // The bomb collar: on by somebody else's hand, off by a key (COLLAR.md).
+  if (isLockedOn(held.tag)) return { error: `${held.tag.name} is locked on. It needs a key.` };
 
   const equippedQuantity = held.equippedQuantity - 1;
   await prisma.characterTag.update({

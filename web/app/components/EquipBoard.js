@@ -8,6 +8,7 @@ import {
   handsFor,
   handsOf,
   handsUsed,
+  isLockedOn,
 } from "@lifeweb/db/lib/equipSlots";
 import { FAST_TRAVEL_SLUGS, STOWABLE_SLUGS } from "@lifeweb/db/lib/mounts";
 import { armorWord, combineArmor } from "@lifeweb/db/lib/armorValue";
@@ -65,6 +66,7 @@ function equippedUnits(rows) {
 
 // The one line under a worn thing's name.
 function fact(tag) {
+  if (isLockedOn(tag)) return "locked on";
   const melee = tag.meleeArmor ?? 0;
   const ballistic = tag.ballisticArmor ?? 0;
   if (melee || ballistic) return `${armorWord(melee)} · ${armorWord(ballistic)}`;
@@ -194,7 +196,7 @@ function WornCell({ unit, onUnequip, pending, span = 1, canAct }) {
         <span className="equip-cell-name">{unit.tag.name}</span>
         {line && <span className="equip-cell-fact text-muted">{line}</span>}
       </div>
-      {canAct && (
+      {canAct && !isLockedOn(unit.tag) && (
         <button
           type="button"
           className="equip-cell-off"

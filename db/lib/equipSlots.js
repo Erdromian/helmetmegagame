@@ -23,6 +23,17 @@ function handsFor(characterTags = []) {
 const HANDS_TAG_FIELDS = { handsLost: true };
 // A hard cap, not a GameConfig knob like the retired flat count: the number is a rule about what a person can have about them, and the last thing this file needs is a second limit a GM can set to disagree with the slots.
 const MAX_ACCESSORIES = 4;
+// Worn things the wearer cannot take off. The locked bomb collar (docs/systemdocs/COLLAR.md) is
+// an ACCESSORY so it shows on the board round the neck, but it went on by somebody else's hand
+// and only a Collar Key or the detonator takes it off: unequipOne refuses it, the accessory cap
+// below does not count it (a collar is put on you, and refusing the collar because your hands
+// are full of trinkets is the tail wagging the dog), and death leaves it equipped on the body.
+// Named by slug because nothing on a Tag row says "locked on", and one slug is not a column.
+const LOCKED_ON_SLUGS = new Set(["bomb-collar-locked"]);
+
+function isLockedOn(tag) {
+  return LOCKED_ON_SLUGS.has(tagOf(tag)?.slug);
+}
 // HEAD is deliberately NOT here: one head, one thing on it. An unlayered slot
 // keys on the bare slot in findSlotClash below, which is the whole rule.
 const LAYERED_SLOTS = new Set(["BODY", "MOUNT"]);
@@ -141,7 +152,8 @@ function describeEquipFit(tag) {
 
 // Why the accessories don't all fit, or null when they do. Names only the EXCESS, same reason as describeHandsOverflow — a character wearing six trinkets from before the cap needs to know which two to take off, not to be read their own inventory back. Expands by equippedQuantity like everything else here, so five badges out of one stack are five things about you, not one.
 function describeAccessoryOverflow(tags) {
-  const worn = expandUnits(tags).filter((t) => t?.equipSlot === "ACCESSORY");
+  // A locked-on accessory takes no cell of the four: it was never the wearer's choice.
+  const worn = expandUnits(tags).filter((t) => t?.equipSlot === "ACCESSORY" && !isLockedOn(t));
   if (worn.length <= MAX_ACCESSORIES) return null;
   const counts = new Map();
   for (const tag of worn.slice(MAX_ACCESSORIES)) {
@@ -205,6 +217,8 @@ module.exports = {
   handsFor,
   shedForHands,
   MAX_ACCESSORIES,
+  LOCKED_ON_SLUGS,
+  isLockedOn,
   LAYERED_SLOTS,
   EQUIP_SLOTS,
   SLOT_TITLES,

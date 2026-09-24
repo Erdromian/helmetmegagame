@@ -1,10 +1,12 @@
 // The bomb collar (docs/systemdocs/COLLAR.md).
 //
 // Three verbs over two tags. The LOOSE collar is the `bomb-collar` item; the
-// SHUT one is the `bomb-collar-locked` trait, which is `removable: false` so
-// the ordinary Remove flow cannot take it off. Apply Collar spends the item to
-// write the trait, the Collar Key turns the trait back into an item, and the
-// Remote Detonator turns whoever wears the trait into mist.
+// SHUT one is the `bomb-collar-locked` trait -- `general`, so no menu can hand
+// it over, steal it or destroy it, but an ACCESSORY, so it sits on the equip
+// board round the neck. Apply Collar spends the item to write the trait
+// EQUIPPED, and db/lib/equipSlots.js#LOCKED_ON_SLUGS is what refuses Unequip.
+// The Collar Key turns the trait back into an item, and the Remote Detonator
+// turns whoever wears the trait into mist.
 //
 // Apply Collar has two doors, exactly as db/lib/bind.js does: a target who
 // could stop you is ASKED (an Offer of kind COLLAR, on the shared button
@@ -24,7 +26,7 @@ const { DM_ACTION, dmAction } = require("./dmActions");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { applyDeathToRow } = require("./characterDeath");
 const { applyDeathTeardown } = require("./deathTeardown");
-const { locationLine } = require("./placeLine");
+const { locationLine, zoneLine } = require("./placeLine");
 const { SFX } = require("./sfx");
 const { sendDm } = require("./dm");
 
@@ -41,8 +43,8 @@ const COLLAR_KEY_SLUG = "collar-key";
 const DETONATION_DEATH_REASON =
   "Something looked at your likeness and decided against you. You exploded into mist.";
 
-// `location` for the scene line, `tags` for the collar check, `discordRoleId`
-// for the teardown that applyDeathToRow is about to null.
+// `location` and `zone` for the scene lines, `tags` for the collar check,
+// `discordRoleId` for the teardown that applyDeathToRow is about to null.
 const COLLAR_SELECT = {
   id: true,
   name: true,
@@ -54,6 +56,7 @@ const COLLAR_SELECT = {
   discordUserId: true,
   discordRoleId: true,
   location: { select: { id: true, name: true, discordChannelId: true } },
+  zone: { select: { id: true, name: true, discordSummaryChannelId: true } },
   tags: { select: { tagId: true, tag: { select: { slug: true } } } },
 };
 
@@ -112,7 +115,12 @@ async function applyCollar(prisma, { actor, target, turn, offerId = null }) {
   };
   await prisma.$transaction(async (tx) => {
     await dropCharacterTag(tx, actor.id, item.id, 1);
-    await addToStack(tx, target.id, locked.id, 1, { source: "EVENT", stackable: locked.stackable });
+    const row = await addToStack(tx, target.id, locked.id, 1, { source: "EVENT", stackable: locked.stackable });
+    // Shut round the neck, not sitting in a pocket: written equipped, and
+    // equipSlots.js#isLockedOn is what keeps it there. No slot check -- the
+    // ACCESSORY cap does not count a locked-on thing, and nothing else clashes
+    // with an accessory.
+    await tx.characterTag.update({ where: { id: row.id }, data: { equipped: true, equippedQuantity: 1 } });
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: actor.discordUserId ?? "system",
@@ -234,6 +242,9 @@ async function unlockCollar(prisma, { actor, target, turn }) {
 // and because a gib deletes the rows anyway -- doing it in the open makes the
 // ledger honest about where the collar went.
 //
+// Two places hear it: the Location they stood in, by name, and the zone's
+// #summary, which hears the blast but not who it was.
+//
 // Returns { ok: false, reason } when there is nothing to set off, so the caller
 // can say so without ever having read the target's tags itself.
 async function detonateCollar(prisma, { actor, target, turn }) {
@@ -276,6 +287,8 @@ async function detonateCollar(prisma, { actor, target, turn }) {
     }).catch((err) => console.error(`detonation DM for ${target.name}:`, err?.message ?? err));
   }
   await locationLine(prisma, target.location, `${target.name} explodes into mist!`, { sfx: SFX.BOOM });
+  const from = target.location?.name ? ` from ${target.location.name}` : "";
+  await zoneLine(prisma, target.zone, `An explosion rings out${from}.`, { sfx: SFX.BOOM });
   return { ok: true, name: target.name, alreadyDead: false };
 }
 

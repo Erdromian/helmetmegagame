@@ -7,6 +7,7 @@ import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { canonicalCategory } from "@/lib/sheetCards";
 import { isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import { verbsForTag } from "@lifeweb/db/lib/itemVerbs";
+import { isLockedOn } from "@lifeweb/db/lib/equipSlots";
 // The one weight rule, shared with the server (db/lib/tagWeight.js). Display
 // only here; the cap is still settled server-side.
 import { tagWeightLbs } from "@/lib/formatTagWeight";
@@ -36,7 +37,8 @@ export function thingVerbSets(characterTags = []) {
 // One row's verbs off those sets.
 export function thingVerbs(ct, sets) {
   return {
-    equippable: Boolean(ct.tag?.equippable),
+    // A locked-on thing (the bomb collar) offers no toggle: the wearer did not put it on.
+    equippable: Boolean(ct.tag?.equippable) && !isLockedOn(ct.tag),
     consumable: sets.consumable.has(ct.tagId),
     tradeable: sets.tradeable.has(ct.tagId),
     removable: sets.removable.has(ct.tagId),

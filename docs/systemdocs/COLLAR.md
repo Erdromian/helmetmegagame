@@ -8,10 +8,11 @@ a seat rather than a job title.
 
 | | `bomb-collar` | `bomb-collar-locked` |
 |---|---|---|
-| What it is | the loose collar, an **item** | the shut collar, a **trait** |
+| What it is | the loose collar, an **item** | the shut collar, a **trait worn as an accessory** |
 | Category | `items` / `items-gear` | `general` / `general-traits` |
 | Weighs | 1 lb | nothing |
 | Carried? | yes — put down, handed over, stolen, looted | no; it is round your neck |
+| On the equip board? | only once it is locked on | yes — `ACCESSORY`, written **equipped** by Apply Collar |
 | Comes off by | being locked onto somebody | the Collar Key, or the detonator |
 | Destroy button? | yes (an item) | **no** |
 
@@ -20,6 +21,30 @@ one — the sync throws on it. Destroy is derived from the category now
 (`DESTROYABLE_CATEGORIES`, `CRAFTING.md` §5) and `general` never had the
 button, so the trait is already unreachable by it. The only ways off are the
 Collar Key and the detonator.
+
+**It is an accessory, and it is still not an item.** The shut collar is
+`equippable` in the `ACCESSORY` slot with the collar's own sprite, so it sits
+on the equip board round the neck rather than in the trait list alone. But it
+stays in `general` on purpose: an `items` tag is always tradeable
+(`ALWAYS_TRADEABLE_CATEGORIES`, `TAGS.md` §5), and a locked collar that could
+be handed over, stolen, pickpocketed, searched for or looted off a neck would
+not be locked. `general` is what keeps it off every one of those menus.
+
+What "locked on" means in code is `db/lib/equipSlots.js#LOCKED_ON_SLUGS`, one
+slug, read by `isLockedOn`:
+
+- **Apply Collar writes it equipped** (`applyCollar`), with no slot check —
+  nothing clashes with an accessory, and the four-accessory cap does not count
+  a locked-on thing. Collaring somebody whose pockets are already full of
+  trinkets is not an overflow, and their next equip is not refused for it.
+- **Unequip refuses it** (`equipActions.js#unequipOne`: "is locked on. It
+  needs a key."), and no surface offers the toggle: the board's cell has no ✕
+  and says *locked on*, and `thingRows.js#thingVerbs` reports it not
+  equippable, which is what the rail and the drawer read.
+- **Death leaves it on the body.** The death unequip pass in
+  `db/lib/characterDeath.js` skips locked-on slugs, so a corpse still wears its
+  collar (Detonate reads on a body), and a Revive comes back with it buckled.
+- A GM's batch (`db/lib/tagOps.js`) is not gated: a GM may unbuckle it by hand.
 
 Apply Collar spends the item to write the trait. The Collar Key turns the trait
 back into an item. The detonator turns whoever wears the trait into mist and
@@ -83,12 +108,22 @@ room.
 
 A **gib**: `applyDeathToRow(..., { gib: true })`, so every tag is vaporized, no
 corpse is minted, and there is nothing left to bury, loot, carry or butcher
-(`db/lib/characterDeath.js`, `CORPSES.md`). The Location hears
-`{name} explodes into mist!` — deliberately the Rite of Judgement's own line
-and its own death reason, so Bascinet rewrites the sentence in one place rather
-than two. `db/lib/collar.js` holds that reason as a **literal** rather than
-requiring `riteEffects.js`, which would drag the whole rites system into a file
-that has no business loading it.
+(`db/lib/characterDeath.js`, `CORPSES.md`). Two places hear it, both as `-#`
+scenery through `db/lib/placeLine.js`, both with the `BOOM` cue on the web:
+
+- The **Location** hears `{name} explodes into mist!` — deliberately the Rite
+  of Judgement's own line and its own death reason, so Bascinet rewrites the
+  sentence in one place rather than two. `db/lib/collar.js` holds that reason
+  as a **literal** rather than requiring `riteEffects.js`, which would drag the
+  whole rites system into a file that has no business loading it.
+- The **zone's `#summary`** hears `An explosion rings out from {Location}.` —
+  the blast and where it came from, never who. Naming the dead to a whole zone
+  is a death notice, and the Location line already tells everyone who could
+  have seen it.
+
+A character stands in a Location, never in a Room — a Room is a thread with
+an access list (`db/lib/roomAccess.js`), not a place a body occupies — so
+"the room it went off in" is the Location channel.
 
 The collar is dropped in the open first, before the gib deletes the rows
 anyway, so the audit row is honest about where it went.

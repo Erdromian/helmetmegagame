@@ -1552,10 +1552,19 @@ tags:
     purchasable: true
     purchasableAfterStart: true
 
-  # Worn, not carried: this is the collar once it is SHUT, which is why it is a
-  # trait rather than an item. The loose collar is the `bomb-collar` item in the
-  # Depot imports block; Apply Collar spends one to write this, and the Collar
-  # Key turns this back into one (docs/systemdocs/COLLAR.md).
+  # Worn, not carried: this is the collar once it is SHUT. The loose collar is
+  # the `bomb-collar` item in the Depot imports block; Apply Collar spends one
+  # to write this, and the Collar Key turns this back into one
+  # (docs/systemdocs/COLLAR.md).
+  #
+  # It is an ACCESSORY so it sits on the equip board round your neck, with the
+  # collar's own sprite — but it stays in `general`, NOT `items`, on purpose.
+  # An item is always tradeable (ALWAYS_TRADEABLE_CATEGORIES in
+  # db/lib/syncTags.js), and a locked collar that could be handed over, stolen,
+  # pickpocketed or looted off a neck would not be locked. `general` is what
+  # keeps it off every one of those menus. Apply Collar writes it EQUIPPED, and
+  # db/lib/equipSlots.js#LOCKED_ON_SLUGS is what refuses Unequip, keeps it out
+  # of the four-accessory count, and leaves it on a corpse.
   #
   # NO `removable: false` line, and none is needed: Destroy is derived from the
   # category (DESTROYABLE_CATEGORIES, CRAFTING.md §5) and `general` never had
@@ -1567,7 +1576,10 @@ tags:
     name: Bomb Collar (Locked)
     category: general
     group: general-traits
-    description: "You have a shock collar around your neck."
+    sprite: collar
+    description: "You have a shock collar locked around your neck. Only a key takes it off."
+    equippable: true
+    equipSlot: ACCESSORY
     pointCost: 0
     visible: true
     purchasable: false
