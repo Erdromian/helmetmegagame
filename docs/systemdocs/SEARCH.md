@@ -344,7 +344,10 @@ Two counts on one row rather than a flag, because `@@unique([roomId, tagId])`
 means one row per tag per room. With a flag, a bottle somebody dropped in the
 Den's Bar would land on the hidden Alcohol row and vanish under the floor.
 `addToRoomStack` only ever increments `quantity`, so nothing a player drops is
-hidden by accident.
+hidden by accident — but a stack a character LEFT in a public room sinks
+under the floor on its own after a whole in-game day (`CARRY.md` §6a), so a
+search turns up abandoned goods as well as authored ones. Poison sinks with
+it, in `hiddenPoisonedCount`, and the reveal brings both counts up together.
 
 **Every writer that deletes a row at `quantity <= 0` must also require
 `hiddenQuantity <= 0`.** There are four — `tagWrites.js#dropRoomTag`,

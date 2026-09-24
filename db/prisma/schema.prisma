@@ -1800,8 +1800,8 @@ model RoomTag {
   expiresTurn Int?
 
   // Units of this stack still UNDER the floor (docs/systemdocs/SEARCH.md §9):
-  // seeded from a room's `hidden:` block and moved into `quantity` by a
-  // Search. Every reader of a stash — Storage, Transfer, Take, Steal — reads
+  // seeded from a room's `hidden:` block, or sunk there by the floorSettle
+  // pass (CARRY.md §6a), and moved into `quantity` by a Search. Every reader of a stash — Storage, Transfer, Take, Steal — reads
   // `quantity` and never this, so a stack that is entirely hidden is invisible
   // with no filter added. A second COUNT rather than a flag because the
   // unique below means one row per tag per room: with a flag, a bottle a
@@ -1810,6 +1810,21 @@ model RoomTag {
   // `hiddenQuantity <= 0`, or taking the last visible unit throws the hidden
   // ones away.
   hiddenQuantity Int @default(0)
+
+  // Of the hidden units, how many are poisoned — poisonedCount's twin, for a
+  // poisoned stack that sank (db/lib/floorSettle.js). The payload stays on
+  // the row while either count holds any, and a Search moves this back into
+  // poisonedCount with the units it brings up. Without it a sinking stack
+  // would either lose its poison or stay visible, and the one that stayed on
+  // the shelf would be the tell.
+  hiddenPoisonedCount Int @default(0)
+
+  // The in-game day (Turn.dayNumber) a character last set something down on
+  // this stack (db/lib/floorSettle.js, CARRY.md §6a). Null for anything a
+  // seed, a GM or a system pass put here, which never sinks. In a public room
+  // a stamped stack sinks under the floor once it has lain through one whole
+  // day; the stamp is cleared when it sinks, or when the floor count runs out.
+  floorDay Int?
 
   // Same pair as CharacterTag's, and the reason a room stash isn't a
   // laundering hole by accident: dropping a poisoned meal here and picking
@@ -1823,6 +1838,7 @@ model RoomTag {
   @@unique([roomId, tagId])
   @@index([tagId])
   @@index([expiresTurn])
+  @@index([floorDay])
 }
 
 /// A Conversation: the one kind of thread a player can open, from the

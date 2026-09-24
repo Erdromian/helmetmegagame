@@ -14,9 +14,18 @@
 -- token, not a foreign key, so deleting a turn never rewrites who searched
 -- where.
 --
+-- RoomTag.hiddenPoisonedCount and RoomTag.floorDay: what a character leaves
+-- on a public floor sinks under it after a whole in-game day
+-- (docs/systemdocs/CARRY.md §6a). floorDay is the day it was left, stamped
+-- by the drop paths only; the poison twin keeps a sinking poisoned stack
+-- poisoned. Both default to "nothing": 0, and NULL, which never sinks.
+--
 -- Additive only. No existing row or column is touched.
 
 ALTER TABLE "RoomTag" ADD COLUMN "hiddenQuantity" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "RoomTag" ADD COLUMN "hiddenPoisonedCount" INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE "RoomTag" ADD COLUMN "floorDay" INTEGER;
+CREATE INDEX "RoomTag_floorDay_idx" ON "RoomTag"("floorDay");
 
 CREATE TABLE "RoomSearchAttempt" (
     "id" TEXT NOT NULL,

@@ -172,7 +172,7 @@ const ROOM_SELECT = {
   location: { select: { id: true, zone: { select: { kind: true } } } },
   tags: {
     where: { hiddenQuantity: { gt: 0 } },
-    select: { id: true, tagId: true, hiddenQuantity: true, tag: { select: { id: true, name: true, slug: true } } },
+    select: { id: true, tagId: true, hiddenQuantity: true, hiddenPoisonedCount: true, tag: { select: { id: true, name: true, slug: true } } },
   },
 };
 
@@ -245,14 +245,22 @@ async function searchRoom(prisma, { character, roomId, turn, rng = Math.random }
       const modifiers = roomSearchModifiers(character.tags, { underground });
       const { total, found } = roomSearchOutcome({ die: roll.die, modifiers, hidden, rng });
 
-      // The reveal: hidden → visible, whole stacks. Guarded on the count so a
-      // concurrent GM edit that already emptied the floor cannot drive it
-      // negative; a row that lost the race is simply not reported as found.
+      // The reveal: hidden → visible, whole stacks, and any poison that sank
+      // with them (hiddenPoisonedCount, db/lib/floorSettle.js) comes up too,
+      // under the payload the row kept. Guarded on both counts so a
+      // concurrent write cannot drive either negative; a row that lost the
+      // race is simply not reported as found.
       const surfaced = [];
       for (const row of found) {
+        const poisoned = row.hiddenPoisonedCount ?? 0;
         const { count } = await tx.roomTag.updateMany({
-          where: { id: row.id, hiddenQuantity: { gte: row.hiddenQuantity } },
-          data: { quantity: { increment: row.hiddenQuantity }, hiddenQuantity: { decrement: row.hiddenQuantity } },
+          where: { id: row.id, hiddenQuantity: { gte: row.hiddenQuantity }, hiddenPoisonedCount: { gte: poisoned } },
+          data: {
+            quantity: { increment: row.hiddenQuantity },
+            hiddenQuantity: { decrement: row.hiddenQuantity },
+            poisonedCount: { increment: poisoned },
+            hiddenPoisonedCount: { decrement: poisoned },
+          },
         });
         if (count) surfaced.push(row);
       }

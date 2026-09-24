@@ -513,6 +513,43 @@ Search button is the one thing that moves it up into `quantity`. The whole of
 that lives in [`SEARCH.md`](SEARCH.md) §9, including the rule that every
 deleter of a row at zero must check both counts.
 
+### 6a. Left on the floor
+
+**What a character leaves in a public room sinks under the floor after a
+whole in-game day.** A keyed room — one with an `access:` list — is a stash,
+and what is left in one stays on the shelf. Everywhere else, a stack somebody
+set down and walked away from goes from `quantity` into `hiddenQuantity`,
+and from then on only a Search (`SEARCH.md` §9) brings it back up.
+
+- **The stamp.** `RoomTag.floorDay` is the in-game day (`Turn.dayNumber`) a
+  character last set something down on that stack. Four paths write it, all
+  through `db/lib/floorSettle.js#stampLeftOnFloor`: the Transfer dialog into
+  a room (items and ⬢ alike), the Overburdened spill (§2), a craft's spare
+  set down for want of a hand (§5), and the turn-end push's craft spare. A
+  later drop onto the same stack writes it again, so the clock restarts for
+  the whole stack. Nothing else stamps: a seed, the GM desk, the Vault's
+  coin, a Stable's foals, a structure's yield and a train's freight stay
+  where they were put.
+- **The settle.** A turn pass, `floorSettle` (`TURN-ENGINE.md` §2), right
+  after the expiry sweep, sinks every stamped stack whose day is two or more
+  behind the day the next turn opens on. Left on day 5, it is still there all
+  of day 6 and gone when day 7 begins — at least one full day in view, never
+  more than two. The stamp is cleared as it sinks, and when the floor count
+  runs out (a Take, a Steal).
+- **What never sinks**, even stamped: anything in a keyed room, the
+  Spillway, a Stable (the arelitz pass counts the herd on the floor), a
+  corpse (burial, rot and the death smell look for it there), and a stack on
+  an expiry clock, which rots in plain sight instead — so hidden stock never
+  carries a clock, which is what the expiry sweep relies on.
+- **Poison sinks with it.** `RoomTag.hiddenPoisonedCount` is
+  `poisonedCount`'s twin: the poisoned units go under with the rest, the
+  payload stays on the row while either count holds any, and a Search brings
+  both back up together. Without it, a poisoned pie would be the one thing
+  left on the shelf.
+
+The pass writes one `floor_settled` audit row a turn, naming the stacks it
+moved. Nobody is told in game; the next person to press Storage sees less.
+
 The stash survives the message wipe (it lives in the database, not the thread),
 is cleared by a Restart Game wipe (`wipeGameData` deletes `RoomTag`, ⬢
 included now that they are a stack) — and then poured straight back, because

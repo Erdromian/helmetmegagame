@@ -302,8 +302,9 @@ async function takeRoomResources(tx, roomId, amount) {
     data: { quantity: { decrement: want } },
   });
   if (!count) return false;
-  // Hidden ⬢ (RoomTag.hiddenQuantity, SEARCH.md §9) keep the row alive when the floor is bare.
+  // Hidden ⬢ (RoomTag.hiddenQuantity, SEARCH.md §9) keep the row alive when the floor is bare, without its floor clock (CARRY.md §6a).
   await tx.roomTag.deleteMany({ where: { roomId, tagId, quantity: { lte: 0 }, hiddenQuantity: { lte: 0 } } });
+  await tx.roomTag.updateMany({ where: { roomId, tagId, quantity: { lte: 0 }, floorDay: { not: null } }, data: { floorDay: null } });
   return true;
 }
 
