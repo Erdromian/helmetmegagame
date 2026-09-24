@@ -203,7 +203,7 @@ async function applyTagOpsInTx(tx, { characterId, ops, tagsById, openTurn }) {
       where: { characterId, equippedQuantity: { gt: 0 } },
       select: {
         equippedQuantity: true,
-        tag: { select: { name: true, equipSlot: true, equipLayer: true, twoHanded: true } },
+        tag: { select: { name: true, slug: true, equipSlot: true, equipLayer: true, twoHanded: true } },
       },
     });
     const problem = findEquipProblem(worn, await handsInTx(tx, characterId));

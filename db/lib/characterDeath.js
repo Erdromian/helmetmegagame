@@ -14,6 +14,7 @@ const { closeFightsFor } = require("./attack");
 const { stopPerformances } = require("./performance");
 const { teardownPartyThread } = require("./partyChat");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom } = require("./presentedIdentity");
+const { LOCKED_ON_SLUGS } = require("./equipSlots");
 
 // The concealing piece this character is wearing RIGHT NOW, or null — read off
 // the database rather than off `character`, since callers pass varying shapes
@@ -211,9 +212,11 @@ async function applyDeathToRow(
         .catch((err) => console.error(`Failed to audit the gib wipe for ${character.id}:`, err));
     }
   } else {
+    // A locked-on thing (the bomb collar) stays round the neck of the body: it
+    // was never held, and a Revive should not come back with it unbuckled.
     await prisma.characterTag
       .updateMany({
-        where: { characterId: character.id, equipped: true },
+        where: { characterId: character.id, equipped: true, tag: { slug: { notIn: [...LOCKED_ON_SLUGS] } } },
         data: { equipped: false, equippedQuantity: 0 },
       })
       .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));

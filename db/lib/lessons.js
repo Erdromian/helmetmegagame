@@ -725,7 +725,45 @@ async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
 
 // --- declining -------------------------------------------------------------
 
+// What a refusal says, per kind: `content` is the DM the asker gets, `line`
+// the one-line answer the refuser sees. Pure and exported so
+// db/test/offerWording.test.js can hold every OfferKind in the schema to an
+// explicit row. Returns NULL for a kind it does not know rather than guessing
+// -- the old default arm was the lesson pair, and every kind added after
+// LESSON (KISS, ESCORT, then COLLAR) spent a while telling people they had
+// "rejected the lesson" when they had refused a kiss, a ride or a collar.
+// CONVERSION has no row on purpose: refusing the dark god COSTS something, and
+// its sentence lives with that cost in db/lib/conversionRite.js#refuseConversion.
+function declineWording(kind, { responderName, refusedBy = responderName }) {
+  switch (kind) {
+    case "LESSON":
+      return { content: `${responderName} declined the lesson.`, line: "You rejected the lesson." };
+    case "BIND":
+      return { content: `${responderName} won't be bound.`, line: "You said no." };
+    case "ESCORT":
+      return { content: `${responderName} isn't coming with you.`, line: "You stay where you are." };
+    case "KISS":
+      return { content: `${responderName} turned you down.`, line: "You said no." };
+    case "SEARCH":
+      return { content: `${refusedBy} refused your search.`, line: "You said no." };
+    case "COLLAR":
+      return { content: `${responderName} won't wear the collar.`, line: "You said no." };
+    case "CONFESSION":
+      // The chaplain's no. Nothing was filed yet (acceptConfession is what
+      // spends both Moves), so the penitent is told their turn is still theirs.
+      return { content: `${responderName} won't hear your confession. Your Move wasn't spent.`, line: "You said no." };
+    default:
+      return null;
+  }
+}
+
 async function declineOffer(prisma, offer, responder) {
+  // Not a wording gap: a conversion's refusal applies a mood hit and the
+  // Depressed tag (THANATI.md), and closing the row here would skip both.
+  // db/lib/dmAnswer.js#declineOfferOfKind is the door that knows the difference.
+  if (offer.kind === "CONVERSION") {
+    throw new Error("A CONVERSION offer is refused through refuseConversion, never declineOffer.");
+  }
   const claim = await prisma.offer.updateMany({
     where: { id: offer.id, status: "PENDING" },
     data: { status: "DECLINED", respondedAt: new Date() },
@@ -752,25 +790,11 @@ async function declineOffer(prisma, offer, responder) {
   }
 
   // Per kind, because "you passed on the lesson" is a strange thing to read
-  // after refusing to be tied up or to be led away.
-  const WORDING = {
-    BIND: { content: `${responder.name} won't be bound.`, line: "You said no." },
-    ESCORT: {
-      content: `${responder.name} isn't coming with you.`,
-      line: "You stay where you are.",
-    },
-    KISS: {
-      content: `${responder.name} turned you down.`,
-      line: "You said no.",
-    },
-    SEARCH: {
-      content: `${refusedBy} refused your search.`,
-      line: "You said no.",
-    },
-  };
-  const wording = WORDING[offer.kind] ?? {
-    content: `${responder.name} declined the lesson.`,
-    line: "You rejected the lesson.",
+  // after refusing to be tied up, led away or collared. A kind the table does
+  // not know gets a plain no rather than somebody else's sentence.
+  const wording = declineWording(offer.kind, { responderName: responder.name, refusedBy }) ?? {
+    content: `${responder.name} said no.`,
+    line: "You said no.",
   };
   return {
     ok: true,
@@ -854,6 +878,7 @@ module.exports = {
   createLessonOffer,
   acceptLesson,
   declineOffer,
+  declineWording,
   cancelOffersForAction,
   cancelOffersForCharacter,
 };

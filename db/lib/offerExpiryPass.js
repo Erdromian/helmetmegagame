@@ -26,6 +26,43 @@ const { seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
 const { refuseConversion } = require("./conversionRite");
 
+// The DM the asker gets when the turn closes on an unanswered offer, per kind.
+// `other` is the responder's row name, `presented` the face the asker actually
+// saw (Search is the one kind whose responder may be hooded). Pure and
+// exported so db/test/offerWording.test.js can hold every OfferKind to a row;
+// null for a kind it does not know, so the caller falls back to a plain line
+// instead of the lesson pair -- which used to be the default arm, and told a
+// kisser, an escort and then an Exactor that their "offer to teach a skill"
+// had gone unanswered. CONVERSION has no row: it never expires, it is refused
+// (refuseConversion below).
+function expiryNotice(offer, { other, presented = other }) {
+  switch (offer.kind) {
+    case "LESSON":
+      return offer.initiatorId === offer.learnerId
+        ? `${other} never answered your offer to learn ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`
+        : `${other} never answered your offer to teach ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`;
+    case "BIND":
+      return `${other} didn't answer. The turn is over.`;
+    case "CONFESSION":
+      // Never names the tag: an expiry notice is not the place to start
+      // writing somebody's sins into a DM log.
+      return `${other} never heard your confession. Your Move wasn't spent.`;
+    case "KISS":
+      return `${other} never answered you.`;
+    case "ESCORT":
+      return `${other} never answered. They aren't coming with you.`;
+    case "SEARCH":
+      // Never names what they were carrying: nothing was found, and an
+      // expiry notice is not a consolation readout.
+      return `${presented} never answered your search.`;
+    case "COLLAR":
+      // The collar is only spent at the accept, so it is still in their hands.
+      return `${other} never answered. The collar is still yours.`;
+    default:
+      return null;
+  }
+}
+
 async function runOfferExpiryPass(prisma, turn) {
   const idle = {
     turnNumber: turn.number,
@@ -98,29 +135,9 @@ async function runOfferExpiryPass(prisma, turn) {
       if (claim.count === 0) continue;
       expired += 1;
       const other = nameOf(offer.responderId);
-      // One line per kind, and the lesson pair is the DEFAULT arm rather than
-      // one more branch — which is why every kind added since has to appear
-      // here or its expiry notice says "your offer to teach a skill". KISS and
-      // ESCORT were both reading that way until Search arrived and made the
-      // gap obvious; the two lines below are that fix, not new behaviour.
       const content =
-        offer.kind === "BIND"
-          ? `${other} didn't answer. The turn is over.`
-          : offer.kind === "CONFESSION"
-            ? // Never names the tag: an expiry notice is not the place to
-              // start writing somebody's sins into a DM log.
-              `${other} never heard your confession. Your Move wasn't spent.`
-            : offer.kind === "KISS"
-              ? `${other} never answered you.`
-              : offer.kind === "ESCORT"
-                ? `${other} never answered. They aren't coming with you.`
-                : offer.kind === "SEARCH"
-                  ? // Never names what they were carrying: nothing was found,
-                    // and an expiry notice is not a consolation readout.
-                    `${presentedNameOf(offer.responderId)} never answered your search.`
-                  : offer.initiatorId === offer.learnerId
-                    ? `${other} never answered your offer to learn ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`
-                    : `${other} never answered your offer to teach ${offer.tag?.name ?? "a skill"}. Your Move wasn't spent.`;
+        expiryNotice(offer, { other, presented: presentedNameOf(offer.responderId) }) ??
+        `${other} never answered.`;
       const dm = dmTo(offer.initiatorId, content);
       if (dm) dms.push(dm);
     } catch (err) {
@@ -132,4 +149,4 @@ async function runOfferExpiryPass(prisma, turn) {
   return { turnNumber: turn.number, expired, failed, dms };
 }
 
-module.exports = { runOfferExpiryPass };
+module.exports = { runOfferExpiryPass, expiryNotice };
