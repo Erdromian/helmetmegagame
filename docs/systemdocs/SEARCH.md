@@ -408,8 +408,14 @@ cannot disagree.
   check and the search the second.
 - **No consent handshake.** A room is not a person: no Offer, no DM with
   buttons, nothing in anybody's waiting-on-you list.
-- **It costs no Move, files no `Action`, and no turn pass touches it.** What
-  holds it back is one ration: **once per character per room per turn**.
+- **It costs a quarter of the Move**, on the same ledger crafting, a cure and
+  a burial share (`db/lib/moveLedger.js`, `CRAFTING.md` §2a): four searches
+  fill a Routine, a search and three quarters' work at the bench share one
+  turn, and a Gambit already filed refuses it with the Move-spent sentence.
+  It files the shared `auto:craft` Action with `auto:search` appended to its
+  notes, and `family: "search"` on its ledger line, so the desk reads
+  "Searching this turn: Fishing Hut." No turn pass touches it. Behind the
+  Move is one ration: **once per character per room per turn**.
 - A hood does not refuse it (§2a). A hood hides who you are, not what you are
   doing with your hands.
 - Refused by anything that blocks `ACT`, by **Blind**, between sittings
@@ -417,17 +423,20 @@ cannot disagree.
 - **A room with nothing hidden still rolls and still spends the ration.** If
   it didn't, the button's behaviour would say the room was empty.
 
-The refusal ladder (`roomSearchRefusal`) runs in full BEFORE the ration is
-claimed, the Steal order: a refusal costs nothing, and a claimed ration is
-never given back by a bad roll. From outside, an empty room and an unlucky
-one look the same.
+The refusal ladder (`roomSearchRefusal`) runs in full first, then the turn
+gate (`autoMovesOpen`), then a cheap look at the Move; only then does ONE
+transaction, under the Character row lock, spend the quarter, claim the
+ration, throw the die and write the reveal. A refusal anywhere inside rolls
+the lot back, so a spent Move never costs a ration and a claimed ration is
+never left beside an unspent Move. A bad roll rolls nothing back: from
+outside, an empty room and an unlucky one look the same.
 
 ### 9d. The die
 
 A d6 through `rollWithAdvantage`, so Lucky applies, quietly (§3b's admission).
 Then a **closed** modifier table in `db/lib/roomSearch.js`, the `steal.js`
-discipline — Hunger and the mood bands do not apply, because a free, unlimited
-verb should not be loud or blind for something the player cannot fix:
+discipline — Hunger and the mood bands do not apply, because a verb with no
+cooldown should not be blind for something the player cannot fix:
 
 | | value |
 |---|---|
@@ -496,6 +505,8 @@ nothing twice.
 | File | What |
 |---|---|
 | `db/lib/roomSearch.js` | the modifier table, the reveal, the refusal ladder, the readout, `searchRoom` |
+| `db/lib/moveLedger.js` | the Move ledger — moved out of `web/lib/craftBudget.js` and `actions/shared.js` so a Discord button could spend a share; the web re-exports it |
+| `db/test/moveLedger.test.js` | the ledger arithmetic and refusals |
 | `db/lib/roomStashSeed.js` | `stashSeedEntries` (one entry per slug, both counts), the Spillway refusal |
 | `db/lib/syncZones/parse.js` | `parseStash`'s `hidden:` list |
 | `db/lib/tagWrites.js`, `db/lib/resourceStack.js`, `db/lib/bankAccounts.js` | the three deleters that keep a row with hidden stock |

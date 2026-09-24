@@ -8,14 +8,12 @@ import { getGmSession } from "@/lib/discordGuild";
 import { UserError } from "@/lib/actionResult";
 import { blockerFor, SPEAK } from "@lifeweb/db/lib/incapacitation";
 import {
-  WHOLE_MOVE,
-  addFractions,
-  fitsInRemaining,
-  formatMoveAmount,
-  ledgerRemaining,
-  ledgerUsed,
-} from "@/lib/craftBudget";
-import { fileAutoRoutine } from "@/lib/moveSpend";
+  MOVE_SPENT,
+  lockCharacter,
+  craftLedgerDescription,
+  checkLedgerMove,
+  spendLedgerMove,
+} from "@lifeweb/db/lib/moveLedger";
 import { after } from "next/server";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
@@ -94,29 +92,16 @@ export async function resolveParty(key, { actor = null, ...opts } = {}) {
   return dbResolveParty(prisma, raw, opts);
 }
 
-// Serializer every craft touching a ration or a stack takes first — Postgres holds it to end of transaction, so two tabs submitting at once queue up instead of both reading the same count.
-export function lockCharacter(tx, characterId) {
-  return tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
-}
+// The row lock, the ledger check and the two writers live in
+// db/lib/moveLedger.js now, shared with the Discord face (a room search costs
+// a quarter Move from a button — SEARCH.md §9). These keep every caller's
+// import path and turn a db-style refusal into the UserError they expect.
+export { lockCharacter, craftLedgerDescription };
 
 // --- The craft Move budget (docs/systemdocs/CRAFTING.md §2a) -----------
 // A craft under a whole Move files the same auto:craft Action every craft with turns files, writing a LEDGER (`Action.craftBudget`): Move spent and what was made, one entry per family. The row IS the record — no derive/cache, no per-craft Undo; a GM Reject hands the whole turn back with one delete.
 
-export const MOVE_SPENT = "You've already used your Move this turn.";
-
-function ledgerEntryList(entries) {
-  return entries.map((e) => (e.qty > 1 ? `${e.qty}× ${e.name}` : e.name)).join(", ");
-}
-
-// Rebuilt from the ledger every time an entry lands, so a GM reading the desk sees the whole turn's work, not just the first thing made. A turn's Routine can now mix families, so this groups by family and names each group with its own verb — "Treating" for medical, "Crafting" for everything else.
-export function craftLedgerDescription(entries) {
-  const healing = entries.filter((e) => e.family === "medical");
-  const crafted = entries.filter((e) => e.family !== "medical");
-  const lines = [];
-  if (crafted.length) lines.push(`Crafting this turn: ${ledgerEntryList(crafted)}.`);
-  if (healing.length) lines.push(`Treating this turn: ${ledgerEntryList(healing)}.`);
-  return lines.join(" ");
-}
+export { MOVE_SPENT };
 
 export function craftLedgerEntry(tag, cost) {
   return {
@@ -131,32 +116,9 @@ export function craftLedgerEntry(tag, cost) {
 
 // Reads the turn's Action against what this craft needs; returns the ledger to extend (null if no Action yet) or throws the refusal. Called TWICE per budget craft: once outside the transaction (fast fail), again inside under the Character row lock (the answer that counts).
 export function checkCraftMove(action, need) {
-  // Asked for more than a turn holds, which an empty turn would otherwise wave through with no ledger yet to fail against.
-  if (!fitsInRemaining(need, WHOLE_MOVE)) {
-    throw new UserError(
-      "That's more than a turn's work — make fewer at once.",
-    );
-  }
-  if (!action) return null;
-  // A recipe with no craft family can neither lock a Routine nor share one — anything already filed stops it.
-  if (!need.family) throw new UserError(MOVE_SPENT);
-  // `includes`, not equality: other machinery APPENDS to gmNotes, and an appended note must not strand a half-spent ledger.
-  if (!(action.gmNotes ?? "").includes("auto:craft") || !action.craftBudget)
-    throw new UserError(MOVE_SPENT);
-  const ledger = action.craftBudget;
-  const left = ledgerRemaining(ledger);
-  if (!fitsInRemaining(need, left)) {
-    const asks =
-      need.num >= need.den
-        ? "a whole Move"
-        : `${formatMoveAmount(need.num, need.den)} of a Move`;
-    throw new UserError(
-      left.num > 0
-        ? `That takes ${asks}, and you have ${formatMoveAmount(left.num, left.den)} of this turn's Move left.`
-        : `That takes ${asks}, and this turn's Move is spent.`,
-    );
-  }
-  return ledger;
+  const out = checkLedgerMove(action, need);
+  if (!out.ok) throw new UserError(out.reason);
+  return out.ledger;
 }
 
 // The fast fail, outside the transaction. Replaces requireFreeMove wherever a verb costs a FRACTION of the Move: every craft, plus Bury and Engrave at a half each. Extract and the build sites still take a whole clean Move.
@@ -176,62 +138,16 @@ export async function resolveCraftMove(character, openTurn, need) {
 // Claims the Move (or slice) this craft needs, inside the caller's transaction, re-checked under the Character row lock since two tabs can both have passed the cheap check a moment ago (`@@unique([characterId, turnId])` P2002 catch in fileAutoRoutine is the backstop under even that).
 // `description`: a project passes its own "(2/3)" line and keeps it; a fractional craft passes none and gets the running made-this-turn list.
 // `notes`: what lands in Action.gmNotes. It must CONTAIN "auto:craft" — that
-// string is what checkCraftMove above recognises as a shareable ledger — so a
+// string is what checkLedgerMove recognises as a shareable ledger — so a
 // non-craft verb on this budget appends its own marker rather than replacing
 // it ("auto:craft auto:bury").
 export async function spendCraftMove(
   tx,
   { character, openTurn, need, entry, description = null, notes = "auto:craft" },
 ) {
-  await lockCharacter(tx, character.id);
-  const existing = await tx.action.findFirst({
-    where: { characterId: character.id, turnId: openTurn.id },
-    select: { id: true, gmNotes: true, craftBudget: true },
-  });
-  const ledger = checkCraftMove(existing, need);
-  // No family, no ledger: takes the whole Move, and the next craft that turn is refused by the Action's own existence.
-  if (!need.family) {
-    return {
-      action: await fileAutoRoutine(
-        tx,
-        character,
-        openTurn,
-        description,
-        notes,
-      ),
-      budget: null,
-    };
-  }
-  const entries = [...(ledger?.entries ?? []), entry];
-  const used = addFractions(ledgerUsed(ledger), need);
-  const budget = {
-    usedNum: used.num,
-    usedDen: used.den,
-    entries,
-  };
-  // A turn's Routine can now mix families under one Move; craftLedgerDescription groups by family and reads "Treating" for medical, "Crafting" for the rest.
-  const line = description ?? craftLedgerDescription(entries);
-  if (!existing) {
-    return {
-      action: await fileAutoRoutine(
-        tx,
-        character,
-        openTurn,
-        line,
-        notes,
-        budget,
-      ),
-      budget,
-    };
-  }
-  // `updateMany` + count, not `update`: racing a GM Reject should read as "your turn was just reset", not a raw P2025.
-  const { count } = await tx.action.updateMany({
-    where: { id: existing.id },
-    data: { craftBudget: budget, description: line },
-  });
-  if (count === 0)
-    throw new UserError("A GM just reset your turn — try again.");
-  return { action: existing, budget };
+  const out = await spendLedgerMove(tx, { character, turn: openTurn, need, entry, description, notes });
+  if (!out.ok) throw new UserError(out.reason);
+  return { action: out.action, budget: out.budget };
 }
 
 // The ground, with everything canBuildHere() judges plus the channel the site speaks into.

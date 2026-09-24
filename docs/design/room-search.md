@@ -119,6 +119,8 @@ draw now) beside Storage. Both call one function in `db/lib/roomSearch.js`.
   with buttons, nothing in anybody's waiting-on-you list.
 - **It costs no Move, files no `Action`, and no turn pass touches it.** What
   holds it back is one ration: **once per character per room per turn** (§6).
+  *(Changed the same day it was built: Bascinet asked for a quarter of the
+  Move on top, so it shares the crafting ledger now — `SEARCH.md` §9c.)*
 - A hood does not refuse it, for the reason Search on a person gives: a hood
   hides who you are, not what you are doing with your hands.
 - Blocked by anything that blocks `ACT`, and by `blind`.

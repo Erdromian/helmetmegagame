@@ -9,6 +9,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
   ROOM_SEARCH_MODIFIERS,
+  SEARCH_MOVE,
+  SEARCH_LEDGER_NOTES,
   roomSearchModifiers,
   roomSearchTotal,
   hiddenStacks,
@@ -86,4 +88,11 @@ test("the refusal ladder: dead, gone, elsewhere, locked out, no turn, blocked, b
   assert.equal(roomSearchRefusal(me(), room, { turn: null }), "No turn is open.");
   assert.equal(roomSearchRefusal(me({ tags: held("blind") }), room, { turn }), "You can't see.");
   assert.equal(roomSearchRefusal(me(), room, { turn }), null);
+});
+
+
+test("a search is a quarter of the Move on the shared ledger", () => {
+  assert.deepEqual(SEARCH_MOVE, { num: 1, den: 4, family: "search" });
+  // The marker checkLedgerMove reads a shareable ledger by must be in the notes, or the second search refuses the first.
+  assert.equal(SEARCH_LEDGER_NOTES.includes("auto:craft"), true);
 });

@@ -4,10 +4,12 @@
 // is shown and moves some of those stacks into plain sight, where Take and
 // Steal reach them like anything else. Finding a thing is not pocketing it.
 //
-// Costs no Move, files no Action, and no turn pass touches it. What holds it
-// back is one ration, once per character per room per turn, and the
-// RoomSearchAttempt insert IS that ration (the SearchAttempt discipline): spent
-// by the press, whether or not anything was found.
+// Costs a QUARTER of the Move, on the same ledger crafting and burial share
+// (db/lib/moveLedger.js, CRAFTING.md §2a): four searches fill a Routine, and a
+// Gambit already filed refuses it. No turn pass touches it. Behind that is
+// one ration, once per character per room per turn, and the RoomSearchAttempt
+// insert IS that ration (the SearchAttempt discipline): spent by the press,
+// whether or not anything was found.
 //
 // Takes `prisma` first, NOT on the @lifeweb/db barrel — require by path.
 const { blockerFor, ACT } = require("./incapacitation");
@@ -15,9 +17,21 @@ const { rollWithAdvantage } = require("./advantage");
 const { revealCount, pickRevealed } = require("./search");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { RESOURCES_SLUG } = require("./resourceStack");
-const { sessionGate } = require("./betweenSessions");
+const { autoMovesOpen } = require("./turnGate");
+const { checkLedgerMove, spendLedgerMove } = require("./moveLedger");
 
 const ROOM_SEARCH_AUDIT_ACTION = "room_search";
+
+// What a search costs of the turn's Move: a quarter, so four fill a Routine.
+// `family` is what lets it share the ledger with a craft or a cure the same
+// turn (CRAFTING.md §2a); the marker appended to gmNotes is what the desk and
+// the sheet read it back by.
+const SEARCH_MOVE = { num: 1, den: 4, family: "search" };
+const SEARCH_LEDGER_NOTES = "auto:craft auto:search";
+
+function searchLedgerEntry(room) {
+  return { tagId: null, name: room.name, family: "search", qty: 1, num: SEARCH_MOVE.num, den: SEARCH_MOVE.den };
+}
 
 // Bascinet's words, verbatim.
 const RUMMAGE_LINE = "rummages through the room.";
@@ -144,13 +158,18 @@ const ROOM_SELECT = {
 };
 
 // One search. `character` is the acting row with its tags loaded
-// (`{ tag: { slug, name } }` at least) and `discordUserId` for the audit row.
+// (`{ tag: { slug, name } }` at least), `zoneId` for the Action row and
+// `discordUserId` for the audit row.
 // Returns { ok: true, room, found, readout, line } or { ok: false, reason }.
 //
 // Order matters and is the same as Steal's: everything that can refuse runs
-// FIRST, then the ration is claimed, then the die is thrown. A refusal costs
-// no ration and rolls no die, and a claimed ration is never rolled back by a
-// bad roll — an empty room and an unlucky one look the same from outside.
+// FIRST — the ladder, the turn gate, a cheap look at the Move — then, inside
+// ONE transaction under the Character row lock: the quarter Move is spent,
+// the ration is claimed, the die is thrown and the reveal is written. A
+// refusal anywhere in that transaction rolls the lot back, so a spent Move
+// never costs a ration and a claimed ration is never left beside an unspent
+// Move. A bad roll rolls nothing back — an empty room and an unlucky one
+// look the same from outside.
 //
 // The room's Discord line is NOT posted here — it is REST, and this runs the
 // reveal inside a transaction. The caller posts `line` through
@@ -164,71 +183,105 @@ async function searchRoom(prisma, { character, roomId, turn, rng = Math.random }
   }
   const refusal = roomSearchRefusal(character, room, { admitted, turn });
   if (refusal) return { ok: false, reason: refusal };
-  // Between sittings nobody acts (SESSIONS.md) — here rather than on each face, so Discord and /chat refuse alike.
-  const gate = await sessionGate(prisma, { acting: true });
+  // One gate, one sentence (db/lib/turnGate.js): the `auto` half, since this
+  // settles itself with no GM — the Move lock does not stop it, but the game
+  // being out of session does. Here rather than on each face, so Discord and
+  // /chat refuse alike.
+  const gate = await autoMovesOpen(prisma, { turn });
   if (!gate.ok) return { ok: false, reason: gate.message };
-
-  // The ration. P2002 is the refusal, not a crash — two fast presses cannot both pass.
-  try {
-    await prisma.roomSearchAttempt.create({ data: { searcherId: character.id, roomId: room.id, turnId: turn.id } });
-  } catch (err) {
-    if (err?.code === "P2002") return { ok: false, reason: `You've already searched the ${room.name} this turn.` };
-    throw err;
-  }
+  // The fast fail on the Move, outside the lock; spendLedgerMove re-asks under it.
+  const filed = await prisma.action.findFirst({
+    where: { characterId: character.id, turnId: turn.id },
+    select: { id: true, gmNotes: true, craftBudget: true },
+  });
+  const cheap = checkLedgerMove(filed, SEARCH_MOVE);
+  if (!cheap.ok) return { ok: false, reason: cheap.reason };
 
   const underground = room.location?.zone?.kind === "CAVE_LEVEL";
-  const roll = rollWithAdvantage(character.tags, 6);
-  const modifiers = roomSearchModifiers(character.tags, { underground });
   const hidden = hiddenStacks(room.tags);
-  const { total, found } = roomSearchOutcome({ die: roll.die, modifiers, hidden, rng });
 
-  // The reveal: hidden → visible, whole stacks. Guarded on the count so a
-  // concurrent GM edit that already emptied the floor cannot drive it
-  // negative; a row that lost the race is simply not reported as found.
-  const surfaced = [];
-  await prisma.$transaction(async (tx) => {
-    for (const row of found) {
-      const { count } = await tx.roomTag.updateMany({
-        where: { id: row.id, hiddenQuantity: { gte: row.hiddenQuantity } },
-        data: { quantity: { increment: row.hiddenQuantity }, hiddenQuantity: { decrement: row.hiddenQuantity } },
+  let outcome;
+  try {
+    outcome = await prisma.$transaction(async (tx) => {
+      const spent = await spendLedgerMove(tx, {
+        character,
+        turn,
+        need: SEARCH_MOVE,
+        entry: searchLedgerEntry(room),
+        notes: SEARCH_LEDGER_NOTES,
       });
-      if (count) surfaced.push(row);
-    }
-    // The only place the die is written down (SEARCH.md §3b).
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: character.discordUserId ?? "",
-        actionType: ROOM_SEARCH_AUDIT_ACTION,
-        targetCharacterId: character.id,
-        turnId: turn.id,
-        locationId: room.locationId,
-        roomId: room.id,
-        details: {
+      if (!spent.ok) throw new Refused(spent.reason);
+
+      // The ration. P2002 is the refusal, not a crash — two fast presses cannot both pass.
+      try {
+        await tx.roomSearchAttempt.create({ data: { searcherId: character.id, roomId: room.id, turnId: turn.id } });
+      } catch (err) {
+        if (err?.code === "P2002") throw new Refused(`You've already searched the ${room.name} this turn.`);
+        throw err;
+      }
+
+      const roll = rollWithAdvantage(character.tags, 6);
+      const modifiers = roomSearchModifiers(character.tags, { underground });
+      const { total, found } = roomSearchOutcome({ die: roll.die, modifiers, hidden, rng });
+
+      // The reveal: hidden → visible, whole stacks. Guarded on the count so a
+      // concurrent GM edit that already emptied the floor cannot drive it
+      // negative; a row that lost the race is simply not reported as found.
+      const surfaced = [];
+      for (const row of found) {
+        const { count } = await tx.roomTag.updateMany({
+          where: { id: row.id, hiddenQuantity: { gte: row.hiddenQuantity } },
+          data: { quantity: { increment: row.hiddenQuantity }, hiddenQuantity: { decrement: row.hiddenQuantity } },
+        });
+        if (count) surfaced.push(row);
+      }
+      // The only place the die is written down (SEARCH.md §3b).
+      await tx.auditLog.create({
+        data: {
+          actorDiscordUserId: character.discordUserId ?? "",
+          actionType: ROOM_SEARCH_AUDIT_ACTION,
+          targetCharacterId: character.id,
+          turnId: turn.id,
+          locationId: room.locationId,
           roomId: room.id,
-          roomName: room.name,
-          die: roll.die,
-          rolls: roll.rolls,
-          advantage: roll.advantage,
-          modifiers,
-          total,
-          hiddenStacks: hidden.length,
-          revealedTagIds: surfaced.map((r) => r.tagId),
+          details: {
+            roomId: room.id,
+            roomName: room.name,
+            die: roll.die,
+            rolls: roll.rolls,
+            advantage: roll.advantage,
+            modifiers,
+            total,
+            hiddenStacks: hidden.length,
+            revealedTagIds: surfaced.map((r) => r.tagId),
+            move: { num: SEARCH_MOVE.num, den: SEARCH_MOVE.den },
+          },
         },
-      },
+      });
+      return { surfaced };
     });
-  });
+  } catch (err) {
+    if (err instanceof Refused) return { ok: false, reason: err.message };
+    throw err;
+  }
 
   return {
     ok: true,
     room: { id: room.id, name: room.name, discordThreadId: room.discordThreadId },
-    found: surfaced,
-    readout: roomSearchReadout({ roomName: room.name, found: surfaced }),
+    found: outcome.surfaced,
+    readout: roomSearchReadout({ roomName: room.name, found: outcome.surfaced }),
     line: RUMMAGE_LINE,
   };
 }
 
+// A refusal raised inside the transaction, so the rollback and the sentence
+// travel together. Never leaves this file.
+class Refused extends Error {}
+
 module.exports = {
   ROOM_SEARCH_AUDIT_ACTION,
+  SEARCH_MOVE,
+  SEARCH_LEDGER_NOTES,
   ROOM_SEARCH_MODIFIERS,
   RUMMAGE_LINE,
   BLIND_SLUG,
