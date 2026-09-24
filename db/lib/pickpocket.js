@@ -91,6 +91,20 @@ function pickpocketTook(outcome) {
   return outcome === CLEAN || outcome === NOTICED;
 }
 
+// The ration (THEFT.md §2): ONE reach per thief per turn, at anybody.
+// `existing` is this thief's attempt row for the open turn, or null.
+//   "roll"   — no reach yet this turn, so this one may roll.
+//   "reopen" — the same target's row, untouched: a refreshed page or a
+//              reopened dialog, which gets the SAME die back rather than
+//              losing the reach or rerolling into a better one.
+//   "spent"  — anything else. A different target is refused outright, and so
+//              is a reach whose hand has already come out.
+function pickpocketRation(existing, targetId) {
+  if (!existing) return "roll";
+  if (existing.targetCharacterId === targetId && !(existing.spentLbs > 0)) return "reopen";
+  return "spent";
+}
+
 // What a set of picked lines weighs against the budget. Takes the LINES a
 // caller resolved (each `{ held, quantity }`), not the holdings, because a
 // player may take 2 of a stack of 5.
@@ -127,4 +141,5 @@ module.exports = {
   pickpocketBudgetLbs,
   pickpocketOutcome,
   pickpocketTook,
+  pickpocketRation,
 };

@@ -18,6 +18,7 @@ const {
   pickpocketBudgetLbs,
   pickpocketOutcome,
   pickpocketTook,
+  pickpocketRation,
   pickpocketableHoldings,
   pickpocketFitCount,
   weighPicks,
@@ -113,4 +114,18 @@ test("picks are weighed per unit, not per row", () => {
   const r = row({ quantity: 5 });
   assert.equal(weighPicks([{ held: r, quantity: 2 }]), 6);
   assert.equal(weighPicks([]), 0);
+});
+
+test("one reach per turn, at anybody, and a reopen only at the same untouched pocket", () => {
+  // No row this turn: roll.
+  assert.equal(pickpocketRation(null, "b"), "roll");
+  // Reached at B and took nothing yet: reopening B hands the same die back.
+  assert.equal(pickpocketRation({ targetCharacterId: "b", spentLbs: 0 }, "b"), "reopen");
+  // ...but C is refused. This is the whole rule: one pocket a turn, not one per person.
+  assert.equal(pickpocketRation({ targetCharacterId: "b", spentLbs: 0 }, "c"), "spent");
+  // The hand came out of B: B again is refused, and so is anybody else.
+  assert.equal(pickpocketRation({ targetCharacterId: "b", spentLbs: 15 }, "b"), "spent");
+  assert.equal(pickpocketRation({ targetCharacterId: "b", spentLbs: 15 }, "c"), "spent");
+  // A failed roll never takes, so its row stays at 0 — reopening it replays the failure, and nobody else is open.
+  assert.equal(pickpocketRation({ targetCharacterId: "b", spentLbs: 0, outcome: FAILED }, "c"), "spent");
 });

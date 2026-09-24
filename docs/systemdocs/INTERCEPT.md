@@ -171,7 +171,7 @@ this file, and there are four values rather than two because a fight holds both
 sides and they must not read the same sentence (`ATTACK.md` §1), and because a
 thief who was caught (`caught`, five minutes) is held by nobody at all when the
 stash had no owner (`THEFT.md` §1e, no `heldById`, so only the clock ends it) and
-by the victim when there was one (§2g, a failed Pickpocket — `heldById` is the
+by the victim when there was one (§2g, a failed or noticed Pickpocket — `heldById` is the
 target, so every clear below works for them). Both are written by
 `holdWhereTheyStand`, which carries the clock rule below and one more: it never
 lands on a fight that is still running, however soon that fight ends. A column

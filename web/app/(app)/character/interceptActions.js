@@ -58,7 +58,7 @@ function revalidate() {
 // Everyone this character is holding right now, as the sheet draws them —
 // by the face the room sees, never by their true name.
 //
-// Safe stops and caught pickpockets (THEFT.md §2g: a thief who failed at your
+// Safe stops and caught pickpockets (THEFT.md §2g: a thief you felt at your
 // pocket is held BY YOU for five minutes, and this is their Release button).
 // Never a fight. Somebody you are holding because you attacked them is
 // broken off from the Attack dialog, not let go from here: releaseHeldBy

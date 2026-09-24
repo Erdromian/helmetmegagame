@@ -18,7 +18,7 @@ const { ambientLine } = require("./ambientLine");
 
 // WHY somebody cannot move, written onto Character.heldReason beside the timestamp.
 // Four values, not two: a fight holds BOTH sides and they're not in the same position, so the jumped and the jumper must not read the same sentence. A frozen table rather than hand-written strings across files — db/lib/characterDeath.js's clear once lacked this guard, and a typo'd literal is how that happens twice.
-// CAUGHT is a thief the scene saw, pinned where they stand for CAUGHT_HOLD_MS so whoever they robbed can answer — words, or an Attack. Two writers: a Steal that failed its roll (THEFT.md §1e), which has NO heldById because a stash has no owner, so nothing but the clock ends it; and a Pickpocket that failed (THEFT.md §2g), held BY THE VICTIM, so the ordinary Release, walk-off and death clears all work for them. Either way the caught hand stays out of pockets until the clock runs (caughtSecondsLeft below).
+// CAUGHT is a thief the scene saw, pinned where they stand for CAUGHT_HOLD_MS so whoever they robbed can answer — words, or an Attack. Two writers: a Steal that failed its roll (THEFT.md §1e), which has NO heldById because a stash has no owner, so nothing but the clock ends it; and a Pickpocket the victim felt, failed or noticed (THEFT.md §2g), held BY THE VICTIM, so the ordinary Release, walk-off and death clears all work for them. Either way the caught hand stays out of pockets until the clock runs (caughtSecondsLeft below).
 const HELD_REASON = Object.freeze({
   INTERCEPT: "intercept",
   ATTACK: "attack",
@@ -91,7 +91,7 @@ function heldReasonFor(character, now = new Date()) {
     return "You're in a fight. You can't move until the end of the turn.";
   }
   const seconds = Math.ceil((until.getTime() - now.getTime()) / 1000);
-  // Caught stealing. No "somebody" — a stash has no owner, so nobody has hold of them.
+  // Caught stealing. No "somebody" — a Steal's hold has nobody behind it, and a pickpocket's victim they already know.
   if (character.heldReason === HELD_REASON.CAUGHT) {
     return `You were caught stealing. You can't leave for another ${seconds}s.`;
   }
@@ -116,7 +116,7 @@ function caughtSecondsLeft(character, now = new Date()) {
   return Math.ceil((until.getTime() - now.getTime()) / 1000);
 }
 
-// Pin somebody where they stand until `until`, held by `heldById` — or by nobody, the default, which is what a Steal writes since a stash has no owner (THEFT.md §1e). A failed Pickpocket passes the victim, so the victim's Release button, walk-off and death all free the thief (§2g). Two rules in the WHERE:
+// Pin somebody where they stand until `until`, held by `heldById` — or by nobody, the default, which is what a Steal writes since a stash has no owner (THEFT.md §1e). A failed or noticed Pickpocket passes the victim, so the victim's Release button, walk-off and death all free the thief (§2g). Two rules in the WHERE:
 // - THE CLOCK RULE: a hold already running longer is left exactly where it is (the fireWatches and holdBothSides rule).
 // - A LIVE FIGHT IS NEVER OVERWRITTEN, however soon it ends. A fight's hold runs to the turn's end, so in a turn's last five minutes the clock rule alone would let this land on it — and swap the reason and heldById out from under attack.js#settleHold, which only re-points rows still carrying a fight reason. A fight that has already lapsed on its own clock still carries its reason (the turn advance releases by the clock, clearing nothing), so only a RUNNING one counts.
 // Resolves to whether the hold landed, so a caller never announces a hold that didn't happen.
