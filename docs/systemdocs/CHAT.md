@@ -1224,7 +1224,9 @@ a 48px head and a one-line composer:
   Retry". Runs group one speaker's messages within seven minutes, and the
   portrait heads a run: a change of speaker, a system line or the gap starts a
   new one, so two people talking back and forth get a face on every turn of the
-  conversation. The rule is `web/lib/feedRuns.js`, shared by both feeds and
+  conversation. A new run also sits a little further from the line above it
+  (12px, against 3px inside a run; `chat.css`), so a change of speaker reads
+  at a glance and alternating portraits never touch. The rule is `web/lib/feedRuns.js`, shared by both feeds and
   tested in `web/lib/__tests__/feedRuns.test.mjs` — it groups on `speakerKey`
   *or* `characterId`, because the server mints a `speakerKey` for a hooded row
   only. `DmThread.js` keeps its own copy of the seven minutes. The list scrolls
