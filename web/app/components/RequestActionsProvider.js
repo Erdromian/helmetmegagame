@@ -14,6 +14,7 @@ import { noticeLine } from "./actions/noticeLines";
 import { RECOVERABLE_SLUGS } from "@lifeweb/db/lib/thanati";
 import { MUSICIAN_SLUG } from "@lifeweb/db/lib/constants";
 import { playSfx } from "@/app/components/sfx";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // Every player action on the character sheet: the mode that is open, what
 // the grid greys each button on, and the one place a result is spoken.
@@ -454,9 +455,9 @@ export default function RequestActionsProvider({
               ? res.roster.map((r) => ({ name: r.name, note: r.role, mark: r.leader ? "[LEADER]" : null }))
               : null,
           });
-        } catch {
+        } catch (err) {
           playSfx("refuse");
-          notice({ text: "Could not reach the server. Nothing was changed.", tone: "bad" });
+          notice({ text: actionThrowMessage(err), tone: "bad" });
         } finally {
           setBusy(null);
         }

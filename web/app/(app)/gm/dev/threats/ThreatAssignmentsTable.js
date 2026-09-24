@@ -14,6 +14,7 @@ import CharacterLink from "@/app/components/CharacterLink";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { assignThreat, offerThreatSpawn } from "../threatActions";
 import { sendGmDm } from "@/app/(desk)/gm/players/actions";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 const COL_COUNT = 9;
 
@@ -200,8 +201,8 @@ function Row({ row, threats, onSpawn, onMessage }) {
         } else {
           setNote(`${row.characterName} is now the ${threat.name}.`);
         }
-      } catch {
-        setError("Could not reach the server. Nothing was changed.");
+      } catch (err) {
+        setError(actionThrowMessage(err));
       }
     });
   }

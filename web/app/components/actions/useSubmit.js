@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { playSfx } from "@/app/components/sfx";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // The submit half every dialog file has: pending, the last refusal, and a
 // runner that turns a transport failure into a sentence. `onOk(res)` runs
@@ -19,19 +20,22 @@ export default function useSubmit({ refuseSfx = "refuse" } = {}) {
   function submit(action, onOk) {
     setError(null);
     startTransition(async () => {
+      // Only the call itself is inside the try: a throw from onOk comes after the action landed.
+      let res;
       try {
-        const res = await action();
-        if (!res?.ok) {
-          playSfx(res?.sfx === "refuse" ? refuseSfx : (res?.sfx ?? refuseSfx));
-          setError(res?.error ?? "Something went wrong.");
-          return;
-        }
-        playSfx(res.sfx);
-        onOk?.(res);
-      } catch {
+        res = await action();
+      } catch (err) {
         playSfx(refuseSfx);
-        setError("Could not reach the server. Nothing was changed.");
+        setError(actionThrowMessage(err));
+        return;
       }
+      if (!res?.ok) {
+        playSfx(res?.sfx === "refuse" ? refuseSfx : (res?.sfx ?? refuseSfx));
+        setError(res?.error ?? "Something went wrong.");
+        return;
+      }
+      playSfx(res.sfx);
+      onOk?.(res);
     });
   }
 

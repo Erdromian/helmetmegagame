@@ -53,6 +53,7 @@ import { useChatTextSize } from "@/app/components/chatTextStore";
 import ChatAside from "./ChatAside";
 import GmAside from "./GmAside";
 import DmPane from "./DmPane";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // THE REBUILD'S SHELL (docs/systemdocs/CHAT-REBUILD.md).
 //
@@ -580,7 +581,7 @@ export default function ChatNext(props) {
           bumpPlaces();
           return res ?? { ok: false, error: "Something went wrong." };
         })
-        .catch(() => ({ ok: false, error: "Could not reach the server. Nothing was changed." }));
+        .catch((err) => ({ ok: false, error: actionThrowMessage(err) }));
     },
     [selectedKey, bumpPlaces],
   );

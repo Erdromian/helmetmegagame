@@ -4,6 +4,7 @@ import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { archiveCurrentGame } from "./actions";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // Write the current game's transcript out to the bucket as one packet.
 //
@@ -31,8 +32,8 @@ export default function ArchiveGameButton({ exportKey, entryCount }) {
         const res = await archiveCurrentGame();
         if (res?.ok) setDone(res.entryCount);
         else setError(res?.error ?? "Something went wrong.");
-      } catch {
-        setError("Could not reach the server. Nothing was changed.");
+      } catch (err) {
+        setError(actionThrowMessage(err));
       }
     });
   }

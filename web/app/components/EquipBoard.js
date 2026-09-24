@@ -17,6 +17,7 @@ import { equipOne, takeAndEquip, unequipOne } from "@/app/(app)/character/equipA
 import ClickMenu from "./ClickMenu";
 import FormError from "./FormError";
 import { playSfx } from "@/app/components/sfx";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // The rig: what is worn, drawn as the slots it is worn in (TAGS.md,
 // "equipSlot"). One row per slot, one cell per place a thing can go — three
@@ -278,8 +279,8 @@ export default function EquipBoard({
           : await equipOne(ct.id);
         if (res?.error) setError(res.error);
         playSfx(res?.error ? "refuse" : res?.sfx);
-      } catch {
-        setError("Could not reach the server. Nothing was changed.");
+      } catch (err) {
+        setError(actionThrowMessage(err));
       }
     });
   }
@@ -292,8 +293,8 @@ export default function EquipBoard({
         const res = await unequipOne(ct.id);
         if (res?.error) playSfx("refuse");
         if (res?.error) setError(res.error);
-      } catch {
-        setError("Could not reach the server. Nothing was changed.");
+      } catch (err) {
+        setError(actionThrowMessage(err));
       }
     });
   }

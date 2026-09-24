@@ -16,6 +16,7 @@ import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 import { myThings } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
 import { playSfx } from "@/app/components/sfx";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // THINGS: what is in your pockets, in the column, so the four things a player
 // does to an item all day are not a trip to the sheet and back.
@@ -284,8 +285,8 @@ export default function Things({ groups: initialGroups = [] }) {
           playSfx(res?.error ? "refuse" : res?.sfx);
           if (res?.error) setError(res.error);
           else refresh();
-        } catch {
-          setError("Could not reach the server. Nothing was changed.");
+        } catch (err) {
+          setError(actionThrowMessage(err));
         }
       });
     },
@@ -302,8 +303,8 @@ export default function Things({ groups: initialGroups = [] }) {
           if (res?.error) playSfx("refuse");
           if (res?.error) setError(res.error);
           else refresh();
-        } catch {
-          setError("Could not reach the server. Nothing was changed.");
+        } catch (err) {
+          setError(actionThrowMessage(err));
         }
       });
     },

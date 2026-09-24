@@ -9,6 +9,7 @@ import DesireRule from "./DesireRule";
 import DesireCatalog, { cooldownLabel } from "./DesireCatalog";
 import { claimDesire } from "../(app)/character/requestActions";
 import { lockedSlotLabel } from "@/lib/desireLabels";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // The one help tooltip, on the heading. It used to be two — flavour text
 // here and the rules behind a "How this works" line — and the flavour said
@@ -72,10 +73,10 @@ export default function DesirePanel({
           slug: claiming.entry.slug,
           reason,
         });
-      } catch {
+      } catch (err) {
         // A page left open across a deploy throws here instead of answering; without the catch that took the
         // whole page to the error screen.
-        return setError("Could not reach the server. Nothing was changed.");
+        return setError(actionThrowMessage(err));
       }
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setClaiming(null);

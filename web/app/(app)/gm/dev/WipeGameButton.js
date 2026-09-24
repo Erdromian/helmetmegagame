@@ -3,6 +3,7 @@
 import FormError from "@/app/components/FormError";
 import { useState, useTransition } from "react";
 import { wipeGameData } from "./actions";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // Restart Game's confirm/error/success wrapper — same reasons EndTurnButton.js exists
 // for End Turn: a pending server action blocks client-side navigation, and
@@ -41,8 +42,8 @@ export default function WipeGameButton({ hasPacket = false }) {
         } else {
           setError(res?.error ?? "Something went wrong.");
         }
-      } catch {
-        setError("Could not reach the server. Nothing was changed.");
+      } catch (err) {
+        setError(actionThrowMessage(err));
       }
     });
   }

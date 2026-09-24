@@ -174,6 +174,16 @@ error #441 instead — which made every `catch (e) => setError(e.message)` in
 the feature dead code. Anything that isn't a `UserError` still throws, so real
 faults keep their stack and `redirect()` keeps working.
 
+**What a player is told when one does throw** comes from
+`web/app/components/actionThrow.js#actionThrowMessage`, and every player-side
+catch goes through it. It tells three cases apart. A tab left open across a
+deploy is told to reload (nothing ran). A fetch that got no answer is told it
+could not reach the server (nothing ran). Anything else is a fault on the
+server, and the action may already have written, so the player is told to
+check before trying again. Never write "Nothing was changed" into a catch by
+hand. For a week, filing a Move saved it and then threw, and every player who
+filed one was told it had not gone through.
+
 **`BIRD_MESSAGE` is the first type whose effect Undo cannot reverse.** Every
 other row above moves something inside the database, and `effect` is enough to
 put it back. A letter is a Discord DM in somebody's inbox, and there is no

@@ -10,6 +10,7 @@ import DesireCatalog, { cooldownLabel } from "@/app/components/DesireCatalog";
 import { claimDesire } from "@/app/(app)/character/requestActions";
 import { desireCatalogView } from "./actions";
 import { lockedSlotLabel } from "@/lib/desireLabels";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // The sheet's Desire slots, in the column. Same shape as
 // web/app/components/DesirePanel.js and the same claim: a Desire is claimed
@@ -55,9 +56,9 @@ export default function DesiresBlock({ view }) {
         setFull(res.view);
         setCatalogSlot(slotIndex);
       })
-      .catch(() => {
+      .catch((err) => {
         setLoading(false);
-        setError("Could not reach the server. Nothing was changed.");
+        setError(actionThrowMessage(err));
       });
   }
 
@@ -67,10 +68,10 @@ export default function DesiresBlock({ view }) {
       let res;
       try {
         res = await claimDesire({ slotIndex: claiming.slotIndex, slug: claiming.entry.slug, reason });
-      } catch {
+      } catch (err) {
         // A page left open across a deploy calls an action the new build doesn't know. That throws, and a throw
         // here took the whole page to the error screen.
-        return setError("Could not reach the server. Nothing was changed.");
+        return setError(actionThrowMessage(err));
       }
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setClaiming(null);

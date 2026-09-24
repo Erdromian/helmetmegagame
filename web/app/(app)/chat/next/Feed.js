@@ -31,6 +31,7 @@ import {
   oldestSeq,
   isOwnRow,
 } from "../feedStore";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // THE SCENE. One scroller, one row recipe, and the dividers between runs.
 //
@@ -518,7 +519,7 @@ export default function Feed({
     setRowError(null);
     starRow(seq)
       .then((res) => (res?.ok ? setAnswer(res.line ?? "Saved to your Notes.") : setRowError(res?.error ?? "That line is gone.")))
-      .catch(() => setRowError("Could not reach the server. Nothing was changed."));
+      .catch((err) => setRowError(actionThrowMessage(err)));
   }, []);
 
   const rowHandlers = useMemo(
