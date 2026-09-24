@@ -437,7 +437,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
       freeZoneMovesPerTurn: true,
     },
   });
-  const cooldownMs = Math.max(0, config?.locationMoveCooldownSeconds ?? 60) * 1000;
+  const cooldownMs = Math.max(0, config?.locationMoveCooldownSeconds ?? 30) * 1000;
 
   const now = new Date();
   const outcome = {
