@@ -148,6 +148,10 @@ Four things follow from reusing the hold rather than inventing one:
 The goods have already moved by the time the hold is written, so a failed
 write is logged rather than thrown — the room still hears the line.
 
+**GMs see it on the Other lens** of `/gm/turns` (`ATTACK.md` §7), as a
+*Caught stealing* row read off the `steal` audit row. That row carries
+`held`, whether the hold actually landed, beside `unseen`.
+
 The dialog itself is still outcome-blind (§1d). The thief learns they were
 seen the same way everyone else does — the room line — and the first time
 they try to leave.
@@ -338,10 +342,6 @@ mean the same thing.
   as "the theft was stopped" will be wrong. It is the settled rule, but it is
   the thing a GM will be asked about first. What a failed Steal does cost is
   5 minutes standing there (§1e).
-- **A caught thief's hold is not on the GM desk.** The **Other** lens on
-  `/gm/turns` is built from Attack and InterceptHit rows, not from
-  `heldUntil`, so a thief pinned by §1e shows up nowhere a GM looks. The
-  `steal` audit row, with `unseen: false`, is the record.
 - **A caught thief's hold overwrites a shorter Safe intercept hold on them**,
   and takes its `heldById` with it, so the interceptor's Release button no
   longer finds them. Same shape as the Attack-over-Safe gap in

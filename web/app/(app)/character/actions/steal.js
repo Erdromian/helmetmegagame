@@ -99,6 +99,9 @@ export async function stealRequestImpl({ fromKey, tags }) {
       modifiers,
       total: stealTotal(roll.die, modifiers),
       unseen,
+      // Whether the caught hold landed. The GM desk's Other lens reads it
+      // (web/lib/holdClusters.js#caughtStealRow) to say Holding or Seen.
+      held: pinned,
     },
   });
 

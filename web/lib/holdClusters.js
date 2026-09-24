@@ -1,5 +1,5 @@
 // The Other lens's fight half (IMPORT-FREE, pure). Everything that pins somebody in place this turn: a
-// fight (ATTACK.md), a Safe intercept that fired (INTERCEPT.md). An Ambush shows up here as an Attack.
+// fight (ATTACK.md), a Safe intercept that fired (INTERCEPT.md), a thief the room caught (THEFT.md §1e). An Ambush shows up here as an Attack.
 // A row is ONE FIGHT, not one pairing — twelve Attack rows from one brawl cluster into one row.
 export const ATTACK_INCLUDE = {
   attacker: { select: { id: true, name: true, discordUserId: true, updatedAt: true, roleTitle: true, zone: { select: { name: true } } } },
@@ -12,6 +12,14 @@ export const INTERCEPT_HIT_INCLUDE = {
   interceptor: { select: { id: true, name: true, discordUserId: true, updatedAt: true, roleTitle: true, zone: { select: { name: true } } } },
   targetCharacter: { select: { id: true, name: true, discordUserId: true, updatedAt: true, roleTitle: true, zone: { select: { name: true } } } },
 };
+
+// A caught Steal has no table of its own: the `steal` AuditLog row is the record, and its targetCharacter is the THIEF.
+export const CAUGHT_STEAL_INCLUDE = {
+  targetCharacter: { select: { id: true, name: true, discordUserId: true, updatedAt: true, roleTitle: true, zone: { select: { name: true } } } },
+};
+
+// Only the rows where the room saw it — a clean steal is nobody's business, a GM's included.
+export const caughtStealWhere = (turnId) => ({ actionType: "steal", turnId, details: { path: ["unseen"], equals: false } });
 
 // One person's line in a row's strip. REAL names, GM desk (COMBAT.md §5). `moves` comes from rows the page already built.
 function personLine(c, role, { usernameById, catatonicIds, movesByCharacterId }) {
@@ -153,10 +161,46 @@ function interceptHitRow(h, ctx) {
   };
 }
 
+// One Steal the room noticed. Held by nobody, so there is nothing to call off; Holding while the five
+// minutes run (`details.held` says the hold landed at all — a thief already in a fight keeps that one), Seen after.
+// `ctx.now` and `ctx.caughtHoldMs` come from the page, which keeps this file import-free.
+function caughtStealRow(a, ctx) {
+  const { usernameById, catatonicIds, now, caughtHoldMs } = ctx;
+  const thief = a.targetCharacter;
+  const room = a.details?.roomName ?? "a stash";
+  const holding =
+    a.details?.held === true && now != null && caughtHoldMs != null && a.createdAt.getTime() + caughtHoldMs > now.getTime();
+  return {
+    id: `caught:${a.id}`,
+    kind: "CAUGHT",
+    kindLabel: "Caught stealing",
+    characterId: thief.id,
+    characterName: thief.name,
+    avatarVersion: thief.updatedAt.getTime(),
+    catatonic: catatonicIds?.has(thief.id) ?? false,
+    discordUsername: usernameById.get(thief.discordUserId) ?? thief.discordUserId ?? "",
+    roleTitle: thief.roleTitle ?? "",
+    // The row's click opens its TARGET; the thief is the only person in it, so they are both ends.
+    targetCharacterId: thief.id,
+    targetName: room,
+    extraCount: 0,
+    zoneName: thief.zone?.name ?? "",
+    locationName: null,
+    statusLabel: holding ? "Holding" : "Seen",
+    people: [personLine(thief, "caught", ctx)],
+    holds: [],
+    searchText: `${thief.name} ${room}`,
+    createdAtMs: a.createdAt.getTime(),
+  };
+}
+
 // `interceptHits` are Safe stops only — an Ambush files an Attack, so the two halves never overlap.
-export function otherHoldRows(attacks, interceptHits, ctx) {
+// `caughtSteals` are `steal` AuditLog rows loaded with caughtStealWhere and CAUGHT_STEAL_INCLUDE.
+export function otherHoldRows(attacks, interceptHits, ctx, caughtSteals = []) {
   return [
     ...attackClusters(attacks).map((edges) => attackClusterRow(edges, ctx)),
     ...interceptHits.map((h) => interceptHitRow(h, ctx)),
+    // A row whose thief has since been deleted has nobody to draw.
+    ...caughtSteals.filter((a) => a.targetCharacter).map((a) => caughtStealRow(a, ctx)),
   ];
 }

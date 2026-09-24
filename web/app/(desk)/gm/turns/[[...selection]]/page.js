@@ -34,7 +34,14 @@ import {
 } from "@/lib/moveRows";
 import { deskRowContext, structuresByLocation } from "@/lib/deskRows";
 import { pgNowMs } from "@/lib/pgClock";
-import { ATTACK_INCLUDE, INTERCEPT_HIT_INCLUDE, otherHoldRows } from "@/lib/holdClusters";
+import {
+  ATTACK_INCLUDE,
+  INTERCEPT_HIT_INCLUDE,
+  CAUGHT_STEAL_INCLUDE,
+  caughtStealWhere,
+  otherHoldRows,
+} from "@/lib/holdClusters";
+import { CAUGHT_HOLD_MS } from "@lifeweb/db/lib/intercept";
 
 // The adjudication workspace's server half: one load, all DTOs, no
 // Prisma-shaped object across the boundary. The queue is the OPEN turn's
@@ -111,6 +118,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     cavingRolls,
     attacks,
     interceptHits,
+    caughtSteals,
     avatarsToReview,
     desireClaims,
     oocLines,
@@ -157,6 +165,15 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           where: { turnId: openTurn.id },
           orderBy: { createdAt: "desc" },
           include: INTERCEPT_HIT_INCLUDE,
+        })
+      : [],
+    // Its theft half — a Steal the room noticed holds the thief five minutes (THEFT.md §1e). No table of its
+    // own; the `steal` AuditLog row is the record, filtered to the ones somebody saw.
+    openTurn
+      ? prisma.auditLog.findMany({
+          where: caughtStealWhere(openTurn.id),
+          orderBy: { createdAt: "desc" },
+          include: CAUGHT_STEAL_INCLUDE,
         })
       : [],
     // Uploaded portraits nobody has looked at yet (PORTRAITS.md §1a). NOT
@@ -306,9 +323,9 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   }
 
   // The Other lens's one merged list — an Ambush is already an Attack row, so the two halves never name the same event twice.
-  const otherCtx = { usernameById, catatonicIds, movesByCharacterId };
+  const otherCtx = { usernameById, catatonicIds, movesByCharacterId, now, caughtHoldMs: CAUGHT_HOLD_MS };
   const otherRows = [
-    ...otherHoldRows(attacks, interceptHits, otherCtx),
+    ...otherHoldRows(attacks, interceptHits, otherCtx, caughtSteals),
     ...avatarsToReview.map((c) => avatarReviewRow(c, otherCtx)),
   ];
 

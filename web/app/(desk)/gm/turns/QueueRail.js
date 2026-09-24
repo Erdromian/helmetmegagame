@@ -134,17 +134,18 @@ const desireSearchMap = (r) => ({
 });
 
 // The Other lens — everything holding somebody in place this turn
-// (docs/systemdocs/ATTACK.md). Attacks, ambushes and Safe intercepts in one
-// list, because to a GM reading the queue they are one question: who cannot
+// (docs/systemdocs/ATTACK.md). Attacks, ambushes, Safe intercepts and thieves
+// the room caught (THEFT.md §1e) in one list, because to a GM reading the queue they are one question: who cannot
 // leave, and who is standing over them.
 //
 // The lens is deliberately named for the shape rather than the contents. It is
 // where the next thing that is neither a Move nor a die goes.
-const OTHER_KIND_OPTIONS = ["Attack", "Ambush", "Intercept", "Portrait"];
-const OTHER_STATUS_OPTIONS = ["Holding", "Called off", "Stopped", "New"];
+const OTHER_KIND_OPTIONS = ["Attack", "Ambush", "Intercept", "Caught stealing", "Portrait"];
+// Seen is a caught thief whose five minutes are over, or who was already held by something longer.
+const OTHER_STATUS_OPTIONS = ["Holding", "Called off", "Stopped", "Seen", "New"];
 // New sorts with Holding, at the top: a picture waiting on a GM is the one
 // kind of Other row that is asking to be DONE rather than read.
-const OTHER_STATUS_RANK = { Holding: 0, New: 0, Stopped: 1, "Called off": 2 };
+const OTHER_STATUS_RANK = { Holding: 0, New: 0, Stopped: 1, Seen: 1, "Called off": 2 };
 const OTHER_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.zoneName },
   { key: "kind", label: "Kind", value: (r) => r.kindLabel, options: OTHER_KIND_OPTIONS },
@@ -163,7 +164,7 @@ const otherSearchMap = (r) => ({
   status: r.statusLabel,
 });
 // A live hold is the only one a GM can still do anything about.
-const OTHER_TONES = { Holding: "bad", New: "warn", Stopped: "neutral", "Called off": "neutral" };
+const OTHER_TONES = { Holding: "bad", New: "warn", Stopped: "neutral", Seen: "neutral", "Called off": "neutral" };
 
 // The OOC lens. No status and no kind — a line was said or it was not — so
 // the only axis left to narrow by is where it was said.
@@ -351,7 +352,7 @@ function AvatarReviewRow({ row, matchFor, onInspect, active, kbd }) {
     setBusy(false);
     // STILL A REFRESH, and the only three left on this desk that are. The
     // Other lens's rows are not desk-store rows: an avatar awaiting review is
-    // a Character, and a hold is an Attack or an Intercept hit, so none of the
+    // a Character, and a hold is an Attack, an Intercept hit or a steal audit row, so none of the
     // four types web/lib/deskRows.js#deskPatchFor can re-read covers them and
     // there is nothing to hand back a patch of. Giving them one would mean a
     // fifth row type through the store, the stream and the trigger set for
@@ -507,6 +508,7 @@ const HOLD_ROLE_LABELS = {
   held: "held",
   stopping: "stopping",
   stopped: "stopped",
+  caught: "caught stealing",
 };
 
 // One fight, drawn as a row plus a strip of the people in it

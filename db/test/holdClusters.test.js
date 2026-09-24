@@ -134,3 +134,29 @@ test("the search text names everybody, not only the two on the title", () => {
   const out = rows([attack("ada", "bram"), attack("ada", "cade")]);
   for (const name of ["ada", "bram", "cade"]) assert.ok(out[0].searchText.includes(name));
 });
+
+// A Steal the room noticed (THEFT.md §1e). Held by nobody, so it is its own
+// row with nothing to call off, and it only says Holding while the hold runs.
+test("a caught thief is a row of their own, Holding for five minutes and Seen after", () => {
+  const HOLD_MS = 5 * 60 * 1000;
+  const at = new Date("2026-09-24T12:00:00Z");
+  const steal = (id, details) => ({ id, createdAt: at, details, targetCharacter: who("ferret") });
+  const ctxAt = (ms) => ({ ...CTX, now: new Date(at.getTime() + ms), caughtHoldMs: HOLD_MS });
+  const caught = [steal("a1", { roomName: "Pantry", unseen: false, held: true })];
+
+  const [row] = otherHoldRows([], [], ctxAt(60_000), caught);
+  assert.equal(row.kind, "CAUGHT");
+  assert.equal(row.statusLabel, "Holding");
+  assert.equal(row.characterName, "ferret");
+  assert.equal(row.targetCharacterId, "ferret"); // the click opens the thief
+  assert.equal(row.targetName, "Pantry");
+  assert.deepEqual(row.holds, []);
+  assert.deepEqual(row.people.map((p) => [p.characterId, p.role]), [["ferret", "caught"]]);
+
+  assert.equal(otherHoldRows([], [], ctxAt(HOLD_MS), caught)[0].statusLabel, "Seen");
+  // Already held by a fight: the caught hold never landed, so it never says Holding.
+  const unheld = [steal("a2", { roomName: "Pantry", unseen: false, held: false })];
+  assert.equal(otherHoldRows([], [], ctxAt(60_000), unheld)[0].statusLabel, "Seen");
+  // The fight rows are untouched by the extra argument.
+  assert.equal(otherHoldRows([], [], CTX).length, 0);
+});
