@@ -10,6 +10,7 @@ import { ChevronDownIcon } from "@/app/components/icons";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, WALK_HINT } from "@/lib/travelCost";
+import SqueezeChip from "@/app/components/SqueezeChip";
 import { loadMap } from "./actions";
 import { renderPlate, glyphPath } from "./plateRender";
 import useMapNarrow from "./useMapNarrow";
@@ -890,6 +891,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
                     className="map-edge"
                     data-gate={e.gate ?? undefined}
                     data-opened={e.openedBy ? "true" : undefined}
+                    data-squeeze={e.squeeze ? "true" : undefined}
                     x1={a.x}
                     y1={a.y}
                     x2={b.x}
@@ -1127,6 +1129,8 @@ export default function MapBoard({ onClose = null, initial = null }) {
                 {/* The tag of theirs that opens it, where one does — the same
                     chip the Travel panel and the card below draw. */}
                 <ViaChip slug={n.openedBy} />
+                {/* Where no Giant fits (MAP.md §2a), on everybody's list. */}
+                <SqueezeChip show={n.tightSqueeze} className="map-via" />
                 <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted, travel?.moved)}</span>
               </button>
             ))}
@@ -1139,6 +1143,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
             {walks.map((n) => (
               <button key={n.id} type="button" className="map-exit" onClick={() => setSel(n.id)}>
                 <span>{n.name}</span>
+                <SqueezeChip show={n.walkTightSqueeze} onWalk className="map-via" />
                 <span className="mono">{walkFoot(routeOf(n), travel?.mounted)}</span>
               </button>
             ))}
@@ -1234,6 +1239,9 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
             place to me", and the shared .chip-row is what a line of chips is
             already spelled as everywhere else. */}
         <ViaChip slug={node.openedBy} />
+        {/* A squeeze on the way there, said before Go. On a next-door place
+            the way IS the squeeze; on a walk it is somewhere along the road. */}
+        <SqueezeChip show={node.adjacent ? node.tightSqueeze : node.walkTightSqueeze} onWalk={!node.adjacent} />
       </div>
 
       {node.description && <p className="text-sm">{node.description}</p>}

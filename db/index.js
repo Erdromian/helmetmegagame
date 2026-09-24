@@ -39,6 +39,7 @@ const { runTrainDeparturePass } = require("./lib/trainDeparturePass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { getGameState, readGameState, inSession } = require("./lib/gameState");
 const { normalizeTurnLength, nextBoundaryAfter, nextDayNumber } = require("./lib/turnClock");
+const { settleFloors, FLOOR_SETTLE_AUDIT_ACTION } = require("./lib/floorSettle");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
 const { runVisionDecayPass } = require("./lib/visionDecayPass");
@@ -145,6 +146,19 @@ attachBreakerStore({
   write: (data) => prisma.gameConfig.updateMany({ where: { id: 1 }, data }),
 });
 
+// What a room row keeps when its visible units run out on the clock but some
+// are still under the floor: nothing on it, no clock, no floor stamp, no
+// visible poison. The hidden units never carried the clock (a seed sets none
+// and db/lib/floorSettle.js never sinks a clocked stack), so they outlive it.
+// The payload is cleared separately, only where no poison sank with them.
+const VISIBLE_SIDE_EXPIRED = { quantity: 0, poisonedCount: 0, expiresTurn: null, floorDay: null };
+function clearSpentPayloads(where) {
+  return prisma.roomTag.updateMany({
+    where: { ...where, poisonedCount: { lte: 0 }, hiddenPoisonedCount: { lte: 0 }, poisonPayload: { not: null } },
+    data: { poisonPayload: null },
+  });
+}
+
 // The stackable half of resolveNeeds()' expiry sweep: each expired stack
 // loses one unit and the remainder's clock restarts from the tag's catalog
 // duration, so a stack sheds one unit at a time rather than all at once.
@@ -163,17 +177,23 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
       id: true,
       quantity: true,
       poisonedCount: true,
+      // A room stack may have units under the floor (RoomTag.hiddenQuantity,
+      // SEARCH.md §9). The clock is the visible units': when the last of them
+      // expires the row is zeroed and kept, not deleted with the hidden ones.
+      ...(model === "roomTag" ? { hiddenQuantity: true } : {}),
       tag: { select: { defaultDurationTurns: true } },
     },
   });
   if (expired.length === 0) return;
 
   const spent = [];
+  const emptied = [];
   // new expiresTurn -> rows landing on it
   const rescheduled = new Map();
   for (const ct of expired) {
     if (ct.quantity <= 1) {
-      spent.push(ct.id);
+      if ((ct.hiddenQuantity ?? 0) > 0) emptied.push(ct.id);
+      else spent.push(ct.id);
       continue;
     }
     const next = expiryFrom(turn.number + 1, ct.tag.defaultDurationTurns ?? 1);
@@ -208,6 +228,12 @@ async function sweepExpiredStacks(turn, model = "characterTag") {
   await prisma.$transaction([
     ...(spent.length
       ? [prisma[model].deleteMany({ where: { id: { in: spent } } })]
+      : []),
+    ...(emptied.length
+      ? [
+          prisma.roomTag.updateMany({ where: { id: { in: emptied } }, data: VISIBLE_SIDE_EXPIRED }),
+          clearSpentPayloads({ id: { in: emptied } }),
+        ]
       : []),
     // decrement, not a computed literal, so a concurrent grant on the same
     // row can't be clobbered between the read above and this write.
@@ -264,6 +290,10 @@ const TURN_PASSES = [
   // would be deleted instead of rotting. See db/lib/corpseRotPass.js.
   "corpseRot",
   "expirySweep",
+  // After the sweep, so a stack whose clock ran out this turn is gone rather
+  // than sunk, and nothing it hides can carry a clock. See
+  // db/lib/floorSettle.js.
+  "floorSettle",
   // After the sweep, and it has nothing to do with it: a notice is on a board
   // rather than on a sheet, so nothing above can see one.
   "noticeboard",
@@ -430,9 +460,10 @@ async function resolveNeeds(turn, config) {
 
   // The audit row a pass leaves behind. Never throws — a failed write is
   // printed and the advance goes on, the same as every other log here.
-  async function audit(actionType, details, label) {
+  // `turnId` only where a pass's row has always carried one (floor settle).
+  async function audit(actionType, details, label, turnId) {
     await prisma.auditLog
-      .create({ data: { actorDiscordUserId: "system", actionType, details } })
+      .create({ data: { actorDiscordUserId: "system", actionType, details, ...(turnId ? { turnId } : {}) } })
       .catch((err) => console.error(`${label} audit log failed:`, err));
   }
 
@@ -641,9 +672,23 @@ async function resolveNeeds(turn, config) {
     // A stashed tag sheds on the same clock. The one progression that
     // reaches a floor is the corpse rot above, which has already nulled
     // expiresTurn on anything it turned, so this cannot see it.
+    // ...and only the visible side of it: a row still holding units under
+    // the floor (SEARCH.md §9) is zeroed and kept, never deleted with them.
     await prisma.roomTag.deleteMany({
-      where: { expiresTurn: { lte: turn.number }, tag: { stackable: false } },
+      where: { expiresTurn: { lte: turn.number }, tag: { stackable: false }, hiddenQuantity: { lte: 0 } },
     });
+    const keptUnder = (
+      await prisma.roomTag.findMany({
+        where: { expiresTurn: { lte: turn.number }, tag: { stackable: false }, hiddenQuantity: { gt: 0 } },
+        select: { id: true },
+      })
+    ).map((r) => r.id);
+    if (keptUnder.length) {
+      await prisma.$transaction([
+        prisma.roomTag.updateMany({ where: { id: { in: keptUnder } }, data: VISIBLE_SIDE_EXPIRED }),
+        clearSpentPayloads({ id: { in: keptUnder } }),
+      ]);
+    }
     await sweepExpiredStacks(turn, "roomTag");
 
     // A worn-off disguise takes its catalog row with it. The row is minted
@@ -718,6 +763,27 @@ async function resolveNeeds(turn, config) {
     });
     return true;
   });
+
+  // What characters left lying in public rooms sinks under the floor once it
+  // has lain there a whole in-game day (db/lib/floorSettle.js, CARRY.md §6a).
+  // Measured against the day the NEXT turn opens on, which is the day the
+  // floor is next looked at. One statement; a re-run finds nothing twice,
+  // because a sunk stack loses its stamp.
+  const settled = await runPass("floorSettle", "Floor settle", () =>
+    settleFloors(prisma, { nextDay: nextDayNumber(turn, new Date()) }),
+  );
+  if (settled?.length) {
+    await audit(
+      FLOOR_SETTLE_AUDIT_ACTION,
+      {
+        stacks: settled.length,
+        rooms: new Set(settled.map((r) => r.roomId)).size,
+        rows: settled.map((r) => ({ roomId: r.roomId, tagId: r.tagId })),
+      },
+      "Floor settle",
+      turn.id,
+    );
+  }
 
   // Noticeboards. A paper nobody took down blows away, and it takes the paper
   // with it — that is what expiring MEANS here, and it is why a notice is

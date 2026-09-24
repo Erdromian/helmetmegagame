@@ -143,10 +143,10 @@ a P2002 out of `rollCaving` would now be a real bug.
 
 **What replaced the brake: a ceiling on the 1s, not on the rolling.** The
 only thing rationing rolls is `GameConfig.locationMoveCooldownSeconds` — the
-wait between two walks inside one zone, **3 seconds** by default. So a player
-standing between two adjacent cave rooms can roll every few seconds: a loot
-faucet, a `CAVE_TROUBLE` mood drain (`MOOD.md`), and a supply of unresolved
-`TROUBLE` rows on the Caving lens. What bounds all three is §2e — the tenth 1
+wait between two walks inside one zone, **30 seconds** by default (it was 3
+until 2026-09-24). So a player standing between two adjacent cave rooms can
+roll twice a minute: a loot faucet, a `CAVE_TROUBLE` mood drain (`MOOD.md`),
+and a supply of unresolved `TROUBLE` rows on the Caving lens. What bounds all three is §2e — the tenth 1
 of the turn stops them walking at all, and nothing rolls for somebody who is
 not walking. Between the two, the cooldown is still the lever a GM has on
 `/gm/dev`: a cave step can be priced at a minute without anybody touching

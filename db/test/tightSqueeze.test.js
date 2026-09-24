@@ -36,6 +36,29 @@ test("crossingCheck: an ordinary way never refuses a giant", () => {
   assert.equal(crossingCheck(ordinary, { tagSlugs: ["giant"] }).passable, true);
 });
 
+// The mark everybody sees (MAP.md §2a): the flag rides every LISTED verdict,
+// passable or not, so a party can see where its Giant cannot follow.
+test("crossingCheck: the squeeze is reported to everybody, not only the giant it refuses", () => {
+  assert.equal(crossingCheck(WAY, { tagSlugs: [] }).tightSqueeze, true, "a passable way says so");
+  assert.equal(crossingCheck(WAY, { tagSlugs: ["giant"] }).tightSqueeze, true, "and so does the refusal");
+  assert.equal(crossingCheck({ ...WAY, tightSqueeze: false }, { tagSlugs: [] }).tightSqueeze, false);
+
+  // On a refusing branch too — a locked squeeze tells a non-holder about the hole, not the key.
+  const locked = { ...WAY, requiredTagSlug: "keys" };
+  const refused = crossingCheck(locked, { tagSlugs: [] });
+  assert.equal(refused.passable, false);
+  assert.equal(refused.tightSqueeze, true);
+  assert.equal(refused.openedBy, undefined, "the lock's own secrets stay where they were");
+});
+
+test("crossingCheck: a hidden squeeze is still hidden — the mark never leaks a way nobody may see", () => {
+  const hidden = { ...WAY, hidden: true, requiredTagSlug: "caving" };
+  const verdict = crossingCheck(hidden, { tagSlugs: [] });
+  assert.equal(verdict.listed, false);
+  assert.equal(verdict.tightSqueeze, undefined);
+  assert.equal(crossingCheck(hidden, { tagSlugs: ["caving"] }).tightSqueeze, true, "listed once the tag opens it");
+});
+
 // --- docs/zones.yaml `tight_squeeze:` -----------------------------------
 
 function zonesDoc(connectionExtra) {

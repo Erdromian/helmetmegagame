@@ -321,3 +321,235 @@ so neither half ever sees a partial exports object.
 ([`THEFT.md`](THEFT.md) §2d) is the second, for the same reason §3 gives here —
 no cooldown behind it, and a ration that has to survive a bad outcome. It goes
 one step further and carries the authorization for a second act as well.
+
+## 9. Searching a room
+
+Going through the place rather than a person. Everything above is about
+pockets; this half is about floors, and it exists because a room stash was a
+shelf: anybody standing at the Location pressed **Storage**, read the whole of
+it, and Take or Steal carried it off. The Black Powder in the Old Mineshaft
+went to the first person through the door. `docs/design/room-search.md` is the
+proposal this came from.
+
+### 9a. The model: two counts a stack
+
+`RoomTag.hiddenQuantity` sits beside `quantity`. `quantity` is what is on the
+floor: what Storage lists, what Transfer, Take and Steal move. `hiddenQuantity`
+is what is under it, and a Search is the only thing that moves units from the
+second count to the first. Every reader of a stash already selects
+`where: { quantity: { gt: 0 } }`, so a stack that is entirely hidden is
+invisible to all of them with no filter added.
+
+Two counts on one row rather than a flag, because `@@unique([roomId, tagId])`
+means one row per tag per room. With a flag, a bottle somebody dropped in the
+Den's Bar would land on the hidden Alcohol row and vanish under the floor.
+`addToRoomStack` only ever increments `quantity`, so nothing a player drops is
+hidden by accident — but a stack a character LEFT in a public room sinks
+under the floor on its own after a whole in-game day (`CARRY.md` §6a), so a
+search turns up abandoned goods as well as authored ones. Poison sinks with
+it, in `hiddenPoisonedCount`, and the reveal brings both counts up together.
+
+**Every writer that deletes a row at `quantity <= 0` must also require
+`hiddenQuantity <= 0`.** There are four — `tagWrites.js#dropRoomTag`,
+`resourceStack.js#takeRoomResources`, `bankAccounts.js#takeFromVault`, and the
+turn's expiry sweep in `db/index.js` — and each does. Without it, taking the
+last visible unit throws the hidden ones away. `dropRoomTag`'s whole-holding
+branch (`quantity = null`) zeroes the row instead of deleting it for the same
+reason, and so does the expiry sweep: **an expiry clock belongs to the visible
+units**, so when the last of them runs out the row is zeroed, its clock and
+poison cleared, and the hidden units stay.
+
+Hidden ⬢ are real ⬢. The readers that answer "how much does this room hold"
+for the ledger — `resourcesByRoomIds` and `readRoomResources` with
+`includeHidden` — sum both counts, because a Search
+moving ⬢ from under the floor onto it changes nothing about what the room
+holds, and a reader that counted only the floor would report a drift the size
+of every unfound cache the day it was found. `resourcesOf` and the plain
+`readRoomResources` stay visible-only: that is what a hand can reach.
+
+### 9b. Authoring: the `hidden:` block
+
+```yaml
+stash:
+  items:
+    rock: 3
+  hidden:
+    black-powder: 1
+    hematite: 1
+```
+
+`parseStash` normalises it into a third list, `{ resources, items, hidden }`,
+and that is what `Room.stashSeed` stores. `resources` is a valid slug under
+`hidden:`, since ⬢ are a stack like any other. `stashSeedEntries` flattens the
+three into ONE entry per slug, `[slug, quantity, hiddenQuantity]`, so a slug
+named in both lists seeds one row with both counts — and the
+`seededStashSlugs` guard, which is keyed by slug, applies to it once. That
+guard is unchanged: a slug is poured once per game whichever list it came
+from.
+
+The `/gm/dev/zones` Stash panel shows both counts a row and has a second box,
+**Hidden**, in the same `slug: n` form as the seed box. It goes through the
+same `seedRoomStashRows` and the same once-per-slug rule.
+
+**A `destroysContents` room may hold nothing hidden.** The Spillway eats what
+goes into it; a hidden stack there would be a trough with a false bottom, the
+one stash a Search could take from that Take cannot. The seed reports it as
+`refusedHidden` and pours nothing; the panel refuses the box outright.
+
+`npm run map:check` (`MAP.md` §6g) checks every `hidden:` slug names a real
+tag, the way it checks `items:`.
+
+### 9c. The verb
+
+**Search** sits on every room's starter post beside Storage
+(`db/lib/placeAffordances.js`, custom_id `room:search:{roomId}`, hashed into
+`Room.postHash` so existing threads pick it up on the next mirror run), and on
+the open room's panel in `/chat` (`RoomPanel.js`) beside Take. Both call
+`db/lib/roomSearch.js#searchRoom`, which holds every rule, so the two faces
+cannot disagree.
+
+- Anyone standing at the Location, admitted to the room, presses it. Admitted
+  is `roomAccess.js#accessibleRooms`: a key, a `RoomGuest` row, or a quest's
+  allowance. A locked room can hold hidden stock too; the door is the first
+  check and the search the second.
+- **No consent handshake.** A room is not a person: no Offer, no DM with
+  buttons, nothing in anybody's waiting-on-you list.
+- **It costs a third of the Move** (an exact 1/3, shown as `0.33`), on the
+  same ledger crafting, a cure and a burial share (`db/lib/moveLedger.js`,
+  `CRAFTING.md` §2a): three searches fill a Routine, a search and two thirds'
+  work at the bench share one turn, and a Gambit already filed refuses it
+  with the Move-spent sentence.
+  It files the shared `auto:craft` Action with `auto:search` appended to its
+  notes, and `family: "search"` on its ledger line, so the desk reads
+  "Searching this turn: Fishing Hut." No turn pass touches it. Behind the
+  Move is one rule: **one room a turn**. The same room may be searched again
+  (so three times at most), a second room may not.
+- **The price is said before the press, on both faces.** The Discord button
+  is labelled `Search (0.33 Move)`, because a button there has no confirm
+  step; the `/chat` panel's Search opens the shared confirm dialog naming the
+  cost and where a find lands. A player should never learn the price from the
+  refusal. The cost itself, and the `0.33` both faces print, is
+`db/lib/roomSearchCost.js`, a zero-require file
+  so the client panel can read it (the `dmKinds.js` rule). `docs/handbook.md`'s
+  Transferring & Storage section says the same to players.
+- A hood does not refuse it (§2a). A hood hides who you are, not what you are
+  doing with your hands.
+- Refused by anything that blocks `ACT`, by **Blind**, between sittings
+  (`sessionGate`, so Discord and `/chat` refuse alike), and with no turn open.
+- **How many things are hidden is said openly, before anybody searches.**
+  Storage (the Discord button) adds a second line — `-# 3 things are hidden
+  here.` or `-# Nothing is hidden here.` — and the `/chat` room panel shows
+  the same line under the stash and repeats it in the Search confirm. The
+  count is of **stacks**, distinct tags with `hiddenQuantity > 0`, because a
+  stack is what a search turns up (`roomStash.js#hiddenCountLine`,
+  `countHiddenStacks`). So a search of a room with nothing hidden is refused,
+  free, rather than charged a third of a Move for a known answer ("Nothing
+  is hidden here."), and the `/chat` button is disabled there.
+  *(Changed 2026-09-25. Until then the count was secret, and an empty room
+  still rolled and still cost the Move, so the button could not give it
+  away.)*
+
+The refusal ladder (`roomSearchRefusal`) runs in full first, then the turn
+gate (`autoMovesOpen`), then a cheap look at the room rule and the Move; only
+then does ONE transaction, under the Character row lock, ask the room rule
+again, spend the third, record the search, throw the die and write the reveal.
+A refusal anywhere inside rolls the lot back, so a Move is never spent on a
+search that did not happen. A bad roll rolls nothing back.
+
+### 9d. The die
+
+A d6 through `rollWithAdvantage`, so Lucky applies, quietly (§3b's admission).
+Then a **closed** modifier table in `db/lib/roomSearch.js`, the `steal.js`
+discipline — Hunger and the mood bands do not apply, because a player who has
+paid their share of the Move should not be blind for something they cannot fix:
+
+| | value |
+|---|---|
+| Eagle Eyes | +2 |
+| Night Vision, in a `CAVE_LEVEL` zone | +1 |
+| Hallucinating | −2 |
+| Wasted | −2 |
+| Tipsy | −1 |
+
+Drink is worst-rung-only and never sums. The total is clamped to 1–6.
+
+Then §1's own rule, reused rather than rewritten (`search.js#revealCount`,
+`pickRevealed`): `found = floor(total / 6 × hiddenStacks)`, where a **stack**
+is one `RoomTag` row with `hiddenQuantity > 0`, and a found stack comes out
+whole. So a room hiding ONE thing gives it up only on a modified 6, and a room
+hiding four gives one up on a 2. That is §3a's texture landing on the author
+instead of the target: hide the Black Powder alone and it takes a while; hide
+it beside three rocks and somebody finds something first try. The authored
+board leans on that on purpose, leaving scenery in plain sight so a room does
+not read as empty.
+
+Stacks rather than units, so that one rule is shared with the person search.
+A GM who wants a gradual find splits the stack across rooms.
+
+### 9e. What everyone is told, and what moves
+
+- **The searcher** gets one line: `You search the Fishing Hut. You find:
+  Obol ×14, Flooded Crate. 2 things are still hidden here.` or `You search
+  the Fishing Hut and find nothing. 1 thing is still hidden here.` It closes
+  on the count left under the floor, read inside the transaction; the die is
+  never in it.
+- **The room thread** hears one ambient line through `roomAnnounce.js`, named
+  by the face the room saw: `-# A young man rummages through the room.`
+  Whether anything was found is not in the line; Storage says that to anyone
+  who looks. Posted after the answer, over REST, never inside the transaction.
+- **Found stacks move onto the floor**, `hiddenQuantity → quantity`, and stay
+  there. The searcher takes them with Take or Steal like anything else.
+
+That last point is the one worth defending. Straight-to-pocket looks kinder
+and is the thing `steal.js` was written to avoid: reach, the tradeable filter,
+the non-stackable clamp, the carry ceiling, the `TRANSFER_TAG` rows a GM undoes
+from `/gm/turns` and the `afterInventoryChange` tail all live in
+`transferRequestImpl` once. A find that sits on the floor for a second costs
+the searcher nothing they were not already going to spend, and a Steal right
+after it is the quiet version.
+
+**The rule is one room a turn, and `RoomSearchAttempt` is its record**: one
+row per search, `@@index([searcherId, turnId])`, with `turnId` a claim token
+rather than a foreign key. A search is refused when a row this turn names a
+different room (`roomSearch.js#otherRoomRefusal`: "You've already searched
+the Fishing Hut this turn — one room a turn."). There is no unique index,
+because two searches of one room are both legal; the check runs under the
+Character row lock, which every share-of-a-Move verb takes first, so two fast
+presses on two rooms cannot both pass. The Move is what caps the count: at
+a third of a Move each, three times a turn at most. A group of three at the
+Fishing Hut gets up to nine rolls a turn, and each later look at a room rolls
+against whatever the earlier ones left under the floor.
+
+**One audit row**, `room_search`, with `turnId` set (`REQUESTS.md` §1a) and
+`{ die, rolls, advantage, modifiers, total, hiddenStacks, revealedTagIds }` in
+its details — the only place the die is written down, like `search_accepted`.
+Written by `searchRoom` itself, so the bot and the web file the same row.
+
+**The live game got this mid-round.** Start Game had already poured every
+authored stack onto the floor in plain sight, so `npm run
+db:hide-authored-stock` (dry run; `-- --apply` to write, behind
+`db-guard.py`'s `CONFIRMED=1` gate) reads each room's new `hidden:` list and
+moves what is STILL lying there under it — never adding a unit, never touching
+a slug the list does not name, and rewriting `Room.stashSeed` to the new shape
+so the panel and the next Restart Game read it right. That rewrite is also the
+once-only marker: a room whose seed already carries its `hidden:` list is
+skipped, so a second run moves nothing, even after a Search has brought some
+of it back up and nobody has taken it yet. It moves clean units only; poisoned
+ones stay on the floor with the count they were drawn against.
+
+### 9f. Where this half lives
+
+| File | What |
+|---|---|
+| `db/lib/roomSearch.js` | the modifier table, the reveal, the refusal ladder, the readout, `searchRoom` |
+| `db/lib/moveLedger.js` | the Move ledger — moved out of `web/lib/craftBudget.js` and `actions/shared.js` so a Discord button could spend a share; the web re-exports it |
+| `db/test/moveLedger.test.js` | the ledger arithmetic and refusals |
+| `db/lib/roomStashSeed.js` | `stashSeedEntries` (one entry per slug, both counts), the Spillway refusal |
+| `db/lib/syncZones/parse.js` | `parseStash`'s `hidden:` list |
+| `db/lib/tagWrites.js`, `db/lib/resourceStack.js`, `db/lib/bankAccounts.js` | the three deleters that keep a row with hidden stock |
+| `db/scripts/ops/hide-authored-stock.js` | the mid-game one-off |
+| `db/test/roomSearch.test.js`, `db/test/roomStashSeed.test.js` | the pure half |
+| `bot/src/lib/roomSearch.js` | the Discord button |
+| `web/app/(app)/chat/actions.js#searchRoom`, `RoomPanel.js` | the web button and its line |
+| `web/app/(app)/gm/dev/zones/rooms/[roomId]/StashPanel.js` | the Hidden column and box |
+

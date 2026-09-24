@@ -270,6 +270,12 @@ Transfer is give-only, both ways — you can never take ⬢ or an item from anot
 
 The **Storage** button on a room's first post lists what's there.
 
+Not everything in a room is on the shelf. **Search** (beside Storage on the room's first post, and on the room's panel in [Chat](https://ravenheart.quest/chat)) goes through the place for what's hidden. It costs **0.33 of your Move** — three searches fill a turn, or a search shares the turn with work at the bench — and you can only search one room a turn, though you can go through that same room up to three times. Whatever you turn up lands on the floor, where anyone can take it; you'll want to be quick. The room's thread hears that somebody rummaged, not what they found.
+
+Storage also tells you how many things are hidden in a room, so you know before you search whether there is anything to find. A room with nothing hidden can't be searched.
+
+Don't leave things lying around in a cluttered public room. Once three or more things are lying about, small things you set down and walk away from slip out of sight after a full day, one at a time, and only a Search will turn them up again. Animals, carts, buildings, bodies and anything of 40 lb or more never go missing, and neither does anything in a locked room (one that needs a key).
+
 ### Hunger
 
 **You have to actually eat.** At the end of every turn the game asks one question: did you have a meal today? If you did — you ate something, and it left you with the {tag:ate-meal} tag — you are fed. If you didn't, you go {tag:hungry}. Holding ⬢ does not feed you; raw material is not dinner.

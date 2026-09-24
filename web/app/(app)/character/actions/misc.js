@@ -94,6 +94,7 @@ import {
   grantTagSlugs,
   moveResources,
 } from "@/lib/tagEffects";
+import { stampLeftOnFloor } from "@lifeweb/db/lib/floorSettle";
 import {
   buildSkillAncestry,
   isInflictable,
@@ -507,6 +508,8 @@ async function openCrateRequestImpl({ session, character, held }) {
           poisonedCount: sparePoisoned,
           poisonPayload: sparePoisoned > 0 ? poisonPayload : null,
         });
+        // The spare is the character's own, set down for want of a hand (CARRY.md §6a).
+        await stampLeftOnFloor(tx, spareRoom.id, [tag.id]);
         dropped.push({ tagId: tag.id, name: tag.name, quantity: spares, roomId: spareRoom.id, roomName: spareRoom.name });
       }
     }

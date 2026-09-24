@@ -1,0 +1,130 @@
+// The pure half of searching a room (db/lib/roomSearch.js, SEARCH.md §9).
+// Three things worth pinning, none of which a player can check because the
+// die is never shown: that the reveal is the person search's rule applied to
+// STACKS (one hidden thing needs a modified 6, four give one up on a 2); that
+// the modifier table is CLOSED and Night Vision only counts underground; and
+// that the refusal ladder refuses in the order it claims to, since a refusal
+// costs nothing and the third of a Move is spent by anything past it.
+const test = require("node:test");
+const assert = require("node:assert/strict");
+const {
+  ROOM_SEARCH_MODIFIERS,
+  SEARCH_MOVE,
+  SEARCH_LEDGER_NOTES,
+  roomSearchModifiers,
+  roomSearchTotal,
+  hiddenStacks,
+  roomSearchOutcome,
+  roomSearchReadout,
+  roomSearchRefusal,
+  otherRoomRefusal,
+} = require("../lib/roomSearch");
+const { SEARCH_MOVE_LABEL } = require("../lib/roomSearchCost");
+const { hiddenCountLine, formatStashLine } = require("../lib/roomStash");
+
+const held = (...slugs) => slugs.map((slug) => ({ tag: { slug, name: slug } }));
+const row = (slug, hiddenQuantity, name = slug) => ({ id: `rt-${slug}`, tagId: `t-${slug}`, hiddenQuantity, tag: { slug, name } });
+// A deterministic rng that always picks the first remaining row.
+const first = () => 0;
+
+test("the modifier table is closed and small", () => {
+  assert.deepEqual(
+    ROOM_SEARCH_MODIFIERS.map(([slug]) => slug),
+    ["eagle-eyes", "hallucinating", "night-vision", "wasted", "tipsy"],
+  );
+});
+
+test("Eagle Eyes is +2, Hallucinating −2, and drink never sums", () => {
+  assert.deepEqual(roomSearchModifiers(held("eagle-eyes")), [{ label: "Eagle Eyes", value: 2 }]);
+  assert.deepEqual(roomSearchModifiers(held("hallucinating")), [{ label: "Hallucinating", value: -2 }]);
+  assert.deepEqual(roomSearchModifiers(held("tipsy", "wasted")), [{ label: "Wasted", value: -2 }]);
+  assert.deepEqual(roomSearchModifiers(held("hungry", "clumsy", "stealth")), []);
+});
+
+test("Night Vision counts only underground", () => {
+  assert.deepEqual(roomSearchModifiers(held("night-vision")), []);
+  assert.deepEqual(roomSearchModifiers(held("night-vision"), { underground: true }), [{ label: "Night Vision", value: 1 }]);
+});
+
+test("the modified die stays on the face of a d6", () => {
+  assert.equal(roomSearchTotal(6, [{ value: 2 }]), 6);
+  assert.equal(roomSearchTotal(1, [{ value: -2 }]), 1);
+  assert.equal(roomSearchTotal(4, [{ value: -2 }]), 2);
+});
+
+test("one hidden stack comes up only on a 6; four give one up on a 2", () => {
+  const one = [row("black-powder", 1)];
+  assert.deepEqual([1, 2, 3, 4, 5].map((die) => roomSearchOutcome({ die, hidden: one, rng: first }).found.length), [0, 0, 0, 0, 0]);
+  assert.equal(roomSearchOutcome({ die: 6, hidden: one, rng: first }).found.length, 1);
+  const four = [row("a", 1), row("b", 1), row("c", 1), row("d", 1)];
+  assert.deepEqual([1, 2, 3, 4, 5, 6].map((die) => roomSearchOutcome({ die, hidden: four, rng: first }).found.length), [0, 1, 2, 2, 3, 4]);
+});
+
+test("Eagle Eyes lifts a 4 to a find against a single stack", () => {
+  const one = [row("black-powder", 1)];
+  const mods = roomSearchModifiers(held("eagle-eyes"));
+  assert.equal(roomSearchOutcome({ die: 4, modifiers: mods, hidden: one, rng: first }).found.length, 1);
+  assert.equal(roomSearchOutcome({ die: 3, modifiers: mods, hidden: one, rng: first }).found.length, 0);
+});
+
+test("a found stack comes out whole, and ⬢ print as a figure", () => {
+  const hidden = [row("resources", 8), row("obol", 14, "Obol")];
+  const { found } = roomSearchOutcome({ die: 6, hidden, rng: first });
+  assert.equal(found.length, 2);
+  assert.equal(roomSearchReadout({ roomName: "Fishing Hut", found }), "You search the Fishing Hut. You find: 8 ⬢, Obol ×14.");
+  assert.equal(roomSearchReadout({ roomName: "Fishing Hut", found: [] }), "You search the Fishing Hut and find nothing.");
+});
+
+test("hiddenStacks reads only what is under the floor", () => {
+  const tags = [{ hiddenQuantity: 0, quantity: 3 }, { hiddenQuantity: 2, quantity: 0 }, { quantity: 1 }];
+  assert.equal(hiddenStacks(tags).length, 1);
+});
+
+test("the refusal ladder: dead, gone, elsewhere, locked out, no turn, blocked, blind, then go", () => {
+  const room = { id: "r", locationId: "L" };
+  const me = (over = {}) => ({ id: "c", status: "ALIVE", locationId: "L", tags: [], ...over });
+  const turn = { id: "t" };
+  assert.equal(roomSearchRefusal(me({ status: "DEAD" }), room, { turn }), "You can't do that right now.");
+  assert.equal(roomSearchRefusal(me(), null, { turn }), "That room is gone.");
+  assert.equal(roomSearchRefusal(me({ locationId: "M" }), room, { turn }), "You're not here.");
+  assert.equal(roomSearchRefusal(me(), room, { admitted: false, turn }), "You can't get in there.");
+  assert.equal(roomSearchRefusal(me(), room, { turn: null }), "No turn is open.");
+  assert.equal(roomSearchRefusal(me({ tags: held("blind") }), room, { turn }), "You can't see.");
+  assert.equal(roomSearchRefusal(me(), room, { turn }), null);
+  // The count is shown before a search, so a room known to be empty is refused, free.
+  assert.equal(roomSearchRefusal(me(), { ...room, tags: [] }, { turn }), "Nothing is hidden here.");
+  assert.equal(roomSearchRefusal(me(), { ...room, tags: [row("rock", 1)] }, { turn }), null);
+});
+
+test("the readout closes on what is still under the floor", () => {
+  assert.equal(roomSearchReadout({ roomName: "Fishing Hut", found: [], remaining: 2 }), "You search the Fishing Hut and find nothing. 2 things are still hidden here.");
+  assert.equal(roomSearchReadout({ roomName: "Fishing Hut", found: [], remaining: 1 }), "You search the Fishing Hut and find nothing. 1 thing is still hidden here.");
+  assert.equal(roomSearchReadout({ roomName: "Fishing Hut", found: [row("obol", 14, "Obol")], remaining: 0 }), "You search the Fishing Hut. You find: Obol ×14. Nothing else is hidden here.");
+});
+
+test("Storage says how many things are hidden, in stacks, before anybody searches", () => {
+  assert.equal(hiddenCountLine(0), "Nothing is hidden here.");
+  assert.equal(hiddenCountLine(1), "1 thing is hidden here.");
+  assert.equal(hiddenCountLine(4), "4 things are hidden here.");
+  const room = { tags: [{ quantity: 2, tag: { name: "Rock", slug: "rock" } }] };
+  assert.equal(formatStashLine(room), "-# 0 ⬢ | **Tags**: Rock ×2");
+  assert.equal(formatStashLine(room, { hidden: 3 }), "-# 0 ⬢ | **Tags**: Rock ×2\n-# 3 things are hidden here.");
+  assert.equal(formatStashLine({ tags: [] }, { hidden: 0 }), "-# Nothing is stored here.\n-# Nothing is hidden here.");
+});
+
+
+test("one room a turn: the same room again is fine, a second room is refused by name", () => {
+  const hut = { id: "hut", name: "Fishing Hut" };
+  const mine = { id: "mine", name: "Old Mineshaft" };
+  assert.equal(otherRoomRefusal(hut, null), null);
+  assert.equal(otherRoomRefusal(hut, hut), null);
+  assert.equal(otherRoomRefusal(mine, hut), "You've already searched the Fishing Hut this turn — one room a turn.");
+});
+
+test("a search is an exact third of the Move on the shared ledger", () => {
+  assert.deepEqual(SEARCH_MOVE, { num: 1, den: 3, family: "search" });
+  // The price players read is the same third, to two places.
+  assert.equal(SEARCH_MOVE_LABEL, (SEARCH_MOVE.num / SEARCH_MOVE.den).toFixed(2));
+  // The marker checkLedgerMove reads a shareable ledger by must be in the notes, or the second search refuses the first.
+  assert.equal(SEARCH_LEDGER_NOTES.includes("auto:craft"), true);
+});

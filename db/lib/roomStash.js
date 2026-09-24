@@ -64,14 +64,41 @@ function formatManifest(tags = [], resources = 0) {
   return joinList(parts);
 }
 
+// How many things are under this floor waiting to be found (SEARCH.md §9c) —
+// distinct stacks, not units, since a stack is what a Search turns up. Said
+// openly, before anybody searches: a player deciding whether a room is worth
+// a third of their Move should know whether there is anything to find.
+// `after` is the searcher's own readout, closing on what is left.
+function hiddenCountLine(count, { after = false } = {}) {
+  if (!(count > 0)) return after ? "Nothing else is hidden here." : "Nothing is hidden here.";
+  const still = after ? " still" : "";
+  return count === 1 ? `1 thing is${still} hidden here.` : `${count} things are${still} hidden here.`;
+}
+
+function countHiddenStacks(db, roomId) {
+  return db.roomTag.count({ where: { roomId: roomId ?? "", hiddenQuantity: { gt: 0 } } });
+}
+
 // ⬢ are one of the stacks now, so they are pulled out of `tags` rather than read off a column beside it.
-function formatStashLine(room) {
+// `hidden`, when given, adds the count of what is under the floor as a second subtext line.
+function formatStashLine(room, { hidden } = {}) {
   const tags = (room.tags ?? []).filter((rt) => rt.quantity > 0);
   const resources = resourcesOf(room);
   const goods = withoutResources(tags);
-  if (goods.length === 0 && !(resources > 0)) return "-# Nothing is stored here.";
+  const under = hidden == null ? "" : `
+-# ${hiddenCountLine(hidden)}`;
+  if (goods.length === 0 && !(resources > 0)) return `-# Nothing is stored here.${under}`;
   const names = goods.map((rt) => formatStack(rt.tag.name, rt.quantity)).join(", ");
-  return `-# ${resources} ⬢ | **Tags**: ${names || "none"}`;
+  return `-# ${resources} ⬢ | **Tags**: ${names || "none"}${under}`;
 }
 
-module.exports = { pickRandomPublicRoom, addRoomResources, formatStack, joinList, formatManifest, formatStashLine };
+module.exports = {
+  pickRandomPublicRoom,
+  addRoomResources,
+  formatStack,
+  joinList,
+  formatManifest,
+  formatStashLine,
+  hiddenCountLine,
+  countHiddenStacks,
+};
