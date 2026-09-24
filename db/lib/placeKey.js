@@ -45,10 +45,6 @@ const GAME_PLACE_KEY = "game:main";
 const CHANNEL_TTL_MS = 60 * 1000;
 const channelMemo = new Map(); // channelId -> { key, at }
 
-function forgetPlaceKeys() {
-  channelMemo.clear();
-}
-
 // `channelId` is the THREAD's own id inside a thread; `parentId` is the fallback channel.
 async function placeKeyForChannel(prisma, { channelId, parentId = null } = {}) {
   if (!channelId) return null;
@@ -367,6 +363,5 @@ module.exports = {
   parsePlaceKey,
   isScenePlaceKey,
   isOocPlaceKey,
-  forgetPlaceKeys,
   placePairForAudit,
 };

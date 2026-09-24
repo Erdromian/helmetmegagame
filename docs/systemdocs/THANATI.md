@@ -72,7 +72,6 @@ re-checks the tag from the session.
   under the button lists every living cultist as `Name · Role`, leader first
   and marked `[LEADER]`. It used to go out as a DM; the page is private
   already. Free, no Move. Audit `request_recall_comrades`.
-  `formatComrades` is still in `db/lib/thanati.js` for a Discord caller.
 - **Recover Equipment** — an instant verb with a one-line confirm, since it
   spends the Move. The button's label is what it would hand back ("Recover
   Robes & Mask", "Recover Mask"; `actionRegistry.js#labelFor`) and it greys

@@ -360,8 +360,8 @@ units**, so when the last of them runs out the row is zeroed, its clock and
 poison cleared, and the hidden units stay.
 
 Hidden ⬢ are real ⬢. The readers that answer "how much does this room hold"
-for the ledger and the supply figure — `resourcesByRoomIds`, `sumRoomResources`,
-and `readRoomResources` with `includeHidden` — sum both counts, because a Search
+for the ledger — `resourcesByRoomIds` and `readRoomResources` with
+`includeHidden` — sum both counts, because a Search
 moving ⬢ from under the floor onto it changes nothing about what the room
 holds, and a reader that counted only the floor would report a drift the size
 of every unfound cache the day it was found. `resourcesOf` and the plain

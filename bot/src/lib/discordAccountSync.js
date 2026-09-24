@@ -4,20 +4,6 @@
 const { prisma } = require("@lifeweb/db");
 const { accountRowsFromMembers, syncDiscordAccounts } = require("@lifeweb/db/lib/discordAccounts");
 
-// One member, from an event that already holds them (guildMemberAdd, and the
-// proxy pipeline's author). Cheap enough to call on every sighting: the shared
-// helper reads before it writes, so an unchanged handle costs one indexed read.
-async function rememberMember(member) {
-  const rows = accountRowsFromMembers([member]);
-  if (!rows.length) return;
-  try {
-    await syncDiscordAccounts(prisma, rows);
-  } catch (err) {
-    // Never fail the caller's real work over a cache write.
-    console.error(`Failed to remember Discord handle for ${member?.id}: ${err.message}`);
-  }
-}
-
 // The bulk catch-up, called from ready.js. `guild.members.fetch()` is a gateway
 // fetch, not REST, so it costs nothing against the request budget
 // (bot/src/lib/leaveReconcile.js says the same of its own).
@@ -34,4 +20,4 @@ async function syncDiscordAccountsForGuild(guild) {
   }
 }
 
-module.exports = { rememberMember, syncDiscordAccountsForGuild };
+module.exports = { syncDiscordAccountsForGuild };

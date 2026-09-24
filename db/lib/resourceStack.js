@@ -160,11 +160,11 @@ async function resourcesByCharacterIds(tx, characterIds) {
   return new Map(rows.map((r) => [r.characterId, r.quantity ?? 0]));
 }
 
-// The room's WHOLE holding, hidden ⬢ included (SEARCH.md §9). This and
-// sumRoomResources below are the ledger's and the supply figure's readers: a
-// Search moving ⬢ from under the floor onto it changes nothing about how much
-// the room holds, so a reader that counted only the floor would report a
-// drift the size of every unfound cache in the game the day it was found.
+// The room's WHOLE holding, hidden ⬢ included (SEARCH.md §9). The ledger's
+// backfill reads this: a Search moving ⬢ from under the floor onto it changes
+// nothing about how much the room holds, so a reader that counted only the
+// floor would report a drift the size of every unfound cache in the game the
+// day it was found.
 async function resourcesByRoomIds(tx, roomIds) {
   const ids = [...new Set((roomIds ?? []).filter(Boolean))];
   const tagId = await resourcesTagId(tx);
@@ -174,29 +174,6 @@ async function resourcesByRoomIds(tx, roomIds) {
     select: { roomId: true, quantity: true, hiddenQuantity: true },
   });
   return new Map(rows.map((r) => [r.roomId, (r.quantity ?? 0) + (r.hiddenQuantity ?? 0)]));
-}
-
-// The world's ⬢, for a supply figure. `characterWhere` scopes it to
-// whichever characters the caller wants (ALIVE, or the holding statuses)
-// without this module having an opinion about which.
-async function sumCharacterResources(tx, characterWhere = {}) {
-  const tagId = await resourcesTagId(tx);
-  if (!tagId) return 0;
-  const agg = await tx.characterTag.aggregate({
-    where: { tagId, character: characterWhere },
-    _sum: { quantity: true },
-  });
-  return agg._sum.quantity ?? 0;
-}
-
-async function sumRoomResources(tx, roomWhere = {}) {
-  const tagId = await resourcesTagId(tx);
-  if (!tagId) return 0;
-  const agg = await tx.roomTag.aggregate({
-    where: { tagId, room: roomWhere },
-    _sum: { quantity: true, hiddenQuantity: true },
-  });
-  return (agg._sum.quantity ?? 0) + (agg._sum.hiddenQuantity ?? 0);
 }
 
 // --- Writing -------------------------------------------------------------
@@ -331,8 +308,6 @@ module.exports = {
   readRoomResources,
   resourcesByCharacterIds,
   resourcesByRoomIds,
-  sumCharacterResources,
-  sumRoomResources,
   addCharacterResources,
   addRoomResources,
   takeCharacterResources,

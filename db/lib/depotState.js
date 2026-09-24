@@ -1,5 +1,3 @@
-const { record, DEPOT_DEBT } = require("./economyLedger");
-
 // The Depot singleton's live state: the credit line, the turret, the sell-tax
 // rate. Every mover clamps inside ONE locked statement, not a read-modify-write
 // (like db/lib/lifeweb.js#bumpBlood), so two spenders can't stomp each other.
@@ -71,28 +69,6 @@ async function bumpColumn(tx, column, amount, { max = null } = {}) {
   return { before, after, delta: after - before };
 }
 
-// The Company's line. No ceiling here — the CAP is refused rather than clamped
-// by the caller, so the Merchant is told he hit it. `ctx`, when passed, records
-// the move on the ledger (form DEBT). No `ctx` records nothing.
-async function bumpDebt(tx, amount, ctx) {
-  const result = await bumpColumn(tx, "debtObols", amount);
-  if (ctx && result.delta) {
-    // record() never throws (economyLedger.js rule 2) — a hiccup logs and drops the row.
-    const econ = ctx.econ ?? {};
-    await record(
-      tx,
-      {
-        from: econ.from ?? (result.delta > 0 ? DEPOT_DEBT : econ.other ?? null),
-        to: econ.to ?? (result.delta > 0 ? econ.other ?? null : DEPOT_DEBT),
-        form: "DEBT",
-        amount: Math.abs(result.delta),
-      },
-      econ,
-    );
-  }
-  return result;
-}
-
 // No ⬢-to-obol conversion, on purpose: one obol IS one ⬢, so catalog prices are already whole
 // obols and nothing rounds.
 
@@ -103,5 +79,4 @@ module.exports = {
   loadDepot,
   setMerchantFace,
   bumpColumn,
-  bumpDebt,
 };

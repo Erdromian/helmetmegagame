@@ -1,30 +1,8 @@
 // syncZones Ordering: keeps Discord category and channel positions matching the YAML's sortOrder.
 const { getGuildChannels, patchChannel, patchGuildChannelPositions } = require("../discordRest");
-const { CHANNEL_TYPE_CATEGORY } = require("./shared");
 
 // Cave levels share one category; location channels interleave as level.sortOrder * this + location.sortOrder.
 const LEVEL_CHANNEL_STRIDE = 10;
-
-async function sortZoneCategories(prisma) {
-  const zones = await prisma.zone.findMany({ where: { discordCategoryId: { not: null } } });
-  if (zones.length === 0) return;
-
-  const channels = await getGuildChannels();
-  const categoryIds = new Set(zones.map((z) => z.discordCategoryId));
-  const currentPositions = channels
-    .filter((c) => c.type === CHANNEL_TYPE_CATEGORY && categoryIds.has(c.id))
-    .map((c) => c.position)
-    .sort((a, b) => a - b);
-
-  const sorted = [...zones].sort(
-    (a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name),
-  );
-  const updates = sorted
-    .map((z, i) => ({ id: z.discordCategoryId, position: currentPositions[i] }))
-    .filter((u) => Number.isInteger(u.position));
-
-  if (updates.length > 0) await patchGuildChannelPositions(updates);
-}
 
 // Pure: the position (and parent) each already-provisioned category/channel
 // SHOULD hold, given zones with their locations nested and sorted by
@@ -85,7 +63,6 @@ async function sortZoneChannels(prisma) {
 }
 
 module.exports = {
-  sortZoneCategories,
   sortZoneChannels,
   intendedPositions,
   LEVEL_CHANNEL_STRIDE,

@@ -138,18 +138,6 @@ async function rememberDiscordAccount(prisma, { discordUserId, username, globalN
   });
 }
 
-// "peace.lock" -> the account, or null. Case-insensitive because a GM types
-// what they see; `mode: "insensitive"` rather than a stored lowercase column,
-// so the table keeps Discord's own casing for display.
-async function resolveDiscordHandle(prisma, handle) {
-  const normalized = normalizeHandle(handle);
-  if (!normalized) return null;
-  return prisma.discordAccount.findFirst({
-    where: { username: { equals: normalized, mode: "insensitive" } },
-    select: DISCORD_ACCOUNT_SELECT,
-  });
-}
-
 module.exports = {
   DISCORD_ACCOUNT_SELECT,
   normalizeHandle,
@@ -159,5 +147,4 @@ module.exports = {
   applyDiscordAccountSync,
   syncDiscordAccounts,
   rememberDiscordAccount,
-  resolveDiscordHandle,
 };
