@@ -6,6 +6,7 @@ import NavLinks from "./NavLinks";
 import NavLinksAsync from "./NavLinksAsync";
 import ClockBlock from "./ClockBlock";
 import SoundControls from "./SoundControls";
+import ChatBarControls from "./ChatBarControls";
 import SignOutButton from "./SignOutButton";
 import CommandPalette from "./CommandPalette";
 
@@ -43,8 +44,10 @@ export default function AppBar({ discordUserId, fallback = PLAYER_NAV }) {
             The spacer is a plain flex filler, so when the bar overflows it
             collapses to nothing first and the row goes back to scrolling
             sideways — no breakpoint needed. Outside both Suspense boundaries,
-            so neither waits on a Discord role check. */}
+            so neither waits on a Discord role check. ChatBarControls is chat's
+            bell and Mark all read, and draws nothing on any other page. */}
         <span className="top-bar-spacer" aria-hidden="true" />
+        <ChatBarControls />
         <SoundControls />
         <span className="action-strip-sep" aria-hidden="true" />
         <SignOutButton />

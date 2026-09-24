@@ -3,8 +3,8 @@
 // request — /chat is a live feed, and a worker serving it out of a cache would
 // be showing yesterday's scene.
 //
-// Registered from the Hall's push toggle (web/app/(app)/chat/pushStore.js);
-// sent from db/lib/webPush.js. See HALL.md §5a.
+// Registered from the chat bell (web/app/(app)/chat/pushStore.js);
+// sent from db/lib/webPush.js. See CHAT.md §5a.
 
 self.addEventListener("push", (event) => {
   let data = {};

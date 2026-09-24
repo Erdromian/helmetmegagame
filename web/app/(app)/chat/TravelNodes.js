@@ -20,7 +20,8 @@ import useNarrow from "./useNarrow";
 // or "· indoors". Nothing that refuses is hidden — a shut/locked way draws
 // dimmed with the reason, so a player can go find the winch.
 
-// The whole of it, for the hover — the node clamps name/description. `via` is
+// The whole of it, for the hover — the node clamps its name and prints no
+// description at all. `via` is
 // the tag that opens the way; the node's chip can only carry the name.
 function titleFor(option, via) {
   if (!option.passable) return option.reason ?? option.name;
@@ -178,14 +179,10 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
             >
               <span className="chat-node-name">{option.name}</span>
               <span className="chat-node-zone">{option.zoneName}</span>
-              {/* Clamped in CSS rather than truncated here; the whole line is on the node's title either way.
-                  A shut way says WHY in place of its description: the title is a tooltip, a touch
-                  screen never shows one, and a disabled button can't be tapped to ask. */}
-              {!option.passable && option.reason ? (
-                <span className="chat-node-desc">{option.reason}</span>
-              ) : (
-                option.description && <span className="chat-node-desc">{option.description}</span>
-              )}
+              {/* No description on the node (Chat Overhaul.docx); it rides the hover title
+                  instead. A shut way still says WHY: the title is a tooltip, a touch screen
+                  never shows one, and a disabled button can't be tapped to ask. */}
+              {!option.passable && option.reason && <span className="chat-node-desc">{option.reason}</span>}
               {/* Flat ChipLabel, not TagChip — an interactive chip can't live inside this button. */}
               {via && <ChipLabel tag={via} />}
               <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved)}</span>
@@ -222,7 +219,6 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
                 {/* The stops, where there is room for them — the same sentence
                     the strip spells out in full once this is picked. */}
                 <span className="chat-node-zone">{option.through.join(" · ")}</span>
-                {option.description && <span className="chat-node-desc">{option.description}</span>}
                 <span className="chat-node-foot mono">{walkFoot(option, data.mounted)}</span>
               </button>
             ))}

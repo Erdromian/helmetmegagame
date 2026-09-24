@@ -166,7 +166,7 @@ export function clearAllNotified() {
 // you are looking at is the thing everybody turns off.
 //
 // Permission is never ASKED for here. Web Push already asks, once, behind the
-// bell in the places column (./pushStore.js), and a page that prompts on its own
+// bell beside the sound switches (./pushStore.js, ChatBarControls.js), and a page that prompts on its own
 // the first time somebody's name comes up is the pattern browsers added the
 // permanent block for. Nothing is shown until that has been granted.
 function showNotification(placeKey, notice) {
@@ -176,7 +176,17 @@ function showNotification(placeKey, notice) {
     if (Notification.permission !== "granted") return;
     // `tag` is the place, so a busy room replaces its own banner instead of
     // stacking eleven of them.
-    const shown = new Notification(notice.title, { body: notice.body ?? "", tag: `chat:${placeKey}` });
+    const options = { body: notice.body ?? "", tag: `chat:${placeKey}` };
+    let shown;
+    try {
+      shown = new Notification(notice.title, options);
+    } catch {
+      // Chrome on Android refuses the constructor outright ("Illegal
+      // constructor") and only draws a banner through a service worker. The
+      // bell registered /sw.js, and its notificationclick opens data.url.
+      showThroughWorker(placeKey, notice.title, options);
+      return;
+    }
     shown.onclick = () => {
       try {
         window.focus();
@@ -189,6 +199,21 @@ function showNotification(placeKey, notice) {
   } catch {
     // A browser that refuses to construct one costs a banner, nothing more.
   }
+}
+
+function showThroughWorker(placeKey, title, options) {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker
+    .getRegistration()
+    .then((registration) =>
+      registration?.showNotification(title, {
+        ...options,
+        data: { url: `/chat#${encodeURIComponent(placeKey)}` },
+      }),
+    )
+    .catch(() => {
+      // Still a banner, nothing more.
+    });
 }
 
 export function useNotified() {

@@ -58,6 +58,14 @@ const ROLE_KEYS = ["court", "clergy", "cerberon", "saviors", "business", "soil"]
 // them further down still fails the build.
 const MUTED_MIN = 4.1;
 const DISPLAY_MIN = 2.2; // large-display floor for the blackletter, only ever drawn at >= 24px
+// The chat log's own ink (--chat-said, --chat-speech, --chat-scenery), which
+// Bascinet picked on the Chat Type Bench on 2026-09-24 against the log's plain
+// --bg, knowing where it sat against AA: a soft brown body at weight 600, set at
+// 13px. Gated on --bg, the ground it is drawn on, at a floor just under the
+// lowest of the three (--chat-said, 3.37), the same way MUTED_MIN admits the
+// mockup's own --muted. Still a real gate: a later edit that darkens any of
+// them further fails the build.
+const CHAT_INK_MIN = 3.2;
 
 function parseColor(value) {
   if (value.startsWith("#")) {
@@ -187,6 +195,10 @@ function auditLook(t) {
   gate("border vs surface", contrast(composite(parseColor(t["--border"]), surface), surface), BORDER_MIN);
 
   gate("--muted on surface", contrast(composite(parseColor(t["--muted"]), surface), surface), MUTED_MIN);
+
+  for (const token of ["--chat-said", "--chat-speech", "--chat-scenery"]) {
+    gate(`${token} on bg`, contrast(parseColor(t[token]).rgb, bg), CHAT_INK_MIN);
+  }
 
   for (const token of ["--text", "--text-hi", "--speech", "--accent-text", "--danger", "--positive", "--warning", "--zone-ink"]) {
     gate(`${token} on surface`, contrast(composite(parseColor(t[token]), surface), surface), AA);

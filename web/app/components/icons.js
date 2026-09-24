@@ -52,6 +52,8 @@ import {
   Feather,
   Package,
   DoorOpen,
+  Bell,
+  BellOff,
   BellRing,
   Camera,
   Search,
@@ -127,6 +129,10 @@ export const CheckIcon = lucide(Check, "CheckIcon");
 // The Chat page: a doorway you speak through. A plain speech bubble would read as MessageIcon (the GM's inbox).
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
 export const BellRingIcon = lucide(BellRing, "BellRingIcon");
+// The chat bell at rest, and struck through when the browser has blocked
+// notifications for good (ChatBarControls.js).
+export const BellIcon = lucide(Bell, "BellIcon");
+export const BellOffIcon = lucide(BellOff, "BellOffIcon");
 
 // Teach skill, Recall comrades, Send a message — a speaking-out glyph.
 export const SpeakerIcon = lucide(Volume2, "SpeakerIcon");

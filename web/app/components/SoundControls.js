@@ -20,9 +20,9 @@ import { setMusicOn, setSfxOn, useSound } from "./soundStore";
 // which is the whole reason this is a button and not a settings page.
 //
 // `layout` picks the shape. "row" is the top bar: two buttons and a caret onto the volume
-// panel. "stack" is the foot of /chat, where the two buttons join the bell and Mark all
-// read in one row and the slider goes on its own line UNDER all of them — so that copy
-// renders `display: contents` and PlacesColumn mounts its own <VolumeSlider /> last.
+// panel. "stack" is the two buttons alone, `display: contents`, for a host that lays out
+// its own slider: the phone chat head's ⋯ menu (ChatBarControls.js), and the old chat's
+// places foot (?old=1).
 export default function SoundControls({ layout = "row" }) {
   const { sfx, music } = useSound();
   const caretRef = useRef(null);

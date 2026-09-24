@@ -26,11 +26,10 @@
   overflow: hidden;
 }
 
-/* GROUND, and it is painted TWICE on purpose (vocabulary §1). Here, behind the
-   whole grid, so the columns' translucent washes have something to darken —
-   without it a sunk column reads as flat black paint rather than metal in
-   shadow — and again on .chat-feed, which is the scene itself. One rung, two
-   places, the same tile at full strength both times. */
+/* GROUND (vocabulary §1), behind the whole grid, so the columns' translucent
+   washes have something to darken — without it a sunk column reads as flat
+   black paint rather than metal in shadow. The scene itself (.chat-feed) no
+   longer wears it: Chat Overhaul.docx put the log on plain --bg. */
 [data-chat-next] .chat-body {
   flex: 1;
   min-height: 0;
@@ -144,10 +143,16 @@
   background-color: var(--bg);
 }
 
+/* The whole centre column stands on plain --bg (Chat Overhaul.docx), not just
+   the log: painting the feed and the composer one at a time left the grid's
+   textured ground showing in every seam between them (the new-lines pill's
+   wrapper, the notice strip, the gap over the composer). Only the head's own
+   girder, and the side columns, keep the texture. */
 [data-chat-next] .chat-centre {
   display: flex;
   flex-direction: column;
   min-height: 0;
+  background: var(--bg);
 }
 
 /* ── GIRDER (vocabulary §4) ───────────────────────────────────────────────
@@ -505,32 +510,19 @@
   border-bottom: 1px solid var(--border);
 }
 
-/* ── GROUND, second coat (vocabulary §1) ─────────────────────────────────
-   The scene, and the brightest surface on the page. Full-strength tile, no
-   veil: veiling it is what dragged the log down to the same luminance as the
-   panels beside it — a separation of 1.01 against the mockup's 1.16, which is
-   what "the whole page is mush" measures as. Do not veil it again.
-
-   chatshadow.png repeats along the TOP and stays there as the scene scrolls
-   under it: background-attachment defaults to `scroll`, which is fixed to this
-   element's box rather than its content. `local` would drag it down the log. */
+/* ── THE SCENE'S GROUND ─────────────────────────────────────────────────
+   Plain --bg, the flat near-black the player desk stands on (.desk-shell,
+   globals.css), with no tile. Chat Overhaul.docx swapped the textured ground
+   out from behind the log: the grain under the words was part of what made
+   them hard to read. The columns either side keep the tile (.chat-body), so
+   the scene still reads as a well cut into the page. */
 [data-chat-next] .chat-feed {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: none;
   padding: var(--sp-3) var(--sp-4);
-  background-color: var(--bg);
-  background-image:
-    url("/assets/chrome/chatshadow.png"),
-    /* The ground veil, between the shadow and the tile so it dims the tile
-       only. Opacity is not available here — it would fade the content too —
-       so the tile is washed toward --bg instead. --ground-strength (globals.css). */
-    linear-gradient(var(--ground-veil), var(--ground-veil)),
-    url("/assets/chrome/chatbg.png");
-  background-repeat: repeat-x, repeat, repeat;
-  background-position: 0 0, 0 0, 0 0;
-  background-size: auto, auto, 512px 512px;
+  background: var(--bg);
   border-top: 1px solid var(--border-lo);
 }
 
@@ -606,6 +598,32 @@
   color: var(--text);
 }
 
+/* A SHUT zone hides its unread rows too (PlacesColumn.js), so the divider
+   says so for them: brighter ink, and the count or a dot pushed to the far
+   end, the way a row carries its badge. */
+[data-chat-next] .zone-div[data-unread="true"] {
+  color: var(--text-hi);
+}
+
+/* .fold's `width: 100%` plus the divider's own side margins ran it 8px past
+   the column, which nothing showed until something sat at its right end. */
+[data-chat-next] .zone-div.fold {
+  width: calc(100% - 2 * var(--sp-2));
+}
+
+[data-chat-next] .zone-div > .badge,
+[data-chat-next] .zone-div > .chat-dot {
+  margin-left: auto;
+  letter-spacing: 0;
+}
+
+/* --accent-text, not the dot's usual --accent-solid: that dark red is a fill
+   for a badge carrying white digits, and a bare 6px dot of it all but
+   vanishes on the column's sunk ground. */
+[data-chat-next] .zone-div > .chat-dot {
+  background: var(--accent-text);
+}
+
 /* The mail mark. The one row in the column that carries a glyph: Bascinet is
    mail rather than a place, and every other row is its name alone — a picture
    per kind was a column of small images nobody read, and the section headings
@@ -672,8 +690,10 @@
 
 /* The tail's own stacking. `margin-top: auto` pushes it to the bottom of a
    short column; `bottom: 0` pins it once the column overflows. */
-/* One line: the GM / Player switch on the left, the bell and mark-all-read
-   on the right. It used to stack them, which spent three rows on two controls. */
+/* The GM / Player switch, then the You plate ((app)/chat/next/YouPlate.js),
+   which has the bottom-left corner since Chat Overhaul.docx moved it out of
+   the right column. The bell, the tick and the sound switches left this foot
+   for the top bar in the same pass. */
 [data-chat-next] .chat-places-tail {
   bottom: 0;
   margin-top: auto;
@@ -684,10 +704,8 @@
   justify-content: space-between;
   gap: var(--sp-2);
   /* WRAP is load-bearing. This row holds up to three things — the GM / Player
-     switch (only for a gamemaster who is also playing somebody), the sound and
-     notification buttons, and on a phone the whole drawer nav. Without wrap
-     they all shrink against each other inside a column this narrow, and a GM
-     with a character found the buttons along the bottom squeezed to nothing. */
+     switch (only for a gamemaster who is also playing somebody), the You
+     plate, and on a phone the whole drawer nav. Each takes its own line. */
   flex-wrap: wrap;
 }
 
@@ -697,18 +715,43 @@
   flex: 1 0 100%;
 }
 
-[data-chat-next] .chat-view-as,
-[data-chat-next] .chat-places-foot {
+[data-chat-next] .chat-view-as {
   padding: 0;
 }
 
-[data-chat-next] .chat-places-foot {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-1);
-  margin-left: auto;
+[data-chat-next] .chat-places-tail > .chat-you {
+  flex: 1 0 100%;
   min-width: 0;
-  max-width: 100%;
+}
+
+[data-chat-next] .chat-you > .bar {
+  margin: 0 0 var(--sp-2);
+}
+
+[data-chat-next] .chat-you .you-frame {
+  margin-bottom: 0;
+}
+
+/* ── Travel, compact ─────────────────────────────────────────────────────
+   A node carries a name, its zone and the cost now — no description since
+   Chat Overhaul.docx — so it is sized to exactly that. The 6rem floor
+   chat.css gives it was room for a three-line description, and with that gone
+   it was mostly empty card. Bascinet asked for them as small as they go
+   without the words shrinking or being cut, so the TYPE is untouched, and so
+   is the column width: narrower cards would clip "UNDERTOWN" and
+   two-line names. Only the air goes — the floor, the padding, the gaps. */
+[data-chat-next] .chat-nodes {
+  gap: var(--sp-1);
+}
+
+[data-chat-next] .chat-node {
+  min-height: 0;
+  gap: 1px;
+  padding: 3px var(--sp-2) 2px;
+}
+
+[data-chat-next] .chat-node-foot {
+  padding-top: 2px;
 }
 
 /* ── The scene's own parts ───────────────────────────────────────────────── */

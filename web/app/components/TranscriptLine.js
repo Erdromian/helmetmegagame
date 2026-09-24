@@ -63,6 +63,12 @@
  *   branch on it.
  * @param {"feed"|"thread"|"thread-compact"} [p.density="feed"]
  *   Geometry only. Lands on data-density.
+ * @param {"log"|"stacked"} [p.layout="log"]
+ *   density="feed" only. "log" runs the name and the body on one line,
+ *   `Name: said`. "stacked" puts the name (and the clock) on a line of its own
+ *   ABOVE the body, and the caller passes name={null} on a run's later lines so
+ *   the same speaker is named once (/chat as a player sees it, Chat
+ *   Overhaul.docx). Lands on data-layout.
  * @param {import("react").ReactNode} [p.avatar=null]
  *   The face, already built by the caller with that surface's own size and
  *   zoomable choices. Null leaves the gutter empty, which is what a run
@@ -114,6 +120,7 @@ export default function TranscriptLine({
   byline = null,
   channelKind = null,
   density = "feed",
+  layout = "log",
   avatar = null,
   gutter = true,
   gutterAside = null,
@@ -181,10 +188,23 @@ export default function TranscriptLine({
   // the gutter/head/body shape below exactly as they were; only this branch
   // changed.
   if (density === "feed") {
+    const stacked = layout === "stacked";
+    const clock = time ? (
+      <time className="tline-clock mono" title={timeTitle ?? undefined} suppressHydrationWarning>
+        {time}
+      </time>
+    ) : null;
+    const nameEl =
+      name != null ? (
+        <span className="tline-name" data-alias={alias ? "true" : undefined} data-role-group={roleGroup ?? undefined}>
+          {name}
+        </span>
+      ) : null;
     return (
       <Tag
         className={`tline${className ? ` ${className}` : ""}`}
         data-density={density}
+        data-layout={stacked ? "stacked" : undefined}
         data-kind={channelKind ?? undefined}
         data-run={startsRun ? "start" : undefined}
         data-pending={pending ? "true" : undefined}
@@ -200,21 +220,21 @@ export default function TranscriptLine({
         {/* The portrait heads a run only; later lines in the run indent under
             it. The clock shows on a run's first line, and on hover for the rest. */}
         {avatar && startsRun ? <span className="tline-face">{avatar}</span> : null}
-        {time ? (
-          <time className="tline-clock mono" title={timeTitle ?? undefined} suppressHydrationWarning>
-            {time}
-          </time>
-        ) : null}
-        {name != null ? (
-          <span
-            className="tline-name"
-            data-alias={alias ? "true" : undefined}
-            data-role-group={roleGroup ?? undefined}
-          >
-            {name}
-          </span>
-        ) : null}
-        {name != null ? <span className="tline-sep">: </span> : null}
+        {stacked ? (
+          // The head is its own line; a nameless row has no head and no clock.
+          nameEl ? (
+            <span className="tline-head">
+              {nameEl}
+              {clock}
+            </span>
+          ) : null
+        ) : (
+          <>
+            {clock}
+            {nameEl}
+            {nameEl ? <span className="tline-sep">: </span> : null}
+          </>
+        )}
         {children}
         {edited ? <span className="tline-edited"> (edited)</span> : null}
         {actions ? <div className="tline-actions">{actions}</div> : null}

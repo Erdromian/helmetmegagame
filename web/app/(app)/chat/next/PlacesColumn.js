@@ -1,12 +1,8 @@
 "use client";
 
 import { memo, useMemo } from "react";
-import IconButton from "@/app/components/IconButton";
-import SoundControls from "@/app/components/SoundControls";
-import ChatTextSize from "@/app/components/ChatTextSize";
-import VolumeSlider from "@/app/components/VolumeSlider";
 import HoverCard from "@/app/components/HoverCard";
-import { BellRingIcon, CheckIcon, ChevronDownIcon, MailIcon, SendIcon } from "@/app/components/icons";
+import { ChevronDownIcon, MailIcon } from "@/app/components/icons";
 import { isUnread } from "../seenStore";
 import { useFolds } from "./foldStore";
 
@@ -26,12 +22,17 @@ import { useFolds } from "./foldStore";
 // the reading once here and hands each section rows that already know what they
 // are.
 //
-// A SHUT FOLD STILL SHOWS WHAT IS NEW, the way a collapsed Discord category
-// does. Folding a section or a whole zone hides its rows, except any row that
-// is unread and the row you are reading now. The open row has to stay: it stops
+// A SHUT SECTION STILL SHOWS WHAT IS NEW. Folding Here, Rooms or any other
+// section hides its rows, except any row that is unread and the row you are
+// reading now. The open row has to stay: it stops
 // counting as unread the moment it is selected, so without it the row would
 // vanish from under the click. Leave it once it is read and it goes back into
 // the fold. Nothing here writes to the fold store; the fold stays shut.
+//
+// A SHUT ZONE HIDES EVERYTHING, unread rows included (Chat Overhaul.docx), so
+// a GM can put a whole zone away and sort the rest. Its divider says what is
+// waiting inside instead: it brightens, and carries the count of lines
+// addressed to you, or a dot when there are none.
 
 function Row({ place, onSelect }) {
   const button = (
@@ -79,9 +80,9 @@ function Row({ place, onSelect }) {
   );
 }
 
-// What a shut fold still shows (see the header): anything unread, and the
-// place you are reading.
-const peeks = (place) => place.unread || place.active;
+// What a shut section still shows (see the header): anything unread, anything
+// with a line addressed to you, and the place you are reading.
+const peeks = (place) => place.unread || place.count > 0 || place.active;
 
 const Section = memo(function Section({ title, places, foldKey, shut, onToggle, onSelect, heading = "sect" }) {
   if (places.length === 0) return null;
@@ -109,9 +110,9 @@ export default function PlacesColumn({
   // A GM who also plays somebody: `{ mode, onChange }`. Null for everybody
   // else — a plain player has no second seat.
   viewAs = null,
-  // Null with no PushManager or no VAPID keys (CHAT.md §5a).
-  push = null,
-  onMarkAllSeen = null,
+  // The You plate (./YouPlate.js), pinned in the foot. Null for a GM or a
+  // ghost with no body of their own.
+  you = null,
   // The phone drawer's nav links, or a GM's zone picker. Null on desktop.
   foot = null,
 }) {
@@ -228,39 +229,47 @@ export default function PlacesColumn({
           ["conversations", "Conversations", rest.filter((p) => p.kind === "conv")],
           ["elsewhere", "Elsewhere", elsewhere],
         ];
-        const groupOpen = !shut(key);
+        // Only a zone with a divider can be shut: with one zone there is no
+        // button to open it again, so a stale saved fold must not hide it.
+        const hasDivider = divided && Boolean(group.zoneName);
+        const groupOpen = !hasDivider || !shut(key);
+        // What the shut divider says about the rows it is hiding.
+        const hiddenUnread = !groupOpen && group.places.some((place) => place.unread);
+        const hiddenCount = groupOpen ? 0 : group.places.reduce((sum, place) => sum + place.count, 0);
         return (
           <div className="chat-zone-group" key={key}>
-            {divided && group.zoneName && (
+            {hasDivider && (
               <button
                 type="button"
                 className="zone-div fold"
                 aria-expanded={groupOpen}
-                aria-label={group.zoneName}
+                aria-label={hiddenUnread || hiddenCount > 0 ? `${group.zoneName}, unread` : group.zoneName}
+                data-unread={hiddenUnread || hiddenCount > 0 ? "true" : undefined}
                 onClick={() => onToggle(key)}
               >
                 <ChevronDownIcon data-open={groupOpen ? "true" : undefined} />
                 {group.zoneName}
+                {hiddenCount > 0 ? (
+                  <span className="badge mono" aria-hidden="true">
+                    {hiddenCount}
+                  </span>
+                ) : hiddenUnread ? (
+                  <span className="chat-dot" aria-hidden="true" />
+                ) : null}
               </button>
             )}
-            {groupOpen
-              ? runs.map(([slug, title, rows]) => (
-                  <Section
-                    key={slug}
-                    title={title}
-                    places={rows}
-                    foldKey={`${key}:${slug}`}
-                    shut={shut(`${key}:${slug}`)}
-                    onToggle={onToggle}
-                    onSelect={onSelect}
-                  />
-                ))
-              : // A shut zone shows its new rows flat under the divider, in
-                // server order, with no section headings — Discord draws a
-                // collapsed category the same way.
-                group.places
-                  .filter(peeks)
-                  .map((place) => <Row key={place.placeKey} place={place} onSelect={onSelect} />)}
+            {groupOpen &&
+              runs.map(([slug, title, rows]) => (
+                <Section
+                  key={slug}
+                  title={title}
+                  places={rows}
+                  foldKey={`${key}:${slug}`}
+                  shut={shut(`${key}:${slug}`)}
+                  onToggle={onToggle}
+                  onSelect={onSelect}
+                />
+              ))}
           </div>
         );
       })}
@@ -269,44 +278,28 @@ export default function PlacesColumn({
           every-room list cannot push the seat switch below the fold. It takes
           the ground it is pinned over, opaque, because its whole job is hiding
           the rows that slide under it. */}
-      <div className="chat-places-tail sticky-bar">
-        {viewAs && (
-          <div className="chat-view-as" role="group" aria-label="View as">
-            <div className="segmented">
-              <button type="button" aria-pressed={viewAs.mode === "gm"} onClick={() => viewAs.onChange("gm")}>
-                GM
-              </button>
-              <button type="button" aria-pressed={viewAs.mode === "player"} onClick={() => viewAs.onChange("player")}>
-                Player
-              </button>
+      {(viewAs || you || foot) && (
+        <div className="chat-places-tail sticky-bar">
+          {viewAs && (
+            <div className="chat-view-as" role="group" aria-label="View as">
+              <div className="segmented">
+                <button type="button" aria-pressed={viewAs.mode === "gm"} onClick={() => viewAs.onChange("gm")}>
+                  GM
+                </button>
+                <button type="button" aria-pressed={viewAs.mode === "player"} onClick={() => viewAs.onChange("player")}>
+                  Player
+                </button>
+              </div>
             </div>
-          </div>
-        )}
-        <div className="chat-places-foot">
-          <SoundControls layout="stack" />
-          {push && (
-            <IconButton
-              icon={push.on ? BellRingIcon : SendIcon}
-              label={push.on ? "Notifications on" : "Notify me"}
-              aria-pressed={push.on}
-              disabled={push.busy}
-              onClick={push.onToggle}
-            />
           )}
-          {onMarkAllSeen && (
-            /* Bare .icon-btn, not IconButton: no Tooltip here. aria-label is
-               the accessible NAME, not visible copy. */
-            <button type="button" className="icon-btn" aria-label="Mark all read" onClick={onMarkAllSeen}>
-              <CheckIcon width="15" height="15" />
-            </button>
-          )}
-          {/* Last, so it takes its own line under the whole row of buttons rather
-              than splitting them (.chat-places-foot, globals.css). */}
-          <VolumeSlider id="volume-chat-next" />
-          <ChatTextSize />
+          {/* The sound switches, the volume, the text size, the bell and the
+              tick all left this foot (Chat Overhaul.docx): the bell and the tick
+              sit by the sound cluster in the top bar now (ChatBarControls.js),
+              and on a phone in the chat head. */}
+          {you}
+          {foot}
         </div>
-        {foot}
-      </div>
+      )}
     </nav>
   );
 }

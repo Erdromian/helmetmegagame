@@ -2,8 +2,6 @@
 
 import { useCallback, useState } from "react";
 import Link from "next/link";
-import { bandOf } from "@lifeweb/db/lib/mood";
-import { obolsOf } from "@/lib/purse";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import FormError from "@/app/components/FormError";
 import HereList from "@/app/components/HereList";
@@ -13,9 +11,7 @@ import MoveDialog from "../MoveDialog";
 import PartyRack from "../PartyRack";
 import PlaceCard from "../PlaceCard";
 import RoomPanel from "../RoomPanel";
-import StatusStrip from "../StatusStrip";
 import Things from "../ThingsDrawer";
-import DesiresBlock from "../DesiresBlock";
 import TravelNodes from "../TravelNodes";
 import TurnCard from "../TurnCard";
 import { usePlaceActions } from "../PlacePanel";
@@ -34,8 +30,8 @@ import useMyMove from "../useMyMove";
 // headings: the place card, the room, travel and the party arrived as bare
 // bodies with nothing naming them, so a reader scrolling the column met three
 // unlabelled boxes in a row. Every framed section here wears a girder head
-// (chat-vocabulary.md §4), and the two that carry their own fold heading —
-// Things and Desires — keep it rather than being given a second one.
+// (chat-vocabulary.md §4), and Things, which carries its own fold heading,
+// keeps it rather than being given a second one.
 //
 // The children are MOUNTED, not rewritten. PlaceCard carries fixtures and the
 // Depot/Factory doors, TravelNodes the crossing confirm, PartyRack
@@ -116,14 +112,9 @@ export default function ChatAside({
   placeLines,
   waiting: initialWaiting,
   selfId,
-  name,
-  roleTitle,
   turn,
   moveCharacterId,
   move,
-  sheet,
-  carry,
-  desires,
   things,
   depotHref = null,
   canSeeExtract = false,
@@ -171,68 +162,23 @@ export default function ChatAside({
     moveState.refresh();
   }, [refreshWaiting, moveState]);
 
-  const moodBand = bandOf(sheet?.mood ?? 0);
-  const obols = obolsOf(sheet);
-  const resources = sheet?.resources ?? 0;
-  const worn = (sheet?.tags ?? []).filter((ct) => ct.tag?.category === "Status" || ct.tag?.category === "Health");
   const hereCount = (people?.named?.length ?? 0) + (people?.concealed?.length ?? 0);
 
+  // The order is Chat Overhaul.docx's: Travel highest, then the room you are
+  // in (when you are in one), then Here, then Turn. The You plate lives in the
+  // places column's foot now (./YouPlate.js), and the Desires fold and the
+  // Sheet link are gone from chat altogether.
   return (
     <div className="chat-aside-stack">
-      <h2 className="bar">You</h2>
-
-      {/* PLATE over WELL (chat-vocabulary.md §1): the one thing in this column
-          that is what you ARE rather than what is true of the moment, so it is
-          the one thing that gets the sprite frame instead of a block. */}
-      <div className="you-frame">
-        <div className="you-well">
-          <p className="you-name">{name}</p>
-          <p className="you-role">
-            {roleTitle ?? "No role"} · {zone?.name ?? "Nowhere"}
-          </p>
-          <dl className="m-0">
-            <div className="kv">
-              <dt>Mood</dt>
-              <dd>{moodBand?.label ?? "Fine"}</dd>
-            </div>
-            <div className="kv">
-              <dt>Resources</dt>
-              <dd className="mono">{resources} ⬢</dd>
-            </div>
-            <div className="kv">
-              <dt>Purse</dt>
-              <dd className="mono">{obols} ¢</dd>
-            </div>
-            {carry && (
-              <div className="kv">
-                <dt>Carrying</dt>
-                <dd className="mono">
-                  {Math.round(carry.weightUsed)}/{carry.weightCap} lb
-                </dd>
-              </div>
-            )}
-          </dl>
-          {/* The sheet's own load bar and chips, not a second copy of either.
-              numbers={false} — Resources and Carrying are already said above. */}
-          <StatusStrip
-            resources={resources}
-            carry={carry}
-            tags={worn}
-            currentTurn={moveState.turn?.number ?? null}
-            meter
-            numbers={false}
-          />
-        </div>
-      </div>
-
-      <Block head="Turn">
-        <TurnCard
-          turn={moveState.turn}
-          move={moveState.move}
-          onFile={() => setDialog("move")}
-          onEdit={() => setDialog("move")}
-        />
+      <Block head="Travel">
+        <TravelNodes onDone={placeSay} pick={travelPick} showTitle={false} />
       </Block>
+
+      {selected?.kind === "room" && (
+        <Block head={selected?.name ?? "Room"}>
+          <RoomPanel selected={selected} affordances={live} onFixture={openFixture} pending={pending} />
+        </Block>
+      )}
 
       <Block head={`Here · ${hereCount}`}>
         {/* Keyed on the SERVER's list, so walking out remounts it rather than
@@ -246,6 +192,15 @@ export default function ChatAside({
           onAddMember={onAddMember}
           poll
           showTitle={false}
+        />
+      </Block>
+
+      <Block head="Turn">
+        <TurnCard
+          turn={moveState.turn}
+          move={moveState.move}
+          onFile={() => setDialog("move")}
+          onEdit={() => setDialog("move")}
         />
       </Block>
 
@@ -288,25 +243,8 @@ export default function ChatAside({
           be a permanent empty box for most players. */}
       <PartyRack />
 
-      {selected?.kind === "room" && (
-        <Block head={selected?.name ?? "Room"}>
-          <RoomPanel selected={selected} affordances={live} onFixture={openFixture} pending={pending} />
-        </Block>
-      )}
-
-      <Block head="Travel">
-        <TravelNodes onDone={placeSay} pick={travelPick} showTitle={false} />
-      </Block>
-
-      {/* Both carry their own fold heading; they are not given a second one. */}
+      {/* Carries its own fold heading; it is not given a second one. */}
       <Things groups={things} />
-      <DesiresBlock view={desires} />
-
-      <div className="chat-buttons">
-        <Link className="btn-secondary" href="/character">
-          Sheet ›
-        </Link>
-      </div>
 
       {dialog === "move" && (
         <MoveDialog

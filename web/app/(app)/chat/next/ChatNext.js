@@ -29,7 +29,7 @@ import { seedCachedRows, startRowCache } from "../rowCache";
 import { seedNewestOutbound } from "../dmStore";
 import { useRefresh } from "@/app/components/useRefresh";
 import useFeedStream from "../useFeedStream";
-import { useNotified, clearNotified } from "../notifiedStore";
+import { useNotified, clearNotified, clearAllNotified } from "../notifiedStore";
 import { useOpenPlace, setOpenPlace } from "../openPlace";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -39,7 +39,9 @@ import { ICONS, SignOutIcon } from "@/app/components/icons";
 import { signOutOfDiscord } from "@/app/actions";
 import { describeTurn } from "@/lib/turnFormat";
 import { isUnread } from "../seenStore";
-import { usePushState, initPush, togglePush } from "../pushStore";
+import { initPush } from "../pushStore";
+import { setChatBar } from "@/app/components/chatBarStore";
+import { ChatPhoneControls } from "@/app/components/ChatBarControls";
 import { useStreamState } from "../streamStore";
 import ChatHead from "../ChatHead";
 import useNarrow from "../useNarrow";
@@ -47,6 +49,7 @@ import useAsideFolded from "../useAsideFolded";
 import useSwipeOpen from "../useSwipeOpen";
 import { addMember, setChatViewAs } from "../actions";
 import PlacesColumn from "./PlacesColumn";
+import YouPlate from "./YouPlate";
 import Feed from "./Feed";
 import Composer from "./Composer";
 import { useChatTextSize } from "@/app/components/chatTextStore";
@@ -506,7 +509,6 @@ export default function ChatNext(props) {
     },
     [viewAs],
   );
-  const push = usePushState();
   const stream = useStreamState();
   useEffect(() => {
     initPush();
@@ -586,10 +588,19 @@ export default function ChatNext(props) {
     [selectedKey, bumpPlaces],
   );
 
-  const onMarkAllSeen = useCallback(
-    () => markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) }))),
-    [navPlaces, newest],
-  );
+  // The tick. Everywhere read, and the red counts with it: a count is a line
+  // addressed to you that you have not opened, and the tick says you have.
+  const onMarkAllSeen = useCallback(() => {
+    markAllSeen(navPlaces.map((place) => ({ placeKey: place.placeKey, seq: newest(place) })));
+    clearAllNotified();
+  }, [navPlaces, newest]);
+  // The bell and the tick live by the sound switches in the top bar, which is
+  // not chat's to render (AppBar.js), so chat hands it the tick's handler
+  // while it is on the page. Writes an external store, not state.
+  useEffect(() => {
+    setChatBar({ onMarkAllSeen });
+    return () => setChatBar(null);
+  }, [onMarkAllSeen]);
 
   // The app's links, at the foot of the phone's drawer. The GM's zone picker
   // does NOT ride here: it belongs to the right column, and that column has
@@ -632,8 +643,18 @@ export default function ChatNext(props) {
       newest={newest}
       onSelect={narrow ? onSelectFromDrawer : onSelect}
       viewAs={viewAs ? { mode: viewAs.mode, onChange: onChangeViewAs } : null}
-      push={push.supported ? { on: push.on, busy: push.busy, onToggle: togglePush } : null}
-      onMarkAllSeen={onMarkAllSeen}
+      you={
+        aside ? (
+          <YouPlate
+            name={aside.name}
+            roleTitle={aside.roleTitle}
+            zone={aside.zone}
+            sheet={aside.sheet}
+            carry={aside.carry}
+            currentTurn={aside.turn?.number ?? null}
+          />
+        ) : null
+      }
       foot={placesFoot}
     />
   );
@@ -714,6 +735,9 @@ export default function ChatNext(props) {
                   aria-expanded={searchOpen}
                   onClick={() => setSearchOpen((was) => !was)}
                 />
+                {/* A phone has no top bar in chat (chat.css), so the cluster
+                    that sits at its right end on a desktop sits here. */}
+                {narrow && <ChatPhoneControls />}
               </>
             }
           />

@@ -66,9 +66,11 @@ character row to hang a column on. A `storage` event carries a change to the
 other tabs.
 
 **Where the controls are:** the top bar on every page (`SoundControls.js`, mounted
-by `AppBar.js`), and the foot of `/chat`'s places column. Same component, `layout`
-picks the shape — `"row"` puts the volume behind a caret, `"stack"` puts the
-slider inline. The caret opens the panel rather than the speaker, because
+by `AppBar.js`), and on a phone in `/chat` the ⋯ menu in the chat head, since chat
+hides the top bar there (`ChatBarControls.js`, CHAT.md §0). The places column's foot
+no longer carries a copy. Same component, `layout` picks the shape — `"row"` puts
+the volume behind a caret, `"stack"` draws the two switches alone for a panel that
+has its own slider. The caret opens the panel rather than the speaker, because
 clicking the speaker has to stay a one-click mute.
 
 ---
