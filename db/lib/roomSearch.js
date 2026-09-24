@@ -19,14 +19,14 @@ const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { RESOURCES_SLUG } = require("./resourceStack");
 const { autoMovesOpen } = require("./turnGate");
 const { checkLedgerMove, spendLedgerMove } = require("./moveLedger");
+const { SEARCH_MOVE } = require("./roomSearchCost");
 
 const ROOM_SEARCH_AUDIT_ACTION = "room_search";
 
-// What a search costs of the turn's Move: a quarter, so four fill a Routine.
-// `family` is what lets it share the ledger with a craft or a cure the same
-// turn (CRAFTING.md §2a); the marker appended to gmNotes is what the desk and
-// the sheet read it back by.
-const SEARCH_MOVE = { num: 1, den: 4, family: "search" };
+// What a search costs of the turn's Move lives in db/lib/roomSearchCost.js
+// (zero requires, so the /chat panel can print the price before the press).
+// The marker appended to gmNotes is what the desk and the sheet read the
+// ledger back by.
 const SEARCH_LEDGER_NOTES = "auto:craft auto:search";
 
 function searchLedgerEntry(room) {

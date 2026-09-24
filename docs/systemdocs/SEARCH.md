@@ -416,6 +416,13 @@ cannot disagree.
   notes, and `family: "search"` on its ledger line, so the desk reads
   "Searching this turn: Fishing Hut." No turn pass touches it. Behind the
   Move is one ration: **once per character per room per turn**.
+- **The price is said before the press, on both faces.** The Discord button
+  is labelled `Search (0.25 Move)`, because a button there has no confirm
+  step; the `/chat` panel's Search opens the shared confirm dialog naming the
+  cost and where a find lands. A player should never learn the price from the
+  refusal. The cost itself is `db/lib/roomSearchCost.js`, a zero-require file
+  so the client panel can read it (the `dmKinds.js` rule). `docs/handbook.md`'s
+  Transferring & Storage section says the same to players.
 - A hood does not refuse it (§2a). A hood hides who you are, not what you are
   doing with your hands.
 - Refused by anything that blocks `ACT`, by **Blind**, between sittings

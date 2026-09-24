@@ -9,6 +9,10 @@ import TagDetails from "@/app/components/TagDetails";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { readStash, searchRoom } from "./actions";
 import useActionRunner from "@/app/components/useActionRunner";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { formatMoveAmount } from "@lifeweb/db/lib/formatTagRequirement";
+// Deep path with zero requires behind it (db/lib/roomSearchCost.js), the dmKinds.js rule for a client component.
+import { SEARCH_MOVE } from "@lifeweb/db/lib/roomSearchCost";
 import { TONE_CLASS } from "./PlacePanel";
 
 // THIS ROOM: storage and fixtures of the room whose feed is OPEN, and no
@@ -106,6 +110,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
   // The last search's one line, stamped with its room the way the stash is.
   const [searched, setSearched] = useState(null);
   const search = useActionRunner();
+  const confirm = useConfirm();
   const actions = useRequestActions();
 
   // Answer is stamped with the room it came from, so a slow reply for a room
@@ -158,10 +163,20 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
     actions?.open?.("transfer");
   }
 
-  // Going through the room (SEARCH.md §9). A find lands on the floor, not in
-  // a pocket, so the stash is re-read and the new chips are Take-able like
-  // anything else. The line says what came up; the die is never in it.
-  function doSearch() {
+  // Going through the room (SEARCH.md §9). It spends a quarter of the Move,
+  // and the shared confirm says so BEFORE the press — a player should never
+  // learn the price from the refusal. Confirm first, transition second, never
+  // inside startTransition (DESIGN-SYSTEM.md §8). A find lands on the floor,
+  // not in a pocket, so the stash is re-read and the new chips are Take-able
+  // like anything else. The line says what came up; the die is never in it.
+  async function doSearch() {
+    const cost = formatMoveAmount(SEARCH_MOVE.num, SEARCH_MOVE.den);
+    const ask = {
+      title: `Search the ${here?.name ?? "room"}?`,
+      message: `Searching takes ${cost} of your Move. Anything you turn up lands on the floor, where you can take it.`,
+      confirmLabel: "Search",
+    };
+    if (!(await confirm(ask))) return;
     search.run(searchRoom, roomId, {
       onOk: (res) => {
         setSearched({ roomId, line: res.line });
