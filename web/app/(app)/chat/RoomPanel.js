@@ -163,7 +163,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
     actions?.open?.("transfer");
   }
 
-  // Going through the room (SEARCH.md §9). It spends a quarter of the Move,
+  // Going through the room (SEARCH.md §9). It spends half the Move,
   // and the shared confirm says so BEFORE the press — a player should never
   // learn the price from the refusal. Confirm first, transition second, never
   // inside startTransition (DESIGN-SYSTEM.md §8). A find lands on the floor,

@@ -251,7 +251,7 @@ recognises a shareable ledger by the `auto:craft` substring. Anything else
 joining this budget does the same; every other verb still takes a whole clean
 Move through `requireFreeMove`.
 
-Searching a room is the third thing on it (`SEARCH.md` §9): a quarter, with
+Searching a room is the third thing on it (`SEARCH.md` §9): a half, with
 `family: "search"` and `"auto:craft auto:search"` in the notes, and the desk
 line gets its own verb, "Searching this turn: …". It is also the first
 share-of-a-Move verb on a **Discord** button, which is why the arithmetic,

@@ -4,12 +4,12 @@
 // is shown and moves some of those stacks into plain sight, where Take and
 // Steal reach them like anything else. Finding a thing is not pocketing it.
 //
-// Costs a QUARTER of the Move, on the same ledger crafting and burial share
-// (db/lib/moveLedger.js, CRAFTING.md §2a): four searches fill a Routine, and a
+// Costs HALF the Move, on the same ledger crafting and burial share
+// (db/lib/moveLedger.js, CRAFTING.md §2a): two searches fill a Routine, and a
 // Gambit already filed refuses it. No turn pass touches it. Behind that is
-// one ration, once per character per room per turn, and the RoomSearchAttempt
-// insert IS that ration (the SearchAttempt discipline): spent by the press,
-// whether or not anything was found.
+// one rule, ONE ROOM A TURN: the same room may be gone through again, a
+// second room may not. A RoomSearchAttempt row is written for every search,
+// found or not, and a row naming another room this turn is the refusal.
 //
 // Takes `prisma` first, NOT on the @lifeweb/db barrel — require by path.
 const { blockerFor, ACT } = require("./incapacitation");
@@ -18,7 +18,7 @@ const { revealCount, pickRevealed } = require("./search");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { RESOURCES_SLUG } = require("./resourceStack");
 const { autoMovesOpen } = require("./turnGate");
-const { checkLedgerMove, spendLedgerMove } = require("./moveLedger");
+const { checkLedgerMove, spendLedgerMove, lockCharacter } = require("./moveLedger");
 const { SEARCH_MOVE } = require("./roomSearchCost");
 
 const ROOM_SEARCH_AUDIT_ACTION = "room_search";
@@ -142,6 +142,24 @@ function roomSearchRefusal(character, room, { admitted = true, turn = null } = {
   return null;
 }
 
+// ONE ROOM A TURN. `searched` is the room this character already went through
+// this turn ({ id, name }), or null. The same room again is fine; any other
+// is refused, naming the one they chose.
+function otherRoomRefusal(room, searched) {
+  if (!searched || searched.id === room?.id) return null;
+  return `You've already searched the ${searched.name} this turn — one room a turn.`;
+}
+
+// Which room, if any, this character has searched this turn. Read under the
+// Character row lock inside the transaction; outside it only as a fast fail.
+async function roomSearchedThisTurn(db, characterId, turnId) {
+  const row = await db.roomSearchAttempt.findFirst({
+    where: { searcherId: characterId, turnId },
+    select: { room: { select: { id: true, name: true } } },
+  });
+  return row?.room ?? null;
+}
+
 // ─── The impure half ───────────────────────────────────────────────────────
 
 const ROOM_SELECT = {
@@ -164,13 +182,13 @@ const ROOM_SELECT = {
 // Returns { ok: true, room, found, readout, line } or { ok: false, reason }.
 //
 // Order matters and is the same as Steal's: everything that can refuse runs
-// FIRST — the ladder, the turn gate, a cheap look at the Move — then, inside
-// ONE transaction under the Character row lock: the quarter Move is spent,
-// the ration is claimed, the die is thrown and the reveal is written. A
-// refusal anywhere in that transaction rolls the lot back, so a spent Move
-// never costs a ration and a claimed ration is never left beside an unspent
-// Move. A bad roll rolls nothing back — an empty room and an unlucky one
-// look the same from outside.
+// FIRST — the ladder, the turn gate, a cheap look at the room rule and the
+// Move — then, inside ONE transaction under the Character row lock: the room
+// rule is asked again, the half Move is spent, the search is recorded, the
+// die is thrown and the reveal is written. A refusal anywhere in that
+// transaction rolls the lot back, so a Move is never spent on a search that
+// did not happen. A bad roll rolls nothing back — an empty room and an
+// unlucky one look the same from outside.
 //
 // The room's Discord line is NOT posted here — it is REST, and this runs the
 // reveal inside a transaction. The caller posts `line` through
@@ -190,7 +208,9 @@ async function searchRoom(prisma, { character, roomId, turn, rng = Math.random }
   // /chat refuse alike.
   const gate = await autoMovesOpen(prisma, { turn });
   if (!gate.ok) return { ok: false, reason: gate.message };
-  // The fast fail on the Move, outside the lock; spendLedgerMove re-asks under it.
+  // The fast fails on the room rule and the Move, outside the lock; both are re-asked under it.
+  const other = otherRoomRefusal(room, await roomSearchedThisTurn(prisma, character.id, turn.id));
+  if (other) return { ok: false, reason: other };
   const filed = await prisma.action.findFirst({
     where: { characterId: character.id, turnId: turn.id },
     select: { id: true, gmNotes: true, craftBudget: true },
@@ -204,6 +224,11 @@ async function searchRoom(prisma, { character, roomId, turn, rng = Math.random }
   let outcome;
   try {
     outcome = await prisma.$transaction(async (tx) => {
+      // The lock first, so the room rule is read by one press at a time;
+      // spendLedgerMove takes the same row lock again, which Postgres grants.
+      await lockCharacter(tx, character.id);
+      const otherRoom = otherRoomRefusal(room, await roomSearchedThisTurn(tx, character.id, turn.id));
+      if (otherRoom) throw new Refused(otherRoom);
       const spent = await spendLedgerMove(tx, {
         character,
         turn,
@@ -213,13 +238,8 @@ async function searchRoom(prisma, { character, roomId, turn, rng = Math.random }
       });
       if (!spent.ok) throw new Refused(spent.reason);
 
-      // The ration. P2002 is the refusal, not a crash — two fast presses cannot both pass.
-      try {
-        await tx.roomSearchAttempt.create({ data: { searcherId: character.id, roomId: room.id, turnId: turn.id } });
-      } catch (err) {
-        if (err?.code === "P2002") throw new Refused(`You've already searched the ${room.name} this turn.`);
-        throw err;
-      }
+      // The record the room rule reads, one row a search.
+      await tx.roomSearchAttempt.create({ data: { searcherId: character.id, roomId: room.id, turnId: turn.id } });
 
       const roll = rollWithAdvantage(character.tags, 6);
       const modifiers = roomSearchModifiers(character.tags, { underground });
@@ -293,5 +313,6 @@ module.exports = {
   roomSearchOutcome,
   roomSearchReadout,
   roomSearchRefusal,
+  otherRoomRefusal,
   searchRoom,
 };

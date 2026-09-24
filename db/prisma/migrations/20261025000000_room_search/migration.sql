@@ -7,10 +7,12 @@
 -- that is entirely hidden is invisible to Storage, Transfer, Take and Steal
 -- with no filter added. Defaulted to 0, so every existing row is unchanged.
 --
--- RoomSearchAttempt: the ration. One row per searcher per room per turn, and
--- the unique index IS the rule — the insert is the claim, the
--- SearchAttempt / PickpocketAttempt discipline. turnId is a claim token, not a
--- foreign key, so deleting a turn never cascades into a spent ration.
+-- RoomSearchAttempt: one row per search. The rule it answers is ONE ROOM A
+-- TURN — a character may go through the same room again, never a second one —
+-- and it is checked under the Character row lock rather than by a unique
+-- index, since two searches of one room are both allowed. turnId is a claim
+-- token, not a foreign key, so deleting a turn never rewrites who searched
+-- where.
 --
 -- Additive only. No existing row or column is touched.
 
@@ -26,7 +28,7 @@ CREATE TABLE "RoomSearchAttempt" (
     CONSTRAINT "RoomSearchAttempt_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX "RoomSearchAttempt_searcherId_roomId_turnId_key" ON "RoomSearchAttempt"("searcherId", "roomId", "turnId");
+CREATE INDEX "RoomSearchAttempt_searcherId_turnId_idx" ON "RoomSearchAttempt"("searcherId", "turnId");
 CREATE INDEX "RoomSearchAttempt_roomId_idx" ON "RoomSearchAttempt"("roomId");
 
 ALTER TABLE "RoomSearchAttempt" ADD CONSTRAINT "RoomSearchAttempt_searcherId_fkey" FOREIGN KEY ("searcherId") REFERENCES "Character"("id") ON DELETE CASCADE ON UPDATE CASCADE;

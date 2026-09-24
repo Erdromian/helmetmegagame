@@ -120,7 +120,9 @@ draw now) beside Storage. Both call one function in `db/lib/roomSearch.js`.
 - **It costs no Move, files no `Action`, and no turn pass touches it.** What
   holds it back is one ration: **once per character per room per turn** (§6).
   *(Changed the same day it was built: Bascinet asked for a quarter of the
-  Move on top, so it shares the crafting ledger now — `SEARCH.md` §9c.)*
+  Move on top, so it shares the crafting ledger now — `SEARCH.md` §9c. On
+  2026-09-25 that became half the Move, and the ration became one room a
+  turn: the same room may be searched again, a second room may not.)*
 - A hood does not refuse it, for the reason Search on a person gives: a hood
   hides who you are, not what you are doing with your hands.
 - Blocked by anything that blocks `ACT`, and by `blind`.
@@ -171,6 +173,12 @@ Why not a 4+ target like Steal: a target says found or not found, and then a
 second rule has to say how much. `revealCount` is one rule that answers both.
 
 ## 6. The ration is a table
+
+*(Superseded 2026-09-25. The ration is now ONE ROOM A TURN, read under the
+Character row lock, and `RoomSearchAttempt` is one row per search with no
+unique index; at half a Move each, a character searches one room at most
+twice a turn. `SEARCH.md` §9e has the current rule. What follows is the
+original reasoning.)*
 
 `RoomSearchAttempt`, `@@unique([searcherId, roomId, turnId])`, the
 `SearchAttempt` discipline (`SEARCH.md` §3): the insert is the claim, spent by

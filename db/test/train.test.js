@@ -165,22 +165,22 @@ test("the Dropbox hangs off the Depot LOCATION, so it is reachable from any room
 test("and again on the Railway, where somebody meeting the train already is", () => {
   assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-1" })), [
     "Storage",
-    "Search (0.25 Move)",
+    "Search (0.5 Move)",
     "ATM",
     "Dropbox",
   ]);
 });
 
 test("the Merchant's Storefront has a machine of its own, and no drop box", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-6-1" })), ["Storage", "Search (0.25 Move)", "ATM"]);
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-6-1" })), ["Storage", "Search (0.5 Move)", "ATM"]);
 });
 
 test("the Inn's bar has the second machine, and nothing else of the counter's", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-2" })), ["Storage", "Search (0.25 Move)", "ATM"]);
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-2" })), ["Storage", "Search (0.5 Move)", "ATM"]);
 });
 
 test("an ordinary room has no machine on its wall", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-3" })), ["Storage", "Search (0.25 Move)"]);
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-3" })), ["Storage", "Search (0.5 Move)"]);
 });
 
 test("the Merchant's gun is on his own office wall and nowhere else", () => {

@@ -270,7 +270,7 @@ Transfer is give-only, both ways — you can never take ⬢ or an item from anot
 
 The **Storage** button on a room's first post lists what's there.
 
-Not everything in a room is on the shelf. **Search** (beside Storage on the room's first post, and on the room's panel in [Chat](https://ravenheart.quest/chat)) goes through the place for what's hidden. It costs **0.25 of your Move** — four searches fill a turn, or a search shares the turn with work at the bench — and each room can be searched once a turn. Whatever you turn up lands on the floor, where anyone can take it; you'll want to be quick. The room's thread hears that somebody rummaged, not what they found.
+Not everything in a room is on the shelf. **Search** (beside Storage on the room's first post, and on the room's panel in [Chat](https://ravenheart.quest/chat)) goes through the place for what's hidden. It costs **0.5 of your Move** — two searches fill a turn, or a search shares the turn with work at the bench — and you can only search one room a turn, though you can go through that same room twice. Whatever you turn up lands on the floor, where anyone can take it; you'll want to be quick. The room's thread hears that somebody rummaged, not what they found.
 
 ### Hunger
 

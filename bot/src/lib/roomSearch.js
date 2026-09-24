@@ -6,7 +6,7 @@ const { actingCharacter } = require("./interactionGuild");
 
 // The Search button on a Room's starter post (db/lib/roomStarterRow.js):
 // going through the room for what is under the floor (docs/systemdocs/SEARCH.md
-// §9). Every rule — reach, the door, the ACT blocker, the once-a-turn ration,
+// §9). Every rule — reach, the door, the ACT blocker, one room a turn,
 // the die — is db/lib/roomSearch.js#searchRoom, shared with /chat, so the two
 // faces cannot disagree about who found what. This file is only the ack, the
 // ephemeral answer, and the room's one ambient line.
