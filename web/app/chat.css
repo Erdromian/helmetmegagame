@@ -923,10 +923,9 @@
      at --fs-base. A scene is a wall of names and short lines, not prose. */
   font-size: var(--fs-xs);
   line-height: 1.3;
-  /* The mockup's `.row { margin: 0 0 3px }` — every line the same distance
-     from the next, named speaker or not. There is no run to group: the
-     mockup's log names EVERY line, so there is nothing left for a "first of
-     a run stands off further" rule to mean. */
+  /* The mockup's `.row { margin: 0 0 3px }` — the distance between two lines
+     from the same speaker. A new run stands off further (below), so a change
+     of speaker reads at a glance even though the log names every line. */
   margin: 0 0 3px;
   /* The row is the positioning context for the action bar that floats at its
      top-right. */
@@ -964,8 +963,12 @@
   padding-left: calc(var(--sp-2) + 28px);
 }
 
+/* A new speaker gets a small gap above their line, so two people talking back
+   and forth read as separate turns rather than one block. It also keeps the
+   portraits apart: a face is 24px, taller than a one-line row, and at 8px two
+   alternating speakers' faces touched (0px apart at the small text size). */
 .tline[data-density="feed"][data-run="start"] {
-  margin-top: var(--sp-2);
+  margin-top: var(--sp-3);
 }
 
 .tline[data-density="feed"] .tline-face {

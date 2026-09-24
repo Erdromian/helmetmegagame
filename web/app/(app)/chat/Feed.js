@@ -12,6 +12,7 @@ import Select from "@/app/components/Select";
 import BlockRow, { BLOCK_KINDS } from "./blockRows";
 import useComposerAutosize from "./useComposerAutosize";
 import { formatTurnLabel } from "@/lib/turnFormat";
+import { speakerOf, startsRun as runStarts } from "@/lib/feedRuns";
 import { CameraIcon, EditIcon, EyeIcon, MoreIcon, NotesIcon, PlusIcon, SearchIcon, SendIcon, TrashIcon } from "@/app/components/icons";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
@@ -78,11 +79,10 @@ import { actionThrowMessage } from "@/app/components/actionThrow";
 // "Why the past web UIs felt slow".
 
 // A run is one speaker's messages within seven minutes of each other, drawn
-// as one block with a single face. The rule is copied from DmThread.js rather
-// than imported: that component is a GM's DM conversation, a different shape
-// with a different row type, and sharing the constant would tie them together
-// for no gain.
-const RUN_GAP_MS = 7 * 60_000;
+// as one block with a single face. The rule lives in @/lib/feedRuns, shared
+// with the rebuilt feed under next/ so the two never disagree about where a
+// portrait goes. DmThread.js keeps its own: a GM's DM conversation is a
+// different shape with a different row type.
 // How often, at most, a GM's seat re-asks for the speaker directory when a row
 // turns up under a hood it does not know (web/lib/gmSpeakers.js).
 const SPEAKER_REFRESH_MS = 60_000;
@@ -1715,16 +1715,11 @@ export default function Feed({
     () =>
       rows.map((row, i) => {
         const prev = i > 0 ? rows[i - 1] : null;
-        const at = row.sentAt ? new Date(row.sentAt).getTime() : 0;
-        const prevAt = prev?.sentAt ? new Date(prev.sentAt).getTime() : 0;
         const system = row.source === "SYSTEM";
         // A hooded row somebody else said carries no characterId at all — see
         // db/lib/archive.js#feedRowShape for why — so runs group on whichever
-        // handle the row has. `speakerKey` is stable per speaker and useless
-        // to the browser for anything else, which is the point.
-        const who = (r) => r?.speakerKey ?? r?.characterId ?? null;
-        const startsRun =
-          !prev || prev.source === "SYSTEM" || who(prev) !== who(row) || at - prevAt > RUN_GAP_MS;
+        // handle the row has. Both feeds share the rule (@/lib/feedRuns).
+        const startsRun = runStarts(prev, row);
         // A GM watching with no living character has `self.characterId` null,
         // and so does a SYSTEM line's `row.characterId` — so without the first
         // half of this, every ownerless line in the scene wore Change and Take
@@ -1734,7 +1729,7 @@ export default function Feed({
         // Only ever a hint: Change and Delete both re-resolve the actor
         // from the session.
         const mine = Boolean(row.seq) && isOwnRow(row, self.characterId, self.speakerKey);
-        const theirs = Boolean(row.seq) && !system && Boolean(who(row)) && !mine;
+        const theirs = Boolean(row.seq) && !system && Boolean(speakerOf(row)) && !mine;
         // THE HOOD RULE IS GONE, and the eye is offered on every line
         // somebody else said. It used to be withheld from a row written under
         // an alias, because opening a dialog on its character id would have

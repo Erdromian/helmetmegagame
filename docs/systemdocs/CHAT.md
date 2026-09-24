@@ -1221,8 +1221,16 @@ a 48px head and a one-line composer:
   one is a single line until asked.
   Enter appends the pending row in the same frame and clears the box; the POST
   swaps the real row in behind it. A failed send stays on screen as "Not sent.
-  Retry". Runs group one speaker's messages within seven minutes, the same rule
-  as `DmThread.js`. The list scrolls itself, never the document, and only while
+  Retry". Runs group one speaker's messages within seven minutes, and the
+  portrait heads a run: a change of speaker, a system line or the gap starts a
+  new one, so two people talking back and forth get a face on every turn of the
+  conversation. A new run also sits a little further from the line above it
+  (12px, against 3px inside a run; `chat.css`), so a change of speaker reads
+  at a glance and alternating portraits never touch. The rule is `web/lib/feedRuns.js`, shared by both feeds and
+  tested in `web/lib/__tests__/feedRuns.test.mjs` — it groups on `speakerKey`
+  *or* `characterId`, because the server mints a `speakerKey` for a hooded row
+  only. `DmThread.js` keeps its own copy of the seven minutes. The list scrolls
+  itself, never the document, and only while
   the reader is already at the bottom; otherwise a "New messages" pill. On a
   coarse pointer, Enter is a newline and a Send button appears, as in Discord's
   app. An edited row says "(edited)" after the time.
