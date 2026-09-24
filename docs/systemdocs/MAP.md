@@ -486,12 +486,13 @@ anywhere, spends nothing, and files no Action — it isn't travel, it's
 arrival. The adjacency gate is skipped entirely.
 
 **A hop inside the same zone is free, on a cooldown.**
-`GameConfig.locationMoveCooldownSeconds` (default 3, edited on `/gm/dev`; it
-was 60 until 2026-09-08, which was long enough to feel like a wall)
-gates it, enforced by a **conditional `updateMany`** whose `WHERE` clause
-*is* the check (`lastLocationMoveAt` null or old enough) — the same shape the
-hunger decrement and the mount's daily claim use, so two clicks in one tick
-can't both pass. A refusal reports the exact seconds left. A **walk** of several
+`GameConfig.locationMoveCooldownSeconds` (default 30, edited on `/gm/dev`; it
+was 60 until 2026-09-08, which felt like a wall, then 3 until 2026-09-24,
+which was a click debounce and no brake on anything) gates it, enforced by a
+**conditional `updateMany`** whose `WHERE` clause *is* the check
+(`lastLocationMoveAt` null or old enough) — the same shape the hunger
+decrement and the mount's daily claim use, so two clicks in one tick can't
+both pass. A refusal reports the exact seconds left. A **walk** of several
 hops claims it once, at its first hop, and swaps the clock for a position check
 on every hop after — §3c.
 
@@ -912,10 +913,11 @@ by a turret on a street they were never told they would pass.
 mistake in the graph cannot become a thirty-hop run of Discord calls.
 
 **The debounce is claimed once, by the first hop.**
-`GameConfig.locationMoveCooldownSeconds` is a debounce on clicking, not a game
-rule, and waiting it out between hops would make a four-hop walk nine seconds of
-refusals. So hop 1 makes the ordinary claim — two tabs starting a walk in the
-same tick still resolve to one — and every later hop passes `skipCooldown`,
+`GameConfig.locationMoveCooldownSeconds` is a brake on the next click, not a
+toll on every step, and waiting it out between hops would make a four-hop walk
+a minute and a half of refusals. So hop 1 makes the ordinary claim — two tabs
+starting a walk in the same tick still resolve to one — and every later hop
+passes `skipCooldown`,
 which **swaps** the conditional `updateMany`'s clock for `locationId: <where we
 read them>` rather than dropping it. That is a narrower guard, not a missing
 one, and the right one for a walk: the thing a walk must never do is step on
