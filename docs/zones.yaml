@@ -2422,8 +2422,13 @@ connections:
   - [depths/depths-6, depths/depths-7]
 
   # --- Between zones — each of these costs the Move ----------------------
-  - [town/town-9, fortress/fortress-2]
-  - [town/town-a, fortress/fortress-2]
+  # There is exactly ONE plain way up from the Town into the Fortress, and it
+  # is the portcullis (town-8 <-> fortress-2, among the manned gates below).
+  # The Sanctuary and the Graveyard used to open onto the Gatehouse too, so
+  # dropping the portcullis shut nothing: everyone walked round through the
+  # graves, for free, since a hop inside the Town costs no Move. A gate is
+  # only a gate if it is the only way across — db/lib/gateBypass.js, which
+  # the doctor and the test suite both run, refuses a second one.
   - [town/town-2, undertown/undertown-a]
   - [fortress/fortress-3, undertown/undertown-1]
   - [caves/caves-5, depths/depths-3]
