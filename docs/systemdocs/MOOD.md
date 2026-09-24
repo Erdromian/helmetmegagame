@@ -108,7 +108,7 @@ key on.
 | Tortured, broke or held | TORTURED | −40 | `tortureCharacterRequestImpl` (TORTURE.md) |
 | A piece cut off you | MUTILATED | −50 | `mutilateRequestImpl` (TORTURE.md §6). A corpse takes no hit — a dead row's dial is read by nobody. |
 | Branded | BRANDED | −40 | `brandCharacterRequestImpl` (TORTURE.md §8). Same two ×0 immunities as TORTURED. |
-| Someone dies in your Location | DEATH_SEEN | −15 to each witness | `characterDeath.js#applyDeathToRow` |
+| Someone dies in your Location | DEATH_SEEN | −15 to each witness — **except a Thanati**, who takes `DEATH_RELISHED` (§6) instead | `characterDeath.js#applyDeathToRow`, the term picked by `mood.js#deathWitnessTerm` |
 | An unburied body in your Location at turn end | CORPSE | −5 | mood pass |
 | Shot at by a turret and alive, hit or graze, either gun | TURRET | −25 | `turretPass.js#applyTurretShot` |
 | Holds `hungry` at turn end | HUNGER | −5 | mood pass |
@@ -282,6 +282,13 @@ they did before.
 | A **Musician's** `/play` with no instrument — sung — same ration (Musician (Pythagorean): ×4, +36) | +9 to everyone at the Location | `sootheListeners` (`db/lib/instrumentPlay.js`) |
 | Walk into the Cathedral, once per turn | +12 **to Fine only** | `applyArrivalMood` |
 | Be healed of a wound | +½ what it took | `healCharacterRequestImpl` |
+| A **Thanati** sees somebody die in their Location | +10 (`DEATH_RELISHED`), **in place of** the −15 `DEATH_SEEN` everybody else there takes | `deathWitnessTerm`, from `characterDeath.js#frightenWitnesses` |
+
+The last row is the one place a death lifts anybody. It is a death cult, so
+who died and how does not come into it: a sacrifice on the cult's own floor, a
+stranger in a brawl, a comrade struck down beside them, a GM's hand — every one
+of them is a small pleasure. Holding `thanati` is the whole test (the leader
+holds it too); the death's cause is never read.
 
 The food rules are keyed on the *status* a consume grants where there is a
 distinctive one (so a brew added to the catalog later is soothing the day it
@@ -508,7 +515,8 @@ hooks in the same tick cannot race a stale read past either end.
   `PLACE_TERMS`; `MOOD_DRIFT_UP` / `MOOD_DRIFT_DOWN`;
   `DESIRE_RELIEF_PER_POINT`; the consume relief
   map), the pure functions (`bandOf`, `placeClassOf`, `placeTermFor`,
-  `driftTermFor`, `restorativeRoom`, `woundRungOf`, `woundMoodFor`, `multiplierFor`,
+  `driftTermFor`, `restorativeRoom`, `woundRungOf`, `woundMoodFor`,
+  `deathWitnessTerm`, `multiplierFor`,
   `resolveDelta`, `moodBandDm`, `clampMood`), and the Prisma surface
   (`applyMood`, `applyMoodTerms`, `applyWoundMood`, `applyArrivalMood`,
   `setMood`, `consumeReliefFor`, `setMoodDmSender`, `loadIntensity`). Off the

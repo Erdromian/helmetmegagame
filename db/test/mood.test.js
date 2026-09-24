@@ -20,6 +20,7 @@ const {
   MOVE_MOOD_TURN_CAP,
   woundRungOf,
   woundMoodFor,
+  deathWitnessTerm,
   multiplierFor,
   resolveDelta,
   clampMood,
@@ -168,6 +169,23 @@ test("wound rungs read the cure ladder, and a wound is signed negative", () => {
   assert.equal(woundMoodFor(wound({ requirementResources: 2, requirementTurns: 1 })), -30);
   assert.equal(woundMoodFor(wound()), 0);
   assert.equal(woundMoodFor(wound({ group: { slug: "health-minor" } })), 0);
+});
+
+test("a death lifts a Thanati and frightens everybody else", () => {
+  const seen = { kind: "DEATH_SEEN", base: EVENTS.DEATH_SEEN };
+  const lifted = { kind: "DEATH_RELISHED", base: EVENTS.DEATH_RELISHED };
+
+  assert.deepEqual(deathWitnessTerm(["thanati"]), lifted);
+  assert.deepEqual(deathWitnessTerm(new Set(["thanati", "brave"])), lifted);
+  // Anybody else in the room takes the ordinary hit.
+  assert.deepEqual(deathWitnessTerm([]), seen);
+  assert.deepEqual(deathWitnessTerm(["brave"]), seen);
+  assert.deepEqual(deathWitnessTerm(undefined), seen);
+
+  // The lift is relief: signed positive, never scaled by a tag, divided by k.
+  assert.ok(EVENTS.DEATH_RELISHED > 0);
+  assert.equal(resolveDelta({ ...lifted, heldSlugs: ["thanati", "brave", "rage"] }), EVENTS.DEATH_RELISHED);
+  assert.equal(resolveDelta({ ...lifted, heldSlugs: ["thanati"], intensity: 2 }), EVENTS.DEATH_RELISHED / 2);
 });
 
 test("multipliers are a product, and a 0 anywhere wins", () => {

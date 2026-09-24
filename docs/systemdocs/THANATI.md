@@ -36,6 +36,12 @@ The cult is a set of tags and nothing else. Cultists keep whatever seat they
 hold in the open; the roster is Recall Comrades, and the hideout is a pointer
 on `GameState`.
 
+**A death lifts a Thanati.** When anybody dies in a Thanati's Location — a
+sacrifice, a brawl, a comrade, a stranger, by any hand — they take +10
+(`DEATH_RELISHED`) where everybody else there takes the −15 `DEATH_SEEN`.
+Holding `thanati` is the whole test and the cause is never read;
+`db/lib/mood.js#deathWitnessTerm` picks the term, `MOOD.md` §6 has the row.
+
 ## 2. The tags
 
 | Slug | What |
