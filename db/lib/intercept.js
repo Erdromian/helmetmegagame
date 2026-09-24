@@ -17,11 +17,13 @@ const { SFX } = require("./sfx");
 const { ambientLine } = require("./ambientLine");
 
 // WHY somebody cannot move, written onto Character.heldReason beside the timestamp.
-// Three values, not two: a fight holds BOTH sides and they're not in the same position, so the jumped and the jumper must not read the same sentence. A frozen table rather than hand-written strings across files — db/lib/characterDeath.js's clear once lacked this guard, and a typo'd literal is how that happens twice.
+// Four values, not two: a fight holds BOTH sides and they're not in the same position, so the jumped and the jumper must not read the same sentence. A frozen table rather than hand-written strings across files — db/lib/characterDeath.js's clear once lacked this guard, and a typo'd literal is how that happens twice.
+// CAUGHT is the room's hand, not a person's: a Steal the room noticed (THEFT.md §1e) pins the thief where they stand for CAUGHT_HOLD_MS so whoever they robbed can answer — words, or an Attack. It has no heldById, so no Release button ever reaches it; it lapses on its own clock and nothing else.
 const HELD_REASON = Object.freeze({
   INTERCEPT: "intercept",
   ATTACK: "attack",
   ATTACKING: "attacking",
+  CAUGHT: "caught",
 });
 
 // The two that a fight writes. releaseHeldBy and every other heldById clear must leave these alone — only the Attack row knows whether either side is still in another fight (ATTACK.md §2).
@@ -35,6 +37,9 @@ const NOT_A_FIGHT = Object.freeze({
 
 // Two minutes, Bascinet's number — long enough to say something and be answered, short enough that walking into a checkpoint isn't a punishment.
 const SAFE_HOLD_MS = 2 * 60 * 1000;
+
+// Five minutes, Bascinet's number — how long a thief the room saw is stuck there. Longer than a Safe stop because the other side has to notice the line, read it and decide, and they weren't waiting for it the way an interceptor was. Under heldReasonFor's five-minute countdown ceiling on purpose, so the thief always sees seconds rather than "until the end of the turn".
+const CAUGHT_HOLD_MS = 5 * 60 * 1000;
 
 // What a watch may carry. The name cap is FULL_NAME_LIMIT's business; this is how MANY, a sanity bound not a design statement — wanting more than this means wanting "Any person".
 const MAX_NAMES = 12;
@@ -86,6 +91,10 @@ function heldReasonFor(character, now = new Date()) {
     return "You're in a fight. You can't move until the end of the turn.";
   }
   const seconds = Math.ceil((until.getTime() - now.getTime()) / 1000);
+  // The room saw them at a stash. Nobody has hold of them, so no "somebody" — it is the scene that won't let them slip out.
+  if (character.heldReason === HELD_REASON.CAUGHT) {
+    return `You were seen stealing. You can't leave for another ${seconds}s.`;
+  }
   // Under five minutes it's worth counting down; a hold that runs to the end of the turn isn't — "43188s" would be worse than saying nothing.
   return seconds <= 300
     ? `Somebody intercepted you. You can't move for another ${seconds}s.`
@@ -435,6 +444,7 @@ module.exports = {
   FIGHT_REASONS,
   NOT_A_FIGHT,
   SAFE_HOLD_MS,
+  CAUGHT_HOLD_MS,
   MAX_NAMES,
   MESSAGE_LIMIT,
   INTERCEPT_RELEASE_PREFIX,

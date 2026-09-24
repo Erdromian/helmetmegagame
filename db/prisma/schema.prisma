@@ -2521,9 +2521,10 @@ model Character {
   heldBy    Character?  @relation("InterceptHold", fields: [heldById], references: [id])
   holding   Character[] @relation("InterceptHold")
 
-  // WHICH of the two things is holding them — "intercept" or "attack" — so
-  // that db/lib/intercept.js#heldReasonFor can name the right one while
-  // staying PURE. That predicate is read by the mover's own gate and by every
+  // WHICH thing is holding them — "intercept", "attack", "attacking" or
+  // "caught" (a Steal the room saw, THEFT.md §1e, which has no heldById at
+  // all) — so that db/lib/intercept.js#heldReasonFor can name the right one
+  // while staying PURE. That predicate is read by the mover's own gate and by every
   // picker that draws a way out, and a query inside it would have to be
   // awaited at eight call sites. A column is the cheaper half of that trade.
   heldReason String?

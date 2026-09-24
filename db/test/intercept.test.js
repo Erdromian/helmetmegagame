@@ -109,6 +109,26 @@ test("a short hold counts down and a long one does not", () => {
   assert.doesNotMatch(ambush, /\ds\./);
 });
 
+test("a caught thief reads their own sentence, and nobody is named as holding them", () => {
+  const now = new Date("2026-09-14T12:00:00Z");
+  const { HELD_REASON, CAUGHT_HOLD_MS } = require("../lib/intercept");
+  const caught = heldReasonFor(
+    { heldUntil: new Date(now.getTime() + CAUGHT_HOLD_MS), heldReason: HELD_REASON.CAUGHT },
+    now,
+  );
+  assert.match(caught, /seen stealing/);
+  assert.match(caught, /another 300s/);
+  // "Somebody" is an intercept's word — nobody has hold of a caught thief, the room does.
+  assert.doesNotMatch(caught, /Somebody/);
+  // The whole hold fits under the countdown ceiling, so it never says "end of the turn".
+  assert.doesNotMatch(caught, /end of the turn/);
+  // And it lapses on its own clock like every other hold.
+  assert.equal(
+    heldReasonFor({ heldUntil: now, heldReason: HELD_REASON.CAUGHT }, now),
+    null,
+  );
+});
+
 test("a player's line cannot ping the room", () => {
   assert.equal(cleanMessage("Halt! @everyone"), "Halt! everyone");
   assert.equal(cleanMessage("@here now"), "here now");

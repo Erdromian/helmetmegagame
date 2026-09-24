@@ -167,9 +167,11 @@ keyed-way pattern (`MAP.md` §2b) applied to a person instead of a door.
   through `db/lib/attack.js#fileAttack` rather than here — see §5a.
 
 `Character.heldReason` says **which** has hold of somebody — `HELD_REASON` in
-this file, and there are three values rather than two because a fight holds both
-sides and they must not read the same sentence (`ATTACK.md` §1). A column rather
-than a lookup because the predicate below is pure and eight surfaces read it.
+this file, and there are four values rather than two because a fight holds both
+sides and they must not read the same sentence (`ATTACK.md` §1), and because a
+thief the room saw is held by nobody at all (`caught`, `THEFT.md` §1e — five
+minutes, no `heldById`, so no Release reaches it). A column rather than a lookup
+because the predicate below is pure and eight surfaces read it.
 
 `heldReasonFor(character, now)` is the one predicate, pure, and it is what both
 the mover's gate and every picker read — so a surface can never draw a way the
