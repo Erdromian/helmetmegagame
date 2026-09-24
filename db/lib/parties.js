@@ -75,6 +75,14 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
   return null;
 }
 
+// A room party in the shape roomAccess.js#accessibleRooms reads. Not the party itself: a party's `kind` is
+// "room" for every room, so handed over as-is it never equals "PRIVATE" and every private door opens. The real
+// kind is `roomKind`. Null for a character party.
+function partyRoom(party) {
+  if (party?.kind !== "room") return null;
+  return { id: party.id, kind: party.roomKind, accessTagSlugs: party.accessTagSlugs ?? [] };
+}
+
 function partyKey(party) {
   return party ? `${party.kind}:${party.id}` : null;
 }
@@ -83,4 +91,4 @@ function partyLabel(party) {
   return party?.name ?? "Unknown";
 }
 
-module.exports = { resolveParty, partyKey, partyLabel };
+module.exports = { resolveParty, partyRoom, partyKey, partyLabel };
