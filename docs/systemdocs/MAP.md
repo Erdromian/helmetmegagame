@@ -374,7 +374,14 @@ travel surface draws it:
   in the gate colour, since for them it is shut.
 - The bot's picker: the option's description leads with "Tight squeeze, no
   Giant fits —", and the confirm step under **Move to X?** carries the same
-  `-#` sentence the web card does.
+  `-#` sentence the web card does. A squeeze that is shut to you for some
+  other reason reads "(tight squeeze)" in the **Closed to you right now**
+  line, the way the web draws the chip on a shut way too.
+
+A walk also **avoids** a squeeze where it costs nothing to. Of two equally
+short roads, the resolver takes the one with no squeeze on it, even where slug
+order would have picked the other. A longer road never wins, though: the
+squeeze is marked, not avoided at the price of an extra hop.
 
 The Giant themselves sees none of the chips as news — they already read the
 refusal — but they get them too; there is no per-tag branch in any of it.

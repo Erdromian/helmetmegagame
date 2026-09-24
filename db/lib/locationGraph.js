@@ -426,21 +426,38 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
   const dismountBy = new Map([[from, false]]);
   // Same shape as dismountBy: a walk that goes through a tight squeeze at any hop is a walk a Giant companion cannot finish, and the party leader is told so before they commit rather than after the Giant is refused mid-road.
   const squeezeBy = new Map([[from, false]]);
-  const claimed = new Set([from]);
+  // Which hop first reached each place — a later road of the SAME length may
+  // still take it over (below); a longer one never does.
+  const claimedAt = new Map([[from, 0]]);
   const found = [];
   let frontier = [from];
+
+  const take = (nodeId, neighbor) => {
+    prev.set(neighbor.id, nodeId);
+    // Sticky: a route that took your arelitz off you at hop 2 is still a
+    // route you finish on foot.
+    dismountBy.set(neighbor.id, Boolean(dismountBy.get(nodeId)) || neighbor.dismounts);
+    squeezeBy.set(neighbor.id, Boolean(squeezeBy.get(nodeId)) || neighbor.tightSqueeze);
+  };
 
   for (let hops = 1; hops <= maxHops && frontier.length > 0; hops += 1) {
     const next = [];
     for (const nodeId of frontier) {
       for (const neighbor of adjacency.get(nodeId) ?? []) {
-        if (claimed.has(neighbor.id)) continue;
-        claimed.add(neighbor.id);
-        prev.set(neighbor.id, nodeId);
-        // Sticky: a route that took your arelitz off you at hop 2 is still a
-        // route you finish on foot.
-        dismountBy.set(neighbor.id, Boolean(dismountBy.get(nodeId)) || neighbor.dismounts);
-        squeezeBy.set(neighbor.id, Boolean(squeezeBy.get(nodeId)) || neighbor.tightSqueeze);
+        const at = claimedAt.get(neighbor.id);
+        if (at !== undefined) {
+          // Two roads equally short, and the one already found goes through a
+          // tight squeeze this one avoids: walk the clear one, so a party is
+          // never led to lose its Giant when it had no need to (MAP.md §2a).
+          // Still deterministic — the frontier is walked in slug order, so the
+          // same clear road wins every time.
+          if (at === hops && squeezeBy.get(neighbor.id) && !squeezeBy.get(nodeId) && !neighbor.tightSqueeze) {
+            take(nodeId, neighbor);
+          }
+          continue;
+        }
+        claimedAt.set(neighbor.id, hops);
+        take(nodeId, neighbor);
         next.push(neighbor.id);
         found.push({ id: neighbor.id, hops });
       }

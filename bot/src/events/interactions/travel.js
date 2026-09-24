@@ -78,9 +78,10 @@ async function handleTravelOpen(interaction) {
     const rows = await travelOptions(prisma, character, character.locationId);
     destinations = rows.filter((row) => row.passable).map((row) => row.location);
     shut = rows.filter((row) => !row.passable);
-    // A hole no Giant fits through (MAP.md §2a), named under the option for
-    // everybody — the Giant it refuses is already in `shut` with the reason.
-    for (const row of rows) if (row.passable && row.tightSqueeze) squeezeIds.add(row.location.id);
+    // A hole no Giant fits through (MAP.md §2a), named for everybody on an
+    // open way and a shut one alike — the same as the web's chip, which both
+    // /chat and /map draw whether or not the way is open to you.
+    for (const row of rows) if (row.tightSqueeze) squeezeIds.add(row.location.id);
 
     // Farther in this zone, through places they already know (MAP.md §3c).
     // Appended AFTER the neighbours, which is the whole of the grouping Discord
@@ -109,7 +110,9 @@ async function handleTravelOpen(interaction) {
   const truncated = entries.length - Math.min(entries.length, MENU_OPTION_LIMIT);
   const shutLine =
     shut.length > 0
-      ? `-# Closed to you right now: ${shut.map((row) => row.location.name).join(", ")}.`
+      ? `-# Closed to you right now: ${shut
+          .map((row) => (squeezeIds.has(row.location.id) ? `${row.location.name} (tight squeeze)` : row.location.name))
+          .join(", ")}.`
       : null;
   await respond(interaction, {
     content: [

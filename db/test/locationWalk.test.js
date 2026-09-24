@@ -222,6 +222,46 @@ test("a tight squeeze on the road is said to everybody, sticky to the end of the
   assert.equal(plain.tightSqueeze, false);
 });
 
+test("of two equally short roads, the walk takes the one with no tight squeeze on it", async () => {
+  // gate -> alley -> keep and gate -> square -> keep, both two hops. The alley
+  // sorts first and would win on slug order alone, but its far end is a
+  // squeeze, so the clear road through the square is the walk (MAP.md §2a).
+  const locations = [place("gate"), place("alley"), place("square"), place("keep")];
+  const known = new Set(["gate", "alley", "square", "keep"]);
+  const clear = [way("alley", "gate"), way("alley", "keep", { tightSqueeze: true }), way("gate", "square"), way("keep", "square")];
+
+  const walk = await pathWithinZone(fakePrisma(locations, clear), walker(), "keep", { known });
+  assert.deepEqual(walk.path.map((l) => l.slug), ["square", "keep"]);
+  assert.equal(walk.tightSqueeze, false);
+
+  // Squeezed at the FIRST hop instead: the alley itself is still reached (it
+  // is the only road there), and keep still goes the clear way.
+  const early = [way("alley", "gate", { tightSqueeze: true }), way("alley", "keep"), way("gate", "square"), way("keep", "square")];
+  const routes = await routesWithinZone(fakePrisma(locations, early), walker(), { known });
+  const bySlug = Object.fromEntries(routes.map((row) => [row.location.slug, row]));
+  assert.equal(bySlug.alley.tightSqueeze, true);
+  assert.deepEqual(bySlug.keep.path.map((l) => l.slug), ["square", "keep"]);
+  assert.equal(bySlug.keep.tightSqueeze, false);
+
+  // Both roads squeezed: nothing to prefer, so slug order stands and it is said.
+  const both = [way("alley", "gate"), way("alley", "keep", { tightSqueeze: true }), way("gate", "square"), way("keep", "square", { tightSqueeze: true })];
+  const stuck = await pathWithinZone(fakePrisma(locations, both), walker(), "keep", { known });
+  assert.deepEqual(stuck.path.map((l) => l.slug), ["alley", "keep"]);
+  assert.equal(stuck.tightSqueeze, true);
+});
+
+test("a clear road that is LONGER does not beat a shorter one through a squeeze", async () => {
+  // gate -> square(squeeze) -> keep is two hops; gate -> alley -> lane -> keep
+  // is three and clear. Shortest still wins: the squeeze is marked, not avoided
+  // at the price of a longer walk.
+  const locations = [place("gate"), place("alley"), place("lane"), place("square"), place("keep")];
+  const known = new Set(["gate", "alley", "lane", "square", "keep"]);
+  const links = [way("gate", "square"), way("keep", "square", { tightSqueeze: true }), way("alley", "gate"), way("alley", "lane"), way("keep", "lane")];
+  const walk = await pathWithinZone(fakePrisma(locations, links), walker(), "keep", { known });
+  assert.equal(walk.hops, 2);
+  assert.equal(walk.tightSqueeze, true);
+});
+
 test("no road answers, rather than throwing, and an empty fog goes nowhere", async () => {
   const locations = [place("gate"), place("island")];
   const prisma = fakePrisma(locations, []);
