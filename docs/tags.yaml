@@ -1104,7 +1104,8 @@ tags:
     group: general-traits
     description: "This person is too slow to learn. You can't learn skills, and you can't read."
     pointCost: -6
-    conflictsWith: [literacy]
+    # Intelligent joins Literacy here: too slow to learn is the inverse of it.
+    conflictsWith: [literacy, intelligent]
     purchasable: true
     purchasableAfterStart: false
 
