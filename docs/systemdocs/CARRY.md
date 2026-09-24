@@ -448,10 +448,16 @@ so the ways out simply draw shut. It is the brake on running the whole map,
 lifting everything off every floor, and being gone before anybody in the room
 can answer. It takes movement only — you can still talk, drop it back, fight.
 
-- **Public rooms only.** A private room is somebody's cupboard, reached with a
-  key or a guest row; fetching your own kit from it is not the exploit, and
-  five minutes for it would only be a nuisance. Widening it is one clause in
-  `transferRequestImpl`.
+- **A private room is exempt only while nobody else is in it.** A private
+  room is somebody's cupboard, reached with a key or a guest row, and fetching
+  your own kit from it alone is not the exploit. With somebody else there it
+  is a scene, and they get their five minutes to answer. "In it" is
+  `db/lib/roomAccess.js#othersWhoMayOpen`: another living character standing
+  at the room's Location who can open the room — key tag, guest row, or an
+  open quest's allow list. The game has no Room-grain presence, and a private
+  room is a thread everyone entitled and present can read, so that is the
+  nearest true thing. A hood does not hide them; they are in the room either
+  way.
 - **Held by nobody** (`heldById` null), so no Release reaches it. It lapses on
   its own clock and nothing else ends it.
 - **A longer hold already on them is left alone** (a fight's, to the end of the

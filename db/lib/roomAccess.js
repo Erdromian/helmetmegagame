@@ -183,6 +183,47 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   return result;
 }
 
+// PURE. Which of `people` may open `room` — the same accessibleRooms() rule, asked
+// per person rather than per room. `people` carry { id, tagSlugs: Set }; the two
+// id sets are the room's guest rows and the open quests' allow lists.
+function whoMayOpen(room, people, guestIds = new Set(), allowedIds = new Set()) {
+  return people.filter(
+    (p) =>
+      accessibleRooms(
+        [room],
+        p.tagSlugs ?? new Set(),
+        guestIds.has(p.id) ? new Set([room.id]) : new Set(),
+        allowedIds.has(p.id) ? new Set([room.id]) : new Set(),
+      ).length === 1,
+  );
+}
+
+// Everyone ELSE who is "in" a private room right now: alive, standing at the
+// room's Location, and able to open it. There is no Room-grain presence in the
+// game — a private room is a thread that everyone entitled and at the Location
+// can read — so this is the nearest thing to "somebody else is in here".
+// Three queries however many people are standing there, rather than
+// roomAccessKeys() three times a head. Read by the pickup hold (CARRY.md §6a):
+// fetching your own kit from your own empty cupboard costs nothing, doing it
+// with somebody watching costs five minutes.
+async function othersWhoMayOpen(prisma, room, { except = null } = {}) {
+  if (!room?.id || !room.locationId) return [];
+  const [people, guests, quests] = await Promise.all([
+    prisma.character.findMany({
+      where: { locationId: room.locationId, status: "ALIVE", ...(except ? { id: { not: except } } : {}) },
+      select: { id: true, name: true, tags: { select: { tag: { select: { slug: true } } } } },
+    }),
+    prisma.roomGuest.findMany({ where: { roomId: room.id }, select: { characterId: true } }),
+    prisma.quest
+      .findMany({ where: { status: "OPEN", room: { id: room.id } }, select: { allowedCharacterIds: true } })
+      .catch(() => []),
+  ]);
+  const rows = people.map((p) => ({ id: p.id, name: p.name, tagSlugs: new Set(p.tags.map((t) => t.tag.slug)) }));
+  const guestIds = new Set(guests.map((g) => g.characterId));
+  const allowedIds = new Set(quests.flatMap((q) => q.allowedCharacterIds ?? []));
+  return whoMayOpen({ id: room.id, kind: "PRIVATE", accessTagSlugs: room.accessTagSlugs ?? [] }, rows, guestIds, allowedIds);
+}
+
 // Record/unrecord one room for code paths that push membership WITHOUT the
 // recompute above: /add, /remove, the doctor's repair. They must call this or
 // the column lies — an ACCESS CONTROL FAILURE in the quiet direction, since
@@ -203,6 +244,8 @@ async function recordRoomThread(prisma, characterId, roomId, present) {
 }
 
 module.exports = {
+  whoMayOpen,
+  othersWhoMayOpen,
   recordRoomThread,
   syncCharacterRoomAccess,
   accessibleRooms,
