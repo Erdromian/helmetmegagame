@@ -12,6 +12,7 @@
 const { hasNoticeboard } = require("./noticeboard");
 const { hasAttribute } = require("./locationAttributes");
 const { QUEST_INTERACT_PREFIX } = require("./questText");
+const { SEARCH_MOVE_LABEL } = require("./roomSearchCost");
 const { INTERCOM_ROOM_SLUG } = require("./intercom");
 const {
   MERCHANTS_OFFICE_ROOM_SLUG,
@@ -153,9 +154,9 @@ const ROOM_AFFORDANCES = [
   // Going through the room for what is under the floor (SEARCH.md §9). On
   // every room like Storage is: a room with nothing hidden still rolls, or the
   // button's absence would say so. The price is in the label, because a
-  // Discord button has no confirm step and this one spends half the Move — a
-  // player should never learn that from the refusal.
-  { id: "search", label: "Search (0.5 Move)", tone: PLAIN, prefix: ROOM_SEARCH_PREFIX },
+  // Discord button has no confirm step and this one spends a third of the
+  // Move — a player should never learn that from the refusal.
+  { id: "search", label: `Search (${SEARCH_MOVE_LABEL} Move)`, tone: PLAIN, prefix: ROOM_SEARCH_PREFIX },
   {
     id: "intercom",
     label: "Intercom",

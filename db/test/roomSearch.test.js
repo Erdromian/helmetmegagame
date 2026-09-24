@@ -4,7 +4,7 @@
 // STACKS (one hidden thing needs a modified 6, four give one up on a 2); that
 // the modifier table is CLOSED and Night Vision only counts underground; and
 // that the refusal ladder refuses in the order it claims to, since a refusal
-// costs nothing and the half Move is spent by anything past it.
+// costs nothing and the third of a Move is spent by anything past it.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
@@ -19,6 +19,7 @@ const {
   roomSearchRefusal,
   otherRoomRefusal,
 } = require("../lib/roomSearch");
+const { SEARCH_MOVE_LABEL } = require("../lib/roomSearchCost");
 
 const held = (...slugs) => slugs.map((slug) => ({ tag: { slug, name: slug } }));
 const row = (slug, hiddenQuantity, name = slug) => ({ id: `rt-${slug}`, tagId: `t-${slug}`, hiddenQuantity, tag: { slug, name } });
@@ -100,8 +101,10 @@ test("one room a turn: the same room again is fine, a second room is refused by 
   assert.equal(otherRoomRefusal(mine, hut), "You've already searched the Fishing Hut this turn — one room a turn.");
 });
 
-test("a search is half the Move on the shared ledger", () => {
-  assert.deepEqual(SEARCH_MOVE, { num: 1, den: 2, family: "search" });
+test("a search is an exact third of the Move on the shared ledger", () => {
+  assert.deepEqual(SEARCH_MOVE, { num: 1, den: 3, family: "search" });
+  // The price players read is the same third, to two places.
+  assert.equal(SEARCH_MOVE_LABEL, (SEARCH_MOVE.num / SEARCH_MOVE.den).toFixed(2));
   // The marker checkLedgerMove reads a shareable ledger by must be in the notes, or the second search refuses the first.
   assert.equal(SEARCH_LEDGER_NOTES.includes("auto:craft"), true);
 });

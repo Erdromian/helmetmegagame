@@ -4951,10 +4951,10 @@ model PickpocketAttempt {
 
 // Going through a ROOM rather than a person (docs/systemdocs/SEARCH.md §9).
 // One row per search. The rule is ONE ROOM A TURN: a character may search the
-// same room again (each costs half the Move, so twice at most), but never a
-// second room. db/lib/roomSearch.js checks it under the Character row lock,
-// which serializes every share-of-a-Move verb, so no unique index — two rows
-// for one room are both legal. Written whether or not anything was found, so
+// same room again (each costs a third of the Move, so three times at most),
+// but never a second room. db/lib/roomSearch.js checks it under the Character
+// row lock, which serializes every share-of-a-Move verb, so no unique index —
+// several rows for one room are all legal. Written whether or not anything was found, so
 // an empty room cannot be told apart from an unlucky roll.
 //
 // Not an Offer: a room is never asked, so there is no consent handshake, no

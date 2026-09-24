@@ -414,33 +414,35 @@ cannot disagree.
   check and the search the second.
 - **No consent handshake.** A room is not a person: no Offer, no DM with
   buttons, nothing in anybody's waiting-on-you list.
-- **It costs half the Move**, on the same ledger crafting, a cure and a
-  burial share (`db/lib/moveLedger.js`, `CRAFTING.md` §2a): two searches
-  fill a Routine, a search and half a turn's work at the bench share one
-  turn, and a Gambit already filed refuses it with the Move-spent sentence.
+- **It costs a third of the Move** (an exact 1/3, shown as `0.33`), on the
+  same ledger crafting, a cure and a burial share (`db/lib/moveLedger.js`,
+  `CRAFTING.md` §2a): three searches fill a Routine, a search and two thirds'
+  work at the bench share one turn, and a Gambit already filed refuses it
+  with the Move-spent sentence.
   It files the shared `auto:craft` Action with `auto:search` appended to its
   notes, and `family: "search"` on its ledger line, so the desk reads
   "Searching this turn: Fishing Hut." No turn pass touches it. Behind the
   Move is one rule: **one room a turn**. The same room may be searched again
-  (so twice at most), a second room may not.
+  (so three times at most), a second room may not.
 - **The price is said before the press, on both faces.** The Discord button
-  is labelled `Search (0.5 Move)`, because a button there has no confirm
+  is labelled `Search (0.33 Move)`, because a button there has no confirm
   step; the `/chat` panel's Search opens the shared confirm dialog naming the
   cost and where a find lands. A player should never learn the price from the
-  refusal. The cost itself is `db/lib/roomSearchCost.js`, a zero-require file
+  refusal. The cost itself, and the `0.33` both faces print, is
+`db/lib/roomSearchCost.js`, a zero-require file
   so the client panel can read it (the `dmKinds.js` rule). `docs/handbook.md`'s
   Transferring & Storage section says the same to players.
 - A hood does not refuse it (§2a). A hood hides who you are, not what you are
   doing with your hands.
 - Refused by anything that blocks `ACT`, by **Blind**, between sittings
   (`sessionGate`, so Discord and `/chat` refuse alike), and with no turn open.
-- **A room with nothing hidden still rolls and still costs the half Move.**
-  If it didn't, the button's behaviour would say the room was empty.
+- **A room with nothing hidden still rolls and still costs its third of the
+  Move.** If it didn't, the button's behaviour would say the room was empty.
 
 The refusal ladder (`roomSearchRefusal`) runs in full first, then the turn
 gate (`autoMovesOpen`), then a cheap look at the room rule and the Move; only
 then does ONE transaction, under the Character row lock, ask the room rule
-again, spend the half, record the search, throw the die and write the reveal.
+again, spend the third, record the search, throw the die and write the reveal.
 A refusal anywhere inside rolls the lot back, so a Move is never spent on a
 search that did not happen. A bad roll rolls nothing back: from outside, an
 empty room and an unlucky one look the same.
@@ -503,9 +505,9 @@ the Fishing Hut this turn — one room a turn."). There is no unique index,
 because two searches of one room are both legal; the check runs under the
 Character row lock, which every share-of-a-Move verb takes first, so two fast
 presses on two rooms cannot both pass. The Move is what caps the count: at
-half a Move each, twice a turn at most. A group of three at the Fishing Hut
-still gets up to six rolls a turn, and the second look at a room rolls against
-whatever the first one left under the floor.
+a third of a Move each, three times a turn at most. A group of three at the
+Fishing Hut gets up to nine rolls a turn, and each later look at a room rolls
+against whatever the earlier ones left under the floor.
 
 **One audit row**, `room_search`, with `turnId` set (`REQUESTS.md` §1a) and
 `{ die, rolls, advantage, modifiers, total, hiddenStacks, revealedTagIds }` in

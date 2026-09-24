@@ -4,8 +4,8 @@
 // is shown and moves some of those stacks into plain sight, where Take and
 // Steal reach them like anything else. Finding a thing is not pocketing it.
 //
-// Costs HALF the Move, on the same ledger crafting and burial share
-// (db/lib/moveLedger.js, CRAFTING.md §2a): two searches fill a Routine, and a
+// Costs a THIRD of the Move, on the same ledger crafting and burial share
+// (db/lib/moveLedger.js, CRAFTING.md §2a): three searches fill a Routine, and a
 // Gambit already filed refuses it. No turn pass touches it. Behind that is
 // one rule, ONE ROOM A TURN: the same room may be gone through again, a
 // second room may not. A RoomSearchAttempt row is written for every search,
@@ -184,7 +184,7 @@ const ROOM_SELECT = {
 // Order matters and is the same as Steal's: everything that can refuse runs
 // FIRST — the ladder, the turn gate, a cheap look at the room rule and the
 // Move — then, inside ONE transaction under the Character row lock: the room
-// rule is asked again, the half Move is spent, the search is recorded, the
+// rule is asked again, the third of a Move is spent, the search is recorded, the
 // die is thrown and the reveal is written. A refusal anywhere in that
 // transaction rolls the lot back, so a Move is never spent on a search that
 // did not happen. A bad roll rolls nothing back — an empty room and an

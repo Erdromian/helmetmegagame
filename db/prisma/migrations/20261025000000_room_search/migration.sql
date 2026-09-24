@@ -10,7 +10,7 @@
 -- RoomSearchAttempt: one row per search. The rule it answers is ONE ROOM A
 -- TURN — a character may go through the same room again, never a second one —
 -- and it is checked under the Character row lock rather than by a unique
--- index, since two searches of one room are both allowed. turnId is a claim
+-- index, since several searches of one room are all allowed. turnId is a claim
 -- token, not a foreign key, so deleting a turn never rewrites who searched
 -- where.
 --
