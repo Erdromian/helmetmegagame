@@ -438,37 +438,6 @@ per tag, `@@unique([roomId, tagId])`), and ⬢ are one of them — a `resources`
 row like any other. A room is where you put what you can't carry, which since
 ⬢ started weighing a pound each is most of a fortune.
 
-### 6a. Taking from a public stash keeps you there 5 minutes
-
-**From: a public room, To: you** — any tag line or any ⬢ — writes the movement
-hold (`Character.heldUntil`, `INTERCEPT.md` §3) for `PICKUP_HOLD_MS` with
-`heldReason: "pickup"`: *"You just picked something up here. You can't leave
-for another Ns."* Every picker and the mover's gate already read that column,
-so the ways out simply draw shut. It is the brake on running the whole map,
-lifting everything off every floor, and being gone before anybody in the room
-can answer. It takes movement only — you can still talk, drop it back, fight.
-
-- **A private room is exempt only while nobody else is in it.** A private
-  room is somebody's cupboard, reached with a key or a guest row, and fetching
-  your own kit from it alone is not the exploit. With somebody else there it
-  is a scene, and they get their five minutes to answer. "In it" is
-  `db/lib/roomAccess.js#othersWhoMayOpen`: another living character standing
-  at the room's Location who can open the room — key tag, guest row, or an
-  open quest's allow list. The game has no Room-grain presence, and a private
-  room is a thread everyone entitled and present can read, so that is the
-  nearest true thing. A hood does not hide them; they are in the room either
-  way.
-- **Held by nobody** (`heldById` null), so no Release reaches it. It lapses on
-  its own clock and nothing else ends it.
-- **A longer hold already on them is left alone** (a fight's, to the end of the
-  turn) — `db/lib/intercept.js#holdWhereTheyStand` is the one write and carries
-  the clock rule.
-- **Steal rides this path too** (`THEFT.md` §1), so a quiet theft is held just
-  the same; on a bad roll Steal replaces the reason with `caught` so the thief
-  reads what actually happened to them.
-- **Loot is not this.** Taking from a helpless person is `lootCharacterRequestImpl`
-  and writes no hold; the ROBBED mood and the notification are its own brake.
-
 **Two rooms hold nothing at all.** `Room.destroysContents` — the Godard
 Factory's Spillway and the Servant Wing's Latrines — makes both writers into a room
 (`giveTagTo`, `moveParty`) no-ops, so what goes in is gone. Undo can still hand

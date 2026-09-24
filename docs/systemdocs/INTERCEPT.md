@@ -167,16 +167,17 @@ keyed-way pattern (`MAP.md` §2b) applied to a person instead of a door.
   through `db/lib/attack.js#fileAttack` rather than here — see §5a.
 
 `Character.heldReason` says **which** has hold of somebody — `HELD_REASON` in
-this file, and there are five values rather than two because a fight holds both
+this file, and there are four values rather than two because a fight holds both
 sides and they must not read the same sentence (`ATTACK.md` §1), and because a
-thief who was caught (`caught`, five minutes) is held by nobody at all when the
-stash had no owner (`THEFT.md` §1e, no `heldById`, so only the clock ends it) and
-by the victim when there was one (§2g, a failed Pickpocket — `heldById` is the
-target, so every clear below works for them). The fifth, `pickup`, is anyone
-who just took something out of a public stash (`CARRY.md` §6a): five minutes,
-no holder. Every short hold is written by `holdWhereTheyStand`, which carries
-the clock rule below once. A column rather than a lookup
+thief the room caught stealing (`caught`, five minutes, `THEFT.md` §1e) is held
+by nobody at all — a stash has no owner, so there is no `heldById` and only the
+clock ends it. That hold is written by `holdWhereTheyStand`, which carries the
+clock rule below and one more: it never lands on a fight that is still running,
+however soon that fight ends. A column rather than a lookup
 because the predicate below is pure and eight surfaces read it.
+
+A follower held by nobody is left behind as `stuck` rather than `held`, so the
+leader reads *"X couldn't follow."* and not *"Somebody has hold of X."*
 
 `heldReasonFor(character, now)` is the one predicate, pure, and it is what both
 the mover's gate and every picker read — so a surface can never draw a way the
@@ -415,8 +416,8 @@ could only ever answer *They're already free.*
 
 The authoritative control is the **You are fighting** list at the foot of the
 Attack dialog. The DM button is the convenience. The Intercept dialog's own
-holding list is Safe stops and caught pickpockets (`THEFT.md` §2g) — it excludes
-both fight reasons, for the reason §3 gives: listing a fight there would draw a Let-them-go button whose
+holding list is Safe stops only — it excludes both fight reasons, for the
+reason §3 gives: listing a fight there would draw a Let-them-go button whose
 only possible answer is *They're already free.*
 
 ## 8. The surface

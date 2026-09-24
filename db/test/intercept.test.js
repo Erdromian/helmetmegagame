@@ -129,17 +129,64 @@ test("a caught thief reads their own sentence, and nobody is named as holding th
   );
 });
 
-test("picking something up reads its own sentence and lapses on the clock", () => {
+// Just enough of Prisma's `where` to run holdWhereTheyStand's against one row.
+function matchesWhere(row, where) {
+  return Object.entries(where).every(([key, cond]) => {
+    if (key === "AND") return cond.every((w) => matchesWhere(row, w));
+    if (key === "OR") return cond.some((w) => matchesWhere(row, w));
+    const value = row[key];
+    if (cond === null) return value == null;
+    if (typeof cond !== "object" || cond instanceof Date) return value === cond;
+    if ("lt" in cond) return value != null && value < cond.lt;
+    if ("lte" in cond) return value != null && value <= cond.lte;
+    if ("notIn" in cond) return value != null && !cond.notIn.includes(value);
+    throw new Error(`matchesWhere: no rule for ${key}`);
+  });
+}
+
+function fakeDb(row) {
+  return {
+    character: {
+      updateMany: async ({ where, data }) => {
+        if (!matchesWhere(row, where)) return { count: 0 };
+        Object.assign(row, data);
+        return { count: 1 };
+      },
+    },
+  };
+}
+
+test("a caught hold never lands on a running fight, however soon it ends", async () => {
+  const { HELD_REASON, CAUGHT_HOLD_MS, holdWhereTheyStand } = require("../lib/intercept");
   const now = new Date("2026-09-14T12:00:00Z");
-  const { HELD_REASON, PICKUP_HOLD_MS } = require("../lib/intercept");
-  const held = heldReasonFor(
-    { heldUntil: new Date(now.getTime() + PICKUP_HOLD_MS), heldReason: HELD_REASON.PICKUP },
-    now,
-  );
-  assert.match(held, /picked something up/);
-  assert.match(held, /another 300s/);
-  assert.doesNotMatch(held, /Somebody|end of the turn/);
-  assert.equal(heldReasonFor({ heldUntil: now, heldReason: HELD_REASON.PICKUP }, now), null);
+  const until = new Date(now.getTime() + CAUGHT_HOLD_MS);
+  const hold = (row) => holdWhereTheyStand(fakeDb(row), "thief", { until, reason: HELD_REASON.CAUGHT, now });
+
+  // Free: held by nobody, for five minutes.
+  const free = { id: "thief", heldUntil: null, heldById: null, heldReason: null };
+  assert.equal(await hold(free), true);
+  assert.deepEqual(free, { id: "thief", heldUntil: until, heldById: null, heldReason: HELD_REASON.CAUGHT });
+
+  // A fight in its last minute: the clock rule alone would take it. It must not.
+  const fighting = {
+    id: "thief",
+    heldUntil: new Date(now.getTime() + 60_000),
+    heldById: "victim",
+    heldReason: HELD_REASON.ATTACKING,
+  };
+  assert.equal(await hold(fighting), false);
+  assert.equal(fighting.heldReason, HELD_REASON.ATTACKING);
+  assert.equal(fighting.heldById, "victim");
+
+  // Yesterday's fight, lapsed on its own clock but still carrying its reason, is no fight.
+  const lapsed = { id: "thief", heldUntil: new Date(now.getTime() - 1), heldById: "victim", heldReason: HELD_REASON.ATTACK };
+  assert.equal(await hold(lapsed), true);
+  assert.equal(lapsed.heldReason, HELD_REASON.CAUGHT);
+
+  // A longer hold of any kind is left where it is.
+  const ambushed = { id: "thief", heldUntil: new Date(now.getTime() + 3600_000), heldById: "x", heldReason: null };
+  assert.equal(await hold(ambushed), false);
+  assert.equal(ambushed.heldById, "x");
 });
 
 test("a player's line cannot ping the room", () => {

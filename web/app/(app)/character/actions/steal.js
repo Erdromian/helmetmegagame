@@ -69,16 +69,17 @@ export async function stealRequestImpl({ fromKey, tags }) {
   // Character.heldUntil every picker and the mover's gate already read, so
   // nothing new has to learn about it. No heldById — the room has hold of
   // them, not a person, so no Release button and no walk-off clear reaches it.
-  // The transfer above already pinned them for picking something up
-  // (CARRY.md §6a); this REPLACES that one, so a caught thief reads the
-  // sentence about being caught rather than the one about picking things up.
-  if (!unseen) {
-    await holdWhereTheyStand(prisma, character.id, {
-      until: new Date(Date.now() + CAUGHT_HOLD_MS),
-      reason: HELD_REASON.CAUGHT,
-      replaces: [HELD_REASON.PICKUP],
-    });
-  }
+  // A successful steal holds nobody. The goods have already moved by now, so a
+  // failed write is logged and the room still hears the line.
+  const pinned = unseen
+    ? false
+    : await holdWhereTheyStand(prisma, character.id, {
+        until: new Date(Date.now() + CAUGHT_HOLD_MS),
+        reason: HELD_REASON.CAUGHT,
+      }).catch((err) => {
+        console.error(`Steal: caught hold failed for ${character.id}:`, err.message ?? err);
+        return false;
+      });
 
   // The die lives here and NOWHERE a player can read it. The per-line
   // TRANSFER_TAG rows above are the record of what moved and the thing Undo
@@ -104,7 +105,11 @@ export async function stealRequestImpl({ fromKey, tags }) {
   // On a success, nothing is posted anywhere — no Discord line and no scene
   // row, which is the whole of the verb. announceInRoom already names the
   // thief by the face the room saw, so a hooded one reads as "A young man".
-  if (!unseen && room) after(() => announceInRoom(room, character, `${CAUGHT_LINE} ${STUCK_LINE}`));
+  // The second sentence only when the hold actually landed: a thief already in
+  // a fight, or held longer by something else, keeps that hold instead, and
+  // the line must not promise a five-minute one.
+  if (!unseen && room)
+    after(() => announceInRoom(room, character, pinned ? `${CAUGHT_LINE} ${STUCK_LINE}` : CAUGHT_LINE));
 
   return { sfx: SFX.STASH };
 }

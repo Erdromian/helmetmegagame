@@ -26,11 +26,10 @@ closed on time would otherwise put the deadline in the past and hold nobody.
 **Both sides are held, each named as holding the other.** You do not start a
 fight and stroll off.
 
-`Character.heldReason` says WHY, and it has **five** values, not two —
-`intercept`, `attack`, `attacking`, `caught`, `pickup` (`HELD_REASON` in
-`db/lib/intercept.js`; `caught` is a thief who was seen, `THEFT.md` §1e and §2g,
-held by the victim when there is one, and `pickup` is anyone who took something
-off a public floor, `CARRY.md` §6a). The third is the whole point: the person who was jumped and the person who did
+`Character.heldReason` says WHY, and it has **four** values, not two —
+`intercept`, `attack`, `attacking`, `caught` (`HELD_REASON` in
+`db/lib/intercept.js`; `caught` is a thief the room saw, `THEFT.md` §1e, and it
+never lands on a running fight). The third is the whole point: the person who was jumped and the person who did
 the jumping are both held, and telling the aggressor *"Somebody attacked you"*
 on every shut way and every banner would be a plain lie. A column rather than a
 query because `heldReasonFor` is pure and eight surfaces read it.

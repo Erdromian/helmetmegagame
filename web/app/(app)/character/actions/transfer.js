@@ -33,8 +33,6 @@ import {
 } from "@/lib/transferReach";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
-import { HELD_REASON, PICKUP_HOLD_MS, holdWhereTheyStand } from "@lifeweb/db/lib/intercept";
-import { othersWhoMayOpen } from "@lifeweb/db/lib/roomAccess";
 import {
   dropRoomTag,
   lockRoom,
@@ -411,24 +409,6 @@ export async function transferRequestImpl(
       { id: to.id, discordUserId: to.discordUserId },
       `${giver} handed you ${goods}.`,
     );
-  }
-  // Taking anything out of a stash keeps you there five minutes (CARRY.md
-  // §6a) — the brake on running the whole map, lifting everything off every
-  // floor and being gone before anybody can answer. A private room is exempt
-  // ONLY while nobody else is in it: fetching your own kit from your own empty
-  // cupboard is not the exploit, doing it with somebody watching is a scene
-  // they get to answer. Held by nobody, so it lapses on its own; a fight's
-  // longer hold already on them is left alone. Steal rides this path too and
-  // REPLACES it with its own reason on a bad roll.
-  if (from.kind === "room" && to.kind === "character" && to.id === character.id) {
-    const watched =
-      from.roomKind !== "PRIVATE" || (await othersWhoMayOpen(prisma, from, { except: character.id })).length > 0;
-    if (watched) {
-      await holdWhereTheyStand(prisma, character.id, {
-        until: new Date(Date.now() + PICKUP_HOLD_MS),
-        reason: HELD_REASON.PICKUP,
-      });
-    }
   }
   // The room hears about it, aliased (CARRY.md): leaving something is public
   // by nature, and so is walking off with it.

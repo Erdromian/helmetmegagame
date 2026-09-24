@@ -117,10 +117,14 @@ action writes `Character.heldUntil` — the same movement hold an intercept or
 an Attack uses (`INTERCEPT.md` §3) — for `CAUGHT_HOLD_MS`, with
 `heldReason: "caught"` (`HELD_REASON.CAUGHT`). Every picker and the mover's
 gate already read that column, so nothing new had to learn about it: the ways
-out draw shut with *"You were seen stealing. You can't leave for another
+out draw shut with *"You were caught stealing. You can't leave for another
 Ns."*, an escort cannot carry them off, and the Charon stone refuses them.
 
-Three things follow from reusing the hold rather than inventing one:
+**This is the only theft hold in the game.** A successful Steal holds nobody,
+no Pickpocket band holds anybody (§2), and taking from a room with Transfer
+holds nobody either.
+
+Four things follow from reusing the hold rather than inventing one:
 
 - **It takes MOVEMENT only.** The thief can talk, hand the goods back, and
   fight. That is the point — the victim gets a window to answer, in words or
@@ -129,17 +133,20 @@ Three things follow from reusing the hold rather than inventing one:
 - **Nobody has hold of them.** `heldById` is null. The intercept Release
   button, the holder-walks-off clear and the holder-dies clear all key on
   `heldById`, so none of them can reach this one. It lapses on its own clock
-  and nothing else ends it.
-- **The line says so.** *"…tried to steal an item. They won't get far for the
-  next 5 minutes."* Without the second sentence a victim reading the thread
-  assumes the thief is gone and never comes back to the room.
+  and nothing else ends it. A leader they were following reads *"X couldn't
+  follow."*, not *"Somebody has hold of X."* (`INTERCEPT.md` §3).
+- **It never lands on a running fight.** `holdWhereTheyStand` leaves a longer
+  hold alone, and it leaves a fight alone even in the turn's last minutes,
+  when the fight's hold is the shorter one — overwriting it would swap the
+  reason out from under `attack.js#settleHold`.
+- **The line says so, when it is true.** *"…tried to steal an item. They
+  won't get far for the next 5 minutes."* Without the second sentence a victim
+  reading the thread assumes the thief is gone and never comes back to the
+  room. It is added only when the hold actually landed; a thief already held
+  longer, or in a fight, gets the first sentence alone.
 
-Because Steal is Transfer's room → you path, a **successful** Steal from a
-public stash is held too — five minutes, `heldReason: "pickup"`, the ordinary
-take hold (`CARRY.md` §6a). A bad roll replaces that reason with `caught`
-(`holdWhereTheyStand`'s `replaces`), so the thief reads the sentence about
-being seen rather than the one about picking things up. Either way they are
-not gone.
+The goods have already moved by the time the hold is written, so a failed
+write is logged rather than thrown — the room still hears the line.
 
 The dialog itself is still outcome-blind (§1d). The thief learns they were
 seen the same way everyone else does — the room line — and the first time
@@ -165,7 +172,7 @@ Read off the die **plus** Skilled's +1:
 |---|---|
 | 4+ | **clean.** They are told nothing at all. |
 | 2–3 | **noticed.** You get the goods, and they are DM'd that you picked them. |
-| 1 | **failed.** Nothing moves, they are DM'd that you tried and failed, and **you are stuck there for 5 minutes, held by them** (§2g). |
+| 1 | **failed.** Nothing moves, and they are DM'd that you tried and failed. |
 
 The middle band is the whole texture, and collapsing it into a plain pass/fail
 is the easy accident — a verb that only ever succeeded silently or failed
@@ -278,30 +285,12 @@ happens here, and `ROBBED` especially must not: a mood hit on a clean roll
 would be a tell, and would give away a theft the die had just bought silence
 for. If a mood hit is ever wanted, it belongs on the **noticed** band alone.
 
-### 2g. A failed pickpocket is held by its victim
+### 2g. No band holds anybody
 
-The failed band writes the same 5-minute hold a noticed Steal does (§1e) —
-`Character.heldUntil`, `heldReason: "caught"` — with one difference that
-changes who is in charge of it: **`heldById` is the target.** A stash has no
-owner, so a caught Steal is held by nobody; a pickpocket's victim is a person,
-so they hold the thief the way an interceptor holds a catch.
-
-That buys the victim the whole intercept toolkit for free (`INTERCEPT.md` §3):
-
-- **Let them go** — the thief shows up in the victim's Intercept dialog
-  holding list with the ordinary Release button.
-- **Walking off frees them**, and so does the victim dying. You cannot keep a
-  hand on a shoulder from the next Location.
-- **An Attack from the victim** holds both sides to the end of the turn, since
-  a longer hold always beats a shorter one.
-
-The DM says so: *"…tried to pickpocket you, but failed! They won't get far for
-the next 5 minutes — you have hold of them."* Only a **fresh** roll writes the
-hold; a reopened dialog rolled nothing and must not extend it.
-
-The noticed band (2–3) does **not** hold. The goods moved, the victim is told
-at the take, and by then the thief may fairly be gone — that is what "noticed"
-rather than "caught" means.
+A pickpocket is never pinned where they stand, on any roll. The victim is
+DM'd on a noticed or failed roll and answers the way anyone answers anyone:
+words, or an Attack, which holds both sides to the end of the turn. The one
+theft hold in the game is a failed Steal's (§1e).
 
 ## 3. The two tags
 
@@ -349,6 +338,10 @@ mean the same thing.
   as "the theft was stopped" will be wrong. It is the settled rule, but it is
   the thing a GM will be asked about first. What a failed Steal does cost is
   5 minutes standing there (§1e).
+- **A caught thief's hold is not on the GM desk.** The **Other** lens on
+  `/gm/turns` is built from Attack and InterceptHit rows, not from
+  `heldUntil`, so a thief pinned by §1e shows up nowhere a GM looks. The
+  `steal` audit row, with `unseen: false`, is the record.
 - **A caught thief's hold overwrites a shorter Safe intercept hold on them**,
   and takes its `heldById` with it, so the interceptor's Release button no
   longer finds them. Same shape as the Attack-over-Safe gap in

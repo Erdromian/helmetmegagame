@@ -27,14 +27,7 @@ import {
 import { isHere } from "@lifeweb/db/lib/presence";
 import { ACT, blockerFor } from "@lifeweb/db/lib/incapacitation";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
-import {
-  seenAs,
-  identityOf,
-  IDENTITY_SELECT,
-  HELD_REASON,
-  CAUGHT_HOLD_MS,
-  holdWhereTheyStand,
-} from "@lifeweb/db/lib/intercept";
+import { seenAs, identityOf, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { CONCEALMENT_TAG_FIELDS } from "@lifeweb/db/lib/presentedIdentity";
 import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { carryAdmits } from "@lifeweb/db/lib/carry";
@@ -52,10 +45,6 @@ import { SFX } from "@lifeweb/db/lib/sfx";
 // a hooded one reads "A young man pickpocketed you!".
 const NOTICED_DM = (who) => `${who} pickpocketed you!`;
 const FAILED_DM = (who) => `${who} tried to pickpocket you, but failed!`;
-// ...and what you can do about it. The thief is pinned for CAUGHT_HOLD_MS and
-// you are the one holding them (THEFT.md §2g), so the line has to say so, or
-// the victim assumes they're already gone and never answers.
-const FAILED_STUCK = "They won't get far for the next 5 minutes — you have hold of them.";
 
 // A superset of IDENTITY_SELECT, and `tags` OVERRIDES rather than merges —
 // the single most breakable line here, exactly as SEARCH_SELECT's comment says
@@ -226,23 +215,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
   }
 
   if (attempt.outcome === FAILED) {
-    if (fresh) {
-      // Caught with a hand in their pocket, so stuck: five minutes where they
-      // stand, held BY THE VICTIM (THEFT.md §2g). The same Character.heldUntil
-      // every picker and the mover's gate already read. heldById is the
-      // target, so the victim gets the ordinary Let-them-go button, and
-      // walking off or dying frees the thief the way it frees anyone they
-      // hold. `fresh` only — a reopened dialog rolled nothing and must not
-      // extend the hold. A pickup hold on them is replaced, so they read the
-      // sentence about being caught.
-      await holdWhereTheyStand(prisma, character.id, {
-        until: new Date(Date.now() + CAUGHT_HOLD_MS),
-        reason: HELD_REASON.CAUGHT,
-        heldById: target.id,
-        replaces: [HELD_REASON.PICKUP],
-      });
-      notifyCharacter(target, `${FAILED_DM(capitalizeFirst(seenAs(identityOf(character))))} ${FAILED_STUCK}`);
-    }
+    if (fresh) notifyCharacter(target, FAILED_DM(capitalizeFirst(seenAs(identityOf(character)))));
     revalidateAll();
     // Nothing moves, and the thief is told nothing about the die beyond this.
     return { outcome: FAILED };
