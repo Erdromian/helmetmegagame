@@ -104,7 +104,7 @@ function buildOps({ desired, live, prisma, scope = "structure" }) {
     } else if (target.targetType === "channel") {
       diffChannel(target, { live, ops, findings, resolvedIdByKey, writeId });
     } else if (target.targetType === "thread") {
-      diffThread(target, { live, ops, findings, resolvedIdByKey });
+      diffThread(target, { live, ops, findings, resolvedIdByKey, prisma });
     } else if (target.targetType === "anchor") {
       diffAnchor(target, { ops, findings, resolvedIdByKey, prisma });
     }
@@ -346,7 +346,7 @@ function diffChannel(target, { live, ops, findings, resolvedIdByKey, writeId }) 
 
 // --- Room threads ------------------------------------------------------
 
-function diffThread(target, { live, ops, findings, resolvedIdByKey }) {
+function diffThread(target, { live, ops, findings, resolvedIdByKey, prisma }) {
   const parentId = target.parentKey
     ? resolvedIdByKey.get(target.parentKey) ?? target.parentId ?? null
     : null;

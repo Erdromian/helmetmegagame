@@ -2,6 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { playSfx } from "@/app/components/sfx";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // The one shape a button that calls a { ok, error } server action needs: a
 // pending flag, the last refusal, and a runner that turns a transport failure
@@ -27,8 +28,16 @@ export default function useActionRunner({ refuseSfx = "refuse" } = {}) {
     setError(null);
     startTransition(async () => {
       let message = null;
+      // Only the call itself is inside the try. A throw from onOk comes after the action has
+      // already landed, and must not be reported as the action failing.
+      let res;
       try {
-        const res = await action(...args);
+        res = await action(...args);
+      } catch (err) {
+        playSfx(refuseSfx);
+        message = actionThrowMessage(err);
+      }
+      if (message === null) {
         if (!res?.ok) {
           playSfx(res?.sfx === "refuse" ? refuseSfx : (res?.sfx ?? refuseSfx));
           message = res?.error ?? "Something went wrong.";
@@ -36,9 +45,6 @@ export default function useActionRunner({ refuseSfx = "refuse" } = {}) {
           playSfx(res.sfx);
           if (onOk) onOk(res);
         }
-      } catch {
-        playSfx(refuseSfx);
-        message = "Could not reach the server. Nothing was changed.";
       }
       if (message !== null) {
         setError(message);

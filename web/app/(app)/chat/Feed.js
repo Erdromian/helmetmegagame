@@ -60,6 +60,7 @@ import MembersStrip from "./MembersStrip";
 import useComposerCommands from "./useComposerCommands";
 import { pendingArg, textArgOf } from "./commands";
 import { playSfx } from "@/app/components/sfx";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // One place's scene: what has been said here, and — where the place allows it
 // — the box to say something.
@@ -1389,7 +1390,7 @@ export default function Feed({
         if (res?.ok) cmd.setCmdLine(res.line ?? "Saved to your Notes.");
         else cmd.setCmdError(res?.error ?? "That line is gone.");
       })
-      .catch(() => cmd.setCmdError("Could not reach the server. Nothing was changed."));
+      .catch((err) => cmd.setCmdError(actionThrowMessage(err)));
   }, [cmd]);
 
   // A GM taking a line down. Same route as Delete, with no character on

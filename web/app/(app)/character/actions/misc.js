@@ -1331,7 +1331,6 @@ export async function lootCharacterRequestImpl({
       concealed: true,
       locationId: true,
       buriedAt: true,
-      resources: true,
       // notifyCharacter's two: the DM address, and the status it checks before
       // sending one to somebody who has since died (web/lib/notifyCharacter.js).
       discordUserId: true,

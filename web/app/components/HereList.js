@@ -15,6 +15,7 @@ import { ACTION_HELP, actionFor, helpFor, reasonFor } from "@/app/components/act
 import { lookAtRow } from "@/app/(app)/chat/actions";
 import { loadPeopleHere } from "@/app/(app)/character/rosterActions";
 import useVisiblePoll from "@/app/(app)/chat/useVisiblePoll";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // HERE: who is standing where you are, and what you can do to them. Drawn at
 // the top of /chat's Place panel and the sheet's Actions panel — same rows,
@@ -232,7 +233,7 @@ export default function HereList({
         .then((res) => {
           if (res && !res.ok) setAddError(res.error ?? "Something went wrong.");
         })
-        .catch(() => setAddError("Could not reach the server. Nothing was changed."));
+        .catch((err) => setAddError(actionThrowMessage(err)));
     },
     [onAddMember],
   );

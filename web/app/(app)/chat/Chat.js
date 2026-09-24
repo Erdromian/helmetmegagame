@@ -44,6 +44,7 @@ import {
   markHistoryLoading,
   historyLoaded,
 } from "./feedStore";
+import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // Chat: everywhere this character can hear, and one of them open.
 //
@@ -424,7 +425,7 @@ export default function Chat({
           if (res?.ok) bumpPlaces();
           return res ?? { ok: false, error: "Something went wrong." };
         })
-        .catch(() => ({ ok: false, error: "Could not reach the server. Nothing was changed." }));
+        .catch((err) => ({ ok: false, error: actionThrowMessage(err) }));
     },
     [selectedKey, bumpPlaces],
   );

@@ -4,8 +4,11 @@ const nextConfig = {
   // server actions and prefetched routes the new build no longer has — the
   // logs were full of "Failed to find Server Action", and a player claiming a
   // Desire got the error screen. With a deployment id, Next spots the mismatch
-  // and does a full reload instead. Railway sets the commit sha at build time;
-  // unset locally, which leaves this off in dev.
+  // on a NAVIGATION and does a full reload instead. It does nothing for a
+  // server action: an old tab's action still throws UnrecognizedActionError,
+  // and app/components/actionThrow.js is what tells the player to reload.
+  // Railway sets the commit sha at build time; unset locally, which leaves
+  // this off in dev.
   deploymentId: process.env.RAILWAY_GIT_COMMIT_SHA,
 
   // sharp is a native/binary module used only inside "use server" actions
