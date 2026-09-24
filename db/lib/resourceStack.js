@@ -167,29 +167,6 @@ async function resourcesByRoomIds(tx, roomIds) {
   return new Map(rows.map((r) => [r.roomId, r.quantity ?? 0]));
 }
 
-// The world's ⬢, for a supply figure. `characterWhere` scopes it to
-// whichever characters the caller wants (ALIVE, or the holding statuses)
-// without this module having an opinion about which.
-async function sumCharacterResources(tx, characterWhere = {}) {
-  const tagId = await resourcesTagId(tx);
-  if (!tagId) return 0;
-  const agg = await tx.characterTag.aggregate({
-    where: { tagId, character: characterWhere },
-    _sum: { quantity: true },
-  });
-  return agg._sum.quantity ?? 0;
-}
-
-async function sumRoomResources(tx, roomWhere = {}) {
-  const tagId = await resourcesTagId(tx);
-  if (!tagId) return 0;
-  const agg = await tx.roomTag.aggregate({
-    where: { tagId, room: roomWhere },
-    _sum: { quantity: true },
-  });
-  return agg._sum.quantity ?? 0;
-}
-
 // --- Writing -------------------------------------------------------------
 //
 // Two shapes, and the difference matters:
@@ -320,8 +297,6 @@ module.exports = {
   readRoomResources,
   resourcesByCharacterIds,
   resourcesByRoomIds,
-  sumCharacterResources,
-  sumRoomResources,
   addCharacterResources,
   addRoomResources,
   takeCharacterResources,

@@ -198,10 +198,6 @@ async function deadchatSeatHolders(prisma) {
 const HANDLE_TTL_MS = 60 * 1000;
 const handleMemo = new Map(); // discordUserId -> { handle, at }
 
-function forgetDeadchatHandles() {
-  handleMemo.clear();
-}
-
 async function deadchatHandle(discordUserId) {
   if (!discordUserId) return null;
   const cached = handleMemo.get(discordUserId);
@@ -226,7 +222,6 @@ module.exports = {
   deadchatChannelId,
   isDeadchatChannel,
   deadchatSpeakerName,
-  forgetDeadchatHandles,
   DEADCHAT_ALLOW,
   DEADCHAT_DENY,
   CHANNEL_NAME: CHANNEL_NAME,

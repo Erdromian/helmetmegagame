@@ -25,8 +25,8 @@ Two independent implementations of that rule, kept in sync by hand — the
 gateway/REST twin pattern (`ARCHITECTURE.md` §3):
 
 - `bot/src/lib/channels.js` — gateway cache.
-- `web/lib/discordGuild.js` — `isSummaryChannel` / `isTupperChannel` /
-  `listGuildChannels`, REST-based.
+- `web/lib/discordGuild.js` — `isSummaryChannel` / `isTupperChannel`,
+  REST-based.
 
 There is **no name-based marker**. Channel IDs are checked directly.
 
@@ -121,8 +121,8 @@ Every caller arrives through a different `include` — `messageCreate.js` loads 
 modal's `findAliveCharacter` loads no tags at all — so `loadVoiceState` does one
 query of its own and hands the result down.
 
-That mismatch was a live bug, not a hypothetical. `speaksBabble` reads
-`ct.tag.slug`, so against `messageCreate`'s include it read `undefined` and
+That mismatch was a live bug, not a hypothetical. The old `speaksBabble` check
+read `ct.tag.slug`, so against `messageCreate`'s include it read `undefined` and
 returned false every time: **{tag:stupid} had never garbled ordinary channel
 chat**, only the Speak modal, which happened to take the old fallback query.
 The same round trip now answers both questions. Blocked beats garbled — a

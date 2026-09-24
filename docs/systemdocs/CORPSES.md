@@ -548,4 +548,4 @@ A GM repairing a mistake has to be able to put the body back.
 | The three actions | `web/app/(app)/character/requestActions.js` |
 | Buttons, dialogs | `actionRegistry.js`, `RequestActionsProvider.js`, `icons.js` |
 | Ingredient shape | `db/lib/tagShapes.js`, `db/lib/syncTags.js`, `db/lib/formatTagRequirement.js` |
-| Constants | `CORPSE_GROUP_SLUG`, `BUTCHER_SLUG`, `HUMAN_FLESH_SLUG`, `ENGRAVE_RESOURCE_COST`, `CORPSE_ROT_TURNS`, `SHOVEL_SLUG`, `CORPSE_SALTS_SLUG`, `CORPSE_SENSE_SLUG` in `db/lib/constants.js` |
+| Constants | `CORPSE_GROUP_SLUG`, `BUTCHER_SLUG`, `HUMAN_FLESH_SLUG`, `ENGRAVE_RESOURCE_COST`, `CORPSE_ROT_TURNS`, `SHOVEL_SLUG`, `CORPSE_SENSE_SLUG` in `db/lib/constants.js` |

@@ -48,15 +48,10 @@ function babble(content, rng = Math.random, syllables = SYLLABLES) {
   return `${text}${rng() < 0.5 ? "!" : "…"}`;
 }
 
-// Accepts CharacterTag[] (`{ tag: { slug } }`) or a bare Tag[], same as db/lib/examineVision.js#slugSet.
-function speaksBabble(characterTags) {
-  return (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === STUPID_SLUG);
-}
-
 // A Ghoul's line: growls, and LOUD — upper-cased the way Bascinet wrote them
 // ("Gggrah! Ghhh! RRHHAA!").
 function growl(content, rng = Math.random) {
   return babble(content, rng, GHOUL_SYLLABLES).toUpperCase();
 }
 
-module.exports = { babble, growl, speaksBabble, STUPID_SLUG, GHOUL_SLUG };
+module.exports = { babble, growl, STUPID_SLUG, GHOUL_SLUG };

@@ -265,30 +265,6 @@ export const listGuildMembers = cache(async (maxAgeMs) => {
   }
 });
 
-const channelListCache = ttlCache(30_000);
-
-async function fetchGuildChannels() {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  if (!guildId || !token) return [];
-
-  return discordRequest(`/guilds/${guildId}/channels`);
-}
-
-export const listGuildChannels = cache(async () => {
-  const cached = channelListCache.get("all");
-  if (cached !== undefined) return cached;
-  try {
-    const value = await dedupe("channelList", fetchGuildChannels);
-    channelListCache.set("all", value);
-    return value;
-  } catch (err) {
-    const stale = channelListCache.getStale("all");
-    console.error(`Guild channel list failed${stale ? ", serving stale" : ""}: ${err.message}`);
-    return stale ?? [];
-  }
-});
-
 // Either GM seat counts (db/lib/roleIds.js#gmRoleIds; GAMEMASTERS.md).
 export function isGm(member) {
   if (!member) return false;

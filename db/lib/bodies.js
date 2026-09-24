@@ -37,9 +37,4 @@ function isBody(row) {
   return Boolean(status) && status !== "ALIVE" && status !== "ASLEEP";
 }
 
-/** True for a row that is out of play but left nothing behind. */
-function isAsleep(row) {
-  return row?.status === "ASLEEP";
-}
-
-module.exports = { isBody, isAsleep };
+module.exports = { isBody };

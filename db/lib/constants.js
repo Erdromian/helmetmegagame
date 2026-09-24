@@ -127,7 +127,6 @@ const CURSE_TURNS = 5;
 // Corpse Salts is the Mortii's recipe, consumed into Corpse Sense, which is
 // what db/lib/corpseSense.js sweeps for.
 const SHOVEL_SLUG = "shovel";
-const CORPSE_SALTS_SLUG = "corpse-salts";
 const CORPSE_SENSE_SLUG = "corpse-sense";
 
 // The Teaching tree (LESSONS.md). Anyone may teach: it costs them their
@@ -217,7 +216,6 @@ const WIGHT_SLUG = "wight";
 // pages 4-11): db/lib/vampireBloodAbilities.js's `grantsTagSlugs`, Corrupt's
 // item cost, Enthral's victim tags, and the ash death (db/lib/vampireDeath.js).
 const PILE_OF_ASH_SLUG = "pile-of-ash";
-const BLACK_HEART_SLUG = "black-heart";
 const THRALL_SLUG = "thrall";
 const VAMPIRE_BLOOD_ADDICT_SLUG = "vampire-blood-addict";
 const HEART_SLUG = "heart"; // the existing harvested-organ item Corrupt consumes — not a new tag.
@@ -263,7 +261,6 @@ module.exports = {
   BESTIAL_SLUG,
   WIGHT_SLUG,
   PILE_OF_ASH_SLUG,
-  BLACK_HEART_SLUG,
   THRALL_SLUG,
   VAMPIRE_BLOOD_ADDICT_SLUG,
   HEART_SLUG,
@@ -319,7 +316,6 @@ module.exports = {
   CORPSE_ROT_TURNS,
   CURSE_TURNS,
   SHOVEL_SLUG,
-  CORPSE_SALTS_SLUG,
   CORPSE_SENSE_SLUG,
   TEACHING_SLUG,
   DRILL_INSTRUCTOR_SLUG,

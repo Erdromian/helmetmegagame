@@ -112,12 +112,4 @@ const REASONS = {
 
 const DEFAULT_REASON = "UNATTRIBUTED";
 
-function reasonFlow(reason) {
-  return REASONS[reason]?.flow ?? FLOW.INTERNAL;
-}
-
-function reasonLabel(reason) {
-  return REASONS[reason]?.label ?? reason ?? "Unknown";
-}
-
-module.exports = { FLOW, REASONS, DEFAULT_REASON, reasonFlow, reasonLabel };
+module.exports = { FLOW, REASONS, DEFAULT_REASON };
