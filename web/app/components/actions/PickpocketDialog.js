@@ -8,11 +8,12 @@ import useRoster from "./useRoster";
 import useSubmit from "./useSubmit";
 import { useActionPools } from "./poolsContext";
 import { pickpocketRequest, pickpocketTakeRequest } from "@/app/(app)/character/requestActions";
+import { pickpocketFitCount } from "@lifeweb/db/lib/pickpocket";
 
 // Pickpocket (docs/systemdocs/THEFT.md §2). Two panes, because it is two acts:
-// the hand goes in, and then you choose. Pressing the first button is the
-// commitment — it spends the one attempt you get at this person this turn,
-// whatever you do next.
+// the hand goes in, and then you choose ONE kind of thing, as many of it as fit
+// in the budget. Pressing the first button is the commitment — it spends the
+// one attempt you get at this person this turn, whatever you do next.
 //
 // PartySelect rather than a ChipPicker, the SearchDialog reasoning: this is one
 // of the handful of verbs that reaches somebody in a hood, so a concealed row
@@ -44,14 +45,28 @@ export default function PickpocketDialog({ presets, onDone, onClose }) {
   const chosen = targets.find((t) => `${t.kind ?? "character"}:${t.id}` === targetKey) ?? null;
   const theirName = open?.targetName ?? chosen?.name ?? "them";
 
-  const rows = (open?.rows ?? []).map((r) => ({
-    id: r.tagId,
-    name: r.name,
-    held: r.quantity,
-    max: r.quantity,
-    note: r.each > 0 ? `${r.each} lb` : null,
-  }));
+  const budget = open?.budgetLbs ?? 0;
+  const left = Math.round((budget - (open?.spentLbs ?? 0)) * 100) / 100;
+
+  // Each row stops at as many as fit, so "All" means "all you can carry off".
+  const rows = (open?.rows ?? []).map((r) => {
+    const max = pickpocketFitCount(r.each, left, r.quantity);
+    return {
+      id: r.tagId,
+      name: r.name,
+      held: r.quantity,
+      max,
+      note: max === 0 ? `${r.each} lb — too heavy` : r.each > 0 ? `${r.each} lb` : null,
+    };
+  });
   const lines = pickedLines(picks);
+
+  // One kind of thing per reach: touching a row replaces whatever was picked.
+  function pickOne(next) {
+    const changed = Object.keys(next).find((id) => next[id] !== picks[id]);
+    setPicks(changed ? { [changed]: next[changed] } : next);
+  }
+
   // `?? 0` matters: a pick whose row has gone (a stale panel) would otherwise
   // make this NaN, and NaN > left is false — so the budget line would read
   // "NaN lb" and Take would stay enabled.
@@ -60,8 +75,6 @@ export default function PickpocketDialog({ presets, onDone, onClose }) {
       lines.reduce((n, l) => n + ((open?.rows ?? []).find((r) => r.tagId === l.tagId)?.each ?? 0) * l.quantity, 0) *
         100,
     ) / 100;
-  const budget = open?.budgetLbs ?? 0;
-  const left = Math.round((budget - (open?.spentLbs ?? 0)) * 100) / 100;
   const overBudget = lbs > left;
 
   function reachIn() {
@@ -124,9 +137,10 @@ export default function PickpocketDialog({ presets, onDone, onClose }) {
           <StackPicker
             rows={rows}
             picks={picks}
-            onChange={setPicks}
+            onChange={pickOne}
             emptyLabel={`${theirName} is carrying nothing you could lift.`}
           />
+          <p className="text-xs text-muted">One kind of thing — as many as you can carry off.</p>
         </div>
         <p className={`text-xs ${overBudget ? "text-accent" : "text-muted"}`}>
           {lbs} / {left} lb

@@ -3,7 +3,8 @@
 //
 // Two acts, one row. `pickpocketRequestImpl` rolls and claims; if the roll was
 // any good it hands back what the target is carrying, and
-// `pickpocketTakeImpl` moves whatever the thief ticked. The PickpocketAttempt
+// `pickpocketTakeImpl` moves the one kind of thing the thief picked, as many as
+// fit in the budget, once. The PickpocketAttempt
 // row is the ration AND the authorization for the second half — see the model's
 // own comment in schema.prisma for why it is one row and why it is not an Offer.
 //
@@ -248,8 +249,10 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
     : [];
   if (lines.some((l) => !l.tagId || l.quantity == null))
     throw new UserError("Each line needs a tag and a whole number.");
-  if (new Set(lines.map((l) => l.tagId)).size !== lines.length) throw new UserError("A tag is listed twice.");
   if (!lines.length) throw new UserError("Nothing to take.");
+  // One kind of thing per reach, as many of it as the budget allows
+  // (THEFT.md §2b). Checked here, not just in the dialog.
+  if (lines.length > 1) throw new UserError("Take one kind of thing.");
 
   // Everything is re-resolved from the session. The browser names the target
   // and nothing else, and even that is re-checked.
@@ -274,7 +277,9 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
       },
     },
   });
-  if (!attempt || !pickpocketTook(attempt.outcome))
+  // One take per reach. A take closes the whole budget, so spentLbs above 0
+  // means this hand has already come out.
+  if (!attempt || !pickpocketTook(attempt.outcome) || attempt.spentLbs > 0)
     throw new UserError("Your hand isn't in their pocket.");
 
   // Against a FRESH read of what they hold — the picker may be minutes old, and
@@ -299,9 +304,8 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
   // and a take that lands exactly on the budget is refused for no visible
   // reason — the single most confusing way this could misbehave.
   const takenLbs = round2(weighPicks(moves));
-  const leftLbs = round2(attempt.budgetLbs - attempt.spentLbs);
-  if (takenLbs > leftLbs)
-    throw new UserError(`That's more than you could lift unnoticed — ${leftLbs} lb left.`);
+  if (takenLbs > attempt.budgetLbs)
+    throw new UserError(`That's more than you could lift unnoticed — ${attempt.budgetLbs} lb at most.`);
 
   // The thief's own ceiling. Refused rather than landed-and-shed: past 1.5× the
   // cap settleCarry sheds NEWEST-first into a public room with a line in it
@@ -322,12 +326,14 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
     // opposite orders, and Postgres surfaces that as a raw 40P01.
     for (const id of [character.id, target.id].sort()) await lockCharacter(tx, id);
 
-    // The budget claim is a conditional updateMany whose WHERE is the check, so
-    // two tabs cannot both spend the last pound. It goes FIRST: a refusal here
-    // rolls back everything under it.
+    // The claim is a conditional updateMany whose WHERE is the check, so two
+    // tabs cannot both take. It spends the WHOLE budget whatever was taken, so
+    // a 0 lb take (obols) still closes the reach. It goes FIRST: a refusal
+    // here rolls back everything under it. The real pounds are on the
+    // pickpocket_took audit row.
     const claimed = await tx.pickpocketAttempt.updateMany({
-      where: { id: attempt.id, spentLbs: attempt.spentLbs },
-      data: { spentLbs: round2(attempt.spentLbs + takenLbs) },
+      where: { id: attempt.id, spentLbs: 0 },
+      data: { spentLbs: attempt.budgetLbs },
     });
     if (claimed.count !== 1) throw new UserError("Your hand isn't in their pocket.");
 

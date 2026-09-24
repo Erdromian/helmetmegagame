@@ -4894,9 +4894,10 @@ model PickpocketAttempt {
   // nobody; this is the only record of which band it landed in.
   outcome String
 
-  // What the roll bought, and how much of it is gone. spentLbs is claimed by a
-  // conditional updateMany whose WHERE is the check, so two tabs cannot both
-  // spend the last pound.
+  // What the roll bought, and whether it is gone. One take per reach: the take
+  // sets spentLbs to the whole budget whatever it weighed, by a conditional
+  // updateMany on spentLbs = 0, so two tabs cannot both take. The real pounds
+  // taken are on the pickpocket_took audit row.
   budgetLbs Float
   spentLbs  Float @default(0)
 

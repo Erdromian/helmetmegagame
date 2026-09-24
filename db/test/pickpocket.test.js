@@ -19,6 +19,7 @@ const {
   pickpocketOutcome,
   pickpocketTook,
   pickpocketableHoldings,
+  pickpocketFitCount,
   weighPicks,
 } = require("../lib/pickpocket");
 
@@ -91,6 +92,21 @@ test("Assets are off the table entirely, because the budget cannot measure them"
   assert.equal(pickpocketableHoldings([row({ tag: { tradeable: true, category: "Assets", weightLbs: 0 } })]).length, 0);
   // Case-folded, matching tagWeight.js — the catalog has held both spellings.
   assert.equal(pickpocketableHoldings([row({ tag: { tradeable: true, category: "assets", weightLbs: 0 } })]).length, 0);
+});
+
+// One kind of thing, as many as fit — this is what the dialog's "All" means.
+test("as many of one stack as fit in the budget", () => {
+  assert.equal(pickpocketFitCount(3, 15, 10), 5);
+  assert.equal(pickpocketFitCount(3, 15, 2), 2);
+  assert.equal(pickpocketFitCount(3, 30, 10), 10);
+  // Heavier than the whole budget: none of it.
+  assert.equal(pickpocketFitCount(20, 15, 1), 0);
+  // Float: 1.5 / 0.3 is 4.999… unguarded.
+  assert.equal(pickpocketFitCount(0.3, 1.5, 9), 5);
+  assert.equal(pickpocketFitCount(0.1, 15, 500), 150);
+  // Weightless — the budget cannot measure it, so all of it fits.
+  assert.equal(pickpocketFitCount(0, 15, 40), 40);
+  assert.equal(pickpocketFitCount(3, 15, 0), 0);
 });
 
 test("picks are weighed per unit, not per row", () => {

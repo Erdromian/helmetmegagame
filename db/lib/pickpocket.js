@@ -98,7 +98,19 @@ function weighPicks(lines = []) {
   return (lines ?? []).reduce((sum, l) => sum + rowWeight({ ...l.held, quantity: l.quantity }), 0);
 }
 
+// How many of one stack fit in what is left of the budget. A take is ONE kind
+// of thing, as many as the hand can carry off. Weightless means all of it —
+// the budget cannot measure an obol. The epsilon keeps 1.5 / 0.3 from flooring
+// to 4 on float error.
+function pickpocketFitCount(eachLbs, leftLbs, quantity) {
+  const held = Math.max(0, Number(quantity) || 0);
+  const each = Number(eachLbs) || 0;
+  if (each <= 0) return held;
+  return Math.max(0, Math.min(held, Math.floor((Number(leftLbs) || 0) / each + 1e-9)));
+}
+
 module.exports = {
+  pickpocketFitCount,
   PICKPOCKET_SLUG,
   PICKPOCKET_SKILLED_SLUG,
   SKILLED_BONUS,
