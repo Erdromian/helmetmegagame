@@ -16,7 +16,7 @@ const { isTradeable } = require("./tradeable");
 const { rollWithAdvantage } = require("./advantage");
 const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
 const { capitalizeFirst } = require("./concealedIdentity");
-const { seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+const { seenAs, seenBy, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { searchButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 
@@ -136,7 +136,9 @@ function searchReadout({ searcherSeenAs, targetSeenAs, found = [], onShow = [] }
 // list beyond ACT, and NO covered-face refusal. A hood hides who you are, not
 // what is in your pockets (PROXYING.md §5), so `allowConcealed` is on — the
 // second caller in the game after Transfer.
-function searchAuthority(actor, target) {
+// `seen` is what the searcher calls the target, when the caller has looked it
+// up (intercept.js#seenBy): a stranger reads as "a young man" (STRANGERS.md).
+function searchAuthority(actor, target, { seen = null } = {}) {
   if (!actor || !target) return "They aren't here.";
   if (actor.id === target.id) return "Search somebody else.";
   if (actor.status !== "ALIVE") return "You can't do that right now.";
@@ -152,7 +154,7 @@ function searchAuthority(actor, target) {
   // Named by the face the room sees, never the row — the rule INTERCEPT.md §2
   // sets. A refusal is no place to out somebody.
   const theirs = blockerFor(target.tags, ACT);
-  if (theirs) return `${capitalizeFirst(seenAs(identityOf(target)))} is ${theirs.name}.`;
+  if (theirs) return `${capitalizeFirst(seen ?? seenAs(identityOf(target)))} is ${theirs.name}.`;
   return null;
 }
 
@@ -163,13 +165,14 @@ function searchAuthority(actor, target) {
 // it rides the same transaction as the Offer so two fast clicks cannot both
 // pass.
 async function createSearchOffer(prisma, { actor, target, turn }) {
-  const refusal = searchAuthority(actor, target);
+  // How each of them would name the other.
+  const theirFace = target ? await seenBy(prisma, actor?.id, target) : "them";
+  const myFace = actor && target ? await seenBy(prisma, target.id, actor) : "somebody";
+  const refusal = searchAuthority(actor, target, { seen: theirFace });
   if (refusal) return { ok: false, reason: refusal };
   if (!target.discordUserId)
-    return { ok: false, reason: `${capitalizeFirst(seenAs(identityOf(target)))} can't be reached.` };
+    return { ok: false, reason: `${capitalizeFirst(theirFace)} can't be reached.` };
   if (!turn?.id) return { ok: false, reason: "No turn is open." };
-
-  const theirFace = seenAs(identityOf(target));
 
   let offer;
   try {
@@ -211,7 +214,7 @@ async function createSearchOffer(prisma, { actor, target, turn }) {
     offer,
     dm: {
       discordUserId: target.discordUserId,
-      content: `*${seenAs(identityOf(actor))}* wants to search you. Consent?`,
+      content: `*${myFace}* wants to search you. Consent?`,
       components: searchButtonRow(offer.id),
       meta: dmAction(DM_ACTION.OFFER, offer.id, "SEARCH"),
     },
@@ -294,7 +297,7 @@ async function acceptSearch(prisma, offer, responder) {
 
   // Re-run the whole gate — a DM can sit unanswered for hours, and in that time
   // either of them can be bound, drugged, moved or killed.
-  const refusal = searchAuthority(actor, target);
+  const refusal = searchAuthority(actor, target, { seen: actor && target ? await seenBy(prisma, actor.id, target) : null });
   if (refusal) return refuse(refusal);
 
   const claim = await prisma.offer.updateMany({
@@ -324,8 +327,9 @@ async function acceptSearch(prisma, offer, responder) {
 
   const found = [...open, ...givenUp];
   const { searcherLines, targetLines } = searchReadout({
-    searcherSeenAs: seenAs(identityOf(actor)),
-    targetSeenAs: seenAs(identityOf(target)),
+    // Each side reads the other as they would name them (STRANGERS.md).
+    searcherSeenAs: await seenBy(prisma, target.id, actor),
+    targetSeenAs: await seenBy(prisma, actor.id, target),
     found,
     onShow,
   });
@@ -450,7 +454,7 @@ async function cancelSearchOffersOnMove(db, characterId) {
     if (!searcher?.discordUserId) continue;
     dms.push({
       discordUserId: searcher.discordUserId,
-      content: `${capitalizeFirst(seenAs(identityOf(subject)))} refused your search and walked away.`,
+      content: `${capitalizeFirst(await seenBy(db, searcher.id, subject))} refused your search and walked away.`,
     });
   }
   return dms;

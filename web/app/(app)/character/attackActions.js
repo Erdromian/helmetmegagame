@@ -14,7 +14,7 @@ import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { HERE_FIELDS } from "@lifeweb/db/lib/presence";
 import { SFX } from "@lifeweb/db/lib/sfx";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
-import { IDENTITY_SELECT, identityOf, seenAs } from "@lifeweb/db/lib/intercept";
+import { IDENTITY_SELECT, seenBy } from "@lifeweb/db/lib/intercept";
 import { attackMoveBlock } from "@lifeweb/db/lib/combatGate";
 import {
   ATTACK_TAG_SELECT,
@@ -157,7 +157,7 @@ async function attackCharacterImpl({ targetKey, targetCharacterId }) {
     );
   }
 
-  const seen = seenAs(identityOf(target));
+  const seen = await seenBy(prisma, character.id, target);
   await logAudit(prisma, {
     actorDiscordUserId: session.discordUserId,
     actionType: "request_attack_filed",
@@ -224,7 +224,7 @@ async function cancelAttackImpl({ targetKey, targetCharacterId }) {
   });
   if (!done.ok) throw new UserError("You aren't fighting them.");
 
-  const seen = target ? seenAs(identityOf(target)) : "them";
+  const seen = target ? await seenBy(prisma, character.id, target) : "them";
   await logAudit(prisma, {
     actorDiscordUserId: session.discordUserId,
     actionType: "request_attack_cancelled",

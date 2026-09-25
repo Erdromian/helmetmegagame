@@ -1,32 +1,47 @@
 import { prisma } from "@lifeweb/db";
 import { UNBURIED_BODY_WHERE } from "@lifeweb/db/lib/presence";
-import { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
+import {
+  CONCEALMENT_TAG_FIELDS,
+  concealmentFrom,
+  forcedNameFrom,
+  presentedIdentity,
+  letterPlaqueFile,
+} from "@lifeweb/db/lib/presentedIdentity";
+import { knownSubjects } from "@lifeweb/db/lib/strangers";
 
 // Two lists off one query: who a `{char:<id>}` token may RESOLVE to (everybody, kept LIVE), and who the @ menu
 // may OFFER (narrower, hides a hooded/disguised character). A token carries the name it was sent under
 // (db/lib/say.js#stampMentionNames); messageTokens.js draws a face only while this list still calls that
 // person by that same name AND says they are not hidden (PROXYING.md §5a). `includeUnburiedDead` is /notes'
 // roster (CHARACTERS.md §5).
-export async function loadMentionDirectory({ includeUnburiedDead = false } = {}) {
-  return loadMentions({ includeUnburiedDead });
+//
+// `viewerId` is who will read the list. Somebody they have no Friends entry for
+// keeps their name (a name is what a mention is) but not their portrait: it is
+// swapped for the letter plaque of that same name. A stranger's face reaches
+// the page elsewhere, by token or by line (docs/systemdocs/STRANGERS.md §2), and
+// a portrait here beside the name would let the page match the two.
+export async function loadMentionDirectory({ includeUnburiedDead = false, viewerId = null } = {}) {
+  return loadMentions({ includeUnburiedDead, viewerId });
 }
 
 // presentedIdentity() decides the hide, so the forced/concealed precedence order has one copy.
-export async function loadOfferableMentions({ includeUnburiedDead = false } = {}) {
-  const all = await loadMentions({ includeUnburiedDead });
+export async function loadOfferableMentions({ includeUnburiedDead = false, viewerId = null } = {}) {
+  const all = await loadMentions({ includeUnburiedDead, viewerId });
   return all.filter((c) => !c.hidden);
 }
 
 // The shared read. `name` is the REAL name on purpose — the frozen-name gate in messageTokens.js compares
 // against it, and a token with no frozen half falls back to it. The FACE is the presented one, because
 // /api/avatar is identity-blind and a chip must never be the one surface that forgets a hood.
-async function loadMentions({ includeUnburiedDead }) {
+async function loadMentions({ includeUnburiedDead, viewerId = null }) {
   const characters = await prisma.character.findMany({
     where: livingWhere(includeUnburiedDead),
     orderBy: NAME_ORDER,
     select: {
       id: true,
       name: true,
+      // The plaque a stranger's entry wears is the one /api/avatar would draw: the first name's initial.
+      firstName: true,
       updatedAt: true,
       concealed: true,
       // Only the tags the two resolvers read: a name-forcing one, and anything equipped that conceals.
@@ -39,12 +54,14 @@ async function loadMentions({ includeUnburiedDead }) {
     },
   });
 
+  const known = await knownSubjects(prisma, viewerId, characters.map((c) => c.id));
   return characters.map((character) => {
     const shown = presentedIdentity(character, {
       forcedName: forcedNameFrom(character.tags),
       concealment: concealmentFrom(character.tags),
     });
-    return shape(character, shown);
+    const stranger = known !== null && !known.has(character.id) && !shown.concealed && !shown.forced;
+    return shape(character, stranger ? { ...shown, avatarPath: `/assets/letters/${letterPlaqueFile(character.firstName ?? character.name)}` } : shown);
   });
 }
 

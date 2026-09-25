@@ -454,7 +454,9 @@ Those **name** somebody rather than act on a body in front of you, and naming a
 hood is the unmasking. Both of those files say so in their own headers.
 
 Every picker hands the browser a **hood token** instead of a character id — an
-HMAC of the id under `AUTH_SECRET` (`db/lib/whosHere.js#hoodToken`), posted
+HMAC of the id and the person's presence nonce under `AUTH_SECRET`
+(`db/lib/hoodToken.js`; the nonce is rolled on every move and every change of
+hood, so a token dies with the encounter, `STRANGERS.md` §3), posted
 back as `hood:<token>` and resolved by `resolveHoodToken`, which re-queries who
 is actually standing at the caller's Location and re-derives concealment from
 their tags. So a token names somebody in the room you are in and nobody
@@ -1082,7 +1084,10 @@ module can use one without dragging `whosHere` → `sightings` → `feedAccess` 
 token, told apart the way `/look` tells them apart (32 hex characters, and a
 cuid never is), and `resolveMemberToken` recomputes it **only over the roster
 of the place the caller already gated on** — so a token names somebody in a
-room you are in and nobody anywhere else.
+room you are in and nobody anywhere else. The token carries the member's
+presence nonce, so the resolver reads it from the database (`STRANGERS.md` §3).
+A member the viewer has no Friends entry for is listed the same way, under an
+alias and a token, with their own face served by token (`STRANGERS.md` §2).
 
 The face is on §5a's sighting rule, unchanged: a mask is drawn only for
 somebody you have watched speak in it this turn, and the question-mark plate

@@ -53,7 +53,7 @@ import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { structuresAt } from "@lifeweb/db/lib/structures";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
-import { heldReasonFor, seenAs, identityOf, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
+import { heldReasonFor, seenBy, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
@@ -2301,8 +2301,9 @@ export async function waitingOnYou() {
         select: IDENTITY_SELECT,
       })
     : [];
+  // As this character would name them: a stranger is "a young man" (STRANGERS.md).
   const nameOf = new Map(
-    initiators.map((c) => [c.id, capitalizeFirst(seenAs(identityOf(c)))]),
+    await Promise.all(initiators.map(async (c) => [c.id, capitalizeFirst(await seenBy(prisma, me.character.id, c))])),
   );
 
   const rows = [
@@ -2908,10 +2909,10 @@ export async function addMember(placeKey, ref) {
 }
 
 // A character id or a hood token, resolved against the roster of the place the caller has already gated on.
-function resolveMemberRef(ref, memberIds) {
+async function resolveMemberRef(ref, memberIds) {
   const raw = String(ref ?? "").trim();
   if (!HOOD_TOKEN.test(raw)) return raw;
-  return resolveMemberToken(memberIds, raw);
+  return resolveMemberToken(prisma, memberIds, raw);
 }
 
 // `ref` is a character id, or the opaque hood token a concealed member's row
@@ -2927,7 +2928,7 @@ export async function removeMember(placeKey, ref) {
     const found = await conversationHere(me.character, placeKey);
     if (found.error) return { ok: false, error: found.error };
     const { conversation, memberIds } = found;
-    const characterId = resolveMemberRef(ref, memberIds);
+    const characterId = await resolveMemberRef(ref, memberIds);
 
     // ALIVE, the same gate the bot's /remove applies and the same one
     // addMember above already applies: a dead character is off the roster on
@@ -2966,7 +2967,7 @@ export async function removeMember(placeKey, ref) {
   const result = await removeRoomGuest(prisma, {
     actor: me.character,
     roomId: found.room.id,
-    characterId: resolveMemberRef(ref, guestIds),
+    characterId: await resolveMemberRef(ref, guestIds),
     // Only a token may show a hood out; a plain id for one is refused as absent.
     byToken: HOOD_TOKEN.test(String(ref ?? "").trim()),
   });

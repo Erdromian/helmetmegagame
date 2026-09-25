@@ -9,6 +9,7 @@ import { DESK_CHANNEL } from "@lifeweb/db/lib/deskNotify";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow, GM_DM_SELECT, gmDmRow } from "./dmThread";
 import { dmActionOf } from "@lifeweb/db/lib/dmActions";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
+import { concealedAlias } from "@lifeweb/db/lib/concealedIdentity";
 import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { livePerformancesAt, MUSIC_OP } from "@lifeweb/db/lib/performance";
 
@@ -33,7 +34,7 @@ function createHub() {
     // walk, a key, or a conversation invite, so an open stream resubscribes.
     presenceSubscribers: new Map(),
     // placeKey -> Set<({ placeKey, characterId, name }) => void>. The only
-    // channel whose payload the hub enriches before fanning it (see typingNameFor).
+    // channel whose payload the hub enriches before fanning it (see typingFactsFor).
     typingSubscribers: new Map(),
     // discordUserId -> Set<(row) => void>. A DirectMessage landed for this
     // account (CHAT.md §2b). Raised by a Postgres trigger (db/lib/dmNotify.js).
@@ -125,11 +126,14 @@ const NAME_MEMO_MS = 30_000;
 
 // The name this character is WEARING, obeying forced-name > concealment >
 // own-name (db/lib/presentedIdentity.js) — a typing line must not out a masked speaker.
-async function typingNameFor(characterId) {
+// Also whether that name hides them, whether it is forced, and the alias their
+// face would give a stranger: each reader's stream decides with those
+// (db/lib/strangers.js#lensTyping), so none of it is sent as it is.
+async function typingFactsFor(characterId) {
   const h = hub();
   const cached = h.nameMemo.get(characterId);
   // A miss on `name`, not the key: speakerFactsFor below writes the same entry.
-  if (cached && cached.name != null && Date.now() - cached.at < NAME_MEMO_MS) return cached.name;
+  if (cached && cached.name != null && cached.typing && Date.now() - cached.at < NAME_MEMO_MS) return cached.typing;
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },
@@ -140,14 +144,17 @@ async function typingNameFor(characterId) {
     loadForcedName(prisma, characterId),
     loadConcealment(prisma, characterId),
   ]);
-  const name = presentedIdentity(character, { forcedName, concealment }).name ?? null;
+  const shown = presentedIdentity(character, { forcedName, concealment });
+  const name = shown.name ?? null;
+  const typing = { name, hidden: Boolean(shown.concealed), forced: Boolean(shown.forced), alias: concealedAlias(character) };
   h.nameMemo.set(characterId, {
     ...(cached ?? {}),
     name,
+    typing,
     avatarVersion: character.updatedAt?.getTime?.() ?? null,
     at: Date.now(),
   });
-  return name;
+  return typing;
 }
 
 // The cache-buster on a face's URL, which must be the character's updatedAt
@@ -189,10 +196,11 @@ async function handleTyping(payload) {
   const set = hub().typingSubscribers.get(parsed.placeKey);
   if (!set || set.size === 0) return;
 
-  const name = await typingNameFor(parsed.characterId);
-  if (!name) return;
+  const facts = await typingFactsFor(parsed.characterId);
+  if (!facts?.name) return;
 
-  const event = { placeKey: parsed.placeKey, characterId: parsed.characterId, name };
+  // Server-side only: each stream passes it through lensTyping before writing.
+  const event = { placeKey: parsed.placeKey, characterId: parsed.characterId, ...facts };
   for (const send of [...set]) {
     try {
       send(event);

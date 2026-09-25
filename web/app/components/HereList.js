@@ -381,7 +381,13 @@ export default function HereList({
                 unknown={person.unknownFace}
                 size={24}
               />
-              <span className="chat-person-name text-muted">{person.alias}</span>
+              {/* A stranger's face is not hidden, so their estate colour shows as anyone's does (STRANGERS.md). */}
+              <span
+                className={person.stranger ? "chat-person-name" : "chat-person-name text-muted"}
+                data-role-group={person.roleGroup ?? undefined}
+              >
+                {person.alias}
+              </span>
             </button>
             {person.sightingSeq && (
               <span className="chat-person-eye">
@@ -435,7 +441,12 @@ export default function HereList({
                   unknown={person.unknownFace}
                   size={24}
                 />
-                <span className="chat-person-name text-muted">{person.alias}</span>
+                <span
+                  className={person.stranger ? "chat-person-name" : "chat-person-name text-muted"}
+                  data-role-group={person.roleGroup ?? undefined}
+                >
+                  {person.alias}
+                </span>
               </span>
             </div>
           ))}

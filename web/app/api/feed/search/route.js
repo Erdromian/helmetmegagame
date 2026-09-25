@@ -2,6 +2,7 @@ import { prisma, Prisma } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloors } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
+import { lensRows } from "@/lib/strangerLens";
 
 // GET /api/feed/search?q=&place= — what was said, anywhere this viewer can hear it.
 // THREE letters, not two — below that a GIN trigram index can't match, and Postgres falls
@@ -69,7 +70,8 @@ export async function GET(request) {
 
   // The place's NAME, so a hit reads "the Council Room" rather than "room:clx…".
   const nameByKey = new Map(scope.map((entry) => [entry.placeKey, entry.name]));
-  const shaped = await withAvatarVersions(prisma, rows);
+  // Through the reader's lens: a stranger's line is found under their alias only (STRANGERS.md).
+  const shaped = await lensRows(viewer, await withAvatarVersions(prisma, rows));
   return Response.json({
     rows: shaped.map((row) => ({ ...row, placeName: nameByKey.get(row.placeKey) ?? null })),
   });

@@ -2509,6 +2509,26 @@ model Character {
   knownBy                 Acquaintance[]           @relation("AcquaintanceSubject")
   // Every line this character was in the room for today (HeardLine below).
   heardLines              HeardLine[]
+  // The voices this character would know again, and who knows theirs
+  // (VoiceMemory below, docs/systemdocs/STRANGERS.md §4).
+  voicesHeard             VoiceMemory[]            @relation("VoiceOwner")
+  voiceHeardBy            VoiceMemory[]            @relation("VoiceSubject")
+
+  // How the room tells this person apart from others who look the same
+  // (docs/systemdocs/STRANGERS.md §3). All three are rolled together, by
+  // db/lib/strangers.js#settlePresence, the first time anybody looks after one
+  // of them went stale. Moving to another Location clears them
+  // (locationMove.js#applyArrivalFacts), and so does a change in whether the
+  // person is hidden, which presenceHidden records.
+  //   presenceLabel  "on the left", "hunched": one of STRANGER_LABELS, the
+  //                  same for every observer.
+  //   presenceNonce  keys the hood token (db/lib/hoodToken.js), so the handle
+  //                  a list offers dies with the encounter.
+  //   presenceHidden whether the person was hidden from everyone when this was
+  //                  rolled. Covering or uncovering the face rerolls.
+  presenceLabel  String?
+  presenceNonce  String?
+  presenceHidden Boolean?
 
   tags                    CharacterTag[]
   actions                 Action[]
@@ -4748,6 +4768,36 @@ model HeardLine {
   @@id([characterId, seq])
   @@index([characterId, dayNumber])
   @@index([dayNumber])
+}
+
+// A voice one character would know again (docs/systemdocs/STRANGERS.md §4).
+// It is written the first time the owner hears the subject SPEAK, in quotes,
+// while the subject is shown to them under an alias. The alias is shown
+// because the subject is hooded, or because the owner has no Friends entry
+// for them. Written by db/lib/memoryHearing.js#hearVoice.
+//
+// `number` is the owner's own count: their 1st such voice, their 2nd, and so
+// on. It never changes, so the same voice always comes back as the same
+// number. The numbers are private and differ from one observer to the next,
+// the way recognising a voice would.
+//
+// `live` is whether the number is on the subject's name in the owner's chat
+// right now. The subject moving to another Location clears it for every owner
+// (locationMove.js#applyArrivalFacts). Their next spoken line sets it again.
+model VoiceMemory {
+  ownerId String
+  owner   Character @relation("VoiceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  subjectId String
+  subject   Character @relation("VoiceSubject", fields: [subjectId], references: [id], onDelete: Cascade)
+
+  number  Int
+  live    Boolean  @default(true)
+  heardAt DateTime @default(now())
+
+  @@id([ownerId, subjectId])
+  @@unique([ownerId, number])
+  @@index([subjectId])
 }
 
 // A consent handshake between two characters, alive for one turn

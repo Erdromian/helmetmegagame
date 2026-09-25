@@ -778,21 +778,28 @@ async function declineOffer(prisma, offer, responder) {
   // searcher the identity the hood is bought to keep (INTERCEPT.md §2). Every
   // other kind refuses a covered face at the gate, so `responder.name` is
   // already the face that was seen.
+  //
+  // And every kind names the responder as the INITIATOR would: somebody they
+  // have no Friends entry for is "a young man" (docs/systemdocs/STRANGERS.md).
   let refusedBy = responder.name;
-  if (offer.kind === "SEARCH") {
-    const { seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+  let responderName = responder.name;
+  {
+    const { seenBy, IDENTITY_SELECT } = require("./intercept");
     const { capitalizeFirst } = require("./concealedIdentity");
     const row = await prisma.character.findUnique({
       where: { id: offer.responderId },
       select: IDENTITY_SELECT,
     });
-    refusedBy = capitalizeFirst(seenAs(identityOf(row)));
+    if (row) {
+      responderName = await seenBy(prisma, offer.initiatorId, row);
+      refusedBy = capitalizeFirst(responderName);
+    }
   }
 
   // Per kind, because "you passed on the lesson" is a strange thing to read
   // after refusing to be tied up, led away or collared. A kind the table does
   // not know gets a plain no rather than somebody else's sentence.
-  const wording = declineWording(offer.kind, { responderName: responder.name, refusedBy }) ?? {
+  const wording = declineWording(offer.kind, { responderName, refusedBy }) ?? {
     content: `${responder.name} said no.`,
     line: "You said no.",
   };

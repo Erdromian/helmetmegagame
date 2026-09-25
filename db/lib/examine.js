@@ -2,7 +2,7 @@
 // module rather than the twin-drift ARCHITECTURE.md §3 warns about. Pure and
 // Prisma-free; can't query the subject's last Desire or doctor's-eye skill
 // catalog itself, both come in as arguments. `subject` may be an assembled snapshot (db/lib/examineSnapshot.js).
-const { concealedLine } = require("./concealedIdentity");
+const { concealedLine, concealedAlias } = require("./concealedIdentity");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { formatTagRequirement } = require("./formatTagRequirement");
 const { formatTagArmor } = require("./formatTagArmor");
@@ -125,6 +125,12 @@ function examineReadout({
   // Everything a look says that the eye cannot see comes from here
   // (docs/systemdocs/MEMORIES.md §6), so a stranger's look carries no role.
   memory = null,
+  // Somebody the looker cannot put a name to (docs/systemdocs/STRANGERS.md).
+  // Their face and everything visible reads as normal, but under their alias,
+  // "Young Man", and with their face fetched by the line it was said on
+  // (`strangerSeq`) rather than by an id.
+  stranger = false,
+  strangerSeq = null,
 }) {
   const identity = presentedIdentity(subject, {
     forcedName: forcedNameFrom(subject.tags),
@@ -145,10 +151,11 @@ function examineReadout({
   // memory of the person underneath has nothing to attach to. The caller
   // already withholds it; this is the belt to that brace.
   const known = identityVisible ? memory : null;
+  const unnamed = stranger && identityVisible && !known;
   return {
     concealed: false,
-    name: identity.name,
-    avatarPath: identity.avatarPath,
+    name: unnamed ? concealedAlias(subject) : identity.name,
+    avatarPath: unnamed ? (strangerSeq ? `/api/avatar/line/${strangerSeq}` : null) : identity.avatarPath,
     line: null,
     appearance: subject.appearance || null,
     ailments: [],

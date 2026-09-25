@@ -20,7 +20,7 @@ const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
 const { declineAssignment } = require("./lobby");
 const { holdKeyedOpen } = require("./gates");
 const { settleCarry } = require("./carry");
-const { releaseHeldBy, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+const { releaseHeldBy, seenBy, IDENTITY_SELECT } = require("./intercept");
 const { cancelAttack, ATTACK_CALLED_OFF_DM } = require("./attack");
 const { recordArchiveEvent } = require("./archive");
 
@@ -201,7 +201,7 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
     where: { id },
     select: { ...IDENTITY_SELECT, status: true },
   });
-  const seen = target ? seenAs(identityOf(target)) : "them";
+  const seen = target ? await seenBy(prisma, attacker.id, target) : "them";
   const done = await cancelAttack(prisma, {
     attackerId: attacker.id,
     targetCharacterId: id,

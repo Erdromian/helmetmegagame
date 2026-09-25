@@ -22,7 +22,7 @@
 // Returns Discord work as data for advanceTurn()'s runSideEffects(), never sends it.
 // Returns an object even when idle: db/index.js treats null as a failed pass to retry.
 // For the SEARCH expiry line only — see presentedNameOf below.
-const { seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+const { seenBy, IDENTITY_SELECT } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
 const { refuseConversion } = require("./conversionRite");
 
@@ -93,13 +93,18 @@ async function runOfferExpiryPass(prisma, turn) {
       })
     ).map((c) => [c.id, c]),
   );
-  const nameOf = (id) => people.get(id)?.name ?? "someone";
+  // Named as the initiator, who gets the notice, would name them: a stranger
+  // is "a young man" (docs/systemdocs/STRANGERS.md).
+  const nameOf = async (viewerId, id) => {
+    const row = people.get(id);
+    return row ? seenBy(prisma, viewerId, row) : "someone";
+  };
   // Search is the one kind either end of which may be hooded, so its expiry
   // notice is the one that must name the face rather than the row — the same
   // rule INTERCEPT.md §2 applies to every other line about a concealed person.
-  const presentedNameOf = (id) => {
+  const presentedNameOf = async (viewerId, id) => {
     const row = people.get(id);
-    return row ? capitalizeFirst(seenAs(identityOf(row))) : "Someone";
+    return row ? capitalizeFirst(await seenBy(prisma, viewerId, row)) : "Someone";
   };
   const dmTo = (id, content) => {
     const c = people.get(id);
@@ -134,9 +139,9 @@ async function runOfferExpiryPass(prisma, turn) {
       });
       if (claim.count === 0) continue;
       expired += 1;
-      const other = nameOf(offer.responderId);
+      const other = await nameOf(offer.initiatorId, offer.responderId);
       const content =
-        expiryNotice(offer, { other, presented: presentedNameOf(offer.responderId) }) ??
+        expiryNotice(offer, { other, presented: await presentedNameOf(offer.initiatorId, offer.responderId) }) ??
         `${other} never answered.`;
       const dm = dmTo(offer.initiatorId, content);
       if (dm) dms.push(dm);

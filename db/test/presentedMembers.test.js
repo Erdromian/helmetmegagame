@@ -120,16 +120,27 @@ test("order is the caller's, and the dead drop out", async () => {
   assert.deepEqual(rows.map((r) => r.name), ["Bran", "Ada"]);
 });
 
-test("a hood token resolves only inside the roster it was minted from", () => {
+// The token carries each member's presence nonce (db/lib/hoodToken.js), so the
+// resolver reads it. These members have none rolled yet.
+const nonceless = { character: { findMany: async ({ where }) => where.id.in.map((id) => ({ id, presenceNonce: null })) } };
+
+test("a hood token resolves only inside the roster it was minted from", async () => {
   const token = hoodToken("h1");
-  assert.equal(resolveMemberToken(["x", "h1", "y"], token), "h1");
+  assert.equal(await resolveMemberToken(nonceless, ["x", "h1", "y"], token), "h1");
   // Not in this place — the whole point of scoping it to a roster.
-  assert.equal(resolveMemberToken(["x", "y"], token), null);
-  assert.equal(resolveMemberToken(["h1"], "not-a-token"), null);
-  assert.equal(resolveMemberToken(["h1"], null), null);
+  assert.equal(await resolveMemberToken(nonceless, ["x", "y"], token), null);
+  assert.equal(await resolveMemberToken(nonceless, ["h1"], "not-a-token"), null);
+  assert.equal(await resolveMemberToken(nonceless, ["h1"], null), null);
 });
 
-test("with no AUTH_SECRET a token is never minted, and never matches", () => {
+test("a token dies with the encounter: a new nonce, a new token", async () => {
+  const before = hoodToken("h1", "n1");
+  const rolled = { character: { findMany: async () => [{ id: "h1", presenceNonce: "n2" }] } };
+  assert.equal(await resolveMemberToken(rolled, ["h1"], before), null);
+  assert.equal(await resolveMemberToken(rolled, ["h1"], hoodToken("h1", "n2")), "h1");
+});
+
+test("with no AUTH_SECRET a token is never minted, and never matches", async () => {
   const secret = process.env.AUTH_SECRET;
   delete process.env.AUTH_SECRET;
   try {
@@ -137,7 +148,7 @@ test("with no AUTH_SECRET a token is never minted, and never matches", () => {
     // The one that matters: `null === null` must not name the first id in the
     // list, or the handle becomes an unmasking oracle for anybody who sends
     // nothing at all.
-    assert.equal(resolveMemberToken(["h1", "h2"], null), null);
+    assert.equal(await resolveMemberToken(nonceless, ["h1", "h2"], null), null);
   } finally {
     process.env.AUTH_SECRET = secret;
   }

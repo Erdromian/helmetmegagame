@@ -38,6 +38,7 @@ const { lightVantage, pruneVantages, vantagesFor } = require("./vantages");
 const { linkBetween, endpoints, shouldPromptKeyed, travelOptions } = require("./locationGraph");
 const { keyedPromptRow } = require("./locationAnchorRow");
 const { aliasSubject } = require("./concealedIdentity");
+const { clearPresence } = require("./strangers");
 const { sendDm } = require("./dm");
 const { rollTurretOnArrival, TURRET_DM } = require("./depotPass");
 const { applyDeathTeardown } = require("./deathTeardown");
@@ -251,6 +252,14 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
   // Wrapped, because losing a node off a map must never wedge a move — /map's own loader re-records the character's current location on every open, so a drop here heals itself next time they look.
   await recordArrival(prisma, { id: characterId }, toLocationId).catch((err) => {
     console.error(`Move: recording the visit failed for ${characterId}:`, err.message ?? err);
+  });
+
+  // A new place is a new encounter (docs/systemdocs/STRANGERS.md). The label that
+  // told this person apart from lookalikes is dropped, so the first look here
+  // rolls a fresh one. Every voice number on them goes dark until they next
+  // speak. Here for the reason everything else here is: every relocation runs it.
+  await clearPresence(prisma, characterId).catch((err) => {
+    console.error(`Move: clearing the stranger label failed for ${characterId}:`, err.message ?? err);
   });
 
   // A hold is a hand on a shoulder, and it ends when the holder leaves — HOWEVER they leave. performLocationMove already does this inside its own transaction for walking off (INTERCEPT.md §3); this is the same clear for being taken away instead. Idempotent, so the walking case running it twice costs one no-op update.

@@ -13,6 +13,7 @@ const { UNBURIED_BODY_WHERE } = require("./presence");
 const { hoodToken, performerKey } = require("./hoodToken");
 const { hasEverPerformed } = require("./performance"); // leaf requires only; no cycle. // its own leaf to avoid a require cycle; re-exported below.
 const { roleGroupHue } = require("./roleGroups");
+const { knownSubjects, settlePresence, labelAliases } = require("./strangers");
 
 const PRESENT_SELECT = {
   id: true,
@@ -33,6 +34,11 @@ const PRESENT_SELECT = {
   gender: true,
   updatedAt: true,
   lastSeenAt: true,
+  // The label that tells lookalikes apart and the nonce behind the token
+  // (docs/systemdocs/STRANGERS.md §3), rolled by settlePresence below.
+  presenceLabel: true,
+  presenceNonce: true,
+  presenceHidden: true,
   tags: {
     // Every concealing piece, equipped or not, rather than only the worn ones:
     // a corpse's remembered mask is by definition no longer in its slot, and
@@ -69,13 +75,28 @@ function deathMaskPiece(row) {
   return { sprite: tag.concealSprite, name: tag.name ?? null, tagId: row.deathMaskTagId };
 }
 
+// Hidden from EVERYONE: a hood, or a masked corpse. Not a forced name, which is
+// a name the whole room reads (PROXYING.md §5). This is what a label is rolled
+// against, since it is the same for every observer.
+function hiddenFromAll(c) {
+  if (forcedNameFrom(c.tags)) return false;
+  if (c.status === "DEAD") return Boolean(deathMaskPiece(c));
+  const piece = concealmentFrom(c.tags);
+  return Boolean(piece && (piece.forced || c.concealed));
+}
+
 // The one place "is this person hidden from this viewer" is decided; every
 // readout and resolveHoodToken read it rather than asking again. `sightings`
 // is a caller's own lastSightings Map; without one, `withSightings` decides whether to go and ask.
+//
+// Hidden has two causes now (docs/systemdocs/STRANGERS.md). One is a hood. The
+// other is a face the viewer does not know: nobody in their Friends list. A
+// `stranger` row is hidden for the second reason only, so it keeps its face
+// and its estate colour. `known` is a caller's own knownSubjects Set.
 async function presentRows(
   prisma,
   viewer,
-  { locationId, includeSelf = true, includeDead = false, withSightings = false, sightings = null } = {},
+  { locationId, includeSelf = true, includeDead = false, withSightings = false, sightings = null, known = undefined } = {},
 ) {
   const where = locationId ?? viewer?.locationId ?? null;
   if (!where) return [];
@@ -95,6 +116,11 @@ async function presentRows(
   });
 
   const seenBy = sightings ?? (withSightings ? await lastSightings(prisma, viewer) : new Map());
+  const knows = known !== undefined ? known : await knownSubjects(prisma, viewer?.id ?? null, present.map((c) => c.id));
+
+  // Everybody's label, before anything reads one. Every row at the Location
+  // takes part, so a new roll avoids labels already in use there.
+  await settlePresence(prisma, present, hiddenFromAll);
 
   // Concealed the same way the proxy decides it, not straight off the column.
   return present
@@ -114,8 +140,12 @@ async function presentRows(
       const sighting = self ? null : (seenBy.get(c.id) ?? null); // you have always seen yourself.
       const seen = self || Boolean(sighting);
       // A forced name is not hiding (PROXYING.md §5), so it never moves lists.
-      const hidden = forced ? false : sighting ? sighting.concealed : live;
-      return { ...c, forced, hidden, seen, sighting, self, livePiece: piece };
+      const hooded = forced ? false : sighting ? sighting.concealed : live;
+      // A face the viewer cannot put a name to. `knows` is null when there is no
+      // viewer to recognise with, and then nobody is a stranger.
+      const stranger = !hooded && !forced && !self && knows !== null && !knows.has(c.id);
+      const hidden = hooded || stranger;
+      return { ...c, forced, hidden, stranger, seen, sighting, self, livePiece: piece };
     });
 }
 
@@ -155,7 +185,7 @@ async function whosHere(prisma, viewer, { withHoodIds = false, withAcross = fals
   if (!withHoodIds) return result;
   const hoodIds = new Map();
   for (const c of rows) {
-    if (c.hidden && !c.forced) hoodIds.set(hoodToken(c.id), c.id);
+    if (c.hidden && !c.forced) hoodIds.set(hoodToken(c.id, c.presenceNonce), c.id);
   }
   return { ...result, hoodIds };
 }
@@ -211,22 +241,50 @@ function hoodOrder(list, nameOf, idOf) {
     .map((entry) => entry.item);
 }
 
+// The alias a hidden row is listed under. A hood reads the name it was last
+// HEARD under, if any. A stranger never does: their sighting holds their real
+// name, which is exactly what they are hidden behind.
+function hiddenAlias(c) {
+  return aliasRow(c, c.sighting?.concealed ? c.sighting.name : null);
+}
+
+// A hidden row's list name, with its label when another row here looks the
+// same (docs/systemdocs/STRANGERS.md §3). Built over one list at a time, so a
+// label shows only where it is needed to tell two people apart. Exported
+// for the pickers that list the same people (web/lib/peopleHere.js).
+function labelledAliases(rows) {
+  const names = labelAliases(rows, hiddenAlias, (c) => c.presenceLabel);
+  return new Map(rows.map((c, i) => [c.id, names[i]]));
+}
+
 function concealedRows(rows, { withTokens }) {
   const hooded = rows.filter((c) => c.hidden && !c.forced);
-  return hoodOrder(hooded, (c) => aliasRow(c, c.sighting?.name), (c) => c.id)
+  const shown = labelledAliases(hooded);
+  return hoodOrder(hooded, (c) => shown.get(c.id), (c) => c.id)
     .map((c) => {
+      const token = hoodToken(c.id, c.presenceNonce);
       // What is over the face — the sprite says WHAT, never who (PROXYING.md §5) —
       // but only once you have watched them speak in it; unseen wears the question-mark plate.
-      const face = c.self
-        ? presentedIdentity(c, { concealment: c.livePiece }).avatarPath
-        : (c.sighting?.avatarPath ?? null);
+      // A stranger has no hood, so the room sees their own face. It is served by
+      // token (web/app/api/avatar/here), never by id, and only to somebody
+      // standing here. Across a gate there is no token, so no face.
+      const face = c.stranger
+        ? (withTokens && token ? `/api/avatar/here/${token}` : null)
+        : c.self
+          ? presentedIdentity(c, { concealment: c.livePiece }).avatarPath
+          : (c.sighting?.avatarPath ?? null);
+      const faceShown = c.stranger ? Boolean(face) : c.seen;
       return {
-        alias: aliasRow(c, c.sighting?.name),
-        token: withTokens ? hoodToken(c.id) : null,
-        avatarPath: c.seen ? face : null,
-        unknownFace: !c.seen || Boolean(c.sighting?.unknownFace),
+        alias: shown.get(c.id),
+        token: withTokens ? token : null,
+        avatarPath: faceShown ? face : null,
+        unknownFace: c.stranger ? !face : !c.seen || Boolean(c.sighting?.unknownFace),
         seen: c.seen,
         sightingSeq: c.sighting?.seq ?? null,
+        // A stranger's estate is as public as anyone's (db/lib/roleGroups.js).
+        // A hood hides it.
+        roleGroup: c.stranger ? roleGroupHue(c.role?.groupSlug) : null,
+        stranger: Boolean(c.stranger),
       };
     });
 }
@@ -260,7 +318,7 @@ async function resolveHoodToken(prisma, viewer, token, { sightings = null, inclu
   const rows = await presentRows(prisma, viewer, { withSightings: true, sightings, includeDead });
   for (const c of rows) {
     if (!c.hidden || c.forced) continue;
-    if (hoodToken(c.id) === token) return c.id;
+    if (hoodToken(c.id, c.presenceNonce) === token) return c.id;
   }
   return null;
 }
@@ -302,6 +360,8 @@ module.exports = {
   resolveHoodToken,
   hiddenFrom,
   hoodToken,
+  presentRows,
+  labelledAliases,
   ONLINE_WINDOW_MS,
   isOnline,
 };

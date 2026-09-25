@@ -8,6 +8,7 @@ const { hoodToken } = require("./whosHere");
 const { loadPresentedState } = require("./examineSnapshot");
 const { roleGroupHue } = require("./roleGroups");
 const { isSfx } = require("./sfx");
+const { attachSpeaker } = require("./strangers");
 
 // The columns the live feed needs off a row, and nothing else — kept beside feedRowShape below so the two never drift.
 const FEED_ROW_SELECT = {
@@ -49,7 +50,10 @@ function feedRowShape(row, extra = {}) {
   const hooded = Boolean(row.concealedAlias);
   // Both pulled out of `extra`, or a caller that knows the speaker (withAvatarVersions, feedHub) would spread the cache-buster and the estate back onto a hooded row after this took them off.
   const { avatarVersion, roleGroup, ...rest } = extra;
-  return {
+  // The real speaker rides along on a hidden symbol for db/lib/strangers.js#lensRow,
+  // which decides per reader whether they can put a name to the line. It is
+  // never serialised: JSON and a spread both leave it behind.
+  return attachSpeaker({
     seq: String(row.seq),
     placeKey: row.placeKey ?? null,
     characterId: hooded ? null : (row.characterId ?? null),
@@ -75,7 +79,7 @@ function feedRowShape(row, extra = {}) {
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
     ...rest,
-  };
+  }, row.characterId ?? null);
 }
 
 // A batch of rows shaped with ONE `?v=` per character — feedRowShape falls back to

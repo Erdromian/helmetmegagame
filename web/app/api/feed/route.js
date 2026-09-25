@@ -4,6 +4,8 @@ import { feedWipeFloors, floorForPlace, lowestFloor, placeSeqWhere } from "@life
 import { makeSeenSeqs } from "@lifeweb/db/lib/seenSeqs";
 import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
 import { loadFeedViewer, loadFeedCharacter, placesFor } from "@/lib/feedAccess";
+import { lensFor } from "@/lib/strangerLens";
+import { knownSubjects, lensTyping } from "@lifeweb/db/lib/strangers";
 import {
   subscribeToPlace,
   subscribeToPresence,
@@ -114,10 +116,35 @@ export async function GET(request) {
         }
       };
 
+      // This reader's lens (docs/systemdocs/STRANGERS.md): the hub fans one row
+      // to everybody, and each stream decides here what its own reader can put
+      // a name to. Rows go out in order through one queue, because looking a
+      // speaker up is async and a later row must never overtake an earlier one.
+      // `fresh` says the caller already looked the whole batch up.
+      const lens = lensFor(viewer);
+      let outbox = Promise.resolve();
+      const emit = (row, { fresh = false } = {}) => {
+        outbox = outbox
+          .then(async () => {
+            if (!fresh) {
+              try {
+                await lens.prepare([row]);
+              } catch (err) {
+                console.error("Feed lens failed:", err);
+              }
+            }
+            write(`event: message\ndata: ${JSON.stringify(lens.apply(row))}\n\n`);
+          })
+          .catch((err) => console.error("Feed write failed:", err));
+      };
+      const emitRaw = (text) => {
+        outbox = outbox.then(() => write(text));
+      };
+
       // Three events on the wire, and only a NEW row moves the high-water
       // mark. An edit or a delete names a seq the stream has already sent, so
       // dropping it for being "old" would be exactly wrong.
-      const sendRow = (row) => {
+      const sendRow = (row, { fresh = false } = {}) => {
         // The hub's pg client dropped and came back, so rows written in the
         // gap were fanned out to nobody. The cursor cannot have moved during an
         // outage — no rows arrived — so everything missed is above it and one
@@ -135,11 +162,11 @@ export async function GET(request) {
         if (!row?.seq) return;
         const seq = BigInt(row.seq);
         if (row.op === "delete") {
-          write(`event: delete\ndata: ${JSON.stringify({ seq: row.seq, placeKey: row.placeKey })}\n\n`);
+          emitRaw(`event: delete\ndata: ${JSON.stringify({ seq: row.seq, placeKey: row.placeKey })}\n\n`);
           return;
         }
         if (row.op === "edit") {
-          write(`event: message\ndata: ${JSON.stringify(row)}\n\n`);
+          emit(row, { fresh });
           return;
         }
         // The wipe floor, per place. This is what the `clamp` above used to do
@@ -154,17 +181,38 @@ export async function GET(request) {
         sent.add(key);
         // Still the catch-up cursor, so it only ever moves forward.
         if (seq > lastSeq) lastSeq = seq;
-        write(`event: message\ndata: ${JSON.stringify(row)}\n\n`);
+        emit(row, { fresh });
       };
 
       // A fourth event name, and the only one that is not about a row. It
       // carries the PRESENTED name (the hub resolves it), never a Discord
       // account, and never this viewer's own character — nobody needs telling
       // that they are typing.
-      const sendTyping = (event) => {
+      //
+      // Through the lens too: a typist this reader cannot name types as an
+      // alias, under a key that is not their id. Who this reader knows is
+      // remembered for a little while, since typing notices come thick and fast.
+      const knownTypists = new Map();
+      const knowsTypist = async (id) => {
+        const hit = knownTypists.get(id);
+        if (hit && Date.now() - hit.at < 30_000) return hit.known;
+        const set = await knownSubjects(prisma, viewer.character?.id ?? null, [id]);
+        const known = set ? set.has(id) : true;
+        knownTypists.set(id, { known, at: Date.now() });
+        return known;
+      };
+      const sendTyping = async (event) => {
         if (!event?.placeKey || !event.name) return;
         if (viewer.character && event.characterId === viewer.character.id) return;
-        write(`event: typing\ndata: ${JSON.stringify(event)}\n\n`);
+        let known;
+        try {
+          known = new Set((await knowsTypist(event.characterId)) ? [event.characterId] : []);
+        } catch (err) {
+          console.error("Feed typing lens failed:", err);
+          return;
+        }
+        const shown = lensTyping(event, { characterId: viewer.character?.id ?? null, gm: viewer.gm, known });
+        write(`event: typing\ndata: ${JSON.stringify(shown)}\n\n`);
       };
 
       // One page of the backlog above `from`. Returns how many rows it sent, so
@@ -181,7 +229,10 @@ export async function GET(request) {
         });
         // One `?v=` per character across the batch — see
         // db/lib/archive.js#withAvatarVersions.
-        for (const row of await withAvatarVersions(prisma, rows)) sendRow(row);
+        // One lens lookup for the batch too.
+        const shaped = await withAvatarVersions(prisma, rows);
+        await lens.prepare(shaped).catch((err) => console.error("Feed lens failed:", err));
+        for (const row of shaped) sendRow(row, { fresh: true });
         return rows.length;
       };
 
