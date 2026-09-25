@@ -389,6 +389,17 @@ const TURN_PASSES = [
 // process doesn't wedge the turn.
 const RESUME_LEASE_MS = 30 * 60 * 1000;
 
+// The day a turn opening after `lastTurn` will carry. The count is only needed
+// when GameConfig.turnsPerDay is set; the default midnight rule never asks.
+async function nextDayFor(lastTurn, startedAt, config) {
+  const turnsPerDay = config?.turnsPerDay ?? 0;
+  const turnsInDay =
+    turnsPerDay >= 1 && lastTurn
+      ? await prisma.turn.count({ where: { dayNumber: lastTurn.dayNumber ?? 1 } })
+      : 0;
+  return nextDayNumber(lastTurn, startedAt, { turnsPerDay, turnsInDay });
+}
+
 async function resolveNeeds(turn, config) {
   // First statement, before any pass runs — same idiom as the message-wipe
   // cutoff. A soul can arrive mid-close (Metempsychosis, fired from
@@ -770,7 +781,7 @@ async function resolveNeeds(turn, config) {
   // floor is next looked at. One statement; a re-run finds nothing twice,
   // because a sunk stack loses its stamp.
   const settled = await runPass("floorSettle", "Floor settle", () =>
-    settleFloors(prisma, { nextDay: nextDayNumber(turn, new Date()) }),
+    nextDayFor(turn, new Date(), config).then((nextDay) => settleFloors(prisma, { nextDay })),
   );
   if (settled?.length) {
     await audit(
@@ -1400,7 +1411,7 @@ async function advanceTurn() {
   const newTurn = await prisma.turn.create({
     data: {
       number: (lastTurn?.number ?? 0) + 1,
-      dayNumber: nextDayNumber(lastTurn, startedAt),
+      dayNumber: await nextDayFor(lastTurn, startedAt, config),
       turnLengthHours,
       endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours)),
       startedAt,
