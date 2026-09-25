@@ -281,7 +281,7 @@ async function frightenWitnesses(prisma, deadCharacterId) {
   for (const { id, tags } of witnesses) {
     const term = deathWitnessTerm(tags.map((ct) => ct.tag.slug));
     await applyMood(prisma, id, term).catch((err) =>
-      console.error(`Death-seen mood failed for ${id}:`, err.message ?? err),
+      console.error(`Death-witness mood (${term.kind}) failed for ${id}:`, err.message ?? err),
     );
   }
 }

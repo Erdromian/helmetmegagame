@@ -20,9 +20,9 @@ const {
   AMOR_FATI_SLUG,
   WOUND_TAG_GROUPS,
 } = require("./constants");
-// Constants only — db/lib/thanati.js requires nothing, so this stays loadable
-// from web/lib and the tests without the Prisma client.
-const { THANATI_SLUG } = require("./thanati");
+// db/lib/thanati.js requires nothing, so this stays loadable from web/lib and
+// the tests without the Prisma client.
+const { isThanati } = require("./thanati");
 
 
 // Ecstatic mirrors Afraid (same width/distance from Fine), Panicking has no twin.
@@ -416,7 +416,7 @@ function woundMoodFor(tag) {
 // it: a death cult is as pleased by a comrade's death as by a sacrifice's.
 function deathWitnessTerm(heldSlugs) {
   const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
-  if (held.has(THANATI_SLUG)) return { kind: "DEATH_RELISHED", base: EVENTS.DEATH_RELISHED };
+  if (isThanati(held)) return { kind: "DEATH_RELISHED", base: EVENTS.DEATH_RELISHED };
   return { kind: "DEATH_SEEN", base: EVENTS.DEATH_SEEN };
 }
 
