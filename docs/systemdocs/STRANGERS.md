@@ -108,7 +108,7 @@ Two things set a stranger apart from a hood:
 
 There is no stranger rule when there is nobody to recognise with: a GM, the
 Discord bot's own readouts, a ghost, somebody in the lobby. Those see what they
-saw before.
+saw before. Nor is there one when a GM has switched it off (§9).
 
 Learning a name (`MEMORIES.md` §2b) turns a stranger into somebody you know, at
 once and everywhere. That includes their older lines, which are drawn through
@@ -260,7 +260,7 @@ Name)".
 
 | Concern | File |
 |---|---|
-| Recognition, labels, the lens, typing | `db/lib/strangers.js` |
+| Recognition, labels, the lens, typing, the GM's switch | `db/lib/strangers.js` |
 | What counts as speech (pure) | `db/lib/speech.js` |
 | Hearing a voice | `db/lib/memoryHearing.js#hearVoice` |
 | Who is hidden, labels on lists | `db/lib/whosHere.js`, `db/lib/presentedMembers.js` |
@@ -272,3 +272,27 @@ Name)".
 | The lens on the web | `web/lib/strangerLens.js`, `web/app/api/feed/route.js` |
 | Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory` |
 | Tests | `db/test/strangers.test.js`, `presentedMembers.test.js`, `roomGuests.test.js` |
+
+## 9. Switching it off
+
+A GM can turn the stranger rule off on `/gm/dev`, under Configuration →
+Features → **Unknown faces go unnamed** (`GameConfig.anonymizeStrangers`). It
+is on by default.
+
+**Off**, everybody can name every face that is not covered, whether or not
+they have met. Only a hood hides anyone:
+
+- Who's here, the member strips, the pickers, chat, history, search, looks and
+  DMs all show a bare face under its real name and portrait.
+- A bare face gives nobody a voice number. Numbers already heard for bare faces
+  just stop showing.
+- Hoods, forced names, the labels that tell identical hoods apart, and hooded
+  voice numbers work exactly as before.
+- Name and role learning (`MEMORIES.md` §2b) keeps filling the Friends list, so
+  switching the rule back on picks up from what each character has learned.
+
+It is read in one place, `db/lib/strangers.js#anonymizingStrangers`. When it is
+off, `knownSubjects` returns `null`, which every caller already reads as "no
+stranger rule". The lens (`createLens`), `hearVoice` and a look's
+`examineRow.js#looksKnown` do their own Friends lookups, so each of them checks
+the switch too.

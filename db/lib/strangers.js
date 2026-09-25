@@ -41,12 +41,23 @@ const STRANGER_LABELS = [
 
 // ------------------------------------------------------------ recognition
 
+// Whether a bare face with no Friends entry reads as an alias at all: the GM's
+// switch, GameConfig.anonymizeStrangers (STRANGERS.md §9). Off, everybody reads
+// every uncovered face by name, and only a hood hides anyone. A missing row, or
+// a fake with no gameConfig table, counts as on.
+async function anonymizingStrangers(prisma) {
+  if (typeof prisma?.gameConfig?.findUnique !== "function") return true;
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { anonymizeStrangers: true } });
+  return config?.anonymizeStrangers !== false;
+}
+
 // Which of `subjectIds` the viewer has a Friends entry for, as a Set. Null means
 // the stranger rule does not apply at all. That is the case when there is no
-// viewer (a GM, the Discord readout), and when `prisma` has no acquaintance
-// table, as in the unit tests' fakes.
+// viewer (a GM, the Discord readout), when the GM has switched the rule off,
+// and when `prisma` has no acquaintance table, as in the unit tests' fakes.
 async function knownSubjects(prisma, viewerId, subjectIds) {
   if (!viewerId || typeof prisma?.acquaintance?.findMany !== "function") return null;
+  if (!(await anonymizingStrangers(prisma))) return null;
   const ids = [...new Set((subjectIds ?? []).filter((id) => id && id !== viewerId))];
   const known = new Set([viewerId]);
   if (ids.length === 0) return known;
@@ -186,7 +197,8 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
     if (gm || !characterId) return;
     const ids = [...new Set((rows ?? []).map(speakerOf).filter((id) => id && id !== characterId))];
     if (ids.length === 0) return;
-    const [known, voices, people] = await Promise.all([
+    const [anonymizing, known, voices, people] = await Promise.all([
+      anonymizingStrangers(prisma),
       prisma.acquaintance.findMany({ where: { ownerId: characterId, subjectId: { in: ids } }, select: { subjectId: true } }),
       prisma.voiceMemory.findMany({
         where: { ownerId: characterId, subjectId: { in: ids } },
@@ -199,7 +211,8 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
     const person = new Map(people.map((row) => [row.id, row]));
     for (const id of ids) {
       facts.set(id, {
-        known: knownIds.has(id),
+        // With the rule switched off, every face is one the reader can name.
+        known: !anonymizing || knownIds.has(id),
         voice: voiceOf.get(id) ?? null,
         age: person.get(id)?.age ?? null,
         gender: person.get(id)?.gender ?? null,
@@ -272,6 +285,7 @@ function lensTyping(event, { characterId = null, gm = false, known = null } = {}
 
 module.exports = {
   STRANGER_LABELS,
+  anonymizingStrangers,
   knownSubjects,
   presenceStale,
   pickLabel,

@@ -30,6 +30,7 @@ const {
 } = require("./presentedIdentity");
 const { lessonsFrom } = require("./memoryLessons");
 const { spokenText, hasSpeech } = require("./speech");
+const { anonymizingStrangers } = require("./strangers");
 
 // Where a line puts somebody in the room for the day log. `net:` (a radio),
 // `dead:`, `game:` and the like are not rooms: nobody stands in them.
@@ -251,6 +252,9 @@ async function hearVoice(prisma, { speakerId, placeKey, content, identity }) {
   if (hearers.length === 0) return 0;
 
   if (!identity?.concealed) {
+    // With the GM's stranger switch off, everybody can name a bare face, so
+    // it gives nobody a voice (STRANGERS.md §9).
+    if (!(await anonymizingStrangers(prisma))) return 0;
     // A bare face: only the people who cannot put a name to it.
     const knownBy = await prisma.acquaintance.findMany({
       where: { subjectId: speakerId, ownerId: { in: hearers } },

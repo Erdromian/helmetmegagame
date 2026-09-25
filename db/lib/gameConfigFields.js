@@ -202,6 +202,11 @@ const FIELDS = [
     key: "playPanelEnabled", type: "bool", group: "features", default: true,
     label: "Play page",
   },
+  {
+    key: "anonymizeStrangers", type: "bool", group: "features", default: true,
+    label: "Unknown faces go unnamed",
+    info: "On: somebody you have never met reads as \"a young man\" until you learn their name. Off: every uncovered face shows its real name to everyone; only a hood hides anyone",
+  },
 
   // --- Discord ---------------------------------------------------------------
   {
