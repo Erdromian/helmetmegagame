@@ -344,8 +344,13 @@ That buys the victim the whole intercept toolkit for free (`INTERCEPT.md` §3):
 `holdWhereTheyStand`'s two rules apply unchanged: a hold already running
 longer is left alone, and a running fight is never overwritten. The DM says
 so only when the hold actually landed: *"…pickpocketed you! They won't get
-far for the next 5 minutes — you have hold of them."*, or the same second
-sentence after *"…tried to pickpocket you, but failed!"* A thief already held
+far for the next 5 minutes — you have hold of them. To let them go sooner,
+open Intercept and press Let them go."*, or the same tail after *"…tried to
+pickpocket you, but failed!"* The DM names the button because the holding list
+lives in the Intercept dialog, where a robbed person would never think to
+look. There is no button in the DM itself: the old `INTERCEPT_HOLD` DM button
+still answers, but its reply names the freed person by their real name, which
+would unmask a hooded thief. A thief already held
 longer gets the first sentence alone. Only a **fresh** roll writes the failed
 hold; a reopened dialog rolled nothing and must not extend it. The noticed
 hold cannot repeat, since the take can only happen once.
@@ -378,6 +383,28 @@ open.
 
 Only the clean band (4+) holds nobody. Nobody felt anything, so nobody has
 hold of anybody.
+
+### 2h. The button greys on the thief's own sheet
+
+The Pickpocket button greys, with the refusal's own sentence as its tooltip,
+when the thief is **caught**, **in a fight**, or has **spent this turn's
+reach**. All three are facts about the thief's own sheet, which is all the
+metagaming rule at the top of `actionRegistry.js` allows. Whether the *target*
+is fighting never greys anything; only the server answers that, after a
+target is picked.
+
+`db/lib/pickpocket.js#pickpocketSelfBlock` builds the sentence for both the
+button (`web/lib/peoplePools.js`, as `pickpocketBlocked`) and
+`pickpocketAuthority`, so the two cannot drift. The reach counts as spent only
+once no attempt this turn still has a hand in a pocket
+(`pickpocketSpent`): a clean or noticed reach with nothing taken yet keeps the
+button lit, or a thief who closed the picker could never come back to take.
+
+A hold lapses on the clock with nothing written, so `/api/character-version`
+fingerprints whether your own hold is running. The sheet re-renders within
+one poll (10 s) of a hold landing or lapsing. `/chat` has no poller for its
+pools, so there the button reflects page load, the same as Miracle, the Bird
+and Extract.
 
 ## 3. The two tags
 
@@ -414,7 +441,7 @@ mean the same thing.
 | Steal's dialog (a mode on the shared one) | `web/app/components/actions/MoveThingsDialog.js` |
 | Pickpocket's dialog | `web/app/components/actions/PickpocketDialog.js` |
 | The buttons | `web/app/components/actionRegistry.js`, `web/app/(app)/chat/RoomPanel.js` |
-| The gate | `canPickpocket` in `web/app/(app)/character/page.js` |
+| The gate | `canPickpocket` in `web/lib/itemPools.js` (the tag) and `pickpocketBlocked` in `web/lib/peoplePools.js` (caught, fighting, spent) |
 | The ration + authorization row | `PickpocketAttempt` in `db/prisma/schema.prisma` |
 | The pure halves | `db/test/steal.test.js`, `db/test/pickpocket.test.js` |
 | The tags | `docs/tags.yaml` (`pickpocket`, `pickpocketing-skilled`) |
@@ -429,21 +456,18 @@ mean the same thing.
   and takes its `heldById` with it, so the interceptor's Release button no
   longer finds them. Same shape as the Attack-over-Safe gap in
   `attack.js#settleHold`, and the same small cost.
-- **The Pickpocket button does not grey while caught or in a fight.**
-  `canPickpocket` (`web/lib/itemPools.js`) is a tag check, so a held thief
-  presses the button, picks a target, and only then reads the refusal from
-  the server. The greyed button was always a hint and the server the lock,
-  but this is the first gate on the verb that the hint knows nothing about.
-  The same goes for a spent ration: the button stays lit for the rest of the
-  turn, and the refusal arrives after a target is picked.
+- **On `/chat` the Pickpocket button can be stale** (§2h). It greys at page
+  load, so a hold that lapses, or a turn that turns over, leaves it grey until
+  the page reloads or the player does something that re-renders it. The sheet
+  is fine: its poller watches the hold and the turn.
 - **The audit log is the only complete record of a stash now.** Anyone reading
   a Room thread has until now been able to treat "no line" as "nothing left
   here". After Steal, a missing item with no line is ordinary. Any tool
   reconciling `RoomTag` deltas against scene lines will disagree.
-- **Search and Pickpocket each hold their own per-target-per-turn claim**, in
+- **Search's per-target claim and Pickpocket's same-target refusal** live in
   separate tables with separate refusals, so `SEARCH.md` §7's known wart
-  reproduces here exactly: a hood coming off makes a refusal that names
-  somebody you were never told about. Same harmless direction.
+  reproduces here: a hood coming off makes *"You already went through X's
+  pockets"* name somebody you were never told about. Same harmless direction.
 - **A pickpocket near their own carry ceiling is refused outright** rather than
   landing and shedding. That is not tidiness: past 1.5× the cap `settleCarry`
   sheds newest-first into a public room *with a line in it* (`CARRY.md` §5),

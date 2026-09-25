@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { deployVersion } from "@/lib/deployVersion";
 
 // "Has anything on my sheet moved?" for CharacterPoller.js: a FINGERPRINT of
-// location, carry, Location stashes, open turn, and the bomb's clock, so
+// location, carry, Location stashes, open turn, your own hold, and the bomb's clock, so
 // /character refreshes only when needed. Character from session, never
 // query. Does NOT watch neighbours (dialog-only, web/lib/peoplePools.js) except open handshakes, which ARE on the page.
 export const dynamic = "force-dynamic";
@@ -14,7 +14,7 @@ export async function GET() {
 
   const me = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: { id: true, locationId: true, zoneId: true, status: true, tagPoints: true },
+    select: { id: true, locationId: true, zoneId: true, status: true, tagPoints: true, heldUntil: true, heldReason: true },
   });
   if (!me) return new Response("No living character.", { status: 403 });
 
@@ -47,6 +47,11 @@ export async function GET() {
     me.locationId ?? "",
     me.zoneId ?? "",
     me.tagPoints,
+    // Whether your OWN hold is running, not its timestamp. A hold lapses on the
+    // clock with nothing written, so without this a lapsed hold left the page
+    // still showing it — and the Pickpocket button, which greys while you are
+    // caught or fighting (THEFT.md §2g), stuck grey until a reload.
+    me.heldUntil && me.heldUntil.getTime() > Date.now() ? `held:${me.heldReason ?? ""}` : "",
     tags
       .map((t) => `${t.tagId}:${t.quantity}:${t.equipped ? 1 : 0}:${t.equippedQuantity}:${t.expiresTurn ?? ""}`)
       .join(","),

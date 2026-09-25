@@ -19,6 +19,9 @@ const {
   pickpocketOutcome,
   pickpocketTook,
   pickpocketRation,
+  pickpocketSpent,
+  pickpocketSelfBlock,
+  PICKPOCKET_SPENT,
   pickpocketableHoldings,
   pickpocketFitCount,
   weighPicks,
@@ -128,4 +131,24 @@ test("one reach per turn, at anybody, and a reopen only at the same untouched po
   assert.equal(pickpocketRation({ targetCharacterId: "b", spentLbs: 15 }, "c"), "spent");
   // A failed roll never takes, so its row stays at 0 — reopening it replays the failure, and nobody else is open.
   assert.equal(pickpocketRation({ targetCharacterId: "b", spentLbs: 0, outcome: FAILED }, "c"), "spent");
+});
+
+test("the greyed button: spent only once no reach is left open", () => {
+  assert.equal(pickpocketSpent([]), false);
+  // Reached in, nothing taken yet: the button has to stay lit to reopen it and take.
+  assert.equal(pickpocketSpent([{ outcome: CLEAN, spentLbs: 0 }]), false);
+  assert.equal(pickpocketSpent([{ outcome: NOTICED, spentLbs: 0 }]), false);
+  // Took, or failed (nothing to take): spent.
+  assert.equal(pickpocketSpent([{ outcome: CLEAN, spentLbs: 15 }]), true);
+  assert.equal(pickpocketSpent([{ outcome: FAILED, spentLbs: 0 }]), true);
+  // Two rows from the old per-target ration: one still open keeps it lit.
+  assert.equal(pickpocketSpent([{ outcome: CLEAN, spentLbs: 15 }, { outcome: NOTICED, spentLbs: 0 }]), false);
+});
+
+test("one sentence for the greyed button and the refusal, caught first", () => {
+  assert.equal(pickpocketSelfBlock({}), null);
+  assert.equal(pickpocketSelfBlock({ caughtSeconds: 42, fighting: true }), "You were caught stealing. You can't pick a pocket for another 42s.");
+  assert.equal(pickpocketSelfBlock({ fighting: true }), "You're in a fight.");
+  assert.equal(pickpocketSelfBlock({ attempts: [{ outcome: FAILED, spentLbs: 0 }] }), PICKPOCKET_SPENT);
+  assert.equal(pickpocketSelfBlock({ attempts: [{ outcome: CLEAN, spentLbs: 0 }] }), null);
 });

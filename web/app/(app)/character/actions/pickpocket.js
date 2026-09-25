@@ -23,6 +23,8 @@ import {
   pickpocketOutcome,
   pickpocketTook,
   pickpocketRation,
+  pickpocketSelfBlock,
+  PICKPOCKET_SPENT,
   pickpocketableHoldings,
   weighPicks,
 } from "@lifeweb/db/lib/pickpocket";
@@ -60,11 +62,11 @@ const FAILED_DM = (who) => `${who} tried to pickpocket you, but failed!`;
 // CAUGHT_HOLD_MS and you are the one holding them (THEFT.md §2g), so the line
 // has to say so, or the victim assumes they're already gone and never answers.
 // Added only when the hold actually landed — a thief already in a fight, or
-// held longer, gets the first sentence alone.
-const STUCK = "They won't get far for the next 5 minutes — you have hold of them.";
-
-// The refusal once this turn's one reach went at somebody else, or came out.
-const SPENT_ELSEWHERE = "You've already picked a pocket this turn.";
+// held longer, gets the first sentence alone. It names the button, too: the
+// holding list lives in the Intercept dialog, which is nowhere a robbed person
+// would think to look.
+const STUCK =
+  "They won't get far for the next 5 minutes — you have hold of them. To let them go sooner, open Intercept and press Let them go.";
 
 // A superset of IDENTITY_SELECT, and `tags` OVERRIDES rather than merges —
 // the single most breakable line here, exactly as SEARCH_SELECT's comment says
@@ -126,13 +128,17 @@ function pickpocketAuthority(actor, target) {
   // room saw. The hold takes movement everywhere else; this is the one verb
   // it takes besides, or a caught thief would spend the wait working the
   // rest of the room. Counted down in the same words the shut ways use.
-  const caught = caughtSecondsLeft(actor);
-  if (caught) return `You were caught stealing. You can't pick a pocket for another ${caught}s.`;
+  //
   // Nobody picks a pocket in the middle of a fight, on either side of it. A
   // fight holds both parties to the end of the turn, and this re-runs at the
   // take as well as at the roll, so an Attack landing between the two shuts
   // the picker that was already open.
-  if (inFight(actor)) return "You're in a fight.";
+  //
+  // The thief's half is pickpocketSelfBlock, the same sentences the greyed
+  // button shows (web/lib/peoplePools.js). The target's half never greys
+  // anything — that would be a fact about the room.
+  const self = pickpocketSelfBlock({ caughtSeconds: caughtSecondsLeft(actor), fighting: inFight(actor) });
+  if (self) return self;
   if (inFight(target)) return `${capitalizeFirst(seenAs(identityOf(target)))} is in a fight.`;
   return null;
 }
@@ -235,7 +241,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
       throw new UserError(
         existing.targetCharacterId === target.id
           ? `You already went through ${seenAs(identityOf(target))}'s pockets this turn.`
-          : SPENT_ELSEWHERE,
+          : PICKPOCKET_SPENT,
       );
     }
     if (ration === "reopen") {
