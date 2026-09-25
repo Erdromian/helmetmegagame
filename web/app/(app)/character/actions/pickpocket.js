@@ -22,13 +22,25 @@ import {
   pickpocketBudgetLbs,
   pickpocketOutcome,
   pickpocketTook,
+  pickpocketRation,
+  pickpocketSelfBlock,
+  PICKPOCKET_SPENT,
   pickpocketableHoldings,
   weighPicks,
 } from "@lifeweb/db/lib/pickpocket";
 import { isHere } from "@lifeweb/db/lib/presence";
 import { ACT, blockerFor } from "@lifeweb/db/lib/incapacitation";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
-import { seenAs, identityOf, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
+import {
+  seenAs,
+  identityOf,
+  IDENTITY_SELECT,
+  HELD_REASON,
+  CAUGHT_HOLD_MS,
+  holdWhereTheyStand,
+  inFight,
+  caughtSecondsLeft,
+} from "@lifeweb/db/lib/intercept";
 import { CONCEALMENT_TAG_FIELDS } from "@lifeweb/db/lib/presentedIdentity";
 import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { carryAdmits } from "@lifeweb/db/lib/carry";
@@ -46,6 +58,15 @@ import { SFX } from "@lifeweb/db/lib/sfx";
 // a hooded one reads "A young man pickpocketed you!".
 const NOTICED_DM = (who) => `${who} pickpocketed you!`;
 const FAILED_DM = (who) => `${who} tried to pickpocket you, but failed!`;
+// ...and what you can do about it. On either DM the thief is pinned for
+// CAUGHT_HOLD_MS and you are the one holding them (THEFT.md §2g), so the line
+// has to say so, or the victim assumes they're already gone and never answers.
+// Added only when the hold actually landed — a thief already in a fight, or
+// held longer, gets the first sentence alone. It names the button, too: the
+// holding list lives in the Intercept dialog, which is nowhere a robbed person
+// would think to look.
+const STUCK =
+  "They won't get far for the next 5 minutes — you have hold of them. To let them go sooner, open Intercept and press Let them go.";
 
 // A superset of IDENTITY_SELECT, and `tags` OVERRIDES rather than merges —
 // the single most breakable line here, exactly as SEARCH_SELECT's comment says
@@ -53,9 +74,12 @@ const FAILED_DM = (who) => `${who} tried to pickpocket you, but failed!`;
 // hood as a bare face, so a refusal unmasks somebody. Drop `category` and the
 // Assets rule in pickpocketableHoldings reads undefined, which would put every
 // weightless horse and deed back on the table. Drop `stackable` and every take
-// silently pins to 1.
+// silently pins to 1. Drop `heldUntil`/`heldReason` and inFight reads the
+// target as never fighting, so a pocket could be picked mid-brawl.
 const PICKPOCKET_SELECT = {
   ...IDENTITY_SELECT,
+  heldUntil: true,
+  heldReason: true,
   tags: {
     where: { quantity: { gt: 0 } },
     select: {
@@ -98,6 +122,24 @@ function pickpocketAuthority(actor, target) {
   if (mine) return `You're ${mine.name}.`;
   const theirs = blockerFor(target.tags, ACT);
   if (theirs) return `${capitalizeFirst(seenAs(identityOf(target)))} is ${theirs.name}.`;
+
+  // A hand the scene just caught stays out of pockets until the hold lapses
+  // (THEFT.md §2g) — a failed pickpocket's own five minutes, or a Steal the
+  // room saw. The hold takes movement everywhere else; this is the one verb
+  // it takes besides, or a caught thief would spend the wait working the
+  // rest of the room. Counted down in the same words the shut ways use.
+  //
+  // Nobody picks a pocket in the middle of a fight, on either side of it. A
+  // fight holds both parties to the end of the turn, and this re-runs at the
+  // take as well as at the roll, so an Attack landing between the two shuts
+  // the picker that was already open.
+  //
+  // The thief's half is pickpocketSelfBlock, the same sentences the greyed
+  // button shows (web/lib/peoplePools.js). The target's half never greys
+  // anything — that would be a fact about the room.
+  const self = pickpocketSelfBlock({ caughtSeconds: caughtSecondsLeft(actor), fighting: inFight(actor) });
+  if (self) return self;
+  if (inFight(target)) return `${capitalizeFirst(seenAs(identityOf(target)))} is in a fight.`;
   return null;
 }
 
@@ -129,6 +171,28 @@ function holdingRows(target) {
   }));
 }
 
+// A thief the target felt, pinned for five minutes where they stand and held
+// BY THE VICTIM (THEFT.md §2g) — a failed roll at the roll, a noticed one at the
+// take. The same Character.heldUntil every picker and the mover's gate already
+// read, and the same column pickpocketAuthority reads to keep this hand out of
+// pockets until it lapses. heldById is the target, so the victim gets the
+// ordinary Let-them-go button, and walking off or dying frees the thief the
+// way it frees anyone they hold. holdWhereTheyStand's two rules apply: a hold
+// already running longer is left alone, and a running fight is never
+// overwritten. Called after the attempt is already claimed (and, at the take,
+// after the goods moved), so a failed write is logged and the victim still
+// hears the first line. -> whether the hold landed.
+function pinThief(thief, victim) {
+  return holdWhereTheyStand(prisma, thief.id, {
+    until: new Date(Date.now() + CAUGHT_HOLD_MS),
+    reason: HELD_REASON.CAUGHT,
+    heldById: victim.id,
+  }).catch((err) => {
+    console.error(`Pickpocket: caught hold failed for ${thief.id}:`, err.message ?? err);
+    return false;
+  });
+}
+
 // ─── Phase 1: the roll ─────────────────────────────────────────────────────
 
 export async function pickpocketRequestImpl({ targetKey }) {
@@ -151,17 +215,41 @@ export async function pickpocketRequestImpl({ targetKey }) {
   // Read ONCE, here, and frozen onto the row below. See the reopen branch.
   const felt = holdingRows(target);
 
-  // The insert IS the claim. A P2002 means this target was already tried this
-  // turn — EXCEPT when the existing row is this turn's and untouched, in which
-  // case the thief refreshed the page or reopened the dialog and gets the SAME
-  // die back rather than losing the attempt or rerolling into a better one.
-  // `fresh` is what stops a reopened dialog re-sending the target's DM: only
-  // the roll that actually happened is allowed to speak.
+  // The claim: ONE reach per thief per turn, at anybody (THEFT.md §2). The
+  // unique key is still per target, because the take looks its row up by
+  // target, so the per-thief rule is a read-then-insert under a lock on the
+  // thief's own row — two tabs reaching at two people at once queue on it, and
+  // the second one reads the first one's row. An untouched row at the SAME
+  // target is a refreshed page or a reopened dialog, which gets the SAME die
+  // back rather than losing the attempt or rerolling into a better one.
+  // `fresh` is what stops a reopened dialog re-sending the target's DM or
+  // re-pinning the thief: only the roll that actually happened may speak.
   let attempt;
   let fresh = true;
   let rows = felt;
-  try {
-    attempt = await prisma.pickpocketAttempt.create({
+  await prisma.$transaction(async (tx) => {
+    await lockCharacter(tx, character.id);
+    // Every row, not the first: a thief who reached at two people in the turn
+    // this rule shipped holds two, and the one at THIS target is the one that
+    // can reopen.
+    const mine = await tx.pickpocketAttempt.findMany({
+      where: { thiefId: character.id, turnId: openTurn.id },
+    });
+    const existing = mine.find((a) => a.targetCharacterId === target.id) ?? mine[0] ?? null;
+    const ration = pickpocketRation(existing, target.id);
+    if (ration === "spent") {
+      throw new UserError(
+        existing.targetCharacterId === target.id
+          ? `You already went through ${seenAs(identityOf(target))}'s pockets this turn.`
+          : PICKPOCKET_SPENT,
+      );
+    }
+    if (ration === "reopen") {
+      fresh = false;
+      attempt = existing;
+      return;
+    }
+    attempt = await tx.pickpocketAttempt.create({
       data: {
         thiefId: character.id,
         targetCharacterId: target.id,
@@ -173,7 +261,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
         revealed: felt,
       },
     });
-    await logAudit(prisma, {
+    await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "pickpocket",
       targetCharacterId: target.id,
@@ -192,31 +280,23 @@ export async function pickpocketRequestImpl({ targetKey }) {
         budgetLbs,
       },
     });
-  } catch (err) {
-    if (err?.code !== "P2002") throw err;
-    fresh = false;
-    attempt = await prisma.pickpocketAttempt.findUnique({
-      where: {
-        thiefId_targetCharacterId_turnId: {
-          thiefId: character.id,
-          targetCharacterId: target.id,
-          turnId: openTurn.id,
-        },
-      },
-    });
-    if (!attempt || attempt.spentLbs > 0)
-      throw new UserError(`You already went through ${seenAs(identityOf(target))}'s pockets this turn.`);
-    // The frozen list, not a fresh scan. A reopened dialog replays the one look
-    // the attempt bought — otherwise a thief who reached in and cancelled could
-    // keep the dialog open all turn and watch things arrive in and leave
-    // somebody's pockets, which is a far wider exposure than the verb is for.
-    // A row written before that column existed has no snapshot; it falls back
-    // to the old live read, which is no worse than what it already had.
-    if (Array.isArray(attempt.revealed)) rows = attempt.revealed;
-  }
+  });
+  // The frozen list, not a fresh scan. A reopened dialog replays the one look
+  // the attempt bought — otherwise a thief who reached in and cancelled could
+  // keep the dialog open all turn and watch things arrive in and leave
+  // somebody's pockets, which is a far wider exposure than the verb is for.
+  // A row written before that column existed has no snapshot; it falls back
+  // to the old live read, which is no worse than what it already had.
+  if (!fresh && Array.isArray(attempt.revealed)) rows = attempt.revealed;
 
   if (attempt.outcome === FAILED) {
-    if (fresh) notifyCharacter(target, FAILED_DM(capitalizeFirst(seenAs(identityOf(character)))));
+    // Caught with a hand in their pocket, so stuck (THEFT.md §2g). `fresh`
+    // only — a reopened dialog rolled nothing and must not extend the hold.
+    if (fresh) {
+      const who = capitalizeFirst(seenAs(identityOf(character)));
+      const pinned = await pinThief(character, target);
+      notifyCharacter(target, pinned ? `${FAILED_DM(who)} ${STUCK}` : FAILED_DM(who));
+    }
     revalidateAll();
     // Nothing moves, and the thief is told nothing about the die beyond this.
     return { outcome: FAILED };
@@ -400,9 +480,14 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
   // The DM fires at the TAKE and not at the roll, which is the honest reading:
   // you notice a hand in your pocket because something left it. A thief who
   // opened the picker and cancelled escapes notice — the spent ration is the
-  // brake on doing that all afternoon.
-  if (attempt.outcome === NOTICED)
-    notifyCharacter(target, NOTICED_DM(capitalizeFirst(seenAs(identityOf(character)))));
+  // brake on doing that all afternoon. The hold lands here too, for the same
+  // reason: the thief is caught when the victim feels it, and pinning them at
+  // the roll would tell a noticed thief their band before they took anything.
+  if (attempt.outcome === NOTICED) {
+    const who = capitalizeFirst(seenAs(identityOf(character)));
+    const pinned = await pinThief(character, target);
+    notifyCharacter(target, pinned ? `${NOTICED_DM(who)} ${STUCK}` : NOTICED_DM(who));
+  }
 
   // Nothing is posted to the room, on any outcome.
   revalidateAll();

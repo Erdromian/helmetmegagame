@@ -3,6 +3,8 @@ import { prisma } from "@lifeweb/db";
 import { travelOptions } from "@lifeweb/db/lib/locationGraph";
 import { INCAPACITATING_SLUGS, FINISHABLE_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { kissBlock } from "@lifeweb/db/lib/kiss";
+import { holdsPickpocket, pickpocketSelfBlock } from "@lifeweb/db/lib/pickpocket";
+import { caughtSecondsLeft, inFight } from "@lifeweb/db/lib/intercept";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
@@ -239,6 +241,24 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // Their own sheet ONLY. Never who is standing near them — the rule at the
   // top of actionRegistry.js, which a kiss could break more loudly than most.
   const kissBlocked = kissBlock(character, { self: true });
+
+  // Why this character cannot pick a pocket right now, or null — caught, in a
+  // fight, or this turn's one reach used up (THEFT.md §2, §2g). The same
+  // sentence pickpocketAuthority refuses with. Their own sheet ONLY: whether
+  // the person they have in mind is fighting is a fact about the room, and the
+  // server alone answers it. Nobody without the tag pays for the query.
+  const pickpocketBlocked = holdsPickpocket(character.tags)
+    ? pickpocketSelfBlock({
+        caughtSeconds: caughtSecondsLeft(character),
+        fighting: inFight(character),
+        attempts: openTurn
+          ? await prisma.pickpocketAttempt.findMany({
+              where: { thiefId: character.id, turnId: openTurn.id },
+              select: { outcome: true, spentLbs: true },
+            })
+          : [],
+      })
+    : null;
 
   // Healing. The medical gate is resolved here, server-side, so no tier-chain
   // math reaches the client bundle.
@@ -577,6 +597,7 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     hereAll,
     kissTargets,
     kissBlocked,
+    pickpocketBlocked,
     zoneRoster,
     peopleParties,
     transferParties,

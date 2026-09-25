@@ -194,6 +194,7 @@ export default function CharacterSheet({
   kissTargets = [],
   searchParties = [],
   kissBlocked = null,
+  pickpocketBlocked = null,
   avatarUploadsEnabled = false,
   playPanelEnabled = true,
   portraitMakerEnabled = false,
@@ -329,6 +330,7 @@ export default function CharacterSheet({
         kissTargets={kissTargets}
         searchParties={searchParties}
         kissBlocked={kissBlocked}
+        pickpocketBlocked={pickpocketBlocked}
         examineBlocked={examineBlocked}
         canCrucify={canCrucify}
         canShackle={canShackle}

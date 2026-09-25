@@ -28,8 +28,9 @@ fight and stroll off.
 
 `Character.heldReason` says WHY, and it has **four** values, not two —
 `intercept`, `attack`, `attacking`, `caught` (`HELD_REASON` in
-`db/lib/intercept.js`; `caught` is a thief the room saw, `THEFT.md` §1e, and it
-never lands on a running fight). The third is the whole point: the person who was jumped and the person who did
+`db/lib/intercept.js`; `caught` is a thief the scene saw, `THEFT.md` §1e and §2g,
+held by the victim when there is one, and it never lands on a running fight —
+which also shuts Pickpocket on both sides while it runs, §2g there). The third is the whole point: the person who was jumped and the person who did
 the jumping are both held, and telling the aggressor *"Somebody attacked you"*
 on every shut way and every banner would be a plain lie. A column rather than a
 query because `heldReasonFor` is pure and eight surfaces read it.

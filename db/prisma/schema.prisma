@@ -2556,7 +2556,8 @@ model Character {
   holding   Character[] @relation("InterceptHold")
 
   // WHICH thing is holding them — "intercept", "attack", "attacking",
-  // or "caught" (a Steal the room noticed, THEFT.md §1e, heldById null) —
+  // or "caught" (a thief the scene saw, THEFT.md §1e and §2g: heldById is
+  // the pickpocket's victim, or null when a stash had no owner) —
   // so that db/lib/intercept.js#heldReasonFor can name the right one
   // while staying PURE. That predicate is read by the mover's own gate and by every
   // picker that draws a way out, and a query inside it would have to be
@@ -4890,12 +4891,13 @@ model SearchAttempt {
 }
 
 // A hand in somebody's pocket (docs/systemdocs/THEFT.md §2). One row per thief
-// per target per turn, and this one row does TWO jobs on purpose.
+// per turn, and this one row does TWO jobs on purpose.
 //
-// It is the RATION — the insert is the claim, the SearchAttempt discipline
-// (SEARCH.md §3). Pickpocket has no cooldown behind it, so a count-then-create
-// would not be race-proof, and the claim has to survive a failed roll or
-// failing would be a free retry.
+// It is the RATION — one reach per turn, at anybody. The unique key below is
+// per TARGET because the take looks its row up by target, so the per-thief
+// rule is a read-then-insert under a lock on the thief's Character row
+// (pickpocket.js), which is what makes it race-proof. The claim has to survive
+// a failed roll or failing would be a free retry.
 //
 // And it is the AUTHORIZATION for the second half. Pickpocket is two acts —
 // roll, then pick what to take — and the take re-reads this row to learn
