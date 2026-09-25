@@ -15,9 +15,10 @@ import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { isHere, notHereMessage } from "@lifeweb/db/lib/presence";
 import { UserError } from "./actionResult";
 
-// A refusal must never be an unmasking. notHereMessage() prints target.name, which is the one thing a
-// hood is bought to hide — so a key that arrived as a hood is always refused in the blank form, even
-// when we did load a row. A named key keeps the specific sentence it has always had.
+// A refusal must never be an unmasking, so a key that arrived as a hood is always refused in the blank
+// form, even when we did load a row. notHereMessage() names nobody now either: a plain id for somebody
+// here in a hood resolves to no row (db/lib/targetKey.js), and a named sentence for an absent id would
+// have told the two cases apart.
 //
 // Exported because resolveHereTarget is not the only gate: the verbs in
 // actions/misc.js load their rows with `include` rather than a `select` and so

@@ -46,8 +46,27 @@ test("an empty or missing key is nobody, never a lookup", async () => {
   assert.equal(await resolveTargetKey(fakePrisma, viewer, null), null);
 });
 
-test("a plain id is NOT run through the hood lookup — an unconcealed target still resolves", async () => {
-  assert.equal(await resolveTargetKey(fakePrisma, viewer, "character:plain1"), "plain1");
+test("a plain id for somebody in the open still resolves", async () => {
+  assert.equal(await resolveTargetKey(fakePrisma, viewer, "character:plain1", { sightings: new Map() }), "plain1");
+  assert.equal(await resolveTargetKey(fakePrisma, viewer, "plain1", { sightings: new Map() }), "plain1");
+});
+
+// The token is the only way to reach a hood. A plain id used to land on them,
+// and the verb's own reply ("You attack a young man.") then told whoever posted
+// it that this was who stood under the mask.
+test("a plain id for somebody standing here in a hood resolves to nobody", async () => {
+  assert.equal(await resolveTargetKey(fakePrisma, viewer, "character:hood1", { sightings: new Map() }), null);
+  assert.equal(await resolveTargetKey(fakePrisma, viewer, "hood1", { sightings: new Map() }), null);
+});
+
+test("a plain id for somebody elsewhere still passes through — the caller's isHere() refuses it", async () => {
+  assert.equal(await resolveTargetKey(fakePrisma, viewer, "character:far1", { sightings: new Map() }), "far1");
+});
+
+test("your own id always resolves, hood or no hood", async () => {
+  const me = { ...base, id: "me", name: "Me", locationId: "loc1", concealed: true, age: 30, gender: "MAN", tags: [hoodTag] };
+  const withMe = { character: { findMany: async () => [...rows, me] } };
+  assert.equal(await resolveTargetKey(withMe, viewer, "character:me", { sightings: new Map() }), "me");
 });
 
 // `allowDead` widens the HOOD arm only, and it has to be passed by the verb
@@ -89,5 +108,17 @@ test("a hood token over a body resolves only for a verb that allows one", async 
 });
 
 test("allowDead never widens a plain character key — that stays the caller's own isHere()", async () => {
-  assert.equal(await resolveTargetKey(fakeDeadPrisma, viewer, "character:body1", { allowDead: false }), "body1");
+  assert.equal(
+    await resolveTargetKey(fakeDeadPrisma, viewer, "character:body1", { allowDead: false, sightings: new Map() }),
+    "body1",
+  );
+});
+
+// A body that died masked stays masked (Character.deathMaskTagId), so the verbs
+// that may reach a body must not reach this one by its plain id either.
+test("a plain id for a masked body resolves to nobody for a verb that reaches bodies", async () => {
+  assert.equal(
+    await resolveTargetKey(fakeDeadPrisma, viewer, "character:body1", { allowDead: true, sightings: new Map() }),
+    null,
+  );
 });

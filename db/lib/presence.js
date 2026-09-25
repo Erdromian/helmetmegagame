@@ -86,8 +86,13 @@ function isHere(actor, target, { allowDead = false, allowConcealed = false } = {
 
 const HERE_FIELDS = { id: true, locationId: true, status: true, concealed: true, buriedAt: true };
 
-function notHereMessage(target) {
-  return target?.name ? `${target.name} isn't here.` : "They aren't here.";
+// One sentence for every "not here", and it names nobody. It used to say
+// "Ada isn't here." when the row loaded and "They aren't here." when it did
+// not, and a plain id for somebody standing here in a hood resolves to no row
+// (db/lib/targetKey.js) — so the two wordings told a prober "absent" from
+// "here, under that mask". `target` stays in the signature for the callers.
+function notHereMessage(_target) {
+  return "They aren't here.";
 }
 
 module.exports = { UNBURIED_BODY_WHERE, hereWhere, isHere, concealedNow, HERE_FIELDS, notHereMessage };

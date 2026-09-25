@@ -140,13 +140,12 @@ function searchAuthority(actor, target) {
   if (!actor || !target) return "They aren't here.";
   if (actor.id === target.id) return "Search somebody else.";
   if (actor.status !== "ALIVE") return "You can't do that right now.";
-  // NOT notHereMessage(): it prints `target.name` off the row, and this is the
-  // one verb whose target may be hooded. "Lord Greeblus isn't here." would
-  // unmask somebody the searcher only ever saw as a young man — and a refusal
-  // is the last place that should happen (INTERCEPT.md §2).
-  if (target.status !== "ALIVE") return `${capitalizeFirst(seenAs(identityOf(target)))} isn't here.`;
-  if (!isHere(actor, target, { allowConcealed: true }))
-    return `${capitalizeFirst(seenAs(identityOf(target)))} isn't here.`;
+  // Names nobody, the same sentence as no target at all. A plain id for
+  // somebody here in a hood resolves to no row (db/lib/targetKey.js), so
+  // "Lord Greeblus isn't here." for an absent id told a prober the two cases
+  // apart — and a refusal is the last place to out somebody (INTERCEPT.md §2).
+  if (target.status !== "ALIVE") return "They aren't here.";
+  if (!isHere(actor, target, { allowConcealed: true })) return "They aren't here.";
 
   const mine = blockerFor(actor.tags, ACT);
   if (mine) return `You're ${mine.name}.`;

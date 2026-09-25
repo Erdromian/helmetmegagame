@@ -474,6 +474,37 @@ the name the helmet was bought to hide. `resolveParty` in
 stranger pay for a cure. `allowConcealed` is not "the one caller" of anything
 any more; it is on for every verb that acts on a body.
 
+**The token is the only way to reach a hood.** A plain `character:<id>` for
+somebody standing at your Location in a mask resolves to nobody —
+`whosHere.js#hiddenFrom`, reading the same `presentRows` answer as the lists —
+exactly like an id for somebody who is not there. It used to land: every body
+verb took the id, and the verb's own reply ("You attack a young man.") told
+whoever had posted a suspect's id by hand that this was who stood under the
+helmet. The same rule covers the private-room door (`roomGuests.js`'s
+`byToken`, since the bot's `/add` names a character off their role), `/look`
+(a plain id whose last line was hooded answers like no line at all),
+Pickpocket, Enthral/Nourish, a Converse invite, and a payer or Transfer party.
+Your own id always resolves; a GM works the door by id. **Break off** is the one
+verb that does not ask the room, since you may call off a fight with somebody
+who has walked away: `attack.js#resolveAttackKey` resolves the key inside your
+own fight list, the list that minted it, so a hood's token works wherever they
+have gone and a plain id works only for somebody that list names openly.
+
+For that to hold, **a refusal for somebody absent must read exactly like one
+for nobody**, so every "not here" sentence names nobody now:
+`presence.js#notHereMessage` is "They aren't here." whatever row it is handed,
+and Search, Pickpocket, Transfer, the payers, the escort picker and the room
+door each give one sentence for both cases. A named "Ada isn't here." beside a
+blank one was the tell.
+
+**A hood's place in a list says nothing about who they are.** The rows come off
+the database sorted by real name, and hoods used to keep that order — so two
+"a young man" rows always listed in their real names' order, and in the escort
+picker, where named and hooded rows mix, a hood between "Ada" and "Carl" had a
+real name starting with B. The concealed half of Who's here
+(`whosHere.js#concealedRows`), the pickers' hooded half (`rosterHere`) and the
+escort lists (`escort.js#byShownName`) sort by the name shown, then the token.
+
 `whosHere(..., { withHoodIds: true })` adds a server-only `hoodIds` map —
 token to character id — for the callers that have to filter hoods by id before
 offering them. A sibling key rather than an id on the rows, because those rows

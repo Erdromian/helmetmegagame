@@ -198,9 +198,22 @@ function namedRows(rows, viewer, performed = null) {
     });
 }
 
+// The order a list of hoods is shown in: by the alias the viewer reads, then
+// by token. presentRows comes back sorted by REAL name, and hoods kept that
+// order everywhere they were listed — so two "young man" rows always came out
+// in their real names' alphabetical order, and a hood's place in a list said
+// where its real name fell. `nameOf` and `idOf` read whatever shape the caller
+// holds; the id never leaves this function.
+function hoodOrder(list, nameOf, idOf) {
+  return list
+    .map((item) => ({ item, name: String(nameOf(item) ?? ""), token: hoodToken(idOf(item)) ?? "" }))
+    .sort((a, b) => a.name.localeCompare(b.name) || (a.token < b.token ? -1 : a.token > b.token ? 1 : 0))
+    .map((entry) => entry.item);
+}
+
 function concealedRows(rows, { withTokens }) {
-  return rows
-    .filter((c) => c.hidden && !c.forced)
+  const hooded = rows.filter((c) => c.hidden && !c.forced);
+  return hoodOrder(hooded, (c) => aliasRow(c, c.sighting?.name), (c) => c.id)
     .map((c) => {
       // What is over the face — the sprite says WHAT, never who (PROXYING.md §5) —
       // but only once you have watched them speak in it; unseen wears the question-mark plate.
@@ -252,6 +265,18 @@ async function resolveHoodToken(prisma, viewer, token, { sightings = null, inclu
   return null;
 }
 
+// The other half of resolveHoodToken: is this character standing at the
+// VIEWER's Location in a hood the viewer cannot see past? A plain id must never
+// reach somebody the pickers only offer under a token — posting a suspect's id
+// by hand and watching the verb land was a test of who is under the mask
+// (db/lib/targetKey.js). Same presentRows answer, so the two never disagree.
+async function hiddenFrom(prisma, viewer, characterId, { sightings = null, includeDead = false } = {}) {
+  if (!characterId || !viewer?.locationId || characterId === viewer.id) return false;
+  const rows = await presentRows(prisma, viewer, { withSightings: true, sightings, includeDead });
+  const row = rows.find((c) => c.id === characterId);
+  return Boolean(row && row.hidden && !row.forced);
+}
+
 // The Discord button's readout, built off the same rows so the channel and the page can never disagree.
 function whosHereLines({ named, concealed, across = [] }) {
   const lines = [];
@@ -275,6 +300,7 @@ module.exports = {
   whosHereGm,
   whosHereLines,
   resolveHoodToken,
+  hiddenFrom,
   hoodToken,
   ONLINE_WINDOW_MS,
   isOnline,

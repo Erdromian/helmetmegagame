@@ -8,7 +8,7 @@ const test = require("node:test");
 
 process.env.AUTH_SECRET ||= "test-secret-for-hood-tokens";
 const assert = require("node:assert/strict");
-const { escortAuthority, escortReason, escortRefusal, escortName, escortKey, escortHidden, ESCORT_SELECT } = require("../lib/escort");
+const { escortAuthority, escortReason, escortRefusal, escortName, escortKey, escortHidden, byShownName, ESCORT_SELECT } = require("../lib/escort");
 const { freeZoneMoves, freeMovesLeft, fitsMount, CHARACTER_SELECT } = require("../lib/locationTravel");
 const { equippedSlugs } = require("../lib/mounts");
 
@@ -104,7 +104,9 @@ test("force beats an arrangement: a captor takes their prisoner off whoever has 
 
 test("a refusal says which rule refused", () => {
   assert.equal(escortRefusal(leader(), person({ escortedById: "Z" })), "They're already with somebody.");
-  assert.equal(escortRefusal(leader(), person({ locationId: "loc-2", name: "Ada" })), "Ada isn't here.");
+  // Absent reads exactly like nobody at all, and names nobody: a plain id for a
+  // hood standing here resolves to no target, so the two must not differ.
+  assert.equal(escortRefusal(leader(), person({ locationId: "loc-2", name: "Ada" })), "They aren't here any more.");
   assert.equal(escortRefusal(leader(), null), "They aren't here any more.");
   // Yours is not a refusal at all, so it falls through to the flat wording
   // rather than claiming somebody else has them.
@@ -299,4 +301,21 @@ test("with no open turn the number is just the allowance", () => {
 test("last turn's counters do not follow you into this one", () => {
   const yesterday = { ...held("arelitz"), zoneMovesTurnId: "t0", zoneMovesUsed: 2, zoneMovesBonusUsed: 1 };
   assert.equal(freeMovesLeft(yesterday, CONFIG, TURN), 2);
+});
+
+// The rows come off the database in REAL-name order. A hood kept that place in
+// the list, so one sitting between "Ada" and "Carl" had a real name starting
+// with B. The list goes out in the order of what the viewer reads instead.
+test("an escort list is ordered by the name shown, never the real one", () => {
+  const rows = [
+    { id: "character:a", name: "Ada" },
+    { id: "hood:ffff", name: "a young man" }, // really "Bram", between the two
+    { id: "character:c", name: "Carl" },
+    { id: "hood:0000", name: "a young man" },
+  ];
+  assert.deepEqual(
+    byShownName(rows).map((r) => r.id),
+    ["hood:0000", "hood:ffff", "character:a", "character:c"],
+  );
+  assert.deepEqual(byShownName([...rows].reverse()), byShownName(rows), "input order must not leak through");
 });

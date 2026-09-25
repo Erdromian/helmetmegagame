@@ -2,7 +2,6 @@
 // and the ingredient/payer resolution they share. See CRAFTING.md.
 
 import { after } from "next/server";
-import { splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { prisma } from "@lifeweb/db";
 import { getOpenTurn } from "@/lib/turn";
 import {
@@ -421,10 +420,14 @@ export async function resolveCraftPayer(character, payerKey, cost) {
   // allowConcealed — same reason as the heal payer (actions/medical.js): a hood
   // is somebody standing in front of you with a purse, and resolveParty has
   // already re-checked that they are.
+  // One sentence for a person who resolves to nobody and a person who is not
+  // here: a plain id for a hood resolves to nobody (db/lib/targetKey.js), and
+  // two wordings would tell a prober which of the two it was.
+  const gone = "That payer isn't here any more — pick another.";
   const payer = await resolveParty(key, { actor: character });
-  if (!payer) throw new UserError("That payer isn't here any more — pick another.");
+  if (!payer) throw new UserError(gone);
   if (!(await canReachParty(character, payer, { allowConcealed: true })))
-    throw new UserError(splitTargetKey(key).kind === "hood" ? "They aren't here." : outOfReachMessage(payer));
+    throw new UserError(payer.kind === "room" ? outOfReachMessage(payer) : gone);
   if (cost > payer.balance)
     throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
   return payer;

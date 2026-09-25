@@ -80,8 +80,10 @@ import {
   escortName,
   escortKey,
   escortHidden,
+  byShownName,
 } from "@lifeweb/db/lib/escort";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
+import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
 import { syncPartyMembership } from "@lifeweb/db/lib/partyChat";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyArrivalFacts, applyArrivalDiscord } from "@lifeweb/db/lib/locationMove";
@@ -631,9 +633,12 @@ export async function loadParty() {
       // escortName, never row.name: a party can carry somebody in a mask now,
       // and the rack is the one place that would publish the name they are
       // wearing it to hide (PROXYING.md §5). No id on a hood row either.
-      companions: companions
-        .filter((row) => row.id !== character.id)
-        .map((row) => ({ id: escortKey(row, view), name: escortName(row, view), status: row.status })),
+      // By the name shown, never partyOf's real-name order (escort.js#byShownName).
+      companions: byShownName(
+        companions
+          .filter((row) => row.id !== character.id)
+          .map((row) => ({ id: escortKey(row, view), name: escortName(row, view), status: row.status })),
+      ),
     };
   }
 
@@ -666,7 +671,8 @@ export async function loadParty() {
     seats: fastTravelCapacity(equippedSlugs(character.tags ?? [])),
     candidates,
     // Re-derived rather than read off `candidates`: a follower can be with you and no longer be a candidate.
-    party: party.map((row) => ({
+    // By the name shown, never partyOf's real-name order (escort.js#byShownName).
+    party: byShownName(party.map((row) => ({
       id: escortKey(row, view),
       name: escortName(row, view),
       status: row.status,
@@ -675,7 +681,7 @@ export async function loadParty() {
       // the question-mark plate instead of nothing.
       hooded: escortHidden(row, view),
       reason: escortReason(row, escortAuthority(character, row, openTurn?.number ?? null)),
-    })),
+    }))),
     incoming: incoming.map((offer) => ({ id: offer.id, from: askerNames.get(offer.initiatorId) ?? "Somebody" })),
   };
 }
@@ -1475,9 +1481,13 @@ export async function openConversation({ roomId, name, inviteRefs = [] } = {}) {
   const refs = [...new Set((Array.isArray(inviteRefs) ? inviteRefs : []).map(String))]
     .filter(Boolean)
     .slice(0, INVITE_LIMIT);
-  const sightings = refs.some((ref) => HOOD_TOKEN.test(ref)) ? await lastSightings(prisma, me.character) : null;
+  // A plain id goes through the shared resolver too, so it cannot pull
+  // somebody standing here in a hood into the conversation — only their token
+  // can (db/lib/targetKey.js). A hood that joined by id showed up on the strip
+  // under its alias, which told the inviter who was under it.
+  const sightings = refs.length > 0 ? await lastSightings(prisma, me.character) : null;
   const resolved = await Promise.all(
-    refs.map((ref) => (HOOD_TOKEN.test(ref) ? resolveHoodToken(prisma, me.character, ref, { sightings }) : ref)),
+    refs.map((ref) => resolveTargetKey(prisma, me.character, HOOD_TOKEN.test(ref) ? `hood:${ref}` : ref, { sightings })),
   );
   const wanted = [...new Set(resolved.filter(Boolean))].filter((id) => id !== me.character.id);
   if (wanted.length > 0) {
@@ -2626,6 +2636,18 @@ export async function lookAt(personRef) {
 
   const sighting = seen.get(targetId);
   if (!sighting) return { ok: false, error: "You haven't heard them say anything." };
+  // A plain id whose last line was said in a hood is refused like no line at
+  // all. Every surface offers that person under a token (presentRows reads the
+  // same sighting), so only a hand-posted id lands here — and answering it with
+  // the hooded line told the asker who was under the mask. A forced name worn
+  // NOW is the one exception, because presentRows lists that person by name.
+  if (!HOOD_TOKEN.test(ref) && sighting.concealed) {
+    const row = await prisma.character.findUnique({
+      where: { id: targetId },
+      select: { tags: { where: { tag: { forcedName: { not: null } } }, select: { tag: { select: { forcedName: true } } } } },
+    });
+    if (!forcedNameFrom(row?.tags)) return { ok: false, error: "You haven't heard them say anything." };
+  }
 
   return lookAtRow(sighting.seq);
 }
@@ -2867,6 +2889,8 @@ export async function addMember(placeKey, ref) {
     actor: me.character,
     roomId: found.room.id,
     characterId,
+    // Only a token may let a hood in; a plain id for one is refused as absent.
+    byToken: HOOD_TOKEN.test(raw),
   });
   if (!result.ok) return { ok: false, error: result.error };
 
@@ -2943,6 +2967,8 @@ export async function removeMember(placeKey, ref) {
     actor: me.character,
     roomId: found.room.id,
     characterId: resolveMemberRef(ref, guestIds),
+    // Only a token may show a hood out; a plain id for one is refused as absent.
+    byToken: HOOD_TOKEN.test(String(ref ?? "").trim()),
   });
   if (!result.ok) return { ok: false, error: result.error };
 

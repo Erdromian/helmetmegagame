@@ -173,8 +173,10 @@ function escortReason(target, verdict) {
 function escortRefusal(leader, target) {
   if (!target) return "They aren't here any more.";
   if (target.buriedAt) return "They're in the ground.";
-  // The one wording every "they aren't here" refusal in the game shares (db/lib/presence.js), so this one doesn't invent a second.
-  if (!leader?.locationId || target.locationId !== leader.locationId) return `${handshakeName(target)} isn't here.`;
+  // The same sentence as no target at all. A plain id for somebody here in a
+  // hood resolves to nobody (db/lib/targetKey.js), so naming an absent target
+  // here would tell "not here" apart from "here, masked".
+  if (!leader?.locationId || target.locationId !== leader.locationId) return "They aren't here any more.";
   if (leader.escortedById) return "You're being brought along yourself.";
   if (target.escortedById && target.escortedById !== leader.id) return "They're already with somebody.";
   // A hold is the one refusal here a player cannot see for themselves, and the
@@ -226,7 +228,17 @@ async function escortCandidates(prisma, leader, turnNumber = null) {
       reason: escortReason(row, verdict),
     });
   }
-  return out;
+  return byShownName(out);
+}
+
+// A list for the viewer, in the order of what the viewer reads: the shown name,
+// then the key. The rows come off the database in REAL-name order, and a hood
+// sitting between "Ada" and "Carl" in that order told you their real name began
+// with a B. Rows carry `{ id: key, name }`, the shape every list here ships.
+function byShownName(list) {
+  return [...list].sort(
+    (a, b) => String(a.name ?? "").localeCompare(String(b.name ?? "")) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0),
+  );
 }
 
 // The party, in the order it was picked up. Used by the panel and re-loaded inside performLocationMove's own transaction, which is the copy that counts.
@@ -410,6 +422,7 @@ module.exports = {
   escortName,
   escortKey,
   escortHidden,
+  byShownName,
   partyOf,
   attach,
   detach,

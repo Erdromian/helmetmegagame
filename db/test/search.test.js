@@ -238,3 +238,19 @@ test("SEARCH_SELECT carries what both the hood rule and the visibility rule need
   assert.equal(SEARCH_SELECT.tags.select.equipped, true);
   assert.equal(SEARCH_SELECT.tags.select.quantity, true);
 });
+
+// A plain id for somebody standing here in a hood resolves to no target at all
+// (db/lib/targetKey.js), which the verb answers "They aren't here." — so an
+// absent or dead target has to read exactly the same, and name nobody.
+test("absent and dead read exactly like no target, naming nobody", () => {
+  const me = person({ id: "me" });
+  assert.equal(searchAuthority(me, null), "They aren't here.");
+  assert.equal(searchAuthority(me, person({ id: "c2", locationId: "loc-2" })), "They aren't here.");
+  assert.equal(searchAuthority(me, person({ id: "c2", status: "DEAD" })), "They aren't here.");
+});
+
+test("notHereMessage names nobody, loaded row or not", () => {
+  const { notHereMessage } = require("../lib/presence");
+  assert.equal(notHereMessage(null), "They aren't here.");
+  assert.equal(notHereMessage({ name: "Lord Greeblus" }), "They aren't here.");
+});
