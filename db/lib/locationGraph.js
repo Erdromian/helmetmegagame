@@ -3,6 +3,7 @@ const { heldTagSlugs } = require("./roomAccess");
 const { blocksOnFoot, equippedSlugs } = require("./mounts");
 const { heldReasonFor } = require("./intercept");
 const { cavingRestrictionsFor } = require("./cavingPass");
+const { crossingCost } = require("./crossingCost");
 
 // The two endpoints of a link, oriented so `near` is the side you're standing on. Callers only ever want `far`.
 function endpoints(link, locationId) {
@@ -167,11 +168,16 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
 
   const rows = links
     .map((link) => {
-      const { far } = endpoints(link, locationId);
+      const { near, far } = endpoints(link, locationId);
+      const crossesZone = Boolean(zoneId) && far.zoneId !== zoneId;
       const row = {
         location: far,
         link,
-        crossesZone: Boolean(zoneId) && far.zoneId !== zoneId,
+        crossesZone,
+        // What the crossing spends in travel (db/lib/crossingCost.js): 1
+        // between the town zones, 2 anywhere else, 0 inside a zone. Stamped
+        // here so every picker quotes the same number the mover charges.
+        cost: crossesZone ? crossingCost(near?.zone?.slug, far.zone?.slug) : 0,
         ...crossingCheck(link, { tagSlugs, onFootBlocked, now }),
       };
       // Being held shuts every way out, not just zone crossings — an ambush is a hand on your shoulder (INTERCEPT.md). `listed` is deliberately left alone: the way still draws, just SHUT with why, rather than vanishing and reading like it never existed.

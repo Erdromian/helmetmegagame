@@ -8,7 +8,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, tightSqueezeNote } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, tightSqueezeNote, affordsCrossing } from "@/lib/travelCost";
 import SqueezeChip from "@/app/components/SqueezeChip";
 import { loadTravel, travelTo } from "./actions";
 import { nudgePhase } from "../../components/PhaseProvider";
@@ -101,9 +101,9 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
     ? (data.options.find((o) => o.id === target) ?? walks.find((w) => w.id === target) ?? null)
     : null;
   const walking = Boolean(chosen && walks.some((w) => w.id === chosen.id));
-  // chosen's OWN count, not the header's ambient one — a boat's bonus is
-  // earned per crossing.
-  const nextTurn = Boolean(chosen?.crossesZone && chosen.freeLeft <= 0);
+  // chosen's OWN count against chosen's own cost — a hop into the hills costs
+  // twice what one across the town does (MAP.md §3).
+  const nextTurn = Boolean(chosen?.crossesZone && !affordsCrossing(chosen, chosen.freeLeft));
 
   // Travel, in one place. Go is the only door onto it, the way the map's is
   // (MAP.md §6c) — clicking a node only ever picks it.

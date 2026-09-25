@@ -40,7 +40,7 @@ function seatLine(seats, size) {
     label: `${seats} seats`,
     over,
     warning: over
-      ? `You have more people than your mount can support (${seats} seats), so you lose the extra free zone move.`
+      ? `You have more people than your mount can support (${seats} seats), so you lose the extra free travel.`
       : null,
   };
 }

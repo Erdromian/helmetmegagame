@@ -167,7 +167,7 @@ export default function LedgerBand({
         <div className="ledger-tiles">
           {/* One open slot across the band, so two boxes never show detail at once. */}
           <DetailTile
-            label="Free moves"
+            label="Travel"
             value={zoneMoves != null ? zoneMoves : "—"}
             over={zoneMoves === 0}
             // "Gambit filed"/"not yet filed" used to sit here too, but the

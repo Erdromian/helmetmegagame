@@ -136,6 +136,7 @@ async function buildMap({ character, unfogged }) {
           walkThrough: null,
           walkDismounts: false,
           crossesZone: false,
+          cost: 0,
           freeLeft: null,
           canExert: false,
           exertWhy: null,
@@ -206,7 +207,7 @@ async function buildMap({ character, unfogged }) {
     // option, and the reason is shown once the Move is spent and this was
     // the only way across.
     const exertWhy = near?.crossesZone
-      ? exertRefusal(character, config, openTurn, { left: freeLeft, acted })
+      ? exertRefusal(character, config, openTurn, { left: freeLeft, cost: near.cost, acted })
       : null;
 
     nodes.push({
@@ -243,6 +244,9 @@ async function buildMap({ character, unfogged }) {
       walkTightSqueeze: Boolean(walk?.tightSqueeze),
       tightSqueeze: Boolean(near?.tightSqueeze),
       crossesZone: Boolean(near?.crossesZone),
+      // What the crossing spends in travel — 1 between the town zones, 2
+      // anywhere else (db/lib/crossingCost.js), 0 inside the zone.
+      cost: near?.cost ?? 0,
       // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).
       railroad: Boolean(near?.railroad),
       freeLeft,

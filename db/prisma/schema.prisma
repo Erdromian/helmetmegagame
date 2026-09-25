@@ -540,10 +540,12 @@ model GameConfig {
   // character choosing between a fortune and their armour is the point.
   carryWeightLbs Int @default(71)
 
-  // Free zone crossings per character per turn, before a crossing starts
-  // spending the Move (docs/systemdocs/CARRY.md §2). An equipped mount adds
-  // one on top; Overburdened zeroes the allowance. Live on /gm/dev.
-  freeZoneMovesPerTurn Int @default(1)
+  // Free TRAVEL per character per turn, before a crossing starts spending
+  // the Move (docs/systemdocs/CARRY.md §2). A crossing between the town zones
+  // costs 1 of it, any other crossing 2 (db/lib/crossingCost.js). An equipped
+  // mount adds a far crossing's worth on top; Overburdened zeroes the
+  // allowance. Live on /gm/dev.
+  freeZoneMovesPerTurn Int @default(2)
 
   // TWO ceilings on drawbacks at creation, and a build stops at whichever it
   // reaches first (TAGS.md §4a). Neither works alone: with a count cap only,
@@ -2217,11 +2219,12 @@ model Character {
   // weighed item and started counting in carryWeightSeen like everything else.
   carryWeightSeen Float @default(0)
 
-  // The free zone crossings this character has already spent, and the turn
-  // they were spent in (docs/systemdocs/CARRY.md §2). Everyone gets
-  // GameConfig.freeZoneMovesPerTurn a turn; an EQUIPPED mount adds one; being
-  // Overburdened takes them all away. Past the allowance a crossing spends the
-  // Move instead, exactly as it always did.
+  // The free TRAVEL this character has already spent, and the turn it was
+  // spent in (docs/systemdocs/CARRY.md §2). Everyone gets
+  // GameConfig.freeZoneMovesPerTurn a turn; an EQUIPPED mount adds a far
+  // crossing's worth; being Overburdened takes it all away. A crossing costs
+  // 1 or 2 of it (db/lib/crossingCost.js), and one that cannot be afforded
+  // spends the Move instead, exactly as it always did.
   // A push on (docs/systemdocs/MAP.md §3) claims this counter too — and only
   // this one, never zoneMovesBonusUsed below — which is how
   // db/lib/locationTravel.js#exertedThisTurn tells one happened: the base
@@ -2238,8 +2241,8 @@ model Character {
   zoneMovesTurnId String?
   zoneMovesUsed   Int     @default(0)
 
-  // How many of those spent crossings were charged to a BONUS crossing (a
-  // mount's, or a boat's on the water) rather than the base allowance. The
+  // How much of that spent travel was charged to a mount's BONUS rather
+  // than the base allowance. The
   // bonus is always charged first, so losing the bonus later in the turn —
   // a horse parked at an indoors door — can never reach back and take the
   // base crossing the rider still had. Reset by the same differing-turn-id
