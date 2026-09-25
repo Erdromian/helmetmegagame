@@ -74,9 +74,10 @@ async function revertFatigueStep(tx, characterId, snapshot) {
   }
 }
 
-// Farming's lockout (db/lib/soilery.js; Context §2 of the Soilery plan): unlike the ladder above,
-// which ESCALATES Tired into Exhausted, a day sowing a field grants Exhausted OUTRIGHT — there is
-// no lesser rung to climb through first. If the character already holds Tired (say, from an
+// Farming's lockout (db/lib/soilery.js; the Soilery Rework doc): unlike the ladder above, which
+// ESCALATES Tired into Exhausted, a day in the fields grants Exhausted OUTRIGHT — there is no lesser
+// rung to climb through first. Exhausted then wears off into Tired, and both refuse the Farm button,
+// so a farmer farms one turn in three. If the character already holds Tired (say, from an
 // unrelated day of mining earlier the same turn), it's replaced rather than left to stack alongside
 // Exhausted; its `expiresTurn` is snapshotted so db/lib/moveEffects.js's `farmed` entry can restore
 // it exactly on Undo. `turnNumber` is the CLOSING turn's number — this adds one itself, the same
@@ -105,7 +106,8 @@ async function grantExhaustedOutright(tx, characterId, turnNumber) {
     }],
     skipDuplicates: true,
   });
-  return { replacedTired: heldTired ? { expiresTurn: heldTired.expiresTurn } : null };
+  // Same shape applyFatigueStep returns, so revertFatigueStep undoes either.
+  return { slug: EXHAUSTED_SLUG, replacedTired: heldTired ? { expiresTurn: heldTired.expiresTurn } : null };
 }
 
 module.exports = { nextFatigueSlug, applyFatigueStep, revertFatigueStep, grantExhaustedOutright };

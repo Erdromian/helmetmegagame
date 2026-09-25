@@ -13,8 +13,8 @@ Read this before touching `db/lib/arelitz.js`, `db/lib/stablePass.js`,
 Related: [`CORPSES.md`](CORPSES.md) §6a (Butcher's livestock source),
 [`CARRY.md`](CARRY.md) §2 (mount seats and the free zone move),
 [`MAP.md`](MAP.md) (crossing mechanics `db/lib/mounts.js` feeds),
-[`SOILERY.md`](SOILERY.md) (the Farms placeholder the Stable currently sits
-inside).
+[`SOILERY.md`](SOILERY.md) (the Soilery the Stable sits inside, and the
+Foodstuffs the arelitz eat).
 
 ## 1. Why it exists
 
@@ -28,6 +28,13 @@ bred directly from a `horse` via an ordinary craft recipe, each charged
 1 ⬢/turn upkeep) had none of that — no stable, no egg floor, no hatching, no
 capacity, and no breaking-in at all. It's gone; this is what stands in its
 place.
+
+**The Soilery Rework** (`E:\Bascinet\V3\Soilery\Soilery Rework.docx`) changed
+two things here: the arelitz eat **Foodstuffs** and nothing else (§4 step 2),
+and **three unruly arelitz start in the Stable** — a `stash:` on `town-3-3` in
+`docs/zones.yaml` for a new game, and `npm run db:convert-soilery` for a game
+already running (`SOILERY.md` §6). The Stable stays locked behind the Soiler's,
+Baron's and Hands' keys, as before (Bascinet's call).
 
 ## 2. One mount type, not three
 
@@ -100,16 +107,16 @@ still on that floor when the pass runs.
 `arelitz` **and** `unruly-arelitz` both, since the doc says "each arelitz
 located in the stable," not only the broken-in ones (and includes any
 yearling that just matured THIS pass, in step 1 — `stablePass.js` adds that
-count back in rather than re-querying). The floor's food is every other
-`RoomTag` in the room where `db/lib/hunger.js#foodHungerFor(tag) > 0` — any
-foodstuff or cooked dish, eaten **cheapest first** (lowest hunger value, then
-oldest). Two units per adult, **all-or-nothing**: an adult that can't get a
+count back in rather than re-querying). The floor's food is the **Foodstuffs**
+left in the room (the Soilery Rework doc) — nothing else, so a meal or a fish
+left on the floor is still there in the morning. Two per adult,
+**all-or-nothing**: an adult that can't get a
 full two eats and lays nothing this turn (the doc's "if possible"). One
 `arelitz-egg` lands on the stable floor per adult fed — the floor, not the
 owner's pocket, since that's what step 3 then hatches.
 
 **3. Hatch.** Every `arelitz-egg` unit on the floor independently rolls
-1-in-`HATCH_IN` (30) — same per-unit-loop shape as `db/lib/soilery.js#reap`'s
+1-in-`HATCH_IN` (30) — same per-unit-loop shape as `db/lib/soilery.js#reapFoodstuffs`'s
 wither die, for the same reason: real variance, not a rounded average.
 Hatched eggs become `arelitz-hatchling` on the same floor.
 

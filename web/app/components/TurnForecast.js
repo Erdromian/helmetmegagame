@@ -29,11 +29,6 @@ export default function TurnForecast({
   stagedCraftYields = [],
   sitesHere = [],
   resources = 0,
-  // "hungry" | "starving" | null — resolved server-side, off the actual
-  // hungerValue and the coming turn's decay (db/lib/hunger.js), on the turn
-  // it would FIRST cross that threshold. Never the raw number: character/
-  // page.js computes this and never sends hungerValue itself to the client.
-  hungerWarning = null,
 }) {
   const [open, setOpen] = useState(false);
   if (openTurnNumber == null) return null;
@@ -78,15 +73,9 @@ export default function TurnForecast({
   }
 
 
-  // The 0-100 hunger meter (db/lib/hunger.js): no ⬢ cost any more, and never a
-  // number — just a one-time warning on the turn decay would newly cross a
-  // threshold. Staying in a band already entered says nothing new (the doc's
-  // rule; hungerWarning is only ever non-null on the crossing turn itself).
-  if (hungerWarning === "starving") {
-    items.push(<span key="hunger">You&apos;ll start starving</span>);
-  } else if (hungerWarning === "hungry") {
-    items.push(<span key="hunger">You&apos;ll go hungry</span>);
-  }
+  // Hunger is deliberately NOT forecast here (the Soilery Rework doc):
+  // nobody is warned that they will be hungry next turn. They are told when
+  // it happens, and their Hunger tile says where they stand now.
 
   if (items.length === 0) return null;
 

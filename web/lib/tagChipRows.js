@@ -79,8 +79,16 @@ export function stripWeightless(tag) {
 // not what it does, so it's not a leak; dropping it here made every
 // adjective-form taste (the Soilery crops) render as "It tastes like acidic"
 // in the Craft dialog's ingredient chips.
+//
+// A meal's own figures go too: what it restores, what it does to the dial
+// and the base taste its cook picked are all things only eating it tells you
+// (the Soilery Rework doc: nothing about a meal is apparent on inspection but
+// its name and its cook's description).
 export function cookedTasteOnly(tag) {
-  if (!tag?.cooked && !tag?.cookedFrom?.length) return tag;
+  if (!tag) return tag;
+  const { mealTaste, mealTasteForm, mealHunger, mealMood, ...unmealed } = tag;
+  tag = unmealed;
+  if (!tag.cooked && !tag.cookedFrom?.length) return tag;
   const { cooked, cookedFrom, ...rest } = tag;
   return cooked
     ? { ...rest, cooked: { taste: cooked.taste ?? "", ...(cooked.tasteForm ? { tasteForm: cooked.tasteForm } : {}) } }
@@ -116,6 +124,8 @@ export const TAG_CHIP_FIELDS = {
   removable: true,
   craftable: true,
   customizable: true,
+  // Which meal class a dish was cooked as, so a Lavish name draws in italics (TagName.js).
+  mealClass: true,
   healable: true,
   teachable: true,
   requirementTurns: true,

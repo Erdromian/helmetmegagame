@@ -528,7 +528,7 @@ Both documented in full in `schema.prisma`'s `Tag` model comments and read by
 - **`consumesIntoOneOf`** — a parallel array to `consumesInto`, same length
   and order, for an even random pick between alternatives —
   `{ oneOf: [...] }` in `docs/tags.yaml`, the same shape `expiresInto`
-  already used. `Skinned Cave Rat` is the first user: 50/50 Ate Meal or
+  already used. `Skinned Cave Rat` is the first user: 50/50 nothing or
   Vomiting. Nothing is previewed on `/character` — a player clicks Consume in
   the tag's tooltip and finds out — so `resolveConsumeGrants`, which commits
   to one, runs only in the server action.

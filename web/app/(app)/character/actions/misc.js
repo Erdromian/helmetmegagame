@@ -222,16 +222,19 @@ import {
   consumeSetsMoodToMax,
   setMood,
   dishMoodTerms,
+  scaleTerms,
   woundMoodFor,
   MOOD_MAX,
   DESIRE_RELIEF_PER_POINT,
 } from "@lifeweb/db/lib/mood";
 import {
   HUNGER_MAX,
-  foodHungerFor,
+  unitHungerFor,
+  eatMaxFor,
   rawFoodMoodTerms,
 } from "@lifeweb/db/lib/hunger";
-import { clearHungerBands } from "@lifeweb/db/lib/hungerBands";
+import { syncHungerDescriptor } from "@lifeweb/db/lib/hungerDescriptor";
+import { GLUTTON_SLUG, HUNGERLESS_SLUG } from "@lifeweb/db/lib/constants";
 import {
   NAME_LIMITS,
   formatCharacterName,
@@ -670,12 +673,25 @@ async function consumeChoiceRequestImpl({ session, character, held, choice }) {
   return { ok: true };
 }
 
-export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }) {
+// `quantity` is the Consume slider (the Soilery Rework doc): how many of a stack to eat or use at
+// once. Only an ordinary consume, on yourself, of a stack takes more than one; every special road
+// below opens one thing at a time. Food is also capped by hunger (db/lib/hunger.js#eatMaxFor).
+export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, quantity: rawQuantity }) {
   const { session, character } = await requireCharacter();
 
   const held = character.tags.find((ct) => ct.tagId === tagId);
   if (!held) throw new UserError("You don't have that tag.");
   if (!held.tag.consumable) throw new UserError("That tag can't be consumed.");
+  const n = parseCount(rawQuantity, { min: 1, max: 99 }) ?? 1;
+  if (n > 1) {
+    const special =
+      held.tag.consumeChoice?.length ||
+      held.tag.paperKind === "SEALED" ||
+      isCrate(held.tag) ||
+      [CAMERA_SLUG, POINTER_DEVICE_KIT_SLUG, RAVENHEART_MAP_SLUG, BOX_OF_JUNK_SLUG, MULLIGAN_SLUG, STEPSTONE_SLUG].includes(held.tag.slug);
+    if (special || !held.tag.stackable || held.tag.administerSkill) throw new UserError("One at a time.");
+    if (n > held.quantity) throw new UserError("You don't have that many.");
+  }
 
   if (held.tag.consumeChoice?.length) {
     if (targetCharacterId && targetCharacterId !== character.id) {
@@ -803,6 +819,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
   const posted = splitTargetKey(targetCharacterId ?? "");
   const administered = Boolean(posted.value) && !(posted.kind === "character" && posted.value === character.id);
   let target = character;
+  if (administered && n > 1) throw new UserError("One at a time.");
   if (administered) {
     const blocker = blockerFor(character.tags, ACT);
     if (blocker) {
@@ -824,6 +841,8 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
         status: true,
         buriedAt: true,
         discordUserId: true,
+        // A food handed to somebody else still stops at their full meter.
+        hungerValue: true,
         // `resists` (M4): resolveConsumeGrants below needs the TARGET's own
         // resist-traits, administered or self — Iron Constitution shrugging
         // off a poison lands on whoever holds it, not whoever swallowed it.
@@ -898,7 +917,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
     tagId: held.tagId,
     source: held.source,
     expiresTurn: held.expiresTurn,
-    quantity: 1,
+    quantity: n,
   };
 
   // The drinking ladder (docs/systemdocs/BREWING.md). Only status tags carry
@@ -918,14 +937,51 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
   const resistSlugs = resistSlugsOf(target.tags);
 
 
-  const {
-    slugs: grantSlugs,
-    removes: climbedFrom,
-    resisted: resistedSlugs,
-    durations: grantDurations,
-    resources: resourcesGranted,
-    tagPoints: tagPointsGranted,
-  } = resolveConsumeGrants(resolveAgainst, heldSlugsOf(target.tags), ladder, resistSlugs);
+  // One resolve per unit eaten, against what the eater WILL hold after the
+  // ones before it — so the third drink climbs the ladder the first two
+  // started, and a status granted once is not granted again.
+  const grantSlugs = [];
+  const climbedFrom = [];
+  const resistedSlugs = [];
+  const grantDurations = {};
+  let resourcesGranted = 0;
+  let tagPointsGranted = 0;
+  {
+    const willHold = heldSlugsOf(target.tags);
+    for (let i = 0; i < n; i++) {
+      const g = resolveConsumeGrants(resolveAgainst, willHold, ladder, resistSlugs);
+      grantSlugs.push(...g.slugs);
+      climbedFrom.push(...g.removes);
+      resistedSlugs.push(...g.resisted);
+      Object.assign(grantDurations, g.durations);
+      resourcesGranted += g.resources;
+      tagPointsGranted += g.tagPoints;
+      for (const slug of g.removes) willHold.delete(slug);
+      for (const slug of g.slugs) willHold.add(slug);
+    }
+  }
+
+  // Hunger (db/lib/hunger.js). What ONE unit restores: a dish sums its own
+  // mealHunger plus every ingredient's; anything else is its own figure (0
+  // for anything that isn't food at all). At a full meter food is refused
+  // (unless Glutton), and the slider stops at the unit that fills it. The
+  // Hungerless may eat, but food does nothing for them — no hunger, no mood.
+  const perUnit = unitHungerFor(held.tag, ingredientTags);
+  const isFood = perUnit > 0;
+  const targetSlugs = heldSlugsOf(target.tags);
+  const hungerless = targetSlugs.has(HUNGERLESS_SLUG);
+  const glutton = targetSlugs.has(GLUTTON_SLUG);
+  const eatRefusal = (hungerValue) => {
+    if (!isFood) return null;
+    const max = eatMaxFor({ hungerValue, perUnit, held: n, glutton, hungerless });
+    if (max === 0) return "You're too full to eat that.";
+    if (max < n) return "You can't eat that many right now.";
+    return null;
+  };
+  {
+    const refusal = eatRefusal(target.hungerValue ?? HUNGER_MAX);
+    if (refusal) throw new UserError(refusal);
+  }
 
   // The rungs the climb clears — Tipsy coming off as Wasted goes on. Built
   // INSIDE the transaction below, once the poisoned draw is known (fix
@@ -945,22 +1001,24 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
   // EVERYTHING ELSE takes the largest single figure, never a sum — Bliss is
   // one drink, and Sweets is a treat rather than a treat plus a meal.
   const isDish = ingredientTags.length > 0 || held.tag.mealMood != null;
-  // The 0-100 hunger meter (db/lib/hunger.js): a dish sums its own mealHunger
-  // plus every ingredient's; anything else is whatever foodHungerFor makes of
-  // the single tag being eaten (0 for anything that isn't food at all).
-  const hungerRestored = isDish
-    ? foodHungerFor(held.tag) + ingredientTags.reduce((s, t) => s + foodHungerFor(t), 0)
-    : foodHungerFor(held.tag);
-  const moodTerms = isDish
-    ? dishMoodTerms(held.tag.mealMood, ingredientTags.map((t) => t.cooked?.mood ?? 0))
-    : hungerRestored > 0
-      ? rawFoodMoodTerms(held.tag.cooked?.mood ?? 0)
-      : null;
+  const hungerRestored = hungerless ? 0 : perUnit * n;
+  // Food does nothing to a Hungerless character's dial either (the doc).
+  const foodMood = hungerless && isFood;
+  const moodTerms = foodMood
+    ? null
+    : scaleTerms(
+        isDish
+          ? dishMoodTerms(held.tag.mealMood, ingredientTags.map((t) => t.cooked?.mood ?? 0))
+          : isFood
+            ? rawFoodMoodTerms(held.tag.cooked?.mood ?? 0)
+            : null,
+        n,
+      );
   // Heroin and Changa do not move the dial, they put it at the top. A delta
   // cannot say that -- +82 from a frightened character still lands short of
   // Ecstatic -- so these two skip the relief arithmetic entirely.
-  const moodToMax = !moodTerms && consumeSetsMoodToMax(held.tag.slug);
-  const moodRelief = moodTerms || moodToMax ? 0 : consumeReliefFor(held.tag.slug, grantSlugs);
+  const moodToMax = !foodMood && !moodTerms && consumeSetsMoodToMax(held.tag.slug);
+  const moodRelief = foodMood || moodTerms || moodToMax ? 0 : consumeReliefFor(held.tag.slug, grantSlugs) * n;
 
   // What the eater is told, and the only thing they are told: a dish names
   // its tastes and never its ingredients. `line` is returned to the client,
@@ -974,7 +1032,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
           taste: t.cooked?.taste ?? "",
           adjective: t.cooked?.tasteForm === "adjective",
         })),
-      ])
+      ], n)
     : null;
   let grantedNames = [];
   let resourcesGrantedOut = 0;
@@ -1061,7 +1119,21 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
     // (and the very same resists filter) rather than a second mechanism, so
     // Iron Constitution shrugs off a forced poison exactly like it shrugs off
     // a food's own grant.
-    const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, character.id, tagId, 1);
+    // Re-checked under the lock: the stack or the meter may have moved since
+    // the read above (another tab, the turn close).
+    if (n > 1 || isFood) {
+      const fresh = await tx.characterTag.findUnique({
+        where: { characterId_tagId: { characterId: character.id, tagId } },
+        select: { quantity: true },
+      });
+      if (!fresh || fresh.quantity < n) throw new UserError("You don't have that many.");
+      if (isFood) {
+        const meter = await tx.character.findUnique({ where: { id: target.id }, select: { hungerValue: true } });
+        const refusal = eatRefusal(meter?.hungerValue ?? HUNGER_MAX);
+        if (refusal) throw new UserError(refusal);
+      }
+    }
+    const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, character.id, tagId, n);
     let poisonDraw = null;
     if (poisonedTaken > 0 && poisonPayload) {
       const poisonTag = await tx.tag.findUnique({
@@ -1148,14 +1220,14 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
     await applyHiddenCures(tx, target.id, held.tag.slug);
     for (const ing of ingredientTags) await applyHiddenCures(tx, target.id, ing.slug);
     // The hunger meter (db/lib/hunger.js): one atomic, clamped write so a
-    // concurrent write can never push it past HUNGER_MAX, then the band
-    // clean-up — eating enough clears Hungry/Starving the instant it happens
-    // rather than waiting for the next turn close (the doc's literal rule).
+    // concurrent write can never push it past HUNGER_MAX, then the
+    // descriptor moves with it — Hungry to Full the moment you eat enough,
+    // not at the next turn close.
     if (hungerRestored > 0) {
       const [row] = await tx.$queryRaw`
         UPDATE "Character" SET "hungerValue" = LEAST(${HUNGER_MAX}, "hungerValue" + ${hungerRestored})
         WHERE "id" = ${target.id} RETURNING "hungerValue" AS after`;
-      await clearHungerBands(tx, target.id, row?.after ?? 0);
+      await syncHungerDescriptor(tx, target.id, { hungerValue: row?.after ?? 0, hungerless });
     }
     if (moodTerms?.length) await applyMoodTerms(tx, target.id, moodTerms);
     else if (moodToMax) await setMood(tx, target.id, MOOD_MAX);
@@ -1237,6 +1309,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
       details: {
         tagId,
         tagName: held.tag.name,
+        quantity: n > 1 ? n : undefined,
         restore,
         granted: granted.map((g) => g.tagName),
         resourcesGranted: allResourcesGranted,
@@ -1258,7 +1331,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice }
         // — this never rides along on a player-facing response.
         resisted: allResisted.length ? allResisted : undefined,
         poisoned: poisonDraw
-          ? { poisonTagId: poisonDraw.tag.id, poisonName: poisonDraw.tag.name }
+          ? { poisonTagId: poisonDraw.tag.id, poisonName: poisonDraw.tag.name, count: poisonedTaken > 1 ? poisonedTaken : undefined }
           : undefined,
       },
     });

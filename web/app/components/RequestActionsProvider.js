@@ -58,6 +58,10 @@ export default function RequestActionsProvider({
   // examineActions.js refuses with the same sentence.
   examineBlocked = null,
   hasWorkshop = false,
+  // A kitchen where you stand — a Lavish meal needs one (COOKING.md).
+  atKitchen = false,
+  // The Consume slider's top end per held item (web/lib/eatLimits.js).
+  eatMax = {},
   canHeal = false,
   healsLeft = null,
   // Saint's Perform Miracle (docs/tags.yaml `saint:`): two free instant cures a
@@ -192,7 +196,7 @@ export default function RequestActionsProvider({
   // "mine" or "gather" — the label, help and confirm the button wears, keyed
   // into db/lib/gathering.js by the sheet page off the zone stood in.
   workVerb = "mine",
-  // The Farms placeholder (db/lib/soilery.js). Same posture as Extract just
+  // The Farm button (db/lib/soilery.js). Same posture as Extract just
   // above: whether this ground is a Soilery is a fact about where you're
   // standing, resolved server-side in character/page.js. `farmBlocked` is
   // farmRefusalFor()'s own sentence — the same one farmRequestImpl throws on
@@ -200,8 +204,6 @@ export default function RequestActionsProvider({
   canSeeFarm = false,
   canFarm = false,
   farmBlocked = null,
-  farmMaxCrops,
-  fieldWarning = null,
   // Whether the open turn is a whole day (db/lib/turnClock.js#isDayLongTurn). Wording only: a dialog that says "the day"
   // says "the turn" on a shorter game. Defaults to true, so a page that never passes it keeps the old sentence.
   dayLongTurn = true,
@@ -374,8 +376,6 @@ export default function RequestActionsProvider({
     canRead,
     resources,
     carry,
-    farmMaxCrops,
-    fieldWarning,
     dayLongTurn,
     transferParties,
     lootTargets,
@@ -430,6 +430,8 @@ export default function RequestActionsProvider({
     craftAllowances,
     deathMaskCorpses,
     hasWorkshop,
+    atKitchen,
+    eatMax,
   };
   // Read through a ref by `open`, which is memoized and would otherwise hold
   // the first render's rosters forever — the pattern Modal.js uses for

@@ -34,7 +34,6 @@ const ITEM_VERBS = [
   { mode: "mine", match: { slug: "mining-helmet" } },
   // An equipped shovel makes a burial cheaper (character/actions/corpse.js).
   { mode: "bury", match: { slug: "shovel" } },
-  { mode: "farm", match: { suffix: "-seed-bag" } },
   { mode: "trumpet", match: { slug: "trumpet" } },
   { mode: "horn", match: { slug: "deep-beast-horn" } },
 ];

@@ -36,7 +36,8 @@ import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { applyMood, DESIRE_RELIEF_PER_POINT } from "@lifeweb/db/lib/mood";
 import { HUNGER_MAX, hungerDm } from "@lifeweb/db/lib/hunger";
-import { clearHungerBands } from "@lifeweb/db/lib/hungerBands";
+import { syncHungerDescriptor } from "@lifeweb/db/lib/hungerDescriptor";
+import { HUNGERLESS_SLUG } from "@lifeweb/db/lib/constants";
 import { syncVampireBandsNow } from "@lifeweb/db/lib/vampireBands";
 import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireReview";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
@@ -371,8 +372,8 @@ async function setCurseOverrideImpl({ characterId, override }) {
 }
 
 // "Fed them" — the Dev Panel's Feed button. Sets the 0-100 hunger meter
-// (db/lib/hunger.js) straight to full and clears whatever band tags it left
-// behind, in one microaction: no tag-op pair to hand-roll any more (the old
+// (db/lib/hunger.js) straight to full and swaps their descriptor to Full,
+// in one microaction: no tag-op pair to hand-roll any more (the old
 // drop-Hungry/grant-Ate-Meal gesture, from before hungerValue existed).
 async function feedCharacterImpl({ characterId }) {
   const session = await requireGm();
@@ -387,12 +388,13 @@ async function feedCharacterImpl({ characterId }) {
       where: { id: characterId },
       data: { hungerValue: HUNGER_MAX, starvingSinceTurn: null },
     });
-    // Redundant with the update above for THIS character (hungerValue is
-    // already at HUNGER_MAX by the time this runs), but it's what actually
-    // deletes the held Hungry/Starving rows — the same helper the consume
-    // path uses (db/lib/hungerBands.js), so the two can never disagree about
-    // what "cleared" means.
-    await clearHungerBands(tx, characterId, HUNGER_MAX);
+    // The same helper the consume path uses (db/lib/hungerDescriptor.js), so
+    // the two can never disagree about which descriptor a full meter wears.
+    const hungerless = await tx.characterTag.findFirst({
+      where: { characterId, tag: { slug: HUNGERLESS_SLUG } },
+      select: { tagId: true },
+    });
+    await syncHungerDescriptor(tx, characterId, { hungerValue: HUNGER_MAX, hungerless: Boolean(hungerless) });
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,

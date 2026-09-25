@@ -11,6 +11,7 @@ import { describeEquipFit } from "@lifeweb/db/lib/equipSlots";
 import DesireUnlocks from "./DesireUnlocks";
 import ChipText from "./ChipText";
 import PaperSheet from "./PaperSheet";
+import TagName from "./TagName";
 
 // Everything a tag has to say about itself, as one block. TagChip.js renders it inside a
 // HoverCard, TagRow.js renders it inline, so the two can never disagree about what a tag is.
@@ -96,7 +97,7 @@ export default function TagDetails({
       {showName && (
         <div className="flex items-start justify-between gap-2">
           <strong>
-            {tag.name}
+            <TagName tag={tag} />
             {stack ? ` ×${stack}` : ""}
             {poisonMarker && <span className="text-muted"> · smells wrong</span>}
           </strong>

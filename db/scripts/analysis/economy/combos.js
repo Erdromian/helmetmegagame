@@ -215,14 +215,11 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
       needs: a.skillPoints > 0 ? ["prospecting"] : [],
       pick: true, // the gate is a held pickaxe: a creation pick (its pointCost), or a smith makes their own
     }));
-  // The best farm on plain ground, and the same with Fertilizer (a pick with its own pointCost, so it has to be bought).
-  // Cash crops only: a food crop is valued at Ration Box parity with no cap on how much the town eats, a ceiling,
-  // so like a dish it does not compete for a Move here.
-  const farmActs = activities.filter((a) => a.kind === "farm" && !a.fert && !a.foodValued).sort((x, y) => y.perAction - x.perAction);
+  // Nothing left to farm for cash: the Soilery rework left exactly one crop, Foodstuffs, and it never
+  // sells — every farm row is `foodValued` now (Ration Box parity with no cap on demand, a ceiling), so
+  // Farm no longer competes for a Move in this ¢-mixing planner, the same reason a dish never has
+  // (below, craftPool). `farmZone` is still the map site other tabs (transport.js) place the harvest at.
   const farmZone = map.sites.farm[0];
-  const farmVerb = { id: farmActs[0].id, letter: "F", label: farmActs[0].name, zone: farmZone, value: farmActs[0].perAction, fatigue: "farm", needs: ["soilery"] };
-  const fertAct = activities.find((a) => a.fert && a.id === `${farmActs[0].id}-fert`);
-  const farmVerbFert = fertAct ? { id: fertAct.id, letter: "F", label: fertAct.name, zone: farmZone, value: fertAct.perAction, fatigue: "farm", needs: ["soilery", "fertilizer"] } : null;
   const refineAct = activities.find((a) => a.id === "factory:refine-supplied");
   const refineZone = map.sites.refine[0];
   // A cut and a refine must share a zone: the lump is cut the same turn it is refined.
@@ -258,8 +255,6 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   // ---- each verb on its own ----
   const bestMine = mineVerbs.filter((v) => v.needs.length).sort((a, b) => b.value - a.value)[0];
   const aloneRows = [
-    { label: "Farm only", verbs: [farmVerb] },
-    ...(farmVerbFert ? [{ label: "Farm only, with Fertilizer", verbs: [farmVerbFert] }] : []),
     { label: "Refine only", verbs: [refineVerb] },
     { label: `Mine only (${bestMine.label.replace("Mine — ", "")})`, verbs: [bestMine] },
   ];
@@ -279,18 +274,16 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
   };
   const loadouts = [];
   const verbsOf = new Map();
+  // Soilery is not one of the dimensions any more: it earns food, not ¢, so it has nothing to add to a
+  // ¢-mixing loadout (see the comment on farmZone above).
   for (const pickaxe of [0, 1])
    for (const prospecting of [0, 1])
-    for (const soilery of [0, 1])
-     for (const fert of soilery && farmVerbFert ? [0, 1] : [0])
       for (const crafting of [0, 1])
         for (const smith of [0, 1, 2])
           for (const brew of [0, 1, 2, 3]) {
             const picked = [
               ...(pickaxe ? ["pickaxe"] : []),
               ...(prospecting ? ["prospecting"] : []),
-              ...(soilery ? ["soilery"] : []),
-              ...(fert ? ["fertilizer"] : []),
               ...(crafting ? ["crafting"] : []),
               ...tiers.smithing[smith],
               ...tiers.brewing[brew],
@@ -318,11 +311,10 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
               });
             const verbList = [
               ...mined,
-              ...(soilery ? [fert ? farmVerbFert : farmVerb] : []),
               refineVerb,
               ...(craft ? [{ id: "craft", letter: "C", zone: null, value: craftValue(craft), fatigue: null }] : []),
             ];
-            const key = `${prospecting}${soilery}${fert}${hasPick ? 1 : 0}|${craft?.slug ?? "-"}|f${forged ? smith : 0}`;
+            const key = `${prospecting}${hasPick ? 1 : 0}|${craft?.slug ?? "-"}|f${forged ? smith : 0}`;
             verbsOf.set(picked.join("+"), { verbList, key });
             loadouts.push({
               skills: picked.length ? picked.map((s) => bySlug.get(s)?.name ?? s) : ["no skills"],
@@ -354,7 +346,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
     return { skills: found.skills, points: found.points };
   };
   const crowd = [seats, seats * 2, seats * 4, seats * 10, seats * 20];
-  const seatSensitivity = [[], ["soilery"], ["soilery", "smithing-skilled"]]
+  const seatSensitivity = [[], ["crafting"], ["prospecting", "smithing-skilled"]]
     .map((picked) => ({ info: sensitivityOf(picked), entry: verbsOf.get(picked.join("+")) }))
     .filter((x) => x.info)
     .map(({ info, entry }) => ({
@@ -387,7 +379,9 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
       "Farm to the Depot": between(farmZone, "undertown"),
       "Factory to the Depot": between(refineZone, "undertown"),
     },
-    verbs: [farmVerb, ...(farmVerbFert ? [farmVerbFert] : []), refineVerb, ...mineVerbs].map((v) => ({ id: v.id, label: v.label, zone: v.zone, value: v.value, fatigue: v.fatigue, needs: v.needs })),
+    // Farm is not here: it earns food, not ¢, so it has no real-money value for this table any more
+    // (see the comment on farmZone above). Its skill points and fatigue cycle are on the Food page instead.
+    verbs: [refineVerb, ...mineVerbs].map((v) => ({ id: v.id, label: v.label, zone: v.zone, value: v.value, fatigue: v.fatigue, needs: v.needs })),
     alone,
     loadouts,
     staircase,

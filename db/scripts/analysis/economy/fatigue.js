@@ -62,16 +62,16 @@ const VERBS = [
     id: "farm",
     label: "Farm",
     refused: (slugs) => soilery.farmRefusalFor([SOILERY_SLUG, ...slugs].map((s) => ({ tag: { slug: s } })), false) != null,
-    // db/lib/moveEffects.js `farmed`: the same applyFatigueStep rung Mine and Refine take.
-    // Farming granted Exhausted OUTRIGHT until 2026-09-21; it is one ladder for every verb now.
+    // db/lib/moveEffects.js `farmed` calls grantExhaustedOutright (db/lib/fatigue.js), the Soilery Rework's
+    // own rule: a day in the fields grants Exhausted OUTRIGHT, with no lesser Tired rung to climb through
+    // first. Exhausted then wears off into Tired, and both refuse the Farm button (db/lib/soilery.js#farmRefusalFor),
+    // so a farmer farms one turn in three.
     grant: (held, turn, dur) => {
-      const target = ladder.nextFatigueSlug(new Set(held.has(TIRED_SLUG) ? [TIRED_SLUG] : []));
-      if (!target) return;
       held.delete(TIRED_SLUG);
-      if (!held.has(target)) held.set(target, expiryFrom(turn + 1, dur[target]));
+      if (!held.has(EXHAUSTED_SLUG)) held.set(EXHAUSTED_SLUG, expiryFrom(turn + 1, dur[EXHAUSTED_SLUG]));
     },
-    source: "db/lib/soilery.js, db/lib/moveEffects.js, db/lib/fatigue.js",
-    mechanism: "Steps the ladder like Mine: Tired, then Exhausted. Only Exhausted refuses the next press.",
+    source: "db/lib/soilery.js, db/lib/moveEffects.js, db/lib/fatigue.js#grantExhaustedOutright",
+    mechanism: "Grants Exhausted outright, no Tired rung first. Both Exhausted and Tired refuse the next press.",
   },
 ];
 

@@ -584,7 +584,9 @@ documents:
       As a {tag:thrall}, you must taste eternal vigour from your vampiric master once every 3 days ({tag:vampire-blood-addict}). If you do not, you will perish. You are encouraged to serve them for your own self-preservation, but you can choose to sacrifice yourself to betray them if you would like.
   # Bascinet's text, from E:\Bascinet\V3\Skill Documents\Farming.docx.
   # Reached by the Soilery skill (the farming skill), and by the Soiler's
-  # doc_elements, which pointed at this key while it was still a stub.
+  # doc_elements, which pointed at this key while it was still a stub. The
+  # seed-bag sentence and the stable's feed were brought in line with the
+  # Soilery Rework doc (Soilery/Soilery Rework.docx).
   farming:
     name: Farming
     public: false
@@ -593,9 +595,9 @@ documents:
     description: |-
       Growing food is an arduous process and can only be done in the soilery.
 
-      Consume a seed bag to be able to sow certain crops for a turn, then plant them with the farm action.
+      Plant crops with the farm action. Each one that doesn't wither comes in as {tag:foodstuffs} when the turn is pushed, and the work leaves you {tag:exhausted}.
 
-      The soilery has a stable where you can keep {tag:arelitz}. Leaving food for them will nourish them to produce eggs, and eventually, more arelitz.
+      The soilery has a stable where you can keep {tag:arelitz}. Leaving Foodstuffs for them will nourish them to produce eggs, and eventually, more arelitz.
 
   # Referenced by roles via doc_elements but not yet written. Stubs keep the
   # reference resolvable (same posture as Guard Duty above) — fill in the

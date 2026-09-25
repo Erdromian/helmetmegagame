@@ -19,7 +19,14 @@ disagrees with this section, this section is right.
   is unchanged.
 - **The You plate** sits in the bottom-left corner, pinned in the foot of the
   places column (`next/YouPlate.js`). On a phone it is at the foot of the ≡
-  drawer.
+  drawer. It carries **no tag chips** (the Soilery Rework doc: Ate Meal and
+  every other status that used to sit there is on the sheet instead). In
+  their place it says the character's **descriptors** as `.kv` rows — today
+  just **Hunger**: Full, Hungry or Starving, toned, with the doc's line as its
+  hover title (`YouDescriptors.js`). `chat/page.js` works them out on the
+  server (`web/lib/descriptors.js#descriptorsFor`) and strips `hungerValue`
+  before the sheet crosses, so the number never reaches a browser. A
+  Hungerless character has no Hunger row.
 - **A shut zone hides every row**, unread ones included, so a GM can put a
   zone away. Its divider brightens and carries the count of lines addressed
   to you, or a dot when there are none. **A shut section** (Here, Rooms, …)
@@ -1577,9 +1584,10 @@ a 48px head and a one-line composer:
      rows — **Mood** (the band word, `db/lib/mood.js#bandOf`), **Resources**
      (`N ⬢`), **Purse** (`N ¢`, `web/lib/purse.js#obolsOf` — the SAME reducer
      `LedgerBand.js`'s ⬢ tile counts obols with, lifted out to one copy for
-     both), **Carrying** (`used/cap lb`) — then `StatusStrip.js`'s own load
-     meter and Status/Health tag chips, called with `numbers={false}` since
-     the kv rows already said Resources and Carrying in words.
+     both), **Carrying** (`used/cap lb`), then the descriptor rows (§0,
+     **Hunger**) — then `StatusStrip.js`'s own load meter, with no chips
+     (`tags={[]}`), and `numbers={false}` since the kv rows already said
+     Resources and Carrying in words.
   3. **`Turn`** block — `TurnCard.js`, reskinned to the mockup's
      `.turn-line`/`.warn`/`.quote`: the label and countdown on one line
      (`Moves close` in `.warn` red when there is a cutoff, including "locked"

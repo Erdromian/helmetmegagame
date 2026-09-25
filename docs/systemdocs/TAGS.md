@@ -47,8 +47,7 @@ Three levels:
   absent from `docs/taggroups.yaml` and no surviving tag sits in it, but
   these three stay listed there, so the rows survive; don't reuse those
   slugs and don't put anything back in them. `items-seeds` (seed bags and
-  sowing tickets, `SOILERY.md`) is the newest group, split off `items-food`
-  since a raw seed packet isn't a meal.
+  sowing tickets) was removed with them by the Soilery Rework (`SOILERY.md`).
 - **Tag** — the catalog entry itself.
 
 ## 2. Master sources: `docs/tags.yaml` and `docs/taggroups.yaml`
@@ -1277,21 +1276,16 @@ of a two-turn tag lose one every two turns.
 
 `consumable` marks a tag a player can **use up** from their own character
 sheet, and `consumesInto` (a list of tag *slugs*) is what it turns into. A
-meal is `consumable` with `consumesInto: [ate-meal]`; `ate-meal` carries
-`durationTurns: 1` and expires through the ordinary turn-expiry sweep, the
-same as `hungry`/`starving`/`tired` — since the hunger rework it is read, not
-consumed by hand: `db/lib/hunger.js#foodHungerFor`'s fallback treats "grants
-`ate-meal`" as the signal that an unpriced item still counts as food, and
-Nobility's own marker (`dined`, granted alongside it by
-`fine-meal`/`lavish-meal`, no `durationTurns` at all) is what the mood pass
-actually clears each close (`MOOD.md`). Nothing here is meal-specific: the
-one rule that *is* about meals (a Fine Meal cheers everyone but a noble) is
-expressed as catalog data in `docs/tags.yaml`, not as code.
+meal turns into nothing: what eating does to hunger is its `mealHunger` or
+`cooked.hunger` (`TURN-ENGINE.md` §5), not a granted tag. There used to be an
+`ate-meal` marker and Nobility's `dined`; the Soilery Rework removed both.
 
 Five rules carry it:
 
-- **Always exactly one unit.** Consuming from a stack of three meals takes
-  one, so there is deliberately no quantity field in this path at all.
+- **One unit, unless it is a stack you are eating yourself.** Consume takes
+  a quantity for an ordinary stackable consume on your own sheet, capped for
+  food by how much it takes to fill you (`REQUESTS.md` §4); every special
+  consume and every administered dose takes one.
 - **Slugs, not a relation, specifically so a slug may repeat.** Listing one
   twice is the only way to ask for two of something — and that only
   multiplies for a `stackable` target; a non-stackable repeat collapses to
@@ -1312,7 +1306,7 @@ Five rules carry it:
 
   ```yaml
   consumesInto:
-    - ate-meal
+    - tipsy
     - slug: night-vision
       unlessTags: [blind]
   ```
@@ -1346,9 +1340,7 @@ Five rules carry it:
   `{ "<slug>": N }`, null for almost every tag), resolved by the same
   `resolveConsumeGrants()` and applied by `grantTagSlugs()`, which prefers the
   override and falls back to the tag's own duration. An override on a target
-  that has no duration of its own is legal and simply gives it one — `dined`
-  (Nobility's marker, §5b above) is the tag that claim actually describes:
-  no `durationTurns`, cleared by hand by the mood pass instead of the sweep.
+  that has no duration of its own is legal and simply gives it one.
 
 Consuming applies and writes one `AuditLog` row in the same transaction —
 there is no approval step, no reason, and **no Undo** any more (`REQUESTS.md`
@@ -1388,7 +1380,7 @@ Purse/Supply Kit/Skinned Cave Rat tags that use them):
 - **`consumesIntoOneOf`** (`Json?`) — a parallel array to `consumesInto`,
   same length and order, for an even random pick between alternatives —
   `{ oneOf: [...] }` in `docs/tags.yaml`, the same shape `expiresInto` (§5c)
-  already uses. `Skinned Cave Rat` is the first user: 50/50 `ate-meal` or
+  already uses. `Skinned Cave Rat` is the first user: 50/50 `nothing` or
   `vomiting`. `resolveConsumeGrants()` rolls the real pick in the server
   action, and nothing rolls anywhere else — the player is told neither the
   alternatives nor which one they got.
@@ -2084,18 +2076,18 @@ access-controlled: `/api/documents` ships every document's *name* but a body
 only to a reader who may open it, so a chip for a paper you have not been
 handed renders inert rather than either vanishing or leaking.
 
-`hungry` and `starving` are the first tags granted and cleared entirely by
-automatic game logic rather than by a player, a GM, or a starting package —
-`db/lib/hungerPass.js` is their only writer, and `db/lib/gambitModifier.js`
-is the reader that turns them into a Gambit penalty (`db/lib/hunger.js` is
-the pure module both depend on for the 0-100 meter's thresholds and decay).
+`full`, `hungry` and `starving` — the hunger descriptors — are granted and
+cleared entirely by automatic game logic rather than by a player, a GM, or a
+starting package: `db/lib/hungerPass.js` at the close and
+`db/lib/hungerDescriptor.js` when eating moves the meter, exactly one held at a
+time and none by the Hungerless, with no clock. `db/lib/gambitModifier.js` turns
+Starving into a Gambit penalty (`db/lib/hunger.js` is the pure module all of
+them depend on for the meter's bands and decay). All three are `visible: false`:
+nobody inspecting you sees how hungry you are.
 `db/lib/constants.js` holds the slugs so no file hardcodes a string.
 `hungerless` and `fast-metabolism` are traits instead — held from creation
 or a GM grant, never written by the pass itself, only read by it to gate the
-decay. `ate-meal` is neither: since the hunger rework it's a standing
-marker, granted by an ordinary `consumesInto` on a meal tag like any other
-grant, and read (not written) only by `db/lib/hunger.js#foodHungerFor`'s
-unpriced-food fallback — the hunger pass never touches it at all.
+decay.
 
 `catatonic-afk` is a third automatically-managed tag: `db/lib/catatonicPass.js` (after
 `GameConfig.catatonicTurns` idle turns) and

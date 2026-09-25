@@ -279,7 +279,7 @@ you pick the right doc — they are never enough to change code with.
 | [`GAMEMASTERS.md`](docs/systemdocs/GAMEMASTERS.md) | You're touching the zone colour code, **which zones a GM can see** (`GmZoneView`, the `GM: <Zone>` roles, `/zone`), or who can see the audit log |
 | [`MINING.md`](docs/systemdocs/MINING.md) | You're touching the Mine button — the two rates and what Prospecting actually buys, the prospecting loot table (in `db/lib/cavingLoot.js`, beside the Caving Die's), a Location's `mining:` coefficient and its drift, the tools (`miningBonus`), or the Examine button |
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
-| [`SOILERY.md`](docs/systemdocs/SOILERY.md) | You're touching Farming — the Farm button, seed bags and their sowing licences, the wither roll, the `soilery` Location attribute, Fertilizer, or **anything that asks what eating restores** (`db/lib/hunger.js`) |
+| [`SOILERY.md`](docs/systemdocs/SOILERY.md) | You're touching Farming — the Farm button, Foodstuffs, the wither roll, the `soilery` Location attribute, Fertilizer, or moving a running game onto the Soilery Rework (`db:convert-soilery`). What eating restores and the hunger descriptors are `TURN-ENGINE.md` §5 |
 | [`ARELITZ.md`](docs/systemdocs/ARELITZ.md) | You're touching arelitz — the Stable's turn pass, `Room.stable`, breeding/hatching/maturing, breaking one in (the Gambit), butchering livestock, or mount mechanics generally (`db/lib/mounts.js`). Horses are gone; do not add one back |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
 | [`COLLAR.md`](docs/systemdocs/COLLAR.md) | You're touching the bomb collar — the loose `bomb-collar` item against the `bomb-collar-locked` trait, Apply Collar's consent handshake, the Collar Key, the Remote Detonator and the gib it causes, or **the rule that no collar picker ever says who is wearing one** |
@@ -1628,10 +1628,10 @@ might need to reach a real environment:
   `INTERNAL_KEYS` rather than as a knob, so `/gm/dev` no longer offers a switch
   for something nothing reads. Do not wire a nickname write back up.
   `Character.hungerStreak` is the newest of them, orphaned when the 0–100
-  hunger meter replaced the streak it counted (`SOILERY.md`). Hunger is
-  `Character.hungerValue` now, and the Gambit penalty comes off the
-  `hungry`/`starving` tags rather than off a streak — nothing reads the column,
-  and nothing should start.
+  hunger meter replaced the streak it counted (`TURN-ENGINE.md` §5). Hunger is
+  `Character.hungerValue` now, and the Gambit penalty comes off the `starving`
+  descriptor rather than off a streak — nothing reads the column, and nothing
+  should start.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning

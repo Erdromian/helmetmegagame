@@ -24,7 +24,7 @@ const mutilate = require("../../../lib/mutilate");
 const godflesh = require("../../../lib/godflesh");
 const soilery = require("../../../lib/soilery");
 const refinery = require("../../../lib/refinery");
-const { ARELITZ_EGG_SLUG, ARELITZ_SLUG } = require("../../../lib/constants");
+const { ARELITZ_EGG_SLUG, ARELITZ_SLUG, FOODSTUFFS_SLUG } = require("../../../lib/constants");
 
 const REPO = path.resolve(__dirname, "../../../..");
 
@@ -190,7 +190,9 @@ function buildSources({ list, bySlug, players }) {
   const livestockOutputs = new Map();
   for (const [animal, outs] of Object.entries(livestock)) for (const o of outs) livestockOutputs.set(o.slug, [...(livestockOutputs.get(o.slug) ?? []), animal]);
   const organSlugs = new Set(mutilate.MUTILATE_PARTS.map((p) => p.itemSlug));
-  const cropSlugs = new Set(soilery.CROPS.map((c) => c.crop));
+  // One crop now: the Soilery rework replaced the whole crop table with a single Foodstuffs output
+  // (db/lib/soilery.js#reapFoodstuffs). Kept as a set so the rest of this function's shape survives.
+  const cropSlugs = new Set([FOODSTUFFS_SLUG]);
   const corpseGroup = list.filter((t) => t.group === "items-corpse").map((t) => t.slug);
 
   // Which slugs may cut Godflesh? Ask the game's own function.
@@ -322,7 +324,7 @@ function buildSources({ list, bySlug, players }) {
 
     // Producers
     if (cropSlugs.has(slug)) {
-      routes.push({ kind: "farm", label: `Farm (Soilery), seed bag ${get(`${slug}-seed-bag`)?.depotPrice ?? "?"} ¢`, rank: 2 });
+      routes.push({ kind: "farm", label: "Farm (Soilery), no seed cost", rank: 2 });
     }
     if (slug === godflesh.GODFLESH_SLUG) {
       const toolRank = Math.min(...extractTools.map((s) => sub(s)));

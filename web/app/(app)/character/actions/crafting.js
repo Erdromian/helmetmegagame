@@ -54,6 +54,8 @@ import {
   outOfReachMessage,
 } from "@/lib/transferReach";
 import { heldSlugsOf } from "@/lib/consumeGrants";
+import { cleanMealName, decorateMealName, cleanMealTaste, needsKitchen, MEAL_DESCRIPTION_MAX } from "@lifeweb/db/lib/meals";
+import { hasAttribute, KITCHEN_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import {
   WORKSHOP_EQUIPMENT_SLUG,
@@ -641,6 +643,33 @@ export function payerNotice(character, payer, cost, tag) {
   );
 }
 
+// A MEAL (COOKING.md; the Soilery Rework doc): the cook must name it (letters only) and describe
+// it, may pick one base taste, and a Lavish one needs a kitchen where they stand. Everything else a
+// meal needs — the Foodstuffs, the extra ingredients, the Move — is the ordinary Craft path's. The
+// name comes back dressed in the class's symbols, ready to mint.
+async function resolveMealRequest(character, tag, { customName, customDescription, mealTaste }) {
+  const name = cleanMealName(customName);
+  if (!name) throw new UserError("Name your meal. Use letters and spaces only.");
+  const description = cleanCustomText(customDescription, MEAL_DESCRIPTION_MAX);
+  if (!description) throw new UserError("Describe your meal.");
+  if (needsKitchen(tag)) {
+    const location = character.locationId
+      ? await prisma.location.findUnique({ where: { id: character.locationId }, select: { attributes: true } })
+      : null;
+    if (!hasAttribute(location, KITCHEN_ATTRIBUTE)) {
+      throw new UserError(`A ${tag.name} has to be cooked in a kitchen.`);
+    }
+  }
+  const taste = cleanMealTaste(mealTaste);
+  return {
+    name: decorateMealName(tag.mealClass, name),
+    description,
+    literal: true,
+    mealTaste: taste,
+    mealTasteForm: taste ? "adjective" : null,
+  };
+}
+
 export async function craftRequestImpl({
   tagId,
   quantity: rawQuantity,
@@ -654,6 +683,8 @@ export async function craftRequestImpl({
   // Custom-item fields (CRAFTING.md), honored only on a `customizable` recipe. cleanCustomText decides what survives — the dialog priced the +1 ⬢ with the same helper, so client and server can't disagree on whether a whitespace-only name counts.
   customName,
   customDescription,
+  // A meal's one base taste (COOKING.md), off db/lib/meals.js#MEAL_TASTES; anything else is no taste.
+  mealTaste,
   // The builder's line, honored only where placement.inscribable says so.
   inscription,
   // Units the dialog TOLD the player would bill against their Move (0 if shown free). The server refuses to bill more than acknowledged — a stale tab whose free allowance ran out elsewhere gets a retry, not a silent Move charge; "Declining crafts nothing" is enforced here, not just in the dialog.
@@ -705,6 +736,10 @@ export async function craftRequestImpl({
     else itemPlan.spend.push(line);
   }
   const cookedFrom = slotPlan.cookedFrom;
+  // A meal is always minted, under the name its cook gave it (resolveMealRequest above).
+  const meal = tag.mealClass
+    ? await resolveMealRequest(character, tag, { customName, customDescription, mealTaste })
+    : null;
   // The Death Mask binds a SPECIFIC corpse (the group entry above only proved one is held) — resolved out here for the fast fail, marked inside the transaction by takeFace.
   const deathMask =
     tag.slug === DEATH_MASK_SLUG
@@ -759,8 +794,9 @@ export async function craftRequestImpl({
     if (moveCost.kind === "spill")
       await resolveCraftMove(character, openTurn, moveCost);
     // Minted before the transaction (mintCustomCraft says why), unwound after it only if the transaction fails and the row was fresh. A DISH WITH ANYTHING EXTRA IN IT ALWAYS MINTS — what went in is what it does, so it needs its own row even though no cook can put words on one; a meal with no additional ingredient stays the plain catalog row, Depot-listable and out of the Restart Game ephemeral sweep. The minted row is NAMED after the recipe like the base one, so nothing but eating it says what is in it.
-    const grant =
-      custom.active || cookedFrom.length
+    const grant = meal
+      ? await mintCustomCraft(prisma, tag, { ...meal, cookedFrom })
+      : custom.active || cookedFrom.length
         ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
         : null;
     try {
@@ -863,9 +899,11 @@ export async function craftRequestImpl({
           description: "",
           literal: true,
         })
-      : custom.active || cookedFrom.length
-        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
-        : null
+      : meal
+        ? await mintCustomCraft(prisma, tag, { ...meal, cookedFrom })
+        : custom.active || cookedFrom.length
+          ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
+          : null
     : null;
   try {
   await prisma.$transaction(async (tx) => {

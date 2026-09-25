@@ -112,10 +112,10 @@ key on.
 | An unburied body in your Location at turn end | CORPSE | −5 | mood pass |
 | Shot at by a turret and alive, hit or graze, either gun | TURRET | −25 | `turretPass.js#applyTurretShot` |
 | Holds `hungry` at turn end | HUNGER | −5 | mood pass |
-| Holds `starving` at turn end | STARVING | −10 | mood pass (wins over HUNGER; never both) |
+| Holds `starving` at turn end | STARVING | −10 | mood pass (one hunger descriptor at a time, so never both) |
 | Freshly crossed into Hungry this close | HUNGRY_ONSET | −30 | one-time, `hungerPass.js`, not the mood pass |
-| Freshly crossed into Starving this close | STARVING_ONSET | −30 | one-time, `hungerPass.js`, not the mood pass |
-| A noble with no `dined` marker at turn end | NOBLE_MEAL | −10 | mood pass |
+| Freshly crossed into Starving this close | STARVING_ONSET | −30 | one-time, `hungerPass.js`; not charged to somebody who ate Foodstuffs at the close to stay Hungry (`TURN-ENGINE.md` §5a) |
+| Eat a raw Foodstuff (by hand or at the close) | DISGUST | −5 each | `consumeTagRequestImpl`, `hungerPass.js` |
 | Looted while alive | ROBBED | −10 | `lootCharacterRequestImpl` |
 
 **Place classes** come from `placeClassOf(location)`, in this precedence:
@@ -274,7 +274,6 @@ they did before.
 | Eat a **cooked dish** | its own small figure plus its ingredients', §6a | `dishMoodTerms` |
 | Consume a treat — `sugar-candy`, `honey`, `fish-roe`, `pumpkin` | +9 | same |
 | Consume a `cigarette` or a `firecracker` | +9 | same |
-| Consume anything at all that grants `ate-meal` | +6 | same |
 | Fulfil a Desire (player claim or GM award) | +12 per point | both award sites |
 | A confession the die absolved | +17 | `confessionPass.js` |
 | A kiss, once per turn per person | +17, **plus the other person's looks** — `pretty` +6, `beautiful` +12, `seductive` +75 (`KISS.md` §1a) | `applyKissMood` |
@@ -300,8 +299,8 @@ table entirely with the cooking rework; §6a is where they went.
 `fine-meal: 15` and `lavish-meal: 30` are **gone** from `CONSUME_RELIEF`. A
 dish is a MINTED row (docs/systemdocs/COOKING.md) whose slug is
 `custom-craft-…`, so it could never have matched a table keyed by slug — and
-a flat figure could not have said what a dish is now for. `ate-meal: 5` stays
-and is genuinely the floor under every meal.
+a flat figure could not have said what a dish is now for. Ate Meal, which
+used to be a +6 floor under every food, is gone with the Soilery Rework.
 
 `dishMoodTerms(mealMood, ingredientMoods)` prices one instead, and differs
 from `consumeReliefFor` in three ways that are the whole reason it is a
@@ -380,7 +379,7 @@ who goes hungry (−5) and sleeps in a Haven wakes at exactly **0** — the bed
 absorbs the hunger — while a character at +40 in that same Haven only drifts down
 to +8, because there is no room at all. Measuring against the other terms rather
 than against `before` alone is what makes it order-independent, and that matters:
-the nightly pass hands place, drift, HUNGER, BOUND, CORPSE and NOBLE_MEAL to
+the nightly pass hands place, drift, HUNGER, BOUND and CORPSE to
 **one** `applyMoodTerms` call, so a rule that read term order would be deciding
 by array position. What landed comes back as `restorativeApplied`, beside
 `moveApplied` — the answer to "why didn't my Haven night help".
@@ -432,36 +431,26 @@ seat assigns Rough Camper, the Judge assigns Rough Camper, Outsider and Brave.
 
 ## 8. Nobles
 
-`nobility` no longer grants Disappointed. A noble who ends the turn without
-having eaten a fine or lavish meal takes −10 (NOBLE_MEAL, so Brave halves it);
-Hungerless and Dying nobles are exempt. "Ate one this turn" is the hidden
-`dined` status tag that `fine-meal` and `lavish-meal` consume into beside
-`ate-meal`. It has **no `durationTurns`** — a 1-turn grant would be swept at
-position 10 of `TURN_PASSES`, nine passes before the mood pass reads it — so
-the mood pass deletes it itself. Unlike `dined`, `ate-meal` now carries
-`durationTurns: 1` and expires through the ordinary turn-expiry sweep — the
-hunger rework's own correction, `SOILERY.md` §7 — so the two markers are no
-longer cleared the same way, even though they still answer two separate
-questions: `ate-meal` is the whole of whether the hunger pass counts you fed
-(`TURN-ENGINE.md` §5, no ⬢ changes hands over it), `dined` is only whether a
-noble ate *well*, and the −10 below is a mood harm, never a charge.
-The marker is hidden and the sheet shows no Dinner row for it — the old
-Disappointed tracker went with the track, on Bascinet's call. The Merchant now
-starts with Nobility too, and therefore with its 1-point Desire lock.
+`nobility` grants no Disappointed track and, since the Soilery Rework, no
+dinner penalty either. A noble used to take −10 (NOBLE_MEAL) for ending a turn
+without the hidden `dined` marker a fine meal granted; the doc removes every
+"ate recently" tag, so `dined`, Ate Meal and NOBLE_MEAL are all gone. A noble
+is hungry the way anybody is (`TURN-ENGINE.md` §5). The Merchant still starts
+with Nobility, and therefore with its 1-point Desire lock.
 `Character.missedMealStreak` is an orphan column: kept, never read.
 
 ## 9. The turn pass
 
 `db/lib/moodPass.js`, `"mood"` in `TURN_PASSES`, in the slot the phobia pass
-held: **after `hunger`** (it reads the final `hungry`/`starving` bands), **after `carry`**
+held: **after `hunger`** (it reads the final hunger descriptor), **after `carry`**
 (the final sheet) and **before `corpseFollow`**. It used to matter that it also
 ran before `travelArrival`, so a traveller paid the night where they set out
 from; travel lands at once now (`MAP.md` §3), so everybody simply pays the
 night for wherever they ended the day standing — which is also what the
 turrets now read.
 
-Per ALIVE character it gathers the terms — place, drift, HUNGER, BOUND, CORPSE,
-NOBLE_MEAL — and applies them in one write through `applyMoodTerms`, its own
+Per ALIVE character it gathers the terms — place, drift, HUNGER, BOUND and
+CORPSE — and applies them in one write through `applyMoodTerms`, its own
 transaction per character so one bad row cannot roll back a hundred good ones,
 and hands `applyMoodTerms` the row it already loaded (the multiplier slugs and
 this pass's own gates in one filtered read) rather than letting it read the
@@ -469,11 +458,9 @@ sheet again. Somebody already at Fine, in a place that neither lifts nor
 lowers, is skipped without a write — and a `capAtFine` term does not count as
 lifting for that test, because at 0 there is no hole for it to fill. Without
 that exemption every character standing at Fine under a roof would open a
-transaction to compute a delta of zero, which on a full roster is most of them. The `dined` markers are eaten in one
-`deleteMany` **after** the loop, not per character: a pass that dies half-way
-is re-run from the top, and a per-character delete would have charged the
-nobles it had already reached for a dinner they ate. A replay is therefore at
-worst a repeated night, never a wrong direction.
+transaction to compute a delta of zero, which on a full roster is most of them. A pass that dies half-way
+is re-run from the top, and a replay is at worst a repeated night, never a
+wrong direction.
 Corpse Locations are one query for the whole pass (`RoomTag` plus carried
 `CharacterTag` on an unburied `corpseOf`, the death-smell shape). One
 `AuditLog` row, `mood_resolved`, with the summary; the DMs ride back on `dms`
@@ -573,8 +560,8 @@ What had to go was the phobia's involvement at all.
 The kinds are split on purpose. Misfortune that *happens* to you — a shock with
 an author and a moment — pays half back: `WOUND`, `DYING`, `CRUCIFIED`,
 `TORTURED`, `MUTILATED`, `BRANDED`, `BOUND`, `ROBBED`, `TURRET`, `CAVE_TROUBLE`,
-`DEATH_SEEN`. The weather does not: `WILDERNESS`, `CAVE`, `HUNGER`, `CORPSE`,
-`NOBLE_MEAL` simply stop landing rather than becoming a pleasure, because nobody
+`DEATH_SEEN`. The weather does not: `WILDERNESS`, `CAVE`, `HUNGER`, `STARVING`
+and `CORPSE` simply stop landing rather than becoming a pleasure, because nobody
 would call an ever-present cost an incident. `DRIFT` needs no entry (it carries
 `noMultiplier`), `PLACE` harm is already capped at Fine, and relief is untouched
 throughout — this is not a damper on good things.

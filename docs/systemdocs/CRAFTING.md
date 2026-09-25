@@ -497,7 +497,10 @@ That is why the mint is guarded by `custom.active || cookedFrom.length` and
 not by `customizable` alone: taking naming away from cooks leaves the
 ingredient half untouched.
 
-**A mint with no words keeps the base recipe's name**, so a dish is plain
+**A meal is always minted with its cook's own name** (COOKING.md §2: a class,
+a name and description the cook writes, the class's symbols round it), in
+`literal` mode, so it reads exactly as written — "+Scones+", never "Scones
+(Skilled Meal)". Before the Soilery Rework a dish kept its recipe's name, plain
 `Bread` however it was made. It used to be `baseTag.name` plus its
 ingredients' tastes — `Bread (rich spices)` — which is gone: a name is printed
 by every stash panel, Search readout and pickpocket picker there is, so

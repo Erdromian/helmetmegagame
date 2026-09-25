@@ -62,7 +62,7 @@ four 0.25 Alcohol fill one Routine and a spare quarter takes more brewing; a
 |---|---|---|---|---|
 | `bliss` | 0 | 0 (max 2/turn) | `cave-fungus` | `euphoric`, `high` (3t) |
 | `feces` | 0 | 0 (max 2/turn) | — | — |
-| `alcohol` | 0 | 0.25 | `wheat` or `potato`, twice | `tipsy` (and up the ladder — §5a) |
+| `alcohol` | 0 | 0.25 | 2 `foodstuffs` | `tipsy` (and up the ladder — §5a) |
 | `moonshine` | **0** | 0.25 | `godflesh` | `tipsy` (ladder, §5a), `damaged-vision` |
 | `molotov-cocktail` | 1 | 0 (max 2/turn) | `alcohol` | — |
 | `cleaning-powder` | 1 | 0.5 | — | — |
@@ -257,7 +257,7 @@ like any other (CRAFTING.md §2a), so a mask past the ration spills into the
 Move instead of walling.
 
 **The ⬢ cost is per unit, and it multiplies.** Three molotovs in one turn cost
-3 ⬢, not 1. Alcohol itself takes no ⬢ now, only two crops of wheat or potato each. Every yield row in the document carries an `{info:…}` tooltip
+3 ⬢, not 1. Alcohol itself takes no ⬢ now, only 2 Foodstuffs each. Every yield row in the document carries an `{info:…}` tooltip
 saying so, since the table itself has no room to.
 
 ## 5a. The drinking ladder

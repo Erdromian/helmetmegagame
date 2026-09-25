@@ -5,6 +5,7 @@ import { tagWeightLbs } from "@/lib/formatTagWeight";
 import { itemWhere } from "@/lib/itemWhere";
 import TagDetails from "./TagDetails";
 import TagIcon from "./TagIcon";
+import TagName from "./TagName";
 import TagMarks from "./TagMarks";
 import { useIsCoarsePointer } from "./useIsCoarsePointer";
 
@@ -76,7 +77,7 @@ export default function ItemsTable({
                     >
                       <span className="chip" data-tag-category={category ?? undefined}>
                         <TagIcon tag={tag} size={11} />
-                        {tag.name}
+                        <TagName tag={tag} />
                       </span>
                       {stack && <span className="mark">×{stack}</span>}
                       <TagMarks worn={Boolean(ct.equipped || ct.equippedQuantity)} poison={Boolean(ct.poisonMarker)} />

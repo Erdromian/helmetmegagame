@@ -5,7 +5,7 @@
 import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiActions";
 import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
 import { checkWanted } from "@/app/(app)/character/cerberonActions";
-import { extractGodfleshRequest, refineRequest, mineRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
+import { extractGodfleshRequest, refineRequest, mineRequest, farmRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
 import { formatMoveAmount } from "@/lib/craftBudget";
 import { workVerbByKey } from "@lifeweb/db/lib/gathering";
 import BindDialog, { BIND_VERBS } from "./BindDialog";
@@ -26,7 +26,6 @@ import HideoutDialog from "./HideoutDialog";
 import MoveThingsDialog from "./MoveThingsDialog";
 import DestroyDialog from "./DestroyDialog";
 import PackageDialog from "./PackageDialog";
-import FarmDialog from "./FarmDialog";
 import BreakInDialog from "./BreakInDialog";
 import PurchaseDialog from "./PurchaseDialog";
 import HealDialog from "./HealDialog";
@@ -98,6 +97,16 @@ export const INSTANT = {
       confirmLabel: "Refine",
     }),
   },
+  // The Farm button (db/lib/soilery.js): one field, one plan, nothing to choose.
+  farm: {
+    run: () => farmRequest(),
+    confirm: () => ({
+      title: "Farm?",
+      message:
+        "You spend the turn planting 100 crops. Whatever doesn't wither comes in as Foodstuffs when the turn closes. It leaves you Exhausted, and you can't farm again until you've rested.",
+      confirmLabel: "Farm",
+    }),
+  },
   // Mine or Gather: one action, worded for the ground (db/lib/gathering.js).
   // The provider hands the sheet's `workVerb` in; unknown means Mine.
   mine: {
@@ -144,7 +153,6 @@ export const DIALOGS = {
   steal: MoveThingsDialog,
   destroy: DestroyDialog,
   package: PackageDialog,
-  farm: FarmDialog,
   breakin: BreakInDialog,
   purchase: PurchaseDialog,
   heal: HealDialog,

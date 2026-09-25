@@ -44,6 +44,7 @@
     "db:backfill-party-members": "node db/scripts/ops/backfill-party-members.js",
     "db:prune-tags": "node db/scripts/ops/prune-tags.js",
     "db:convert-lecturers": "node db/scripts/ops/convert-lecturers.js",
+    "db:convert-soilery": "node db/scripts/ops/convert-soilery.js",
     "db:hide-authored-stock": "node db/scripts/ops/hide-authored-stock.js",
     "db:resolve-inflight-lessons": "node db/scripts/ops/resolve-inflight-lessons.js",
     "db:collapse-equip-slots": "node db/scripts/ops/collapse-equip-slots.js",

@@ -19,6 +19,7 @@ import {
 } from "@/lib/craftBudget";
 import { heldSlugsOf } from "@/lib/consumeGrants";
 import { customCraftFor } from "@/lib/customCraft";
+import { cleanMealName, needsKitchen } from "@lifeweb/db/lib/meals";
 import {
   craftRequest,
   continueCraft,
@@ -48,6 +49,8 @@ export default function CraftAction({ presets, onDone, onClose }) {
     craftAllowances = {},
     deathMaskCorpses = [],
     hasWorkshop = false,
+    // Whether the place stood in has a kitchen — a Lavish meal needs one (COOKING.md).
+    atKitchen = false,
     healParties = null,
     hasMoved = false,
     dayLongTurn = true,
@@ -81,6 +84,8 @@ export default function CraftAction({ presets, onDone, onClose }) {
   // both sides, so the +1 ⬢ shown is the +1 ⬢ billed.
   const [customName, setCustomName] = useState("");
   const [customDescription, setCustomDescription] = useState("");
+  // A meal's one base taste (db/lib/meals.js#MEAL_TASTES), or "" for none.
+  const [mealTaste, setMealTaste] = useState("");
   const [inscription, setInscription] = useState("");
   const [payerKey, setPayerKey] = useState(selfId ? `character:${selfId}` : "");
   const confirm = useConfirm();
@@ -346,6 +351,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
     setIngredientChoices([]);
     setCustomName("");
     setCustomDescription("");
+    setMealTaste("");
     setInscription("");
   }
 
@@ -412,6 +418,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
       payerKey,
       customName,
       customDescription,
+      mealTaste,
       inscription,
       ingredientChoice: ingredientChoiceValue,
       ingredientPicks: ingredientPicksValue,
@@ -445,9 +452,15 @@ export default function CraftAction({ presets, onDone, onClose }) {
     if (ingredientPick && !ingredientChoiceValue) return false;
     // Same rule, one picker at a time, for a multi-picker recipe.
     if (ingredientPickers && ingredientPicksValue.some((v) => !v)) return false;
-    // A Lavish Meal needs something in it. A Fine Meal's slot is optional, so
-    // min 0 never blocks (docs/systemdocs/COOKING.md).
+    // A Lavish meal needs something in it; Basic and Skilled slots are
+    // optional, so min 0 never blocks (docs/systemdocs/COOKING.md).
     if (ingredientChoices.length < (ingredientSlots?.min ?? 0)) return false;
+    // A meal must be named (letters only) and described, and a Lavish one
+    // cooked in a kitchen. craftRequest refuses the same cases regardless.
+    if (chosen.mealClass) {
+      if (!cleanMealName(customName) || !customDescription.trim()) return false;
+      if (needsKitchen(chosen) && !atKitchen) return false;
+    }
     // A 0-turn craft inside its free allowance never needed a Move and
     // still doesn't; everything else has to fit in what the turn has left
     // (CRAFTING.md §2a). craftRequest refuses the same cases regardless. A
@@ -547,6 +560,9 @@ export default function CraftAction({ presets, onDone, onClose }) {
         onCustomName={setCustomName}
         customDescription={customDescription}
         onCustomDescription={setCustomDescription}
+        mealTaste={mealTaste}
+        onMealTaste={setMealTaste}
+        atKitchen={atKitchen}
         inscription={inscription}
         onInscription={setInscription}
         payerKey={payerKey}

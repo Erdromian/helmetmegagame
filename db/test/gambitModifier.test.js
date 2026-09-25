@@ -44,33 +44,29 @@ test("the band is NAMED, so the confirm DM can say why", () => {
   assert.deepEqual(gambitModifiers([], { mood: 50 }), []);
 });
 
-test("Hungry costs -1, Starving costs -3, flat — no streak to scale it any more", () => {
-  assert.equal(gambitModifierTotal(hungry, { mood: 0 }), -1);
-  assert.equal(gambitModifierTotal(starving, { mood: 0 }), -3);
+test("Starving costs -1 and Hungry costs nothing (the Soilery Rework doc)", () => {
+  assert.equal(gambitModifierTotal(hungry, { mood: 0 }), 0);
+  assert.equal(gambitModifierTotal(starving, { mood: 0 }), -1);
   assert.equal(gambitModifierTotal([], { mood: 0 }), 0);
+  assert.deepEqual(gambitModifiers(hungry, { mood: 0 }), []);
 });
 
-test("Starving wins outright and never sums with Hungry", () => {
-  // Holding both tags at once (the real shape a Starving sheet carries)
-  // still costs exactly -3, never -4.
-  assert.equal(gambitModifierTotal(starvingAndHungry, { mood: 0 }), -3);
-  assert.deepEqual(gambitModifiers(starvingAndHungry, { mood: 0 }), [{ label: "Starving", value: -3 }]);
+test("a stale row holding both still costs -1, never more", () => {
+  assert.equal(gambitModifierTotal(starvingAndHungry, { mood: 0 }), -1);
+  assert.deepEqual(gambitModifiers(starvingAndHungry, { mood: 0 }), [{ label: "Starving", value: -1 }]);
 });
 
-test("a good mood and a bad gut cancel, which nothing could do before", () => {
-  // Hungry against Ecstatic: a wash, not a penalty.
-  assert.equal(gambitModifierTotal(hungry, { mood: 70 }), 0);
-  // Starving still outruns it.
-  assert.equal(gambitModifierTotal(starving, { mood: 70 }), -2);
+test("a good mood and a starving gut cancel", () => {
+  assert.equal(gambitModifierTotal(starving, { mood: 70 }), 0);
   // Both contributions are still NAMED, even when they sum to nothing.
-  assert.deepEqual(gambitModifiers(hungry, { mood: 70 }), [
-    { label: "Hungry", value: -1 },
+  assert.deepEqual(gambitModifiers(starving, { mood: 70 }), [
+    { label: "Starving", value: -1 },
     { label: "Ecstatic", value: 1 },
   ]);
 });
 
 test("a bare Tag[] works as well as the CharacterTag[] shape", () => {
-  assert.equal(gambitModifierTotal([{ slug: "starving" }], { mood: 0 }), -3);
+  assert.equal(gambitModifierTotal([{ slug: "starving" }], { mood: 0 }), -1);
 });
 
 test("no mood argument means Fine, which is the silent failure worth naming", () => {
@@ -80,10 +76,10 @@ test("no mood argument means Fine, which is the silent failure worth naming", ()
 });
 
 test("the breakdown formats with a real minus sign, as the bot rolls it", () => {
-  assert.equal(formatGambitModifiers(gambitModifiers(starving, { mood: -90 })), "−3 Starving −2 Panicking");
+  assert.equal(formatGambitModifiers(gambitModifiers(starving, { mood: -90 })), "−1 Starving −2 Panicking");
 });
 
 test("a gain formats with a plain ASCII plus, not the U+2212 minus's twin", () => {
   assert.equal(formatGambitModifiers(gambitModifiers([], { mood: 70 })), "+1 Ecstatic");
-  assert.equal(formatGambitModifiers(gambitModifiers(hungry, { mood: 70 })), "−1 Hungry +1 Ecstatic");
+  assert.equal(formatGambitModifiers(gambitModifiers(starving, { mood: 70 })), "−1 Starving +1 Ecstatic");
 });

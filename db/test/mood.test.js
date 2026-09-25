@@ -25,6 +25,7 @@ const {
   clampMood,
   moodBandDm,
   consumeReliefFor,
+  scaleTerms,
 } = require("../lib/mood");
 
 const wound = (extra = {}) => ({
@@ -347,33 +348,24 @@ test("a consume is worth its largest single figure, never a sum", () => {
   assert.equal(consumeReliefFor("bliss", ["euphoric", "high"]), 80);
   // The same drink without an item row of its own still maxes its grants.
   assert.equal(consumeReliefFor("cave-fungus", ["high"]), 35);
-  // A treat is a treat, not a treat plus a meal.
-  assert.equal(consumeReliefFor("sugar-candy", ["ate-meal"]), 9);
+  // A treat is a treat.
+  assert.equal(consumeReliefFor("sugar-candy", []), 9);
   assert.equal(consumeReliefFor("coffee", ["caffeinated"]), 17);
   assert.equal(consumeReliefFor("firecracker", []), 9);
-  // Any proper meal at all is the floor under the food.
-  assert.equal(consumeReliefFor("trail-ration", ["ate-meal"]), 6);
   // And a plain thing is worth nothing.
   assert.equal(consumeReliefFor("stepstone", []), 0);
 });
 
-test("a cooked meal is priced by dishMoodTerms, not by this table", () => {
-  // The two rows that used to sit here are gone: a dish is a minted row, so
-  // its slug never matches a table keyed by slug (COOKING.md). Both fall
-  // through to the ate-meal floor if anything ever asks.
-  assert.equal(consumeReliefFor("fine-meal", ["ate-meal", "dined"]), 6);
-  assert.equal(consumeReliefFor("lavish-meal", ["ate-meal", "dined"]), 6);
+test("a meal is priced by dishMoodTerms, not by this table", () => {
+  // A dish is a minted row, so its slug never matches a table keyed by slug
+  // (COOKING.md), and Ate Meal — the old floor under every food — is gone.
+  assert.equal(consumeReliefFor("lavish-meal", []), 0);
+  assert.equal(consumeReliefFor("moldy-bread", []), 0);
 });
 
-test("the Ration Box's bad draws are no longer in this table", () => {
-  // moldy-bread, grasshopper-kebab, jellied-meats and budget-cold-soup used
-  // to have their own negative entries here so they wouldn't be swallowed by
-  // ate-meal's +5 floor. They carry their own `cooked.mood`/`cooked.hunger`
-  // now and are priced by rawFoodMoodTerms instead (db/lib/hunger.js), so
-  // consumeReliefFor never sees them for a real eat — this just documents
-  // that the fallback path is what a caller gets if it asks anyway.
-  assert.equal(consumeReliefFor("moldy-bread", ["ate-meal"]), 6);
-  assert.equal(consumeReliefFor("grasshopper-kebab", ["ate-meal"]), 6);
-  assert.equal(consumeReliefFor("jellied-meats", ["ate-meal"]), 6);
-  assert.equal(consumeReliefFor("budget-cold-soup", ["ate-meal"]), 6);
+test("scaleTerms multiplies every base for eating several at once, and nothing else", () => {
+  const terms = [{ kind: "DISGUST", base: -5, noMultiplier: true }];
+  assert.deepEqual(scaleTerms(terms, 3), [{ kind: "DISGUST", base: -15, noMultiplier: true }]);
+  assert.equal(scaleTerms(terms, 1), terms);
+  assert.equal(scaleTerms(null, 3), null);
 });

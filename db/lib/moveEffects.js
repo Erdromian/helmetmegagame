@@ -21,15 +21,15 @@ async function addResources(tx, characterId, amount, ctx) {
 
 const { characterParty, recordDelta, record, BURN } = require("./economyLedger");
 const { addCharacterResources } = require("./resourceStack");
-const { TIRED_SLUG, ARELITZ_SLUG } = require("./constants");
+const { TIRED_SLUG, ARELITZ_SLUG, FOODSTUFFS_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 const { expiryFrom } = require("./turnFormat");
-const { applyFatigueStep, revertFatigueStep } = require("./fatigue");
+const { applyFatigueStep, revertFatigueStep, grantExhaustedOutright } = require("./fatigue");
 const { drawProspectingLoot } = require("./cavingLoot");
 const { isGatheringZone } = require("./gathering");
 const { PROSPECTING_SLUG } = require("./constants");
 const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
-const { reapDetailFor, harvestLine } = require("./soilery");
+const { reapFoodstuffs, FARM_PLANTS } = require("./soilery");
 
 // One entry per pushable thing. `read` decides what this Move would push right now; `apply` pushes it and returns WHAT ACTUALLY MOVED; `revert`
 // takes back exactly what was snapshotted.
@@ -172,81 +172,44 @@ const MOVE_EFFECTS = {
     },
   },
 
-  // Soilery (db/lib/soilery.js, docs' Soilery plan §B6): a Farm Move commits at press — the seed
-  // bag's licence is spent and gone the moment `farmRequestImpl` files it — but the wither die and
-  // the Exhausted lockout only land here, at push, exactly like `refined` above. `action.farmPlan`
-  // is `{ v: 2, fertilized, rows: [{ slug, tagId, tagName, planted }, ...] }`, written by
-  // farmRequestImpl. `fertilized` (SOILERY.md's Addendum) swaps reap()'s whole outcome table —
-  // a v1 row (no `fertilized` key) reads as `undefined`, which reap()'s own default treats as false.
+  // Soilery (db/lib/soilery.js, SOILERY.md): a Farm Move commits at press, but the wither die and
+  // the Exhausted lockout only land here, at push, exactly like `refined` above.
+  // `action.farmPlan` is `{ v: 3, locationId, planted, fertilized }`, written by farmRequestImpl.
+  // A v1/v2 plan (crops and seed licences, before the Soilery Rework) was filed before the deploy
+  // and resolves as an ordinary farm of Foodstuffs, capped at the plants it actually sowed.
   farmed: {
-    read: (action) => (action.farmPlan?.rows?.length ? 1 : 0),
+    read: (action) => (action.farmPlan ? 1 : 0),
     apply: async (tx, action) => {
       const plan = action.farmPlan;
-      const tagIds = plan.rows.map((row) => row.tagId);
-      const tags = await tx.tag.findMany({
-        where: { id: { in: tagIds } },
-        select: { id: true, stackable: true },
-      });
-      const stackableById = new Map(tags.map((tag) => [tag.id, tag.stackable]));
-
-      // The field's productivity (db/lib/fieldProductivity.js, SOILERY.md §9): every plant sown at one place this turn comes up
-      // at the same multiplier, the one the last turn close set, so which farmer resolves first changes nothing. The plan says
-      // WHERE it was sown; a plan filed before fields existed has no place and comes up whole.
-      const { fieldSettings, yieldMultFor, drawFromPool } = require("./fieldProductivity");
-      const fieldId = plan.locationId ?? null;
-      const fieldOn = Boolean(fieldId) && fieldSettings(await require("./gameState").readGameConfig(tx)).enabled;
-      const yieldMult = fieldOn ? await yieldMultFor(tx, fieldId) : 1;
-      let fieldDraw = 0;
-
-      const rows = [];
-      for (const row of plan.rows) {
-        const { crops: reaped, draw } = reapDetailFor(row.slug, row.planted, Math.random, {
-          fertilized: plan.fertilized === true,
-          yieldMult,
-        });
-        fieldDraw += draw;
-        if (reaped > 0) {
-          const { addToStack } = require("./tagWrites");
-          await addToStack(tx, action.characterId, row.tagId, reaped, {
-            source: "EVENT",
-            stackable: stackableById.get(row.tagId) ?? true,
-          });
-        }
-        // `cropName` (not `tagName`) on the way out — harvestLine()/farmDm() read this shape,
-        // matching what a stored farmPlan row is named going IN versus what a resolved harvest
-        // row is named coming OUT.
-        rows.push({
-          slug: row.slug,
-          tagId: row.tagId,
-          cropName: row.tagName,
-          planted: row.planted,
-          reaped,
-        });
+      const planted =
+        plan.v >= 3
+          ? plan.planted
+          : Math.min(FARM_PLANTS, (plan.rows ?? []).reduce((sum, row) => sum + (row.planted ?? 0), 0));
+      const fertilized = plan.fertilized === true;
+      const reaped = reapFoodstuffs(planted, Math.random, { fertilized });
+      const foodstuffs = await tx.tag.findUnique({ where: { slug: FOODSTUFFS_SLUG }, select: { id: true } });
+      if (!foodstuffs) {
+        console.error(`Farm payout: no "${FOODSTUFFS_SLUG}" tag — run npm run db:sync-tags. The harvest is lost.`);
+      } else if (reaped > 0) {
+        const { addToStack } = require("./tagWrites");
+        await addToStack(tx, action.characterId, foodstuffs.id, reaped, { source: "EVENT", stackable: true });
       }
-
-      // The same ladder a day's mining and a Factory shift climb (db/lib/fatigue.js): Tired on the
-      // first day, Exhausted on the second. Farming used to grant Exhausted OUTRIGHT, which made it
-      // the one day-verb you could never work twice running; it is one ladder for every verb now.
       const turn = await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } });
-      const fatigue = turn ? await applyFatigueStep(tx, action.characterId, turn.number) : null;
-
-      // What the harvest cost the field. `taken` is what the pool actually gave up, which is less than `fieldDraw` at the debt
-      // floor, and it is what an Undo puts back.
-      const taken = fieldOn ? (await drawFromPool(tx, fieldId, fieldDraw)).delta : 0;
-
-      return { rows, fatigue, yieldMult, field: { locationId: fieldId, draw: fieldDraw, taken } };
+      const fatigue = turn ? await grantExhaustedOutright(tx, action.characterId, turn.number) : null;
+      return { v: 3, tagId: foodstuffs?.id ?? null, planted, reaped: foodstuffs ? reaped : 0, fertilized, fatigue };
     },
     revert: async (tx, action, snapshot) => {
       if (!snapshot) return;
       const { dropCharacterTag } = require("./tagWrites");
-      for (const row of snapshot.rows ?? []) {
-        if (row.reaped > 0) await dropCharacterTag(tx, action.characterId, row.tagId, row.reaped);
+      if (snapshot.v >= 3) {
+        if (snapshot.tagId && snapshot.reaped > 0) await dropCharacterTag(tx, action.characterId, snapshot.tagId, snapshot.reaped);
+      } else {
+        // A harvest of crops pushed before the rework: give back whatever still exists.
+        for (const row of snapshot.rows ?? []) {
+          if (row.reaped > 0) await dropCharacterTag(tx, action.characterId, row.tagId, row.reaped);
+        }
       }
-      // Same snapshot shape as `refined` now that both climb the one ladder, so the one
-      // revert serves both.
       if (snapshot.fatigue) await revertFatigueStep(tx, action.characterId, snapshot.fatigue);
-      // A row from before the field pool has no `field`, and nothing to give back.
-      if (snapshot.field?.taken > 0) await require("./fieldProductivity").refundToPool(tx, snapshot.field.locationId, snapshot.field.taken);
     },
   },
 
@@ -364,7 +327,14 @@ function describeMoveEffects(applied) {
       );
       if (value.fatigue) parts.push(value.fatigue.slug === TIRED_SLUG ? "Tired" : "Exhausted");
     }
-    else if (key === "farmed") parts.push(harvestLine(value.rows));
+    else if (key === "farmed") {
+      parts.push(
+        value.v >= 3
+          ? `planted ${value.planted}, reaped ${value.reaped} Foodstuffs`
+          : (value.rows ?? []).map((row) => `sowed ${row.planted} ${row.cropName} and reaped ${row.reaped}`).join(", "),
+      );
+      if (value.fatigue) parts.push("Exhausted");
+    }
     else if (key === "brokeIn") {
       parts.push(
         value.ok

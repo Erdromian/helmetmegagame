@@ -59,6 +59,8 @@ const {
   validateRequirementYield,
   normalizeMealTaste,
   validateMealTasteForm,
+  normalizeMealClass,
+  validateMealClass,
 } = require("./tagShapes");
 const { normalizeDesireLocks, validateDesireLocks } = require("./desireShapes");
 const { desireFamilyKeys } = require("./desireFamilies");
@@ -880,6 +882,9 @@ async function syncTagsFromYaml(prisma) {
       { mealTaste: normalizeMealTaste(t.mealTaste, { slug: t.slug }), mealTasteForm: t.mealTasteForm ?? null },
       { selfSlug: t.slug },
     );
+    // mealClass — the three meal-class templates (COOKING.md).
+    normalizeMealClass(t.mealClass, { slug: t.slug });
+    validateMealClass(t, { selfSlug: t.slug });
     // desires.locks — validated via the shared desireShapes rules. A missing
     // docs/desires.yaml yields an empty family set, so this only throws when
     // a tag actually names one.
@@ -1094,6 +1099,8 @@ async function syncTagsFromYaml(prisma) {
       // base taste, read first in the taste line (COOKING.md §3/§8).
       mealTaste: normalizeMealTaste(entry.mealTaste, { slug: entry.slug }),
       mealTasteForm: entry.mealTasteForm === "adjective" ? "adjective" : null,
+      // Which meal class a template is (COOKING.md, db/lib/meals.js).
+      mealClass: normalizeMealClass(entry.mealClass, { slug: entry.slug }),
       // "Quantity Produced" — how many units one unit of crafting this recipe
       // actually mints (COOKING.md §A5).
       requirementYield: normalizeRequirementYield(entry.requirement?.yield, { slug: entry.slug }),

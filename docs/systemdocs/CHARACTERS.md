@@ -599,11 +599,11 @@ Picking a role decides almost everything:
 
 **Everyone starts with about one meal**, in `starting_tags`, flavoured to the
 seat: moldy bread or a Ration Box for the poor, the Dockers and the soldiers of
-the Tribunal and the Bastard's party, plain cooked dishes (Bread, Sausage, Broth
-and the like, 35 to 42 hunger) for the Court, the Clergy, the Cerberon, the
-medics and the trades, and Cheese for the cooks. Nothing is worth more than a
-basic dish, since one meal is one turn's decay. The four Cooking I roles (Servant,
-Geschef, Innkeeper, Inn Staff) also start with 40 crops, which is one Move of
+the Tribunal and the Bastard's party, 4 Foodstuffs (16 hunger, the Soilery
+Rework's one generic food) for the Court, the Clergy, the Cerberon, the medics
+and the trades — where a seat used to start with a named dish, which the
+rework removed — and Cheese for the cooks. The four Cooking I roles (Servant,
+Geschef, Innkeeper, Inn Staff) also start with 40 Foodstuffs, which is one Move of
 cooking (`COOKING.md` §11). The Prospector, Courtesan and Slave already carried a
 Ration Box or two and got no second meal.
 

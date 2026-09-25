@@ -128,11 +128,11 @@ by mistake, and the fix restored the old scale and then went item by item.
 Light things are light (a dagger is 1 lb, a cigarette nothing) and heavy things
 stayed heavy (plate 55, cataphract 65, a Graga corpse 75).
 
-A Soilery crop is 0.17 lb each (`SOILERY.md`; a plant brings in
-`CROPS_PER_PLANT`, 3, of them), so a full harvest at the sowing cap's default
-of 50 plants (`GameConfig.farmMaxCrops`, GM-tunable on `/gm/dev`) is about
-25 lb landing in one turn-close carry pass — 150 crops at a sixth of a
-pound each.
+A Foodstuff is 1 lb (the Soilery Rework doc, `SOILERY.md` §2), so a Farm
+action's harvest — about 83 of the 100 crops planted (`GameConfig.farmMaxCrops`)
+— is about 83 lb landing in one turn-close carry pass. That is over the 71 lb
+cap, so a farmer usually comes in Overburdened and stores or hands on the
+surplus.
 
 **The base cap is 71 lb** (120 until 2026-09-06, then 84 until later the same
 day). A full harness (55) plus sword, dagger and shield (14) is 69 lb, which is

@@ -9,6 +9,8 @@ import { useRef } from "react";
 // §3). Click matters as much as hover: a phone has no hover, and focus
 // reaches players on a keyboard the same way.
 // `tone` colours the value by meaning, the rule StatusPill.js sets. `word` drops the mono face — a word is not data.
+// `icon` is an element drawn large beside the value, in the value's tone — the
+// Hunger tile's (the Soilery Rework doc asks for a prominent icon there).
 // `sub` is the quiet line under the number, always drawn: the coin in your
 // pocket beside your ⬢, the mood's own figure, which modifier is on the Gambit.
 // It is NOT the `detail` — that swaps the whole face, and only on demand — so a
@@ -24,6 +26,7 @@ export default function DetailTile({
   tone = null,
   word = false,
   sub = null,
+  icon = null,
   detail = null,
   open = false,
   onOpen = null,
@@ -43,18 +46,31 @@ export default function DetailTile({
   // forgets. It was a private component with three call sites before; now it
   // is shared, so it absorbs the mistake instead of taking the page down.
   const setOpen = onOpen ?? (() => {});
+  const valueSpan = (
+    <span
+      className="ledger-tile-value tile-value"
+      data-over={over ? "true" : "false"}
+      data-tone={tone ?? undefined}
+      data-word={word ? "true" : undefined}
+    >
+      {value}
+    </span>
+  );
+  const face = icon ? (
+    <span className="tile-iconic">
+      <span className="tile-icon" data-tone={tone ?? undefined} aria-hidden="true">
+        {icon}
+      </span>
+      {valueSpan}
+    </span>
+  ) : (
+    valueSpan
+  );
   if (!detail) {
     return (
       <div className={className}>
         <span className="field-label">{label}</span>
-        <span
-          className="ledger-tile-value tile-value"
-          data-over={over ? "true" : "false"}
-          data-tone={tone ?? undefined}
-          data-word={word ? "true" : undefined}
-        >
-          {value}
-        </span>
+        {face}
         {sub && <span className="ledger-tile-sub tile-sub">{sub}</span>}
         {children}
       </div>
@@ -91,14 +107,7 @@ export default function DetailTile({
       {/* Both faces live in one relative box, detail ABSOLUTE inside it, so opening a tile can't change its height. `visibility` not `hidden`. */}
       <span className="ledger-tile-faces">
         <span className="ledger-tile-face" data-open={open ? "true" : "false"}>
-          <span
-            className="ledger-tile-value tile-value"
-            data-over={over ? "true" : "false"}
-            data-tone={tone ?? undefined}
-            data-word={word ? "true" : undefined}
-          >
-            {value}
-          </span>
+          {face}
           {sub && <span className="ledger-tile-sub tile-sub">{sub}</span>}
           {children}
         </span>

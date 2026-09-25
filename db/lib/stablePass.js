@@ -8,7 +8,7 @@
 //
 // Four steps, strictly in this order, all inside ONE transaction per room:
 //   1. Age the brood, oldest rung first.
-//   2. Feed the adults (cheapest food first) and lay an egg per adult fed.
+//   2. Feed the adults on Foodstuffs and lay an egg per adult fed.
 //   3. Hatch what's sitting on the floor.
 //   4. Evict past capacity.
 //
@@ -17,7 +17,6 @@
 // `done.has("arelitzLay")` guard in db/index.js, which is all the
 // idempotency a once-a-turn pass over a handful of Rooms needs.
 const { addToStack, addToRoomStack, dropRoomTag, lockRoom } = require("./tagWrites");
-const { foodHungerFor } = require("./hunger");
 const { getGameConfig } = require("./gameState");
 const {
   ARELITZ_SLUG,
@@ -28,6 +27,7 @@ const {
   ARELITZ_EGG_SLUG,
   STABLE_CAPACITY,
   HATCH_IN,
+  FOODSTUFFS_SLUG,
 } = require("./constants");
 
 const ADULT_SLUGS = [ARELITZ_SLUG, UNRULY_ARELITZ_SLUG];
@@ -102,7 +102,7 @@ async function runStablePass(prisma, turn) {
           tagId: true,
           quantity: true,
           createdAt: true,
-          tag: { select: { slug: true, mealHunger: true, cooked: true, consumesInto: true } },
+          tag: { select: { slug: true } },
         },
       });
       const countOf = (slug) => rows.find((r) => r.tag.slug === slug)?.quantity ?? 0;
@@ -134,9 +134,11 @@ async function runStablePass(prisma, turn) {
       // is exactly what step 1 added to unruly-arelitz, so it's added back
       // here rather than paying for a fresh query.
       const adultCount = countOf(ARELITZ_SLUG) + countOf(UNRULY_ARELITZ_SLUG) + yearlings;
+      // Foodstuffs and nothing else (the Soilery Rework doc): two a head,
+      // left on the stable floor. A cooked meal or a raw fish on the floor is
+      // somebody's dinner, not feed.
       const foodInventory = rows
-        .filter((r) => !ALL_STABLE_SLUGS.includes(r.tag.slug) && foodHungerFor(r.tag) > 0)
-        .sort((a, b) => foodHungerFor(a.tag) - foodHungerFor(b.tag) || a.createdAt - b.createdAt)
+        .filter((r) => r.tag.slug === FOODSTUFFS_SLUG)
         .map((r) => ({ tagId: r.tagId, remaining: r.quantity }));
       const consumedByTag = new Map();
       let eggsLaid = 0;

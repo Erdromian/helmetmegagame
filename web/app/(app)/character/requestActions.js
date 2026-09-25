@@ -241,8 +241,8 @@ export async function extractGodfleshRequest(input) {
   return acting(() => extractGodfleshRequestImpl(input));
 }
 
-export async function farmRequest(input) {
-  return acting(() => farmRequestImpl(input));
+export async function farmRequest() {
+  return acting(() => farmRequestImpl());
 }
 
 export async function breakInArelitzRequest(input) {

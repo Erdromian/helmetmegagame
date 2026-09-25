@@ -1,6 +1,6 @@
 // node --test over the pure half of db/lib/stablePass.js — hatchCount's
 // real per-unit variance, same posture as db/test/soilery.test.js's own
-// reap() coverage. Nothing here touches Prisma; the feed/lay/age/evict
+// reapFoodstuffs() coverage. Nothing here touches Prisma; the feed/lay/age/evict
 // orchestration needs a database (room locks, RoomTag writes) and is
 // exercised by hand per LOCAL-DEV.md, same note db/test/trinketPass.test.js
 // and mood.test.js give for the rest of their own modules.

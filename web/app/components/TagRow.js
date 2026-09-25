@@ -3,6 +3,7 @@
 import TagDetails from "./TagDetails";
 import TagMarks from "./TagMarks";
 import TagIcon from "./TagIcon";
+import TagName from "./TagName";
 import { useIsCoarsePointer } from "./useIsCoarsePointer";
 
 // One tag as a line in the rail: the category's colour rule on the left, the
@@ -51,7 +52,7 @@ export default function TagRow({
         >
           <span className="sheet-row-name">
             <TagIcon tag={tag} size={12} />
-            {tag.name}
+            <TagName tag={tag} />
             {stack && <span className="text-muted"> ×{stack}</span>}
             {/* The shared state vocabulary (TagMarks.js) — spelled out here
                 rather than glyphed, because a row has the width for it. */}
