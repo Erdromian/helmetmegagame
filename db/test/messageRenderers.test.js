@@ -67,9 +67,9 @@ test("a renderer that runs remarkTokens also draws them", () => {
 // for anything a player typed, since it lets them mint one mid-scene.
 const BODY_RENDERERS = [
   "web/app/(app)/chat/Feed.js",
-  "web/app/(app)/notes/StarredList.js",
-  "web/app/(app)/notes/JournalList.js",
-  "web/app/(app)/notes/JournalComposer.js",
+  "web/app/(app)/memories/StarredList.js",
+  "web/app/(app)/memories/JournalList.js",
+  "web/app/(app)/memories/JournalComposer.js",
   "web/app/(app)/archive/ArchiveTranscript.js",
   "web/app/components/DmThread.js",
   "web/app/components/InspectorColumn.js",

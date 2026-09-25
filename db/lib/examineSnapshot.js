@@ -3,34 +3,24 @@
 // (appearance, name, held/worn tags, ⬢); catalog-side live (a tag's name/armour/
 // requirement/visibility, read off Tag at look time — db/lib/examine.js#EXAMINE_TAG_SELECT — so a
 // rebalance reaches old lines); viewer-side live (the looker's own faculties, never frozen). Payload
-// is compact — rides on every message row: `{ v, n, a, s, c, rt, rg, t: [[tagId, 0|1, expiresTurn]] }`. A
-// row written before factions were removed also carries `r` and `f`; both are ignored on the way back
-// out. `rt` is the role title and a NEW key rather than a reuse of `r`: the old one froze a title for
-// everybody, and this one is written only for a seat whose Role says a look may read it
-// (`examine_visible:` in docs/roles.yaml), so an opaque seat never enters the payload at all — not in
-// the database, and not in an exported archive packet, which ships the blob verbatim. `rg` is the
-// estate that title is PAINTED in (db/lib/roleGroups.js), under the same gate, so the colour on the
-// readout answers for the same moment its words do. The feed's own name colour does NOT come from
-// here — presentedState holds the whole tag list and is barred from a wire select, so
-// db/lib/archive.js#withAvatarVersions reads that one live.
+// is compact — rides on every message row: `{ v, n, a, s, c, t: [[tagId, 0|1, expiresTurn]] }`. A
+// row written before factions were removed also carries `r` and `f`, and one written before the
+// Memories page carries `rt` and `rg` (a role title and its estate); all four are ignored on the way
+// back out. A role is not something the room can SEE: a look reads it from the looker's own memory
+// (db/lib/examineRow.js, docs/systemdocs/MEMORIES.md §6), so it is no longer frozen here at all.
 // EVERY tag goes in, not a filtered subset — pruning hidden rows would let a Beast's frozen line read
 // out under their real name. Prisma-free except loadPresentedState, which takes `prisma` (db/lib/dm.js
 // convention).
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
 const { RESOURCES_SLUG, resourcesOf } = require("./resourceStack");
-const { roleGroupHue } = require("./roleGroups");
 
 const SNAPSHOT_VERSION = 1;
 
-// What a writer must load to build one. No `quantity` filter. It used to match EXAMINE_SUBJECT_SELECT
-// exactly; it no longer does, because the role is frozen here and read live nowhere — which costs one
-// indexed join on every proxied line somebody says.
+// What a writer must load to build one. No `quantity` filter.
 const PRESENTED_STATE_SELECT = {
   name: true,
   appearance: true,
   concealed: true,
-  roleTitle: true,
-  role: { select: { examineVisible: true, groupSlug: true } },
   tags: {
     select: {
       tagId: true,
@@ -53,12 +43,6 @@ function presentedStateFrom(character) {
     a: character.appearance ?? null,
     s: resourcesOf(character),
     c: Boolean(character.concealed),
-    // The CHARACTER's title, not the catalog's name for the seat — a GM may
-    // hand-edit it to "Disgraced Knight" and that is what the room would know
-    // them as. Written only when the seat is one a look may read; an opaque
-    // seat, or a character with no Role row behind the title, freezes nothing.
-    rt: character.role?.examineVisible ? (character.roleTitle ?? null) : null,
-    rg: character.role?.examineVisible ? roleGroupHue(character.role?.groupSlug) : null,
     t: (character.tags ?? [])
       .filter((ct) => ct?.tagId)
       .map((ct) => [ct.tagId, ct.equipped ? 1 : 0, ct.expiresTurn ?? null]),
@@ -87,8 +71,6 @@ function readPresentedState(value) {
     appearance: typeof value.a === "string" ? value.a : null,
     resources: Number.isFinite(value.s) ? value.s : null,
     concealed: Boolean(value.c),
-    roleTitle: typeof value.rt === "string" ? value.rt : null,
-    roleGroup: typeof value.rg === "string" ? value.rg : null,
     tags,
   };
 }
@@ -104,13 +86,6 @@ function rehydrateSubject({ live, state, tags = [] }) {
     name: state.name ?? live?.name ?? null,
     appearance: state.appearance,
     concealed: state.concealed,
-    // Set here and NOWHERE else, unconditionally, so the `...live` spread can
-    // never be what supplies it — a live role read on a frozen line is the same
-    // class of bug as merging today's tags into it. The field is deliberately
-    // not called `roleTitle`: a raw Character row carries one of those with no
-    // visibility attached, and db/lib/examine.js must not be able to read it.
-    visibleRoleTitle: state.roleTitle ?? null,
-    visibleRoleGroup: state.roleGroup ?? null,
     tags: state.tags
       .map((row) => {
         const tag = byId.get(row.tagId);

@@ -658,7 +658,7 @@ work land without touching any of the three.
 16px`, `padding-block: 10px 40px`. `width` is `narrow` / `default` / `wide` /
 `full`, and that's still the whole menu, but `default` and `wide` are now the
 same `.page` — the mockup only drew one width. `narrow` is `.page--narrow`
-(760px, /notes, /lifeweb). `full` is `.page--full`, which drops the max-width
+(760px, /memories, /lifeweb). `full` is `.page--full`, which drops the max-width
 and the inline padding for a page whose own grid is the width (e.g. `/gm/dev`'s
 zone editors) — it still keeps the block padding and the foot.
 
@@ -763,10 +763,10 @@ Three things about it are load-bearing:
   would drag a GM who chose "All" back to their own zone after every
   adjudication.
 - **List height is one token, `--list-h`**, shared by `.table-scroll` (tables),
-  `.list-scroll` (the `/notes` card board) and `.message-list` (a DM thread).
+  `.list-scroll` (the `/memories` card lists) and `.message-list` (a DM thread).
 
 A card list with no header row to hang a `SortHeader` off passes `sortOptions`
-to `FilterBar` instead, which is what `/notes` does.
+to `FilterBar` instead, which is what `/memories` does.
 
 ## 8. Confirm dialog
 

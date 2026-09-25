@@ -146,7 +146,9 @@ export default function JournalList({ entries, onEdit }) {
                   aria-pressed={entry.pinned}
                   onClick={() => handleTogglePin(entry)}
                 />
-                <IconButton icon={EditIcon} label="Edit entry" onClick={() => onEdit(entry)} />
+                {/* An entry the player cannot make out right now is not one they can
+                    rewrite: saving would write the nonsense in (journalActions.js). */}
+                {!entry.scrambled && <IconButton icon={EditIcon} label="Edit entry" onClick={() => onEdit(entry)} />}
                 <IconButton icon={TrashIcon} label="Delete entry" onClick={() => handleDelete(entry)} />
               </div>
             </div>

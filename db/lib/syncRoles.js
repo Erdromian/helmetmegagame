@@ -97,10 +97,49 @@ function parseRolesYaml(doc) {
         // Prisma write-time rejection with no hint which role caused it.
         lockedGender: GENDERS.includes(role.gender) ? role.gender : null,
         docElements: role.doc_elements ?? [],
+        // Which seats this one starts out knowing, as authored: role slugs
+        // and group slugs mixed. Expanded and validated by resolveKnows once
+        // every role is parsed, since it points across the whole file.
+        knowsAuthored: role.knows ?? [],
       });
     }
   }
   return { roles };
+}
+
+// `knows:` -> Role.knowsRoleSlugs (docs/systemdocs/MEMORIES.md §2a). Each
+// entry is a role slug or a group slug, and a group stands for every role in
+// it — the seat's own group included, which is how two Courtiers come to know
+// each other (the seeder skips the character themselves). Pure, and exported
+// for db/test/roleKnows.test.js.
+//
+// Refuses an unknown slug, and a slug that is BOTH a role and a group, before
+// anything is written — the same up-front posture as the group keys, because
+// a typo here would silently leave a seat knowing nobody.
+function resolveKnows(roles) {
+  const roleSlugs = new Set(roles.map((r) => r.slug));
+  const byGroup = new Map();
+  for (const r of roles) {
+    if (!byGroup.has(r.groupSlug)) byGroup.set(r.groupSlug, []);
+    byGroup.get(r.groupSlug).push(r.slug);
+  }
+  for (const slug of roleSlugs) {
+    if (isRoleGroupSlug(slug)) throw new Error(`docs/roles.yaml: role slug "${slug}" is also a group slug, so knows: cannot tell them apart`);
+  }
+  const out = new Map();
+  for (const r of roles) {
+    const authored = r.knowsAuthored ?? [];
+    if (!Array.isArray(authored)) throw new Error(`docs/roles.yaml: role "${r.slug}" knows: must be a list`);
+    const known = new Set();
+    for (const entry of authored) {
+      if (roleSlugs.has(entry)) known.add(entry);
+      else if (isRoleGroupSlug(entry)) for (const slug of byGroup.get(entry) ?? []) known.add(slug);
+      else throw new Error(`docs/roles.yaml: role "${r.slug}" knows "${entry}", which is neither a role nor a group`);
+    }
+    // File order, not authoring order, so a reshuffled list is not a change.
+    out.set(r.slug, roles.map((x) => x.slug).filter((slug) => known.has(slug)));
+  }
+  return out;
 }
 
 function changed(row, data) {
@@ -123,6 +162,7 @@ async function syncRolesFromYaml(prisma) {
       throw new Error(`docs/roles.yaml: role "${r.name}" is in unknown group "${r.groupSlug}" — see db/lib/roleGroups.js`);
     }
   }
+  const knowsBySlug = resolveKnows(roles);
 
   // Validate every cross-file reference before writing anything.
   const zones = await prisma.zone.findMany();
@@ -225,6 +265,7 @@ async function syncRolesFromYaml(prisma) {
       examineVisible: entry.examineVisible,
       lockedGender: entry.lockedGender,
       docElements: entry.docElements,
+      knowsRoleSlugs: knowsBySlug.get(entry.slug) ?? [],
       startingZoneId: entry.startingZoneSlug
         ? presenceZoneIdBySlug.get(entry.startingZoneSlug)
         : (startingLocationFor(entry)?.zoneId ?? null),
@@ -263,4 +304,4 @@ async function syncRolesFromYaml(prisma) {
   return stats;
 }
 
-module.exports = { syncRolesFromYaml };
+module.exports = { syncRolesFromYaml, parseRolesYaml, resolveKnows };

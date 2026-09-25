@@ -119,6 +119,12 @@ function examineReadout({
   wasConcealedAs = null,
   // A Thanati sees whether the subject is one too (THANATI.md); HIDDEN otherwise.
   viewerIsThanati = false,
+  // The looker's own Friends entry for the subject, as they can read it today
+  // (db/lib/examineRow.js#memoryForLook, already scrambled if they are
+  // Concussed): `{ name, roleText, roleGroup, notes }`, or null for a stranger.
+  // Everything a look says that the eye cannot see comes from here
+  // (docs/systemdocs/MEMORIES.md §6), so a stranger's look carries no role.
+  memory = null,
 }) {
   const identity = presentedIdentity(subject, {
     forcedName: forcedNameFrom(subject.tags),
@@ -135,6 +141,10 @@ function examineReadout({
   const identityVisible = !identity.forced;
 
   const { canSeeDesire } = inspectVision(viewerTags);
+  // A false name is somebody else as far as the room can tell, so the looker's
+  // memory of the person underneath has nothing to attach to. The caller
+  // already withholds it; this is the belt to that brace.
+  const known = identityVisible ? memory : null;
   return {
     concealed: false,
     name: identity.name,
@@ -155,20 +165,21 @@ function examineReadout({
     ],
     // ABSENT, never "hidden" — a viewer without sight and nothing-to-read look the same.
     desire: canSeeDesire ? { text: lastDesire?.text ?? null, points: lastDesire?.points ?? null } : null,
-    // Most seats are public offices, so a look reads the title. The two that
-    // are not — the Tribunal — carry `examine_visible: false`
-    // and never reach here at all: the line they said froze no title
-    // (db/lib/examineSnapshot.js), which is also why this reads
-    // `visibleRoleTitle` and never `subject.roleTitle`. A raw Character row
-    // carries the latter with no visibility attached to it.
+    // The title is what the LOOKER remembers, not what the subject holds: a
+    // role is not something anybody can see. Never `subject.roleTitle` — a raw
+    // Character row carries the truth, and the truth is exactly what a stranger
+    // must not read. An entry the player rewrote reads as they rewrote it.
     //
     // Still no ⬢ figure, for anybody. That one used to ride on sharing a
     // faction — a balance with that faction's officers — and with factions
     // gone there is no reader entitled to it. A GM reads it off the desk.
-    roleTitle: subject.visibleRoleTitle ?? null,
+    roleTitle: known?.roleText || null,
     // Which of the six estates to paint that title in, or null for one that
     // wears no colour — the same answer the feed paints a name with.
-    roleGroup: subject.visibleRoleGroup ?? null,
+    roleGroup: known?.roleText ? (known.roleGroup ?? null) : null,
+    // The rest of the entry: the name the looker knows them by and whatever
+    // they wrote down. Null for a stranger.
+    memory: known ? { name: known.name || null, notes: known.notes || null } : null,
   };
 }
 

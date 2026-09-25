@@ -52,7 +52,7 @@ const ROUTES = [
   ["/character", "player"],
   ["/chat", "player"],
   ["/documents", "player"],
-  ["/notes", "player"],
+  ["/memories", "player"],
   ["/archive", "gm"],
   ["/lifeweb", "gm"],
   ["/depot", "gm"],

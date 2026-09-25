@@ -4,6 +4,7 @@ const { loadForcedName, presentedIdentity, wasHooded } = require("@lifeweb/db/li
 const { archiveRowForMessage, retractArchiveRow } = require("@lifeweb/db/lib/archive");
 const { touchCharacterActivity, touchLastSeen } = require("@lifeweb/db/lib/characterActivity");
 const { prepareSpeech, recordSpeech, loadVoiceState: loadVoiceStateFor } = require("@lifeweb/db/lib/say");
+const { learnFromSpeech } = require("@lifeweb/db/lib/memoryHearing");
 const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
 const { concealDiscriminator } = require("@lifeweb/db/lib/concealedDiscriminator");
 const { resolveChannelContext } = require("./channels");
@@ -394,6 +395,15 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
       where: { id: row.id, discordMessageId: null },
       data: { discordMessageId: webhookMessage.id, discordSyncedAt: new Date() },
     });
+    // What the room learned from it (db/lib/memoryHearing.js). Here rather
+    // than inside recordSpeech, because until the post landed this row could
+    // still be taken back — and a line nobody saw must teach nobody. Never for
+    // a ghost: Deadchat is not a room.
+    if (!prepared.ghost) {
+      void learnFromSpeech(prisma, { row, speakerId: character.id }).catch((err) =>
+        console.error("Learning from speech failed:", err.message ?? err),
+      );
+    }
   }
   await touchCharacterActivity(prisma, character.id);
   await touchLastSeen(prisma, character.discordUserId);

@@ -59,6 +59,19 @@ async function wrapUpTurn({ prisma, p, step }, sideEffectsStartedAt) {
     );
   }
 
+  // "Memories of the day" wipes when the in-game day does
+  // (docs/systemdocs/MEMORIES.md §4). Outside the switch above on purpose:
+  // that one is about Discord's rate limits, and this is a table of ours.
+  // The page only ever reads the current day, so a run that misses this step
+  // leaves rows nobody sees rather than yesterday on show.
+  if (newTurn && (p.previousDayNumber == null || newTurn.dayNumber !== p.previousDayNumber)) {
+    await step("memoryWipe", () =>
+      prisma.heardLine
+        .deleteMany({ where: { dayNumber: { lt: newTurn.dayNumber } } })
+        .catch((err) => console.error("Memories-of-the-day wipe failed:", err)),
+    );
+  }
+
   // The channel doctor's cheap reconcile — roles and membership only, a
   // handful of requests. It used to sit behind autoReconcileEnabled, a
   // switch nobody ever turned on; keeping Discord in step with the database

@@ -139,10 +139,20 @@ export function Readout({ readout }) {
       {readout.appearance && <p className="text-sm" style={{ whiteSpace: "pre-wrap" }}>{readout.appearance}</p>}
 
       {/* Above the gear, because an office is part of who somebody is rather
-          than a thing found on them. Null for a hood and for the four seats
-          nobody reads off a look — decided once in db/lib/examine.js. Painted
-          in its estate's colour, the same one the feed paints their name in. */}
+          than a thing found on them. It is what the LOOKER remembers of them
+          (the Friends section of /memories), so it is null for a stranger and
+          for a hood — decided once in db/lib/examine.js. Painted in its
+          estate's colour, the same one the feed paints their name in. */}
       <Line label="Role" values={readout.roleTitle ? [readout.roleTitle] : null} roleGroup={readout.roleGroup} />
+      {readout.memory?.name && readout.memory.name !== readout.name && (
+        <Line label="You know them as" values={[readout.memory.name]} />
+      )}
+      {readout.memory?.notes && (
+        <div className="field">
+          <span className="field-label">Your notes</span>
+          <p className="text-sm" style={{ whiteSpace: "pre-wrap" }}>{readout.memory.notes}</p>
+        </div>
+      )}
 
       <Line label="Ailments" values={readout.ailments} />
       <Line label="Equipment" values={readout.equipment} />

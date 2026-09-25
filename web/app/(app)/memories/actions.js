@@ -18,5 +18,5 @@ export async function unstarNote(noteId) {
   // player has ever written". A server action is a public endpoint.
   await prisma.note.deleteMany({ where: { id: noteId ?? "", discordUserId: session.discordUserId } });
 
-  revalidatePath("/notes");
+  revalidatePath("/memories");
 }

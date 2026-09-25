@@ -538,37 +538,41 @@ on.
 
 ### Which seats a look reads
 
+**A look reads a role from the LOOKER's memory, not from the seat**
+(`MEMORIES.md` §7). What a character knows of anybody is their Friends entry on
+`/memories`: filled in at creation from `knows:` in `docs/roles.yaml`, learned
+from what is said in a room, or typed by the player. A stranger reads no role.
+
 `examine_visible` in `docs/roles.yaml` — `Role.examineVisible` in the DB —
-decides whether examining somebody prints their role. It defaults to **true**,
-which is the opposite of every other flag in that file, and on purpose: nearly
-every seat here is a public office, and the Bishop, the Sheriff and the
-Innkeeper are known to be what they are. Two carry `examine_visible: false`:
-**Tribunal Ordinator and Tribune**, the seats that live on not being known.
+now decides whether a seat's title can ever be **learned**. It defaults to
+**true**, which is the opposite of every other flag in that file, and on
+purpose: nearly every seat here is a public office, and the Bishop, the Sheriff
+and the Innkeeper are known to be what they are. Eight carry
+`examine_visible: false`, the seats that live on not being known: **Tribunal
+Ordinator, Tribune** and the six Bastard seats. The game never writes their
+title onto anybody's entry; only a player typing it in does.
 
 An opaque seat reads as **nothing at all** — not "Unknown". A hidden role and a
 character with no role look identical, the same way a Desire nobody may read is
 absent rather than blanked. A hooded character prints no role either, whatever
 their seat, alongside printing no name and no appearance.
 
-The title printed is `Character.roleTitle` — the character's own, which a GM may
-hand-edit to "Disgraced Knight" — and the seat's flag only decides whether it is
-read at all. It is frozen onto each line the character says
-(`db/lib/examineSnapshot.js`, `PROXYING.md` §4a), so a look answers for the
-moment that line was said, and an opaque seat's title never enters the frozen
-payload in the first place.
+The title the game teaches is `Character.roleTitle` — the character's own,
+which a GM may hand-edit to "Disgraced Knight". It is no longer frozen onto each
+line the character says; lines from before carry `rt`, and it is ignored.
 
 **The same split decides a name's colour.** A speaker's name in the feed and in
 Chat's people column is painted by their role GROUP — six coloured estates, with
 Outsiders and Elsewhere wearing none (`db/lib/roleGroups.js#roleGroupHue`,
 `DESIGN-SYSTEM.md` §2). That is not a second rule to keep in step with this one:
-all four opaque seats live in those two uncoloured buckets, so a colour can never
+all eight opaque seats live in Elsewhere, which wears none, so a colour can never
 name one. `db/test/roleGroupColour.test.js` fails the build if a re-bucketing in
 the YAML ever breaks that, which is the only thing holding it.
 
 None of this reaches a GM: the ⚜️ dossier and `/gm/players` print every role.
 It is also deliberately absent from the creation picker and the role charter —
 "this seat is opaque to a look" is exactly the hint you do not want printed
-beside the four seats that carry it.
+beside the eight seats that carry it.
 
 ### The starting package
 
