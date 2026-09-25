@@ -2,22 +2,24 @@
 // (db/lib/memoryLessons.js, docs/systemdocs/MEMORIES.md §2b). Pure, no Prisma.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { lessonsFrom, sentencesOf, speechText } = require("../lib/memoryLessons");
+const { lessonsFrom, sentencesOf, speechText, teachableRoleText, namesSecretSeat } = require("../lib/memoryLessons");
 
-const person = (id, firstName, lastName, roleName, { roleTitle = roleName, examineVisible = true, slug } = {}) => ({
+const person = (id, firstName, lastName, roleName, { roleTitle = roleName, slug } = {}) => ({
   id,
   firstName,
   lastName,
   name: [firstName, lastName].filter(Boolean).join(" "),
   roleTitle,
-  role: roleName ? { slug: slug ?? roleName.toLowerCase().replace(/\s+/g, "-"), name: roleName, examineVisible } : null,
+  role: roleName ? { slug: slug ?? roleName.toLowerCase().replace(/\s+/g, "-"), name: roleName } : null,
 });
 
 const MARROW = person("m", "Marrow", "Kell", "Sheriff");
 const ADA = person("a", "Ada", "Vask", "Baroness");
 const OTTO = person("o", "Otto", "Vask", "Heir");
 const HAND = person("h", "Jorren", "Pike", "Hand");
-const TRIBUNE = person("t", "Silas", "Wren", "Tribune", { examineVisible: false });
+const TRIBUNE = person("t", "Silas", "Wren", "Tribune");
+// A Thanati is a hidden tag under an ordinary cover seat — here, a Soiler.
+const CULTIST = person("c", "Oswin", "Hale", "Soiler");
 const WILL = person("w", "Will", "Asher", "Soiler");
 
 // The speaker knows Marrow's name and seat — a Friends entry of their own.
@@ -122,11 +124,37 @@ test("a name that is also a common opening word only counts mid-sentence", () =>
   assert.equal(l.name, true);
 });
 
-test("a seat that lives on not being known never teaches its role", () => {
+test("an invader's seat is learned like any other", () => {
   const l = only(lessons("I am Silas, a Tribune.", TRIBUNE, [TRIBUNE]));
   assert.equal(l.name, true);
-  assert.equal(l.role, false);
-  assert.equal(l.entry.roleText, null);
+  assert.equal(l.role, true);
+  assert.equal(l.entry.roleText, "Tribune");
+});
+
+test("a secret seat is never a role word, whoever says it", () => {
+  // The cultist owning up teaches his name and nothing else.
+  const own = only(lessons("I am Oswin, a Thanati.", CULTIST, [CULTIST]));
+  assert.equal(own.name, true);
+  assert.equal(own.role, false);
+  // Somebody who knows him naming him one teaches nothing new either.
+  const knows = new Map([["c", { name: "Oswin Hale", roleSlug: "soiler" }]]);
+  const told = only(lessons("Oswin is a Cultist.", ADA, [CULTIST, ADA], knows));
+  assert.equal(told.role, false);
+});
+
+test("the cover seat is learned as normal", () => {
+  const l = only(lessons("I'm Oswin, the Soiler.", CULTIST, [CULTIST]));
+  assert.equal(l.role, true);
+  assert.equal(l.entry.roleText, "Soiler");
+});
+
+test("a title naming a secret seat teaches the cover seat instead", () => {
+  const titled = { ...CULTIST, roleTitle: "Vampire Lord" };
+  assert.equal(teachableRoleText(titled), "Soiler");
+  assert.equal(namesSecretSeat("Vampire Lord"), true);
+  assert.equal(namesSecretSeat("Sheriff"), false);
+  // Its words are not role words either: "Vampire" said by him teaches nothing.
+  assert.deepEqual(lessons("Vampire Lord, at your service.", titled, [titled]), []);
 });
 
 test("a mention chip reads as the name it froze", () => {

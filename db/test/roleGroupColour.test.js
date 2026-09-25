@@ -42,6 +42,6 @@ test("a seat nobody reads off a look is never painted either", () => {
   }
   assert.ok(opaque.length > 0, "docs/roles.yaml names no opaque seat at all — did the flag move?");
   for (const [slug, groupSlug] of opaque) {
-    assert.equal(roleGroupHue(groupSlug), null, `${slug} is opaque to a look but its group ${groupSlug} is painted`);
+    assert.equal(roleGroupHue(groupSlug), null, `${slug} is kept off #info but its group ${groupSlug} is painted`);
   }
 });

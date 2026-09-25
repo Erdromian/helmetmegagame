@@ -58,14 +58,16 @@
 # they are also the ones the assignment roll fills first
 # (db/lib/roleAssignment.js) and the ones the picker marks with a ★.
 #
-# `examine_visible` (optional, defaults TRUE) is whether this seat's title can
-# ever be learned. A look reads a role from the looker's own memory (the
-# Friends section of /memories), and the game fills that in from the seats a
-# role `knows` and from what is said in the room. It is set to `false` on the
-# eight seats that live on not being known — the two Tribunal seats and the
-# six Bastard seats — and those are never filled in; only a player typing it
-# by hand puts one there. A hooded character reads out no role either way, the
-# same as they read out no name.
+# `examine_visible` (optional, defaults TRUE) now only decides whether the seat
+# is listed in #info's public roles thread (db/lib/infoChannel.js). It is set to
+# `false` on the two Tribunal seats and the six Bastard seats, so the server is
+# not told who is coming. It no longer hides anything in play: a look reads a
+# role from the looker's own memory (the Friends section of /memories), and
+# every seat here — the Tribunal's and the Bastard's included — can be seeded
+# and learned like any other. The secret antagonists (the Thanati, the
+# Vampire, the Demoness, the Judge) have no seat in this file at all: each is a
+# hidden tag under a cover role, and nothing about them ever enters memory
+# (docs/systemdocs/MEMORIES.md §2d).
 #
 # `knows` (optional, defaults to nobody) is who somebody in this seat already
 # knows when the game starts: a list of role slugs and group slugs, where a
@@ -73,8 +75,7 @@
 # known seat becomes a Friends entry on /memories, with their name and role,
 # and a character created later is added to everyone whose seat knows theirs
 # (db/lib/acquaintances.js). It is one-way — the Baron knowing the Servants
-# does not make the Servants know the Baron. A seat whose `examine_visible` is
-# false is still named but never given a role. The town — every Court,
+# does not make the Servants know the Baron. The town — every Court,
 # Clergy, Cerberon, Saviors, Business and Soil seat, plus the Mercenary —
 # shares one list through the `&townsfolk` anchor, and the Bastard's soldiers
 # share `&bastards`; a seat that should differ gets a list of its own instead

@@ -543,19 +543,19 @@ on.
 `/memories`: filled in at creation from `knows:` in `docs/roles.yaml`, learned
 from what is said in a room, or typed by the player. A stranger reads no role.
 
-`examine_visible` in `docs/roles.yaml` — `Role.examineVisible` in the DB —
-now decides whether a seat's title can ever be **learned**. It defaults to
-**true**, which is the opposite of every other flag in that file, and on
-purpose: nearly every seat here is a public office, and the Bishop, the Sheriff
-and the Innkeeper are known to be what they are. Eight carry
-`examine_visible: false`, the seats that live on not being known: **Tribunal
-Ordinator, Tribune** and the six Bastard seats. The game never writes their
-title onto anybody's entry; only a player typing it in does.
+**Every seat can be learned**, the Tribunal's and the Bastard's included —
+they are open invaders. Only the secret antagonists (the Thanati, the Vampire,
+the Demoness, the Judge) are exempt, and they have no seat to learn: each is a
+hidden tag under a cover role, and it is the cover role that gets learned
+(`MEMORIES.md` §2d).
 
-An opaque seat reads as **nothing at all** — not "Unknown". A hidden role and a
-character with no role look identical, the same way a Desire nobody may read is
-absent rather than blanked. A hooded character prints no role either, whatever
-their seat, alongside printing no name and no appearance.
+`examine_visible` in `docs/roles.yaml` — `Role.examineVisible` in the DB — no
+longer affects a look. It now only keeps a seat off `#info`'s public roles
+list (`db/lib/infoChannel.js`): the two Tribunal seats and the six Bastard
+seats carry `false`, so the server is not told who is coming.
+
+A role nobody remembers reads as **nothing at all** — not "Unknown". A hooded
+character prints no role either, alongside printing no name and no appearance.
 
 The title the game teaches is `Character.roleTitle` — the character's own,
 which a GM may hand-edit to "Disgraced Knight". It is no longer frozen onto each
@@ -565,13 +565,13 @@ line the character says; lines from before carry `rt`, and it is ignored.
 Chat's people column is painted by their role GROUP — six coloured estates, with
 Outsiders and Elsewhere wearing none (`db/lib/roleGroups.js#roleGroupHue`,
 `DESIGN-SYSTEM.md` §2). That is not a second rule to keep in step with this one:
-all eight opaque seats live in Elsewhere, which wears none, so a colour can never
-name one. `db/test/roleGroupColour.test.js` fails the build if a re-bucketing in
+all eight invader seats live in Elsewhere, which wears none, so a colour can
+never name one. `db/test/roleGroupColour.test.js` fails the build if a re-bucketing in
 the YAML ever breaks that, which is the only thing holding it.
 
 None of this reaches a GM: the ⚜️ dossier and `/gm/players` print every role.
 It is also deliberately absent from the creation picker and the role charter —
-"this seat is opaque to a look" is exactly the hint you do not want printed
+"this seat is kept off #info" is exactly the hint you do not want printed
 beside the eight seats that carry it.
 
 ### The starting package

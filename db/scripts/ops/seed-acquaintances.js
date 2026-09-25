@@ -30,7 +30,7 @@ async function main() {
       lastName: true,
       roleTitle: true,
       pin: true,
-      role: { select: { slug: true, name: true, knowsRoleSlugs: true, examineVisible: true } },
+      role: { select: { slug: true, name: true, knowsRoleSlugs: true } },
     },
     orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
   });

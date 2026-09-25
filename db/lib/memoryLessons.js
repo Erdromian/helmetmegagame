@@ -1,7 +1,7 @@
 // What a line said in a room TEACHES the people who heard it — the pure half
 // of db/lib/memoryHearing.js (docs/systemdocs/MEMORIES.md §2b). No database,
-// no requires beyond the name formatter, so db/test/memoryLessons.test.js can
-// drive it with plain objects.
+// only pure requires (the name formatter, the threat catalog), so
+// db/test/memoryLessons.test.js can drive it with plain objects.
 //
 // The doc's two rules, and the one Bascinet added on top:
 //
@@ -19,6 +19,7 @@
 //   Friends list filled in. A guess teaches nothing, a right one included.
 
 const { formatBareName } = require("./characterName");
+const { SECRET_SEAT_WORDS } = require("./threats");
 
 // A first name shorter than this never counts on its own — "Al" would be
 // named by every "al dente". The same floor db/lib/mentions.js uses, less one:
@@ -112,12 +113,35 @@ function nameSaidIn(sentence, forms) {
   return null;
 }
 
-// The words a role is heard by: the seat's own name and the character's title,
-// which a GM may have hand-edited ("Disgraced Knight").
+// Whether a piece of text names one of the SECRET seats — the Thanati, the
+// Vampire and the others worn as a hidden tag under a cover role
+// (db/lib/threats.js#SECRET_THREATS). Whole words, any case.
+function namesSecretSeat(text) {
+  if (typeof text !== "string" || !text.trim()) return false;
+  const lower = text.toLowerCase();
+  return SECRET_SEAT_WORDS.some((word) => positionsOf(lower, word).length > 0);
+}
+
+// The title the game will teach or seed for somebody: the character's own,
+// which a GM may have hand-edited ("Disgraced Knight"), else the seat's name.
+// A secret seat is exempt from memory altogether (MEMORIES.md §2d), so a title
+// that names one — a GM writing "Thanati" into the box — is never taught; the
+// cover seat's own name is taught in its place, the same as for anybody.
+function teachableRoleText(person) {
+  const seat = person?.role?.name ?? null;
+  const title = person?.roleTitle ?? null;
+  if (title && !namesSecretSeat(title)) return title;
+  return seat && !namesSecretSeat(seat) ? seat : null;
+}
+
+// The words a role is heard by: the seat's own name and the character's title.
+// Every seat can be learned now, the Tribunal and the Bastard's host included —
+// they are invaders, not secrets. Only a secret seat's words are never among
+// them, so saying "Marrow is a Thanati" teaches nothing, true or not.
 function roleWordsFor(candidate) {
   const role = candidate.role;
-  if (!role?.examineVisible) return [];
-  return [...new Set([capitalised(role.name), capitalised(candidate.roleTitle)].filter(Boolean))];
+  if (!role) return [];
+  return [...new Set([capitalised(role.name), capitalised(candidate.roleTitle)].filter((w) => w && !namesSecretSeat(w)))];
 }
 
 // Whether this sentence names the role — and, when `name` is given, names it
@@ -143,7 +167,7 @@ function entryHoldsName(entry, form) {
 }
 
 // The whole question. `speaker` and every candidate carry
-// `{ id, firstName, lastName, roleTitle, role: { slug, name, examineVisible } }`;
+// `{ id, firstName, lastName, roleTitle, role: { slug, name } }`;
 // `candidates` are the people in the room whose own identity is showing (never
 // a hood or a forced name — the caller filters those), the speaker included if
 // they are. `speakerKnows` maps a subject id to the speaker's own entry
@@ -194,7 +218,7 @@ function lessonsFrom({ content, speaker, candidates, speakerKnows = new Map() })
       role,
       entry: {
         name: formatBareName(candidate) || candidate.name || "Someone",
-        roleText: role ? (candidate.roleTitle ?? candidate.role?.name ?? null) : null,
+        roleText: role ? teachableRoleText(candidate) : null,
         roleSlug: role ? (candidate.role?.slug ?? null) : null,
       },
     });
@@ -202,4 +226,4 @@ function lessonsFrom({ content, speaker, candidates, speakerKnows = new Map() })
   return lessons;
 }
 
-module.exports = { lessonsFrom, speechText, sentencesOf, SENTENCE_START_WORDS };
+module.exports = { lessonsFrom, speechText, sentencesOf, teachableRoleText, namesSecretSeat, SENTENCE_START_WORDS };

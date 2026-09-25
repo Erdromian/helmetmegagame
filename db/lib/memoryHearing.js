@@ -126,7 +126,7 @@ const LISTENER_SELECT = {
   age: true,
   gender: true,
   roleTitle: true,
-  role: { select: { slug: true, name: true, examineVisible: true } },
+  role: { select: { slug: true, name: true } },
   tags: {
     where: {
       OR: [

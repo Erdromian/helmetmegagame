@@ -37,13 +37,13 @@ test("the real roles.yaml resolves, and Ravenheart knows itself", () => {
   for (const [, known] of knows) assert.ok(!known.includes("migrant"));
 });
 
-const person = (id, slug, knowsRoleSlugs = [], { examineVisible = true, roleTitle } = {}) => ({
+const person = (id, slug, knowsRoleSlugs = [], { roleTitle } = {}) => ({
   id,
   firstName: id.toUpperCase(),
   lastName: "Doe",
   name: `${id.toUpperCase()} Doe`,
   roleTitle: roleTitle ?? slug,
-  role: { slug, name: slug, knowsRoleSlugs, examineVisible },
+  role: { slug, name: slug, knowsRoleSlugs },
 });
 
 test("seeding runs both ways and never makes an entry about yourself", () => {
@@ -64,16 +64,23 @@ test("a late arrival is added to everyone whose seat knows theirs", () => {
   assert.equal(rows[0].roleText, "serpent");
 });
 
-test("an antagonist seat is named but never given a role", () => {
-  const tribune = person("t", "tribune", ["tribune"], { examineVisible: false });
-  const other = person("u", "tribune", ["tribune"], { examineVisible: false });
+test("an invader's seat is seeded with its role, like any other", () => {
+  const tribune = person("t", "tribune", ["tribune"]);
+  const other = person("u", "tribune", ["tribune"]);
   const rows = seedRows(tribune, [other]);
   assert.equal(rows.length, 2);
   for (const row of rows) {
-    assert.equal(row.roleText, null);
-    assert.equal(row.roleSlug, null);
-    assert.ok(row.name);
+    assert.equal(row.roleText, "tribune");
+    assert.equal(row.roleSlug, "tribune");
   }
+});
+
+test("a title naming a secret seat is never seeded; the cover seat is", () => {
+  const cultist = person("c", "soiler", [], { roleTitle: "Thanati" });
+  const baron = person("b", "baron", ["soiler"]);
+  const [row] = seedRows(cultist, [baron]);
+  assert.equal(row.roleText, "soiler");
+  assert.equal(row.roleSlug, "soiler");
 });
 
 test("the character's own title is what is remembered", () => {

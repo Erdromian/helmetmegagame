@@ -15,6 +15,7 @@
 
 const { randomInt } = require("node:crypto");
 const { formatBareName } = require("./characterName");
+const { teachableRoleText } = require("./memoryLessons");
 
 // Who counts as somebody you already know. ASLEEP is on the Charon and still a
 // person; a DEAD character is left out, since the doc's test is who you would
@@ -28,22 +29,24 @@ const PERSON_SELECT = {
   lastName: true,
   name: true,
   roleTitle: true,
-  role: { select: { slug: true, name: true, knowsRoleSlugs: true, examineVisible: true } },
+  role: { select: { slug: true, name: true, knowsRoleSlugs: true } },
 };
 
-// What an entry remembers of `subject`. A seat a look may never read — the
-// Tribunal and the Bastard's host (Role.examineVisible) — is named but never
-// given a role: antagonist roles are never put on an entry by the game, only
-// by a player typing one.
+// What an entry remembers of `subject`: their name, and the seat they hold
+// — the Tribunal's and the Bastard's included, since those are open invaders a
+// town can learn to recognise. A SECRET seat (a Thanati, a Vampire…) is never
+// the seat anybody holds, only a hidden tag under a cover role, so it cannot
+// reach an entry from here; teachableRoleText also refuses a title naming one
+// (docs/systemdocs/MEMORIES.md §2d).
 function seededEntry(ownerId, subject) {
   const role = subject.role ?? null;
-  const readable = Boolean(role?.examineVisible);
+  const roleText = teachableRoleText(subject);
   return {
     ownerId,
     subjectId: subject.id,
     name: formatBareName(subject) || subject.name || "Someone",
-    roleText: readable ? (subject.roleTitle ?? role.name ?? null) : null,
-    roleSlug: readable ? role.slug : null,
+    roleText,
+    roleSlug: roleText ? (role?.slug ?? null) : null,
     source: "SEED",
   };
 }

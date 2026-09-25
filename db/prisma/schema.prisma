@@ -3836,15 +3836,14 @@ model Role {
   // docs/systemdocs/CHARACTERS.md §2.
   requiresWhitelist Boolean @default(false)
 
-  // Whether this seat's title can ever be learned. A look reads a role from
-  // the looker's own Friends entry (db/lib/examineRow.js), and the game fills
-  // those in from Role.knowsRoleSlugs and from what is said in the room
-  // (db/lib/acquaintances.js, db/lib/memoryHearing.js). On for nearly every
-  // role -- the Bishop, the Sheriff and the Innkeeper are known to be what
-  // they are -- and off only for the eight seats that live on not being
-  // known: the two Tribunal seats and the six Bastard seats. Those are never
-  // filled in. Declared as `examine_visible:` in docs/roles.yaml, where leaving
-  // it out means visible. See docs/systemdocs/MEMORIES.md §2.
+  // Whether this seat is listed in #info's public roles thread
+  // (db/lib/infoChannel.js reads the YAML key directly). Off for the two
+  // Tribunal seats and the six Bastard seats, so the server is not told who is
+  // coming. The name is historical: a look no longer reads a role off the seat
+  // at all but from the looker's own memory (docs/systemdocs/MEMORIES.md §7),
+  // and every seat can be learned. Nothing in the game reads this column now;
+  // it is kept in step with the YAML by db:sync-roles. Declared as
+  // `examine_visible:` in docs/roles.yaml, where leaving it out means true.
   examineVisible Boolean @default(true)
 
   // Which roles somebody in this seat starts out knowing: a Friends entry,

@@ -120,10 +120,10 @@ three places a character is made: `createCharacter`, `reincarnate` and
 for every ALIVE or ASLEEP holder of a seat they know, and everyone whose seat
 knows theirs gets one for them. That second half is the doc's late Serpent.
 
-A seat with `examine_visible: false` (the two Tribunal seats and the six
-Bastard seats) is named but **never given a role** on anybody's entry. The
-Thanati, the Demoness and the rest wear ordinary cover seats, and their cover
-role is what gets learned.
+**Every seat can be seeded and learned**, the Tribunal's and the Bastard's
+included: they are open invaders, and a town can learn to recognise them.
+`examine_visible: false` on those seats now only keeps them off `#info`'s
+public roles list. The secret antagonists are the exception, §2d.
 
 The table is edited in an artifact, "Who Knows Whom", and copied into the YAML
 by hand. There is no in-game editor.
@@ -167,6 +167,31 @@ from `recordSpeech`. The Discord proxy calls it once the webhook post has
 landed, because the proxy writes its row first and takes it back if the post
 fails. A ghost's line, a line recovered late (`sentAt`) and an edit teach
 nothing.
+
+### 2d. The secret antagonists are exempt
+
+The Thanati, the Thanati leader, the Vampire, the Demoness and the Judge
+(`db/lib/threats.js#SECRET_THREATS`: every seat worn as a hidden tag under a
+cover role, with no Role of its own) are **completely outside** the memory
+system. Nothing is seeded, learned or remembered about being one:
+
+- Seeding and learning only ever deal in the seat somebody **holds**, and a
+  secret antagonist holds their cover seat. That cover seat is learned the same
+  way anybody's is, so being one changes nothing a room can find out.
+- None of their words is ever a role word (`SECRET_SEAT_WORDS`: the names, and
+  the public names they opt in under, such as "Cultist"). Saying "Marrow is a
+  Thanati" teaches nothing, true or not.
+- A title naming one — a GM typing "Vampire" into somebody's title box — is
+  never taught or seeded; the cover seat's own name goes on the entry instead
+  (`memoryLessons.js#teachableRoleText`).
+
+Bascinet narrowed the design doc's "Antagonist roles are NEVER included" to exactly these
+on 2026-09-25: the Tribunal and the Bastard's host are learnable, the secret
+seats are not.
+
+The Thanati still recognise each other through their own sight (`THANATI.md`),
+which writes no memory. A player may still type anything into their own
+entries by hand.
 
 ### 2c. By hand
 
