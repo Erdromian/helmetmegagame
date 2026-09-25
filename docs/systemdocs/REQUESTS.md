@@ -325,8 +325,7 @@ descriptor follows (`db/lib/hungerDescriptor.js#syncHungerDescriptor`, shared
 with the Dev Panel's Feed Them). `db/lib/hungerPass.js#runHungerPass` is the
 only turn-pass writer of `hungerValue`, `starvingSinceTurn` and the
 descriptors; `TURN-ENGINE.md` §5 has its steps, the per-day decay, eating
-Foodstuffs to stay out of Starving, and the three closes at 0 that grant
-`dying`.
+Foodstuffs to stay out of Starving, and reaching 0, which grants `dying`.
 
 **Hunger costs no ⬢ at all.** `Character.hungerStreak` is an orphan column, the
 same fate as `Character.missedMealStreak`; nothing writes or reads it.

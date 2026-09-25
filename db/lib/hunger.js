@@ -38,9 +38,10 @@ const THRESHOLD_MOOD_HIT = -30;
 // are not on this path: they carry their own flat -5 as `mealMood`.
 const RAW_FOOD_MOOD = -10;
 
-// Three consecutive closes at 0 grants `dying`. The doc says only that a
-// Starving character "will perish" if they do not eat soon.
-const STARVING_DEATH_TURNS = 3;
+// The close that takes the meter to 0 grants `dying` (Bascinet's call; the doc
+// says only that a Starving character "will perish" if they do not eat soon).
+// Dying then runs its usual one-turn clock (db/lib/dyingDeathPass.js).
+const STARVING_DEATH_TURNS = 1;
 
 // What one Foodstuff restores, if the tag row has somehow lost its
 // `mealHunger`. The catalog (docs/tags.yaml) is the real source.
@@ -85,10 +86,14 @@ function bandOf(hungerValue) {
   return "full";
 }
 
-// A per-day figure spread over one turn, truncated. A turn is 6, 8, 12 or 24
-// hours (Turn.turnLengthHours), so 17 a day is 4, 5, 8 or 17 a turn. Unlike
-// db/lib/vampire.js#perTurnRate this truncates, because the doc says so.
-function perTurnDecay(perDay, turnLengthHours) {
+// A per-day figure spread over one turn. By default a day is the calendar
+// day: a turn is 6, 8, 12 or 24 hours (Turn.turnLengthHours), so 17 a day is
+// 4, 5, 8 or 17 a turn, truncated because the doc says so (unlike
+// db/lib/vampire.js#perTurnRate). When GameConfig.turnsPerDay is set, a day is
+// that many turns instead, whatever their length, and the share rounds UP:
+// 17 over 2 turns is 9 a turn (Bascinet's call).
+function perTurnDecay(perDay, turnLengthHours, turnsPerDay = 0) {
+  if (Number.isInteger(turnsPerDay) && turnsPerDay >= 1) return Math.ceil(perDay / turnsPerDay);
   const hours = Number.isFinite(turnLengthHours) && turnLengthHours > 0 ? turnLengthHours : 24;
   return Math.trunc((perDay * hours) / 24);
 }
@@ -98,11 +103,11 @@ function asSet(slugs) {
 }
 
 // Accepts a Set or array of held slugs. Hungerless never decays.
-function decayFor(heldSlugs, turnLengthHours) {
+function decayFor(heldSlugs, turnLengthHours, turnsPerDay = 0) {
   const held = asSet(heldSlugs);
   if (held.has(HUNGERLESS_SLUG)) return 0;
   const perDay = held.has(FAST_METABOLISM_SLUG) ? HUNGER_DECAY_PER_DAY_FAST : HUNGER_DECAY_PER_DAY;
-  return perTurnDecay(perDay, turnLengthHours);
+  return perTurnDecay(perDay, turnLengthHours, turnsPerDay);
 }
 
 // before/after are raw hungerValue numbers. Reports each threshold's crossing
@@ -191,14 +196,14 @@ function resolveHunger({ before, afterDecay, eaten = 0, perUnit = FOODSTUFF_HUNG
 // would eat to stay out of Starving, and where that leaves them.
 function planHunger(
   { hungerValue, starvingSinceTurn = null, heldSlugs, foodstuffsHeld = 0 },
-  { turnLengthHours, turnNumber, perUnit = FOODSTUFF_HUNGER },
+  { turnLengthHours, turnsPerDay = 0, turnNumber, perUnit = FOODSTUFF_HUNGER },
 ) {
   const held = asSet(heldSlugs);
   if (held.has(HUNGERLESS_SLUG)) {
     return { hungerless: true, decay: 0, afterDecay: HUNGER_MAX, eat: 0, final: HUNGER_MAX, band: null, zeroSince: null, newlyDying: false, notice: null };
   }
   const before = clampHunger(hungerValue);
-  const decay = decayFor(held, turnLengthHours);
+  const decay = decayFor(held, turnLengthHours, turnsPerDay);
   const afterDecay = clampHunger(before - decay);
   const eat = planAutoEat(afterDecay, foodstuffsHeld, perUnit);
   return {

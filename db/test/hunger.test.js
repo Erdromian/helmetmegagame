@@ -50,6 +50,17 @@ test("decayFor: Big Appetite burns 24 a day, Hungerless nothing", () => {
   assert.equal(decayFor(new Set(["hungerless", "fast-metabolism"]), 24), 0);
 });
 
+test("turnsPerDay set: the day's 17 splits over that many turns, rounded up, whatever their length", () => {
+  assert.deepEqual([1, 2, 3, 4, 24].map((n) => perTurnDecay(17, 24, n)), [17, 9, 6, 5, 1]);
+  assert.equal(perTurnDecay(17, 6, 2), 9); // the length no longer matters
+  assert.equal(perTurnDecay(17, 12, 0), 8); // 0 is the calendar day, truncated as before
+  assert.deepEqual([2, 5].map((n) => decayFor(["fast-metabolism"], 24, n)), [12, 5]);
+  assert.equal(decayFor(["hungerless"], 24, 2), 0);
+  const out = planHunger({ hungerValue: 100, heldSlugs: [] }, { turnLengthHours: 24, turnsPerDay: 2, turnNumber: 1 });
+  assert.equal(out.decay, 9);
+  assert.equal(out.final, 91);
+});
+
 test("the three bands are separate: Full 100-67, Hungry 66-34, Starving 33-0", () => {
   assert.equal(HUNGRY_THRESHOLD, 66);
   assert.equal(STARVING_THRESHOLD, 33);
@@ -145,13 +156,22 @@ test("planHunger: Full to Hungry is told on the close it happens, never forecast
   assert.equal(quiet.notice, null);
 });
 
-test("planHunger: three closes at 0 grants dying", () => {
+test("planHunger: the close that reaches 0 grants dying", () => {
+  assert.equal(STARVING_DEATH_TURNS, 1);
   const first = planHunger({ hungerValue: 3, heldSlugs: [] }, { turnLengthHours: 24, turnNumber: 10 });
   assert.equal(first.zeroSince, 10);
-  assert.equal(first.newlyDying, false);
-  const third = planHunger({ hungerValue: 0, starvingSinceTurn: 10, heldSlugs: [] }, { turnLengthHours: 24, turnNumber: 10 + STARVING_DEATH_TURNS - 1 });
-  assert.equal(third.newlyDying, true);
-  assert.equal(third.notice.justDied, true);
+  assert.equal(first.newlyDying, true);
+  assert.equal(first.notice.justDied, true);
+  assert.ok(first.notice.kinds.includes("starving"));
+  const above = planHunger({ hungerValue: 20, heldSlugs: [] }, { turnLengthHours: 24, turnNumber: 10 });
+  assert.equal(above.final, 3);
+  assert.equal(above.newlyDying, false);
+});
+
+test("planHunger: eating off the last Foodstuffs to stay above 0 is not dying", () => {
+  const out = planHunger({ hungerValue: 10, heldSlugs: [], foodstuffsHeld: 1 }, { turnLengthHours: 24, turnNumber: 10, perUnit: 4 });
+  assert.equal(out.final, 4);
+  assert.equal(out.newlyDying, false);
 });
 
 test("planHunger: the Hungerless are pinned full and hold no descriptor", () => {

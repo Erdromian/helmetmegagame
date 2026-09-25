@@ -39,12 +39,13 @@ Three catalog templates in `docs/tags.yaml`, each with `mealClass`:
 | Class | Template | Skill | Foodstuffs | Hunger | Mood | Move | Extra ingredients | Where |
 |---|---|---|---|---|---|---|---|---|
 | Basic | `basic-meal` | Cooking I (`cooking-basic`) | 2 | +15 | +2 | 0.05 | 0–4 | anywhere |
-| Skilled | `skilled-meal` | Cooking II (`cooking-skilled`) | 2 | +18 | +6 | 0.1 | 0–4 | anywhere |
+| Skilled | `skilled-meal` | Cooking II (`cooking-skilled`) | 2 | +18 | +6 | 0.05 | 0–4 | anywhere |
 | Lavish | `lavish-meal` | Cooking II | 3 | +20 | +12 | 0.2 | **1**–4 | a kitchen |
 
 Hunger, mood, Foodstuffs, skills and the kitchen are the doc's. **The Move cost
-is not in the doc** — 0.05 / 0.1 / 0.2 are the old tiers' costs, kept at
-Bascinet's call, so a turn cooks 20 Basic, 10 Skilled or 5 Lavish meals.
+is not in the doc** — Basic and Lavish keep the old tiers' 0.05 and 0.2, and
+Skilled costs the same 0.05 as Basic (both Bascinet's call), so a turn cooks 20
+Basic, 20 Skilled or 5 Lavish meals.
 `cooking-skilled` has `parentTag: cooking-basic`, so a Cooking II cook can make
 all three.
 

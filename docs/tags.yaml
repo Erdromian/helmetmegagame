@@ -11431,7 +11431,7 @@ tags:
     consumable: true
     consumesInto: []
     requirement:
-      turnsCost: 0.1
+      turnsCost: 0.05
       skills: [cooking-skilled]
       gambit: false
       items: [{ tag: foodstuffs, count: 2 }]

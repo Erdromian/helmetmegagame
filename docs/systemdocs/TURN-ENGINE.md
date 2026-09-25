@@ -519,7 +519,7 @@ The thunk performs, in narrative order:
    combined `#leave` post naming everyone who died this turn.
 4. Hunger DMs — one per player who crossed newly into Hungry or Starving this
    close, or who ate Foodstuffs to stay out of Starving (§5a), all in one DM;
-   plus the Dying line for anyone whose three closes at 0 just ran out (§5b).
+   plus the Dying line for anyone whose meter just reached 0 (§5b).
    A character who stayed in the same band hears nothing from this step.
    (The Dev Panel's Feed Them button sends its own `recovered` line instead,
    since a GM acting on someone's sheet needs telling apart from the
@@ -681,7 +681,10 @@ it drops with time and is raised only by eating.
 **It drops 17 a day**, split across however many turns the day holds and
 **truncated** to a whole number (`perTurnDecay`): a 24-hour turn burns 17, a
 12-hour turn 8, an 8-hour turn 5 and a 6-hour turn 4. The turn length is the
-closing Turn's own `turnLengthHours`. `fast-metabolism` (Big Appetite) burns
+closing Turn's own `turnLengthHours`. When **Turns per in-game day**
+(`GameConfig.turnsPerDay`) is set, the day is that many turns instead,
+whatever their length, and the share is **rounded up**: 2 turns a day burn 9
+each, 3 burn 6, 4 burn 5. `fast-metabolism` (Big Appetite) burns
 24 a day on the same terms — the doc does not name it, so it keeps the 1.4×
 it had before. `hungerless` never burns: the meter is pinned at 100 and the
 character holds no descriptor at all.
@@ -747,10 +750,12 @@ per descriptor somebody moved into — never one per character.
 
 **The zero clock.** `Character.starvingSinceTurn` (the name is older than the
 rework; it now means "at 0 since") is stamped the first close the meter reads
-0 and cleared the moment it reads anything else. **Three consecutive closes at
-0** grant `dying` with a one-turn clock; the Dying death pass finishes it. The
-doc says only that a Starving character "will perish" if they do not eat, so
-the three closes are kept from before.
+0 and cleared the moment it reads anything else. **The close that takes the
+meter to 0** grants `dying` with a one-turn clock, and the Dying death pass
+finishes it at the next close. A cure without food buys nothing: the next close
+still reads 0 and grants it again. The doc says only that a Starving character
+"will perish" if they do not eat; the timing is Bascinet's call
+(`STARVING_DEATH_TURNS`, 1).
 
 ### 5c. Eating
 

@@ -55,7 +55,7 @@ test("the catalog's templates match the doc's Meal Classes table", () => {
   const tags = doc.tags ?? doc;
   const want = {
     BASIC: { skill: "cooking-basic", foodstuffs: 2, hunger: 15, mood: 2, turns: 0.05, min: 0 },
-    SKILLED: { skill: "cooking-skilled", foodstuffs: 2, hunger: 18, mood: 6, turns: 0.1, min: 0 },
+    SKILLED: { skill: "cooking-skilled", foodstuffs: 2, hunger: 18, mood: 6, turns: 0.05, min: 0 },
     LAVISH: { skill: "cooking-skilled", foodstuffs: 3, hunger: 20, mood: 12, turns: 0.2, min: 1 },
   };
   for (const [cls, w] of Object.entries(want)) {

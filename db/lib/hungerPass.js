@@ -74,9 +74,13 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   const eatMood = dishMoodTerms(foodstuffs?.mealMood ?? 0, []);
 
   const turnLengthHours = turn.turnLengthHours ?? 24;
+  // Turns per in-game day (GameConfig.turnsPerDay, 0 = the calendar day).
+  // Read without a select, so this still works before that column exists.
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  const turnsPerDay = config?.turnsPerDay ?? 0;
   const turnNumber = turn.number;
-  const perTurn = decayFor(new Set(), turnLengthHours);
-  const perTurnFast = decayFor(new Set([FAST_METABOLISM_SLUG]), turnLengthHours);
+  const perTurn = decayFor(new Set(), turnLengthHours, turnsPerDay);
+  const perTurnFast = decayFor(new Set([FAST_METABOLISM_SLUG]), turnLengthHours, turnsPerDay);
 
   // Only what this pass reads as INPUT: the two gating traits and a
   // Foodstuffs stack. The descriptors are its OUTPUT, worked out from the
@@ -119,7 +123,7 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
         heldSlugs: fast ? [FAST_METABOLISM_SLUG] : [],
         foodstuffsHeld: foodstuffs ? heldIds.get(foodstuffs.id)?.quantity ?? 0 : 0,
       },
-      { turnLengthHours, turnNumber, perUnit },
+      { turnLengthHours, turnsPerDay, turnNumber, perUnit },
     );
     if (plan.eat > 0) {
       eaters.push({ id: character.id, fast });
@@ -179,7 +183,7 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
             heldSlugs: eater.fast ? [FAST_METABOLISM_SLUG] : [],
             foodstuffsHeld: fresh.tags[0]?.quantity ?? 0,
           },
-          { turnLengthHours, turnNumber, perUnit },
+          { turnLengthHours, turnsPerDay, turnNumber, perUnit },
         );
         let eaten = 0;
         if (plan.eat > 0) {
@@ -242,7 +246,8 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
       }
 
       // The zero clock: stamped the first close the meter reads 0, cleared
-      // the moment it reads anything else. Three closes at 0 grants `dying`.
+      // the moment it reads anything else. Reaching 0 grants `dying`
+      // (STARVING_DEATH_TURNS in db/lib/hunger.js).
       const stampIds = [];
       const clearIds = [];
       const newlyDyingIds = [];
@@ -327,6 +332,7 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   return {
     turnNumber,
     turnLengthHours,
+    turnsPerDay: turnsPerDay || undefined,
     perTurnDecay: perTurn,
     decayed: outcomes.size,
     skipped: hungerlessIds.length,
