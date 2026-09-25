@@ -5,8 +5,8 @@
 // The meter itself (thresholds, decay, bands, what a character eats to stay
 // out of Starving) lives in the Prisma-free db/lib/hunger.js — this file is
 // the Prisma half: reading every ALIVE character, writing the decay, eating
-// the tastiest thing somebody carries when they are about to drop into
-// Starving (or give in to it while Hungry, or as a Glutton), and keeping each
+// Foodstuffs for somebody about to drop into Starving (and anything better
+// they carry only when the meter would otherwise reach 0), and keeping each
 // character's one descriptor tag (Full, Hungry or Starving) in step.
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
@@ -18,7 +18,6 @@ const {
   HUNGERLESS_SLUG,
   FAST_METABOLISM_SLUG,
   DYING_SLUG,
-  GLUTTON_SLUG,
 } = require("./constants");
 const { applyMoodTerms, dishMoodTerms, scaleTerms, EVENTS } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
@@ -100,13 +99,11 @@ function foodsFrom(rows, ingredientsBySlug) {
   return foods;
 }
 
-// `rng` is the snack roll's source, one draw per character; a test may pass
-// its own.
-async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {}) {
+async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   const tags = await prisma.tag.findMany({
     where: {
       slug: {
-        in: [FULL_SLUG, HUNGER_SLUG, STARVING_SLUG, HUNGERLESS_SLUG, FAST_METABOLISM_SLUG, DYING_SLUG, GLUTTON_SLUG],
+        in: [FULL_SLUG, HUNGER_SLUG, STARVING_SLUG, HUNGERLESS_SLUG, FAST_METABOLISM_SLUG, DYING_SLUG],
       },
     },
     select: { id: true, slug: true, name: true },
@@ -130,7 +127,6 @@ async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {
   if (!dyingTag) {
     console.error(`Hunger pass: no "${DYING_SLUG}" tag — run npm run db:sync-tags. Starving to death won't grant it.`);
   }
-  const gluttonId = bySlug.get(GLUTTON_SLUG)?.id ?? null;
 
   const turnLengthHours = turn.turnLengthHours ?? 24;
   // Turns per in-game day (GameConfig.turnsPerDay, 0 = the calendar day).
@@ -141,10 +137,10 @@ async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {
   const perTurn = decayFor(new Set(), turnLengthHours, turnsPerDay);
   const perTurnFast = decayFor(new Set([FAST_METABOLISM_SLUG]), turnLengthHours, turnsPerDay);
 
-  // Only what this pass reads as INPUT: the three gating traits, and (below)
+  // Only what this pass reads as INPUT: the two gating traits, and (below)
   // whatever food somebody carries. The descriptors are its OUTPUT, worked
   // out from the meter, never read back.
-  const gateIds = [hungerlessId, fastMetabolismId, gluttonId].filter(Boolean);
+  const gateIds = [hungerlessId, fastMetabolismId].filter(Boolean);
   // A character born mid-close (see db/index.js#resolveNeeds) wasn't alive
   // for the turn that's closing — exclude them rather than charge a body for
   // a day it never had.
@@ -189,12 +185,7 @@ async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {
       continue;
     }
     const fast = Boolean(fastMetabolismId && heldIds.has(fastMetabolismId));
-    const heldSlugs = [
-      ...(fast ? [FAST_METABOLISM_SLUG] : []),
-      ...(gluttonId && heldIds.has(gluttonId) ? [GLUTTON_SLUG] : []),
-    ];
-    // Drawn once and kept, so the re-plan under the lock rolls the same.
-    const roll = rng();
+    const heldSlugs = fast ? [FAST_METABOLISM_SLUG] : [];
     const plan = planHunger(
       {
         hungerValue: character.hungerValue,
@@ -202,10 +193,10 @@ async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {
         heldSlugs,
         foods: foodsFrom(foodRowsBy.get(character.id) ?? [], ingredientsBySlug),
       },
-      { turnLengthHours, turnsPerDay, turnNumber, roll },
+      { turnLengthHours, turnsPerDay, turnNumber },
     );
     if (plan.meals.length) {
-      eaters.push({ id: character.id, heldSlugs, roll });
+      eaters.push({ id: character.id, heldSlugs });
     } else {
       const decay = fast ? perTurnFast : perTurn;
       const key = character.hungerValue >= decay ? (fast ? "fast" : "normal") : fast ? "fastFloor" : "normalFloor";
@@ -220,7 +211,6 @@ async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {
   }
 
   let autoAteUnits = 0;
-  let snacked = 0;
   let starvedAte = 0;
   const poisonedEaters = [];
 
@@ -242,10 +232,9 @@ async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {
       }
       await tx.character.updateMany({ where: { id: { in: buckets.fastFloor } }, data: { hungerValue: 0 } });
 
-      // Eating to stay out of Starving (the doc), or giving in while Hungry:
-      // the tastiest thing first. Re-read under the lock — the stacks or the
-      // meter may have moved since the read above — and re-planned with the
-      // same roll.
+      // Foodstuffs to stay out of Starving (the doc), then anything better
+      // only to stay above 0. Re-read under the lock — the stacks or the
+      // meter may have moved since the read above — and re-planned.
       let ladder = null;
       for (const eater of eaters) {
         await lockCharacter(tx, eater.id);
@@ -264,7 +253,7 @@ async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {
             heldSlugs: eater.heldSlugs,
             foods: foodsFrom(freshRows, ingredientsBySlug),
           },
-          { turnLengthHours, turnsPerDay, turnNumber, roll: eater.roll },
+          { turnLengthHours, turnsPerDay, turnNumber },
         );
         for (const meal of plan.meals) {
           const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, eater.id, meal.tagId, meal.count);
@@ -284,15 +273,11 @@ async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {
           before: fresh.hungerValue,
           afterDecay: plan.afterDecay,
           meals: plan.meals,
-          snack: plan.snack,
           starvingSinceTurn: fresh.starvingSinceTurn,
           turnNumber,
         });
         autoAteUnits += settled.eaten;
-        if (settled.eaten) {
-          if (plan.snack) snacked += 1;
-          else starvedAte += 1;
-        }
+        if (settled.eaten) starvedAte += 1;
         await tx.character.update({ where: { id: eater.id }, data: { hungerValue: settled.final } });
         outcomes.set(eater.id, {
           ...outcomes.get(eater.id),
@@ -421,7 +406,6 @@ async function runHungerPass(prisma, turn, { bornBefore, rng = Math.random } = {
     decayed: outcomes.size,
     skipped: hungerlessIds.length,
     autoAte: starvedAte,
-    snacked,
     autoAteUnits,
     poisonedWhileEating: poisonedEaters.length || undefined,
     enteredHungry: enteredHungryIds.length,

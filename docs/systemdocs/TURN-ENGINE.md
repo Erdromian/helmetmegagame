@@ -721,26 +721,25 @@ moment they become Hungry or Starving, and not before.
 
 ### 5a. Eating at the close without being asked
 
-The close eats for a character in two cases, and both reach for the
-**tastiest** thing they carry first: the biggest mood figure a unit would
-give, then whatever fills most (`db/lib/hunger.js#tastiestFirst`). A Hungry
-servant carrying a feast for their betters eats the feast, not their own
-Foodstuffs. That is the point.
+The close eats for a character only when the decay would leave them in
+Starving, and then in two steps (`db/lib/hunger.js#planAutoMeals`). Nobody who
+is Hungry or Full eats anything unasked, Glutton or not.
 
-**About to starve: always.** A character the decay would leave in Starving eats,
-tastiest first, until the meter reaches the first Hungry value (34), or until
-nothing worth eating is left (`planAutoMeals`). Being Starving costs nothing,
-because they are not. *"You were about to starve, so you ate your Saffron Stew
-and 2 Foodstuffs from your pack."*
+**Foodstuffs, to stay out of Starving.** A character carrying Foodstuffs eats
+as many as it takes to reach the first Hungry value (34), or all of them if
+that is not enough. Being Starving costs nothing, because they are not.
+*"You were about to starve, so you ate 3 Foodstuffs from your pack."* If that
+is not enough: *"You were starving, so you ate 2 Foodstuffs. It wasn't
+enough."*
 
-**Hungry: sometimes.** A character left in Hungry has a
-**25% a day** chance (`SNACK_CHANCE_PER_DAY`, spread over the day's turns, so a
-6-hour game snacks no more often than a 24-hour one) of giving in and eating
-**one** of the tastiest thing they carry (`planSnack`). Only something that is
-actually a treat tempts anybody: the tastiest thing must be a mood gain, so
-nobody idly eats a Foodstuff or a raw fish. A **Glutton** rolls the same chance
-at every level, Full included. *"You couldn't help yourself, and ate your
-Lavish Meal."*
+**Anything else, only to stay alive.** Meals, dishes and raw ingredients are
+never eaten to stay out of Starving. They are eaten only when the meter would
+otherwise read **0**, which grants `dying` (§5b), and only enough to bring it
+to 1 (`STAY_ALIVE_FLOOR`). The **tastiest** thing goes first: the biggest mood
+figure a unit would give, then whatever fills most (`tastiestFirst`). So a
+servant carrying a feast for their betters will get it there, unless carrying
+it is all that stands between them and death. *"You were starving to death, so
+you ate your Lavish Meal to stay alive."*
 
 **What it will eat** (`autoEdible`): only plain food, meaning it fills you,
 moves your mood and does nothing else. Anything that grants a tag (Dustfish's
@@ -766,8 +765,8 @@ cutoff excludes anybody born during this close):
    eaten, where that lands.
 2. In **one** transaction: batch the decay for everybody who is not eating
    (four `updateMany` buckets, each guarded so the meter never goes below 0);
-   for each eater, lock them, re-read their food and meter, re-plan with the
-   same snack roll, eat and set the meter outright; set exactly one descriptor for everyone (none for the
+   for each eater, lock them, re-read their food and meter, re-plan, eat and
+   set the meter outright; set exactly one descriptor for everyone (none for the
    Hungerless); run the zero clock (below).
 3. After it: one mood write per character — the one-time **−30** for dropping
    into Hungry and again into Starving (`HUNGRY_ONSET`/`STARVING_ONSET`, charged

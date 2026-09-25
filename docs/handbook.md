@@ -284,7 +284,7 @@ Hunger comes on slowly, over days, and you are told when you become Hungry — n
 
 Being Starving costs you −1 on Gambit rolls. If you do not eat soon, you will die: stay starved with nothing left in you and you receive the {tag:dying} tag, and a GM will review your situation to determine what happens next.
 
-If a turn would leave you Starving and you are carrying food, you eat enough of it to stay only Hungry, and you are told that you did. You reach for the tastiest thing first, so a feast you were carrying for somebody else may not survive the walk. While you are merely Hungry you may give in and eat a treat you are carrying, now and then. Nobody eats something that would make them sick, or that they would never touch.
+If a turn would leave you Starving and you are carrying Foodstuffs, you eat enough of them to stay only Hungry, and you are told that you did. Anything better you carry, a meal or a raw ingredient, you eat only when you would otherwise starve to death, and then the tastiest thing first. Nobody eats something that would make them sick, or that they would never touch.
 
 Once you are Full to the brim you cannot eat any more food, unless you are a {tag:glutton}. A character with {tag:hungerless} never goes hungry, and food does nothing for them.
 

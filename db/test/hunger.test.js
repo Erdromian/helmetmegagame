@@ -1,9 +1,9 @@
 // node --test over db/lib/hunger.js (the Soilery Rework doc). Pure and
 // Prisma-free, same as the module it covers. What matters most: the per-turn
 // decay is 17 a day TRUNCATED per turn, the three descriptors are separate
-// bands at 100-67 / 66-34 / 33-0, the turn close eats just enough of the
-// tastiest food carried to stay out of Starving (and may give in to a snack
-// while Hungry), and the Consume slider stops where the doc says.
+// bands at 100-67 / 66-34 / 33-0, the turn close eats just enough Foodstuffs
+// to stay out of Starving and anything better only to stay above 0, and the
+// Consume slider stops where the doc says.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const {
@@ -11,6 +11,7 @@ const {
   HUNGRY_THRESHOLD,
   STARVING_THRESHOLD,
   AUTO_EAT_FLOOR,
+  STAY_ALIVE_FLOOR,
   RAW_FOOD_MOOD,
   STARVING_DEATH_TURNS,
   DESCRIPTORS,
@@ -28,9 +29,6 @@ const {
   tastiestFirst,
   AUTO_EAT_MOOD_FLOOR,
   planAutoMeals,
-  SNACK_CHANCE_PER_DAY,
-  snackChanceFor,
-  planSnack,
   planHunger,
   rawFoodMoodTerms,
   hungerDm,
@@ -139,17 +137,33 @@ test("planAutoMeals: just enough to reach 34, or all there is", () => {
   assert.equal(count(10, 0), 0);
 });
 
-test("planAutoMeals: the tastiest thing goes first, and only as much as it takes", () => {
-  const meals = planAutoMeals(20, [FOODSTUFFS(10), food("lavish", 1, 40, 30, "Lavish Meal"), food("cheese", 2, 12, 5)]);
-  assert.deepEqual(meals.map((m) => [m.slug, m.count]), [["lavish", 1]]);
-  const hungrier = planAutoMeals(0, [FOODSTUFFS(10), food("cheese", 2, 12, 5)]);
-  assert.deepEqual(hungrier.map((m) => [m.slug, m.count]), [["cheese", 2], ["foodstuffs", 3]]); // 24, then 36
+test("planAutoMeals: Foodstuffs keep you out of Starving; a meal is left alone while you are alive", () => {
+  const lavish = food("lavish", 1, 40, 30, "Lavish Meal");
+  const cheese = food("cheese", 2, 12, 5);
+  const meals = planAutoMeals(20, [FOODSTUFFS(10), lavish, cheese]);
+  assert.deepEqual(meals.map((m) => [m.slug, m.count]), [["foodstuffs", 4]]); // 36
+  // No Foodstuffs, starving but above 0: nothing else is touched.
+  assert.deepEqual(planAutoMeals(1, [lavish, cheese]), []);
+  assert.deepEqual(planAutoMeals(33, [lavish, cheese]), []);
 });
 
-test("planAutoMeals: even starving, nothing below the mood floor is eaten", () => {
+test("planAutoMeals: at 0, anything else is eaten, tastiest first, just enough to stay alive", () => {
+  assert.equal(STAY_ALIVE_FLOOR, 1);
+  const lavish = food("lavish", 1, 40, 30, "Lavish Meal");
+  const cheese = food("cheese", 2, 12, 5);
+  assert.deepEqual(planAutoMeals(0, [lavish, cheese]).map((m) => [m.slug, m.count]), [["lavish", 1]]);
+  assert.deepEqual(planAutoMeals(0, [cheese]).map((m) => [m.slug, m.count]), [["cheese", 1]]);
+  // Foodstuffs go first, and only if they run out at 0 does anything else follow.
+  assert.deepEqual(planAutoMeals(0, [FOODSTUFFS(20), lavish]).map((m) => [m.slug, m.count]), [["foodstuffs", 9]]);
+  assert.deepEqual(planAutoMeals(0, [FOODSTUFFS(3), lavish]).map((m) => [m.slug, m.count]), [["foodstuffs", 3]]); // 12: alive
+  assert.deepEqual(planAutoMeals(0, [FOODSTUFFS(0), lavish]).map((m) => [m.slug, m.count]), [["lavish", 1]]);
+});
+
+test("planAutoMeals: even starving to death, nothing below the mood floor is eaten", () => {
   assert.ok(AUTO_EAT_MOOD_FLOOR <= -10); // Moldy Bread still counts
-  const meals = planAutoMeals(10, [food("human-flesh", 5, 18, -50), FOODSTUFFS(1)]);
-  assert.deepEqual(meals.map((m) => m.slug), ["foodstuffs"]);
+  const meals = planAutoMeals(0, [food("human-flesh", 5, 18, -50), food("moldy-bread", 1, 6, -10)]);
+  assert.deepEqual(meals.map((m) => m.slug), ["moldy-bread"]);
+  assert.deepEqual(planAutoMeals(0, [food("human-flesh", 5, 18, -50)]), []);
 });
 
 test("planHunger: a character about to drop into Starving eats and lands in Hungry, with no Starving onset", () => {
@@ -205,40 +219,24 @@ test("tastiestFirst: most mood, then most filling", () => {
   assert.deepEqual(order.map((f) => f.slug), ["c", "b", "a"]);
 });
 
-test("snackChanceFor: a per-day chance, spread over the day's turns", () => {
-  assert.ok(Math.abs(snackChanceFor(24) - SNACK_CHANCE_PER_DAY) < 1e-9);
-  const sixHour = snackChanceFor(6);
-  assert.ok(Math.abs(1 - (1 - sixHour) ** 4 - SNACK_CHANCE_PER_DAY) < 1e-9);
-  assert.ok(Math.abs(snackChanceFor(24, 2) - snackChanceFor(12)) < 1e-9);
+test("planHunger: nobody Hungry or Full eats a meal unasked, Glutton or not", () => {
+  const foods = [FOODSTUFFS(5), food("lavish", 1, 40, 30, "Lavish Meal")];
+  for (const [hungerValue, heldSlugs] of [[70, []], [100, ["glutton"]], [60, ["glutton"]]]) {
+    const out = planHunger({ hungerValue, heldSlugs, foods }, { turnLengthHours: 24, turnNumber: 5 });
+    assert.equal(out.eaten, 0);
+  }
 });
 
-test("planSnack: Hungry, a lucky roll eats one of the tastiest thing — never a joyless one", () => {
-  const foods = [FOODSTUFFS(5), food("lavish", 2, 40, 30, "Lavish Meal")];
-  assert.deepEqual(planSnack(50, foods, { chance: 0.5, roll: 0.1 }).map((m) => [m.slug, m.count]), [["lavish", 1]]);
-  assert.deepEqual(planSnack(50, foods, { chance: 0.5, roll: 0.9 }), []); // the roll failed
-  assert.deepEqual(planSnack(80, foods, { chance: 0.5, roll: 0.1 }), []); // Full
-  assert.deepEqual(planSnack(50, [FOODSTUFFS(5)], { chance: 1, roll: 0 }), []); // nothing tempting
-  assert.deepEqual(planSnack(20, foods, { chance: 1, roll: 0 }), []); // Starving is planAutoMeals's
-});
-
-test("planSnack: a Glutton gives in at any level, even Full", () => {
+test("planHunger: starving with only a meal, it is eaten the close the meter would reach 0, and not before", () => {
   const foods = [food("lavish", 1, 40, 30, "Lavish Meal")];
-  assert.equal(planSnack(100, foods, { glutton: true, chance: 0.5, roll: 0.1 }).length, 1);
-  assert.equal(planSnack(100, foods, { glutton: true, chance: 0.5, roll: 0.9 }).length, 0);
-});
-
-test("planHunger: the snack is its own kind of notice, and lifts the meter", () => {
-  const foods = [food("lavish", 1, 40, 30, "Lavish Meal")];
-  const out = planHunger({ hungerValue: 70, heldSlugs: [], foods }, { turnLengthHours: 24, turnNumber: 5, roll: 0 });
-  assert.equal(out.snack, true);
-  assert.equal(out.final, 93);
-  assert.equal(out.cross.enteredHungry, false); // ate their way back before it counted
-  assert.deepEqual(out.notice.kinds, ["snacked"]);
-  const glutton = planHunger({ hungerValue: 100, heldSlugs: ["glutton"], foods }, { turnLengthHours: 24, turnNumber: 5, roll: 0 });
-  assert.equal(glutton.final, 100);
-  assert.deepEqual(glutton.notice.kinds, ["snacked"]);
-  const unlucky = planHunger({ hungerValue: 100, heldSlugs: ["glutton"], foods }, { turnLengthHours: 24, turnNumber: 5, roll: 0.99 });
-  assert.equal(unlucky.notice, null);
+  const still = planHunger({ hungerValue: 20, heldSlugs: [], foods }, { turnLengthHours: 24, turnNumber: 10 });
+  assert.equal(still.eaten, 0);
+  assert.equal(still.final, 3);
+  const saved = planHunger({ hungerValue: 3, heldSlugs: [], foods }, { turnLengthHours: 24, turnNumber: 11 });
+  assert.deepEqual(saved.meals.map((m) => [m.slug, m.count]), [["lavish", 1]]);
+  assert.equal(saved.final, 40);
+  assert.equal(saved.newlyDying, false);
+  assert.deepEqual(saved.notice.kinds, ["autoAteToLive"]);
 });
 
 test("planHunger: Full to Hungry is told on the close it happens, never forecast", () => {
@@ -287,12 +285,12 @@ test("hungerDm: never a number of hunger points, one DM for several lines", () =
   assert.match(text, /\*\*Hungry\*\*/);
   assert.match(hungerDm({ kinds: ["autoAte"], ate: [stuffs(1)] }), /ate 1 Foodstuff /);
   assert.equal(
-    hungerDm({ kinds: ["autoAte"], ate: [{ slug: "x", name: "Saffron Stew", count: 1 }, { slug: "c", name: "Cheese", count: 2 }, stuffs(3)] }),
-    "You were about to starve, so you ate your Saffron Stew, 2 of your Cheese and 3 Foodstuffs from your pack.",
+    hungerDm({ kinds: ["autoAte"], ate: [stuffs(3)] }),
+    "You were about to starve, so you ate 3 Foodstuffs from your pack.",
   );
   assert.equal(
-    hungerDm({ kinds: ["snacked"], ate: [{ slug: "l", name: "Lavish Meal", count: 1 }] }),
-    "You couldn't help yourself, and ate your Lavish Meal.",
+    hungerDm({ kinds: ["autoAteToLive"], ate: [stuffs(2), { slug: "x", name: "Saffron Stew", count: 1 }, { slug: "c", name: "Cheese", count: 2 }] }),
+    "You were starving to death, so you ate 2 Foodstuffs, your Saffron Stew and 2 of your Cheese to stay alive.",
   );
   assert.ok(hungerDm({ kind: "recovered" }));
   assert.equal(hungerDm({ kinds: ["nonsense"] }), null);

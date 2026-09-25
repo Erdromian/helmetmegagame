@@ -28,9 +28,12 @@ const HUNGER_DECAY_PER_DAY_FAST = 24;
 // Starving 0-33. `<=` a threshold puts you in that band.
 const HUNGRY_THRESHOLD = 66;
 const STARVING_THRESHOLD = 33;
-// Where the turn close's automatic eating stops when you are Starving: the
-// first Hungry value.
+// Where the turn close's automatic eating of Foodstuffs stops when you are
+// Starving: the first Hungry value.
 const AUTO_EAT_FLOOR = STARVING_THRESHOLD + 1;
+// Where it stops for anything else (a meal, a dish, a raw ingredient): one
+// above the 0 that grants `dying`. That food is only eaten to stay alive.
+const STAY_ALIVE_FLOOR = 1;
 
 // One-time mood hit, charged only on the turn a character crosses DOWN into
 // a band — never once per turn they simply remain in it.
@@ -199,10 +202,9 @@ function autoEdible(tag, ingredientTags = []) {
   return true;
 }
 
-// The turn close eats for somebody on its own (TURN-ENGINE.md §5a), and it
-// always reaches for the TASTIEST thing first: the biggest mood figure, then
-// whatever fills most. A hungry servant carrying a feast for their betters
-// eats the feast, not their own Foodstuffs.
+// The turn close eats for somebody on its own (TURN-ENGINE.md §5a), and within
+// each step it reaches for the TASTIEST thing first: the biggest mood figure,
+// then whatever fills most.
 //
 // `foods` are what the character carries that autoEdible passed:
 // { tagId, slug, name, quantity, hunger, mood } with hunger/mood per unit.
@@ -217,54 +219,41 @@ function tastiestFirst(foods) {
 // -50). Foodstuffs (-5) and Moldy Bread (-10) are well inside it.
 const AUTO_EAT_MOOD_FLOOR = -20;
 
-// Starving after the decay: eat, tastiest first, until the meter reaches the
-// first Hungry value, or until there is nothing left worth eating.
+function isFoodstuffs(food) {
+  return food.slug === FOODSTUFFS_SLUG;
+}
+
+// Starving after the decay, the close eats in two steps:
+// 1. Foodstuffs, until the meter reaches the first Hungry value, or they run
+//    out. Rations are what a body falls back on to keep going.
+// 2. Only if the meter would still read 0, which grants `dying`: anything
+//    else worth eating (a meal, a dish, a raw ingredient), tastiest first,
+//    until it reads 1. A feast somebody carries for their betters is eaten
+//    only to keep them alive, never merely to keep them out of Starving.
 function planAutoMeals(afterDecay, foods) {
   let v = clampHunger(afterDecay);
   if (v > STARVING_THRESHOLD) return [];
   const meals = [];
-  for (const food of tastiestFirst(foods)) {
-    if (v >= AUTO_EAT_FLOOR) break;
-    if (food.mood < AUTO_EAT_MOOD_FLOOR) continue;
-    const count = Math.min(food.quantity, Math.ceil((AUTO_EAT_FLOOR - v) / food.hunger));
-    meals.push({ ...food, count });
-    v += count * food.hunger;
-  }
+  const eatUpTo = (list, floor) => {
+    for (const food of list) {
+      if (v >= floor) break;
+      if (food.mood < AUTO_EAT_MOOD_FLOOR) continue;
+      const count = Math.min(food.quantity, Math.ceil((floor - v) / food.hunger));
+      meals.push({ ...food, count });
+      v += count * food.hunger;
+    }
+  };
+  const ordered = tastiestFirst(foods);
+  eatUpTo(ordered.filter(isFoodstuffs), AUTO_EAT_FLOOR);
+  eatUpTo(ordered.filter((f) => !isFoodstuffs(f)), STAY_ALIVE_FLOOR);
   return meals;
-}
-
-// Hungry, a Hungry character may give in and eat one of the tastiest thing
-// they carry. A Glutton may give in at any level short of Starving (which
-// planAutoMeals already covers). The chance is a per-DAY figure, spread over
-// however many turns the day holds, so a 6-hour game snacks no more often
-// than a 24-hour one.
-const SNACK_CHANCE_PER_DAY = 0.25;
-
-function snackChanceFor(turnLengthHours, turnsPerDay = 0) {
-  const hours = Number.isFinite(turnLengthHours) && turnLengthHours > 0 ? turnLengthHours : 24;
-  const perDay = Number.isInteger(turnsPerDay) && turnsPerDay >= 1 ? turnsPerDay : 24 / hours;
-  return 1 - (1 - SNACK_CHANCE_PER_DAY) ** (1 / perDay);
-}
-
-// Only something that actually looks good tempts anybody: the tastiest thing
-// has to be a mood gain, so nobody idly eats a Foodstuff or a raw fish.
-// `roll` is a number in [0, 1), passed in so the test can pick it.
-function planSnack(afterDecay, foods, { glutton = false, chance = 0, roll = 1 } = {}) {
-  const v = clampHunger(afterDecay);
-  if (v <= STARVING_THRESHOLD) return [];
-  if (!glutton && v > HUNGRY_THRESHOLD) return [];
-  if (!(roll < chance)) return [];
-  const best = tastiestFirst(foods)[0];
-  if (!best || best.mood <= 0) return [];
-  return [{ ...best, count: 1 }];
 }
 
 // Where a character lands once the close's decay and any automatic eating
 // are known. `meals` is what was actually eaten (it may be less than planned
-// if a stack moved under the lock). `snack` says it was the Hungry/Glutton
-// roll rather than the Starving rule. Shared by planHunger and
+// if a stack moved under the lock). Shared by planHunger and
 // db/lib/hungerPass.js so the two can never disagree.
-function resolveHunger({ before, afterDecay, meals = [], snack = false, starvingSinceTurn = null, turnNumber }) {
+function resolveHunger({ before, afterDecay, meals = [], starvingSinceTurn = null, turnNumber }) {
   const restored = meals.reduce((sum, m) => sum + m.count * m.hunger, 0);
   const eaten = meals.reduce((sum, m) => sum + m.count, 0);
   const final = clampHunger(afterDecay + restored);
@@ -273,8 +262,16 @@ function resolveHunger({ before, afterDecay, meals = [], snack = false, starving
   const zeroSince = final <= HUNGER_MIN ? starvingSinceTurn ?? turnNumber : null;
   const newlyDying = zeroSince != null && turnNumber - zeroSince >= STARVING_DEATH_TURNS - 1;
 
+  // What the DM says about the eating: it lifted them out of Starving on
+  // Foodstuffs (autoAte), it took something better to keep them alive
+  // (autoAteToLive), or it was not enough either way (autoAteShort).
   const kinds = [];
-  if (eaten > 0) kinds.push(snack ? "snacked" : final > STARVING_THRESHOLD ? "autoAte" : "autoAteShort");
+  const ateBetter = meals.some((m) => m.count > 0 && !isFoodstuffs(m));
+  if (eaten > 0) {
+    if (final <= HUNGER_MIN) kinds.push("autoAteShort");
+    else if (ateBetter) kinds.push("autoAteToLive");
+    else kinds.push(final > STARVING_THRESHOLD ? "autoAte" : "autoAteShort");
+  }
   if (cross.enteredStarving || newlyDying) kinds.push("starving");
   else if (cross.enteredHungry) kinds.push("hungry");
   const ate = meals.filter((m) => m.count > 0).map((m) => ({ slug: m.slug, name: m.name, count: m.count }));
@@ -284,36 +281,26 @@ function resolveHunger({ before, afterDecay, meals = [], snack = false, starving
 }
 
 // The whole close for one character, with no database: the decay, what they
-// would eat (to stay out of Starving, or on the snack roll), and where that
-// leaves them.
+// would eat (Foodstuffs to stay out of Starving, anything else only to stay
+// alive), and where that leaves them.
 function planHunger(
   { hungerValue, starvingSinceTurn = null, heldSlugs, foods = [] },
-  { turnLengthHours, turnsPerDay = 0, turnNumber, roll = 1 },
+  { turnLengthHours, turnsPerDay = 0, turnNumber },
 ) {
   const held = asSet(heldSlugs);
   if (held.has(HUNGERLESS_SLUG)) {
-    return { hungerless: true, decay: 0, afterDecay: HUNGER_MAX, meals: [], snack: false, eaten: 0, final: HUNGER_MAX, band: null, zeroSince: null, newlyDying: false, notice: null };
+    return { hungerless: true, decay: 0, afterDecay: HUNGER_MAX, meals: [], eaten: 0, final: HUNGER_MAX, band: null, zeroSince: null, newlyDying: false, notice: null };
   }
   const before = clampHunger(hungerValue);
   const decay = decayFor(held, turnLengthHours, turnsPerDay);
   const afterDecay = clampHunger(before - decay);
-  let meals = planAutoMeals(afterDecay, foods);
-  let snack = false;
-  if (!meals.length) {
-    meals = planSnack(afterDecay, foods, {
-      glutton: held.has(GLUTTON_SLUG),
-      chance: snackChanceFor(turnLengthHours, turnsPerDay),
-      roll,
-    });
-    snack = meals.length > 0;
-  }
+  const meals = planAutoMeals(afterDecay, foods);
   return {
     hungerless: false,
     decay,
     afterDecay,
     meals,
-    snack,
-    ...resolveHunger({ before, afterDecay, meals, snack, starvingSinceTurn, turnNumber }),
+    ...resolveHunger({ before, afterDecay, meals, starvingSinceTurn, turnNumber }),
   };
 }
 
@@ -356,8 +343,8 @@ function hungerDm(notice) {
       lines.push(`You were about to starve, so you ate ${ateList(notice.ate)} from your pack.`);
     } else if (kind === "autoAteShort") {
       lines.push(`You were starving, so you ate ${ateList(notice.ate)}. It wasn't enough.`);
-    } else if (kind === "snacked") {
-      lines.push(`You couldn't help yourself, and ate ${ateList(notice.ate)}.`);
+    } else if (kind === "autoAteToLive") {
+      lines.push(`You were starving to death, so you ate ${ateList(notice.ate)} to stay alive.`);
     } else if (kind === "hungry") {
       lines.push(`You're **Hungry**. ${DESCRIPTORS.hungry.line}`);
     } else if (kind === "starving") {
@@ -382,6 +369,7 @@ module.exports = {
   HUNGRY_THRESHOLD,
   STARVING_THRESHOLD,
   AUTO_EAT_FLOOR,
+  STAY_ALIVE_FLOOR,
   THRESHOLD_MOOD_HIT,
   RAW_FOOD_MOOD,
   STARVING_DEATH_TURNS,
@@ -401,9 +389,6 @@ module.exports = {
   tastiestFirst,
   AUTO_EAT_MOOD_FLOOR,
   planAutoMeals,
-  SNACK_CHANCE_PER_DAY,
-  snackChanceFor,
-  planSnack,
   resolveHunger,
   planHunger,
   rawFoodMoodTerms,
