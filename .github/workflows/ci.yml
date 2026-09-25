@@ -1,0 +1,77 @@
+# The same gate as `npm run check`, one step at a time so a red run names what
+# broke. Touches nothing live: no secrets, no Railway, no Discord. The only
+# database is the throwaway Postgres below, which dies with the job.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bascinet
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # localhost on purpose: db/lib/localDatabase.js only lets the
+      # database-backed tests run against a local host.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bascinet
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Syntax check (bot, db, scripts)
+        run: npm run check:bot
+
+      - name: Migrations apply cleanly
+        run: npm run db:migrate:deploy
+
+      - name: GameConfig registry matches the schema
+        run: npm run db:check-config
+
+      - name: Lint web
+        run: npm run lint --workspace=web
+
+      - name: Test web
+        run: npm test --workspace=web
+
+      - name: Test db
+        run: npm test --workspace=db
+
+      - name: Contrast audit
+        run: npm run audit:contrast --workspace=web
+
+      - name: Build web
+        run: npm run build --workspace=web
