@@ -7,8 +7,9 @@ const { recordArchiveEvent } = require("./archive");
 const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
 const { SEAT_TAG_SLUGS } = require("./threats");
-const { applyMood } = require("./mood");
+const { applyMood, deathWitnessTerm } = require("./mood");
 const { GIBBED_SLUG, METEMPSYCHOSIS_SLUG, HEIGHTENED_PSYCHOSIS_SLUG } = require("./constants");
+const { THANATI_SLUG } = require("./thanati");
 const { NOT_A_FIGHT } = require("./intercept");
 const { closeFightsFor } = require("./attack");
 const { stopPerformances } = require("./performance");
@@ -266,17 +267,21 @@ async function applyDeathToRow(
   return { claimed: true, corpse };
 }
 
+// Frightens everybody but the Thanati, whom a death lifts (mood.js#deathWitnessTerm).
 async function frightenWitnesses(prisma, deadCharacterId) {
   const dead = await prisma.character.findUnique({ where: { id: deadCharacterId }, select: { locationId: true } });
   if (!dead?.locationId) return;
+  // Only the one slug deathWitnessTerm reads is loaded here; applyMood reads the
+  // whole sheet again for the multipliers, so there is no point loading it twice.
   const witnesses = await prisma.character.findMany({
     where: { locationId: dead.locationId, status: "ALIVE", id: { not: deadCharacterId } },
-    select: { id: true },
+    select: { id: true, tags: { where: { tag: { slug: THANATI_SLUG } }, select: { tag: { select: { slug: true } } } } },
   });
   // Sequential: a burst of parallel transactions at turn close competes for pool slots.
-  for (const { id } of witnesses) {
-    await applyMood(prisma, id, { kind: "DEATH_SEEN" }).catch((err) =>
-      console.error(`Death-seen mood failed for ${id}:`, err.message ?? err),
+  for (const { id, tags } of witnesses) {
+    const term = deathWitnessTerm(tags.map((ct) => ct.tag.slug));
+    await applyMood(prisma, id, term).catch((err) =>
+      console.error(`Death-witness mood (${term.kind}) failed for ${id}:`, err.message ?? err),
     );
   }
 }

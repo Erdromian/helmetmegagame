@@ -20,6 +20,9 @@ const {
   AMOR_FATI_SLUG,
   WOUND_TAG_GROUPS,
 } = require("./constants");
+// db/lib/thanati.js requires nothing, so this stays loadable from web/lib and
+// the tests without the Prisma client.
+const { isThanati } = require("./thanati");
 
 
 // Ecstatic mirrors Afraid (same width/distance from Fine), Panicking has no twin.
@@ -108,6 +111,12 @@ const EVENTS = Object.freeze({
   // one is the vision bouncing off somebody Pious, and being proven right about
   // your god is still worth something.
   RITE_DISMISSED: 50,
+  // A Thanati watching anybody die (THANATI.md §1). It is a death cult: the
+  // room takes DEATH_SEEN when somebody falls, and a cultist standing in it is
+  // lifted instead — a sacrifice, a brawl, a comrade, a stranger, it does not
+  // matter. deathWitnessTerm below is what swaps one for the other. Kept
+  // small on purpose: the immunity is the gift, this is the glow.
+  DEATH_RELISHED: 10,
 });
 const DESIRE_RELIEF_PER_POINT = 12;
 const DRINK_RELIEF = 35;
@@ -395,6 +404,16 @@ function woundMoodFor(tag) {
   const rung = woundRungOf(tag);
   if (rung == null) return 0;
   return WOUND_MOOD_BY_RUNG[rung] ?? 0;
+}
+
+// What one witness takes when somebody dies where they stand: { kind, base }.
+// Everybody takes DEATH_SEEN — except a Thanati, who is lifted by
+// DEATH_RELISHED instead of frightened. Who died and how does not come into
+// it: a death cult is as pleased by a comrade's death as by a sacrifice's.
+function deathWitnessTerm(heldSlugs) {
+  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  if (isThanati(held)) return { kind: "DEATH_RELISHED", base: EVENTS.DEATH_RELISHED };
+  return { kind: "DEATH_SEEN", base: EVENTS.DEATH_SEEN };
 }
 
 // The product of every applicable factor. A 0 anywhere wins, whatever else is
@@ -899,6 +918,7 @@ module.exports = {
   arrivalTermFor,
   woundRungOf,
   woundMoodFor,
+  deathWitnessTerm,
   multiplierFor,
   resolveDelta,
   moodBandDm,
