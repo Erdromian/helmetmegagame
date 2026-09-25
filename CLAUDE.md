@@ -593,6 +593,23 @@ npm run dev:check -- --anon /character    # no cookie, to confirm a gate still s
 cases — that a player is still bounced off `/gm/*` — so loosening a gate by
 accident fails the run.
 
+`dev:check` says a page rendered; the **visual goldens** say what it looked
+like. Playwright opens twenty-odd screens in a database of its own
+(`bascinet_visual`, built by `dev:visual:setup` from the same migrations and
+YAML syncs as `dev:setup`, plus fixed fixtures) with the page's clock frozen,
+and compares each to the PNG in `scripts/dev/visual/goldens/`. A diff fails the
+run and writes expected/actual/diff images into `test-results/`.
+
+```
+npm run dev:visual:setup                   # once: the world it runs in
+npm run dev:visual                         # compare every screen
+npm run dev:visual -- --update-snapshots   # the change was the point: re-baseline
+```
+
+It starts its own dev server on 3111 and forces `LOCAL_MODE`, so it never
+touches Discord or the shared local database. See `LOCAL-DEV.md` §5 for what
+is pinned and why the list of screens should stay short.
+
 Two things it knows that a plain `curl` does not. A `redirect()` called from a
 page rather than a layout arrives as a **200** with `NEXT_REDIRECT` buried in the
 streamed payload, and a server component that throws also answers **200**, with
