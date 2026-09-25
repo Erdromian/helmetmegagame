@@ -12,8 +12,16 @@ carries it (`web/app/components/BascinetClock.js`).
 
 **There are no Dawn and Dusk halves any more.** A turn is a turn, and
 `Turn.dayNumber` — stamped when the turn opens — says which in-game day it
-belongs to. The day rolls at Chicago midnight whatever the length, so 24 hours
-is one turn a day and 6 hours is four. `Math.ceil(turn.number / 2)` is gone:
+belongs to. By default the day rolls at Chicago midnight whatever the length, so
+24 hours is one turn a day and 6 hours is four. **Turns per in-game day**
+(`GameConfig.turnsPerDay`, in the Turn clock knobs on `/gm/dev`) overrides that:
+set it to N and the day rolls after every N turns, whatever the clock says, so
+24-hour turns can run two to a day. 0 is the midnight rule. `advanceTurn` counts
+the turns already carrying the closing turn's day and hands the count to
+`turnClock.js#nextDayNumber`; the floor-settle pass asks the same question the
+same way, so it measures against the day the next turn will really open on.
+Counting instead of keeping a tally means a GM lowering the number mid-day just
+rolls the next turn. `Math.ceil(turn.number / 2)` is gone:
 with the length a knob it would renumber the whole history the moment a GM
 changed it, including the day keys the Bird and Fast Travel claim against.
 

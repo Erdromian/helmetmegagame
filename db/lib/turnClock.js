@@ -164,14 +164,18 @@ function advanceDue(turn, { now = new Date() } = {}) {
   return Boolean(endsAt) && now.getTime() >= endsAt.getTime();
 }
 
-// Which in-game day a turn opening at `startedAt` belongs to. The day rolls at 00:00 America/Chicago whatever the turn
-// length is, so a 24-hour game gets one turn a day and a 6-hour game gets four — and a GM changing the length mid-game
-// moves nothing that already happened, because every turn keeps the number it was given.
+// Which in-game day a turn opening at `startedAt` belongs to. By default the day rolls at 00:00 America/Chicago whatever
+// the turn length is, so a 24-hour game gets one turn a day and a 6-hour game gets four. A GM can instead set
+// GameConfig.turnsPerDay, and then the day rolls once `turnsInDay` (how many turns already carry `lastTurn`'s day — the
+// caller counts them) reaches it, and the calendar is ignored. Counting rather than keeping a running tally means a change
+// mid-day just works: lower it below what the day already holds and the next turn rolls. Either way a GM's change moves
+// nothing that already happened, because every turn keeps the number it was given.
 //
 // `ceil(number / 2)` used to answer this and cannot any more: it would renumber the whole history the moment the length
 // changed, including the day keys the Bird and Fast Travel claim once a day against (Character.birdTurnId).
-function nextDayNumber(lastTurn, startedAt) {
+function nextDayNumber(lastTurn, startedAt, { turnsPerDay = 0, turnsInDay = 0 } = {}) {
   if (!lastTurn) return 1;
+  if (turnsPerDay >= 1) return (lastTurn.dayNumber ?? 1) + (turnsInDay >= turnsPerDay ? 1 : 0);
   const previous = lastTurn.startedAt ? zonedParts(new Date(lastTurn.startedAt), TIME_ZONE) : null;
   const current = zonedParts(startedAt, TIME_ZONE);
   const sameDay =

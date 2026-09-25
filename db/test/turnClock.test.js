@@ -177,6 +177,26 @@ test("changing the turn length mid-game does not renumber the past", () => {
   assert.equal(nextDayNumber(lastOfTheOldLength, new Date("2026-09-17T05:00:00Z")), 41);
 });
 
+test("with turnsPerDay set, the day rolls after that many turns and ignores the calendar", () => {
+  const last = { startedAt: new Date("2026-09-16T17:00:00Z"), dayNumber: 5 }; // 12:00 Chicago
+  const nextMidnight = new Date("2026-09-17T05:00:00Z");
+  // Two turns a day: the first turn of day 5 is followed by the second, even across midnight.
+  assert.equal(nextDayNumber(last, nextMidnight, { turnsPerDay: 2, turnsInDay: 1 }), 5, "midnight does not roll it");
+  assert.equal(nextDayNumber(last, nextMidnight, { turnsPerDay: 2, turnsInDay: 2 }), 6, "the second turn does");
+  // And inside one Chicago day, a full day's worth rolls it anyway.
+  assert.equal(nextDayNumber(last, new Date("2026-09-16T23:00:00Z"), { turnsPerDay: 1, turnsInDay: 1 }), 6);
+  // Lowered below what the day already holds: the next turn rolls rather than sticking.
+  assert.equal(nextDayNumber(last, nextMidnight, { turnsPerDay: 2, turnsInDay: 3 }), 6);
+  // The first turn of a game is still day 1.
+  assert.equal(nextDayNumber(null, nextMidnight, { turnsPerDay: 3, turnsInDay: 0 }), 1);
+});
+
+test("turnsPerDay 0 keeps the midnight rule", () => {
+  const last = { startedAt: new Date("2026-09-16T17:00:00Z"), dayNumber: 5 };
+  assert.equal(nextDayNumber(last, new Date("2026-09-16T23:00:00Z"), { turnsPerDay: 0, turnsInDay: 9 }), 5);
+  assert.equal(nextDayNumber(last, new Date("2026-09-17T05:30:00Z"), { turnsPerDay: 0, turnsInDay: 1 }), 6);
+});
+
 test("only a 24-hour turn is a day, for the wording that says so", () => {
   assert.equal(isDayLongTurn({ turnLengthHours: 24 }), true);
   for (const hours of [6, 8, 12]) assert.equal(isDayLongTurn({ turnLengthHours: hours }), false, `${hours}h`);

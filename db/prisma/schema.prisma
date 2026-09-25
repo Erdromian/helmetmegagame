@@ -462,6 +462,14 @@ model GameConfig {
   // can never move under somebody mid-action.
   turnLengthHours Int @default(24)
 
+  // How many turns make one in-game day. 0 keeps the old rule: the day rolls
+  // at 00:00 America/Chicago, so the turn length decides (24 hours is one turn
+  // a day, 6 is four). Any other number rolls the day after that many turns,
+  // whatever the clock says. Read only when a turn OPENS and stamped onto
+  // Turn.dayNumber there, so a change never renumbers a day already played
+  // (db/lib/turnClock.js#nextDayNumber).
+  turnsPerDay Int @default(0)
+
   // Persistent or Sessions. In Sessions the clock only runs while a session is
   // open (GameState.sessionOpenedAt); between them the whole game freezes and
   // every surface says so. Sessions sit beside the game lifecycle and never
@@ -4083,7 +4091,8 @@ model Turn {
   // than derived. A turn is 6, 8, 12 or 24 hours now (GameConfig.turnLengthHours),
   // so ceil(number / 2) is gone: it would rewrite every past day the moment a GM
   // changed the length. The day rolls at 00:00 America/Chicago, whatever the
-  // turn length, which is what db/turnCalendar.js#gameDate wants.
+  // turn length, unless GameConfig.turnsPerDay says to roll it every N turns
+  // instead. db/turnCalendar.js#gameDate reads it either way.
   dayNumber Int
 
   // The length in force WHEN THIS TURN OPENED, and the reason a mid-game change
