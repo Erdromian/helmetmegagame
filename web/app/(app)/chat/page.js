@@ -35,6 +35,7 @@ import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { isDayLongTurn } from "@lifeweb/db/lib/turnClock";
 import { depotAccessFor } from "@lifeweb/db/lib/depotCounter";
 import { cookedTasteOnly, DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
+import { descriptorsFor } from "@/lib/descriptors";
 import { chipContextFor, composeChipTag } from "@/lib/tagChipRows";
 
 // /chat — Chat. Three columns on a desktop, one on a phone: everywhere
@@ -271,6 +272,10 @@ async function FreshChat({ userId }) {
               // neither was read here before shard 3.
               roleTitle: true,
               mood: true,
+              // Read ONLY to work out the hunger descriptor's word when no
+              // descriptor tag is held yet (web/lib/descriptors.js) — stripped
+              // from `clientSheet` below, like the poison columns.
+              hungerValue: true,
               // Which in-game DAY the bird last left on, and how many of that
               // day's flights are spent — a Rookery is worth several
               // (db/lib/rookery.js). (docs/systemdocs/PAPERWORK.md §Bird.)
@@ -328,8 +333,9 @@ async function FreshChat({ userId }) {
           ...character,
           location: { indoors: viewer.character.location?.indoors ?? true },
         });
+        const { hungerValue: _hungerValue, ...sheetWithoutHunger } = sheet ?? {};
         const clientSheet = {
-          ...sheet,
+          ...sheetWithoutHunger,
           // A plain number again on the client shape, same key as before the
           // column moved — ⬢ is read off the tag stack now, not a field
           // Prisma hands back for free.
@@ -415,6 +421,9 @@ async function FreshChat({ userId }) {
           pools,
           stashRooms,
           sheet: clientSheet,
+          // The bottom-left You plate's descriptors (the Soilery Rework doc):
+          // words only, worked out here so the hunger number never crosses.
+          descriptors: descriptorsFor(sheet ?? {}),
           // What this character is carrying against their cap — the Transfer
           // dialog projects a hand-over off both.
           carry: carryStatus(character, gameConfig),

@@ -9,6 +9,7 @@ import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { cookedTasteOnly } from "@/lib/referenceData";
+import { eatLimitsFor } from "@/lib/eatLimits";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
 
@@ -95,11 +96,14 @@ export async function loadActionRoster({ need = [] } = {}) {
   }
   if (wants.has("self")) {
     out.self = {
-      // Same include as the sheet's: `cooked` down to its taste, `cookedFrom` gone (COOKING.md).
+      // Same include as the sheet's: `cooked` down to its taste, `cookedFrom` gone (COOKING.md),
+      // and a poisoned stack's two secret columns stripped the way the sheet strips them.
       characterTags: character.tags.map((ct) => {
-        const tag = cookedTasteOnly(ct.tag);
-        return tag === ct.tag ? ct : { ...ct, tag };
+        const { poisonedCount: _poisonedCount, poisonPayload: _poisonPayload, ...row } = ct;
+        return { ...row, tag: cookedTasteOnly(ct.tag) };
       }),
+      // The Consume slider's top end per item (web/lib/eatLimits.js) — counts, never the meter.
+      eatMax: await eatLimitsFor(prisma, character),
       resources: resourcesOf(character),
       carry: carryStatus(character, gameConfig),
     };

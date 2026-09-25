@@ -1,79 +1,94 @@
 // Per-turn Hunger upkeep, run from db/index.js#resolveNeeds() so the bot's
 // cron advance and the Dev Panel's "End turn" button behave identically.
-// See TURN-ENGINE.md for the full ordering.
+// See TURN-ENGINE.md §5 for the full ordering.
 //
-// The 0-100 meter itself (thresholds, decay, banding) lives in the
-// Prisma-free db/lib/hunger.js — this file is the Prisma-in-tx half: reading
-// every ALIVE character's hungerValue, writing the decay, and granting/
-// dropping the hungry/starving tags and the eventual dying tag off it.
+// The meter itself (thresholds, decay, bands, what a character eats to stay
+// out of Starving) lives in the Prisma-free db/lib/hunger.js — this file is
+// the Prisma half: reading every ALIVE character, writing the decay, eating
+// Foodstuffs for anyone about to drop into Starving, and keeping each
+// character's one descriptor tag (Full, Hungry or Starving) in step.
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const {
+  FULL_SLUG,
   HUNGER_SLUG,
   STARVING_SLUG,
   HUNGERLESS_SLUG,
   FAST_METABOLISM_SLUG,
   DYING_SLUG,
+  FOODSTUFFS_SLUG,
 } = require("./constants");
-const { expiryFrom } = require("./turnFormat");
-const { applyMood } = require("./mood");
+const { applyMoodTerms, dishMoodTerms, scaleTerms, EVENTS } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
 const { logBatchSystemTagChange } = require("./tagAudit");
+const { dropCharacterTag, grantTagSlugs } = require("./tagWrites");
+const { lockCharacter } = require("./moveLedger");
+const { resolveConsumeGrants, resistSlugsOf, heldSlugsOf } = require("./consumeGrants");
 const {
   HUNGER_MAX,
-  HUNGER_DECAY_PER_TURN,
-  HUNGER_DECAY_FAST_METABOLISM,
-  HUNGRY_THRESHOLD,
-  STARVING_THRESHOLD,
-  STARVING_DEATH_TURNS,
-  clampHunger,
+  FOODSTUFF_HUNGER,
+  DESCRIPTORS,
+  bandOf,
   decayFor,
-  crossings,
+  planHunger,
+  resolveHunger,
   hungerDm,
   DYING_DM,
 } = require("./hunger");
+
+const BANDS = ["full", "hungry", "starving"];
 
 async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   const tags = await prisma.tag.findMany({
     where: {
       slug: {
-        in: [HUNGER_SLUG, STARVING_SLUG, HUNGERLESS_SLUG, FAST_METABOLISM_SLUG, DYING_SLUG],
+        in: [FULL_SLUG, HUNGER_SLUG, STARVING_SLUG, HUNGERLESS_SLUG, FAST_METABOLISM_SLUG, DYING_SLUG, FOODSTUFFS_SLUG],
       },
     },
-    select: { id: true, slug: true, name: true, defaultDurationTurns: true },
+    select: { id: true, slug: true, name: true, mealHunger: true, mealMood: true },
   });
-
-  const hungryTag = tags.find((t) => t.slug === HUNGER_SLUG);
-  const starvingTag = tags.find((t) => t.slug === STARVING_SLUG);
-  if (!hungryTag || !starvingTag) {
+  const bySlug = new Map(tags.map((t) => [t.slug, t]));
+  const descriptorTag = {
+    full: bySlug.get(FULL_SLUG),
+    hungry: bySlug.get(HUNGER_SLUG),
+    starving: bySlug.get(STARVING_SLUG),
+  };
+  if (BANDS.some((band) => !descriptorTag[band])) {
     console.error(
-      `Hunger pass skipped: no "${HUNGER_SLUG}"/"${STARVING_SLUG}" tag — run npm run db:sync-tags.`,
+      `Hunger pass skipped: a hunger descriptor tag (${FULL_SLUG}/${HUNGER_SLUG}/${STARVING_SLUG}) is missing — run npm run db:sync-tags.`,
     );
     return null;
   }
-  const hungerlessId = tags.find((t) => t.slug === HUNGERLESS_SLUG)?.id ?? null;
-  // Missing is non-fatal, unlike the two band tags above: nobody holds it,
-  // so everyone just decays at the flat rate.
-  const fastMetabolismId = tags.find((t) => t.slug === FAST_METABOLISM_SLUG)?.id ?? null;
-  if (!fastMetabolismId) {
-    console.error(
-      `Hunger pass: no "${FAST_METABOLISM_SLUG}" tag — run npm run db:sync-tags. Everyone decays at the flat rate.`,
-    );
-  }
-  const dyingTag = tags.find((t) => t.slug === DYING_SLUG) ?? null;
-  const dyingId = dyingTag?.id ?? null;
-  if (!dyingId) {
+  const descriptorIds = BANDS.map((band) => descriptorTag[band].id);
+  const hungerlessId = bySlug.get(HUNGERLESS_SLUG)?.id ?? null;
+  const fastMetabolismId = bySlug.get(FAST_METABOLISM_SLUG)?.id ?? null;
+  const dyingTag = bySlug.get(DYING_SLUG) ?? null;
+  if (!dyingTag) {
     console.error(`Hunger pass: no "${DYING_SLUG}" tag — run npm run db:sync-tags. Starving to death won't grant it.`);
   }
+  const foodstuffs = bySlug.get(FOODSTUFFS_SLUG) ?? null;
+  if (!foodstuffs) {
+    console.error(`Hunger pass: no "${FOODSTUFFS_SLUG}" tag — run npm run db:sync-tags. Nobody will eat to avoid starving.`);
+  }
+  const perUnit = foodstuffs?.mealHunger ?? FOODSTUFF_HUNGER;
+  const eatMood = dishMoodTerms(foodstuffs?.mealMood ?? 0, []);
 
-  // Only the two gating tags — Hungerless (pins the meter) and Fast
-  // Metabolism (doubles the decay). Hungry/Starving/Dying are this pass's
-  // OUTPUT, computed off hungerValue itself, not read as input. Keeps this
-  // cheap at 100+ characters, same reasoning as the old streak-based pass.
-  const gateIds = [hungerlessId, fastMetabolismId].filter(Boolean);
+  const turnLengthHours = turn.turnLengthHours ?? 24;
+  // Turns per in-game day (GameConfig.turnsPerDay, 0 = the calendar day).
+  // Read without a select, so this still works before that column exists.
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  const turnsPerDay = config?.turnsPerDay ?? 0;
+  const turnNumber = turn.number;
+  const perTurn = decayFor(new Set(), turnLengthHours, turnsPerDay);
+  const perTurnFast = decayFor(new Set([FAST_METABOLISM_SLUG]), turnLengthHours, turnsPerDay);
+
+  // Only what this pass reads as INPUT: the two gating traits and a
+  // Foodstuffs stack. The descriptors are its OUTPUT, worked out from the
+  // meter, never read back.
+  const gateIds = [hungerlessId, fastMetabolismId, foodstuffs?.id].filter(Boolean);
   // A character born mid-close (see db/index.js#resolveNeeds) wasn't alive
-  // for the turn that's closing — exclude them from this run's decay rather
-  // than charge a body for a day it never had.
+  // for the turn that's closing — exclude them rather than charge a body for
+  // a day it never had.
   const characters = await alivePassCharacters(prisma, {
     where: bornBefore ? { createdAt: { lt: bornBefore } } : undefined,
     select: {
@@ -81,213 +96,233 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
       discordUserId: true,
       hungerValue: true,
       starvingSinceTurn: true,
-      tags: { where: { tagId: { in: gateIds } }, select: { tagId: true } },
+      tags: { where: { tagId: { in: gateIds } }, select: { tagId: true, quantity: true } },
     },
   });
 
   const hungerlessIds = [];
-  // Split by decay rate, then again by whether the floor bites, mirroring
-  // the structural-clamp discipline the old pass used for resources: the
-  // WHERE guard matches its own decrement, so hungerValue can never go
-  // negative without a Math.max.
-  const normalDecayIds = [];
-  const normalFloorIds = [];
-  const fastDecayIds = [];
-  const fastFloorIds = [];
+  // The decay is uniform within a turn for each rate, so everybody who does
+  // not eat goes into one of four buckets and one updateMany each. The WHERE
+  // side of each bucket matches its own decrement, so hungerValue can never
+  // go negative.
+  const buckets = { normal: [], normalFloor: [], fast: [], fastFloor: [] };
+  const eaters = [];
+  const outcomes = new Map(); // characterId -> { before, final, band, cross, zeroSince, newlyDying, notice, eaten, discordUserId, prevZeroSince }
 
-  const hungryGrantIds = [];
-  const hungryDropIds = [];
-  const starvingGrantIds = [];
-  const starvingDropIds = [];
-  const starvingSinceStampIds = [];
-  const starvingSinceClearIds = [];
+  for (const character of characters) {
+    const heldIds = new Map(character.tags.map((ct) => [ct.tagId, ct]));
+    if (hungerlessId && heldIds.has(hungerlessId)) {
+      hungerlessIds.push(character.id);
+      continue;
+    }
+    const fast = Boolean(fastMetabolismId && heldIds.has(fastMetabolismId));
+    const plan = planHunger(
+      {
+        hungerValue: character.hungerValue,
+        starvingSinceTurn: character.starvingSinceTurn,
+        heldSlugs: fast ? [FAST_METABOLISM_SLUG] : [],
+        foodstuffsHeld: foodstuffs ? heldIds.get(foodstuffs.id)?.quantity ?? 0 : 0,
+      },
+      { turnLengthHours, turnsPerDay, turnNumber, perUnit },
+    );
+    if (plan.eat > 0) {
+      eaters.push({ id: character.id, fast });
+    } else {
+      const decay = fast ? perTurnFast : perTurn;
+      const key = character.hungerValue >= decay ? (fast ? "fast" : "normal") : fast ? "fastFloor" : "normalFloor";
+      buckets[key].push(character.id);
+    }
+    outcomes.set(character.id, {
+      ...plan,
+      before: character.hungerValue,
+      eaten: plan.eat,
+      discordUserId: character.discordUserId,
+      prevZeroSince: character.starvingSinceTurn ?? null,
+    });
+  }
+
+  let autoAteUnits = 0;
+  const poisonedEaters = [];
+
+  // ONE transaction: nobody lands at a new hungerValue without the matching
+  // descriptor landing with it, and a Foodstuff is never eaten without the
+  // meter moving. The pass is not idempotent, so all or nothing.
+  await prisma.$transaction(
+    async (tx) => {
+      await tx.character.updateMany({
+        where: { id: { in: hungerlessIds } },
+        data: { hungerValue: HUNGER_MAX, starvingSinceTurn: null },
+      });
+      if (perTurn > 0) {
+        await tx.character.updateMany({ where: { id: { in: buckets.normal } }, data: { hungerValue: { decrement: perTurn } } });
+      }
+      await tx.character.updateMany({ where: { id: { in: buckets.normalFloor } }, data: { hungerValue: 0 } });
+      if (perTurnFast > 0) {
+        await tx.character.updateMany({ where: { id: { in: buckets.fast } }, data: { hungerValue: { decrement: perTurnFast } } });
+      }
+      await tx.character.updateMany({ where: { id: { in: buckets.fastFloor } }, data: { hungerValue: 0 } });
+
+      // Eating to stay out of Starving (the doc): enough Foodstuffs to reach
+      // the first Hungry value, or all of them. Re-read under the lock — the
+      // stack or the meter may have moved since the read above.
+      let ladder = null;
+      for (const eater of eaters) {
+        await lockCharacter(tx, eater.id);
+        const fresh = await tx.character.findUnique({
+          where: { id: eater.id },
+          select: {
+            hungerValue: true,
+            starvingSinceTurn: true,
+            tags: { where: { tagId: foodstuffs.id }, select: { quantity: true } },
+          },
+        });
+        const plan = planHunger(
+          {
+            hungerValue: fresh.hungerValue,
+            starvingSinceTurn: fresh.starvingSinceTurn,
+            heldSlugs: eater.fast ? [FAST_METABOLISM_SLUG] : [],
+            foodstuffsHeld: fresh.tags[0]?.quantity ?? 0,
+          },
+          { turnLengthHours, turnsPerDay, turnNumber, perUnit },
+        );
+        let eaten = 0;
+        if (plan.eat > 0) {
+          const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, eater.id, foodstuffs.id, plan.eat);
+          eaten = plan.eat;
+          if (poisonedTaken > 0 && poisonPayload) {
+            if (!ladder) {
+              const rows = await tx.tag.findMany({
+                where: { escalatesInto: { not: null } },
+                select: { slug: true, escalatesInto: true },
+              });
+              ladder = new Map(rows.map((t) => [t.slug, t.escalatesInto]));
+            }
+            const poisoned = await applyPoison(tx, eater.id, poisonPayload, ladder, turnNumber);
+            if (poisoned) poisonedEaters.push({ characterId: eater.id, ...poisoned, count: poisonedTaken });
+          }
+        }
+        autoAteUnits += eaten;
+        const settled = resolveHunger({
+          before: fresh.hungerValue,
+          afterDecay: plan.afterDecay,
+          eaten,
+          perUnit,
+          starvingSinceTurn: fresh.starvingSinceTurn,
+          turnNumber,
+        });
+        await tx.character.update({ where: { id: eater.id }, data: { hungerValue: settled.final } });
+        outcomes.set(eater.id, {
+          ...outcomes.get(eater.id),
+          ...settled,
+          before: fresh.hungerValue,
+          eaten,
+          prevZeroSince: fresh.starvingSinceTurn ?? null,
+        });
+      }
+
+      // The descriptors: exactly one per character, with no expiry — the pass
+      // (and eating) move it, never the clock. The Hungerless hold none.
+      const byBand = { full: [], hungry: [], starving: [] };
+      for (const [id, o] of outcomes) byBand[o.band].push(id);
+      for (const band of BANDS) {
+        const ids = byBand[band];
+        if (!ids.length) continue;
+        const keepId = descriptorTag[band].id;
+        await tx.characterTag.deleteMany({
+          where: { characterId: { in: ids }, tagId: { in: descriptorIds.filter((id) => id !== keepId) } },
+        });
+        await tx.characterTag.createMany({
+          data: ids.map((characterId) => ({ characterId, tagId: keepId, source: "EVENT", expiresTurn: null })),
+          skipDuplicates: true,
+        });
+        // A row left over from the old one-turn grant keeps no clock.
+        await tx.characterTag.updateMany({
+          where: { characterId: { in: ids }, tagId: keepId, expiresTurn: { not: null } },
+          data: { expiresTurn: null },
+        });
+      }
+      if (hungerlessIds.length) {
+        await tx.characterTag.deleteMany({ where: { characterId: { in: hungerlessIds }, tagId: { in: descriptorIds } } });
+      }
+
+      // The zero clock: stamped the first close the meter reads 0, cleared
+      // the moment it reads anything else. Reaching 0 grants `dying`
+      // (STARVING_DEATH_TURNS in db/lib/hunger.js).
+      const stampIds = [];
+      const clearIds = [];
+      const newlyDyingIds = [];
+      for (const [id, o] of outcomes) {
+        if (o.zeroSince != null && o.prevZeroSince == null) stampIds.push(id);
+        if (o.zeroSince == null && o.prevZeroSince != null) clearIds.push(id);
+        if (o.newlyDying) newlyDyingIds.push(id);
+      }
+      await tx.character.updateMany({ where: { id: { in: stampIds } }, data: { starvingSinceTurn: turnNumber } });
+      await tx.character.updateMany({ where: { id: { in: clearIds } }, data: { starvingSinceTurn: null } });
+      if (newlyDyingIds.length && dyingTag) {
+        await tx.characterTag.createMany({
+          data: newlyDyingIds.map((characterId) => ({
+            characterId,
+            tagId: dyingTag.id,
+            source: "EVENT",
+            // One-turn clock: granted at close N, expires N + 1, then
+            // db/lib/dyingDeathPass.js takes over. A GM confirms the death
+            // by hand, same as every other terminal chain (tagExpiryPass.js).
+            expiresTurn: turnNumber + 1,
+          })),
+          skipDuplicates: true,
+        });
+      }
+    },
+    { timeout: 60_000, maxWait: 10_000 },
+  );
+
+  // One summary audit row per descriptor a character moved INTO this close —
+  // never one per character, or a roster-wide shift would flood /gm/audit.
+  const movedInto = { full: [], hungry: [], starving: [] };
   const enteredHungryIds = [];
   const enteredStarvingIds = [];
   const newlyDyingIds = [];
   const hungerNotices = [];
-
-  let decayed = 0;
-
-  for (const character of characters) {
-    const heldTagIds = new Set(character.tags.map((ct) => ct.tagId));
-
-    if (hungerlessId && heldTagIds.has(hungerlessId)) {
-      hungerlessIds.push(character.id);
-      continue;
-    }
-
-    decayed += 1;
-    const fastMetabolism = Boolean(fastMetabolismId && heldTagIds.has(fastMetabolismId));
-    const heldSlugs = fastMetabolism ? new Set([FAST_METABOLISM_SLUG]) : new Set();
-    const decay = decayFor(heldSlugs);
-
-    const before = character.hungerValue;
-    const after = clampHunger(before - decay);
-
-    if (fastMetabolism) {
-      if (before >= decay) fastDecayIds.push(character.id);
-      else fastFloorIds.push(character.id);
-    } else if (before >= decay) {
-      normalDecayIds.push(character.id);
-    } else {
-      normalFloorIds.push(character.id);
-    }
-
-    const cross = crossings(before, after);
-
-    if (after <= HUNGRY_THRESHOLD) hungryGrantIds.push(character.id);
-    else hungryDropIds.push(character.id);
-    if (after <= STARVING_THRESHOLD) starvingGrantIds.push(character.id);
-    else starvingDropIds.push(character.id);
-
-    let effectiveStarvingSinceTurn = character.starvingSinceTurn ?? null;
-    if (cross.enteredStarving && effectiveStarvingSinceTurn == null) {
-      effectiveStarvingSinceTurn = turn.number;
-      starvingSinceStampIds.push(character.id);
-    } else if (cross.leftStarving && effectiveStarvingSinceTurn != null) {
-      effectiveStarvingSinceTurn = null;
-      starvingSinceClearIds.push(character.id);
-    }
-
-    const isNewlyDying =
-      dyingId != null &&
-      after <= STARVING_THRESHOLD &&
-      effectiveStarvingSinceTurn != null &&
-      turn.number - effectiveStarvingSinceTurn >= STARVING_DEATH_TURNS - 1;
-    if (isNewlyDying) newlyDyingIds.push(character.id);
-
-    if (cross.enteredHungry) enteredHungryIds.push(character.id);
-    if (cross.enteredStarving) enteredStarvingIds.push(character.id);
-
-    // One DM per newly-entered band (never one per point of decay) —
-    // Starving's line wins if both would somehow fire on the same close,
-    // matching the Gambit modifier's "Starving wins outright" rule. A
-    // character not freshly entering either band, and not newly dying,
-    // hears nothing this turn — decay is silent until it crosses a line.
-    if (cross.enteredStarving || isNewlyDying) {
-      hungerNotices.push({ discordUserId: character.discordUserId, kind: "starving", justDied: isNewlyDying });
-    } else if (cross.enteredHungry) {
-      hungerNotices.push({ discordUserId: character.discordUserId, kind: "hungry", justDied: false });
-    }
+  for (const [id, o] of outcomes) {
+    if (bandOf(o.before) !== o.band) movedInto[o.band].push(id);
+    if (o.cross.enteredHungry) enteredHungryIds.push(id);
+    if (o.cross.enteredStarving) enteredStarvingIds.push(id);
+    if (o.newlyDying) newlyDyingIds.push(id);
+    if (o.notice) hungerNotices.push({ discordUserId: o.discordUserId, ...o.notice });
   }
-
-  const hungryExpiresTurn = expiryFrom(turn.number + 1, hungryTag.defaultDurationTurns ?? 1);
-  const starvingExpiresTurn = expiryFrom(turn.number + 1, starvingTag.defaultDurationTurns ?? 1);
-
-  // One transaction: a character can't land at a new hungerValue without the
-  // matching band tags landing with it, or reach the death timer without
-  // `dying` granted in the same beat.
-  await prisma.$transaction([
-    prisma.character.updateMany({
-      where: { id: { in: hungerlessIds } },
-      data: { hungerValue: HUNGER_MAX, starvingSinceTurn: null },
-    }),
-    prisma.character.updateMany({
-      where: { id: { in: normalDecayIds } },
-      data: { hungerValue: { decrement: HUNGER_DECAY_PER_TURN } },
-    }),
-    prisma.character.updateMany({
-      where: { id: { in: normalFloorIds } },
-      data: { hungerValue: 0 },
-    }),
-    prisma.character.updateMany({
-      where: { id: { in: fastDecayIds } },
-      data: { hungerValue: { decrement: HUNGER_DECAY_FAST_METABOLISM } },
-    }),
-    prisma.character.updateMany({
-      where: { id: { in: fastFloorIds } },
-      data: { hungerValue: 0 },
-    }),
-    prisma.characterTag.createMany({
-      data: hungryGrantIds.map((characterId) => ({
-        characterId,
-        tagId: hungryTag.id,
-        source: "EVENT",
-        expiresTurn: hungryExpiresTurn,
-      })),
-      skipDuplicates: true,
-    }),
-    prisma.characterTag.deleteMany({
-      where: { characterId: { in: hungryDropIds }, tagId: hungryTag.id },
-    }),
-    prisma.characterTag.createMany({
-      data: starvingGrantIds.map((characterId) => ({
-        characterId,
-        tagId: starvingTag.id,
-        source: "EVENT",
-        expiresTurn: starvingExpiresTurn,
-      })),
-      skipDuplicates: true,
-    }),
-    prisma.characterTag.deleteMany({
-      where: { characterId: { in: starvingDropIds }, tagId: starvingTag.id },
-    }),
-    prisma.character.updateMany({
-      where: { id: { in: starvingSinceStampIds } },
-      data: { starvingSinceTurn: turn.number },
-    }),
-    prisma.character.updateMany({
-      where: { id: { in: starvingSinceClearIds } },
-      data: { starvingSinceTurn: null },
-    }),
-    ...(newlyDyingIds.length && dyingId
-      ? [
-          prisma.characterTag.createMany({
-            data: newlyDyingIds.map((characterId) => ({
-              characterId,
-              tagId: dyingId,
-              source: "EVENT",
-              // One-turn clock: granted at close N, expires N + 1, then
-              // db/lib/dyingDeathPass.js takes over. Kept granting it the
-              // same way turn after turn while nothing changes — a GM
-              // confirms the death by hand, same as every other terminal
-              // chain (tagExpiryPass.js).
-              expiresTurn: turn.number + 1,
-            })),
-            skipDuplicates: true,
-          }),
-        ]
-      : []),
-  ]);
-
-  // One summary row per grant/drop kind this pass actually moved — never one
-  // per character, or a roster-wide band shift would flood /gm/audit.
   await Promise.all([
-    logBatchSystemTagChange(prisma, { system: "hunger", characterIds: hungryGrantIds, tagId: hungryTag.id, tagName: hungryTag.name, op: "add" }),
-    logBatchSystemTagChange(prisma, { system: "hunger", characterIds: hungryDropIds, tagId: hungryTag.id, tagName: hungryTag.name, op: "remove" }),
-    logBatchSystemTagChange(prisma, { system: "hunger", characterIds: starvingGrantIds, tagId: starvingTag.id, tagName: starvingTag.name, op: "add" }),
-    logBatchSystemTagChange(prisma, { system: "hunger", characterIds: starvingDropIds, tagId: starvingTag.id, tagName: starvingTag.name, op: "remove" }),
+    ...BANDS.map((band) =>
+      logBatchSystemTagChange(prisma, {
+        system: "hunger",
+        characterIds: movedInto[band],
+        tagId: descriptorTag[band].id,
+        tagName: descriptorTag[band].name,
+        op: "add",
+      }),
+    ),
     ...(newlyDyingIds.length && dyingTag
       ? [logBatchSystemTagChange(prisma, { system: "hunger", characterIds: newlyDyingIds, tagId: dyingTag.id, tagName: dyingTag.name, op: "add" })]
       : []),
   ]).catch((err) => console.error("Hunger pass: tag-change audit failed:", err.message ?? err));
 
-  // Starving to death's door is frightening (docs/systemdocs/MOOD.md). These
-  // ride after the transaction, the same pattern the old pass used for its
-  // DYING mood hit — a batch createMany can't carry a per-row mood term, so
-  // the dial moves here, once the grant has landed. Each list only ever
-  // holds a FRESH crossing this turn, so nobody is charged twice for
-  // remaining in a band they already occupied.
+  // The dial, once the meter has landed: the one-time hit for dropping into
+  // a band (charged on where the character ENDS, so eating your way back to
+  // Hungry costs the Hungry hit and never the Starving one), -5 for every
+  // Foodstuff eaten, and the fright of Dying. One write per character.
   const moodDms = [];
-  for (const characterId of enteredHungryIds) {
-    const moved = await applyMood(prisma, characterId, { kind: "HUNGRY_ONSET", notify: false }).catch((err) => {
-      console.error(`Hunger pass: hungry onset mood failed for ${characterId}:`, err.message ?? err);
-      return null;
-    });
-    if (moved?.dm) moodDms.push(moved.dm);
-  }
-  for (const characterId of enteredStarvingIds) {
-    const moved = await applyMood(prisma, characterId, { kind: "STARVING_ONSET", notify: false }).catch((err) => {
-      console.error(`Hunger pass: starving onset mood failed for ${characterId}:`, err.message ?? err);
-      return null;
-    });
-    if (moved?.dm) moodDms.push(moved.dm);
-  }
-  for (const characterId of newlyDyingIds) {
-    const moved = await applyMood(prisma, characterId, { kind: "DYING", notify: false }).catch((err) => {
-      console.error(`Hunger pass: dying mood failed for ${characterId}:`, err.message ?? err);
-      return null;
-    });
+  for (const [id, o] of outcomes) {
+    const terms = [];
+    if (o.cross.enteredHungry) terms.push({ kind: "HUNGRY_ONSET", base: EVENTS.HUNGRY_ONSET, ctx: {} });
+    if (o.cross.enteredStarving) terms.push({ kind: "STARVING_ONSET", base: EVENTS.STARVING_ONSET, ctx: {} });
+    if (o.newlyDying) terms.push({ kind: "DYING", base: EVENTS.DYING, ctx: {} });
+    if (o.eaten > 0) terms.push(...scaleTerms(eatMood, o.eaten));
+    if (!terms.length) continue;
+    const moved = await prisma
+      .$transaction((tx) => applyMoodTerms(tx, id, terms, { notify: false }))
+      .catch((err) => {
+        console.error(`Hunger pass: mood failed for ${id}:`, err.message ?? err);
+        return null;
+      });
     if (moved?.dm) moodDms.push(moved.dm);
   }
 
@@ -295,9 +330,15 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   // from advanceTurn()'s runSideEffects() instead, after the response
   // already flushed.
   return {
-    turnNumber: turn.number,
-    decayed,
+    turnNumber,
+    turnLengthHours,
+    turnsPerDay: turnsPerDay || undefined,
+    perTurnDecay: perTurn,
+    decayed: outcomes.size,
     skipped: hungerlessIds.length,
+    autoAte: eaters.length,
+    autoAteUnits,
+    poisonedWhileEating: poisonedEaters.length || undefined,
     enteredHungry: enteredHungryIds.length,
     enteredStarving: enteredStarvingIds.length,
     newlyDying: newlyDyingIds.length,
@@ -307,8 +348,40 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   };
 }
 
+// A poisoned Foodstuff eaten at the close does exactly what it would have
+// done eaten by hand (web/app/(app)/character/actions/misc.js): the poison's
+// own grants, through the same resolver and the same resist filter.
+async function applyPoison(tx, characterId, poisonTagId, ladder, turnNumber) {
+  const poisonTag = await tx.tag.findUnique({
+    where: { id: poisonTagId },
+    select: {
+      id: true,
+      name: true,
+      consumesInto: true,
+      consumesIntoUnless: true,
+      consumesIntoDurations: true,
+      consumesIntoOneOf: true,
+      consumesIntoResources: true,
+    },
+  });
+  if (!poisonTag) return null;
+  const held = await tx.characterTag.findMany({
+    where: { characterId },
+    select: { tagId: true, tag: { select: { slug: true, resists: true } } },
+  });
+  const grants = resolveConsumeGrants(poisonTag, heldSlugsOf(held), ladder, resistSlugsOf(held));
+  for (const slug of grants.removes) {
+    const row = held.find((ct) => ct.tag.slug === slug);
+    if (row) await dropCharacterTag(tx, characterId, row.tagId, 1);
+  }
+  // First live turn is the one about to open.
+  await grantTagSlugs(tx, characterId, grants.slugs, turnNumber + 1, grants.durations);
+  return { poisonTagId: poisonTag.id, poisonName: poisonTag.name };
+}
+
 module.exports = {
   runHungerPass,
   hungerDm,
   DYING_DM,
+  DESCRIPTORS,
 };

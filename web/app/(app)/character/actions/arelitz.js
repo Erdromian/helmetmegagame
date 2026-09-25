@@ -85,7 +85,7 @@ export async function breakInArelitzRequestImpl({ tagId, sourceKey }) {
     if (target.source.kind === "room") await lockRoom(tx, target.source.id);
 
     // Re-checked under the lock — the dialog's list is advisory, same
-    // posture as farmRequestImpl's sowing-ticket re-check.
+    // posture as every other re-check under the lock.
     const still =
       target.source.kind === "character"
         ? await tx.characterTag.findUnique({

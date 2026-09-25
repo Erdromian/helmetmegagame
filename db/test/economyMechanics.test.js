@@ -47,11 +47,20 @@ test("the Prospecting multiplier is mining.js's", () => {
   assert.equal(model.params.prospectingMultiplier, mining.PROSPECTING_YIELD_MULTIPLIER);
 });
 
-// Wages, Food, Field: a harvest is plants × survival × crops a plant; Fertilizer takes the wither die away.
-test("a Farm action's harvest follows soilery.js's constants", () => {
+// Wages, Food: a harvest is FARM_PLANTS crops, one Foodstuff each survivor; Fertilizer takes the wither
+// die away and doubles a crop 1 time in BOUNTY_IN. Run the game's own reapFoodstuffs with an rng that
+// sweeps every face of the die exactly once per WITHER_IN/BOUNTY_IN crops, so the result is the EXACT
+// expectation model.js computes analytically, not a sampled approximation.
+const cycleRng = (n) => {
+  let i = 0;
+  return () => (i++ % n) / n;
+};
+test("a Farm action's harvest follows soilery.js's reapFoodstuffs", () => {
   const plants = model.params.farmMaxCrops;
-  assert.ok(close(model.params.harvestPerFarm, plants * (1 - 1 / soilery.WITHER_IN) * soilery.CROPS_PER_PLANT));
-  assert.ok(close(model.params.harvestPerFarmFert, plants * (1 + 1 / soilery.BOUNTY_IN) * soilery.CROPS_PER_PLANT));
+  const plain = soilery.reapFoodstuffs(plants * soilery.WITHER_IN, cycleRng(soilery.WITHER_IN)) / soilery.WITHER_IN;
+  const fert = soilery.reapFoodstuffs(plants * soilery.BOUNTY_IN, cycleRng(soilery.BOUNTY_IN), { fertilized: true }) / soilery.BOUNTY_IN;
+  assert.ok(close(model.params.harvestPerFarm, plain));
+  assert.ok(close(model.params.harvestPerFarmFert, fert));
 });
 
 // Fatigue, and every duty-scaled wage: the simulated steady rate of Mine, against a direct run of the ladder.

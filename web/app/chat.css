@@ -1913,6 +1913,20 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* A descriptor's word (YouDescriptors.js) takes its colour from its tone, the
+   same four names .status-pill and the sheet's tiles use. */
+.kv dd[data-tone="muted"] {
+  color: var(--muted);
+}
+
+.kv dd[data-tone="warn"] {
+  color: var(--warning);
+}
+
+.kv dd[data-tone="bad"] {
+  color: var(--danger);
+}
+
 /* A block in the aside's stack below You: Turn, Here, Waiting on you, and
    every older section (Place, Room, Travel, the party rack, Things, Desires)
    that has no home in the mockup's own three. `h3` wears `.bar` itself — one

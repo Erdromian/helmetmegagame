@@ -1,51 +1,32 @@
-// node --test over db/lib/soilery.js#reap's fertilized branch (SOILERY.md's
-// Addendum). Pure and Prisma-free, same posture as soilery.test.js.
-//
-// Everything here counts CROPS, not plants: a surviving plant brings in
-// CROPS_PER_PLANT of its crop, and the fertilized branch doubles that whole
-// yield rather than adding a single unit to it.
+// node --test over db/lib/soilery.js#reapFoodstuffs's fertilized branch (the
+// old Soilery doc's Addendum, kept by the rework): nothing withers, and each
+// crop has a 1-in-6 chance of bringing in 2 Foodstuffs instead of 1. Pure and
+// Prisma-free, same posture as soilery.test.js.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { reap, BOUNTY_IN, CROPS_PER_PLANT } = require("../lib/soilery");
+const { reapFoodstuffs, BOUNTY_IN } = require("../lib/soilery");
 
-test("reap: unfertilized never exceeds planted", () => {
-  const planted = 600;
-  const ceiling = planted * CROPS_PER_PLANT;
-  const reaped = reap(planted, () => 0.99);
-  assert.equal(reaped, ceiling);
-  assert.ok(reap(planted) <= ceiling);
+test("unfertilized never exceeds planted", () => {
+  for (let i = 0; i < 20; i++) assert.ok(reapFoodstuffs(600) <= 600);
 });
 
-test("reap: fertilized never yields fewer than planted", () => {
-  const planted = 600;
-  // Never rolls the bounty slot — every plant lands as a plain one.
-  assert.equal(reap(planted, () => 0.99, { fertilized: true }), planted * CROPS_PER_PLANT);
+test("fertilized never yields fewer than planted", () => {
+  for (let i = 0; i < 20; i++) assert.ok(reapFoodstuffs(600, Math.random, { fertilized: true }) >= 600);
 });
 
-test("reap: fertilized always rolling the bounty slot doubles everything", () => {
-  const planted = 600;
-  // floor(0 * BOUNTY_IN) === 0 every time, which is the double branch.
-  assert.equal(reap(planted, () => 0, { fertilized: true }), planted * CROPS_PER_PLANT * 2);
+test("fertilized always rolling the bounty slot doubles everything", () => {
+  assert.equal(reapFoodstuffs(100, () => 0, { fertilized: true }), 200);
 });
 
-test("reap: fertilized real per-unit variance lands between planted and 2x planted, within 3 std dev of the mean", () => {
-  const planted = 6000;
-  const floor = planted * CROPS_PER_PLANT;
-  const reaped = reap(planted, Math.random, { fertilized: true });
-  assert.ok(reaped >= floor, `reaped ${reaped} is below ${floor} — fertilized never loses a plant`);
-  assert.ok(reaped <= floor * 2, `reaped ${reaped} is above the 2x ceiling for ${planted} planted`);
-  // Each plant is CROPS_PER_PLANT x (1 + Bernoulli(1/BOUNTY_IN)), so the mean
-  // and the standard deviation both carry that factor — a scaled binomial,
-  // offset by the floor, and the mirror of the ordinary wither roll's.
-  const mean = floor + floor * (1 / BOUNTY_IN);
-  const variance = planted * (1 / BOUNTY_IN) * (1 - 1 / BOUNTY_IN);
-  const stdDev = Math.sqrt(variance) * CROPS_PER_PLANT;
-  assert.ok(
-    Math.abs(reaped - mean) <= 3 * stdDev,
-    `reaped ${reaped} is more than 3 std dev (${stdDev.toFixed(1)}) from the expected mean ${mean}`,
-  );
+test("fertilized real per-unit variance lands within 3 std dev of 7/6 a crop", () => {
+  const planted = 60_000;
+  const got = reapFoodstuffs(planted, Math.random, { fertilized: true });
+  const p = 1 / BOUNTY_IN;
+  const mean = planted * (1 + p);
+  const sd = Math.sqrt(planted * p * (1 - p));
+  assert.ok(Math.abs(got - mean) < 3 * sd, `got ${got}, expected about ${mean}`);
 });
 
-test("reap: planting 0 fertilized reaps 0, with no rng calls needed", () => {
-  assert.equal(reap(0, Math.random, { fertilized: true }), 0);
+test("planting 0 fertilized reaps 0, with no rng calls needed", () => {
+  assert.equal(reapFoodstuffs(0, () => { throw new Error("rng should not be called"); }, { fertilized: true }), 0);
 });

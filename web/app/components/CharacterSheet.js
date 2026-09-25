@@ -46,10 +46,10 @@ import TagRail from "./TagRail";
 export default function CharacterSheet({
   character,
   mode,
-  // The 0-100 hunger meter's ONLY client-visible trace (db/lib/hunger.js):
-  // "hungry" | "starving" | null, resolved server-side in character/page.js
-  // so the raw hungerValue never crosses into the flight payload at all.
-  hungerWarning = null,
+  // The hunger meter's ONLY client-visible trace (db/lib/hunger.js): the
+  // descriptor as { word, line, tone }, or null for the Hungerless — worked
+  // out in character/page.js so the raw hungerValue never crosses at all.
+  hunger = null,
   openTurn,
   avatarSrc,
   transferParties,
@@ -99,6 +99,8 @@ export default function CharacterSheet({
   nukeArmedTurn = null,
   deployVersion = null,
   hasWorkshop = false,
+  atKitchen = false,
+  eatMax = {},
   tagCatalog,
   desireSlots = 2,
   desireSlotLockTurns = 2,
@@ -175,8 +177,6 @@ export default function CharacterSheet({
   canSeeFarm = false,
   canFarm = false,
   farmBlocked = null,
-  farmMaxCrops,
-  fieldWarning = null,
   dayLongTurn = true,
   canSeeBreakIn = false,
   canBreakIn = false,
@@ -263,6 +263,8 @@ export default function CharacterSheet({
         transferParties={transferParties}
         carry={carry}
         hasWorkshop={hasWorkshop}
+        atKitchen={atKitchen}
+        eatMax={eatMax}
         canHeal={canHeal}
         healsLeft={healsLeft}
         canMiracle={canMiracle}
@@ -314,8 +316,6 @@ export default function CharacterSheet({
         canSeeFarm={canSeeFarm}
         canFarm={canFarm}
         farmBlocked={farmBlocked}
-        farmMaxCrops={farmMaxCrops}
-        fieldWarning={fieldWarning}
         dayLongTurn={dayLongTurn}
         canSeeBreakIn={canSeeBreakIn}
         canBreakIn={canBreakIn}
@@ -376,7 +376,7 @@ export default function CharacterSheet({
           hasHorn={hasHorn}
           isBastard={isBastard}
           isSelf={isSelf}
-          hungerWarning={hungerWarning}
+          hunger={hunger}
         />
 
         <div className="ledger-body">

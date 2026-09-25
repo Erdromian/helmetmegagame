@@ -50,7 +50,6 @@ const { runAscensionRevealPass } = require("./lib/ascensionReveal");
 const { endGameInDb } = require("./lib/gameEnd");
 const { runBirdPass } = require("./lib/birdPass");
 const { runMiningYieldPass } = require("./lib/miningYield");
-const { runFieldPass } = require("./lib/fieldProductivity");
 const { runStagedPushPass } = require("./lib/stagedPush");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
@@ -334,10 +333,6 @@ const TURN_PASSES = [
   // turn's mining is worth, so a day already paid keeps the coefficient it was
   // priced at.
   "miningYield",
-  // The field's productivity (db/lib/fieldProductivity.js, SOILERY.md §9): refill the pool and set what the next
-  // turn's harvests come up at. After the staged push, which is where harvests draw on it, so a turn's harvests are out
-  // of the pool before it refills, and what it writes is what the NEXT turn is worth, like the map's weather above.
-  "fieldRegen",
   "lifewebDecay",
   // What the buildings MAKE (db/lib/structureYieldPass.js). Late, and after
   // "carry" in particular: the pour lands on a Room's floor, so it must not
@@ -933,11 +928,6 @@ async function resolveNeeds(turn, config) {
   // drifting the whole map twice.
   const yields = await runPass("miningYield", "Mining yield drift", () => runMiningYieldPass(prisma, turn));
   if (yields?.drifted) await audit("mining_yields_drifted", yields, "Mining yield drift");
-
-  // Refill the field and set next turn's yield (db/lib/fieldProductivity.js). Adds a turn of refill, so like the drift
-  // above it is NOT idempotent and needs its own markDone.
-  const field = await runPass("fieldRegen", "Field productivity", () => runFieldPass(prisma, turn));
-  if (field?.enabled) await audit("field_regen", field, "Field productivity");
 
   // bumpBlood rather than a computed literal off `config`: that snapshot
   // predates the passes above, so a donation made during the advance would

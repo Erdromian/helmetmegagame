@@ -13,6 +13,7 @@ import PartyRack from "./PartyRack";
 import PlaceCard from "./PlaceCard";
 import RoomPanel from "./RoomPanel";
 import StatusStrip from "./StatusStrip";
+import YouDescriptors from "./YouDescriptors";
 import Things from "./ThingsDrawer";
 import DesiresBlock from "./DesiresBlock";
 import TravelNodes from "./TravelNodes";
@@ -114,6 +115,8 @@ export default function ChatAside({
   move,
   sheet,
   carry,
+  // Words about you (web/lib/descriptors.js) — hunger first. Drawn in place of the old status chips.
+  descriptors = [],
   desires,
   things,
   // Decided server-side in page.js; the link's page and the dialog's action
@@ -180,7 +183,6 @@ export default function ChatAside({
   const moodBand = bandOf(sheet?.mood ?? 0);
   const obols = obolsOf(sheet);
   const resources = sheet?.resources ?? 0;
-  const worn = (sheet?.tags ?? []).filter((ct) => ct.tag?.category === "Status" || ct.tag?.category === "Health");
 
   return (
     <div className="chat-aside-stack">
@@ -201,6 +203,7 @@ export default function ChatAside({
               <dt>Mood</dt>
               <dd>{moodBand?.label ?? "Fine"}</dd>
             </div>
+            <YouDescriptors descriptors={descriptors} />
             <div className="kv">
               <dt>Resources</dt>
               <dd className="mono">{resources} ⬢</dd>
@@ -218,10 +221,10 @@ export default function ChatAside({
               </div>
             )}
           </dl>
-          {/* Reuses the sheet's own load bar and tag chips rather than a
-              second copy of either (StatusStrip.js) — `numbers={false}`
-              because Resources/Carrying are already said above, in words. */}
-          <StatusStrip resources={resources} carry={carry} tags={worn} currentTurn={moveState.turn?.number ?? null} meter numbers={false} />
+          {/* Reuses the sheet's own load bar (StatusStrip.js), and no chips:
+              the descriptors above are what the you-frame says about you.
+              `numbers={false}` because Resources/Carrying are already said above. */}
+          <StatusStrip resources={resources} carry={carry} tags={[]} currentTurn={moveState.turn?.number ?? null} meter numbers={false} />
         </div>
       </div>
 

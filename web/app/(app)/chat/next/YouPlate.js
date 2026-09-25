@@ -3,6 +3,7 @@
 import { bandOf } from "@lifeweb/db/lib/mood";
 import { obolsOf } from "@/lib/purse";
 import StatusStrip from "../StatusStrip";
+import YouDescriptors from "../YouDescriptors";
 
 // PLATE over WELL (chat-vocabulary.md §1): what you ARE rather than what is
 // true of the moment, so it gets the sprite frame instead of a block.
@@ -11,11 +12,14 @@ import StatusStrip from "../StatusStrip";
 // (Chat Overhaul.docx: "Move the YOU tab from the top of the rightside bar to
 // the bottom left corner"). On a phone that column is the ≡ drawer, so the
 // plate rides at the bottom of that drawer instead.
-export default function YouPlate({ name, roleTitle, zone, sheet, carry, currentTurn = null }) {
+//
+// It carries no tag chips (the Soilery Rework doc): what used to sit here —
+// Ate Meal and every other status — is on the sheet. Instead it says the
+// character's descriptors in words, hunger first (web/lib/descriptors.js).
+export default function YouPlate({ name, roleTitle, zone, sheet, carry, descriptors = [], currentTurn = null }) {
   const moodBand = bandOf(sheet?.mood ?? 0);
   const obols = obolsOf(sheet);
   const resources = sheet?.resources ?? 0;
-  const worn = (sheet?.tags ?? []).filter((ct) => ct.tag?.category === "Status" || ct.tag?.category === "Health");
 
   return (
     <section className="chat-you" aria-label="You">
@@ -31,6 +35,7 @@ export default function YouPlate({ name, roleTitle, zone, sheet, carry, currentT
               <dt>Mood</dt>
               <dd>{moodBand?.label ?? "Fine"}</dd>
             </div>
+            <YouDescriptors descriptors={descriptors} />
             <div className="kv">
               <dt>Resources</dt>
               <dd className="mono">{resources} ⬢</dd>
@@ -48,12 +53,13 @@ export default function YouPlate({ name, roleTitle, zone, sheet, carry, currentT
               </div>
             )}
           </dl>
-          {/* The sheet's own load bar and chips, not a second copy of either.
+          {/* The sheet's own load bar, not a second copy of it. No chips —
+              the descriptors above are what this plate says about you.
               numbers={false} — Resources and Carrying are already said above. */}
           <StatusStrip
             resources={resources}
             carry={carry}
-            tags={worn}
+            tags={[]}
             currentTurn={currentTurn}
             meter
             numbers={false}

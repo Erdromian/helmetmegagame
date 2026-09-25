@@ -74,39 +74,9 @@ const FIELDS = [
     label: "Notice lifespan (turns)",
   },
   {
-    key: "farmMaxCrops", type: "int", group: "economy", default: 50, min: 1, max: 500,
-    label: "Farm sow cap",
-    info: "Most PLANTS one Farm action may sow in a single plan. A plant brings in several of its crop — see db/lib/soilery.js",
-  },
-  {
-    key: "farmFieldEnabled", type: "bool", group: "economy", default: true,
-    label: "Field productivity",
-    info: "On: every harvest draws on a shared pool that refills each turn, and an overworked field gives worse harvests. Off: every harvest comes up whole. See SOILERY.md §9",
-  },
-  {
-    key: "farmSustainMargin", type: "float", group: "economy", default: 0.15, min: 0, max: 2, step: 0.05,
-    label: "Field refill margin",
-    info: "How far over what the town eats (2 crops a seat a turn) the field refills. 0.15 is 15% on top",
-  },
-  {
-    key: "farmPoolTurns", type: "float", group: "economy", default: 4, min: 0.5, max: 50, step: 0.5,
-    label: "Field pool (turns of refill)",
-    info: "How many turns of refill the pool holds, and how deep in debt it can go. More is a bigger cushion and a slower punishment",
-  },
-  {
-    key: "farmComfortFrac", type: "float", group: "economy", default: 0.75, min: 0.05, max: 1, step: 0.05,
-    label: "Field comfort level",
-    info: "Share of a full pool at or above which harvests are untouched. Below it the yield falls toward the minimum",
-  },
-  {
-    key: "farmMinYield", type: "float", group: "economy", default: 0.25, min: 0, max: 1, step: 0.05,
-    label: "Field minimum yield",
-    info: "The yield multiplier at an empty pool and below it. 0.25 means a wrecked field still gives a quarter",
-  },
-  {
-    key: "farmCurveExp", type: "float", group: "economy", default: 1, min: 0.25, max: 6, step: 0.25,
-    label: "Field curve shape",
-    info: "1 is a straight line from comfortable to empty. Above 1 is gentle at first and steep at the end, below 1 the opposite",
+    key: "farmMaxCrops", type: "int", group: "economy", default: 100, min: 1, max: 500,
+    label: "Plants per farm",
+    info: "How many crops one Farm action plants. Each has a 1-in-6 chance to wither; every survivor is 1 Foodstuff. See db/lib/soilery.js",
   },
   {
     key: "craftYieldTiming", type: "select", group: "economy", default: "IMMEDIATE",

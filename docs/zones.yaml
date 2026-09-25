@@ -313,21 +313,20 @@ zones:
             name: Silo
             access: [barons-key, soilers-key, hands-key]
             description: >-
-              Foodstuff and seeds are stored here.
+              Foodstuffs are stored here.
             stash:
               items:
-                wheat-seed-bag: 2
-                potato-seed-bag: 2
-                carrot-seed-bag: 1
-                plump-helmet-seed-bag: 1
-                wheat: 4
-                potato: 4
+                foodstuffs: 20
           # The Stable (ARELITZ.md). db/lib/stablePass.js follows the flag, so
           # it needed no code change to move here off the old farms-stable.
           town-3-3:
             name: Stable
             access: [barons-key, soilers-key, hands-key]
             stable: true
+            # Three unruly arelitz to start (the Soilery Rework doc; ARELITZ.md).
+            stash:
+              items:
+                unruly-arelitz: 3
             description: >-
               Where the arelitz are kept. Some of them are unruly, while others are tame. It smells like placenta.
       town-4:
@@ -436,7 +435,7 @@ zones:
                 elevator-key: 1
                 obol: 4
                 dagger: 4
-                vegetable-stew: 1
+                foodstuffs: 4
                 black-robes: 1
                 paper: 19
       town-6:
@@ -464,8 +463,10 @@ zones:
                 malachite: 2
       town-7:
         name: The Old Cock Inn
+        # `kitchen`: a Lavish meal can be cooked here (COOKING.md) — the Inn's Kitchen, town-7-5.
         attributes:
           haven: true
+          kitchen: true
         indoors: true
         description: >-
           The coziest part of Ravenheart, open all hours of the day. It draws people from all walks of life here with the promise of hot food and liquor. Alcohol heals the soul, and will surely help you win the bar fight that is no doubt brewing.
@@ -825,8 +826,10 @@ zones:
             stash: [silver-cross]
       fortress-4:
         name: Keep
+        # `kitchen`: the Keep's Kitchen, fortress-4-8 (COOKING.md).
         attributes:
           haven: true
+          kitchen: true
         indoors: true
         description: >-
           Reinforced with ceramite, it has survived many assaults. A balcony overlooks the town. The interiors are less spacious than the Court's, but substantially more mazelike and defensible.
@@ -916,7 +919,7 @@ zones:
             stash:
               resources: 3
               items:
-                vegetable-stew: 1
+                foodstuffs: 4
                 paper: 5
                 meisters-wax-stamp: 1
           fortress-4-8:
@@ -1289,6 +1292,9 @@ zones:
       # it being findable.
       undertown-7:
         name: Poorhouse
+        # `kitchen`: the Soup Kitchen, undertown-7-2 (COOKING.md).
+        attributes:
+          kitchen: true
         indoors: true
         description: >-
           A large shelter, cobbled together with some coherence with donations from the town long ago in times when such reckless expenditures could be afforded.
@@ -1307,9 +1313,7 @@ zones:
               A simple cookhouse with everything needed to cook the most basic of meals.
             stash:
               items:
-                potato: 3
-                carrot: 2
-                wheat: 5
+                foodstuffs: 10
           # The near end of the dug-through wall. The far end is the Hole in
           # the Wall, and the edge between them is `hidden: tunnel-rat`.
           undertown-7-3:
@@ -1439,7 +1443,7 @@ zones:
               Held aloft by rope connected to the ceiling of the underfort, this little wooden platform stands as an ivory tower over the rest of the slums.
             stash:
               items:
-                plump-helmet: 4
+                foodstuffs: 4
                 moonshine: 1
       # The Order's own house. Both ways in are `locked: order-key` — the
       # stair down from the Cathedral and the door out into the Hollows — so
@@ -1849,7 +1853,7 @@ zones:
             stash:
               resources: 5
               items:
-                onion: 2
+                foodstuffs: 2
                 cave-fungus: 2
       factory:
         name: Godard Factory

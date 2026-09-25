@@ -898,8 +898,8 @@ buying one mid-game is still a real decision.
 | `firecracker` | 2 | 1 | |
 | `art-supplies` | 3 | 2 | What a `painting` spends — the Artist's one running cost |
 | `eth-lod` | 3 | — | Black Market. +20 mood, and it takes every pain tag off |
-| `honey` | 3 | 2 | Consumes into `ate-meal` |
-| `sugar-candy` | 3 | 2 | Consumes into `ate-meal` |
+| `honey` | 3 | 2 | Food: 12 hunger raw |
+| `sugar-candy` | 3 | 2 | Food: 6 hunger raw |
 | `alcohol` | 4 | — | He stocks the local brew too |
 | `kzozel-yantar` | 4 | — | Black Market. Consumes into `tipsy` |
 | `collar-key` | 4 | — | Black Market. Turns a shut collar back into a loose one, into the UNLOCKER's hands (`COLLAR.md`) |
@@ -1015,7 +1015,7 @@ above that:
 | Ware | ¢ | Sells back | Blocks (no substitute in the recipe) |
 |---|---|---|---|
 | `cheese` | 4 | 2 | Pizza Slice, Fondue — the starting-kit "Cheese x3" on four cook-adjacent roles runs out fast |
-| `sugar` | 8 | 2 | Honeyed Sweets/Carrot Cake/Fondue's honey-or-sugar picker still works without it, but nothing else did |
+| `sugar` | 8 | 2 | a sweet extra ingredient for a meal; nothing else supplies it |
 
 Both ¢ figures are pushed above the plain sell+1/2 pattern the rest of the
 catalog follows — see below.
@@ -1041,8 +1041,9 @@ priced against), which puts the Ration Box's own ceiling at 6.0 points/¢
 (`(25.5 + 1.5×−5) ÷ 3`).
 
 `sugar`, `cheese`, `honey` and `sugar-candy` were all checked against it.
-`honey` and `sugar-candy` carry the identical hunger (12, via
-`DEFAULT_FOOD_HUNGER` — neither sets its own `cooked.hunger`) and mood (20)
+`honey` and `sugar-candy` carried the identical hunger (12, via the old
+default for a food that granted Ate Meal; each now sets its own `cooked.hunger`)
+and mood (20)
 `sugar` does, at the same 3 ¢ starting price, so the same failure and the
 same fix apply to all three alike:
 
@@ -1077,9 +1078,9 @@ since the station charges 3 ¢ for the same ⬢ coming down (§3). Anybody may d
 now, which is the point: a labourer with a cart of material and no buyer has a
 counter to walk it to.
 
-Eight bands. The last two are new — cooked food and tobacco were both unpriced
-until the Soilery rebalance, and the raw food crops moved the other way, off
-the list entirely:
+Seven bands. Cooked food was unpriced until the Soilery rebalance; Tobacco,
+the one cash crop, was an eighth until the Soilery Rework removed it, and the
+raw food crops left the list entirely:
 
 | Band | Priced at | Examples |
 |---|---|---|
@@ -1090,10 +1091,9 @@ the list entirely:
 | Salvage and valuables | what portable wealth is worth | `jewelry` 8, `heirloom` 12, `old-coin` 1, `painting` **41** |
 | Body parts | low, on purpose | `eye` 10, `heart` 10, `hand` 6, `foot` 5, `stomach` 5, `tongue` 4 |
 | Cooked food | deliberately almost nothing — see below | a snack 1, a basic meal **2**, a skilled meal **4** |
-| Tobacco | the one farm crop worth money | `tobacco` 2 a leaf (`SOILERY.md` §6a) |
 
 **Cooked food sells for almost nothing, and that is the design.** Every meal
-carries a `sellablePrice` now (2 for a basic, 4 for a skilled), and
+class carries a `sellablePrice` (1 Basic, 2 Skilled, 4 Lavish), and
 `db/lib/customCraftMint.js` copies `sellable`/`sellablePrice` onto the minted
 `custom-craft-…` dish, so what a player actually cooked is what the counter
 will take.
@@ -1106,10 +1106,10 @@ the Inn stops being worth walking to. There is no coded Innkeeper mechanism
 and there should not be one — the role is narrative (`docs/roles.yaml`), and
 §0h's rule that the Inn must not quietly become a second counter still holds.
 
-**Raw food crops sell for nothing at all.** `wheat`, `potato`, `tomato`,
-`carrot`, `onion`, `plump-helmet` and `pigtails` are not `sellable`, so the
-drop box refuses them outright. Farming pays in food; `tobacco` is the one
-crop that pays in coin. See `SOILERY.md` §1. The five Ration Box draws are
+**Foodstuffs sell for nothing at all.** `foodstuffs`, the one thing the Farm
+button grows, is not `sellable`, so the drop box refuses it outright. Farming
+pays in food, and since the Soilery Rework there is no cash crop. See
+`SOILERY.md`. The five Ration Box draws are
 likewise unpriced, so the box cannot be bought at 3 ¢ and flipped.
 
 **The station buys body parts now** (`CORPSES.md`, `TORTURE.md` §6). It is a coin
@@ -1239,8 +1239,7 @@ is less than the Merchant pays for it. The shelf price of 13 keeps buying Iron a
 paying, and would print coin if it were ever under 5. The four recipes that spend an ingot (Rapier,
 Katana, Brigandine, Plate Armor) take 13, 13, 13 and 19 ⬢ now, fitted to their unchanged prices.
 
-**Alcohol is made of crops, not Resources.** Two crops of wheat or potato (the picker takes
-either) and a quarter Move, no ⬢, so it costs a brewer about 2 ¢ against the 4 ¢ shelf price
+**Alcohol is made of Foodstuffs, not Resources.** Two Foodstuffs and a quarter Move, no ⬢, so it costs a brewer about 2 ¢ against the 4 ¢ shelf price
 and the brews that spend it (`ravenheart-red`, `molotov-cocktail`, `cat`) are not pushed up by it.
 
 `ravenheart-red` is an ordinary skilled brew now, priced by the table like the rest. The tag's

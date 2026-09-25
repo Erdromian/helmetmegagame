@@ -1,15 +1,26 @@
+// The three hunger descriptors (db/lib/hunger.js#DESCRIPTORS). Exactly one is
+// held at a time by everybody but the Hungerless: Full is 67-100, Hungry
+// 34-66, Starving 0-33.
+const FULL_SLUG = "full";
 const HUNGER_SLUG = "hungry";
-// The deeper band of the 0-100 hunger meter (db/lib/hunger.js) — <= 0 hunger.
 const STARVING_SLUG = "starving";
+const HUNGER_DESCRIPTOR_SLUGS = [FULL_SLUG, HUNGER_SLUG, STARVING_SLUG];
+// The one generic food item the Farm button grows and every meal is cooked from.
+const FOODSTUFFS_SLUG = "foodstuffs";
+// May eat on past a full meter (db/lib/hunger.js#eatMaxFor).
+const GLUTTON_SLUG = "glutton";
+// The three meal-class templates a cook picks between (db/lib/meals.js).
+const BASIC_MEAL_SLUG = "basic-meal";
+const SKILLED_MEAL_SLUG = "skilled-meal";
+const LAVISH_MEAL_SLUG = "lavish-meal";
 const HUNGERLESS_SLUG = "hungerless";
-// Doubles the meter's decay to 20/turn (db/lib/hunger.js), hardcoded by slug — no generic upkeep field on Tag.
+// Big Appetite: the meter drops 24 a day instead of 17 (db/lib/hunger.js), hardcoded by slug — no generic upkeep field on Tag.
 const FAST_METABOLISM_SLUG = "fast-metabolism";
 const DYING_SLUG = "dying";
 // Vaporised outright (Thanati rites, the bomb — db/lib/characterDeath.js `gib`). No corpse minted.
 const GIBBED_SLUG = "gibbed";
 const NOBILITY_SLUG = "nobility";
 const COURTIER_SLUG = "courtier";
-const ATE_MEAL_SLUG = "ate-meal";
 const MORTUS_SLUG = "mortus";
 const DRAINED_SLUG = "drained";
 // The two-stage fatigue ladder — see db/lib/fatigue.js.
@@ -106,7 +117,7 @@ const ARELITZ_EGG_SLUG = "arelitz-egg";
 
 // The stable's per-Room cap on arelitz + brood, and the two dice ARELITZ.md
 // specifies. GameConfig.stableCapacity/db:check-config carries the tunable
-// default; these are the code fallbacks (same posture as FARM_MAX_CROPS).
+// default; these are the code fallbacks (same posture as db/lib/soilery.js#FARM_PLANTS).
 const STABLE_CAPACITY = 10;
 const HATCH_IN = 30;
 // A d6, target 5+ (roughly 1-in-3 before mood/hunger modifiers) — Bascinet's
@@ -149,8 +160,6 @@ const CONFESSION_THRESHOLD = 5;
 // The one "read someone else's sheet" tag (db/lib/inspectVision.js). Mindreading is deliberately NOT here — GM-adjudicated Gambit, not code.
 const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
 
-// "Ate a fine/lavish meal this turn" — granted by consumesInto, consumed by the mood pass, never by time.
-const DINED_SLUG = "dined";
 // What a drawback-triggered ride leaves you as (db/lib/locationTravel.js).
 const VOMITING_SLUG = "vomiting";
 // Drawback slugs read by their scripted mechanics.
@@ -264,15 +273,21 @@ module.exports = {
   THRALL_SLUG,
   VAMPIRE_BLOOD_ADDICT_SLUG,
   HEART_SLUG,
+  FULL_SLUG,
   HUNGER_SLUG,
   STARVING_SLUG,
+  HUNGER_DESCRIPTOR_SLUGS,
+  FOODSTUFFS_SLUG,
+  GLUTTON_SLUG,
+  BASIC_MEAL_SLUG,
+  SKILLED_MEAL_SLUG,
+  LAVISH_MEAL_SLUG,
   HUNGERLESS_SLUG,
   FAST_METABOLISM_SLUG,
   DYING_SLUG,
   GIBBED_SLUG,
   NOBILITY_SLUG,
   COURTIER_SLUG,
-  ATE_MEAL_SLUG,
   MORTUS_SLUG,
   DRAINED_SLUG,
   TIRED_SLUG,
@@ -327,7 +342,6 @@ module.exports = {
   CHAPLAIN_SLUG,
   CONFESSION_THRESHOLD,
   SEDUCTIVE_DEMONESS_SLUG,
-  DINED_SLUG,
   VOMITING_SLUG,
   LAZY_SLUG,
   GUILT_RIDDEN_SLUG,

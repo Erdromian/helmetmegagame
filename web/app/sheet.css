@@ -354,6 +354,37 @@
   color: var(--danger);
 }
 
+/* A tile with an icon beside its value (DetailTile.js `icon`) — the Hunger
+   tile's, drawn large and in the value's own tone so the two read as one. */
+.tile-iconic {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+}
+
+.tile-iconic .ledger-tile-value {
+  margin-top: 0;
+}
+
+.tile-icon {
+  display: inline-flex;
+  flex: none;
+  color: var(--text-hi);
+}
+
+.tile-icon[data-tone="muted"] {
+  color: var(--muted);
+}
+
+.tile-icon[data-tone="warn"] {
+  color: var(--warning);
+}
+
+.tile-icon[data-tone="bad"] {
+  color: var(--danger);
+}
+
 /* The line under a tile's number: the coin in your pocket beside your ⬢, the
    mood's own figure, which modifier is weighing on the Gambit. Prose, not data,
    so no mono face. */

@@ -278,15 +278,15 @@ Don't leave things lying around in a cluttered public room. Once three or more t
 
 ### Hunger
 
-**You have to actually eat.** At the end of every turn the game asks one question: did you have a meal today? If you did — you ate something, and it left you with the {tag:ate-meal} tag — you are fed. If you didn't, you go {tag:hungry}. Holding ⬢ does not feed you; raw material is not dinner.
+**You have to actually eat.** Your character is always one of three things: {tag:full}, {tag:hungry} or {tag:starving}. Your sheet says which in its Hunger box, and so does the corner of [Chat](https://ravenheart.quest/chat) under your name. You are never shown a number.
 
-Hunger gives a penalty to Gambit rolls. The first turn you spend hungry causes a −1 penalty, worsening by 1 every turn you remain hungry.
+Hunger comes on slowly, over days, and you are told when you become Hungry — not before. Eating fills you back up. Raw {tag:foodstuffs} keep you going, but they are dull and do your mood no favours; a cooked meal fills you more and lifts your spirits. When you eat, you can eat several of a thing at once, up to what it takes to fill you.
 
-A character with {tag:hungerless} never goes hungry at all.
+Being Starving costs you −1 on Gambit rolls. If you do not eat soon, you will die: stay starved with nothing left in you and you receive the {tag:dying} tag, and a GM will review your situation to determine what happens next.
 
-Eating removes **one turn's worth** of Hunger, not all of it. If you've gone several turns without eating, one meal only brings the penalty down by 1 — you need to eat every turn to fully recover, the same number of turns it took you to build the penalty up.
+If a turn would leave you Starving and you are carrying Foodstuffs, you eat enough of them to stay only Hungry, and you are told that you did.
 
-After 6 turns spent hungry, you receive the {tag:dying} tag and a GM will review your situation to determine what happens next.
+Once you are Full to the brim you cannot eat any more food, unless you are a {tag:glutton}. A character with {tag:hungerless} never goes hungry, and food does nothing for them.
 
 ### Mood
 
@@ -295,8 +295,6 @@ Your character has a mood, and there is a box for it on your sheet that says it 
 Things wear on a character — nights spent out in the wilderness or down in the caves, a wound, going hungry, being tied up, seeing somebody die, worse. Shelter mends that: a roof over your head, and the Inn, the Keep or the Sanctuary more so than an ordinary room. But shelter only ever brings you back up to Fine. A bed will not make you happy, however long you lie in it — for that you need something you actually wanted: a drink, a meal, a treat, a pot of tea, a coffee, a smoke, hearing a Musician play, a confession, or getting what you asked for from a Desire. Nothing stays extreme for long — every night your mood slides a little back toward Fine, from either direction.
 
 Only the three at the ends do anything to the dice. **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2 — and at the other end, **Ecstatic** gives you +1. The five in the middle are their own reward and change no roll. You are told when you reach any of those three, and otherwise the box on your sheet is the only place your mood is written down.
-
-A noble who skips a fine meal takes it as hard as anyone else takes a rough night outdoors.
 
 
 ## Submitting A Move
@@ -335,7 +333,7 @@ Tags are shown on the website as embedded chips, color-coded by their category.
 |---|---|---|
 | Blue | General | Traits, Drawbacks, Beliefs |
 | Green | Skill | Cooking, Tracking, Brewing |
-| Amber | Status | Hungry, Ate Meal |
+| Amber | Status | Hungry, Tired |
 | Red | Health | Wounds, Illnesses |
 | Teal | Items | Weapons, Armor, Ingredients |
 | Grey | Assets | Property, Animals |

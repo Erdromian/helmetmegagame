@@ -13,6 +13,7 @@
 
 const soilery = require("../../../lib/soilery");
 const hungerLib = require("../../../lib/hunger");
+const { FOODSTUFFS_SLUG } = require("../../../lib/constants");
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
@@ -234,12 +235,12 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       group: "Farming",
       name: soil.name,
       kind: "skill",
-      does: `Lets you plant up to ${params.farmMaxCrops} plants on a field, one Farm action every ${params.farmCycle} turns.`,
+      does: `Lets you plant up to ${params.farmMaxCrops} crops, one Farm action every ${params.farmCycle} turns.`,
       coin: 0,
-      coinHow: `no coin; seed bags are ${farm.inputs} ¢ an action and are in the gain`,
+      coinHow: "no coin; nothing is spent to sow",
       points: soil.pointCost ?? 0,
       gain: farm.netPerTurn,
-      gainHow: `${round1(farm.perAction)} ¢ a Farm action (${params.cropsSell ? "crops at the counter's price" : "crops valued as food, at the Ration Box's rate for hunger and mood"}, less seed), one turn in ${params.farmCycle}`,
+      gainHow: `${round1(farm.perAction)} ¢ a Farm action (${params.cropsSell ? "Foodstuffs at the counter's price" : "Foodstuffs valued as food, at the Ration Box's rate for hunger and mood"}), one turn in ${params.farmCycle}`,
       note: "Farming is for eating, not selling, so at the counter it is worth far less than the same crops are to a hungry buyer.",
     });
     const fert = get("fertilizer");
@@ -257,7 +258,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
         group: "Farming",
         name: fert.name,
         kind: "consumable",
-        does: `No wither roll, and a 1-in-${soilery.BOUNTY_IN} chance of a double harvest per plant, for one Farm action.`,
+        does: `No wither roll, and a 1-in-${soilery.BOUNTY_IN} chance of a double crop, for one Farm action.`,
         coin: shelfPrice(fert),
         coinHow: `${shelfPrice(fert)} ¢ a sack at the Depot, used up each time`,
         points: fert.pointCost ?? 0,
@@ -268,26 +269,8 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
     }
   }
 
-  // Fertilizer on the one crop that pays cash.
-  if (cookAnalysis?.tobacco && get("fertilizer")) {
-    const tb = cookAnalysis.tobacco;
-    const fert = get("fertilizer");
-    add({
-      id: "fertilizer-tobacco",
-      slug: "fertilizer",
-      perUse: { gross: tb.fertGainPerAction + (shelfPrice(fert) ?? 0), price: shelfPrice(fert) ?? 0, usesPerTurn: params.farmDuty, unit: "Farm action" },
-      group: "Farming",
-      name: "Fertilizer, on tobacco",
-      kind: "consumable",
-      does: `Stops the wither die (1 plant in ${tb.witherIn} fails) and doubles a plant 1 time in ${soilery.BOUNTY_IN}, for one Farm action of tobacco.`,
-      coin: shelfPrice(fert),
-      coinHow: `${shelfPrice(fert)} ¢ a sack, used up each time`,
-      points: fert.pointCost ?? 0,
-      gain: tb.fertGainPerAction * params.farmDuty,
-      gainHow: `+${round1(tb.leavesFert - tb.leaves)} leaves at ${tb.price} ¢, less the sack: +${round1(tb.fertGainPerAction)} ¢ a Farm action, on top of ${round1(tb.perTurn)} ¢ a turn without it`,
-      note: `Used up by every Farm action, a Farm action one turn in ${params.farmCycle}: the ¢ a turn is net of every sack, and the return is per use rather than over the game.`,
-    });
-  }
+  // There is no cash crop left to fertilize twice over: Foodstuffs is the only crop, and the "farming"
+  // Fertilizer row above already covers it.
 
   // ---- loot rolls ----------------------------------------------------------------------------------
   const lucky = get("lucky");
@@ -365,8 +348,8 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
   const egg = get("arelitz-egg");
   if (arelitz && egg) {
     const feedUnits = 2;
-    // The stable eats whatever food is on the floor (db/lib/stablePass.js), so the cheapest is the cheapest food crop.
-    const cheapestFood = Math.min(...soilery.CROPS.map((c) => get(c.crop)).filter((t) => hungerLib.foodHungerFor(t) > 0).map((t) => food.of(t)));
+    // The stable eats whatever food is on the floor (db/lib/stablePass.js); Foodstuffs is the one crop now.
+    const cheapestFood = food.of(get(FOODSTUFFS_SLUG));
     const eggValue = Math.max((egg.sellablePrice ?? 0) - tax(egg.sellablePrice ?? 0), (egg.consumesIntoResources ?? 0) * rvMined);
     add({
       id: "arelitz",

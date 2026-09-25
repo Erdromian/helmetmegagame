@@ -1,12 +1,15 @@
-// Cooking against farming: is a cook worth more than another farmer, and what can a cook make of the
-// things nobody wants to eat raw?
+// Cooking against farming: is a cook worth more than a farmer eating raw, and what can a cook do
+// with an ingredient nobody would eat plain?
 //
-// Everything is read from the catalog and the game's own rules. A dish restores its own `mealHunger`
-// plus each slotted ingredient's hunger (web/app/(app)/character/actions/misc.js), and its mood is
-// `mealMood` plus the positive slot moods, less the negative ones (db/lib/mood.js#dishMoodTerms). Eating a
-// thing raw restores its own hunger and costs a flat -10 mood a bite on top of whatever the food's own
-// mood is (db/lib/hunger.js#rawFoodMoodTerms). A recipe's fixed base ingredients are spent when it is made
-// and count as the recipe's inputs; the four optional slots are counted separately.
+// The Soilery Rework (db/lib/soilery.js, db/lib/hunger.js) replaced the 36 named recipes with three
+// meal-class templates — basic-meal, skilled-meal, lavish-meal (docs/tags.yaml) — each `mealClass`-
+// tagged and each costing a fixed count of Foodstuffs (2, 2, 3), lavish also wanting at least one
+// extra ingredient. A dish restores its own `mealHunger` plus each slotted ingredient's hunger
+// (web/app/(app)/character/actions/misc.js), and its mood is `mealMood` plus the positive slot
+// moods, less the negative ones (db/lib/mood.js#dishMoodTerms). Eating a raw INGREDIENT (a `cooked:`
+// block, not a meal) costs a flat -10 mood a bite on top of whatever the food's own mood is
+// (db/lib/hunger.js#rawFoodMoodTerms) — but Foodstuffs is not on that path: it carries its own flat
+// -5 as `mealMood`, since it is itself meal-shaped (`mealHunger` set), not a raw ingredient.
 
 const hungerLib = require("../../../lib/hunger");
 const soilery = require("../../../lib/soilery");
@@ -14,22 +17,31 @@ const soilery = require("../../../lib/soilery");
 const fmtN = (n) => `${Math.round(n)}`;
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
-// `food` is the model's one food valuation (foodValue.js); `tobacco` is the cash crop as the model's farm rows
-// worked it out; `townFarmers` is the field's farmers-to-feed-the-town. None of them is worked out again here.
-function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = null, townFarmers, players, refs = {} }) {
-  // The food crops: the model's one list of what Soilery sows that can be eaten.
-  const CROPS = new Set(params.edibleCrops);
+// `food` is the model's one food valuation (foodValue.js). Nothing else is worked out again here.
+function buildCooking({ get, list, params, sources, foodFloor, food, players }) {
+  // The one food crop now: Foodstuffs, params.stapleCrop (model.js sets it to FOODSTUFFS_SLUG).
+  const CROPS = new Set([params.stapleCrop]);
   const srcItem = new Map(sources.items.map((i) => [i.slug, i]));
   const rankOf = (slug) => (CROPS.has(slug) ? 2 : srcItem.get(slug)?.rank ?? 5);
   const sourceOf = (slug) => (CROPS.has(slug) ? "Farm (Soilery)" : srcItem.get(slug)?.best ?? "no route found");
   const rawHunger = (slug) => hungerLib.foodHungerFor(get(slug));
-  const rawMoodPerBite = (slug) => hungerLib.RAW_FOOD_MOOD + (get(slug)?.cooked?.mood ?? 0);
+  // What eating a thing RAW costs in mood. A meal-shaped tag (mealHunger set — Foodstuffs is the one
+  // example) already carries its own eaten-raw figure as mealMood, with no separate raw-ingredient
+  // penalty on top (db/lib/hunger.js's header comment says so in as many words). Anything else is a
+  // true raw ingredient and takes the flat RAW_FOOD_MOOD plus its own cooked.mood.
+  const rawMoodPerBite = (slug) => {
+    const t = get(slug);
+    if (!t) return 0;
+    if (Number.isInteger(t.mealHunger)) return t.mealMood ?? 0;
+    return hungerLib.RAW_FOOD_MOOD + (t.cooked?.mood ?? 0);
+  };
   // The box's ¢ a point of hunger alone, and of hunger and mood together, both from foodValue.js.
   const boxPerHunger = food.perHunger;
   const boxPerPoint = food.perPoint;
   const moodWeight = food.moodWeight;
 
-  // A recipe's base inputs, expanded down to things that are not themselves dishes.
+  // A recipe's base inputs, expanded down to things that are not themselves dishes. The meal templates
+  // never nest (their one fixed input is Foodstuffs), but this stays generic rather than assuming that.
   const expand = (slug, seen = []) => {
     const t = get(slug);
     const r = t?.requirement ?? {};
@@ -55,7 +67,7 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
     return { prims, moves };
   };
 
-  // ---- every dish ------------------------------------------------------------------------------------
+  // ---- every dish (the three meal classes) -----------------------------------------------------------
   const dishes = list
     .filter((t) => t.craftable && t.mealHunger != null && (t.requirement?.skills ?? []).some((s) => /^cooking/.test(s)))
     .map((t) => {
@@ -82,6 +94,7 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
       return {
         slug: t.slug,
         name: t.name,
+        mealClass: t.mealClass ?? null,
         skill: (r.skills ?? []).join(", "),
         tier: (r.skills ?? []).some((s) => /skilled/.test(s)) ? "Skilled" : "Basic",
         hunger: t.mealHunger,
@@ -109,6 +122,7 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
         hardest: [...per.keys()].sort((a, b) => rankOf(b) - rankOf(a))[0],
         unreachable: unreachable.map((s) => get(s)?.name ?? s),
         mealSlots: r.ingredientSlots?.max ?? 0,
+        minSlots: r.ingredientSlots?.min ?? 0,
       };
     })
     .sort((a, b) => (b.hungerPerUnit ?? 0) - (a.hungerPerUnit ?? 0));
@@ -118,15 +132,17 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
   const harvest = params.harvestPerFarm;
   const fertHarvest = params.harvestPerFarmFert;
   const duty = params.farmDuty;
+  // The one Basic, crop-only dish: basic-meal, unless the catalog has moved it off Basic or off Foodstuffs.
   const cropDish = dishes.filter((d) => d.farmOnly && d.tier === "Basic").sort((a, b) => b.hungerPerUnit - a.hungerPerUnit)[0];
   const staple = get(params.stapleCrop);
-  const wheat = get("wheat");
+  const stapleHunger = rawHunger(params.stapleCrop);
   const fertPrice = get("fertilizer")?.depotPrice ?? null;
-  const harmful = (t) => JSON.stringify(t?.consumesInto ?? []).match(/nauseous|vomiting|poisoned/);
+  // A strategy is how the town eats: crops a turn needed for that hunger figure, the Farm actions and
+  // farmers that takes, and the cooking on top where the food is cooked rather than eaten raw. Every
+  // strategy uses the SAME `need / hungerPerCrop` rule — cooked and raw alike — so "farmers needed" is
+  // never circular: it falls straight out of demand and the harvest, with no field pool behind it.
   const strategy = (id, label, hungerPerCrop, bites, moodPerBite, opts = {}) => {
-    // The cooked diet is the field's own count (the crops a turn its farmers bring in), so this table and the
-    // field tab cannot disagree on how many farmers feed the town. A raw diet is worked out from its hunger.
-    const crops = opts.cooked ? townFarmers * duty * harvest : need / hungerPerCrop;
+    const crops = need / hungerPerCrop;
     const h = opts.fertilized ? fertHarvest : harvest;
     const actions = crops / h;
     const farmers = actions / duty;
@@ -150,16 +166,17 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
       note: opts.note ?? "",
     };
   };
-  const per = params.hungerDecay;
   const dishUnits = cropDish?.units ?? 1;
   const cookMovesPerCrop = (cropDish?.moves ?? 0) / dishUnits;
   const fertNote = fertPrice == null ? "" : `Fertilizer is ${fertPrice} ¢ a Farm action.`;
   const strategies = [
-    strategy("raw-wheat", "Everyone eats raw wheat", wheat.cooked.hunger, 1, rawMoodPerBite("wheat"), { note: `Raw wheat is ${wheat.cooked.hunger} hunger a crop and ${rawMoodPerBite("wheat")} mood a bite${harmful(wheat) ? ", and it makes you sick" : ""}.` }),
-    strategy("raw-staple", `Everyone eats raw ${staple.name}`, staple.cooked.hunger, 1, rawMoodPerBite(params.stapleCrop), { note: `${staple.cooked.hunger} hunger a crop, and ${rawMoodPerBite(params.stapleCrop)} mood a bite.` }),
-    strategy("cooked", `Farmers cook ${cropDish?.name ?? "a crop dish"} (${fmtN(dishUnits)} crops a dish)`, cropDish?.hungerPerUnit ?? 0, 1 / dishUnits, (cropDish?.mood ?? 0), { cooked: true, cookMovesPerCrop, note: cropDish ? `${fmtN(dishUnits)} crops make a ${cropDish.hunger}-hunger dish for ${round1(cropDish.moves * 100) / 100} of a Move.` : "" }),
-    strategy("cooked-fert", "The same, with Fertilizer on every field", cropDish?.hungerPerUnit ?? 0, 1 / dishUnits, (cropDish?.mood ?? 0), { cooked: true, fertilized: true, cookMovesPerCrop, note: fertNote }),
+    strategy("raw-foodstuffs", "Everyone eats raw Foodstuffs", stapleHunger, 1, rawMoodPerBite(params.stapleCrop), { note: `Raw Foodstuffs are ${stapleHunger} hunger and ${rawMoodPerBite(params.stapleCrop)} mood a bite.` }),
+    strategy("cooked", `Farmers cook ${cropDish?.name ?? "a meal"} (${fmtN(dishUnits)} Foodstuffs a dish)`, cropDish?.hungerPerUnit ?? 0, 1 / dishUnits, cropDish?.mood ?? 0, { cookMovesPerCrop, note: cropDish ? `${fmtN(dishUnits)} Foodstuffs make a ${cropDish.hunger}-hunger meal for ${round1(cropDish.moves * 100) / 100} of a Move.` : "" }),
+    strategy("cooked-fert", "The same, with Fertilizer on every field", cropDish?.hungerPerUnit ?? 0, 1 / dishUnits, cropDish?.mood ?? 0, { fertilized: true, cookMovesPerCrop, note: fertNote }),
   ];
+  // How many farmers, cooking their own Foodstuffs, feed the whole town — read off the "cooked" row above
+  // rather than worked out twice. There is no field pool behind this any more: it is demand over supply.
+  const farmersToEatTown = strategies.find((s) => s.id === "cooked")?.farmers ?? null;
   const boxStrategy = foodFloor.anyone
     ? {
         id: "box",
@@ -171,50 +188,12 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
       }
     : null;
 
-  // ---- tobacco, the cash crop, beside growing food ------------------------------------------------------------
-  // A farmer's turn, by what they grow. Food is worth what the one food valuation says (the most a buyer with coin
-  // would pay, off the Ration Box); tobacco is cash from the Depot. People fed is a steady state.
-  const foodRow = (id, label, cropsPerAction, hungerPerCrop, worthPerCrop, cookMovesPerCropHere, note) => {
-    const hungerPerTurn = cropsPerAction * hungerPerCrop * duty;
-    return {
-      id,
-      label,
-      peopleFed: hungerPerTurn / params.hungerDecay,
-      worth: worthPerCrop == null ? null : cropsPerAction * worthPerCrop * duty,
-      cash: 0,
-      cookMoves: cropsPerAction * cookMovesPerCropHere * duty,
-      note,
-    };
-  };
-  const cookedWorthPerCrop = cropDish?.value == null ? null : cropDish.value / dishUnits;
-  const farmOptions = [
-    foodRow("food-raw", `Grow food, eat it raw (${staple.name})`, harvest, staple.cooked.hunger, food.of(staple), 0, "The mood cost of raw eating is not counted."),
-    foodRow("food-cooked", `Grow food, cook it (${cropDish?.name ?? "a crop dish"})`, harvest, cropDish?.hungerPerUnit ?? 0, cookedWorthPerCrop, cookMovesPerCrop, null),
-    foodRow("food-cooked-fert", "The same with Fertilizer", fertHarvest, cropDish?.hungerPerUnit ?? 0, cookedWorthPerCrop, cookMovesPerCrop, fertNote),
-  ];
-  // The cooking a farmer's own harvest needs, read off the row rather than typed.
-  for (const r of farmOptions.filter((x) => x.note == null)) r.note = `Needs the cooking, about ${Math.round(r.cookMoves * 100) / 100} of a Move a turn a farmer.`;
-  if (tobacco) {
-    farmOptions.push({ id: "tobacco", label: "Grow tobacco", peopleFed: 0, worth: null, cash: tobacco.perTurn, cookMoves: 0, note: `${fmtN(tobacco.leaves)} leaves at ${tobacco.price} ¢ an action, after a ${tobacco.seed} ¢ seed bag.` });
-    farmOptions.push({ id: "tobacco-fert", label: "Grow tobacco with Fertilizer", peopleFed: 0, worth: null, cash: tobacco.perTurnFert, cookMoves: 0, note: `Fertilizer stops the wither die (1 plant in ${tobacco.witherIn} fails) and doubles a plant one time in ${soilery.BOUNTY_IN}: ${fmtN(tobacco.leavesFert)} leaves.` });
-  }
-  // What one farmer switching from food to tobacco does to a town that has just enough farmers.
-  const cookedRow = farmOptions.find((r) => r.id === "food-cooked");
-  const switchTable = [];
-  if (tobacco && cookedRow) {
-    const F = Math.ceil(townFarmers);
-    for (let k = 0; k <= Math.min(F, 4); k++) {
-      const fed = Math.min(players, (F - k) * cookedRow.peopleFed);
-      switchTable.push({ farmers: F, tobacco: k, fed, hungry: players - fed, coin: k * tobacco.perTurn, coinFert: k * tobacco.perTurnFert });
-    }
-  }
-  const refsOut = { factoryShift: refs.factoryShift ?? null, factoryPerTurn: refs.factoryPerTurn ?? null, prospector: refs.prospector ?? null, miner: refs.miner ?? null };
-
   // ---- what a cook adds to a farm action's harvest -------------------------------------------------------------
   const cropsPerAction = harvest;
-  const rawHungerPerAction = cropsPerAction * staple.cooked.hunger;
+  const rawHungerPerAction = cropsPerAction * stapleHunger;
   const cookedHungerPerAction = cropsPerAction * (cropDish?.hungerPerUnit ?? 0);
   const cookMovesPerAction = cropsPerAction * cookMovesPerCrop;
+  const per = params.hungerDecay;
   const cookAdds = {
     cropsPerAction,
     rawHungerPerAction,
@@ -226,71 +205,10 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
     cookPersonTurnsPerMove: cookMovesPerAction > 0 ? (cookedHungerPerAction - rawHungerPerAction) / per / cookMovesPerAction : null,
   };
 
-  // ---- the ingredients nobody eats raw -----------------------------------------------------------------------
-  // A primitive is "bad raw" if eating it raw grants nothing or grants something harmful, or its own taste
-  // is negative. For each, the best dish that takes it in as a base input.
-  const primSet = new Set(dishes.flatMap((d) => d.primitives));
-  // Also things that become a dish input by being crafted first (a maggot into milk).
-  const viaCraft = new Map();
-  for (const t of list) {
-    if (!t.craftable) continue;
-    for (const raw of t.requirement?.items ?? []) {
-      const s = typeof raw === "string" ? raw : raw.tag;
-      if (s && primSet.has(t.slug) && !viaCraft.has(s)) viaCraft.set(s, t);
-    }
-  }
-  const candidates = new Set([...primSet, ...viaCraft.keys(), "cave-fungus", "purring-maggot", "rock", "saltpeter", "skinned-cave-rat", "rock-salt"]);
-  const inedible = [...candidates]
-    .map((slug) => {
-      const t = get(slug);
-      if (!t) return null;
-      const rawH = rawHunger(slug);
-      const isDrink = t.group === "items-drink" || JSON.stringify(t.consumesInto ?? []).includes("tipsy");
-      if (isDrink) return null;
-      const bad = rawH === 0 || !!harmful(t) || (t.cooked?.mood ?? 0) < 0;
-      if (!bad) return null;
-      const target = viaCraft.get(slug);
-      const useSlug = target ? target.slug : slug;
-      const users = dishes.filter((d) => d.primitives.includes(useSlug));
-      const best = [...users].sort((a, b) => b.hunger + b.mood - (a.hunger + a.mood))[0];
-      return {
-        slug,
-        name: t.name,
-        rawHunger: rawH,
-        rawMood: rawH > 0 ? rawMoodPerBite(slug) : null,
-        rawEffect: harmful(t)
-          ? /poisoned/.test(JSON.stringify(t.consumesInto)) ? "poisons you" : "makes you sick"
-          : rawH === 0
-            ? (t.consumesInto ?? []).length ? "no food in it (a status only)" : "cannot be eaten"
-            : "unpleasant",
-        via: target ? `${target.name} (a ${(target.requirement?.skills ?? [])[0] ?? "craft"})` : null,
-        source: sourceOf(slug),
-        rank: rankOf(slug),
-        bestDish: best?.name ?? null,
-        dishHunger: best?.hunger ?? null,
-        dishMood: best?.mood ?? null,
-        dishes: users.map((d) => d.name),
-        cookable: users.length > 0,
-      };
-    })
-    .filter(Boolean)
-    .sort((a, b) => Number(b.cookable) - Number(a.cookable) || (b.dishMood ?? -99) - (a.dishMood ?? -99));
-
-  // The rat the caves drop and the rat the recipes take are one tag now (it used to be two).
-  const caveRat = get("skinned-cave-rat");
-  const ratUsers = dishes.filter((d) => d.primitives.includes("skinned-cave-rat"));
-  const ratGap = {
-    caveRatSlug: caveRat?.slug,
-    // A recipe's rat is a rat nothing produces if the tag it names is not the one in the loot table.
-    recipeRatSlug: get("dead-rat") ? "dead-rat" : caveRat?.slug,
-    recipeRatSource: sourceOf(get("dead-rat") ? "dead-rat" : "skinned-cave-rat"),
-    dishes: (get("dead-rat") ? dishes.filter((d) => d.primitives.includes("dead-rat")) : ratUsers).map((d) => d.name),
-    fixed: !get("dead-rat") && ratUsers.length > 0,
-  };
-
   // ---- what a cook can slot in ------------------------------------------------------------------------
-  // Up to four extra ingredients ride on top of any dish. Each adds its own hunger and, if positive, its
-  // mood to the dish's; a negative mood is disgust that no dish base can cancel.
+  // Up to four extra ingredients ride on top of any dish — generic now, not per-recipe: any tag with a
+  // `cooked:` block can be slotted into any meal class (COOKING.md, the Soilery Rework). Each adds its own
+  // hunger and, if positive, its mood; a negative mood is disgust that no dish base can cancel.
   const addIns = list
     .filter((t) => t.cooked && !(t.group === "items-drink") && t.slug !== "human-flesh" && t.slug !== "flesh-of-tzchernobog")
     .map((t) => {
@@ -302,7 +220,7 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
         name: t.name,
         hunger,
         mood,
-        // No market price of its own (a farmed crop, most often): priced as food, off the Ration Box, the
+        // No market price of its own (Foodstuffs, most often): priced as food, off the Ration Box, the
         // way the dishes above price their inputs.
         cost: estimated ? round1(food.of(t)) : food.of(t),
         costEstimated: estimated,
@@ -340,14 +258,8 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
     flagged,
     boxStrategy,
     cookAdds,
-    inedible,
     addIns,
-    tobacco,
-    farmOptions,
-    switchTable,
-    refs: refsOut,
-    townFarmers,
-    ratGap,
+    farmersToEatTown,
     unreachableDishes,
     cropOnly,
     cropDish: cropDish ? { name: cropDish.name, hunger: cropDish.hunger, hungerPerUnit: cropDish.hungerPerUnit, units: cropDish.units, moves: cropDish.moves, value: cropDish.value } : null,
@@ -358,7 +270,7 @@ function buildCooking({ get, list, params, sources, foodFloor, food, tobacco = n
     boxPerPoint,
     moodWeight,
     rawFoodMood: hungerLib.RAW_FOOD_MOOD,
-    // What a bite of the staple costs in mood eaten raw: the flat raw penalty plus the crop's own taste.
+    // What a bite of Foodstuffs costs in mood eaten raw: its own flat mealMood, not the generic raw penalty.
     rawMoodStaple: rawMoodPerBite(params.stapleCrop),
     richestSlot,
     cookingPoints: { basic: get("cooking-basic")?.pointCost ?? 0, skilled: get("cooking-skilled")?.pointCost ?? 0 },

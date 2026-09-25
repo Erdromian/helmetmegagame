@@ -31,6 +31,7 @@ import {
   HeartCrack,
   Bandage,
   Soup,
+  Utensils,
   Ham,
   RefreshCw,
   Trash2,
@@ -159,6 +160,8 @@ export const WoundIcon = lucide(HeartCrack, "WoundIcon");
 export const BandageIcon = lucide(Bandage, "BandageIcon");
 // Feed — a bowl, not cutlery: cutlery at 15px is two indistinct strokes.
 export const MealIcon = lucide(Soup, "MealIcon");
+// The sheet's Hunger tile (LedgerBand.js) — the same glyph a hunger descriptor chip wears (web/lib/tagIcons.js status-food).
+export const HungerIcon = lucide(Utensils, "HungerIcon");
 // Re-push this character's Discord state.
 export const SyncIcon = lucide(RefreshCw, "SyncIcon");
 export const TrashIcon = lucide(Trash2, "TrashIcon");

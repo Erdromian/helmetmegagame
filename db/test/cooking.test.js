@@ -224,15 +224,15 @@ test("a recipe can make its words free, and can take a name without a descriptio
   );
 });
 
-// A cook names nothing (COOKING.md §1, CRAFTING.md §4a). The dialog hides the box on
-// `customizable`, so this is the one assertion standing between that and a recipe
-// quietly getting the flag back.
-test("no cooking recipe is customizable", () => {
+// A cook names every meal (the Soilery Rework doc), but through the meal branch of the
+// Craft path (db/lib/meals.js), never the paid custom-craft one — so no cooking recipe
+// carries `customizable`, and the three that exist are the meal classes.
+test("no cooking recipe is customizable, and the three recipes are the meal classes", () => {
   const catalog = yaml.load(fs.readFileSync(path.join(__dirname, "../../docs/tags.yaml"), "utf8")).tags;
   const cooks = Object.entries(catalog).filter(([, t]) =>
     (t.requirement?.skills ?? []).some((s) => /^cooking-/.test(s)),
   );
-  assert.ok(cooks.length >= 30, "found the cooking recipes");
+  assert.deepEqual(cooks.map(([slug]) => slug).sort(), ["basic-meal", "lavish-meal", "skilled-meal"]);
   for (const [slug, t] of cooks) {
     assert.notEqual(t.customizable, true, `${slug} must not be customizable`);
     assert.equal(t.custom, undefined, `${slug} must carry no custom block`);

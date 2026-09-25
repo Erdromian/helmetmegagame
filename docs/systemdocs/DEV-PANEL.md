@@ -119,7 +119,9 @@ can't disagree about what an affliction is.
   - **Expiring soon** — held tags due to run out this turn or next.
   - **Afflictions** — held tags the `isHealable` predicate calls an
     affliction, the same one the wound picker and Heal-all button use.
-  - **Hunger** — whether the Hungry tag (`feed.dropSlug`) is currently held.
+  - **Hunger** — the band the meter is in (Full, Hungry or Starving, toned),
+    opening to the meter itself and how long it has sat at 0. The one place
+    the number is shown, and only to a GM (`TURN-ENGINE.md` §5).
   - **Goals** — active Desires over the configured slot count, opening to say
     how many slots are unlocked and empty (`goalsSummary`,
     `web/lib/devPanelData.js`).

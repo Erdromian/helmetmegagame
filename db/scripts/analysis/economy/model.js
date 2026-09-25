@@ -17,7 +17,7 @@ const yaml = require("js-yaml");
 const { entriesOf } = require("../../../lib/yamlEntries");
 const mining = require("../../../lib/mining");
 const cavingLoot = require("../../../lib/cavingLoot");
-const { DISTILLING_DOUBLES_SLUGS, BREWING_DISTILLING_SLUG } = require("../../../lib/constants");
+const { DISTILLING_DOUBLES_SLUGS, BREWING_DISTILLING_SLUG, FOODSTUFFS_SLUG } = require("../../../lib/constants");
 const { GATHERING_ZONE_SLUGS } = require("../../../lib/gathering");
 const soilery = require("../../../lib/soilery");
 const hunger = require("../../../lib/hunger");
@@ -37,7 +37,6 @@ const { buildTrinkets } = require("./trinkets");
 const { buildCooking } = require("./cooking");
 const { buildDesires } = require("./desires");
 const { buildStarting } = require("./starting");
-const { buildField } = require("./field");
 const { buildPower } = require("./power");
 const { buildLucky } = require("./lucky");
 const { makeFoodValue } = require("./foodValue");
@@ -60,12 +59,17 @@ const readYaml = (rel) => yaml.load(fs.readFileSync(path.join(REPO, rel), "utf8"
 // What the model assumes but the repo does not state as a number.
 // ---------------------------------------------------------------------------
 // Built per run, since the ⬢ line quotes the Depot's two prices and the midpoint a mined ⬢ is valued at.
-function assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate }) {
+function assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, hungerDecay }) {
   return [
     {
       key: "MOVES_PER_TURN",
       value: 1,
       why: "A turn gives one Move; a recipe's turnsCost is a fraction of it (TAGS.md, Move economy).",
+    },
+    {
+      key: "TURN_LENGTH",
+      value: `${turnLengthHours} hours a turn`,
+      why: `A Turn's turnLengthHours is a live per-game setting (6, 8, 12 or 24); this report has no game to read one from, so it defaults to a 24-hour turn (--turn-hours N tries another). Hunger decays a flat ${hunger.HUNGER_DECAY_PER_DAY} a day (${hunger.HUNGER_DECAY_PER_DAY_FAST} with Big Appetite), split across the turns in a day and truncated per turn (db/lib/hunger.js#perTurnDecay), so this run's turn burns ${hungerDecay}.`,
     },
     {
       key: "SELL_TAX",
@@ -177,8 +181,11 @@ const OBOL_PAR = 1;
 // to it and the Caving Die estimates an unsellable find with it.
 const SELL_BACK_SHARE = 0.6;
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 1.5, pointValue = null, sellTax = null } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 1.5, pointValue = null, sellTax = null, turnHours = null } = {}) {
   const { list, bySlug } = loadCatalog();
+  // A Turn's turnLengthHours is a live game setting this report has no game to read, so it defaults to a
+  // full 24-hour day (the doc's per-day figure applied whole); --turn-hours tries another (6, 8 or 12).
+  const turnLengthHours = turnHours ?? 24;
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
   // How often each day-verb can be pressed, played out with the game's own gates.
@@ -248,10 +255,20 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       if (w == null) throw new Error("economy model: the squeeze tag has no weight in docs/tags.yaml");
       return w;
     })(),
-    hungerDecay: hunger.HUNGER_DECAY_PER_TURN,
+    turnLengthHours,
+    // The doc's rate is a day, 17 (24 with Big Appetite); a turn burns perTurnDecay(perDay, turnLengthHours),
+    // truncated (db/lib/hunger.js). At the default 24-hour turn that is the day figure whole.
+    hungerDecayPerDay: hunger.HUNGER_DECAY_PER_DAY,
+    hungerDecayPerDayFast: hunger.HUNGER_DECAY_PER_DAY_FAST,
+    hungerDecay: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY, turnLengthHours),
+    hungerDecayFast: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY_FAST, turnLengthHours),
     hungerMax: hunger.HUNGER_MAX,
-    defaultFoodHunger: hunger.DEFAULT_FOOD_HUNGER,
+    hungryThreshold: hunger.HUNGRY_THRESHOLD,
+    starvingThreshold: hunger.STARVING_THRESHOLD,
+    foodstuffHunger: hunger.FOODSTUFF_HUNGER,
     witherIn: soilery.WITHER_IN,
+    bountyIn: soilery.BOUNTY_IN,
+    farmPlants: soilery.FARM_PLANTS,
     refineryYield: refinery.REFINERY_YIELD,
     mineDuty,
     farmDuty,
@@ -264,32 +281,21 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
 
   // --- food: what eating a thing restores, and what food is worth -------------
-  // A plant brings in several of its crop (db/lib/soilery.js CROPS_PER_PLANT, and a crop's own `cropsPerPlant` /
-  // `witherIn` where it differs), so a harvest is plants × survival × crops a plant. Fertilizer takes the wither
-  // die away and doubles a plant one time in BOUNTY_IN.
-  const cropRule = (slug) => {
-    const e = soilery.CROPS.find((c) => c.crop === slug);
-    return { cropsPerPlant: e?.cropsPerPlant ?? soilery.CROPS_PER_PLANT ?? 1, witherIn: e?.witherIn ?? soilery.WITHER_IN };
-  };
-  const harvestFor = (slug, fertilized = false) => {
-    const r = cropRule(slug);
-    return farmMaxCrops * (fertilized ? 1 + 1 / soilery.BOUNTY_IN : 1 - 1 / r.witherIn) * r.cropsPerPlant;
-  };
-  // The one food crop the wage table, the raw diet and the cooks' comparison all name. Every food crop
-  // shares the default plant rule, so the harvest is the same whichever it is.
-  const STAPLE = "potato";
+  // One Farm action plants FARM_PLANTS crops; each survivor (5 in soilery.WITHER_IN) is 1 Foodstuff
+  // (db/lib/soilery.js#reapFoodstuffs). These are the EXPECTED counts the die averages to over many
+  // farms — a real harvest varies turn to turn. Fertilizer removes the wither die entirely and 1 crop in
+  // soilery.BOUNTY_IN comes up double, so every fertilized crop yields at least 1.
+  const STAPLE = FOODSTUFFS_SLUG;
   params.stapleCrop = STAPLE;
-  // The crops a person can eat: everything Soilery sows that restores hunger (tobacco does not). One list, read by
-  // the farm rows, the Food tab and cooking.js alike.
-  params.edibleCrops = soilery.CROPS.map((c) => c.crop).filter((slug) => hunger.foodHungerFor(get(slug)) > 0);
-  params.cropsPerPlant = cropRule(STAPLE).cropsPerPlant;
-  params.harvestPerFarm = harvestFor(STAPLE);
-  params.harvestPerFarmFert = harvestFor(STAPLE, true);
+  // One Foodstuff per surviving crop; kept so callers that used to scale by a plant's crop count still work.
+  params.cropsPerPlant = 1;
+  params.harvestPerFarm = farmMaxCrops * (1 - 1 / soilery.WITHER_IN);
+  params.harvestPerFarmFert = farmMaxCrops * (1 + 1 / soilery.BOUNTY_IN);
 
   // What eating one of a thing restores, the way the game reckons it (db/lib/hunger.js#foodHungerFor):
-  // a dish's own hunger, an ingredient's, or the flat default for anything that just grants
-  // `ate-meal`. Anything that OPENS into food is averaged over its outcomes: the Ration Box is one of
-  // six equally likely draws (four foods, a rat that half the time makes you sick, and nothing).
+  // a dish's own hunger, an ingredient's, or nothing. Anything that OPENS into food is averaged over its
+  // outcomes: the Ration Box is one of six equally likely draws (four foods, a rat that half the time
+  // makes you sick, and nothing).
   const eaten = (slug, seen = []) => {
     const t = get(slug);
     if (!t || slug === "nothing" || seen.includes(slug)) return { hunger: 0, mood: 0 };
@@ -301,12 +307,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       const options = typeof entry === "string" ? [entry] : entry.oneOf ? entry.oneOf.map((o) => (typeof o === "string" ? o : o.slug)) : [entry.slug];
       const share = 1 / options.length;
       for (const o of options.filter(Boolean)) {
-        if (o === "ate-meal") hungerSum += share * hunger.DEFAULT_FOOD_HUNGER;
-        else {
-          const inner = eaten(o, [...seen, slug]);
-          hungerSum += share * inner.hunger;
-          moodSum += share * inner.mood;
-        }
+        const inner = eaten(o, [...seen, slug]);
+        hungerSum += share * inner.hunger;
+        moodSum += share * inner.mood;
       }
     }
     return { hunger: hungerSum, mood: hungerSum > 0 ? moodSum || (t.cooked?.mood ?? 0) : 0 };
@@ -332,8 +335,6 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       shelf,
       source: shelf === "general" ? "Depot, general shelf" : shelf ? `Depot, ${shelf} shelf` : "not sold at the Depot",
       moves: t.requirement?.turnsCost ?? null,
-      // Nobody wrote a hunger figure for it: the game falls back to the flat default (db/lib/hunger.js).
-      defaulted: !Number.isInteger(t.mealHunger) && !Number.isInteger(t.cooked?.hunger) && hunger.foodHungerFor(t) > 0,
       perPersonTurn: params.hungerDecay / e.hunger, // units that feed one person for one turn
       lbPerPersonTurn: (t.weight ?? 0) * (params.hungerDecay / e.hunger),
     });
@@ -371,25 +372,12 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     .filter((o) => o && o !== "nothing");
   foodFloor.draws = boxDraws.length;
   foodFloor.outcomes = boxDraws.length + ((boxTag?.consumesInto ?? []).some((x) => typeof x !== "string" && x.oneOf?.includes("nothing")) ? 1 : 0);
-  // TURN-ENGINE.md §5 prices every food against one turn's decay: a raw ingredient about a third of a
-  // turn (6-18 of 35), a basic cooked meal one turn (30-42), a skilled meal about two turns (64-76).
-  // The bands are held as fractions of a turn, so a change to the decay that leaves the foods where they
-  // were pushes them out of their band, which is exactly the drift this exists to catch. A change that
-  // moves both together passes, and the figures in the report follow it.
-  const FOOD_TIER_BANDS = { raw: [6 / 35, 18 / 35], basic: [30 / 35, 42 / 35], skilled: [64 / 35, 76 / 35] };
-  const tierOf = (turnsOfFood) => Object.keys(FOOD_TIER_BANDS).find((k) => turnsOfFood >= FOOD_TIER_BANDS[k][0] - 1e-9 && turnsOfFood <= FOOD_TIER_BANDS[k][1] + 1e-9) ?? null;
-  for (const f of foods) {
-    // A farmed crop is a third of an ingredient by design (TURN-ENGINE.md §5): a plant brings in several, so it is
-    // the plant, not the crop, that sits in the raw band.
-    const rule = soilery.CROPS.some((c) => c.crop === f.slug) ? cropRule(f.slug).cropsPerPlant : 1;
-    f.turnsOfFood = (f.hunger * rule) / params.hungerDecay;
-    f.tier = f.kind === "box" || boxDraws.includes(f.slug) ? "box" : tierOf(f.turnsOfFood);
-  }
+  // How much of a turn's decay a food covers, for the Food page's table. The old three-tier banding
+  // (raw about a third of a turn, basic one turn, skilled about two) belonged to the 36 named recipes
+  // and does not survive the rework: a meal class is now 15-20 hunger against a Foodstuff's 4, all
+  // within about a turn of each other, so there is no wide band left to sort them into.
+  for (const f of foods) f.turnsOfFood = f.hunger / params.hungerDecay;
   const foodTiers = {
-    bands: FOOD_TIER_BANDS,
-    counts: Object.fromEntries(["raw", "basic", "skilled", "box"].map((k) => [k, foods.filter((f) => f.tier === k).length])),
-    offTier: foods.filter((f) => f.tier == null),
-    defaulted: foods.filter((f) => f.defaulted),
     boxTurns: foodFloor.anyone ? foodFloor.anyone.hunger / params.hungerDecay : null,
   };
 
@@ -762,109 +750,56 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   }
 
   // --- farming -------------------------------------------------------------
+  // One button, one crop: Soilery plants FARM_PLANTS crops and reaps Foodstuffs (db/lib/soilery.js).
+  // No seed bag (nothing is spent to sow), no field pool or yield falloff, and nothing else to grow —
+  // tobacco, the seed-bag/sowing-licence chain and the field-productivity model are all gone with the
+  // rework. A farm row is built plain and fertilized, so the report can show both without doubling the code.
   const soileryTag = get("soilery");
-  // What a farmer can sow for a return: the edible crops, and the ones the counter buys (tobacco).
-  const sownCrops = soilery.CROPS.filter((c) => params.edibleCrops.includes(c.crop) || get(c.crop)?.sellablePrice != null);
-  const farmRows = [];
-  for (const c of sownCrops) {
-    const crop = get(c.crop);
-    const bag = get(`${c.crop}-seed-bag`);
-    const flags = [`fatigue: one farm every ${farmCycle} turns`];
-    const harvest = harvestFor(c.crop);
-    const seedCost = bag?.depotPrice ?? 0;
-    if (!bag) flags.push("no seed bag in catalog");
-    flags.push("assumes the field's yield multiplier is 1 (the field tab models the falloff)");
-    const basis = food.basisOf(crop);
-    if (basis === "food" && hunger.foodHungerFor(crop) > 0) flags.push("crops do not sell: valued as food, at the Ration Box's rate for hunger and mood");
-    if (basis === "buy") flags.push(`crops do not sell: valued at the Depot's ${crop.depotPrice} ¢ shelf price`);
-    const revenue = harvest * food.of(crop);
-    const edible = params.edibleCrops.includes(c.crop);
-    if (edible) farmRows.push({ crop: c.crop, harvest, revenue, seedCost, hunger: crop.cooked?.hunger ?? 0, weight: crop.weight ?? 0 });
-    push({
-      id: `farm:${c.crop}`,
-      name: `Farm — ${crop.name}`,
-      kind: "farm",
-      family: "farming",
-      skill: "soilery",
-      skillPoints: soileryTag.pointCost,
-      moves: 1,
-      revenue,
-      inputs: seedCost,
-      inputsBuy: seedCost,
-      duty: farmDuty,
-      harvest,
-      // Where the crop's worth comes from: "sell" (the counter buys it), "buy" (the Depot's shelf price) or "food".
-      valueBasis: basis,
-      // Valued as food rather than paid in coin: a ceiling at Ration Box parity, with no cap on demand.
-      foodValued: basis !== "sell",
-      // The crop as it is eaten raw, a harvest's worth a turn (the by-family food chart plots these).
-      hungerPerTurn: edible ? harvest * hunger.foodHungerFor(crop) * farmDuty : 0,
-      moodPerTurn: edible ? harvest * (hunger.RAW_FOOD_MOOD + (crop.cooked?.mood ?? 0)) * farmDuty : 0,
-      // Only a crop the counter buys meets the sell tax; food is eaten, not sold.
-      sellTax: basis === "sell" ? tax(revenue) : 0,
-      rawPerTurn: (revenue - seedCost) * farmDuty,
-      perAction: revenue - seedCost - (basis === "sell" ? tax(revenue) : 0),
-      netPerTurnSell: (revenue - seedCost - (basis === "sell" ? tax(revenue) : 0)) * farmDuty,
-      netPerTurnBuy: (revenue - seedCost - (basis === "sell" ? tax(revenue) : 0)) * farmDuty,
-      flags,
-    });
-  }
-
-  // Fertilizer on tobacco: no wither die and a double plant now and then. Fertilizer is a pick with its own
-  // point price, so it counts in the skill points.
   const fertTag = get("fertilizer");
-  const tobTag = get("tobacco");
-  if (fertTag && tobTag && sownCrops.some((c) => c.crop === "tobacco")) {
-    const seed = get("tobacco-seed-bag")?.depotPrice ?? 0;
-    const leaves = harvestFor("tobacco", true);
-    const revenue = leaves * food.of(tobTag);
-    const inputs = seed + (fertTag.depotPrice ?? 0);
+  const foodstuffsTag = get(FOODSTUFFS_SLUG);
+  const farmRows = [];
+  const farmRow = (fertilized) => {
+    const harvest = fertilized ? params.harvestPerFarmFert : params.harvestPerFarm;
+    const flags = [`fatigue: one farm every ${farmCycle} turns (a Farm action grants Exhausted outright)`];
+    const basis = food.basisOf(foodstuffsTag);
+    if (basis === "food") flags.push("Foodstuffs do not sell: valued as food, at the Ration Box's rate for hunger and mood");
+    else if (basis === "buy") flags.push(`Foodstuffs do not sell: valued at the Depot's ${foodstuffsTag.depotPrice} ¢ shelf price`);
+    if (fertilized) flags.push(`Fertilizer: no wither die, a double crop 1 time in ${soilery.BOUNTY_IN}`);
+    const inputs = fertilized ? fertTag?.depotPrice ?? 0 : 0;
+    const revenue = harvest * food.of(foodstuffsTag);
+    farmRows.push({ crop: FOODSTUFFS_SLUG, fertilized, harvest, revenue, seedCost: inputs, hunger: hunger.foodHungerFor(foodstuffsTag), weight: foodstuffsTag.weight ?? 0 });
     push({
-      id: "farm:tobacco-fert",
-      name: "Farm — Tobacco, with Fertilizer",
+      id: fertilized ? "farm:foodstuffs-fert" : `farm:${FOODSTUFFS_SLUG}`,
+      name: fertilized ? "Farm — Foodstuffs, with Fertilizer" : `Farm — ${foodstuffsTag.name}`,
       kind: "farm",
       family: "farming",
       skill: "soilery",
-      skillPoints: soileryTag.pointCost + (fertTag.pointCost ?? 0),
+      skillPoints: soileryTag.pointCost + (fertilized ? fertTag?.pointCost ?? 0 : 0),
       moves: 1,
       revenue,
       inputs,
       inputsBuy: inputs,
       duty: farmDuty,
-      harvest: leaves,
-      fert: true,
-      sellTax: tax(revenue),
+      harvest,
+      fert: fertilized,
+      // Foodstuffs never sell to the counter, so "food" is the only basis this ever takes.
+      valueBasis: basis,
+      foodValued: basis !== "sell",
+      // Foodstuffs eaten raw, a harvest's worth a turn (the by-family food chart plots these). Foodstuffs
+      // carries its own mealMood for raw eating, not the generic raw-ingredient penalty (db/lib/hunger.js).
+      hungerPerTurn: harvest * hunger.foodHungerFor(foodstuffsTag) * farmDuty,
+      moodPerTurn: harvest * (foodstuffsTag.mealMood ?? 0) * farmDuty,
+      // Nothing here ever meets the counter: food is eaten, not sold.
+      sellTax: 0,
       rawPerTurn: (revenue - inputs) * farmDuty,
-      perAction: revenue - inputs - tax(revenue),
-      netPerTurnSell: (revenue - inputs - tax(revenue)) * farmDuty,
-      netPerTurnBuy: (revenue - inputs - tax(revenue)) * farmDuty,
-      flags: [`fatigue: one farm every ${farmCycle} turns`, `Fertilizer: no wither die, a double plant 1 time in ${soilery.BOUNTY_IN}`],
+      perAction: revenue - inputs,
+      netPerTurnSell: (revenue - inputs) * farmDuty,
+      netPerTurnBuy: (revenue - inputs) * farmDuty,
+      flags,
     });
-  }
-  // The cash crop, as the cooking and field tabs quote it: read off the two farm rows above, never worked out again.
-  const tobacco = (() => {
-    const plain = activities.find((a) => a.id === "farm:tobacco");
-    const fed = activities.find((a) => a.id === "farm:tobacco-fert");
-    if (!plain || !fed) return null;
-    const rule = cropRule("tobacco");
-    return {
-      plants: farmMaxCrops,
-      leavesPerPlant: rule.cropsPerPlant,
-      witherIn: rule.witherIn,
-      price: food.of(tobTag),
-      seed: plain.inputs,
-      fertCost: fed.inputs - plain.inputs,
-      leaves: plain.harvest,
-      leavesFert: fed.harvest,
-      revenue: plain.revenue,
-      netAction: plain.perAction,
-      netActionFert: fed.perAction,
-      perTurn: plain.netPerTurn,
-      perTurnFert: fed.netPerTurn,
-      fertGainPerAction: fed.perAction - plain.perAction,
-      seedResale: get("tobacco-seed-bag")?.sellablePrice ?? null,
-    };
-  })();
+  };
+  farmRow(false);
+  if (fertTag) farmRow(true);
 
   // --- gathering (MINING.md §3c) -------------------------------------------
   // The Black Hills' press is the Mine button under another name: the same 6–12 × the dials × the
@@ -1074,10 +1009,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
 
   const byId = (id) => activities.find((a) => a.id === id);
 
-  // --- the field, then the cooks --------------------------------------------------
-  // How many farmers feed the town is the field's figure (SOILERY.md §9): crops a turn eaten against crops a
-  // farmer brings in. The cooking tab reads it rather than working out its own.
-  const fieldModel = buildField({ params, tobacco, schemaDefault, players });
+  // --- the cooks --------------------------------------------------
+  // How many farmers feed the town, cooked, is cooking.js's own figure now: hunger a turn eaten against
+  // the cooked hunger a Farm action brings in, with no field pool or refill to it any more.
   // A dish fetches only a coin or so at the counter, so a cook is paid in food: what the same hunger and mood would cost from a
   // Ration Box, less the ingredients, both through the one food valuation.
   const cooking = buildCooking({
@@ -1087,10 +1021,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     sources,
     foodFloor,
     food,
-    tobacco,
-    townFarmers: fieldModel.farmersToEat,
     players,
-    refs: { factoryShift: shift, factoryPerTurn, prospector: byId("mine:Caves:skilled")?.netPerTurn ?? null, miner: byId("mine:Caves:unskilled")?.netPerTurn ?? null },
   });
 
   // The dishes as activities, priced the one way cooking.js prices them: what the same hunger and
@@ -1229,8 +1160,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
         ceiling: true,
       })),
     { key: "Farmer, food (valued at the Ration Box)", value: byId(`farm:${STAPLE}`)?.netPerTurn },
-    { key: "Farmer, tobacco", value: byId("farm:tobacco")?.netPerTurn },
-    { key: "Farmer, tobacco + Fertilizer", value: byId("farm:tobacco-fert")?.netPerTurn },
+    { key: "Farmer, food + Fertilizer (valued at the Ration Box)", value: byId("farm:foodstuffs-fert")?.netPerTurn },
     { key: "Smith forging Trinkets (Smithing II, shelf stones)", value: byId("trinket:shelf:skilled")?.netPerTurn },
     {
       key: "Miner-smith forging own stones (Caves, pick only)",
@@ -1269,9 +1199,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     }))
     .map((r) => ({ ...r, off: r.sell - r.expected, arbitrage: r.sell >= r.buy }));
 
-  // Supply against demand: how many farmers does a town need?
+  // Supply against demand: how many farmers does a town need? The plain (unfertilized) harvest only —
+  // Fertilizer's own gain is the investments tab's row, not a second crop to list here.
   const demandPerTurn = players * params.hungerDecay;
-  const foodSupply = farmRows.map((f) => {
+  const foodSupply = farmRows.filter((f) => !f.fertilized).map((f) => {
     const hungerPerFarmTurn = f.harvest * f.hunger * farmDuty;
     return {
       crop: f.crop,
@@ -1550,14 +1481,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       note: "Read from crafting.js. If a family is listed, the obol payment is back and the smithing figures need the par column again.",
     },
     {
-      doc: "SOILERY.md §1",
-      claim: "No food crop sells for more than 1 ¢: farming is for eating, not cash",
-      docValue: "1 ¢ at most, or not sold",
-      model: (() => {
-        const sells = soilery.CROPS.filter((c) => !["pigtails", "tobacco"].includes(c.crop)).map((c) => get(c.crop)?.sellablePrice).filter((v) => v != null);
-        return sells.length ? `${Math.max(...sells)} ¢` : "not sold at all";
-      })(),
-      ok: soilery.CROPS.filter((c) => !["pigtails", "tobacco"].includes(c.crop)).every((c) => (get(c.crop)?.sellablePrice ?? 0) <= 1),
+      doc: "db/lib/hunger.js",
+      claim: "Foodstuffs never sell to the counter: farming is for eating, not cash",
+      docValue: "not sold",
+      model: foodstuffsTag.sellablePrice != null ? `${foodstuffsTag.sellablePrice} ¢` : "not sold at all",
+      ok: foodstuffsTag.sellablePrice == null,
     },
     {
       doc: "BREWING.md §3",
@@ -1574,53 +1502,6 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: locationsWithAttribute("godflesh").length === 1,
     },
     {
-      doc: "SOILERY.md §1",
-      claim: "Three farmers feed about 94 of a hundred people",
-      docValue: "~94",
-      // The field's own figure: people fed a farmer is the town over the farmers it takes to feed it, cooked.
-      model: `${Math.round((3 * players) / fieldModel.farmersToEat)} (three farmers, one Farm action each every ${farmCycle} turns, the crops cooked)`,
-      ok: Math.abs((3 * players) / fieldModel.farmersToEat - 94) < 5,
-      note: `A farmer works one turn in ${farmCycle}: a Farm action steps the same Tired and Exhausted ladder Mine does, and only Exhausted refuses the next one.`,
-    },
-    {
-      doc: "SOILERY.md §1",
-      claim: "A tobacco harvest pays about 33 ¢",
-      docValue: 33,
-      model: round1(byId("farm:tobacco")?.revenue),
-      ok: byId("farm:tobacco") != null && Math.abs(byId("farm:tobacco").revenue - 33) < 3,
-    },
-    {
-      doc: "SOILERY.md §1",
-      claim: "A tobacco farmer earns no more a turn than a solo Factory worker, so the cash crop does not out-earn the Factory",
-      docValue: `${round1(factoryPerTurn)} ¢ a turn (${shift} ¢ a shift, one turn in ${round1(1 / refineDuty)})`,
-      model: `${round1(byId("farm:tobacco")?.rawPerTurn)} ¢ a turn before tax (${round1(byId("farm:tobacco")?.revenue - byId("farm:tobacco")?.inputs)} ¢ a Farm action against ${shift} ¢ a shift, a Farm action one turn in ${farmCycle})`,
-      ok: byId("farm:tobacco") != null && byId("farm:tobacco").rawPerTurn <= factoryPerTurn,
-      note: tobacco ? `Tobacco is ${tobacco.price} ¢ a leaf, about ${Math.round(tobacco.leaves)} leaves an action after its 1-in-${tobacco.witherIn} wither. Farm and Refine climb the same ladder, so they are compared a turn to a turn.` : "No tobacco in the catalog.",
-    },
-    {
-      doc: "SOILERY.md §1",
-      claim: "Fertilized tobacco earns no more a turn than a farmer's food is worth, so growing cash never beats growing dinner",
-      docValue: `${round1(byId(`farm:${STAPLE}`)?.netPerTurn)} ¢ a turn (food farming, valued at the Ration Box)`,
-      model: cooking.tobacco ? `${round1(byId("farm:tobacco-fert")?.rawPerTurn)} ¢ a turn with Fertilizer (${round1(byId("farm:tobacco")?.rawPerTurn)} without), before tax` : "no tobacco",
-      ok: !cooking.tobacco || byId("farm:tobacco-fert").rawPerTurn <= (byId(`farm:${STAPLE}`)?.netPerTurn ?? Infinity),
-      note: (() => {
-        // Fertilizer is spent into a status that lasts its own durationTurns.
-        const lasts = get((get("fertilizer")?.consumesInto ?? []).map((x) => (typeof x === "string" ? x : x?.slug))[0])?.durationTurns ?? null;
-        // The status covers the turn it is spread and the turns after it, up to its duration; a farmer farms one
-        // turn in farmCycle, so it covers floor((duration − 1) ÷ cycle) + 1 Farm actions.
-        const covers = lasts != null ? Math.floor((lasts - 1) / farmCycle) + 1 : null;
-        const spans = lasts != null ? ` It lasts ${lasts} turn${lasts === 1 ? "" : "s"} and the next Farm action comes ${farmCycle} turns later, so one sack covers ${covers === 1 ? "exactly one Farm action" : `${covers} Farm actions`}.` : "";
-        return `Fertilizer removes the 1-in-${tobacco?.witherIn ?? soilery.WITHER_IN} wither die that is tobacco's price for being the cash crop, so it lifts tobacco far more than it lifts food.${spans}`;
-      })(),
-    },
-    {
-      doc: "SOILERY.md §6",
-      claim: "A seed bag costs 4 ¢",
-      docValue: 4,
-      model: get("wheat-seed-bag")?.depotPrice,
-      ok: get("wheat-seed-bag")?.depotPrice === 4,
-    },
-    {
       doc: "FACTORY.md §6",
       claim: "A cube weighs 17 lb",
       docValue: 17,
@@ -1628,25 +1509,12 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: squeeze.weight === 17,
     },
     {
-      doc: "TURN-ENGINE.md §5",
-      claim: "Hunger decays 35 a turn and Hungry starts at 35, exactly one turn's decay",
-      docValue: "35 / 35",
-      model: `${hunger.HUNGER_DECAY_PER_TURN} / ${hunger.HUNGRY_THRESHOLD}`,
-      ok: hunger.HUNGER_DECAY_PER_TURN === 35 && hunger.HUNGRY_THRESHOLD === 35,
-    },
-    {
-      doc: "TURN-ENGINE.md §5",
-      claim: "Every food sits in one of three tiers against a turn's decay: raw about a third (6-18 of 35), basic cooked one turn (30-42), skilled about two turns (64-76); a farmed crop counted a plant at a time",
-      docValue: "none outside",
-      model: foodTiers.offTier.length ? `${foodTiers.offTier.length} outside: ${foodTiers.offTier.slice(0, 6).map((f) => `${f.name} ${f.hunger}`).join(", ")}${foodTiers.offTier.length > 6 ? ", …" : ""}` : "none outside",
-      ok: foodTiers.offTier.length === 0,
-    },
-    {
-      doc: "TURN-ENGINE.md §5",
-      claim: "Every food has a hunger figure of its own; none rides on the flat default",
-      docValue: "0 defaulted",
-      model: foodTiers.defaulted.length ? `${foodTiers.defaulted.length} defaulted to ${hunger.DEFAULT_FOOD_HUNGER}: ${foodTiers.defaulted.slice(0, 6).map((f) => f.name).join(", ")}${foodTiers.defaulted.length > 6 ? ", …" : ""}` : "0 defaulted",
-      ok: foodTiers.defaulted.length === 0,
+      doc: "db/lib/hunger.js",
+      claim: "Hunger decays 17 a day (24 with Big Appetite), Hungry starts at 66 and Starving at 33",
+      docValue: "17 / 24 a day, Hungry 66, Starving 33",
+      model: `${hunger.HUNGER_DECAY_PER_DAY} / ${hunger.HUNGER_DECAY_PER_DAY_FAST} a day, Hungry ${hunger.HUNGRY_THRESHOLD}, Starving ${hunger.STARVING_THRESHOLD}`,
+      ok: hunger.HUNGER_DECAY_PER_DAY === 17 && hunger.HUNGER_DECAY_PER_DAY_FAST === 24 && hunger.HUNGRY_THRESHOLD === 66 && hunger.STARVING_THRESHOLD === 33,
+      note: `This run turns that into ${params.hungerDecay} a turn at ${turnLengthHours} hours a turn (perTurnDecay, truncated); --turn-hours tries another length.`,
     },
     {
       doc: "tags.yaml, Ration Box",
@@ -1662,13 +1530,6 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       model: cooking.unreachableDishes.length ? `${cooking.unreachableDishes.length} stuck: ${cooking.unreachableDishes.map((d) => `${d.name} (${d.unreachable.join(", ")})`).join("; ")}` : "0 dishes stuck",
       ok: cooking.unreachableDishes.length === 0,
       note: "An input with no data route and no reference in the code cannot be got, so every recipe that needs it is unmakeable today.",
-    },
-    {
-      doc: "COOKING.md §3",
-      claim: "The rat the caves drop is the rat the recipes take",
-      docValue: "same tag",
-      model: cooking.ratGap.caveRatSlug !== cooking.ratGap.recipeRatSlug ? `caves drop ${cooking.ratGap.caveRatSlug}; ${cooking.ratGap.dishes.join(", ")} take ${cooking.ratGap.recipeRatSlug}, which nothing produces` : `one tag, ${cooking.ratGap.caveRatSlug}`,
-      ok: cooking.ratGap.caveRatSlug === cooking.ratGap.recipeRatSlug,
     },
     {
       doc: "TRINKETS.md §1",
@@ -1765,11 +1626,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: Math.abs(mineDuty - 0.5) < 0.01,
     },
     {
-      doc: "SOILERY.md §5a",
-      claim: "A farmer works one turn in two, the same ladder Mine and Refine climb",
-      docValue: "1 in 2",
+      doc: "db/lib/soilery.js, db/lib/fatigue.js#grantExhaustedOutright",
+      claim: "A farmer works one turn in three: a Farm action grants Exhausted outright (no Tired rung first), and Exhausted and Tired both refuse the next one",
+      docValue: "1 in 3",
       model: `1 in ${round1(1 / farmDuty)}`,
-      ok: Math.abs(farmDuty - 1 / 2) < 0.01,
+      ok: Math.abs(farmDuty - 1 / 3) < 0.01,
     },
     {
       doc: "FACTORY.md §6",
@@ -1791,18 +1652,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       note: "The doc's table is DEFAULT_TURRET_TABLE verbatim, and its kit rows were computed from the same odds bend (ARMOR_GAIN 0.25). Both go stale together if depotTurret.js moves.",
     },
     {
-      doc: "COOKING.md §2a",
-      claim: "36 named cooking recipes",
-      docValue: 36,
-      model: cookingRecipeCount,
-      ok: cookingRecipeCount === 36,
-    },
-    {
-      doc: "COOKING.md §3",
-      claim: "66 tags carry a cooked block",
-      docValue: 66,
-      model: list.filter((t) => t.cooked).length,
-      ok: list.filter((t) => t.cooked).length === 66,
+      doc: "db/lib/hunger.js, docs/tags.yaml",
+      claim: "Cooking is three meal-class templates now, not a list of named recipes",
+      docValue: "3 templates: basic-meal, skilled-meal, lavish-meal",
+      model: `${cookingRecipeCount} craftable cooking recipe${cookingRecipeCount === 1 ? "" : "s"}: ${list.filter((t) => t.craftable && t.requirement?.skills?.some((sk) => /^cooking/.test(sk))).map((t) => t.slug).join(", ")}`,
+      ok: cookingRecipeCount === 3 && ["basic-meal", "skilled-meal", "lavish-meal"].every((s) => get(s)?.craftable),
     },
     {
       doc: "DEPOT.md §0d",
@@ -1903,29 +1757,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const auditSrc = fs.readFileSync(path.join(REPO, "db/scripts/ops/audit-vault-backing.js"), "utf8");
   const reserveFloor = Number((/const RESERVE_FLOOR = ([0-9.]+);/.exec(auditSrc) ?? [])[1]);
   if (!Number.isFinite(reserveFloor)) throw new Error("economy model: could not read RESERVE_FLOOR out of db/scripts/ops/audit-vault-backing.js; the file has changed shape.");
-  claims.push(
-    {
-      doc: "SOILERY.md §9",
-      claim: "The code's fallback knobs for the field match the schema defaults, so a GameConfig row that has never been edited behaves like a missing one",
-      docValue: "the same six numbers",
-      model: fieldModel.checks.defaultsMatchCode ? "the same" : "they differ: db/lib/fieldProductivity.js DEFAULTS against schema.prisma",
-      ok: fieldModel.checks.defaultsMatchCode,
-    },
-    {
-      doc: "SOILERY.md §9",
-      claim: "A town's field refills at least what the town eats, and farming at that refill leaves the yield untouched",
-      docValue: `${fieldModel.eaten} crops a turn eaten at ${players} seats`,
-      model: `refill ${Math.round(fieldModel.rate)} a turn (${Math.round(fieldModel.settings.margin * 100)}% over); sound at the refill: ${fieldModel.checks.soundAtTheRefill}`,
-      ok: fieldModel.checks.refillCoversTown && fieldModel.checks.soundAtTheRefill,
-    },
-    {
-      doc: "SOILERY.md §9",
-      claim: "Farming at twice the refill wears the yield well down, so over-farming is not free",
-      docValue: "below 60%",
-      model: `${Math.round(fieldModel.scenarios.find((x) => x.label === "4 food farmers")?.settled * 100)}% for four food farmers, ${Math.round((fieldModel.scenarios.find((x) => x.label === "5 food farmers")?.settled ?? 0) * 100)}% for five`,
-      ok: fieldModel.checks.overdrawWears,
-    },
-  );
+  // Field productivity (the pool/refill/yield-falloff model) is gone with the rework: a Farm action's
+  // yield no longer depends on how recently the place was worked, so there is nothing left here to check.
   claims.push(
     {
       doc: "roles.yaml, starting_tags",
@@ -1951,7 +1784,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     const halves = /Math\.max\(1, Math\.ceil\(inner \/ 2\)\)/.test(crateSrc);
     // The doc's crop weight, written either as a number of pounds or as a fraction of one.
     const FRACTIONS = { half: 1 / 2, third: 1 / 3, quarter: 1 / 4, fifth: 1 / 5, sixth: 1 / 6 };
-    const lbMatch = carryDoc.match(/crop is ([\d.]+) lb/) ?? carryDoc.match(/([\d.]+) lb a crop/);
+    const lbMatch =
+      carryDoc.match(/Foodstuff is ([\d.]+) lb/) ?? carryDoc.match(/crop is ([\d.]+) lb/) ?? carryDoc.match(/([\d.]+) lb a crop/);
     const fracMatch = carryDoc.match(/crops at a (half|third|quarter|fifth|sixth) of a\s+pound/);
     const docCrop = lbMatch ? Number(lbMatch[1]) : fracMatch ? FRACTIONS[fracMatch[1]] : null;
     const cropLbs = get(STAPLE)?.weight ?? null;
@@ -1972,7 +1806,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       },
       {
         doc: "CARRY.md §1a",
-        claim: "A Soilery crop's weight is what the catalog says",
+        claim: "A Foodstuff's weight is what the catalog says",
         docValue: docCrop != null ? `${Math.round(docCrop * 100) / 100} lb` : "not stated",
         model: `${cropLbs} lb (docs/tags.yaml, ${get(STAPLE)?.name ?? STAPLE})`,
         ok: docCrop != null && cropLbs != null && Math.abs(docCrop - cropLbs) < 0.01,
@@ -2070,7 +1904,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
         docValue: handbookLine ? "farming is taxed" : "no such line",
         model: `the only tax in the code is the sell tax, taken in ${taxCallers.join(", ") || "nothing"} on a drop-box sale; food crops are eaten, not sold, so nothing taxes farming`,
         ok: !handbookLine,
-        note: "A doc bug: the handbook describes a farming tax the game does not have. Tobacco pays the sell tax only because it is sold.",
+        note: "A doc bug: the handbook describes a farming tax the game does not have. Nothing farmed is sold at the counter any more (Foodstuffs is the one crop, and it never sells), so nothing about farming pays the sell tax.",
       },
     );
   }
@@ -2091,7 +1925,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
 
   return {
     params,
-    assumptions: assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate }),
+    assumptions: assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, hungerDecay: params.hungerDecay }),
     activities,
     wages,
     priceLadder,
@@ -2113,7 +1947,6 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     desires,
     starting,
     power,
-    field: fieldModel,
     prospectorValue,
     combos,
     shortlists,

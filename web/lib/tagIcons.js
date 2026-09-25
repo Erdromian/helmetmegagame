@@ -91,7 +91,6 @@ export const TAG_GROUP_ICONS = {
   // Items — what somebody is carrying. Teal, and the category where the icon
   // earns its keep: twelve groups a player sorts a full pack by.
   "items-food": glyph(Ham, "FoodIcon"),
-  "items-seeds": glyph(Sprout, "SeedsIcon"),
   "items-drink": glyph(Wine, "DrinkIcon"),
   "items-gear": glyph(Wrench, "GearIcon"),
   "items-mining": glyph(Gem, "MiningIcon"),

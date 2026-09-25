@@ -1,5 +1,5 @@
 // The single source of the summed Gambit die modifier. Three contributors: Hunger (a flat penalty off
-// the hungry/starving tags, db/lib/hunger.js), the three extreme mood bands (docs/systemdocs/MOOD.md)
+// the Starving descriptor, db/lib/hunger.js), the three extreme mood bands (docs/systemdocs/MOOD.md)
 // — Ecstatic +1, Afraid -1, Panicking -2, and a mood is one number so those three can never sum — and
 // any HELD tag carrying `Tag.gambitBonus`, which today means a Trinket forged with an Arkenstone
 // (docs/systemdocs/TRINKETS.md). Stays list-returning, not one number: Action.diceModifier is one Int
@@ -12,14 +12,12 @@
 // that surface than on the sheet. Every select feeding this must pull `gambitBonus`; a bare
 // `include: { tag: true }` gets it for free.
 // No prisma import, so both bot/ and web/ import it by subpath.
-const { HUNGER_SLUG, STARVING_SLUG } = require("./constants");
+const { STARVING_SLUG } = require("./constants");
 const { bandOf } = require("./mood");
 
-// Starving wins outright and never sums with Hungry — both numbers are this
-// plan's own inference (db/lib/hunger.js's Context §6), flagged for
-// Bascinet to retune.
-const HUNGER_PENALTY = Object.freeze({ starving: -3, hungry: -1 });
-const HUNGER_LABELS = Object.freeze({ starving: "Starving", hungry: "Hungry" });
+// The Soilery Rework doc: Starving is -1 to Gambits. Full and Hungry cost nothing.
+const HUNGER_PENALTY = Object.freeze({ starving: -1 });
+const HUNGER_LABELS = Object.freeze({ starving: "Starving" });
 
 // Accepts the CharacterTag[] shape used everywhere else in the app
 // (`{ tag: { slug } }`), and tolerates a bare Tag[].
@@ -27,12 +25,10 @@ function holds(characterTags, slug) {
   return (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === slug);
 }
 
-// Starving checked first: a character at or below the Starving threshold
-// holds BOTH tags at once (db/lib/hunger.js), and this is the one place that
-// picks between them rather than summing.
+// Only the band that moves the die: a character holds one hunger descriptor
+// at a time (db/lib/hunger.js), and only Starving costs anything.
 function hungerBandOf(characterTags = []) {
   if (holds(characterTags, STARVING_SLUG)) return "starving";
-  if (holds(characterTags, HUNGER_SLUG)) return "hungry";
   return null;
 }
 

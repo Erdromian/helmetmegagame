@@ -96,7 +96,6 @@ const EVENTS = Object.freeze({
   // HUNGER/STARVING above, which keep landing every turn the band holds.
   HUNGRY_ONSET: -30,
   STARVING_ONSET: -30,
-  NOBLE_MEAL: -10,
   ROBBED: -10,
   CONFESSION: 17,
   KISS: 17,
@@ -126,7 +125,6 @@ const DRINK_RELIEF = 35;
 // moment every meal became a MINTED row (COOKING.md) their slugs stopped
 // matching anything — a dish's slug is `custom-craft-…`. A dish is priced by
 // dishMoodTerms below instead, off its own `mealMood` and what went into it.
-// `ate-meal: 5` stays and is now genuinely the floor under every meal.
 const CONSUME_RELIEF = Object.freeze({
   tipsy: DRINK_RELIEF,
   wasted: DRINK_RELIEF,
@@ -157,8 +155,6 @@ const CONSUME_RELIEF = Object.freeze({
   // Celebration. Grants no status, so it keys by the item.
   firecracker: 9,
   cigarette: 9,
-  // Any proper meal at all, and the floor under every food above.
-  "ate-meal": 6,
   // The Ration Box's draws (moldy-bread, grasshopper-kebab, jellied-meats,
   // budget-cold-soup, skinned-cave-rat) are deliberately NOT here any more,
   // same reason as Maggot Milk above: each carries its own `mealMood`/
@@ -248,7 +244,7 @@ const AMOR_FATI_SHOCK = Object.freeze(
     "CAVE_TROUBLE", "DEATH_SEEN",
   ]),
 );
-const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "STARVING", "CORPSE", "NOBLE_MEAL"]));
+const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "STARVING", "CORPSE"]));
 const AMOR_FATI_SHARE = -0.5;
 
 // Takes the RAW base, not the multiplied harm, and that is the fix rather than
@@ -806,11 +802,8 @@ async function applyArrivalMood(prisma, { characterId, fromLocationId, toLocatio
 }
 
 // What one consume is worth. An item with its OWN entry is authoritative —
-// that number is what the item is, and it wins outright, sign and all. That
-// matters most for a negative entry: it has to actually land negative rather
-// than being swallowed by ate-meal's +5 floor (the Ration Box's draws used to
-// need exactly this, before they moved onto `cooked.mood` and then onto
-// `mealMood` — see the table above). An item with no entry of its own falls back to the
+// that number is what the item is, and it wins outright, sign and all. An
+// item with no entry of its own falls back to the
 // largest figure among what it granted — most
 // drinks are keyed on the STATUS they grant (Coffee has no entry; its relief
 // comes from Caffeinated's) rather than the item itself. 0 for a stew.
@@ -877,6 +870,14 @@ function dishMoodTerms(mealMood, ingredientMoods = []) {
   return terms;
 }
 
+// The same terms for eating `n` of a thing at once (the Consume slider, and
+// the turn close eating Foodstuffs to stay out of Starving): every base
+// multiplied, nothing else changed, so one applyMoodTerms write carries all n.
+function scaleTerms(terms, n) {
+  if (!terms?.length || n === 1) return terms;
+  return terms.map((t) => ({ ...t, base: t.base * n }));
+}
+
 module.exports = {
   // Tables and pure functions: the turn pass, the hooks and the test read these.
   MOOD_BANDS,
@@ -907,6 +908,7 @@ module.exports = {
   applyMoodTerms,
   applyMood,
   dishMoodTerms,
+  scaleTerms,
   applyKissMood,
   KISS_AUDIT_ACTION,
   setMood,

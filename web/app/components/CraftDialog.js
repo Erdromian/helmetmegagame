@@ -12,6 +12,15 @@ import {
   customCraftName,
 } from "@/lib/customCraft";
 import IngredientSlots from "./IngredientSlots";
+import {
+  MEAL_CLASSES,
+  MEAL_NAME_MAX,
+  MEAL_DESCRIPTION_MAX,
+  MEAL_TASTES,
+  cleanMealName,
+  decorateMealName,
+  needsKitchen,
+} from "@lifeweb/db/lib/meals";
 import QuantityField from "./QuantityField";
 
 // The body of the Craft dialog (docs/systemdocs/CRAFTING.md). State lives in
@@ -88,6 +97,11 @@ export default function CraftDialog({
   onCustomName,
   customDescription = "",
   onCustomDescription,
+  // A meal (COOKING.md): the one base taste the cook picked, and whether they
+  // are standing in a kitchen (a Lavish meal needs one).
+  mealTaste = "",
+  onMealTaste,
+  atKitchen = false,
   inscription = "",
   onInscription,
   payerKey,
@@ -339,6 +353,55 @@ export default function CraftDialog({
                     quantity={chosen.stackable ? qty : 1}
                   />
                 </div>
+              )}
+              {chosen.mealClass && (
+                <>
+                  <label className="field">
+                    <span className="field-label">Name your meal</span>
+                    <input
+                      type="text"
+                      value={customName}
+                      onChange={(e) => onCustomName(e.target.value)}
+                      autoComplete="off"
+                      maxLength={MEAL_NAME_MAX}
+                    />
+                  </label>
+                  <p className="text-xs text-muted">
+                    {cleanMealName(customName)
+                      ? `It will read as "${decorateMealName(chosen.mealClass, cleanMealName(customName))}".`
+                      : `Letters and spaces only. A ${MEAL_CLASSES[chosen.mealClass]?.label ?? ""} meal${
+                          MEAL_CLASSES[chosen.mealClass]?.mark
+                            ? ` wears "${MEAL_CLASSES[chosen.mealClass].mark}" either side of its name`
+                            : " wears its name plain"
+                        }.`}
+                  </p>
+                  <label className="field">
+                    <span className="field-label">Describe it</span>
+                    <textarea
+                      value={customDescription}
+                      onChange={(e) => onCustomDescription(e.target.value)}
+                      rows={2}
+                      maxLength={MEAL_DESCRIPTION_MAX}
+                    />
+                  </label>
+                  <label className="field">
+                    <span className="field-label">Base taste (optional)</span>
+                    <Select value={mealTaste} onChange={(e) => onMealTaste(e.target.value)}>
+                      <option value="">None</option>
+                      {MEAL_TASTES.map((t) => (
+                        <option key={t} value={t}>
+                          {t}
+                        </option>
+                      ))}
+                    </Select>
+                  </label>
+                  <p className="text-xs text-muted">
+                    Whoever eats it learns how it tastes. Nobody can tell what went into it unless you say so here.
+                  </p>
+                  {needsKitchen(chosen) && !atKitchen && (
+                    <p className="text-xs text-accent">A Lavish meal has to be cooked in a kitchen.</p>
+                  )}
+                </>
               )}
               {chosen.customizable && (
                 <>

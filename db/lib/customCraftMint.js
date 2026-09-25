@@ -2,8 +2,10 @@
 // base catalog row into a fresh custom + ephemeral tag for a `customizable`
 // recipe crafted with player words (or a Trinket, whose "words" are the die's
 // tier, or a DISH, which carries no words at all — no cooking recipe is
-// customizable, so a dish mints on its INGREDIENTS and keeps its recipe's
-// name); the craft grants THAT row instead of the base one. Lives in db/lib
+// customizable: a MEAL mints through `literal` with the name its cook gave
+// it, dressed in its class's symbols by db/lib/meals.js, and carries its
+// ingredients and chosen base taste); the craft grants THAT row instead of
+// the base one. Lives in db/lib
 // because BOTH faces need it: the web Craft dialog and the Trinket turn-end
 // pass (db/lib/trinketPass.js), which runs from resolveNeeds() and can never
 // require anything under web/. Throws a plain Error on the rare "no free
@@ -26,8 +28,12 @@ function customCraftName(baseName, name) {
 async function mintCustomCraft(
   db,
   baseTag,
-  { name, description, literal = false, cookedFrom = [], sellablePriceOverride, gambitBonusOverride },
+  { name, description, literal = false, cookedFrom = [], sellablePriceOverride, gambitBonusOverride, mealTaste, mealTasteForm },
 ) {
+  // A cook's chosen base taste (COOKING.md) overrides the template's; left
+  // undefined, the dish keeps whatever its recipe row carries.
+  const taste = mealTaste !== undefined ? mealTaste : baseTag.mealTaste;
+  const tasteForm = mealTasteForm !== undefined ? mealTasteForm : baseTag.mealTasteForm;
   // A mint with no words keeps the recipe's own name, so a dish reads as plain
   // "Bread" however it was made. It used to carry its ingredients' tastes —
   // "Bread (organs)" — which put the one thing eating is supposed to reveal
@@ -46,6 +52,10 @@ async function mintCustomCraft(
       name: composedName,
       description: composedDescription,
       cookedFrom: { equals: key },
+      // Two cooks' "Stew" with different base tastes, or cooked as different
+      // classes, are different dishes — never serve one the other's.
+      customOfSlug: baseTag.slug,
+      mealTaste: taste ?? null,
     },
   });
   if (existing) return { tag: existing, minted: false };
@@ -97,8 +107,10 @@ async function mintCustomCraft(
     // The eating-side twin of mealMood/mealHunger above (COOKING.md §2/§2a)
     // — miss this and every minted dish reads its base taste as empty,
     // showing only its additional ingredients' tastes on the taste line.
-    mealTaste: baseTag.mealTaste,
-    mealTasteForm: baseTag.mealTasteForm,
+    mealTaste: taste,
+    mealTasteForm: tasteForm,
+    // Which meal class it was cooked as — how a Lavish name gets its italics.
+    mealClass: baseTag.mealClass ?? null,
     sellable: baseTag.sellable,
     sellablePrice: sellablePriceOverride ?? baseTag.sellablePrice,
     defaultDurationTurns: baseTag.defaultDurationTurns,

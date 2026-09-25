@@ -51,10 +51,10 @@ import {
   hasAttribute,
   GODFLESH_ATTRIBUTE,
   SOILERY_ATTRIBUTE,
+  KITCHEN_ATTRIBUTE,
 } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { farmRefusalFor } from "@lifeweb/db/lib/soilery";
-import { fieldWarning } from "@lifeweb/db/lib/fieldProductivity";
 import { breakInRefusalFor } from "@lifeweb/db/lib/arelitz";
 import {
   isRefinery,
@@ -71,7 +71,7 @@ import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
-import { clampHunger, decayFor, crossings } from "@lifeweb/db/lib/hunger";
+import { hungerOf } from "@/lib/descriptors";
 import {
   freeMovesLeft,
   freeZoneMovesReason,
@@ -113,6 +113,7 @@ import {
 } from "@/lib/characterCreation";
 import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
 import { cookedTasteOnly } from "@/lib/referenceData";
+import { eatLimitsFor } from "@/lib/eatLimits";
 import { appraise } from "@/lib/appraisal";
 import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -419,7 +420,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     { action: currentAction },
     frozen,
     nukeState, // the bomb's clock (TagChip.js) — world state, every sheet shows it
-    standingField, // the farming field under the character's feet, if there is one (its yield, in words on the Farm dialog)
     mine, // same server action Chat's YOU column polls, so the two never disagree
   ] = await Promise.all([
     getOpenTurn(),
@@ -469,6 +469,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         requirementPerTurn: true,
         requirementItems: true, // every Recipe-line surface must select this or renders none (CORPSES.md §8)
         requirementIngredientSlots: true, // cooking's slot count (COOKING.md)
+        mealClass: true, // a meal template's class: naming, symbols, the kitchen gate (COOKING.md)
         customCost: true,
         customDescribable: true,
         meleeArmor: true,
@@ -490,16 +491,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         desireSlotLockTurns: true,
         maxDrawbackTags: true,
         maxDrawbackPoints: true,
-        farmMaxCrops: true,
-        farmFieldEnabled: true,
         craftYieldTiming: true,
       },
     }),
     findOpenTurnAction(prisma, character.id),
     clockStatus(prisma),
     readGameState(prisma, { nukeArmedTurn: true }),
-    // The field the character is standing in, if it is one (db/lib/fieldProductivity.js): what it would say to a farmer, in words.
-    character.locationId ? prisma.locationField.findUnique({ where: { locationId: character.locationId }, select: { yieldMult: true } }) : null,
     // The turn card in the sheet's band paints from this, so it is read on
     // every load rather than gated on a scope.
     myMove(),
@@ -648,6 +645,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     character,
     WORKSHOP_EQUIPMENT_SLUG,
   );
+  // A kitchen where you stand: a Lavish meal needs one (COOKING.md). craftRequest re-checks it.
+  const atKitchen = hasAttribute(character.location, KITCHEN_ATTRIBUTE);
+  // The Consume slider's top end per item (web/lib/eatLimits.js): counts only, never the meter.
+  const eatMax = await eatLimitsFor(prisma, character);
   // The Godard Factory's two buttons (FACTORY.md) — both HIDE where the
   // place is wrong rather than greying, a fact about their own location.
   const canSeeExtract = hasAttribute(character.location, GODFLESH_ATTRIBUTE);
@@ -1023,16 +1024,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
 
   // The 0-100 hunger meter (db/lib/hunger.js): same posture as poisonedCount
   // above — hungerValue must NEVER reach the client raw (the doc's own rule:
-  // no number, ever, on the sheet), so it is read here, used to derive a
-  // plain word, and dropped from `sheetCharacter` below rather than trusted
-  // to every future reader. TurnForecast.js only ever sees `hungerWarning`.
-  const hungerAfterDecay = clampHunger(character.hungerValue - decayFor(character.tags.map((ct) => ct.tag?.slug)));
-  const hungerCross = crossings(character.hungerValue, hungerAfterDecay);
-  const hungerWarning = hungerCross.enteredStarving
-    ? "starving"
-    : hungerCross.enteredHungry
-      ? "hungry"
-      : null;
+  // no number, ever), so it is read here, turned into the descriptor's word,
+  // and dropped from `sheetCharacter` below rather than trusted to every
+  // future reader. Nothing forecasts next turn's hunger any more (the doc).
+  const hunger = hungerOf(character);
 
   // The mood dial rides along as a number (MOOD.md) — the sheet needs it for
   // the Mood box's word and the Gambit tile's modifier, both computed client-side.
@@ -1224,7 +1219,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     kind: "sheet",
     sheet: {
       character: sheetCharacter,
-      hungerWarning: hungerWarning,
+      hunger: hunger,
       mode: "self",
       openTurn: openTurnWithWindow,
       currentAction: sheetAction,
@@ -1241,6 +1236,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       zoneMovesReason: zoneMovesReason,
       examineBlocked: examineBlocked,
       hasWorkshop: hasWorkshop,
+      atKitchen: atKitchen,
+      eatMax: eatMax,
       tagCatalog: clientTagCatalog,
       desireSlots: desireSlots,
       desireSlotLockTurns: desireSlotLockTurns,
@@ -1303,9 +1300,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canSeeFarm: canSeeFarm,
       canFarm: canFarm,
       farmBlocked: farmBlocked,
-      farmMaxCrops: gameConfig?.farmMaxCrops ?? undefined,
-      // What the field would say to a farmer right now, in words (db/lib/fieldProductivity.js#fieldWarning): null while it is sound.
-      fieldWarning: gameConfig?.farmFieldEnabled === false ? null : fieldWarning(standingField?.yieldMult ?? 1),
       dayLongTurn: isDayLongTurn(openTurn),
       canSeeBreakIn: canSeeBreakIn,
       canBreakIn: canBreakIn,

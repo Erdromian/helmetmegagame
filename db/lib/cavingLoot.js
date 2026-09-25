@@ -173,7 +173,7 @@ const PROSPECTING_TABLE = {
 
 // What a day in the hills brings home. Every entry is FOOD — a raw ingredient a cook turns into a
 // dish (docs/systemdocs/COOKING.md §11) or something edible as it is — and most come as a small stack,
-// because one onion is not a day's work. An entry is `{ slug, quantity }`; the two tables above are
+// because one mushroom is not a day's work. An entry is `{ slug, quantity }`; the two tables above are
 // bare slugs, and drawFrom reads either shape. Boar Loin and Deer Liver had no source at all before
 // this (the Hunting tier they came from is gone, MINING.md §0), so the rare rungs are where they
 // live now. The egg at the bottom is a wild arelitz clutch — carry it to a stable and it hatches
@@ -181,8 +181,11 @@ const PROSPECTING_TABLE = {
 const GATHERING_TABLE = {
   ultracommon: [
     { slug: "cave-fungus", quantity: 2 },
-    { slug: "onion", quantity: 2 },
-    { slug: "carrot", quantity: 2 },
+    // Wild produce, which is Foodstuffs now that the separate crops are gone
+    // (the Soilery Rework doc). Two small finds rather than one bigger one,
+    // so a day comes up Foodstuffs as often as it did onions or carrots.
+    { slug: "foodstuffs", quantity: 2 },
+    { slug: "foodstuffs", quantity: 3 },
   ],
   common: [
     { slug: "crayfish", quantity: 2 },

@@ -154,7 +154,7 @@ groups:
         - Obol x25
         - Post-Christian
         - Appraisal
-        - Omelette
+        - Foodstuffs x4
       doc_elements:
         - godking
         - squeeze
@@ -187,7 +187,7 @@ groups:
         - Baroness's Key
         - Obol x5
         - Post-Christian
-        - Pasta
+        - Foodstuffs x4
       doc_elements:
         - godking
         - courtstructure
@@ -216,7 +216,7 @@ groups:
         - Heir's Key
         - Obol x5
         - Post-Christian
-        - Sausage
+        - Foodstuffs x4
       doc_elements:
         - godking
         - courtstructure
@@ -242,7 +242,7 @@ groups:
         - Literacy
         - Successor's Key
         - Post-Christian
-        - Fried Fish
+        - Foodstuffs x4
       doc_elements:
         - godking
         - courtstructure
@@ -274,7 +274,7 @@ groups:
         - Hand's Key
         - Tower Key
         - Obol x10
-        - Broth
+        - Foodstuffs x4
       doc_elements:
         - godking
         - squeeze
@@ -306,7 +306,7 @@ groups:
         - Tower Key
         - Bird
         - Obol x5
-        - Vegetable Stew
+        - Foodstuffs x4
       doc_elements:
         - godking
         - squeeze
@@ -337,7 +337,7 @@ groups:
         - Major's Insignia
         - Obol x4
         - Appraisal
-        - Bread
+        - Foodstuffs x4
       doc_elements:
         - godking
         - courtstructure
@@ -364,7 +364,7 @@ groups:
         - Ravenhearter
         - Courtier
         - Literacy
-        - Sausage
+        - Foodstuffs x4
       doc_elements:
         - godking
         - courtstructure
@@ -384,7 +384,7 @@ groups:
         - Ravenhearter
         - Musician
         - Instrument Kit
-        - Bread
+        - Foodstuffs x4
       doc_elements:
         - godking
         - courtstructure
@@ -406,14 +406,10 @@ groups:
         - Ravenhearter
         - Servant
         - Cooking I
-        # A turn's cooking to start with: 40 crops is 20 dishes at 2 crops and
-        # 0.05 of a Move each, which is one whole Move. Every dish here is
-        # 35 hunger (COOKING.md §2a), so a cook can feed 20 person-turns.
-        - Wheat x8
-        - Potato x12
-        - Carrot x6
-        - Tomato x8
-        - Onion x6
+        # A turn's cooking to start with: 40 Foodstuffs is 20 Basic meals at 2
+        # Foodstuffs and 0.05 of a Move each, which is one whole Move
+        # (COOKING.md).
+        - Foodstuffs x40
         - Cheese x3
       doc_elements:
         - godking
@@ -457,7 +453,7 @@ groups:
         - Bishop's Mitre
         - Vestments
         - Cross
-        - Broth
+        - Foodstuffs x4
       doc_elements:
         - postchristianity
     chaplain:
@@ -488,7 +484,7 @@ groups:
         - Post-Christian
         - Vestments
         - Cross
-        - Bread
+        - Foodstuffs x4
       doc_elements:
         - postchristianity
     inquisitor:
@@ -526,7 +522,7 @@ groups:
         - Fundamentalist
         - Torturer
         - Literacy
-        - Fried Meat
+        - Foodstuffs x4
       doc_elements:
         - postchristianity
     practicus:
@@ -561,7 +557,7 @@ groups:
         - Gas Mask
         - Fundamentalist
         - Torturer
-        - Bread
+        - Foodstuffs x4
       doc_elements:
         - postchristianity
     preacher:
@@ -590,7 +586,7 @@ groups:
         - Pious
         - Post-Christian
         - Fundamentalist
-        - Potato Bread
+        - Foodstuffs x4
       doc_elements:
         - postchristianity
 
@@ -636,7 +632,7 @@ groups:
         - Literacy
         - Obol x2
         - Post-Christian
-        - Sausage
+        - Foodstuffs x4
       doc_elements:
         - godking
         - courtstructure
@@ -675,7 +671,7 @@ groups:
         - Mail Coif
         - Mail Shirt
         - Post-Christian
-        - Broth
+        - Foodstuffs x4
       doc_elements:
         - courtstructure
         - cerberon
@@ -713,7 +709,7 @@ groups:
         - Mail Shirt
         - Post-Christian
         - Obol x1
-        - Fried Meat
+        - Foodstuffs x4
       doc_elements:
         - courtstructure
         - cerberon
@@ -745,7 +741,7 @@ groups:
         - Mail Coif
         - Mail Shirt
         - Post-Christian
-        - Baked Potato
+        - Foodstuffs x4
       doc_elements:
         - courtstructure
         - cerberon
@@ -783,7 +779,7 @@ groups:
         - Esculap's Vest
         - Obol x10
         - Resources x26
-        - Vegetable Stew
+        - Foodstuffs x4
       doc_elements:
         - medical
     serpent:
@@ -811,7 +807,7 @@ groups:
         - Brewing II
         - Literacy
         - Resources x8
-        - Baked Potato
+        - Foodstuffs x4
       doc_elements:
         - medical
 
@@ -851,7 +847,7 @@ groups:
         - Obol x20
         - Nobility
         - Appraisal
-        - Fried Fish
+        - Foodstuffs x4
       doc_elements:
         - godking
         - squeeze
@@ -909,7 +905,7 @@ groups:
         - Factory Key
         - Banneret's Key
         - Appraisal
-        - Sausage
+        - Foodstuffs x4
       doc_elements:
         - godking
         - godardfactory
@@ -943,11 +939,7 @@ groups:
         - Medical I
         - Cooking I
         # A turn's cooking to start with, as for the Servant.
-        - Wheat x8
-        - Potato x12
-        - Carrot x6
-        - Tomato x8
-        - Onion x6
+        - Foodstuffs x40
         - Cleaning Powder
         - Armored Gloves
         - Factory Key
@@ -1018,7 +1010,7 @@ groups:
         - Room A Key (Den)
         - Room B Key (Den)
         - Appraisal
-        - Fried Meat
+        - Foodstuffs x4
 
   # Soil
   soil:
@@ -1044,7 +1036,7 @@ groups:
         - Neoclassic R&W10
         - Cudgel
         - Sheriff's Badge
-        - Sausage
+        - Foodstuffs x4
       doc_elements:
         - combat
     metalsmith:
@@ -1071,7 +1063,7 @@ groups:
         - Smithy Key
         - Resources x20
         - Appraisal
-        - Bread
+        - Foodstuffs x4
       doc_elements:
         - smithing
         - combat
@@ -1107,21 +1099,21 @@ groups:
     # Added 2026-09-20. Starts inside the Soilery (town-3) rather than the
     # town square, because the Farm button only exists on `soilery` ground —
     # a Soiler who starts anywhere else spends their first Move walking.
-    # The Soiler's Key is not decoration: the Silo (town-3-2) where the seed
-    # is kept and the Stable (town-3-3) are both locked behind it.
+    # The Soiler's Key is not decoration: the Silo (town-3-2) where the
+    # harvest is kept and the Stable (town-3-3) are both locked behind it.
     soiler:
       name: Soiler
       intro: >-
         Grow food for Ravenheart and tame the arelitz.
       description:
         - >-
-          You can farm, but you must be in the Soilery, a set of plots and sheds in the town's east. The Farm button there spends a seed bag and sows a field; the crop comes in when the turn is pushed, minus whatever withers.
+          You can farm, but you must be in the Soilery, a set of plots and sheds in the town's east. The Farm button there plants 100 crops, and whatever doesn't wither comes in as Foodstuffs when the turn is pushed. A day in the fields leaves you Exhausted, so you farm one turn in three.
         - >-
-          You can sell Tobacco to the Depot, but for crops it is better if you cut a deal with the Inn or other organizations. Food fetches nothing at the counter and everything from a hungry town.
+          Food fetches nothing at the Depot's counter, so cut a deal with the Inn or other organizations instead. A hungry town will pay for it.
         - >-
-          Your key opens the Silo, where the seed and the harvest are kept, and the Stable beside it.
+          Your key opens the Silo, where the harvest is kept, and the Stable beside it.
         - >-
-          The arelitz in the Stable eat what is on the floor and lay eggs, and the eggs hatch and grow on their own clock. A grown one is unruly, and nobody rides it until somebody breaks it in.
+          The arelitz in the Stable eat Foodstuffs left on the floor, two each, and lay eggs, and the eggs hatch and grow on their own clock. A grown one is unruly, and nobody rides it until somebody breaks it in.
         - >-
           An arelitz is also meat, and so is anything you cannot feed.
       difficulty: easy
@@ -1137,11 +1129,8 @@ groups:
         - Soiler's Key
         - Work Knife
         - Resources x2
-        - Wheat
-        - Tobacco
-        - Wheat Seed Bag
         - Plebeian Hood
-        - Baked Potato
+        - Foodstuffs x4
       doc_elements:
         - farming
     mortus:
@@ -1250,11 +1239,7 @@ groups:
         - Ravenhearter
         - Cooking I
         # A turn's cooking to start with, as for the Servant.
-        - Wheat x8
-        - Potato x12
-        - Carrot x6
-        - Tomato x8
-        - Onion x6
+        - Foodstuffs x40
         - Brewing I
         - Brewing (Distilling)
         - Appraisal
@@ -1281,11 +1266,7 @@ groups:
         - Ravenhearter
         - Cooking I
         # A turn's cooking to start with, as for the Servant.
-        - Wheat x8
-        - Potato x12
-        - Carrot x6
-        - Tomato x8
-        - Onion x6
+        - Foodstuffs x40
         - Cheese x3
       doc_elements:
         - alcoholdrugs
@@ -1457,7 +1438,7 @@ groups:
         - Brave
         - Literacy
         - Radio (243.000)
-        - Broth
+        - Foodstuffs x4
       doc_elements:
         - godking
         - courtstructure
@@ -1554,7 +1535,7 @@ groups:
         - Brave
         - Rough Camper
         - Outsider
-        - Sausage
+        - Foodstuffs x4
 
     bastard-infantry:
       name: Infantry

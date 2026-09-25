@@ -288,9 +288,9 @@ export const ACTION_SECTIONS = [
         gateReason: "You're worn out.",
         instant: true,
       },
-      // The Farms placeholder (db/lib/soilery.js). Same HIDE-when-wrong-ground
-      // posture as the three just above, but a dialog rather than an instant
-      // verb — sowing is a whole plan of crops, not a single click. `canFarm`
+      // The Farm button (db/lib/soilery.js). Same HIDE-when-wrong-ground
+      // posture as the three just above, and instant like them: a farmer
+      // always plants the same 100 crops, so there is nothing to choose. `canFarm`
       // folds in the skill, the Exhausted/Tired lockout and the once-a-turn
       // Move check (db/lib/soilery.js#farmRefusalFor); farmBlocked's own
       // sentence is what pools.gateReason.farm shows instead of the generic
@@ -302,6 +302,7 @@ export const ACTION_SECTIONS = [
         show: "canSeeFarm",
         gate: "canFarm",
         gateReason: "You're worn out.",
+        instant: true,
       },
       // Breaking in an unruly arelitz (db/lib/arelitz.js, ARELITZ.md §6).
       // Same HIDE-not-grey posture as Farm just above — whether there's a

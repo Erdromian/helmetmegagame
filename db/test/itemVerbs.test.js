@@ -58,7 +58,7 @@ test("a wax stamp seals and a sealed letter does not", () => {
   assert.deepEqual(verbsForTag({ slug: "x", sealMark: "an ox", paperKind: "SEALED" }), []);
 });
 
-test("seed bags farm and a pointer device reads", () => {
-  assert.deepEqual(verbsForTag({ slug: "wheat-seed-bag" }), ["farm"]);
+test("a pointer device reads, and nothing farms (seed bags are gone)", () => {
+  assert.deepEqual(verbsForTag({ slug: "wheat-seed-bag" }), []);
   assert.deepEqual(verbsForTag({ slug: "custom-pointer-ab12-a" }), ["pointerdevice"]);
 });

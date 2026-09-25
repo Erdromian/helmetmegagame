@@ -664,7 +664,7 @@ function normalizeCooked(cooked, { slug, normalizeInto, label = "docs/tags.yaml"
     );
   }
   const cures = cooked.cures === true;
-  // Opt-in, stored only when present — how much this ingredient restores on the hunger meter (db/lib/hunger.js). Absent means "not a meaningful food" (foodHungerFor falls back to DEFAULT_FOOD_HUNGER for anything that still grants ate-meal). Required lazily so hunger.js does not require this file (no cycle) — same reasoning as the mood import above.
+  // Opt-in, stored only when present — how much this ingredient restores on the hunger meter (db/lib/hunger.js). Absent means "not a meaningful food": foodHungerFor reads 0. Required lazily so hunger.js does not require this file (no cycle) — same reasoning as the mood import above.
   const { HUNGER_MAX, HUNGER_MIN } = require("./hunger");
   const hunger = cooked.hunger ?? null;
   if (hunger != null && (!Number.isInteger(hunger) || hunger < HUNGER_MIN || hunger > HUNGER_MAX)) {
@@ -824,6 +824,35 @@ function validateMealTasteForm({ mealTaste, mealTasteForm }, { selfSlug, label =
   }
   if (mealTasteForm === "adjective" && mealTaste == null) {
     throw new Error(`${label}: tag "${selfSlug}" has mealTasteForm but no mealTaste — the form has nothing to describe`);
+  }
+}
+
+// mealClass — which of the three meal classes a catalog template is (COOKING.md, db/lib/meals.js). YAML writes it lowercase;
+// the column is the MealClass enum. Only a craftable, stackable recipe with a mealHunger and ingredient slots can be one —
+// anything else would be a meal nobody can cook, or one the Craft dialog cannot name.
+const MEAL_CLASSES_YAML = { basic: "BASIC", skilled: "SKILLED", lavish: "LAVISH" };
+function normalizeMealClass(value, { slug, label = "docs/tags.yaml" } = {}) {
+  if (value == null) return null;
+  const out = MEAL_CLASSES_YAML[value];
+  if (!out) {
+    throw new Error(`${label}: tag "${slug}" mealClass must be one of ${Object.keys(MEAL_CLASSES_YAML).join(", ")}`);
+  }
+  return out;
+}
+
+function validateMealClass(tag, { selfSlug, label = "docs/tags.yaml" }) {
+  if (tag.mealClass == null) return;
+  if (!tag.craftable || !tag.stackable) {
+    throw new Error(`${label}: tag "${selfSlug}" has a mealClass but is not a craftable, stackable recipe`);
+  }
+  if (!Number.isInteger(tag.mealHunger)) {
+    throw new Error(`${label}: tag "${selfSlug}" has a mealClass but no mealHunger — a meal has to feed somebody`);
+  }
+  if (!tag.requirement?.ingredientSlots) {
+    throw new Error(`${label}: tag "${selfSlug}" has a mealClass but no requirement.ingredientSlots`);
+  }
+  if (tag.customizable) {
+    throw new Error(`${label}: tag "${selfSlug}" has a mealClass and customizable — a meal is always named by its cook, through the meal branch of the Craft path, never the paid custom-craft one`);
   }
 }
 
@@ -1111,4 +1140,6 @@ module.exports = {
   validateRequirementYield,
   normalizeMealTaste,
   validateMealTasteForm,
+  normalizeMealClass,
+  validateMealClass,
 };

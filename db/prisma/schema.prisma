@@ -137,6 +137,15 @@ enum TurnStatus {
   RESOLVED
 }
 
+// The three meal classes a cook picks between (docs/systemdocs/COOKING.md,
+// db/lib/meals.js). Set on the three catalog templates and copied onto every
+// dish minted off one, so any surface can draw a Lavish name in italics.
+enum MealClass {
+  BASIC
+  SKILLED
+  LAVISH
+}
+
 // How much of a tag a 🔍 inspect shows to somebody else. HIDDEN is the
 // default and the common case; ALWAYS is worn-or-not; WORN is the concealable
 // middle — a dagger in a pocket, a badge left at home. WORN is only meaningful
@@ -634,25 +643,10 @@ model GameConfig {
   // See docs/systemdocs/PAPERWORK.md.
   noticeExpiryTurns Int @default(10)
 
-  // The most crops one Farm action may sow in a single plan
-  // (db/lib/soilery.js#validatePlan, FARM_MAX_CROPS is the fallback
-  // default). Edited on /gm/dev. See SOILERY.md.
-  farmMaxCrops Int @default(50)
-
-  // The field's productivity (db/lib/fieldProductivity.js, SOILERY.md §9): the curve
-  // that turns over-farming into worse harvests. All edited on /gm/dev, no deploy.
-  // Off means every harvest comes up whole and draws on nothing.
-  farmFieldEnabled  Boolean @default(true)
-  // Crops a turn the field refills, over what the town eats (2 crops a seat).
-  farmSustainMargin Float   @default(0.15)
-  // How many turns of refill the pool holds, and how deep in debt it may go.
-  farmPoolTurns     Float   @default(4)
-  // The share of a full pool at or above which the yield is untouched.
-  farmComfortFrac   Float   @default(0.75)
-  // The yield multiplier at an empty pool, and below it.
-  farmMinYield      Float   @default(0.25)
-  // The shape between: 1 is a straight line, more is gentle at first and steep at the end.
-  farmCurveExp      Float   @default(1)
+  // How many crops one Farm action plants (db/lib/soilery.js, FARM_PLANTS is
+  // the fallback). Each withers 1 in 6; every survivor is 1 Foodstuff.
+  // Edited on /gm/dev. See SOILERY.md.
+  farmMaxCrops Int @default(100)
 
   // When a finished craft hands over what it makes (CRAFTING.md §3a).
   // IMMEDIATE: on the press. STAGED: queued as a StagedEffect and applied at
@@ -1345,9 +1339,6 @@ model Location {
 
   structures Structure[]
 
-  // The field's state, for a place with the `soilery` attribute (db/lib/fieldProductivity.js). At most one.
-  field LocationField?
-
   // The Location's text channel, null until provisioned.
   discordChannelId String?
 
@@ -1569,23 +1560,6 @@ model LocationLink {
 
   @@unique([aId, bId])
   @@index([bId])
-}
-
-// One farming place's productivity (db/lib/fieldProductivity.js, docs/systemdocs/SOILERY.md §9). A Location carrying the
-// `soilery` attribute has at most one of these, made the first time somebody harvests there or the turn pass reaches it, so
-// a second field is just another Location with the attribute and needs no schema. Per-GAME state that hangs off a place the
-// wipe never deletes, so the wipe clears these explicitly (web/app/(app)/gm/dev/actions.js), like Structure.
-model LocationField {
-  locationId String   @id
-  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
-
-  // What the soil has left, in food-crop equivalents. Null until the first harvest draws on it, and null means full.
-  // Refilled by the turn-close field pass, drawn down by every harvest here, and below zero when the field has been overworked.
-  pool Float?
-
-  // What a surviving plant gives here this turn, times the base. Set by the field pass off the pool, read by every harvest
-  // here. 1 is a sound field.
-  yieldMult Float @default(1)
 }
 
 /// What crossing a gate announces in the destination zone's #summary.
@@ -2329,15 +2303,15 @@ model Character {
   // Orphan since the hunger rework.
   hungerStreak Int @default(0)
 
-  // The 0-100 hunger meter (docs/systemdocs/COOKING.md, the Soilery doc).
-  // Decays -10/turn (-20 with fast-metabolism), restored by eating. Never
-  // shown to a player as a number — the sheet only ever shows the
-  // hungry/starving tag chips. Written by db/lib/hungerPass.js and the
+  // The 0-100 hunger meter (docs/systemdocs/TURN-ENGINE.md §5, the Soilery
+  // Rework doc). Drops 17 a day (24 with fast-metabolism), split across the
+  // day's turns and truncated; restored by eating. Never shown to a player as
+  // a number — they see one descriptor (Full, Hungry or Starving). Written by db/lib/hungerPass.js and the
   // consume path (web/app/(app)/character/actions/misc.js).
   hungerValue Int @default(100)
 
-  // The turn number hungerValue first hit 0 — null once fed back above the
-  // Starving threshold. Used to count the consecutive turns that eventually
+  // The turn number hungerValue first hit 0 — null once it reads anything
+  // above 0. The column keeps its old name. Used to count the consecutive turns that eventually
   // grant `dying` (STARVING_DEATH_TURNS in db/lib/hunger.js).
   starvingSinceTurn Int?
 
@@ -3505,6 +3479,10 @@ model Tag {
   // convention as `cooked.taste`. Copied onto the minted dish row by
   // db/lib/customCraftMint.js. See docs/systemdocs/COOKING.md §3/§8.
   mealTaste String?
+
+  // Which meal class a dish was cooked as (MealClass above). Null on
+  // everything that is not a meal.
+  mealClass MealClass?
 
   // Only ever "adjective" or absent — same vocabulary as `cooked.tasteForm`.
   // Renders mealTaste bare ("it tastes bland") instead of as a noun ("it

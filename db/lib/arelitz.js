@@ -28,8 +28,8 @@ function breakInSucceeded(diceRoll, diceModifier) {
 }
 
 // The turn-close DM for a break-in attempt — read off the `brokeIn`
-// MOVE_EFFECTS snapshot (db/lib/moveEffects.js), same shape harvestLine/farmDm
-// read off `farmed`'s.
+// MOVE_EFFECTS snapshot (db/lib/moveEffects.js), same shape farmDm
+// reads off `farmed`'s.
 function breakInDm(turn, snapshot) {
   if (!snapshot) return null;
   if (snapshot.ok) {

@@ -73,7 +73,7 @@ each arrived at by getting them wrong first.
    cheaper failure than a losing racer double-charging everyone's upkeep.
 2. **Nothing files itself.** There was an auto-labor pass here, and it ran
    **first** in the sequence, because a day's labor *earned* ⬢ before the horse
-   upkeep pass below spent them (§5b). Laboring is gone. A day's work is a
+   upkeep pass below spent them (§5e). Laboring is gone. A day's work is a
    button pressed during the turn and paid at the press (`MINING.md` §3), so a
    character who files nothing simply has a day pass — nothing left in this
    sequence earns, and income-before-upkeep no longer constrains any ordering
@@ -273,12 +273,12 @@ each arrived at by getting them wrong first.
    their last ⬢ fed the horse and went Hungry. Hunger stopped costing money in
    9/2026 (§5), so the two passes no longer compete for the same purse and the
    slot is merely tidy. Nothing in the close earns any more either (§2 step 2),
-   so there is no income for it to come after. See §5b.
-8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep, never
-   before. Last turn's Hunger carries `expiresTurn` equal to the closing turn's
-   number, so the sweep clears it a moment before a fresh one may be granted.
-   The other order collides with `@@unique([characterId, tagId])` and silently
-   drops the re-grant, leaving a tag that expires immediately.
+   so there is no income for it to come after. See §5e.
+8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep. The hunger
+   descriptors carry no clock any more, so the order no longer guards against a
+   re-grant collision, but a Foodstuff eaten to stay out of Starving (§5a) must
+   not be one the sweep is about to expire, and a poison it grants starts its
+   clock on the turn about to open.
 8a. **Dawn afflictions pass** (`db/lib/dawnAfflictionPass.js`) — right after
    hunger. Guilt Ridden and Insomniac each roll a chance of a bad night's
    sleep, stepping the Tired → Exhausted ladder (`TAGS.md`, `MINING.md` §5).
@@ -526,10 +526,9 @@ The thunk performs, in narrative order:
    into the REST breaker's tally), then access revoke, role delete, and one
    combined `#leave` post naming everyone who died this turn.
 4. Hunger DMs — one per player who crossed newly into Hungry or Starving this
-   close (`db/lib/hungerPass.js`'s own notices), plus the Dying line for
-   anyone whose three-turn Starving clock just ran out (§5). A character who
-   stayed in the same band, or who ate enough to clear one already, hears
-   nothing from this step — the tag leaving their sheet is the whole notice.
+   close, or who ate Foodstuffs to stay out of Starving (§5a), all in one DM;
+   plus the Dying line for anyone whose meter just reached 0 (§5b).
+   A character who stayed in the same band hears nothing from this step.
    (The Dev Panel's Feed Them button sends its own `recovered` line instead,
    since a GM acting on someone's sheet needs telling apart from the
    player's own eating — `db/lib/hunger.js#hungerDm`.)
@@ -568,7 +567,7 @@ awaiting is what keeps the bot from emitting the burst of 429s that earns an
 IP-level ban.
 
 Both passes follow the same discipline: `runHungerPass` returns
-`starvedDiscordUserIds` and `runTagExpiryPass` returns `dms`, rather than
+`hungerNotices` and `runTagExpiryPass` returns `dms`, rather than
 either of them sending anything
 themselves — so none makes a network call and none can hold a turn advance
 open. Each also writes exactly **one** summary `AuditLog` row
@@ -683,136 +682,112 @@ exit — taking the announcement, the console text and the button row with it.
 
 ## 5. Hunger
 
-A 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), decaying by
-`HUNGER_DECAY_PER_TURN` (35, raised to 49 by `fast-metabolism`) at the close of
-every turn. `hungerless` pins the meter at `HUNGER_MAX` (100), clears
-`starvingSinceTurn`, and is skipped entirely. **Hunger costs no ⬢ at all any
-more** — the old upkeep (pay 1 ⬢, or 2 with a Big Appetite, or go Hungry) is
-gone outright, and with it `Character.hungerStreak`'s old escalating −1-per-turn
-Gambit penalty and `HUNGER_STREAK_CAP`. `hungerStreak` is an orphan column now
-— nothing writes or reads it — the same fate as `Character.missedMealStreak`
-below.
+A 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), from Bascinet's
+design doc `E:\Bascinet\V3\Soilery\Soilery Rework.docx`. **Hunger costs no ⬢**;
+it drops with time and is raised only by eating.
 
-Two thresholds carve the meter into bands, not one escalating streak:
-**Hungry** at `HUNGRY_THRESHOLD` (35 — exactly one turn's decay, so the word
-means "you have a day left") or below, **Starving** at
-`STARVING_THRESHOLD` (0) or below — nested, not exclusive, since Starving sits
-*inside* the Hungry range (`db/lib/hunger.js#bandOf`/`#crossings`). A
-character at or under 0 holds both tags at once; only the Gambit modifier
-(`db/lib/gambitModifier.js`) picks one and never sums them: **−1** Hungry,
-**−3** Starving, Starving winning outright. Crossing DOWN into either band for
-the first time — not merely remaining in one already held — charges a
-one-time **−30** mood hit (`HUNGRY_ONSET`/`STARVING_ONSET`, `MOOD.md`); a
-single turn's decay crossing both bands at once still charges exactly the two
-hits that fired, never a third for the distance travelled. Note that at a 35
-decay against a 35 threshold those two hits land on CONSECUTIVE closes for
-anybody who simply stops eating — −60 over two turns, before the nightly
-ambient −5/−10 on top. That is a live question rather than a settled one; if
-it reads as too steep, `HUNGRY_ONSET` is the figure to soften, not
-`STARVING_ONSET`.
+**It drops 17 a day**, split across however many turns the day holds and
+**truncated** to a whole number (`perTurnDecay`): a 24-hour turn burns 17, a
+12-hour turn 8, an 8-hour turn 5 and a 6-hour turn 4. The turn length is the
+closing Turn's own `turnLengthHours`. When **Turns per in-game day**
+(`GameConfig.turnsPerDay`) is set, the day is that many turns instead,
+whatever their length, and the share is **rounded up**: 2 turns a day burn 9
+each, 3 burn 6, 4 burn 5. `fast-metabolism` (Big Appetite) burns
+24 a day on the same terms — the doc does not name it, so it keeps the 1.4×
+it had before. `hungerless` never burns: the meter is pinned at 100 and the
+character holds no descriptor at all.
 
-Every food in the catalog is priced against that 35, and the three tiers are
-meant to read as one number each — a raw ingredient is about **a third of a
-turn** (the 6-18 band, centring on 12), a basic cooked meal is **one turn**
-(30-42, most of them exactly 35), and a skilled cooked meal is **about two turns**
-(64-76, centring on 70). Price a new recipe by which of those three
-sentences it belongs to, not by scaling off a neighbouring recipe.
+**A player never sees the number.** They see one of three **descriptors**, each
+a tag they hold (`full`, `hungry`, `starving` in `docs/tags.yaml`, all
+`visible: false`, so nobody inspecting them sees it either):
 
-**The seven farmed crops are the deliberate exception to that first band**
-(`SOILERY.md` §6). A plant yields three of them, so each one is a third the
-size — `wheat` 2, `plump-helmet` 3, the rest 4 — and three of them together
-come to the ordinary ingredient. Do not "fix" a crop back up into the 6-18
-band; that band is for a foodstuff you buy, forage or butcher, where one unit
-really is one unit.
+| Descriptor | Meter | Line | Effect |
+|---|---|---|---|
+| Full | 100–67 | You aren't particularly hungry right now. | — |
+| Hungry | 66–34 | You could really go for something to eat… | — |
+| Starving | 33–0 | You are starving to death! If you do not eat soon, you will perish. | −1 to Gambits |
 
-What raises the meter is eating, not a turn spent fed: a raw foodstuff
-restores `foodHungerFor(tag)` (its own `cooked.hunger`, or `Tag.mealHunger`
-for a minted dish, or a flat fallback for an unpriced item that still grants
-`ate-meal`); a cooked dish sums its own `mealHunger` plus every ingredient's.
-The write is one atomic, clamped `UPDATE ... LEAST(HUNGER_MAX, ...)`
-(`web/app/(app)/character/actions/misc.js#consumeTagRequestImpl`), and the
-Hungry/Starving tags come off the instant the meter crosses back over their
-threshold — not at the next turn close — via
-`db/lib/hungerBands.js#clearHungerBands`, shared with the Dev Panel's Feed
-Them button (`gm/dev/characters/[characterId]/actions.js#feedCharacter`).
-Nothing player-initiated ever grants or removes Hungry, Starving, or Dying via
-this path directly — no request type, no picker entry; eating only ever moves
-the meter, and the pass reads the meter fresh each close.
+The bands are separate, never nested: exactly one descriptor is held at a time.
+The descriptor carries no clock — the turn pass and eating move it, nothing
+else (`db/lib/hungerDescriptor.js#syncHungerDescriptor` for eating and the Dev
+Panel's Feed Them, the pass's own batch for the close). The word is shown on
+the sheet's Hunger tile ([`SHEET.md`](SHEET.md)) and in the bottom-left panel of
+`/chat` ([`CHAT.md`](CHAT.md)); both work it out on the server from the held
+tag, so `hungerValue` never reaches a browser.
 
-Reaching 0 and staying there for **`STARVING_DEATH_TURNS` (3) consecutive
-closes** grants `dying` with a one-turn clock — an inference this rework made
-(the doc names no such rule for prolonged Starving), easy to retune in
-`db/lib/hunger.js`. Nothing here kills anyone, same as every other terminal
-tag chain (§3) — the Dying death pass (§2 4b) is what finishes at the next
-close what starving started, and the Catatonic death pass (§2 7b) is the
-other. `Character.starvingSinceTurn` is the clock: stamped the turn the meter
-first reads at or below 0, cleared the instant it eats back above 0 — so
-eating on the second of three starved turns resets the count to zero rather
-than merely pausing it. `db/lib/hungerPass.js#runHungerPass` is the only
-turn-pass writer of `hungerValue`, `starvingSinceTurn`, and the two band tags.
+**Nobody is warned in advance.** The sheet used to forecast "You'll go hungry"
+the turn before it happened; the doc removes that. A character is told the
+moment they become Hungry or Starving, and not before.
 
-A character born mid-close — Metempsychosis, or any death this same
-`resolveNeeds()` run reincarnated (`stagedPush`/`dyingDeath`/`ascension`/
-`nukeExplosion`/`catatonicDeath`/`xom` all route through `applyDeathToRow`,
-which can trigger a rebirth) — is excluded from this turn's pass: `db/index.js`
-passes a `bornBefore` cutoff, taken before any pass runs, and the pass never
-sees a character created after it. They start decaying the turn after the one
-they woke up in.
+### 5a. Eating to stay out of Starving
 
-Per character, at the close of every turn:
+At the close, a character the decay would drop into Starving who is carrying
+**Foodstuffs** eats as many as it takes to reach the first Hungry value (34),
+or all of them if that is not enough (`db/lib/hunger.js#planAutoEat`). Each
+costs its usual 5 mood; being Starving costs nothing, because they are not.
+They are told: *"You were about to starve, so you ate 3 Foodstuffs from your
+pack."* Nothing happens to somebody with no Foodstuffs, and nothing else they
+carry is eaten.
 
-| State | Outcome |
-|---|---|
-| Holds `hungerless` | Pinned at `HUNGER_MAX`; `starvingSinceTurn` cleared; skipped entirely. |
-| Holds `fast-metabolism` | Decays **20** instead of 10. |
-| Otherwise | Decays **10**. |
+A poisoned Foodstuff eaten this way poisons them exactly as eating it by hand
+would: `db/lib/consumeGrants.js` (moved out of `web/lib` for this) resolves the
+poison's grants against their own resists.
 
-Every decay is floored at 0 — `Character.hungerValue` can never go negative
-without a `Math.max`, the same structural-clamp discipline the old resource
-decrement used, just aimed at the meter instead of ⬢. Crossing down into
-Hungry or Starving for the first time this close grants the tag (`expiresTurn`
-one turn out, `createMany({ skipDuplicates: true })`) and charges the one-time
-mood hit; crossing back up over a threshold drops it. A character who stays
-exactly where they were — still Hungry, still above 0 — hears nothing: the DM
-only fires on a fresh crossing, never once per turn spent in a band.
+### 5b. The pass
 
-### There is no starvation brake here, on purpose
+`db/lib/hungerPass.js#runHungerPass`, per ALIVE character (the `bornBefore`
+cutoff excludes anybody born during this close):
 
-An earlier revision of this pass shipped with `HUNGER_CAN_KILL = false`: the
-⬢ charge had come out, but no foodstuff existed yet for a character with no
-Cooking to eat, so letting Starving reach `dying` unconditionally would have
-killed every such character on schedule with no action that could have saved
-them. The brake's own comment named its exact condition for going away: "flip
-it to `true` in the same change that ships foodstuff items, and not before."
+1. Plan with the pure `db/lib/hunger.js#planHunger`: the decay, what would be
+   eaten, where that lands.
+2. In **one** transaction: batch the decay for everybody who is not eating
+   (four `updateMany` buckets, each guarded so the meter never goes below 0);
+   for each eater, lock them, re-read their Foodstuffs and meter, eat and set
+   the meter outright; set exactly one descriptor for everyone (none for the
+   Hungerless); run the zero clock (below).
+3. After it: one mood write per character — the one-time **−30** for dropping
+   into Hungry and again into Starving (`HUNGRY_ONSET`/`STARVING_ONSET`, charged
+   on where the character *ends*, so eating back to Hungry never costs the
+   Starving hit), −5 per Foodstuff eaten, and −40 for Dying. The nightly −5
+   while Hungry and −10 while Starving are the mood pass's (`MOOD.md`).
+4. Hand back the notices; they are DM'd by the side-effect runner, one DM per
+   character however many lines it carries (`turnSideEffects/steps/hunger.js`).
 
-**This is that change.** Soilery ships the foodstuff catalog the brake was
-waiting on — six growable crops, ten more foodstuffs, and the seed-bag/Farming
-chain that gets a character to them without Cooking at all — on top of the
-Depot wares and cave loot that already existed. The counter that stocks those
-wares is open to everybody now rather than to one man (`DEPOT.md`), so a Ration
-Box is a walk and an order rather than a favour. `STARVING_DEATH_TURNS` (above,
-this same section) is therefore unconditional, with no flag gating it: the
-prerequisite and the follow-up landed in the same rework.
+One summary `hunger_resolved` audit row per close, and one batch tag-change row
+per descriptor somebody moved into — never one per character.
 
-One summary `hunger_resolved` audit row per turn, not one per character: at
-100+ players the latter would drown `/gm/audit`.
+**The zero clock.** `Character.starvingSinceTurn` (the name is older than the
+rework; it now means "at 0 since") is stamped the first close the meter reads
+0 and cleared the moment it reads anything else. **The close that takes the
+meter to 0** grants `dying` with a one-turn clock, and the Dying death pass
+finishes it at the next close. A cure without food buys nothing: the next close
+still reads 0 and grants it again. The doc says only that a Starving character
+"will perish" if they do not eat; the timing is Bascinet's call
+(`STARVING_DEATH_TURNS`, 1).
 
-Full writeup: `REQUESTS.md` §4.
+### 5c. Eating
 
-### 5a. Nobility upkeep
+A food restores `foodHungerFor(tag)` — its `mealHunger` (a meal's class
+figure, a Foodstuff's 4, a Ration Box draw's own), else an ingredient's
+`cooked.hunger`, else nothing. A meal adds every extra ingredient's
+(`unitHungerFor`). There is no longer a default for "something that grants Ate
+Meal": Ate Meal and Dined are gone. Consume can eat several at once, up to what
+fills the eater, and refuses food at 100 unless they are a Glutton; the
+Hungerless may eat but gain neither hunger nor mood — [`REQUESTS.md`](REQUESTS.md)
+§4.
 
-The Disappointed track is gone — no separate tag, no streak counter driving
-it. A noble who ends the turn without the `dined` marker (no fine or lavish
-meal that turn) instead takes −10 mood at the mood pass (8c, `MOOD.md`), the
-same as any other harm to the dial. Hungerless and Dying nobles are exempt.
+What a thing is worth, roughly, against 17 a day: a Foodstuff is a quarter of a
+day; a Basic meal (15) most of a day, a Skilled one (18) a day, a Lavish one
+(20) a little more — before its extra ingredients, which usually add most of it.
 
-`Character.missedMealStreak` is an orphan column now — nothing writes or
-reads it any more, same as `GameConfig.mindlinkChannelId`. There is no
-player-facing tracker: the sheet's old Dinner row went with the track
-(Bascinet's call, 2026-09-07). A noble learns they skipped dinner the way
-everyone learns about a bad night — the word in the Mood box on their sheet.
+### 5d. Nobility upkeep
 
-### 5b. The horse's feed
+Gone. A noble used to take −10 mood at the mood pass for ending a turn without
+the `dined` marker a fine meal granted; the doc removes every "ate recently"
+tag, so the marker and the penalty went with it. `Character.missedMealStreak`
+stays an orphan column.
+
+### 5e. The horse's feed
 
 A Horse costs **1 ⬢ every turn it is in your inventory**
 (`db/lib/horseUpkeepPass.js`), and this pass is **not** affected by the hunger
@@ -886,15 +861,6 @@ It is random and therefore **not idempotent**. That is exactly why it is a
 named pass rather than inline work: `markDone` is what stops a resumed turn
 advance from drifting the whole map twice. The full parameter table is in
 `MINING.md` §6.
-
-## 6c. The field pass
-
-`"fieldRegen"` in `TURN_PASSES` (`db/lib/fieldProductivity.js#runFieldPass`) refills
-the pool of every farming place (each Location with the `soilery` attribute) and sets next turn's yield multiplier there (`SOILERY.md` §9). It runs
-right after `"miningYield"` and, like it, late on purpose: harvests draw on the pool
-in the staged push, so this turn's are already out of it, and what the pass writes
-is what the **next** turn's harvests come up at. It adds a turn of refill, so it is
-not idempotent and has its own `markDone`. Its `AuditLog` row is `field_regen`.
 
 ## 6a. The Move cutoff
 
@@ -1052,11 +1018,11 @@ markers for the desk's labels.
 | `web/app/components/LockChip.js` | The cutoff in every page header, in the reader's own time (§6a) |
 | `db/lib/stagedPush.js` | The staged push pass (`ADJUDICATION.md`) |
 | `db/lib/miningYield.js` | Mining coefficient drift, and the quality words |
-| `db/lib/horseUpkeepPass.js` | The horse's feed (§5b) |
+| `db/lib/horseUpkeepPass.js` | The horse's feed (§5e) |
 | `db/lib/resourceStack.js` | ⬢ as a stack row — the only reader and writer of a ⬢ balance (`CARRY.md`, `ECONOMY.md`) |
-| `db/lib/hunger.js` | The 0-100 hunger meter itself — thresholds, decay, banding (§5) |
+| `db/lib/hunger.js` | The 0-100 hunger meter itself — the per-day decay, the three descriptors, eating to stay out of Starving (§5) |
 | `db/lib/hungerPass.js` | The Hunger pass |
-| `db/lib/hungerBands.js` | Clearing Hungry/Starving the instant eating clears the threshold (§5) |
+| `db/lib/hungerDescriptor.js` | Swapping the one descriptor tag the moment eating moves the meter (§5) |
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
 | `db/lib/catatonicDeathPass.js` | The Catatonic death pass (§2 7b) |
 | `db/lib/dyingDeathPass.js` | The Dying death pass (§2 4b) |

@@ -1,80 +1,118 @@
-// The 0-100 hunger meter (the Soilery doc, pages 1-2; docs/systemdocs/COOKING.md
-// §3 for the `cooked.hunger` field this reads). Replaces the old
-// ⬢-upkeep/streak/Gambit-penalty system outright — see the plan's Context §1.
+// The 0-100 hunger meter (E:\Bascinet\V3\Soilery\Soilery Rework.docx;
+// docs/systemdocs/TURN-ENGINE.md §5). A character never sees the number, only
+// one of three descriptors, each a tag they hold: Full, Hungry or Starving.
 // No Prisma import here, same posture as db/lib/gambitModifier.js/godflesh.js,
 // so both bot/ and web/ can import this by subpath without dragging in the
 // generated Prisma client.
-const { HUNGERLESS_SLUG, FAST_METABOLISM_SLUG, ATE_MEAL_SLUG } = require("./constants");
+const {
+  HUNGERLESS_SLUG,
+  FAST_METABOLISM_SLUG,
+  GLUTTON_SLUG,
+  FULL_SLUG,
+  HUNGER_SLUG,
+  STARVING_SLUG,
+} = require("./constants");
 
 const HUNGER_MAX = 100;
 const HUNGER_MIN = 0;
-// A full meter is a little under three turns, so eating is a thing you do
-// most days rather than once a week. Fast Metabolism is +14 rather than the
-// double it used to be: at 70 a basic cooked meal could not keep up with the
-// decay at all, which made the tag unplayable rather than expensive.
-const HUNGER_DECAY_PER_TURN = 35;
-const HUNGER_DECAY_FAST_METABOLISM = 49;
 
-// <= is Hungry, <= is Starving. Starving sits INSIDE the Hungry range on
-// purpose — a character at or below 0 is both hungry and starving at once
-// (both tags may be held together); it is only the Gambit modifier
-// (db/lib/gambitModifier.js) that picks one and never sums them.
-//
-// Hungry is exactly one turn's decay wide, so the word means "you have a day
-// left" rather than an amount nobody is shown.
-const HUNGRY_THRESHOLD = 35;
-const STARVING_THRESHOLD = 0;
+// The doc's rate: 17 a day, split across however many turns the day holds,
+// with the per-turn figure truncated to a whole number (so a 6-hour turn
+// burns 4, not 4.25). Big Appetite (`fast-metabolism`) keeps the 1.4x it had
+// under the old per-turn rate — the doc does not name it.
+const HUNGER_DECAY_PER_DAY = 17;
+const HUNGER_DECAY_PER_DAY_FAST = 24;
+
+// The three bands are separate, not nested: Full is 67-100, Hungry 34-66,
+// Starving 0-33. `<=` a threshold puts you in that band.
+const HUNGRY_THRESHOLD = 66;
+const STARVING_THRESHOLD = 33;
+// Where the turn close's automatic eating stops: the first Hungry value.
+const AUTO_EAT_FLOOR = STARVING_THRESHOLD + 1;
 
 // One-time mood hit, charged only on the turn a character crosses DOWN into
 // a band — never once per turn they simply remain in it.
 const THRESHOLD_MOOD_HIT = -30;
-// What eating raw (uncooked) food costs before the food's own mood term is
-// added — see rawFoodMoodTerms below.
+// What eating a raw ingredient (meat, cheese, a fish) costs before the
+// food's own mood term is added — see rawFoodMoodTerms below. Foodstuffs
+// are not on this path: they carry their own flat -5 as `mealMood`.
 const RAW_FOOD_MOOD = -10;
 
-// INFERRED — this plan's own number, not the design doc's (Context §6). The
-// doc names no Dying-replacement rule for prolonged Starving; three
-// consecutive closes at 0 hunger was chosen to mirror the shape of the old
-// HUNGER_STREAK_CAP mechanic it replaces. Easy to retune post-merge.
-const STARVING_DEATH_TURNS = 3;
-// INFERRED — this plan's own number, not the design doc's (Context §6). A
-// fallback so the ~32 existing unpriced `items-food` tags (anything that
-// still grants `ate-meal` but carries no `cooked.hunger`/`mealHunger`) don't
-// become inedible under the new meter. Easy to retune post-merge. Scaled
-// ×3 alongside every doc-given hunger value when the meter moved to 0-100.
-const DEFAULT_FOOD_HUNGER = 12;
+// The close that takes the meter to 0 grants `dying` (Bascinet's call; the doc
+// says only that a Starving character "will perish" if they do not eat soon).
+// Dying then runs its usual one-turn clock (db/lib/dyingDeathPass.js).
+const STARVING_DEATH_TURNS = 1;
+
+// What one Foodstuff restores, if the tag row has somehow lost its
+// `mealHunger`. The catalog (docs/tags.yaml) is the real source.
+const FOODSTUFF_HUNGER = 4;
+
+// The doc's three descriptors, word for word. `tone` is the design-system
+// tone a tile or row draws the word in.
+const DESCRIPTORS = {
+  full: {
+    band: "full",
+    slug: FULL_SLUG,
+    word: "Full",
+    line: "You aren't particularly hungry right now.",
+    tone: "muted",
+  },
+  hungry: {
+    band: "hungry",
+    slug: HUNGER_SLUG,
+    word: "Hungry",
+    line: "You could really go for something to eat…",
+    tone: "warn",
+  },
+  starving: {
+    band: "starving",
+    slug: STARVING_SLUG,
+    word: "Starving",
+    line: "You are starving to death! If you do not eat soon, you will perish.",
+    tone: "bad",
+  },
+};
+const DESCRIPTOR_BY_SLUG = Object.fromEntries(Object.values(DESCRIPTORS).map((d) => [d.slug, d]));
 
 function clampHunger(value) {
   const n = Number.isFinite(value) ? value : 0;
   return Math.min(HUNGER_MAX, Math.max(HUNGER_MIN, Math.round(n)));
 }
 
-// Always returns a band. Starving is checked first since it's the tighter
-// (inner) range — a value of 0 is both, but "starving" is the one word that
-// answers "how hungry is this character" when asked for a single band.
 function bandOf(hungerValue) {
   const v = clampHunger(hungerValue);
   if (v <= STARVING_THRESHOLD) return "starving";
   if (v <= HUNGRY_THRESHOLD) return "hungry";
-  return "fed";
+  return "full";
 }
 
-// Accepts a Set or array of held slugs (either shape callers already pass to
-// db/lib/mood.js's multiplierFor). Hungerless never decays; Fast Metabolism
-// decays twice as fast; everyone else pays the flat rate.
-function decayFor(heldSlugs) {
-  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+// A per-day figure spread over one turn. By default a day is the calendar
+// day: a turn is 6, 8, 12 or 24 hours (Turn.turnLengthHours), so 17 a day is
+// 4, 5, 8 or 17 a turn, truncated because the doc says so (unlike
+// db/lib/vampire.js#perTurnRate). When GameConfig.turnsPerDay is set, a day is
+// that many turns instead, whatever their length, and the share rounds UP:
+// 17 over 2 turns is 9 a turn (Bascinet's call).
+function perTurnDecay(perDay, turnLengthHours, turnsPerDay = 0) {
+  if (Number.isInteger(turnsPerDay) && turnsPerDay >= 1) return Math.ceil(perDay / turnsPerDay);
+  const hours = Number.isFinite(turnLengthHours) && turnLengthHours > 0 ? turnLengthHours : 24;
+  return Math.trunc((perDay * hours) / 24);
+}
+
+function asSet(slugs) {
+  return slugs instanceof Set ? slugs : new Set(slugs ?? []);
+}
+
+// Accepts a Set or array of held slugs. Hungerless never decays.
+function decayFor(heldSlugs, turnLengthHours, turnsPerDay = 0) {
+  const held = asSet(heldSlugs);
   if (held.has(HUNGERLESS_SLUG)) return 0;
-  if (held.has(FAST_METABOLISM_SLUG)) return HUNGER_DECAY_FAST_METABOLISM;
-  return HUNGER_DECAY_PER_TURN;
+  const perDay = held.has(FAST_METABOLISM_SLUG) ? HUNGER_DECAY_PER_DAY_FAST : HUNGER_DECAY_PER_DAY;
+  return perTurnDecay(perDay, turnLengthHours, turnsPerDay);
 }
 
-// before/after are raw hungerValue numbers (not clamped by the caller is
-// fine — this clamps its own reads). Reports each threshold's crossing
-// independently, in EITHER direction, so a caller can grant/drop each tag
-// and charge each onset mood hit exactly once — even when a single turn's
-// decay crosses both bands at once (never -60: each band's hit is its own
-// term, and hungerPass charges the ones that fired, not one per point lost).
+// before/after are raw hungerValue numbers. Reports each threshold's crossing
+// independently, in EITHER direction, so a caller can charge each onset mood
+// hit exactly once.
 function crossings(before, after) {
   const b = clampHunger(before);
   const a = clampHunger(after);
@@ -86,31 +124,103 @@ function crossings(before, after) {
   };
 }
 
-function grantsAteMeal(tag) {
-  return Array.isArray(tag?.consumesInto) && tag.consumesInto.includes(ATE_MEAL_SLUG);
+// What the character is told about their hunger: a word and the doc's line,
+// never the number. Reads the descriptor tag they hold, and falls back to the
+// meter only when they hold none (a sheet read before the turn pass first
+// ran). The Hungerless get no descriptor at all.
+function hungerDescriptorFor({ heldSlugs, hungerValue }) {
+  const held = asSet(heldSlugs);
+  if (held.has(HUNGERLESS_SLUG)) return null;
+  for (const slug of held) {
+    if (DESCRIPTOR_BY_SLUG[slug]) return DESCRIPTOR_BY_SLUG[slug];
+  }
+  return DESCRIPTORS[bandOf(hungerValue ?? HUNGER_MAX)];
 }
 
-// How much a single held/eaten tag restores on the meter. A recipe's own
-// `mealHunger` (Tag.mealHunger, copied onto a minted dish by
-// db/lib/customCraftMint.js) wins outright; failing that, an ingredient's own
-// `cooked.hunger`; failing that, DEFAULT_FOOD_HUNGER for anything that still
-// grants `ate-meal` (an existing foodstuff tag nobody has priced yet), or 0
-// for anything that isn't food at all.
+// How much a single tag restores on the meter: a meal's or a Foodstuff's own
+// `mealHunger` (copied onto a minted dish by db/lib/customCraftMint.js),
+// failing that an ingredient's own `cooked.hunger`, failing that nothing.
 function foodHungerFor(tag) {
   if (!tag) return 0;
   if (Number.isInteger(tag.mealHunger)) return tag.mealHunger;
   if (Number.isInteger(tag.cooked?.hunger)) return tag.cooked.hunger;
-  return grantsAteMeal(tag) ? DEFAULT_FOOD_HUNGER : 0;
+  return 0;
+}
+
+// One unit of a dish is its own figure plus every additional ingredient's.
+function unitHungerFor(tag, ingredientTags = []) {
+  return foodHungerFor(tag) + ingredientTags.reduce((sum, t) => sum + foodHungerFor(t), 0);
+}
+
+// The Consume slider's top end (the doc): what you hold, or how many you can
+// eat before the meter reaches 100, whichever is lower. The last one may
+// overshoot. At 100 you cannot eat food at all, unless you are a Glutton or
+// Hungerless. Something that is not food is never capped by hunger.
+function eatMaxFor({ hungerValue, perUnit, held, glutton = false, hungerless = false }) {
+  const have = Math.max(0, Math.trunc(held ?? 0));
+  if (!(perUnit > 0) || glutton || hungerless) return have;
+  const room = HUNGER_MAX - clampHunger(hungerValue);
+  if (room <= 0) return 0;
+  return Math.min(have, Math.ceil(room / perUnit));
+}
+
+// How many Foodstuffs a character eats at the turn close to stay out of
+// Starving: enough to reach the first Hungry value, or all they have.
+function planAutoEat(afterDecay, held, perUnit) {
+  const v = clampHunger(afterDecay);
+  if (v > STARVING_THRESHOLD || !(held > 0) || !(perUnit > 0)) return 0;
+  return Math.min(held, Math.ceil((AUTO_EAT_FLOOR - v) / perUnit));
+}
+
+// Where a character lands once the close's decay and any automatic eating
+// are known. `eaten` is what was actually eaten (it may be fewer than
+// planned if the stack moved under the lock). Shared by planHunger and
+// db/lib/hungerPass.js so the two can never disagree.
+function resolveHunger({ before, afterDecay, eaten = 0, perUnit = FOODSTUFF_HUNGER, starvingSinceTurn = null, turnNumber }) {
+  const final = clampHunger(afterDecay + eaten * perUnit);
+  const band = bandOf(final);
+  const cross = crossings(before, final);
+  const zeroSince = final <= HUNGER_MIN ? starvingSinceTurn ?? turnNumber : null;
+  const newlyDying = zeroSince != null && turnNumber - zeroSince >= STARVING_DEATH_TURNS - 1;
+
+  const kinds = [];
+  if (eaten > 0) kinds.push(final > STARVING_THRESHOLD ? "autoAte" : "autoAteShort");
+  if (cross.enteredStarving || newlyDying) kinds.push("starving");
+  else if (cross.enteredHungry) kinds.push("hungry");
+  const notice = kinds.length ? { kinds, eaten, justDied: newlyDying } : null;
+
+  return { final, band, cross, zeroSince, newlyDying, notice };
+}
+
+// The whole close for one character, with no database: the decay, what they
+// would eat to stay out of Starving, and where that leaves them.
+function planHunger(
+  { hungerValue, starvingSinceTurn = null, heldSlugs, foodstuffsHeld = 0 },
+  { turnLengthHours, turnsPerDay = 0, turnNumber, perUnit = FOODSTUFF_HUNGER },
+) {
+  const held = asSet(heldSlugs);
+  if (held.has(HUNGERLESS_SLUG)) {
+    return { hungerless: true, decay: 0, afterDecay: HUNGER_MAX, eat: 0, final: HUNGER_MAX, band: null, zeroSince: null, newlyDying: false, notice: null };
+  }
+  const before = clampHunger(hungerValue);
+  const decay = decayFor(held, turnLengthHours, turnsPerDay);
+  const afterDecay = clampHunger(before - decay);
+  const eat = planAutoEat(afterDecay, foodstuffsHeld, perUnit);
+  return {
+    hungerless: false,
+    decay,
+    afterDecay,
+    eat,
+    ...resolveHunger({ before, afterDecay, eaten: eat, perUnit, starvingSinceTurn, turnNumber }),
+  };
 }
 
 // What eating something RAW costs/earns as mood terms, mirroring
 // db/lib/mood.js#dishMoodTerms's returned-terms shape so applyMoodTerms
 // handles either the same way. Raw food always carries the flat RAW_FOOD
-// penalty (noMultiplier, same reasoning DISGUST already uses — revulsion at
-// eating something uncooked isn't a fright, so no tag scales it); on top of
-// that, the food's own `cooked.mood` lands as a MEAL term if positive or a
-// DISGUST term (also noMultiplier) if negative. A cooked dish never calls
-// this — dishMoodTerms is the cooked path, and the two never combine.
+// penalty (noMultiplier — revulsion at eating something uncooked isn't a
+// fright, so no tag scales it); on top of that, the food's own `cooked.mood`
+// lands as a MEAL term if positive or a DISGUST term if negative.
 function rawFoodMoodTerms(cookedMood) {
   const mood = Number.isFinite(cookedMood) ? cookedMood : 0;
   const terms = [{ kind: "RAW_FOOD", base: RAW_FOOD_MOOD, noMultiplier: true }];
@@ -119,45 +229,66 @@ function rawFoodMoodTerms(cookedMood) {
   return terms;
 }
 
-// The per-band DM copy (the Soilery doc's hunger section). No line names a
-// number, per the doc. Replaces hungerPass.js's old inline streak-based copy.
+function foodstuffWord(n) {
+  return n === 1 ? "1 Foodstuff" : `${n} Foodstuffs`;
+}
+
+// The DM a close sends. No line names a number of hunger points. A notice
+// from the pass carries `kinds` (several lines in one DM); the GM's Feed
+// Them button still sends the older one-kind shape.
 function hungerDm(notice) {
-  if (notice.kind === "hungry") {
-    return "Your stomach has started to complain. Find something to eat.";
+  const kinds = notice?.kinds ?? (notice?.kind ? [notice.kind] : []);
+  const lines = [];
+  for (const kind of kinds) {
+    if (kind === "autoAte") {
+      lines.push(`You were about to starve, so you ate ${foodstuffWord(notice.eaten)} from your pack.`);
+    } else if (kind === "autoAteShort") {
+      lines.push(
+        notice.eaten === 1
+          ? "You were starving, so you ate your last Foodstuff. It wasn't enough."
+          : `You were starving, so you ate your last ${foodstuffWord(notice.eaten)}. It wasn't enough.`,
+      );
+    } else if (kind === "hungry") {
+      lines.push(`You're **Hungry**. ${DESCRIPTORS.hungry.line}`);
+    } else if (kind === "starving") {
+      lines.push(`You're **Starving**. ${DESCRIPTORS.starving.line}`);
+    } else if (kind === "recovered") {
+      lines.push("You've eaten enough. The gnawing has stopped.");
+    }
   }
-  if (notice.kind === "starving") {
-    return "You are starving. You need food now.";
-  }
-  if (notice.kind === "recovered") {
-    return "You've eaten enough. The gnawing has stopped.";
-  }
-  return null;
+  return lines.length ? lines.join("\n") : null;
 }
 
 // Sent alongside a "starving" notice the turn `dying` first lands
-// (notice.justDied) — db/lib/turnSideEffects/steps/hunger.js. Kept as its
-// own export, same as the old hungerPass.js DYING_DM, rather than folded
-// into hungerDm's kind switch: it always rides BESIDE a starving notice,
-// never instead of one.
+// (notice.justDied) — db/lib/turnSideEffects/steps/hunger.js.
 const DYING_DM =
   "You have not eaten in days. Your body is giving out — you're **Dying**. A GM will decide what happens next.";
 
 module.exports = {
   HUNGER_MAX,
   HUNGER_MIN,
-  HUNGER_DECAY_PER_TURN,
-  HUNGER_DECAY_FAST_METABOLISM,
+  HUNGER_DECAY_PER_DAY,
+  HUNGER_DECAY_PER_DAY_FAST,
   HUNGRY_THRESHOLD,
   STARVING_THRESHOLD,
+  AUTO_EAT_FLOOR,
   THRESHOLD_MOOD_HIT,
   RAW_FOOD_MOOD,
   STARVING_DEATH_TURNS,
-  DEFAULT_FOOD_HUNGER,
+  FOODSTUFF_HUNGER,
+  DESCRIPTORS,
   clampHunger,
   bandOf,
+  perTurnDecay,
   decayFor,
   crossings,
+  hungerDescriptorFor,
   foodHungerFor,
+  unitHungerFor,
+  eatMaxFor,
+  planAutoEat,
+  resolveHunger,
+  planHunger,
   rawFoodMoodTerms,
   hungerDm,
   DYING_DM,

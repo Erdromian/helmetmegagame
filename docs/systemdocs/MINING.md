@@ -325,7 +325,7 @@ changed: there is no breaking rock without one.
 ### The gathering table
 
 `GATHERING_TABLE` in `db/lib/cavingLoot.js`. Every entry is food, and most come
-as a small **stack** — one onion is not a day's work. An entry is
+as a small **stack** — one mushroom is not a day's work. An entry is
 `{ slug, quantity }`; the two stone tables stay bare slugs, and `drawFrom` reads
 either. The `miningDrop` effect grants the stack and writes `quantity` into its
 snapshot, so Undo takes back exactly what was granted; a snapshot with no
@@ -333,7 +333,7 @@ snapshot, so Undo takes back exactly what was granted; a snapshot with no
 
 | Tier | Weight | What is in it |
 |---|---|---|
-| Ultracommon | 50% | Cave Fungus ×2, Onion ×2, Carrot ×2 |
+| Ultracommon | 50% | Cave Fungus ×2, Foodstuffs ×2, Foodstuffs ×3 (the Soilery Rework's wild produce, where Onion and Carrot were) |
 | Common | 30% | Crayfish ×2, Meat, Skinned Cave Rat |
 | Uncommon | 14% | Deep Morel, Honey, Meat ×2 |
 | Rare | 4.5% | Boar Loin, Deer Liver |

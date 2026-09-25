@@ -16,8 +16,7 @@ const path = require("path");
 const yaml = require("js-yaml");
 const { parseStartingTag } = require("../../../lib/startingTags");
 const hunger = require("../../../lib/hunger");
-const soilery = require("../../../lib/soilery");
-const { FAST_METABOLISM_SLUG, HUNGERLESS_SLUG } = require("../../../lib/constants");
+const { FAST_METABOLISM_SLUG, HUNGERLESS_SLUG, FOODSTUFFS_SLUG } = require("../../../lib/constants");
 const { ALL_GROUPS } = require("../../../lib/roleGroups");
 const { median } = require("./stats");
 const { roleCapacity } = require("../../../lib/roleCapacity");
@@ -87,12 +86,9 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
   }
   const resolve = (id) => get(id) ?? byName.get(String(id).toLowerCase()) ?? null;
   const foodHungerOf = (t) => (foodBy.has(t.slug) ? foodBy.get(t.slug) : hunger.foodHungerFor(t));
-  // Only the crops somebody can actually eat. Tobacco is sown like the rest but is a cash crop with no
-  // cooked block, so counting it as dish input turned a tobacco plant into 17.5 hunger of dinner.
-  const cropSlugs = new Set(soilery.CROPS.map((c) => c.crop).filter((slug) => {
-    const t = get(slug);
-    return Boolean(t) && foodHungerOf(t) > 0;
-  }));
+  // The one crop the Soilery rework left: Foodstuffs. Kept as a set so the rest of this file's shape,
+  // built around "a held crop" rather than one hardcoded slug, survives unchanged.
+  const cropSlugs = new Set([FOODSTUFFS_SLUG]);
   const isKey = (slug) => /-key$|keycard$|^keycard/.test(slug) || slug === "depot-keycard" || slug === "ancient-keycard";
 
   const { rooms, doors, locNames } = readRooms();
@@ -161,7 +157,7 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
       const docElements = r.doc_elements ?? [];
 
       const bank = r.bank_account ? r.starting_account ?? 0 : 0;
-      const decay = slugs.has(HUNGERLESS_SLUG) ? 0 : slugs.has(FAST_METABOLISM_SLUG) ? hunger.HUNGER_DECAY_FAST_METABOLISM : decayBase;
+      const decay = slugs.has(HUNGERLESS_SLUG) ? 0 : slugs.has(FAST_METABOLISM_SLUG) ? params.hungerDecayFast : decayBase;
 
       let seats = 1;
       let unlimited = false;
@@ -321,7 +317,7 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
     deathTurns,
     hungryAt: hunger.HUNGRY_THRESHOLD,
     costPerPersonTurn,
-    fastDecay: hunger.HUNGER_DECAY_FAST_METABOLISM,
+    fastDecay: params.hungerDecayFast,
     noFoodHungry: hungryTurn(0, decayBase),
     noFoodStarve: startingTurn(0, decayBase),
     noFoodDying: startingTurn(0, decayBase) + deathTurns - 1,

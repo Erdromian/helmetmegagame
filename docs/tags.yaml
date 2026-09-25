@@ -180,12 +180,12 @@
 #                     Default false. Consuming always takes exactly ONE
 #                     unit, so a stack of meals feeds you several times.
 #   consumesInto    - list of tag slugs this tag turns INTO when it is
-#                     consumed (a meal becoming ate-meal; Starting Wares
+#                     consumed (a drink becoming Tipsy; Starting Wares
 #                     unpacking into goods). Repeat a slug to grant several
 #                     of it — that only multiplies for a stackable tag, a
 #                     non-stackable repeat collapses to one. Granted tags
 #                     that have their own durationTurns start their clock at
-#                     that moment, so chains work (meal -> ate-meal, which
+#                     that moment, so chains work (drink -> tipsy, which
 #                     the expiry sweep then clears). If the character already
 #                     holds a non-stackable granted tag, their existing one
 #                     is left alone. Omit it for a consumable that simply
@@ -194,7 +194,7 @@
 #                     character holding NONE of the listed tags. Nothing in
 #                     the catalog uses this today; the shape is:
 #                         consumesInto:
-#                           - ate-meal
+#                           - tipsy
 #                           - slug: night-vision
 #                             unlessTags: [blind]
 #                     Both halves are validated against this file. The
@@ -358,7 +358,7 @@ tags:
     catalog: gm
     name: Hungerless
     category: meta
-    description: "Your body no longer needs sustenance."
+    description: "Your body no longer needs sustenance. You can still eat, but food does nothing for you."
     pointCost: 0
     purchasable: false
     # Fast Metabolism's hunger never comes, so its points would be free. Any
@@ -713,7 +713,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "Just one more sweet… Your bottom Desire slot is locked to Desires about food."
+    description: "Just one more sweet… You can keep eating even when you are full, and your bottom Desire slot is locked to Desires about food."
     pointCost: -4
     exclusive: true
     purchasable: true
@@ -3529,32 +3529,17 @@ tags:
     purchasableAfterStart: true
 
   # --- Status -----------------------------------------------------------
-  # Nothing reads this as a held tag any more — db/lib/hunger.js#grantsAteMeal
-  # and db/lib/mood.js's relief floor both check a FOOD TAG's own
-  # `consumesInto` list (did eating THIS grant Ate Meal), never whether the
-  # character is still holding it. `durationTurns: 1` exists purely so "you
-  # ate today" doesn't sit on a sheet forever now that the old hunger pass
-  # (which used to eat this tag itself) no longer touches it at all.
-  ate-meal:
+  # The three hunger descriptors (the Soilery Rework doc; db/lib/hunger.js).
+  # A character never sees their hunger as a number, only which of these they
+  # hold: exactly one at a time, swapped by the turn pass and by eating, never
+  # by a clock (so no durationTurns). The Hungerless hold none. All three are
+  # hidden from anybody inspecting you — `visible: false`.
+  full:
     catalog: gm
-    name: Ate Meal
+    name: Full
     category: status
     group: status-food
-    description: "Your appetite is sated, for now."
-    pointCost: 0
-    purchasable: false
-    durationTurns: 1
-
-  # "Ate a fine or lavish meal this turn" — what a noble needs to sleep easy
-  # (docs/systemdocs/MOOD.md). No durationTurns on purpose: a 1-turn grant
-  # would be swept before the mood pass reads it, so that pass eats it itself
-  # instead — unlike Ate Meal above, which now just expires on its own.
-  dined:
-    catalog: gm
-    name: Dined
-    category: status
-    group: status-food
-    description: "You've eaten properly today."
+    description: "You aren't particularly hungry right now."
     pointCost: 0
     visible: false
     purchasable: false
@@ -3564,29 +3549,24 @@ tags:
     catalog: gm
     name: Hungry
     category: status
-    group: status-debuffs
-    description: "Hunger pangs ache at your core, compelling you to find something to eat soon. -1 on all gambits."
+    group: status-food
+    description: "You could really go for something to eat…"
     pointCost: 0
+    visible: false
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
-  # Deliberate near-duplicate of Hungry, not a replacement for it — a
-  # character at or below the Starving threshold holds BOTH tags at once
-  # (db/lib/hunger.js's HUNGRY_THRESHOLD/STARVING_THRESHOLD), and it's the
-  # Gambit modifier (db/lib/gambitModifier.js) that picks Starving and never
-  # sums the two.
+  # -1 to Gambits (db/lib/gambitModifier.js), and nothing else.
   starving:
     catalog: gm
     name: Starving
     category: status
-    group: status-debuffs
-    description: "Deprived of food, your body has begun to cannibalize itself to survive. You can feel your life sapping away, -3 to all gambits."
+    group: status-food
+    description: "You are starving to death! If you do not eat soon, you will perish. -1 to all gambits."
     pointCost: 0
+    visible: false
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
-    fighting: { tree: both, tiers: -1 }
 
   # --- The Vampire (docs/systemdocs/VAMPIRE.md) --------------------------
   # Two checkpoint-tag tracks, granted/dropped every turn close by
@@ -8152,7 +8132,7 @@ tags:
     mealMood: -10
     consumable: true
     consumesInto:
-      - oneOf: [ate-meal, vomiting]
+      - oneOf: [nothing, vomiting]
     sellable: true
     sellablePrice: 2
 
@@ -8188,7 +8168,7 @@ tags:
     mealHunger: 31
     mealMood: -10
     consumable: true
-    consumesInto: [ate-meal]
+    consumesInto: []
 
   grasshopper-kebab:
     catalog: gm
@@ -8206,7 +8186,7 @@ tags:
     mealHunger: 34
     mealMood: 0
     consumable: true
-    consumesInto: [ate-meal]
+    consumesInto: []
 
   jellied-meats:
     catalog: gm
@@ -8223,7 +8203,7 @@ tags:
     mealHunger: 33
     mealMood: -10
     consumable: true
-    consumesInto: [ate-meal]
+    consumesInto: []
 
   budget-cold-soup:
     catalog: gm
@@ -8241,7 +8221,7 @@ tags:
     mealHunger: 36
     mealMood: 0
     consumable: true
-    consumesInto: [ate-meal]
+    consumesInto: []
 
   # Opened, not merely eaten — a random pick among the five draws above, plus
   # a chance of nothing at all (the reserved "nothing" word,
@@ -8378,8 +8358,7 @@ tags:
       items: [purring-maggot]
       recipePublic: true
     consumable: true
-    consumesInto:
-      - ate-meal
+    consumesInto: []
     cooked:
       taste: "milk"
       mood: 7
@@ -10784,8 +10763,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto:
-      - ate-meal
+    consumesInto: []
     sellable: false
     cooked:
       taste: "meat"
@@ -10985,180 +10963,31 @@ tags:
   # unchanged from before the deletion — a decision on whether to keep this
   # feature belongs to Bascinet, not to a sync-unblocking pass.
 
-  onion:
+  # The one food the Farm button grows (the Soilery Rework doc;
+  # docs/systemdocs/SOILERY.md). Replaces the six food crops and every seed
+  # bag. Eaten raw it restores 4 hunger and costs 5 mood — `mealHunger` and
+  # `mealMood` rather than a `cooked:` block, which keeps it out of a meal's
+  # additional-ingredient slots: Foodstuffs are what a meal is cooked FROM
+  # (the meal classes below), never something slotted on top. The turn close
+  # eats these for anyone about to drop into Starving (db/lib/hungerPass.js).
+  foodstuffs:
     catalog: all
-    name: Onion
-    category: items
-    group: items-food
-    sprite: onion-harvest
-    description: "An onion. Goes well in soups."
-    pointCost: 0
-    depotPrice: 3
-    weight: 0.17
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: []
-    cooked:
-      taste: "acrid"
-      tasteForm: "adjective"
-      mood: 2
-      hunger: 4
-
-  # Soilery farm crops (docs/systemdocs/SOILERY.md). Sown from a seed bag,
-  # grown in a licensed Farms field, and reaped at turn close via
-  # db/lib/soilery.js — see CROPS there for the exact sowing/crop slug
-  # pairing, which these MUST match exactly.
-  # Crops sell for 1 ¢ across the board (2026-09-20). Farming is for eating, not
-  # for cash: at 2 ¢ a Farm action netted about 79 ¢, the best wage in the game
-  # after the Factory. Wheat was already at the 1 ¢ floor, and prices are whole
-  # numbers, so 1 is as low as a crop goes short of not selling at all.
-  wheat:
-    catalog: all
-    name: Wheat
-    category: items
-    group: items-food
-    sprite: wheat
-    description: "Thick grains of wheat, waiting to be cooked."
-    pointCost: 0
-    weight: 0.17
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    # Raw it is a bad idea and no dinner. Cooked it is bread. Same
-    # raw/cooked split as blind-fish/deep-morel above.
-    consumesInto: [nauseous]
-    cooked:
-      taste: "crunchy"
-      tasteForm: "adjective"
-      mood: -5
-      hunger: 2
-      into: []
-
-  potato:
-    catalog: all
-    name: Potato
+    name: Foodstuffs
     category: items
     group: items-food
     sprite: potato
-    description: "Comes in many shapes and sizes, all of them round."
+    description: "Plain, filling produce from the Soilery. Better cooked."
     pointCost: 0
-    weight: 0.17
+    weight: 1
     stackable: true
     visible: false
     purchasable: false
     purchasableAfterStart: false
     consumable: true
     consumesInto: []
-    cooked:
-      taste: "earthy"
-      tasteForm: "adjective"
-      mood: 2
-      hunger: 4
-
-  tomato:
-    catalog: all
-    name: Tomato
-    category: items
-    group: items-food
-    sprite: tomato
-    description: "The ideal projectile, second only to the humble stone."
-    pointCost: 0
-    weight: 0.17
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: []
-    cooked:
-      taste: "acidic"
-      tasteForm: "adjective"
-      mood: 3
-      hunger: 4
-
-  carrot:
-    catalog: all
-    name: Carrot
-    category: items
-    group: items-food
-    sprite: carrot
-    description: "Sharp and astute."
-    pointCost: 0
-    weight: 0.17
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: []
-    cooked:
-      taste: "earthy"
-      tasteForm: "adjective"
-      mood: 3
-      hunger: 4
-
-  plump-helmet:
-    catalog: all
-    name: Plump Helmet
-    category: items
-    group: items-food
-    sprite: plump-harvest
-    description: "Soft and purple, it has sustained generations of cave dwellers."
-    pointCost: 0
-    weight: 0.17
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: []
-    cooked:
-      taste: "earthy"
-      tasteForm: "adjective"
-      mood: 1
-      hunger: 3
-
-  # Grown in the fields like the other Soilery crops above, but not a
-  # foodstuff — no cooked: block, not consumable. Crushing it into fibre for
-  # rope or thread is a later Crafting page; out of scope here.
-  pigtails:
-    catalog: all
-    name: Pigtails
-    category: items
-    group: items-gear
-    sprite: pigtail
-    description: "A hard pink fibrous sheath, it can be crushed into bundles of fibers for crafting."
-    pointCost: 0
-    weight: 0.17
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-
-  # The cash crop. Sown like the rest, but it is not food and has no `cooked:`
-  # block, so it can never be eaten or slotted into a recipe — the only thing
-  # to do with a leaf is sell it. It is also the ONLY sowable crop that is
-  # sellable at all: the food crops pay in food, per SOILERY.md.
-  tobacco:
-    catalog: all
-    name: Tobacco
-    category: items
-    group: items-gear
-    sprite: ambrosiavulgaris
-    description: "Uncured tobacco leaves, a cash crop."
-    pointCost: 0
-    weight: 0.25
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    sellable: true
-    sellablePrice: 1
+    mealHunger: 4
+    mealMood: -5
+    mealTaste: ""
 
   # Soilery non-growable foodstuffs (docs/systemdocs/SOILERY.md) — same base
   # shape as the farm crops above, but obtained some other way, not sown.
@@ -11376,262 +11205,6 @@ tags:
     sellable: true
     sellablePrice: 2
 
-  # Soilery seed bags + sowing tickets (docs/systemdocs/SOILERY.md). A bag is
-  # consumed into a one-turn sowing licence; db/lib/soilery.js#CROPS is the
-  # canonical sowing-slug/crop-slug pairing — the SOWING tags below MUST
-  # match it exactly (the bag slugs themselves aren't referenced anywhere
-  # else, so they follow the normal "slug is the name, slugified" rule
-  # instead of the plan's literal `seed-bag-<crop>` draft naming).
-  # One bag licenses any amount of that crop up to the sowing cap
-  # (GameConfig.farmMaxCrops, 50 by default, GM-tunable on /gm/dev).
-  wheat-seed-bag:
-    catalog: all
-    name: Wheat Seed Bag
-    category: items
-    group: items-seeds
-    sprite: wheat-2
-    description: "A staple choice!"
-    pointCost: 0
-    depotPrice: 4
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [sowing-wheat]
-    sellable: true
-    sellablePrice: 2
-
-  sowing-wheat:
-    catalog: gm
-    name: Sowing Wheat
-    category: status
-    group: status-buffs
-    description: "You can plant wheat crops."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 1
-
-  potato-seed-bag:
-    catalog: all
-    name: Potato Seed Bag
-    category: items
-    group: items-seeds
-    sprite: potato-2
-    description: "The humble potato, famed for its reliable harvests."
-    pointCost: 0
-    depotPrice: 4
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [sowing-potato]
-    sellable: true
-    sellablePrice: 2
-
-  sowing-potato:
-    catalog: gm
-    name: Sowing Potato
-    category: status
-    group: status-buffs
-    description: "You can plant potatoes."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 1
-
-  tomato-seed-bag:
-    catalog: all
-    name: Tomato Seed Bag
-    category: items
-    group: items-seeds
-    sprite: tomato-2
-    description: "Little black specks, which might grow stalks of swollen red globes."
-    pointCost: 0
-    depotPrice: 4
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [sowing-tomato]
-    sellable: true
-    sellablePrice: 2
-
-  sowing-tomato:
-    catalog: gm
-    name: Sowing Tomato
-    category: status
-    group: status-buffs
-    description: "You can plant tomatoes."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 1
-
-  carrot-seed-bag:
-    catalog: all
-    name: Carrot Seed Bag
-    category: items
-    group: items-seeds
-    sprite: carrot-2
-    description: "Carrot seeds ready to begin burrowing into the earth."
-    pointCost: 0
-    depotPrice: 4
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [sowing-carrot]
-    sellable: true
-    sellablePrice: 2
-
-  sowing-carrot:
-    catalog: gm
-    name: Sowing Carrot
-    category: status
-    group: status-buffs
-    description: "You can plant carrots."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 1
-
-  onion-seed-bag:
-    catalog: all
-    name: Onion Seed Bag
-    category: items
-    group: items-seeds
-    sprite: onion
-    description: "Your onions will soon be the talk of the town!"
-    pointCost: 0
-    depotPrice: 4
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [sowing-onion]
-    sellable: true
-    sellablePrice: 2
-
-  sowing-onion:
-    catalog: gm
-    name: Sowing Onion
-    category: status
-    group: status-buffs
-    description: "You can plant onions."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 1
-
-  plump-helmet-seed-bag:
-    catalog: all
-    name: Plump Helmet Seed Bag
-    category: items
-    group: items-seeds
-    sprite: unnamed-2
-    description: "A handful of spores, dust them where you wish them to grow."
-    pointCost: 0
-    depotPrice: 4
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [sowing-plump-helmet]
-    sellable: true
-    sellablePrice: 2
-
-  sowing-plump-helmet:
-    catalog: gm
-    name: Sowing Plump Helmet
-    category: status
-    group: status-buffs
-    description: "You can plant plump helmets."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 1
-
-  pigtails-seed-bag:
-    catalog: all
-    name: Pigtails Seed Bag
-    category: items
-    group: items-seeds
-    sprite: pigtail
-    description: "Grows into tough pink sheathes of fiber for all sorts of crafting."
-    pointCost: 0
-    depotPrice: 4
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [sowing-pigtails]
-    sellable: true
-    sellablePrice: 2
-
-  sowing-pigtails:
-    catalog: gm
-    name: Sowing Pigtails
-    category: status
-    group: status-buffs
-    description: "You can grow pigtails."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 1
-
-  tobacco-seed-bag:
-    catalog: all
-    name: Tobacco Seed Bag
-    category: items
-    group: items-seeds
-    sprite: turnip
-    description: "Fussy, and worth it."
-    pointCost: 0
-    depotPrice: 4
-    weight: 1
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    consumable: true
-    consumesInto: [sowing-tobacco]
-    sellable: true
-    sellablePrice: 2
-
-  sowing-tobacco:
-    catalog: gm
-    name: Sowing Tobacco
-    category: status
-    group: status-buffs
-    description: "You can plant tobacco."
-    pointCost: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    durationTurns: 1
-
   boar-loin:
     catalog: all
     name: Boar Loin
@@ -11795,433 +11368,24 @@ tags:
     sellable: true
     sellablePrice: 6
 
-  # Basic, Skilled and Skilled Lavish Cooking (docs/systemdocs/COOKING.md
-  # §A1-A9): replaces the old Fine Meal / Lavish Meal pair. Each recipe has
-  # FIXED base ingredients (consumed automatically, gating what the recipe
-  # even is) plus a slot layer for player-chosen additional ingredients —
-  # what the cooked dish actually carries on eating (mealTaste/mealMood/
-  # mealHunger are the recipe's own small base figure, read FIRST in the
-  # taste line; the additional ingredients' cooked.taste/mood/hunger are
-  # summed on top, same mechanism COOKING.md §6-7 already had).
-  #
-  # Common shape across all 19+6+10: catalog: all, category: items, group:
-  # items-food, craftable + customizable (naming is free, no description —
-  # matches fine-meal's old posture), weight 0.5 (every foodstuff, cooked or
-  # raw, is 0.5 lb per the design doc), consumesInto [ate-meal, dined] (both
-  # meals this replaces already granted dined regardless of tier, so every
-  # rung here does too — Trail Ration and Honeyed Cakes below stay the two
-  # exceptions that don't), ingredientSlots 0-4 (INGREDIENT_SLOTS_MAX, the
-  # dialog's own ceiling — the design doc names no cap), and no resourceCost:
-  # the base ingredients are the price, not ⬢.
-  bread:
+  # The three meal classes (the Soilery Rework doc; docs/systemdocs/COOKING.md).
+  # These are templates, not dishes: nobody ever holds one. A cook picks a
+  # class, names the meal (letters only), may describe it, may slot extra
+  # ingredients and may pick a base taste, and the Craft path mints a dish
+  # off the template (db/lib/customCraftMint.js) with the class's symbols
+  # round its name: Basic plain, Skilled +Name+, Lavish *Name* in italics
+  # (db/lib/meals.js). `mealHunger`/`mealMood` are the class's own figures;
+  # every extra ingredient's cooked.hunger/mood/taste/effects add on top when
+  # it is eaten (web/lib/cooking.js). Lavish needs at least one extra
+  # ingredient (`ingredientSlots.min: 1`) and a kitchen (the `kitchen`
+  # Location attribute).
+  basic-meal:
     catalog: all
-    name: Bread
-    category: items
-    group: items-food
-    sprite: bread
-    description: "Delightfully fluffy, though notably bland. Goes great with circuses."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 3
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: ""
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [{ tag: wheat, count: 2 }]
-      ingredientSlots: { min: 0, max: 4 }
-  potato-bread:
-    catalog: all
-    name: Potato Bread
-    category: items
-    group: items-food
-    sprite: loaf4
-    description: "Thick and starchy, swallowing it can be hard but it tastes lovely."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 5
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "earthy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [wheat, potato]
-      ingredientSlots: { min: 0, max: 4 }
-  pasta:
-    catalog: all
-    name: Pasta
-    category: items
-    group: items-food
-    sprite: pastatomato
-    description: "Long strands of wheat pasta mixed with crushed up tomato."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 7
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "acidic"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [wheat, tomato]
-      ingredientSlots: { min: 0, max: 4 }
-  baked-potato:
-    catalog: all
-    name: Baked Potato
-    category: items
-    group: items-food
-    sprite: bakedpotato
-    description: "Potato, cut into small chunks and baked to perfection."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 3
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "earthy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [{ tag: potato, count: 2 }]
-      ingredientSlots: { min: 0, max: 4 }
-  red-mash:
-    catalog: all
-    name: Red Mash
-    category: items
-    group: items-food
-    description: "Mashed up potato, stained blood red by the tomato that has been mixed inside."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 5
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "acidic"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [potato, tomato]
-      ingredientSlots: { min: 0, max: 4 }
-  vegetable-stew:
-    catalog: all
-    name: Vegetable Stew
-    category: items
-    group: items-food
-    sprite: vegetablesoup
-    description: "An assortment of various vegetables, all boiled together."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 5
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "earthy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      # Two independent pickers (Potato-or-Carrot, then Carrot-or-Onion) — the
-      # closest fit to the design doc's "Potato + (Carrot/Onion), Carrot +
-      # Onion" against the existing one-picker-per-anyOf schema. It legalizes
-      # one combination the doc doesn't literally name (Carrot + Carrot,
-      # which merges to one stack of 2 — CRAFTING.md's multi-picker merge),
-      # which is harmless and keeps this ONE recipe row rather than two.
-      items:
-        - { anyOf: [potato, carrot] }
-        - { anyOf: [carrot, onion] }
-      ingredientSlots: { min: 0, max: 4 }
-  ratato:
-    catalog: all
-    name: Ratato
-    category: items
-    group: items-food
-    sprite: potatorat
-    description: "A rat, gutted and cooked with a baked potato stuffed inside."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 7
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "meaty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [potato, skinned-cave-rat]
-      ingredientSlots: { min: 0, max: 4 }
-  tomato-soup:
-    catalog: all
-    name: Tomato Soup
-    category: items
-    group: items-food
-    sprite: tomatosoup
-    description: "Soup is good food."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 4
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "acidic"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [{ tag: tomato, count: 2 }]
-      ingredientSlots: { min: 0, max: 4 }
-  fried-onion:
-    catalog: all
-    name: Fried Onion
-    category: items
-    group: items-food
-    sprite: onion3
-    description: "No onions for those Blackstone dogs."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 3
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "acrid"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [{ tag: onion, count: 2 }]
-      ingredientSlots: { min: 0, max: 4 }
-  broth:
-    catalog: all
-    name: Broth
-    category: items
-    group: items-food
-    sprite: meatballsoup
-    description: "Meat and vegetable, infused into a potent and hearty broth."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 8
-    mealHunger: 42
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "salty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items:
-        - meat
-        - { anyOf: [potato, onion, carrot, plump-helmet] }
-      ingredientSlots: { min: 0, max: 4 }
-  fried-meat:
-    catalog: all
-    name: Fried Meat
-    category: items
-    group: items-food
-    sprite: meatstake
-    description: "Various cuts of meat, all fried to a nice crisp texture."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 6
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "meaty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [{ tag: meat, count: 2 }]
-      ingredientSlots: { min: 0, max: 4 }
-  fried-rat:
-    catalog: all
-    name: Fried Rat
-    category: items
-    group: items-food
-    sprite: rat
-    description: "Cooked to a crisp, let's hope that makes it somewhat more edible."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 2
-    mealHunger: 30
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "meaty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [{ tag: skinned-cave-rat, count: 2 }]
-      ingredientSlots: { min: 0, max: 4 }
-  fried-mushroom:
-    catalog: all
-    name: Fried Mushroom
-    category: items
-    group: items-food
-    sprite: shroomsteak
-    description: "A handful of plump helmets grilled and ready to eat."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 2
-    mealHunger: 30
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "earthy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [{ tag: plump-helmet, count: 2 }]
-      ingredientSlots: { min: 0, max: 4 }
-  poached-rat:
-    catalog: all
-    name: Poached Rat
-    category: items
-    group: items-food
-    sprite: rat
-    description: "A boiled rat served with poached arelitz egg. An unusual tradition in the North."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    # Was 40 hunger / 5 mood, which the Arelitz Egg alone (10 ¢ sellable) undercut. Boiling a rat
-    # and poaching an egg together is more than a crop-toss, so it also takes a touch longer now.
-    mealMood: 20
-    mealHunger: 65
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "salty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.1
-      skills: [cooking-basic]
-      gambit: false
-      items: [skinned-cave-rat, arelitz-egg]
-      ingredientSlots: { min: 0, max: 4 }
-  fish-stew:
-    catalog: all
-    name: Fish Stew
+    name: Basic Meal
     category: items
     group: items-food
     sprite: stew
-    description: "Loose scales swim in a sea of lumpy vegetables."
+    description: "A plain, honest meal."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -12229,157 +11393,28 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     craftable: true
-    mealMood: 8
-    mealHunger: 42
+    mealClass: basic
+    mealHunger: 15
+    mealMood: 2
+    mealTaste: ""
     sellable: true
-    sellablePrice: 2
-    mealTaste: "fishy"
-    mealTasteForm: "adjective"
+    sellablePrice: 1
     consumable: true
-    consumesInto: [ate-meal, dined]
+    consumesInto: []
     requirement:
       turnsCost: 0.05
       skills: [cooking-basic]
       gambit: false
-      items:
-        - { anyOf: [eel, haggar, tunnel-trout] }
-        - { anyOf: [potato, carrot, onion, plump-helmet] }
-      ingredientSlots: { min: 0, max: 4 }
-  fried-fish:
-    catalog: all
-    name: Fried Fish
-    category: items
-    group: items-food
-    sprite: fishfillet
-    description: "White grilled flesh melts off the bones."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 6
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "fishy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      # The SAME picker twice — two independent choices of Eel/Haggar/Tunnel
-      # Trout, so "two eels" and "an eel and a haggar" are both legal.
-      items:
-        - { anyOf: [eel, haggar, tunnel-trout] }
-        - { anyOf: [eel, haggar, tunnel-trout] }
-      ingredientSlots: { min: 0, max: 4 }
-  omelette:
-    catalog: all
-    name: Omelette
-    category: items
-    group: items-food
-    sprite: omelette
-    description: "Arelitz egg; broken, mixed and fried."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    # Was 2 eggs for 38 hunger / 8 mood, which priced out well under what a single Arelitz Egg (10 ¢
-    # sellable) is worth as food — an Arelitz Egg omelette lost money against just eating the eggs raw.
-    # Down to the one egg the flavor text already described, with the hunger and mood a cooked egg
-    # dish should actually carry. Hunger stays inside the Basic band (TURN-ENGINE.md §5); the rest of
-    # the buff is mood, which the band doesn't count.
-    mealMood: 30
-    mealHunger: 40
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "creamy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [arelitz-egg]
-      ingredientSlots: { min: 0, max: 4 }
-  sausage:
-    catalog: all
-    name: Sausage
-    category: items
-    group: items-food
-    sprite: sausage
-    description: "Various unknown meats packed into a tasty tube."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 8
-    mealHunger: 35
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "meaty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [meat, rendered-fat]
-      ingredientSlots: { min: 0, max: 4 }
-  salo:
-    catalog: all
-    name: Salo
-    category: items
-    group: items-food
-    sprite: fat
-    description: "A slab of fat, cured with salt, delicious."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 10
-    mealHunger: 30
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "salty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.05
-      skills: [cooking-basic]
-      gambit: false
-      items: [rendered-fat, rock-salt]
+      items: [{ tag: foodstuffs, count: 2 }]
       ingredientSlots: { min: 0, max: 4 }
 
-  # Skilled Cooking Meals — gated on cooking-skilled (which carries
-  # parentTag: cooking-basic, so a skilled cook can still make everything
-  # above). Several of these use Bread as a base ingredient via `customOf:`,
-  # not `tag:` — a plain tag reference can't see a minted custom-craft row,
-  # and Bread always mints one the moment it's customized or carries an
-  # additional ingredient (COOKING.md §2).
-  hash-brown:
+  skilled-meal:
     catalog: all
-    name: Hash Brown
+    name: Skilled Meal
     category: items
     group: items-food
-    sprite: piepotato
-    description: "A small assortment of clumps of fried potato."
+    sprite: vegetablesoup
+    description: "A meal made with some care."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -12387,475 +11422,30 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     craftable: true
-    mealMood: 10
-    mealHunger: 15
-    sellable: true
-    sellablePrice: 1
-    mealTaste: "earthy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.1
-      skills: [cooking-skilled]
-      gambit: false
-      items: [{ customOf: bread }, potato]
-      ingredientSlots: { min: 0, max: 4 }
-      # "Quantity Produced" (COOKING.md §5): one cook mints two.
-      yield: 2
-  egg-in-the-hole:
-    catalog: all
-    name: Egg in the Hole
-    category: items
-    group: items-food
-    sprite: egghole
-    description: "A piece of bread with a fried egg popped in the middle. The yolk stares back at you."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 15
-    mealHunger: 15
-    sellable: true
-    sellablePrice: 1
-    mealTaste: "creamy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.1
-      skills: [cooking-skilled]
-      gambit: false
-      items: [{ customOf: bread }, arelitz-egg]
-      ingredientSlots: { min: 0, max: 4 }
-      yield: 2
-  pizza-slice:
-    catalog: all
-    name: Pizza Slice
-    category: items
-    group: items-food
-    sprite: pizzamargheritaslice
-    description: "A thin slice coated in tomato and cheese."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 18
-    mealHunger: 30
-    sellable: true
-    sellablePrice: 2
-    mealTaste: "cheesy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.25
-      skills: [cooking-skilled]
-      gambit: false
-      items: [{ customOf: bread, count: 2 }, cheese, tomato]
-      ingredientSlots: { min: 0, max: 4 }
-      yield: 3
-  sandwich:
-    catalog: all
-    name: Sandwich
-    category: items
-    group: items-food
-    sprite: sandwich
-    description: "Two slices of bread ensnare a hapless piece of fried meat."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 15
-    mealHunger: 64
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "meaty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.1
-      skills: [cooking-skilled]
-      gambit: false
-      items:
-        - { customOf: bread }
-        - tomato
-        - { anyOf: [skinned-cave-rat, meat] }
-      ingredientSlots: { min: 0, max: 4 }
-  # Named "Honeyed Sweets" rather than the design doc's bare "Sweets" —
-  # `sweets` (the Depot candy, docs/tags.yaml elsewhere) already holds that
-  # name and slug, and two tags both reading "Sweets" on one sheet is a real
-  # collision the doc didn't anticipate, not a design call. Judgement call.
-  honeyed-sweets:
-    catalog: all
-    name: Honeyed Sweets
-    category: items
-    group: items-food
-    sprite: honeycomb
-    description: "Sweet candies, they melt in your mouth leaving you hungry for more!"
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 20
+    mealClass: skilled
     mealHunger: 18
+    mealMood: 6
+    mealTaste: ""
     sellable: true
-    sellablePrice: 1
-    mealTaste: "sweet"
-    mealTasteForm: "adjective"
+    sellablePrice: 2
     consumable: true
-    consumesInto: [ate-meal, dined]
+    consumesInto: []
     requirement:
-      turnsCost: 0.1
+      turnsCost: 0.05
       skills: [cooking-skilled]
       gambit: false
-      items:
-        - { anyOf: [honey, sugar] }
-        - { anyOf: [honey, sugar] }
-      ingredientSlots: { min: 0, max: 4 }
-  scones:
-    catalog: all
-    name: Scones
-    category: items
-    group: items-food
-    sprite: bun
-    description: "Curt pieces of bread, buttered through the middle."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 15
-    mealHunger: 15
-    sellable: true
-    sellablePrice: 1
-    mealTaste: "creamy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.1
-      skills: [cooking-skilled]
-      gambit: false
-      items: [{ customOf: bread }, tinned-butter]
-      ingredientSlots: { min: 0, max: 4 }
-      yield: 2
-
-  # Skilled Cooking Lavish Meals — same gate as Skilled above.
-  carrot-cake:
-    catalog: all
-    name: Carrot Cake
-    category: items
-    group: items-food
-    sprite: carrotcake-slice
-    description: "A thick loaf of cake, infused with distinct carrot undertones."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 30
-    mealHunger: 70
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "sweet"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.2
-      skills: [cooking-skilled]
-      gambit: false
-      items:
-        - { customOf: bread }
-        - carrot
-        - { anyOf: [honey, sugar] }
-      ingredientSlots: { min: 0, max: 4 }
-  pancakes:
-    catalog: all
-    name: Pancakes
-    category: items
-    group: items-food
-    sprite: pancake
-    description: "Thinly fried batter, piled up into a formidable stack."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 35
-    mealHunger: 68
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "creamy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.125
-      skills: [cooking-skilled]
-      gambit: false
-      items: [wheat, arelitz-egg, maggot-milk]
-      ingredientSlots: { min: 0, max: 4 }
-  steak:
-    catalog: all
-    name: Steak
-    category: items
-    group: items-food
-    sprite: steak
-    description: "A juicy hunk of meat, ready to be served with a side or on its own."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 28
-    mealHunger: 72
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "meaty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.2
-      skills: [cooking-skilled]
-      gambit: false
-      items: [{ tag: meat, count: 3 }]
-      ingredientSlots: { min: 0, max: 4 }
-  caviar:
-    catalog: all
-    name: Caviar
-    category: items
-    group: items-food
-    description: "Fish eggs cured with salt, a very underwhelming delicacy."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 40
-    mealHunger: 64
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "salty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.2
-      skills: [cooking-skilled]
-      gambit: false
-      items: [{ tag: fish-roe, count: 2 }, rock-salt]
-      ingredientSlots: { min: 0, max: 4 }
-  meat-pie:
-    catalog: all
-    name: Meat Pie
-    category: items
-    group: items-food
-    sprite: meatpie
-    description: "A great mince pie, fit for even the most greedy of gluttons."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 35
-    mealHunger: 76
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "meaty"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.2
-      skills: [cooking-skilled]
-      gambit: false
-      items: [{ customOf: bread }, arelitz-egg, meat]
-      ingredientSlots: { min: 0, max: 4 }
-  honeyed-crayfish:
-    catalog: all
-    name: Honeyed Crayfish
-    category: items
-    group: items-food
-    description: "Glazed in honey, before being baked. Its shell is surprisingly soft and sweet."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 30
-    mealHunger: 75
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "rich"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.2
-      skills: [cooking-skilled]
-      gambit: false
-      items: [crayfish, honey]
-      ingredientSlots: { min: 0, max: 4 }
-  soaked-truffles:
-    catalog: all
-    name: Soaked Truffles
-    category: items
-    group: items-food
-    description: "An assortment of fungi, left to soak in fine liquor for an overwhelmingly rich taste."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 38
-    mealHunger: 68
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "earthy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.2
-      skills: [cooking-skilled]
-      gambit: false
-      items:
-        - deep-morel
-        - plump-helmet
-        - { anyOf: [sake, ravenheart-red] }
-      ingredientSlots: { min: 0, max: 4 }
-  fondue:
-    catalog: all
-    name: Fondue
-    category: items
-    group: items-food
-    description: "A dessert of liquefied cheese, mixed with cream and honey or sugar."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 32
-    mealHunger: 68
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "cheesy"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.2
-      skills: [cooking-skilled]
-      gambit: false
-      items:
-        - cheese
-        - maggot-milk
-        - { anyOf: [honey, sugar] }
-      ingredientSlots: { min: 0, max: 4 }
-  foie-gras:
-    catalog: all
-    name: Foie Gras
-    category: items
-    group: items-food
-    description: "Creamy and smooth, this organ has been plumped out with butter to imitate the taste of a diseased liver."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 35
-    mealHunger: 70
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "rich"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.2
-      skills: [cooking-skilled]
-      gambit: false
-      items: [deer-liver, tinned-butter]
-      ingredientSlots: { min: 0, max: 4 }
-  northern-delight:
-    catalog: all
-    name: Northern Delight
-    category: items
-    group: items-food
-    description: "Off-putting to most, the sharp taste of the dustfish—when cooked properly—has become a traditional flavour of the North."
-    pointCost: 0
-    weight: 0.5
-    stackable: true
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    mealMood: 50
-    mealHunger: 72
-    sellable: true
-    sellablePrice: 4
-    mealTaste: "toxic"
-    mealTasteForm: "adjective"
-    consumable: true
-    consumesInto: [ate-meal, dined]
-    requirement:
-      turnsCost: 0.5
-      skills: [cooking-skilled]
-      gambit: false
-      items: [ravenheart-red, honey, dustfish]
+      items: [{ tag: foodstuffs, count: 2 }]
       ingredientSlots: { min: 0, max: 4 }
 
-  # Featherweight travel food (Chris 2026-09-07): a Fine Meal weighs 2 lb and
-  # this weighs a quarter of that — the meal you pack ten of for the caves.
-  # Same wage-less posture as the other meals: cooks earn from buyers.
-  # A Skilled Cooking Meal (docs/systemdocs/COOKING.md), same shape as Scones
-  # beside it: a fixed base (bread + honey) plus the standard 0-4 additional-
-  # ingredient slot layer. Honey is gm-catalog, so the base ingredient itself
-  # is still the discovery — no bespoke hidden-recipe handling needed now
-  # that isNonPublicRecipe reads held ingredients generally (COOKING.md §9).
-  honeyed-cakes:
+  # Kept as "Lavish Meal" on purpose: docs/desires.yaml's lavish-meal Desire
+  # verifies against a craft of this name.
+  lavish-meal:
     catalog: all
-    name: Honeyed Cakes
+    name: Lavish Meal
     category: items
     group: items-food
-    sprite: syndi-cakes
-    description: "Golden, sticky, and gone far too fast. A plate of these makes an occasion out of an ordinary evening."
+    sprite: meatballsoup
+    description: "A feast of a meal, cooked in a proper kitchen."
     pointCost: 0
     weight: 0.5
     stackable: true
@@ -12863,24 +11453,23 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     craftable: true
-    mealMood: 18
-    mealHunger: 12
+    mealClass: lavish
+    mealHunger: 20
+    mealMood: 12
+    mealTaste: ""
     sellable: true
-    sellablePrice: 1
-    mealTaste: "sweet"
-    mealTasteForm: "adjective"
+    sellablePrice: 4
     consumable: true
-    consumesInto: [ate-meal, dined]
+    consumesInto: []
     requirement:
-      turnsCost: 0.1
+      turnsCost: 0.2
       skills: [cooking-skilled]
       gambit: false
-      items: [{ customOf: bread }, honey]
-      ingredientSlots: { min: 0, max: 4 }
-      yield: 2
+      items: [{ tag: foodstuffs, count: 3 }]
+      ingredientSlots: { min: 1, max: 4 }
 
   # THE THANATI'S FOOD (docs/systemdocs/THANATI.md). Not a meal — it grants
-  # no ate-meal — only Dark Inspiration. Dead Simple, 1 ⬢, three a turn; the
+  # no hunger — only Dark Inspiration. Dead Simple, 1 ⬢, three a turn; the
   # gate is the thanati Belief itself, which requireRecipeSkills reads as a
   # plain "must hold". Bascinet's wording.
   flesh-of-tzchernobog:
@@ -14909,7 +13498,7 @@ tags:
   # plain Depot candy, unrelated to cooking.
   #
   # 5 rather than 3, for the identical reason `honey` just above went to 5:
-  # same DEFAULT_FOOD_HUNGER-via-ate-meal (12) and cooked.mood (20), so at
+  # hunger (then 12) and cooked.mood (20), so at
   # 3 c raw eating beat the Ration Box's own hunger+mood rate (mood weighted
   # at 1.5 hunger, `db/lib/hunger.js` / `npm run economy:report`).
   sugar-candy:
@@ -14929,8 +13518,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto:
-      - ate-meal
+    consumesInto: []
     cooked:
       taste: "sugar"
       mood: 20
@@ -14953,15 +13541,14 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto:
-      - ate-meal
+    consumesInto: []
     cooked:
       taste: "little crunchies"
       mood: 28
       hunger: 12
 
-  # 5 rather than 3: no `cooked.hunger` of its own, so raw eating falls to
-  # DEFAULT_FOOD_HUNGER (12, since it grants ate-meal) plus its mood (20) —
+  # 5 rather than 3: raw it restored 12 hunger (the old default for an
+  # unpriced food) plus its mood (20) —
   # the same hunger/mood/price `sugar` carried before its own repricing, and
   # the same fix applies: at 3 c the combined hunger+mood value beat the
   # Ration Box's own rate (`db/lib/hunger.js`, mood weighted at 1.5 hunger).
@@ -14982,8 +13569,7 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto:
-      - ate-meal
+    consumesInto: []
     cooked:
       taste: "honey"
       mood: 20
@@ -15471,9 +14057,7 @@ tags:
       resourceCost: 0
       skills: [brewing-basic]
       gambit: false
-      items:
-        - { anyOf: [wheat, potato] }
-        - { anyOf: [wheat, potato] }
+      items: [{ tag: foodstuffs, count: 2 }]
     # The one local brew the Depot also sells, for a Merchant who would rather
     # not wait on a brewer. Six against a sell-back of four, so importing it
     # and dumping it straight back is a losing trade. See DEPOT.md §3.
@@ -16887,9 +15471,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     consumable: true
-    consumesInto: [ate-meal]
-    # A whole large fruit: the top of the raw band (TURN-ENGINE.md §5), and the
-    # figure is here so it stops riding on DEFAULT_FOOD_HUNGER.
+    consumesInto: []
+    # A whole large fruit: the top of the raw band (TURN-ENGINE.md §5).
     mealHunger: 18
 
   # THE CULTIST ROBES (docs/systemdocs/THANATI.md). Wearing these is half of

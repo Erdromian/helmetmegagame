@@ -20,6 +20,7 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
   const { roster } = useRoster(["self"], { seed: { self: { characterTags: pools.characterTags ?? [] } } });
   const [tagId, setTagId] = useState(presets?.tagId ?? "");
   const [targetId, setTargetId] = useState(presets?.targetId ?? "");
+  const [quantity, setQuantity] = useState(1);
   const { submit, busy, error } = useSubmit();
 
   const consumable = consumableTags(roster?.self?.characterTags ?? []);
@@ -28,6 +29,14 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
   // ordinary meal would only ever be refused server-side, so the picker
   // stays hidden rather than offering a choice that can't work.
   const administerable = Boolean(chosen && (chosen.cures?.length > 0 || chosen.administerable));
+  // The slider's top end (the Soilery Rework doc): what you hold, or how many
+  // you can eat before you are full, whichever is lower. Worked out on the
+  // server (web/lib/eatLimits.js); 0 means you are too full for this food.
+  const eatMax = roster?.self?.eatMax ?? pools.eatMax ?? {};
+  const max = chosen ? (eatMax[chosen.id] ?? (chosen.stackable ? chosen.quantity : 1)) : 0;
+  const tooFull = Boolean(chosen) && max === 0;
+  const count = Math.min(Math.max(1, quantity), Math.max(1, max));
+  const slider = Boolean(chosen) && chosen.stackable && max > 1 && !administerable && !chosen.administerSkill;
   const consumeTargets = pools.consumeTargets ?? [];
   const craftBudget = pools.craftBudget ?? null;
   const hasMoved = Boolean(pools.hasMoved);
@@ -44,7 +53,7 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
       busy={busy}
       error={error}
       empty={consumable.length === 0 ? "Nothing you're carrying can be used up." : null}
-      canSubmit={Boolean(chosen)}
+      canSubmit={Boolean(chosen) && !tooFull}
       onClose={onClose}
       onSubmit={() =>
         submit(
@@ -55,6 +64,7 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
             consumeTagRequest({
               tagId: chosen.id,
               targetCharacterId: administerable && targetId ? targetId : undefined,
+              quantity: slider ? count : 1,
             }),
           (res) => onDone(noticeLine(mode, res, { name: chosen.name })),
         )
@@ -71,9 +81,28 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
         onChange={(id) => {
           setTagId(id);
           setTargetId("");
+          setQuantity(1);
         }}
       />
-      {chosen && chosen.quantity > 1 && <p className="text-xs text-muted">Takes one of your {chosen.quantity}.</p>}
+      {tooFull && <p className="text-xs text-accent">You&apos;re too full to eat that.</p>}
+      {slider && (
+        <label className="field">
+          <span className="field-label">
+            How many? <span className="mono">{count}</span>
+          </span>
+          <input
+            type="range"
+            min={1}
+            max={max}
+            step={1}
+            value={count}
+            onChange={(e) => setQuantity(Number(e.target.value) || 1)}
+          />
+        </label>
+      )}
+      {chosen && chosen.quantity > 1 && !slider && !tooFull && (
+        <p className="text-xs text-muted">Takes one of your {chosen.quantity}.</p>
+      )}
       {administerable && consumeTargets.length > 0 && (
         <ChipPicker
           label="Give it to"

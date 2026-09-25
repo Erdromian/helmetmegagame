@@ -259,7 +259,7 @@ set, and `resolveConsumeGrants` is the **only** place it's read: never inside
 `grantTagSlugs`, which the bot's GM `/heal` and every other writer share, and
 which must never quietly filter a deliberate GM grant. Two effects, both in
 `web/lib/consumeGrants.js`: a `oneOf` position (a food's random split, like
-Skinned Cave Rat's vomiting/ate-meal) **prefers** a non-resisted alternative
+Skinned Cave Rat's nothing/vomiting) **prefers** a non-resisted alternative
 when one exists, rather than landing on the resisted branch and re-rolling
 away from it; and whatever the position finally lands on — `oneOf`-picked or
 plain — is dropped from the grant if it's still in the resist set, reported

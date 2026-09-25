@@ -88,7 +88,6 @@ function buildTransport({ get, list, params, combos, activities, resourceBalance
   const farmZone = zoneWith("soilery");
   const squeeze = get(refinery.REFINERY_OUTPUT_SLUG);
   const smithing = resourceBalance.find((r) => r.family === "smithing");
-  const tob = activities.find((a) => a.id === "farm:tobacco");
   const pro = activities.find((a) => a.id === "mine:Caves:skilled");
   const dropLbs = (producerDrops.prospecting.caves.skilled ?? []).reduce((n, d) => n + d.p * w(d.slug), 0);
   const alcohol = get("alcohol");
@@ -100,7 +99,6 @@ function buildTransport({ get, list, params, combos, activities, resourceBalance
     flow({ id: "resources-turn", what: `⬢ for a smith, a median smithing recipe's burn a turn`, from: depot, to: forgeZones[0] ?? null, unitLbs: RESOURCE_UNIT_LBS, units: Math.ceil(smithing?.medianBurn ?? 0), per: "a turn", note: `forge in ${forgeZones.join(", ") || "no zone"}; ⬢ cannot be hand-crated, but a Depot order arrives crated`, crateable: true }),
     flow({ id: "resources-order", what: `⬢, a full Depot order of ${params.depotMaxQuantity}`, from: depot, to: forgeZones[0] ?? null, unitLbs: RESOURCE_UNIT_LBS, units: params.depotMaxQuantity, per: "an order", note: "the Depot ships it crated" }),
     flow({ id: "harvest", what: `A food harvest (${get(params.stapleCrop)?.name ?? params.stapleCrop})`, from: farmZone, to: farmZone, unitLbs: w(params.stapleCrop), units: Math.round(params.harvestPerFarm), per: "a Farm action", note: "light: carried within the farming zone to a kitchen" }),
-    ...(tob ? [flow({ id: "tobacco", what: "A tobacco harvest, to the Depot", from: farmZone, to: depot, unitLbs: w("tobacco"), units: Math.round(tob.harvest), per: "a Farm action" })] : []),
     ...(pro ? [flow({ id: "prospector", what: "A Prospector's ⬢ and drops, Caves to the Depot", from: pro.zone, to: depot, unitLbs: 1, units: Math.round(pro.resourcesPerPress * RESOURCE_UNIT_LBS + dropLbs), per: "a press", note: "⬢ at 1 lb and the drops at their weights, as one load", crateable: false })] : []),
     ...(alcoholPerMove ? [flow({ id: "alcohol", what: `${alcohol.name}, a turn's brewing`, from: null, to: depot, unitLbs: w("alcohol"), units: alcoholPerMove, per: "a Move", note: "brewed wherever the brewer is; sold to players, so carried to wherever they are" })] : []),
   ];

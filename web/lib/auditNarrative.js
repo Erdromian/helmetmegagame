@@ -140,10 +140,10 @@ const R = {
   // turn push (db/lib/moveEffects.js's `farmed` entry) — so this is the PLAN the character filed,
   // not the outcome. `d.farmPlan.rows` is `[{ slug, tagId, tagName, planted }, ...]`.
   request_farm: (d) => [
-    actor(), t("sowed"),
+    actor(),
     ...(d.farmPlan?.rows?.length
-      ? joinChips(d.farmPlan.rows.map((row) => `${row.planted}× ${row.tagName}`))
-      : [t("a field")]),
+      ? [t("sowed"), ...joinChips(d.farmPlan.rows.map((row) => `${row.planted}× ${row.tagName}`))]
+      : [t("planted"), em(`${d.farmPlan?.planted ?? "a field of"} crops`)]),
     ...(d.locationName ? [t("at"), zone(d.locationName)] : []),
   ],
   // Mining (web/app/(app)/character/actions/mine.js): paid at the press, so unlike Farm and
@@ -384,7 +384,7 @@ const R = {
     t("What the land is worth shifted"),
     ...((d.drifted ?? 0) > 0 ? [t("—"), em(`${d.drifted} places changed`)] : []),
   ],
-  // The field's productivity (db/lib/fieldProductivity.js): the pool refilled and next turn's yield was set.
+  // The field's productivity, retired in the Soilery Rework. Kept so older audit rows still read.
   field_regen: (d) => [
     t("The field was refilled"),
     ...(Number.isFinite(d.yieldMult) && d.yieldMult < 0.98 ? [t("—"), em(`harvests will come up at ${Math.round(d.yieldMult * 100)}%`)] : []),

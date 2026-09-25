@@ -4,9 +4,10 @@
 // from a client component does not drag PrismaClient into the browser bundle.
 import { MOOD_BANDS, bandOf } from "@lifeweb/db/lib/mood";
 
-// What moves a mood. Bascinet's words, verbatim. Exported because two surfaces
-// say it — this panel and the Mood tile in the band — and it was written down
-// twice once already.
+// What moves a mood. Bascinet's words, verbatim. The band's Mood tile used to
+// show it on demand; that tile became the Hunger tile (the Soilery Rework
+// doc), so nothing draws this paragraph at the moment. Kept, and exported,
+// for the next surface that wants to say it.
 export const MOOD_DETAIL =
   "Certain things, like spending time in the wilderness without the Rough Camper trait or receiving wounds harm " +
   "your mood. Other things, like listening to music, fulfilling desires, or eating meals boost your mood. Your " +

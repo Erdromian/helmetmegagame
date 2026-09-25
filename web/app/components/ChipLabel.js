@@ -17,6 +17,7 @@
 // (the point-buy's group sections) would draw the same glyph down a whole
 // column, saying nothing.
 import TagIcon from "./TagIcon";
+import TagName from "./TagName";
 
 export default function ChipLabel({
   tag,
@@ -58,7 +59,7 @@ export default function ChipLabel({
     >
       {icon && <TagIcon tag={tag} size={12} />}
       {star}
-      {tag.name}
+      <TagName tag={tag} />
       {stack && <span className="text-muted"> &times;{stack}</span>}
       {/* Compact on the face, spelled out in TagChip's tooltip — a chip has no
           room for "2 turns left". aria-hidden because the tooltip carries the

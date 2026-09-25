@@ -651,6 +651,7 @@ export default function ChatNext(props) {
             zone={aside.zone}
             sheet={aside.sheet}
             carry={aside.carry}
+            descriptors={aside.descriptors ?? []}
             currentTurn={aside.turn?.number ?? null}
           />
         ) : null

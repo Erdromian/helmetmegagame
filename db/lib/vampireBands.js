@@ -1,5 +1,5 @@
 // Shared "a GM just set blood/humanity by hand, sync the chips right now"
-// clean-up (docs/systemdocs/VAMPIRE.md) — mirrors db/lib/hungerBands.js's
+// clean-up (docs/systemdocs/VAMPIRE.md) — mirrors db/lib/hungerDescriptor.js's
 // shape for the same reason: a GM restoring a vampire's blood to 100 after
 // judging a feeding Gambit should see Pale/Bloodcrazed clear immediately
 // rather than waiting for the next turn close.

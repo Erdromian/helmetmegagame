@@ -6,14 +6,14 @@ import { useState } from "react";
 // barrel here would drag PrismaClient into the browser bundle.
 import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
-import { bandOf } from "@lifeweb/db/lib/mood";
+import { HUNGER_DESCRIPTOR_SLUGS } from "@lifeweb/db/lib/constants";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
 import { obolsOf } from "@/lib/purse";
 import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
 import CombatTile from "./CombatReadout";
 import DetailTile from "./DetailTile";
-import { MOOD_DETAIL } from "./MoodPanel";
+import { HungerIcon } from "./icons";
 import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
 import SoundHornButton from "./SoundHornButton";
@@ -53,10 +53,11 @@ export default function LedgerBand({
   hasHorn = false,
   isBastard = false,
   isSelf = true,
-  hungerWarning = null,
+  // { word, line, tone } — the character's one hunger descriptor (db/lib/hunger.js#hungerDescriptorFor),
+  // worked out on the server. Null for the Hungerless. Never the number.
+  hunger = null,
 }) {
 
-  const moodBand = bandOf(character.mood ?? 0);
   // The Combat tile below is drawn only on your OWN sheet: a fighting band is
   // one number nobody should read off somebody they might have to fight (every
   // fighting tag is `visible: false`). CombatReadout.js derives it.
@@ -138,10 +139,12 @@ export default function LedgerBand({
             </p>
             <div className="mt-2">
               {/* No ⬢ and no pounds here: the tiles to the right already carry both. What's left is what is actually worn. */}
+              {/* The hunger descriptor has its own tile to the right, so its chip
+                  is not drawn a second time here. */}
               <StatusStrip
                 numbers={false}
                 carry={carry}
-                tags={character.tags}
+                tags={character.tags.filter((ct) => !HUNGER_DESCRIPTOR_SLUGS.includes(ct.tag?.slug))}
                 onPick={(ct) => setPicked((was) => (was === (ct.tag.id ?? ct.tagId) ? null : ct.tag.id ?? ct.tagId))}
                 pickedId={picked}
               />
@@ -198,21 +201,18 @@ export default function LedgerBand({
               </span>
             )}
           </DetailTile>
-          {/* The mood dial as ONE WORD (docs/systemdocs/MOOD.md), never the number; the tone picks the token. */}
+          {/* Hunger as ONE WORD and a prominent icon (the Soilery Rework doc),
+              never the number. It took the slot of a second Mood box: the mood
+              has its own panel further down the sheet (MoodPanel.js). */}
           <DetailTile
-            label="Mood"
-            value={moodBand?.label ?? "Fine"}
-            tone={moodBand?.tone ?? "muted"}
+            label="Hunger"
+            icon={<HungerIcon size={26} />}
+            value={hunger?.word ?? "—"}
+            tone={hunger?.tone ?? "muted"}
             word
-            // The figure, and nothing else. The mockup writes "−16 · press for
-            // why", but the tile is visibly pressable and the instruction only
-            // took up the line. The word above carries the meaning; this is the
-            // number behind it. Only on your own sheet: somebody else's figure
-            // is not yours to read.
-            sub={isSelf ? signed(character.mood ?? 0) : null}
-            detail={MOOD_DETAIL}
-            open={tileOpen === "mood"}
-            onOpen={(want) => setTileOpen(want ? "mood" : null)}
+            detail={hunger?.line ?? "You don't need to eat."}
+            open={tileOpen === "hunger"}
+            onOpen={(want) => setTileOpen(want ? "hunger" : null)}
           />
           {/* The modifier the bot actually rolls the Gambit die against — same module, same arguments — and says WHICH modifiers. */}
           <DetailTile
@@ -256,9 +256,6 @@ export default function LedgerBand({
           stagedCraftYields={stagedCraftYields}
           sitesHere={sitesHere}
           resources={heldResources}
-          // Never on someone else's sheet — a hunger meter is a private fact
-          // (db/lib/hunger.js), same reasoning the Combat tile above uses.
-          hungerWarning={isSelf ? hungerWarning : null}
         />
       </div>
 

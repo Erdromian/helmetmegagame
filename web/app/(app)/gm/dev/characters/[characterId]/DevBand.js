@@ -57,8 +57,8 @@ export default function DevBand({
   // the same way `mood` above is — never shown as a number on the player's
   // own sheet, but this panel is superadmin-only debugging.
   const hungerBand = hungerBandOf(character.hungerValue ?? HUNGER_MAX);
-  const HUNGER_TONE = { fed: "muted", hungry: "warn", starving: "bad" };
-  const HUNGER_LABEL = { fed: "Fed", hungry: "Hungry", starving: "Starving" };
+  const HUNGER_TONE = { full: "muted", hungry: "warn", starving: "bad" };
+  const HUNGER_LABEL = { full: "Full", hungry: "Hungry", starving: "Starving" };
 
   const stagedSummary = stagedForPush
     ? [
@@ -185,7 +185,7 @@ export default function DevBand({
           tone={HUNGER_TONE[hungerBand]}
           detail={`The meter reads ${character.hungerValue ?? HUNGER_MAX}/${HUNGER_MAX}.${
             character.starvingSinceTurn != null
-              ? ` Starving since turn ${character.starvingSinceTurn}.`
+              ? ` At 0 since turn ${character.starvingSinceTurn}.`
               : ""
           } Never shown as a number on their own sheet — set it with Feed Them, on the action bar.`}
           {...tile("hunger")}

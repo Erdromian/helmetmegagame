@@ -75,11 +75,19 @@ export function mergeDishCures(mealTag, ingredientTags = []) {
 // renders the fragment bare ("acidic") instead of the default noun form
 // ("like onions") — web/lib/tagShapes.js#normalizeCooked's own tasteForm
 // comment has the full rule. No fragments at all reads as "bland".
-export function tasteLine(mealName, entries = []) {
+//
+// `count` is how many were eaten at once (the Consume slider): "You eat 3
+// Foodstuffs, they taste bland."
+export function tasteLine(mealName, entries = [], count = 1) {
   const fragments = entries
     .filter((e) => e && typeof e.taste === "string" && e.taste.trim())
     .map((e) => (e.adjective ? e.taste.trim() : `like ${e.taste.trim()}`));
-  if (!fragments.length) return `You eat the ${mealName}, it tastes bland.`;
-  if (fragments.length === 1) return `You eat the ${mealName}, it tastes ${fragments[0]}.`;
-  return `You eat the ${mealName}, it tastes ${fragments.slice(0, -1).join(", ")} and ${fragments[fragments.length - 1]}.`;
+  const tastes = !fragments.length
+    ? "bland"
+    : fragments.length === 1
+      ? fragments[0]
+      : `${fragments.slice(0, -1).join(", ")} and ${fragments[fragments.length - 1]}`;
+  return count > 1
+    ? `You eat ${count} ${mealName}, they taste ${tastes}.`
+    : `You eat the ${mealName}, it tastes ${tastes}.`;
 }

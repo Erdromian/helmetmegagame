@@ -110,19 +110,28 @@ Who this is, where they stand, and:
   clicked chip opens the tag's `TagDetails` under it. The rail has a Status run
   as well as of phase 4 (§3) — a chip and a row are not the same reading.
 - **Five tiles, one row** — free moves, the ⬢ balance, carrying with its
-  meter, the **Mood box** (`MOOD.md` §4) and the Gambit modifier
+  meter, the **Hunger tile** and the Gambit modifier
   (`db/lib/gambitModifier.js`, the same call the bot makes). `.ledger-tiles`'
   `max-width` fits exactly five: a sixth needs 856px, so anything else goes on
   the row below rather than into this row.
 - **Every tile carries a quiet second line** (`DetailTile`'s `sub`), always
   drawn, never pressed for: free moves says whether the Gambit is filed, ⬢ says
-  the coin in your pocket in `¢`, Mood says its own figure and `press for why`,
-  the Gambit die names the heaviest single modifier and counts the rest. Two
+  the coin in your pocket in `¢`, the Gambit die names the heaviest single modifier and counts the rest. Two
   things the mockup asks for do not exist in the data and are not invented here:
   there is **no ⬢ cap** (the old `GameConfig.carryResourceCap` went when a ⬢
   started weighing a pound and counting against the carry cap, `CARRY.md` §1), so
-  that line says the coin instead; and nothing records **why** a mood is where it
-  is, so `press for why` opens Bascinet's paragraph on what moves one.
+  that line says the coin instead.
+- **The Hunger tile** (the Soilery Rework doc) sits where a second Mood box used
+  to, between Carrying and the Gambit die — the mood already has its own panel
+  (§4a), so the tile was saying one thing twice. It shows a large fork-and-knife
+  icon (`HungerIcon`, `DetailTile`'s `icon`) and one word — **Full**, **Hungry**
+  or **Starving** — toned muted, warn or bad, and pressing it opens the doc's
+  line for that word ("You could really go for something to eat…"). **Never a
+  number**: `character/page.js` works the word out from the held descriptor tag
+  (`web/lib/descriptors.js#hungerOf`) and strips `hungerValue` before the
+  sheet ships. A Hungerless character reads "—", "You don't need to eat." The
+  descriptor's own chip is filtered out of the band's status strip, so the tile
+  is the one place hunger shows there (`TURN-ENGINE.md` §5).
 - **The row below is This turn · Combat · Turn Effects** — three boxes of the
   same build, reading as what you are doing, what you can do (`COMBAT.md`) and
   what the turn will do to you. It is `auto-fit`, so Turn Effects simply
@@ -159,8 +168,7 @@ Who this is, where they stand, and:
   `:focus-visible`, not plain focus, so a tap does not trigger it too.
 - Anything that still overrun its box scrolls inside it, with the last few
   pixels masked out so a cut line reads as "there is more" rather than as a
-  fault. In practice that is the Mood box, whose paragraph is Bascinet's own
-  words and long enough that no tile could hold it whole.
+  fault.
 - **This turn** — Chat's `TurnCard` + `MoveDialog`, wrapped in
   `SheetTurn.js`, over the same `play/actions.js#myMove` and the same minute
   poll (`play/useMyMove.js`, which `ChatAside.js` shares). File the Move from
@@ -182,17 +190,16 @@ Who this is, where they stand, and:
   turn card beside it. Past three items the rest fold behind a `+N more`,
   decided by counting them and never by measuring the box (`ExpandableText.js`
   explains why). It reads: tags on their last turn and what they become (`expiresInto`),
-  crafts and builds that finish, the road's end, a hunger warning, and the
-  animals' feed. Renders nothing on a quiet turn.
+  crafts and builds that finish, the road's end, and the animals' feed. Renders
+  nothing on a quiet turn.
 
-  **The hunger warning is one clause with no number in it** —
-  "You'll go hungry" / "You'll start starving" on the turn the meter's decay
-  would first cross that threshold (`db/lib/hunger.js`), computed server-side
-  in `character/page.js` so the raw `hungerValue` never reaches the client;
-  never said again once a band is already held.
+  **It does not forecast hunger** (the Soilery Rework doc): nobody is warned
+  that they will be hungry next turn. There used to be a "You'll go hungry"
+  clause here; a character is now told when it happens, by DM, and the Hunger
+  tile says where they stand.
 
   **The animals' feed is the half that still costs ⬢**, and it is a separate
-  pass (`horseUpkeepPass.js`, `TURN-ENGINE.md` §5b). The line counts how many
+  pass (`horseUpkeepPass.js`, `TURN-ENGINE.md` §5e). The line counts how many
   of `UPKEEP_SLUGS` the character holds — read off the same list the real pass
   walks, so an animal added later shows up here with no second edit — and says
   either what they will consume or that you cannot feed them.
@@ -436,8 +443,9 @@ portaled click menu that used to live inside `play/ThingsDrawer.js`.
 
 ## 4a. Mood, as the ladder (`MoodPanel.js`)
 
-The band's Mood tile says the one word and the figure. The panel in the right
-column says **where that word sits among the others**: one cell per band from
+This panel is the sheet's one mood display — the band's own Mood tile became
+the Hunger tile (§2). It says the word and the figure in its header, and
+**where that word sits among the others**: one cell per band from
 Panicking to Ecstatic tinted by the band's tone, the one you are in lit. That is
 the whole panel now (Bascinet, 2026-09-18: "the bar is good but we don't need
 to show all the text") — the word and the score are already in the panel
@@ -459,10 +467,10 @@ is not yours to read.
 `MoodPanel.js` used to print `MOOD_DETAIL` — Bascinet's own generic sentence on
 what moves a mood, the same words the band's Mood tile opens — as a paragraph
 under the ladder every time. Printing it there read as though it were this
-character's own reason, which nothing in the data actually records. That
-paragraph still exists and is still true; it lives one press away, on the
-band's Mood tile ("press for why", §2), which is a request rather than a
-default.
+character's own reason, which nothing in the data actually records. It used to
+live one press away on the band's Mood tile; with that tile gone, nothing
+draws it at the moment (it is still exported, for the next surface that wants
+it).
 
 ## 4b. Desires (`DesirePanel.js`)
 

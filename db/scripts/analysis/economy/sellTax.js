@@ -51,11 +51,8 @@ function buildSellTax({ activities, baselines, profitRows, trinkets, params, rv 
     if (c) add(`Median 10-point ${family} recipe: ${mid.name}`, { ...c, note: `the middle of ${on.length} on the rung, by raw profit a Move` });
   }
 
-  // Tobacco: leaves sold, seed (and Fertilizer) bought.
-  for (const [key, id] of [["Farmer, tobacco", "farm:tobacco"], ["Farmer, tobacco + Fertilizer", "farm:tobacco-fert"]]) {
-    const a = byId(id);
-    if (a) add(key, { gross: a.revenue * a.duty, inputs: a.inputs * a.duty });
-  }
+  // Farming pays no sell tax at all now: Foodstuffs never reach the counter, so there is no farm row
+  // to add here (there was, briefly, for tobacco — the one crop that ever sold — before the rework).
 
   // Trinkets: the Trinket sold at its tier's price, the ⬢ and any shelf stones bought.
   const tr = byId("trinket:shelf:skilled");

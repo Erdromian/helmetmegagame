@@ -237,10 +237,13 @@ Three notes on deliberate choices:
   using the same `stillAlive` check `db/lib/reincarnate.js` and the death
   teardown already rely on. A corpse whose player hasn't come back yet still
   gets the DM as before.
-- **Consume has no resource field and no quantity field.** A meal already
-  cost ⬢ to make, and Consume is where it restores hunger now (§4) — a
-  resource charge on top would be the same meal paid for twice; and taking
-  one unit at a time is the point of a stack. See `TAGS.md` §5b.
+- **Consume has no resource field, and a quantity only for an ordinary stack
+  eaten or used by yourself.** A meal already cost ⬢ to make, and Consume is
+  where it restores hunger (§4) — a resource charge on top would be the same
+  meal paid for twice. The quantity is the Soilery Rework's slider (§4, "Eating
+  several at once"); every special consume (a crate, a sealed letter, the map,
+  a kit that asks a question) and every administered dose still takes one.
+  See `TAGS.md` §5b.
 - **Transfer Tag and Loot both filter on `tradeable`.** Not on `category`,
   which is what they used to do and which was wrong in both directions — it
   let a corpse be stripped of its Drone, and it ignored the
@@ -288,17 +291,12 @@ Three notes on deliberate choices:
 Hunger is the Needs layer, and one of two things that modify a Gambit die
 (the other is mood).
 
-It is now a 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), not a
-streak. Two Status tags read off it — `hungry` (`docs/tags.yaml`,
-`durationTurns: 1`, granted at `HUNGRY_THRESHOLD` (35) or below) and
-`starving` (granted at `STARVING_THRESHOLD` (0) or below) — neither
-`purchasable`, neither destroyable (Status never is).
-
-Riding the tag system means the per-turn expiry sweep already in
-`db/index.js#resolveNeeds` handles their removal for free —
-`characterTag.deleteMany({ where: { expiresTurn: { lte: turn.number } } })` —
-with no bespoke expiry column to keep in step. Eating also drops them
-immediately, outside the sweep — see below.
+It is a 0-100 meter, `Character.hungerValue` (`db/lib/hunger.js`), that drops
+17 a day and is raised only by eating (`TURN-ENGINE.md` §5 has the whole of
+it). A player never sees the number: they hold exactly one **descriptor** tag
+— `full`, `hungry` or `starving` — which the turn pass and eating keep in step
+with the meter. None is `purchasable`, none carries a clock, and none can be
+destroyed (Status never is).
 
 > **Create Item and the zone cache are gone.** `CREATE_TAG` let a player invent
 > an Item that wasn't in the catalog and have it become a real `Tag` row on their
@@ -320,85 +318,60 @@ immediately, outside the sweep — see below.
 
 ### Hunger
 
-Nothing player-initiated ever grants or removes Hungry, Starving, or the
-`dying` chain prolonged Starving leads to — there is no request type, no
-picker entry, no `tagEffects.js` case for any of the three.
-`db/lib/hungerPass.js#runHungerPass` is the only turn-pass writer of
-`hungerValue`, `starvingSinceTurn`, and the two band tags, called from
-`resolveNeeds()` at the close of every turn:
+Nothing player-initiated ever grants or removes a hunger descriptor or the
+`dying` chain starving leads to — there is no request type, no picker entry,
+no `tagEffects.js` case for any of them. Eating moves the meter, and the
+descriptor follows (`db/lib/hungerDescriptor.js#syncHungerDescriptor`, shared
+with the Dev Panel's Feed Them). `db/lib/hungerPass.js#runHungerPass` is the
+only turn-pass writer of `hungerValue`, `starvingSinceTurn` and the
+descriptors; `TURN-ENGINE.md` §5 has its steps, the per-day decay, eating
+Foodstuffs to stay out of Starving, and reaching 0, which grants `dying`.
 
-1. Holds `hungerless` → **skipped entirely**. Pinned at `HUNGER_MAX` (100),
-   `starvingSinceTurn` cleared — this is immunity, not eating, so it is
-   always a full reset rather than the ordinary decay below.
-2. Holds `fast-metabolism` → decays **20** instead of the flat 10.
-3. Everyone else → decays **10**, floored at 0.
+**Hunger costs no ⬢ at all.** `Character.hungerStreak` is an orphan column, the
+same fate as `Character.missedMealStreak`; nothing writes or reads it.
 
-**Hunger costs no ⬢ at all.** The old upkeep — pay 1 ⬢ (2 with Fast
-Metabolism) or go Hungry — and the escalating streak penalty it drove are
-both gone outright. `Character.hungerStreak` is an orphan column now, the
-same fate as `Character.missedMealStreak` (`TURN-ENGINE.md` §5a); nothing
-writes or reads it.
+**What eating restores.** Consume restores `unitHungerFor(tag, ingredients)` a
+unit — a meal's class figure plus every extra ingredient's `cooked.hunger`, a
+Foodstuff's 4, a raw ingredient's own `cooked.hunger`, a Ration Box draw's
+`mealHunger` — in one atomic, clamped write (`LEAST(HUNGER_MAX, "hungerValue" +
+restored)`, `web/app/(app)/character/actions/misc.js#consumeTagRequestImpl`).
+There is no fallback figure any more: Ate Meal is gone, and something with no
+hunger value is not food.
 
-What raises the meter is eating, not a turn spent fed. Consume restores
-`foodHungerFor(tag)` — a raw foodstuff's own `cooked.hunger`, a minted dish's
-`Tag.mealHunger` (summed across every ingredient for a cooked plate), or a
-flat fallback for an unpriced item that still grants `ate-meal` — in one
-atomic, clamped write (`LEAST(HUNGER_MAX, "hungerValue" + restored)`,
-`web/app/(app)/character/actions/misc.js#consumeTagRequestImpl`). The
-Hungry/Starving tags come off the moment the meter crosses back over their
-threshold, not at the next sweep — `db/lib/hungerBands.js#clearHungerBands`,
-shared with the Dev Panel's Feed Them button.
+**Eating several at once** (the Soilery Rework doc). After picking a stackable
+thing to consume, the Consume dialog (`ConsumeDialog.js`) shows a quantity
+slider. Its top end is the lower of what you hold and how many you can eat
+before your hunger reaches 100 — the last one may overshoot, and the meter
+stops at 100. `web/lib/eatLimits.js#eatLimitsFor` works that out on the
+server, per held item, and only the count crosses to the browser (`pools.eatMax`,
+and roster `self.eatMax` after a refresh). The server re-checks all of it
+under the character lock:
 
-**Bands, not a streak.** `db/lib/hunger.js#crossings` reports, per turn,
-whether the meter crossed DOWN into Hungry or Starving for the first time
-(never merely for remaining there) — each fresh crossing grants the tag
-(`expiresTurn` one turn out, `createMany({ skipDuplicates: true })`) and
-charges a one-time **−30** mood hit (`HUNGRY_ONSET`/`STARVING_ONSET`,
-`MOOD.md`); crossing back UP over a threshold drops the tag. Starving sits
-*inside* the Hungry range — a character at or below 0 holds both tags
-together — and only the Gambit modifier picks one, below.
+- more than you hold → *"You don't have that many."*
+- food when your hunger is already 100 → *"You're too full to eat that."* —
+  unless you are a **Glutton**, who may eat on at 100 and stays at 100;
+- more than it takes to fill you → *"You can't eat that many right now."*
+- something that is not food is never capped by hunger.
 
-**Three consecutive closes at 0 or below** (`STARVING_DEATH_TURNS` — an
-inference this rework made; the doc names no such rule) grants `dying`, the
-same terminal tag every untreated-wound chain lands on (see `TURN-ENGINE.md`
-§3's "NOTHING HERE KILLS ANYONE"). The pass itself still kills nobody;
-`dying` carries a one-turn clock, and the Dying death pass (`TURN-ENGINE.md`
-§2 4b) is what ends it at the next close. `Character.starvingSinceTurn` is
-the clock: stamped the turn the meter first reads at or below 0, cleared the
-instant it eats back above 0 — eating on the second of three starved turns
-resets the count to zero, not merely pauses it.
+Eating n at once is n of everything that counts: hunger and mood (`scaleTerms`)
+×n, ⬢ and tag points summed, the grants resolved n times against what the
+eater will hold (so a third drink climbs the ladder the first two started),
+and the poison drawn hypergeometrically over the n units taken. Cures, hidden
+cures and `removesOnConsume` land once. The line reads "You eat 3 Foodstuffs,
+they taste bland."
 
-**The expiry arithmetic**, and why the pass runs *after* the sweep, is
-unchanged from before the rework:
+**The Hungerless may eat** at any meter, but food gives them neither hunger
+nor mood; its other effects still land.
 
-| moment | what happens |
-| --- | --- |
-| close of turn **N** | sweep deletes `expiresTurn <= N` — clears a band tag granted at the close of N−1 |
-| close of turn **N** | pass grants Hungry/Starving with `expiresTurn = N + 1` |
-| turn **N+1** open | tag is live; every Gambit rolled this turn takes the modifier |
-| close of turn **N+1** | sweep (`lte: N+1`) deletes it |
-
-Run the pass *before* the sweep instead and a still-hungry character's
-re-grant collides with `@@unique([characterId, tagId])` and is silently
-dropped, leaving them holding a tag that expires immediately.
-
-The DM copy for each crossing — `hungry` / `starving` / `recovered` / `dying`
-— lives in `db/lib/hunger.js#hungerDm`/`DYING_DM`. None of the four lines
-names a number, per the design: a player learns their band from the tag chip
-on their own sheet, never a figure. `runHungerPass` does not send any of
-these itself. It returns `hungerNotices` on its summary — one entry per
-character who freshly crossed into Hungry or Starving this close, carrying
-`discordUserId`, a `kind` (`"hungry"` / `"starving"`), and `justDied` — and
-the sending happens in `advanceTurn()`'s `runSideEffects()` thunk, alongside
-the turn announcement and the message wipe. The pass is therefore reads and
-bulk writes with no network call in it at all — which matters because at
-100+ players the DMs are sequential Discord round-trips, and awaiting that
-inside the Dev Panel's server action used to hold the request open long
-enough to freeze the web app's navigation.
+The DM copy — becoming Hungry, becoming Starving, eating Foodstuffs at the
+close, and `recovered` for Feed Them — lives in
+`db/lib/hunger.js#hungerDm`, with `DYING_DM` beside it. No line names a number.
+`runHungerPass` sends none of them itself: it returns `hungerNotices` (one per
+character, each carrying its `kinds`, how many Foodstuffs were eaten, and
+`justDied`) and the side-effect runner sends one DM per character.
 
 The pass writes **one summary `hunger_resolved` audit row** per turn, not one
-per character — at 100+ players the latter would push 200 entries a day into
-`/gm/audit` and drown every human-authored line.
+per character — at 100+ players the latter would drown `/gm/audit`.
 
 ### The summed modifier
 
@@ -411,9 +384,9 @@ third contributor should be an append there rather than a rewrite of five
 call sites.
 
 Hunger is no longer a Character column feeding a formula — `hungerBandOf`
-reads the `hungry`/`starving` tags straight off the character's own held
-tags, the same list every other tag-driven modifier reads, and picks
-**Starving over Hungry, never both**: `−1` Hungry, `−3` Starving.
+reads the `starving` descriptor straight off the character's own held tags,
+the same list every other tag-driven modifier reads. **Starving is −1; Full
+and Hungry cost nothing** (the Soilery Rework doc).
 `gambitModifiers`/`gambitModifierTotal` take that tag list and `{ mood }` —
 mood still rides in as a second argument, since it lives on `Character`, not
 a tag.
