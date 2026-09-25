@@ -445,7 +445,7 @@ Three things fall out of that, and each is deliberate:
   and since a felt reach holds the thief (§2g), known means 5 minutes with
   them pinned in front of you.
 - **A clean take against 3 needs Skilled, and against 4 nobody gets one.**
-  Somebody carrying all four has spent 9 points on it, and "you cannot be
+  Somebody carrying all four has spent 13 points on it, and "you cannot be
   robbed without knowing" is what they bought.
 - **Skilled's "never fails outright" (§2a) holds only against an undefended
   mark.** One point of defense puts a master's natural 1 back in the failure
