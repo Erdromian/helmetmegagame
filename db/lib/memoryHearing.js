@@ -29,6 +29,7 @@ const {
   concealmentFrom,
 } = require("./presentedIdentity");
 const { lessonsFrom } = require("./memoryLessons");
+const { spokenText, hasSpeech } = require("./speech");
 
 // Where a line puts somebody in the room for the day log. `net:` (a radio),
 // `dead:`, `game:` and the like are not rooms: nobody stands in them.
@@ -176,7 +177,12 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
       : [];
   const speakerKnows = new Map(known.map((k) => [k.subjectId, k]));
 
-  const lessons = lessonsFrom({ content: row.content, speaker, candidates, speakerKnows });
+  // Only what was SAID teaches: the words in quotation marks. "*nods at Marrow*"
+  // is narration, and nobody in the room heard a name (docs/systemdocs/STRANGERS.md
+  // §4, db/lib/speech.js).
+  const spoken = spokenText(row.content);
+  if (!spoken.trim()) return { taught: 0 };
+  const lessons = lessonsFrom({ content: spoken, speaker, candidates, speakerKnows });
   if (lessons.length === 0) return { taught: 0 };
 
   const listeners = present.filter(
@@ -205,4 +211,99 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
   return { taught };
 }
 
-module.exports = { logHeard, learnFromSpeech, presentWhere, HEARD_KINDS, TEACHING_KINDS, DEAF_TAG_SLUGS };
+// Where a voice can be heard and remembered: anywhere people stand and talk.
+// Not the zone summary, which is a noticeboard, not a room.
+const VOICE_KINDS = new Set(["loc", "room", "conv", "party"]);
+
+// Tries a few times to hand out new numbers, because two lines landing at once
+// can both reach for the same "next" number (VoiceMemory's unique index turns
+// the loser away) and the loser just takes the one after.
+const VOICE_ATTEMPTS = 4;
+
+// Everyone in the room who heard `speaker` SAY something under an alias
+// remembers the voice (docs/systemdocs/STRANGERS.md §4). A hearer's first such
+// voice is their (1), the next new one their (2), and a voice heard again keeps
+// its number. It shows on the speaker's name in the hearer's chat
+// (db/lib/strangers.js#lensRow) until the speaker next moves Location.
+//
+// `identity` is how the line was said (db/lib/presentedIdentity.js). A hood is
+// an alias to everyone. A bare face is an alias to whoever has no Friends entry
+// for the speaker. A forced name is a name to everyone, so it gives no voice.
+//
+// Awaited BEFORE the line is written (db/lib/say.js#recordSpeech), so the first
+// line a hearer gets already carries the number. Returns how many hearers now
+// hold the voice.
+async function hearVoice(prisma, { speakerId, placeKey, content, identity }) {
+  if (!speakerId || !placeKey || identity?.forced || !hasSpeech(content)) return 0;
+  const parsed = parsePlaceKey(placeKey);
+  if (!parsed || !VOICE_KINDS.has(parsed.kind)) return 0;
+  const where = await presentWhere(prisma, placeKey, { speakerId });
+  if (!where) return 0;
+
+  const present = await prisma.character.findMany({
+    // AND, not a spread: a conversation's `where` already has an `id` of its own.
+    where: {
+      AND: [where, { id: { not: speakerId } }, { NOT: { tags: { some: { tag: { slug: { in: DEAF_TAG_SLUGS } } } } } }],
+    },
+    select: { id: true },
+  });
+  let hearers = present.map((c) => c.id);
+  if (hearers.length === 0) return 0;
+
+  if (!identity?.concealed) {
+    // A bare face: only the people who cannot put a name to it.
+    const knownBy = await prisma.acquaintance.findMany({
+      where: { subjectId: speakerId, ownerId: { in: hearers } },
+      select: { ownerId: true },
+    });
+    const knows = new Set(knownBy.map((row) => row.ownerId));
+    hearers = hearers.filter((id) => !knows.has(id));
+    if (hearers.length === 0) return 0;
+  }
+
+  // Voices heard before come back on.
+  const held = await prisma.voiceMemory.findMany({
+    where: { subjectId: speakerId, ownerId: { in: hearers } },
+    select: { ownerId: true, live: true },
+  });
+  const relight = held.filter((row) => !row.live).map((row) => row.ownerId);
+  if (relight.length > 0) {
+    await prisma.voiceMemory.updateMany({
+      where: { subjectId: speakerId, ownerId: { in: relight } },
+      data: { live: true, heardAt: new Date() },
+    });
+  }
+
+  // New voices get the hearer's next number.
+  let fresh = hearers.filter((id) => !held.some((row) => row.ownerId === id));
+  for (let attempt = 0; attempt < VOICE_ATTEMPTS && fresh.length > 0; attempt += 1) {
+    const tops = await prisma.voiceMemory.groupBy({
+      by: ["ownerId"],
+      where: { ownerId: { in: fresh } },
+      _max: { number: true },
+    });
+    const top = new Map(tops.map((row) => [row.ownerId, row._max?.number ?? 0]));
+    await prisma.voiceMemory.createMany({
+      data: fresh.map((ownerId) => ({ ownerId, subjectId: speakerId, number: (top.get(ownerId) ?? 0) + 1 })),
+      skipDuplicates: true,
+    });
+    const landed = await prisma.voiceMemory.findMany({
+      where: { subjectId: speakerId, ownerId: { in: fresh } },
+      select: { ownerId: true },
+    });
+    const got = new Set(landed.map((row) => row.ownerId));
+    fresh = fresh.filter((id) => !got.has(id));
+  }
+  return hearers.length - fresh.length;
+}
+
+module.exports = {
+  logHeard,
+  learnFromSpeech,
+  hearVoice,
+  presentWhere,
+  HEARD_KINDS,
+  TEACHING_KINDS,
+  VOICE_KINDS,
+  DEAF_TAG_SLUGS,
+};

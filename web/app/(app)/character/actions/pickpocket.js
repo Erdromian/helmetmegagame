@@ -33,6 +33,7 @@ import { ACT, blockerFor } from "@lifeweb/db/lib/incapacitation";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import {
   seenAs,
+  seenBy,
   identityOf,
   IDENTITY_SELECT,
   HELD_REASON,
@@ -108,7 +109,9 @@ const PICKPOCKET_SELECT = {
 // searchAuthority's shape and, where the question is the same, its exact
 // sentences. Every refusal names the target by the face the room saw and never
 // by the row — a refusal is the last place to out somebody (INTERCEPT.md §2).
-function pickpocketAuthority(actor, target) {
+// `seen` is what the thief calls the target (intercept.js#seenBy): a stranger
+// reads as "a young man" (docs/systemdocs/STRANGERS.md).
+function pickpocketAuthority(actor, target, { seen = null } = {}) {
   if (!actor || !target) return "They aren't here.";
   if (actor.id === target.id) return "Pick somebody else's pocket.";
   if (actor.status !== "ALIVE") return "You can't do that right now.";
@@ -123,7 +126,8 @@ function pickpocketAuthority(actor, target) {
   const mine = blockerFor(actor.tags, ACT);
   if (mine) return `You're ${mine.name}.`;
   const theirs = blockerFor(target.tags, ACT);
-  if (theirs) return `${capitalizeFirst(seenAs(identityOf(target)))} is ${theirs.name}.`;
+  const named = () => capitalizeFirst(seen ?? seenAs(identityOf(target)));
+  if (theirs) return `${named()} is ${theirs.name}.`;
 
   // A hand the scene just caught stays out of pockets until the hold lapses
   // (THEFT.md §2g) — a failed pickpocket's own five minutes, or a Steal the
@@ -141,7 +145,7 @@ function pickpocketAuthority(actor, target) {
   // anything — that would be a fact about the room.
   const self = pickpocketSelfBlock({ caughtSeconds: caughtSecondsLeft(actor), fighting: inFight(actor) });
   if (self) return self;
-  if (inFight(target)) return `${capitalizeFirst(seenAs(identityOf(target)))} is in a fight.`;
+  if (inFight(target)) return `${named()} is in a fight.`;
   return null;
 }
 
@@ -201,7 +205,10 @@ export async function pickpocketRequestImpl({ targetKey }) {
 
   const target = await resolveTarget(character, targetKey);
   if (!target) throw new UserError("They aren't here.");
-  const refusal = pickpocketAuthority(character, target);
+  // How each would name the other: a thief is named to the victim as the victim knows them.
+  const targetSeen = await seenBy(prisma, character.id, target);
+  const thiefSeen = await seenBy(prisma, target.id, character);
+  const refusal = pickpocketAuthority(character, target, { seen: targetSeen });
   if (refusal) throw new UserError(refusal);
 
   const openTurn = await getOpenTurn();
@@ -239,7 +246,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
     if (ration === "spent") {
       throw new UserError(
         existing.targetCharacterId === target.id
-          ? `You already went through ${seenAs(identityOf(target))}'s pockets this turn.`
+          ? `You already went through ${targetSeen}'s pockets this turn.`
           : PICKPOCKET_SPENT,
       );
     }
@@ -292,7 +299,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
     // Caught with a hand in their pocket, so stuck (THEFT.md §2g). `fresh`
     // only — a reopened dialog rolled nothing and must not extend the hold.
     if (fresh) {
-      const who = capitalizeFirst(seenAs(identityOf(character)));
+      const who = capitalizeFirst(thiefSeen);
       const pinned = await pinThief(character, target);
       notifyCharacter(target, pinned ? `${FAILED_DM(who)} ${STUCK}` : FAILED_DM(who));
     }
@@ -310,7 +317,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
   return {
     outcome: "took",
     targetId: target.id,
-    targetName: seenAs(identityOf(target)),
+    targetName: targetSeen,
     budgetLbs: attempt.budgetLbs,
     spentLbs: attempt.spentLbs,
     rows,
@@ -337,7 +344,10 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
   // and nothing else, and even that is re-checked.
   const target = await resolveTarget(character, targetKey);
   if (!target) throw new UserError("They aren't here.");
-  const refusal = pickpocketAuthority(character, target);
+  // How each would name the other: a thief is named to the victim as the victim knows them.
+  const targetSeen = await seenBy(prisma, character.id, target);
+  const thiefSeen = await seenBy(prisma, target.id, character);
+  const refusal = pickpocketAuthority(character, target, { seen: targetSeen });
   if (refusal) throw new UserError(refusal);
 
   const openTurn = await getOpenTurn();
@@ -483,7 +493,7 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
   // reason: the thief is caught when the victim feels it, and pinning them at
   // the roll would tell a noticed thief their band before they took anything.
   if (attempt.outcome === NOTICED) {
-    const who = capitalizeFirst(seenAs(identityOf(character)));
+    const who = capitalizeFirst(thiefSeen);
     const pinned = await pinThief(character, target);
     notifyCharacter(target, pinned ? `${NOTICED_DM(who)} ${STUCK}` : NOTICED_DM(who));
   }

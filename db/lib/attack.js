@@ -3,7 +3,7 @@
 // This module takes `db` as a parameter and is deliberately NOT on the @lifeweb/db barrel (dm.js convention); require it by path. IT SENDS NOTHING — like fireWatches, it returns DM descriptors and the caller sends them after the transaction commits (ARCHITECTURE.md §5).
 const { fightingSkill, bandRank, FIGHTING_TAG_FIELDS } = require("./fightingSkill");
 const { turnEndsAt } = require("./turnClock");
-const { SAFE_HOLD_MS, HELD_REASON, seenAs, identityOf, IDENTITY_SELECT } = require("./intercept");
+const { SAFE_HOLD_MS, HELD_REASON, seenBy, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { hoodToken } = require("./hoodToken"); // zero-require leaf; no cycle.
 const { DM_KIND } = require("./dmKinds");
 const { stopPerformances } = require("./performance");
@@ -135,7 +135,7 @@ async function fileAttack(db, { attacker, target, openTurn, fromAmbush = false, 
   await holdBothSides(db, { attacker, target, until });
   // A fight ends a song on both sides (SOUND.md, "Performances").
   await stopPerformances(db, [attacker.id, target.id], "attack");
-  return { ok: true, already: false, until, dms: attackDms({ attacker, target, fromAmbush }) };
+  return { ok: true, already: false, until, dms: await attackDms(db, { attacker, target, fromAmbush }) };
 }
 
 // Only the attacker may. `where` is the ownership check (the releaseHeldBy posture) — no second lookup to disagree with it. The row is stamped, never deleted: breaking off is final for the turn, and a deleted row would hand the unique back and let somebody attack the same person all afternoon.
@@ -185,11 +185,15 @@ async function attacksBy(db, attackerId, turnId) {
   // swinging at a stranger would be the cheapest unmasking in the game, which is exactly what
   // matchesArrival() refuses to let Intercept be. `key` is what a caller posts back; `id` stays null
   // for a hood so nothing can accidentally reach past it.
-  return (await attackRows(db, attackerId, turnId)).map(({ key, token, row, presented }) => ({
-    id: token ? null : row.targetCharacter.id,
-    key,
-    name: seenAs(presented),
-  }));
+  // Named as the attacker would name them: a stranger reads as "a young man" (STRANGERS.md).
+  const rows = await attackRows(db, attackerId, turnId);
+  return Promise.all(
+    rows.map(async ({ key, token, row }) => ({
+      id: token ? null : row.targetCharacter.id,
+      key,
+      name: await seenBy(db, attackerId, row.targetCharacter),
+    })),
+  );
 }
 
 async function attackRows(db, attackerId, turnId) {
@@ -235,10 +239,12 @@ function attackCancelRow(targetId, label) {
 const ATTACK_CALLED_OFF_DM = "The fight is off. You can move again.";
 
 // An ambush already says its own thing on the way in (fireWatches), so it carries no second victim line — only the attacker's, which is where the Cancel button lives.
-function attackDms({ attacker, target, fromAmbush }) {
+// Each side is named as the OTHER would name them: a stranger is "a young man" to
+// somebody with no Friends entry for them (docs/systemdocs/STRANGERS.md).
+async function attackDms(db, { attacker, target, fromAmbush }) {
   const dms = [];
-  const attackerSeen = seenAs(identityOf(attacker));
-  const targetSeen = seenAs(identityOf(target));
+  const attackerSeen = await seenBy(db, target.id, attacker);
+  const targetSeen = await seenBy(db, attacker.id, target);
 
   if (!fromAmbush && target.discordUserId) {
     dms.push({

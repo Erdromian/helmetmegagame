@@ -46,6 +46,11 @@ function fakePrisma() {
     },
     // The actor holds the room's key, so they are inside.
     characterTag: { findMany: async () => [{ tag: { slug: "back-room-key" } }] },
+    // The actor knows Ann Vell (a Friends entry). Everybody else here is a
+    // stranger to them, or a hood (docs/systemdocs/STRANGERS.md).
+    acquaintance: {
+      findMany: async ({ where }) => (where.ownerId === "me" ? [{ subjectId: "p1" }].filter((row) => where.subjectId.in.includes(row.subjectId)) : []),
+    },
     roomGuest: {
       findMany: async () => [],
       upsert: async () => ({}),
@@ -78,6 +83,21 @@ test("a hood reached by token, and anybody in the open, still gets through", asy
 
   assert.equal(byToken.ok, true);
   assert.equal(named.ok, true);
+});
+
+test("a stranger is let in by token, never by a plain id", async () => {
+  const strangerHere = { ...base, id: "s1", name: "Una Stray", locationId: HERE, concealed: false, tags: [] };
+  people.push(strangerHere);
+  try {
+    const byId = await addRoomGuest(fakePrisma(), { actor, roomId: ROOM.id, characterId: "s1" });
+    const byToken = await addRoomGuest(fakePrisma(), { actor, roomId: ROOM.id, characterId: "s1", byToken: true });
+    assert.equal(byId.ok, false);
+    assert.equal(byId.error, "They aren't here to be let in.");
+    assert.equal(byToken.ok, true);
+    assert.ok(!String(byToken.line).includes("Una"), "the line names a stranger by what they look like");
+  } finally {
+    people.pop();
+  }
 });
 
 test("showing a hood out by plain id is refused the same way", async () => {

@@ -19,6 +19,7 @@ import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
+import { lensRows } from "@/lib/strangerLens";
 import { speakerDirectory } from "@/lib/gmSpeakers";
 import { loadNavItems } from "@/lib/navItems";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
@@ -183,7 +184,9 @@ async function FreshChat({ userId }) {
   // The first paint's rows, with ONE `?v=` per character rather than the
   // per-row sentAt fallback — otherwise every line asked for the same face at
   // a different URL (db/lib/archive.js#withAvatarVersions).
-  const initialRows = await withAvatarVersions(prisma, rows.reverse());
+  // Then through this reader's lens: a speaker they cannot name reads as an
+  // alias (docs/systemdocs/STRANGERS.md), the same as the live stream.
+  const initialRows = await lensRows(viewer, await withAvatarVersions(prisma, rows.reverse()));
 
   // The name this character's own optimistic rows wear before the server
   // answers — forced beats concealed beats their own, the same resolution the

@@ -55,6 +55,19 @@ async function memoryForLook(prisma, viewer, subjectId, dayNumber) {
   return { name: shown.name, roleText: shown.roleText, notes: shown.notes, roleGroup: roleGroupHue(role?.groupSlug) };
 }
 
+// Whether the looker can put a name to the subject: a Friends entry. A
+// normal look has already loaded it as `memory`. A camera loads none, so it
+// asks, since a photograph is still looked at by somebody.
+async function looksKnown(prisma, viewer, subjectId, { memory, bystander }) {
+  if (memory) return true;
+  if (!bystander) return false;
+  const entry = await prisma.acquaintance.findUnique({
+    where: { ownerId_subjectId: { ownerId: viewer.id, subjectId } },
+    select: { id: true },
+  });
+  return Boolean(entry);
+}
+
 // `bystander: true` strips the viewer's own sight — no doctor's eye, no
 // Seductive — what a CAMERA sees, closing the one way the doctor's-eye gate could be laundered.
 //
@@ -193,6 +206,12 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
       wasConcealedAs: hooded ? (row.concealedAlias ?? null) : null, // the hood the room SAW
       viewerIsThanati: !bystander && (viewer.tags ?? []).some((ct) => ct.tag?.slug === THANATI_SLUG),
       memory,
+      // No Friends entry: a face the looker cannot put a name to reads under its
+      // alias (docs/systemdocs/STRANGERS.md). A photograph too: it shows a
+      // face, not a name. A GM still reads the name, as does a ghost, who
+      // watches from outside the fiction.
+      stranger: !hooded && !forced && !gm && !ghost && !(await looksKnown(prisma, viewer, subject.id, { memory, bystander })),
+      strangerSeq: String(row.seq),
     }),
   };
 }

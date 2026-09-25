@@ -2,6 +2,7 @@ import { prisma, FEED_ROW_SELECT } from "@lifeweb/db";
 import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloors, floorForPlace, seqFilterAbove } from "@lifeweb/db/lib/feedWipe";
 import { loadFeedViewer, findPlace } from "@/lib/feedAccess";
+import { lensRows } from "@/lib/strangerLens";
 
 // GET /api/feed/history?place=<key> — the last hundred things said in one
 // place, and with ?before=<seq> the hundred before those. The stream carries
@@ -67,7 +68,7 @@ export async function GET(request) {
       }),
     ]);
     const window = [...below.reverse(), ...above];
-    return Response.json({ place, rows: await withAvatarVersions(prisma, window) });
+    return Response.json({ place, rows: await lensRows(viewer, await withAvatarVersions(prisma, window)) });
   }
 
   // ?before=<seq> — one page further back; same shape/size as the plain page.
@@ -94,7 +95,7 @@ export async function GET(request) {
 
   return Response.json({
     place,
-    rows: await withAvatarVersions(prisma, rows.reverse()),
+    rows: await lensRows(viewer, await withAvatarVersions(prisma, rows.reverse())),
     exhausted,
     // Whether the end of the road is a WIPE rather than the start of the place.
     floored: exhausted && floor > 0n,

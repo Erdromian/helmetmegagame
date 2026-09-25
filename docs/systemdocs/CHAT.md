@@ -2772,6 +2772,9 @@ there without making it for whoever happened to subscribe first.
 So the GM is handed the key ring instead of a different scene:
 `web/lib/gmSpeakers.js#speakerDirectory` is `speakerKey` → real name, built off
 `db/lib/hoodToken.js`'s HMAC, which is stable for as long as `AUTH_SECRET` is.
+Only a GM and the speaker themselves are ever handed that stable key now: every
+other reader's copy of a row goes through `db/lib/strangers.js#lensRow`, which
+swaps it for a per-scene key and names strangers by alias (`STRANGERS.md` §5).
 One map resolves every row the page will ever hold — the first paint, the live
 stream, the history fetch and search alike — and it only ever goes to a GM.
 `page.js` seeds it when `viewer.gm`; `chat/actions.js#gmSpeakerNames` re-serves

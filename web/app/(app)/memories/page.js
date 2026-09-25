@@ -9,6 +9,7 @@ import { FEED_ROW_SELECT, withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { parsePlaceKey } from "@lifeweb/db/lib/placeKey";
 import { scrambleEntry, scrambleFields, scrambleText } from "@lifeweb/db/lib/memoryScramble";
 import { ROLE_GROUPS } from "@lifeweb/db/lib/roleGroups";
+import { createLens } from "@lifeweb/db/lib/strangers";
 import { getGmSession } from "@/lib/discordGuild";
 import { loadMemoryViewer, journalKey, starKey, lineKey } from "@/lib/memories";
 import { loadMentionDirectory, loadOfferableMentions } from "@/lib/mentionDirectory";
@@ -148,8 +149,11 @@ async function FreshMemories() {
         orderBy: { seq: "asc" },
       })
     : [];
+  // Through this character's own lens: somebody they could not put a name to
+  // is remembered as the alias they heard (docs/systemdocs/STRANGERS.md).
+  const lens = createLens(prisma, { characterId: character?.id ?? null });
   const [shaped, names] = await Promise.all([
-    withAvatarVersions(prisma, lineRows),
+    withAvatarVersions(prisma, lineRows).then((rows) => lens.all(rows)),
     placeNames([...new Set(lineRows.map((r) => r.placeKey).filter(Boolean))]),
   ]);
   const day = shaped.map((row, i) => {

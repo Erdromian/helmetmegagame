@@ -17,6 +17,8 @@ const {
 } = require("./presentedIdentity");
 const { aliasRow } = require("./concealedIdentity");
 const { hoodToken } = require("./hoodToken");
+const { knownSubjects, labelAliases } = require("./strangers");
+const { roleGroupHue } = require("./roleGroups");
 
 // Columns and tags presentedIdentity reads — whosHere's PRESENT_SELECT minus
 // the role title, since a members strip prints no Role.
@@ -27,6 +29,11 @@ const MEMBER_SELECT = {
   age: true,
   gender: true,
   updatedAt: true,
+  // A stranger keeps their estate colour (docs/systemdocs/STRANGERS.md), and the
+  // label and nonce come from whosHere's roll (db/lib/strangers.js).
+  role: { select: { groupSlug: true } },
+  presenceLabel: true,
+  presenceNonce: true,
   tags: {
     where: {
       OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
@@ -43,7 +50,12 @@ const MEMBER_SELECT = {
 // (PROXYING.md §5a). `gm` is the host's view: every row comes back under its
 // real name with `presentedAs` saying what the room actually sees, same
 // answer as db/lib/whosHere.js#whosHereGm.
-async function presentedMembers(prisma, characterIds, viewer, { sightings = null, gm = false } = {}) {
+//
+// A member the viewer has no Friends entry for is hidden the same way a hood
+// is, under an alias, but keeps their face (served by token) and estate
+// colour (docs/systemdocs/STRANGERS.md). `known` is a caller's own
+// knownSubjects Set; omit it and it is looked up.
+async function presentedMembers(prisma, characterIds, viewer, { sightings = null, gm = false, known = undefined } = {}) {
   const ids = [...new Set((characterIds ?? []).filter(Boolean))];
   if (ids.length === 0) return [];
 
@@ -54,11 +66,24 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
   const byId = new Map(people.map((person) => [person.id, person]));
 
   const seenBy = sightings ?? new Map();
+  const knows = gm ? null : known !== undefined ? known : await knownSubjects(prisma, viewer?.id ?? null, ids);
 
   // Dead members drop out — a conversation is a corner of a room, not a roster.
-  return ids
-    .map((id) => byId.get(id))
-    .filter(Boolean)
+  const members = ids.map((id) => byId.get(id)).filter(Boolean);
+  const isHooded = (person) =>
+    !forcedNameFrom(person.tags) && Boolean(concealmentFrom(person.tags) && (concealmentFrom(person.tags).forced || person.concealed));
+  const isStranger = (person) =>
+    knows !== null && person.id !== viewer?.id && !forcedNameFrom(person.tags) && !isHooded(person) && !knows.has(person.id);
+  // Labels for the lookalikes in THIS strip, the way Who's here labels its own list.
+  const hiddenMembers = members.filter((person) => isHooded(person) || isStranger(person));
+  const aliasOf = (person) => {
+    const sighting = person.id === viewer?.id ? null : (seenBy.get(person.id) ?? null);
+    return aliasRow(person, isHooded(person) && sighting?.concealed ? sighting.name : null);
+  };
+  const labelled = labelAliases(hiddenMembers, aliasOf, (person) => person.presenceLabel);
+  const shownAlias = new Map(hiddenMembers.map((person, i) => [person.id, labelled[i]]));
+
+  return members
     .map((person) => {
       const piece = concealmentFrom(person.tags);
       const forced = forcedNameFrom(person.tags);
@@ -66,7 +91,8 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
       const sighting = self ? null : (seenBy.get(person.id) ?? null);
       const seen = self || Boolean(sighting);
       // Forced name is not hiding (PROXYING.md §5): named openly, only the portrait swaps for the letter plaque.
-      const hidden = forced ? false : Boolean(piece && (piece.forced || person.concealed));
+      const hidden = isHooded(person);
+      const stranger = !gm && isStranger(person);
 
       if (gm) {
         return {
@@ -79,6 +105,22 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
           concealed: false,
           // What the room sees.
           presentedAs: forced ?? (hidden ? aliasRow(person, null) : null),
+        };
+      }
+
+      const token = hoodToken(person.id, person.presenceNonce);
+      if (stranger) {
+        // Their own face, fetched by token so no id reaches the browser.
+        return {
+          characterId: null,
+          token,
+          name: shownAlias.get(person.id),
+          avatarPath: token ? `/api/avatar/here/${token}` : null,
+          avatarVersion: null,
+          unknownFace: !token,
+          concealed: true,
+          stranger: true,
+          roleGroup: roleGroupHue(person.role?.groupSlug),
         };
       }
 
@@ -102,8 +144,8 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
         : (sighting?.avatarPath ?? null);
       return {
         characterId: null,
-        token: hoodToken(person.id),
-        name: aliasRow(person, sighting?.name),
+        token,
+        name: shownAlias.get(person.id) ?? aliasRow(person, sighting?.name),
         avatarPath: seen ? face : null,
         avatarVersion: null,
         unknownFace: !seen || Boolean(sighting?.unknownFace),
@@ -122,13 +164,18 @@ async function presentedNameOf(prisma, characterId, viewer, options) {
 // The other half of the hood handle: which of THESE characters a token names.
 // Resolves only inside the list it was minted from, so a token can name
 // somebody in a room you're in and nobody anywhere else. Same shape as
-// whosHere.js#resolveHoodToken, scoped to a place's roster.
-function resolveMemberToken(characterIds, token) {
-  if (!token || !Array.isArray(characterIds)) return null;
-  for (const id of characterIds) {
+// whosHere.js#resolveHoodToken, scoped to a place's roster. The token carries
+// the member's presence nonce, so it is read here too (db/lib/hoodToken.js).
+async function resolveMemberToken(prisma, characterIds, token) {
+  if (!token || !Array.isArray(characterIds) || characterIds.length === 0) return null;
+  const rows = await prisma.character.findMany({
+    where: { id: { in: characterIds } },
+    select: { id: true, presenceNonce: true },
+  });
+  for (const row of rows) {
     // hoodToken answers null with no AUTH_SECRET; `null===null` would else match the first id, defeating the whole mechanism.
-    const minted = hoodToken(id);
-    if (minted && minted === token) return id;
+    const minted = hoodToken(row.id, row.presenceNonce);
+    if (minted && minted === token) return row.id;
   }
   return null;
 }

@@ -4,7 +4,8 @@
 // THE HOLD IS DERIVED — Character.heldUntil is a plain timestamp, past it you're free and nothing had to notice, so this needs no cron, turn pass or rows to sweep (the keyed-way pattern, MAP.md §2b, applied to a person). An Ambush gets its timestamp from attack.js instead, since an Ambush IS an attack now; either way it's the turn's own end, so the turn advance releases everybody for free.
 // A hold takes MOVEMENT only, never ACT — deliberately not an incapacitating tag (incapacitation.js): a person held at knifepoint can still talk, fight back and file a Gambit. An ambush is a standoff, not a paralysis.
 const { presentedIdentity, CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
-const { withArticle } = require("./concealedIdentity");
+const { withArticle, concealedAlias } = require("./concealedIdentity");
+const { knownSubjects } = require("./strangers");
 const { matchesTypedName } = require("./characterName");
 const { blockerFor, ACT } = require("./incapacitation");
 const { reFor } = require("./discordMarkup");
@@ -219,6 +220,18 @@ function seenAs(presented) {
   return presented.concealed ? withArticle(presented.name.toLowerCase()) : presented.name;
 }
 
+// seenAs for one particular reader: a bare face they have no Friends entry
+// for reads as what it looks like, "a young man" (docs/systemdocs/STRANGERS.md).
+// `row` needs IDENTITY_SELECT. Use this wherever the words go to one
+// character, which is nearly every DM. `db` may be a transaction.
+async function seenBy(db, viewerId, row) {
+  const presented = identityOf(row);
+  if (!row?.id || !viewerId || row.id === viewerId || presented.concealed || presented.forced) return seenAs(presented);
+  const known = await knownSubjects(db, viewerId, [row.id]);
+  if (!known || known.has(row.id)) return seenAs(presented);
+  return withArticle(concealedAlias(row).toLowerCase());
+}
+
 // "He said" / "She said" / "They said" — Bascinet's line is "He said", wrong for half the cast; the shape is theirs, the agreement is arithmetic. Straight off Character.gender, the same column concealedIdentity.js reads.
 function saidWord(character) {
   if (character?.gender === "MAN") return "He said";
@@ -378,7 +391,8 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
   for (const hit of hits) {
     if (!hit.target.discordUserId) continue;
     if (hit.ambush && !hit.held) continue;
-    const stopper = seenAs(identityOf(hit.interceptor));
+    // As the victim would name them (docs/systemdocs/STRANGERS.md).
+    const stopper = await seenBy(db, hit.target.id, hit.interceptor);
     if (hit.ambush) {
       dms.push({
         discordUserId: hit.target.discordUserId,
@@ -422,7 +436,7 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
     if (safe.length > 0) {
       dms.push({
         discordUserId: who.discordUserId,
-        content: `You successfully intercepted ${safe.map((h) => seenAs(h.presented)).join(", ")}.`,
+        content: `You successfully intercepted ${(await Promise.all(safe.map((h) => seenBy(db, who.id, h.target)))).join(", ")}.`,
         kind: DM_KIND.NOTICE,
       });
     }
@@ -494,6 +508,7 @@ module.exports = {
   INTERCEPT_CANCELLED_DM,
   matchesArrival,
   seenAs,
+  seenBy,
   saidWord,
   IDENTITY_SELECT,
   identityOf,

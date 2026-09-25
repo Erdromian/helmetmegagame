@@ -19,7 +19,7 @@ const { chunkMessage } = require("./chunkText");
 const { MESSAGE_LIMIT, MAX_SAY_PIECES, tooManyPieces } = require("./sayLimits");
 const { echoSpeech } = require("./gateEcho");
 const { carryOverPhone } = require("./phoneVoice");
-const { learnFromSpeech } = require("./memoryHearing");
+const { learnFromSpeech, hearVoice } = require("./memoryHearing");
 const { deadchatSpeakerName } = require("./deadchat");
 const { containsOoc, OOC_REFUSAL } = require("./oocGuard");
 const { sessionGate } = require("./betweenSessions");
@@ -223,6 +223,19 @@ async function recordSpeech(
   } = {},
 ) {
   if (!prepared?.ok) return null;
+  // Voices the room now knows (docs/systemdocs/STRANGERS.md §4). Awaited, and
+  // BEFORE the row, so the line reaches each hearer already wearing their
+  // number for the speaker. Never for a ghost or a line recovered late, the
+  // same two guards learning keeps below. The proxy's row counts too: a post
+  // that fails afterwards leaves a voice heard, which costs nothing.
+  if (!prepared.ghost && !sentAt) {
+    await hearVoice(prisma, {
+      speakerId: prepared.character?.id ?? null,
+      placeKey: prepared.placeKey,
+      content: content ?? prepared.rowContent ?? prepared.content,
+      identity: prepared.identity,
+    }).catch((err) => console.error("Hearing a voice failed:", err.message ?? err));
+  }
   const row = await recordArchiveMessage(prisma, {
     clientId,
     sentAt, // when actually SAID, for messageCatchUp.js recovering a message typed while the bot was down.

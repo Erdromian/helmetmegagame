@@ -18,8 +18,7 @@ import {
   cleanNames,
   releaseHeldBy,
   anchorHolds,
-  identityOf,
-  seenAs,
+  seenBy,
   IDENTITY_SELECT,
 } from "@lifeweb/db/lib/intercept";
 
@@ -70,7 +69,8 @@ async function holdingRows(characterId) {
     where: { heldById: characterId, heldUntil: { gt: new Date() }, ...NOT_A_FIGHT },
     select: IDENTITY_SELECT,
   });
-  return rows.map((row) => ({ id: row.id, name: seenAs(identityOf(row)) }));
+  // Named as the holder would name them: a stranger is "a young man" (STRANGERS.md).
+  return Promise.all(rows.map(async (row) => ({ id: row.id, name: await seenBy(prisma, characterId, row) })));
 }
 
 async function loadInterceptImpl() {

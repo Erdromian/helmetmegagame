@@ -139,6 +139,10 @@ The pure half is `db/lib/memoryLessons.js`.
 
 - **Where.** Only a `room:`, `conv:` or `party:` place counts, because those
   are rooms. The zone summary is the whole zone's noticeboard, not a room.
+- **Only what was said.** Just the words inside quotation marks count
+  (`db/lib/speech.js#spokenText`, the same rule the chat tints speech with).
+  "*waves at Marrow*" is narration and teaches nothing. Bascinet decided this
+  on 2026-09-25, alongside `STRANGERS.md`, which uses the same test for a voice.
 - **Who hears.** Everyone ALIVE and physically present (`presentWhere`), minus
   the speaker, minus anybody holding `unconscious` or `asleep`. Present means
   standing there. Someone reading the room from outside (a walked-out street,
@@ -252,6 +256,9 @@ own entry** for the subject (`examineRow.js#memoryForLook`), scrambled the
 same way the Friends section scrambles it. A stranger reads no role. A friend
 reads what they remember, true or not, plus the name they know them by and
 their notes. A hood, a forced name and a camera draw nothing from memory.
+
+A stranger's look also reads no NAME: the header is their alias, "Young Man",
+and the face is fetched by the line rather than by id (`STRANGERS.md` §6).
 
 The role is no longer frozen onto each line (`examineSnapshot.js`); old lines
 still carry `rt` and `rg`, and both are ignored. The GM dossier (⚜️) is

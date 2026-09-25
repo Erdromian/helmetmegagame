@@ -9,6 +9,8 @@ import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
+import { knownSubjects } from "@lifeweb/db/lib/strangers";
+import { concealedAlias } from "@lifeweb/db/lib/concealedIdentity";
 
 // Examine — looking at somebody you have HEARD. Moves nothing, costs nothing,
 // spends no Move, writes no audit row. The subject must have said something
@@ -77,9 +79,27 @@ export async function peopleToExamine() {
     // since still lists under the old name, and silence never lists at all.
     const seen = await lastSightings(prisma, me, { ghost, discordUserId: me.discordUserId });
 
+    // Somebody you cannot put a name to is listed as what they look like
+    // (docs/systemdocs/STRANGERS.md), and every row is keyed by the LINE you
+    // heard, never by the character: an id here is a face at /api/avatar/<id>,
+    // and a stable handle for somebody the list is careful not to name.
+    const known = ghost ? null : await knownSubjects(prisma, me.id, [...seen.keys()]);
+    const strangers = [...seen.entries()].filter(([id, s]) => !s.concealed && known && !known.has(id)).map(([id]) => id);
+    const looks = strangers.length
+      ? await prisma.character.findMany({ where: { id: { in: strangers } }, select: { id: true, age: true, gender: true } })
+      : [];
+    const lookOf = new Map(looks.map((c) => [c.id, c]));
+
     return {
       people: [...seen.entries()]
-        .map(([id, sighting]) => ({ id, label: sighting.name, concealed: sighting.concealed }))
+        .map(([id, sighting]) => {
+          const stranger = lookOf.has(id);
+          return {
+            id: sighting.seq,
+            label: stranger ? concealedAlias(lookOf.get(id)) : sighting.name,
+            concealed: sighting.concealed || stranger,
+          };
+        })
         .sort((a, b) => Number(a.concealed) - Number(b.concealed) || (a.label ?? "").localeCompare(b.label ?? "")),
     };
   });
@@ -96,8 +116,13 @@ export async function examineCharacter(targetId) {
     const blocked = await blockedFromLooking(me, ghost);
     if (blocked) throw new UserError(blocked);
 
+    // `targetId` is the line the list keyed them by (peopleToExamine above),
+    // and it must still be somebody's LAST line you heard. A named row's menu
+    // in Who's here still passes a character id, which is fine: that id was
+    // on the page already.
     const seen = await lastSightings(prisma, me, { ghost, discordUserId: me.discordUserId });
-    const sighting = seen.get(String(targetId ?? ""));
+    const wanted = String(targetId ?? "");
+    const sighting = seen.get(wanted) ?? [...seen.values()].find((s) => s.seq === wanted);
     if (!sighting) throw new UserError("You haven't heard them say anything.");
 
     // looker() already selects exactly what examineRow wants — the two lists
