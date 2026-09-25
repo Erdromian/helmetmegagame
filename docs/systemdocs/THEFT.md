@@ -176,13 +176,13 @@ already picked a pocket this turn."*
 
 ### 2a. Three bands, not two
 
-Read off the die **plus** Skilled's +1:
+Read off the die **plus** Skilled's +1, **minus** the mark's defense (§2i):
 
 | total | what happens |
 |---|---|
 | 4+ | **clean.** They are told nothing at all. |
 | 2–3 | **noticed.** You get the goods, they are DM'd that you picked them, and **you are stuck there for 5 minutes, held by them** — both at the take (§2e, §2g). |
-| 1 | **failed.** Nothing moves, they are DM'd that you tried and failed, and **you are stuck there for 5 minutes, held by them** (§2g). |
+| 1 or less | **failed.** Nothing moves, they are DM'd that you tried and failed, and **you are stuck there for 5 minutes, held by them** (§2g). |
 
 The middle band is the whole texture, and collapsing it into a plain pass/fail
 is the easy accident — a verb that only ever succeeded silently or failed
@@ -190,8 +190,10 @@ harmlessly would be a free action with no reason not to press it at everybody
 in the room.
 
 **Pickpocketing (Skilled)'s +1 lifts a natural 1 clear of the failure band**,
-so a master is never caught empty-handed. They can still be felt, and held,
-with the goods on them. That is what "almost always succeeds" means.
+so against an undefended mark a master is never caught empty-handed. They can
+still be felt, and held, with the goods on them. That is what "almost always
+succeeds" means — and one point of defense (§2i) puts the natural 1 back where
+it was.
 
 ### 2b. The weight budget, and the hole it plugs
 
@@ -406,6 +408,65 @@ one poll (10 s) of a hold landing or lapsing. `/chat` has no poller for its
 pools, so there the button reflects page load, the same as Miracle, the Bird
 and Extract.
 
+### 2i. The mark's defense
+
+**Four tags on the TARGET's sheet each take one off the thief's total**, and
+they are the only four (`DEFENSE_SLUGS` in `db/lib/pickpocket.js`):
+
+| on the mark | defense |
+|---|---|
+| Keen Hearing | +1 |
+| Eagle Eyes | +1 |
+| Pickpocketing I | +1 |
+| Pickpocketing II | +1 |
+
+The two senses are the ones that would catch a hand; the two rungs are there
+because a thief knows where a hand goes. They are **counted, not looked up** —
+a tag is on the sheet or it isn't — so the ceiling is 4, and nothing else on
+either sheet moves it: Stealth, Clumsy and the drink are Steal's table (§1b),
+not this one, and Lucky is the thief's die (§1c).
+
+The band is `die + bonus − defense`, so each point of defense shifts the whole
+table up one face. What that does to the odds, in faces out of 6:
+
+| defense | plain thief: clean / noticed / failed | master (+1): clean / noticed / failed |
+|---|---|---|
+| 0 | 3 / 2 / 1 | 4 / 2 / 0 |
+| 1 | 2 / 2 / 2 | 3 / 2 / 1 |
+| 2 | 1 / 2 / 3 | 2 / 2 / 2 |
+| 3 | 0 / 2 / 4 | 1 / 2 / 3 |
+| 4 | 0 / 1 / 5 | 0 / 2 / 4 |
+
+Three things fall out of that, and each is deliberate:
+
+- **A defended mark is never immune.** The noticed band never closes: even at
+  4, a plain thief on a 6 or a master on a 5–6 still gets the goods and gets
+  felt. What defense buys is that the theft is *known*, not that it fails —
+  and since a felt reach holds the thief (§2g), known means 5 minutes with
+  them pinned in front of you.
+- **A clean take against 3 needs Skilled, and against 4 nobody gets one.**
+  Somebody carrying all four has spent 13 points on it, and "you cannot be
+  robbed without knowing" is what they bought.
+- **Skilled's "never fails outright" (§2a) holds only against an undefended
+  mark.** One point of defense puts a master's natural 1 back in the failure
+  band, and a failed reach is a held thief.
+
+**The thief is told nothing about it**, and the payload rule in §2c is what
+makes that true: clean and noticed already look identical from the dialog, and
+a failed reach against a wary mark reads exactly like a failed reach against
+anyone. Nothing on the target's sheet is named in any refusal or notice — one
+bad roll says nothing, and a thief who wants to know whether somebody is hard
+to rob has to spend the turn's one reach (§2d) to find out, and stand there
+held when it fails. The mark is told nothing either; their DM on a noticed or
+failed reach is the same sentence it always was.
+
+**It is written down, though.** `defense` is a column on the
+`PickpocketAttempt` row and a field on the `pickpocket` audit row, beside the
+die and the bonus, so a row reproduces its own outcome for a GM reading it
+back — a `die: 5, outcome: failed` with no defense beside it would read as a
+bug. Rows rolled before the column existed carry 0, which is what they rolled
+against.
+
 ## 3. The two tags
 
 | | slug | cost | who |
@@ -428,6 +489,12 @@ tags of a gated group deliberately never repeat the gate themselves
 replace, so a master holds both rungs and pays 5 in total. `parentTag` would
 delete Basic on purchase and leave every gate having to accept either tag to
 mean the same thing.
+
+**Both rungs also count on the other side of the table.** A Pickpocketing tag
+on the *mark's* sheet is one point of defense apiece (§2i) — the same two
+slugs read off the other character, so there is no third tag to buy and
+nothing to keep in step. Keen Hearing and Eagle Eyes are the other two, and
+that is the whole list.
 
 ## 4. Where the code lives
 

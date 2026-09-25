@@ -12,10 +12,12 @@ const {
   CLEAN,
   NOTICED,
   FAILED,
+  DEFENSE_SLUGS,
   holdsPickpocket,
   isSkilled,
   pickpocketBonus,
   pickpocketBudgetLbs,
+  pickpocketDefense,
   pickpocketOutcome,
   pickpocketTook,
   pickpocketRation,
@@ -29,6 +31,10 @@ const {
 
 const held = (...slugs) => slugs.map((slug) => ({ tag: { slug } }));
 const band = (die, tags = []) => pickpocketOutcome(die + pickpocketBonus(tags));
+// The whole sum, the way actions/pickpocket.js computes it: the thief's bonus
+// on, the mark's defense off.
+const defended = (die, thief = [], mark = []) =>
+  pickpocketOutcome(die + pickpocketBonus(thief) - pickpocketDefense(mark));
 
 test("the three bands: 1 fails, 2-3 is noticed, 4+ is clean", () => {
   assert.deepEqual(
@@ -45,7 +51,8 @@ test("both success bands take the goods; only a 1 takes nothing", () => {
 
 // "Almost always succeeds" is the claim the tag makes, and this is it: the +1
 // lifts a natural 1 clear of the failure band, so a master is never caught
-// empty-handed — only felt.
+// empty-handed — only felt. Against an undefended mark, that is; the defense
+// tests below are where that stops being true.
 test("Skilled's +1 means a master never fails outright", () => {
   assert.equal(SKILLED_BONUS, 1);
   const master = held("pickpocket", "pickpocketing-skilled");
@@ -117,6 +124,73 @@ test("picks are weighed per unit, not per row", () => {
   const r = row({ quantity: 5 });
   assert.equal(weighPicks([{ held: r, quantity: 2 }]), 6);
   assert.equal(weighPicks([]), 0);
+});
+
+// ─── The mark's defense (THEFT.md §2i) ─────────────────────────────────────
+
+test("defense: one off the total for each of the four tags, and nothing else", () => {
+  assert.equal(DEFENSE_SLUGS.length, 4);
+  assert.equal(pickpocketDefense([]), 0);
+  assert.equal(pickpocketDefense(held("keen-hearing")), 1);
+  assert.equal(pickpocketDefense(held("eagle-eyes")), 1);
+  assert.equal(pickpocketDefense(held("pickpocket")), 1);
+  // Each RUNG counts, so a master thief's own pockets are two points harder.
+  assert.equal(pickpocketDefense(held("pickpocket", "pickpocketing-skilled")), 2);
+  assert.equal(pickpocketDefense(held("keen-hearing", "eagle-eyes", "pickpocket", "pickpocketing-skilled")), 4);
+  // Stealth, Lucky and the drink are the thief's business, not the mark's.
+  assert.equal(pickpocketDefense(held("stealth", "lucky", "tipsy")), 0);
+});
+
+test("each point of defense shifts the whole band up one face", () => {
+  const ears = held("keen-hearing");
+  assert.deepEqual([1, 2, 3, 4, 5, 6].map((d) => defended(d, [], ears)), [
+    FAILED,
+    FAILED,
+    NOTICED,
+    NOTICED,
+    CLEAN,
+    CLEAN,
+  ]);
+  // And the master's +1 cancels one point of it exactly.
+  const master = held("pickpocket", "pickpocketing-skilled");
+  assert.deepEqual(
+    [1, 2, 3, 4, 5, 6].map((d) => defended(d, master, ears)),
+    [1, 2, 3, 4, 5, 6].map((d) => band(d)),
+  );
+});
+
+// Where a plain thief stops ever getting away with it: three points closes
+// the clean band for them, and only Skilled reopens it, on a 6.
+test("three points of defense puts a clean take out of an unskilled thief's reach", () => {
+  const three = held("keen-hearing", "eagle-eyes", "pickpocket");
+  assert.equal([1, 2, 3, 4, 5, 6].map((d) => defended(d, [], three)).includes(CLEAN), false);
+  const master = held("pickpocket", "pickpocketing-skilled");
+  assert.equal(defended(6, master, three), CLEAN);
+  assert.equal(defended(5, master, three), NOTICED);
+});
+
+// The ceiling. Somebody wearing all four is never picked clean — a 6 and the
+// Skilled +1 still land on 3 — but the noticed band never closes, so they are
+// not immune, only never unfelt. That is the design: defense buys KNOWING.
+test("full defense: never clean, never immune", () => {
+  const wary = held("keen-hearing", "eagle-eyes", "pickpocket", "pickpocketing-skilled");
+  assert.deepEqual([1, 2, 3, 4, 5, 6].map((d) => defended(d, [], wary)), [
+    FAILED,
+    FAILED,
+    FAILED,
+    FAILED,
+    FAILED,
+    NOTICED,
+  ]);
+  const master = held("pickpocket", "pickpocketing-skilled");
+  assert.deepEqual([1, 2, 3, 4, 5, 6].map((d) => defended(d, master, wary)), [
+    FAILED,
+    FAILED,
+    FAILED,
+    FAILED,
+    NOTICED,
+    NOTICED,
+  ]);
 });
 
 test("one reach per turn, at anybody, and a reopen only at the same untouched pocket", () => {
