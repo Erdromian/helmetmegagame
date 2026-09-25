@@ -273,6 +273,21 @@ const ASSIGNABLE_THREATS = THREATS.filter((t) => t.assignable);
 
 const SEAT_TAG_SLUGS = ASSIGNABLE_THREATS.map((t) => t.seatTagSlug).filter(Boolean);
 
+// The SECRET seats: a hidden tag worn under an ordinary cover role, with no
+// Role of their own to spawn into — the Thanati, their leader, the Vampire,
+// the Demoness and the Judge. The Tribunal and the Bastard's host are the
+// opposite case: open invaders with seats of their own, whom a town can learn
+// to recognise. The Memories system (docs/systemdocs/MEMORIES.md §2d) treats
+// the secret ones as not existing at all: nothing about them is ever seeded,
+// learned or remembered — only the cover role is, like anybody else's.
+const SECRET_THREATS = ASSIGNABLE_THREATS.filter((t) => !t.spawn?.roleSlug);
+
+// Every word a secret seat goes by — its name and the public name it wears in
+// the lobby (a Thanati opts in as a "Cultist") — lower-cased for matching.
+const SECRET_SEAT_WORDS = [
+  ...new Set(SECRET_THREATS.flatMap((t) => [t.name, optInName(t)]).map((w) => w.toLowerCase())),
+];
+
 function threatBySlug(slug) {
   return THREATS_BY_SLUG.get(slug) ?? null;
 }
@@ -465,6 +480,8 @@ module.exports = {
   OPT_IN_THREATS,
   ASSIGNABLE_THREATS,
   SEAT_TAG_SLUGS,
+  SECRET_THREATS,
+  SECRET_SEAT_WORDS,
   SPAWN_NAMES,
   TRIBUNAL_NAMES,
   THREAT_SPAWN_ACCEPT_PREFIX,

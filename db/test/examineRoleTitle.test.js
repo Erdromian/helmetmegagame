@@ -1,7 +1,7 @@
-// Which seats a look reads off somebody (db/lib/examine.js, Role.examineVisible).
-// Most of them are public offices, so the title shows; the two Tribunal seats
-// carry `examine_visible: false` in docs/roles.yaml and show
-// nothing at all, the same as a character with no seat. Run with
+// Where a look gets somebody's role from (db/lib/examine.js): the LOOKER's
+// own memory of them — their Friends entry on /memories — and nowhere else
+// (docs/systemdocs/MEMORIES.md §6). A stranger reads no role, whatever the
+// seat; a friend reads whatever the looker remembers, true or not. Run with
 // `npm test --workspace=db`. Nothing here touches Prisma — examineReadout,
 // presentedStateFrom and rehydrateSubject are all pure.
 const test = require("node:test");
@@ -35,68 +35,75 @@ const DISGUISE = {
 const held = (tag, equipped = false) => ({ equipped, expiresTurn: null, tag });
 
 // The character as a WRITER loads them (db/lib/examineSnapshot.js#PRESENTED_STATE_SELECT).
-const speaker = ({ roleTitle = "Sheriff", examineVisible = true, groupSlug = "soil", tags = [], concealed = false } = {}) => ({
+const speaker = ({ tags = [], concealed = false } = {}) => ({
   name: "Ivo Brandt",
   appearance: "Heavyset, sunburnt.",
   concealed,
-  roleTitle,
-  role: roleTitle ? { examineVisible, groupSlug } : null,
+  roleTitle: "Sheriff",
   tags: tags.map((ct) => ({ tagId: ct.tag.slug, equipped: ct.equipped, expiresTurn: null, quantity: 1, tag: ct.tag })),
 });
 
-const live = { id: "c1", name: "Ivo Brandt", age: 44, gender: "MAN", updatedAt: new Date(0) };
+const live = { id: "c1", name: "Ivo Brandt", age: 44, gender: "MAN", updatedAt: new Date(0), roleTitle: "Sheriff" };
+
+// What db/lib/examineRow.js#memoryForLook hands over for a looker who knows him.
+const FRIEND = { name: "Ivo Brandt", roleText: "Sheriff", roleGroup: "soil", notes: "Owes me a drink." };
 
 // Say a line, then look at it — the whole path, the way examineRow.js walks it.
-function look(over = {}) {
+function look({ memory = null, ...over } = {}) {
   const character = speaker(over);
   const state = readPresentedState(presentedStateFrom(character));
   const catalog = (over.tags ?? []).map((ct) => ({ id: ct.tag.slug, ...ct.tag }));
   const subject = rehydrateSubject({ live, state, tags: catalog });
-  return examineReadout({ subject, openTurnNumber: 9 });
+  return examineReadout({ subject, openTurnNumber: 9, memory });
 }
 
-test("a public office is read off a look", () => {
-  assert.equal(look().roleTitle, "Sheriff");
+test("a stranger reads no role, however public the seat", () => {
+  const readout = look();
+  assert.equal(readout.roleTitle, null);
+  assert.equal(readout.roleGroup, null);
+  assert.equal(readout.memory, null);
 });
 
-test("the title is painted in its estate's colour", () => {
-  assert.equal(look().roleGroup, "soil");
+test("a friend reads the role they remember, in its estate's colour", () => {
+  const readout = look({ memory: FRIEND });
+  assert.equal(readout.roleTitle, "Sheriff");
+  assert.equal(readout.roleGroup, "soil");
 });
 
-test("a seat in an uncoloured group is read, but wears no colour", () => {
-  const readout = look({ roleTitle: "Mercenary", groupSlug: "outsiders" });
-  assert.equal(readout.roleTitle, "Mercenary");
+test("what the looker wrote is what they read back, true or not", () => {
+  const readout = look({ memory: { ...FRIEND, roleText: "Probably a smuggler", roleGroup: null } });
+  assert.equal(readout.roleTitle, "Probably a smuggler");
   assert.equal(readout.roleGroup, null);
 });
 
-test("a seat that lives on not being known reads as nothing", () => {
-  const readout = look({ roleTitle: "Tribune", examineVisible: false });
+test("a friend with no role remembered reads no role, and no colour", () => {
+  const readout = look({ memory: { ...FRIEND, roleText: null } });
   assert.equal(readout.roleTitle, null);
+  assert.equal(readout.roleGroup, null);
 });
 
-test("no seat at all reads the same as an opaque one", () => {
-  assert.equal(look({ roleTitle: null }).roleTitle, null);
+test("the looker's name for them and their notes ride along", () => {
+  const readout = look({ memory: { ...FRIEND, name: "Old Ivo" } });
+  assert.deepEqual(readout.memory, { name: "Old Ivo", notes: "Owes me a drink." });
+  // The heading still says what the room heard.
+  assert.equal(readout.name, "Ivo Brandt");
 });
 
-test("the title is the character's own, not the catalog's name for the seat", () => {
-  // A GM hand-edits Character.roleTitle; that is what the room knows them as.
-  assert.equal(look({ roleTitle: "Disgraced Knight" }).roleTitle, "Disgraced Knight");
-});
-
-test("under a hood: no name, and no office either", () => {
-  const readout = look({ tags: [held(HOOD, true)], concealed: true });
+test("under a hood: no name, no office, and no memory", () => {
+  const readout = look({ tags: [held(HOOD, true)], concealed: true, memory: FRIEND });
   assert.equal(readout.concealed, true);
   assert.equal(readout.roleTitle, undefined);
+  assert.equal(readout.memory, undefined);
 });
 
-test("a false name is not a hood, and the office is still read", () => {
-  const readout = look({ tags: [held(DISGUISE)] });
+test("under a false name: somebody else, so nothing the looker remembers of the man underneath", () => {
+  const readout = look({ tags: [held(DISGUISE)], memory: FRIEND });
   assert.equal(readout.name, "Tomas Vell");
-  assert.equal(readout.roleTitle, "Sheriff");
+  assert.equal(readout.roleTitle, null);
+  assert.equal(readout.memory, null);
 });
 
-test("a raw character row leaks nothing — only the frozen field is read", () => {
-  // The shape examine.js must never trust: a title with no visibility attached.
+test("a raw character row leaks nothing — the subject's own title is never read", () => {
   const readout = examineReadout({
     subject: { id: "c2", name: "Ivo Brandt", appearance: "Heavyset.", concealed: false, roleTitle: "Tribune", tags: [] },
     openTurnNumber: 9,

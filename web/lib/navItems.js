@@ -9,7 +9,7 @@ export const PLAYER_NAV = [
   { href: "/character", label: "Character", icon: "character" },
   { href: "/chat", label: "Chat", icon: "play" },
   { href: "/map", label: "Map", icon: "map" },
-  { href: "/notes", label: "Notes", icon: "notes" },
+  { href: "/memories", label: "Memories", icon: "memories" },
   { href: "/documents", label: "Documents", icon: "documents" },
   // TEMPORARILY OFF with HANDBOOK_HIDDEN in web/lib/handbook.js — a rail item
   // pointing at a page that answers 404 is worse than no rail item.
@@ -26,7 +26,7 @@ export const GM_NAV = [
   { href: "/character", label: "Character", icon: "character", section: "player" },
   { href: "/chat", label: "Chat", icon: "play", section: "player" },
   { href: "/map", label: "Map", icon: "map", section: "player" },
-  { href: "/notes", label: "Notes", icon: "notes", section: "player" },
+  { href: "/memories", label: "Memories", icon: "memories", section: "player" },
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
   // TEMPORARILY OFF — see PLAYER_NAV above.
   // { href: "/handbook", label: "Handbook", icon: "help", section: "player" },
@@ -44,7 +44,7 @@ export const ECONOMIST_NAV = [
   { href: "/character", label: "Character", icon: "character", section: "player" },
   { href: "/chat", label: "Chat", icon: "play", section: "player" },
   { href: "/map", label: "Map", icon: "map", section: "player" },
-  { href: "/notes", label: "Notes", icon: "notes", section: "player" },
+  { href: "/memories", label: "Memories", icon: "memories", section: "player" },
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
 ];
 
@@ -84,13 +84,13 @@ async function loadUnreadConversationCount(discordUserId) {
 // A shut game is a door, not a world: there is no Map to read, no Depot to
 // stand in, and no Lifeweb to look at, so the rail offers none of them. What
 // is left is the five things that still mean something before the game opens
-// — your sheet, the documents, a line to the GMs, your notes and the rules.
+// — your sheet, the documents, a line to the GMs, your memories and the rules.
 // The build crew keep the full rail, because a closed game is exactly when
 // they are working on it. See docs/systemdocs/LOBBY.md §1.
 // "/handbook" is TEMPORARILY OUT of this set too — see handbook.js. It is a
 // filter over the rails above, so with the entries commented out it would
 // match nothing anyway; it is listed here only so the restore is one grep.
-const CLOSED_NAV_HREFS = new Set(["/character", "/chat", "/notes", "/documents"]);
+const CLOSED_NAV_HREFS = new Set(["/character", "/chat", "/memories", "/documents"]);
 
 export async function loadNavItems(discordUserId) {
   const [{ isGm: gm }, member, hasMortusTag, treasuryGate, gameConfig, state, depotGate] =

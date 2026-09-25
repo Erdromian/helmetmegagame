@@ -26,7 +26,8 @@ const DEFAULT_ROUTES = [
   { path: "/chat", as: "player" },
   { path: "/map", as: "player" },
   { path: "/documents", as: "player" },
-  { path: "/notes", as: "player" },
+  { path: "/memories", as: "player" },
+  { path: "/notes", as: "player", expect: "/memories" }, // the old Notes page, forwarded (MEMORIES.md)
 
   { path: "/store", as: "player", expect: "/character" }, // deliberate redirect stub for old links
   { path: "/depot", as: "player", expect: "/character" }, // gated on a licence, not on being a player

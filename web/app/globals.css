@@ -7449,3 +7449,157 @@ button.chip[data-off="true"]:not([data-active]) {
   padding: var(--sp-3);
   min-width: 190px;
 }
+
+/* ---------------------------------------------------------------- /memories
+   Five disclosures, each a .panel with a native <details> doing the opening
+   (docs/systemdocs/MEMORIES.md). The summary wears the .panel-header recipe —
+   serif, small caps, the bevelled rule under it once it is open — so a shut
+   section reads as a titled card and an open one as the same card unrolled. */
+.memory-section > summary {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 2px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.memory-section > summary::-webkit-details-marker {
+  display: none;
+}
+
+.memory-section[open] > summary {
+  margin-bottom: var(--sp-2);
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--border);
+  box-shadow: 0 1px 0 var(--border-lo);
+}
+
+.memory-section > summary:hover .memory-section-title {
+  color: var(--accent-text);
+}
+
+.memory-section-chevron {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--muted);
+  transform: rotate(-90deg);
+  transition: transform 120ms ease;
+}
+
+.memory-section[open] > summary .memory-section-chevron {
+  transform: none;
+}
+
+.memory-section-title {
+  font-family: var(--font-serif);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  line-height: var(--lh-heading);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  color: var(--text-hi);
+}
+
+.memory-section-count {
+  margin-left: auto;
+  font-size: var(--fs-xs);
+  color: var(--muted);
+}
+
+.memory-section-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.memory-fog {
+  margin-bottom: var(--sp-2);
+  font-style: italic;
+}
+
+/* One remembered person: a sunk card inside the section, the same register a
+   starred line's card wears. */
+.memory-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+/* The role, in its estate's colour — the same six the feed paints a name in. */
+.memory-role[data-role-group="court"],
+.memory-line-name[data-role-group="court"] { color: var(--role-court); }
+.memory-role[data-role-group="clergy"],
+.memory-line-name[data-role-group="clergy"] { color: var(--role-clergy); }
+.memory-role[data-role-group="cerberon"],
+.memory-line-name[data-role-group="cerberon"] { color: var(--role-cerberon); }
+.memory-role[data-role-group="saviors"],
+.memory-line-name[data-role-group="saviors"] { color: var(--role-saviors); }
+.memory-role[data-role-group="business"],
+.memory-line-name[data-role-group="business"] { color: var(--role-business); }
+.memory-role[data-role-group="soil"],
+.memory-line-name[data-role-group="soil"] { color: var(--role-soil); }
+
+.memory-self-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.memory-pin {
+  letter-spacing: 0.3em;
+}
+
+.memory-charter {
+  margin: 0;
+  padding-left: var(--sp-4);
+  list-style: disc;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* A line of the day: face, words, star — the transcript's own shape, a little
+   quieter, since these are remembered rather than live. */
+.memory-line {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr) auto;
+  align-items: start;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border-lo);
+}
+
+.memory-line[data-narrated="true"] {
+  grid-template-columns: minmax(0, 1fr) auto;
+  color: var(--muted);
+  font-style: italic;
+}
+
+.memory-line-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+@media (max-width: 640px) {
+  .memory-self-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .memory-section-chevron {
+    transition: none;
+  }
+}
+
+.memory-line .btn-quiet {
+  font-size: var(--fs-lg);
+  line-height: 1;
+}

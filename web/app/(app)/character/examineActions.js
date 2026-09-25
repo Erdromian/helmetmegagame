@@ -5,7 +5,7 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { guarded, UserError } from "@/lib/actionResult";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
-import { examineRow } from "@lifeweb/db/lib/examineRow";
+import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
@@ -17,14 +17,9 @@ import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 // read. The readout is db/lib/examine.js, shared with the reaction handler so
 // the two surfaces can't drift on the doctor's eye or what "visible" means.
 
-const LOOKER_SELECT = {
-  id: true,
-  locationId: true,
-  discordUserId: true,
-  // for examineVision.js: spectacles only correct sight while worn.
-  tags: { select: { tagId: true, equipped: true, tag: { select: { slug: true } } } },
-  location: { select: { indoors: true } },
-};
+// examineRow.js#VIEWER_SELECT, which is what the look reads: examineVision.js for sight
+// (spectacles only correct while worn), memoryScramble.js for a Concussed looker.
+const LOOKER_SELECT = VIEWER_SELECT;
 
 // The looker, from the session and never from a posted id — a server action is a public endpoint.
 //

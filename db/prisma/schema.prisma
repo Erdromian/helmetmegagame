@@ -2496,6 +2496,20 @@ model Character {
   // member list and is the backstop, exactly as it was before this column.
   roomThreadRoomIds String[] @default([])
 
+  // The four digits that open this character's account at an ATM, shown on
+  // the "Who am I?" section of /memories (docs/systemdocs/MEMORIES.md §3).
+  // Minted by db/lib/acquaintances.js#ensurePin at creation, or by the
+  // backfill for a character made before the column existed. Display only
+  // for now: no ATM asks for it yet.
+  pin String?
+
+  // The Friends section of /memories: what this character knows about other
+  // people, and what other people know about them (Acquaintance below).
+  acquaintances           Acquaintance[]           @relation("AcquaintanceOwner")
+  knownBy                 Acquaintance[]           @relation("AcquaintanceSubject")
+  // Every line this character was in the room for today (HeardLine below).
+  heardLines              HeardLine[]
+
   tags                    CharacterTag[]
   actions                 Action[]
   auditLogTargets         AuditLog[]
@@ -3822,15 +3836,23 @@ model Role {
   // docs/systemdocs/CHARACTERS.md §2.
   requiresWhitelist Boolean @default(false)
 
-  // Whether examining somebody in this seat reads the title off them. On for
-  // nearly every role -- the Bishop, the Sheriff and the Innkeeper are known to
-  // be what they are -- and off only for the seats that live on not being
-  // known: the two Tribunal seats. Declared as
-  // `examine_visible:` in docs/roles.yaml, where leaving it out means visible.
-  // The title itself is frozen onto each line the character says
-  // (db/lib/examineSnapshot.js), so a look answers for the moment it was said.
-  // See docs/systemdocs/CHARACTERS.md §2.
+  // Whether this seat is listed in #info's public roles thread
+  // (db/lib/infoChannel.js reads the YAML key directly). Off for the two
+  // Tribunal seats and the six Bastard seats, so the server is not told who is
+  // coming. The name is historical: a look no longer reads a role off the seat
+  // at all but from the looker's own memory (docs/systemdocs/MEMORIES.md §7),
+  // and every seat can be learned. Nothing in the game reads this column now;
+  // it is kept in step with the YAML by db:sync-roles. Declared as
+  // `examine_visible:` in docs/roles.yaml, where leaving it out means true.
   examineVisible Boolean @default(true)
+
+  // Which roles somebody in this seat starts out knowing: a Friends entry,
+  // with name and role, for every living holder of one of these, made when
+  // either of them is created (db/lib/acquaintances.js). Declared as `knows:`
+  // in docs/roles.yaml, where a group slug stands for every role in it; this
+  // column holds the expanded role slugs. Empty means a stranger to everyone,
+  // which is what a Migrant is. See docs/systemdocs/MEMORIES.md §2a.
+  knowsRoleSlugs String[] @default([])
 
   // A seat that fixes the holder's gender rather than letting them choose:
   // Baron and Heir are MAN, Baroness and Successor are WOMAN. Null for every
@@ -4651,6 +4673,81 @@ model JournalEntry {
   updatedAt     DateTime @updatedAt
 
   @@index([discordUserId])
+}
+
+// How a Friends entry came to exist (docs/systemdocs/MEMORIES.md §2).
+enum AcquaintanceSource {
+  // Known from the start: the owner's role knows the subject's role
+  // (Role.knowsRoleSlugs), and both were alive when one of them was made.
+  SEED
+  // Heard in a room: somebody who knew the name said it, or the subject
+  // introduced themselves (db/lib/memoryHearing.js).
+  HEARD
+  // Written by the player, from scratch. Never linked to a character.
+  MANUAL
+}
+
+// One entry in the Friends section of /memories: a character's own memory of
+// somebody else. It is what a look reads a role from (db/lib/examineRow.js),
+// so it has to be per CHARACTER, not per player — a new character starts
+// knowing only what their seat knows.
+//
+// Everything on it is the owner's to rewrite. A player may change a name, a
+// role or the notes to anything, true or not, and the game only ever FILLS an
+// empty roleText; it never overwrites one.
+//
+// `subjectId` is who it is about. Null for a MANUAL entry, which is never
+// linked: a picker to link one would list every living character, and that
+// list is exactly what the Friends section is meant to have to earn. SetNull
+// when the subject's row is deleted, so a memory of somebody outlives them.
+model Acquaintance {
+  id String @id @default(cuid())
+
+  ownerId String
+  owner   Character @relation("AcquaintanceOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+
+  subjectId String?
+  subject   Character? @relation("AcquaintanceSubject", fields: [subjectId], references: [id], onDelete: SetNull)
+
+  name     String
+  roleText String?
+  // The Role the entry is filed under on the page — set when the game fills
+  // the role in, or when a player types a role that matches a Role.name. Not
+  // an FK: it is a grouping key, and a stale one just files under "Unknown".
+  roleSlug String?
+  notes    String  @default("")
+
+  source AcquaintanceSource
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([ownerId, subjectId])
+  @@index([ownerId])
+  @@index([subjectId])
+}
+
+// One line a character was in the room for, filed for the "Memories of the
+// day" section of /memories. Written for everyone physically present when the
+// row is recorded (db/lib/memoryHearing.js#logHeard, called from
+// db/lib/archive.js#recordArchiveMessage), so a line said before somebody
+// walked in, or after they left, is never theirs.
+//
+// `seq` points at ArchiveEntry.seq. Not an FK: ArchiveEntry rows are
+// soft-deleted and the reader filters on deletedAt, and this table is wiped
+// every in-game day (db/lib/turnSideEffects/steps/turnWrapup.js).
+model HeardLine {
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  seq       BigInt
+  dayNumber Int
+
+  createdAt DateTime @default(now())
+
+  @@id([characterId, seq])
+  @@index([characterId, dayNumber])
+  @@index([dayNumber])
 }
 
 // A consent handshake between two characters, alive for one turn

@@ -22,16 +22,38 @@ const { forcedNameFrom, wasHooded } = require("./presentedIdentity");
 const { feedWipeFloors, floorForPlace } = require("./feedWipe");
 const { mayReadPlace } = require("./feedAccess");
 const { THANATI_SLUG } = require("./thanati");
+const { scrambleState, scrambleEntry } = require("./memoryScramble");
+const { roleGroupHue } = require("./roleGroups");
 
 // `equipped` and the roof are for examineVision.js: spectacles only correct while worn, Sun
-// Sensitivity only blinds outdoors.
+// Sensitivity only blinds outdoors. `acquiredAt` is for db/lib/memoryScramble.js: when a
+// Concussed tag arrived decides what the looker's memory garbles into.
 const VIEWER_SELECT = {
   id: true,
   locationId: true,
   discordUserId: true,
-  tags: { select: { tagId: true, equipped: true, tag: { select: { slug: true } } } },
+  tags: { select: { tagId: true, equipped: true, acquiredAt: true, tag: { select: { slug: true } } } },
   location: { select: { indoors: true } },
 };
+
+// The looker's own Friends entry for the subject, as they can read it today —
+// what a look draws the role and the notes from (docs/systemdocs/MEMORIES.md
+// §6). Scrambled by the same rule the Friends section uses, field for field,
+// so a role the page shows as nonsense reads as nonsense here too, and a
+// scrambled role wears no estate colour, which would otherwise give it away.
+async function memoryForLook(prisma, viewer, subjectId, dayNumber) {
+  const entry = await prisma.acquaintance.findUnique({
+    where: { ownerId_subjectId: { ownerId: viewer.id, subjectId } },
+    select: { id: true, name: true, roleText: true, roleSlug: true, notes: true },
+  });
+  if (!entry) return null;
+  const shown = scrambleEntry(scrambleState({ characterId: viewer.id, tags: viewer.tags, dayNumber }), entry);
+  const role =
+    entry.roleSlug && shown.roleText && !shown.scrambled.roleText
+      ? await prisma.role.findUnique({ where: { slug: entry.roleSlug }, select: { groupSlug: true } })
+      : null;
+  return { name: shown.name, roleText: shown.roleText, notes: shown.notes, roleGroup: roleGroupHue(role?.groupSlug) };
+}
 
 // `bystander: true` strips the viewer's own sight — no doctor's eye, no
 // Seductive — what a CAMERA sees, closing the one way the doctor's-eye gate could be laundered.
@@ -71,7 +93,7 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
   if (row.kind !== "MESSAGE") return null;
   if (row.characterId === viewer.id) return null;
 
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true, dayNumber: true } });
 
   // Blindness first — nothing else can rescue it.
   const blocked = examineBlock(viewer.tags ?? [], {
@@ -112,11 +134,8 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
     })
     : [];
 
-  // A row with no snapshot falls back to the live character, which carries no
-  // `visibleRoleTitle` — so a line written before that key existed reads out no
-  // role, the same way it already drops the faction-era `r` and `f`. The live
-  // select above is deliberately NOT widened to fetch one: a live role read on a
-  // frozen line is the thing this whole file exists to prevent.
+  // No role comes off the subject, frozen or live: a role is read from the
+  // looker's own memory below, never from the person looked at.
   const subject = state ? rehydrateSubject({ live, state, tags: catalog }) : live;
 
   // Every duration counts against the turn the LINE was said, not today's — a
@@ -132,7 +151,12 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
   const sightTags = bystander ? [] : (viewer.tags ?? []); // a camera gets none of the viewer's
 
   // A hood gets the impoverished read, so neither query below is worth running for one.
-  const [skillCatalog, lastDesire] = await Promise.all([
+  // What the looker remembers of them. Nothing for a hood (a stranger's face
+  // tells you nothing about who is under it), nothing for a false name (the
+  // room sees somebody else), and nothing for a camera, which remembers no one.
+  const memoryNeeded = !hooded && !forced && !bystander;
+
+  const [skillCatalog, lastDesire, memory] = await Promise.all([
     bystander ? [] : prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
     !hooded && canSeeDesire(sightTags)
       ? prisma.desire.findFirst({
@@ -150,6 +174,7 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
         select: { text: true, points: true },
       })
       : null,
+    memoryNeeded ? memoryForLook(prisma, viewer, subject.id, openTurn?.dayNumber ?? 0) : null,
   ]);
 
   return {
@@ -167,8 +192,9 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
       lastDesire,
       wasConcealedAs: hooded ? (row.concealedAlias ?? null) : null, // the hood the room SAW
       viewerIsThanati: !bystander && (viewer.tags ?? []).some((ct) => ct.tag?.slug === THANATI_SLUG),
+      memory,
     }),
   };
 }
 
-module.exports = { VIEWER_SELECT, examineRow };
+module.exports = { VIEWER_SELECT, examineRow, memoryForLook };

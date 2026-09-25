@@ -19,6 +19,7 @@ const { chunkMessage } = require("./chunkText");
 const { MESSAGE_LIMIT, MAX_SAY_PIECES, tooManyPieces } = require("./sayLimits");
 const { echoSpeech } = require("./gateEcho");
 const { carryOverPhone } = require("./phoneVoice");
+const { learnFromSpeech } = require("./memoryHearing");
 const { deadchatSpeakerName } = require("./deadchat");
 const { containsOoc, OOC_REFUSAL } = require("./oocGuard");
 const { sessionGate } = require("./betweenSessions");
@@ -250,6 +251,16 @@ async function recordSpeech(
   // Never for a ghost: the cult listens to ROOMS, and Deadchat is not one — a word said there is
   // said nowhere in the world, so it can neither carry a rite nor be overheard by one.
   if (row && !prepared.ghost) void noteChant(prisma, { row, character: prepared.character });
+  // Names and roles the room just learned (db/lib/memoryHearing.js). Never for
+  // a ghost, never for a line recovered late — the room it was said to has
+  // moved on — and not here for the proxy (`rethrow`), which writes this row
+  // BEFORE Discord has the message and takes it back if the post fails; the
+  // proxy calls learnFromSpeech itself once the post has landed.
+  if (row && !prepared.ghost && !sentAt && !rethrow) {
+    void learnFromSpeech(prisma, { row, speakerId: prepared.character?.id ?? null }).catch((err) =>
+      console.error("Learning from speech failed:", err.message ?? err),
+    );
+  }
   // Heard through the bars of a modular gate (db/lib/gateEcho.js), but not for a message recovered late (sentAt set).
   // A ghost is behind no gate either, and their corpse's stale locationId would aim the echo at a
   // Location they are not standing in.

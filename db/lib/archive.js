@@ -243,6 +243,13 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
     // After the insert, never inside it: a listener woken before the row is committed would look it up and find nothing. `clientId` rides along so the tab that typed this meets its own row as the one it already drew, rather than a second one (feedNotify.js).
     if (row.placeKey) {
       await notifyFeed(prisma, { seq: row.seq, placeKey: row.placeKey, clientId: entry.clientId ?? null });
+      // Filed for everyone standing there, as "Memories of the day"
+      // (db/lib/memoryHearing.js). Not awaited: a memory must never slow or
+      // fail the line it is a memory of. Required here, not at the top, so the
+      // module graph under this file stays as it was.
+      void require("./memoryHearing")
+        .logHeard(prisma, row)
+        .catch((err) => console.error("Heard-line filing failed:", err.message ?? err));
     }
     return row;
   };

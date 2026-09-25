@@ -18,7 +18,7 @@ import { whosHere } from "@lifeweb/db/lib/whosHere";
 
 const GENERIC_PAGES = [
   { label: "Character", href: "/character" },
-  { label: "Notes", href: "/notes" },
+  { label: "Memories", href: "/memories" },
   { label: "Documents", href: "/documents" },
   { label: "Archive", href: "/archive" },
 ];

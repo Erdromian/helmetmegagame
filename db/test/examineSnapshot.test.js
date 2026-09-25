@@ -131,33 +131,18 @@ test("the name and the appearance come off the snapshot", () => {
   assert.equal(subject.appearance, "Tall, with a burn along one jaw.");
 });
 
-test("the role title is frozen too, and a rename afterwards does not reach the line", () => {
-  const state = roundTrip(speaker([]));
-  const subject = rehydrateSubject({ live: { ...live, roleTitle: "Bishop" }, state, tags: [] });
-  // The live row is spread in first; the frozen title has to win anyway.
-  assert.equal(subject.visibleRoleTitle, "Serpent");
-  assert.equal(examineReadout({ subject, openTurnNumber: 9 }).roleTitle, "Serpent");
+test("no role is frozen onto a line any more — a look reads it from the looker's memory", () => {
+  const frozen = presentedStateFrom(speaker([]));
+  assert.equal("rt" in frozen, false);
+  assert.equal("rg" in frozen, false);
+  const subject = rehydrateSubject({ live: { ...live, roleTitle: "Bishop" }, state: roundTrip(speaker([])), tags: [] });
+  // Neither the live row's title nor anything frozen reaches the readout.
+  assert.equal(examineReadout({ subject, openTurnNumber: 9 }).roleTitle, null);
 });
 
-test("the estate is frozen beside the title, so the colour answers for the line too", () => {
-  const state = roundTrip(speaker([]));
-  const subject = rehydrateSubject({ live, state, tags: [] });
-  assert.equal(examineReadout({ subject, openTurnNumber: 9 }).roleGroup, "saviors");
-});
-
-test("a seat in an uncoloured group freezes a title and no estate", () => {
-  const state = roundTrip(speaker([], { roleTitle: "Mercenary", groupSlug: "outsiders" }));
-  assert.equal(state.roleTitle, "Mercenary");
-  assert.equal(state.roleGroup, null);
-});
-
-test("a seat nobody reads off a look freezes no title at all", () => {
-  const state = roundTrip(speaker([], { roleTitle: "Tribune", examineVisible: false }));
-  assert.equal(state.roleTitle, null);
-  // And it is absent from the stored payload, not merely dropped on the way out.
-  const frozen = presentedStateFrom(speaker([], { roleTitle: "Tribune", examineVisible: false, groupSlug: "other" }));
-  assert.equal(frozen.rt, null);
-  assert.equal(frozen.rg, null);
+test("a line written before the change still carries rt and rg, and both are ignored", () => {
+  const state = readPresentedState({ v: 1, n: "Semyun Varyutskaya", a: null, s: 0, c: false, rt: "Serpent", rg: "saviors", t: [] });
+  assert.equal("roleTitle" in state, false);
   const subject = rehydrateSubject({ live, state, tags: [] });
   assert.equal(examineReadout({ subject, openTurnNumber: 9 }).roleTitle, null);
 });
@@ -165,7 +150,7 @@ test("a seat nobody reads off a look freezes no title at all", () => {
 test("a hood carries no title either, however public the seat", () => {
   const state = roundTrip({ ...speaker([held(ROBES, { equipped: true })]), concealed: true });
   const subject = rehydrateSubject({ live, state, tags: [ROBES] });
-  const readout = examineReadout({ subject, openTurnNumber: 9 });
+  const readout = examineReadout({ subject, openTurnNumber: 9, memory: { name: "Semyun", roleText: "Serpent", roleGroup: "saviors", notes: "" } });
   assert.equal(readout.concealed, true);
   assert.equal(readout.roleTitle, undefined);
 });
@@ -183,8 +168,6 @@ test("readPresentedState refuses anything it does not recognise", () => {
 test("readPresentedState survives junk inside a well-formed payload", () => {
   const state = readPresentedState({ v: 1, n: 7, a: null, r: null, rt: 7, rg: 7, s: "x", f: null, c: 1, t: [null, ["ok", 1, 3], [4, 1, 1], ["bad", 0, "soon"]] });
   assert.equal(state.name, null);
-  assert.equal(state.roleTitle, null);
-  assert.equal(state.roleGroup, null);
   assert.equal(state.resources, null);
   assert.equal(state.concealed, true);
   assert.deepEqual(state.tags, [

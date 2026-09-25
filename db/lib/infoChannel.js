@@ -25,8 +25,8 @@ const DOCS_DIR = docsPath();
 // PUBLIC SEATS ONLY. Two things are left out, and neither is a tidiness rule:
 //   - the whole ELSEWHERE bucket, which is where the seats nobody has bucketed
 //     land — and that is exactly where the Tribunal and the Bastards live;
-//   - any seat carrying `examine_visible: false`, the flag that already means
-//     "a look does not read this off somebody" (db/lib/examine.js).
+//   - any seat carrying `examine_visible: false`, which is what that flag
+//     means now (a look reads roles from memory, docs/systemdocs/MEMORIES.md).
 // A reader of #info learns the public roles and nothing else. Both filters are
 // kept even though they currently name the same seats: the bucket rule is what
 // stops a new hidden seat leaking because somebody forgot the flag, and the

@@ -15,6 +15,7 @@ const { closeDeadchatTo } = require("./deadchat");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { seedMemories } = require("./locationVisits");
+const { seedAcquaintances } = require("./acquaintances");
 const { startingMemorySlugs } = require("./startingMemories");
 const {
   threatBySlug,
@@ -286,6 +287,10 @@ async function applySpawnSideEffects(prisma, sideEffects) {
       console.error("Spawn memory seeding failed:", err);
     }
   }
+  // Who this seat knows and who knows it (db/lib/acquaintances.js). The
+  // Tribunal and the Bastard's host know nobody by default, and their seats
+  // are never given a role on anybody's entry either way.
+  await seedAcquaintances(prisma, characterId).catch((err) => console.error("Spawn acquaintance seeding failed:", err));
 
   // A spawned threat is alive again, so the Deadchat seat comes off — neither the curse nor the
   // ghost seat needs a write, db/lib/curse.js and db/lib/ghost.js both derive from the ALIVE row.

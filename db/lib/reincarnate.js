@@ -22,6 +22,7 @@ const { effectivePlayerCount } = require("./gameState");
 const { parseStartingTag } = require("./startingTags");
 const { expiryForGrant } = require("./grantExpiry");
 const { seedMemories } = require("./locationVisits");
+const { seedAcquaintances } = require("./acquaintances");
 const { startingMemorySlugs } = require("./startingMemories");
 const { formatCharacterName, AGE_MIN } = require("./characterName");
 const { closeDeadchatTo } = require("./deadchat");
@@ -364,6 +365,11 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
     created,
     startingMemorySlugs(role.slug, new Set(startingTags.map((t) => t.slug))),
   ).catch((err) => console.error(`Reincarnation memories failed for ${created.id}:`, err.message ?? err));
+  // A stranger in a new seat: whoever that seat knows, and whoever knows it
+  // (db/lib/acquaintances.js). Nothing of the old life carries over.
+  await seedAcquaintances(prisma, created.id).catch((err) =>
+    console.error(`Reincarnation acquaintances failed for ${created.id}:`, err.message ?? err),
+  );
 
   // Alive again, so the ghost seat comes off. Belt to
   // db/lib/deathTeardown.js#stillAlive's brace, since the web's killCharacter

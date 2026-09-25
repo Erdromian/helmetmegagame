@@ -44,6 +44,7 @@ import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, whosHereGm, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
+import { STAR_ROW_SELECT, saveStarredRow } from "@/lib/starNote";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { maybeSendGmAutoReply } from "@lifeweb/db/lib/gmAutoReply";
 import { travelOptions, linksFor, endpoints, isHeldOpen, linkBetween, routesWithinZone, loadGraph } from "@lifeweb/db/lib/locationGraph";
@@ -360,24 +361,7 @@ export async function starRow(seq) {
     return { ok: false, error: "That line is gone." };
   }
 
-  const row = await prisma.archiveEntry.findUnique({
-    where: { seq: key },
-    select: {
-      seq: true,
-      kind: true,
-      placeKey: true,
-      content: true,
-      sentAt: true,
-      zoneId: true,
-      characterId: true,
-      characterName: true,
-      concealedAlias: true,
-      presentedAvatarPath: true,
-      discordMessageId: true,
-      discordChannelId: true,
-      deletedAt: true,
-    },
-  });
+  const row = await prisma.archiveEntry.findUnique({ where: { seq: key }, select: STAR_ROW_SELECT });
   if (!row || row.deletedAt || !row.content) return { ok: false, error: "That line is gone." };
 
   // The same gate the feed reads by — stops a starred seq from a room the reader isn't standing in.
@@ -386,30 +370,9 @@ export async function starRow(seq) {
     (await mayReadPlace(prisma, character, row.placeKey, { gm: false, discordUserId: me.discordUserId }));
   if (!allowed) return { ok: false, error: "That line is gone." };
 
-  await prisma.note.upsert({
-    where: {
-      discordMessageId_discordUserId: {
-        discordMessageId: row.discordMessageId ?? `seq:${row.seq}`,
-        discordUserId: me.discordUserId,
-      },
-    },
-    create: {
-      discordMessageId: row.discordMessageId ?? `seq:${row.seq}`,
-      discordChannelId: row.discordChannelId ?? "",
-      characterId: row.characterId,
-      // Filed under the alias a concealed line was said as — a note revealing the real name would hand back what the hood hid.
-      characterName: row.concealedAlias ?? row.characterName ?? "Bascinet",
-      // Same gate, for the face.
-      presentedAvatarPath: row.concealedAlias ? (row.presentedAvatarPath ?? null) : null,
-      zoneId: row.zoneId ?? null,
-      content: row.content,
-      sentAt: row.sentAt,
-      discordUserId: me.discordUserId,
-    },
-    update: {},
-  });
+  await saveStarredRow(row, me.discordUserId);
 
-  return { ok: true, line: "Saved to your Notes." };
+  return { ok: true, line: "Saved to your Highlights." };
 }
 
 // What is lying in a room's stash, as STRUCTURE, not a formatted Discord line.

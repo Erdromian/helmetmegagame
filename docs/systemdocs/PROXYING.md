@@ -276,12 +276,13 @@ decided once, in that file. Add a field to one and both get it. (The ⬢ figure
 is the one thing that used to be in it and is not: it rode on sharing a faction,
 and with factions gone only a GM reads it.)
 
-**The Role is in it again, for most seats.** `Role.examineVisible` decides —
-true for nearly everybody, false for the two Tribunal
-seats, who read as having no seat at all (`CHARACTERS.md` §2). A hood carries no
-Role for the same reason it carries no name. A photograph carries it: the same
-readout builds `db/lib/photo.js#photoCaption`, so the prose frozen onto the
-Photo tag says what the modal says.
+**The Role comes from the looker's memory, not the subject.** A role is not
+something anybody can see, so a look reads it — and the name the looker knows
+them by, and their notes — off the looker's own Friends entry on `/memories`
+(`MEMORIES.md` §7). A stranger reads no role at all. A hood carries no Role for
+the same reason it carries no name, and neither does a forced name. A
+photograph carries none either: a camera remembers nobody, so
+`db/lib/photo.js#photoCaption` never has one to print.
 
 **They no longer differ in who they can be pointed at.** They used to: 🔍
 hung off an archived row and so only ever reached somebody who had **spoken**,
@@ -1081,10 +1082,13 @@ silently timing out.
 
 ## 7. Notes (⭐) and the Journal
 
-`/notes` has two tabs, `NotesBoard.js`: **Starred** (this section) and
-**Journal** — a player's own written entries, unrelated to proxying and
-covered here only because it shares the page. Neither tab is ever
-GM-visible or shared between players; see below.
+These two are now the **Highlights** and **Notes** sections of `/memories`
+(`MEMORIES.md`), and `/notes` forwards there. The rest of this section is their
+history under the old names: **Starred** is Highlights, and **Journal** — a
+player's own written entries, unrelated to proxying and covered here only
+because it shared the page — is Notes. Neither is ever GM-visible or shared
+between players; see below. A line can also be starred from the day's heard
+lines on `/memories`, into the same `Note` row (`web/lib/starNote.js`).
 
 There are two ways in now: the reaction in Discord, and the ★ on a row's
 action bar on `/chat` (`web/app/(app)/chat/actions.js#starRow`, `CHAT.md` §5).
@@ -1206,5 +1210,5 @@ own choice.
 | Doctor's eye on inspect | `db/lib/medicalVision.js` (`TAGS.md` §5c) |
 | Avatar route | `web/app/api/avatar/[characterId]/route.js` |
 | Plaque generator | `web/scripts/generate-letters.js` |
-| Notes UI (Starred + Journal) | `web/app/(app)/notes/` |
+| Memories page (Highlights + Notes, once Starred + Journal) | `web/app/(app)/memories/` (`MEMORIES.md`) |
 | `{char:…\|…}` mention token | `db/lib/characterMentions.js`, `web/app/components/messageTokens.js`, `CharacterMentionsProvider.js` |

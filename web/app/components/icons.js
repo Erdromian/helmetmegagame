@@ -70,6 +70,7 @@ import {
   Grab,
   VenetianMask,
   Coins,
+  Brain,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -98,6 +99,7 @@ export const DocumentsIcon = lucide(FileText, "DocumentsIcon");
 // The Handbook rail tab.
 export const HelpIcon = lucide(CircleHelp, "HelpIcon");
 export const NotesIcon = lucide(Star, "NotesIcon");
+export const MemoriesIcon = lucide(Brain, "MemoriesIcon");
 // The Store is where Tag Points get spent, so it reads as commerce rather than another list.
 export const StoreIcon = lucide(ShoppingBag, "StoreIcon");
 // The economy report: coin, because the report is what every wage and price is worth against each
@@ -356,6 +358,7 @@ export const ICONS = {
   dev: DevIcon,
   messages: MessageIcon,
   notes: NotesIcon,
+  memories: MemoriesIcon,
   documents: DocumentsIcon,
   oracle: EyeIcon,
   economy: EconomyIcon,

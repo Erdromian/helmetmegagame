@@ -229,10 +229,17 @@ function examineEmbed(readout) {
     embed.setTitle(readout.name).setDescription(fitDescription(readout.appearance || "No visible appearance."));
   }
   // An office is part of who somebody is, so it sits above what they are
-  // carrying. Guarded rather than tidied: Discord rejects an empty field value,
-  // and a hood or an opaque seat leaves this null (db/lib/examine.js).
+  // carrying. It is what the looker REMEMBERS of them (the Friends section of
+  // /memories), so a stranger or a hood leaves this null (db/lib/examine.js).
+  // Guarded rather than tidied: Discord rejects an empty field value.
   if (readout.roleTitle) {
     embed.addFields({ name: "Role", value: fitField(readout.roleTitle), inline: true });
+  }
+  if (readout.memory?.name && readout.memory.name !== readout.name) {
+    embed.addFields({ name: "You know them as", value: fitField(readout.memory.name), inline: true });
+  }
+  if (readout.memory?.notes) {
+    embed.addFields({ name: "Your notes", value: fitField(readout.memory.notes) });
   }
   if (readout.ailments.length > 0) {
     embed.addFields({ name: "Ailments", value: fitField(readout.ailments.join(", ")) });

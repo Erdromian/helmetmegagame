@@ -20,6 +20,7 @@ import { readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { seedMemories } from "@lifeweb/db/lib/locationVisits";
+import { seedAcquaintances } from "@lifeweb/db/lib/acquaintances";
 import { issueSlaveContract } from "@lifeweb/db/lib/slaveContract";
 import { startingMemorySlugs } from "@lifeweb/db/lib/startingMemories";
 import {
@@ -457,6 +458,9 @@ export async function createCharacter(formData) {
     { ...created, tags: heldTagRows },
     startingMemorySlugs(role.slug, heldSlugs),
   ).catch(() => {});
+  // The people this seat already knows, and everyone who already knows this
+  // seat (db/lib/acquaintances.js), plus the ATM PIN.
+  await seedAcquaintances(prisma, created.id).catch((err) => console.error("seedAcquaintances failed:", err));
 
   // Somebody who arrives already Wanted has three posters go up in the same breath (db/lib/wantedPoster.js). Best-effort.
   if (isWanted(heldSlugs)) {
