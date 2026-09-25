@@ -178,12 +178,6 @@ async function closeFightsFor(db, characterId) {
 
 // Every live fight this character started, for the sheet's cancel list.
 async function attacksBy(db, attackerId, turnId) {
-  if (!turnId) return [];
-  const rows = await db.attack.findMany({
-    where: { attackerId, turnId, cancelledAt: null },
-    include: { targetCharacter: { select: IDENTITY_SELECT } },
-    orderBy: { createdAt: "asc" },
-  });
   // By the face the room saw, never the row — the intercept.js rule, and it matters as much here: attacking a hooded stranger must not unmask them.
   //
   // That rule reaches the ID as well as the name. This list goes to a browser, and /api/avatar/<id>
@@ -191,15 +185,40 @@ async function attacksBy(db, attackerId, turnId) {
   // swinging at a stranger would be the cheapest unmasking in the game, which is exactly what
   // matchesArrival() refuses to let Intercept be. `key` is what a caller posts back; `id` stays null
   // for a hood so nothing can accidentally reach past it.
+  return (await attackRows(db, attackerId, turnId)).map(({ key, token, row, presented }) => ({
+    id: token ? null : row.targetCharacter.id,
+    key,
+    name: seenAs(presented),
+  }));
+}
+
+async function attackRows(db, attackerId, turnId) {
+  if (!turnId) return [];
+  const rows = await db.attack.findMany({
+    where: { attackerId, turnId, cancelledAt: null },
+    include: { targetCharacter: { select: IDENTITY_SELECT } },
+    orderBy: { createdAt: "asc" },
+  });
   return rows.map((row) => {
     const presented = identityOf(row.targetCharacter);
     const token = presented?.concealed ? hoodToken(row.targetCharacter.id) : null;
-    return {
-      id: token ? null : row.targetCharacter.id,
-      key: token ? `hood:${token}` : `character:${row.targetCharacter.id}`,
-      name: seenAs(presented),
-    };
+    return { row, presented, token, key: token ? `hood:${token}` : `character:${row.targetCharacter.id}` };
   });
+}
+
+// Which of THIS attacker's open fights a posted Break-off key names, or null.
+// Resolved inside the list attacksBy minted it from, and nowhere else: Break
+// off works on somebody who has walked away, so the room is the wrong place to
+// look, and a plain id is honoured only where the list itself shipped one — a
+// suspect's id posted by hand against a hood you are fighting would otherwise
+// be answered "You break off from a young man.", which is the unmasking.
+async function resolveAttackKey(db, attackerId, turnId, raw) {
+  const key = String(raw ?? "");
+  const bare = key.startsWith("character:") ? key.slice("character:".length) : key;
+  if (!bare) return null;
+  const wanted = bare.startsWith("hood:") ? bare : `character:${bare}`;
+  const hit = (await attackRows(db, attackerId, turnId)).find((entry) => entry.key === wanted);
+  return hit ? hit.row.targetCharacter.id : null;
 }
 
 const ATTACK_CANCEL_PREFIX = "atk:cancel:";
@@ -256,4 +275,5 @@ module.exports = {
   cancelAttack,
   closeFightsFor,
   attacksBy,
+  resolveAttackKey,
 };

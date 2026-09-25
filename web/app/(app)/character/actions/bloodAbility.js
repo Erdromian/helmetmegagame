@@ -9,6 +9,7 @@
 // cooldown, nothing about a turn's Routine/Gambit.
 import { prisma } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
+import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT, INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
@@ -143,8 +144,17 @@ async function castBloodAbilityImpl({
   let target = null;
   if (ability.requiresIncapacitatedTarget || ability.requiresThrallTarget) {
     if (!targetCharacterId) throw new UserError("Choose someone here.");
+    // Through the shared resolver, so a plain id for somebody standing here in
+    // a hood resolves to nobody (db/lib/targetKey.js) — this used to take any
+    // id, and the refusals below print target.name. A hood TOKEN is refused
+    // too: this menu offers bare ids only (web/lib/vampireBloodView.js), so a
+    // hooded victim stays out of reach exactly as that file says.
+    const targetId =
+      splitTargetKey(targetCharacterId).kind === "hood"
+        ? null
+        : await resolveTargetKey(prisma, character, targetCharacterId);
     target = await prisma.character.findUnique({
-      where: { id: targetCharacterId },
+      where: { id: targetId ?? "" },
       include: { tags: { include: { tag: { select: { slug: true } } } } },
     });
     if (!target || target.status !== "ALIVE" || target.locationId !== character.locationId) {

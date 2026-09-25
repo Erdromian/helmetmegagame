@@ -10,7 +10,6 @@ import { acting, guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { resolveHereTarget } from "@/lib/hereTarget";
-import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { HERE_FIELDS } from "@lifeweb/db/lib/presence";
 import { SFX } from "@lifeweb/db/lib/sfx";
@@ -24,6 +23,7 @@ import {
   attacksBy,
   cancelAttack,
   fileAttack,
+  resolveAttackKey,
 } from "@lifeweb/db/lib/attack";
 
 // ATTACKING SOMEBODY, from the character sheet (docs/systemdocs/ATTACK.md).
@@ -204,8 +204,11 @@ async function cancelAttackImpl({ targetKey, targetCharacterId }) {
   // fight with a stranger without ever learning who they were. No co-presence
   // check: you may call off a fight with somebody who has already walked away,
   // which is the whole point of Break off, so this cannot use
-  // resolveHereTarget() and resolves the key directly instead.
-  const targetId = (await resolveTargetKey(prisma, character, targetKey ?? targetCharacterId)) ?? "";
+  // resolveHereTarget(). The key resolves against your own fight list instead
+  // (db/lib/attack.js#resolveAttackKey) — a hood token that way even after the
+  // hood has left, and a plain id only for somebody that list names openly.
+  const targetId =
+    (await resolveAttackKey(prisma, character.id, openTurn.id, targetKey ?? targetCharacterId)) ?? "";
   const target = targetId
     ? await prisma.character.findUnique({
         where: { id: targetId },

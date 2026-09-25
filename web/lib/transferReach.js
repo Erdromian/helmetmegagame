@@ -26,7 +26,10 @@ export async function canReachParty(
   return false;
 }
 
+// A person names nobody: a plain id for somebody here in a hood resolves to no
+// party at all (db/lib/targetKey.js), and callers answer that with this same
+// sentence — "Ada isn't here." beside it would tell the two cases apart.
 export function outOfReachMessage(party) {
   if (party?.kind === "room") return `You can't get into ${party.name} from where you stand.`;
-  return `${party?.name ?? "They"} isn't here.`;
+  return "They aren't here.";
 }

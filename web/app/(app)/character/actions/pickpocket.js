@@ -42,7 +42,7 @@ import {
   caughtSecondsLeft,
 } from "@lifeweb/db/lib/intercept";
 import { CONCEALMENT_TAG_FIELDS } from "@lifeweb/db/lib/presentedIdentity";
-import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
+import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { carryAdmits } from "@lifeweb/db/lib/carry";
 import { rowWeight, round2 } from "@lifeweb/db/lib/tagWeight";
 import { dropCharacterTag, addToStack } from "@/lib/tagEffects";
@@ -112,11 +112,13 @@ function pickpocketAuthority(actor, target) {
   if (!actor || !target) return "They aren't here.";
   if (actor.id === target.id) return "Pick somebody else's pocket.";
   if (actor.status !== "ALIVE") return "You can't do that right now.";
-  if (target.status !== "ALIVE") return `${capitalizeFirst(seenAs(identityOf(target)))} isn't here.`;
+  // "They aren't here." with no name, the same as no target at all — a plain id
+  // for somebody here in a hood resolves to nobody (db/lib/targetKey.js), and
+  // a named absent sentence would tell the two cases apart.
+  if (target.status !== "ALIVE") return "They aren't here.";
   // allowConcealed, the Search posture: a hood hides who you are, not what is
   // in your pockets.
-  if (!isHere(actor, target, { allowConcealed: true }))
-    return `${capitalizeFirst(seenAs(identityOf(target)))} isn't here.`;
+  if (!isHere(actor, target, { allowConcealed: true })) return "They aren't here.";
 
   const mine = blockerFor(actor.tags, ACT);
   if (mine) return `You're ${mine.name}.`;
@@ -143,15 +145,12 @@ function pickpocketAuthority(actor, target) {
   return null;
 }
 
-// "hood:<token>" -> an id, or the bare id. resolveHoodToken re-checks
-// co-presence itself, so a token minted in a room this character has since left
-// answers null — which is what stops the token being a roster oracle.
+// The shared key resolver (db/lib/targetKey.js), not a copy of it: a token
+// minted in a room this character has since left answers null, and so does a
+// plain id for somebody standing here in a hood. This used to unwrap the key by
+// hand and take any bare id, so a suspect's id posted by hand reached them.
 async function resolveTarget(character, targetKey) {
-  const raw = String(targetKey ?? "");
-  const bare = raw.startsWith("character:") ? raw.slice("character:".length) : raw;
-  const id = bare.startsWith("hood:")
-    ? await resolveHoodToken(prisma, character, bare.slice("hood:".length))
-    : bare;
+  const id = await resolveTargetKey(prisma, character, targetKey);
   if (!id) return null;
   return prisma.character.findFirst({ where: { id }, select: PICKPOCKET_SELECT });
 }

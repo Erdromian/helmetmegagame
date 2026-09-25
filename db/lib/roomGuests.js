@@ -6,6 +6,7 @@
 const { heldTagSlugs, recordRoomThread, roomAccessKeys } = require("./roomAccess");
 const { addThreadMember, removeThreadMember } = require("./discordRest");
 const { presentedMembers, presentedNameOf } = require("./presentedMembers");
+const { hiddenFrom } = require("./whosHere");
 
 const ROOM_SELECT = {
   id: true,
@@ -29,7 +30,14 @@ const GUEST_SELECT = {
 
 // The shared front half: the room, the actor's standing, and the target.
 // `actor` may be null for a GM. Returns { room, target } or { error }.
-async function doorwayFor(prisma, { actor, roomId, characterId, gm = false }) {
+//
+// `byToken` says the caller got `characterId` by resolving a hood token, which
+// is the only way a player may reach somebody standing here in a mask. A plain
+// id — the web's named row, or the bot's role picker, which names a character
+// outright — is refused for a hood with the same sentence as somebody who is
+// not here at all, or naming a suspect and watching the door open would tell
+// you who is under the mask.
+async function doorwayFor(prisma, { actor, roomId, characterId, gm = false, byToken = false }) {
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: ROOM_SELECT });
   if (!room) return { error: "That room no longer exists." };
   if (room.kind !== "PRIVATE") return { error: "Anyone standing here can already walk in." };
@@ -50,15 +58,18 @@ async function doorwayFor(prisma, { actor, roomId, characterId, gm = false }) {
     select: GUEST_SELECT,
   });
   if (!target) return { error: "That isn't a living character." };
-  if (target.locationId !== room.locationId) {
-    return { error: `${await presentedNameOf(prisma, target.id, actor)} isn't here to be let in.` };
-  }
+  // Names nobody: the presented name here used to say "A young man isn't here
+  // to be let in." for an absent id, which told the asker that character was
+  // wearing a hood right now, wherever they were.
+  const notHere = { error: "They aren't here to be let in." };
+  if (target.locationId !== room.locationId) return notHere;
+  if (!gm && !byToken && (await hiddenFrom(prisma, actor, target.id))) return notHere;
   return { room, target };
 }
 
 // `notify` is the "a door opened for you" DM the caller sends, left to the caller since the two faces reach a player's DMs differently.
-async function addRoomGuest(prisma, { actor = null, roomId, characterId, gm = false } = {}) {
-  const found = await doorwayFor(prisma, { actor, roomId, characterId, gm });
+async function addRoomGuest(prisma, { actor = null, roomId, characterId, gm = false, byToken = false } = {}) {
+  const found = await doorwayFor(prisma, { actor, roomId, characterId, gm, byToken });
   if (found.error) return { ok: false, error: found.error };
   const { room, target } = found;
 
@@ -95,8 +106,8 @@ async function addRoomGuest(prisma, { actor = null, roomId, characterId, gm = fa
   };
 }
 
-async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm = false } = {}) {
-  const found = await doorwayFor(prisma, { actor, roomId, characterId, gm });
+async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm = false, byToken = false } = {}) {
+  const found = await doorwayFor(prisma, { actor, roomId, characterId, gm, byToken });
   if (found.error) return { ok: false, error: found.error };
   const { room, target } = found;
 

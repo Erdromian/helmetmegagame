@@ -57,6 +57,12 @@ import {
 import { lootCharacterRequestImpl } from "./misc.js";
 import { SFX } from "@lifeweb/db/lib/sfx";
 
+// A key naming a person — "character:<id>" or "hood:<token>" — rather than a room.
+function isPersonKey(key) {
+  const raw = String(key ?? "");
+  return raw.startsWith("character:") || raw.startsWith("hood:");
+}
+
 // --- Transfer (the merged dialog) -------------------------------------
 
 // One act that moves any number of tag lines and a ⬢ amount between two
@@ -121,8 +127,10 @@ export async function transferRequestImpl(
     resolveParty(fromKey, { actor: character, allowDead: true }),
     resolveParty(toKey, { actor: character }),
   ]);
-  if (!from) throw new UserError("Unknown source.");
-  if (!to) throw new UserError("Unknown recipient.");
+  // A person key that resolves to nobody gets outOfReachMessage's sentence, so a
+  // hood reached by plain id (refused in resolveParty) reads like anybody absent.
+  if (!from) throw new UserError(isPersonKey(fromKey) ? outOfReachMessage(null) : "Unknown source.");
+  if (!to) throw new UserError(isPersonKey(toKey) ? outOfReachMessage(null) : "Unknown recipient.");
   if (from.kind === to.kind && from.id === to.id)
     throw new UserError("Source and recipient are the same.");
 
@@ -140,7 +148,9 @@ export async function transferRequestImpl(
       throw new UserError("Taking from a person puts it in your own hands.");
     }
     return lootCharacterRequestImpl({
-      targetCharacterId: from.id,
+      // The KEY, not from.id: Loot resolves it again, and a plain id never
+      // reaches somebody in a hood (db/lib/targetKey.js) — only their token does.
+      targetCharacterId: fromKey,
       tagPicks: lines.map((l) => ({ tagId: l.tagId, quantity: l.quantity })),
       amount,
     });

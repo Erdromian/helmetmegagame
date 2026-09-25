@@ -97,6 +97,10 @@ export async function rosterHere(character, { includeDead = false, select, room 
       hooded: true,
     });
   }
+  // By alias, then token — never the NAME_ORDER the rows came back in, which is
+  // the real name's, and would put two identical aliases in their real names'
+  // order in every picker (db/lib/whosHere.js#hoodOrder says the same).
+  hooded.sort((a, b) => a.name.localeCompare(b.name) || (a.token < b.token ? -1 : a.token > b.token ? 1 : 0));
   return { named, hooded, room: answer };
 }
 

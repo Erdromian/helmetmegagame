@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
+import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { getGmSession } from "@/lib/discordGuild";
 import { UserError } from "@/lib/actionResult";
 import { blockerFor, SPEAK } from "@lifeweb/db/lib/incapacitation";
@@ -79,6 +80,11 @@ export function parseCount(raw, { min = 0, max = Number.MAX_SAFE_INTEGER } = {})
 // resolveHoodToken re-checks co-presence itself, so a token minted in a room
 // this character has since left names no one; `allowDead` widens it to an
 // unburied body, which only a source-side loot ever wants.
+//
+// A plain "character:<id>" goes through the same resolver when there is an
+// actor, so it cannot reach somebody standing here in a hood — only the token
+// can (db/lib/targetKey.js). Before, a masked stranger's id posted by hand
+// paid, or took, exactly as their token did.
 export async function resolveParty(key, { actor = null, ...opts } = {}) {
   const raw = String(key ?? "");
   if (raw.startsWith("hood:")) {
@@ -86,6 +92,11 @@ export async function resolveParty(key, { actor = null, ...opts } = {}) {
     const id = await resolveHoodToken(prisma, actor, raw.slice("hood:".length), {
       includeDead: opts.allowDead === true,
     });
+    if (!id) return null;
+    return dbResolveParty(prisma, `character:${id}`, opts);
+  }
+  if (actor && raw.startsWith("character:")) {
+    const id = await resolveTargetKey(prisma, actor, raw, { allowDead: opts.allowDead === true });
     if (!id) return null;
     return dbResolveParty(prisma, `character:${id}`, opts);
   }

@@ -11,7 +11,12 @@
 // resolveHoodToken re-derives co-presence itself and answers null for anybody not standing at the
 // viewer's Location, which is what stops a token being a roster oracle — a stolen one from yesterday
 // names nobody today.
-const { resolveHoodToken } = require("./whosHere");
+//
+// The token is the ONLY way to reach a hood. A plain id for somebody standing here in a mask resolves
+// to nobody, exactly like an id for somebody who is not here at all. Before, every body verb took the
+// id and landed — "You attack a young man." — so anybody who had ever seen a character's id could
+// post it by hand and learn whether that was who stood under the hood.
+const { resolveHoodToken, hiddenFrom } = require("./whosHere");
 
 const CHARACTER_PREFIX = "character:";
 const HOOD_PREFIX = "hood:";
@@ -31,11 +36,13 @@ function splitTargetKey(raw) {
 async function resolveTargetKey(prisma, actor, raw, { sightings = null, allowDead = false } = {}) {
   const { kind, value } = splitTargetKey(raw);
   if (!value) return null;
-  // `allowDead` only widens who a HOOD token may name. A plain character key is
-  // still just an id, and the caller's own isHere() decides whether a body is a
-  // legal target for that verb — this flag exists so the token resolver and
-  // that check can agree rather than one of them quietly disagreeing.
+  // `allowDead` widens who a HOOD token may name, and which bodies the hood
+  // check below looks at. A plain character key is otherwise still just an id,
+  // and the caller's own isHere() decides whether a body is a legal target for
+  // that verb — this flag exists so the token resolver and that check can agree
+  // rather than one of them quietly disagreeing.
   if (kind === "hood") return resolveHoodToken(prisma, actor, value, { sightings, includeDead: allowDead });
+  if (await hiddenFrom(prisma, actor, value, { sightings, includeDead: allowDead })) return null;
   return value;
 }
 

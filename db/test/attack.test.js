@@ -286,3 +286,30 @@ test("attacksBy withholds a hooded opponent's id and travels as a token instead"
 test("attacksBy answers nothing without an open turn", async () => {
   assert.deepEqual(await attacksByFn(fakeAttackDb([maskedFightRow("c1", "Horvath", false)]), "me", null), []);
 });
+
+// Break off resolves its key inside the attacker's own fight list. A plain id
+// for a hood you are fighting used to land ("You break off from a young man."),
+// which confirmed who was under the mask; and a hood token resolved against the
+// ROOM, so a hood who had walked away could not be broken off from at all.
+const { resolveAttackKey } = require("../lib/attack");
+
+test("Break off takes a hood's token, and nobody's plain id for them", async () => {
+  const db = fakeAttackDb([maskedFightRow("c1", "Horvath", false), maskedFightRow("c2", "Oleg", true)]);
+  assert.equal(await resolveAttackKey(db, "me", "turn1", `hood:${hoodTokenFn("c2")}`), "c2");
+  assert.equal(await resolveAttackKey(db, "me", "turn1", `character:hood:${hoodTokenFn("c2")}`), "c2");
+  assert.equal(await resolveAttackKey(db, "me", "turn1", "character:c2"), null, "a plain id must not reach a hood");
+  assert.equal(await resolveAttackKey(db, "me", "turn1", "c2"), null);
+});
+
+test("Break off takes an opponent in the open by id, bare or keyed", async () => {
+  const db = fakeAttackDb([maskedFightRow("c1", "Horvath", false)]);
+  assert.equal(await resolveAttackKey(db, "me", "turn1", "character:c1"), "c1");
+  assert.equal(await resolveAttackKey(db, "me", "turn1", "c1"), "c1");
+});
+
+test("Break off names nobody you are not fighting, and nothing without a turn", async () => {
+  const db = fakeAttackDb([maskedFightRow("c1", "Horvath", false)]);
+  assert.equal(await resolveAttackKey(db, "me", "turn1", "character:stranger"), null);
+  assert.equal(await resolveAttackKey(db, "me", "turn1", ""), null);
+  assert.equal(await resolveAttackKey(db, "me", null, "character:c1"), null);
+});

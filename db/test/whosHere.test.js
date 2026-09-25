@@ -7,7 +7,7 @@ const assert = require("node:assert/strict");
 
 process.env.AUTH_SECRET ||= "test-secret-for-hood-tokens";
 
-const { whosHere, resolveHoodToken, ONLINE_WINDOW_MS, isOnline } = require("../lib/whosHere");
+const { whosHere, resolveHoodToken, hiddenFrom, ONLINE_WINDOW_MS, isOnline } = require("../lib/whosHere");
 const { hoodToken } = require("../lib/hoodToken");
 
 function fakePrisma(rows) {
@@ -284,4 +284,41 @@ test("resolveHoodToken agrees with the list about a body, and only when asked", 
     "a verb that takes no corpse gets nobody",
   );
   assert.equal(await resolveHoodToken(prisma, viewer, token, { sightings: none, includeDead: true }), "d1");
+});
+
+// presentRows comes back in REAL-name order. Hoods used to keep it, so two
+// "a young man" rows always listed in their real names' alphabetical order.
+test("the concealed list is ordered by alias and token, never the real name", async () => {
+  const a = hood("h-a", "Aaron Aske");
+  const z = hood("h-z", "Zed Zorn");
+  const forward = await whosHere(fakePrisma([a, z]), viewer);
+  const backward = await whosHere(fakePrisma([z, a]), viewer);
+
+  assert.deepEqual(forward.concealed.map((c) => c.token), backward.concealed.map((c) => c.token));
+  const byToken = [hoodToken("h-a"), hoodToken("h-z")].sort();
+  assert.deepEqual(forward.concealed.map((c) => c.token), byToken);
+});
+
+// The other half of the token rule: a plain id must not reach somebody the
+// roster only offers under a token (db/lib/targetKey.js).
+test("hiddenFrom answers exactly the concealed half of the roster", async () => {
+  const prisma = fakePrisma([
+    hood("h1", "Sir Alder"),
+    beast("b1", "Jorren Vask"),
+    plain("p1", "Ann Vell"),
+    hood("viewer", "Me"),
+  ]);
+  const none = new Map();
+  assert.equal(await hiddenFrom(prisma, viewer, "h1", { sightings: none }), true);
+  assert.equal(await hiddenFrom(prisma, viewer, "b1", { sightings: none }), false, "a forced name is not hiding");
+  assert.equal(await hiddenFrom(prisma, viewer, "p1", { sightings: none }), false);
+  assert.equal(await hiddenFrom(prisma, viewer, "viewer", { sightings: none }), false, "you are never hidden from yourself");
+  assert.equal(await hiddenFrom(prisma, viewer, "elsewhere", { sightings: none }), false);
+  assert.equal(await hiddenFrom(prisma, { id: "viewer", locationId: null }, "h1", { sightings: none }), false);
+});
+
+test("hiddenFrom follows the sighting, the same way the roster does", async () => {
+  const prisma = fakePrisma([plain("h1", "Sir Alder")]);
+  const sightings = new Map([["h1", { seq: "1", name: "Young Man", concealed: true, avatarPath: null, unknownFace: false }]]);
+  assert.equal(await hiddenFrom(prisma, viewer, "h1", { sightings }), true);
 });

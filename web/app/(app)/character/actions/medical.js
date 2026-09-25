@@ -43,7 +43,6 @@ import {
 import { concealedNow } from "@lifeweb/db/lib/presence";
 import { medicallyVisibleTags } from "@lifeweb/db/lib/medicalVision";
 import { resolveHereTarget } from "@/lib/hereTarget";
-import { splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import {
   SURGICAL_EQUIPMENT_SLUG,
@@ -243,12 +242,16 @@ export async function healCharacterRequestImpl({
   // allowConcealed, because a hood is a person standing right there who can
   // hand over coins: resolveParty has already re-verified co-presence for a
   // token, and refusing here would only mean a masked friend cannot pay for
-  // your cure. outOfReachMessage prints a name, so a hood that somehow got this
-  // far is refused in the blank form instead (web/lib/hereTarget.js#refusalFor).
+  // your cure. A person who resolves to nobody — a plain id for a hood does,
+  // db/lib/targetKey.js — gets the same sentence as a person who is not here,
+  // so the two cannot be told apart.
   const payer = await resolveParty(payerKey, { actor: character });
-  if (!payer) throw new UserError("Unknown payer.");
+  if (!payer) {
+    const person = /^(character|hood):/.test(String(payerKey ?? ""));
+    throw new UserError(person ? outOfReachMessage(null) : "Unknown payer.");
+  }
   if (!(await canReachParty(character, payer, { allowConcealed: true })))
-    throw new UserError(splitTargetKey(payerKey).kind === "hood" ? "They aren't here." : outOfReachMessage(payer));
+    throw new UserError(outOfReachMessage(payer));
 
   // Straight off the tag, never off the client.
   const cost = healCost(held.tag);
