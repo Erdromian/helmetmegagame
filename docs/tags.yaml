@@ -713,7 +713,7 @@ tags:
     psychological: true
     category: general
     group: general-addictions
-    description: "Just one more sweet… You can keep eating even when you are full, and your bottom Desire slot is locked to Desires about food."
+    description: "Just one more sweet… You can keep eating even when you are full, and now and then you eat a treat you are carrying without meaning to. Your bottom Desire slot is locked to Desires about food."
     pointCost: -4
     exclusive: true
     purchasable: true

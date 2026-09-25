@@ -8,6 +8,7 @@ const {
   HUNGERLESS_SLUG,
   FAST_METABOLISM_SLUG,
   GLUTTON_SLUG,
+  FOODSTUFFS_SLUG,
   FULL_SLUG,
   HUNGER_SLUG,
   STARVING_SLUG,
@@ -27,7 +28,8 @@ const HUNGER_DECAY_PER_DAY_FAST = 24;
 // Starving 0-33. `<=` a threshold puts you in that band.
 const HUNGRY_THRESHOLD = 66;
 const STARVING_THRESHOLD = 33;
-// Where the turn close's automatic eating stops: the first Hungry value.
+// Where the turn close's automatic eating stops when you are Starving: the
+// first Hungry value.
 const AUTO_EAT_FLOOR = STARVING_THRESHOLD + 1;
 
 // One-time mood hit, charged only on the turn a character crosses DOWN into
@@ -164,54 +166,154 @@ function eatMaxFor({ hungerValue, perUnit, held, glutton = false, hungerless = f
   return Math.min(have, Math.ceil(room / perUnit));
 }
 
-// How many Foodstuffs a character eats at the turn close to stay out of
-// Starving: enough to reach the first Hungry value, or all they have.
-function planAutoEat(afterDecay, held, perUnit) {
+// What one unit of a food looks like to somebody deciding whether to eat it:
+// the sum of what it would do to the dial, before anybody's multipliers. A
+// dish sums its own mealMood and every ingredient's cooked.mood
+// (db/lib/mood.js#dishMoodTerms — harm plus relief is the plain sum); a raw
+// thing is the flat RAW_FOOD_MOOD plus its own cooked.mood (rawFoodMoodTerms
+// below). Same dish/raw split consumeTagRequestImpl makes.
+function foodMoodFor(tag, ingredientTags = []) {
+  if (!tag) return 0;
+  if (ingredientTags.length || tag.mealMood != null) {
+    return (tag.mealMood ?? 0) + ingredientTags.reduce((sum, t) => sum + (Number.isFinite(t?.cooked?.mood) ? t.cooked.mood : 0), 0);
+  }
+  return RAW_FOOD_MOOD + (Number.isFinite(tag.cooked?.mood) ? tag.cooked.mood : 0);
+}
+
+// May the turn close eat this for somebody, unasked? Only plain food: it fills
+// you and moves your mood, and does nothing else. Anything that grants a tag
+// (Dustfish's nausea, the cult's Flesh, a stew with human meat in it), cures
+// something, pays out, or needs a skill to administer stays the player's own
+// decision. A dish is checked through its ingredients the way
+// web/lib/cooking.js#mergeDishGrants/#mergeDishCures read them: an
+// ingredient's cooked.into if it has one, else its own consumesInto.
+function autoEdible(tag, ingredientTags = []) {
+  if (!tag?.consumable) return false;
+  if (unitHungerFor(tag, ingredientTags) <= 0) return false;
+  if (tag.consumesInto?.length || tag.cures?.length || tag.administerSkill) return false;
+  if (tag.consumesIntoResources || tag.consumesIntoTagPoints || tag.consumeChoice?.length) return false;
+  for (const ing of ingredientTags) {
+    if ((ing?.cooked?.into ?? ing?.consumesInto ?? []).length) return false;
+    if (ing?.cooked?.cures && ing.cures?.length) return false;
+  }
+  return true;
+}
+
+// The turn close eats for somebody on its own (TURN-ENGINE.md §5a), and it
+// always reaches for the TASTIEST thing first: the biggest mood figure, then
+// whatever fills most. A hungry servant carrying a feast for their betters
+// eats the feast, not their own Foodstuffs.
+//
+// `foods` are what the character carries that autoEdible passed:
+// { tagId, slug, name, quantity, hunger, mood } with hunger/mood per unit.
+function tastiestFirst(foods) {
+  return (foods ?? [])
+    .filter((f) => f.quantity > 0 && f.hunger > 0)
+    .sort((a, b) => b.mood - a.mood || b.hunger - a.hunger || String(a.tagId).localeCompare(String(b.tagId)));
+}
+
+// Even a starving body will not eat just anything off its own belt: a food
+// worse than this is left for the player to decide on (raw Human Flesh is
+// -50). Foodstuffs (-5) and Moldy Bread (-10) are well inside it.
+const AUTO_EAT_MOOD_FLOOR = -20;
+
+// Starving after the decay: eat, tastiest first, until the meter reaches the
+// first Hungry value, or until there is nothing left worth eating.
+function planAutoMeals(afterDecay, foods) {
+  let v = clampHunger(afterDecay);
+  if (v > STARVING_THRESHOLD) return [];
+  const meals = [];
+  for (const food of tastiestFirst(foods)) {
+    if (v >= AUTO_EAT_FLOOR) break;
+    if (food.mood < AUTO_EAT_MOOD_FLOOR) continue;
+    const count = Math.min(food.quantity, Math.ceil((AUTO_EAT_FLOOR - v) / food.hunger));
+    meals.push({ ...food, count });
+    v += count * food.hunger;
+  }
+  return meals;
+}
+
+// Hungry, a Hungry character may give in and eat one of the tastiest thing
+// they carry. A Glutton may give in at any level short of Starving (which
+// planAutoMeals already covers). The chance is a per-DAY figure, spread over
+// however many turns the day holds, so a 6-hour game snacks no more often
+// than a 24-hour one.
+const SNACK_CHANCE_PER_DAY = 0.25;
+
+function snackChanceFor(turnLengthHours, turnsPerDay = 0) {
+  const hours = Number.isFinite(turnLengthHours) && turnLengthHours > 0 ? turnLengthHours : 24;
+  const perDay = Number.isInteger(turnsPerDay) && turnsPerDay >= 1 ? turnsPerDay : 24 / hours;
+  return 1 - (1 - SNACK_CHANCE_PER_DAY) ** (1 / perDay);
+}
+
+// Only something that actually looks good tempts anybody: the tastiest thing
+// has to be a mood gain, so nobody idly eats a Foodstuff or a raw fish.
+// `roll` is a number in [0, 1), passed in so the test can pick it.
+function planSnack(afterDecay, foods, { glutton = false, chance = 0, roll = 1 } = {}) {
   const v = clampHunger(afterDecay);
-  if (v > STARVING_THRESHOLD || !(held > 0) || !(perUnit > 0)) return 0;
-  return Math.min(held, Math.ceil((AUTO_EAT_FLOOR - v) / perUnit));
+  if (v <= STARVING_THRESHOLD) return [];
+  if (!glutton && v > HUNGRY_THRESHOLD) return [];
+  if (!(roll < chance)) return [];
+  const best = tastiestFirst(foods)[0];
+  if (!best || best.mood <= 0) return [];
+  return [{ ...best, count: 1 }];
 }
 
 // Where a character lands once the close's decay and any automatic eating
-// are known. `eaten` is what was actually eaten (it may be fewer than
-// planned if the stack moved under the lock). Shared by planHunger and
+// are known. `meals` is what was actually eaten (it may be less than planned
+// if a stack moved under the lock). `snack` says it was the Hungry/Glutton
+// roll rather than the Starving rule. Shared by planHunger and
 // db/lib/hungerPass.js so the two can never disagree.
-function resolveHunger({ before, afterDecay, eaten = 0, perUnit = FOODSTUFF_HUNGER, starvingSinceTurn = null, turnNumber }) {
-  const final = clampHunger(afterDecay + eaten * perUnit);
+function resolveHunger({ before, afterDecay, meals = [], snack = false, starvingSinceTurn = null, turnNumber }) {
+  const restored = meals.reduce((sum, m) => sum + m.count * m.hunger, 0);
+  const eaten = meals.reduce((sum, m) => sum + m.count, 0);
+  const final = clampHunger(afterDecay + restored);
   const band = bandOf(final);
   const cross = crossings(before, final);
   const zeroSince = final <= HUNGER_MIN ? starvingSinceTurn ?? turnNumber : null;
   const newlyDying = zeroSince != null && turnNumber - zeroSince >= STARVING_DEATH_TURNS - 1;
 
   const kinds = [];
-  if (eaten > 0) kinds.push(final > STARVING_THRESHOLD ? "autoAte" : "autoAteShort");
+  if (eaten > 0) kinds.push(snack ? "snacked" : final > STARVING_THRESHOLD ? "autoAte" : "autoAteShort");
   if (cross.enteredStarving || newlyDying) kinds.push("starving");
   else if (cross.enteredHungry) kinds.push("hungry");
-  const notice = kinds.length ? { kinds, eaten, justDied: newlyDying } : null;
+  const ate = meals.filter((m) => m.count > 0).map((m) => ({ slug: m.slug, name: m.name, count: m.count }));
+  const notice = kinds.length ? { kinds, ate, justDied: newlyDying } : null;
 
-  return { final, band, cross, zeroSince, newlyDying, notice };
+  return { final, band, cross, zeroSince, newlyDying, notice, eaten };
 }
 
 // The whole close for one character, with no database: the decay, what they
-// would eat to stay out of Starving, and where that leaves them.
+// would eat (to stay out of Starving, or on the snack roll), and where that
+// leaves them.
 function planHunger(
-  { hungerValue, starvingSinceTurn = null, heldSlugs, foodstuffsHeld = 0 },
-  { turnLengthHours, turnsPerDay = 0, turnNumber, perUnit = FOODSTUFF_HUNGER },
+  { hungerValue, starvingSinceTurn = null, heldSlugs, foods = [] },
+  { turnLengthHours, turnsPerDay = 0, turnNumber, roll = 1 },
 ) {
   const held = asSet(heldSlugs);
   if (held.has(HUNGERLESS_SLUG)) {
-    return { hungerless: true, decay: 0, afterDecay: HUNGER_MAX, eat: 0, final: HUNGER_MAX, band: null, zeroSince: null, newlyDying: false, notice: null };
+    return { hungerless: true, decay: 0, afterDecay: HUNGER_MAX, meals: [], snack: false, eaten: 0, final: HUNGER_MAX, band: null, zeroSince: null, newlyDying: false, notice: null };
   }
   const before = clampHunger(hungerValue);
   const decay = decayFor(held, turnLengthHours, turnsPerDay);
   const afterDecay = clampHunger(before - decay);
-  const eat = planAutoEat(afterDecay, foodstuffsHeld, perUnit);
+  let meals = planAutoMeals(afterDecay, foods);
+  let snack = false;
+  if (!meals.length) {
+    meals = planSnack(afterDecay, foods, {
+      glutton: held.has(GLUTTON_SLUG),
+      chance: snackChanceFor(turnLengthHours, turnsPerDay),
+      roll,
+    });
+    snack = meals.length > 0;
+  }
   return {
     hungerless: false,
     decay,
     afterDecay,
-    eat,
-    ...resolveHunger({ before, afterDecay, eaten: eat, perUnit, starvingSinceTurn, turnNumber }),
+    meals,
+    snack,
+    ...resolveHunger({ before, afterDecay, meals, snack, starvingSinceTurn, turnNumber }),
   };
 }
 
@@ -229,8 +331,18 @@ function rawFoodMoodTerms(cookedMood) {
   return terms;
 }
 
-function foodstuffWord(n) {
-  return n === 1 ? "1 Foodstuff" : `${n} Foodstuffs`;
+// "your Lavish Meal", "3 Foodstuffs", "your Cheese and 2 Foodstuffs". A count
+// is a digit; one of a thing is "your" thing, except a Foodstuff, whose name
+// is already plural.
+function ateWord({ slug, name, count }) {
+  if (slug === FOODSTUFFS_SLUG) return count === 1 ? "1 Foodstuff" : `${count} Foodstuffs`;
+  return count === 1 ? `your ${name}` : `${count} of your ${name}`;
+}
+
+function ateList(ate = []) {
+  const words = ate.map(ateWord);
+  if (words.length <= 1) return words[0] ?? "something";
+  return `${words.slice(0, -1).join(", ")} and ${words[words.length - 1]}`;
 }
 
 // The DM a close sends. No line names a number of hunger points. A notice
@@ -241,13 +353,11 @@ function hungerDm(notice) {
   const lines = [];
   for (const kind of kinds) {
     if (kind === "autoAte") {
-      lines.push(`You were about to starve, so you ate ${foodstuffWord(notice.eaten)} from your pack.`);
+      lines.push(`You were about to starve, so you ate ${ateList(notice.ate)} from your pack.`);
     } else if (kind === "autoAteShort") {
-      lines.push(
-        notice.eaten === 1
-          ? "You were starving, so you ate your last Foodstuff. It wasn't enough."
-          : `You were starving, so you ate your last ${foodstuffWord(notice.eaten)}. It wasn't enough.`,
-      );
+      lines.push(`You were starving, so you ate ${ateList(notice.ate)}. It wasn't enough.`);
+    } else if (kind === "snacked") {
+      lines.push(`You couldn't help yourself, and ate ${ateList(notice.ate)}.`);
     } else if (kind === "hungry") {
       lines.push(`You're **Hungry**. ${DESCRIPTORS.hungry.line}`);
     } else if (kind === "starving") {
@@ -286,7 +396,14 @@ module.exports = {
   foodHungerFor,
   unitHungerFor,
   eatMaxFor,
-  planAutoEat,
+  foodMoodFor,
+  autoEdible,
+  tastiestFirst,
+  AUTO_EAT_MOOD_FLOOR,
+  planAutoMeals,
+  SNACK_CHANCE_PER_DAY,
+  snackChanceFor,
+  planSnack,
   resolveHunger,
   planHunger,
   rawFoodMoodTerms,
