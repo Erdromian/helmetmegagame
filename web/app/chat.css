@@ -1037,6 +1037,15 @@
   color: var(--text);
 }
 
+/* A player's log has room to breathe where a GM's dense log does not. With the
+   name printed once per run, two messages in a row from one speaker were 3px
+   apart, and a long exchange of emotes read as one wall of text. A little more
+   leading and a clear gap between messages keep each one its own. */
+.tline[data-density="feed"][data-layout="stacked"] {
+  line-height: 1.45;
+  margin-bottom: 7px;
+}
+
 /* THE STACKED SHAPE — /chat as a player reads it (Chat Overhaul.docx). The
    name sits on a line of its own above what was said, with the clock beside
    it, and a speaker's later lines carry no head at all (next/Feed.js passes
@@ -1071,6 +1080,17 @@
   /* The log's own ink, not --text (globals.css, --chat-said). */
   color: var(--chat-said);
   font-weight: 600;
+}
+
+/* ...but only the FIRST paragraph runs on from the name. A blank line in what
+   somebody typed starts a new paragraph, and drawing every paragraph inline ran
+   a long emote into one wall of text. The generated newlines keep each later
+   paragraph inline, so "(edited)" still sits on the words' last line, and the
+   blank line between them is the one the writer typed. A single newline is a
+   <br> (remarkLineBreaks.js), as in Discord. */
+.tline[data-density="feed"] .markdown-content p + p::before {
+  content: "\A\A";
+  white-space: pre;
 }
 
 /* Quoted speech in the log, the pale tint off the Chat Type Bench. The

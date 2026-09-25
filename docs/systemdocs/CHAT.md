@@ -48,6 +48,11 @@ disagrees with this section, this section is right.
   at 1.35, the words at weight 600 in `--chat-said`, names at 800, quoted
   speech in `--chat-speech`, and the game's own lines bold in
   `--chat-scenery` (`globals.css`, `chat.css`).
+  After player feedback on 2026-09-25, `--chat-said` was lifted to AA
+  (`#8f7d5e`, 4.93:1 on `--bg`), a player's stacked log sets at 1.45 with 7px
+  between messages, and **line breaks show**: a newline is a `<br>`
+  (`components/remarkLineBreaks.js`, chat only, as in Discord) and a blank line
+  starts a new paragraph instead of running on.
 - **Names in Here wrap** instead of being cut short. On a phone the drawer is
   at most `min(88vw, 24rem)`, each eye button is floored at 44px, and
   " · you · online" rode in the same one-line span, so names ended in "…".
