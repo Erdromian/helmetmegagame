@@ -1115,9 +1115,10 @@
    at the pending dim so they do not read as something that was said. Never
    removed silently; .chat-unsent under the body carries the Try again. */
 .tline[data-density="feed"][data-failed] {
-  border-left: 2px solid var(--danger);
-  margin-left: -2px;
-  padding-left: 2px;
+  /* An inset shadow, not a border: it draws the rule without touching the
+     row's padding. A border here came with a padding-left of its own, which
+     wiped out the portrait's indent and slid the name under the face. */
+  box-shadow: inset 2px 0 0 var(--danger);
   opacity: 1;
 }
 
