@@ -74,9 +74,11 @@
 # and a character created later is added to everyone whose seat knows theirs
 # (db/lib/acquaintances.js). It is one-way — the Baron knowing the Servants
 # does not make the Servants know the Baron. A seat whose `examine_visible` is
-# false is still named but never given a role. Every Ravenheart resident
-# shares one list through the `&ravenheart` anchor; a seat that should differ
-# gets a list of its own instead of `*ravenheart`.
+# false is still named but never given a role. The town — every Court,
+# Clergy, Cerberon, Saviors, Business and Soil seat, plus the Mercenary —
+# shares one list through the `&townsfolk` anchor, and the Bastard's soldiers
+# share `&bastards`; a seat that should differ gets a list of its own instead
+# of the alias. The Migrant has no `knows:` at all: a stranger to everyone.
 # See docs/systemdocs/MEMORIES.md §2a.
 #
 # `bank_account` (role-level, optional) opens a fingerprinted account at the
@@ -149,7 +151,7 @@ groups:
       starting_account: 36
       multiple: false
       starting_zone: fortress
-      knows: &ravenheart [court, clergy, cerberon, saviors, banneret, geschef, sheriff, metalsmith, prospector, soiler, mortus, bum, pusher, innkeeper, inn-staff]
+      knows: &townsfolk [court, clergy, cerberon, saviors, business, soil, mercenary]
       starting_location: fortress-4
       extra_starting_points: 5
       whitelist: true
@@ -192,7 +194,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-4
       starting_tags:
         - Ravenhearter
@@ -222,7 +224,7 @@ groups:
       starting_account: 5
       multiple: false
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-4
       extra_starting_points: 5
       starting_tags:
@@ -250,7 +252,7 @@ groups:
       starting_account: 5
       multiple: false
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-4
       starting_tags:
         - Ravenhearter
@@ -281,7 +283,7 @@ groups:
       starting_account: 5
       multiple: false
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-4
       extra_starting_points: 5
       starting_tags:
@@ -314,7 +316,7 @@ groups:
       starting_account: 4
       multiple: false
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-4
       starting_tags:
         - Ravenhearter
@@ -349,7 +351,7 @@ groups:
       starting_account: 5
       multiple: false
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-4
       starting_tags:
         - Ravenhearter
@@ -375,7 +377,7 @@ groups:
       multiple: true
       weight: 6
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-4
       # In place of the ten Courtier kits, which were removed for being a
       # second point economy sitting on top of this one: ten crates, each with
@@ -401,7 +403,7 @@ groups:
       multiple: true
       weight: 1
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-4
       starting_tags:
         - Ravenhearter
@@ -424,7 +426,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-4
       starting_tags:
         - Ravenhearter
@@ -459,7 +461,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-4
       whitelist: true
       starting_tags:
@@ -498,7 +500,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-4
       starting_tags:
         - Cathedral Key
@@ -531,7 +533,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-4
       whitelist: true
       starting_tags:
@@ -571,7 +573,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-4
       starting_tags:
         - Order Key
@@ -607,7 +609,7 @@ groups:
       multiple: true
       weight: 1
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-4
       starting_tags:
         - Order Key
@@ -637,7 +639,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-1
       whitelist: true
       starting_tags:
@@ -685,7 +687,7 @@ groups:
       starting_account: 3
       multiple: false
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-1
       starting_tags:
         - Armory Key
@@ -724,7 +726,7 @@ groups:
       multiple: true
       weight: 6
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-1
       starting_tags:
         - Cerberus Helmet
@@ -762,7 +764,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: fortress
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: fortress-1
       starting_tags:
         - Ravenhearter
@@ -801,7 +803,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-9
       whitelist: true
       starting_tags:
@@ -833,7 +835,7 @@ groups:
       multiple: true
       weight: 4
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-9
       starting_tags:
         - Sanctuary Key
@@ -870,6 +872,7 @@ groups:
       starting_account: 55
       multiple: false
       starting_zone: undertown
+      knows: *townsfolk
       starting_location: undertown-6
       whitelist: true
       starting_tags:
@@ -900,6 +903,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: undertown
+      knows: *townsfolk
       starting_location: undertown-6
       starting_tags:
         - Depot Keycard
@@ -925,7 +929,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: hills
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: factory
       starting_tags:
         - Ravenhearter
@@ -962,7 +966,7 @@ groups:
       starting_account: 3
       multiple: false
       starting_zone: hills
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: factory
       starting_tags:
         - Ravenhearter
@@ -1001,6 +1005,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: hills
+      knows: *townsfolk
       starting_location: factory
       starting_tags:
         - Hatchet
@@ -1028,6 +1033,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: undertown
+      knows: *townsfolk
       starting_location: undertown-8
       whitelist: true
       starting_tags:
@@ -1065,7 +1071,7 @@ groups:
       starting_account: 3
       multiple: false
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-2
       starting_tags:
         - Ravenhearter
@@ -1094,7 +1100,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-2
       starting_tags:
         - Ravenhearter
@@ -1128,7 +1134,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-7
       starting_tags:
         - Ravenhearter
@@ -1162,7 +1168,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-3
       starting_tags:
         - Ravenhearter
@@ -1193,7 +1199,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-a
       starting_tags:
         - Ravenhearter
@@ -1218,7 +1224,7 @@ groups:
       multiple: true
       weight: 4
       starting_zone: undertown
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: undertown-a
       extra_starting_points: -3
       starting_tags:
@@ -1242,7 +1248,7 @@ groups:
       starting_account: 14
       multiple: false
       starting_zone: undertown
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: undertown-8
       starting_tags:
         - Ravenhearter
@@ -1274,7 +1280,7 @@ groups:
       starting_account: 6
       multiple: false
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-7
       starting_tags:
         - Inn Key x3
@@ -1305,7 +1311,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: town
-      knows: *ravenheart
+      knows: *townsfolk
       starting_location: town-7
       starting_tags:
         - Inn Key
@@ -1332,6 +1338,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: undertown
+      knows: *townsfolk
       starting_location: undertown-8
       starting_tags:
         # The SLUG, not the name: "Seductive" is also the display name of the
@@ -1357,6 +1364,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: undertown
+      knows: *townsfolk
       starting_location: undertown-8
       starting_tags:
         - Bomb Collar (Locked)
@@ -1379,6 +1387,7 @@ groups:
       multiple: true
       weight: 2
       starting_zone: undertown
+      knows: *townsfolk
       starting_location: undertown-8
       starting_tags:
         - Strong
@@ -1421,6 +1430,7 @@ groups:
       multiple: true
       weight: 3
       starting_zone: caves
+      knows: *townsfolk
       starting_location: caves-1
       starting_tags:
         - Melee I
@@ -1456,6 +1466,7 @@ groups:
       weight: 1
       examine_visible: false
       starting_zone: hills
+      knows: [tribunal-ordinator, tribune]
       starting_location: grand-ravine
       starting_tags:
         - Melee III
@@ -1506,6 +1517,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
+      knows: [tribunal-ordinator, tribune]
       starting_location: grand-ravine
       starting_tags:
         - Melee III
@@ -1562,6 +1574,7 @@ groups:
       multiple: false
       examine_visible: false
       starting_zone: hills
+      knows: [baron, baroness, heir, successor, hand, bastard, bastard-infantry, bastard-heavy-infantry, bastard-rifleman, bastard-healer, bastard-engineer]
       starting_location: grand-ravine
       extra_starting_points: 2
       starting_tags:
@@ -1594,6 +1607,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
+      knows: &bastards [bastard, bastard-infantry, bastard-heavy-infantry, bastard-rifleman, bastard-healer, bastard-engineer]
       starting_location: grand-ravine
       starting_tags:
         - Melee I
@@ -1616,6 +1630,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
+      knows: *bastards
       starting_location: grand-ravine
       starting_tags:
         - Melee II
@@ -1641,6 +1656,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
+      knows: *bastards
       starting_location: grand-ravine
       starting_tags:
         - Ranged III
@@ -1664,6 +1680,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
+      knows: *bastards
       starting_location: grand-ravine
       starting_tags:
         - Medical III
@@ -1687,6 +1704,7 @@ groups:
       weight: unlimited
       examine_visible: false
       starting_zone: hills
+      knows: *bastards
       starting_location: grand-ravine
       starting_tags:
         - Siege Engineer

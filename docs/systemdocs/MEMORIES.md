@@ -104,9 +104,15 @@ scrambled. The page never says whether a subject is alive.
 
 Each seat in `docs/roles.yaml` may carry a `knows:` list of role slugs and
 group slugs. It syncs to `Role.knowsRoleSlugs` (expanded to role slugs) through
-`npm run db:sync-roles`. Every Ravenheart resident (the seats with the
-Ravenhearter starting tag) shares one list through a YAML anchor. Everyone
-else knows nobody. Knowing is one-way.
+`npm run db:sync-roles`. Knowing is one-way. The table Bascinet set:
+
+| Seats | Know |
+|---|---|
+| The town: every Court, Clergy, Cerberon, Saviors, Business and Soil seat, and the Mercenary (40) | each other — all 40, their own seat included (the `&townsfolk` anchor) |
+| Migrant | nobody, and nobody knows them |
+| Tribunal Ordinator, Tribune | each other |
+| The Bastard's six seats | each other (`&bastards`) |
+| The Bastard | also the Baron, Baroness, Heir, Successor and Hand |
 
 `db/lib/acquaintances.js#seedAcquaintances` runs beside the map seeding at all
 three places a character is made: `createCharacter`, `reincarnate` and
