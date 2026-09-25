@@ -410,8 +410,8 @@ and Extract.
 
 | | slug | cost | who |
 |---|---|---|---|
-| Pickpocketing I | `pickpocket` | 3 | anyone |
-| Pickpocketing II | `pickpocketing-skilled` | 2 | anyone |
+| Pickpocketing I | `pickpocket` | 5 | anyone |
+| Pickpocketing II | `pickpocketing-skilled` | 4 | anyone |
 
 **Neither slug changed, on purpose.** `db:sync-tags` is upsert-only, so
 renaming in place keeps everybody who already bought either rung. Both carry
@@ -425,7 +425,7 @@ tags of a gated group deliberately never repeat the gate themselves
 (`TAGS.md`), so moving the tag was the whole of the change.
 
 **Skilled uses `requiredTag`, not `parentTag`.** A prerequisite that does *not*
-replace, so a master holds both rungs and pays 5 in total. `parentTag` would
+replace, so a master holds both rungs and pays 9 in total. `parentTag` would
 delete Basic on purchase and leave every gate having to accept either tag to
 mean the same thing.
 

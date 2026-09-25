@@ -2707,12 +2707,12 @@ tags:
     category: general
     group: general-traits
     description: "Your hands lighten burdened pockets. Your thefts are very hard to detect."
-    pointCost: 3
+    pointCost: 5
     purchasable: true
     purchasableAfterStart: true
 
   # requiredTag, not parentTag: a prerequisite that does NOT replace, so a
-  # master holds both rungs and pays 5 in total. parentTag would delete Basic on
+  # master holds both rungs and pays 9 in total. parentTag would delete Basic on
   # purchase and leave every gate in db/lib/pickpocket.js having to accept
   # either tag to mean the same thing.
   #
@@ -2727,7 +2727,7 @@ tags:
     category: general
     group: general-traits
     description: "Your pickpocketing almost always succeeds."
-    pointCost: 2
+    pointCost: 4
     requiredTag: pickpocket
     visible: false
     purchasable: true

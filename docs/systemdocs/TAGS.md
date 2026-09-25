@@ -607,8 +607,9 @@ deliberate call rather than a new scale:**
 | Dense | −3 | alongside Tremor, same magnitude of nuisance |
 | Motion Sickness, Insomniac, Lazy, Hemophobia, Agoraphobia | −4 | between −2 and −5 |
 | Pyrophobia, Teratophobia | −2 | on-scale |
-| Death Wish, Pickpocketing (Basic), Nine Lives | 3 | between 2 and 5 |
-| Pickpocketing (Skilled) | 2 | on-scale, and a second rung rather than a first: `requiredTag: pickpocket`, so a master pays 5 in total (`THEFT.md` §2) |
+| Death Wish, Nine Lives | 3 | between 2 and 5 |
+| Pickpocketing (Basic) | 5 | on-scale |
+| Pickpocketing (Skilled) | 4 | between 2 and 5, and a second rung rather than a first: `requiredTag: pickpocket`, so a master pays 9 in total (`THEFT.md` §3) |
 | Escape Artist, Esoteric | 4 | between 2 and 5 |
 | Brave | 5 | on-scale (repriced for its ×0.5 on every mood harm, `MOOD.md`) |
 | Ranged (Throwing Weapons) | 4 | vs. a nominal sidegrade price of 10 |
