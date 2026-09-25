@@ -172,6 +172,10 @@ landed, because the proxy writes its row first and takes it back if the post
 fails. A ghost's line, a line recovered late (`sentAt`) and an edit teach
 nothing.
 
+Learning runs whether or not the GM has the stranger rule switched on
+(`STRANGERS.md` §9). With it off, names show anyway, but the Friends list
+still fills, so switching it back on picks up from what was learned.
+
 ### 2d. The secret antagonists are exempt
 
 The Thanati, the Thanati leader, the Vampire, the Demoness and the Judge

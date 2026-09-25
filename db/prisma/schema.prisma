@@ -309,6 +309,12 @@ model GameConfig {
   // either way: the GM desk's Scene tab streams from it.
   playPanelEnabled Boolean @default(true)
 
+  // Strangers (docs/systemdocs/STRANGERS.md §9). On, a bare face the reader
+  // has no Friends entry for reads as "a young man" until they learn the
+  // name. Off, every uncovered face shows its real name to everyone; hoods
+  // and forced names are unchanged. Read by db/lib/strangers.js.
+  anonymizeStrangers Boolean @default(true)
+
   // THE ORACLE (docs/systemdocs/ORACLE.md). Every one of these is edited from
   // /gm/dev?s=oracle rather than the generic Configuration form, so all of
   // them sit in gameConfigFields.js's INTERNAL_KEYS: an API key rendered as a

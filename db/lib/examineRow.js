@@ -24,6 +24,7 @@ const { mayReadPlace } = require("./feedAccess");
 const { THANATI_SLUG } = require("./thanati");
 const { scrambleState, scrambleEntry } = require("./memoryScramble");
 const { roleGroupHue } = require("./roleGroups");
+const { anonymizingStrangers } = require("./strangers");
 
 // `equipped` and the roof are for examineVision.js: spectacles only correct while worn, Sun
 // Sensitivity only blinds outdoors. `acquiredAt` is for db/lib/memoryScramble.js: when a
@@ -57,9 +58,11 @@ async function memoryForLook(prisma, viewer, subjectId, dayNumber) {
 
 // Whether the looker can put a name to the subject: a Friends entry. A
 // normal look has already loaded it as `memory`. A camera loads none, so it
-// asks, since a photograph is still looked at by somebody.
+// asks, since a photograph is still looked at by somebody. With the GM's
+// stranger switch off, every face can be named (STRANGERS.md §9).
 async function looksKnown(prisma, viewer, subjectId, { memory, bystander }) {
   if (memory) return true;
+  if (!(await anonymizingStrangers(prisma))) return true;
   if (!bystander) return false;
   const entry = await prisma.acquaintance.findUnique({
     where: { ownerId_subjectId: { ownerId: viewer.id, subjectId } },

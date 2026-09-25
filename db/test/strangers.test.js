@@ -312,3 +312,46 @@ test("typing: a stranger types as their alias, under a key that is not their id"
   const hood = lensTyping({ ...event, name: "Young Woman", hidden: true }, { characterId: "viewer", known: new Set(["s1"]) });
   assert.notEqual(hood.characterId, "s1", "a hood's id never rides a typing notice");
 });
+
+// ------------------------------------------------ the GM's switch (§9)
+
+const switchedOff = (db) => ({ ...db, gameConfig: { findUnique: async () => ({ anonymizeStrangers: false }) } });
+
+test("switched off, nobody is a stranger: knownSubjects says the rule does not apply", async () => {
+  assert.equal(await knownSubjects(switchedOff(roomFake([], [])), "viewer", ["s1"]), null);
+  const on = { ...roomFake([], []), gameConfig: { findUnique: async () => ({ anonymizeStrangers: true }) } };
+  assert.deepEqual([...(await knownSubjects(on, "viewer", ["s1"]))], ["viewer"]);
+  const noRow = { ...roomFake([], []), gameConfig: { findUnique: async () => null } };
+  assert.notEqual(await knownSubjects(noRow, "viewer", ["s1"]), null, "a missing row counts as on");
+});
+
+test("switched off, Who's here names every uncovered face, and a hood stays a hood", async () => {
+  const hoodTag = { quantity: 1, equipped: true, tag: { slug: "plebeian-hood", name: "Plebeian Hood", concealsIdentity: true, concealSprite: "hood" } };
+  const rows = [person("s1", "Una Stray"), person("h1", "Hal Hidden", { tags: [hoodTag], concealed: true })];
+  const { named, concealed } = await whosHere(switchedOff(roomFake(rows, [])), viewer);
+  assert.deepEqual(named.map((c) => c.name), ["Una Stray"]);
+  assert.equal(concealed.length, 1);
+  assert.ok(!concealed[0].alias.includes("Hal"), "the hood still hides who is under it");
+});
+
+test("switched off, the lens shows a bare face by name, and a hood keeps its alias and number", async () => {
+  const db = switchedOff({
+    acquaintance: { findMany: async () => [] },
+    voiceMemory: { findMany: async () => [{ subjectId: "s1", number: 2, live: true }, { subjectId: "h1", number: 3, live: true }] },
+    character: { findMany: async () => [{ id: "s1", age: 60, gender: "MAN" }, { id: "h1", age: 20, gender: "MAN" }] },
+  });
+  const lens = createLens(db, { characterId: "viewer" });
+  const hooded = row({ speaker: "h1", characterId: null, name: "Young Man", alias: "Young Man", speakerKey: hoodToken("h1") });
+  const [bare, hood] = await lens.all([row(), hooded]);
+  assert.equal(bare.name, "Una Stray");
+  assert.equal(bare.characterId, "s1");
+  assert.equal(hood.name, "Young Man (3)");
+});
+
+test("switched off, a DM names the unknown face", async () => {
+  const { seenBy } = require("../lib/intercept");
+  const target = { id: "s1", name: "Una Stray", age: 20, gender: "MAN", concealed: false, tags: [] };
+  const db = { acquaintance: { findMany: async () => [] } };
+  assert.equal(await seenBy(db, "viewer", target), "a young man");
+  assert.equal(await seenBy(switchedOff(db), "viewer", target), "Una Stray");
+});
