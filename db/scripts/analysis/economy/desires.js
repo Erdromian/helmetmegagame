@@ -84,8 +84,8 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   const shelfItems = list.filter((t) => t.depotPrice != null);
   const cheapestShelf = [...shelfItems].sort((a, b) => a.depotPrice - b.depotPrice)[0];
   const cheapestRoundTrip = [...shelfItems.filter((t) => t.sellablePrice != null)].sort((a, b) => a.depotPrice - a.sellablePrice - (b.depotPrice - b.sellablePrice) || a.depotPrice - b.depotPrice)[0];
-  const skilledDishes = (cookingDishes ?? []).filter((d) => d.tier === "Skilled" && !d.unreachable.length).sort((a, b) => a.cost - b.cost);
-  const cheapestLavish = skilledDishes[0];
+  // The Desire verifies against a craft named "Lavish Meal" (docs/desires.yaml), so only that meal class counts.
+  const cheapestLavish = (cookingDishes ?? []).filter((d) => d.mealClass === "lavish" && !d.unreachable.length).sort((a, b) => a.cost - b.cost)[0];
   // The slot machine, worked as a cost of getting a payout of at least N in one spin.
   const slotEv = SLOT.table.reduce((s, r) => s + (r.ways / 216) * r.pays, 0);
   const slotLoss = SLOT.stake - slotEv;
@@ -152,7 +152,7 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   add("try-a-new-drug", "Take a drug you have not taken", { coin: 2.3, how: "about 2–3 ¢ a drug: heroin, changa, bliss" }, { consumable: true, maxClaims: 3, note: "One claim per drug, so about three of them." });
   const candy = unit("sugar-candy");
   add("eat-sweets", "Eat a Sugar Candy", { coin: candy.coin, how: candy.how }, { consumable: true });
-  if (cheapestLavish) add("lavish-meal", `Eat a lavish (Skilled) dish: ${cheapestLavish.name}`, { coin: cheapestLavish.cost, moves: cheapestLavish.moves, how: `${cheapestLavish.inputs.join(" + ")}` }, { consumable: true, note: "Needs Cooking II (10 points) to make, or a friend who has it." });
+  if (cheapestLavish) add("lavish-meal", `Eat a ${cheapestLavish.name}`, { coin: cheapestLavish.cost, moves: cheapestLavish.moves, how: `${cheapestLavish.inputs.join(" + ")}` }, { consumable: true, note: "Needs Cooking II (10 points) and a kitchen to make, or a friend who has both." });
 
   // ---- buying something ---------------------------------------------------------------------------------------
   add("make-a-merchant-purchase", `Buy ${cheapestShelf?.name}`, { coin: cheapestShelf?.depotPrice ?? 0, how: `${cheapestShelf?.depotPrice} ¢, the cheapest thing on the shelf`, resale: cheapestShelf?.sellablePrice ?? 0 });

@@ -59,7 +59,7 @@ const readYaml = (rel) => yaml.load(fs.readFileSync(path.join(REPO, rel), "utf8"
 // What the model assumes but the repo does not state as a number.
 // ---------------------------------------------------------------------------
 // Built per run, since the ⬢ line quotes the Depot's two prices and the midpoint a mined ⬢ is valued at.
-function assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, hungerDecay }) {
+function assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, turnsPerDay, hungerDecay }) {
   return [
     {
       key: "MOVES_PER_TURN",
@@ -68,8 +68,8 @@ function assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, t
     },
     {
       key: "TURN_LENGTH",
-      value: `${turnLengthHours} hours a turn`,
-      why: `A Turn's turnLengthHours is a live per-game setting (6, 8, 12 or 24); this report has no game to read one from, so it defaults to a 24-hour turn (--turn-hours N tries another). Hunger decays a flat ${hunger.HUNGER_DECAY_PER_DAY} a day (${hunger.HUNGER_DECAY_PER_DAY_FAST} with Big Appetite), split across the turns in a day and truncated per turn (db/lib/hunger.js#perTurnDecay), so this run's turn burns ${hungerDecay}.`,
+      value: turnsPerDay >= 1 ? `${turnsPerDay} turns an in-game day` : `${turnLengthHours} hours a turn`,
+      why: `A Turn's turnLengthHours is a live per-game setting (6, 8, 12 or 24), and GameConfig.turnsPerDay can roll the in-game day every N turns instead; this report has no game to read either from, so it takes the schema defaults (a ${schemaDefault("turnLengthHours")}-hour turn, turnsPerDay ${schemaDefault("turnsPerDay")}) unless --turn-hours N or --turns-per-day N says otherwise. Hunger decays a flat ${hunger.HUNGER_DECAY_PER_DAY} a day (${hunger.HUNGER_DECAY_PER_DAY_FAST} with Big Appetite), split across the turns in a day (db/lib/hunger.js#perTurnDecay: truncated by hours, rounded up by turnsPerDay), so this run's turn burns ${hungerDecay}.`,
     },
     {
       key: "SELL_TAX",
@@ -181,11 +181,14 @@ const OBOL_PAR = 1;
 // to it and the Caving Die estimates an unsellable find with it.
 const SELL_BACK_SHARE = 0.6;
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 1.5, pointValue = null, sellTax = null, turnHours = null } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 1.5, pointValue = null, sellTax = null, turnHours = null, turnsPerDay = null } = {}) {
   const { list, bySlug } = loadCatalog();
-  // A Turn's turnLengthHours is a live game setting this report has no game to read, so it defaults to a
-  // full 24-hour day (the doc's per-day figure applied whole); --turn-hours tries another (6, 8 or 12).
-  const turnLengthHours = turnHours ?? 24;
+  // A Turn's turnLengthHours and GameConfig.turnsPerDay are live game settings this report has no game to
+  // read, so both default to the schema's (a 24-hour turn, and 0: the day rolls by the clock). --turn-hours
+  // tries another length (6, 8 or 12); --turns-per-day N rolls the day every N turns, which is what
+  // decides the hunger a turn burns once it is set (db/lib/hunger.js#perTurnDecay).
+  const turnLengthHours = turnHours ?? schemaDefault("turnLengthHours");
+  const turnsPerDaySetting = turnsPerDay ?? schemaDefault("turnsPerDay");
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
   // How often each day-verb can be pressed, played out with the game's own gates.
@@ -256,12 +259,13 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       return w;
     })(),
     turnLengthHours,
+    turnsPerDay: turnsPerDaySetting,
     // The doc's rate is a day, 17 (24 with Big Appetite); a turn burns perTurnDecay(perDay, turnLengthHours),
     // truncated (db/lib/hunger.js). At the default 24-hour turn that is the day figure whole.
     hungerDecayPerDay: hunger.HUNGER_DECAY_PER_DAY,
     hungerDecayPerDayFast: hunger.HUNGER_DECAY_PER_DAY_FAST,
-    hungerDecay: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY, turnLengthHours),
-    hungerDecayFast: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY_FAST, turnLengthHours),
+    hungerDecay: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY, turnLengthHours, turnsPerDaySetting),
+    hungerDecayFast: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY_FAST, turnLengthHours, turnsPerDaySetting),
     hungerMax: hunger.HUNGER_MAX,
     hungryThreshold: hunger.HUNGRY_THRESHOLD,
     starvingThreshold: hunger.STARVING_THRESHOLD,
@@ -1514,7 +1518,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       docValue: "17 / 24 a day, Hungry 66, Starving 33",
       model: `${hunger.HUNGER_DECAY_PER_DAY} / ${hunger.HUNGER_DECAY_PER_DAY_FAST} a day, Hungry ${hunger.HUNGRY_THRESHOLD}, Starving ${hunger.STARVING_THRESHOLD}`,
       ok: hunger.HUNGER_DECAY_PER_DAY === 17 && hunger.HUNGER_DECAY_PER_DAY_FAST === 24 && hunger.HUNGRY_THRESHOLD === 66 && hunger.STARVING_THRESHOLD === 33,
-      note: `This run turns that into ${params.hungerDecay} a turn at ${turnLengthHours} hours a turn (perTurnDecay, truncated); --turn-hours tries another length.`,
+      note: `This run turns that into ${params.hungerDecay} a turn at ${params.turnsPerDay >= 1 ? `${params.turnsPerDay} turns a day (perTurnDecay, rounded up)` : `${turnLengthHours} hours a turn (perTurnDecay, truncated)`}; --turn-hours and --turns-per-day try others.`,
     },
     {
       doc: "tags.yaml, Ration Box",
@@ -1933,7 +1937,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
 
   return {
     params,
-    assumptions: assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, hungerDecay: params.hungerDecay }),
+    assumptions: assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, turnsPerDay: params.turnsPerDay, hungerDecay: params.hungerDecay }),
     activities,
     wages,
     priceLadder,
