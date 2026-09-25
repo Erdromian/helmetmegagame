@@ -227,6 +227,10 @@ export default function RequestActionsProvider({
   // Torture: you hold `torturer`. Your own sheet; the action re-checks it and
   // that the target is Bound.
   canPickpocket = false,
+  // Why you can't pick a pocket right now even though you know how, or null —
+  // caught, fighting, or this turn's reach spent (web/lib/peoplePools.js).
+  // Your own sheet only; the action re-checks all of it.
+  pickpocketBlocked = null,
   canTorture = false,
   canMutilate = false,
   // Brand: you hold `branding-iron`. Your own sheet; the action re-checks it
@@ -530,6 +534,9 @@ export default function RequestActionsProvider({
         farm: farmBlocked,
         breakin: breakInBlocked,
         kiss: kissBlocked,
+        // Only for somebody with the tag: without it the registry's own
+        // "You don't know how" is the true reason, and must not be covered.
+        pickpocket: canPickpocket ? pickpocketBlocked : null,
       },
       canLearn: teachers.length > 0,
       // Symmetrical with canLearn: a list the server already filtered to who
@@ -579,7 +586,7 @@ export default function RequestActionsProvider({
       canCrucify,
       canShackle,
       canDisguise,
-      canPickpocket,
+      canPickpocket: canPickpocket && !pickpocketBlocked,
       canTorture,
       canMutilate,
       canBrand,
@@ -652,6 +659,7 @@ export default function RequestActionsProvider({
       canShackle,
       canDisguise,
       canPickpocket,
+      pickpocketBlocked,
       canTorture,
       canMutilate,
       canBrand,

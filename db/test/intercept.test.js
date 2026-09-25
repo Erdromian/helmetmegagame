@@ -189,6 +189,60 @@ test("a caught hold never lands on a running fight, however soon it ends", async
   assert.equal(ambushed.heldById, "x");
 });
 
+test("a failed pickpocket is held by its victim, under the same two rules", async () => {
+  const { HELD_REASON, CAUGHT_HOLD_MS, holdWhereTheyStand } = require("../lib/intercept");
+  const now = new Date("2026-09-14T12:00:00Z");
+  const until = new Date(now.getTime() + CAUGHT_HOLD_MS);
+  const hold = (row) =>
+    holdWhereTheyStand(fakeDb(row), "thief", { until, reason: HELD_REASON.CAUGHT, heldById: "victim", now });
+
+  // The victim has hold of them (THEFT.md §2g), so the ordinary Release, walk-off and death clears all reach this hold.
+  const free = { id: "thief", heldUntil: null, heldById: null, heldReason: null };
+  assert.equal(await hold(free), true);
+  assert.deepEqual(free, { id: "thief", heldUntil: until, heldById: "victim", heldReason: HELD_REASON.CAUGHT });
+
+  // Still never on a running fight, whoever would be holding.
+  const fighting = { id: "thief", heldUntil: new Date(now.getTime() + 60_000), heldById: "x", heldReason: HELD_REASON.ATTACK };
+  assert.equal(await hold(fighting), false);
+  assert.equal(fighting.heldById, "x");
+});
+
+test("a caught hand stays out of pockets until the clock runs, and only a caught one", () => {
+  const { HELD_REASON, CAUGHT_HOLD_MS, caughtSecondsLeft } = require("../lib/intercept");
+  const now = new Date("2026-09-14T12:00:00Z");
+  const soon = new Date(now.getTime() + CAUGHT_HOLD_MS);
+
+  // Either writer — a Steal the room saw holds by nobody, a failed pickpocket by the victim — and the count matches heldReasonFor's.
+  assert.equal(caughtSecondsLeft({ heldUntil: soon, heldReason: HELD_REASON.CAUGHT, heldById: null }, now), 300);
+  assert.equal(caughtSecondsLeft({ heldUntil: soon, heldReason: HELD_REASON.CAUGHT, heldById: "victim" }, now), 300);
+  // Lapsed is free, at the mark exactly, the heldReasonFor comparison.
+  assert.equal(caughtSecondsLeft({ heldUntil: now, heldReason: HELD_REASON.CAUGHT }, now), 0);
+  // A Safe stop, an ambush and a fight all take movement and leave the hands alone — the fight has its own gate.
+  assert.equal(caughtSecondsLeft({ heldUntil: soon, heldReason: HELD_REASON.INTERCEPT }, now), 0);
+  assert.equal(caughtSecondsLeft({ heldUntil: soon, heldReason: null }, now), 0);
+  assert.equal(caughtSecondsLeft({ heldUntil: soon, heldReason: HELD_REASON.ATTACK }, now), 0);
+  assert.equal(caughtSecondsLeft({ heldUntil: null, heldReason: HELD_REASON.CAUGHT }, now), 0);
+  assert.equal(caughtSecondsLeft(null, now), 0);
+});
+
+test("a fight is a fight on either side of it, and only while it runs", () => {
+  const { HELD_REASON, inFight } = require("../lib/intercept");
+  const now = new Date("2026-09-14T12:00:00Z");
+  const later = new Date(now.getTime() + 3600_000);
+
+  assert.equal(inFight({ heldUntil: later, heldReason: HELD_REASON.ATTACK }, now), true);
+  assert.equal(inFight({ heldUntil: later, heldReason: HELD_REASON.ATTACKING }, now), true);
+  // Yesterday's fight still carries its reason (the turn advance clears nothing) and is no fight.
+  assert.equal(inFight({ heldUntil: now, heldReason: HELD_REASON.ATTACK }, now), false);
+  assert.equal(inFight({ heldUntil: new Date(now.getTime() - 1), heldReason: HELD_REASON.ATTACKING }, now), false);
+  // Every other hold is not a fight — Pickpocket's gate must not shut on an intercept or a caught thief for this reason.
+  assert.equal(inFight({ heldUntil: later, heldReason: HELD_REASON.INTERCEPT }, now), false);
+  assert.equal(inFight({ heldUntil: later, heldReason: HELD_REASON.CAUGHT }, now), false);
+  assert.equal(inFight({ heldUntil: later, heldReason: null }, now), false);
+  assert.equal(inFight({ heldUntil: null, heldReason: HELD_REASON.ATTACK }, now), false);
+  assert.equal(inFight(null, now), false);
+});
+
 test("a player's line cannot ping the room", () => {
   assert.equal(cleanMessage("Halt! @everyone"), "Halt! everyone");
   assert.equal(cleanMessage("@here now"), "here now");

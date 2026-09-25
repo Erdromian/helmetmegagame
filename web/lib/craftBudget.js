@@ -9,45 +9,23 @@
 // past that is integer arithmetic.
 
 import { craftFamily } from "./tagRequests";
-// Deep path avoids the @lifeweb/db barrel (leaks node:fs into "use client" bundles); same shim as formatTagRequirement.js.
+// Deep paths avoid the @lifeweb/db barrel (leaks node:fs into "use client" bundles); same shim as formatTagRequirement.js.
 import { formatMoveAmount } from "@lifeweb/db/lib/formatTagRequirement";
+// The arithmetic and the ledger readers live in db/lib/moveLedger.js now, so
+// the Discord face can spend a share of the Move too (a room search, SEARCH.md
+// §9). Re-exported so every existing caller keeps its import path.
+import {
+  WHOLE_MOVE,
+  reduceFraction,
+  addFractions,
+  fitsInRemaining,
+  unitsAffordable,
+  ledgerUsed,
+  ledgerRemaining,
+  isLedgerAction,
+} from "@lifeweb/db/lib/moveLedger";
 
-const NO_MOVE = { num: 0, den: 1 };
-export const WHOLE_MOVE = { num: 1, den: 1 };
-
-function gcd(a, b) {
-  return b === 0 ? a : gcd(b, a % b);
-}
-
-function reduceFraction(num, den) {
-  const g = gcd(Math.abs(num), Math.abs(den)) || 1;
-  return { num: num / g, den: den / g };
-}
-
-export function addFractions(a, b) {
-  return reduceFraction(a.num * b.den + b.num * a.den, a.den * b.den);
-}
-
-// Does `cost` still fit in what is left? Cross-multiplied, so nothing rounds.
-export function fitsInRemaining(cost, remaining) {
-  return cost.num * remaining.den <= remaining.num * cost.den;
-}
-
-// How many units at 1/den each the remainder still pays for.
-export function unitsAffordable(remaining, den) {
-  if (!den) return 0;
-  return Math.floor((remaining.num * den) / remaining.den);
-}
-
-export function ledgerUsed(ledger) {
-  if (!ledger) return NO_MOVE;
-  return { num: ledger.usedNum ?? 0, den: ledger.usedDen || 1 };
-}
-
-export function ledgerRemaining(ledger) {
-  const used = ledgerUsed(ledger);
-  return reduceFraction(used.den - used.num, used.den);
-}
+export { WHOLE_MOVE, addFractions, fitsInRemaining, unitsAffordable, ledgerUsed, ledgerRemaining };
 
 // Lives in db/lib/formatTagRequirement.js (M2); re-exported so every existing caller keeps its import path.
 export { formatMoveAmount };
@@ -147,9 +125,8 @@ export function craftMoveCost(
 
 // The turn's ledger as the sheet and the dialog read it; null unless the open turn's Action carries one. A turn's Routine can mix families now, so this reports only what's left of the Move — not a single family the whole turn is "locked" to.
 export function summarizeCraftBudget(action) {
-  // `includes`, matching checkCraftMove: other machinery may append to gmNotes, and must not hide a live ledger.
-  if (!action || !(action.gmNotes ?? "").includes("auto:craft") || !action.craftBudget)
-    return null;
+  // `includes`, matching checkLedgerMove: other machinery may append to gmNotes, and must not hide a live ledger.
+  if (!isLedgerAction(action)) return null;
   const left = ledgerRemaining(action.craftBudget);
   return {
     remainingNum: left.num,

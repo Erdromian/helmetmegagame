@@ -13,7 +13,7 @@ import { pickpocketFitCount } from "@lifeweb/db/lib/pickpocket";
 // Pickpocket (docs/systemdocs/THEFT.md §2). Two panes, because it is two acts:
 // the hand goes in, and then you choose ONE kind of thing, as many of it as fit
 // in the budget. Pressing the first button is the commitment — it spends the
-// one attempt you get at this person this turn, whatever you do next.
+// one attempt you get this turn, at anybody, whatever you do next.
 //
 // PartySelect rather than a ChipPicker, the SearchDialog reasoning: this is one
 // of the handful of verbs that reaches somebody in a hood, so a concealed row
@@ -170,7 +170,7 @@ export default function PickpocketDialog({ presets, onDone, onClose }) {
         onChange={setTargetKey}
       />
       <p className="text-xs text-muted">
-        One try each per turn, whether it works or not. Pressing this spends it.
+        One try per turn, at one person, whether it works or not. Pressing this spends it.
       </p>
     </ActionDialog>
   );

@@ -196,7 +196,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Modular | `modular`, `isOpen` | an Open/Close button on the **watchtower** at the gate; impassable while shut. Anyone the tower admits may work it |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
 | On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it, same as walking into an indoors Location |
-| Tight squeeze | `tightSqueeze` | a hole no **Giant** fits through, full stop. Listed and refused to anyone holding the `giant` tag — unconditional, not a skill check |
+| Tight squeeze | `tightSqueeze` | a hole no **Giant** fits through, full stop. Listed and refused to anyone holding the `giant` tag — unconditional, not a skill check. **Marked for everybody**, Giant or not, so a party can see where its Giant cannot follow |
 
 **A modular gate on a zone boundary must be the only plain edge between those
 two zones.** A hop inside a zone costs nothing, so a second tagless, unwinched
@@ -353,6 +353,39 @@ It composes the same way `onFoot` does, checked right where `onFoot` is in
 Giant learning they cannot fit is not a secret the way a hidden crawl is. A
 character without the `giant` tag is never touched by it at all.
 
+**But everybody is shown it.** `crossingCheck` returns `tightSqueeze: true`
+on every listed verdict, passable or not, and the walk resolver carries the
+flag stickily down a route the way it carries `dismounts` — a three-hop walk
+whose second hop is a squeeze is a walk with a squeeze on it. That is the
+opposite of how `railroad` and `openedBy` behave (passable branches only),
+and on purpose: the person who most needs to see a squeeze is the one it
+doesn't refuse, the party leader about to walk their Giant friend up to a
+hole and lose them there. A refusing branch says no more about its lock than
+it did before; the flag is about the shape of the hole, not the key. Every
+travel surface draws it:
+
+- `/chat`'s Travel panel and `/map`'s ways-out list and card: a quiet
+  **Tight squeeze** chip (`web/app/components/SqueezeChip.js`), with "A tight
+  squeeze. No Giant fits through here." on the hover — or "on the way" for a
+  walk. Label and sentence live in `web/lib/travelCost.js` beside
+  `openedByLabel`, so the two surfaces cannot word it differently.
+- `/map`'s board: the way draws **dotted** (`.map-edge[data-squeeze]`), a
+  pinched line, distinct from the dashed "shut to you". A Giant still sees it
+  in the gate colour, since for them it is shut.
+- The bot's picker: the option's description leads with "Tight squeeze, no
+  Giant fits —", and the confirm step under **Move to X?** carries the same
+  `-#` sentence the web card does. A squeeze that is shut to you for some
+  other reason reads "(tight squeeze)" in the **Closed to you right now**
+  line, the way the web draws the chip on a shut way too.
+
+A walk also **avoids** a squeeze where it costs nothing to. Of two equally
+short roads, the resolver takes the one with no squeeze on it, even where slug
+order would have picked the other. A longer road never wins, though: the
+squeeze is marked, not avoided at the price of an extra hop.
+
+The Giant themselves sees none of the chips as news — they already read the
+refusal — but they get them too; there is no per-tag branch in any of it.
+
 **Because the block is unconditional, every `tightSqueeze` edge needs some
 OTHER route left standing for a Giant.** Cutting a region off entirely from
 a sixth of the catalog's most expensive tag is a design mistake, not a
@@ -453,12 +486,13 @@ anywhere, spends nothing, and files no Action — it isn't travel, it's
 arrival. The adjacency gate is skipped entirely.
 
 **A hop inside the same zone is free, on a cooldown.**
-`GameConfig.locationMoveCooldownSeconds` (default 3, edited on `/gm/dev`; it
-was 60 until 2026-09-08, which was long enough to feel like a wall)
-gates it, enforced by a **conditional `updateMany`** whose `WHERE` clause
-*is* the check (`lastLocationMoveAt` null or old enough) — the same shape the
-hunger decrement and the mount's daily claim use, so two clicks in one tick
-can't both pass. A refusal reports the exact seconds left. A **walk** of several
+`GameConfig.locationMoveCooldownSeconds` (default 30, edited on `/gm/dev`; it
+was 60 until 2026-09-08, which felt like a wall, then 3 until 2026-09-24,
+which was a click debounce and no brake on anything) gates it, enforced by a
+**conditional `updateMany`** whose `WHERE` clause *is* the check
+(`lastLocationMoveAt` null or old enough) — the same shape the hunger
+decrement and the mount's daily claim use, so two clicks in one tick can't
+both pass. A refusal reports the exact seconds left. A **walk** of several
 hops claims it once, at its first hop, and swaps the clock for a position check
 on every hop after — §3c.
 
@@ -879,10 +913,11 @@ by a turret on a street they were never told they would pass.
 mistake in the graph cannot become a thirty-hop run of Discord calls.
 
 **The debounce is claimed once, by the first hop.**
-`GameConfig.locationMoveCooldownSeconds` is a debounce on clicking, not a game
-rule, and waiting it out between hops would make a four-hop walk nine seconds of
-refusals. So hop 1 makes the ordinary claim — two tabs starting a walk in the
-same tick still resolve to one — and every later hop passes `skipCooldown`,
+`GameConfig.locationMoveCooldownSeconds` is a brake on the next click, not a
+toll on every step, and waiting it out between hops would make a four-hop walk
+a minute and a half of refusals. So hop 1 makes the ordinary claim — two tabs
+starting a walk in the same tick still resolve to one — and every later hop
+passes `skipCooldown`,
 which **swaps** the conditional `updateMany`'s clock for `locationId: <where we
 read them>` rather than dropping it. That is a narrower guard, not a missing
 one, and the right one for a walk: the thing a walk must never do is step on
@@ -1424,8 +1459,9 @@ on a node now means only one thing: that zone has not been renumbered yet.
 and exit-1 on a problem. It asks five questions:
 
 1. Is every slug unique across zones, locations and rooms?
-2. Does every `access:` and `stash:` slug name a real tag? Nothing else checks
-   this — the importer cannot, because tags sync *after* zones.
+2. Does every `access:` and `stash:` slug — `items:` and `hidden:` both — name
+   a real tag? Nothing else checks this — the importer cannot, because tags
+   sync *after* zones.
 3. Does every connection name two real Locations, each edge stated once?
 4. Does every node on the plate have a Location, and every Location in a
    renumbered zone have a node?

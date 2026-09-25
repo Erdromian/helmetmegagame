@@ -553,6 +553,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     kissTargets,
     searchParties,
     kissBlocked,
+    pickpocketBlocked,
   } = await loadPeoplePools(character, {
     discordUserId: session.discordUserId,
     openTurn,
@@ -1349,6 +1350,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       kissTargets: kissTargets,
       searchParties: searchParties,
       kissBlocked: kissBlocked,
+      pickpocketBlocked: pickpocketBlocked,
       storeTags: storeTags,
       storeHeldTags: storeHeldTags,
       storeRoleSlug: character.role?.slug ?? null,

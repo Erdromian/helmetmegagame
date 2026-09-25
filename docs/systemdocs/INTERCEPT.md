@@ -169,12 +169,16 @@ keyed-way pattern (`MAP.md` §2b) applied to a person instead of a door.
 `Character.heldReason` says **which** has hold of somebody — `HELD_REASON` in
 this file, and there are four values rather than two because a fight holds both
 sides and they must not read the same sentence (`ATTACK.md` §1), and because a
-thief the room caught stealing (`caught`, five minutes, `THEFT.md` §1e) is held
-by nobody at all — a stash has no owner, so there is no `heldById` and only the
-clock ends it. That hold is written by `holdWhereTheyStand`, which carries the
-clock rule below and one more: it never lands on a fight that is still running,
-however soon that fight ends. A column rather than a lookup
-because the predicate below is pure and eight surfaces read it.
+thief who was caught (`caught`, five minutes) is held by nobody at all when the
+stash had no owner (`THEFT.md` §1e, no `heldById`, so only the clock ends it) and
+by the victim when there was one (§2g, a failed or noticed Pickpocket — `heldById` is the
+target, so every clear below works for them). Both are written by
+`holdWhereTheyStand`, which carries the clock rule below and one more: it never
+lands on a fight that is still running, however soon that fight ends. A column
+rather than a lookup because the predicate below is pure and eight surfaces
+read it — and two more pure readers sit beside it, `inFight` and
+`caughtSecondsLeft`, which are what shuts Pickpocket on a fight or a caught
+hand (`THEFT.md` §2g).
 
 A follower held by nobody is left behind as `stuck` rather than `held`, so the
 leader reads *"X couldn't follow."* and not *"Somebody has hold of X."*
@@ -416,8 +420,8 @@ could only ever answer *They're already free.*
 
 The authoritative control is the **You are fighting** list at the foot of the
 Attack dialog. The DM button is the convenience. The Intercept dialog's own
-holding list is Safe stops only — it excludes both fight reasons, for the
-reason §3 gives: listing a fight there would draw a Let-them-go button whose
+holding list is Safe stops and caught pickpockets (`THEFT.md` §2g) — it excludes
+both fight reasons, for the reason §3 gives: listing a fight there would draw a Let-them-go button whose
 only possible answer is *They're already free.*
 
 ## 8. The surface

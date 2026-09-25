@@ -120,9 +120,11 @@ gate already read that column, so nothing new had to learn about it: the ways
 out draw shut with *"You were caught stealing. You can't leave for another
 Ns."*, an escort cannot carry them off, and the Charon stone refuses them.
 
-**This is the only theft hold in the game.** A successful Steal holds nobody,
-no Pickpocket band holds anybody (§2), and taking from a room with Transfer
-holds nobody either.
+**Two theft holds share this reason.** A successful Steal holds nobody, and
+taking from a room with Transfer holds nobody either. The other writer is a
+**failed or noticed Pickpocket** (§2g), and it differs in one column: the victim is
+`heldById`, because a person can hold a thief the way a stash cannot. Either
+way, a caught hand also stays out of pockets until the clock runs (§2g).
 
 Four things follow from reusing the hold rather than inventing one:
 
@@ -159,10 +161,14 @@ they try to leave.
 ## 2. Pickpocket
 
 Going through a standing person's pockets. Needs the **Pickpocketing (Basic)**
-tag (§3), costs no Move, and is rationed: **once per person per turn**, spent
-by reaching in whether or not it works.
+tag (§3), costs no Move, and is rationed: **one reach per turn**, at one
+person, spent by reaching in whether or not it works (§2d). A thief who
+reached into one pocket this turn is refused every other one with *"You've
+already picked a pocket this turn."*
 
 - Both sides at the same Location, both alive, neither blocked from `ACT`.
+- **Neither side in a running fight**, and the thief not under a caught hold
+  (§2g). Both are re-checked at the take as well as at the roll.
 - **A hood refuses nothing**, either end — `allowConcealed: true`, the Search
   posture (`SEARCH.md` §2a). A hood hides who you are, not what is in your
   pockets. Every line either side reads names people by the face the room saw.
@@ -170,13 +176,13 @@ by reaching in whether or not it works.
 
 ### 2a. Three bands, not two
 
-Read off the die **plus** Skilled's +1, **minus** the mark's defense (§2h):
+Read off the die **plus** Skilled's +1, **minus** the mark's defense (§2i):
 
 | total | what happens |
 |---|---|
 | 4+ | **clean.** They are told nothing at all. |
-| 2–3 | **noticed.** You get the goods, and they are DM'd that you picked them. |
-| 1 or less | **failed.** Nothing moves, and they are DM'd that you tried and failed. |
+| 2–3 | **noticed.** You get the goods, they are DM'd that you picked them, and **you are stuck there for 5 minutes, held by them** — both at the take (§2e, §2g). |
+| 1 or less | **failed.** Nothing moves, they are DM'd that you tried and failed, and **you are stuck there for 5 minutes, held by them** (§2g). |
 
 The middle band is the whole texture, and collapsing it into a plain pass/fail
 is the easy accident — a verb that only ever succeeded silently or failed
@@ -184,9 +190,10 @@ harmlessly would be a free action with no reason not to press it at everybody
 in the room.
 
 **Pickpocketing (Skilled)'s +1 lifts a natural 1 clear of the failure band**,
-so against an undefended mark a master is never caught empty-handed, only
-felt. That is what "almost always succeeds" means — and one point of defense
-(§2h) puts the natural 1 back where it was.
+so against an undefended mark a master is never caught empty-handed. They can
+still be felt, and held, with the goods on them. That is what "almost always
+succeeds" means — and one point of defense (§2i) puts the natural 1 back where
+it was.
 
 ### 2b. The weight budget, and the hole it plugs
 
@@ -237,10 +244,18 @@ dialog and a noticed theft would just be one you re-plan around.
 
 `PickpocketAttempt`, `@@unique([thiefId, targetCharacterId, turnId])`.
 
-It is the **ration** — the insert is the claim, the `SearchAttempt` discipline
-(`SEARCH.md` §3). Pickpocket has no cooldown behind it, so a count-then-create
-would not be race-proof, and the claim has to survive a failed roll or failing
-would be a free retry.
+It is the **ration** — one row per thief per turn, at whoever they reached
+into. The unique key is still per target, because the take looks its row up by
+target. So the per-thief rule is a read-then-insert **under a lock on the
+thief's own `Character` row** (`lockCharacter`): two tabs reaching at two
+people at once queue on the lock, and the second reads the first one's row and
+is refused. `db/lib/pickpocket.js#pickpocketRation` is the pure verdict —
+`roll`, `reopen` or `spent` — and `db/test/pickpocket.test.js` covers it. The
+claim has to survive a failed roll or failing would be a free retry.
+
+It was once per *target* per turn until 2026-09-25, which let a thief try
+everyone at their Location every turn. Rows from that time can leave a thief
+with two for one turn; the reopen prefers the row at the target in hand.
 
 And it is the **authorization** for the second half. Pickpocket is two acts —
 roll, then choose — and the take re-reads this row for whether it may happen at
@@ -276,9 +291,9 @@ Two consequences fall out of it for free:
 token, and deleting a turn must never cascade into somebody's spent ration.
 
 **A reopened dialog does not cost the attempt, does not reroll, and does not
-re-scan.** A P2002 on the claim reads the existing row back and hands the
-*same* die over, as long as nothing has been taken against it yet. Only a roll
-that actually happened sends the target's DM.
+re-scan.** An untouched row at the same target is handed back with the
+*same* die, as long as nothing has been taken against it yet. Only a roll
+that actually happened sends the target's DM or pins the thief.
 
 The list comes back frozen too, out of `PickpocketAttempt.revealed`, written at
 the roll. That column exists because the reopen used to re-read the target's
@@ -296,6 +311,12 @@ all, which is the honest reading: you notice a hand in your pocket because
 something left it. The consequence is that a thief who looks and cancels
 escapes notice — the spent ration is the brake on doing that all afternoon.
 
+**The noticed hold lands at the take too** (§2g), for the same reason and one
+more: pinning the thief at the roll would tell them their band before they took
+anything, which is exactly the tell §2c keeps out of the payload. A noticed
+thief learns they were felt the way a noticed Steal does — the first time they
+try to leave.
+
 ### 2f. No mood hit, no notice
 
 Loot applies `ROBBED` and tells the target their body was searched. Neither
@@ -303,14 +324,91 @@ happens here, and `ROBBED` especially must not: a mood hit on a clean roll
 would be a tell, and would give away a theft the die had just bought silence
 for. If a mood hit is ever wanted, it belongs on the **noticed** band alone.
 
-### 2g. No band holds anybody
+### 2g. A felt pickpocket is held by its victim, and a caught hand stays out of pockets
 
-A pickpocket is never pinned where they stand, on any roll. The victim is
-DM'd on a noticed or failed roll and answers the way anyone answers anyone:
-words, or an Attack, which holds both sides to the end of the turn. The one
-theft hold in the game is a failed Steal's (§1e).
+Both bands the victim feels write the same 5-minute hold a noticed Steal does
+(§1e) — the failed band at the roll, the noticed band at the take (§2e) —
+`Character.heldUntil`, `heldReason: "caught"`, through `holdWhereTheyStand` —
+with one difference that changes who is in charge of it: **`heldById` is the
+target.** A stash has no owner, so a caught Steal is held by nobody; a
+pickpocket's victim is a person, so they hold the thief the way an interceptor
+holds a catch.
 
-### 2h. The mark's defense
+That buys the victim the whole intercept toolkit for free (`INTERCEPT.md` §3):
+
+- **Let them go** — the thief shows up in the victim's Intercept dialog
+  holding list with the ordinary Release button.
+- **Walking off frees them**, and so does the victim dying. You cannot keep a
+  hand on a shoulder from the next Location.
+- **An Attack from the victim** holds both sides to the end of the turn, since
+  a longer hold always beats a shorter one.
+
+`holdWhereTheyStand`'s two rules apply unchanged: a hold already running
+longer is left alone, and a running fight is never overwritten. The DM says
+so only when the hold actually landed: *"…pickpocketed you! They won't get
+far for the next 5 minutes — you have hold of them. To let them go sooner,
+open Intercept and press Let them go."*, or the same tail after *"…tried to
+pickpocket you, but failed!"* The DM names the button because the holding list
+lives in the Intercept dialog, where a robbed person would never think to
+look. There is no button in the DM itself: the old `INTERCEPT_HOLD` DM button
+still answers, but its reply names the freed person by their real name, which
+would unmask a hooded thief. A thief already held
+longer gets the first sentence alone. Only a **fresh** roll writes the failed
+hold; a reopened dialog rolled nothing and must not extend it. The noticed
+hold cannot repeat, since the take can only happen once.
+
+**While caught, the thief may not pick another pocket.** The hold takes
+movement everywhere else in the game (`INTERCEPT.md` §3); this is the one
+verb it takes besides. The once-a-turn ration (§2d) already stops a thief
+going on to a second pocket in the same turn, so this gate is what covers the
+rest: a hold that runs over a turn boundary, and a Steal the room saw.
+`pickpocketAuthority` reads
+`intercept.js#caughtSecondsLeft` — pure, the same strict clock as
+`heldReasonFor` — and refuses with *"You were caught stealing. You can't pick
+a pocket for another Ns."* It keys on the `caught` reason, not on who holds
+it, so a Steal the room saw (§1e) shuts the hand the same way. An intercept
+or ambush hold does not: those take your feet, not your fingers.
+
+**Nobody picks a pocket in the middle of a fight, on either side of it.** The
+same gate reads `intercept.js#inFight` for both parties — a running hold
+carrying `attack` or `attacking` — and refuses with *"You're in a fight."* or
+*"Lord Greeblus is in a fight."* A lapsed fight that still carries its reason
+(the turn advance clears nothing) is no fight. `PICKPOCKET_SELECT` has to
+carry `heldUntil` and `heldReason` for this; drop them and every target reads
+as never fighting.
+
+Both refusals run at the **take** as well as at the roll, since the take
+re-runs `pickpocketAuthority` from scratch (§2d). So an Attack that lands
+between the roll and the take shuts the picker that was already open, and a
+thief caught at a stash cannot come back to finish a clean reach they had left
+open.
+
+Only the clean band (4+) holds nobody. Nobody felt anything, so nobody has
+hold of anybody.
+
+### 2h. The button greys on the thief's own sheet
+
+The Pickpocket button greys, with the refusal's own sentence as its tooltip,
+when the thief is **caught**, **in a fight**, or has **spent this turn's
+reach**. All three are facts about the thief's own sheet, which is all the
+metagaming rule at the top of `actionRegistry.js` allows. Whether the *target*
+is fighting never greys anything; only the server answers that, after a
+target is picked.
+
+`db/lib/pickpocket.js#pickpocketSelfBlock` builds the sentence for both the
+button (`web/lib/peoplePools.js`, as `pickpocketBlocked`) and
+`pickpocketAuthority`, so the two cannot drift. The reach counts as spent only
+once no attempt this turn still has a hand in a pocket
+(`pickpocketSpent`): a clean or noticed reach with nothing taken yet keeps the
+button lit, or a thief who closed the picker could never come back to take.
+
+A hold lapses on the clock with nothing written, so `/api/character-version`
+fingerprints whether your own hold is running. The sheet re-renders within
+one poll (10 s) of a hold landing or lapsing. `/chat` has no poller for its
+pools, so there the button reflects page load, the same as Miracle, the Bird
+and Extract.
+
+### 2i. The mark's defense
 
 **Four tags on the TARGET's sheet each take one off the thief's total**, and
 they are the only four (`DEFENSE_SLUGS` in `db/lib/pickpocket.js`):
@@ -343,22 +441,24 @@ Three things fall out of that, and each is deliberate:
 
 - **A defended mark is never immune.** The noticed band never closes: even at
   4, a plain thief on a 6 or a master on a 5–6 still gets the goods and gets
-  felt. What defense buys is that the theft is *known*, not that it fails.
+  felt. What defense buys is that the theft is *known*, not that it fails —
+  and since a felt reach holds the thief (§2g), known means 5 minutes with
+  them pinned in front of you.
 - **A clean take against 3 needs Skilled, and against 4 nobody gets one.**
   Somebody carrying all four has spent 9 points on it, and "you cannot be
   robbed without knowing" is what they bought.
 - **Skilled's "never fails outright" (§2a) holds only against an undefended
   mark.** One point of defense puts a master's natural 1 back in the failure
-  band.
+  band, and a failed reach is a held thief.
 
 **The thief is told nothing about it**, and the payload rule in §2c is what
 makes that true: clean and noticed already look identical from the dialog, and
 a failed reach against a wary mark reads exactly like a failed reach against
 anyone. Nothing on the target's sheet is named in any refusal or notice — one
 bad roll says nothing, and a thief who wants to know whether somebody is hard
-to rob has to keep spending rations to find out. The mark is told nothing
-either; their DM on a noticed or failed reach is the same sentence it always
-was.
+to rob has to spend the turn's one reach (§2d) to find out, and stand there
+held when it fails. The mark is told nothing either; their DM on a noticed or
+failed reach is the same sentence it always was.
 
 **It is written down, though.** `defense` is a column on the
 `PickpocketAttempt` row and a field on the `pickpocket` audit row, beside the
@@ -391,7 +491,7 @@ delete Basic on purchase and leave every gate having to accept either tag to
 mean the same thing.
 
 **Both rungs also count on the other side of the table.** A Pickpocketing tag
-on the *mark's* sheet is one point of defense apiece (§2h) — the same two
+on the *mark's* sheet is one point of defense apiece (§2i) — the same two
 slugs read off the other character, so there is no third tag to buy and
 nothing to keep in step. Keen Hearing and Eagle Eyes are the other two, and
 that is the whole list.
@@ -408,7 +508,7 @@ that is the whole list.
 | Steal's dialog (a mode on the shared one) | `web/app/components/actions/MoveThingsDialog.js` |
 | Pickpocket's dialog | `web/app/components/actions/PickpocketDialog.js` |
 | The buttons | `web/app/components/actionRegistry.js`, `web/app/(app)/chat/RoomPanel.js` |
-| The gate | `canPickpocket` in `web/app/(app)/character/page.js` |
+| The gate | `canPickpocket` in `web/lib/itemPools.js` (the tag) and `pickpocketBlocked` in `web/lib/peoplePools.js` (caught, fighting, spent) |
 | The ration + authorization row | `PickpocketAttempt` in `db/prisma/schema.prisma` |
 | The pure halves | `db/test/steal.test.js`, `db/test/pickpocket.test.js` |
 | The tags | `docs/tags.yaml` (`pickpocket`, `pickpocketing-skilled`) |
@@ -423,14 +523,18 @@ that is the whole list.
   and takes its `heldById` with it, so the interceptor's Release button no
   longer finds them. Same shape as the Attack-over-Safe gap in
   `attack.js#settleHold`, and the same small cost.
+- **On `/chat` the Pickpocket button can be stale** (§2h). It greys at page
+  load, so a hold that lapses, or a turn that turns over, leaves it grey until
+  the page reloads or the player does something that re-renders it. The sheet
+  is fine: its poller watches the hold and the turn.
 - **The audit log is the only complete record of a stash now.** Anyone reading
   a Room thread has until now been able to treat "no line" as "nothing left
   here". After Steal, a missing item with no line is ordinary. Any tool
   reconciling `RoomTag` deltas against scene lines will disagree.
-- **Search and Pickpocket each hold their own per-target-per-turn claim**, in
+- **Search's per-target claim and Pickpocket's same-target refusal** live in
   separate tables with separate refusals, so `SEARCH.md` §7's known wart
-  reproduces here exactly: a hood coming off makes a refusal that names
-  somebody you were never told about. Same harmless direction.
+  reproduces here: a hood coming off makes *"You already went through X's
+  pockets"* name somebody you were never told about. Same harmless direction.
 - **A pickpocket near their own carry ceiling is refused outright** rather than
   landing and shedding. That is not tidiness: past 1.5× the cap `settleCarry`
   sheds newest-first into a public room *with a line in it* (`CARRY.md` §5),

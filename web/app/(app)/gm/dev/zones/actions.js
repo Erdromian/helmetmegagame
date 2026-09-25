@@ -454,26 +454,48 @@ export async function hardDeleteRoom(roomId) {
 // "Seed these items now" — the hand version of what Start Game does to every
 // room at once. Both go through db/lib/roomStash.js, so the never-seed-twice
 // guard is one piece of code rather than two that have to agree.
-export async function seedRoomStash(roomId, text) {
+// One "slug: count" a line -> [[slug, count], ...]. A bad count is a UserError
+// naming the line, since somebody just typed it.
+function parseSeedLines(text) {
+  const lines = String(text ?? "")
+    .split("\n")
+    .map((l) => l.trim())
+    .filter(Boolean);
+  const wanted = [];
+  for (const line of lines) {
+    const [slugPart, countPart] = line.split(":").map((p) => p?.trim());
+    if (!slugPart) continue;
+    const quantity = countPart ? Number.parseInt(countPart, 10) : 1;
+    if (!Number.isInteger(quantity) || quantity < 1) {
+      throw new UserError(`"${line}" — count must be a whole number of at least 1.`);
+    }
+    wanted.push([slugPart, quantity]);
+  }
+  return wanted;
+}
+
+// `text` seeds the floor, `hiddenText` seeds under it (SEARCH.md §9). One
+// entry per slug — a slug in both boxes is one row with both counts, and
+// the once-per-slug guard applies to it once.
+export async function seedRoomStash(roomId, text, hiddenText = "") {
   return guarded(async () => {
     const session = await requireDev("super");
     const room = await prisma.room.findUnique({ where: { id: roomId } });
     if (!room) throw new UserError("That room no longer exists.");
 
-    const lines = String(text ?? "")
-      .split("\n")
-      .map((l) => l.trim())
-      .filter(Boolean);
-    const wanted = [];
-    for (const line of lines) {
-      const [slugPart, countPart] = line.split(":").map((p) => p?.trim());
-      if (!slugPart) continue;
-      const quantity = countPart ? Number.parseInt(countPart, 10) : 1;
-      if (!Number.isInteger(quantity) || quantity < 1) {
-        throw new UserError(`"${line}" — count must be a whole number of at least 1.`);
-      }
-      wanted.push([slugPart, quantity]);
+    const bySlug = new Map();
+    for (const [slug, n] of parseSeedLines(text)) {
+      const cur = bySlug.get(slug) ?? [slug, 0, 0];
+      cur[1] += n;
+      bySlug.set(slug, cur);
     }
+    for (const [slug, n] of parseSeedLines(hiddenText)) {
+      if (room.destroysContents) throw new UserError("This room eats what goes into it, so it may hold nothing hidden.");
+      const cur = bySlug.get(slug) ?? [slug, 0, 0];
+      cur[2] += n;
+      bySlug.set(slug, cur);
+    }
+    const wanted = [...bySlug.values()];
     if (wanted.length === 0) throw new UserError("Nothing to seed — write one \"slug: count\" per line.");
 
     const out = await seedRoomStashRows(prisma, room, wanted);
@@ -485,7 +507,10 @@ export async function seedRoomStash(roomId, text) {
     }
     if (out.seeded === 0) return { seeded: 0 };
 
-    await audit(session, "gm_room_stash_seeded", { roomId, slugs: wanted.map(([slug, q]) => `${slug}:${q}`) });
+    await audit(session, "gm_room_stash_seeded", {
+      roomId,
+      slugs: wanted.map(([slug, q, h]) => `${slug}:${q}${h ? `+${h} hidden` : ""}`),
+    });
     revalidatePath(`/gm/dev/zones/rooms/${roomId}`);
     return { seeded: out.seeded };
   });

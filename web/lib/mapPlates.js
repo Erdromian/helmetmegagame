@@ -51,11 +51,6 @@ export function plates() {
   return readPlates().plates;
 }
 
-export function plateGeometry(id) {
-  const found = readPlates().plates.find((p) => p.id === id);
-  return found ? { w: found.w, h: found.h, cell: found.cell } : null;
-}
-
 // null when no plate places this slug yet.
 export function plateOf(slug) {
   return readPlates().bySlug.get(slug) ?? null;

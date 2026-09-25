@@ -66,12 +66,6 @@ async function listComrades(db) {
     .sort((a, b) => Number(b.leader) - Number(a.leader) || a.name.localeCompare(b.name));
 }
 
-// "Your comrades are: Ash, Baron [LEADER] • Wren, Servant". Bascinet's shape.
-function formatComrades(rows) {
-  const parts = rows.map((r) => `${r.name}, ${r.role}${r.leader ? " [LEADER]" : ""}`);
-  return `Your comrades are: ${parts.join(BULLET)}`;
-}
-
 // The hideout Room, or null when unset or the pointed-at room is gone (a zone sync recreates rooms; the pointer is a snapshot id on purpose).
 async function hideoutRoom(db) {
   const state = await db.gameState.findUnique({ where: { id: 1 }, select: { thanatiHideoutRoomId: true } });
@@ -119,7 +113,6 @@ module.exports = {
   isThanati,
   isThanatiLeader,
   listComrades,
-  formatComrades,
   hideoutRoom,
   chanterReady,
 };

@@ -78,7 +78,7 @@ function pickpocketBudgetLbs(characterTags = []) {
   return isSkilled(characterTags) ? SKILLED_BUDGET_LBS : BUDGET_LBS;
 }
 
-// What the MARK brings to the roll (THEFT.md §2h): one off the thief's total
+// What the MARK brings to the roll (THEFT.md §2i): one off the thief's total
 // for each of these on the target's sheet. The two senses are the ones that
 // would catch a hand; the two rungs are there because a thief knows where a
 // hand goes. Counted, not looked up, so the ceiling is the length of this list
@@ -106,6 +106,46 @@ function pickpocketOutcome(total) {
 // Did anything move? Both success bands did.
 function pickpocketTook(outcome) {
   return outcome === CLEAN || outcome === NOTICED;
+}
+
+// The ration (THEFT.md §2): ONE reach per thief per turn, at anybody.
+// `existing` is this thief's attempt row for the open turn, or null.
+//   "roll"   — no reach yet this turn, so this one may roll.
+//   "reopen" — the same target's row, untouched: a refreshed page or a
+//              reopened dialog, which gets the SAME die back rather than
+//              losing the reach or rerolling into a better one.
+//   "spent"  — anything else. A different target is refused outright, and so
+//              is a reach whose hand has already come out.
+function pickpocketRation(existing, targetId) {
+  if (!existing) return "roll";
+  if (existing.targetCharacterId === targetId && !(existing.spentLbs > 0)) return "reopen";
+  return "spent";
+}
+
+const PICKPOCKET_SPENT = "You've already picked a pocket this turn.";
+
+// Is this turn's reach used up, off this thief's attempt rows for the open
+// turn? Used up once there is a row and none of them still has a hand in a
+// pocket: a clean or noticed reach nothing was taken against yet can be
+// reopened to finish the take, so it must not grey the button that reopens it.
+function pickpocketSpent(attempts = []) {
+  if (!attempts?.length) return false;
+  return !attempts.some((a) => pickpocketTook(a.outcome) && !(a.spentLbs > 0));
+}
+
+// Why this thief can't reach into anybody right now, or null — off their OWN
+// sheet only (THEFT.md §2, §2g), never the target's or the room's. One set of
+// sentences for the greyed button (web/lib/peoplePools.js) and the server's
+// refusal (pickpocket.js#pickpocketAuthority), so the two cannot disagree.
+// Plain facts in rather than rows, so this file keeps its zero-require rule:
+// `caughtSeconds` and `fighting` come off intercept.js, `attempts` are this
+// turn's PickpocketAttempt rows. The authority omits `attempts` — it runs the
+// ration itself, under a lock, with a sharper per-target sentence.
+function pickpocketSelfBlock({ caughtSeconds = 0, fighting = false, attempts = [] } = {}) {
+  if (caughtSeconds > 0) return `You were caught stealing. You can't pick a pocket for another ${caughtSeconds}s.`;
+  if (fighting) return "You're in a fight.";
+  if (pickpocketSpent(attempts)) return PICKPOCKET_SPENT;
+  return null;
 }
 
 // What a set of picked lines weighs against the budget. Takes the LINES a
@@ -146,4 +186,8 @@ module.exports = {
   pickpocketDefense,
   pickpocketOutcome,
   pickpocketTook,
+  pickpocketRation,
+  PICKPOCKET_SPENT,
+  pickpocketSpent,
+  pickpocketSelfBlock,
 };

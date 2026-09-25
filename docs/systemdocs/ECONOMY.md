@@ -123,7 +123,6 @@ Each takes an optional trailing context; absent, the entry is recorded as
 | `moveParty` | `db/lib/resourceTransfer.js` | every `BALANCE` move — over `db/lib/resourceStack.js`'s stack writes, not a column |
 | `applyTransfer` | `db/lib/resourceTransfer.js` | a two-legged transfer, as ONE row |
 | `bumpBankAccount` | `db/lib/bankAccounts.js` | `ACCOUNT` — one conditional `UPDATE` paired with exactly one row, which is what makes the bank reconcilable |
-| `bumpDebt` | `db/lib/depotState.js` | `DEBT` |
 | `addToStack` / `dropCharacterTag` / `addToRoomStack` / `dropRoomTag` | `db/lib/tagWrites.js` | `COIN` and `GOODS` |
 
 The tag hooks are instrumented **inside** the functions rather than at their

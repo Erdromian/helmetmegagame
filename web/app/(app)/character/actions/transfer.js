@@ -33,6 +33,7 @@ import {
 } from "@/lib/transferReach";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
+import { stampLeftOnFloor } from "@lifeweb/db/lib/floorSettle";
 import {
   dropRoomTag,
   lockRoom,
@@ -395,6 +396,13 @@ export async function transferRequestImpl(
         place: from.kind === "room" ? placeKeyForRoom(from.id) : to.kind === "room" ? placeKeyForRoom(to.id) : character,
         details: effect,
       });
+    }
+
+    // Left on the floor (CARRY.md §6a): in a public room it sinks under it
+    // after a whole in-game day; a keyed room keeps it. Every stack this
+    // landed on restarts its clock.
+    if (to.kind === "room") {
+      await stampLeftOnFloor(tx, to.id, moves.map((m) => m.tagId), { resources: amount > 0 });
     }
   });
 

@@ -279,6 +279,11 @@ async function FreshChat({ userId }) {
               // Which in-game DAY they last cut Godflesh. Extract costs no
               // Move, so this is its whole cooldown (FACTORY.md §3).
               extractTurnKey: true,
+              // Your own hold, for the Pickpocket button: caught or fighting greys it
+              // (web/lib/peoplePools.js). The sheet reads the row whole, so only /chat
+              // has to name them.
+              heldUntil: true,
+              heldReason: true,
             },
           }),
           prisma.turn.findFirst({
@@ -617,6 +622,7 @@ async function FreshChat({ userId }) {
         kissTargets: aside.pools.kissTargets,
         searchParties: aside.pools.searchParties,
         kissBlocked: aside.pools.kissBlocked,
+        pickpocketBlocked: aside.pools.pickpocketBlocked,
         doseTargets: aside.pools.doseTargets,
         // The held-item flags (web/lib/itemPools.js), for the Things drawer.
         ...aside.items,

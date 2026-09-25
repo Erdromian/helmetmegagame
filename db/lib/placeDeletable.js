@@ -126,7 +126,8 @@ async function hardDeleteBlockers(prisma, kind, id) {
       prisma.roomGuest.count({ where: { roomId: id } }),
       prisma.playerThread.count({ where: { roomId: id } }),
       prisma.roomTag.count({ where: { roomId: id, tag: { slug: { not: RESOURCES_SLUG } } } }),
-      readRoomResources(prisma, id),
+      // Floor and under it: a hard delete takes the hidden cache too (SEARCH.md §9).
+      readRoomResources(prisma, id, { includeHidden: true }),
       prisma.room.findUnique({ where: { id }, select: { questId: true } }),
     ]);
     if (guests) blockers.push(`${guests} guest${guests === 1 ? "" : "s"} have a standing invite to this room`);

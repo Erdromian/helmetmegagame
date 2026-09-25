@@ -276,7 +276,7 @@ model GameConfig {
   // How long a character waits between two walks from one Location to
   // another inside the same zone (db/lib/locationTravel.js). Edited on
   // /gm/dev. Crossing into another zone is gated by the Move, not by this.
-  locationMoveCooldownSeconds Int @default(3)
+  locationMoveCooldownSeconds Int @default(30)
 
   // Capitalizes the first letter of each sentence in Tupper-proxied messages
   // before they're reposted (bot/src/lib/textCorrection.js) — on by default,
@@ -634,17 +634,17 @@ model GameConfig {
   // The field's productivity (db/lib/fieldProductivity.js, SOILERY.md §9): the curve
   // that turns over-farming into worse harvests. All edited on /gm/dev, no deploy.
   // Off means every harvest comes up whole and draws on nothing.
-  farmFieldEnabled Boolean @default(true)
+  farmFieldEnabled  Boolean @default(true)
   // Crops a turn the field refills, over what the town eats (2 crops a seat).
-  farmSustainMargin Float @default(0.15)
+  farmSustainMargin Float   @default(0.15)
   // How many turns of refill the pool holds, and how deep in debt it may go.
-  farmPoolTurns Float @default(4)
+  farmPoolTurns     Float   @default(4)
   // The share of a full pool at or above which the yield is untouched.
-  farmComfortFrac Float @default(0.75)
+  farmComfortFrac   Float   @default(0.75)
   // The yield multiplier at an empty pool, and below it.
-  farmMinYield Float @default(0.25)
+  farmMinYield      Float   @default(0.25)
   // The shape between: 1 is a straight line, more is gentle at first and steep at the end.
-  farmCurveExp Float @default(1)
+  farmCurveExp      Float   @default(1)
 
   // When a finished craft hands over what it makes (CRAFTING.md §3a).
   // IMMEDIATE: on the press. STAGED: queued as a StagedEffect and applied at
@@ -1727,6 +1727,7 @@ model Room {
   playerThreads PlayerThread[]
   guests        RoomGuest[]
   auditLogs     AuditLog[]
+  searches      RoomSearchAttempt[]
 
   // The phone on this wall, at both ends of a call. See PhoneCall.
   phoneCallsOut PhoneCall[] @relation("PhoneCallFrom")
@@ -1798,6 +1799,33 @@ model RoomTag {
   quantity    Int  @default(1)
   expiresTurn Int?
 
+  // Units of this stack still UNDER the floor (docs/systemdocs/SEARCH.md §9):
+  // seeded from a room's `hidden:` block, or sunk there by the floorSettle
+  // pass (CARRY.md §6a), and moved into `quantity` by a Search. Every reader of a stash — Storage, Transfer, Take, Steal — reads
+  // `quantity` and never this, so a stack that is entirely hidden is invisible
+  // with no filter added. A second COUNT rather than a flag because the
+  // unique below means one row per tag per room: with a flag, a bottle a
+  // player dropped beside a hidden one would vanish under the floor with it.
+  // Every writer that deletes a row at `quantity <= 0` must also require
+  // `hiddenQuantity <= 0`, or taking the last visible unit throws the hidden
+  // ones away.
+  hiddenQuantity Int @default(0)
+
+  // Of the hidden units, how many are poisoned — poisonedCount's twin, for a
+  // poisoned stack that sank (db/lib/floorSettle.js). The payload stays on
+  // the row while either count holds any, and a Search moves this back into
+  // poisonedCount with the units it brings up. Without it a sinking stack
+  // would either lose its poison or stay visible, and the one that stayed on
+  // the shelf would be the tell.
+  hiddenPoisonedCount Int @default(0)
+
+  // The in-game day (Turn.dayNumber) a character last set something down on
+  // this stack (db/lib/floorSettle.js, CARRY.md §6a). Null for anything a
+  // seed, a GM or a system pass put here, which never sinks. In a public room
+  // a stamped stack sinks under the floor once it has lain through one whole
+  // day; the stamp is cleared when it sinks, or when the floor count runs out.
+  floorDay Int?
+
   // Same pair as CharacterTag's, and the reason a room stash isn't a
   // laundering hole by accident: dropping a poisoned meal here and picking
   // it up carries the count and payload with it. Schema only for now.
@@ -1810,6 +1838,7 @@ model RoomTag {
   @@unique([roomId, tagId])
   @@index([tagId])
   @@index([expiresTurn])
+  @@index([floorDay])
 }
 
 /// A Conversation: the one kind of thread a player can open, from the
@@ -2527,7 +2556,8 @@ model Character {
   holding   Character[] @relation("InterceptHold")
 
   // WHICH thing is holding them — "intercept", "attack", "attacking",
-  // or "caught" (a Steal the room noticed, THEFT.md §1e, heldById null) —
+  // or "caught" (a thief the scene saw, THEFT.md §1e and §2g: heldById is
+  // the pickpocket's victim, or null when a stash had no owner) —
   // so that db/lib/intercept.js#heldReasonFor can name the right one
   // while staying PURE. That predicate is read by the mover's own gate and by every
   // picker that draws a way out, and a query inside it would have to be
@@ -2555,6 +2585,7 @@ model Character {
   searchesTheyMade SearchAttempt[]     @relation("SearchSearcher")
   pocketsPicked    PickpocketAttempt[] @relation("PickpocketThief")
   pocketsOfTheirs  PickpocketAttempt[] @relation("PickpocketTarget")
+  roomsSearched    RoomSearchAttempt[]
 
   // One thrown d6 per turn, whatever this character does with their Move
   // (docs/systemdocs/ADJUDICATION.md). See GambitDie below.
@@ -4860,12 +4891,13 @@ model SearchAttempt {
 }
 
 // A hand in somebody's pocket (docs/systemdocs/THEFT.md §2). One row per thief
-// per target per turn, and this one row does TWO jobs on purpose.
+// per turn, and this one row does TWO jobs on purpose.
 //
-// It is the RATION — the insert is the claim, the SearchAttempt discipline
-// (SEARCH.md §3). Pickpocket has no cooldown behind it, so a count-then-create
-// would not be race-proof, and the claim has to survive a failed roll or
-// failing would be a free retry.
+// It is the RATION — one reach per turn, at anybody. The unique key below is
+// per TARGET because the take looks its row up by target, so the per-thief
+// rule is a read-then-insert under a lock on the thief's Character row
+// (pickpocket.js), which is what makes it race-proof. The claim has to survive
+// a failed roll or failing would be a free retry.
 //
 // And it is the AUTHORIZATION for the second half. Pickpocket is two acts —
 // roll, then pick what to take — and the take re-reads this row to learn
@@ -4895,7 +4927,7 @@ model PickpocketAttempt {
 
   die     Int
   bonus   Int    @default(0)
-  // What the mark brought (THEFT.md §2h): Keen Hearing, Eagle Eyes and each
+  // What the mark brought (THEFT.md §2i): Keen Hearing, Eagle Eyes and each
   // Pickpocketing rung, one apiece, taken OFF the total. Beside `bonus` so the
   // row reproduces its own outcome — die + bonus − defense is the band.
   defense Int    @default(0)
@@ -4921,6 +4953,36 @@ model PickpocketAttempt {
 
   @@unique([thiefId, targetCharacterId, turnId])
   @@index([targetCharacterId])
+}
+
+// Going through a ROOM rather than a person (docs/systemdocs/SEARCH.md §9).
+// One row per search. The rule is ONE ROOM A TURN: a character may search the
+// same room again (each costs a third of the Move, so three times at most),
+// but never a second room. db/lib/roomSearch.js checks it under the Character
+// row lock, which serializes every share-of-a-Move verb, so no unique index —
+// several rows for one room are all legal. Written whether or not anything
+// was found.
+//
+// Not an Offer: a room is never asked, so there is no consent handshake, no
+// DM with buttons and nothing in anybody's waiting-on-you list.
+//
+// turnId is deliberately NOT a foreign key — a claim token, and deleting a
+// turn must never cascade into somebody's spent ration.
+model RoomSearchAttempt {
+  id String @id @default(cuid())
+
+  searcherId String
+  searcher   Character @relation(fields: [searcherId], references: [id], onDelete: Cascade)
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  turnId String
+
+  createdAt DateTime @default(now())
+
+  @@index([searcherId, turnId])
+  @@index([roomId])
 }
 
 // The d6 a character's Gambit rides on, thrown ONCE per turn and bound to the

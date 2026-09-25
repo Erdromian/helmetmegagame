@@ -69,6 +69,10 @@ APPLY_ONLY_SCRIPTS = {
     # Settles lessons stranded by the move to instant resolution: with --apply it
     # grants skills on live characters. Bare, it only says what it would settle.
     "db:resolve-inflight-lessons": "db/scripts/ops/resolve-inflight-lessons.js",
+    # Moves authored stock still lying on a room's floor under it, once, after
+    # `hidden:` blocks land in docs/zones.yaml mid-game (SEARCH.md §9e). Bare,
+    # it only lists what would move.
+    "db:hide-authored-stock": "db/scripts/ops/hide-authored-stock.js",
     # Opens a bank account per living character and writes the ledger row that
     # closes the retired Depot float out. Bare, it only lists who would get one.
     "db:open-bank-accounts": "db/scripts/ops/open-bank-accounts.js",

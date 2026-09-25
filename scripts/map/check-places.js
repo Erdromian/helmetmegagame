@@ -8,7 +8,7 @@
 //
 //   1. Does docs/zones.yaml parse, and is every slug unique across zones,
 //      locations and rooms? They share one namespace (SYNC.md).
-//   2. Does every `access:` and `stash:` slug name a real tag? The importer
+//   2. Does every `access:` and `stash:` slug (items and hidden) name a real tag? The importer
 //      cannot check this — tags sync after zones — so nothing else does.
 //   3. Does every connection name two real Locations, and is each edge
 //      stated once? Undirected, so stating it twice is an error.
@@ -64,7 +64,9 @@ function main() {
         }
         const stash = Array.isArray(room.stash)
           ? room.stash
-          : Object.keys(room.stash?.items ?? {}).concat(room.stash?.resources ? ["resources"] : []);
+          : Object.keys(room.stash?.items ?? {})
+              .concat(Object.keys(room.stash?.hidden ?? {}))
+              .concat(room.stash?.resources ? ["resources"] : []);
         for (const slug of stash) {
           if (!tags.has(slug)) problems.push(`room "${roomId}" stashes "${slug}", which is not a tag`);
         }

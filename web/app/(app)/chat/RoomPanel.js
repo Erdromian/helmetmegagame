@@ -7,7 +7,11 @@ import HoverCard from "@/app/components/HoverCard";
 import ChipLabel from "@/app/components/ChipLabel";
 import TagDetails from "@/app/components/TagDetails";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
-import { readStash } from "./actions";
+import { readStash, searchRoom } from "./actions";
+import useActionRunner from "@/app/components/useActionRunner";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+// Deep path with zero requires behind it (db/lib/roomSearchCost.js), the dmKinds.js rule for a client component.
+import { SEARCH_MOVE_LABEL } from "@lifeweb/db/lib/roomSearchCost";
 import { TONE_CLASS } from "./PlacePanel";
 
 // THIS ROOM: storage and fixtures of the room whose feed is OPEN, and no
@@ -102,6 +106,10 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
   // Keyed by WHICH room is expanded so walking into another room collapses
   // its list with no effect resetting a boolean (react-hooks/set-state-in-effect is an error here).
   const [expanded, setExpanded] = useState(null);
+  // The last search's one line, stamped with its room the way the stash is.
+  const [searched, setSearched] = useState(null);
+  const search = useActionRunner();
+  const confirm = useConfirm();
   const actions = useRequestActions();
 
   // Answer is stamped with the room it came from, so a slow reply for a room
@@ -154,9 +162,37 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
     actions?.open?.("transfer");
   }
 
+  // Going through the room (SEARCH.md §9). It spends a third of the Move,
+  // and the shared confirm says so BEFORE the press — a player should never
+  // learn the price from the refusal. Confirm first, transition second, never
+  // inside startTransition (DESIGN-SYSTEM.md §8). A find lands on the floor,
+  // not in a pocket, so the stash is re-read and the new chips are Take-able
+  // like anything else. The line says what came up; the die is never in it.
+  // The confirm repeats how many things are hidden, which the panel already
+  // shows under the stash, so the price and the prize are read together.
+  async function doSearch() {
+    const cost = SEARCH_MOVE_LABEL;
+    const ask = {
+      title: `Search the ${here?.name ?? "room"}?`,
+      message: `${here?.hiddenLine ? `${here.hiddenLine} ` : ""}Searching takes ${cost} of your Move. Anything you turn up lands on the floor, where you can take it.`,
+      confirmLabel: "Search",
+    };
+    if (!(await confirm(ask))) return;
+    search.run(searchRoom, roomId, {
+      onOk: (res) => {
+        setSearched({ roomId, line: res.line });
+        readStash(roomId)
+          .then((r) => setStash({ roomId, ...r }))
+          .catch(() => {});
+      },
+    });
+  }
+
   const here = stash?.roomId === roomId ? stash : null;
+  const searchLine = searched?.roomId === roomId ? searched.line : null;
+  // Storage and Search are drawn by this panel itself, not as fixtures.
   const fixtures = affordances.filter(
-    (entry) => entry.kind === "room" && entry.roomId === roomId && entry.id !== "storage",
+    (entry) => entry.kind === "room" && entry.roomId === roomId && entry.id !== "storage" && entry.id !== "search",
   );
 
   return (
@@ -177,6 +213,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
       ) : (
         <p className="chat-quiet-line">Looking…</p>
       )}
+      {here?.ok && here.hiddenLine && <p className="chat-quiet-line">{here.hiddenLine}</p>}
       {here?.ok && (
         <div className="chat-buttons chat-buttons--tight">
           {/* One Transfer dialog, three ways in: Drop/Take seed both ends, Transfer assumes nothing. */}
@@ -192,8 +229,14 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
           <button type="button" className="btn-quiet" onClick={transfer}>
             Transfer
           </button>
+          {/* Nothing hidden is nothing to find; the server refuses it too. */}
+          <button type="button" className="btn-quiet" disabled={search.pending || here.hidden === 0} onClick={doSearch}>
+            Search
+          </button>
         </div>
       )}
+      {searchLine && <p className="chat-quiet-line">{searchLine}</p>}
+      <FormError>{search.error}</FormError>
 
       {fixtures.length > 0 && (
         <div className="chat-buttons">

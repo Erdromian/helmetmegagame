@@ -204,7 +204,16 @@ each arrived at by getting them wrong first.
    has come due.
 6. **Stackable sweep** (`sweepExpiredStacks`) — a stack is one row carrying a
    count, so an expiry sheds a single unit and rerolls the remainder's timer,
-   deleting the row only when the last unit goes.
+   deleting the row only when the last unit goes. A room row that still has
+   units under the floor (`SEARCH.md` §9a) is zeroed and kept instead.
+
+   **Then the floors settle** (`floorSettle`, `db/lib/floorSettle.js`): a
+   loose object a character left in a public room that has lain there through
+   a whole in-game day sinks under the floor, measured against the day the
+   next turn opens on, one at a time and only while the room shows three or
+   more stacks (`CARRY.md` §6a). After the sweep, so a stack whose clock ran
+   out is gone rather than sunk. A sunk stack loses its stamp, so a resumed
+   run finds nothing twice.
 7. **Catatonic (AFK) pass** (`db/lib/catatonicPass.js`) — every ALIVE
    character's `lastActivityTurn` checked against `GameConfig.catatonicTurns`.
    Slotted **after** the sweep for the same reason Hunger is below: it reads
