@@ -1145,7 +1145,7 @@ JSX, use `RequestDialog.js` instead (`REQUESTS.md`).
 ## Web UI conventions
 
 Full detail in [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) — read
-it before writing any UI. Four rules apply everywhere:
+it before writing any UI. Six rules apply everywhere:
 
 - **Never hardcode a hex/rgb colour.** Always use `var(--x)`, so the colour
   follows the active theme. There are currently zero hardcoded colours in the
@@ -1169,6 +1169,25 @@ it before writing any UI. Four rules apply everywhere:
   result: a component referenced without its import built clean, linted
   clean, and threw only when someone opened the page. That's why the rule is
   on.
+- **Run the visual goldens after touching anything a player or GM sees.**
+  `npm run dev:visual` (setup and what it pins: "Verifying a change locally"
+  above, `LOCAL-DEV.md` §5). Read every diff it reports and sort each into
+  one of two piles: the change you meant, which gets re-baselined with
+  `-- --update-snapshots`, and the change you did not, which is a regression
+  to fix before anything ships. A screen that moved on a page you did not
+  think you were touching is exactly what the goldens are for, so never
+  re-baseline the whole set in one go to make the run green. If the surface
+  you changed is on no golden, add it to `pages.spec.mjs` only if it has a
+  shape nothing on the list has; otherwise take the shot without keeping it.
+- **A PR that changes the UI carries a before-and-after picture.** The
+  reviewer is Bascinet, and a picture shows a visual change faster than a
+  diff. The checked-in golden is the "before"; the actual that
+  `dev:visual` writes into `test-results/` is the "after", and the same
+  seeded scene in both is the point, so use those rather than a hand-taken
+  shot of some other character. `gh` cannot attach an image, so push the two
+  PNGs to an images-only orphan branch on the remote you push to and link
+  their `raw.githubusercontent.com` URLs in the PR body. Do it before opening
+  the PR, without being asked.
 
 ## Game state
 
@@ -1298,6 +1317,8 @@ Use a branch and a PR when the work wants eyes on it before it ships — a
 schema change, a rebalance, anything touching the live database, or a change
 large enough that "pull it and see" is a poor review. Push straight to
 `master` for the ordinary finished thing. **When it isn't obvious which, ask.**
+Either way, a change to anything on screen runs the visual goldens first, and
+a PR for one carries the before-and-after pair — see "Web UI conventions".
 
 Branch names here are plain kebab-case and say what changed, with no
 `feature/` or `fix/` prefix on Bascinet's own branches.
