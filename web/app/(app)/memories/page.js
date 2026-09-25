@@ -92,8 +92,8 @@ async function FreshMemories() {
     // The Journal's two rosters — what the composer may OFFER, and what a
     // saved {char:…} draws its face against. The whole argument for keeping
     // them apart is in web/lib/mentionDirectory.js.
-    loadOfferableMentions({ includeUnburiedDead: true }),
-    loadMentionDirectory({ includeUnburiedDead: true }),
+    loadOfferableMentions({ includeUnburiedDead: true, viewerId: character?.id ?? null }),
+    loadMentionDirectory({ includeUnburiedDead: true, viewerId: character?.id ?? null }),
     character
       ? prisma.acquaintance.findMany({
           where: { ownerId: character.id },

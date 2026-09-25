@@ -518,7 +518,7 @@ async function FreshChat({ userId }) {
   // question — see web/lib/mentionDirectory.js. A ping arriving from Discord
   // can name anybody in the guild, so the roster above could never resolve
   // half of them and the line printed a raw cuid instead of a person.
-  const mentionDirectory = await loadMentionDirectory();
+  const mentionDirectory = await loadMentionDirectory({ viewerId: viewer.character?.id ?? null });
 
   const chat = {
     initialPlaces: places,

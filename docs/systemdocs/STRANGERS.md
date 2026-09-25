@@ -100,7 +100,10 @@ Two things set a stranger apart from a hood:
 - **The face shows.** Nothing covers it. The face is served by token
   (`/api/avatar/here/<token>`) or by chat line (`/api/avatar/line/<seq>`), never
   by id. With no uploaded portrait it is the blank plaque: the usual default is
-  the first letter of the first name, which a stranger must not give away.
+  the first letter of the first name, which a stranger must not give away. The
+  @-mention directory (`web/lib/mentionDirectory.js`) lists everybody by name,
+  so for a stranger it wears the plaque of that name rather than their portrait,
+  or the page could match the face to the name.
 - **The estate colour shows**, as it does for anyone.
 
 There is no stranger rule when there is nobody to recognise with: a GM, the
