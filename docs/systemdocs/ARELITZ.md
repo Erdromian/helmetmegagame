@@ -47,10 +47,58 @@ set, so a tag that can't equip can't appear in `FAST_TRAVEL_SLUGS` or
 anywhere else that matters; no special-case "holds unruly vs. holds
 broken-in" check exists anywhere.
 
-An arelitz seats 2 (6 with a Cart), buys 1 free zone move (2 with
-`arelitz-tack`, renamed from `horseshoes`), and — unlike a horse — costs
+An arelitz seats 2 (6 with a Cart), carries its riders across 2 zone borders
+a turn (3 once tack is fitted — §2a), and — unlike a horse — costs
 **no** per-turn upkeep. `db/lib/horseUpkeepPass.js` is deleted, not
 repurposed; nothing else used that mechanism.
+
+## 2a. The rides are on the animal
+
+Bascinet's call, 2026-09-25: players wanted to walk an arelitz out of the
+stable and ride it the same turn, and the rule that stopped them was a guess.
+
+**The ladder.** `db/lib/mounts.js#MOUNT_RIDES` says what a fresh mount of
+each kind buys — `arelitz` 2, `arelitz-tacked` 3, `motorcycle` 2 — and
+generates a rung for every ride: `arelitz` → `arelitz-ridden-1` →
+`arelitz-ridden-2`. Every rung is its own tag in `docs/tags.yaml`
+(`keepSlug: true`, since the name says the rides — **Arelitz (1 ride
+left)**, **Arelitz (Spent)**), identical to its head in everything but the
+rides: same seats, same `sellablePrice` (so the economy ledger adds up
+across a silent swap), same place in the Stable's count and the Butcher's
+yields (`ARELITZ_MOUNT_SLUGS`). Add a rung in `MOUNT_RIDES` and in the YAML
+together; `db/test/mountLadder.test.js` fails if they disagree.
+
+**Spending a ride** (`db/lib/mountRides.js#rideMount`) runs inside the
+crossing's transaction, after the free-travel claim has won its race, and
+shifts one unit of the equipped mount's row onto the next rung's row —
+creating, merging or retagging as the counts need, `equippedQuantity`
+carried across so the MOUNT slot stays exactly as full as it was. One
+arelitz out of a stack of three becomes one **Arelitz (1 ride left)** beside
+two still fresh. It goes through none of `tagWrites.js`'s helpers on
+purpose: those stamp `acquiredAt`, charge wound mood, apply supersedes and
+write the ledger, and a tired animal is the same asset it was a minute ago.
+One ride covers a whole crossing, near or far (`MAP.md` §3).
+
+**Resting** is the `mountRest` turn pass (`runMountRestPass`, registered in
+`db/index.js` right after the Stable's): every ridden rung on every sheet
+and every floor back to its head, one transaction per row. A GM's undo of a
+paid Move does not walk a rung back up; the pass does it at the close.
+
+**What this replaced.** `mountRestingThisTurn` refused the bonus to any
+mount whose `CharacterTag.acquiredAt` was after the turn started — meant to
+stop one arelitz handed round a party buying every rider a crossing, which
+it did, but `addToStack` stamps that timestamp on a stable pickup too, so a
+fresh animal was refused the same as a ridden one. The rung tells the two
+apart honestly: a handoff after a ride hands over a ridden animal.
+
+**Tack is fitted, not worn.** `arelitz-tack` used to be an `ACCESSORY` on
+the rider that added a crossing while any arelitz was under them — so one
+saddle passed round a party bought every rider the extra. Now it is spent
+by the **Tacked Arelitz** Craft recipe (`arelitz-tacked`,
+`requirement.items: [arelitz, arelitz-tack]`, `turnsCost: 0`, `perTurn: 1`)
+with one arelitz, and the tacked animal is its own head with its own three-
+rung ladder — a tacked arelitz ridden once cannot become a bare one. There
+is no taking it off.
 
 ## 3. The Stable
 

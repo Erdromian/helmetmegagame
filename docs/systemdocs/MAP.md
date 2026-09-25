@@ -574,47 +574,67 @@ the list, and the surfaces ask it before drawing the button. No Action is filed,
 in the Moves history; the `AuditLog` row `exert_crossing` is the record.
 `performLocationMove(..., { exert: true })`, `pushOn`, `exertOutcome`.
 
-**Mounts.** `arelitz` and `motorcycle`
-(`db/lib/mounts.js#FAST_TRAVEL_SLUGS`) each add one free far crossing — 1
-travel, so it also covers two hops across the town — **and it refreshes every
-turn** rather than once a day — on a short turn length an arelitz carries you
-several times a day. `fastTravelBonus` still counts crossings; `moveAllowance`
-multiplies by `FAR_CROSSING_COST`.
-They only count while **equipped**, and they are unequipped for you at the door
-of any indoors Location (`CARRY.md` §3).
+**Mounts.** A fresh `arelitz` or `motorcycle` carries its riders across
+**2 borders a turn**, a `arelitz-tacked` across **3**
+(`db/lib/mounts.js#MOUNT_RIDES`). **A ride covers a whole crossing, near or
+far** — a town hop on the animal costs it a ride just as the hills do, and in
+the summed travel number each ride is worth `FAR_CROSSING_COST` so every
+"can I afford it" gate on the surfaces says yes while a ride is left. It
+refreshes every turn rather than once a day, so on a short turn length an
+arelitz carries you several times a day. Mounts only count while
+**equipped**, and they are unequipped for you at the door of any indoors
+Location (`CARRY.md` §3).
 
-**A bonus crossing is spent before the base one.** The mount's move goes
-first, and it stays charged to the mount for the rest of the turn — so
-stabling the horse at an indoors door gives nothing back and, more to the
-point, takes nothing back. Before this, the allowance was one number
-recomputed from scratch on every read: a rider with two crossings who rode
-into the Customs house had their ride charged to their base move, and then
-watched the horse's move leave with the horse. Two, ride once, none left. The
-narrow-way case is untouched, because `dismountForNarrowWay` runs *inside* the
-transaction before any of this arithmetic — a rider who cannot get their horse
-through the gap never earns the bonus to begin with (§2c).
+**The rides live on the mount, not on the rider** (`ARELITZ.md` §2a). Every
+ride charged to a mount swaps its tag one rung down a ladder inside the
+crossing's own transaction — `arelitz` → `arelitz-ridden-1` →
+`arelitz-ridden-2` (`db/lib/mountRides.js#rideMount`) — and the rung's own
+name says what is left: **Arelitz (1 ride left)**, **Arelitz (Spent)**. The
+turn pass (`runMountRestPass`, key `mountRest`) walks every rung back to the
+head, on sheets and stable floors alike. So `fastTravelBonus` is simply the
+rides left on the equipped rung, read fresh every time, and **nothing
+subtracts a per-rider counter from it**: the ride that was spent already
+changed the tag. That is what stops a ride being counted twice, once off the
+rider's sheet and once off the animal.
 
-**The bonus follows the mount, not only the rider.** A mount that changed
-hands this turn — Transfer, a stable pickup, anything that (re)wrote its
-`CharacterTag` row — doesn't buy its bonus crossing until next turn
-(`mounts.js#mountRestingThisTurn`, checked against the row's own
-`acquiredAt`). Same shape as the Bird's once-a-day claim (`BIRD.md` §6),
-scoped to the turn instead of the day since the bonus itself refreshes every
-turn: without it, one arelitz handed off mid-turn could buy two different
-riders a free crossing on the same lap. The base free move is untouched —
-only the mount's own bonus is gated.
+This replaced a rule that read the mount's `acquiredAt` against the turn
+start and refused the bonus to any mount that "changed hands this turn". It
+existed to stop one arelitz handed round a party buying every rider a
+crossing, and it did — but a stable pickup stamps the same timestamp, so an
+animal walked fresh out of the stable was refused too, and players wanted
+exactly that. The rung closes the leak the honest way: a handoff after a ride
+hands over a **ridden** animal, and one from the stable is fresh.
 
-The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`, with
-`zoneMovesBonusUsed` counting how much of that travel went on a bonus, all three
+**The mount's ride is spent before the base travel.** It stays with the
+animal, so stabling it at an indoors door later gives nothing back and takes
+nothing back — the base pool was never touched. The narrow-way case is
+untouched, because `dismountForNarrowWay` runs *inside* the transaction
+before any of this arithmetic — a rider who cannot get their animal through
+the gap never earns the ride to begin with (§2c).
+
+The base pool is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`,
+with `zoneMovesBonusUsed` recording how much of that travel went on a mount —
+only so the base can be told apart (`baseSpent = zoneMovesUsed −
+zoneMovesBonusUsed`); it is never read back as "bonus left". All three are
 claimed by a conditional `updateMany` whose WHERE is the check, so two tabs
-cannot both spend the last of it. `crossingClaim` is the pure arithmetic: the
-cost comes off the bonus while there is any, the rest off the base, so a far
-crossing can straddle the two. A push on charges the crossing's cost to
+cannot both spend the last of it. `crossingClaim` is the pure arithmetic:
+while the mount has a ride, the whole cost goes on the bonus counter and
+`rode` comes back true (the caller then takes the rung down); otherwise the
+cost comes off the base. A push on charges the crossing's cost to
 `zoneMovesUsed` alone, never the bonus counter, so the base pool reading OVER
 the base allowance is how `exertedThisTurn` knows it already happened — there
 is no column for it.
 A GM's undo of a paid Move zeroes both counters (`travelClaimsToUndo`) and so
-forgets the push on along with the free crossings; GM-gated, accepted.
+forgets the push on along with the free travel; the mount's rung is **not**
+walked back up (the animal did carry them; the turn pass fixes it at the
+close); GM-gated, accepted.
+
+**Every surface says the two halves apart.** `freeMovesBreakdown` splits the
+count into base travel and rides, `travelSentence` says it — "2 travel, plus
+2 rides on your Arelitz" — and the sheet's Travel tile, the Travel panel's
+header, the map card's crossing line, both confirms and the bot's confirm all
+carry it, so a rider always knows which of the two a crossing is about to
+spend.
 
 The **`FAST_TRAVEL` Request is retired** — there's no separate route through
 `requestActions.js`; a mount is just a larger allowance.
@@ -762,13 +782,14 @@ picks them up, so a chain can never form by attaching in the other order
 either (an already-leading character getting picked up themselves).
 
 **Seats decide the mount's bonus, not the party's size.** There is no cap on
-how many people you take. `fastTravelCapacity` (horse 2, horse + cart 6,
+how many people you take. `fastTravelCapacity` (arelitz 2, arelitz + cart 6,
 motorcycle 2, on foot 0 — the rider counts) gates the `isMounted` branch of
-`freeZoneMoves`: fit, and the mount buys its usual extra crossing; go over,
-and it buys nothing. On foot there is no bonus to lose, so walking any number
-of people is free — an overloaded horse is never *worse* than legs, only no
-better. This is `fastTravelCapacity`'s first live caller; it had none from the
-day it was written until this rework.
+`freeZoneMoves`: fit, and the mount buys its rides; go over, and it buys
+nothing (and, since no ride is spent, the rung does not move). On foot there
+is no bonus to lose, so walking any number of people is free — an overloaded
+arelitz is never *worse* than legs, only no better. This is
+`fastTravelCapacity`'s first live caller; it had none from the day it was
+written until this rework.
 
 **A stale attachment is inert, not dangerous.** `escortAuthority` returns
 `null` the moment two people are not co-located, so a row left behind by a GM

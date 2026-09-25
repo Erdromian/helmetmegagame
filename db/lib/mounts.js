@@ -1,17 +1,61 @@
-// Mount tags: buy an extra free zone crossing (db/lib/locationTravel.js) and set
+// Mount tags: buy extra free zone crossings (db/lib/locationTravel.js) and set
 // mount seats. Lives in db/ so both faces read one set; web/lib/tagRequests.js
 // re-exports for page gates. See DEPOT.md §3, CARRY.md §2 and ARELITZ.md.
 // A mount only works while EQUIPPED (MOUNT slot, db/lib/equipSlots.js) and is
 // unequipped at any indoors door — helpers here take ACTIVE slugs
 // (`equippedSlugs` below), never a bare held-slug set.
 //
+// ZERO REQUIRES, EVER. web/app/components/EquipBoard.js is a client component
+// and imports this file; one require of @lifeweb/db here drags PrismaClient
+// into the browser bundle. The database half (spending a ride, the nightly
+// rest) is db/lib/mountRides.js.
+//
+// THE RIDES LIVE ON THE MOUNT (ARELITZ.md §2a). A fresh mount buys a fixed
+// number of crossings a turn, and every crossing charged to it swaps the tag
+// one stage down its ladder — `arelitz` → `arelitz-ridden-1` →
+// `arelitz-ridden-2` — so the chip's own name says how many rides are left,
+// whoever is holding it: a rider, a stable floor, the other side of a
+// Transfer. The turn pass (mountRides.js#runMountRestPass) walks every stage
+// back to the head. This replaced a rule that read the mount's acquiredAt
+// against the turn start to guess whether it had been ridden already — which
+// could not tell a handoff after a ride from an animal walked fresh out of
+// the stable, and refused both.
+//
 // Arelitz replaced the old Horse/Warbeast/Ovum/Thoroughbred family
-// (ARELITZ.md): one mount type instead of three bred variants, so this whole
-// module collapses from per-variant branches to one `arelitz` slug.
+// (ARELITZ.md): one mount type instead of three bred variants.
 // `unruly-arelitz` appears in NONE of the sets below — not being equippable
 // is the entire "cannot be ridden" enforcement, so it needs no special case
 // here at all.
-const FAST_TRAVEL_SLUGS = new Set(["arelitz", "motorcycle"]);
+
+// Rides a FRESH mount of each kind buys a turn. Arelitz Tack is not worn by
+// the rider any more: it is fitted to one animal (the Tacked Arelitz recipe,
+// docs/tags.yaml), which is a different head with one more ride on it.
+const MOUNT_RIDES = Object.freeze({
+  arelitz: 2,
+  "arelitz-tacked": 3,
+  motorcycle: 2,
+});
+
+// Every stage of every ladder, slug → { head, ridden, left, next }. `next` is
+// the slug one ride down, or null at the bottom.
+const MOUNT_STAGES = new Map();
+for (const [head, rides] of Object.entries(MOUNT_RIDES)) {
+  for (let ridden = 0; ridden <= rides; ridden++) {
+    const slug = ridden === 0 ? head : `${head}-ridden-${ridden}`;
+    const next = ridden < rides ? `${head}-ridden-${ridden + 1}` : null;
+    MOUNT_STAGES.set(slug, { head, ridden, left: rides - ridden, next });
+  }
+}
+
+// Every rideable slug, at every stage. This is what "is a mount" means to the
+// rest of the codebase (isMounted, the indoors park, the equip board's menu,
+// the Motion Sickness gate).
+const FAST_TRAVEL_SLUGS = new Set(MOUNT_STAGES.keys());
+
+// The arelitz ladders alone — what the Stable feeds, what the Butcher yields
+// meat for, what a Cart can be towed behind. Tacked or not, tired or not, it
+// is the same animal.
+const ARELITZ_MOUNT_SLUGS = new Set([...MOUNT_STAGES].filter(([, s]) => s.head !== "motorcycle").map(([slug]) => slug));
 
 // Tags that stop working once unequipped. Fishing Boat (and the whole
 // water-travel/BOAT_CONFLICT concept it needed) is gone with the rest of
@@ -19,8 +63,29 @@ const FAST_TRAVEL_SLUGS = new Set(["arelitz", "motorcycle"]);
 // anywhere in the tree references it any more.
 const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, "cart"]);
 
-// Renamed from "horseshoes" — an arachnid does not wear shoes.
+// The consumable that upgrades one arelitz. Renamed from "horseshoes" — an
+// arachnid does not wear shoes.
 const ARELITZ_TACK_SLUG = "arelitz-tack";
+
+function mountStage(slug) {
+  return MOUNT_STAGES.get(slug) ?? null;
+}
+
+// Crossings this mount slug has left before it rests. 0 for the bottom of a
+// ladder; 0 for anything that isn't a mount.
+function ridesLeft(slug) {
+  return MOUNT_STAGES.get(slug)?.left ?? 0;
+}
+
+// The slug one ride down, or null when there is no ride left to spend.
+function nextStage(slug) {
+  return MOUNT_STAGES.get(slug)?.next ?? null;
+}
+
+// The fresh slug at the top of this slug's ladder.
+function mountHead(slug) {
+  return MOUNT_STAGES.get(slug)?.head ?? null;
+}
 
 // Slugs a character currently has in play: held, minus any stowable not equipped.
 function equippedSlugs(characterTags = []) {
@@ -34,51 +99,54 @@ function equippedSlugs(characterTags = []) {
   return active;
 }
 
+// The one mount slug out of an active set, or null. There is only ever one:
+// MOUNT layer 1 is a single slot (db/lib/equipSlots.js).
+function activeMountSlug(activeSlugs) {
+  for (const slug of activeSlugs) if (FAST_TRAVEL_SLUGS.has(slug)) return slug;
+  return null;
+}
+
 // Seats a mount carries, rider included. An arelitz seats 2 (6 with Cart).
 // Motorcycle is checked before Arelitz so the Cart upgrade can never reach
 // it — a hand-cart towed behind a bike isn't a thing.
 function fastTravelCapacity(activeSlugs) {
-  if (activeSlugs.has("motorcycle")) return 2;
-  if (activeSlugs.has("arelitz")) return activeSlugs.has("cart") ? 6 : 2;
-  return 0;
+  const slug = activeMountSlug(activeSlugs);
+  if (!slug) return 0;
+  if (mountHead(slug) === "motorcycle") return 2;
+  return activeSlugs.has("cart") ? 6 : 2;
 }
 
-// The equipped fast-travel tag row itself, so its own acquiredAt can be read —
-// activeSlugs alone (a bare Set) has no history on it.
+// The equipped fast-travel tag row itself, so its name (and, for the spend,
+// its id) can be read — activeSlugs alone is a bare Set.
 function fastTravelMountTag(characterTags = []) {
-  return (characterTags ?? []).find((ct) => FAST_TRAVEL_SLUGS.has(ct?.tag?.slug) && ct.equipped === true);
+  return (characterTags ?? []).find((ct) => FAST_TRAVEL_SLUGS.has(ct?.tag?.slug) && ct.equipped === true) ?? null;
 }
 
-// A mount that changed hands THIS TURN doesn't buy its bonus crossing until
-// next turn — same shape as the Bird's once-a-day claim
-// (db/lib/bird.js#birdRestingToday), scoped to the turn instead of the day
-// because the bonus itself refreshes every turn (see moveAllowance's comment
-// in locationTravel.js). A mount's CharacterTag row has no identity across a
-// handoff either: the motorcycle is non-stackable, so a Transfer deletes the
-// sender's row and creates the recipient's fresh; the arelitz is stackable,
-// but tagWrites.js#addToStack stamps acquiredAt = now() on every top-up too
-// ("a fresh acquisition of the units that just landed"). Either way the
-// recipient's row reads as newly acquired — so without this a single mount
-// handed off mid-turn could buy two different riders a bonus crossing in the
-// same turn.
-function mountRestingThisTurn(characterTags, turnStartedAt) {
-  if (!turnStartedAt) return false;
-  const mount = fastTravelMountTag(characterTags);
-  if (!mount?.acquiredAt) return false;
-  return new Date(mount.acquiredAt).getTime() >= new Date(turnStartedAt).getTime();
+// Extra zone crossings the equipped mount still has in it this turn. Read
+// straight off the stage, which is why nothing subtracts a per-rider counter
+// from it any more (locationTravel.js#movesLeft): the ride that was spent
+// already took the tag a stage down.
+function fastTravelBonus(activeSlugs) {
+  const slug = activeMountSlug(activeSlugs);
+  return slug ? ridesLeft(slug) : 0;
 }
 
-// Extra zone crossings a fast-travel mount buys. An arelitz is worth 1, 2
-// with Arelitz Tack. Zero while the mount itself is resting this turn.
-function fastTravelBonus(activeSlugs, characterTags = [], turnStartedAt = null) {
-  if (mountRestingThisTurn(characterTags, turnStartedAt)) return 0;
-  if (activeSlugs.has("arelitz")) return activeSlugs.has(ARELITZ_TACK_SLUG) ? 2 : 1;
-  return isMounted(activeSlugs) ? 1 : 0;
+// The full number of rides this mount buys when fresh, for the sentence that
+// explains a lower number ("2 of its 3 rides").
+function fastTravelRides(activeSlugs) {
+  const slug = activeMountSlug(activeSlugs);
+  return slug ? MOUNT_RIDES[mountHead(slug)] : 0;
+}
+
+// A mount's name for a sentence: the rung's own name carries its rides in
+// parentheses ("Arelitz (1 ride left)"), which beside a number that already
+// says so would be the same fact twice — so this strips it back to the animal.
+function mountLabel(name) {
+  return typeof name === "string" ? name.replace(/\s*\([^)]*\)\s*$/, "") : name;
 }
 
 function isMounted(activeSlugs) {
-  for (const slug of FAST_TRAVEL_SLUGS) if (activeSlugs.has(slug)) return true;
-  return false;
+  return activeMountSlug(activeSlugs) !== null;
 }
 
 // STOWABLE_SLUGS an indoors Location parks on arrival (db/lib/indoors.js),
@@ -100,13 +168,23 @@ function stowedMounts(characterTags = []) {
 }
 
 module.exports = {
+  MOUNT_RIDES,
+  MOUNT_STAGES,
   FAST_TRAVEL_SLUGS,
+  ARELITZ_MOUNT_SLUGS,
   STOWABLE_SLUGS,
+  ARELITZ_TACK_SLUG,
+  mountStage,
+  ridesLeft,
+  nextStage,
+  mountHead,
   equippedSlugs,
+  activeMountSlug,
   fastTravelCapacity,
   fastTravelBonus,
+  fastTravelRides,
   fastTravelMountTag,
-  mountRestingThisTurn,
+  mountLabel,
   isMounted,
   blocksOnFoot,
   stowedMounts,

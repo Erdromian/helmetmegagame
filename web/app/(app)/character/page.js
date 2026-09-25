@@ -76,6 +76,8 @@ import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { hungerOf } from "@/lib/descriptors";
 import {
   freeMovesLeft,
+  freeMovesBreakdown,
+  travelSentence,
   freeZoneMovesReason,
 } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
@@ -756,6 +758,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Free zone crossings left this turn (CARRY.md §2). Resolved server-side so no allowance math reaches the client bundle.
   const zoneMoves = freeMovesLeft(character, gameConfig, openTurn);
   const zoneMovesReason = freeZoneMovesReason(character, 0, { config: gameConfig, openTurn });
+  // The same count in two halves, and the sentence for it, so the tile can say
+  // which of the two a mount is buying (MAP.md §3a). Built here: LedgerBand is
+  // a client component.
+  const zoneMovesBreakdown = { ...freeMovesBreakdown(character, gameConfig, openTurn), line: null };
+  zoneMovesBreakdown.line = travelSentence(zoneMovesBreakdown);
   // Craft (CRAFTING.md): the recipes whose every skill this character holds
   // (or a higher tier of), decided here and re-checked by craftRequest. The
   // client filters its picker to these ids and nothing else.
@@ -1270,6 +1277,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       carry: carry,
       zoneMoves: zoneMoves,
       zoneMovesReason: zoneMovesReason,
+      zoneMovesBreakdown: zoneMovesBreakdown,
       examineBlocked: examineBlocked,
       hasWorkshop: hasWorkshop,
       atKitchen: atKitchen,

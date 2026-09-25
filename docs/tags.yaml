@@ -6141,7 +6141,7 @@ tags:
     category: assets
     group: assets-companions
     sprite: arl
-    description: "A great eight legged spider. It has been broken in, allowing it to be rode by up to two people. Riders are able to move an extra zone."
+    description: "A great eight legged spider. It has been broken in, allowing it to be rode by up to two people. Fresh, it carries its riders across 2 zone borders a turn, and it is fresh again every turn."
     pointCost: 9
     tradeable: true
     stackable: true
@@ -6156,6 +6156,153 @@ tags:
     # 60% of the 81 ¢ above (DEPOT.md §3). It was 54, which was 60% of the 90 ¢
     # this cost before the 2026-09 price trims; the sell-back never followed.
     sellablePrice: 49
+
+  # THE MOUNT LADDER (ARELITZ.md §2a, db/lib/mounts.js). Every crossing charged
+  # to a mount swaps its tag one rung down — arelitz → arelitz-ridden-1 →
+  # arelitz-ridden-2 — so the chip's own name says how many rides it has left,
+  # whoever is holding it. The turn pass (db/lib/mountRides.js) walks every
+  # rung back to the head. Each rung is the SAME animal: same seats, same
+  # price (so the economy ledger adds up across a silent swap), same stable
+  # count, same meat. Only the rides differ. Slugs are generated from
+  # MOUNT_RIDES in mounts.js — add a rung there and here together.
+  arelitz-ridden-1:
+    # The name says the rides left; the slug is the rung (mounts.js).
+    keepSlug: true
+    catalog: gm
+    name: Arelitz (1 ride left)
+    category: assets
+    group: assets-companions
+    sprite: arl
+    description: "A broken-in arelitz that has already carried its riders across a border this turn. It has one crossing left in it, and it will be fresh again next turn."
+    pointCost: 9
+    tradeable: true
+    stackable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 49
+
+  arelitz-ridden-2:
+    # The name says the rides left; the slug is the rung (mounts.js).
+    keepSlug: true
+    catalog: gm
+    name: Arelitz (Spent)
+    category: assets
+    group: assets-companions
+    sprite: arl
+    description: "A broken-in arelitz that has carried its riders as far as it will go this turn. It buys no more crossings until it has rested, and it will be fresh again next turn."
+    pointCost: 9
+    tradeable: true
+    stackable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 49
+
+  # Arelitz Tack fitted to one animal — the Craft recipe below spends the
+  # tack and the arelitz and mints this. Not a thing you can take off again.
+  # One more ride a turn than a bare arelitz (3), and its own three-rung
+  # ladder, since a tacked animal ridden once cannot become a bare one.
+  # Price is the two parts' sell-back added together (49 + 21).
+  arelitz-tacked:
+    # "Tacked Arelitz" reads better than "Arelitz Tacked"; the slug is the
+    # ladder head mounts.js names.
+    keepSlug: true
+    catalog: gm
+    name: Tacked Arelitz
+    category: assets
+    group: assets-companions
+    sprite: arl
+    description: "A broken-in arelitz under a custom tailored saddle, giving its rider far more control of where the beast lumbers. Fresh, it carries its riders across 3 zone borders a turn, and it is fresh again every turn."
+    pointCost: 11
+    tradeable: true
+    stackable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 70
+    craftable: true
+    requirement:
+      turnsCost: 0
+      perTurn: 1
+      resourceCost: 0
+      items: [arelitz, arelitz-tack]
+      gambit: false
+
+  arelitz-tacked-ridden-1:
+    # The name says the rides left; the slug is the rung (mounts.js).
+    keepSlug: true
+    catalog: gm
+    name: Tacked Arelitz (2 rides left)
+    category: assets
+    group: assets-companions
+    sprite: arl
+    description: "A saddled arelitz that has carried its riders across a border this turn. It has two crossings left in it, and it will be fresh again next turn."
+    pointCost: 11
+    tradeable: true
+    stackable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 70
+
+  arelitz-tacked-ridden-2:
+    # The name says the rides left; the slug is the rung (mounts.js).
+    keepSlug: true
+    catalog: gm
+    name: Tacked Arelitz (1 ride left)
+    category: assets
+    group: assets-companions
+    sprite: arl
+    description: "A saddled arelitz that has carried its riders across two borders this turn. It has one crossing left in it, and it will be fresh again next turn."
+    pointCost: 11
+    tradeable: true
+    stackable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 70
+
+  arelitz-tacked-ridden-3:
+    # The name says the rides left; the slug is the rung (mounts.js).
+    keepSlug: true
+    catalog: gm
+    name: Tacked Arelitz (Spent)
+    category: assets
+    group: assets-companions
+    sprite: arl
+    description: "A saddled arelitz that has carried its riders as far as it will go this turn. It buys no more crossings until it has rested, and it will be fresh again next turn."
+    pointCost: 11
+    tradeable: true
+    stackable: true
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    purchasable: false
+    purchasableAfterStart: false
+    visible: true
+    sellable: true
+    sellablePrice: 70
 
   # Identical to a broken-in arelitz except not equippable — that omission IS
   # "cannot be ridden", the whole enforcement (mounts.js only ever reads the
@@ -10091,13 +10238,15 @@ tags:
     name: Arelitz Tack
     category: items
     group: items-gear
-    description: "A custom tailored saddle, granting you significantly more control of where your beast lumbers. +1 to your arelitz free move bonus."
+    # Not worn any more. It is fitted to ONE arelitz through the Tacked
+    # Arelitz recipe (above, beside the arelitz ladder), which spends the tack
+    # and the animal both — so a saddle can never be passed around a party to
+    # buy every rider the extra ride (ARELITZ.md §2a).
+    description: "A custom tailored saddle, granting significantly more control of where a beast lumbers. Fit it to one arelitz and that animal carries its riders across one more border a turn."
     pointCost: 2
-    equippable: true
-    equipSlot: ACCESSORY
     weight: 2
     stackable: true
-    visible: worn
+    visible: true
     purchasable: true
     purchasableAfterStart: false
     craftable: true
@@ -11661,7 +11810,7 @@ tags:
     name: Motorcycle
     category: items
     group: items-special
-    description: "A two-wheeled motor vehicle that can carry up to 2 people. While equipped, gives riders 1 extra free zone move each turn at the cost of being more easily noticed by others."
+    description: "A two-wheeled motor vehicle that can carry up to 2 people. While ridden it carries you across 2 zone borders a turn, at the cost of being more easily noticed by others."
     pointCost: 0
     equippable: true
     equipSlot: MOUNT
@@ -11675,6 +11824,46 @@ tags:
     sellable: true
     sellablePrice: 115
     depotPrice: 191
+
+  # The motorcycle's rungs on the mount ladder — see the note above
+  # arelitz-ridden-1. Same bike, same price, fewer rides left.
+  motorcycle-ridden-1:
+    # The name says the rides left; the slug is the rung (mounts.js).
+    keepSlug: true
+    catalog: gm
+    name: Motorcycle (1 ride left)
+    category: items
+    group: items-special
+    description: "A motorcycle that has already carried its riders across a border this turn. It has one crossing left in it, and it is ready again next turn."
+    pointCost: 0
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    weight: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 115
+
+  motorcycle-ridden-2:
+    # The name says the rides left; the slug is the rung (mounts.js).
+    keepSlug: true
+    catalog: gm
+    name: Motorcycle (Spent)
+    category: items
+    group: items-special
+    description: "A motorcycle that has carried its riders as far as it will go this turn. It buys no more crossings until next turn."
+    pointCost: 0
+    equippable: true
+    equipSlot: MOUNT
+    equipLayer: 1
+    weight: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    sellable: true
+    sellablePrice: 115
 
   sawn-off-double-barrel:
     catalog: gm

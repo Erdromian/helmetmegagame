@@ -65,6 +65,8 @@ import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib
 import {
   performLocationMove,
   freeMovesLeft,
+  freeMovesBreakdown,
+  travelSentence,
   freeZoneMovesReason,
   exertRefusal,
   exertEdgeFor,
@@ -517,6 +519,12 @@ export async function loadTravel() {
     // party, so a mount's extra crossing is already reflected (MAP.md §3a).
     freeLeft: freeMovesLeft(character, config, openTurn, party.length),
     freeReason: freeZoneMovesReason(character, party.length, { config, openTurn }),
+    // The same count in two halves — "2 travel, plus 2 rides on your
+    // Arelitz" — for the header and the confirm (MAP.md §3a). The sentence
+    // is built here because TravelNodes is a client component and
+    // locationTravel.js is not for the browser bundle.
+    breakdown: freeMovesBreakdown(character, config, openTurn, party.length),
+    travelLine: travelSentence(freeMovesBreakdown(character, config, openTurn, party.length)),
     // Whether there's anything to dismount at all — the node list only
     // marks a specific way or a specific destination as a consequence when
     // this is true, since neither "on foot" nor "indoors" means anything to
@@ -921,7 +929,7 @@ export async function travelTo({ locationId, exert = false } = {}) {
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
-        ? `${formatTravel(result.freeMovesLeft)} travel left this turn.`
+        ? `${result.travelLeft ? travelSentence(result.travelLeft) : `${formatTravel(result.freeMovesLeft)} travel`} left this turn.`
         : "That was the last of your travel this turn.",
     );
   }

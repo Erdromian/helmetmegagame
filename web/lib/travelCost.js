@@ -28,7 +28,10 @@ export function affordsCrossing(option, freeLeft) {
   return (freeLeft ?? 0) >= (option.cost ?? 1);
 }
 
-export function travelFoot(option, freeLeft, mounted, moved = false) {
+// `breakdown` (locationTravel.js#freeMovesBreakdown) says whether a mount's
+// ride is what this crossing would spend — one ride covers any crossing, so
+// the foot says "1 ride" rather than quoting travel the rider won't pay.
+export function travelFoot(option, freeLeft, mounted, moved = false, breakdown = null) {
   if (!option.passable) {
     const reason = option.reason ?? "";
     if (/locked/i.test(reason)) return "locked";
@@ -38,7 +41,9 @@ export function travelFoot(option, freeLeft, mounted, moved = false) {
   const cost = !option.crossesZone
     ? "free"
     : affordsCrossing(option, freeLeft)
-      ? `${formatTravel(option.cost ?? 1)} travel`
+      ? (breakdown?.ridesLeft ?? 0) > 0
+        ? "1 ride"
+        : `${formatTravel(option.cost ?? 1)} travel`
       : !moved
         ? "the turn"
         : option.canExert
@@ -113,7 +118,12 @@ function crossingWarning(option) {
 // is the server's sentence about which way the die leans, when it does
 // (db/lib/locationTravel.js#exertEdgeSentence), so the two faces say it the
 // same way.
-export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false } = {}) {
+//
+// `breakdown` is the two halves of `freeLeft` (locationTravel.js#
+// freeMovesBreakdown): while the mount has a ride left, the ride is what this
+// crossing spends — one ride covers any crossing, near or far — so the price
+// line says so instead of quoting travel the rider is not about to spend.
+export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false, breakdown = null } = {}) {
   // Said out loud because it is the half of an accidental crossing that costs
   // somebody else their afternoon too.
   const party =
@@ -133,7 +143,10 @@ export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false
   }
   const cost = option.cost ?? 1;
   const left = freeLeft ?? 0;
-  const price = affordsCrossing(option, freeLeft)
+  const rides = breakdown?.ridesLeft ?? 0;
+  const price = rides > 0 && breakdown?.mount
+    ? `Your ${breakdown.mount} carries you across: 1 of its ${rides} ${rides === 1 ? "ride" : "rides"} this turn.`
+    : affordsCrossing(option, freeLeft)
     ? `This spends ${formatTravel(cost)} of your ${formatTravel(left)} travel.`
     : left > 0
       ? `This costs ${formatTravel(cost)} travel and you only have ${formatTravel(left)} left, so it spends your Move for the turn.`

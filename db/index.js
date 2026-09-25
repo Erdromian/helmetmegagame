@@ -24,6 +24,7 @@ const { expiryFrom } = require("./lib/turnFormat");
 const { runCorpseRotPass } = require("./lib/corpseRotPass");
 const { runStructureYieldPass } = require("./lib/structureYieldPass");
 const { runStablePass } = require("./lib/stablePass");
+const { runMountRestPass } = require("./lib/mountRides");
 const { reconcileCorpses } = require("./lib/corpseFollow");
 const { runTagExpiryPass } = require("./lib/tagExpiryPass");
 const { runHungerPass } = require("./lib/hungerPass");
@@ -349,6 +350,11 @@ const TURN_PASSES = [
   // stable Room's floor, so this must not run before "carry"'s own overflow
   // drop might already be putting things there.
   "arelitzLay",
+  // Every ridden mount back to fresh — the ladder in db/lib/mounts.js, walked
+  // up again by db/lib/mountRides.js#runMountRestPass. After the stable pass
+  // so the floor it counts is the floor the night ended on; it moves no
+  // animal, only renames the rung, so nothing else cares where it sits.
+  "mountRest",
   // The train, on its every-other-turn cycle (db/lib/train.js). Departure
   // first, so that if the cycle is ever retuned to run both halves on one
   // close, selling can never sweep crates that landed the same close.
@@ -956,6 +962,14 @@ async function resolveNeeds(turn, config) {
   const stabled = await runPass("arelitzLay", "Stable", () => runStablePass(prisma, turn));
   if (stabled && (stabled.laid > 0 || stabled.hatched > 0 || stabled.matured > 0 || stabled.evicted > 0)) {
     await audit("stable_pass", stabled, "Stable");
+  }
+
+  // Every mount that was ridden this turn is fresh again (db/lib/mountRides.js,
+  // ARELITZ.md §2a): each tired rung of the ladder back to its head, on sheets
+  // and on floors alike.
+  const restedMounts = await runPass("mountRest", "Mount rest", () => runMountRestPass(prisma));
+  if (restedMounts && restedMounts.rested > 0) {
+    await audit("mounts_rested", restedMounts, "Mount rest");
   }
 
   // The train. Each pass checks the turn's parity itself and returns

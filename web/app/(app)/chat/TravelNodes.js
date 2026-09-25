@@ -116,7 +116,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
   // then the same action with `exert` set.
   const go = async (option, { exert = false } = {}) => {
     if (option.crossesZone) {
-      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert });
+      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert, breakdown: data.breakdown });
       if (!(await confirm(asked))) return;
     }
     run(travelTo, { locationId: option.id, exert }, {
@@ -147,8 +147,10 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
 
   return (
     <div className="chat-travel">
+      {/* The count in its two halves — "2 travel, plus 2 rides on your Arelitz" — so
+          a rider can see which of the two a crossing is about to spend (MAP.md §3a). */}
       <p className="group-label chat-section-title" title={data.freeReason ?? undefined}>
-        {showTitle ? `Travel · ${formatTravel(data.freeLeft)} available` : `${formatTravel(data.freeLeft)} available`}
+        {showTitle ? `Travel · ${data.travelLine ?? `${formatTravel(data.freeLeft)} available`}` : (data.travelLine ?? `${formatTravel(data.freeLeft)} available`)}
       </p>
 
       {/* Held where they stand (INTERCEPT.md). List stays up, every way drawn shut. */}
@@ -192,7 +194,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
               {/* Where no Giant fits (MAP.md §2a) — on every player's list, so
                   a party can see where its Giant can't follow. */}
               <SqueezeChip show={option.tightSqueeze} />
-              <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved)}</span>
+              <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved, data.breakdown)}</span>
             </button>
             );
           })}

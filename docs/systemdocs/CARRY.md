@@ -201,16 +201,19 @@ crossing per *day*. Now:
   The allowance and both counters are Float columns, since halves add up
   exactly in a double.
   A hop inside a zone still costs nothing.
-- An **equipped** mount adds a far crossing's worth (1 travel), and it
-  refreshes every turn — an arelitz carries you out to the hills once per
-  turn, or across the town twice, which on a short turn length is several
-  times a day. It is **spent first**: the mount's travel
-  goes before the base pool and stays charged to the mount, so parking the
-  arelitz at an indoors door later in the turn cannot take back travel you
-  never spent. **Only while your escort party fits its
-  seats**: go over `fastTravelCapacity` and the mount buys nothing this
-  crossing (`MAP.md` §3a). On foot there are no seats and nothing to lose, so
-  walking any number of people is free.
+- An **equipped** mount adds **rides**: 2 a turn on a fresh arelitz or
+  motorcycle, 3 on a tacked arelitz, and **a ride covers any crossing** — a
+  town hop or the hills, one ride each (`MAP.md` §3, `ARELITZ.md` §2a). It
+  refreshes every turn, which on a short turn length is several times a day.
+  The rides are **on the mount's own tag**: each one ridden takes the tag a
+  rung down — Arelitz, then Arelitz (1 ride left), then Arelitz (Spent) — so
+  whoever holds it can read what is left, and the turn pass rests it. It is
+  **spent first**: the mount's ride goes before the base pool and stays with
+  the animal, so parking the arelitz at an indoors door later in the turn
+  cannot take back travel you never spent. **Only while your escort party
+  fits its seats**: go over `fastTravelCapacity` and the mount buys nothing
+  this crossing (`MAP.md` §3a). On foot there are no seats and nothing to
+  lose, so walking any number of people is free.
 - Overburdened sets the allowance to **0**.
 - A **lamed** character's allowance is also 0 — a leg too hurt to carry you
   (`crippled-leg`, `cripple`, `missing-leg`, `sprained-ankle`) or too dazed to
@@ -236,9 +239,10 @@ back, and the next crossing waits for the next turn — or walks Town →
 Fortress → Undertown for nothing and still has the Move. That is the whole
 model.
 
-`Character.zoneMovesTurnId` + `zoneMovesUsed` track it, and
-`zoneMovesBonusUsed` counts how much of that travel went on a mount's extra
-rather than the base allowance. All three are claimed by a
+`Character.zoneMovesTurnId` + `zoneMovesUsed` track the base pool, and
+`zoneMovesBonusUsed` counts how much of that travel went on a mount's ride
+rather than the base allowance — only so the two can be told apart; what the
+mount has left is read off its rung, never off this counter. All three are claimed by a
 conditional `updateMany` whose WHERE is the check, so two tabs cannot both
 spend the last one. A differing turn id resets the counter in the same
 statement, so nothing ever sweeps the field. `freeZoneMoves()` and
@@ -270,11 +274,13 @@ arelitz or a motorcycle is *ridden* (layer 1) and a cart is *towed*
 motorcycle do not — one thing per layer.
 
 `arelitz-tack` (renamed from `horseshoes` — an arachnid does not wear shoes)
-is a plain `ACCESSORY`, not a third `MOUNT` layer, and does
-nothing on its own — `fastTravelBonus()` (`db/lib/mounts.js`) only counts it
-while an **Arelitz** is equipped alongside it, turning that arelitz's one
-extra crossing into two. It does nothing for the Motorcycle (no hooves), which
-is worth its flat 1 with or without tack.
+is **not worn any more**. It is a plain item, spent by the **Tacked Arelitz**
+Craft recipe (`docs/tags.yaml`, `requirement.items: [arelitz, arelitz-tack]`,
+no Move, once a turn) together with one arelitz, minting an `arelitz-tacked`
+— the same animal with 3 rides a turn instead of 2, on its own ladder. It
+cannot be taken off again, and it cannot be passed round a party to buy every
+rider the extra ride, which is why it stopped being an accessory. It does
+nothing for the Motorcycle (no hooves).
 
 **Seats, from `fastTravelCapacity()`:** an Arelitz alone is 2, and a Cart
 upgrades that pair to 6 — the biggest ride there is. They count the **rider**,

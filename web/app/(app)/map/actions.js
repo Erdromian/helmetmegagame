@@ -16,6 +16,8 @@ import {
 } from "@lifeweb/db/lib/escort";
 import {
   freeMovesLeft,
+  freeMovesBreakdown,
+  travelSentence,
   freeZoneMovesReason,
   exertRefusal,
   exertEdgeFor,
@@ -305,6 +307,10 @@ async function buildMap({ character, unfogged }) {
           held: heldReasonFor(character),
           freeLeft: freeMovesLeft(character, config, openTurn, party.length),
           freeReason: freeZoneMovesReason(character, party.length, { config, openTurn }),
+          // The two halves of that count and their sentence, for the card's
+          // line and the confirm (MAP.md §3a) — built here, MapBoard is a client.
+          breakdown: freeMovesBreakdown(character, config, openTurn, party.length),
+          travelLine: travelSentence(freeMovesBreakdown(character, config, openTurn, party.length)),
           mounted: onFootBlocked,
           partySize: party.length,
           // The Move already spent this turn: Go leaves the card and the push
