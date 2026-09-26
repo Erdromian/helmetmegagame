@@ -47,7 +47,9 @@ import { actionThrowMessage } from "@/app/components/actionThrow";
 // not four with two of them permanently dashed and empty, which would have
 // read as room they do not have.
 function rowsFor(hands) {
-  return ["HEAD", "BODY", "WEAPON", "MOUNT"].map((slot) => ({
+  // FINGER is the signet ring (docs/systemdocs/RINGS.md): one cell, and it
+  // takes nothing from the hands or the accessories.
+  return ["HEAD", "BODY", "WEAPON", "FINGER", "MOUNT"].map((slot) => ({
     slot,
     cells: LAYER_NAMES[slot]?.length ?? (slot === "WEAPON" ? hands : 1),
   }));
@@ -447,8 +449,8 @@ export default function EquipBoard({
               />,
             ];
         }
-        // A ride nobody owns is not worth a row of dashes.
-        if (slot === "MOUNT" && inSlot.length === 0 && fits.length === 0) return null;
+        // A ride nobody owns, or a finger with no ring to put on it, is not worth a row of dashes.
+        if ((slot === "MOUNT" || slot === "FINGER") && inSlot.length === 0 && fits.length === 0) return null;
         return (
           <div key={slot} className="equip-row">
             <span className="field-label equip-row-title">

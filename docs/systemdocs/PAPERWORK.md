@@ -131,6 +131,14 @@ seal. A surface that skips the compose shows a GM nothing at all.
 
 ### 4a. Books
 
+**One book the game writes: the Phonebook** (`PHONES.md` §2). An authored
+BOOK like the Keep's shelf, but its words are every phone's number, rolled
+afresh at every Start Game, so `db/lib/phoneNumbers.js#writePhonebook`
+rewrites its `paperText` and `gameWritesText: true` in `docs/tags.yaml`
+keeps the tag sync off it. Every copy is one Tag row, so one write reprints
+them all — which is safe only because a BOOK is never Write's or Seal's to
+change in place.
+
 A book is ten sheets bound together and written in one pass, and then it is
 finished — **Write refuses a `BOOK`**. That single rule is the whole difference
 between a book and a sheet, and it is what makes a book worth stealing rather
@@ -252,40 +260,24 @@ them apart is the one who can read them.
 
 ## 5. Wax
 
-A wax stamp is declared by `sealMark:` in `docs/tags.yaml` — the line the wax
-carries, "Three cups, stacked." `db:sync-tags` composes the whole description
-around it, so the boilerplate is written once; authoring a `description:`
-beside a `sealMark:` is an error rather than an override.
+**Seals come from signet rings now** (`RINGS.md`). The fifteen wax stamps — the
+six courtier seals and the nine office stamps — are gone, and the sync refuses a
+`sealMark` or `sealOffice` authored in `docs/tags.yaml`.
 
-- **Six courtier seals**, `pointCost: 1`, gated on `courtier`, and
-  **`exclusive`** — a courtier has *one* seal. It is a signature, not a
-  collection, and a courtier who owned all six could sign as anybody.
+- **An office's own ring is the only ring that seals.** The nine seats that kept
+  a stamp — Baron, Hand, Meister, Censor, Esculap, Bishop, Inquisitor, Merchant,
+  Banneret — start wearing a ring of their own name, carrying the old stamp's
+  mark (`ring.seal_mark` in `docs/roles.yaml`) and titling a letter with the
+  office: "Sealed Letter (Baron)". The Merchant's mark still bears his own
+  initials. Every other ring, and every ring a smith makes, leaves no seal.
+- **A wax seal is forged from one of those rings** — the Forged Wax Seal recipe,
+  Forgery, 1 turn, 2 ⬢, pressing a ring the forger is holding. It is a minted
+  stamp, "Wax Seal of the Baron", with that ring's mark and label, and it seals
+  exactly as the ring would. It is the only way to get an office's wax seal.
 
-  Note what that does and does not cover. `exclusive` is enforced on the
-  purchase paths only — the creation wizard, `/store`, and their server-side
-  re-checks — the same posture the Beliefs have. It does **not** stop a second
-  seal arriving by Transfer, by Loot or from a GM, and that is deliberate: a
-  seal is a physical object, so taking one off somebody is exactly the kind of
-  thing the game is for. What you cannot do is *buy* a second.
-
-  All six share `requiredTag: courtier`, which does not defeat the flag —
-  `exclusiveConflict`'s exemption (`web/lib/characterCreation.js`) is for a
-  direct parent/child pair, and neither seal requires the other.
-- **Eight office stamps**, `purchasable: false`, each starting in the room its
-  seat works out of (`docs/zones.yaml` `stash:`). All `tradeable: true` like
-  every other piece of office regalia — prying the Bishop's stamp off the
-  Bishop is the kind of thing the game is for (`TAGS.md` §5).
-
-  **Not `exclusive`.** A stamp belongs to a seat rather than to a person, so
-  holding two means you took one of them off somebody, which is a situation
-  worth having. It would also be inert: nothing here is purchasable, and the
-  purchase paths are the only place the flag is enforced.
-
-**The Merchant's is the one stamp with no mark in the file.** His bears his own
-initials, written once at character creation beside the line that teaches the
-Depot turret his face (`db/lib/merchantSeal.js`). `db:sync-tags` leaves both
-`sealMark` and `description` alone for any stamp that names an office but
-carries no authored mark, so a re-sync cannot rub it back off.
+A seal is anything `paper.js#isSeal` says is one: a row with a mark and no
+`paperKind`. So a ring and a forged seal both reach the Seal verb with no code
+of their own, and `sealLabel` reads `sealOffice` first.
 
 **One seal comes off no stamp at all.** `paperMint.js#sealWithMark` takes the
 label and mark as plain text, and `sealPaper` is now a wrapper that reads them
@@ -297,7 +289,7 @@ included, cannot tell the two apart.
 — a letter somebody is carrying seals in their hands with no second row to
 reconcile. The name it takes leads with the writer's title, if there is one,
 and trails the wax — §4 for why, and for the one moment a sealer may supply
-that title themselves. The stamp is **not** consumed.
+that title themselves. The ring or seal is **not** consumed.
 
 **Breaking a seal is Consume**, and takes its own road out of
 `consumeTagRequest`: the ordinary path reads `consumesInto`, which names
@@ -427,8 +419,9 @@ doing. The `noticeboard` pass in `db/index.js` deletes the `NoticePost` and the
 
 Wanted and Debtor notices ride this same machinery rather than a bespoke one —
 `db/lib/wantedPoster.js` mints them through `paperMint.js` and pins one copy
-on a board (the Square for Wanted, the Depot's board for Debtor) with
-two more loose sheets scattered in nearby rooms, on a 30-turn clock.
+on a board (the Square for Wanted, the Depot's board for a debt to the
+Merchant) with two more loose sheets scattered in nearby rooms, on a 30-turn
+clock. A debt to the Exactor is the two loose sheets in the Den and no pin.
 
 That machinery is a **character-creation** thing only. The Censor's and the
 Sheriff's Arrest Warrant button (`REQUESTS.md` §5g) grants the Wanted tag and
@@ -442,48 +435,20 @@ the point of it.
 `db/lib/reading.js` (the gate), `db/lib/paper.js` (names, descriptions, the
 per-viewer composition), `db/lib/paperMint.js` (the four writes),
 `db/lib/noticeboard.js` (board copy, the attribute, and `destroyNotice`),
-`db/lib/merchantSeal.js` (his initials),
+`db/lib/rings.js` + `db/lib/ringMint.js` (the rings that seal, and the forged seal),
 `web/app/(app)/character/paperActions.js` (Write and Seal),
 `bot/src/lib/noticeboardPanel.js` (the board, players' and GMs' alike),
 `web/app/(app)/chat/GmNoticeboardDialog.js` (the GM's board on the web),
 `bot/src/lib/birdReply.js` (the answer),
 `db/lib/customText.js` (what an authored title may contain),
-`docs/tags.yaml` + `docs/zones.yaml` (the catalog and where the stamps start).
+`docs/tags.yaml` + `docs/roles.yaml` (the catalog, and each office's mark on its ring).
 
 ## 9. What this does not do
 
-- **Forgery is HALF implemented.** The `forgery` tag — **Forgery**, an
-  ordinary `catalog: all` skill anyone may buy since 2026-09-20, when the
-  Brigand group was deleted — is a real recipe skill, and it reaches **every
-  stamp in the game** — the six courtier wax seals *and* all eight office
-  stamps, the Baron's included — each `craftable` at 1 turn and 2 ⬢. So a
-  forger can make a Fleur-de-Lis, or the Bishop's own mark, and seal a letter
-  with it.
-
-  The two sets throttle differently, on purpose. The six courtier seals are
-  `exclusive: true`, so a forger holds one at a time and has to hand each off
-  before making the next. The eight office stamps are not, because a stamp is
-  an object attached to a seat rather than a signature you chose — holding the
-  Bishop's and the Censor's at once is a situation the game wants. Note that
-  `exclusive` now bites on the craft route where it used to be inert on these:
-  `craftRequest` calls `exclusiveConflict`, and before they were craftable
-  there was no path it could apply to.
-
-  Nothing was opened up besides crafting: the office stamps stay
-  `purchasable: false`, so the only two routes to the Baron's stamp are taking
-  it off the Baron and forging one.
-
-  **The recipe is no longer hidden, and that is a live question.** It used to
-  be: `web/app/(app)/character/page.js` strips a recipe gated on a hidden
-  trade, and `forgery` being `catalog: gm` was what made the trade hidden. Now
-  that anyone may buy Forgery the skill reads `catalogVisibility: ALL`, so the
-  stripping no longer fires and a "Recipe: Forgery · 1 turn · 2 ⬢" line prints
-  on the Baron's stamp for everybody — telling the whole game that stamps get
-  forged, which used to be the one thing a forger was paying for. Opening the
-  skill and hiding its recipe are two different wants, and the current
-  mechanism only has one switch for both. If the secret matters more than the
-  open door, the fix is a per-recipe hide that does not key off the skill's
-  catalog.
+- **Forgery is HALF implemented.** The `forgery` tag is a real recipe skill:
+  its one craft is the Forged Wax Seal (§5), a wax stamp pressed from an
+  office's signet ring the forger is holding. So the way to the Baron's seal is
+  to get the Baron's ring into your hands, long enough to press it.
 
   What is still NOT implemented is forging the **handwriting**: a letter's
   `paperAuthor` is always the writer's presented name, and nothing lets a

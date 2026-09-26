@@ -17,11 +17,13 @@ import { dynastyLastName, propagateDynastyLastName } from "@/lib/dynasty";
 import { isSuperadmin } from "@/lib/superadmin";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
-import { setMerchantSeal } from "@lifeweb/db/lib/merchantSeal";
+import { mintSpawnRing } from "@lifeweb/db/lib/ringMint";
+import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { seedMemories } from "@lifeweb/db/lib/locationVisits";
 import { seedAcquaintances } from "@lifeweb/db/lib/acquaintances";
 import { issueSlaveContract } from "@lifeweb/db/lib/slaveContract";
+import { stampBlankCollars, COLLAR_LOCKED_SLUG } from "@lifeweb/db/lib/collar";
 import { startingMemorySlugs } from "@lifeweb/db/lib/startingMemories";
 import {
   isWanted,
@@ -417,7 +419,7 @@ export async function createCharacter(formData) {
         update: { antagonistOptIns },
       });
 
-      // The Merchant advanced him half; the paper says the rest (db/lib/wantedPoster.js#DEBTOR_STARTING_OBOLS).
+      // The Merchant (or the Exactor) advanced him half; the paper says the rest (db/lib/wantedPoster.js#DEBTOR_STARTING_OBOLS).
       if (isDebtor(heldSlugs)) {
         const obolTag = await tx.tag.findUnique({
           where: { slug: OBOL_SLUG },
@@ -470,9 +472,9 @@ export async function createCharacter(formData) {
       openTurn,
     ).catch((err) => console.error("postWantedPosters failed:", err));
   }
-  // Same shape for Debtor, three sheets in the Merchant's rooms instead.
+  // Same shape for Debtor, in the Merchant's rooms or the Exactor's Den by which Debtor tag it is.
   if (isDebtor(heldSlugs)) {
-    await postDebtorNotices(prisma, { ...created, zoneName: role.startingLocation?.zone?.name ?? null }, openTurn)
+    await postDebtorNotices(prisma, { ...created, zoneName: role.startingLocation?.zone?.name ?? null }, openTurn, heldSlugs)
       .catch((err) => console.error("postDebtorNotices failed:", err));
   }
   // The Slave's papers (db/lib/slaveContract.js). Keyed on the ROLE, not a tag:
@@ -482,6 +484,14 @@ export async function createCharacter(formData) {
   if (role.slug === "slave") {
     await issueSlaveContract(prisma, created)
       .catch((err) => console.error("issueSlaveContract failed:", err));
+  }
+  // A collar that starts round somebody's neck gets its glyph now, so the
+  // wearer can read it off their own sheet from turn one (COLLAR.md §2). Keyed
+  // on the TAG, not the role, for the reason the contract above gives in
+  // reverse. Best-effort: the Exactor's remote marks anything this missed.
+  if (heldSlugs.includes(COLLAR_LOCKED_SLUG)) {
+    await stampBlankCollars(prisma, { id: created.id })
+      .catch((err) => console.error("stampBlankCollars failed:", err));
   }
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   // UNCONDITIONAL, and it must stay that way. The old line was `if (cursed)`, back when one
@@ -503,14 +513,19 @@ export async function createCharacter(formData) {
   //
   // Best-effort, in the side-effect block rather than the create transaction:
   // a character with no account can open one at the counter in one click, and
-  // failing a whole character creation over a bank is the wrong trade. The
-  // credit is inside the same try, so a failed open never leaves a balance
-  // with no account under it.
+  // failing a whole character creation over a bank is the wrong trade. The open
+  // and the credit share a small transaction of their own, so a failed credit
+  // takes the account with it, and the CHARACTER_START ledger row lands with
+  // the balance it records (docs/systemdocs/ECONOMY.md §3).
   if (role.bankAccountClass) {
-    await openAccount(prisma, created, { accountClass: role.bankAccountClass, turnNumber: openTurn?.number ?? null })
-      .then(async (account) => {
+    await prisma
+      .$transaction(async (tx) => {
+        const account = await openAccount(tx, created, {
+          accountClass: role.bankAccountClass,
+          turnNumber: openTurn?.number ?? null,
+        });
         if (!account || !(role.startingAccountObols > 0)) return;
-        await bumpBankAccount(prisma, account.id, role.startingAccountObols, {
+        await bumpBankAccount(tx, account.id, role.startingAccountObols, {
           holderName: account.holderName,
           econ: { reason: "CHARACTER_START", ...turnStamp(openTurn) },
         });
@@ -518,12 +533,22 @@ export async function createCharacter(formData) {
       .catch((err) => console.error("Opening a bank account failed:", err));
   }
 
+  // The seat's signet ring (docs/systemdocs/RINGS.md): engraved with their
+  // initials, on their finger, registered to the seat's doors and linked to the
+  // account opened just above. After that account, so the ring links to it
+  // rather than opening a second. Its doors are new entitlements the placement
+  // sync above could not see, so room access is recomputed once it is on.
+  // Best-effort like the account — a ringless character is a GM fix, not a
+  // failed creation.
+  await mintSpawnRing(prisma, created, role, { turnNumber: openTurn?.number ?? null })
+    .then((ring) => (ring ? syncCharacterRoomAccess(prisma, created) : null))
+    .catch((err) => console.error("Minting the seat's ring failed:", err));
+
   // The Depot's turret spares exactly one face — he knows his own name here.
   // Set once and never resynced: concealing himself later still gets him
   // shot, which is the design (DEPOT.md §0f).
   if (isMerchantRole(role.slug)) {
     await setMerchantFace(prisma, created.name).catch(() => {});
-    await setMerchantSeal(prisma, created.name).catch(() => {}); // his wax stamp bears his own initials too — see db/lib/merchantSeal.js
   }
 
   // A new Baron renames every living family member. Best-effort — must not cost this create.

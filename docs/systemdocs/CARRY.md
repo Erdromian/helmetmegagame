@@ -180,7 +180,7 @@ different ways:
 
 ### What Overburdened costs
 
-Being over the cap **zeroes your free zone moves** (§2a). It is no longer a
+Being over the cap **zeroes your free travel** (§2a). It is no longer a
 refusal: an overloaded character can still cross into another zone, they just
 pay their Move to do it, and cannot then act. Only the mover is affected — the
 dragged are corpses and the helpless. Escorting is not gated at all: a party
@@ -190,17 +190,23 @@ The tag itself (`docs/tags.yaml`, `OVERBURDENED_SLUG` in
 `db/lib/constants.js`) is granted the moment you are over either cap and
 cleared the moment you are back under, never by a player and never on a clock.
 
-## 2a. The free zone move
+## 2a. Free travel
 
 Crossing a zone used to always spend your Move, with a mount buying one extra
 crossing per *day*. Now:
 
-- Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
-- An **equipped** mount adds one, and it refreshes every turn — an arelitz
-  carries you once per turn, which on a short turn length is several times a
-  day. It is **spent first**: the mount's crossing
-  goes before the base one and stays charged to the mount, so parking the
-  arelitz at an indoors door later in the turn cannot take back a crossing you
+- Everyone gets `GameConfig.freeZoneMovesPerTurn` travel a turn, default 1.
+- A crossing **between the town zones** — Town, Fortress, Undertown — costs
+  **½** of it; **any other crossing** costs **1** (`db/lib/crossingCost.js`).
+  The allowance and both counters are Float columns, since halves add up
+  exactly in a double.
+  A hop inside a zone still costs nothing.
+- An **equipped** mount adds a far crossing's worth (1 travel), and it
+  refreshes every turn — an arelitz carries you out to the hills once per
+  turn, or across the town twice, which on a short turn length is several
+  times a day. It is **spent first**: the mount's travel
+  goes before the base pool and stays charged to the mount, so parking the
+  arelitz at an indoors door later in the turn cannot take back travel you
   never spent. **Only while your escort party fits its
   seats**: go over `fastTravelCapacity` and the mount buys nothing this
   crossing (`MAP.md` §3a). On foot there are no seats and nothing to lose, so
@@ -212,8 +218,9 @@ crossing per *day*. Now:
   A mount cancels it outright — the arelitz or the bike does the walking —
   and it's the free crossing that's gone, not the ability to cross: pay the
   Move, or have someone Escort you.
-- Past the allowance, a crossing files the `MOVE` Action as it always did.
-  Once you have acted, you cannot cross.
+- A crossing you cannot afford in full files the `MOVE` Action as it always
+  did, and whatever travel was short of it stays for a cheaper hop. Once you
+  have acted, you cannot cross.
 - Or **push on**, once the Move is spent too: one more crossing a turn on foot
   on a d6 — 1 Sprained Ankle, 2–3 Exhausted, 4–5 Tired, 6 Winded
   (`MAP.md` §3). Once a turn, never while riding, lamed, bleeding out,
@@ -224,12 +231,13 @@ crossing per *day*. Now:
   lands next turn (`MAP.md` §3) — the Move goes now, the traveller stands still
   until the turn turns.
 
-So a peasant walks Town → Black Hills for nothing, spends their Move to reach
-the Fortress, and the way back waits for the next turn. That is the whole
+So a peasant walks Town → Black Hills for nothing, spends their Move to come
+back, and the next crossing waits for the next turn — or walks Town →
+Fortress → Undertown for nothing and still has the Move. That is the whole
 model.
 
 `Character.zoneMovesTurnId` + `zoneMovesUsed` track it, and
-`zoneMovesBonusUsed` counts how many of those crossings went on a mount's extra
+`zoneMovesBonusUsed` counts how much of that travel went on a mount's extra
 rather than the base allowance. All three are claimed by a
 conditional `updateMany` whose WHERE is the check, so two tabs cannot both
 spend the last one. A differing turn id resets the counter in the same
@@ -238,13 +246,12 @@ statement, so nothing ever sweeps the field. `freeZoneMoves()` and
 number and Discord's Travel confirm says what the hop will cost before you take
 it.
 
-The count does **not** depend on where you are going. It did once: the boat's
-bonus was earned per crossing and only on the water, so `freeMovesLeft()` and
-`freeZoneMoves()` both took a `{ fromZoneSlug, toZoneSlug }` crossing and every
-surface had to pass the real one per node. The boat is gone and the argument
-went with it — a mount's extra is bought once a turn and spends the same
-wherever you point it, so one number is now honest for the whole list of
-destinations.
+The count does **not** depend on where you are going; the **cost** does.
+`freeMovesLeft()` and `freeZoneMoves()` answer one number for the whole list
+of destinations, and each destination row carries its own `cost` from
+`db/lib/locationGraph.js`, so a surface asks "is `freeLeft` at least `cost`"
+per node (`web/lib/travelCost.js#affordsCrossing`). The boat's per-crossing
+bonus, which once made the count itself depend on the crossing, is gone.
 
 What the number *does* still turn on is **who is coming with you**, which is
 why the last argument is `partySize`: over the seats and `fitsMount()` zeroes
@@ -670,6 +677,15 @@ ephemeral, to anyone standing in the room's Location, in Bascinet's format:
 Reading is free; moving things is the web's Transfer. A Discord select menu
 caps at 25 options, which is why there is no native deposit/withdraw flow.
 
+**`/storage` reads every stash at once** (`handleStorageCommand`, same file):
+one block per Room the character can see where they stand — public Rooms, and
+private ones their keys, a guest row or a quest open — in the same format,
+closing on a line that says moving things is Transfer, on the web. It works
+from a DM, which is the point: the button is on each Room's first post, and on
+a phone finding the thread and scrolling to its top is most of the effort.
+Both the button and the command are open out of session, since reading is not
+an act (`SESSIONS.md` §5).
+
 **Taking things out of a stash is From: the room, To: yourself.** You are in
 your own "To" list — that is the whole of looting a room, and the dialog left
 it out for a while, which made every stash in the game a one-way drop.
@@ -691,7 +707,7 @@ it out for a while, which made every stash in the game a one-way drop.
 | Undo, party-shaped moves | `web/lib/tagEffects.js#takeTagFrom` / `giveTagTo` |
 | Dialog, grid, readout | `components/actions/MoveThingsDialog.js`, `StackRow.js`, `ActionGrid.js`, `LedgerBand.js` |
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
-| Free zone moves, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
+| Free travel, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
 | Mounts: what counts while equipped | `db/lib/mounts.js` |
 | Parking at an indoors door | `db/lib/indoors.js`, `db/lib/locationMove.js` |
 | Storage button | `db/lib/roomStarterRow.js`, `db/lib/syncZones.js`, `bot/src/lib/roomStorage.js` |

@@ -3,17 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { STOWABLE_SLUGS, FAST_TRAVEL_SLUGS } from "@lifeweb/db/lib/mounts";
-import { MOTION_SICKNESS_SLUG } from "@lifeweb/db/lib/constants";
-import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
-import { HANDS_TAG_FIELDS, findEquipProblem, handsFor, isLockedOn } from "@lifeweb/db/lib/equipSlots";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
+import { equipOneTag, unequipOneTag } from "@lifeweb/db/lib/verbs/self";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
-import { equipSfx } from "@lifeweb/db/lib/equipSlots";
-
-// A refusal a human caused (no free slots, a clash), thrown inside the transaction to roll the write back and caught outside it for the player-facing sentence. Never crosses that boundary.
-class EquipRefusalError extends Error {}
 
 // Equipping writes no Request/AuditLog — costs nothing, undoable in one tap, and a row per toggle at 100+ players would drown /gm/audit (contrast TRANSFER_RESOURCES, REQUESTS.md). A slot holds one physical item: CharacterTag.equippedQuantity counts a stack's units out, each its own slot; equipOne/unequipOne move one at a time (db/lib/tagOps.js is the one bulk path, for the Dev Panel).
 
@@ -40,107 +33,31 @@ async function resolveActor() {
 }
 
 // Pulls one more unit out of a held stack and gives it its own slot. Equipping all 5 of a stack of 5 swords is five of these, not one call that equips the whole stack.
+// The rule is db/lib/verbs/self.js#equipOneTag, shared with Discord's /item equip.
 export async function equipOne(characterTagId) {
   const actor = await resolveActor();
   if (actor.error) return actor;
-  const { character } = actor;
-
-  const held = await prisma.characterTag.findFirst({
-    where: { id: characterTagId ?? "", characterId: character.id },
-    select: {
-      id: true,
-      quantity: true,
-      equippedQuantity: true,
-      tag: { select: { equippable: true, name: true, slug: true, equipSlot: true, fighting: true } },
-    },
-  });
-  if (!held) return { error: "You aren't holding that." };
-  if (!held.tag.equippable) return { error: `${held.tag.name} isn't something you can equip.` };
-  if (held.equippedQuantity >= held.quantity) {
-    return { error: `You don't have another ${held.tag.name} to equip.` };
-  }
-
-  // The gates below only fire on the FIRST unit out — none of these slugs is stackable.
-  const firstUnitOut = held.equippedQuantity === 0;
-
-  // A cart doesn't come into an indoors Location underground (CARRY.md §3) —
-  // a surface chapel no longer parks it, only the Caves and the Depths do —
-  // `parksMounts`, not `indoors`. Gates equip only; incapacitation above runs
-  // both ways.
-  if (firstUnitOut && STOWABLE_SLUGS.has(held.tag.slug) && parksMounts(character.location)) {
-    return { error: `You can't set up ${held.tag.name} inside ${character.location.name}.` };
-  }
-
-  // Motion Sickness: gated here only, on equipping yourself. A dragged passenger with no mount of their own is db/lib/locationTravel.js's job.
-  if (
-    firstUnitOut &&
-    FAST_TRAVEL_SLUGS.has(held.tag.slug) &&
-    character.tags.some((ct) => ct.tag.slug === MOTION_SICKNESS_SLUG)
-  ) {
-    return { error: `Your stomach won't have it — you can't ride ${held.tag.name}.` };
-  }
-
-  // Counting inside the transaction alone isn't enough: Prisma runs at READ COMMITTED, so two tabs could both read the same worn set and both write. The Character row lock serializes every equip for this character.
-  try {
-    await prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`SELECT id FROM "Character" WHERE id = ${character.id} FOR UPDATE`;
-      await tx.characterTag.update({
-        where: { id: held.id },
-        data: { equippedQuantity: { increment: 1 }, equipped: true },
-      });
-
-      const worn = await tx.characterTag.findMany({
-        where: { characterId: character.id, equippedQuantity: { gt: 0 } },
-        select: {
-          equippedQuantity: true,
-          tag: { select: { name: true, slug: true, equipSlot: true, equipLayer: true, twoHanded: true } },
-        },
-      });
-      // The player's own toggle REFUSES rather than sheds — only an involuntary change sheds (db/lib/tagOps.js). Hands come from everything HELD (a maiming is never equipped); named `holdings` because `held` shadows the row bound above.
-      const holdings = await tx.characterTag.findMany({
-        where: { characterId: character.id, quantity: { gt: 0 } },
-        select: { tag: { select: HANDS_TAG_FIELDS } },
-      });
-      const problem = findEquipProblem(worn, handsFor(holdings));
-      if (problem) throw new EquipRefusalError(problem);
-    });
-  } catch (err) {
-    if (err instanceof EquipRefusalError) return { error: err.message };
-    throw err;
-  }
-
+  const result = await equipOneTag(prisma, { character: actor.character, characterTagId });
+  if (!result.ok) return { error: result.error };
   // Equipping a Cart raises the cap, which can clear Overburdened.
-  await afterInventoryChange([character.id]);
+  await afterInventoryChange(result.touched);
   revalidatePath("/character");
   // The wearer hears it go on — cloth rustles, a buckle clicks (db/lib/equipSlots.js#equipSfx).
   // Taking something off says nothing: the room is quiet when you put a helmet down.
-  return { equipped: true, sfx: equipSfx(held.tag) };
+  return { equipped: true, sfx: result.sfx };
 }
 
 // Puts one unit back — the last one out also clears `equipped`.
+// The rule is db/lib/verbs/self.js#unequipOneTag, shared with Discord's /item unequip.
 export async function unequipOne(characterTagId) {
   const actor = await resolveActor();
   if (actor.error) return actor;
-  const { character } = actor;
-
-  const held = await prisma.characterTag.findFirst({
-    where: { id: characterTagId ?? "", characterId: character.id },
-    select: { id: true, equippedQuantity: true, tag: { select: { name: true, slug: true } } },
-  });
-  if (!held) return { error: "You aren't holding that." };
-  if (held.equippedQuantity <= 0) return { error: `${held.tag.name} isn't equipped.` };
-  // The bomb collar: on by somebody else's hand, off by a key (COLLAR.md).
-  if (isLockedOn(held.tag)) return { error: `${held.tag.name} is locked on. It needs a key.` };
-
-  const equippedQuantity = held.equippedQuantity - 1;
-  await prisma.characterTag.update({
-    where: { id: held.id },
-    data: { equippedQuantity, equipped: equippedQuantity > 0 },
-  });
+  const result = await unequipOneTag(prisma, { character: actor.character, characterTagId });
+  if (!result.ok) return { error: result.error };
   // Unequipping a Cart shrinks the carry cap; Overburdened goes on but nothing is dropped for a shrink (CARRY.md §1).
-  await afterInventoryChange([character.id]);
+  await afterInventoryChange(result.touched);
   revalidatePath("/character");
-  return { equipped: equippedQuantity > 0 };
+  return { equipped: result.equipped };
 }
 
 // Take from a room stash and put it on in one gesture (EquipBoard.js). TWO ACTS, deliberately not merged: the take goes through the ordinary transferRequest (re-resolves actor, re-checks reach) so it costs what reaching in from the dialog costs. If the wear half refuses, THE TAKE STILL STANDS — it's in your pack rather than an unwound transfer.

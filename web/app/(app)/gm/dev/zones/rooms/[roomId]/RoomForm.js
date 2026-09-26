@@ -80,8 +80,15 @@ export default function RoomForm({ room }) {
         </label>
         <label className="check-row">
           <input type="checkbox" name="payphone" defaultChecked={room.payphone} />
-          <span>Payphone (takes an obol, never appears on a dial list)</span>
+          <span>Payphone (takes an obol to dial or answer)</span>
         </label>
+        {/* Read-only: rolled at Start Game, never authored (PHONES.md §2), so a
+            GM can answer "whose is 7252?" without anybody being able to set one. */}
+        {room.phone ? (
+          <p className="text-sm text-muted">
+            Number this game: <span className="mono">{room.phoneNumber ?? "given the first time it is picked up"}</span>
+          </p>
+        ) : null}
         <label className="check-row">
           <input type="checkbox" name="vendingMachine" defaultChecked={room.vendingMachine} />
           <span>Vending machine (the Merchant stocks it and sets the prices)</span>

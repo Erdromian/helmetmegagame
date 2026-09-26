@@ -30,10 +30,13 @@ test("exertedThisTurn: the base pool over the base allowance, and nothing else",
   assert.equal(exertedThisTurn({ ...withTags(), ...counters(1) }, config, turn), false);
   // One over the allowance: yes.
   assert.equal(exertedThisTurn({ ...withTags(), ...counters(2) }, config, turn), true);
-  // A mount's crossing was charged to the bonus pool, then the land crossing
-  // to the base: still no. Then a push on: yes.
+  // A mount's far crossing (1) was charged to the bonus pool, then the land
+  // crossing to the base: still no. Then a push on: yes.
   assert.equal(exertedThisTurn({ ...withTags("arelitz"), ...counters(2, 1) }, config, turn), false);
   assert.equal(exertedThisTurn({ ...withTags("arelitz"), ...counters(3, 1) }, config, turn), true);
+  // Two town hops (½ each) fill the base exactly: no. A push on past it: yes.
+  assert.equal(exertedThisTurn({ ...withTags(), ...counters(1) }, config, turn), false);
+  assert.equal(exertedThisTurn({ ...withTags(), ...counters(1.5) }, config, turn), true);
   // No open turn: never.
   assert.equal(exertedThisTurn({ ...withTags(), ...counters(2) }, config, null), false);
 });
@@ -47,7 +50,11 @@ test("exertRefusal: the reasons, in the order a player can read them off their s
   // Top of the ladder: nothing left to lose but the ankle, so no free gamble.
   assert.match(exertRefusal({ ...withTags("exhausted"), ...spent }, config, turn, { left: 0, acted: true }), /Exhausted/);
   assert.match(exertRefusal({ ...withTags("overburdened"), ...spent }, config, turn, { left: 0, acted: true }), /overburdened, drop some weight/);
-  assert.match(exertRefusal({ ...withTags(), ...counters(0) }, config, turn, { left: 1, acted: true }), /still have a free crossing/);
+  assert.match(exertRefusal({ ...withTags(), ...counters(0) }, config, turn, { left: 1, acted: true }), /still have the travel/);
+  // ½ travel left crosses the town but not out of it: the push on is only
+  // refused for the crossing it could still pay for.
+  assert.match(exertRefusal({ ...withTags(), ...counters(0.5) }, config, turn, { left: 0.5, cost: 0.5, acted: true }), /still have the travel/);
+  assert.equal(exertRefusal({ ...withTags(), ...counters(0.5) }, config, turn, { left: 0.5, cost: 1, acted: true }), null);
   // The gamble is for going the distance: the Move has to be gone first.
   assert.match(exertRefusal({ ...withTags(), ...spent }, config, turn, { left: 0 }), /haven't spent your Move/);
   assert.match(exertRefusal({ ...withTags(), ...counters(2) }, config, turn, { left: 0, acted: true }), /already pushed on/);

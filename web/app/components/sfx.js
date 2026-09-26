@@ -1,6 +1,6 @@
 "use client";
 
-import { soundSetting } from "./soundStore";
+import { onSoundChange, soundSetting } from "./soundStore";
 
 // The whole of sound in Bascinet. Three callers, and only three:
 //
@@ -114,9 +114,13 @@ const CUES = {
   "console-refuse": "console_error",
   "rite-loop": "loop_altar",
 
-  // The telephone. Five of the six are the library's own phone sounds; the
-  // hang-up is the UI click, because OpenSourceWeb never recorded a cradle.
+  // The telephone. The library's own phone sounds, plus two borrowed: the
+  // cradle is the UI click, because OpenSourceWeb never recorded one, and a
+  // number that goes nowhere is the terminal's warble. `phone-ring-far` is the
+  // same bell as `phone-ring`, one Location away and much quieter.
   "phone-ring": "phone_ring",
+  "phone-ring-far": "phone_ring",
+  "phone-error": "console_error",
   "phone-calling": "phone_calling",
   "phone-pickup": "phone_pickup",
   "phone-busy": "phone_busy",
@@ -200,6 +204,11 @@ const GAIN = {
   "phone-pickup": 0.16,
   "phone-drop": 0.16,
   "coin-insert": 0.1,
+  // The terminal's warble, at the level console-refuse already measured it at.
+  "phone-error": 0.17,
+  // The bell through a wall: the ring's own gain, 16dB down, so it sits under
+  // the drone rather than over the furniture.
+  "phone-ring-far": 0.063,
 
   // A thing you did.
   success: 0.16,
@@ -293,10 +302,10 @@ let recent = [];
 // site for good. Only being named reaches you when the tab is behind something else —
 // that one is a notification, which is the whole point of it.
 //
-// A ringing phone is the second, on the same argument: it rings four times over a minute
-// and then stops for good, so a tab that stayed quiet through it has cost somebody the
-// call. It is also the one cue a player is MEANT to be interrupted by — the whole point
-// of a phone is that it reaches you when you were doing something else.
+// A ringing phone is the second, on the same argument: a tab that stayed quiet through
+// it has cost somebody the call. It is also the one cue a player is MEANT to be
+// interrupted by — the whole point of a phone is that it reaches you when you were doing
+// something else. The phone's held tones (below) keep to the same rule.
 const THROUGH_A_HIDDEN_TAB = new Set(["named", "phone-ring"]);
 
 // Three elements per cue, cycled. One would cut itself off mid-sound on a quick repeat,
@@ -314,6 +323,8 @@ function arm() {
   armed = true;
   window.removeEventListener("pointerdown", arm);
   window.removeEventListener("keydown", arm);
+  // A phone that started ringing before the first click is still ringing.
+  applyPhoneTones();
 }
 
 if (typeof window !== "undefined") {
@@ -443,6 +454,72 @@ if (typeof document !== "undefined") {
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState !== "visible") stopSfxLoops();
   });
+}
+
+// --- the telephone's held tones --------------------------------------------------------
+//
+// A phone makes three sounds that are STATES rather than events (PHONES.md §8): the bell
+// while it rings, the long tone a caller hears until somebody picks up, and the busy tone
+// of a line the far end hung up on. They are not the drones above, on purpose. A drone
+// belongs to the room being read and any ordinary cue stops it; a ringing phone must keep
+// ringing through the `message` pop of every line said beside it, and through a hidden
+// tab, until the thing it is waiting for happens. So these live on their own map, set as a
+// whole from the feed's `phones` frame (web/lib/phoneFrame.js) and never touched by
+// playSfx, stopSfxLoops or the visibility handler.
+//
+// Two slots, one track each: `ring` is phone-ring or phone-ring-far (the bell here, or one
+// Location over), `handset` is phone-calling or phone-busy (what is at your own ear).
+// null in a slot is silence.
+const tones = new Map();
+let wantedTones = { ring: null, handset: null };
+
+function applyPhoneTones() {
+  if (typeof window === "undefined") return;
+  const { sfx: on, volume } = soundSetting();
+  for (const slot of ["ring", "handset"]) {
+    const cue = armed && on && volume > 0 ? wantedTones[slot] : null;
+    const held = tones.get(slot);
+    if (held && held.cue === cue) {
+      held.track.volume = Math.min(1, Math.max(0, volume * (GAIN[cue] ?? 0.45)));
+      continue;
+    }
+    if (held) {
+      tones.delete(slot);
+      try {
+        held.track.pause();
+        held.track.removeAttribute("src");
+      } catch {
+        // Already off the map; nothing else to do.
+      }
+    }
+    const file = cue ? fileFor(cue) : null;
+    if (!file) continue;
+    try {
+      const track = new window.Audio(src(file));
+      track.loop = true;
+      track.volume = Math.min(1, Math.max(0, volume * (GAIN[cue] ?? 0.45)));
+      tones.set(slot, { cue, track });
+      const started = track.play();
+      if (started && typeof started.catch === "function") started.catch(() => {});
+    } catch {
+      // An element that will not build is not worth an error.
+    }
+  }
+}
+
+/**
+ * Set what the telephone is holding in this tab: `{ ring, handset }`, each a cue name or
+ * null. Idempotent — the same state twice leaves a playing tone where it is rather than
+ * restarting it, so a frame that changes nothing is silent.
+ */
+export function setPhoneTones({ ring = null, handset = null } = {}) {
+  wantedTones = { ring, handset };
+  applyPhoneTones();
+}
+
+if (typeof window !== "undefined") {
+  // The speaker switch and the slider reach a tone that is already playing.
+  onSoundChange(applyPhoneTones);
 }
 
 /** Every cue name, for the settings surface and for tests. */

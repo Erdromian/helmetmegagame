@@ -47,6 +47,7 @@ import {
   applyCollarRequestImpl,
   unlockCollarRequestImpl,
   detonateCollarRequestImpl,
+  readRemoteRequestImpl,
   disguiseSelfRequestImpl,
   harmCharacterRequestImpl,
   brandCharacterRequestImpl,
@@ -209,6 +210,12 @@ export async function unlockCollarRequest(input) {
 }
 export async function detonateCollarRequest(input) {
   return acting(() => detonateCollarRequestImpl(input));
+}
+// A look, so guarded() rather than acting(): the Exactor may read his remote
+// between sittings. The glyph it may stamp on a blank collar is bookkeeping,
+// not an act (db/lib/collar.js#stampBlankCollars).
+export async function readRemoteRequest() {
+  return guarded(() => readRemoteRequestImpl());
 }
 export async function disguiseSelfRequest(input) {
   return acting(() => disguiseSelfRequestImpl(input));

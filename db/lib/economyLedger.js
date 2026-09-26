@@ -1,5 +1,6 @@
 // Written INSIDE the caller's transaction (`tx`, db/lib/dm.js convention) so
-// a row never outlives a rollback. Invariants: `amount` always POSITIVE, from
+// a row never outlives a rollback; handed the root client, it autocommits
+// beside the write it records (see inTransaction). Invariants: `amount` always POSITIVE, from
 // -> to; a ledger failure NEVER fails the money move (SAVEPOINT/ROLLBACK, not
 // try/catch — Postgres aborts on 25P02, JS catch cannot un-abort); a reasonless write is UNATTRIBUTED, never dropped.
 const { DEFAULT_REASON } = require("./economyReasons");
@@ -17,9 +18,14 @@ const BANK_CLEARING = { kind: "bank", id: "clearing", name: "Bank clearing" };
 
 const MAX_INT4 = 2147483647;
 
-// Fences `fn` with a SAVEPOINT so a failure can't poison the caller's transaction; falls back to running `fn` bare when $executeRawUnsafe is unavailable.
+// The root client can open a transaction; a transaction client cannot (Prisma denies it `$transaction`). Handed the root, a hook is in autocommit: the money write it records has already committed, and there is no transaction for a failed insert to poison.
+function inTransaction(tx) {
+  return typeof tx?.$transaction !== "function";
+}
+
+// Fences `fn` with a SAVEPOINT so a failure can't poison the caller's transaction. Runs `fn` bare on the root client, where Postgres refuses a SAVEPOINT outright (25P01) and the row would be lost, or when $executeRawUnsafe is unavailable.
 async function savepointed(tx, fn) {
-  if (typeof tx.$executeRawUnsafe !== "function") return fn();
+  if (!inTransaction(tx) || typeof tx.$executeRawUnsafe !== "function") return fn();
   await tx.$executeRawUnsafe("SAVEPOINT economy_entry");
   try {
     const out = await fn();
@@ -66,15 +72,16 @@ function machineParty(m) {
   return { kind: "machine", id: m.id, name: m.name ?? "The vending machine", zoneId: m.zoneId ?? null };
 }
 
-// One lookup per TRANSACTION, not per row. Pass `ctx.gameId` to skip it. WeakMap-keyed on `tx` so the entry dies with the transaction, not outliving a wipe.
+// One lookup per TRANSACTION, not per row. Pass `ctx.gameId` to skip it. WeakMap-keyed on `tx` so the entry dies with the transaction, not outliving a wipe — which is why the root client is never cached: it lives as long as the process, and would stamp every row after a Restart Game with the old game's id.
 const gameIdByTx = new WeakMap();
 
 async function currentGameId(tx, ctx) {
   if (ctx?.gameId) return ctx.gameId;
-  if (gameIdByTx.has(tx)) return gameIdByTx.get(tx);
+  const cacheable = inTransaction(tx);
+  if (cacheable && gameIdByTx.has(tx)) return gameIdByTx.get(tx);
   const state = await readGameState(tx, { gameId: true });
   const id = state?.gameId ?? null;
-  gameIdByTx.set(tx, id);
+  if (cacheable) gameIdByTx.set(tx, id);
   return id;
 }
 

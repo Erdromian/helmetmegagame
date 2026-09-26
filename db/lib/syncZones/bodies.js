@@ -35,18 +35,34 @@ function buildAnchorBody(location, rooms) {
         .join("\n"),
     );
   }
-  const publicRooms = rooms
-    .filter((r) => r.kind === "PUBLIC" && r.discordThreadId)
-    .sort((a, b) => a.sortOrder - b.sortOrder);
-  parts.push(
-    publicRooms.length > 0
-      ? `**Public Rooms**: ${publicRooms.map((r) => `<#${r.discordThreadId}>`).join(" | ")}`
-      : "**Public Rooms**: none",
-  );
+  const links = publicRoomLinks(rooms);
+  parts.push(`**Public Rooms**: ${links || "none"}`);
   return parts.join("\n");
+}
+
+// "<#t1> | <#t2>" — a Location's public Rooms as thread mentions, in their
+// authored order. Empty when there are none.
+function publicRoomLinks(rooms) {
+  return rooms
+    .filter((r) => r.kind === "PUBLIC" && r.discordThreadId)
+    .sort((a, b) => a.sortOrder - b.sortOrder)
+    .map((r) => `<#${r.discordThreadId}>`)
+    .join(" | ");
+}
+
+// The line under a Discord traveller's "Moved to": the Location's channel and
+// its public Rooms, as links. On a phone, finding a new channel or a thread you
+// haven't joined in the sidebar is the slow part of arriving, and a tap on a
+// mention goes straight there. Null when the Location has no channel.
+function arrivalLinksLine(location, rooms) {
+  if (!location?.discordChannelId) return null;
+  const links = publicRoomLinks(rooms);
+  return `-# <#${location.discordChannelId}>${links ? ` · Rooms: ${links}` : ""}`;
 }
 
 module.exports = {
   buildRoomBody,
   buildAnchorBody,
+  publicRoomLinks,
+  arrivalLinksLine,
 };

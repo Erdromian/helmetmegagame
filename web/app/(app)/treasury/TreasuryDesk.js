@@ -8,6 +8,7 @@ import { FilterBar, TableScroll, SortHeader, useTableState } from "@/app/compone
 import Pager from "@/app/components/Pager";
 import InfoIcon from "@/app/components/InfoIcon";
 import { setSellTaxRate } from "./actions";
+import RegisterRing from "./RegisterRing";
 
 // Three numbers and a table. The one worth reading first is the backing: the
 // Vault's coin against the sum of what the Treasury accounts claim. Under it,
@@ -43,6 +44,8 @@ export default function TreasuryDesk({
   transactions,
   selectedId,
   readOnly,
+  rings = [],
+  seats = [],
 }) {
   const router = useRouter();
   const [refresh] = useRefresh();
@@ -109,6 +112,8 @@ export default function TreasuryDesk({
           </p>
         )}
       </section>
+
+      {!readOnly && <RegisterRing rings={rings} seats={seats} accounts={accounts} />}
 
       <section className="panel p-5">
         <h2 className="panel-header">

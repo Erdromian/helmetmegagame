@@ -71,12 +71,18 @@ General questions can be asked in the `#general` channel or by creating a thread
 | Command | Effect |
 |---|---|
 | `/move` | Open the Move submission form. |
-| `/location` | Open the Travel picker — walk to a connected Location, or cross into another Zone. |
+| `/travel` | Open the Travel picker — walk to a connected Location, or cross into another Zone. `/location` does the same. |
+| `/storage` | See what is stored in the rooms where you are. Works in the bot's DMs too. |
 | `/message` | Speak as your character in the room or thread you're in, without typing in it. |
 | `/roll` | Roll a 1d6 into the channel, for everyone to see. |
 | `/add` | Invite a character into your Conversation. |
 | `/remove` | Remove a character from your Conversation. |
 | `/conceal` | Toggle concealment. While it's on, everything you say posts under a vague alias. |
+| `/actions` | See everything your character can do right now, and do it. The same menu is behind the **Actions** button on every Location and in `#turns`. |
+| `/kiss`, `/search`, `/attack`, `/look`… | Every action on your Character page has a command of its own. Related ones share a command: `/collar apply`, `/paper write`, `/work mine`. A few still send you to the website to finish. |
+| `/mymove` | See the Move you filed this turn, and edit or withdraw it. |
+| `/feedback` | Tell the GMs about something broken, or something that could be better. |
+| `/lobby ready` | Ready up for a seat while the lobby is open. `/lobby unready` takes it back. |
 
 #### **Channels**  
 | Channel | What it's for |
@@ -194,7 +200,7 @@ Each Location's channel has a pinned message at the top with its description, th
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
 | **A Location** (text channel) | The open street. You can see what happens here, but talk belongs in its Rooms — step into one to speak. |
-| **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key. |
+| **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key, or wear the signet ring that opens it. |
 
 The three buttons on the pinned message:
 - **Who's here?** — the characters standing in this Location. Anyone concealed shows up as "a young man" or the like.

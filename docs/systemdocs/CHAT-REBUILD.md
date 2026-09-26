@@ -390,8 +390,8 @@ indicator · disabled states per place kind · Enter-vs-send by pointer type.
 `/play` `/look` `/converse` `/decree` (GM) `/add` `/remove`.
 
 **Player aside** — TravelNodes · RoomPanel (stash) · HereList + per-person
-menu · TurnCard · Waiting on you · PlaceCard (fixtures, Examine,
-Depot/Factory/Map) · PartyRack · ThingsDrawer. The You frame (mood, resources,
+menu · TurnCard · Waiting on you · ThingsDrawer (framed, open by default) ·
+PlaceCard (fixtures, Examine, Depot/Factory/Map) · PartyRack. The You frame (mood, resources,
 purse, carry, StatusStrip) moved to the places column's foot; DesiresBlock and
 the Sheet link were removed. Both by Chat Overhaul.docx (CHAT.md §0), which
 outranks this doc's "nothing is dropped".

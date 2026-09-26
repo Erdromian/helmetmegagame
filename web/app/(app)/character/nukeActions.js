@@ -6,18 +6,12 @@ import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { acting, guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
-import { logAudit } from "@/lib/requests";
-import {
-  DEVICE_SLUG,
-  DATACARD_SLUG,
-  NUKE_FUSE_TURNS,
-  pointerReading,
-  pointerLine,
-} from "@lifeweb/db/lib/nuke";
+import { readDatacard, armNuke as armNukeVerb, disarmNuke as disarmNukeVerb } from "@lifeweb/db/lib/verbs/roles";
 import { sendDm } from "@/lib/discordGuild";
 import { SFX } from "@lifeweb/db/lib/sfx";
 
-// The Nuclear Datacard's three buttons.
+// The Nuclear Datacard's three buttons. The rules are
+// db/lib/verbs/roles.js's, shared with Discord's /nuke pointer|arm|disarm.
 //
 // Use Pointer files no Request — the third control on the grid that doesn't
 // (Examine and Read are the others), for the same reason: it moves nothing,
@@ -45,119 +39,43 @@ async function holder() {
     },
   });
   if (!me) redirect("/character");
-  const slugs = new Set(me.tags.map((ct) => ct.tag.slug));
-  return { session, me, slugs };
-}
-
-function requireCard(slugs) {
-  if (!slugs.has(DATACARD_SLUG)) throw new UserError("You aren't carrying the datacard.");
-}
-
-// Both halves, for Arm and Disarm. You cannot work the device you are not
-// holding, which is what the greyed button already says.
-function requireBoth(slugs) {
-  requireCard(slugs);
-  if (!slugs.has(DEVICE_SLUG)) throw new UserError("The device isn't here in your hands.");
+  return { session, me };
 }
 
 async function readPointerImpl() {
-  const { me, slugs } = await holder();
-  requireCard(slugs);
-
-  const reading = await pointerReading(prisma, me.locationId);
-  const line = pointerLine(reading);
-
+  const { me } = await holder();
+  const result = await readDatacard(prisma, { character: me });
+  if (!result.ok) throw new UserError(result.error);
   // The answer arrives as a DM rather than on the page, so a player reading
   // the card in a room full of people gives nothing away by doing it.
-  await sendDm(me.discordUserId, line, { source: "player_event" }).catch((err) =>
+  await sendDm(me.discordUserId, result.line, { source: "player_event" }).catch((err) =>
     console.error(`Datacard pointer DM to ${me.name} failed:`, err),
   );
-  return { line, here: Boolean(reading.here), sfx: SFX.NUKE_PING };
+  return { line: result.line, here: result.here, sfx: SFX.NUKE_PING };
 }
 
 async function armNukeImpl() {
-  const { session, me, slugs } = await holder();
-  requireBoth(slugs);
-
-  const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open.");
-
-  // The detonation stamp comes off the current Game, not GameState: the
-  // GameState copy survived its own game, so a new game's device refused to
-  // arm on the grounds that the LAST world had already ended.
-  const state = await prisma.gameState.findUnique({
-    where: { id: 1 },
-    include: { game: { select: { nukeDetonatedTurn: true } } },
+  const { session, me } = await holder();
+  const result = await armNukeVerb(prisma, {
+    character: me,
+    discordUserId: session.discordUserId,
+    openTurn: await getOpenTurn(),
   });
-  if (state?.game?.nukeDetonatedTurn != null) throw new UserError("It's already gone off.");
-  if (state?.nukeArmedTurn != null) throw new UserError("It's already counting down.");
-
-  // The absolute turn it fires on. Two turns, counted the way every other
-  // duration in the game counts: armed while turn T is open, it goes at the
-  // close of T+1.
-  const firesOn = openTurn.number + NUKE_FUSE_TURNS - 1;
-  // gameId, because a restart wipes the audit log and a turn number alone
-  // cannot say which game an arming belonged to. On 2026-09-09 a one-turn-old
-  // game detonated with nothing in the trail saying it had ever been armed.
-  const effect = {
-    firesOn,
-    armedOnTurn: openTurn.number,
-    gameId: state?.gameId ?? null,
-    locationId: me.locationId,
-  };
-
-  await prisma.$transaction(async (tx) => {
-    await tx.gameState.update({ where: { id: 1 }, data: { nukeArmedTurn: firesOn } });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_arm_nuke",
-      targetCharacterId: me.id,
-      details: effect,
-    });
-  });
-
+  if (!result.ok) throw new UserError(result.error);
   revalidatePath("/character");
-  return {
-    firesOn,
-    line: `The card is in and the count has begun. It goes off at the close of turn ${firesOn}.`,
-    sfx: SFX.NUKE_ARM,
-  };
+  return { firesOn: result.firesOn, line: result.line, sfx: SFX.NUKE_ARM };
 }
 
 async function disarmNukeImpl() {
-  const { session, me, slugs } = await holder();
-  requireBoth(slugs);
-
-  const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open.");
-
-  const state = await prisma.gameState.findUnique({
-    where: { id: 1 },
-    include: { game: { select: { nukeDetonatedTurn: true } } },
+  const { session, me } = await holder();
+  const result = await disarmNukeVerb(prisma, {
+    character: me,
+    discordUserId: session.discordUserId,
+    openTurn: await getOpenTurn(),
   });
-  if (state?.game?.nukeDetonatedTurn != null) throw new UserError("It's already gone off.");
-  if (state?.nukeArmedTurn == null) throw new UserError("It isn't armed.");
-
-  // Snapshotted so an Undo can put the countdown back exactly where it was
-  // rather than guessing at it.
-  const effect = {
-    wasFiringOn: state.nukeArmedTurn,
-    disarmedOnTurn: openTurn.number,
-    gameId: state?.gameId ?? null,
-  };
-
-  await prisma.$transaction(async (tx) => {
-    await tx.gameState.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_disarm_nuke",
-      targetCharacterId: me.id,
-      details: effect,
-    });
-  });
-
+  if (!result.ok) throw new UserError(result.error);
   revalidatePath("/character");
-  return { disarmed: true, line: "The card is out. The count is stopped.", sfx: SFX.OK_QUIET };
+  return { disarmed: true, line: result.line, sfx: SFX.OK_QUIET };
 }
 
 // NOT named usePointer: ESLint's rules-of-hooks reads any exported
