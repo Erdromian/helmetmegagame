@@ -456,9 +456,18 @@ of the cap, shared by the picker, the server action, and the GM panel:
 | `multiple: false` | `isUnique` | exactly 1, at any game size |
 | `weight: unlimited` | `unlimited` | uncapped (`Infinity`) |
 | `weight: N` | `weight` | `max(1, round(N * playerCount / 100))` |
+| `weight: N`, `base_seats: B` | `weight`, `baseSeats` | `max(1, round(B + N * playerCount / 100))` |
 
-`weight` reads as *seats per 100 players*, so `GameConfig.playerCount` is the
-live dial: set it to 120 on `/gm/dev` and every weighted role widens by 1.2×.
+`weight` reads as *seats per 100 players*. `playerCount` is the number Start
+Game stamps on `GameState.playerCount` — the readied count plus 9%
+(`LOBBY.md` §3). Before Start, the `GameConfig.playerCount` knob on `/gm/dev`
+stands in; after it, the knob changes nothing (`effectivePlayerCount`).
+
+`base_seats` is for a role that should be roomier in a small game without
+growing in a large one. Courtier and Cerberus are `weight: 5, base_seats: 1`:
+2 seats at 20 players, 3 at 40, 4 at 60, 6 at 100 and 9 at 150 — what a plain
+`weight: 6` gave from 60 up, with one more seat at 20 and at 40. The sync
+refuses `base_seats` on a unique or unlimited role, where nothing would read it.
 `multiple: false` is deliberately **not** "1 per 100" — the Baron stays one
 Baron in a 300-player game.
 
