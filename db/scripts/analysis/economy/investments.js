@@ -278,7 +278,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
     // The headline is a Depths caver making four arrivals a turn, the one use whose gain is money and whose
     // frequency a player controls. The full ranking is in the Lucky section of the report.
     const dive = luckyUses?.uses.find((u) => u.id === "caving-depths-3");
-    const forge = luckyUses?.uses.find((u) => u.id === "trinket-skilled-25");
+    const forge = luckyUses?.uses.find((u) => u.id === "trinket-skilled-shelf");
     // Per expedition at a 3-trouble budget, and ASSUMED one expedition a turn (arrivals are rationed only by the walk
     // cooldown, and a 1 holds you in the zone but not still).
     const gain = dive?.gain ?? caving.perZone.caves.luckyGain * cavingArrivalsPerTurn;
@@ -294,9 +294,28 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       coinHow: "no coin",
       points: lucky.pointCost ?? 0,
       gain,
-      gainHow: `${round1(gain)} ¢ an expedition for a Depths caver who stops at 3 troubles (${round1(luckyUses?.uses.find((u) => u.id === "caving-caves-3")?.gain)} at the Caves), taken as one expedition a turn. Forging pays ${round1(forge?.gain)}–${round1(luckyUses?.uses.find((u) => u.id === "trinket-apprentice-25")?.gain)} ¢ a Trinket with shelf stones`,
+      gainHow: `${round1(gain)} ¢ an expedition for a Depths caver who stops at 3 troubles (${round1(luckyUses?.uses.find((u) => u.id === "caving-caves-3")?.gain)} at the Caves), taken as one expedition a turn. Forging pays ${round1(forge?.gain)}–${round1(luckyUses?.uses.find((u) => u.id === "trinket-apprentice-shelf")?.gain)} ¢ a Trinket with shelf stones`,
       note: "Most of it is avoiding a 1, so it depends on what a GM makes of trouble. The largest thing Lucky does is add about +1 to every Gambit, which has no ¢.",
     });
+    // The same tag, for a smith who spends every Move buying stones off the shelf and forging them. It pays through
+    // production, not caving: the only die is the forge's, and the skilled floor means it cannot lose.
+    const pair = trinkets?.shelfLoop?.bestSkilledLucky;
+    if (forge && pair) {
+      add({
+        id: "lucky-forge",
+        slug: "lucky",
+        group: "Metals",
+        name: `${lucky.name}, for a smith on the shelf loop`,
+        kind: "perk",
+        does: `Keeps the better of two dice on the forge, so a Smithing II smith buying ${pair.stones.join(" and ")} off the shelf rolls a Masterwork 11 times in 36 instead of 6.`,
+        coin: 0,
+        coinHow: "no coin; the stones and ⬢ are already paid for by the loop",
+        points: lucky.pointCost ?? 0,
+        gain: forge.gain,
+        gainHow: `${round1(forge.gain)} ¢ a Move over the same smith without Lucky (${round1(pair.skilled)} to ${round1(pair["skilled-lucky"])} ¢), one Trinket a turn`,
+        note: "Only worth this to somebody already forging every turn with Smithing II and a way onto the Merchant's shelf. The two Lucky rows are the same tag counted two ways; nobody collects both in one turn.",
+      });
+    }
   }
 
   // ---- mood perks for somebody who works underground or in the wild ------------------------------------

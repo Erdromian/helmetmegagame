@@ -11,6 +11,7 @@ const { publicRoomsIn } = require("./gateEcho");
 const { roomLine, locationLine } = require("./placeLine");
 const { SFX } = require("./sfx");
 const { gateControlIn } = require("./placeAffordances");
+const { withRingTokens } = require("./roomAccess");
 
 // `character` needs { id, locationId }. Working a gate reads nothing else — the winch is in the
 // watchtower, so the room they clicked in already answered who they are.
@@ -125,7 +126,8 @@ async function holdKeyedOpen(prisma, { discordUserId, linkId, hold }) {
     where: { discordUserId, status: "ALIVE" },
     select: { id: true, tags: { select: { tag: { select: { slug: true } } } } },
   });
-  const holdsKey = (character?.tags ?? []).some((ct) => ct.tag?.slug === link.requiredTagSlug);
+  // A worn ring's doors count (docs/systemdocs/RINGS.md).
+  const holdsKey = character ? (await withRingTokens(prisma, character.id, character.tags)).has(link.requiredTagSlug) : false;
   if (!holdsKey) return { ok: false, error: "You can no longer open that." };
 
   if (isHeldOpen(link)) {

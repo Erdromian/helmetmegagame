@@ -2,7 +2,7 @@
 // Watchtower turret, the Bell Tower, Prayer at the Shrine of an Old Man, the
 // Den's slot machine and the telephones — each one's open (button/select) and
 // submit (modal, or confirm button) pair.
-const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const {
   syncCharacterRoomAccess,
@@ -49,7 +49,26 @@ const { BELL_ROOM_SLUG, bellCooldown, broadcastBell } = require("@lifeweb/db/lib
 const { XOM_SHRINE_ROOM_SLUG, grantXom } = require("@lifeweb/db/lib/xom");
 const { CASINO_ROOM_SLUG, playSlots } = require("@lifeweb/db/lib/slotMachine");
 const { SLOT_PROMPT } = require("@lifeweb/db/lib/slotText");
-const { phoneView, placeCall, answerCall, hangUp } = require("@lifeweb/db/lib/phone");
+const {
+  phoneView,
+  handsetView,
+  answerPhone,
+  dialNumber,
+  hangUp,
+  walkAway,
+  insertObol,
+} = require("@lifeweb/db/lib/phone");
+const {
+  PHONE_KEY_PREFIX,
+  PHONE_CALL_PREFIX,
+  PHONE_ANSWER_PREFIX,
+  PHONE_HANGUP_PREFIX,
+  PHONE_WALK_PREFIX,
+  PHONE_COIN_PREFIX,
+  parseKeyId,
+  panelText,
+  keypadRows,
+} = require("@lifeweb/db/lib/phoneKeypad");
 const { PHONE_TEXT } = require("@lifeweb/db/lib/phoneText");
 const { SFX } = require("@lifeweb/db/lib/sfx");
 const { sceneLineAt } = require("@lifeweb/db/lib/scene");
@@ -450,113 +469,149 @@ async function handleIntercomSubmit(interaction, roomId) {
 
 // --- The telephone (docs/systemdocs/PHONES.md) ---------------------------
 //
-// Three custom ids for one button, because Discord needs a distinct id per
-// control but the PLAYER only ever sees one Phone button. Which of the three
-// they get is db/lib/phone.js#phoneView's answer, re-read on every press:
-// dialling, answering, or putting the receiver down.
-const PHONE_DIAL_PREFIX = "room:phone:dial:";
-const PHONE_ANSWER_PREFIX = "room:phone:answer:";
-const PHONE_HANGUP_PREFIX = "room:phone:hangup:";
+// A keypad in an ephemeral message. Pressing the room's Phone button picks the
+// receiver up (and answers a named phone that is ringing) and draws the pad;
+// every key press after that redraws it IN PLACE — ack({ update: true }) and
+// an edit, never a second message — with the digits so far carried in each
+// button's custom id (db/lib/phoneKeypad.js). The panel is not fleeting: it is
+// the phone in your hand, and a keypad that deleted itself after a minute
+// would drop the receiver out of sight mid-call.
+//
+// Picking the phone up HERE marks it held on Discord, which is what sends the
+// far end's words for the holder alone to this player as a DM (db/lib/phoneVoice.js).
 
-// The open. ack() first, always — CLAUDE.md's "Acknowledge before you work":
-// phoneView hits the database four or five times, and doing that ahead of the
-// acknowledgement is how a player is shown "The application did not respond"
-// for a call that has already started ringing.
-async function handlePhoneOpen(interaction, roomId) {
-  await ack(interaction);
-  const view = await phoneView(prisma, interaction.user.id, roomId);
-  if (!view.ok) {
-    await respond(interaction, view.error);
-    return;
-  }
+const BUTTON_STYLE = { primary: ButtonStyle.Primary, secondary: ButtonStyle.Secondary };
 
-  if (view.mode === "held") {
-    await respond(interaction, PHONE_TEXT.held);
-    return;
-  }
-
-  if (view.mode === "hangup") {
-    await respond(interaction, {
-      content: PHONE_TEXT.dialling,
-      components: [
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`${PHONE_HANGUP_PREFIX}${roomId}`)
-            .setLabel("Hang up")
-            .setStyle(ButtonStyle.Secondary),
-        ),
-      ],
-    });
-    return;
-  }
-
-  if (view.mode === "answer") {
-    await respond(interaction, {
-      content: PHONE_TEXT.ringing,
-      components: [
-        new ActionRowBuilder().addComponents(
-          new ButtonBuilder()
-            .setCustomId(`${PHONE_ANSWER_PREFIX}${roomId}`)
-            .setLabel("Answer")
-            .setStyle(ButtonStyle.Secondary),
-        ),
-      ],
-    });
-    return;
-  }
-
-  if (view.phones.length === 0) {
-    await respond(interaction, PHONE_TEXT.noneToCall);
-    return;
-  }
-
-  // No tooltip and no description on any option: the list of phones IS the
-  // explanation, and a line of help under each one would be thirteen lines of
-  // it. Discord caps a select at 25 options and the exchange is nowhere near.
-  //
-  // The payphone's price is the ONE line of guidance here, and it goes in the
-  // message above the control rather than on an option — `-#` subtext, the
-  // Move declaration's shape (CLAUDE.md, "Bot message style").
-  const prompt = view.room.payphone && !view.paid ? `${PHONE_TEXT.pick}\n-# ${PHONE_TEXT.insert}` : PHONE_TEXT.pick;
-  await respond(interaction, {
-    content: prompt,
-    components: [
-      new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(`${PHONE_DIAL_PREFIX}${roomId}`)
-          .setPlaceholder(PHONE_TEXT.pick)
-          .addOptions(view.phones.slice(0, 25).map((p) => ({ label: p.phone, value: p.id }))),
+function keypadComponents(roomId, handset, digits) {
+  return keypadRows(roomId, handset, digits).map((row) =>
+    new ActionRowBuilder().addComponents(
+      row.map((b) =>
+        new ButtonBuilder()
+          .setCustomId(b.id)
+          .setLabel(b.label)
+          .setStyle(BUTTON_STYLE[b.style] ?? ButtonStyle.Secondary)
+          .setDisabled(Boolean(b.disabled)),
       ),
-    ],
-  });
+    ),
+  );
 }
 
-async function handlePhoneDial(interaction, roomId) {
-  await ack(interaction);
-  const toRoomId = interaction.values?.[0];
-  if (!toRoomId) {
-    await respond(interaction, "Pick a phone.");
+// The whole panel for a holding view, or a plain line for anything else.
+async function drawPhone(interaction, view, roomId, digits = "", line = null) {
+  if (!view.ok) {
+    await respond(interaction, { content: view.error, components: [] }, { fleeting: false });
     return;
   }
-  // The open turn, for the ledger stamp and the audit row. Null is fine — a
-  // phone works between turns the same as during one.
-  const turn = await prisma.turn
-    .findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } })
-    .catch(() => null);
-  const result = await placeCall(prisma, interaction.user.id, { fromRoomId: roomId, toRoomId, turn });
-  await respond(interaction, result.ok ? PHONE_TEXT.dialling : result.error);
+  if (view.mode === "held") {
+    await respond(interaction, { content: PHONE_TEXT.held, components: [] });
+    return;
+  }
+  if (view.mode === "gone") {
+    await respond(interaction, { content: view.line ?? PHONE_TEXT.walkedAway, components: [] });
+    return;
+  }
+  if (view.mode === "answer") {
+    // A ringing payphone: answering takes a coin, said before it is taken.
+    await respond(
+      interaction,
+      {
+        content: `${PHONE_TEXT.stateRinging}\n-# ${PHONE_TEXT.insert}`,
+        components: [
+          new ActionRowBuilder().addComponents(
+            new ButtonBuilder()
+              .setCustomId(`${PHONE_ANSWER_PREFIX}${roomId}`)
+              .setLabel(PHONE_TEXT.insertCoin)
+              .setStyle(ButtonStyle.Primary),
+          ),
+        ],
+      },
+      { fleeting: false },
+    );
+    return;
+  }
+  await respond(
+    interaction,
+    {
+      content: panelText(view.handset, digits, line ?? view.line ?? null),
+      components: keypadComponents(roomId, view.handset, digits),
+    },
+    { fleeting: false },
+  );
+}
+
+// The open turn, for the ledger stamp and the audit row. Null is fine — a
+// phone works between turns the same as during one.
+function openTurn() {
+  return prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } }).catch(() => null);
+}
+
+// The open. ack() first, always — CLAUDE.md's "Acknowledge before you work":
+// picking a phone up is several queries and a write.
+async function handlePhoneOpen(interaction, roomId) {
+  await ack(interaction);
+  const view = await phoneView(prisma, interaction.user.id, roomId, { via: "discord" });
+  await drawPhone(interaction, view, roomId);
+}
+
+// A digit or ⌫: nothing is written, the pad just redraws with the new digits.
+async function handlePhoneKey(interaction) {
+  await ack(interaction, { update: true });
+  const parsed = parseKeyId(interaction.customId, PHONE_KEY_PREFIX);
+  if (!parsed) return;
+  const view = await handsetView(prisma, interaction.user.id, parsed.roomId);
+  await drawPhone(interaction, view, parsed.roomId, parsed.digits);
+}
+
+// Dial. A number that goes nowhere holds for a few seconds on the server while
+// it rings out — safe after the ack, which is exactly why the ack comes first.
+async function handlePhoneCall(interaction) {
+  await ack(interaction, { update: true });
+  const parsed = parseKeyId(interaction.customId, PHONE_CALL_PREFIX);
+  if (!parsed) return;
+  const view = await dialNumber(prisma, interaction.user.id, parsed.roomId, parsed.digits, { turn: await openTurn() });
+  if (!view.ok) {
+    const again = await handsetView(prisma, interaction.user.id, parsed.roomId);
+    await drawPhone(interaction, again, parsed.roomId, parsed.digits, view.error);
+    return;
+  }
+  await drawPhone(interaction, view, parsed.roomId);
 }
 
 async function handlePhoneAnswer(interaction, roomId) {
-  await ack(interaction);
-  const result = await answerCall(prisma, interaction.user.id, roomId);
-  await respond(interaction, result.ok ? PHONE_TEXT.pickedUp : result.error);
+  await ack(interaction, { update: true });
+  const view = await answerPhone(prisma, interaction.user.id, roomId, { via: "discord", turn: await openTurn() });
+  await drawPhone(interaction, view, roomId);
 }
 
-async function handlePhoneHangup(interaction, roomId) {
-  await ack(interaction);
-  const result = await hangUp(prisma, interaction.user.id, roomId);
-  await respond(interaction, result.ok ? "You put the receiver down." : result.error);
+// Hang up, walk away, another coin: one shape — do it, then redraw the pad
+// (or, having walked away, say so and take the pad down).
+function handsetButton(prefix, act) {
+  return async (interaction) => {
+    await ack(interaction, { update: true });
+    const parsed = parseKeyId(interaction.customId, prefix);
+    if (!parsed) return;
+    const view = await act(parsed.roomId);
+    if (!view.ok) {
+      const again = await handsetView(prisma, interaction.user.id, parsed.roomId);
+      await drawPhone(interaction, again, parsed.roomId, "", view.error);
+      return;
+    }
+    await drawPhone(interaction, view, parsed.roomId);
+  };
+}
+
+async function handlePhoneHangup(interaction) {
+  return handsetButton(PHONE_HANGUP_PREFIX, (roomId) => hangUp(prisma, interaction.user.id, roomId))(interaction);
+}
+
+async function handlePhoneWalk(interaction) {
+  return handsetButton(PHONE_WALK_PREFIX, (roomId) => walkAway(prisma, interaction.user.id, roomId))(interaction);
+}
+
+async function handlePhoneCoin(interaction) {
+  return handsetButton(PHONE_COIN_PREFIX, async (roomId) =>
+    insertObol(prisma, interaction.user.id, roomId, { turn: await openTurn() }),
+  )(interaction);
 }
 
 // Custom IDs below: "loc:" is the travel flow, "conv:" the Conversation flow, "move:"/"say:" the Move/Speak modals.
@@ -665,13 +720,19 @@ async function handleCharonSleep(interaction, roomId) {
 module.exports = {
   PRAY_CONFIRM_PREFIX,
   SLOTS_CONFIRM_PREFIX,
-  PHONE_DIAL_PREFIX,
+  PHONE_KEY_PREFIX,
+  PHONE_CALL_PREFIX,
   PHONE_ANSWER_PREFIX,
   PHONE_HANGUP_PREFIX,
+  PHONE_WALK_PREFIX,
+  PHONE_COIN_PREFIX,
   handlePhoneOpen,
-  handlePhoneDial,
+  handlePhoneKey,
+  handlePhoneCall,
   handlePhoneAnswer,
   handlePhoneHangup,
+  handlePhoneWalk,
+  handlePhoneCoin,
   handleSlotsOpen,
   handleSlotsConfirm,
   handleIntercomOpen,

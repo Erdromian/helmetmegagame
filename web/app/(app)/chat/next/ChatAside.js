@@ -131,7 +131,7 @@ export default function ChatAside({
   onPlaceChanged = null,
   onOpenMap = null,
 }) {
-  const { affordances: live, openFixture, openConverse, say: placeSay, notice, error, pending, dialogs } =
+  const { affordances: live, openFixture, openConverse, say: placeSay, notice, error, pending, dialogs, phoneBar } =
     usePlaceActions(affordances, onPlaceChanged);
   const requestActions = useRequestActions();
   const folds = useAsideFolds();
@@ -177,6 +177,10 @@ export default function ChatAside({
   // Sheet link are gone from chat altogether.
   return (
     <div className="chat-aside-stack">
+      {/* The phone in their hand, if any, above everything (PHONES.md §3): a
+          receiver off the hook is the one state here that is ticking. */}
+      {phoneBar}
+
       <Block head="Travel" fold="travel" folds={folds}>
         <TravelNodes onDone={placeSay} pick={travelPick} showTitle={false} />
       </Block>

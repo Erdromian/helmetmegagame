@@ -1598,9 +1598,10 @@ a 48px head and a one-line composer:
      (`N ⬢`), **Purse** (`N ¢`, `web/lib/purse.js#obolsOf` — the SAME reducer
      `LedgerBand.js`'s ⬢ tile counts obols with, lifted out to one copy for
      both; a server prop, so the Chat verbs that move coin through a hand —
-     slots, a paid payphone dial, the vending machine's Insert, Withdraw,
-     Empty till and Step away — call `refresh()` from `next/cache` when coin
-     moved, see the note at the top of `chat/actions.js`),
+     slots, a payphone taking its obol (Dial, Answer or Insert obol), the
+     vending machine's Insert, Withdraw, Empty till and Step away — call
+     `refresh()` from `next/cache` when coin moved, see the note at the top
+     of `chat/actions.js`),
      **Carrying** (`used/cap lb`), then the descriptor rows (§0,
      **Hunger**) — then `StatusStrip.js`'s own load meter, with no chips
      (`tags={[]}`), and `numbers={false}` since the kv rows already said
@@ -1795,7 +1796,7 @@ a 48px head and a one-line composer:
      only while it is open.
 
      Above those, the item's **own** verbs: Play Instrument on a lute, Detonate
-     on a remote, Seal letter on a wax stamp. The list linking an item to its
+     on a remote, Seal letter on an office's signet ring or a wax seal. The list linking an item to its
      verb is `db/lib/itemVerbs.js`, one line per link, keyed on a slug, a
      prefix/suffix or a tag flag. It is resolved server-side in
      `thingRows.js#thingVerbs` (`row.itemVerbs`), and each mode is drawn off

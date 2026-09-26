@@ -14,13 +14,12 @@ import {
   NOT_A_FIGHT,
   MAX_NAMES,
   MESSAGE_LIMIT,
-  cleanMessage,
-  cleanNames,
   releaseHeldBy,
   anchorHolds,
   seenBy,
   IDENTITY_SELECT,
 } from "@lifeweb/db/lib/intercept";
+import { setWatch, stopWatch } from "@lifeweb/db/lib/verbs/watch";
 
 // LAYING IN WAIT, from the character sheet (docs/systemdocs/INTERCEPT.md).
 // Same posture as cerberonActions.js: the actor is resolved from the session
@@ -103,6 +102,7 @@ async function loadInterceptImpl() {
   };
 }
 
+// The rule is db/lib/verbs/watch.js#setWatch, shared with Discord's /intercept set.
 async function setInterceptImpl({
   mode,
   message,
@@ -113,81 +113,27 @@ async function setInterceptImpl({
   autoSearch,
 }) {
   const { session, character } = await me({ needs: ACT });
-
-  const wantAmbush = mode === "AMBUSH";
-  const anyone = Boolean(anyPerson);
-  // "Any person" subsumes "any concealed person", so it is stored as the only
-  // one — the dialog greys the other out, and this is what makes that true
-  // rather than merely drawn.
-  const concealed = anyone ? false : Boolean(anyConcealed);
-  const targetNames = anyone ? [] : cleanNames(names);
-  const clean = cleanMessage(message);
-
-  if (!anyone && !concealed && targetNames.length === 0) {
-    throw new UserError("Name somebody to watch for, or select the Anyone option.");
-  }
-  // The anchor. Character.locationId is nullable, and a watch with nowhere to
-  // wait would be a 500 out of the upsert instead of a sentence.
-  if (!character.locationId) {
-    throw new UserError("You have to be standing somewhere to intercept.");
-  }
-  const data = {
-    // Stamped from where they stand, and never moved afterwards: walking away
-    // deletes the whole row (docs/systemdocs/INTERCEPT.md §1).
-    locationId: character.locationId,
-    mode: wantAmbush ? "AMBUSH" : "SAFE",
-    message: clean,
-    targetNames,
-    anyConcealed: concealed,
-    anyPerson: anyone,
-    // Narrows any watch, including one made of typed names, so it is NOT subsumed
-    // by "Any person" the way anyConcealed is — the two answer different questions.
-    outsideZoneOnly: Boolean(outsideZoneOnly),
-    // Not a "who" and not a narrowing of one: it is what happens once the watch
-    // has somebody (docs/systemdocs/SEARCH.md §6). So nothing clears it the way
-    // "Any person" clears anyConcealed, and a watch with only this set still
-    // catches nobody — fireWatches' own WHERE needs a who.
-    autoSearch: Boolean(autoSearch),
-  };
-
-  await prisma.$transaction(async (tx) => {
-    await tx.interceptWatch.upsert({
-      where: { characterId: character.id },
-      create: { characterId: character.id, ...data },
-      update: data,
-    });
-    // Written from the APPLIED values, never from what the client sent
-    // (REQUESTS.md §2). One row per save, because the row is the only record
-    // of what the watch said at the time — the watch itself is overwritten.
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_intercept_set",
-      targetCharacterId: character.id,
-      turnId: (await getOpenTurn())?.id ?? null,
-      details: { ...data },
-    });
+  const result = await setWatch(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    input: { mode, message, names, anyConcealed, anyPerson, outsideZoneOnly, autoSearch },
+    openTurn: await getOpenTurn(),
   });
-
+  if (!result.ok) throw new UserError(result.error);
   revalidate();
-  return {
-    ok: true,
-    line: wantAmbush ? "You lie in wait." : "You lie in wait.",
-  };
+  return { ok: true, line: result.line };
 }
 
+// The rule is db/lib/verbs/watch.js#stopWatch, shared with Discord's /intercept stop.
 async function stopInterceptImpl() {
   const { session, character } = await me();
-  const gone = await prisma.interceptWatch.deleteMany({ where: { characterId: character.id } });
-  if (gone.count === 0) return { ok: true, line: "You weren't watching for anybody." };
-  await logAudit(prisma, {
-    actorDiscordUserId: session.discordUserId,
-    actionType: "request_intercept_set",
-    targetCharacterId: character.id,
-    turnId: (await getOpenTurn())?.id ?? null,
-    details: { stopped: true },
+  const result = await stopWatch(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    openTurn: await getOpenTurn(),
   });
-  revalidate();
-  return { ok: true, line: "You stop watching the road." };
+  if (result.stopped) revalidate();
+  return { ok: true, line: result.line };
 }
 
 // Letting somebody go early. releaseHeldBy's WHERE is the ownership check —

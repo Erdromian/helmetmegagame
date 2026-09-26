@@ -1,5 +1,6 @@
 const { prisma } = require("@lifeweb/db");
-const { formatStashLine, countHiddenStacks } = require("@lifeweb/db/lib/roomStash");
+const { formatStashLine, formatLocationStorage, countHiddenStacks } = require("@lifeweb/db/lib/roomStash");
+const { accessibleRooms, roomAccessKeys } = require("@lifeweb/db/lib/roomAccess");
 const { ack, respond } = require("./respond");
 const { actingCharacter } = require("./interactionGuild");
 
@@ -29,4 +30,44 @@ async function handleRoomStorage(interaction, roomId) {
   return respond(interaction, { content: formatStashLine(room, { hidden }) });
 }
 
-module.exports = { handleRoomStorage };
+// /storage: the same readout for every Room in the character's Location they
+// can see — public ones, and private ones their keys or a guest row open. The
+// button above lives on each Room's first post, which a player has to find the
+// thread and scroll to the top of; this works from anywhere, a DM included.
+// Rooms are thread links for a character who plays on Discord, names otherwise.
+async function handleStorageCommand(interaction) {
+  await ack(interaction);
+  const character = await actingCharacter(interaction, {
+    select: { id: true, locationId: true, discordMirrored: true, location: { select: { name: true } } },
+  });
+  if (!character) return respond(interaction, "You don't have a living character.");
+  if (!character.locationId) return respond(interaction, "You aren't anywhere yet.");
+
+  const [rooms, keys] = await Promise.all([
+    prisma.room.findMany({
+      where: { locationId: character.locationId, retiredAt: null },
+      orderBy: { sortOrder: "asc" },
+      select: {
+        id: true,
+        name: true,
+        kind: true,
+        accessTagSlugs: true,
+        discordThreadId: true,
+        tags: { where: { quantity: { gt: 0 } }, select: { quantity: true, tag: { select: { name: true, slug: true } } } },
+      },
+    }),
+    roomAccessKeys(prisma, character.id),
+  ]);
+  const visible = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
+  const entries = [];
+  for (const room of visible) {
+    entries.push({
+      label: character.discordMirrored && room.discordThreadId ? `<#${room.discordThreadId}>` : `**${room.name}**`,
+      room,
+      hidden: await countHiddenStacks(prisma, room.id),
+    });
+  }
+  return respond(interaction, formatLocationStorage(character.location?.name ?? "this place", entries));
+}
+
+module.exports = { handleRoomStorage, handleStorageCommand };

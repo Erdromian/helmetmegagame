@@ -9,9 +9,9 @@ import RequestDialog from "./RequestDialog";
 // the corner of the character sheet (LedgerBand.js). `className` is what tells
 // them apart — everything else, the dialog included, is shared.
 //
-// The action returns {error} instead of throwing, so a refusal (the three
-// minute cooldown especially) reads as a line in the dialog rather than a
-// crashed page.
+// The action returns {error} instead of throwing, so a refusal (the rate
+// limit especially) reads as a line in the dialog rather than a crashed page,
+// and what they wrote stays in the box.
 export default function FeedbackButton({ className = "nav-link", label = "Feedback" }) {
   const [open, setOpen] = useState(false);
   const [body, setBody] = useState("");

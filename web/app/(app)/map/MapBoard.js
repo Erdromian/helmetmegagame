@@ -9,7 +9,7 @@ import ChipLabel from "@/app/components/ChipLabel";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, WALK_HINT } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, WALK_HINT, affordsCrossing } from "@/lib/travelCost";
 import SqueezeChip from "@/app/components/SqueezeChip";
 import { loadMap } from "./actions";
 import { renderPlate, glyphPath } from "./plateRender";
@@ -89,8 +89,7 @@ function canTravelTo(node, here) {
 // the strip, the confirm and a deliberate press.
 function canGestureTo(node, here) {
   if (!canTravelTo(node, here)) return false;
-  // A tunnel is never taken by a double-click or the Enter shortcut: its confirm is the whole warning.
-  return !node.crossesZone && !node.walkDismounts && !node.railroad;
+  return !node.crossesZone && !node.walkDismounts;
 }
 
 // A walk's numbers in the shape travelCost's walk helpers read.
@@ -743,7 +742,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
   // Push on is the same door with a die in it (MAP.md §3): its own confirm,
   // then the same action with `exert` set.
   const go = async (node, { exert = false } = {}) => {
-    if (node.crossesZone || node.railroad) {
+    if (node.crossesZone) {
       const asked = crossingConfirm(node, node.freeLeft ?? 0, data?.travel?.partySize ?? 0, { exert });
       if (!(await confirm(asked))) return;
     }
@@ -1207,7 +1206,7 @@ function ViaChip({ slug }) {
   const tag = slug ? (tagsBySlug.get(slug) ?? null) : null;
   if (!tag) return null;
   return (
-    <span className="map-via" title={openedByLabel(tag.name)}>
+    <span className="map-via" title={openedByLabel(tag.name, tag.slug)}>
       <ChipLabel tag={tag} />
     </span>
   );
@@ -1223,10 +1222,10 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
   const walking = !isHere && Boolean(node.walkable) && !node.adjacent;
   // Whether the double-click / Enter shortcut applies to this node at all.
   const gestural = canGestureTo(node, here);
-  // node's OWN count, not the header's ambient one — a boat's bonus is
-  // earned per crossing, so a water-eligible destination can still be free
-  // even when the header's pre-selection number already reads 0.
-  const nextTurn = Boolean(node.crossesZone && (node.freeLeft ?? 0) <= 0);
+  // node's OWN count against node's own cost — a hop into the hills costs
+  // twice what one across the town does (MAP.md §3), so ½ travel left still
+  // crosses the town and no longer reaches the caves.
+  const nextTurn = Boolean(node.crossesZone && !affordsCrossing(node, node.freeLeft));
 
   return (
     <div className="map-card-body">

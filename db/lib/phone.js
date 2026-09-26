@@ -1,22 +1,32 @@
-// The telephone network. See docs/systemdocs/PHONES.md.
+// The telephone network. See docs/systemdocs/PHONES.md, which follows
+// Bascinet's Phones design document.
 //
 // A phone is a fixture on a Room's wall (Room.phone, authored in
-// docs/zones.yaml). You lift the receiver, pick another phone off a list, and
-// it rings there; somebody standing in that room answers, and for as long as
-// both of you hold a receiver, what each of you says reaches the other room.
+// docs/zones.yaml) with a four-digit number rolled every game
+// (db/lib/phoneNumbers.js). You pick up the receiver, dial a number on the
+// keypad, and the phone with that number rings until somebody answers it.
 //
-// THREE RULES DO MOST OF THE WORK HERE, and each is load-bearing:
+// FOUR RULES DO MOST OF THE WORK HERE, and each is load-bearing:
 //
-//   1. One person holds a phone. Not "one call per character" — one call per
-//      ROOM, enforced by the two partial unique indexes in the migration, not
-//      by a read-then-write. That is what "The line is busy." actually means.
-//   2. The call is a ROW, never a timer. Four rings over 60 seconds, and the
-//      bot restarting inside that window is ordinary rather than fatal: the
-//      sweep reads `ringsSent` and `startedAt` off the row and picks the call
-//      back up mid-ring. Nothing here schedules anything.
-//   3. A phone carries a VOICE, never a NAME. Every line the far room reads is
-//      a SYSTEM row, so db/lib/presentedIdentity.js never comes into it and a
-//      concealed caller stays concealed for free. See db/lib/phoneVoice.js.
+//   1. HOLDING A PHONE IS NOT BEING ON A CALL. One person holds a phone at a
+//      time (Room.phoneHolderId, a unique index — so one phone per person too).
+//      You pick it up, then dial; hanging up ends the call and leaves it in
+//      your hand; walking away leaves it hanging, call and all, for whoever
+//      picks it up next.
+//   2. BUSY MEANS A CALL IS ON THE LINE, decided under a row lock: a live
+//      call at the far phone, or a dead line whose holder has not hung up. A
+//      phone that is only in somebody's hand rings there, and they answer it.
+//      The two partial unique indexes on PhoneCall's rooms back the lock up: a
+//      P2002 there is the busy signal arriving by the one route that cannot
+//      race.
+//   3. EVERYTHING IS A ROW OR A TIMESTAMP, NEVER A TIMER. Rings are derived
+//      from PhoneCall.startedAt, the payphone's time from Room.phonePaidUntil,
+//      a named phone's patience from Room.phoneIdleSince. The 15-second sweep
+//      (tickPhones, from bot/src/events/ready.js) reads them, so a bot restart
+//      picks everything back up where it was.
+//   4. A PHONE CARRIES A VOICE, NEVER A NAME. Every line the far room reads is
+//      a SYSTEM row, so db/lib/presentedIdentity.js never comes into it. See
+//      db/lib/phoneVoice.js. And a phone never records where a call came from.
 //
 // Returns `{ ok: false, error }` rather than throwing, the db/lib/depotCounter.js
 // convention, so a refusal reads the same on both faces. Takes `prisma` as a
@@ -30,22 +40,30 @@ const { addToRoomStack, dropCharacterTag } = require("./tagWrites");
 const { vaultAndCoin } = require("./bankAccounts");
 const { characterParty, roomParty, turnStamp } = require("./economyLedger");
 const { SFX } = require("./sfx");
+const { ensurePhoneNumbers } = require("./phoneNumbers");
+const { notifyPhones, handsetState, handsetTimers, handsetFrame } = require("./phoneFrame");
 const {
   PHONE_COST,
-  PHONE_RINGS,
+  PHONE_PAID_MS,
+  PHONE_OBOL_PROMPT_MS,
+  PHONE_HOLD_IDLE_MS,
   PHONE_RING_INTERVAL_MS,
-  PHONE_PAID_GRACE_MS,
+  PHONE_MISDIAL_MS,
   PHONE_TEXT,
+  normalizeDigits,
 } = require("./phoneText");
 
-// The two statuses that mean a receiver is off its cradle somewhere. One list,
-// because "busy" and "the sweep should look at this" are nearly the same
-// question and answering them off two different lists is how they drift.
+// The two statuses that mean a line is open somewhere. One list, because
+// "busy" and "the sweep should look at this" are nearly the same question.
 const LIVE = ["RINGING", "CONNECTED"];
 
-// The columns any caller needs off a phone's Room. `phone` is the name, and
-// the affordance's `when` reads it, so every query feeding a dial list or a
-// starter post has to carry it.
+// A phone rings until somebody answers — but not past the point its caller
+// would have been dropped for standing there with no call connected. So the
+// same ten minutes caps the ring, and a receiver left hanging mid-dial does
+// not ring an office forever.
+const PHONE_RING_CAP_MS = PHONE_HOLD_IDLE_MS;
+
+// The columns any caller needs off a phone's Room.
 const PHONE_ROOM = {
   id: true,
   slug: true,
@@ -56,24 +74,31 @@ const PHONE_ROOM = {
   locationId: true,
   accessTagSlugs: true,
   discordThreadId: true,
+  retiredAt: true,
+  phoneNumber: true,
+  phoneHolderId: true,
+  phoneHeldAt: true,
+  phoneHeldVia: true,
+  phoneIdleSince: true,
+  phonePaidUntil: true,
+  phoneObolPrompted: true,
+  phoneDeadSince: true,
 };
 
-function fail(error) {
-  return { ok: false, error };
+// What letting go of a phone writes. The paid time stays with the phone: a
+// coin buys the line, and whoever picks it up next inherits what is left.
+const RELEASED = {
+  phoneHolderId: null,
+  phoneHeldAt: null,
+  phoneHeldVia: null,
+  phoneIdleSince: null,
+};
+
+function fail(error, extra = {}) {
+  return { ok: false, error, ...extra };
 }
 
-/**
- * Every phone that can be DIALLED, in authoring order. Payphones are absent on
- * purpose: a payphone calls out and never rings, because there is nobody whose
- * job is to stand next to it. This is the dropdown, and the whole of it.
- */
-async function dialablePhones(prisma) {
-  return prisma.room.findMany({
-    where: { phone: { not: null }, payphone: false, retiredAt: null },
-    select: PHONE_ROOM,
-    orderBy: [{ locationId: "asc" }, { sortOrder: "asc" }],
-  });
-}
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** The live call this room is on, at either end, or null. */
 async function callInRoom(prisma, roomId) {
@@ -84,14 +109,7 @@ async function callInRoom(prisma, roomId) {
   });
 }
 
-/** The live call this character is holding a receiver for, at either end, or null. */
-async function callHeldBy(prisma, characterId) {
-  if (!characterId) return null;
-  return prisma.phoneCall.findFirst({
-    where: { status: { in: LIVE }, OR: [{ callerId: characterId }, { calleeId: characterId }] },
-    orderBy: { startedAt: "desc" },
-  });
-}
+const farRoomOf = (call, roomId) => (call.fromRoomId === roomId ? call.toRoomId : call.fromRoomId);
 
 // Alive, able to act, standing in this room's Location, and able to get in.
 // The gate stack is db/lib/slotMachine.js#slotActor's, for the same reason it
@@ -100,12 +118,12 @@ async function callHeldBy(prisma, characterId) {
 async function phoneActor(prisma, discordUserId, roomId) {
   const character = await prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
-    select: { id: true, name: true, locationId: true, tags: { include: { tag: true } } },
+    select: { id: true, name: true, locationId: true, discordUserId: true, tags: { include: { tag: true } } },
   });
   if (!character) return fail("You don't have a living character.");
 
   const room = await prisma.room.findUnique({ where: { id: roomId }, select: PHONE_ROOM });
-  if (!room || !room.phone) return fail(PHONE_TEXT.noPhone);
+  if (!room || !room.phone || room.retiredAt) return fail(PHONE_TEXT.noPhone);
   if (character.locationId !== room.locationId) return fail(PHONE_TEXT.notHere);
 
   const blocker = blockerFor(character.tags, ACT);
@@ -118,116 +136,211 @@ async function phoneActor(prisma, discordUserId, roomId) {
   return { ok: true, character, room };
 }
 
+// The same gates, plus: this character is the one holding this phone.
+async function holderActor(prisma, discordUserId, roomId) {
+  const actor = await phoneActor(prisma, discordUserId, roomId);
+  if (!actor.ok) return actor;
+  if (actor.room.phoneHolderId !== actor.character.id) return fail(PHONE_TEXT.notHolding);
+  return actor;
+}
+
+// The handset as the holder's dialog draws it: the frame the feed carries,
+// plus the words that go with it.
+async function holdingView(prisma, character, roomId, extra = {}) {
+  const room = await prisma.room.findUnique({ where: { id: roomId }, select: PHONE_ROOM });
+  const call = await callInRoom(prisma, roomId);
+  return { ok: true, mode: "holding", room, character, handset: handsetFrame(room, call), ...extra };
+}
+
 /**
- * What the dialog should draw, re-read on every open. The dialog is dynamic
- * (PHONES.md): the same button is Dial, Answer or Hang up depending on what
- * this phone is doing right now, and deciding that on the client would let two
- * tabs disagree.
- *
- * Resolves to { ok, mode, room, call, phones, paid } where `mode` is one of
- * "dial" | "answer" | "hangup" | "held".
+ * The handset in this character's hand, read and nothing else — what the
+ * Discord keypad redraws itself from on every key press. A press on a keypad
+ * whose phone is no longer in your hand is refused, never a pick-up.
  */
-async function phoneView(prisma, discordUserId, roomId) {
+async function handsetView(prisma, discordUserId, roomId) {
+  const actor = await holderActor(prisma, discordUserId, roomId);
+  if (!actor.ok) return actor;
+  return holdingView(prisma, actor.character, actor.room.id);
+}
+
+/**
+ * Put a phone in this character's hand. Conditional on nobody holding it, so
+ * two people reaching for one receiver is decided by the database, not by who
+ * read first. A phone they were already holding somewhere else is left
+ * hanging first — a person has one pair of hands.
+ */
+async function takePhone(prisma, character, room, via) {
+  if (room.phoneHolderId === character.id) return true;
+  const other = await prisma.room.findFirst({ where: { phoneHolderId: character.id }, select: { id: true } });
+  if (other) await releasePhone(prisma, other.id, { reason: "walked" });
+
+  const call = await callInRoom(prisma, room.id);
+  try {
+    const { count } = await prisma.room.updateMany({
+      where: { id: room.id, phoneHolderId: null },
+      data: {
+        phoneHolderId: character.id,
+        phoneHeldAt: new Date(),
+        phoneHeldVia: via === "discord" ? "discord" : "web",
+        phoneIdleSince: call?.status === "CONNECTED" ? null : new Date(),
+      },
+    });
+    return count > 0;
+  } catch (err) {
+    if (err?.code === "P2002") return false;
+    throw err;
+  }
+}
+
+/**
+ * Let go of a phone without hanging up — the design document's Walk away, and
+ * what the sweep does to a holder whose time is up when there is no call to
+ * end. A call left running with nobody at EITHER end is a line nobody is on,
+ * so it ends; a dead line with nobody at it simply stops being dead.
+ */
+async function releasePhone(prisma, roomId, { reason = "walked" } = {}) {
+  await prisma.room.update({ where: { id: roomId }, data: { ...RELEASED, phoneDeadSince: null } });
+  const call = await callInRoom(prisma, roomId);
+  if (call) {
+    const far = await prisma.room.findUnique({ where: { id: farRoomOf(call, roomId) }, select: { phoneHolderId: true } });
+    // A call still ringing out is left to ring: that is what walking away
+    // from a ringing phone does. A connected call with nobody on either end
+    // is over.
+    if (call.status === "CONNECTED" && !far?.phoneHolderId) {
+      await endCall(prisma, call, reason, { byRoomId: roomId, quiet: true });
+    }
+  }
+  await notifyPhones(prisma, [roomId]);
+}
+
+/**
+ * What the dialog should draw, and the act of picking the phone up. The same
+ * button does everything (PHONES.md §3), and deciding which on the client
+ * would let two tabs disagree.
+ *
+ *   held      somebody else has the receiver
+ *   answer    a payphone is ringing: answering it takes a coin first
+ *   holding   the phone is in your hand — picked up now, or already. A named
+ *             phone that was ringing is answered by picking it up.
+ *
+ * `via` is "web" or "discord": where a far voice meant for the holder goes.
+ */
+async function phoneView(prisma, discordUserId, roomId, { via = "web" } = {}) {
+  const actor = await phoneActor(prisma, discordUserId, roomId);
+  if (!actor.ok) return actor;
+  const { character } = actor;
+  let { room } = actor;
+
+  // A phone added since Start Game gets its number the moment anybody lifts it.
+  if (room.phoneNumber == null) {
+    await ensurePhoneNumbers(prisma).catch((err) => console.error("Phone numbering failed:", err.message ?? err));
+    room = await prisma.room.findUnique({ where: { id: roomId }, select: PHONE_ROOM });
+  }
+
+  if (room.phoneHolderId === character.id) {
+    // Already in your hand, and ringing: opening the phone answers it, the
+    // same as it does for anybody who picks it up — unless it is a payphone
+    // still waiting on its coin, which the dialog's Answer button pays.
+    const call = await callInRoom(prisma, room.id);
+    const ringingHere = call?.status === "RINGING" && call.toRoomId === room.id;
+    if (ringingHere && !(room.payphone && handsetTimers(room, "idle").needsCoin)) {
+      if (await connectCall(prisma, call, character)) {
+        return holdingView(prisma, character, room.id, { line: PHONE_TEXT.answered, sfx: SFX.PHONE_PICKUP });
+      }
+    }
+    return holdingView(prisma, character, room.id);
+  }
+  if (room.phoneHolderId) {
+    // A holder who has gone (dead, walked out by some path the mover missed)
+    // is not holding anything. The sweep would free it within fifteen
+    // seconds; the person standing at the phone should not have to wait.
+    const holder = await prisma.character.findUnique({
+      where: { id: room.phoneHolderId },
+      select: { status: true, locationId: true },
+    });
+    if (holder?.status === "ALIVE" && holder.locationId === room.locationId) {
+      return { ok: true, mode: "held", room, character };
+    }
+    await ejectHolder(prisma, room, "left");
+    room = await prisma.room.findUnique({ where: { id: roomId }, select: PHONE_ROOM });
+  }
+
+  const call = await callInRoom(prisma, room.id);
+  const ringingHere = call?.status === "RINGING" && call.toRoomId === room.id;
+
+  if (ringingHere && room.payphone && handsetTimers(room, "idle").needsCoin) {
+    return { ok: true, mode: "answer", room, character, price: PHONE_COST };
+  }
+
+  if (!(await takePhone(prisma, character, room, via))) {
+    return { ok: true, mode: "held", room, character };
+  }
+
+  if (ringingHere) {
+    const answered = await connectCall(prisma, call, character);
+    if (answered) {
+      return holdingView(prisma, character, room.id, { line: PHONE_TEXT.answered, sfx: SFX.PHONE_PICKUP });
+    }
+  }
+  await notifyPhones(prisma, [room.id]);
+  return holdingView(prisma, character, room.id, { line: PHONE_TEXT.pickedUp });
+}
+
+// A RINGING call becomes CONNECTED, once: a conditional update, so two
+// answers in the same second connect it once. The caller's room hears the
+// pickup; the answerer hears it off their own action result.
+async function connectCall(prisma, call, character) {
+  const { count } = await prisma.phoneCall.updateMany({
+    where: { id: call.id, status: "RINGING" },
+    data: { status: "CONNECTED", calleeId: character.id, answeredAt: new Date() },
+  });
+  if (!count) return false;
+  await prisma.room.updateMany({
+    where: { id: { in: [call.fromRoomId, call.toRoomId] } },
+    data: { phoneIdleSince: null },
+  });
+  await roomLine(prisma, call.fromRoomId, PHONE_TEXT.farPickedUp, SFX.PHONE_PICKUP);
+  await notifyPhones(prisma, [call.fromRoomId, call.toRoomId]);
+  return true;
+}
+
+/**
+ * Pick up a ringing payphone: the coin, then the receiver, then the line.
+ * A named phone never needs this — opening it answers it.
+ */
+async function answerPhone(prisma, discordUserId, roomId, { via = "web", turn = null } = {}) {
   const actor = await phoneActor(prisma, discordUserId, roomId);
   if (!actor.ok) return actor;
   const { character, room } = actor;
+  if (room.phoneHolderId && room.phoneHolderId !== character.id) return fail(PHONE_TEXT.held);
 
   const call = await callInRoom(prisma, room.id);
-  if (call) {
-    const mine = call.callerId === character.id || call.calleeId === character.id;
-    if (mine) return { ok: true, mode: "hangup", room, call, phones: [], character };
-    // Ringing at a phone nobody has picked up: anybody in the room may answer.
-    if (call.status === "RINGING" && call.toRoomId === room.id) {
-      return { ok: true, mode: "answer", room, call, phones: [], character };
-    }
-    return { ok: true, mode: "held", room, call, phones: [], character };
-  }
+  if (!(call?.status === "RINGING" && call.toRoomId === room.id)) return fail(PHONE_TEXT.notRinging);
 
-  const phones = (await dialablePhones(prisma)).filter((p) => p.id !== room.id);
-  return { ok: true, mode: "dial", room, phones, call: null, character, paid: await alreadyPaid(prisma, character.id) };
-}
-
-// Whether this caller's coin is still in the slot. A payphone charges for
-// LIFTING THE RECEIVER, so a call nobody answered lets them try somebody else
-// without paying twice — see PHONE_PAID_GRACE_MS.
-async function alreadyPaid(prisma, characterId) {
-  const recent = await prisma.phoneCall.findFirst({
-    where: {
-      callerId: characterId,
-      paid: true,
-      status: "ENDED",
-      endedReason: { in: ["noanswer", "busy"] },
-      endedAt: { gte: new Date(Date.now() - PHONE_PAID_GRACE_MS) },
-    },
-    orderBy: { endedAt: "desc" },
-    select: { id: true },
-  });
-  return Boolean(recent);
-}
-
-/**
- * Lift the receiver and dial. Resolves to { ok, call, sfx } or { ok: false, error }.
- * `turn` is the open Turn row, for the REQUESTS.md 1a stamp on the audit row.
- */
-async function placeCall(prisma, discordUserId, { fromRoomId, toRoomId, turn = null } = {}) {
-  const actor = await phoneActor(prisma, discordUserId, fromRoomId);
-  if (!actor.ok) return actor;
-  const { character, room } = actor;
-
-  const target = await prisma.room.findUnique({ where: { id: toRoomId }, select: PHONE_ROOM });
-  if (!target || !target.phone || target.payphone) return fail("That phone isn't on the exchange.");
-  if (target.id === room.id) return fail("That's the phone you're holding.");
-
-  // Both ends have to be free, and the near end being busy is a DIFFERENT
-  // refusal from the far end being busy: one is somebody else's hand on your
-  // receiver, the other is a line that is already carrying a conversation.
-  if (await callInRoom(prisma, room.id)) return fail(PHONE_TEXT.held);
-  if (await callInRoom(prisma, target.id)) return { ok: false, error: PHONE_TEXT.busy, sfx: SFX.PHONE_BUSY };
-
-  const charge = room.payphone && !(await alreadyPaid(prisma, character.id));
-  let call = null;
-
-  try {
-    call = await prisma.$transaction(async (tx) => {
-      if (charge) await takePhoneCoin(tx, character, room, turn);
-      return tx.phoneCall.create({
-        data: {
-          fromRoomId: room.id,
-          toRoomId: target.id,
-          callerId: character.id,
-          status: "RINGING",
-          // `charge`, not `room.payphone`: only the call that actually took a
-          // coin carries the mark. Marking every payphone call paid would let a
-          // chain of unanswered ones renew the grace window forever, and one
-          // obol would buy unlimited dialling. This way the window is measured
-          // from the call that really paid, so it expires.
-          paid: charge,
-          turnId: turn?.id ?? null,
-        },
+  let paid = false;
+  if (room.payphone && handsetTimers(room, "idle").needsCoin) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await takePhoneCoin(tx, character, room, turn);
+        await buyTime(tx, room);
       });
-    });
-  } catch (err) {
-    // The partial unique index is the real arbiter of "busy" — two people
-    // dialling the same office in the same second both pass the check above
-    // and exactly one of them writes. P2002 here is not an error, it is the
-    // busy signal arriving by the only route that cannot race.
-    if (err?.code === "P2002") return { ok: false, error: PHONE_TEXT.busy, sfx: SFX.PHONE_BUSY };
-    return fail(err?.userMessage ?? "The line went dead. Try again.");
+      paid = true;
+    } catch (err) {
+      return fail(err?.userMessage ?? "The coin wouldn't go in. Try again.", { sfx: SFX.REFUSE_MONEY });
+    }
   }
-
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: discordUserId,
-      actionType: "phone_call",
-      targetCharacterId: character.id,
-      roomId: room.id,
-      turnId: turn?.id ?? null,
-      details: { from: room.phone, to: target.phone, paid: charge, cost: charge ? PHONE_COST : 0 },
-    },
-  }).catch((err) => console.error("Phone audit failed:", err.message ?? err));
-
-  await ringOnce(prisma, call, target);
-  return { ok: true, call, sfx: charge ? SFX.COIN_INSERT : SFX.PHONE_CALLING };
+  if (!(await takePhone(prisma, character, room, via))) return fail(PHONE_TEXT.held);
+  if (!(await connectCall(prisma, call, character))) {
+    // Somebody else's hand got there between the read and the write. The
+    // receiver is still yours, and so is the coin's time.
+    await notifyPhones(prisma, [room.id]);
+    return holdingView(prisma, character, room.id, {
+      line: PHONE_TEXT.pickedUp,
+      sfx: paid ? SFX.COIN_INSERT : null,
+      charged: paid,
+    });
+  }
+  return holdingView(prisma, character, room.id, { line: PHONE_TEXT.answered, sfx: SFX.PHONE_PICKUP, charged: paid });
 }
 
 // One obol out of a hand and into the Keep's Vault, which is what "the
@@ -265,14 +378,188 @@ async function takePhoneCoin(tx, character, room, turn) {
   if (vault) await addToRoomStack(tx, vault.id, coin.id, PHONE_COST, { econ });
 }
 
+// PHONE_PAID_MS more on the line, from whichever is later: now, or the time
+// already paid for — a coin in the last minute adds to the minute, it does
+// not throw it away.
+async function buyTime(tx, room) {
+  const fresh = await tx.room.findUnique({ where: { id: room.id }, select: { phonePaidUntil: true } });
+  const base = Math.max(Date.now(), fresh?.phonePaidUntil ? new Date(fresh.phonePaidUntil).getTime() : 0);
+  await tx.room.update({
+    where: { id: room.id },
+    data: { phonePaidUntil: new Date(base + PHONE_PAID_MS), phoneObolPrompted: false },
+  });
+}
+
+/** Another obol into a payphone in your hand — the last-minute prompt's answer. */
+async function insertObol(prisma, discordUserId, roomId, { turn = null } = {}) {
+  const actor = await holderActor(prisma, discordUserId, roomId);
+  if (!actor.ok) return actor;
+  const { character, room } = actor;
+  if (!room.payphone) return fail(PHONE_TEXT.nothingToPay);
+  const call = await callInRoom(prisma, room.id);
+  if (!handsetTimers(room, handsetState(room, call)).needsCoin) return fail(PHONE_TEXT.nothingToPay);
+  try {
+    await prisma.$transaction(async (tx) => {
+      await takePhoneCoin(tx, character, room, turn);
+      await buyTime(tx, room);
+    });
+  } catch (err) {
+    return fail(err?.userMessage ?? "The coin wouldn't go in. Try again.", { sfx: SFX.REFUSE_MONEY });
+  }
+  await notifyPhones(prisma, [room.id]);
+  return holdingView(prisma, character, room.id, { line: PHONE_TEXT.paid, sfx: SFX.COIN_INSERT, charged: true });
+}
+
+// Whether a phone can take a call right now, read off a row fetched under
+// lock — everything but the live call, which dialNumber asks the PhoneCall
+// table about under the same lock. Busy means a call is on the line: a live
+// one, or a dead line whose holder has not hung up yet. A phone that is only
+// in somebody's hand, dial tone and no call, is NOT busy: it rings in their
+// hand, and they answer it.
+function takesCalls(room) {
+  return Boolean(room?.phone) && !room.retiredAt && !room.phoneDeadSince;
+}
+
+// A live call at either end of either phone. Asked under the row lock, since
+// the partial unique indexes only stop a room being the FROM end twice or the
+// TO end twice — not calling out while it is being rung.
+async function lineInUse(tx, roomIds) {
+  const live = await tx.phoneCall.findFirst({
+    where: { status: { in: LIVE }, OR: [{ fromRoomId: { in: roomIds } }, { toRoomId: { in: roomIds } }] },
+    select: { id: true },
+  });
+  return Boolean(live);
+}
+
+/**
+ * Dial a number from the phone in your hand. Resolves to
+ * { ok, outcome, handset, line, sfx } where `outcome` is
+ *
+ *   "ringing"        the far phone is ringing
+ *   "notInService"   no phone has that number
+ *   "busy"           the far phone is busy, or it is this phone
+ *
+ * The last two ring out for PHONE_MISDIAL_MS before the exchange says so,
+ * into this room's chat: the design document's "calls for a few seconds,
+ * before sounding an error". That is an honest wait on the server, so both
+ * faces keep the caller listening to the same tone for the same time.
+ */
+async function dialNumber(prisma, discordUserId, roomId, rawDigits, { turn = null } = {}) {
+  const actor = await holderActor(prisma, discordUserId, roomId);
+  if (!actor.ok) return actor;
+  const { character, room } = actor;
+
+  const digits = normalizeDigits(rawDigits);
+  if (!digits) return fail(PHONE_TEXT.badNumber);
+  if (room.phoneDeadSince || (await callInRoom(prisma, room.id))) return fail(PHONE_TEXT.hangUpFirst);
+
+  // A payphone takes its coin when you dial, whatever you dial — the coin
+  // buys the line, not the person at the other end.
+  let charged = false;
+  if (room.payphone && handsetTimers(room, "idle").needsCoin) {
+    try {
+      await prisma.$transaction(async (tx) => {
+        await takePhoneCoin(tx, character, room, turn);
+        await buyTime(tx, room);
+      });
+      charged = true;
+    } catch (err) {
+      return fail(err?.userMessage ?? "The coin wouldn't go in. Try again.", { sfx: SFX.REFUSE_MONEY });
+    }
+  }
+  await prisma.room.update({ where: { id: room.id }, data: { phoneIdleSince: new Date() } });
+
+  const number = Number(digits);
+  const target = await prisma.room.findFirst({
+    where: { phoneNumber: number, phone: { not: null }, retiredAt: null },
+    select: PHONE_ROOM,
+  });
+
+  await audit(prisma, discordUserId, character, room, turn, { dialled: digits, charged });
+
+  if (!target) return misdial(prisma, character, room, "notInService", PHONE_TEXT.notInService, charged);
+  if (target.id === room.id || !takesCalls(target)) {
+    return misdial(prisma, character, room, "busy", PHONE_TEXT.busy, charged);
+  }
+
+  // Both rows locked, in id order so two people dialling each other in the
+  // same second cannot deadlock, then the far phone checked again under the
+  // lock: a hand that reached it between the read above and here makes it
+  // busy, and so does a call the partial unique index refuses.
+  let call = null;
+  try {
+    call = await prisma.$transaction(async (tx) => {
+      const [a, b] = [room.id, target.id].sort();
+      await tx.$queryRaw`SELECT "id" FROM "Room" WHERE "id" IN (${a}, ${b}) ORDER BY "id" FOR UPDATE`;
+      const far = await tx.room.findUnique({ where: { id: target.id }, select: PHONE_ROOM });
+      if (!takesCalls(far) || (await lineInUse(tx, [room.id, target.id]))) return null;
+      return tx.phoneCall.create({
+        data: {
+          fromRoomId: room.id,
+          toRoomId: target.id,
+          callerId: character.id,
+          status: "RINGING",
+          paid: charged,
+          turnId: turn?.id ?? null,
+        },
+      });
+    });
+  } catch (err) {
+    if (err?.code !== "P2002") {
+      console.error("Phone dial failed:", err.message ?? err);
+      return fail("The line went dead. Try again.");
+    }
+  }
+  if (!call) return misdial(prisma, character, room, "busy", PHONE_TEXT.busy, charged);
+
+  await ringOnce(prisma, call, target);
+  await notifyPhones(prisma, [room.id, target.id]);
+  return holdingView(prisma, character, room.id, {
+    outcome: "ringing",
+    line: PHONE_TEXT.dialled(digits),
+    sfx: charged ? SFX.COIN_INSERT : null,
+    charged,
+  });
+}
+
+// A number that goes nowhere: ring out for a few seconds, then the error,
+// said into the dialling room. The error sound is the dialler's alone — it is
+// in their ear, not on the wall. `charged` rides through because the coin went
+// in before the number was looked up, so a misdial on a payphone still cost one.
+async function misdial(prisma, character, room, outcome, text, charged = false) {
+  await sleep(PHONE_MISDIAL_MS);
+  await roomLine(prisma, room.id, text, null);
+  return holdingView(prisma, character, room.id, { outcome, line: text, sfx: SFX.PHONE_ERROR, charged });
+}
+
+// One audit row per dial, stamped with the turn (REQUESTS.md 1a). The number
+// dialled and whether a coin went in — never the phone it reached, because the
+// phone keeps no such record and neither should the log a GM hands round.
+async function audit(prisma, discordUserId, character, room, turn, details) {
+  await prisma.auditLog
+    .create({
+      data: {
+        actorDiscordUserId: discordUserId,
+        actionType: "phone_call",
+        targetCharacterId: character.id,
+        roomId: room.id,
+        turnId: turn?.id ?? null,
+        details: { from: room.phone, ...details, cost: details.charged ? PHONE_COST : 0 },
+      },
+    })
+    .catch((err) => console.error("Phone audit failed:", err.message ?? err));
+}
+
 /**
  * One ring, in the room being called. The dual write every other bit of
  * scenery makes (db/lib/soundBroadcast.js): the Discord post and the archive
- * row are two halves of one event, and neither is the other's fallback.
+ * row are two halves of one event, and neither is the other's fallback. The
+ * bell itself is not on the row — it is a loop the browser holds for as long
+ * as the call rings (db/lib/phoneFrame.js).
  *
- * ONLY THE FIRST RING PINGS. Four @here in sixty seconds is not a phone, it is
- * a fire drill — so ring one is the notification and the other three are the
- * sound of it still going.
+ * ONLY THE FIRST RING PINGS. A phone that rings until it is answered would
+ * otherwise be forty @here in ten minutes: ring one is the notification and
+ * the rest are the sound of it still going.
  */
 async function ringOnce(prisma, call, target = null) {
   const room =
@@ -284,8 +571,7 @@ async function ringOnce(prisma, call, target = null) {
 
   if (room.discordThreadId) {
     // `parse: ["everyone"]` is what lets OUR @here through, the same permission
-    // db/lib/intercom.js takes. Nothing player-typed goes into this string, so
-    // there is nothing here to defang — the phone says one fixed sentence.
+    // db/lib/intercom.js takes. Nothing player-typed goes into this string.
     //
     // The ping reaches exactly the right people for free: a Room is a thread
     // under its Location's channel, and Location visibility is a per-member
@@ -299,7 +585,7 @@ async function ringOnce(prisma, call, target = null) {
     ).catch((err) => console.error("Phone ring failed:", err.message ?? err));
   }
 
-  await sceneLineAt(prisma, { roomId: room.id, text, signed: false, sfx: SFX.PHONE_RING });
+  await sceneLineAt(prisma, { roomId: room.id, text, signed: false });
 
   return prisma.phoneCall.update({
     where: { id: call.id },
@@ -307,46 +593,15 @@ async function ringOnce(prisma, call, target = null) {
   });
 }
 
-/** Pick up. Anybody standing in the called room may. */
-async function answerCall(prisma, discordUserId, roomId) {
-  const actor = await phoneActor(prisma, discordUserId, roomId);
-  if (!actor.ok) return actor;
-  const { character, room } = actor;
-
-  const call = await prisma.phoneCall.findFirst({
-    where: { status: "RINGING", toRoomId: room.id },
-    orderBy: { startedAt: "desc" },
-  });
-  if (!call) {
-    // "Nothing is ringing here" is the WRONG answer when somebody in this room
-    // already picked up a second ago: the phone is very much in use, and being
-    // told it is silent sends the second person looking for a fault. Which of
-    // the two refusals you get is which of the two things is true.
-    const live = await callInRoom(prisma, room.id);
-    return fail(live ? PHONE_TEXT.held : "Nothing is ringing here.");
-  }
-
-  // A conditional update, not a read-then-write: two people in the Ward both
-  // reaching for the receiver is ordinary, and exactly one of them gets it.
-  const { count } = await prisma.phoneCall.updateMany({
-    where: { id: call.id, status: "RINGING", calleeId: null },
-    data: { status: "CONNECTED", calleeId: character.id, answeredAt: new Date() },
-  });
-  if (!count) return fail(PHONE_TEXT.held);
-
-  await bothEnds(prisma, call, PHONE_TEXT.pickedUp, SFX.PHONE_PICKUP, { except: room.id });
-  return { ok: true, call, sfx: SFX.PHONE_PICKUP };
-}
-
 /**
- * Put the receiver down. `reason` is why, for a GM reading a stuck row:
- * "hungup" (somebody clicked), "left" (walked out), "noanswer" (the sweep gave
- * up), "gm".
+ * End a call. `byRoomId` is the end that did it — hung up, walked off, was
+ * ejected; the OTHER end is told, and if somebody is holding the receiver
+ * there it goes dead in their hand: the busy tone, and "The call hung up.",
+ * until they hang up too.
  *
- * `silentSide` is the room that should hear NOTHING — walking out of a room is
- * not a sound the room you left makes, which is the one asymmetry here.
+ * `quiet` ends the line without telling anybody, for a call nobody is on.
  */
-async function endCall(prisma, call, reason, { silentSide = null } = {}) {
+async function endCall(prisma, call, reason, { byRoomId = null, quiet = false } = {}) {
   if (!call) return null;
   const { count } = await prisma.phoneCall.updateMany({
     where: { id: call.id, status: { in: LIVE } },
@@ -354,68 +609,93 @@ async function endCall(prisma, call, reason, { silentSide = null } = {}) {
   });
   if (!count) return null;
 
-  if (reason === "noanswer") {
-    // Nobody ever picked up, so there is no far end to tell. The room that has
-    // been ringing hears it stop.
-    await roomLine(prisma, call.toRoomId, PHONE_TEXT.noAnswer, SFX.PHONE_DROP);
-    await roomLine(prisma, call.fromRoomId, PHONE_TEXT.noAnswer, SFX.PHONE_DROP);
-    return call;
+  if (!quiet) {
+    if (call.status === "RINGING" && byRoomId === call.toRoomId) {
+      // The phone was ringing in somebody's hand and they hung up on it: to
+      // the caller that is a call hanging up, dead line and all.
+      await deadLine(prisma, call.fromRoomId);
+    } else if (call.status === "RINGING") {
+      // The caller gave up, or ran out of ring. The phone on the far wall just
+      // stops; nobody picked it up, so there is nobody to tell.
+      if (reason === "noanswer") await roomLine(prisma, call.fromRoomId, PHONE_TEXT.noAnswer, null);
+    } else if (byRoomId) {
+      await deadLine(prisma, farRoomOf(call, byRoomId));
+    }
   }
-
-  // "The person hung up" also plays the busy tone, because being hung up on
-  // and running into a dead line are the same experience from this end.
-  await bothEnds(prisma, call, PHONE_TEXT.hungUp, SFX.PHONE_BUSY, { except: silentSide });
+  await prisma.room.updateMany({
+    where: { id: { in: [call.fromRoomId, call.toRoomId] }, phoneHolderId: { not: null }, phoneIdleSince: null },
+    data: { phoneIdleSince: new Date() },
+  });
+  await notifyPhones(prisma, [call.fromRoomId, call.toRoomId]);
   return call;
 }
 
-/** Hang up whatever this character is holding. */
+// The line went dead in somebody's hand: the busy tone until they hang up
+// too, and the design document's "The call hung up." into their room. With
+// nobody holding the phone there is nobody to leave on a dead line.
+async function deadLine(prisma, roomId) {
+  const { count } = await prisma.room.updateMany({
+    where: { id: roomId, phoneHolderId: { not: null } },
+    data: { phoneDeadSince: new Date(), phoneIdleSince: new Date() },
+  });
+  if (count) await roomLine(prisma, roomId, PHONE_TEXT.hungUp, SFX.PHONE_PICKUP);
+}
+
+/** Hang up: the call ends, the phone stays in your hand. */
 async function hangUp(prisma, discordUserId, roomId) {
-  const actor = await phoneActor(prisma, discordUserId, roomId);
+  const actor = await holderActor(prisma, discordUserId, roomId);
   if (!actor.ok) return actor;
   const { character, room } = actor;
 
-  const call = await callHeldBy(prisma, character.id);
-  if (!call) return fail("You aren't holding a phone.");
+  if (room.phoneDeadSince) {
+    await prisma.room.update({ where: { id: room.id }, data: { phoneDeadSince: null, phoneIdleSince: new Date() } });
+    await notifyPhones(prisma, [room.id]);
+    return holdingView(prisma, character, room.id, { line: PHONE_TEXT.hungUpSelf, sfx: SFX.PHONE_PICKUP });
+  }
+  const call = await callInRoom(prisma, room.id);
+  if (!call) return fail(PHONE_TEXT.noCall);
+  await endCall(prisma, call, "hungup", { byRoomId: room.id });
+  return holdingView(prisma, character, room.id, { line: PHONE_TEXT.hungUpSelf, sfx: SFX.PHONE_PICKUP });
+}
 
-  // The hang-up click is heard at BOTH ends: you hear your own receiver go
-  // down, and they hear the line die. Only the far end gets the busy tone.
-  await endCall(prisma, call, "hungup", { silentSide: room.id });
-  // Their own room gets a different line: "The person hung up" is what you
-  // read when somebody did it TO you, and printing it to the person who just
-  // did it reads as though they had been cut off.
-  await roomLine(prisma, room.id, PHONE_TEXT.putDown, SFX.PHONE_DROP);
-  return { ok: true, call, sfx: SFX.PHONE_DROP };
+/** Walk away: let go of the receiver and leave the line as it is. */
+async function walkAway(prisma, discordUserId, roomId) {
+  const actor = await holderActor(prisma, discordUserId, roomId);
+  if (!actor.ok) return actor;
+  await releasePhone(prisma, actor.room.id, { reason: "walked" });
+  return { ok: true, mode: "gone", line: PHONE_TEXT.walkedAway, sfx: SFX.PHONE_DROP };
+}
+
+/**
+ * Take the receiver out of somebody's hand: their time is up, or they are no
+ * longer standing there. Any call on the line hangs up from this end — the
+ * design document's "ejected from the payphone and the call hangs up".
+ */
+async function ejectHolder(prisma, room, reason) {
+  const call = await callInRoom(prisma, room.id);
+  await prisma.room.update({ where: { id: room.id }, data: { ...RELEASED, phoneDeadSince: null } });
+  // A call ringing IN is not this holder's to end: the phone goes on ringing
+  // on the wall for whoever comes to it.
+  const ringingIn = call?.status === "RINGING" && call.toRoomId === room.id;
+  if (call && !ringingIn) await endCall(prisma, call, reason, { byRoomId: room.id });
+  else await notifyPhones(prisma, [room.id]);
 }
 
 /**
  * Everything this character is holding, dropped — because they left the room.
- * Called from db/lib/locationMove.js. No sound on the side they walked out of:
- * they are not there to hear it, and the room they left did not make a noise.
+ * Called from db/lib/locationMove.js. Leaving hangs up, as it always has: the
+ * design document's Walk away is a button, not a side effect of walking.
  */
 async function dropCallsForCharacter(prisma, characterId) {
-  const calls = await prisma.phoneCall.findMany({
-    where: { status: { in: LIVE }, OR: [{ callerId: characterId }, { calleeId: characterId }] },
-  });
-  for (const call of calls) {
-    const mine = call.callerId === characterId ? call.fromRoomId : call.toRoomId;
-    await endCall(prisma, call, "left", { silentSide: mine }).catch((err) =>
-      console.error("Phone drop failed:", err.message ?? err),
-    );
+  const rooms = await prisma.room.findMany({ where: { phoneHolderId: characterId }, select: PHONE_ROOM });
+  for (const room of rooms) {
+    await ejectHolder(prisma, room, "left").catch((err) => console.error("Phone drop failed:", err.message ?? err));
   }
-  return calls.length;
-}
-
-// One line into both rooms on a call, skipping `except`. Sequential and
-// individually caught: never Promise.all a Discord fan-out (TURN-ENGINE.md).
-async function bothEnds(prisma, call, text, sfx, { except = null } = {}) {
-  for (const roomId of [call.fromRoomId, call.toRoomId]) {
-    if (roomId === except) continue;
-    await roomLine(prisma, roomId, text, sfx);
-  }
+  return rooms.length;
 }
 
 // The dual write, once. Subtext on Discord because a phone clicking is
-// scenery — the one line that is NOT is the ring, which is a bell.
+// scenery. `sfx` rides the row for everybody reading the room, or null.
 async function roomLine(prisma, roomId, text, sfx) {
   const room = await prisma.room.findUnique({
     where: { id: roomId },
@@ -435,115 +715,146 @@ async function roomLine(prisma, roomId, text, sfx) {
 // the cadence is testable without a database (db/test/phone.test.js).
 //
 // Derived rather than counted because a sweep that missed a pass must CATCH UP
-// rather than stretch the call: a phone that rang at 0s and then not again
-// until the bot came back at 40s has still been ringing for 40 seconds, and it
-// should be on its third ring, not its second. Four rings is the cap whatever
-// the arithmetic says.
+// rather than stretch the call. There is no cap: a phone rings until it is
+// answered, or until PHONE_RING_CAP_MS ends the call.
 function ringsDueBy(elapsedMs) {
   if (!(elapsedMs >= 0)) return 1;
-  return Math.min(PHONE_RINGS, Math.floor(elapsedMs / PHONE_RING_INTERVAL_MS) + 1);
+  return Math.floor(elapsedMs / PHONE_RING_INTERVAL_MS) + 1;
 }
 
-/** Whether a call that has rung its full count has also run out its window. */
-function ringingOver(call, elapsedMs) {
-  return (call?.ringsSent ?? 0) >= PHONE_RINGS && elapsedMs >= PHONE_RINGS * PHONE_RING_INTERVAL_MS;
-}
-
-// A CONNECTED call whose holder is dead, or no longer standing by the phone,
-// is a receiver hanging on its cord in an empty room — and because a live call
-// is what makes a line busy, it wedges that phone for good.
-//
-// db/lib/locationMove.js hangs up on every relocation, which covers walking
-// out. This covers everything that is NOT a relocation: dying, a GM deleting a
-// character, a row written by something that never ran the mover. It is a
-// SWEEP rather than another hook for exactly that reason — the hook list is
-// never finished, and a stuck phone should heal itself within fifteen seconds
-// whatever put it there.
-async function clearStaleCalls(prisma) {
-  const live = await prisma.phoneCall.findMany({
-    where: { status: "CONNECTED" },
-    select: {
-      id: true,
-      fromRoomId: true,
-      toRoomId: true,
-      caller: { select: { id: true, status: true, locationId: true } },
-      callee: { select: { id: true, status: true, locationId: true } },
-      fromRoom: { select: { locationId: true } },
-      toRoom: { select: { locationId: true } },
-    },
-  });
-
-  let cleared = 0;
-  for (const call of live) {
-    const gone =
-      !call.caller ||
-      !call.callee ||
-      call.caller.status !== "ALIVE" ||
-      call.callee.status !== "ALIVE" ||
-      call.caller.locationId !== call.fromRoom?.locationId ||
-      call.callee.locationId !== call.toRoom?.locationId;
-    if (!gone) continue;
-    await endCall(prisma, { id: call.id, fromRoomId: call.fromRoomId, toRoomId: call.toRoomId }, "left").catch(
-      (err) => console.error("Phone cleanup failed:", err.message ?? err),
-    );
-    cleared += 1;
-  }
-  return cleared;
+/** Whether a ringing call has rung for as long as a caller could stand there. */
+function ringingOver(elapsedMs) {
+  return elapsedMs >= PHONE_RING_CAP_MS;
 }
 
 /**
- * The sweep's whole job: ring what is due, give up on what has run out of
- * rings, and hang up a receiver nobody is holding any more. Called every
- * PHONE_RING_INTERVAL_MS from bot/src/events/ready.js. Returns
- * { rang, expired, cleared } for the log line.
+ * What the sweep should do with one held phone, from its row and its holder.
+ * Pure, so every rule is testable without a database. Returns one of
+ *
+ *   "left"     the holder is dead or no longer in the Location: eject
+ *   "unpaid"   a payphone's paid time ran out: eject, hanging up
+ *   "prompt"   a payphone in its last minute that has not asked yet
+ *   "idle"     no call connected for PHONE_HOLD_IDLE_MS: let go
+ *   null       leave it be
+ */
+function holderVerdict(room, holder, state, now = Date.now()) {
+  if (!holder || holder.status !== "ALIVE" || holder.locationId !== room.locationId) return "left";
+  const { paidUntil, idleEjectAt } = handsetTimers(room, state, now);
+  if (room.payphone && paidUntil != null && paidUntil <= now) return "unpaid";
+  if (room.payphone && paidUntil != null && paidUntil - now <= PHONE_OBOL_PROMPT_MS && !room.phoneObolPrompted) {
+    return "prompt";
+  }
+  if (idleEjectAt != null && idleEjectAt <= now) return "idle";
+  return null;
+}
+
+/**
+ * The sweep's whole job, every PHONE_RING_INTERVAL_MS from
+ * bot/src/events/ready.js: ring what is due, give up on what has rung too long,
+ * and apply the holders' clocks. Returns { rang, expired, ejected } for the
+ * log line.
  */
 async function tickPhones(prisma) {
-  const ringing = await prisma.phoneCall.findMany({
-    where: { status: "RINGING" },
-    orderBy: { startedAt: "asc" },
-  });
-
+  const now = Date.now();
   let rang = 0;
   let expired = 0;
-  for (const call of ringing) {
-    const elapsed = Date.now() - new Date(call.startedAt).getTime();
+  let ejected = 0;
 
-    if (call.ringsSent >= PHONE_RINGS) {
-      if (ringingOver(call, elapsed)) {
-        await endCall(prisma, call, "noanswer").catch((err) =>
-          console.error("Phone expiry failed:", err.message ?? err),
-        );
-        expired += 1;
-      }
+  const ringing = await prisma.phoneCall.findMany({ where: { status: "RINGING" }, orderBy: { startedAt: "asc" } });
+  for (const call of ringing) {
+    const elapsed = now - new Date(call.startedAt).getTime();
+    if (ringingOver(elapsed)) {
+      await endCall(prisma, call, "noanswer", { byRoomId: call.fromRoomId }).catch((err) =>
+        console.error("Phone expiry failed:", err.message ?? err),
+      );
+      expired += 1;
       continue;
     }
     if (call.ringsSent >= ringsDueBy(elapsed)) continue;
     await ringOnce(prisma, call).catch((err) => console.error("Phone ring failed:", err.message ?? err));
     rang += 1;
   }
-  const cleared = await clearStaleCalls(prisma).catch((err) => {
-    console.error("Phone cleanup failed:", err.message ?? err);
-    return 0;
+
+  const held = await prisma.room.findMany({ where: { phoneHolderId: { not: null } }, select: PHONE_ROOM });
+  for (const room of held) {
+    try {
+      const [holder, call] = await Promise.all([
+        prisma.character.findUnique({ where: { id: room.phoneHolderId }, select: { status: true, locationId: true } }),
+        callInRoom(prisma, room.id),
+      ]);
+      const verdict = holderVerdict(room, holder, handsetState(room, call), now);
+      if (verdict === "left" || verdict === "unpaid") {
+        await ejectHolder(prisma, room, verdict);
+        ejected += 1;
+      } else if (verdict === "prompt") {
+        await prisma.room.update({ where: { id: room.id }, data: { phoneObolPrompted: true } });
+        await roomLine(prisma, room.id, PHONE_TEXT.insertAgain, null);
+        await notifyPhones(prisma, [room.id]);
+      } else if (verdict === "idle") {
+        await releasePhone(prisma, room.id, { reason: "ejected" });
+        ejected += 1;
+      }
+    } catch (err) {
+      console.error("Phone holder sweep failed:", err.message ?? err);
+    }
+  }
+
+  // A payphone line nobody is holding still runs on its paid time.
+  const unpaid = await prisma.phoneCall.findMany({
+    where: { status: "CONNECTED" },
+    select: {
+      id: true,
+      status: true,
+      fromRoomId: true,
+      toRoomId: true,
+      fromRoom: { select: { payphone: true, phoneHolderId: true, phonePaidUntil: true } },
+      toRoom: { select: { payphone: true, phoneHolderId: true, phonePaidUntil: true } },
+    },
   });
-  return { rang, expired, cleared };
+  for (const call of unpaid) {
+    for (const [roomId, room] of [
+      [call.fromRoomId, call.fromRoom],
+      [call.toRoomId, call.toRoom],
+    ]) {
+      const lapsed = room?.payphone && room.phonePaidUntil && new Date(room.phonePaidUntil).getTime() <= now;
+      const nobody = !call.fromRoom?.phoneHolderId && !call.toRoom?.phoneHolderId;
+      if (lapsed || nobody) {
+        await endCall(prisma, call, lapsed ? "unpaid" : "walked", { byRoomId: roomId, quiet: nobody }).catch((err) =>
+          console.error("Phone line sweep failed:", err.message ?? err),
+        );
+        expired += 1;
+        break;
+      }
+    }
+  }
+
+  // A dead line nobody is holding is just a phone on the wall again.
+  await prisma.room.updateMany({ where: { phoneHolderId: null, phoneDeadSince: { not: null } }, data: { phoneDeadSince: null } });
+
+  return { rang, expired, ejected };
 }
 
 module.exports = {
   LIVE,
   PHONE_ROOM,
-  dialablePhones,
+  PHONE_RING_CAP_MS,
   callInRoom,
-  callHeldBy,
   phoneActor,
   phoneView,
-  placeCall,
-  answerCall,
+  handsetView,
+  answerPhone,
+  insertObol,
+  dialNumber,
   hangUp,
+  walkAway,
   endCall,
+  ejectHolder,
+  releasePhone,
   dropCallsForCharacter,
   ringOnce,
   ringsDueBy,
   ringingOver,
-  clearStaleCalls,
+  holderVerdict,
+  takesCalls,
   tickPhones,
 };

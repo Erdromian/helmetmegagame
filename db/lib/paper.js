@@ -115,7 +115,11 @@ function noteCode(rng = Math.random) {
 }
 
 // A stamp's SHORT label, for titling letters it closes. The mark is a whole sentence, so this pulls the short form from the stamp's own name: "Wax Seal (Three Cups)" -> "Three Cups". Derived rather than a third authored field.
+// An office's ring (or a wax seal forged from one) carries its label outright
+// on Tag.sealOffice, so the Baron's ring titles a letter "(Baron)" rather than
+// with his initials (docs/systemdocs/RINGS.md).
 function sealLabel(stampTag) {
+  if (stampTag?.sealOffice) return stampTag.sealOffice;
   const name = stampTag?.name ?? "";
   const paren = name.match(/\(([^)]+)\)/);
   if (paren) return paren[1].trim();

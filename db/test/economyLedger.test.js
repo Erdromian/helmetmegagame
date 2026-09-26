@@ -16,6 +16,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { record, recordDelta, MINT, BURN, characterParty } = require("../lib/economyLedger");
 const { moveParty, applyTransfer, InsufficientResourcesError } = require("../lib/resourceTransfer");
+const { bumpBankAccount } = require("../lib/bankAccounts");
 
 // ⬢ are a stack tag now (db/lib/resourceStack.js), held in a CharacterTag or
 // RoomTag row rather than a `resources` column. resourceTransfer.js's
@@ -184,6 +185,62 @@ test("a successful ledger write releases its savepoint", async () => {
   const tx = fakeTx({ ada: 10 });
   await moveParty(tx, ada, -4, { reason: "HUNGER" });
   assert.deepEqual(tx.sql, ["SAVEPOINT economy_entry", "RELEASE SAVEPOINT economy_entry"]);
+});
+
+// The root `prisma` rather than a transaction client: it can open a
+// transaction, and a SAVEPOINT on it is refused with 25P01, as the live one
+// refuses it. That refusal is what used to drop every row a caller with no
+// transaction tried to book — the CHARACTER_START credit among them.
+function fakeRoot(balances = {}) {
+  const db = fakeTx(balances);
+  db.$transaction = async () => {
+    throw new Error("not modelled");
+  };
+  db.$executeRawUnsafe = async (text) => {
+    db.sql.push(text);
+    if (/SAVEPOINT/.test(text)) {
+      throw Object.assign(new Error("SAVEPOINT can only be used in transaction blocks"), { code: "25P01" });
+    }
+  };
+  return db;
+}
+
+test("a caller with no transaction still gets its row, and no SAVEPOINT is tried", async () => {
+  const db = fakeRoot({ ada: 10 });
+  await moveParty(db, ada, -4, { reason: "HUNGER" });
+  assert.equal(db.bal.get("ada"), 6);
+  assert.equal(db.entries.length, 1);
+  assert.equal(db.entries[0].reason, "HUNGER");
+  assert.deepEqual(db.sql, []);
+});
+
+test("a bank credit booked through the root client keeps its ACCOUNT row", async () => {
+  const db = fakeRoot();
+  db.$queryRawUnsafe = async () => [{ before: 0, after: 25 }];
+  const moved = await bumpBankAccount(db, "acct1", 25, {
+    holderName: "Ada",
+    econ: { reason: "CHARACTER_START" },
+  });
+  assert.equal(moved.delta, 25);
+  assert.equal(db.entries.length, 1);
+  const e = db.entries[0];
+  assert.equal(e.form, "ACCOUNT");
+  assert.equal(e.reason, "CHARACTER_START");
+  assert.equal(e.toKind, "bank");
+  assert.equal(e.toId, "acct1");
+  assert.equal(e.amount, 25);
+});
+
+test("the root client never caches the game, so a Restart Game is seen at once", async () => {
+  // The root client lives as long as the process. Caching the game on it
+  // would stamp every row after a restart with the old game's id.
+  const db = fakeRoot();
+  let gameId = "g1";
+  db.gameState.findUnique = async () => ({ gameId });
+  await recordDelta(db, ada, 1);
+  gameId = "g2";
+  await recordDelta(db, ada, 1);
+  assert.deepEqual(db.entries.map((e) => e.gameId), ["g1", "g2"]);
 });
 
 test("an amount past int4 is clamped rather than raising", async () => {

@@ -134,7 +134,7 @@ export default function ChatAside({
   // ChatAside twice (desktop column and ⋯ sheet).
   onOpenMap = null,
 }) {
-  const { affordances: live, openFixture, openConverse, say: placeSay, notice, error, pending, dialogs } =
+  const { affordances: live, openFixture, openConverse, say: placeSay, notice, error, pending, dialogs, phoneBar } =
     usePlaceActions(affordances, onPlaceChanged);
   // Extract is the SHEET's dialog, mounted on this page (play/page.js) — no
   // second copy of it here.
@@ -186,6 +186,9 @@ export default function ChatAside({
 
   return (
     <div className="chat-aside-stack">
+      {/* The phone in their hand, if any, above everything (PHONES.md §3). */}
+      {phoneBar}
+
       <h2 className="bar">You</h2>
 
       {/* The body, inside the sprite frame the mockup draws around it

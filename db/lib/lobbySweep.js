@@ -11,13 +11,14 @@
 // ASSIGNED, so a tick the bot missed is simply caught up on the next one.
 
 const { sendDm } = require("./dm");
+const { WEB_ORIGIN } = require("./constants");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { assignmentMessage, reminderMessage, expiredMessage, declineComponents, claimNotification } = require("./lobby");
 
 const REMINDER_BEFORE_MS = 6 * 60 * 60 * 1000;
 const RESEND_AFTER_MS = 5 * 60 * 1000;
 
-async function runLobbySweep(prisma, { origin = "https://ravenheart.quest", now = new Date() } = {}) {
+async function runLobbySweep(prisma, { origin = WEB_ORIGIN, now = new Date() } = {}) {
   let resent = 0;
   let reminded = 0;
   let expired = 0;

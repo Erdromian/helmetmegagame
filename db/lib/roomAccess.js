@@ -7,6 +7,7 @@
 // `prisma` as a parameter and stays off the @lifeweb/db barrel; require it by path.
 const { addThreadMember, removeThreadMember } = require("./discordRest");
 const { notifyPresence } = require("./presenceNotify");
+const { accessSlugsOf, RING_ACCESS_TAG_FIELDS } = require("./rings");
 
 // Some pushes can never succeed, and the diff below cannot tell: it only
 // records a membership Discord ACCEPTED, so a refusal is retried on the next
@@ -74,12 +75,35 @@ async function questAllowedRoomIds(prisma, characterId) {
   return new Set(rows.map((q) => q.room?.id).filter(Boolean));
 }
 
+// Every door token the character has: what they hold, plus what the signet
+// ring on their finger opens (db/lib/rings.js#accessSlugsOf). The ring's
+// tokens are the retired seat keys' slugs, which every `access:` list still
+// names, so no door needs to know a ring exists.
 async function heldTagSlugs(prisma, characterId) {
   const tags = await prisma.characterTag.findMany({
     where: { characterId },
-    select: { tag: { select: { slug: true } } },
+    select: { equipped: true, tag: { select: RING_ACCESS_TAG_FIELDS } },
   });
-  return new Set(tags.map((t) => t.tag.slug));
+  return accessSlugsOf(tags);
+}
+
+// Just the worn ring's door tokens, for a caller that already has the held
+// slugs in hand from a select of its own (travel, the keyed-way prompt). One
+// indexed lookup; an empty array when there is no registered ring on a finger.
+async function wornRingTokens(prisma, characterId) {
+  if (!characterId) return [];
+  const row = await prisma.characterTag.findFirst({
+    where: { characterId, equipped: true, tag: { ringOfCharacterId: { not: null }, ringRegisteredAt: { not: null } } },
+    select: { tag: { select: { ringAccessSlugs: true } } },
+  });
+  return row?.tag?.ringAccessSlugs ?? [];
+}
+
+// Held slugs from an already-loaded tag list, plus the worn ring's tokens.
+async function withRingTokens(prisma, characterId, tags) {
+  const slugs = new Set((tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  for (const token of await wornRingTokens(prisma, characterId)) slugs.add(token);
+  return slugs;
 }
 
 async function guestRoomIds(prisma, characterId) {
@@ -207,6 +231,8 @@ module.exports = {
   syncCharacterRoomAccess,
   accessibleRooms,
   heldTagSlugs,
+  wornRingTokens,
+  withRingTokens,
   guestRoomIds,
   questAllowedRoomIds,
   roomAccessKeys,

@@ -193,7 +193,10 @@ changed" rather than committing a wrong table. Then every READY entry becomes
 **ASSIGNED** with `expiresAt = now + creationWindowHours` or **UNASSIGNED**,
 the phase goes RUNNING with `startedAt` and `playerCount`, Turn 1 is restamped
 to now (created as `max + 1` if none is open), and one `game_started` audit row
-carries the whole draft.
+carries the whole draft. In the same transaction every telephone goes back on
+its hook and gets a fresh four-digit number, and the Phonebook is reprinted
+with them (`db/lib/phoneNumbers.js`, `PHONES.md` §2) — so a number learned
+last game is worth nothing in this one.
 
 With nobody readied, Start just flips the phase — a GM test game.
 
