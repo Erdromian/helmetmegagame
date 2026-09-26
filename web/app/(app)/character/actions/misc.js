@@ -29,8 +29,9 @@ import { isLockedCollarSlug } from "@lifeweb/db/lib/collarGlyphs";
 import { resourcesOf, isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import { speakAtPlaces } from "@lifeweb/db/lib/inventoryTail";
 import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
-import { concealedNow } from "@lifeweb/db/lib/presence";
-import { resolveHereTarget, refusalFor } from "@/lib/hereTarget";
+import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
+import { resolveHereTarget, refusalFor, seenName } from "@/lib/hereTarget";
+import { seenById } from "@lifeweb/db/lib/intercept";
 import { applyHiddenCures } from "@lifeweb/db/lib/hiddenCures";
 import {
   canSendBird as holdsBirdAndLetters,
@@ -797,9 +798,9 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
     const targetSlugs = new Set(found.tags.map((ct) => ct.tag.slug));
     const intersects = curesList.some((slug) => targetSlugs.has(slug));
     if (!intersects && !held.tag.administerable) {
-      // Never their name when a mask is what you are looking at.
-      const who = concealedNow(found) ? "They" : found.name;
-      throw new UserError(`${who} ${concealedNow(found) ? "don't" : "doesn't"} have anything that ${held.tag.name} can treat.`);
+      // Never their name when a mask, or a face you don't know, is what you
+      // are looking at (seenName).
+      throw new UserError(`${await seenName(character, found.id)} doesn't have anything that ${held.tag.name} can treat.`);
     }
     target = found;
   }
@@ -1048,7 +1049,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
       const freshSlugs = new Set(freshTags.map((ct) => ct.tag.slug));
       const stillIntersects = curesList.some((slug) => freshSlugs.has(slug));
       if (!stillIntersects && !held.tag.administerable) {
-        throw new UserError(`${target.name} was already treated for that.`);
+        throw new UserError(`${await seenName(character, target.id)} was already treated for that.`);
       }
       curedHeldNow = curesList.length
         ? freshTags.filter((ct) => curesList.includes(ct.tag.slug))
@@ -1283,7 +1284,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
   });
   await afterInventoryChange([character.id, administered ? target.id : null]);
   if (administered) {
-    notifyCharacter(target, `${character.name} used ${held.tag.name} on you.`);
+    notifyCharacter(target, `${await seenName(target, character.id)} used ${held.tag.name} on you.`);
   }
   // Corpse Salts answers straight away rather than waiting up to a minute for
   // the sweep to notice (db/lib/corpseSense.js). Keyed on the CONSUMED tag's
@@ -1419,7 +1420,7 @@ export async function lootCharacterRequestImpl({
 
   const targetResources = resourcesOf(target);
   if (amount > targetResources)
-    throw new UserError(`${target.name} only has ${targetResources} ⬢.`);
+    throw new UserError(`${await seenName(character, target.id)} only has ${targetResources} ⬢.`);
 
   const openTurn = await getOpenTurn();
 
@@ -1562,7 +1563,7 @@ export async function bindCharacterRequestImpl({
     select: BIND_SELECT,
   });
   if (isBoundTarget(target))
-    throw new UserError(`${target.name} is already bound.`);
+    throw new UserError(`${await seenName(character, target.id)} is already bound.`);
 
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is open.");
@@ -1598,7 +1599,7 @@ export async function bindCharacterRequestImpl({
       },
     });
     revalidateAll();
-    return { pending: true, name: target.name };
+    return { pending: true, name: await seenName(character, target.id) };
   }
 
   await applyBind(prisma, { actor, target, turn: openTurn });
@@ -1775,8 +1776,12 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
     // refusalFor, not notHereMessage: a hood key is refused in the blank form,
     // because a refusal that prints the name is the unmasking itself.
     throw new UserError(refusalFor(targetCharacterId, target));
+  // What the torturer calls them. A break tells them the name (the embed
+  // below); nothing before it does.
+  const seenMid = await seenById(prisma, character.id, target.id);
+  const seen = capitalizeFirst(seenMid);
   if (!isBoundTarget(target))
-    throw new UserError(`${target.name} isn't tied up.`);
+    throw new UserError(`${seen} isn't tied up.`);
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
 
@@ -1789,7 +1794,7 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
   // torturer roll and waste it. The target's mood and the −40 are still spared.
   if (target.tags.some((ct) => ct.tag.slug === IMPERTURBABLE_SLUG))
     throw new UserError(
-      `${target.name} looks back at you, entirely unbothered. There is nothing here to break.`,
+      `${seen} looks back at you, entirely unbothered. There is nothing here to break.`,
     );
 
   const equipmentInReach = await hasEquipmentInReach(
@@ -1869,7 +1874,7 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
       tx,
       character,
       openTurn,
-      `Tortured ${target.name}: ${rollLine} — ${outcome}.`,
+      `Tortured ${reveal ? target.name : seenMid}: ${rollLine} — ${outcome}.`,
       "auto:torture",
     );
     await logAudit(tx, {
@@ -1924,7 +1929,7 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
     notifyCharacter(target, "You were tortured, but held out. It won't be long, now...");
   }
   revalidateAll();
-  return { name: target.name, success: result.success, die: result.die };
+  return { name: reveal ? target.name : seen, success: result.success, die: result.die };
 }
 
 // --- Putting on a face that isn't yours ------------------------------------
@@ -2037,7 +2042,7 @@ export async function harmCharacterRequestImpl({
     if (!tag) throw new UserError("Unknown injury.");
     if (!isInflictable(tag)) throw new UserError("That isn't an injury.");
     if (target.tags.some((ct) => ct.tagId === tag.id)) {
-      throw new UserError(`${target.name} already has ${tag.name}.`);
+      throw new UserError(`${await seenName(character, target.id)} already has ${tag.name}.`);
     }
   }
 
@@ -3099,9 +3104,11 @@ export async function applyCollarRequestImpl({ targetCharacterId, collarSlug = n
     slug: typeof collarSlug === "string" && collarSlug ? collarSlug : null,
   });
   if (!collar) throw new UserError(collarSlug ? "You don't have that collar." : "You don't have a collar.");
-  if (wearsCollar(target)) throw new UserError(`${target.name} already has a collar on.`);
-
   const self = target.id === character.id;
+  if (wearsCollar(target)) {
+    throw new UserError(self ? "You already have a collar on." : `${await seenName(character, target.id)} already has a collar on.`);
+  }
+
   if (!self && !collarNeedsNoConsent(target)) {
     const offer = await createCollarOffer(prisma, { actor, target, turn: openTurn, collar });
     if (!offer.ok) throw new UserError(offer.reason);
@@ -3121,7 +3128,7 @@ export async function applyCollarRequestImpl({ targetCharacterId, collarSlug = n
       },
     });
     revalidateAll();
-    return { pending: true, name: target.name };
+    return { pending: true, name: await seenName(character, target.id) };
   }
 
   const applied = await applyCollar(prisma, { actor, target, turn: openTurn, collar });
@@ -3129,7 +3136,7 @@ export async function applyCollarRequestImpl({ targetCharacterId, collarSlug = n
   await afterInventoryChange(self ? [character.id] : [character.id, target.id]);
   if (!self) notifyCharacter(target, "Someone put a collar on you.");
   revalidateAll();
-  return { name: target.name, glyph: applied.glyph };
+  return { name: self ? target.name : await seenName(character, target.id), glyph: applied.glyph };
 }
 
 // The unlocking ring — the Exactor's or the Pusher's, worn, re-read here rather
@@ -3143,14 +3150,14 @@ export async function unlockCollarRequestImpl({ targetCharacterId }) {
 
   const refusal = await unlockRefusal(prisma, character.id);
   if (refusal) throw new UserError(refusal);
-  if (!wearsCollar(target)) throw new UserError(`${target.name} doesn't have a collar on.`);
+  if (!wearsCollar(target)) throw new UserError(`${await seenName(character, target.id)} doesn't have a collar on.`);
 
   const unlocked = await unlockCollar(prisma, { actor, target, turn: openTurn });
   if (!unlocked.ok) throw new UserError(unlocked.reason);
   await afterInventoryChange([character.id, target.id]);
   notifyCharacter(target, "Someone took your collar off.");
   revalidateAll();
-  return { name: target.name, glyph: unlocked.glyph };
+  return { name: await seenName(character, target.id), glyph: unlocked.glyph };
 }
 
 // What the remote shows: every collar in the game, by glyph. A name goes beside a

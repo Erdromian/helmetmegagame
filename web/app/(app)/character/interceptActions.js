@@ -17,6 +17,7 @@ import {
   releaseHeldBy,
   anchorHolds,
   seenBy,
+  seenById,
   IDENTITY_SELECT,
 } from "@lifeweb/db/lib/intercept";
 import { setWatch, stopWatch } from "@lifeweb/db/lib/verbs/watch";
@@ -162,7 +163,7 @@ async function releaseHeldImpl({ targetCharacterId }) {
     );
   }
   revalidate();
-  return { ok: true, line: `You let ${target.name} go.` };
+  return { ok: true, line: `You let ${await seenById(prisma, character.id, target.id)} go.` };
 }
 
 export async function loadIntercept() {

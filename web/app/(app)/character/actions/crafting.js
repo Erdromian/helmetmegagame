@@ -78,6 +78,7 @@ import {
 } from "@/lib/customCraft";
 import { placementOf } from "@lifeweb/db/lib/structures";
 import { notifyCharacter } from "@/lib/notifyCharacter";
+import { seenName } from "@/lib/hereTarget";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import { openBuildSiteImpl } from "./structures.js";
 import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
@@ -431,8 +432,11 @@ export async function resolveCraftPayer(character, payerKey, cost) {
   if (!payer) throw new UserError(gone);
   if (!(await canReachParty(character, payer, { allowConcealed: true })))
     throw new UserError(payer.kind === "room" ? outOfReachMessage(payer) : gone);
-  if (cost > payer.balance)
-    throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
+  if (cost > payer.balance) {
+    // A person picked by token is named as the crafter knows them, never by row.
+    const who = payer.kind === "character" ? await seenName(character, payer.id) : payer.name;
+    throw new UserError(`${who} only has ${payer.balance} ⬢.`);
+  }
   return payer;
 }
 
@@ -679,12 +683,11 @@ function resolveForgeSource(character, ingredientChoice) {
   return picked.tag;
 }
 
-export function payerNotice(character, payer, cost, tag) {
+// The payer reads the crafter as they know them (intercept.js#seenBy): a hood
+// or a stranger is "A young man".
+export async function payerNotice(character, payer, cost, tag) {
   if (payer.kind !== "character" || payer.id === character.id || !cost) return;
-  notifyCharacter(
-    payer,
-    `${character.name} paid ${cost} ⬢ from your purse toward ${tag.name}.`,
-  );
+  notifyCharacter(payer, `${await seenName(payer, character.id)} paid ${cost} ⬢ from your purse toward ${tag.name}.`);
 }
 
 // A MEAL (COOKING.md; the Soilery Rework doc): the cook must name it (letters only) and describe
@@ -911,7 +914,7 @@ export async function craftRequestImpl({
       character.id,
       payer.kind === "character" ? payer.id : null,
     ]);
-    payerNotice(character, payer, cost, tag);
+    await payerNotice(character, payer, cost, tag);
     revalidateAll();
     return {
       made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, quantity)),
@@ -1071,7 +1074,7 @@ export async function craftRequestImpl({
     character.id,
     payer.kind === "character" ? payer.id : null,
   ]);
-  payerNotice(character, payer, cost, tag);
+  await payerNotice(character, payer, cost, tag);
   revalidateAll();
   return done
     ? { made: craftLabel(grant?.tag ?? tag, producedQuantity(tag, quantity)), staged }

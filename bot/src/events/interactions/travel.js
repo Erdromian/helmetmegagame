@@ -35,7 +35,7 @@ const {
 const { knownLocations } = require("@lifeweb/db/lib/locationVisits");
 const { crossingCost, formatTravel, FAR_CROSSING_COST } = require("@lifeweb/db/lib/crossingCost");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
-const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
+const { heldReasonFor, INTERCEPT_RELEASE_PREFIX, seenById } = require("@lifeweb/db/lib/intercept");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { sendDm } = require("../../lib/dm");
@@ -410,9 +410,12 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
     return;
   }
 
-  const brought = result.moved
-    .filter((entry) => entry.character.id !== character.id)
-    .map((entry) => entry.character.name);
+  // As the mover knows them — a hood or a stranger in the party is "a young man".
+  const brought = await Promise.all(
+    result.moved
+      .filter((entry) => entry.character.id !== character.id)
+      .map((entry) => seenById(prisma, character.id, entry.character.id)),
+  );
   // Where they ACTUALLY got to. A walk of several hops can be stopped on the
   // road — an ambush, a gate shut behind somebody, the gun at the Depot — and
   // the ground they covered is real, so the line names it rather than the place
