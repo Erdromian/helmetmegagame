@@ -69,6 +69,7 @@ import {
   MusicIcon,
 } from "./icons";
 import { workVerbByKey } from "@lifeweb/db/lib/gathering";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 
 export const ACTION_HELP = {
   examine:
@@ -144,7 +145,7 @@ export const ACTION_HELP = {
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
   bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on.",
-  seal: "Close a letter with your wax seal.",
+  seal: RING_TEXT.sealHint,
   // The Thanati's three, Bascinet's words verbatim (docs/systemdocs/THANATI.md).
   // Purchase Gear carries none on purpose.
   recall: "Remember the other Thanati cultists in Ravenheart.",

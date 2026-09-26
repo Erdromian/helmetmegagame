@@ -14,6 +14,7 @@ import { SLOT_PROMPT } from "@lifeweb/db/lib/slotText";
 import { PHONE_TEXT, PHONE_DIGITS, clockLeft } from "@lifeweb/db/lib/phoneText";
 import { usePhoneFrame, noteHandset, setDialling } from "@/app/components/phoneStore";
 import { playSfx } from "@/app/components/sfx";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 // The machine's words AND its clock — the countdown is derived here the same
 // way the server derives it, off one implementation (docs/systemdocs/VENDING.md).
 import { VENDING_TEXT, VENDING_MAX_PRICE, secondsLeftOn, timeLeftLine } from "@lifeweb/db/lib/vendingText";
@@ -62,7 +63,6 @@ import {
   depotCounterState,
   depotBank,
   depotDrop,
-  depotOpenAccount,
   depotTurret,
   depotTurretRead,
 } from "@/app/(app)/depot/actions";
@@ -1029,42 +1029,83 @@ function useCounter() {
   return [state, reload];
 }
 
+// The infoterminal (the ATM, renamed — docs/systemdocs/RINGS.md). It reads the
+// ring on your finger, and asks for the account's PIN only when the ring is
+// somebody else's or its owner is Concussed or Amnesiac. The PIN lives in this
+// dialog's state alone and rides along with each call; the server checks it
+// every time (db/lib/depotCounter.js#terminalAccount).
 function AtmDialog({ onClose, onDone }) {
-  const [state, reload] = useCounter();
+  const [state, setState] = useState(null);
+  const [pinDraft, setPinDraft] = useState("");
+  const [pin, setPin] = useState(null);
   const [direction, setDirection] = useState("WITHDRAW");
   const [amount, setAmount] = useState(1);
   const { run, pending, error } = useActionRunner();
+  const reload = useCallback((withPin) => {
+    depotCounterState(withPin ? { pin: withPin } : undefined)
+      .then((res) => setState(res))
+      .catch(() => setState({ ok: false, error: "The terminal is dead." }));
+  }, []);
+  useEffect(() => {
+    reload(null);
+  }, [reload]);
+  const title = RING_TEXT.infoterminalTitle;
 
   if (!state) {
     return (
-      <Modal open title="The ATM" onClose={onClose}>
-        <p className="text-sm text-muted">Reading the machine…</p>
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">{RING_TEXT.infoterminalReading}</p>
       </Modal>
     );
   }
   if (!state.ok) {
     return (
-      <Modal open title="The ATM" onClose={onClose}>
+      <Modal open title={title} onClose={onClose}>
         <FormError>{state.error}</FormError>
+      </Modal>
+    );
+  }
+
+  if (!state.account && state.pinNeeded) {
+    return (
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">{state.pinPrompt}</p>
+        <div className="field">
+          <label className="field-label" htmlFor="chat-atm-pin">
+            {RING_TEXT.infoterminalPinLabel}
+          </label>
+          <input
+            id="chat-atm-pin"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={8}
+            value={pinDraft}
+            onChange={(e) => setPinDraft(e.target.value.replace(/[^0-9]/g, ""))}
+          />
+        </div>
+        {/* A wrong PIN comes back as the same prompt with the refusal under it. */}
+        {pin && <FormError>{state.accountProblem}</FormError>}
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={!pinDraft}
+            onClick={() => {
+              setPin(pinDraft);
+              reload(pinDraft);
+            }}
+          >
+            Enter
+          </button>
+        </div>
       </Modal>
     );
   }
 
   if (!state.account) {
     return (
-      <Modal open title="The ATM" onClose={onClose}>
-        <p className="text-sm text-muted">Opening an account costs nothing.</p>
-        <FormError>{error}</FormError>
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={pending}
-            onClick={() => run(depotOpenAccount, undefined, { onOk: () => reload() })}
-          >
-            Create an account
-          </button>
-        </div>
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">{state.accountProblem}</p>
       </Modal>
     );
   }
@@ -1073,7 +1114,7 @@ function AtmDialog({ onClose, onDone }) {
   const max = withdrawing ? state.account.balanceObols : state.heldObols;
 
   return (
-    <Modal open title="The ATM" onClose={onClose}>
+    <Modal open title={title} onClose={onClose}>
       <p className="text-sm text-muted">
         {state.account.fingerprint} · {state.account.balanceObols} ¢ in the account, {state.heldObols} ¢ in your
         pocket.
@@ -1110,7 +1151,7 @@ function AtmDialog({ onClose, onDone }) {
           onClick={() =>
             run(
               depotBank,
-              { direction, amount: Math.max(1, Math.min(Number(amount) || 0, max)) },
+              { direction, amount: Math.max(1, Math.min(Number(amount) || 0, max)), pin },
               {
                 onOk: (res) => {
                   onDone({ line: `${res.direction === "WITHDRAW" ? "Withdrew" : "Deposited"} ${res.amount} ¢.` });

@@ -196,13 +196,12 @@ const {
 const {
   ATM_OUT_PREFIX,
   ATM_IN_PREFIX,
-  ATM_OPEN_PREFIX,
+  ATM_PIN_SUFFIX,
   ATM_MODAL_PREFIX,
   DROP_PICK_PREFIX,
   DROP_MODAL_PREFIX,
   DEPOT_TURRET_MODAL_PREFIX,
   handleAtmOpen,
-  handleAtmAccountOpen,
   handleAtmAmountOpen,
   handleAtmSubmit,
   handleDropBoxOpen,
@@ -405,14 +404,11 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_ATM_PREFIX)) {
           return void (await handleAtmOpen(interaction));
         }
-        if (interaction.customId === ATM_OPEN_PREFIX) {
-          return void (await handleAtmAccountOpen(interaction));
+        if (interaction.customId === ATM_OUT_PREFIX || interaction.customId === ATM_OUT_PREFIX + ATM_PIN_SUFFIX) {
+          return void (await handleAtmAmountOpen(interaction, true, interaction.customId.endsWith(ATM_PIN_SUFFIX)));
         }
-        if (interaction.customId === ATM_OUT_PREFIX) {
-          return void (await handleAtmAmountOpen(interaction, true));
-        }
-        if (interaction.customId === ATM_IN_PREFIX) {
-          return void (await handleAtmAmountOpen(interaction, false));
+        if (interaction.customId === ATM_IN_PREFIX || interaction.customId === ATM_IN_PREFIX + ATM_PIN_SUFFIX) {
+          return void (await handleAtmAmountOpen(interaction, false, interaction.customId.endsWith(ATM_PIN_SUFFIX)));
         }
         if (interaction.customId.startsWith(ROOM_DROPBOX_PREFIX)) {
           return void (await handleDropBoxOpen(interaction));

@@ -28,7 +28,7 @@ function titleFor(option, via) {
   if (!option.passable) return option.reason ?? option.name;
   const head = option.description ? `${option.name} — ${option.description}` : option.name;
   const lines = [head];
-  if (via) lines.push(openedByLabel(via.name));
+  if (via) lines.push(openedByLabel(via.name, via.slug));
   if (option.tightSqueeze) lines.push(tightSqueezeNote());
   return lines.join("\n");
 }

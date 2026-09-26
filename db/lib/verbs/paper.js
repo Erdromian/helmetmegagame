@@ -14,6 +14,7 @@ const { concealmentFrom, forcedNameFrom, presentedIdentity } = require("../prese
 const { cleanCustomText } = require("../customText");
 const { isDaylight } = require("../turnClock");
 const { refuse, asResult } = require("./common");
+const { RING_TEXT } = require("../ringText");
 
 function readerOf(character) {
   return { daylight: isDaylight(), indoors: character.location?.indoors ?? true };
@@ -96,7 +97,7 @@ function sealLetter(prisma, { character, tagId: rawTagId, stampTagId: rawStampId
     const paperRow = character.tags.find((ct) => ct.tagId === String(rawTagId ?? ""));
     const stampRow = character.tags.find((ct) => ct.tagId === String(rawStampId ?? ""));
     if (!paperRow || !stampRow) refuse("You aren't holding that.");
-    if (!isSeal(stampRow.tag)) refuse("That isn't a wax stamp.");
+    if (!isSeal(stampRow.tag)) refuse(RING_TEXT.sealNotASeal);
     if (!isPaper(paperRow.tag) || paperRow.tag.paperKind !== "PAPER") refuse("That isn't a letter you can seal.");
     if (!(paperRow.tag.paperText ?? "").trim()) refuse("There's nothing written on it.");
     const title = cleanCustomText(rawTitle, TITLE_MAX) || null;

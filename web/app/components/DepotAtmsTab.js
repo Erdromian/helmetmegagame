@@ -4,10 +4,11 @@ import { useState, useTransition } from "react";
 import { useRefresh } from "./useRefresh";
 import {
   depotBank,
+  depotCounterState,
   depotCredit,
-  depotOpenAccount,
   depotSend,
 } from "@/app/(app)/depot/actions";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 import RequestDialog from "./RequestDialog";
 import { playSfx } from "@/app/components/sfx";
 
@@ -19,8 +20,15 @@ import { playSfx } from "@/app/components/sfx";
 // looks — which is why the Vault, not the balance, caps a withdrawal below. An
 // Offshore account — the Merchant's and his Dockers' — is money the Company
 // holds off-world, so none of that applies to it.
+//
+// Withdraw, Deposit and Send work the infoterminal, which reads the signet ring
+// on your finger (docs/systemdocs/RINGS.md): `terminal` is the account it
+// reaches, or why none, or that it wants a PIN first. The PIN is kept in this
+// tab's state and sent with each call, where the server checks it again. The
+// credit line and the ledger stay the viewer's own account, ring or no ring.
 export default function DepotAtmsTab({
   account,
+  terminal = null,
   heldObols,
   depot,
   creditAvailable,
@@ -37,6 +45,26 @@ export default function DepotAtmsTab({
   // id to name (docs/systemdocs/ECONOMY.md §2).
   const [target, setTarget] = useState("");
   const [error, setError] = useState(null);
+  // The PIN, once the terminal has accepted it, and the account it opened.
+  const [pinDraft, setPinDraft] = useState("");
+  const [pin, setPin] = useState(null);
+  const [unlocked, setUnlocked] = useState(null);
+
+  function enterPin(event) {
+    event.preventDefault();
+    const typed = pinDraft;
+    startTransition(async () => {
+      const result = await depotCounterState({ pin: typed });
+      if (!result.ok || !result.account) {
+        playSfx("refuse-money");
+        setError(result.ok ? result.accountProblem : result.error);
+        return;
+      }
+      setError(null);
+      setPin(typed);
+      setUnlocked(result.account);
+    });
+  }
 
   function ask(kind, direction, max) {
     setDialog({ kind, direction, max });
@@ -49,11 +77,12 @@ export default function DepotAtmsTab({
     const n = Math.max(1, Math.min(Number(amount) || 0, dialog.max));
     startTransition(async () => {
       const result = await (dialog.kind === "send"
-        ? depotSend({ toAccountId: target || null, toTreasury: !target, amount: n, reason })
+        ? depotSend({ toAccountId: target || null, toTreasury: !target, amount: n, reason, pin })
         : (dialog.kind === "bank" ? depotBank : depotCredit)({
             direction: dialog.direction,
             amount: n,
             reason,
+            ...(dialog.kind === "bank" ? { pin } : {}),
           }));
       if (!result.ok) {
         // The money surfaces buzz rather than click: a refused payment is the one refusal
@@ -68,39 +97,44 @@ export default function DepotAtmsTab({
     });
   }
 
-  function open() {
-    startTransition(async () => {
-      const result = await depotOpenAccount();
-      if (!result.ok) {
-        // The money surfaces buzz rather than click: a refused payment is the one refusal
-        // worth being louder than the rest (web/app/components/sfx.js).
-        playSfx("refuse-money");
-        setError(result.error);
-        return;
-      }
-      playSfx(result.sfx);
-      refresh();
-    });
-  }
+  // What the machine reaches: the ring's own account, or the one a PIN opened.
+  const reached = terminal?.ok ? terminal : unlocked;
 
-  if (!account) {
+  if (!reached) {
     return (
       <section className="panel p-5">
-        <h2 className="panel-header">No account</h2>
-        <button
-          type="button"
-          className="btn mt-4"
-          disabled={disabled || pending}
-          onClick={open}
-        >
-          Create an account
-        </button>
+        <h2 className="panel-header">{RING_TEXT.infoterminalTitle}</h2>
+        {terminal?.pinNeeded ? (
+          <form className="mt-3 flex flex-col gap-3" onSubmit={enterPin}>
+            <p className="text-sm text-muted">{terminal.problem}</p>
+            <label className="field">
+              <span>{RING_TEXT.infoterminalPinLabel}</span>
+              <input
+                id="depot-terminal-pin"
+                inputMode="numeric"
+                autoComplete="off"
+                maxLength={8}
+                value={pinDraft}
+                onChange={(e) => setPinDraft(e.target.value.replace(/[^0-9]/g, ""))}
+              />
+            </label>
+            <div>
+              <button type="submit" className="btn" disabled={disabled || pending || !pinDraft}>
+                Enter
+              </button>
+            </div>
+          </form>
+        ) : (
+          <p className="mt-3 text-sm text-muted">{terminal?.problem ?? RING_TEXT.infoterminalNoRing}</p>
+        )}
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </section>
     );
   }
 
-  const balance = account.balanceObols ?? 0;
+  const balance = reached.balanceObols ?? 0;
+  // The credit line repays out of the viewer's own account, whatever they wear.
+  const ownBalance = account?.balanceObols ?? 0;
   const debt = depot.debtObols ?? 0;
   const cap = depot.creditCapObols ?? 0;
   const pct = cap > 0 ? Math.min(100, Math.round((debt / cap) * 100)) : 0;
@@ -112,7 +146,7 @@ export default function DepotAtmsTab({
     <div className="depot-split">
       <section className="panel p-5">
         <h2 className="panel-header">
-          {account.backed ? "Treasury account" : "Offshore account"}
+          {reached.backed ? "Treasury account" : "Offshore account"}
         </h2>
 
         <dl className="depot-totals">
@@ -126,7 +160,7 @@ export default function DepotAtmsTab({
           </div>
           <div>
             <dt>Fingerprint</dt>
-            <dd className="mono">{account.fingerprint}</dd>
+            <dd className="mono">{reached.fingerprint}</dd>
           </div>
         </dl>
 
@@ -194,8 +228,8 @@ export default function DepotAtmsTab({
               <button
                 type="button"
                 className="btn-quiet"
-                disabled={disabled || pending || !debt || !balance}
-                onClick={() => ask("credit", "REPAY", Math.min(debt, balance))}
+                disabled={disabled || pending || !debt || !ownBalance}
+                onClick={() => ask("credit", "REPAY", Math.min(debt, ownBalance))}
               >
                 Repay
               </button>

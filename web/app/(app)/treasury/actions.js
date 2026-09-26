@@ -4,6 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { setSellTax } from "@lifeweb/db/lib/verbs/place";
+import { registerHeldRing } from "@lifeweb/db/lib/ringRegistry";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { UserError, acting } from "@/lib/actionResult";
@@ -30,4 +32,30 @@ async function setSellTaxRateImpl({ rate }) {
 
 export async function setSellTaxRate(input) {
   return acting(() => setSellTaxRateImpl(input));
+}
+
+// The terminal's second control: registering a smithed ring (docs/systemdocs/RINGS.md).
+// Everything is re-checked in db/lib/ringRegistry.js — where the viewer stands,
+// that the ring is in their hands and unregistered, the seats, the account.
+async function registerRingAtTerminalImpl(input) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  const result = await registerHeldRing(prisma, {
+    discordUserId: session.discordUserId,
+    ringTagId: input?.ringTagId,
+    roleSlugs: input?.roleSlugs,
+    accountId: input?.accountId ?? null,
+    newAccount: input?.newAccount === true,
+    turn: await getOpenTurn(),
+  });
+  if (!result.ok) throw new UserError(result.error);
+  // The ring may already be on the holder's finger, so its new doors need the room sync.
+  await afterInventoryChange(result.characterId);
+  revalidatePath("/treasury");
+  revalidatePath("/gm/audit");
+  return { line: result.line };
+}
+
+export async function registerRingAtTerminal(input) {
+  return acting(() => registerRingAtTerminalImpl(input));
 }

@@ -2238,7 +2238,7 @@ schema, unread and listed under `INTERNAL_KEYS` in
 `equippable` tag names one; sync throws on one that doesn't.
 
 `equipSlot:` is the other half — `HEAD`, `BODY`, `SHIELD`, `WEAPON`,
-`ACCESSORY` and `MOUNT`, the table below. `HEAD`, `BODY` and `MOUNT` are
+`ACCESSORY`, `MOUNT` and `FINGER`, the table below. `HEAD`, `BODY` and `MOUNT` are
 layered (next paragraph), `SHIELD` holds exactly one, `WEAPON` is counted in
 hands rather than a slot, and `ACCESSORY` has no limit at all. **Two equipped
 tags may not share a slot (or, on a layered slot, a layer)** — including two
@@ -2262,6 +2262,7 @@ because a slot holds one physical thing however large the stack behind it is.
 | `WEAPON` | **four hands**, fewer if maimed (below); a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
 | `ACCESSORY` | **four**, not counting anything locked on | badges, pins, jewelry, spectacles, lenses, gloves, hand tools — and the locked bomb collar, the one accessory the wearer cannot take off (`LOCKED_ON_SLUGS` in `equipSlots.js`, `COLLAR.md` §1) |
 | `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
+| `FINGER` | **one ring**, no layers | a signet ring (`RINGS.md`) — it takes nothing from the hands or the accessories, so gloves go on beside it |
 
 ### A maiming takes hands away
 

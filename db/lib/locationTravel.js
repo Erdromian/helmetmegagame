@@ -21,6 +21,7 @@ const { nextFatigueSlug } = require("./fatigue");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
 const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
 const { linkBetween, crossingCheck } = require("./locationGraph");
+const { withRingTokens } = require("./roomAccess");
 const { crossingCost, FAR_CROSSING_COST } = require("./crossingCost");
 const { dismountForNarrowWay } = require("./indoors");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
@@ -414,7 +415,8 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     // shut-modular edge all refuse here; the picker filters the same verdict, but a client can post any location id, so this is the check that counts.
     crossingLink = await linkBetween(prisma, currentLocation.id, targetLocation.id);
     const gate = crossingCheck(crossingLink, {
-      tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+      // Held tags plus the worn ring's doors (docs/systemdocs/RINGS.md).
+      tagSlugs: await withRingTokens(prisma, character.id, character.tags),
       // Equipped, not merely held — CHARACTER_SELECT already loads `equipped`
       // for exactly this kind of question.
       onFootBlocked: blocksOnFoot(equippedSlugs(character.tags ?? [])),
@@ -531,7 +533,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
           // The edge, judged against the FOLLOWER's own tags and mount, not the leader's — a crawl the leader has the Caving for is still a crawl their unskilled companion can't follow, and a rider can't be led through an onFoot gap.
           if (currentLocation) {
             const gate = crossingCheck(followerLink, {
-              tagSlugs: (row.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+              tagSlugs: await withRingTokens(prisma, row.id, row.tags),
               onFootBlocked: blocksOnFoot(equippedSlugs(row.tags ?? [])),
             });
             if (!gate.passable) {

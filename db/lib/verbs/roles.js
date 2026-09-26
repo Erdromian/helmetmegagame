@@ -13,6 +13,7 @@
 const { DEVICE_SLUG, DATACARD_SLUG, NUKE_FUSE_TURNS, pointerReading, pointerLine } = require("../nuke");
 const { THANATI_SLUG, THANATI_LEADER_SLUG, RECOVERABLE_SLUGS, listComrades } = require("../thanati");
 const { accessibleRooms, roomAccessKeys } = require("../roomAccess");
+const { accessSlugsOf } = require("../rings");
 const { grantTagSlugs, dropCharacterTag } = require("../tagWrites");
 const { WANTED_SLUG, CERBERON_SLUG, WARRANT_BADGE_SLUGS, warrantTargets, unwarrantTargets, listWanted } = require("../wanted");
 const {
@@ -41,8 +42,10 @@ const { logAudit } = require("../auditLog");
 const { SFX } = require("../sfx");
 const { refuse, asResult, requireFreeMove, fileAutoRoutine } = require("./common");
 
+// Held slugs plus the worn ring's doors (docs/systemdocs/RINGS.md): the Censor's
+// ring is his warrant badge.
 function slugsOf(character) {
-  return new Set((character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  return accessSlugsOf(character.tags);
 }
 
 // --- The datacard (web: nukeActions.js) ----------------------------------------

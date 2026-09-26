@@ -2,9 +2,10 @@
 
 import Link from "next/link";
 import EmptyState from "@/app/components/EmptyState";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 
 // What a character knows about themselves (docs/systemdocs/MEMORIES.md §3):
-// the four digits that open their account at an ATM, their seat and what it
+// the four digits that open their account at an infoterminal, their seat and what it
 // asks of them, and how old they are. The fate documents themselves stay on
 // /documents, which already routes them by seat; this links there rather than
 // printing a second copy.
@@ -26,7 +27,7 @@ export default function WhoAmISection({ self }) {
           <p className="text-sm">{self.age ?? "Not set"}</p>
         </div>
         <div className="field">
-          <span className="field-label">ATM PIN</span>
+          <span className="field-label">{RING_TEXT.memoriesPin}</span>
           <p className="text-sm mono memory-pin">{self.pin ?? "None"}</p>
         </div>
       </div>

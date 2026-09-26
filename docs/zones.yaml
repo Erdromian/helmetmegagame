@@ -358,7 +358,6 @@ zones:
             stash:
               items:
                 paper: 12
-                inquisitors-wax-stamp: 1
                 torturing-equipment: 1
                 bag: 1
                 mace: 1
@@ -395,7 +394,6 @@ zones:
             stash:
               items:
                 paper: 20
-                bishops-wax-stamp: 1
       town-5:
         name: Alleys
         description: >-
@@ -485,7 +483,7 @@ zones:
             phone: "Inn"
             payphone: true
             description: >-
-              Stairs lead down into the general floor. It's cozy, with a pair of braziers opposite from the entrance. There are tables, a bar, and a rage cage (the bars are electrified). Usually for cock fights, but sometimes people get in there too. The Baron mandated that his intercom be installed in here too, which sometimes kills the mood. There's also a stage for minstrels and singers. There's an ATM here.
+              Stairs lead down into the general floor. It's cozy, with a pair of braziers opposite from the entrance. There are tables, a bar, and a rage cage (the bars are electrified). Usually for cock fights, but sometimes people get in there too. The Baron mandated that his intercom be installed in here too, which sometimes kills the mood. There's also a stage for minstrels and singers. There's an infoterminal here.
           town-7-3:
             name: Second Floor
             description: >-
@@ -611,7 +609,6 @@ zones:
             stash:
               items:
                 paper: 15
-                esculaps-wax-stamp: 1
           town-9-3:
             name: Operating Theater
             description: >-
@@ -681,7 +678,6 @@ zones:
             stash:
               items:
                 paper: 8
-                censors-wax-stamp: 1
                 phonebook: 1
           fortress-1-3:
             name: Barracks
@@ -914,10 +910,8 @@ zones:
               Scrolls, books, and the elegant skeleton of a cave beast. A balcony looks out onto Ravenheart.
             stash:
               items:
-                armory-key: 1
                 elevator-key: 1
                 paper: 20
-                barons-wax-stamp: 1
                 phonebook: 1
           fortress-4-7:
             name: Storehouse
@@ -929,7 +923,6 @@ zones:
               items:
                 foodstuffs: 4
                 paper: 5
-                meisters-wax-stamp: 1
                 phonebook: 1
           fortress-4-8:
             name: Kitchen
@@ -1022,8 +1015,6 @@ zones:
               items:
                 paper: 7
                 cleaning-powder: 1
-                hands-wax-stamp: 1
-                tower-key: 2
       # The ship, drawn one tile above the Keep on the barony1 plate. It has
       # NO entry in connections: below, on purpose — there is no road to it
       # and no edge to light it up, so it shows on the map only for the three
@@ -1194,7 +1185,6 @@ zones:
                 hatchet: 1
                 cudgel: 1
                 mortus-rags: 1
-                mortus-key: 1
                 shovel: 3
                 corpse-salts: 1
                 phonebook: 1
@@ -1293,7 +1283,6 @@ zones:
                 obol: 10
                 cargo-crate: 1
                 paper: 6
-                merchants-wax-stamp: 1
                 # The Company's own crating bench, alongside the Factory's
                 # in factory-logistics-room. The Depot sells the crates and
                 # the Merchant fills them, so the outfit that ships the
@@ -1751,7 +1740,6 @@ zones:
                 trench-knife: 1
                 work-knife: 2
                 paper: 13
-                bannerets-wax-stamp: 1
                 obol: 6
                 brigandine: 1
                 supply-kit: 1
@@ -1928,7 +1916,6 @@ zones:
                 cleaning-powder: 1
                 military-autoinjector: 1
                 paper: 9
-                bannerets-wax-stamp: 1
                 cigarette: 1
 
   underground:
@@ -2504,7 +2491,8 @@ connections:
       open: true
 
   # The Baron's lift, top to bottom: the Keep's cage down into the Refuse Pit.
-  # Given as a starting tag to the Hand and the Baron.
+  # The Baron's signet ring opens it (docs/systemdocs/RINGS.md); an Elevator
+  # Key found or bought opens it too.
   #
   # Keyed, so whoever rides it is asked whether to leave it open behind them
   # for 24 hours — which is how anybody without the key gets to follow.

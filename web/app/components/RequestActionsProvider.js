@@ -93,6 +93,9 @@ export default function RequestActionsProvider({
   // The Death Mask's corpse shortlist — held corpses whose face is still
   // theirs, server-computed in character/page.js. See ingredientPick below.
   deathMaskCorpses = [],
+  // Per-recipe pickers for a recipe minted FOR somebody — the signet ring and
+  // the forged wax seal (docs/systemdocs/RINGS.md): { [slug]: { label, empty, options } }.
+  recipePicks = {},
   craftProjects = [],
   // GameConfig.craftYieldTiming is STAGED: what a craft makes lands at the turn push (CRAFTING.md §3a).
   craftYieldStaged = false,
@@ -433,6 +436,7 @@ export default function RequestActionsProvider({
     craftBudget,
     craftAllowances,
     deathMaskCorpses,
+    recipePicks,
     hasWorkshop,
     atKitchen,
     eatMax,

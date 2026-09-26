@@ -44,6 +44,7 @@
     "catalog": "node db/scripts/analysis/catalog.js",
     "db:open-bank-accounts": "node db/scripts/ops/open-bank-accounts.js",
     "db:seed-acquaintances": "node db/scripts/ops/seed-acquaintances.js",
+    "db:ring-in": "node db/scripts/ops/ring-in.js",
     "db:audit-vault-backing": "node db/scripts/ops/audit-vault-backing.js",
     "db:backfill-party-members": "node db/scripts/ops/backfill-party-members.js",
     "db:prune-tags": "node db/scripts/ops/prune-tags.js",
