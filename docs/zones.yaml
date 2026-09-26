@@ -349,10 +349,11 @@ zones:
             name: Order Chambers
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
-            # The Inquisitor's room, not the Order's: the crossbow and the tear
-            # gas are here, and every Practicus and Preacher holds an Order
-            # Key. The rank and file bunk in the Undertown's Order Barracks.
-            access: [inquisitors-key, bishops-key]
+            # The Order's headquarters, so every Order Key opens it: the
+            # Practicii need the torture kit here. The crossbow and the tear
+            # gas that used to lie here start with the Inquisitor instead
+            # (docs/roles.yaml), so they are the Inquisitor's to hand out.
+            access: [order-key, bishops-key]
             soundproof: true
             stash:
               items:
@@ -362,8 +363,6 @@ zones:
                 bag: 1
                 mace: 1
                 padded-cap: 1
-                crossbow: 1
-                tear-gas-grenade: 3
           town-4-4:
             name: Hall
             description: >-

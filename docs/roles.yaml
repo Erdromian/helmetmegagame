@@ -539,9 +539,6 @@ groups:
       whitelist: true
       starting_tags:
         - Order Key
-        # The Cathedral's Order Chambers, and the crossbow and tear gas in
-        # them, are the Inquisitor's to open (docs/zones.yaml town-4-3).
-        - Inquisitor's Key
         - Cathedral Key
         - Ravenhearter
         - Pious
@@ -549,6 +546,11 @@ groups:
         - War Hammer
         - Silver Knife
         - Shield
+        # The Order's crossbow and tear gas, which used to lie in the
+        # Cathedral's Order Chambers where every Order Key could take them
+        # (docs/zones.yaml town-4-3).
+        - Crossbow
+        - Tear Gas Grenade x3
         - Mail Shirt
         - Post-Christian
         - Inquisitor's Longcoat

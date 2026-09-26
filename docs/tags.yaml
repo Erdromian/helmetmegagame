@@ -9478,32 +9478,6 @@ tags:
         - tag: censors-key
           keep: true
 
-  # Opens the Cathedral's Order Chambers, where the Order keeps its crossbow
-  # and tear gas. The Inquisitor's alone, so the rank and file are let in by
-  # the Inquisitor (a copy, or /add) instead of walking in on day one.
-  inquisitors-key:
-    catalog: gm
-    name: "Inquisitor's Key"
-    category: items
-    group: items-keys
-    sprite: key3
-    description: "A heavy iron key."
-    pointCost: 0
-    stackable: true
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: inquisitors-key
-          keep: true
-
   tower-key:
     catalog: gm
     name: "Tower Key"
