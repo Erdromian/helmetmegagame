@@ -1361,6 +1361,12 @@ const STATE_LINE = {
   ringing: PHONE_TEXT.stateRinging,
 };
 
+// The button that picks up a phone ringing in your own hand. A payphone with no time
+// on it wants its coin first, and the button says so.
+function answerLabel(handset) {
+  return handset?.payphone && handset.needsCoin ? `${PHONE_TEXT.answer} (${PHONE_TEXT.insertCoin.toLowerCase()})` : PHONE_TEXT.answer;
+}
+
 // A clock that ticks once a second while `on`, for the payphone's countdown.
 function useSecondTick(on) {
   const [now, setNow] = useState(() => Date.now());
@@ -1538,9 +1544,15 @@ function PhoneDialog({ entry, onClose, onDone }) {
         </div>
         <FormError>{error}</FormError>
         <div className="modal-actions phone-actions">
-          <button type="button" className="btn" disabled={!canDial || digits.length !== PHONE_DIGITS || pending} onClick={dial}>
-            {PHONE_TEXT.dial}
-          </button>
+          {phase === "ringing" ? (
+            <button type="button" className="btn" disabled={pending} onClick={() => act(answerPhone)}>
+              {answerLabel(handset)}
+            </button>
+          ) : (
+            <button type="button" className="btn" disabled={!canDial || digits.length !== PHONE_DIGITS || pending} onClick={dial}>
+              {PHONE_TEXT.dial}
+            </button>
+          )}
           {handset.payphone && handset.needsCoin && handset.paidUntil ? (
             <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(insertPhoneObol)}>
               {PHONE_TEXT.insertCoin}
@@ -1589,6 +1601,11 @@ export function PhoneHandsetBar({ affordances, onOpen, onDone }) {
       <PaidTime handset={handset} now={now} />
       <FormError>{error}</FormError>
       <div className="phone-bar-actions">
+        {handset.state === "ringing" ? (
+          <button type="button" className="btn" disabled={pending} onClick={() => act(answerPhone)}>
+            {answerLabel(handset)}
+          </button>
+        ) : null}
         <button type="button" className="btn-secondary" disabled={pending} onClick={() => onOpen(entry)}>
           Keypad
         </button>

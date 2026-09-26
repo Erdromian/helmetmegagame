@@ -13,11 +13,12 @@
 //      You pick it up, then dial; hanging up ends the call and leaves it in
 //      your hand; walking away leaves it hanging, call and all, for whoever
 //      picks it up next.
-//   2. BUSY IS A FACT ABOUT THE FAR PHONE, decided under a row lock. A phone is
-//      busy when it is on a live call, is a dead line, or is in somebody's
-//      hand. The two partial unique indexes on PhoneCall's rooms are the last
-//      word: a P2002 there is the busy signal arriving by the one route that
-//      cannot race.
+//   2. BUSY MEANS A CALL IS ON THE LINE, decided under a row lock: a live
+//      call at the far phone, or a dead line whose holder has not hung up. A
+//      phone that is only in somebody's hand rings there, and they answer it.
+//      The two partial unique indexes on PhoneCall's rooms back the lock up: a
+//      P2002 there is the busy signal arriving by the one route that cannot
+//      race.
 //   3. EVERYTHING IS A ROW OR A TIMESTAMP, NEVER A TIMER. Rings are derived
 //      from PhoneCall.startedAt, the payphone's time from Room.phonePaidUntil,
 //      a named phone's patience from Room.phoneIdleSince. The 15-second sweep
@@ -236,7 +237,19 @@ async function phoneView(prisma, discordUserId, roomId, { via = "web" } = {}) {
     room = await prisma.room.findUnique({ where: { id: roomId }, select: PHONE_ROOM });
   }
 
-  if (room.phoneHolderId === character.id) return holdingView(prisma, character, room.id);
+  if (room.phoneHolderId === character.id) {
+    // Already in your hand, and ringing: opening the phone answers it, the
+    // same as it does for anybody who picks it up — unless it is a payphone
+    // still waiting on its coin, which the dialog's Answer button pays.
+    const call = await callInRoom(prisma, room.id);
+    const ringingHere = call?.status === "RINGING" && call.toRoomId === room.id;
+    if (ringingHere && !(room.payphone && handsetTimers(room, "idle").needsCoin)) {
+      if (await connectCall(prisma, call, character)) {
+        return holdingView(prisma, character, room.id, { line: PHONE_TEXT.answered, sfx: SFX.PHONE_PICKUP });
+      }
+    }
+    return holdingView(prisma, character, room.id);
+  }
   if (room.phoneHolderId) {
     // A holder who has gone (dead, walked out by some path the mover missed)
     // is not holding anything. The sweep would free it within fifteen
@@ -394,10 +407,24 @@ async function insertObol(prisma, discordUserId, roomId, { turn = null } = {}) {
 }
 
 // Whether a phone can take a call right now, read off a row fetched under
-// lock. Busy is ANY of: in somebody's hand, a dead line, or on a live call —
-// the last is also caught by the partial unique indexes.
+// lock — everything but the live call, which dialNumber asks the PhoneCall
+// table about under the same lock. Busy means a call is on the line: a live
+// one, or a dead line whose holder has not hung up yet. A phone that is only
+// in somebody's hand, dial tone and no call, is NOT busy: it rings in their
+// hand, and they answer it.
 function takesCalls(room) {
-  return Boolean(room?.phone) && !room.retiredAt && !room.phoneHolderId && !room.phoneDeadSince;
+  return Boolean(room?.phone) && !room.retiredAt && !room.phoneDeadSince;
+}
+
+// A live call at either end of either phone. Asked under the row lock, since
+// the partial unique indexes only stop a room being the FROM end twice or the
+// TO end twice — not calling out while it is being rung.
+async function lineInUse(tx, roomIds) {
+  const live = await tx.phoneCall.findFirst({
+    where: { status: { in: LIVE }, OR: [{ fromRoomId: { in: roomIds } }, { toRoomId: { in: roomIds } }] },
+    select: { id: true },
+  });
+  return Boolean(live);
 }
 
 /**
@@ -459,7 +486,7 @@ async function dialNumber(prisma, discordUserId, roomId, rawDigits, { turn = nul
       const [a, b] = [room.id, target.id].sort();
       await tx.$queryRaw`SELECT "id" FROM "Room" WHERE "id" IN (${a}, ${b}) ORDER BY "id" FOR UPDATE`;
       const far = await tx.room.findUnique({ where: { id: target.id }, select: PHONE_ROOM });
-      if (!takesCalls(far)) return null;
+      if (!takesCalls(far) || (await lineInUse(tx, [room.id, target.id]))) return null;
       return tx.phoneCall.create({
         data: {
           fromRoomId: room.id,
@@ -575,17 +602,16 @@ async function endCall(prisma, call, reason, { byRoomId = null, quiet = false } 
   if (!count) return null;
 
   if (!quiet) {
-    if (call.status === "RINGING") {
+    if (call.status === "RINGING" && byRoomId === call.toRoomId) {
+      // The phone was ringing in somebody's hand and they hung up on it: to
+      // the caller that is a call hanging up, dead line and all.
+      await deadLine(prisma, call.fromRoomId);
+    } else if (call.status === "RINGING") {
       // The caller gave up, or ran out of ring. The phone on the far wall just
       // stops; nobody picked it up, so there is nobody to tell.
       if (reason === "noanswer") await roomLine(prisma, call.fromRoomId, PHONE_TEXT.noAnswer, null);
     } else if (byRoomId) {
-      const farId = farRoomOf(call, byRoomId);
-      const { count: dead } = await prisma.room.updateMany({
-        where: { id: farId, phoneHolderId: { not: null } },
-        data: { phoneDeadSince: new Date(), phoneIdleSince: new Date() },
-      });
-      if (dead) await roomLine(prisma, farId, PHONE_TEXT.hungUp, SFX.PHONE_PICKUP);
+      await deadLine(prisma, farRoomOf(call, byRoomId));
     }
   }
   await prisma.room.updateMany({
@@ -594,6 +620,17 @@ async function endCall(prisma, call, reason, { byRoomId = null, quiet = false } 
   });
   await notifyPhones(prisma, [call.fromRoomId, call.toRoomId]);
   return call;
+}
+
+// The line went dead in somebody's hand: the busy tone until they hang up
+// too, and the design document's "The call hung up." into their room. With
+// nobody holding the phone there is nobody to leave on a dead line.
+async function deadLine(prisma, roomId) {
+  const { count } = await prisma.room.updateMany({
+    where: { id: roomId, phoneHolderId: { not: null } },
+    data: { phoneDeadSince: new Date(), phoneIdleSince: new Date() },
+  });
+  if (count) await roomLine(prisma, roomId, PHONE_TEXT.hungUp, SFX.PHONE_PICKUP);
 }
 
 /** Hang up: the call ends, the phone stays in your hand. */
@@ -629,7 +666,10 @@ async function walkAway(prisma, discordUserId, roomId) {
 async function ejectHolder(prisma, room, reason) {
   const call = await callInRoom(prisma, room.id);
   await prisma.room.update({ where: { id: room.id }, data: { ...RELEASED, phoneDeadSince: null } });
-  if (call) await endCall(prisma, call, reason, { byRoomId: room.id });
+  // A call ringing IN is not this holder's to end: the phone goes on ringing
+  // on the wall for whoever comes to it.
+  const ringingIn = call?.status === "RINGING" && call.toRoomId === room.id;
+  if (call && !ringingIn) await endCall(prisma, call, reason, { byRoomId: room.id });
   else await notifyPhones(prisma, [room.id]);
 }
 

@@ -46,6 +46,7 @@ const STATE_LINE = {
   calling: PHONE_TEXT.stateCalling,
   connected: PHONE_TEXT.stateConnected,
   dead: PHONE_TEXT.stateDead,
+  ringing: PHONE_TEXT.stateRinging,
 };
 
 /**
@@ -113,10 +114,22 @@ function keypadRows(roomId, handset, digits = "") {
     rows.slice(0, 3).forEach((row, r) => row.forEach((b, i) => (b.id = `${b.id}~${r * 3 + i}`)));
     rows[3][1].id = `${rows[3][1].id}~z`;
   }
-  const controls = [
+  const controls = [];
+  // Ringing in your own hand: Answer (a payphone with no time on it takes its
+  // coin as it does), and Hang up turns the caller away.
+  if (handset?.state === "ringing") {
+    const coin = handset.payphone && handset.needsCoin;
+    controls.push({
+      id: `${PHONE_ANSWER_PREFIX}${roomId}`,
+      label: coin ? `${PHONE_TEXT.answer} (${PHONE_COST} ¢)` : PHONE_TEXT.answer,
+      style: "primary",
+      disabled: false,
+    });
+  }
+  controls.push(
     { id: keyId(PHONE_HANGUP_PREFIX, roomId), label: PHONE_TEXT.hangUp, style: "secondary", disabled: canDial },
     { id: keyId(PHONE_WALK_PREFIX, roomId), label: PHONE_TEXT.walkAway, style: "secondary", disabled: false },
-  ];
+  );
   if (handset?.payphone && handset.needsCoin && handset.paidUntil) {
     controls.push({
       id: keyId(PHONE_COIN_PREFIX, roomId),

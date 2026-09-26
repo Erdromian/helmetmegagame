@@ -111,10 +111,12 @@ test("a ring stops where a caller standing there would have been dropped", () =>
 
 // --- busy ----------------------------------------------------------------------
 
-test("a phone in a hand, on a dead line, or off the wall does not take a call", () => {
+test("a dead line or a phone off the wall does not take a call; a phone in a hand does", () => {
   const phone = { phone: "Sanctuary", retiredAt: null, phoneHolderId: null, phoneDeadSince: null };
   assert.equal(takesCalls(phone), true);
-  assert.equal(takesCalls({ ...phone, phoneHolderId: "c1" }), false, "one person using the phone at a time");
+  // Busy means a call on the line. Somebody holding the phone at a dial tone
+  // is not on one: it rings in their hand.
+  assert.equal(takesCalls({ ...phone, phoneHolderId: "c1" }), true);
   assert.equal(takesCalls({ ...phone, phoneDeadSince: at(0) }), false);
   assert.equal(takesCalls({ ...phone, retiredAt: at(0) }), false);
   assert.equal(takesCalls({ ...phone, phone: null }), false);
@@ -210,6 +212,16 @@ test("Dial waits for four digits, and the keys lock while a call is on", () => {
   assert.ok(connected.slice(0, 4).flat().every((b) => b.disabled), "no dialling mid-call");
   const hangUp = connected[4].find((b) => b.id.startsWith(PHONE_HANGUP_PREFIX));
   assert.equal(hangUp.disabled, false);
+});
+
+test("a phone ringing in your hand offers Answer, and Hang up turns the caller away", () => {
+  const [controls] = keypadRows("r", { state: "ringing" }, "").slice(4);
+  assert.equal(controls[0].label, PHONE_TEXT.answer);
+  assert.equal(controls[0].id, "room:phone:answer:r");
+  assert.equal(controls.find((b) => b.label === PHONE_TEXT.hangUp).disabled, false);
+  const [pay] = keypadRows("r", { state: "ringing", payphone: true, needsCoin: true }, "").slice(4);
+  assert.ok(pay[0].label.includes(`${PHONE_COST} ¢`), "a payphone says its price on the button");
+  assert.equal(keypadRows("r", { state: "idle" }, "")[4].some((b) => b.label === PHONE_TEXT.answer), false);
 });
 
 test("the keypad says the phone's own number and a payphone's price", () => {

@@ -19,7 +19,7 @@ the overhaul, and those places say so.
 | Its number | `Room.phoneNumber`, four digits, rolled at every Start Game |
 | How you call | a keypad: four digits, then Dial |
 | Who can be rung | every phone, payphones included |
-| Who holds a phone | one person at a time, `Room.phoneHolderId` |
+| Who holds a phone | one person at a time, `Room.phoneHolderId` — and a held phone with no call still rings |
 | What a call costs | nothing at a named phone; 1 ¢ at a payphone to dial or to answer, which buys 10 minutes |
 | How long it rings | until somebody answers — capped at the caller's 10 idle minutes |
 | Who hears the ring | the phone's own Location loudly, the Locations next to it faintly |
@@ -95,6 +95,13 @@ you the holder on that call.
 **Answering is opening the phone.** A named phone that is ringing is answered by
 pressing Phone. A ringing payphone asks for its coin first ("Insert obol").
 
+**A phone in your hand still rings.** Holding a phone at a dial tone is not
+being on a call, so it is not busy: a call to it rings there, the dialog and the
+handset bar (and the Discord keypad) grow an **Answer** button, and reopening the
+phone answers it too. Hang up while it rings turns the caller away — to them it
+is a call hanging up, dead line and all. If you walk away, or are ejected, while
+it rings, the phone goes on ringing on the wall for whoever comes to it.
+
 ### The clocks
 
 All derived from timestamps on the Room, never a timer (rule 3 in
@@ -121,16 +128,19 @@ refuses anything else — both faces send untrusted strings).
 | The number | What happens |
 |---|---|
 | belongs to no phone | `phone_calling` for `PHONE_MISDIAL_MS` (3 s), then the error sound and "The number you are trying to call is no longer in service." into your room's chat |
-| is busy — in a hand, on a call, a dead line, or this very phone | the same wait, then "The number you are trying to call is currently busy." |
+| is busy — a call on its line (ringing, connected, or a dead line whose holder has not hung up), or this very phone | the same wait, then "The number you are trying to call is currently busy." |
 | is free | a RINGING call; `phone_calling` at your ear until somebody picks up |
 
 The wait is honest: the server action (and the Discord handler, after its ack)
 sleeps for it, so both faces hear the same tone for the same time. The error
 sound is the dialler's own — it is in their ear, not on the wall.
 
-**Busy is decided under a row lock.** Both Room rows are locked `FOR UPDATE` in
-id order, the far one is re-read, and only then is the call written. The two
-partial unique indexes on `PhoneCall`'s rooms (§7) stay as the last word.
+**Busy means a call is on the line**, never just a phone in somebody's hand
+(§3). It is decided under a row lock: both Room rows are locked `FOR UPDATE` in
+id order, then the far phone's dead line and every live call at either phone
+are checked, and only then is the call written. The lock matters because the
+two partial unique indexes on `PhoneCall`'s rooms (§7) only stop a room being
+the FROM end twice or the TO end twice, not ringing out while it is being rung.
 
 ## 5. Ringing
 
