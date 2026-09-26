@@ -3184,12 +3184,12 @@ model Tag {
   // unit, so a stack of meals feeds the character several times.
   consumable Boolean @default(false)
 
-  // Tag slugs this tag turns INTO when it is consumed: a meal becoming Ate
-  // Meal, Starting Wares unpacking into a revolver and jewelry. Slugs rather
+  // Tag slugs this tag turns INTO when it is consumed: a drink becoming
+  // Tipsy, Starting Wares unpacking into a revolver and jewelry. Slugs rather
   // than a relation specifically so a slug may REPEAT — listing one twice
   // grants two of it (for a stackable tag; a non-stackable repeat collapses
   // to one). A granted tag with its own defaultDurationTurns starts that
-  // clock at the moment it's granted, so chains work (meal -> Ate Meal that
+  // clock at the moment it's granted, so chains work (drink -> Tipsy that
   // the sweep then clears). Empty means consuming just uses the tag up.
   consumesInto String[]
 
@@ -3209,7 +3209,7 @@ model Tag {
   consumesIntoTagPoints Int?
 
   // Parallel array to consumesInto, same length and order — added for the
-  // Caves Update's Skinned Cave Rat (a 50/50 pick between Ate Meal and
+  // Caves Update's Skinned Cave Rat (a 50/50 pick between nothing and
   // Vomiting). Each entry is either null (that position grants exactly the
   // slug consumesInto holds there) or a list of two-or-more alternative
   // slugs to pick between with even odds; when it is a list, the
@@ -3249,9 +3249,7 @@ model Tag {
   // Read by web/lib/consumeGrants.js alongside consumesIntoUnless and applied
   // by grantTagSlugs, which prefers the override and falls back to the target
   // tag's own defaultDurationTurns. An override on a target that has no
-  // duration of its own is legal and simply gives it one for this grant — but
-  // don't point one at Ate Meal, which is deliberately never swept because the
-  // Hunger pass consumes it explicitly.
+  // duration of its own is legal and simply gives it one for this grant.
   consumesIntoDurations Json?
 
   // What this tag turns INTO when its timer runs out, rather than simply
@@ -3809,7 +3807,7 @@ model CharacterTag {
   // auto-expires. An ordinary tag's row is deleted; a Tag.stackable one
   // instead loses a single unit and has this field pushed forward by the
   // tag's defaultDurationTurns, until the last unit takes the row with it.
-  // Used for system-granted temporary status tags (Ate Meal, Tipsy) — see
+  // Used for system-granted temporary status tags (Tipsy, High) — see
   // EVENT below.
   expiresTurn Int?
 
