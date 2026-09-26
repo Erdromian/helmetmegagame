@@ -9,6 +9,8 @@ const { DM_ACTION, dmAction } = require("./dmActions");
 const { blockerFor, KISS } = require("./incapacitation");
 const { KISS_BLOCKING_SLUGS } = require("./constants");
 const { concealmentFrom, CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
+const { capitalizeFirst } = require("./concealedIdentity");
+const { seenBy } = require("./intercept");
 const { applyKissMood } = require("./mood");
 
 // Same clock as db/lib/discordMirroring.js. Spent by the ASK, not the answer — a decline doesn't refund it, or a whole room could be asked for free.
@@ -68,6 +70,8 @@ function inLoveBonus(...tagSets) {
 }
 
 // `equipped` and CONCEALMENT_TAG_FIELDS make the covered-face rule work — concealmentFrom() only counts a piece actually WEARING, missing them reports every hood as no hood.
+// `age`, `gender` and `forcedName` are intercept.js#seenBy's: what a stranger
+// looks like, and the name a Beast is openly called instead of their own.
 const KISS_SELECT = {
   id: true,
   name: true,
@@ -82,14 +86,17 @@ const KISS_SELECT = {
   tags: {
     select: {
       equipped: true,
-      tag: { select: { slug: true, name: true, ...CONCEALMENT_TAG_FIELDS } },
+      tag: { select: { slug: true, name: true, forcedName: true, ...CONCEALMENT_TAG_FIELDS } },
     },
   },
 };
 
 // `self` picks the person the sentence is about. Refusal NAMES the tag
 // (blockerFor() habit): "You're Bound." beats "You can't do that".
-function kissBlock(character, { self }) {
+// `seen` is what the reader calls them (intercept.js#seenBy): "a young man"
+// for somebody they have never met (STRANGERS.md). Without it they are "They",
+// so a caller that forgot to look it up says too little rather than too much.
+function kissBlock(character, { self, seen = null }) {
   // Covered face, derived rather than listed — the /conceal WISH column is not
   // it, since a forcesConceal helmet never touches that column.
   //
@@ -100,7 +107,7 @@ function kissBlock(character, { self }) {
   // "They", always, and the item is never named either — that a mask is what is
   // stopping you is plain enough from looking at them.
   const piece = concealmentFrom(character.tags);
-  const who = self ? "You're" : piece ? "They're" : `${character.name} is`;
+  const who = self ? "You're" : piece || !seen ? "They're" : `${capitalizeFirst(seen)} is`;
 
   // Capability table first (db/lib/incapacitation.js) — everything that blocks ACT blocks KISS through it, one table rather than a second list beside it.
   const blocker = blockerFor(character.tags, KISS);
@@ -122,7 +129,8 @@ function kissBlock(character, { self }) {
 }
 
 // Both rows are KISS_SELECT. Run at ASK and again at ACCEPT — a DM can sit unanswered for hours, in which either can be bound, hooded, or killed.
-function kissAuthority(actor, target) {
+// `seen` is what the actor calls the target — see kissBlock.
+function kissAuthority(actor, target, { seen = null } = {}) {
   if (!actor || !target) return "They aren't here.";
   if (actor.id === target.id) return "Kiss somebody else.";
   if (actor.status !== "ALIVE") return "You can't do that right now.";
@@ -133,7 +141,18 @@ function kissAuthority(actor, target) {
   // co-presence quietly reporting somebody standing in front of you as absent —
   // and so the day a concealing item leaves the mouth free, this still holds.
   if (!isHere(actor, target, { allowConcealed: true })) return notHereMessage(target);
-  return kissBlock(actor, { self: true }) ?? kissBlock(target, { self: false });
+  return kissBlock(actor, { self: true }) ?? kissBlock(target, { self: false, seen });
+}
+
+// How each of the two would name the other. A kiss is between two people who
+// are standing face to face, and neither learns the other's name from it: a
+// stranger stays "a young man" to you after the kiss as before it.
+async function kissFaces(prisma, actor, target) {
+  const [targetSeen, actorSeen] = await Promise.all([
+    actor && target ? seenBy(prisma, actor.id, target) : null,
+    actor && target ? seenBy(prisma, target.id, actor) : null,
+  ]);
+  return { targetSeen, actorSeen };
 }
 
 // The last ask's audit row IS the clock — no column. Keyed on the ASKER's Discord id; no Discord id means never asked, so the cooldown reads clear.
@@ -152,9 +171,10 @@ async function kissCooldownLeft(prisma, discordUserId) {
 
 // Returns { ok, offer, dm } or { ok: false, reason }. Mirrors db/lib/bind.js#createBindOffer.
 async function createKissOffer(prisma, { actor, target, turn }) {
-  const refusal = kissAuthority(actor, target);
+  const { targetSeen, actorSeen } = await kissFaces(prisma, actor, target);
+  const refusal = kissAuthority(actor, target, { seen: targetSeen });
   if (refusal) return { ok: false, reason: refusal };
-  if (!target.discordUserId) return { ok: false, reason: `${target.name} can't be reached.` };
+  if (!target.discordUserId) return { ok: false, reason: `${capitalizeFirst(targetSeen)} can't be reached.` };
 
   const duplicate = await prisma.offer.findFirst({
     where: { kind: "KISS", status: "PENDING", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
@@ -192,7 +212,7 @@ async function createKissOffer(prisma, { actor, target, turn }) {
     offer,
     dm: {
       discordUserId: target.discordUserId,
-      content: `*${actor.name}* would like to kiss you.`,
+      content: `*${capitalizeFirst(actorSeen)}* would like to kiss you.`,
       components: offerButtonRow(offer.id),
       meta: dmAction(DM_ACTION.OFFER, offer.id),
     },
@@ -207,7 +227,10 @@ async function acceptKiss(prisma, offer, responder) {
     prisma.character.findUnique({ where: { id: offer.responderId }, select: KISS_SELECT }),
   ]);
 
-  const refuse = async (reason) => {
+  // `toAsker` goes to the asker by DM; `reason` is the line handed back to
+  // whoever pressed Accept. Two sentences because each is worded from where its
+  // reader stands — "You're Bound." sent to the wrong one is about somebody else.
+  const refuse = async (toAsker, reason) => {
     await prisma.offer.updateMany({
       where: { id: offer.id, status: "PENDING" },
       data: { status: "CANCELLED", respondedAt: new Date() },
@@ -216,14 +239,15 @@ async function acceptKiss(prisma, offer, responder) {
       ok: false,
       reason,
       dms: actor?.discordUserId
-        ? [{ discordUserId: actor.discordUserId, content: `Your offer fell through: ${reason}` }]
+        ? [{ discordUserId: actor.discordUserId, content: `Your offer fell through: ${toAsker}` }]
         : [],
     };
   };
 
   // Re-run the whole gate — either can be bound, hooded, drugged or killed in the wait.
-  const refusal = kissAuthority(actor, target);
-  if (refusal) return refuse(refusal);
+  const { targetSeen, actorSeen } = await kissFaces(prisma, actor, target);
+  const refusal = kissAuthority(actor, target, { seen: targetSeen });
+  if (refusal) return refuse(refusal, kissAuthority(target, actor, { seen: actorSeen }) ?? refusal);
 
   const claim = await prisma.offer.updateMany({
     where: { id: offer.id, status: "PENDING" },
@@ -279,11 +303,13 @@ async function acceptKiss(prisma, offer, responder) {
     data: { status: "RESOLVED", resolvedAt: new Date(), outcome: { kissed: true, ...moved } },
   });
 
+  // `line` goes back to whoever pressed Accept — the person who was ASKED — so
+  // it names the asker. Each side reads the other as they know them.
   return {
     ok: true,
-    line: `You kissed ${target.name}.`,
+    line: `You kissed ${actorSeen}.`,
     dms: actor.discordUserId
-      ? [{ discordUserId: actor.discordUserId, content: `${target.name} kissed you back.` }]
+      ? [{ discordUserId: actor.discordUserId, content: `${capitalizeFirst(targetSeen)} kissed you back.` }]
       : [],
   };
 }

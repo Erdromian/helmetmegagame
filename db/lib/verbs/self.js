@@ -18,9 +18,8 @@ const { DISGUISE_KIT_SLUG, DISGUISE_TURNS, normalizeDisguiseName, mintDisguise, 
 const { heldReasonFor } = require("../intercept");
 const { cavingRestrictionsFor } = require("../cavingPass");
 const { isPointerDeviceSlug, partnerSlugOf, locatePointerPartner } = require("../pointerMint");
-const { STOWABLE_SLUGS, FAST_TRAVEL_SLUGS } = require("../mounts");
+const { FAST_TRAVEL_SLUGS } = require("../mounts");
 const { MOTION_SICKNESS_SLUG } = require("../constants");
-const { parksMounts } = require("../locationAttributes");
 const { HANDS_TAG_FIELDS, findEquipProblem, handsFor, isLockedOn, equipSfx } = require("../equipSlots");
 const { blockerFor, ACT } = require("../incapacitation");
 const { canDetectPoison } = require("../poison");
@@ -265,9 +264,6 @@ function equipOneTag(prisma, { character, characterTagId }) {
     if (held.equippedQuantity >= held.quantity) refuse(`You don't have another ${held.tag.name} to equip.`);
     // The gates below only fire on the FIRST unit out — none of these slugs is stackable.
     const firstUnitOut = held.equippedQuantity === 0;
-    if (firstUnitOut && STOWABLE_SLUGS.has(held.tag.slug) && parksMounts(character.location)) {
-      refuse(`You can't set up ${held.tag.name} inside ${character.location.name}.`);
-    }
     if (
       firstUnitOut &&
       FAST_TRAVEL_SLUGS.has(held.tag.slug) &&

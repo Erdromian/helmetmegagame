@@ -7,6 +7,7 @@ import { speakAtPlaces } from "@lifeweb/db/lib/inventoryTail";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
+import { seenName } from "@/lib/hereTarget";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
   addToStack,
@@ -297,7 +298,7 @@ export async function mutilateRequestImpl({
     if (!subject || !isHere(character, subject, { allowConcealed: true }))
       throw new UserError(notHereMessage(subject));
     if (!isBoundTarget(subject))
-      throw new UserError(`${subject.name} isn't tied up.`);
+      throw new UserError(`${await seenName(character, subject.id)} isn't tied up.`);
   }
 
   const step = resolveMutilation(
@@ -383,7 +384,9 @@ export async function mutilateRequestImpl({
   }
 
   revalidateAll();
-  return { part: named.label, name: subject.name };
+  // A body carries its name on the corpse itself; a living subject is named
+  // the way the cutter knows them, since they were picked by token.
+  return { part: named.label, name: corpse ? subject.name : await seenName(character, subject.id) };
 }
 
 // Burying. Takes the body — you have to actually have it, or be able to reach it — and spends your whole

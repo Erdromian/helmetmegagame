@@ -28,7 +28,10 @@ export function affordsCrossing(option, freeLeft) {
   return (freeLeft ?? 0) >= (option.cost ?? 1);
 }
 
-export function travelFoot(option, freeLeft, mounted, moved = false) {
+// `breakdown` (locationTravel.js#freeMovesBreakdown) says whether a mount's
+// ride is what this crossing would spend — one ride covers any crossing, so
+// the foot says "1 ride" rather than quoting travel the rider won't pay.
+export function travelFoot(option, freeLeft, mounted, moved = false, breakdown = null) {
   if (!option.passable) {
     const reason = option.reason ?? "";
     if (/locked/i.test(reason)) return "locked";
@@ -38,17 +41,17 @@ export function travelFoot(option, freeLeft, mounted, moved = false) {
   const cost = !option.crossesZone
     ? "free"
     : affordsCrossing(option, freeLeft)
-      ? `${formatTravel(option.cost ?? 1)} travel`
+      ? (breakdown?.ridesLeft ?? 0) > 0
+        ? "1 ride"
+        : `${formatTravel(option.cost ?? 1)} travel`
       : !moved
         ? "the turn"
         : option.canExert
           ? "exertion"
           : "next turn";
-  // Only worth saying when there's something to lose — dismounts wins over
-  // indoors when a way is both, since either one ends the same way and saying
-  // it twice would be noise.
+  // Only worth saying when there's something to lose: a way too narrow to
+  // ride. No Location takes a mount at its door any more (CARRY.md §3).
   if (option.dismounts) return `${cost} · on foot`;
-  if (mounted && option.indoors) return `${cost} · indoors`;
   return cost;
 }
 
@@ -113,7 +116,12 @@ function crossingWarning(option) {
 // is the server's sentence about which way the die leans, when it does
 // (db/lib/locationTravel.js#exertEdgeSentence), so the two faces say it the
 // same way.
-export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false } = {}) {
+//
+// `breakdown` is the two halves of `freeLeft` (locationTravel.js#
+// freeMovesBreakdown): while the mount has a ride left, the ride is what this
+// crossing spends — one ride covers any crossing, near or far — so the price
+// line says so instead of quoting travel the rider is not about to spend.
+export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false, breakdown = null } = {}) {
   // Said out loud because it is the half of an accidental crossing that costs
   // somebody else their afternoon too.
   const party =
@@ -133,7 +141,10 @@ export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false
   }
   const cost = option.cost ?? 1;
   const left = freeLeft ?? 0;
-  const price = affordsCrossing(option, freeLeft)
+  const rides = breakdown?.ridesLeft ?? 0;
+  const price = rides > 0 && breakdown?.mount
+    ? `Your ${breakdown.mount} carries you across: 1 of its ${rides} ${rides === 1 ? "ride" : "rides"} this turn.`
+    : affordsCrossing(option, freeLeft)
     ? `This spends ${formatTravel(cost)} of your ${formatTravel(left)} travel.`
     : left > 0
       ? `This costs ${formatTravel(cost)} travel and you only have ${formatTravel(left)} left, so it spends your Move for the turn.`
@@ -159,10 +170,8 @@ function listOf(names) {
 // travelFoot is here: /chat and /map both say it, and two copies would drift.
 export function walkFoot(route, mounted) {
   const far = route.hops === 1 ? "1 away" : `${route.hops} away`;
-  // Same precedence travelFoot uses — a dismount is the one consequence worth
-  // the space, and saying "indoors" beside it would be the same news twice.
+  // Same as travelFoot: a dismount is the one consequence worth the space.
   if (route.dismounts) return `${far} · on foot`;
-  if (mounted && route.indoors) return `${far} · indoors`;
   return far;
 }
 

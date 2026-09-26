@@ -6,8 +6,12 @@
 //
 // Every target arrives as a KEY (db/lib/targetKey.js) and is refused in the
 // blank form when it was a hood: a refusal that prints the name is the
-// unmasking itself (web/lib/hereTarget.js#refusalFor).
+// unmasking itself (web/lib/hereTarget.js#refusalFor). Past that gate the
+// target is named the way the actor knows them (`seen`), and a line the whole
+// place reads names the face the place saw (intercept.js#seenByPlace).
 const { resolveTargetKey, splitTargetKey } = require("../targetKey");
+const { seenById, seenByPlace } = require("../intercept");
+const { capitalizeFirst } = require("../concealedIdentity");
 const { isHere, notHereMessage } = require("../presence");
 const { addToStack, dropCharacterTag } = require("../tagWrites");
 const { applyMood } = require("../mood");
@@ -34,6 +38,11 @@ const BRAND_DESCRIPTION_MAX = 300;
 
 function refusalFor(key, target) {
   return splitTargetKey(key).kind === "hood" ? "They aren't here." : notHereMessage(target);
+}
+
+// "A young man" for somebody the actor has never met, ready to open a sentence.
+async function seen(prisma, character, target) {
+  return capitalizeFirst(await seenById(prisma, character.id, target.id));
 }
 
 // The ground a structure stands on, and the channel its ambient line goes to
@@ -65,7 +74,8 @@ function freeCharacter(prisma, { character, discordUserId, targetKey }) {
     });
     if (!target || !isHere(character, target, { allowConcealed: true })) refuse(refusalFor(targetKey, target));
     const held = target.tags[0];
-    if (!held) refuse(`${target.name} isn't bound.`);
+    const name = await seen(prisma, character, target);
+    if (!held) refuse(`${name} isn't bound.`);
     await prisma.$transaction(async (tx) => {
       for (const row of target.tags) await dropCharacterTag(tx, target.id, row.tagId);
       await logAudit(tx, {
@@ -83,7 +93,7 @@ function freeCharacter(prisma, { character, discordUserId, targetKey }) {
         },
       });
     });
-    return { touched: [target.id], notify: [{ character: target, text: "Someone freed you." }], name: target.name };
+    return { touched: [target.id], notify: [{ character: target, text: "Someone freed you." }], name };
   });
 }
 
@@ -115,7 +125,8 @@ function crucifyCharacter(prisma, { character, discordUserId, targetKey, openTur
       },
     });
     if (!target || !isHere(character, target, { allowConcealed: true })) refuse(refusalFor(targetKey, target));
-    if (target.tags.some((ct) => ct.tag.slug === CRUCIFIED_SLUG)) refuse(`${target.name} is already on the cross.`);
+    const name = await seen(prisma, character, target);
+    if (target.tags.some((ct) => ct.tag.slug === CRUCIFIED_SLUG)) refuse(`${name} is already on the cross.`);
     const crucified = await prisma.tag.findUnique({ where: { slug: CRUCIFIED_SLUG } });
     if (!crucified) refuse("The Crucified tag is missing from the catalog — tell a GM.");
     if (!openTurn) refuse("No turn is open.");
@@ -143,8 +154,13 @@ function crucifyCharacter(prisma, { character, discordUserId, targetKey, openTur
     return {
       touched: [target.id],
       notify: [{ character: target, text: "You've been put on the cross." }],
-      speak: [{ locationId: location?.id ?? character.locationId, text: `${target.name} hangs on the cross.` }],
-      name: target.name,
+      speak: [
+        {
+          locationId: location?.id ?? character.locationId,
+          text: `${capitalizeFirst(await seenByPlace(prisma, target.id))} hangs on the cross.`,
+        },
+      ],
+      name,
     };
   });
 }
@@ -175,9 +191,10 @@ function shackleCharacter(prisma, { character, discordUserId, targetKey, openTur
       },
     });
     if (!target || !isHere(character, target, { allowConcealed: true })) refuse(refusalFor(targetKey, target));
-    if (target.tags.some((ct) => ct.tag.slug === SHACKLED_SLUG)) refuse(`${target.name} is already shackled.`);
+    const name = await seen(prisma, character, target);
+    if (target.tags.some((ct) => ct.tag.slug === SHACKLED_SLUG)) refuse(`${name} is already shackled.`);
     const boundRow = target.tags.find((ct) => ct.tag.slug === "bound");
-    if (!boundRow) refuse(`${target.name} isn't bound.`);
+    if (!boundRow) refuse(`${name} isn't bound.`);
     const shackledTag = await prisma.tag.findUnique({ where: { slug: SHACKLED_SLUG } });
     if (!shackledTag) refuse("The Shackled tag is missing from the catalog — tell a GM.");
     if (!openTurn) refuse("No turn is open.");
@@ -202,7 +219,7 @@ function shackleCharacter(prisma, { character, discordUserId, targetKey, openTur
         details: effect,
       });
     });
-    return { touched: [target.id], notify: [{ character: target, text: "You've been shackled." }], name: target.name };
+    return { touched: [target.id], notify: [{ character: target, text: "You've been shackled." }], name };
   });
 }
 
@@ -224,8 +241,9 @@ function brandCharacter(prisma, { character, discordUserId, targetKey, descripti
       include: { tags: { include: { tag: { select: { slug: true } } } } },
     });
     if (!target || !isHere(character, target, { allowConcealed: true })) refuse(refusalFor(targetKey, target));
+    const name = await seen(prisma, character, target);
     if (!target.tags.map((ct) => ct.tag.slug).some((slug) => INCAPACITATING_SLUGS.has(slug))) {
-      refuse(`${target.name} could still stop you — that's not something you can just do to them.`);
+      refuse(`${name} could still stop you — that's not something you can just do to them.`);
     }
     const [achingTag, brandBase] = await Promise.all([
       prisma.tag.findUnique({ where: { slug: ACHING_SLUG }, select: { id: true, stackable: true, defaultDurationTurns: true } }),
@@ -266,7 +284,7 @@ function brandCharacter(prisma, { character, discordUserId, targetKey, descripti
     return {
       touched: [target.id],
       notify: [{ character: target, text: "Somebody held a hot iron to you. It'll never fade." }],
-      name: target.name,
+      name,
     };
   });
 }

@@ -44,6 +44,9 @@ export default function LedgerBand({
   carry = null,
   zoneMoves = null,
   zoneMovesReason = null,
+  // { baseLeft, ridesLeft, mount, line } — the count's two halves
+  // (locationTravel.js#freeMovesBreakdown), built server-side.
+  zoneMovesBreakdown = null,
   openTurn = null,
   moveState = null,
   pendingOffers = [],
@@ -169,12 +172,30 @@ export default function LedgerBand({
           {/* One open slot across the band, so two boxes never show detail at once. */}
           <DetailTile
             label="Travel"
-            value={zoneMoves != null ? formatTravel(zoneMoves) : "—"}
+            // The base travel and the mount's rides read apart — "2 + 2 rides" —
+            // because they spend differently: a ride covers any crossing, travel
+            // is counted per crossing (MAP.md §3a). The face says which is which.
+            value={
+              zoneMoves == null
+                ? "—"
+                : (zoneMovesBreakdown?.ridesLeft ?? 0) > 0
+                  ? `${formatTravel(zoneMovesBreakdown.baseLeft)} + ${zoneMovesBreakdown.ridesLeft} ${zoneMovesBreakdown.ridesLeft === 1 ? "ride" : "rides"}`
+                  : formatTravel(zoneMoves)
+            }
             over={zoneMoves === 0}
             // "Gambit filed"/"not yet filed" used to sit here too, but the
             // This turn box beside the strip already says the same thing —
             // one fact, said once.
-            detail={zoneMovesReason || null}
+            detail={
+              [
+                (zoneMovesBreakdown?.ridesLeft ?? 0) > 0 && zoneMovesBreakdown.line
+                  ? `${zoneMovesBreakdown.line}. A ride carries you across any border.`
+                  : null,
+                zoneMovesReason || null,
+              ]
+                .filter(Boolean)
+                .join(" ") || null
+            }
             open={tileOpen === "moves"}
             onOpen={(want) => setTileOpen(want ? "moves" : null)}
           />

@@ -36,6 +36,8 @@ const { SFX } = require("./sfx");
 const { sendDm } = require("./dm");
 const { createWithRetry } = require("./paperMint");
 const { wornRingTokens } = require("./roomAccess");
+const { seenById, seenByPlace } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 const {
   COLLAR_ITEM_SLUG,
   COLLAR_LOCKED_SLUG,
@@ -323,7 +325,10 @@ async function applyCollar(prisma, { actor, target, turn, collar, offerId = null
     const already = await tx.characterTag.count({
       where: { characterId: target.id, quantity: { gt: 0 }, tag: LOCKED_COLLAR_WHERE },
     });
-    if (already) return { ok: false, reason: `${target.name} already has a collar on.` };
+    if (already) {
+      const seen = actor.id === target.id ? "You" : capitalizeFirst(await seenById(tx, actor.id, target.id));
+      return { ok: false, reason: `${seen} already ${seen === "You" ? "have" : "has"} a collar on.` };
+    }
     const inHand = await tx.characterTag.count({
       where: { characterId: actor.id, tagId: collar.id, quantity: { gt: 0 } },
     });
@@ -348,8 +353,11 @@ async function applyCollar(prisma, { actor, target, turn, collar, offerId = null
 // guard -- a second ask in the same turn is refused rather than DMing twice.
 // The collar being offered rides on the offer's `tagId`, so the accept locks on
 // the collar the asker picked and not whichever one they happen to hold later.
+// Both sides are named as the other knows them (intercept.js#seenBy), as Bind's are.
 async function createCollarOffer(prisma, { actor, target, turn, collar }) {
-  if (!target.discordUserId) return { ok: false, reason: `${target.name} can't be reached.` };
+  if (!target.discordUserId) {
+    return { ok: false, reason: `${capitalizeFirst(await seenById(prisma, actor.id, target.id))} can't be reached.` };
+  }
   const duplicate = await prisma.offer.findFirst({
     where: { kind: "COLLAR", status: "PENDING", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
     select: { id: true },
@@ -363,7 +371,7 @@ async function createCollarOffer(prisma, { actor, target, turn, collar }) {
     offer,
     dm: {
       discordUserId: target.discordUserId,
-      content: `*${actor.name}* wants to put a shock collar on you. Accept?`,
+      content: `*${capitalizeFirst(await seenById(prisma, target.id, actor.id))}* wants to put a shock collar on you. Accept?`,
       components: offerButtonRow(offer.id),
       meta: dmAction(DM_ACTION.OFFER, offer.id),
     },
@@ -379,7 +387,9 @@ async function acceptCollar(prisma, offer, responder) {
     prisma.character.findUnique({ where: { id: offer.initiatorId }, select: COLLAR_SELECT }),
     prisma.character.findUnique({ where: { id: offer.responderId }, select: COLLAR_SELECT }),
   ]);
-  const refuse = async (reason) => {
+  // `reason` goes back to whoever pressed Accept, `toAsker` to the asker by
+  // DM, each worded from where its reader stands (db/lib/bind.js#acceptBind).
+  const refuse = async (reason, toAsker = reason) => {
     await prisma.offer.updateMany({
       where: { id: offer.id, status: "PENDING" },
       data: { status: "CANCELLED", respondedAt: new Date() },
@@ -388,21 +398,25 @@ async function acceptCollar(prisma, offer, responder) {
       ok: false,
       reason,
       dms: actor?.discordUserId
-        ? [{ discordUserId: actor.discordUserId, content: `Your offer fell through: ${reason}` }]
+        ? [{ discordUserId: actor.discordUserId, content: `Your offer fell through: ${toAsker}` }]
         : [],
     };
   };
   if (!turn || turn.id !== offer.turnId) return refuse("That offer was for a turn that's over.");
   if (!actor || actor.status !== "ALIVE") return refuse("They aren't around any more.");
-  if (!target || target.status !== "ALIVE") return refuse("You aren't in a state for that.");
+  if (!target || target.status !== "ALIVE") return refuse("You aren't in a state for that.", "They aren't in a state for that.");
   const refusal = collarAuthority(actor, target);
   if (refusal) return refuse(refusal);
-  if (wearsCollar(target)) return refuse(`${target.name} already has a collar on.`);
+  if (wearsCollar(target)) {
+    return refuse("You already have a collar on.", `${capitalizeFirst(await seenById(prisma, actor.id, target.id))} already has a collar on.`);
+  }
   // Re-read the actor's own stock: they may have handed it away while waiting.
   // An offer from before collars carried a glyph has no tagId, and takes
   // whichever collar is in hand.
   const collar = await pickLooseCollar(prisma, actor.id, { tagId: offer.tagId ?? null });
-  if (!collar) return refuse(`${actor.name} has no collar to put on you.`);
+  if (!collar) {
+    return refuse(`${capitalizeFirst(await seenById(prisma, target.id, actor.id))} has no collar to put on you.`, "You don't have that collar any more.");
+  }
 
   const claim = await prisma.offer.updateMany({
     where: { id: offer.id, status: "PENDING" },
@@ -416,9 +430,10 @@ async function acceptCollar(prisma, offer, responder) {
       where: { id: offer.id },
       data: { status: "CANCELLED", resolvedAt: new Date(), outcome: { collared: false } },
     });
+    // applyCollar's refusals are worded for the one putting the collar on.
     return {
       ok: false,
-      reason: applied.reason,
+      reason: "That offer's gone.",
       dms: actor.discordUserId
         ? [{ discordUserId: actor.discordUserId, content: `Your offer fell through: ${applied.reason}` }]
         : [],
@@ -428,15 +443,19 @@ async function acceptCollar(prisma, offer, responder) {
     where: { id: offer.id },
     data: { status: "RESOLVED", resolvedAt: new Date(), outcome: { collared: true, glyph: applied.glyph } },
   });
+  const [actorSeen, targetSeen] = await Promise.all([
+    seenById(prisma, target.id, actor.id),
+    seenById(prisma, actor.id, target.id),
+  ]);
   return {
     ok: true,
     collaredId: target.id,
-    line: `You let ${actor.name} put a collar on you. It is marked ${applied.glyph}.`,
+    line: `You let ${actorSeen} put a collar on you. It is marked ${applied.glyph}.`,
     dms: actor.discordUserId
       ? [
           {
             discordUserId: actor.discordUserId,
-            content: `${target.name} let you put a collar on them. It is marked ${applied.glyph}.`,
+            content: `${capitalizeFirst(targetSeen)} let you put a collar on them. It is marked ${applied.glyph}.`,
           },
         ]
       : [],
@@ -456,7 +475,7 @@ async function unlockCollar(prisma, { actor, target, turn }) {
     where: { characterId: target.id, quantity: { gt: 0 }, tag: { slug: { startsWith: LOCKED_GLYPH_PREFIX } } },
     select: { tagId: true, tag: { select: { slug: true } } },
   });
-  if (!worn) return { ok: false, reason: `${target.name} doesn't have a collar on.` };
+  if (!worn) return { ok: false, reason: `${capitalizeFirst(await seenById(prisma, actor.id, target.id))} doesn't have a collar on.` };
   const index = glyphIndexOf(worn.tag.slug);
   const loose = await glyphTag(prisma, index, { locked: false });
   const effect = {
@@ -481,7 +500,7 @@ async function unlockCollar(prisma, { actor, target, turn }) {
     });
     return true;
   });
-  if (!done) return { ok: false, reason: `${target.name} doesn't have a collar on.` };
+  if (!done) return { ok: false, reason: `${capitalizeFirst(await seenById(prisma, actor.id, target.id))} doesn't have a collar on.` };
   return { ok: true, ...effect };
 }
 
@@ -577,7 +596,9 @@ async function detonateCollar(prisma, { actor, collarSlug, turn }) {
       source: "collar",
     }).catch((err) => console.error(`detonation DM for ${target.name}:`, err?.message ?? err));
   }
-  await locationLine(prisma, target.location, `${target.name}'s collar goes off, and takes their head with it.`, {
+  // The room names the face it saw: a hood stays a hood even now.
+  const seen = capitalizeFirst(await seenByPlace(prisma, target.id));
+  await locationLine(prisma, target.location, `${seen}'s collar goes off, and takes their head with it.`, {
     sfx: SFX.BOOM,
   });
   const from = target.location?.name ? ` from ${target.location.name}` : "";

@@ -32,13 +32,13 @@ const {
 const { isLockedCollarSlug } = require("@lifeweb/db/lib/collarGlyphs");
 const { ATTACK_TAG_SELECT, attackRefusal, fileAttack } = require("@lifeweb/db/lib/attack");
 const { attackMoveBlock } = require("@lifeweb/db/lib/combatGate");
-const { IDENTITY_SELECT, seenBy } = require("@lifeweb/db/lib/intercept");
+const { IDENTITY_SELECT, seenBy, seenById } = require("@lifeweb/db/lib/intercept");
 const { HERE_FIELDS } = require("@lifeweb/db/lib/presence");
 const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
 const { examineBlock } = require("@lifeweb/db/lib/examineVision");
 const { lastSightings } = require("@lifeweb/db/lib/sightings");
 const { knownSubjects } = require("@lifeweb/db/lib/strangers");
-const { concealedAlias } = require("@lifeweb/db/lib/concealedIdentity");
+const { concealedAlias, capitalizeFirst } = require("@lifeweb/db/lib/concealedIdentity");
 const {
   ESCORT_SELECT,
   escortAuthority,
@@ -319,6 +319,13 @@ const attack = {
 
 // --- Bind and the collar (LESSONS.md §3, COLLAR.md) --------------------------
 
+// What `character` calls the person `id`, ready to open a sentence — "A young
+// man" for a hood or a stranger (web/lib/hereTarget.js#seenName). The picker
+// offered them by token so the reply must not print the name either.
+async function seenName(character, id) {
+  return capitalizeFirst(await seenById(prisma, character.id, id));
+}
+
 // web: character/actions/misc.js#bindCharacterRequestImpl.
 const bind = {
   start: (interaction, { character }) =>
@@ -338,7 +345,8 @@ const bind = {
       if (targetId === character.id) return done(interaction, "You can't bind yourself.");
       const { target, error } = await hereTarget(character, key, { allowDead: true, select: BIND_SELECT });
       if (error) return done(interaction, error);
-      if (isBound(target)) return done(interaction, `${target.name} is already bound.`);
+      const name = await seenName(character, target.id);
+      if (isBound(target)) return done(interaction, `${name} is already bound.`);
       const turn = await openTurn();
       if (!turn) return done(interaction, "No turn is open.");
       const actor = { id: character.id, name: character.name, discordUserId: character.discordUserId };
@@ -352,12 +360,12 @@ const bind = {
           targetCharacterId: target.id,
           details: { offerId: offer.offer.id, targetName: target.name },
         });
-        return done(interaction, `${target.name} has to agree first.`);
+        return done(interaction, `${name} has to agree first.`);
       }
       await applyBind(prisma, { actor, target, turn });
       await afterInventoryChangeDb(prisma, target.id);
       await notifyCharacterDb(prisma, target, "Someone bound you.");
-      return done(interaction, `${target.name} is tied up.`);
+      return done(interaction, `${name} is tied up.`);
     },
   },
 };
@@ -397,8 +405,9 @@ async function applyCollarTo(interaction, key, collarSlug) {
   if (error) return done(interaction, error);
   const collar = await pickLooseCollar(prisma, character.id, { slug: collarSlug || null });
   if (!collar) return done(interaction, collarSlug ? "You don't have that collar." : "You don't have a collar.");
-  if (wearsCollar(target)) return done(interaction, `${target.name} already has a collar on.`);
   const self = target.id === character.id;
+  const name = self ? "You" : await seenName(character, target.id);
+  if (wearsCollar(target)) return done(interaction, `${name} already ${self ? "have" : "has"} a collar on.`);
   if (!self && !collarNeedsNoConsent(target)) {
     const offer = await createCollarOffer(prisma, { actor, target, turn, collar });
     if (!offer.ok) return done(interaction, offer.reason);
@@ -409,13 +418,13 @@ async function applyCollarTo(interaction, key, collarSlug) {
       targetCharacterId: target.id,
       details: { offerId: offer.offer.id, targetName: target.name },
     });
-    return done(interaction, `${target.name} has to agree first.`);
+    return done(interaction, `${name} has to agree first.`);
   }
   const applied = await applyCollar(prisma, { actor, target, turn, collar });
   if (!applied.ok) return done(interaction, applied.reason);
   await afterInventoryChangeDb(prisma, self ? [character.id] : [character.id, target.id]);
   if (!self) await notifyCharacterDb(prisma, target, "Someone put a collar on you.");
-  return done(interaction, `${self ? "You have" : `${target.name} has`} a collar on. It is marked ${applied.glyph}.`);
+  return done(interaction, `${self ? "You have" : `${name} has`} a collar on. It is marked ${applied.glyph}.`);
 }
 
 // web: character/actions/misc.js#applyCollarRequestImpl. Two doors, Bind's:
@@ -477,12 +486,13 @@ const unlockcollar = {
       if (error) return done(interaction, error);
       const refusal = await unlockRefusal(prisma, character.id);
       if (refusal) return done(interaction, refusal);
-      if (!wearsCollar(target)) return done(interaction, `${target.name} doesn't have a collar on.`);
+      const name = await seenName(character, target.id);
+      if (!wearsCollar(target)) return done(interaction, `${name} doesn't have a collar on.`);
       const unlocked = await unlockCollar(prisma, { actor, target, turn });
       if (!unlocked.ok) return done(interaction, unlocked.reason);
       await afterInventoryChangeDb(prisma, [character.id, target.id]);
       await notifyCharacterDb(prisma, target, "Someone took your collar off.");
-      return done(interaction, `${target.name} is out of the collar, and it's yours. It is marked ${unlocked.glyph}.`);
+      return done(interaction, `${name} is out of the collar, and it's yours. It is marked ${unlocked.glyph}.`);
     },
   },
 };

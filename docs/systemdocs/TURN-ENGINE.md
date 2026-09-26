@@ -819,8 +819,8 @@ rework — animals still eat ⬢, people no longer do. Three things about it are
 the opposite of how the rest of the horse works, and all three are deliberate:
 
 - **Held, not equipped.** Everything else a horse does is gated on
-  `CharacterTag.equipped` (`db/lib/mounts.js`), and an indoors Location parks
-  the animal at the door. The feed ignores all of it. A horse in your pocket
+  `CharacterTag.equipped` (`db/lib/mounts.js`), and a narrow way leaves the
+  animal behind. The feed ignores all of it. A horse in your pocket
   still eats, so stowing it is not a way to skip the bill.
 - **Short of the cost, nothing happens.** A character at 0 ⬢ is charged nothing
   and keeps the horse — no starving marker, no runaway. Hunger used to have a

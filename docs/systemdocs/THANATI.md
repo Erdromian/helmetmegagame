@@ -205,8 +205,17 @@ Nothing off the DM is trusted. The answerer must be one of the chanters
 snapshotted on the attempt, and **the candidate list is rebuilt at pick time**
 rather than read off the snapshot — minutes pass between the chant and the
 answer, and somebody bound, converted or killed in the gap must not still be
-offerable. The labels in the menu go through `seenAs(identityOf(…))`, so a
-hood is not quietly undone by the picker.
+offerable.
+
+**Each chanter gets their own list** (`conversionRite.js#pickOptions`). A
+candidate is named the way that chanter knows them (`intercept.js#seenBy`):
+a hood, or a bare face they have never met, is "a young woman", and a friend is
+their name (`STRANGERS.md`). Two lookalikes carry the presence label every
+observer shares — "a young woman, hunched" — so the circle can agree on which,
+or a number when no label has been rolled. An option's value is never a
+character id: it is `pickCode`, an HMAC of the attempt, the chanter and the
+candidate, recomputed over the rebuilt list at pick time. A code from another
+chanter's list, or a bare id posted by hand, picks nobody.
 
 **Then the target answers.** An `Offer` of kind `CONVERSION` — the same consent
 row Lesson, Bind, Confession, Escort, Kiss, Search and Collar use, so the DM

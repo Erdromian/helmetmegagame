@@ -1,6 +1,13 @@
 "use server";
 
 import { after } from "next/server";
+// The Purse on the You plate (./next/YouPlate.js) is a server prop, so a verb
+// here that moves obols through the player's hand calls refresh() on success,
+// and only when coin really moved: the page redraws in the same response.
+// refresh() rather than revalidatePath because /chat is force-dynamic, so
+// there is no cache to drop, only the page in front of the player. Every other
+// verb here leaves the page alone.
+import { refresh } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
@@ -36,7 +43,7 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { searchRoom as searchRoomInDb } from "@lifeweb/db/lib/roomSearch";
 import { countHiddenStacks, hiddenCountLine } from "@lifeweb/db/lib/roomStash";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
-import { parksMounts, hasAttribute } from "@lifeweb/db/lib/locationAttributes";
+import { hasAttribute } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
@@ -59,12 +66,14 @@ import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { structuresAt } from "@lifeweb/db/lib/structures";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
-import { heldReasonFor, seenBy, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
+import { heldReasonFor, seenBy, seenById, seenByPlace, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
   performLocationMove,
   freeMovesLeft,
+  freeMovesBreakdown,
+  travelSentence,
   freeZoneMovesReason,
   exertRefusal,
   exertEdgeFor,
@@ -517,10 +526,15 @@ export async function loadTravel() {
     // party, so a mount's extra crossing is already reflected (MAP.md §3a).
     freeLeft: freeMovesLeft(character, config, openTurn, party.length),
     freeReason: freeZoneMovesReason(character, party.length, { config, openTurn }),
+    // The same count in two halves — "1 travel, plus 2 rides on your
+    // Motorcycle" — for the header and the confirm (MAP.md §3a). The sentence
+    // is built here because TravelNodes is a client component and
+    // locationTravel.js is not for the browser bundle.
+    breakdown: freeMovesBreakdown(character, config, openTurn, party.length),
+    travelLine: travelSentence(freeMovesBreakdown(character, config, openTurn, party.length)),
     // Whether there's anything to dismount at all — the node list only
     // marks a specific way or a specific destination as a consequence when
-    // this is true, since neither "on foot" nor "indoors" means anything to
-    // somebody already walking.
+    // this is true, since "on foot" means nothing to somebody already walking.
     mounted: blocksOnFoot(equippedSlugs(character.tags ?? [])),
     // The Move already spent this turn: Go leaves the strip and the push on
     // is the only way across a zone with no travel left (MAP.md §3).
@@ -541,7 +555,6 @@ export async function loadTravel() {
         // A tight squeeze somewhere along the road (MAP.md §2a) — said to
         // everybody, so a leader knows their Giant cannot finish this walk.
         tightSqueeze: Boolean(row.tightSqueeze),
-        indoors: parksMounts(row.location),
       })),
     options: options.map((row) => {
       // Which way the push on's die leans for this character, said before
@@ -580,9 +593,6 @@ export async function loadTravel() {
         canExert: row.crossesZone && exertWhy === null,
         exertWhy,
         exertNote,
-        // A Location a mount gets parked at on arrival (db/lib/indoors.js) —
-        // which is not every Location with a roof over it.
-        indoors: parksMounts(row.location),
         // A way too narrow to ride or push through — crossing it dismounts
         // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
         dismounts: Boolean(row.dismounts),
@@ -813,15 +823,19 @@ export async function travelTo({ locationId, exert = false } = {}) {
   // this action returns is built out of them — it is only the telling that
   // waits. See the block below for why any of it waits at all.
   const tell = [];
+  // Leader and follower each name the other as they know them
+  // (intercept.js#seenBy): the escort rack offered a hood or a stranger by
+  // token, so neither line may hand back the name.
   for (const entry of result.leftBehind ?? []) {
     // "held" is the one reason the leader IS told — it's plain to see anyway.
-    (entry.reason === "held" ? heldBack : stranded).push(entry.character.name);
+    (entry.reason === "held" ? heldBack : stranded).push(await seenById(prisma, me.character.id, entry.character.id));
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     const left = entry.character.discordUserId;
-    tell.push(() => sendDm(left, `*${me.character.name} went on without you.*`));
+    const leader = capitalizeFirst(await seenById(prisma, entry.character.id, me.character.id));
+    tell.push(() => sendDm(left, `*${leader} went on without you.*`));
   }
 
-  // The arrival's GAME half, AWAITED: the fog, a parked mount, a hand on a
+  // The arrival's GAME half, AWAITED: the fog, a narrow-way dismount, a hand on a
   // shoulder, a turret's kill. MAP.md §3 promises the character is standing at
   // the destination by the time this call returns, and the sentence built at
   // the bottom of this function reads the result of it.
@@ -886,10 +900,11 @@ export async function travelTo({ locationId, exert = false } = {}) {
   const brought = [];
   for (const entry of result.moved) {
     if (entry.character.id === me.character.id) continue;
-    brought.push(entry.character.name);
+    brought.push(await seenById(prisma, me.character.id, entry.character.id));
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     const passenger = entry.character.discordUserId;
-    tell.push(() => sendDm(passenger, `*${me.character.name} brought you along to ${landed.name}.*`));
+    const leader = capitalizeFirst(await seenById(prisma, entry.character.id, me.character.id));
+    tell.push(() => sendDm(passenger, `*${leader} brought you along to ${landed.name}.*`));
   }
 
   // Everything owed to Discord, after the response has gone. SEQUENTIAL, never
@@ -921,7 +936,7 @@ export async function travelTo({ locationId, exert = false } = {}) {
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
-        ? `${formatTravel(result.freeMovesLeft)} travel left this turn.`
+        ? `${result.travelLeft ? travelSentence(result.travelLeft) : `${formatTravel(result.freeMovesLeft)} travel`} left this turn.`
         : "That was the last of your travel this turn.",
     );
   }
@@ -1573,8 +1588,8 @@ export async function pray({ roomId } = {}) {
 
   // Anybody else standing in the shrine sees it. Nothing leaves the room —
   // the tag is `catalog: secret`, and this is the only place it is ever
-  // announced at all.
-  const witnessed = `${me.character.name} kneels, and the face seems to lean down.`;
+  // announced at all. The shrine sees the face, not the name behind a hood.
+  const witnessed = `${capitalizeFirst(await seenByPlace(prisma, me.character.id))} kneels, and the face seems to lean down.`;
   // The statue's noise rides the line that was already being written — everyone reading the
   // shrine hears it, and nobody outside it does (db/lib/sfx.js).
   await sceneLineAt(prisma, { roomId: found.room.id, text: witnessed, sfx: SFX.CONVERT }).catch(() => {});
@@ -1708,6 +1723,8 @@ export async function playSlots({ roomId } = {}) {
   const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
   const result = await playSlotsInDb(prisma, me.discordUserId, { turn });
   if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
+  // The stake always leaves the purse, win or lose.
+  refresh();
   return { ok: true, line: result.line, sfx: result.sfx };
 }
 
@@ -1736,6 +1753,10 @@ async function vendingVerb(roomId, fn, args = {}) {
   // Anything that moved a tag has to settle the carry (docs/systemdocs/CARRY.md)
   // — the same bargain every other inventory writer strikes.
   if (result.moved !== false) await afterInventoryChange([me.character.id]).catch(() => {});
+  // `amount` is the coin that crossed the presser's hand: Insert, Withdraw,
+  // Empty the till, and Step away with change in the slot. A purchase moves
+  // coin from the slot to the till, not out of a purse, so it sets none.
+  if (result.amount > 0) refresh();
   return { ok: true, line: result.line, sfx: result.sfx };
 }
 
@@ -1862,11 +1883,14 @@ export async function openPhone({ roomId } = {}) {
   return phoneAnswer(view);
 }
 
+// `charged` is set only when a payphone took an obol (PHONES.md §3): a named
+// phone is free, and so is anything inside the 10 minutes a coin already paid for.
 export async function answerPhone({ roomId } = {}) {
   const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const view = await answerPayphone(prisma, me.discordUserId, roomId, { via: "web", turn: await openTurn() });
   if (!view.ok) return { ok: false, error: view.error, sfx: view.sfx ?? SFX.REFUSE };
+  if (view.charged) refresh();
   return phoneAnswer(view);
 }
 
@@ -1877,6 +1901,7 @@ export async function dialPhone({ roomId, digits } = {}) {
   if (me.error) return { ok: false, error: me.error };
   const view = await dialNumber(prisma, me.discordUserId, roomId, digits, { turn: await openTurn() });
   if (!view.ok) return { ok: false, error: view.error, sfx: view.sfx ?? SFX.REFUSE };
+  if (view.charged) refresh();
   return phoneAnswer(view);
 }
 
@@ -1885,6 +1910,7 @@ export async function insertPhoneObol({ roomId } = {}) {
   if (me.error) return { ok: false, error: me.error };
   const view = await insertObol(prisma, me.discordUserId, roomId, { turn: await openTurn() });
   if (!view.ok) return { ok: false, error: view.error, sfx: view.sfx ?? SFX.REFUSE };
+  if (view.charged) refresh();
   return phoneAnswer(view);
 }
 

@@ -11,20 +11,29 @@ Bascinet's design doc `E:\Bascinet\V3\UI\Chat Overhaul.docx` reshaped the live
 page (`web/app/(app)/chat/next/ChatNext.js`). Where an older passage below
 disagrees with this section, this section is right.
 
-- **The player's right column** runs Travel, then the room block when you are
-  in a room, then Here, then Turn. Waiting, Things, the place card and the
-  party rack follow. **Things** sits above the place card, open by default,
-  under a girder head with a count (`Things · 6`) — it was a shut fold line at
-  the column's foot until 2026-09-25, and players reported not finding what
-  they could do with an item (`chat/thingsOpenStore.js`). **Every block
-  folds**: its girder head is the fold (`next/FoldBlock.js`), every block
-  starts open, and what a player shuts stays shut in that browser
-  (`next/asideFoldStore.js`; Things keeps its own store). A shut block hides its
-  body rather than unmounting it, so a half-answered crossing or a seeded Here
-  list survives a fold. Travel entries print no description (a shut way still says
-  why, and the full text rides the hover title). The You plate, the Desires
-  fold and the `Sheet ›` link are gone from the column. The GM's tabbed column
-  is unchanged.
+- **Travel sits over the scene**, in a strip under the chat head (2026-09-25,
+  player feedback; `ChatNext.js`), not at the top of the right column. Every
+  way out is one line: its name, its zone only when it crosses into another,
+  and the cost. A walk keeps its stops, since a double-click takes it. A shut
+  way's cost line says why, and the full text rides the hover title. Picking
+  a way puts the Go / Push on / Cancel line straight under the strip, and the
+  move's own sentence ("Moved to Gatehouse.") stays there after. On a phone
+  the ways are one line you swipe sideways. The strip shows on every pane,
+  because it is about where the character stands. It is a player's only: a GM
+  with no body keeps the Travel tab in `GmAside`. `?old=1` still has Travel in
+  its right column.
+- **The player's right column** runs the room block when you are in a room,
+  then Here, then Turn. Waiting, Things, the place card and the party rack
+  follow. **Things** sits above the place card, open by default, under a
+  girder head with a count (`Things · 6`) — it was a shut fold line at the
+  column's foot until 2026-09-25, and players reported not finding what they
+  could do with an item (`chat/thingsOpenStore.js`). **Every block folds**:
+  its girder head is the fold (`next/FoldBlock.js`), every block starts open,
+  and what a player shuts stays shut in that browser (`next/asideFoldStore.js`;
+  Things keeps its own store). A shut block hides its body rather than
+  unmounting it, so a seeded Here list survives a fold. The You plate, the
+  Desires fold and the `Sheet ›` link are gone from the column. The GM's
+  tabbed column is unchanged.
 - **The You plate** sits in the bottom-left corner, pinned in the foot of the
   places column (`next/YouPlate.js`). On a phone it is at the foot of the ≡
   drawer. It carries **no tag chips** (the Soilery Rework doc: Ate Meal and
@@ -1597,7 +1606,12 @@ a 48px head and a one-line composer:
      rows — **Mood** (the band word, `db/lib/mood.js#bandOf`), **Resources**
      (`N ⬢`), **Purse** (`N ¢`, `web/lib/purse.js#obolsOf` — the SAME reducer
      `LedgerBand.js`'s ⬢ tile counts obols with, lifted out to one copy for
-     both), **Carrying** (`used/cap lb`), then the descriptor rows (§0,
+     both; a server prop, so the Chat verbs that move coin through a hand —
+     slots, a payphone taking its obol (Dial, Answer or Insert obol), the
+     vending machine's Insert, Withdraw, Empty till and Step away — call
+     `refresh()` from `next/cache` when coin moved, see the note at the top
+     of `chat/actions.js`),
+     **Carrying** (`used/cap lb`), then the descriptor rows (§0,
      **Hunger**) — then `StatusStrip.js`'s own load meter, with no chips
      (`tags={[]}`), and `numbers={false}` since the kv rows already said
      Resources and Carrying in words.

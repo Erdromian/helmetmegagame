@@ -24,6 +24,8 @@ const { applyMood, applyWoundMood, woundMoodFor } = require("./mood");
 const { rollLine } = require("./gambitModifier");
 const { severityRungOf, healOutcome } = require("./healGambit");
 const { pickComplication } = require("./healComplications");
+const { seenById } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 
 const HEAL_AUDIT_ACTION = "request_heal_character";
 const RESOLVED_AUDIT_ACTION = "heal_gambit_resolved";
@@ -102,7 +104,9 @@ async function runHealGambitPass(prisma, turn) {
           where: { id: targetCharacterId },
           select: { id: true, name: true, discordUserId: true, status: true },
         });
-        const targetName = target?.name ?? "the patient";
+        // As the medic knows them: a stranger they treated is "a young man"
+        // in the result too (intercept.js#seenBy).
+        const targetName = target ? await seenById(tx, action.characterId, target.id) : "the patient";
         const selfHeal = targetCharacterId === action.characterId;
 
         // Same lock order medical.js's own routine branch uses — sorted, not
@@ -222,11 +226,12 @@ async function runHealGambitPass(prisma, turn) {
         const medicDm = succeeded
           ? `${rollText} You cured ${selfHeal ? "your own" : `${targetName}'s`} ${tag.name}.`
           : `${rollText} The attempt didn't take${selfHeal ? "" : ` on ${targetName}`} — ${selfHeal ? "you're" : `${targetName} is`} left with ${complicationName ?? "something worse"} on top of it.`;
+        const medicName = selfHeal ? null : capitalizeFirst(await seenById(tx, targetCharacterId, medic.id));
         const patientDm =
           !selfHeal && target.discordUserId
             ? succeeded
-              ? `${medic.name} finished treating your ${tag.name}.`
-              : `${medic.name}'s treatment for your ${tag.name} went wrong — you're now dealing with ${complicationName ?? "something worse"} too.`
+              ? `${medicName} finished treating your ${tag.name}.`
+              : `${medicName}'s treatment for your ${tag.name} went wrong — you're now dealing with ${complicationName ?? "something worse"} too.`
             : null;
 
         return { resolved: true, succeeded, medicDm, patientDm, patientDiscordUserId: target.discordUserId, moodDm };

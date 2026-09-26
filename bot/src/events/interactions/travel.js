@@ -17,6 +17,8 @@ const {
   freeZoneMovesReason,
   buildConfirmRow,
   freeMovesLeft,
+  freeMovesBreakdown,
+  travelSentence,
   exertRefusal,
   exertEdgeFor,
   exertEdgeSentence,
@@ -35,7 +37,7 @@ const {
 const { knownLocations } = require("@lifeweb/db/lib/locationVisits");
 const { crossingCost, formatTravel, FAR_CROSSING_COST } = require("@lifeweb/db/lib/crossingCost");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
-const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
+const { heldReasonFor, INTERCEPT_RELEASE_PREFIX, seenById } = require("@lifeweb/db/lib/intercept");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { sendDm } = require("../../lib/dm");
@@ -259,6 +261,9 @@ async function handleTravelPick(interaction) {
 
   const party = await partyOf(prisma, character.id); // decides whether the mount's extra crossing survives (MAP.md §3a)
   const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
+  // The two halves of `left` — the ride the mount is about to spend, or the
+  // travel the walker is (MAP.md §3a).
+  const breakdown = crossing ? freeMovesBreakdown(character, config, openTurn, party.length) : null;
   // What this crossing spends: ½ between the town zones, 1 anywhere else
   // (db/lib/crossingCost.js) — the same number the mover charges.
   const fromZone = crossing && character.zoneId
@@ -307,7 +312,9 @@ async function handleTravelPick(interaction) {
     : !crossing
       ? walkLine ?? "-# Inside your own zone, so this costs nothing."
       : affords
-        ? `-# Crossing into ${target.zone.name} uses ${formatTravel(cost)} of your ${formatTravel(left)} travel this turn.`
+        ? breakdown?.ridesLeft > 0 && breakdown.mount
+          ? `-# Your ${breakdown.mount} carries you into ${target.zone.name}: 1 of its ${breakdown.ridesLeft} ${breakdown.ridesLeft === 1 ? "ride" : "rides"} this turn. You have ${travelSentence(breakdown)}.`
+          : `-# Crossing into ${target.zone.name} uses ${formatTravel(cost)} of your ${formatTravel(left)} travel this turn.`
         : !acted
           ? `-# You don't have the travel left for this crossing, so crossing into ${target.zone.name} spends your Move.`
           : canExert
@@ -410,9 +417,12 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
     return;
   }
 
-  const brought = result.moved
-    .filter((entry) => entry.character.id !== character.id)
-    .map((entry) => entry.character.name);
+  // As the mover knows them — a hood or a stranger in the party is "a young man".
+  const brought = await Promise.all(
+    result.moved
+      .filter((entry) => entry.character.id !== character.id)
+      .map((entry) => seenById(prisma, character.id, entry.character.id)),
+  );
   // Where they ACTUALLY got to. A walk of several hops can be stopped on the
   // road — an ambush, a gate shut behind somebody, the gun at the Depot — and
   // the ground they covered is real, so the line names it rather than the place
@@ -431,7 +441,7 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
-        ? `${formatTravel(result.freeMovesLeft)} travel left this turn.`
+        ? `${result.travelLeft ? travelSentence(result.travelLeft) : `${formatTravel(result.freeMovesLeft)} travel`} left this turn.`
         : "That was the last of your travel this turn.",
     );
   }

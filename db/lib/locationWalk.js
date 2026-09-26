@@ -84,7 +84,7 @@ async function walkWithinZone(prisma, character, targetLocation) {
     }
 
     // Per moved character, exactly as a single hop's caller does it. The GAME
-    // half only, and awaited: a turret's kill, a wound, a parked mount and a
+    // half only, and awaited: a turret's kill, a wound, a narrow-way dismount and a
     // hand on a shoulder all land here, and the next hop is not allowed to
     // start until they have (MAP.md 3c - a walk is a shortcut through the
     // clicking, not past the game). It is also what the re-read below reads,
@@ -122,7 +122,7 @@ async function walkWithinZone(prisma, character, targetLocation) {
     // patch of the row we hold: THREE of the things that matter are written by
     // applyLocationMoveSideEffects above, after the mover already returned —
     // `status` by a turret, `heldUntil` by somebody's watch firing, and `tags`
-    // by a wound or a mount parked at a door. ESCORT_SELECT and not something
+    // by a wound or a mount left at a narrow way. ESCORT_SELECT and not something
     // cheaper, because the next hop hands this row straight back to the mover,
     // which re-authorises the party off it (db/lib/escort.js).
     row = await prisma.character.findUnique({ where: { id: character.id }, select: ESCORT_SELECT });

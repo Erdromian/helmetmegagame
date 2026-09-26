@@ -389,12 +389,13 @@ indicator · disabled states per place kind · Enter-vs-send by pointer type.
 **Slash commands (12)** — `/move` `/travel` `/conceal` `/shout` `/ooc` `/roll`
 `/play` `/look` `/converse` `/decree` (GM) `/add` `/remove`.
 
-**Player aside** — TravelNodes · RoomPanel (stash) · HereList + per-person
+**Player aside** — RoomPanel (stash) · HereList + per-person
 menu · TurnCard · Waiting on you · ThingsDrawer (framed, open by default) ·
 PlaceCard (fixtures, Examine, Depot/Factory/Map) · PartyRack. The You frame (mood, resources,
 purse, carry, StatusStrip) moved to the places column's foot; DesiresBlock and
 the Sheet link were removed. Both by Chat Overhaul.docx (CHAT.md §0), which
-outranks this doc's "nothing is dropped".
+outranks this doc's "nothing is dropped". TravelNodes left the aside for the
+strip over the scene (CHAT.md §0), with its confirm and `/travel` pick intact.
 
 **GM aside** — tab strip (Place/Room/Travel/GM) · GmHereList opening the Dev
 Panel · hooded rows showing real names · zone picker rail · GmPlaceBox.

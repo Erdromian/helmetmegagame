@@ -6,6 +6,7 @@ import FormError from "@/app/components/FormError";
 import EmptyState from "@/app/components/EmptyState";
 import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
+import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, tightSqueezeNote, affordsCrossing, formatTravel } from "@/lib/travelCost";
@@ -17,8 +18,8 @@ import useNarrow from "./useNarrow";
 // TRAVEL: every way out of here as a node you can see. Loaded on mount and
 // after a move, never with the page — an exit's state moves under a player
 // standing still. Cost line follows MAP.md §3; travelFoot()
-// (web/lib/travelCost.js, shared with /map) marks a dismount as "· on foot"
-// or "· indoors". Nothing that refuses is hidden — a shut/locked way draws
+// (web/lib/travelCost.js, shared with /map) marks a dismount as "· on foot".
+// Nothing that refuses is hidden — a shut/locked way draws
 // dimmed with the reason, so a player can go find the winch.
 
 // The whole of it, for the hover — the node clamps its name and prints no
@@ -36,10 +37,13 @@ function titleFor(option, via) {
 // `pick` is `/travel` reaching in from the composer: { locationId, at }, `at`
 // a timestamp so picking the same node twice re-opens the strip. It only ever
 // SELECTS — Go still moves anybody's feet.
-// `showTitle` false where the container already says the word — the rebuilt
-// aside heads this block "Travel" (next/ChatAside.js). The COUNT is not a
-// title, so it stays either way; it just stops carrying the repeated word.
-export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
+// `showTitle` false where the container already says the word. The COUNT is
+// not a title, so it stays either way; it just stops carrying the repeated word.
+// `showResult` prints the move's own sentence ("Moved to Slums. Bringing Ada.")
+// under the nodes, for a caller with no place card to print it under — the
+// strip over the scene (next/ChatNext.js). The old aside hands it to its place
+// card through `onDone` instead, so there it stays off.
+export default function TravelNodes({ onDone, pick = null, showTitle = true, showResult = false }) {
   // Catalog + held tags from the root layout (web/lib/referenceData.js) — openedBy always resolves.
   const { tagsBySlug } = useTags();
   // A move changes the whole column (place card, HERE, rooms) as server props
@@ -48,6 +52,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
   const [data, setData] = useState(null);
   const [nonce, setNonce] = useState(0);
   const [target, setTarget] = useState(null);
+  const [said, setSaid] = useState(null);
   // Setting state DURING render, per React's own pattern and
   // react-hooks/set-state-in-effect. Keyed on `at`, not id, so re-picking the
   // same node after cancelling still opens the strip.
@@ -116,7 +121,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
   // then the same action with `exert` set.
   const go = async (option, { exert = false } = {}) => {
     if (option.crossesZone) {
-      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert });
+      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert, breakdown: data.breakdown });
       if (!(await confirm(asked))) return;
     }
     run(travelTo, { locationId: option.id, exert }, {
@@ -125,6 +130,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
         // next poll up to a minute from now (PhaseProvider.js#nudgePhase).
         nudgePhase();
         setTarget(null);
+        if (showResult) setSaid(res.line ?? null);
         onDone?.(res);
         reload();
         refresh();
@@ -147,94 +153,110 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
 
   return (
     <div className="chat-travel">
-      <p className="group-label chat-section-title" title={data.freeReason ?? undefined}>
-        {showTitle ? `Travel · ${formatTravel(data.freeLeft)} available` : `${formatTravel(data.freeLeft)} available`}
-      </p>
+      {/* The ways, apart from the sentences under them: the strip over the
+          scene lays this out as one run of chips and needs the confirm to
+          stay out of it. A plain block everywhere else. */}
+      <div className="chat-travel-ways" data-swipe-ignore>
+        {/* The count in its two halves — "1 travel, plus 2 rides on your Motorcycle" — so
+            a rider can see which of the two a crossing is about to spend (MAP.md §3a). */}
+        <p className="group-label chat-section-title" title={data.freeReason ?? undefined}>
+          {showTitle ? `Travel · ${data.travelLine ?? `${formatTravel(data.freeLeft)} available`}` : (data.travelLine ?? `${formatTravel(data.freeLeft)} available`)}
+        </p>
 
-      {/* Held where they stand (INTERCEPT.md). List stays up, every way drawn shut. */}
-      {data.held ? <p className="text-sm">{data.held}</p> : null}
-
-      {data.options.length === 0 ? (
-        <EmptyState>There is no way out of here.</EmptyState>
-      ) : (
-        <div className="chat-nodes">
-          {data.options.map((option) => {
-            const via = option.openedBy ? (tagsBySlug.get(option.openedBy) ?? null) : null;
-            return (
-            <button
-              key={option.id}
-              type="button"
-              className="chat-node"
-              data-crossing={option.crossesZone ? "true" : undefined}
-              data-dim={option.passable ? undefined : "true"}
-              data-active={target === option.id ? "true" : undefined}
-              title={titleFor(option, via)}
-              disabled={!option.passable || pending}
-              // A click only ever picks; the strip below is the only door to Go.
-              // focus() is not redundant: Safari/Firefox on macOS do NOT focus
-              // a button on a mouse click, so keyboard tab would otherwise break.
-              onClick={(e) => {
-                e.currentTarget.focus();
-                setTarget(option.id);
-              }}
-              // Desktop shortcut: a double click is the pick AND the Go. A zone
-              // crossing still stops at the same confirm the Go button asks.
-              onDoubleClick={narrow || !option.passable ? undefined : () => go(option)}
-            >
-              <span className="chat-node-name">{option.name}</span>
-              <span className="chat-node-zone">{option.zoneName}</span>
-              {/* No description on the node (Chat Overhaul.docx); it rides the hover title
-                  instead. A shut way still says WHY: the title is a tooltip, a touch screen
-                  never shows one, and a disabled button can't be tapped to ask. */}
-              {!option.passable && option.reason && <span className="chat-node-desc">{option.reason}</span>}
-              {/* Flat ChipLabel, not TagChip — an interactive chip can't live inside this button. */}
-              {via && <ChipLabel tag={via} />}
-              {/* Where no Giant fits (MAP.md §2a) — on every player's list, so
-                  a party can see where its Giant can't follow. */}
-              <SqueezeChip show={option.tightSqueeze} />
-              <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved)}</span>
-            </button>
-            );
-          })}
-        </div>
-      )}
-
-      {/* Farther in this zone — a walk of several hops (MAP.md §3c). Its own
-          heading rather than mixed into the grid above, because that grid means
-          "doors out of this room" and a three-hop walk is not one of those.
-          Clicking still only picks: the shortcut is the map's, and this panel is
-          the surface a stray tap landed on last time. */}
-      {walks.length > 0 && (
-        <>
-          <p className="group-label chat-section-title">Further in {data.zoneName ?? "this zone"}</p>
+        {data.options.length === 0 ? (
+          <EmptyState>There is no way out of here.</EmptyState>
+        ) : (
           <div className="chat-nodes">
-            {walks.map((option) => (
+            {data.options.map((option) => {
+              const via = option.openedBy ? (tagsBySlug.get(option.openedBy) ?? null) : null;
+              return (
               <button
                 key={option.id}
                 type="button"
                 className="chat-node"
+                data-crossing={option.crossesZone ? "true" : undefined}
+                data-dim={option.passable ? undefined : "true"}
                 data-active={target === option.id ? "true" : undefined}
-                title={[
-                  option.description ? `${option.name} — ${option.description}` : option.name,
-                  option.tightSqueeze ? tightSqueezeNote(true) : null,
-                ].filter(Boolean).join("\n")}
-                disabled={pending}
+                title={titleFor(option, via)}
+                disabled={!option.passable || pending}
+                // A click only ever picks; the strip below is the only door to Go.
+                // focus() is not redundant: Safari/Firefox on macOS do NOT focus
+                // a button on a mouse click, so keyboard tab would otherwise break.
                 onClick={(e) => {
                   e.currentTarget.focus();
                   setTarget(option.id);
                 }}
-                onDoubleClick={narrow ? undefined : () => go(option)}
+                // Desktop shortcut: a double click is the pick AND the Go. A zone
+                // crossing still stops at the same confirm the Go button asks.
+                onDoubleClick={narrow || !option.passable ? undefined : () => go(option)}
               >
                 <span className="chat-node-name">{option.name}</span>
-                {/* The stops, where there is room for them — the same sentence
-                    the strip spells out in full once this is picked. */}
-                <span className="chat-node-zone">{option.through.join(" · ")}</span>
-                <SqueezeChip show={option.tightSqueeze} onWalk />
-                <span className="chat-node-foot mono">{walkFoot(option, data.mounted)}</span>
+                <span className="chat-node-zone">{option.zoneName}</span>
+                {/* No description on the node (Chat Overhaul.docx); it rides the hover title
+                    instead. A shut way still says WHY: the title is a tooltip, a touch screen
+                    never shows one, and a disabled button can't be tapped to ask. */}
+                {!option.passable && option.reason && <span className="chat-node-desc">{option.reason}</span>}
+                {/* Flat ChipLabel, not TagChip — an interactive chip can't live inside this button. */}
+                {via && <ChipLabel tag={via} />}
+                {/* Where no Giant fits (MAP.md §2a) — on every player's list, so
+                    a party can see where its Giant can't follow. */}
+                <SqueezeChip show={option.tightSqueeze} />
+                <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved, data.breakdown)}</span>
               </button>
-            ))}
+              );
+            })}
           </div>
-        </>
+        )}
+
+        {/* Farther in this zone — a walk of several hops (MAP.md §3c). Its own
+            heading rather than mixed into the grid above, because that grid means
+            "doors out of this room" and a three-hop walk is not one of those.
+            Clicking still only picks: the shortcut is the map's, and this panel is
+            the surface a stray tap landed on last time. */}
+        {walks.length > 0 && (
+          <>
+            <p className="group-label chat-section-title">Further in {data.zoneName ?? "this zone"}</p>
+            <div className="chat-nodes">
+              {walks.map((option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  className="chat-node"
+                  data-walk="true"
+                  data-active={target === option.id ? "true" : undefined}
+                  title={[
+                    option.description ? `${option.name} — ${option.description}` : option.name,
+                    option.tightSqueeze ? tightSqueezeNote(true) : null,
+                  ].filter(Boolean).join("\n")}
+                  disabled={pending}
+                  onClick={(e) => {
+                    e.currentTarget.focus();
+                    setTarget(option.id);
+                  }}
+                  onDoubleClick={narrow ? undefined : () => go(option)}
+                >
+                  <span className="chat-node-name">{option.name}</span>
+                  {/* The stops, where there is room for them — the same sentence
+                      the strip spells out in full once this is picked. */}
+                  <span className="chat-node-zone">{option.through.join(" · ")}</span>
+                  <SqueezeChip show={option.tightSqueeze} onWalk />
+                  <span className="chat-node-foot mono">{walkFoot(option, data.mounted)}</span>
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Held where they stand (INTERCEPT.md). List stays up, every way drawn shut. */}
+      {data.held ? <p className="text-sm">{data.held}</p> : null}
+
+      {/* Rendered, not printed: a Push on's die comes back in `**`. Gives way
+          to the confirm strip while a way is picked, and back after Cancel. */}
+      {said && !chosen && (
+        <div className="chat-quiet-line chat-travel-said">
+          <ChatMarkdown content={said} />
+        </div>
       )}
 
       {chosen && (

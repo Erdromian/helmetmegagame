@@ -31,6 +31,7 @@
 //
 // Takes `prisma` first and is deliberately NOT on the @lifeweb/db barrel —
 // require it by path (db/lib/dm.js convention).
+const crypto = require("node:crypto");
 const { sendDm } = require("./dm");
 const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
@@ -43,7 +44,7 @@ const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
 const { applyMood } = require("./mood");
 const { THANATI_SLUG } = require("./thanati");
 const { convertCandidates } = require("./riteIngredients");
-const { IDENTITY_SELECT, identityOf, seenAs } = require("./intercept");
+const { IDENTITY_SELECT, seenBy } = require("./intercept");
 const { SFX } = require("./sfx");
 
 // Three hours. Long enough that somebody at work still gets to answer, short
@@ -113,7 +114,7 @@ function conversionPickRow(attemptId, options) {
           placeholder: "Who do you call?",
           options: options.slice(0, PICK_OPTION_LIMIT).map((o) => ({
             label: o.label.slice(0, 100),
-            value: o.characterId,
+            value: o.code,
           })),
         },
       ],
@@ -122,19 +123,63 @@ function conversionPickRow(attemptId, options) {
 }
 
 /**
- * Every candidate labelled the way the ROOM sees them, so the picker does not
- * quietly undo a hood: somebody standing there under a mask is offered as "a
- * young woman", exactly as they read anywhere else.
+ * What an option posts back instead of a Character.id: an HMAC of the attempt,
+ * the chanter reading the list and the candidate. The id used to be the value,
+ * on the Discord select and in the DM's meta the web draws from, so every
+ * chanter was handed the real id of every hood in the room — and shipping an
+ * id IS the unmasking (PROXYING.md §5). A code means nothing outside this one
+ * list: another chanter's code for the same person differs, and so does the
+ * next rite's. answerConversionPick recomputes it over the rebuilt candidate
+ * set rather than storing it. No AUTH_SECRET means no code, the hoodToken.js
+ * rule: never an HMAC under an empty key.
  */
-async function pickOptions(prisma, candidates) {
+function pickCode(attemptId, readerId, candidateId) {
+  if (!attemptId || !readerId || !candidateId || !process.env.AUTH_SECRET) return null;
+  return crypto
+    .createHmac("sha256", process.env.AUTH_SECRET)
+    .update(`rite-pick:${attemptId}:${readerId}:${candidateId}`)
+    .digest("hex")
+    .slice(0, 32);
+}
+
+/**
+ * One chanter's list: every candidate named the way THAT chanter knows them
+ * (intercept.js#seenBy), so a hood or a face they have never met reads as "a
+ * young woman" and a friend by name. Built per reader, because the list goes
+ * out as one DM each, and each chanter's Friends list is their own.
+ *
+ * Two people who look alike get their presence label, the one every observer
+ * shares (STRANGERS.md §3) — "a young woman, hunched" — so the circle can
+ * still tell them apart and agree on which. Somebody with no label rolled yet
+ * gets a number instead.
+ *
+ * `readerId` null gives the room's own labels and no codes, for the GM
+ * panel's record of who was offered.
+ */
+async function pickOptions(prisma, candidates, { attemptId = null, readerId = null } = {}) {
   const rows = await prisma.character.findMany({
     where: { id: { in: candidates.map((c) => c.id) } },
-    select: IDENTITY_SELECT,
+    select: { ...IDENTITY_SELECT, presenceLabel: true },
   });
   const byId = new Map(rows.map((r) => [r.id, r]));
-  return candidates.map((c) => {
-    const row = byId.get(c.id);
-    return { characterId: c.id, label: row ? seenAs(identityOf(row)) : c.name };
+  const options = await Promise.all(
+    candidates.map(async (c) => {
+      const row = byId.get(c.id);
+      return {
+        code: pickCode(attemptId, readerId, c.id),
+        label: row ? await seenBy(prisma, readerId, row) : "somebody",
+        presenceLabel: row?.presenceLabel ?? null,
+      };
+    }),
+  );
+  const count = new Map();
+  for (const o of options) count.set(o.label, (count.get(o.label) ?? 0) + 1);
+  const nth = new Map();
+  return options.map(({ presenceLabel, ...o }) => {
+    if (count.get(o.label) < 2) return o;
+    const n = (nth.get(o.label) ?? 0) + 1;
+    nth.set(o.label, n);
+    return { ...o, label: presenceLabel ? `${o.label}, ${presenceLabel}` : `${o.label} (${n})` };
   });
 }
 
@@ -145,10 +190,12 @@ async function pickOptions(prisma, candidates) {
  * the rite for its whole twelve hours.
  */
 async function askCircleToPick(prisma, { attempt, participants = [], candidates = [] }) {
-  const options = await pickOptions(prisma, candidates);
-  const components = conversionPickRow(attempt.id, options);
   for (const p of participants) {
     if (!p.discordUserId) continue;
+    const options = (await pickOptions(prisma, candidates, { attemptId: attempt.id, readerId: p.characterId })).filter(
+      (o) => o.code,
+    );
+    const components = conversionPickRow(attempt.id, options);
     await sendDm(prisma, p.discordUserId, PICK_DM, {
       source: "rite",
       sfx: SFX.CONVERT_ASK,
@@ -161,7 +208,8 @@ async function askCircleToPick(prisma, { attempt, participants = [], candidates 
       meta: { ...dmAction(DM_ACTION.RITE_TARGET, attempt.id), riteTargets: options },
     }).catch(log(`pick DM to ${p.name}`));
   }
-  return options;
+  // The room's labels, for the GM panel's record of who was offered.
+  return pickOptions(prisma, candidates);
 }
 
 /**
@@ -177,8 +225,11 @@ async function askCircleToPick(prisma, { attempt, participants = [], candidates 
  * Takes the Discord user rather than a character id, the way
  * db/lib/dmAnswer.js does — the id on the wire is the ATTEMPT, and who is
  * answering is whoever holds the account, resolved here and never posted.
+ * `pick` is the option's code (pickCode), matched against the rebuilt set
+ * for THIS chanter, so a code copied from another chanter's list matches
+ * nobody.
  */
-async function answerConversionPick(prisma, { attemptId, discordUserId, targetId }) {
+async function answerConversionPick(prisma, { attemptId, discordUserId, pick }) {
   const attempt = await prisma.riteAttempt.findUnique({ where: { id: attemptId } });
   if (!attempt || attempt.riteKey !== "conversion" || attempt.status !== "AWAITING") {
     return { ok: false, reason: "That rite is over." };
@@ -204,7 +255,7 @@ async function answerConversionPick(prisma, { attemptId, discordUserId, targetId
   if (!room) return { ok: false, reason: "That room is gone." };
 
   const eligible = await convertCandidates(prisma, room);
-  const target = eligible.find((c) => c.id === targetId);
+  const target = pick ? eligible.find((c) => pickCode(attempt.id, asker.characterId, c.id) === pick) : null;
   if (!target) return { ok: false, reason: "They are beyond your reach now." };
 
   // CLAIM THE ANSWER FIRST, the way answerPanic does: two cultists can pick in
@@ -494,6 +545,8 @@ module.exports = {
   dismisses,
   dismissConversion,
   conversionPickRow,
+  pickCode,
+  pickOptions,
   askCircleToPick,
   answerConversionPick,
   createConversionOffer,

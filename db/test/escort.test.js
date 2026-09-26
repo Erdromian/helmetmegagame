@@ -212,11 +212,13 @@ test("on foot, any number of people is free", () => {
 test("a mount buys its extra crossing only while the party fits its seats", () => {
   // fastTravelCapacity counts the RIDER, so an arelitz's 2 seats are one saddle
   // for you and one for somebody else.
-  // The extra crossing is a far one's worth of travel (1), on top of the base 1.
+  // A fresh arelitz has 1 ride, a far crossing's worth of travel (1), on top
+  // of the base 1; a tacked arelitz and a motorcycle 2 (db/lib/mounts.js).
   assert.equal(allowance(held("arelitz"), 0), 2);
   assert.equal(allowance(held("arelitz"), 1), 2);
   assert.equal(allowance(held("arelitz"), 2), 1);
-  assert.equal(allowance(held("motorcycle"), 1), 2);
+  assert.equal(allowance(held("arelitz-tacked"), 1), 3);
+  assert.equal(allowance(held("motorcycle"), 1), 3);
   assert.equal(allowance(held("motorcycle"), 2), 1);
 });
 
@@ -259,12 +261,13 @@ test("ESCORT_SELECT stays a superset of what performLocationMove needs", () => {
 
 // --- what is LEFT after a crossing ---------------------------------------
 
-// The bonus a mount buys — a far crossing's worth, 1 travel — is spent BEFORE
-// the base allowance, and Character.zoneMovesBonusUsed remembers that. Without
-// it, a rider who stables their arelitz at an indoors door lost travel they had
-// never spent: the allowance is recomputed every time, so the arelitz's travel
-// went away and the base travel was already gone. CONFIG's base is 1, the
-// shipped default.
+// A mount's rides are spent BEFORE the base allowance, and they are spent ON
+// THE MOUNT: each ride takes its tag a rung down (db/lib/mounts.js), so the
+// bonus pool is read off the rung and Character.zoneMovesBonusUsed only
+// serves to tell the base pool apart. Without that split, a rider who stables
+// their arelitz at a narrow way lost travel they had never spent. CONFIG's
+// base is 1, the shipped default; each ride is a far crossing's worth (1
+// travel) in the summed number.
 const TURN = { id: "t1" };
 const after = (character, spent, bonusSpent, partySize = 0) =>
   freeMovesLeft(
@@ -274,27 +277,28 @@ const after = (character, spent, bonusSpent, partySize = 0) =>
     partySize,
   );
 
-test("a rider who parks their arelitz indoors keeps the travel they never spent", () => {
-  // Two before, a far crossing (1) charged to the arelitz, then the arelitz
-  // is unequipped at the door — the base travel is still there.
+test("a rider who leaves their arelitz at a narrow way keeps the travel they never spent", () => {
+  // Two before (1 + its one ride), a far crossing (1) charged to the arelitz,
+  // whose tag is now spent; then the arelitz is left behind — the base travel
+  // is still there.
   assert.equal(freeMovesLeft(held("arelitz"), CONFIG, TURN), 2);
-  assert.equal(after(held("arelitz"), 1, 1), 1);
+  assert.equal(after(held("arelitz-ridden-1"), 1, 1), 1);
   assert.equal(after(held(), 1, 1), 1);
-  // Half of it: a town hop (½) on the arelitz leaves ½ of its travel and all
-  // of the base, and parking it leaves the base whole.
-  assert.equal(after(held("arelitz"), 0.5, 0.5), 1.5);
+  // Half of it: a town hop (½) on the arelitz still costs a whole ride (the
+  // rung moved), and parking it leaves the base whole.
+  assert.equal(after(held("arelitz-ridden-1"), 0.5, 0.5), 1);
   assert.equal(after(held(), 0.5, 0.5), 1);
 });
 
 test("the base travel is charged only once the bonus is gone", () => {
-  assert.equal(after(held("arelitz"), 2, 1), 0);
+  assert.equal(after(held("arelitz-ridden-1"), 2, 1), 0);
   assert.equal(after(held(), 0.5, 0), 0.5);
   assert.equal(after(held(), 1, 0), 0);
 });
 
 test("a stale bonus count can never hand back more than the allowance", () => {
   // Overburdened after spending it all: zero, not a negative that reads as one.
-  assert.equal(after(held("overburdened"), 2, 1), 0);
+  assert.equal(after(held("overburdened"), 3, 2), 0);
   // Dismounted at a narrow way BEFORE the arithmetic, so nothing was charged
   // to a bonus and the base travel is spent as it always was.
   assert.equal(after(held(), 1, 0), 0);

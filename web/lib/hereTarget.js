@@ -13,6 +13,8 @@
 import { prisma } from "@lifeweb/db";
 import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { isHere, notHereMessage } from "@lifeweb/db/lib/presence";
+import { seenById } from "@lifeweb/db/lib/intercept";
+import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { UserError } from "./actionResult";
 
 // A refusal must never be an unmasking, so a key that arrived as a hood is always refused in the blank
@@ -26,6 +28,15 @@ import { UserError } from "./actionResult";
 // be a second copy of it.
 export function refusalFor(key, target) {
   return splitTargetKey(key).kind === "hood" ? "They aren't here." : notHereMessage(target);
+}
+
+// What `viewer` calls the person `id`, ready to open a sentence: their name
+// when the viewer knows them, else what they look like — "A young man" for a
+// hood or a stranger (db/lib/intercept.js#seenBy). Every line past the gate
+// that names the target goes through this, since the picker offered them under
+// a token precisely so the page never learned the name.
+export async function seenName(viewer, id) {
+  return capitalizeFirst(await seenById(prisma, viewer?.id ?? null, id));
 }
 
 // The target row, or a thrown UserError. `select` is the caller's own — this adds nothing to it,

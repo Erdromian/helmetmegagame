@@ -171,10 +171,23 @@ the picker becomes a way to find out who is willing.
 
 ## 5. Nobody hears it
 
-**A kiss is private.** The only two people told are the two who agreed to it,
-each by DM — "You kissed Ada." to the asker, "Ada kissed you back." to them.
-Nothing is written to the room, the Location, the feed or the archive, and no
-third party is told anything.
+**A kiss is private.** The only two people told are the two who agreed to it.
+Whoever pressed Accept reads "You kissed Ada.", and the asker gets a DM, "Bo
+kissed you back." Nothing is written to the room, the Location, the feed or the
+archive, and no third party is told anything.
+
+**Nor does it tell either of them who the other is.** Every line names the
+other person the way its reader knows them (`intercept.js#seenBy`,
+`STRANGERS.md`). Somebody with no Friends entry for the other reads "a young
+man" instead of a name: in the ask ("*A young man* would like to kiss you."),
+in both lines after Accept, and in every refusal. A kiss teaches no names.
+Only words said in the room do (`MEMORIES.md` §2b).
+
+`kissBlock` and `kissAuthority` take that wording as `seen`. Without it, the
+other person is "They", so a caller that forgets to look it up says too little
+rather than too much. A refusal on Accept is worded twice, once for each reader:
+the asker's DM names the other person as the asker knows them, and the person
+who pressed Accept reads "You're Bound." about themselves.
 
 It was not always so. Until 2026-09-10 the accept posted one `-#` line —
 `-# Ada and Celeste kissed.` — into whichever Room the two shared, or the

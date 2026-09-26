@@ -40,6 +40,8 @@ const {
 // `equipped` and the hood fields are for presence.js#isHere: a forcing hood hides a teacher the column doesn't.
 const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
 const { autoMovesOpen } = require("./turnGate");
+const { seenById } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 const LESSON_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -234,7 +236,14 @@ async function openTurnAndWindow(db) {
 //
 // Everyone else owes a whole Routine, so any Move already locked in refuses —
 // which is also what caps an untrained teacher at one student a turn.
-async function teacherSlot(db, teacher, turnId, { excludeOfferId } = {}) {
+// `viewerId` is who reads a refusal: "You…" to the person it is about, and
+// the other one reads them as they know them (intercept.js#seenBy) — the two
+// may never have met, so neither refusal may carry the real name.
+async function slotSubject(db, who, viewerId) {
+  return who.id === viewerId ? null : capitalizeFirst(await seenById(db, viewerId, who.id));
+}
+
+async function teacherSlot(db, teacher, turnId, { excludeOfferId, viewerId = teacher.id } = {}) {
   if (teachesFree(teacher)) {
     const taken = await db.offer.count({
       where: {
@@ -247,36 +256,32 @@ async function teacherSlot(db, teacher, turnId, { excludeOfferId } = {}) {
         ...(excludeOfferId ? { id: { not: excludeOfferId } } : {}),
       },
     });
-    if (taken >= TEACHING_CAPACITY)
+    if (taken >= TEACHING_CAPACITY) {
+      const who = await slotSubject(db, teacher, viewerId);
       return {
         ok: false,
-        reason: `${teacher.name} can't take on another student this turn.`,
+        reason: `${who ?? "You"} can't take on another student this turn.`,
       };
+    }
     return { ok: true, free: true };
   }
   const action = await db.action.findFirst({
     where: { characterId: teacher.id, turnId },
     select: { id: true },
   });
-  return action
-    ? {
-        ok: false,
-        reason: `${teacher.name} has already locked in a Move this turn.`,
-      }
-    : { ok: true, free: false };
+  if (!action) return { ok: true, free: false };
+  const who = await slotSubject(db, teacher, viewerId);
+  return { ok: false, reason: who ? `${who} has already locked in a Move this turn.` : LOCKED_IN };
 }
 
-async function learnerSlot(db, learner, turnId) {
+async function learnerSlot(db, learner, turnId, { viewerId = learner.id } = {}) {
   const action = await db.action.findFirst({
     where: { characterId: learner.id, turnId },
     select: { id: true },
   });
-  return action
-    ? {
-        ok: false,
-        reason: `${learner.name} has already locked in a Move this turn.`,
-      }
-    : { ok: true };
+  if (!action) return { ok: true };
+  const who = await slotSubject(db, learner, viewerId);
+  return { ok: false, reason: who ? `${who} has already locked in a Move this turn.` : LOCKED_IN };
 }
 
 // Everything a lesson needs true, checked the same way at offer time and
@@ -284,7 +289,7 @@ async function learnerSlot(db, learner, turnId) {
 // now (at accept, both are).
 async function validateLesson(
   db,
-  { teacher, learner, tag, turnId, checkSlotsFor, excludeOfferId },
+  { teacher, learner, tag, turnId, checkSlotsFor, excludeOfferId, viewerId },
 ) {
   if (!teacher || teacher.status !== "ALIVE")
     return "That teacher isn't around any more.";
@@ -306,8 +311,8 @@ async function validateLesson(
   for (const who of checkSlotsFor) {
     const slot =
       who === teacher.id
-        ? await teacherSlot(db, teacher, turnId, { excludeOfferId })
-        : await learnerSlot(db, learner, turnId);
+        ? await teacherSlot(db, teacher, turnId, { excludeOfferId, viewerId })
+        : await learnerSlot(db, learner, turnId, { viewerId });
     if (!slot.ok) return slot.reason;
   }
   return null;
@@ -354,6 +359,7 @@ async function createLessonOffer(
     tag,
     turnId: turn.id,
     checkSlotsFor: [initiatorId],
+    viewerId: initiatorId,
   });
   if (problem) return { ok: false, reason: problem };
 
@@ -367,9 +373,11 @@ async function createLessonOffer(
   if (initiatorId === teacherId && !teacherKnows)
     return { ok: false, reason: `You don't know ${tag.name}.` };
 
+  // Each side named as the other knows them: a lesson teaches no names.
   const responder = initiatorId === teacherId ? learner : teacher;
+  const initiator = initiatorId === teacherId ? teacher : learner;
   if (!responder.discordUserId)
-    return { ok: false, reason: `${responder.name} can't be reached.` };
+    return { ok: false, reason: `${capitalizeFirst(await seenById(prisma, initiator.id, responder.id))} can't be reached.` };
 
   const duplicate = await prisma.offer.findFirst({
     where: {
@@ -400,13 +408,14 @@ async function createLessonOffer(
     },
   });
 
+  const asker = capitalizeFirst(await seenById(prisma, responder.id, initiator.id));
   const content =
     initiatorId === learnerId
       ? // Bascinet's line.
         teacherKnows
-        ? `*${learner.name}* wants to try and learn *${tag.name}* from you. Accept?`
-        : `*${learner.name}* wants to try and learn *${tag.name}* from you. You don't know it.`
-      : `*${teacher.name}* offers to teach you *${tag.name}*. Accept?`;
+        ? `*${asker}* wants to try and learn *${tag.name}* from you. Accept?`
+        : `*${asker}* wants to try and learn *${tag.name}* from you. You don't know it.`
+      : `*${asker}* offers to teach you *${tag.name}*. Accept?`;
   return {
     ok: true,
     offer,
@@ -494,8 +503,25 @@ async function acceptLesson(prisma, offer, responder) {
     tag,
     turnId: turn.id,
     checkSlotsFor: [teacher?.id, learner?.id].filter(Boolean),
+    viewerId: responder.id,
   });
-  if (problem) return await cancelWith(prisma, offer, problem);
+  if (problem) {
+    const toAsker = await validateLesson(prisma, {
+      teacher,
+      learner,
+      tag,
+      turnId: turn.id,
+      checkSlotsFor: [teacher?.id, learner?.id].filter(Boolean),
+      viewerId: offer.initiatorId,
+    });
+    return await cancelWith(prisma, offer, problem, { toAsker: toAsker ?? problem });
+  }
+
+  // What the teacher and the learner call each other, for every line below.
+  const [teacherSeen, learnerSeen] = await Promise.all([
+    seenById(prisma, learner.id, teacher.id),
+    seenById(prisma, teacher.id, learner.id),
+  ]);
 
   const threshold = lessonThreshold(teacher, tag);
 
@@ -547,8 +573,8 @@ async function acceptLesson(prisma, offer, responder) {
       }
 
       const resultMessage = succeeded
-        ? `Learned ${tag.name} from ${teacher.name} (${total} vs ${threshold}).`
-        : `Failed to learn ${tag.name} from ${teacher.name} (${total} vs ${threshold}).`;
+        ? `Learned ${tag.name} from ${teacherSeen} (${total} vs ${threshold}).`
+        : `Failed to learn ${tag.name} from ${teacherSeen} (${total} vs ${threshold}).`;
 
       // PASSED and appliedEffects {}, so this never reaches the adjudication desk and the
       // staged push skips it. It stays a GAMBIT because a die really was thrown — the desk
@@ -565,7 +591,7 @@ async function acceptLesson(prisma, offer, responder) {
           reviewedAt: new Date(),
           resultMessage,
           appliedEffects: {},
-          description: `Learning ${tag.name} from ${teacher.name}.`,
+          description: `Learning ${tag.name} from ${teacherSeen}.`,
           diceRoll: learnerAdvantage.die,
           diceModifier,
           zoneId: learner.zoneId ?? null,
@@ -578,8 +604,15 @@ async function acceptLesson(prisma, offer, responder) {
       // null and there is no Move for a GM to reject or for the desk to show.
       const slot = await teacherSlot(tx, teacher, turn.id, {
         excludeOfferId: offer.id,
+        viewerId: responder.id,
       });
-      if (!slot.ok) throw new LessonRefused(slot.reason);
+      if (!slot.ok) {
+        const asker = await teacherSlot(tx, teacher, turn.id, {
+          excludeOfferId: offer.id,
+          viewerId: offer.initiatorId,
+        });
+        throw new LessonRefused(slot.reason, asker.reason ?? slot.reason);
+      }
       let teacherAction = null;
       if (!slot.free) {
         teacherAction = await tx.action.create({
@@ -591,7 +624,7 @@ async function acceptLesson(prisma, offer, responder) {
             confirmedAt: new Date(),
             moveKind: "ROUTINE",
             moveReviewStatus: "PASSED",
-            description: `Teaching ${tag.name} to ${learner.name}.`,
+            description: `Teaching ${tag.name} to ${learnerSeen}.`,
             appliedEffects: {},
             zoneId: teacher.zoneId ?? null,
             gmNotes: "auto:lesson",
@@ -649,17 +682,17 @@ async function acceptLesson(prisma, offer, responder) {
     // their own instead of a Move block. [PLAYER TEXT — Bascinet to rewrite]
     const teacherLines = result.teacherAction
       ? confirmLines(result.teacherAction)
-      : `» *Teaching ${tag.name} to ${learner.name}. It costs you no Move.*`;
+      : `» *Teaching ${tag.name} to ${learnerSeen}. It costs you no Move.*`;
     const responderIsLearner = responder.id === learner.id;
 
     // The lesson is over before this returns, so both people hear how it went now rather
     // than at dawn. [PLAYER TEXT — Bascinet to rewrite]
     const learnerOutcome = result.succeeded
-      ? `${result.rollText} → you learned **${tag.name}** from ${teacher.name}.`
+      ? `${result.rollText} → you learned **${tag.name}** from ${teacherSeen}.`
       : `${result.rollText} → you didn't learn **${tag.name}** this time.`;
     const teacherOutcome = result.succeeded
-      ? `${learner.name} picked up **${tag.name}**.`
-      : `${learner.name} didn't learn **${tag.name}**.`;
+      ? `${capitalizeFirst(learnerSeen)} picked up **${tag.name}**.`
+      : `${capitalizeFirst(learnerSeen)} didn't learn **${tag.name}**.`;
 
     const dms = [];
     // The person who did NOT press the button is told the offer was answered AND how it
@@ -667,13 +700,13 @@ async function acceptLesson(prisma, offer, responder) {
     if (responderIsLearner && teacher.discordUserId) {
       dms.push({
         discordUserId: teacher.discordUserId,
-        content: `${learner.name} accepted.\n${teacherLines}\n${teacherOutcome}`,
+        content: `${capitalizeFirst(learnerSeen)} accepted.\n${teacherLines}\n${teacherOutcome}`,
       });
     }
     if (!responderIsLearner && learner.discordUserId) {
       dms.push({
         discordUserId: learner.discordUserId,
-        content: `${teacher.name} accepted.\n${learnerLines}\n${learnerOutcome}`,
+        content: `${capitalizeFirst(teacherSeen)} accepted.\n${learnerLines}\n${learnerOutcome}`,
       });
     }
 
@@ -686,21 +719,27 @@ async function acceptLesson(prisma, offer, responder) {
     };
   } catch (err) {
     if (err instanceof LessonRefused)
-      return await cancelWith(prisma, offer, err.message, { claimed: true });
+      return await cancelWith(prisma, offer, err.message, { claimed: true, toAsker: err.toAsker });
     if (err?.code === "P2002")
       return await cancelWith(prisma, offer, LOCKED_IN, { claimed: true });
     throw err;
   }
 }
 
-class LessonRefused extends Error {}
+// `message` is worded for whoever pressed Accept, `toAsker` for the asker.
+class LessonRefused extends Error {
+  constructor(message, toAsker = message) {
+    super(message);
+    this.toAsker = toAsker;
+  }
+}
 
 // Marks the offer CANCELLED and hands back the reason plus a DM for the
 // initiator, so a refusal at accept time doesn't leave them waiting on an
 // answer that already came. Before the claim only a PENDING row may be
 // cancelled — a concurrent click that already accepted must not be undone
 // by a slower one. `claimed` is the claimant's own post-claim failure.
-async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
+async function cancelWith(prisma, offer, reason, { claimed = false, toAsker = reason } = {}) {
   await prisma.offer.updateMany({
     where: { id: offer.id, status: claimed ? "ACCEPTED" : "PENDING" },
     data: { status: "CANCELLED", respondedAt: new Date() },
@@ -716,7 +755,7 @@ async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
       ? [
           {
             discordUserId: initiator.discordUserId,
-            content: `Your offer fell through: ${reason}`,
+            content: `Your offer fell through: ${toAsker}`,
           },
         ]
       : [],
@@ -734,24 +773,27 @@ async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
 // "rejected the lesson" when they had refused a kiss, a ride or a collar.
 // CONVERSION has no row on purpose: refusing the dark god COSTS something, and
 // its sentence lives with that cost in db/lib/conversionRite.js#refuseConversion.
-function declineWording(kind, { responderName, refusedBy = responderName }) {
+//
+// Every row opens with `refusedBy`, the capitalised face: a stranger's
+// `responderName` is "a young man", which cannot start a sentence.
+function declineWording(kind, { responderName, refusedBy = capitalizeFirst(responderName) }) {
   switch (kind) {
     case "LESSON":
-      return { content: `${responderName} declined the lesson.`, line: "You rejected the lesson." };
+      return { content: `${refusedBy} declined the lesson.`, line: "You rejected the lesson." };
     case "BIND":
-      return { content: `${responderName} won't be bound.`, line: "You said no." };
+      return { content: `${refusedBy} won't be bound.`, line: "You said no." };
     case "ESCORT":
-      return { content: `${responderName} isn't coming with you.`, line: "You stay where you are." };
+      return { content: `${refusedBy} isn't coming with you.`, line: "You stay where you are." };
     case "KISS":
-      return { content: `${responderName} turned you down.`, line: "You said no." };
+      return { content: `${refusedBy} turned you down.`, line: "You said no." };
     case "SEARCH":
       return { content: `${refusedBy} refused your search.`, line: "You said no." };
     case "COLLAR":
-      return { content: `${responderName} won't wear the collar.`, line: "You said no." };
+      return { content: `${refusedBy} won't wear the collar.`, line: "You said no." };
     case "CONFESSION":
       // The chaplain's no. Nothing was filed yet (acceptConfession is what
       // spends both Moves), so the penitent is told their turn is still theirs.
-      return { content: `${responderName} won't hear your confession. Your Move wasn't spent.`, line: "You said no." };
+      return { content: `${refusedBy} won't hear your confession. Your Move wasn't spent.`, line: "You said no." };
     default:
       return null;
   }
@@ -773,34 +815,19 @@ async function declineOffer(prisma, offer, responder) {
     where: { id: offer.initiatorId },
     select: { discordUserId: true },
   });
-  // Search is the one kind whose responder may be wearing a hood, so it is the
-  // one whose refusal cannot use the bare row name — that would hand the
-  // searcher the identity the hood is bought to keep (INTERCEPT.md §2). Every
-  // other kind refuses a covered face at the gate, so `responder.name` is
-  // already the face that was seen.
-  //
-  // And every kind names the responder as the INITIATOR would: somebody they
-  // have no Friends entry for is "a young man" (docs/systemdocs/STRANGERS.md).
-  let refusedBy = responder.name;
-  let responderName = responder.name;
-  {
-    const { seenBy, IDENTITY_SELECT } = require("./intercept");
-    const { capitalizeFirst } = require("./concealedIdentity");
-    const row = await prisma.character.findUnique({
-      where: { id: offer.responderId },
-      select: IDENTITY_SELECT,
-    });
-    if (row) {
-      responderName = await seenBy(prisma, offer.initiatorId, row);
-      refusedBy = capitalizeFirst(responderName);
-    }
-  }
+  // Every kind names the responder as the INITIATOR would: a hood, or
+  // somebody they have no Friends entry for, is "a young man"
+  // (docs/systemdocs/STRANGERS.md). Search, Bind, Collar and Escort all reach a
+  // hood now, and the bare row name would hand the asker the identity the hood
+  // is bought to keep (INTERCEPT.md §2).
+  const responderName = await seenById(prisma, offer.initiatorId, offer.responderId);
+  const refusedBy = capitalizeFirst(responderName);
 
   // Per kind, because "you passed on the lesson" is a strange thing to read
   // after refusing to be tied up, led away or collared. A kind the table does
   // not know gets a plain no rather than somebody else's sentence.
   const wording = declineWording(offer.kind, { responderName, refusedBy }) ?? {
-    content: `${responder.name} said no.`,
+    content: `${refusedBy} said no.`,
     line: "You said no.",
   };
   return {

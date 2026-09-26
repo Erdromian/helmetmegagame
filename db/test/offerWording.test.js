@@ -41,6 +41,13 @@ test("every lapsing kind declines in its own words", () => {
   assert.equal(declineWording("NOT_A_KIND", { responderName: "Ada" }), null);
 });
 
+test("every decline opens with the face the asker saw, capitalised", () => {
+  for (const kind of LAPSING) {
+    const w = declineWording(kind, { responderName: "a young man" });
+    assert.match(w.content, /^A young man /, `${kind} opens its sentence in lower case`);
+  }
+});
+
 test("a refused search names the face the searcher saw, not the row", () => {
   const w = declineWording("SEARCH", { responderName: "Ada", refusedBy: "A hooded figure" });
   assert.match(w.content, /A hooded figure/);

@@ -18,12 +18,7 @@ const { ambientLine } = require("./ambientLine");
 const { STEALTH_SLUG } = require("./constants");
 const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
-const {
-  parkMountsIndoors,
-  parkedMessage,
-  dismountForNarrowWay,
-  dismountedMessage,
-} = require("./indoors");
+const { dismountForNarrowWay, dismountedMessage } = require("./indoors");
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
 const { dropCallsForCharacter } = require("./phone");
@@ -242,7 +237,7 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
   if (!characterId || !toLocationId) return null;
   if (fromLocationId === toLocationId) return null;
 
-  // The map remembers. Here rather than in performLocationMove because this function is the one every writer of Character.locationId runs (§4 below) — a GM teleport, first placement, a rite and the turn's arrival pass all land here; hooking the mover instead would leave each a hole in somebody's map. Before the Discord guard for the same reason parking a mount is: knowing where you've been is a database fact and must not depend on there being a token to talk to Discord with.
+  // The map remembers. Here rather than in performLocationMove because this function is the one every writer of Character.locationId runs (§4 below) — a GM teleport, first placement, a rite and the turn's arrival pass all land here; hooking the mover instead would leave each a hole in somebody's map. Before the Discord guard for the same reason a narrow-way dismount is: knowing where you've been is a database fact and must not depend on there being a token to talk to Discord with.
   // Wrapped, because losing a node off a map must never wedge a move — /map's own loader re-records the character's current location on every open, so a drop here heals itself next time they look.
   await recordArrival(prisma, { id: characterId }, toLocationId).catch((err) => {
     console.error(`Move: recording the visit failed for ${characterId}:`, err.message ?? err);
@@ -319,13 +314,8 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
       })
     : [];
 
-  // Before the Discord guard below, because this is a DB change that must happen whether or not there's a token to talk to Discord with. Also before the settle further down, so the settle sees the reduced cap and grants Overburdened in the same pass (docs/systemdocs/CARRY.md §3).
-  const parked = await parkMountsIndoors(prisma, characterId, toLocationId).catch((err) => {
-    console.error(`Move: parking mounts failed for ${characterId}:`, err.message ?? err);
-    return [];
-  });
-
-  // The other trigger for the same thing: a way too narrow for what they had out. `performLocationMove` already does this itself, inside its own transaction, so a mount that doesn't survive a crossing can never bank the extra free move it buys (MAP.md §2c) — the caller passes those names straight through as `dismounted`, skipping a redo that would only ever find nothing left to unequip. A caller with no such result (a GM teleport, a rite, a spawn — none of which cross a graph edge) leaves it undefined and gets the independent check below, a no-op unless there really is a matching onFoot link.
+  // Mounts are no longer parked at any door, underground included (CARRY.md §3): the one thing
+  // that still takes the reins is a way too narrow for what they had out. `performLocationMove` already does this itself, inside its own transaction, so a mount that doesn't survive a crossing can never bank the extra free move it buys (MAP.md §2c) — the caller passes those names straight through as `dismounted`, skipping a redo that would only ever find nothing left to unequip. A caller with no such result (a GM teleport, a rite, a spawn — none of which cross a graph edge) leaves it undefined and gets the independent check below, a no-op unless there really is a matching onFoot link.
   const dismountedNames =
     dismounted ??
     (fromLocationId
@@ -338,8 +328,8 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
       : []);
 
 
-  // What walking in here does to the nerves is a DB fact too, same as parking
-  // a mount above — before the Discord guard, so it lands whether or not
+  // What walking in here does to the nerves is a DB fact too, same as the
+  // narrow-way dismount above — before the Discord guard, so it lands whether or not
   // there's a token to talk to Discord with (docs/systemdocs/MOOD.md). No
   // per-turn ration on the arrival cost: a mount's two crossings are two real
   // arrivals. The Cathedral's relief rations itself inside.
@@ -347,7 +337,7 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     console.error(`Move: mood on arrival failed for ${characterId}:`, err.message ?? err);
   });
 
-  // Walking into an armed turret. Before the Discord guard and the early return, same reason parking a mount is: being shot is a database fact and must not depend on there being a token to announce it with. Wrapped, because a gun malfunctioning must never wedge a move.
+  // Walking into an armed turret. Before the Discord guard and the early return, same reason a narrow-way dismount is: being shot is a database fact and must not depend on there being a token to announce it with. Wrapped, because a gun malfunctioning must never wedge a move.
   // Both guns are asked, because a move only ever arrives in one place: each checks the destination slug first and costs a single indexed read to say no. See db/lib/turretPass.js on why the armed check is a thunk.
   const openTurn = await prisma.turn.findFirst({
     where: { status: "OPEN" },
@@ -461,7 +451,6 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     toLocation,
     droppedWatch,
     searchesOff,
-    parked,
     dismountedNames,
     droppedVantages,
   };
@@ -486,7 +475,6 @@ async function applyArrivalDiscord(prisma, facts) {
     toLocation,
     droppedWatch,
     searchesOff,
-    parked,
     dismountedNames,
     droppedVantages,
   } = facts;
@@ -550,11 +538,6 @@ async function applyArrivalDiscord(prisma, facts) {
     );
   }
 
-  if (parked.length > 0) {
-    await sendDm(prisma, discordUserId, parkedMessage(parked, toLocation.name)).catch((err) =>
-      console.error(`Move: parked-mount DM to ${discordUserId} failed:`, err.message ?? err),
-    );
-  }
   if (dismountedNames.length > 0) {
     await sendDm(prisma, discordUserId, dismountedMessage(dismountedNames)).catch((err) =>
       console.error(`Move: dismount DM to ${discordUserId} failed:`, err.message ?? err),
