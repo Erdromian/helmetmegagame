@@ -94,6 +94,16 @@ export const TONE_CLASS = { go: "btn", danger: "btn-danger", plain: "btn-seconda
 // noticeboard cannot both be open at once.
 export function usePlaceActions(initialAffordances, onChanged) {
   const [affordances, setAffordances] = useState(initialAffordances ?? []);
+  // Whenever the page re-reads itself, the server's list wins. A move is the
+  // case that matters: Travel sits over the scene now, not beside these
+  // buttons, so nothing calls `say` below when the character walks away and
+  // the gates of the street they left would stay on the card. Set DURING
+  // render, per react-hooks/set-state-in-effect.
+  const [seededFrom, setSeededFrom] = useState(initialAffordances);
+  if (initialAffordances !== seededFrom) {
+    setSeededFrom(initialAffordances);
+    setAffordances(initialAffordances ?? []);
+  }
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState(null);
   const { run, pending, error, setError } = useActionRunner();

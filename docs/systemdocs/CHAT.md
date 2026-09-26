@@ -11,12 +11,23 @@ Bascinet's design doc `E:\Bascinet\V3\UI\Chat Overhaul.docx` reshaped the live
 page (`web/app/(app)/chat/next/ChatNext.js`). Where an older passage below
 disagrees with this section, this section is right.
 
-- **The player's right column** runs Travel, then the room block when you are
-  in a room, then Here, then Turn. Waiting, the place card, the party rack and
-  Things follow. Travel entries print no description (a shut way still says
-  why, and the full text rides the hover title). The You plate, the Desires
-  fold and the `Sheet ›` link are gone from the column. The GM's tabbed column
-  is unchanged.
+- **Travel sits over the scene**, in a strip under the chat head (2026-09-25,
+  player feedback; `ChatNext.js`), not at the top of the right column. Every
+  way out is one line: its name, its zone only when it crosses into another,
+  and the cost. A walk keeps its stops, since a double-click takes it. A shut
+  way's cost line says why, and the full text rides the hover title. Picking
+  a way puts the Go / Push on / Cancel line straight under the strip, and the
+  move's own sentence ("Moved to Gatehouse.") stays there after. On a phone
+  the ways are one line you swipe sideways. The strip shows on every pane,
+  because it is about where the character stands. It is a player's only: a GM
+  with no body keeps the Travel tab in `GmAside`. `?old=1` still has Travel in
+  its right column.
+- **The player's right column** runs the room block when you are in a room,
+  then Here, then Turn. Waiting, the place card, the party rack and Things
+  follow. The place card's buttons re-read the server's list whenever the page
+  does (`PlacePanel.js#usePlaceActions`), so they follow a move made from the
+  strip. The You plate, the Desires fold and the `Sheet ›` link are gone from
+  the column. The GM's tabbed column is unchanged.
 - **The You plate** sits in the bottom-left corner, pinned in the foot of the
   places column (`next/YouPlate.js`). On a phone it is at the foot of the ≡
   drawer. It carries **no tag chips** (the Soilery Rework doc: Ate Meal and

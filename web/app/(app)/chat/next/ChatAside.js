@@ -12,7 +12,6 @@ import PartyRack from "../PartyRack";
 import PlaceCard from "../PlaceCard";
 import RoomPanel from "../RoomPanel";
 import Things from "../ThingsDrawer";
-import TravelNodes from "../TravelNodes";
 import TurnCard from "../TurnCard";
 import { usePlaceActions } from "../PlacePanel";
 import { waitingOnYou, answerWaiting } from "../actions";
@@ -34,9 +33,9 @@ import useMyMove from "../useMyMove";
 // keeps it rather than being given a second one.
 //
 // The children are MOUNTED, not rewritten. PlaceCard carries fixtures and the
-// Depot/Factory doors, TravelNodes the crossing confirm, PartyRack
-// the escort offers; they are deep game surfaces, and the plan's named risk is
-// a rewrite losing things quietly. They are restyled from chat-next.css.
+// Depot/Factory doors, PartyRack the escort offers; they are deep game
+// surfaces, and the plan's named risk is a rewrite losing things quietly. They
+// are restyled from chat-next.css.
 // A duplicate of ../ChatAside.js's, on purpose and briefly: importing it from
 // there would make this file depend on the one the cutover deletes. Same key,
 // same reason — HereList seeds rows into useState, so a new server list has to
@@ -119,7 +118,6 @@ export default function ChatAside({
   depotHref = null,
   canSeeExtract = false,
   selected,
-  travelPick = null,
   addPlace = null,
   onAddMember = null,
   onPlaceChanged = null,
@@ -164,16 +162,13 @@ export default function ChatAside({
 
   const hereCount = (people?.named?.length ?? 0) + (people?.concealed?.length ?? 0);
 
-  // The order is Chat Overhaul.docx's: Travel highest, then the room you are
-  // in (when you are in one), then Here, then Turn. The You plate lives in the
-  // places column's foot now (./YouPlate.js), and the Desires fold and the
-  // Sheet link are gone from chat altogether.
+  // The order is Chat Overhaul.docx's: the room you are in (when you are in
+  // one), then Here, then Turn. Travel, which used to head it, is the strip
+  // over the scene now (./ChatNext.js). The You plate lives in the places
+  // column's foot (./YouPlate.js), and the Desires fold and the Sheet link are
+  // gone from chat altogether.
   return (
     <div className="chat-aside-stack">
-      <Block head="Travel">
-        <TravelNodes onDone={placeSay} pick={travelPick} showTitle={false} />
-      </Block>
-
       {selected?.kind === "room" && (
         <Block head={selected?.name ?? "Room"}>
           <RoomPanel selected={selected} affordances={live} onFixture={openFixture} pending={pending} />
