@@ -174,7 +174,11 @@ export default function CreateCharacterWizard({
   cursedToSpecial = false,
 }) {
 
-  const [step, setStep] = useState(lockedRole ? 1 : 0);
+  // An assigned seat skips the Role step, so Tags is where it starts and where
+  // Back stops.
+  const firstStep = lockedRole ? 1 : 0;
+  const [step, setStep] = useState(firstStep);
+
   const [honorific, setHonorific] = useState("");
   // No default: the brief is "choose gender", so an unpicked "" blocks Next
   // rather than quietly filing everyone as NEUTRAL. Fixed for good once the
@@ -203,6 +207,65 @@ export default function CreateCharacterWizard({
   // than the browsing state before Next is first hit on step 0.
   const [heldUntil, setHeldUntil] = useState(null);
   const [reserving, setReserving] = useState(false);
+
+  // The steps share one URL, so the browser's own Back used to leave the page:
+  // usually for `/`, which sends a signed-in player straight back here, onto
+  // the first step with the whole build gone. Playtesters read that as "you
+  // can't press back". So past the first step, one extra history entry — the
+  // guard — sits on top of this page. Browser Back pops it, which this catches
+  // and turns into one step back, re-pushing the guard while there is still a
+  // step to go back to. One guard rather than an entry per step, so Forward
+  // can never jump past a Next the build has not earned, and a finished
+  // character leaves at most one spare entry behind it rather than five.
+  // Next.js copies its own router state into the pushed entry
+  // (app-router.js), so its popstate handler treats the pop as a same-page
+  // traverse, not a navigation.
+  const guardRef = useRef(false);
+  const stepRef = useRef(step);
+  useEffect(() => {
+    stepRef.current = step;
+  }, [step]);
+  useEffect(() => {
+    // A reload while the guard was on top keeps the entry but starts the
+    // wizard over. Adopt it, so the next Next reuses it rather than stacking
+    // a second guard on top.
+    guardRef.current = window.history.state?.wizardGuard === true;
+    function onPopState(event) {
+      if (!guardRef.current) {
+        // Forward, onto a guard left behind by an earlier Back. Nothing to
+        // move; just own it again so the next Back is caught.
+        if (event.state?.wizardGuard) guardRef.current = true;
+        return;
+      }
+      guardRef.current = false;
+      const back = Math.max(firstStep, stepRef.current - 1);
+      setStep(back);
+      setError(null);
+      if (back > firstStep) {
+        window.history.pushState({ wizardGuard: true }, "");
+        guardRef.current = true;
+      }
+    }
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [firstStep]);
+
+  function pushGuard() {
+    window.history.pushState({ wizardGuard: true }, "");
+    guardRef.current = true;
+  }
+
+  function goForward() {
+    setStep((s) => s + 1);
+    if (!guardRef.current) pushGuard();
+  }
+
+  // The on-page Back goes through history too, so it and the browser's Back
+  // are one path and the guard never falls out of step with the wizard.
+  function goBack() {
+    if (guardRef.current) window.history.back();
+    else setStep((s) => Math.max(firstStep, s - 1));
+  }
 
   // The Special section is part of the picker, so it is part of the role
   // lookup too — a late-join seat that the rest of the wizard could not find by
@@ -289,7 +352,7 @@ export default function CreateCharacterWizard({
     if (reserving) return;
     // An assigned seat is held by the lobby entry itself, not a wizard hold.
     if (!roleId || lockedRole) {
-      setStep((s) => s + 1);
+      goForward();
       return;
     }
     setReserving(true);
@@ -301,7 +364,7 @@ export default function CreateCharacterWizard({
         return;
       }
       setHeldUntil(result?.expiresAt ?? null);
-      setStep((s) => s + 1);
+      goForward();
     } finally {
       setReserving(false);
     }
@@ -690,11 +753,14 @@ export default function CreateCharacterWizard({
       )}
 
       <div className="flex items-center justify-between gap-3">
+        {/* A real button, not btn-quiet: small grey underlined text under a
+            long role or tag list was easy to miss, and on a phone it never
+            got the tap-sized floor. */}
         <button
           type="button"
-          className="btn-quiet"
-          onClick={() => setStep((s) => Math.max(lockedRole ? 1 : 0, s - 1))}
-          disabled={step === (lockedRole ? 1 : 0) || pending}
+          className="btn-secondary"
+          onClick={goBack}
+          disabled={step === firstStep || pending}
         >
           Back
         </button>

@@ -76,6 +76,16 @@ The wizard has five steps:
    which is why renaming one needs no data migration.
 5. **Confirm** — a summary, then `createCharacter`.
 
+**The browser's Back button steps back through the wizard.** All five steps
+share the one URL, so it used to leave the page — usually for `/`, which sends
+a signed-in player straight back to step 1 with the build gone. Playtesters
+reported that as "can't press back". Past the first step the wizard now keeps
+one extra history entry on top of the page; Back pops it, the wizard goes one
+step back and puts it back if there is further to go. Only one entry, never one
+per step, so Forward can't skip a Next the build hasn't earned, and a finished
+character leaves at most one spare entry behind. The on-page Back button goes
+through the same history, so the two can't drift apart.
+
 ## 1b. Names
 
 A displayed name is **four fields**, joined by
