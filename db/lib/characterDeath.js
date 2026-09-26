@@ -15,7 +15,7 @@ const { closeFightsFor } = require("./attack");
 const { stopPerformances } = require("./performance");
 const { teardownPartyThread } = require("./partyChat");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom } = require("./presentedIdentity");
-const { LOCKED_ON_SLUGS } = require("./equipSlots");
+const { NOT_LOCKED_ON_WHERE } = require("./equipSlots");
 
 // The concealing piece this character is wearing RIGHT NOW, or null — read off
 // the database rather than off `character`, since callers pass varying shapes
@@ -217,7 +217,7 @@ async function applyDeathToRow(
     // was never held, and a Revive should not come back with it unbuckled.
     await prisma.characterTag
       .updateMany({
-        where: { characterId: character.id, equipped: true, tag: { slug: { notIn: [...LOCKED_ON_SLUGS] } } },
+        where: { characterId: character.id, equipped: true, tag: NOT_LOCKED_ON_WHERE },
         data: { equipped: false, equippedQuantity: 0 },
       })
       .catch((err) => console.error(`Failed to unequip on death for ${character.id}:`, err));

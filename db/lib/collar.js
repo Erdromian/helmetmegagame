@@ -1,12 +1,17 @@
 // The bomb collar (docs/systemdocs/COLLAR.md).
 //
-// Three verbs over two tags. The LOOSE collar is the `bomb-collar` item; the
-// SHUT one is the `bomb-collar-locked` trait -- `general`, so no menu can hand
-// it over, steal it or destroy it, but an ACCESSORY, so it sits on the equip
-// board round the neck. Apply Collar spends the item to write the trait
-// EQUIPPED, and db/lib/equipSlots.js#LOCKED_ON_SLUGS is what refuses Unequip.
-// The Collar Key turns the trait back into an item, and the Remote Detonator
-// turns whoever wears the trait into mist.
+// Three verbs over two kinds of tag. The LOOSE collar is an item; the SHUT one
+// is a trait -- `general`, so no menu can hand it over, steal it or destroy it,
+// but an ACCESSORY, so it sits on the equip board round the neck. Apply Collar
+// spends the item to write the trait EQUIPPED, and db/lib/equipSlots.js
+// #isLockedOn is what refuses Unequip. The Collar Key turns the trait back into
+// an item, and the Exactor's remote sets it off.
+//
+// Every collar that has been locked on carries a GLYPH, and the glyph goes
+// wherever the collar goes (db/lib/collarGlyphs.js says how). The remote lists
+// collars by glyph, never by who is wearing them, which is the whole trick: a
+// collar moved from one neck to another reads the same on the remote until
+// the Exactor walks over and looks.
 //
 // Apply Collar has two doors, exactly as db/lib/bind.js does: a target who
 // could stop you is ASKED (an Offer of kind COLLAR, on the shared button
@@ -29,19 +34,35 @@ const { applyDeathTeardown } = require("./deathTeardown");
 const { locationLine, zoneLine } = require("./placeLine");
 const { SFX } = require("./sfx");
 const { sendDm } = require("./dm");
+const { createWithRetry } = require("./paperMint");
+const {
+  COLLAR_ITEM_SLUG,
+  COLLAR_LOCKED_SLUG,
+  LOOSE_GLYPH_PREFIX,
+  LOCKED_GLYPH_PREFIX,
+  glyphFor,
+  glyphIndexOf,
+  glyphOf,
+  looseSlugFor,
+  lockedSlugFor,
+  isLooseCollarSlug,
+  isLockedCollarSlug,
+  nextGlyphIndex,
+  collarName,
+} = require("./collarGlyphs");
 
-const COLLAR_ITEM_SLUG = "bomb-collar";
-const COLLAR_LOCKED_SLUG = "bomb-collar-locked";
 const DETONATOR_SLUG = "remote-detonator";
 const COLLAR_KEY_SLUG = "collar-key";
 
-// Deliberately the Rite of Judgement's own words (db/lib/riteEffects.js). A
-// collar and a rite do the same thing to a body, and Bascinet rewrites the
-// sentence in one place rather than two. Imported by VALUE rather than by
-// require: riteEffects pulls in the whole rites system, and a collar has no
-// business loading it.
-const DETONATION_DEATH_REASON =
-  "Something looked at your likeness and decided against you. You exploded into mist.";
+// Whose remote it is. A role slug, not a tag, the way db/lib/slotMachine.js
+// keys the house: the seat owns the trigger, and a detonator changing hands
+// does not make the thief the Exactor. Stealing the remote takes the power
+// away from him; it never hands it to anybody else.
+const EXACTOR_ROLE_SLUG = "exactor";
+
+// What the dead player is told. Not the Rite of Judgement's line any more: a
+// rite vaporizes, and a collar takes the head and leaves the rest.
+const DETONATION_DEATH_REASON = "There was a click at your throat, and then nothing at all.";
 
 // `location` and `zone` for the scene lines, `tags` for the collar check,
 // `discordRoleId` for the teardown that applyDeathToRow is about to null.
@@ -60,12 +81,27 @@ const COLLAR_SELECT = {
   tags: { select: { tagId: true, tag: { select: { slug: true } } } },
 };
 
+// Either spelling of a collar in somebody's hands, or round a neck, as a
+// Prisma Tag filter.
+const LOOSE_COLLAR_WHERE = { OR: [{ slug: COLLAR_ITEM_SLUG }, { slug: { startsWith: LOOSE_GLYPH_PREFIX } }] };
+const LOCKED_COLLAR_WHERE = { OR: [{ slug: COLLAR_LOCKED_SLUG }, { slug: { startsWith: LOCKED_GLYPH_PREFIX } }] };
+
 function heldSlugs(character) {
   return new Set((character?.tags ?? []).map((ct) => ct?.tag?.slug ?? ct?.slug).filter(Boolean));
 }
 
 function wearsCollar(character) {
-  return heldSlugs(character).has(COLLAR_LOCKED_SLUG);
+  return [...heldSlugs(character)].some(isLockedCollarSlug);
+}
+
+function isExactor(character) {
+  return character?.role?.slug === EXACTOR_ROLE_SLUG;
+}
+
+// The Detonate button's whole gate: the remote in your hand, and the seat it
+// answers to. `slugs` defaults to the character's own tags.
+function canWorkRemote(character, slugs = heldSlugs(character)) {
+  return isExactor(character) && slugs.has(DETONATOR_SLUG);
 }
 
 // Dead or helpless: no leave needed. bind.js's rule, read off the same derived
@@ -74,53 +110,192 @@ function needsNoConsent(target) {
   return target.status === "DEAD" || (target.tags ?? []).some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug));
 }
 
-// The gate every collar verb re-runs, at the ask AND at the answer. Unlike
-// kissAuthority there is no covered-face rule: a hood over somebody's head
-// does not stop a collar going round their neck, so `allowConcealed` is on
-// the same way db/lib/search.js#searchAuthority has it.
-function collarAuthority(actor, target, { verb = "that" } = {}) {
+// The gate Apply Collar re-runs at the answer. Unlike kissAuthority there is no
+// covered-face rule: a hood over somebody's head does not stop a collar going
+// round their neck, so `allowConcealed` is on the same way
+// db/lib/search.js#searchAuthority has it.
+function collarAuthority(actor, target) {
   if (!actor || !target) return "They aren't here.";
   if (actor.status !== "ALIVE") return "You can't do that right now.";
   if (!isHere(actor, target, { allowConcealed: true })) return notHereMessage(target);
-  // Detonating a corpse is the one verb that still reads on a body; the other
-  // two need somebody alive to act on.
-  if (verb !== "detonate" && target.status !== "ALIVE") return notHereMessage(target);
+  if (target.status !== "ALIVE") return notHereMessage(target);
   return null;
 }
 
 async function requireTag(db, slug) {
-  const tag = await db.tag.findUnique({ where: { slug }, select: { id: true, name: true, stackable: true } });
+  const tag = await db.tag.findUnique({ where: { slug } });
   if (!tag) throw new Error(`The ${slug} tag is missing from the catalog.`);
   return tag;
 }
 
+// --- Glyphs ---------------------------------------------------------------
+//
+// A marked collar is a minted row copied off its catalog row, the shape
+// db/lib/customCraftMint.js clones with: `custom` so db:sync-tags never sees
+// it, `ephemeral` so Restart Game sweeps it, and `customOfSlug` so anything
+// asking "is this a collar?" by its origin still gets yes. Not stackable: two
+// collars with the same glyph cannot exist.
+
+function glyphDescription(glyph, { locked }) {
+  return locked
+    ? `You have a shock collar locked around your neck, with the glyph ${glyph} etched into the clasp. Only a key takes it off.`
+    : `A collar that can be locked around someone's neck. The glyph ${glyph} is etched into the clasp.`;
+}
+
+function mintedCollarData(base, index, { locked }) {
+  const glyph = glyphFor(index);
+  return {
+    slug: locked ? lockedSlugFor(index) : looseSlugFor(index),
+    name: collarName(glyph, { locked }),
+    description: glyphDescription(glyph, { locked }),
+    custom: true,
+    ephemeral: true,
+    customOfSlug: base.slug,
+    pointCost: 0,
+    category: base.category,
+    groupId: base.groupId ?? null,
+    sprite: base.sprite,
+    weightLbs: base.weightLbs,
+    tradeable: base.tradeable,
+    stackable: false,
+    inspectVisibility: base.inspectVisibility,
+    equippable: base.equippable,
+    equipSlot: base.equipSlot,
+    removable: base.removable,
+    purchasable: false,
+    purchasableAfterStart: false,
+  };
+}
+
+// Hands out the next glyph. Minting the LOOSE row is what claims it, so two
+// collars marked at the same moment collide on the slug and the loser takes
+// the next one along. Runs outside any transaction, for the reason
+// paperMint.js#createWithRetry gives.
+async function claimGlyph(prisma) {
+  const base = await requireTag(prisma, COLLAR_ITEM_SLUG);
+  const taken = await prisma.tag.findMany({ where: { slug: { startsWith: LOOSE_GLYPH_PREFIX } }, select: { slug: true } });
+  const start = nextGlyphIndex(taken.map((t) => t.slug));
+  const tag = await createWithRetry(prisma, (attempt) => mintedCollarData(base, start + attempt, { locked: false }));
+  if (!tag) throw new Error("Could not mark the collar.");
+  return glyphIndexOf(tag.slug);
+}
+
+// One glyph's loose or locked row, minted the first time it is needed.
+async function glyphTag(prisma, index, { locked }) {
+  const slug = locked ? lockedSlugFor(index) : looseSlugFor(index);
+  const found = await prisma.tag.findUnique({ where: { slug } });
+  if (found) return found;
+  const base = await requireTag(prisma, locked ? COLLAR_LOCKED_SLUG : COLLAR_ITEM_SLUG);
+  return prisma.tag.upsert({ where: { slug }, update: {}, create: mintedCollarData(base, index, { locked }) });
+}
+
+// Shut round the neck, not sitting in a pocket: written equipped, and
+// equipSlots.js#isLockedOn is what keeps it there. No slot check -- the
+// ACCESSORY cap does not count a locked-on thing, and nothing else clashes
+// with an accessory.
+async function lockOn(tx, characterId, lockedTag) {
+  const row = await addToStack(tx, characterId, lockedTag.id, 1, { source: "EVENT", stackable: false });
+  await tx.characterTag.update({ where: { id: row.id }, data: { equipped: true, equippedQuantity: 1 } });
+}
+
+// Takes the collar off a neck, or reports that somebody else already did.
+// deleteMany rather than a read-then-delete: two requests racing for the same
+// collar both reach this line, and only one of them gets a count of 1.
+async function takeOff(tx, characterId, tagId) {
+  const { count } = await tx.characterTag.deleteMany({ where: { characterId, tagId } });
+  return count > 0;
+}
+
+// Serializes everything that asks "is this neck already collared?" for one
+// character, so two collars racing onto the same neck cannot both see it bare.
+async function lockCharacterRow(tx, characterId) {
+  await tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
+}
+
+// Marks every blank collar round a neck matching `where` (a Character filter).
+// The catalog's `bomb-collar-locked` is a collar nobody has read yet — the
+// Slave's starting collar, or one a GM granted by hand — and the remote can
+// only list what has a glyph. Called when a Slave is made, when the remote is
+// read, and before a key turns, so a glyph always exists by the time anybody
+// could see it. Idempotent.
+async function stampBlankCollars(prisma, where = {}) {
+  const blank = await prisma.tag.findUnique({ where: { slug: COLLAR_LOCKED_SLUG }, select: { id: true } });
+  if (!blank) return 0;
+  const rows = await prisma.characterTag.findMany({
+    where: { tagId: blank.id, quantity: { gt: 0 }, character: where },
+    select: { characterId: true },
+  });
+  let stamped = 0;
+  for (const { characterId } of rows) {
+    const index = await claimGlyph(prisma);
+    const locked = await glyphTag(prisma, index, { locked: true });
+    const done = await prisma.$transaction(async (tx) => {
+      await lockCharacterRow(tx, characterId);
+      if (!(await takeOff(tx, characterId, blank.id))) return false;
+      await lockOn(tx, characterId, locked);
+      return true;
+    });
+    if (done) stamped += 1;
+  }
+  return stamped;
+}
+
+// The loose collars in somebody's hands, blank ones first: a fresh collar is
+// the one you reach for unless you have a reason to pick a marked one.
+async function looseCollarsHeld(prisma, characterId) {
+  const rows = await prisma.characterTag.findMany({
+    where: { characterId, quantity: { gt: 0 }, tag: LOOSE_COLLAR_WHERE },
+    select: { tag: { select: { id: true, slug: true, name: true } } },
+  });
+  return rows.map((r) => r.tag).sort((a, b) => (glyphIndexOf(a.slug) ?? -1) - (glyphIndexOf(b.slug) ?? -1));
+}
+
+// Which collar Apply Collar spends: the one asked for, or the first in hand.
+// Null when the actor holds none (or not that one).
+async function pickLooseCollar(prisma, characterId, { slug = null, tagId = null } = {}) {
+  const held = await looseCollarsHeld(prisma, characterId);
+  if (tagId) return held.find((t) => t.id === tagId) ?? null;
+  if (slug) return held.find((t) => t.slug === slug) ?? null;
+  return held[0] ?? null;
+}
+
+// --- The three verbs ------------------------------------------------------
+
 // Both doors of Apply Collar land here. Spends one loose collar off the actor
-// and writes the locked trait onto the target, in one transaction so a crash
-// can never do one without the other -- the failure that would either mint a
-// collar or eat one.
+// and writes the locked collar with the SAME glyph onto the target -- a blank
+// collar is marked here, on its way round the neck -- in one transaction, so
+// a crash can never do one without the other.
 //
 // `actor` and `target` may be the SAME character (collaring yourself), which
 // is why the drop and the add are ordered rather than run in parallel.
-async function applyCollar(prisma, { actor, target, turn, offerId = null }) {
-  const [item, locked] = await Promise.all([
-    requireTag(prisma, COLLAR_ITEM_SLUG),
-    requireTag(prisma, COLLAR_LOCKED_SLUG),
-  ]);
+//
+// Returns { ok: false, reason } when the neck is already taken or the collar
+// has left the actor's hands; otherwise the effect, glyph included.
+async function applyCollar(prisma, { actor, target, turn, collar, offerId = null }) {
+  if (!collar || !isLooseCollarSlug(collar.slug)) return { ok: false, reason: "You don't have a collar." };
+  const index = glyphIndexOf(collar.slug) ?? (await claimGlyph(prisma));
+  const locked = await glyphTag(prisma, index, { locked: true });
+  const glyph = glyphFor(index);
   const effect = {
     targetCharacterId: target.id,
     targetName: target.name,
     tagId: locked.id,
     tagName: locked.name,
+    glyph,
     ...(offerId ? { offerId, consented: true } : {}),
   };
-  await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, actor.id, item.id, 1);
-    const row = await addToStack(tx, target.id, locked.id, 1, { source: "EVENT", stackable: locked.stackable });
-    // Shut round the neck, not sitting in a pocket: written equipped, and
-    // equipSlots.js#isLockedOn is what keeps it there. No slot check -- the
-    // ACCESSORY cap does not count a locked-on thing, and nothing else clashes
-    // with an accessory.
-    await tx.characterTag.update({ where: { id: row.id }, data: { equipped: true, equippedQuantity: 1 } });
+  return prisma.$transaction(async (tx) => {
+    await lockCharacterRow(tx, target.id);
+    const already = await tx.characterTag.count({
+      where: { characterId: target.id, quantity: { gt: 0 }, tag: LOCKED_COLLAR_WHERE },
+    });
+    if (already) return { ok: false, reason: `${target.name} already has a collar on.` };
+    const inHand = await tx.characterTag.count({
+      where: { characterId: actor.id, tagId: collar.id, quantity: { gt: 0 } },
+    });
+    if (!inHand) return { ok: false, reason: "You don't have that collar any more." };
+    await dropCharacterTag(tx, actor.id, collar.id, 1);
+    await lockOn(tx, target.id, locked);
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: actor.discordUserId ?? "system",
@@ -131,13 +306,15 @@ async function applyCollar(prisma, { actor, target, turn, offerId = null }) {
         details: effect,
       },
     });
+    return { ok: true, ...effect };
   });
-  return effect;
 }
 
 // Files the consent offer. Mirrors createBindOffer, including the duplicate
 // guard -- a second ask in the same turn is refused rather than DMing twice.
-async function createCollarOffer(prisma, { actor, target, turn }) {
+// The collar being offered rides on the offer's `tagId`, so the accept locks on
+// the collar the asker picked and not whichever one they happen to hold later.
+async function createCollarOffer(prisma, { actor, target, turn, collar }) {
   if (!target.discordUserId) return { ok: false, reason: `${target.name} can't be reached.` };
   const duplicate = await prisma.offer.findFirst({
     where: { kind: "COLLAR", status: "PENDING", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
@@ -145,7 +322,7 @@ async function createCollarOffer(prisma, { actor, target, turn }) {
   });
   if (duplicate) return { ok: false, reason: "You've already asked." };
   const offer = await prisma.offer.create({
-    data: { kind: "COLLAR", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
+    data: { kind: "COLLAR", turnId: turn.id, initiatorId: actor.id, responderId: target.id, tagId: collar?.id ?? null },
   });
   return {
     ok: true,
@@ -184,11 +361,14 @@ async function acceptCollar(prisma, offer, responder) {
   if (!turn || turn.id !== offer.turnId) return refuse("That offer was for a turn that's over.");
   if (!actor || actor.status !== "ALIVE") return refuse("They aren't around any more.");
   if (!target || target.status !== "ALIVE") return refuse("You aren't in a state for that.");
-  const refusal = collarAuthority(actor, target, { verb: "collar" });
+  const refusal = collarAuthority(actor, target);
   if (refusal) return refuse(refusal);
   if (wearsCollar(target)) return refuse(`${target.name} already has a collar on.`);
   // Re-read the actor's own stock: they may have handed it away while waiting.
-  if (!heldSlugs(actor).has(COLLAR_ITEM_SLUG)) return refuse(`${actor.name} has no collar to put on you.`);
+  // An offer from before collars carried a glyph has no tagId, and takes
+  // whichever collar is in hand.
+  const collar = await pickLooseCollar(prisma, actor.id, { tagId: offer.tagId ?? null });
+  if (!collar) return refuse(`${actor.name} has no collar to put on you.`);
 
   const claim = await prisma.offer.updateMany({
     where: { id: offer.id, status: "PENDING" },
@@ -196,33 +376,65 @@ async function acceptCollar(prisma, offer, responder) {
   });
   if (claim.count === 0) return { ok: false, reason: "That offer's gone.", dms: [] };
 
-  await applyCollar(prisma, { actor, target, turn, offerId: offer.id });
+  const applied = await applyCollar(prisma, { actor, target, turn, collar, offerId: offer.id });
+  if (!applied.ok) {
+    await prisma.offer.update({
+      where: { id: offer.id },
+      data: { status: "CANCELLED", resolvedAt: new Date(), outcome: { collared: false } },
+    });
+    return {
+      ok: false,
+      reason: applied.reason,
+      dms: actor.discordUserId
+        ? [{ discordUserId: actor.discordUserId, content: `Your offer fell through: ${applied.reason}` }]
+        : [],
+    };
+  }
   await prisma.offer.update({
     where: { id: offer.id },
-    data: { status: "RESOLVED", resolvedAt: new Date(), outcome: { collared: true } },
+    data: { status: "RESOLVED", resolvedAt: new Date(), outcome: { collared: true, glyph: applied.glyph } },
   });
   return {
     ok: true,
     collaredId: target.id,
-    line: `You let ${actor.name} put a collar on you.`,
+    line: `You let ${actor.name} put a collar on you. It is marked ${applied.glyph}.`,
     dms: actor.discordUserId
-      ? [{ discordUserId: actor.discordUserId, content: `${target.name} let you put a collar on them.` }]
+      ? [
+          {
+            discordUserId: actor.discordUserId,
+            content: `${target.name} let you put a collar on them. It is marked ${applied.glyph}.`,
+          },
+        ]
       : [],
   };
 }
 
 // The key's half. The collar comes off the target and lands in the UNLOCKER's
 // hands, not the freed person's -- an Exactor who unlocks a collar keeps it to
-// use again, which is the whole reason a key is worth carrying.
+// use again, which is the whole reason a key is worth carrying. It keeps its
+// glyph, which is what lets somebody who is not the Exactor put it on a
+// different neck and have the remote none the wiser.
 async function unlockCollar(prisma, { actor, target, turn }) {
-  const [item, locked] = await Promise.all([
-    requireTag(prisma, COLLAR_ITEM_SLUG),
-    requireTag(prisma, COLLAR_LOCKED_SLUG),
-  ]);
-  const effect = { targetCharacterId: target.id, targetName: target.name, tagId: item.id, tagName: item.name };
-  await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, target.id, locked.id, 1);
-    await addToStack(tx, actor.id, item.id, 1, { source: "EVENT", stackable: item.stackable });
+  // A blank collar is marked before it comes off, so the loose one in the
+  // unlocker's hand always has a glyph to carry.
+  await stampBlankCollars(prisma, { id: target.id });
+  const worn = await prisma.characterTag.findFirst({
+    where: { characterId: target.id, quantity: { gt: 0 }, tag: { slug: { startsWith: LOCKED_GLYPH_PREFIX } } },
+    select: { tagId: true, tag: { select: { slug: true } } },
+  });
+  if (!worn) return { ok: false, reason: `${target.name} doesn't have a collar on.` };
+  const index = glyphIndexOf(worn.tag.slug);
+  const loose = await glyphTag(prisma, index, { locked: false });
+  const effect = {
+    targetCharacterId: target.id,
+    targetName: target.name,
+    tagId: loose.id,
+    tagName: loose.name,
+    glyph: glyphFor(index),
+  };
+  const done = await prisma.$transaction(async (tx) => {
+    if (!(await takeOff(tx, target.id, worn.tagId))) return false;
+    await addToStack(tx, actor.id, loose.id, 1, { source: "EVENT", stackable: false });
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: actor.discordUserId ?? "system",
@@ -233,52 +445,98 @@ async function unlockCollar(prisma, { actor, target, turn }) {
         details: effect,
       },
     });
+    return true;
   });
-  return effect;
+  if (!done) return { ok: false, reason: `${target.name} doesn't have a collar on.` };
+  return { ok: true, ...effect };
 }
 
-// The trigger. A gib: no corpse, every tag vaporized, nothing left to loot or
-// bury. The collar is dropped FIRST so the audit row records what was on them,
-// and because a gib deletes the rows anyway -- doing it in the open makes the
-// ledger honest about where the collar went.
+// What the remote shows its owner: every collar round a living neck in the
+// Exactor's own zone, by glyph and nothing else. Who wears one is not the
+// remote's to say -- the caller adds a name only for the people standing in
+// front of him, where he can read the clasp himself (web/app/(app)/character
+// /actions/misc.js#readRemoteRequestImpl).
 //
-// Two places hear it: the Location they stood in, by name, and the zone's
-// #summary, which hears the blast but not who it was.
+// The Exactor's own neck is left off: the remote is not how he dies.
+async function remoteReading(prisma, actor) {
+  if (!actor?.zoneId) return [];
+  const inRange = { status: "ALIVE", zoneId: actor.zoneId, id: { not: actor.id } };
+  await stampBlankCollars(prisma, inRange);
+  const rows = await prisma.characterTag.findMany({
+    where: { quantity: { gt: 0 }, character: inRange, tag: { slug: { startsWith: LOCKED_GLYPH_PREFIX } } },
+    select: { tag: { select: { slug: true } } },
+  });
+  return rows
+    .map((r) => ({ slug: r.tag.slug, index: glyphIndexOf(r.tag.slug), glyph: glyphOf(r.tag.slug) }))
+    .filter((r) => r.index != null)
+    .sort((a, b) => a.index - b.index);
+}
+
+// The trigger. Reaches any collar round a living neck in the Exactor's zone,
+// wherever in it the wearer stands -- a slave can still run, but only out of
+// the zone. The wearer dies an ORDINARY death: the collar takes their head and
+// nothing else, so there is a body where they fell with everything they were
+// carrying still on it (docs/systemdocs/CORPSES.md). A collar that vaporized
+// its wearer gave the Exactor every reason never to use it on a slave who ran
+// off with something valuable.
 //
-// Returns { ok: false, reason } when there is nothing to set off, so the caller
-// can say so without ever having read the target's tags itself.
-async function detonateCollar(prisma, { actor, target, turn }) {
-  if (!wearsCollar(target)) return { ok: false, reason: `${target.name} doesn't have a collar on.` };
-  const locked = await requireTag(prisma, COLLAR_LOCKED_SLUG);
+// Two places hear it: the Location the wearer stood in, by name, and the
+// zone's #summary, which hears the blast but not who it was.
+//
+// The actor is told the glyph and nothing else. If the wearer was standing in
+// front of him he saw it happen; if not, he finds out who it was the way
+// everybody else does. `targetId` is for the caller's own cache refresh and
+// must never be sent on to the browser.
+async function detonateCollar(prisma, { actor, collarSlug, turn }) {
+  const glyph = glyphOf(collarSlug);
+  if (!glyph || !isLockedCollarSlug(collarSlug)) return { ok: false, reason: "That isn't a collar the remote knows." };
+  const silent = { ok: false, reason: `Collar ${glyph} doesn't answer.` };
+  if (!actor?.zoneId) return silent;
+
+  const target = await prisma.character.findFirst({
+    where: {
+      status: "ALIVE",
+      zoneId: actor.zoneId,
+      id: { not: actor.id },
+      tags: { some: { quantity: { gt: 0 }, tag: { slug: collarSlug } } },
+    },
+    select: COLLAR_SELECT,
+  });
+  if (!target) return silent;
+  const worn = target.tags.find((ct) => ct.tag.slug === collarSlug);
 
   // Captured before applyDeathToRow nulls the column -- the teardown still owes
   // Discord this role's deletion.
   const roleId = target.discordRoleId;
-  await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, target.id, locked.id, 1);
+  // The collar goes with the head. Taken off FIRST, so the audit row is honest
+  // about where it went and the corpse is not left wearing it.
+  const gone = await prisma.$transaction(async (tx) => {
+    if (!(await takeOff(tx, target.id, worn.tagId))) return false;
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: actor.discordUserId ?? "system",
         actionType: "request_detonate_collar",
         targetCharacterId: target.id,
         turnId: turn?.id ?? null,
-        locationId: actor.locationId ?? null,
-        details: { targetCharacterId: target.id, targetName: target.name },
+        locationId: target.locationId ?? null,
+        details: { targetCharacterId: target.id, targetName: target.name, glyph },
       },
     });
+    return true;
   });
+  // A key got there first.
+  if (!gone) return silent;
 
   const { claimed } = await applyDeathToRow(prisma, target, {
     turn,
-    gib: true,
-    content: `${target.name} was detonated.`,
+    content: `${target.name} was killed by their collar.`,
     cause: actor.discordUserId
       ? { kind: "player", actorDiscordUserId: actor.discordUserId }
       : { kind: "system", system: "collar" },
   });
-  // Something else killed them between the roster load and here. The collar is
+  // Something else killed them between the lookup and here. The collar is
   // spent either way; nothing explodes twice.
-  if (!claimed) return { ok: true, name: target.name, alreadyDead: true };
+  if (!claimed) return { ok: true, glyph, alreadyDead: true, targetId: target.id };
 
   const { member } = await applyDeathTeardown(prisma, { ...target, discordRoleId: roleId });
   if (member) {
@@ -286,10 +544,12 @@ async function detonateCollar(prisma, { actor, target, turn }) {
       source: "collar",
     }).catch((err) => console.error(`detonation DM for ${target.name}:`, err?.message ?? err));
   }
-  await locationLine(prisma, target.location, `${target.name} explodes into mist!`, { sfx: SFX.BOOM });
+  await locationLine(prisma, target.location, `${target.name}'s collar goes off, and takes their head with it.`, {
+    sfx: SFX.BOOM,
+  });
   const from = target.location?.name ? ` from ${target.location.name}` : "";
   await zoneLine(prisma, target.zone, `An explosion rings out${from}.`, { sfx: SFX.BOOM });
-  return { ok: true, name: target.name, alreadyDead: false };
+  return { ok: true, glyph, alreadyDead: false, targetId: target.id };
 }
 
 module.exports = {
@@ -297,15 +557,22 @@ module.exports = {
   COLLAR_LOCKED_SLUG,
   DETONATOR_SLUG,
   COLLAR_KEY_SLUG,
+  EXACTOR_ROLE_SLUG,
   COLLAR_SELECT,
   DETONATION_DEATH_REASON,
   heldSlugs,
   wearsCollar,
+  isExactor,
+  canWorkRemote,
   needsNoConsent,
   collarAuthority,
+  stampBlankCollars,
+  looseCollarsHeld,
+  pickLooseCollar,
   applyCollar,
   createCollarOffer,
   acceptCollar,
   unlockCollar,
+  remoteReading,
   detonateCollar,
 };
