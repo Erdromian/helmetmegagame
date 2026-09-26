@@ -1040,3 +1040,92 @@
   font-size: var(--fs-xs);
   line-height: 1;
 }
+
+/* ---------- the Actions menu (next/ChatActions.js) ---------- */
+
+/* The head's button: a labelled .btn-secondary on a desktop, the same size
+   as Add beside it, so it reads as a thing to press rather than a heading. */
+[data-chat-next] .chat-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+
+/* The menu is portaled to document.body (ClickMenu.js), outside
+   [data-chat-next], so none of these are scoped to it. */
+.chat-actions-menu {
+  width: min(22rem, calc(100vw - 16px));
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.chat-actions-head {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+/* Two columns of verbs: a single column of twenty was a scroll, and the
+   labels are short enough that two fit the menu's width. */
+.chat-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--sp-3);
+}
+
+/* The tooltip's wrapper (.tag-hover) wears the mono face, which is for data;
+   a verb is a word. */
+.chat-actions-item .tag-hover,
+.chat-actions-item .menu-item {
+  font-family: var(--font-sans);
+}
+.chat-actions-item .menu-item {
+  gap: 6px;
+  padding: 3px 0;
+  font-size: var(--fs-sm);
+}
+.chat-actions-item .menu-item svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.chat-actions-item .menu-item:disabled,
+.chat-actions-item .menu-item[aria-disabled="true"] {
+  color: var(--muted);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+/* Why a place's work is greyed, written out — a phone can't hover for it. */
+.chat-actions-why {
+  margin: 0 0 2px 21px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-style: italic;
+}
+
+.chat-actions-note {
+  margin: var(--sp-1) 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-style: italic;
+}
+
+.chat-actions-sheet {
+  color: var(--accent-text);
+  font-size: var(--fs-xs);
+  text-decoration: underline;
+}
+.chat-actions-sheet:hover {
+  color: var(--text-hi);
+}
+
+@media (max-width: 720px) {
+  .chat-actions-item .menu-item {
+    min-height: var(--tap-sm, 36px);
+  }
+}
