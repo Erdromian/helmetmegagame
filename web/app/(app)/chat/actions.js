@@ -1,6 +1,13 @@
 "use server";
 
 import { after } from "next/server";
+// The Purse on the You plate (./next/YouPlate.js) is a server prop, so a verb
+// here that moves obols through the player's hand calls refresh() on success,
+// and only when coin really moved: the page redraws in the same response.
+// refresh() rather than revalidatePath because /chat is force-dynamic, so
+// there is no cache to drop, only the page in front of the player. Every other
+// verb here leaves the page alone.
+import { refresh } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
@@ -1700,6 +1707,8 @@ export async function playSlots({ roomId } = {}) {
   const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
   const result = await playSlotsInDb(prisma, me.discordUserId, { turn });
   if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
+  // The stake always leaves the purse, win or lose.
+  refresh();
   return { ok: true, line: result.line, sfx: result.sfx };
 }
 
@@ -1728,6 +1737,10 @@ async function vendingVerb(roomId, fn, args = {}) {
   // Anything that moved a tag has to settle the carry (docs/systemdocs/CARRY.md)
   // — the same bargain every other inventory writer strikes.
   if (result.moved !== false) await afterInventoryChange([me.character.id]).catch(() => {});
+  // `amount` is the coin that crossed the presser's hand: Insert, Withdraw,
+  // Empty the till, and Step away with change in the slot. A purchase moves
+  // coin from the slot to the till, not out of a purse, so it sets none.
+  if (result.amount > 0) refresh();
   return { ok: true, line: result.line, sfx: result.sfx };
 }
 
@@ -1860,6 +1873,9 @@ export async function dialPhone({ roomId, toRoomId } = {}) {
   if (!result.ok) {
     return { ok: false, error: result.error, sfx: result.sfx ?? SFX.REFUSE_MONEY };
   }
+  // `paid` is set only on the call that took a coin: a named phone is free,
+  // and a redial inside PHONE_PAID_GRACE_MS is not charged again (PHONES.md §8).
+  if (result.call?.paid) refresh();
   return { ok: true, line: PHONE_TEXT.dialling, sfx: result.sfx };
 }
 
