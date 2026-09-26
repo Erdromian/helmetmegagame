@@ -670,6 +670,15 @@ ephemeral, to anyone standing in the room's Location, in Bascinet's format:
 Reading is free; moving things is the web's Transfer. A Discord select menu
 caps at 25 options, which is why there is no native deposit/withdraw flow.
 
+**`/storage` reads every stash at once** (`handleStorageCommand`, same file):
+one block per Room the character can see where they stand — public Rooms, and
+private ones their keys, a guest row or a quest open — in the same format,
+closing on a line that says moving things is Transfer, on the web. It works
+from a DM, which is the point: the button is on each Room's first post, and on
+a phone finding the thread and scrolling to its top is most of the effort.
+Both the button and the command are open out of session, since reading is not
+an act (`SESSIONS.md` §5).
+
 **Taking things out of a stash is From: the room, To: yourself.** You are in
 your own "To" list — that is the whole of looting a room, and the dialog left
 it out for a while, which made every stash in the game a one-way drop.

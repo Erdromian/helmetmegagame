@@ -40,6 +40,7 @@ Each command declares its contexts:
 | `/move` | — | Living character | Guild, DM | `handleMoveOpen` |
 | `/location` | — | Living character | Guild, DM | `handleTravelOpen` — the **Location** picker (§4) |
 | `/travel` | — | Living character | Guild, DM | `handleTravelOpen` — the same picker, under the name people reach for |
+| `/storage` | — | Living character | Guild, DM | `handleStorageCommand` — every stash in the Location the character can see (`CARRY.md` §8) |
 | `/conceal` | — | Living character | Guild, DM | `handleConcealCommand` |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
 | `/play` | — | Living character with an equipped instrument (plays), or with Musician (sings); neither is refused | Guild | `handlePlayCommand` — the Play Instrument panel runs the same `playInstrument` when a song starts (`SOUND.md` §6b) |
@@ -65,6 +66,15 @@ Notes:
   `loc:open` and is not worth a migration; only the surface names changed.
   Retiring `/location` needs no deregistration step, since
   `client.application.commands.set` fully replaces the list.
+- `/storage` is the Storage button for a whole Location at once. The button
+  sits on each Room's first post, so reaching it means finding the thread and
+  scrolling to the top of it, which on a phone is most of the effort. The
+  command answers from anywhere, a DM included, and lists every Room the
+  character can see — public ones, and private ones their keys, a guest row or
+  a quest open (`db/lib/roomAccess.js#accessibleRooms`). Rooms print as thread
+  links for a character who plays on Discord, and as names for anyone else,
+  whose links would read "No access". Reading only, and open out of session
+  like the button (`SESSIONS.md` §5).
 - `/zone` is the Discord twin of the **Zones** control at the bottom of the
   inspector on `/gm/turns` and `/gm/players`. It takes no options: it opens an
   ephemeral select menu (`min_values: 0`) with the caller's current zones
@@ -562,6 +572,22 @@ out, since a way out is the common case and the only way to leave the zone. Pick
 description and a `-#` line rather than asking the server anything: "Same
 zone" (free, on a cooldown), "Crosses into {Zone} — costs your Move", or
 "Arriving costs you nothing" on a first placement.
+
+**The picker does not self-delete.** Every ephemeral reply is deleted 60s
+after it is sent unless it opts out (`bot/src/lib/respond.js`), and the
+picker's message is the same one the pick later turns into Bring/Confirm. So a
+timer set when the picker opened took Confirm with it a minute later, however
+far the player had got — on a phone that was often mid-choice, and read as
+"can't travel on Discord". `handleTravelOpen` opts out whenever it offers a
+destination; the outcome (Moved, Canceled, a refusal) is what cleans the
+message up.
+
+**The outcome links to where they landed.** A character who plays on Discord
+gets one `-#` line under "Moved to" with the Location's channel and its public
+Rooms as mentions (`db/lib/syncZones/bodies.js#arrivalLinksLine`, which shares
+its room list with the anchor's Public Rooms line). A new channel and a thread
+nobody has joined are hard to find in the mobile sidebar, and a tap on a
+mention goes straight there.
 
 **Every hop offers the party**, on the same message as the Confirm/Cancel
 row: `loc:bring` lists everyone standing **here** with a verdict from

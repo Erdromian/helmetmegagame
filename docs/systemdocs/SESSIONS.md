@@ -156,7 +156,8 @@ Four things stay open, and they have one thing in common: none of them changes
 the world.
 
 - **Reading.** The sheet, the map, Examine, Who's here?, a notice on a board,
-  the roster. Reading is never an act.
+  a room's Storage (the button and `/storage`), the roster. Reading is never
+  an act.
 - **Equipping and unequipping.** It costs no Move even in session, and what is
   on your own body is nobody else's afternoon.
 - **The lobby and character creation.** They sit outside the game, so a

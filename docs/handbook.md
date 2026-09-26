@@ -71,7 +71,8 @@ General questions can be asked in the `#general` channel or by creating a thread
 | Command | Effect |
 |---|---|
 | `/move` | Open the Move submission form. |
-| `/location` | Open the Travel picker — walk to a connected Location, or cross into another Zone. |
+| `/travel` | Open the Travel picker — walk to a connected Location, or cross into another Zone. `/location` does the same. |
+| `/storage` | See what is stored in the rooms where you are. Works in the bot's DMs too. |
 | `/message` | Speak as your character in the room or thread you're in, without typing in it. |
 | `/roll` | Roll a 1d6 into the channel, for everyone to see. |
 | `/add` | Invite a character into your Conversation. |

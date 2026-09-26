@@ -99,6 +99,13 @@ const commandDefinitions = [
     .setName("travel")
     .setDescription("Travel to a connected location.")
     .setContexts(ANYWHERE),
+  // What is lying in every room where you stand. The Storage button on each
+  // Room's first post answers for that one room; this answers for all of them,
+  // from anywhere — a DM included, which is where a phone player often is.
+  new SlashCommandBuilder()
+    .setName("storage")
+    .setDescription("See what is stored in the rooms where you are.")
+    .setContexts(ANYWHERE),
   // A standing state, not a per-message one: it stays on until it is turned
   // off, so it needs to be reachable from a DM the same way /location is.
   new SlashCommandBuilder()

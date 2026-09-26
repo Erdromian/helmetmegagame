@@ -117,7 +117,7 @@ const {
   handleEditOpen,
   handleEditSubmit,
 } = require("../lib/editModal");
-const { handleRoomStorage } = require("../lib/roomStorage");
+const { handleRoomStorage, handleStorageCommand } = require("../lib/roomStorage");
 const { handleRoomSearch } = require("../lib/roomSearch");
 const {
   ZONE_VIEW_ID,
@@ -254,6 +254,8 @@ const OPEN_COMMANDS = new Set([
   "gm", "zone", "dm", "heal", "add", "remove",
   // Out of character, or about how a player is PRESENTED rather than what they do. None of it is the game.
   "ooc", "message", "conceal",
+  // Looking, not acting — the same as Who's here? and Examine below.
+  "storage",
 ]);
 
 // Roleplay that does NOT go through db/lib/say.js — a shout carries across the Location graph, a die roll and a music
@@ -264,7 +266,7 @@ const SPEECH_COMMANDS = new Set(["shout", "roll", "play"]);
 // Prefixes that stay clickable: reading, looking, and opening the Speak modal.
 const OPEN_PREFIXES = [
   "say:open", "say:send:",
-  WHOS_HERE_PREFIX, EXAMINE_PREFIX, SECRET_ROOMS_PREFIX, NOTICE_READ_PREFIX,
+  WHOS_HERE_PREFIX, EXAMINE_PREFIX, SECRET_ROOMS_PREFIX, NOTICE_READ_PREFIX, ROOM_STORAGE_PREFIX,
   // Arrive in a DM to somebody with no character yet — a seat offer and a lobby assignment sit outside the game the
   // way character creation does, so a session boundary is not theirs to answer to.
   THREAT_SPAWN_ACCEPT_PREFIX, THREAT_SPAWN_DECLINE_PREFIX, LOBBY_DECLINE_PREFIX,
@@ -329,6 +331,7 @@ module.exports = {
         if (interaction.commandName === "location" || interaction.commandName === "travel")
           return void (await handleTravelOpen(interaction));
         if (interaction.commandName === "conceal") return void (await handleConcealCommand(interaction));
+        if (interaction.commandName === "storage") return void (await handleStorageCommand(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
         if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));
         if (interaction.commandName === "play") return void (await handlePlayCommand(interaction));
