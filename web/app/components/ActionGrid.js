@@ -2,7 +2,7 @@
 
 import ActionButton from "./ActionButton";
 import { useRequestActions } from "./RequestActionsProvider";
-import { ACTION_SECTIONS, labelFor, helpFor, reasonFor } from "./actionRegistry";
+import { ACTION_SECTIONS, labelFor, helpFor, reasonFor, stripGroups } from "./actionRegistry";
 
 // Everything a player can do to a sheet, as captioned rows of buttons. The
 // list itself lives in actionRegistry.js; this only lays it out, and
@@ -52,42 +52,46 @@ export default function ActionGrid({ variant = "rack", children = null }) {
   );
 
   if (variant === "strip") {
-    // The mockup draws this as ONE wrapping row of buttons with a rule
-    // between sections, not a row of sections that each wrap as their own
-    // unit. `.action-strip-group` used to be a flex box in its own right,
-    // which meant a section that didn't fit the remaining width moved to the
-    // next line WHOLE — an orphan row of one icon whenever a section's count
-    // didn't divide evenly, and the divider between sections stopped reading
-    // once each section was already starting its own line. `display:
-    // contents` drops the group's own box (and its wrapping) while keeping
-    // its `role="group"`/`aria-label` in the accessibility tree, so its
-    // buttons become direct flex items of `.action-strip` and wrap
-    // individually; `.action-strip-sep` — a real element, not the group's
-    // border — draws the 1px rule the border used to.
-    const groups = children ? [...sections, { key: "extra", label: null, visible: null }] : sections;
+    // CAPTIONED GROUPS, by what a verb is for (actionRegistry.js#
+    // STRIP_GROUPS): Things, Paper, Work, People, Captives, The dead… Each
+    // group is a small box with its name over its buttons, and the groups
+    // flow in a wrapping row.
+    //
+    // It was one run of roughly thirty same-weight buttons with a single
+    // hairline between "You" and "Others", which is what the player feedback
+    // meant by knowing a feature exists and not finding its button. The run
+    // was chosen to stop a section moving to the next line WHOLE and leaving
+    // an orphan; with a caption on each group, a group moving whole is the
+    // point — it keeps its name with its buttons.
+    //
+    // Within a group, what you can do right now comes first and the greyed
+    // (dashed) verbs follow. The groups are small, so nothing moves far.
+    const groups = stripGroups()
+      .map((group) => {
+        const shown = group.actions.filter((a) => (a.show ? pools[a.show] : true));
+        const gated = (a) => (a.gate && !pools[a.gate] ? 1 : 0);
+        return { ...group, shown: shown.sort((a, b) => gated(a) - gated(b)) };
+      })
+      .filter((group) => group.shown.length > 0);
     return (
       <div className="action-strip">
-        {groups.flatMap((section, i) => {
-          const group = (
-            <div
-              key={section.key}
-              className="action-strip-group"
-              // The trailing children group (the Trumpet) carries no section
-              // label, so it wears no role — same as before this pass.
-              role={section.label ? "group" : undefined}
-              aria-label={section.label ?? undefined}
-            >
-              {section.visible ? section.visible.map(button) : children}
-            </div>
-          );
-          // The separator has to sit IN BETWEEN the two groups' buttons in
-          // the DOM, not after all of them — `display: contents` means each
-          // group's own box is gone, so it's document order, not nesting,
-          // that decides where a rule lands once everything is flowing as
-          // one row of flex items.
-          if (i === groups.length - 1) return [group];
-          return [group, <span key={`sep-${section.key}`} className="action-strip-sep" aria-hidden="true" />];
-        })}
+        {groups.map((group) => (
+          <div key={group.key} className="action-strip-group" role="group" aria-label={group.label}>
+            <span className="action-strip-caption" aria-hidden="true">
+              {group.label}
+            </span>
+            <div className="action-strip-buttons">{group.shown.map(button)}</div>
+          </div>
+        ))}
+        {/* The Trumpet: not a registry verb, so no caption of its own. */}
+        {children && (
+          <div className="action-strip-group">
+            <span className="action-strip-caption" aria-hidden="true">
+              &nbsp;
+            </span>
+            <div className="action-strip-buttons">{children}</div>
+          </div>
+        )}
       </div>
     );
   }
