@@ -1,5 +1,6 @@
 "use client";
 
+import { Children } from "react";
 import ActionButton from "./ActionButton";
 import { useRequestActions } from "./RequestActionsProvider";
 import { ACTION_SECTIONS, labelFor, helpFor, reasonFor, stripGroups } from "./actionRegistry";
@@ -73,6 +74,12 @@ export default function ActionGrid({ variant = "rack", children = null }) {
         return { ...group, shown: shown.sort((a, b) => gated(a) - gated(b)) };
       })
       .filter((group) => group.shown.length > 0);
+    // LedgerBand always passes the Trumpet, the Horn and Call Reinforcements
+    // as `held && <Button />`, so a player holding none of them still hands
+    // over [false, false, false] — truthy, and it drew an empty, captionless
+    // box at the end of the row that took a slot in the wrap. toArray drops
+    // the falses.
+    const extras = Children.toArray(children);
     return (
       <div className="action-strip">
         {groups.map((group) => (
@@ -84,12 +91,12 @@ export default function ActionGrid({ variant = "rack", children = null }) {
           </div>
         ))}
         {/* The Trumpet: not a registry verb, so no caption of its own. */}
-        {children && (
+        {extras.length > 0 && (
           <div className="action-strip-group">
             <span className="action-strip-caption" aria-hidden="true">
               &nbsp;
             </span>
-            <div className="action-strip-buttons">{children}</div>
+            <div className="action-strip-buttons">{extras}</div>
           </div>
         )}
       </div>
