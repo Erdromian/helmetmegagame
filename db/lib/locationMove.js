@@ -273,8 +273,8 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     );
   }
 
-  // A phone goes back on its cradle when the person holding it walks out
-  // (docs/systemdocs/PHONES.md). Here rather than in performLocationMove for
+  // Walking out lets go of the phone in your hand and hangs up any call on it
+  // (docs/systemdocs/PHONES.md §3). Here rather than in performLocationMove for
   // the reason every clear above gives: this is the writer EVERY relocation
   // runs, so a teleport, a staged Relocate and a rite hang up as surely as
   // walking does. Above the Discord guard, because a call ending is a database
@@ -282,8 +282,9 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
   // because a Resync, a revive and a first placement are not moves, and a
   // Resync silently killing a live call would be exactly the INTERCEPT bug.
   //
-  // The far end hears "The person hung up"; the side that walked out hears
-  // nothing, because they are not there and the room they left made no noise.
+  // The far end reads "The call hung up." and is left on a dead line; the side
+  // that walked out hears nothing, because they are not there and the room they
+  // left made no noise. A phone that was ringing in their hand goes on ringing.
   if (fromLocationId) {
     await dropCallsForCharacter(prisma, characterId).catch((err) =>
       console.error(`Move: hanging up the phone failed for ${characterId}:`, err.message ?? err),
