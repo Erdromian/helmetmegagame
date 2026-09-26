@@ -71,12 +71,18 @@ General questions can be asked in the `#general` channel or by creating a thread
 | Command | Effect |
 |---|---|
 | `/move` | Open the Move submission form. |
-| `/location` | Open the Travel picker — walk to a connected Location, or cross into another Zone. |
+| `/travel` | Open the Travel picker — walk to a connected Location, or cross into another Zone. `/location` does the same. |
+| `/storage` | See what is stored in the rooms where you are. Works in the bot's DMs too. |
 | `/message` | Speak as your character in the room or thread you're in, without typing in it. |
 | `/roll` | Roll a 1d6 into the channel, for everyone to see. |
 | `/add` | Invite a character into your Conversation. |
 | `/remove` | Remove a character from your Conversation. |
 | `/conceal` | Toggle concealment. While it's on, everything you say posts under a vague alias. |
+| `/actions` | See everything your character can do right now, and do it. The same menu is behind the **Actions** button on every Location and in `#turns`. |
+| `/kiss`, `/search`, `/attack`, `/look`… | Every action on your Character page has a command of its own. Related ones share a command: `/collar apply`, `/paper write`, `/work mine`. A few still send you to the website to finish. |
+| `/mymove` | See the Move you filed this turn, and edit or withdraw it. |
+| `/feedback` | Tell the GMs about something broken, or something that could be better. |
+| `/lobby ready` | Ready up for a seat while the lobby is open. `/lobby unready` takes it back. |
 
 #### **Channels**  
 | Channel | What it's for |

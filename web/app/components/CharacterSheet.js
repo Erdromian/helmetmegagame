@@ -1,5 +1,6 @@
 "use client";
 
+import { useSearchParams } from "next/navigation";
 import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import { BASTARD_TAG_SLUG, DEEP_BEAST_HORN_SLUG } from "@lifeweb/db/lib/lateJoin";
 import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
@@ -220,6 +221,8 @@ export default function CharacterSheet({
   moveState = null,
 }) {
   const isSelf = mode === "self";
+  // A verb the Discord bot links here to (/character?act=<mode>) opens its dialog on arrival.
+  const initialAct = useSearchParams()?.get("act") ?? null;
   // Held, not equipped: you pick a trumpet up to blow it.
   const hasTrumpet = character.tags?.some(
     (ct) => (ct?.tag?.slug ?? ct?.slug) === TRUMPET_SLUG,
@@ -251,6 +254,7 @@ export default function CharacterSheet({
             their dialogs through it, and they are a screen apart. */}
       <RequestActionsProvider
         enabled={isSelf}
+        initialMode={isSelf ? initialAct : null}
         selfId={character.id}
         selfName={character.name}
         catalog={tagCatalog ?? []}

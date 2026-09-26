@@ -18,7 +18,9 @@ const {
   MERCHANTS_OFFICE_ROOM_SLUG,
   RAILYARD_ROOM_SLUG,
 } = require("./train");
-const { ATM_ROOM_SLUGS } = require("./depot");
+const { ATM_ROOM_SLUGS, MEISTERS_OFFICE_ROOM_SLUG } = require("./depot");
+const { ACTIONS_OPEN_ID } = require("./turnsConsoleRow");
+const { ACTION_START_PREFIX } = require("./actionCatalog");
 const { BELL_ROOM_SLUG } = require("./bell");
 const { XOM_SHRINE_ROOM_SLUG } = require("./xom");
 const {
@@ -106,6 +108,10 @@ const DANGER = "danger";
 // Everything on a Location's anchor, in the order it draws. Travel is first — the others answer where you already are, this is how you leave.
 const LOCATION_AFFORDANCES = [
   { id: "travel", label: "Travel", tone: GO, customId: () => TRAVEL_CUSTOM_ID },
+  // The Actions menu (bot/src/lib/verbs/index.js): everything this character
+  // can do right now, listed for whoever presses it. `discordOnly` — on the
+  // web it is the Actions button in /chat's own header, not a place fixture.
+  { id: "actions", label: "Actions", tone: PLAIN, customId: () => ACTIONS_OPEN_ID, discordOnly: true },
   { id: "whosHere", label: "Who's here?", tone: PLAIN, prefix: WHOS_HERE_PREFIX },
   { id: "secretRooms", label: "Secret rooms?", tone: PLAIN, prefix: SECRET_ROOMS_PREFIX },
   { id: "examine", label: "Examine", tone: PLAIN, prefix: EXAMINE_PREFIX },
@@ -295,6 +301,38 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_PRAY_PREFIX,
     when: (room) => room?.slug === XOM_SHRINE_ROOM_SLUG,
   },
+
+  // Money at the Depot's counter (docs/systemdocs/DEPOT.md). `discordOnly` —
+  // the web does both from its /depot page. Each starts the verb of the same
+  // name (bot/src/lib/verbs/place.js), which refuses anybody not standing
+  // here, and the credit line anybody without the Merchant's License.
+  {
+    id: "sendMoney",
+    label: "Send money",
+    tone: PLAIN,
+    customId: () => `${ACTION_START_PREFIX}sendmoney`,
+    when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
+    discordOnly: true,
+  },
+  {
+    id: "merchantCredit",
+    label: "Merchant credit",
+    tone: PLAIN,
+    customId: () => `${ACTION_START_PREFIX}credit`,
+    when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
+    discordOnly: true,
+  },
+  // The Meister's terminal (docs/systemdocs/DEPOT.md): the sell tax. The web
+  // has it on /treasury, so `discordOnly` again. The office is behind a
+  // locked door, and setSellTax asks canReadTreasury on every press.
+  {
+    id: "sellTax",
+    label: "Sell tax",
+    tone: PLAIN,
+    customId: () => `${ACTION_START_PREFIX}selltax`,
+    when: (room) => room?.slug === MEISTERS_OFFICE_ROOM_SLUG,
+    discordOnly: true,
+  },
 ];
 
 // `subject` is the whole row the affordance resolved against, for the one def needing a field off it rather than its id.
@@ -304,10 +342,13 @@ function customIdFor(def, id, subject = null) {
 
 // Location affordances for this place. `location` may be a bare id, dropping
 // conditional ones — nothing can be decided about a place that's only a string.
-function locationAffordances(location) {
+// `web: true` leaves out the ones that are Discord's own (`discordOnly`).
+function locationAffordances(location, { web = false } = {}) {
   const id = typeof location === "string" ? location : location?.id;
   const known = typeof location === "string" ? null : location;
-  return LOCATION_AFFORDANCES.filter((def) => !def.when || (known ? def.when(known) : false)).map((def) => ({
+  return LOCATION_AFFORDANCES.filter(
+    (def) => !(web && def.discordOnly) && (!def.when || (known ? def.when(known) : false)),
+  ).map((def) => ({
     id: def.id,
     label: def.label,
     tone: def.tone,
@@ -321,8 +362,8 @@ function locationAffordances(location) {
 // (docs/systemdocs/CHARON.md) and the same Room row means a different thing on
 // the ground and in orbit. Optional, so a caller with only a room in hand still
 // gets every affordance that does not depend on one.
-function roomAffordances(room, location = null) {
-  return ROOM_AFFORDANCES.filter((def) => !def.when || def.when(room, location)).map((def) => ({
+function roomAffordances(room, location = null, { web = false } = {}) {
+  return ROOM_AFFORDANCES.filter((def) => !(web && def.discordOnly) && (!def.when || def.when(room, location))).map((def) => ({
     id: def.id,
     label: def.label,
     tone: def.tone,
@@ -372,12 +413,12 @@ async function affordancesFor(prisma, character) {
   ]);
   if (!location) return [];
 
-  const out = locationAffordances(location).map((entry) => ({ ...entry, kind: "place" }));
+  const out = locationAffordances(location, { web: true }).map((entry) => ({ ...entry, kind: "place" }));
 
   // A room's buttons, for every room this character can actually get into — a locked door offers nothing.
   const open = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
   for (const room of open) {
-    for (const entry of roomAffordances(room, location)) {
+    for (const entry of roomAffordances(room, location, { web: true })) {
       out.push({ ...entry, kind: "room", roomName: room.name });
     }
   }

@@ -117,7 +117,7 @@ const {
   handleEditOpen,
   handleEditSubmit,
 } = require("../lib/editModal");
-const { handleRoomStorage } = require("../lib/roomStorage");
+const { handleRoomStorage, handleStorageCommand } = require("../lib/roomStorage");
 const { handleRoomSearch } = require("../lib/roomSearch");
 const {
   ZONE_VIEW_ID,
@@ -226,6 +226,23 @@ const {
   handleConcealCommand,
 } = require("./interactions/scene");
 const {
+  VERB_COMMANDS,
+  MENU_PREFIX: ACT_MENU_PREFIX,
+  START_PREFIX: ACT_START_PREFIX,
+  VERB_PREFIX: ACT_VERB_PREFIX,
+  MODAL_PREFIX: ACT_MODAL_PREFIX,
+  OPEN_VERB_PREFIXES,
+  isOpenCommand,
+  startFromCommand,
+  handleVerbComponent,
+  handleVerbModal,
+  handleActionsOpen,
+  handleMenuPick,
+  handleStartButton,
+} = require("../lib/verbs");
+const { META_PREFIX, META_COMMANDS, handleMetaCommand, handleMetaComponent } = require("../lib/verbs/meta");
+const { ACTIONS_OPEN_ID } = require("@lifeweb/db/lib/turnsConsoleRow");
+const {
   handleMoveOpen,
   handleMoveSubmit,
   handleSpeakOpen,
@@ -254,6 +271,11 @@ const OPEN_COMMANDS = new Set([
   "gm", "zone", "dm", "heal", "add", "remove",
   // Out of character, or about how a player is PRESENTED rather than what they do. None of it is the game.
   "ooc", "message", "conceal",
+  // Looking, not acting — the same as Who's here? and Examine below.
+  "storage",
+  // The Actions menu is a list; each verb picked from it meets the gate on its own step. Feedback and the lobby belong
+  // to the player, not the game (bot/src/lib/verbs/meta.js).
+  "actions", "feedback", "lobby",
 ]);
 
 // Roleplay that does NOT go through db/lib/say.js — a shout carries across the Location graph, a die roll and a music
@@ -264,16 +286,23 @@ const SPEECH_COMMANDS = new Set(["shout", "roll", "play"]);
 // Prefixes that stay clickable: reading, looking, and opening the Speak modal.
 const OPEN_PREFIXES = [
   "say:open", "say:send:",
-  WHOS_HERE_PREFIX, EXAMINE_PREFIX, SECRET_ROOMS_PREFIX, NOTICE_READ_PREFIX,
+  WHOS_HERE_PREFIX, EXAMINE_PREFIX, SECRET_ROOMS_PREFIX, NOTICE_READ_PREFIX, ROOM_STORAGE_PREFIX,
   // Arrive in a DM to somebody with no character yet — a seat offer and a lobby assignment sit outside the game the
   // way character creation does, so a session boundary is not theirs to answer to.
   THREAT_SPAWN_ACCEPT_PREFIX, THREAT_SPAWN_DECLINE_PREFIX, LOBBY_DECLINE_PREFIX,
+  // The Actions menu, and the verbs that only read (/warrant list, /paper read, /mymove…) — db/lib/actionCatalog.js
+  // marks them `open`. Feedback and Ready / Not ready, which sit outside the game.
+  ...OPEN_VERB_PREFIXES, META_PREFIX,
 ];
 
 // Speech, act, or never gated at all.
 function gateKindFor(interaction) {
   if (interaction.isChatInputCommand()) {
     if (OPEN_COMMANDS.has(interaction.commandName)) return null;
+    // A verb's typed twin is open when the catalog says it only reads (SESSIONS.md §5).
+    if (VERB_COMMANDS.has(interaction.commandName)) {
+      return isOpenCommand(interaction.commandName, interaction.options.getSubcommand(false)) ? null : "act";
+    }
     return SPEECH_COMMANDS.has(interaction.commandName) ? "speech" : "act";
   }
   return "act";
@@ -329,13 +358,25 @@ module.exports = {
         if (interaction.commandName === "location" || interaction.commandName === "travel")
           return void (await handleTravelOpen(interaction));
         if (interaction.commandName === "conceal") return void (await handleConcealCommand(interaction));
+        if (interaction.commandName === "storage") return void (await handleStorageCommand(interaction));
         if (interaction.commandName === "message") return void (await handleMessageCommand(interaction));
         if (interaction.commandName === "roll") return void (await handleRollCommand(interaction));
         if (interaction.commandName === "play") return void (await handlePlayCommand(interaction));
         if (interaction.commandName === "shout") return void (await handleShoutCommand(interaction));
         if (interaction.commandName === "ooc") return void (await handleOocCommand(interaction));
+        // Every player verb's typed twin, the Actions menu, and the player's own two (bot/src/lib/verbs/).
+        if (interaction.commandName === "actions") return void (await handleActionsOpen(interaction));
+        if (VERB_COMMANDS.has(interaction.commandName)) return void (await startFromCommand(interaction));
+        if (META_COMMANDS.has(interaction.commandName)) return void (await handleMetaCommand(interaction));
       } else if (interaction.isButton()) {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
+        // The Actions button — every Location anchor, and the #turns console.
+        if (interaction.customId === ACTIONS_OPEN_ID) return void (await handleActionsOpen(interaction));
+        // A room's own button for one verb (the Depot's Send money, the Meister's Sell tax), and every verb's own
+        // buttons. Some open a modal, so none is acked here — each step acks for itself.
+        if (interaction.customId.startsWith(ACT_START_PREFIX)) return void (await handleStartButton(interaction));
+        if (interaction.customId.startsWith(ACT_VERB_PREFIX)) return void (await handleVerbComponent(interaction));
+        if (interaction.customId.startsWith(META_PREFIX)) return void (await handleMetaComponent(interaction));
         if (interaction.customId === CANCEL_ID) return void (await handleTravelCancel(interaction));
         if (interaction.customId.startsWith(CONFIRM_PREFIX)) {
           return void (await handleTravelConfirm(interaction, interaction.customId.slice(CONFIRM_PREFIX.length)));
@@ -571,6 +612,9 @@ module.exports = {
         if (interaction.customId.startsWith(EDIT_OPEN_PREFIX)) return void (await handleEditOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === ZONE_VIEW_ID) return void (await handleZoneViewPick(interaction));
+        // A pick from the Actions menu starts the verb; every verb's own selects are its steps.
+        if (interaction.customId.startsWith(ACT_MENU_PREFIX)) return void (await handleMenuPick(interaction));
+        if (interaction.customId.startsWith(ACT_VERB_PREFIX)) return void (await handleVerbComponent(interaction));
         if (interaction.customId === PICK_ID) return void (await handleTravelPick(interaction));
         if (interaction.customId === BRING_ID) {
           return void (await handleTravelBring(interaction));
@@ -650,6 +694,8 @@ module.exports = {
         }
       } else if (interaction.isModalSubmit()) {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
+        if (interaction.customId.startsWith(ACT_MODAL_PREFIX)) return void (await handleVerbModal(interaction));
+        if (interaction.customId.startsWith(META_PREFIX)) return void (await handleMetaComponent(interaction));
         if (interaction.customId.startsWith(CONVERSE_MODAL_PREFIX)) {
           return void (await handleConverseCreate(interaction, interaction.customId.slice(CONVERSE_MODAL_PREFIX.length)));
         }

@@ -1350,7 +1350,7 @@ export async function gmPlaceView(placeKey) {
   ]);
 
   // The place-only half of the affordance catalog (db/lib/placeAffordances.js). Travel and Who's here? dropped, same reason ChatAside drops them.
-  const fixtures = locationAffordances(location)
+  const fixtures = locationAffordances(location, { web: true })
     .filter((entry) => entry.id !== "travel" && entry.id !== "whosHere" && entry.id !== "examine")
     .map((entry) => ({ id: entry.id, label: entry.label, tone: entry.tone }));
 
@@ -1407,7 +1407,7 @@ export async function gmPlaceView(placeKey) {
           keys: openRoom.accessTagSlugs ?? [],
           resources: resourcesOf(openRoom),
           things: withoutResources(openRoom.tags).map((t) => toChipRow(t, GM_CHIP_CTX)),
-          fixtures: roomAffordances(openRoom).map((entry) => ({
+          fixtures: roomAffordances(openRoom, null, { web: true }).map((entry) => ({
             id: entry.id,
             label: entry.label,
             tone: entry.tone,

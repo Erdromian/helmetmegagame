@@ -41,6 +41,7 @@ const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { sendDm } = require("../../lib/dm");
 const { escortCandidates, partyOf } = require("@lifeweb/db/lib/escort");
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
+const { arrivalLinksLine } = require("@lifeweb/db/lib/syncZones/bodies");
 const { GATE_CHARACTER_SELECT, toggleGate, holdKeyedOpen } = require("@lifeweb/db/lib/gates");
 const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
@@ -115,17 +116,25 @@ async function handleTravelOpen(interaction) {
           .map((row) => (squeezeIds.has(row.location.id) ? `${row.location.name} (tight squeeze)` : row.location.name))
           .join(", ")}.`
       : null;
-  await respond(interaction, {
-    content: [
-      held ? `» *${held}*` : null,
-      entries.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
-      shutLine,
-      truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25.` : null,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    components: entries.length > 0 ? [buildLocationSelectRow(entries, current)] : [],
-  });
+  // Not fleeting: this message becomes the Bring/Confirm step when a place is
+  // picked, so a self-delete scheduled here would take Confirm with it 60s
+  // after opening — which on a phone is often mid-choice. The pick and the
+  // outcome are what clean it up.
+  await respond(
+    interaction,
+    {
+      content: [
+        held ? `» *${held}*` : null,
+        entries.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
+        shutLine,
+        truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25.` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      components: entries.length > 0 ? [buildLocationSelectRow(entries, current)] : [],
+    },
+    { fleeting: entries.length === 0 },
+  );
 }
 
 
@@ -442,7 +451,23 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
     );
   }
 
-  await respond(interaction, { content: parts.join(" "), components: [] });
+  const links = await arrivalLinks(character.id, landed.id);
+  await respond(interaction, { content: [parts.join(" "), links].filter(Boolean).join("\n"), components: [] });
+}
+
+// Links to where they landed, for a character who plays on Discord — for
+// anybody else the channel is closed and a mention reads "No access".
+async function arrivalLinks(characterId, locationId) {
+  const [mover, location, rooms] = await Promise.all([
+    prisma.character.findUnique({ where: { id: characterId }, select: { discordMirrored: true } }),
+    prisma.location.findUnique({ where: { id: locationId }, select: { discordChannelId: true } }),
+    prisma.room.findMany({
+      where: { locationId, retiredAt: null },
+      select: { kind: true, discordThreadId: true, sortOrder: true },
+    }),
+  ]).catch(() => []);
+  if (!mover?.discordMirrored) return null;
+  return arrivalLinksLine(location, rooms ?? []);
 }
 
 

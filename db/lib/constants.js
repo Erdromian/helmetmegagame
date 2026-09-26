@@ -253,7 +253,13 @@ const TAG_CATEGORY = Object.freeze({
   DEMONESS: "Demoness",
 });
 
+// The web app's public address, for anything off the web that links a player
+// to it — a Discord reply, a DM. web/lib/auth.js re-exports it as
+// CANONICAL_ORIGIN, the fallback host for sign-in, so there is one copy.
+const WEB_ORIGIN = "https://ravenheart.quest";
+
 module.exports = {
+  WEB_ORIGIN,
   FORTRESS_SLUG,
   LEAVE_ANNOUNCE_CHANNEL_ID,
   VAMPIRE_SLUG,
