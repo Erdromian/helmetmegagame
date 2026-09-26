@@ -593,6 +593,26 @@ npm run dev:check -- --anon /character    # no cookie, to confirm a gate still s
 cases — that a player is still bounced off `/gm/*` — so loosening a gate by
 accident fails the run.
 
+`dev:check` says a page rendered; the **visual goldens** say what it looked
+like. Playwright opens twenty-odd screens in a database of its own
+(`bascinet_visual`, built by `dev:visual:setup` from the same migrations and
+YAML syncs as `dev:setup`, plus fixed fixtures) with the page's clock frozen,
+and compares each to the PNG in `scripts/dev/visual/goldens/<platform>/`
+(`darwin` or `win32`; each draws text differently). A diff fails the
+run and writes expected/actual/diff images into `test-results/`.
+
+```
+npm run dev:visual:setup                   # once: the world it runs in
+npm run dev:visual                         # compare every screen
+npm run dev:visual -- -g chat             # only screens with "chat" in the name
+npm run dev:visual -- -g " map$" --update-snapshots   # meant it: re-baseline that one
+```
+
+The filter is `-g`; a bare `-- chat` matches no test at all. It starts its own
+dev server on 3111, in its own build folder so it runs beside `dev:web`, and
+forces `LOCAL_MODE`, so it never touches Discord or the shared local database. See `LOCAL-DEV.md` §5 for what
+is pinned and why the list of screens should stay short.
+
 Two things it knows that a plain `curl` does not. A `redirect()` called from a
 page rather than a layout arrives as a **200** with `NEXT_REDIRECT` buried in the
 streamed payload, and a server component that throws also answers **200**, with
@@ -1128,7 +1148,7 @@ JSX, use `RequestDialog.js` instead (`REQUESTS.md`).
 ## Web UI conventions
 
 Full detail in [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) — read
-it before writing any UI. Four rules apply everywhere:
+it before writing any UI. Six rules apply everywhere:
 
 - **Never hardcode a hex/rgb colour.** Always use `var(--x)`, so the colour
   follows the active theme. There are currently zero hardcoded colours in the
@@ -1152,6 +1172,29 @@ it before writing any UI. Four rules apply everywhere:
   result: a component referenced without its import built clean, linted
   clean, and threw only when someone opened the page. That's why the rule is
   on.
+- **Run the visual goldens after touching anything a player or GM sees.**
+  `npm run dev:visual` (setup and what it pins: "Verifying a change locally"
+  above, `LOCAL-DEV.md` §5). Read every diff it reports and sort each into
+  one of two piles: the change you meant, which gets re-baselined one screen
+  at a time with `-- -g " <screen>$" --update-snapshots`, and the change you
+  did not, which is a regression to fix before anything ships. A screen that
+  moved on a page you did not think you were touching is exactly what the
+  goldens are for, so never re-baseline the whole set in one go to make the
+  run green — a bare `--update-snapshots` rewrites every screen that failed,
+  regressions included. The goldens are per platform (`goldens/darwin/`,
+  `goldens/win32/`); re-baseline yours and say in the PR that the other
+  platform's set is now stale. If the surface
+  you changed is on no golden, add it to `pages.spec.mjs` only if it has a
+  shape nothing on the list has; otherwise take the shot without keeping it.
+- **A PR that changes the UI carries a before-and-after picture.** The
+  reviewer is Bascinet, and a picture shows a visual change faster than a
+  diff. The checked-in golden is the "before"; the actual that
+  `dev:visual` writes into `test-results/` is the "after", and the same
+  seeded scene in both is the point, so use those rather than a hand-taken
+  shot of some other character. `gh` cannot attach an image, so push the two
+  PNGs to an images-only orphan branch on the remote you push to and link
+  their `raw.githubusercontent.com` URLs in the PR body. Do it before opening
+  the PR, without being asked.
 
 ## Game state
 
@@ -1281,6 +1324,8 @@ Use a branch and a PR when the work wants eyes on it before it ships — a
 schema change, a rebalance, anything touching the live database, or a change
 large enough that "pull it and see" is a poor review. Push straight to
 `master` for the ordinary finished thing. **When it isn't obvious which, ask.**
+Either way, a change to anything on screen runs the visual goldens first, and
+a PR for one carries the before-and-after pair — see "Web UI conventions".
 
 Branch names here are plain kebab-case and say what changed, with no
 `feature/` or `fix/` prefix on Bascinet's own branches.

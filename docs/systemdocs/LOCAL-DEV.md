@@ -217,3 +217,90 @@ migration. Approval is not a reason to skip it.
   `schema.prisma`** — the running dev server has a stale generated client.
   `npm run db:generate` **and restart `dev:web`**; regenerating alone
   doesn't reach the process that already imported it.
+
+## 5. Visual goldens
+
+A screenshot of every kind of screen, checked into
+`scripts/dev/visual/goldens/`, compared pixel-for-pixel by Playwright against
+what the app draws now. It exists because the failures this app actually ships
+are page-level and only show up with real data behind them — a sheet that
+falls over on a dead character, a desk column that stopped lining up — and
+`dev:check` can only say a page rendered, not what it looked like.
+
+```
+npm run dev:visual:setup                   # once: build the world it runs in
+npm run dev:visual                         # compare every screen to its golden
+npm run dev:visual -- --update-snapshots   # a restyle was meant: re-baseline
+npm run dev:visual -- -g chat              # only the screens with "chat" in their name
+npm run dev:visual -- -g " map$" --update-snapshots   # re-baseline exactly one
+```
+
+The screen filter is `-g`. A bare `-- chat` filters by test **file**, and
+there is one file, so it runs nothing. Put `--update-snapshots` last: it takes
+an optional value and will swallow whatever comes after it. And `-g " map$"`
+is anchored on the space, not with `^`, because the title it matches starts
+with the file name. Without a `-g`, `--update-snapshots` re-baselines every
+screen that failed, the regressions along with the change you meant.
+
+**It runs in a database of its own.** `dev:visual:setup` builds
+`bascinet_visual` beside the ordinary `bascinet` — the same migrations, the
+same YAML syncs, in the same order as `dev:setup` — and then writes the
+fixtures in `scripts/dev/visual/fixtures.mjs` on top: a game in progress on an
+open Turn 3, three characters (the fullest sheet, the barest, and a body
+nobody has buried), two audit rows and a short DM thread. Nothing in it is
+random, and nothing else ever writes to it, so a golden taken today is the
+golden taken next month. The seed removes its own rows before writing them, so
+`npm run dev:visual:seed` on its own puts the world back the way it was.
+`-- --fresh` on the setup drops the database first.
+
+**It starts its own dev server**, on port 3111 (`VISUAL_PORT` to change it),
+pointed at that database with `LOCAL_MODE` forced on whatever the root `.env`
+says — so a checkout holding a real bot token still asks Discord nothing during
+a run. `dev:web` on 3000 can keep running beside it: the visual server
+builds into `web/.next-visual` (`NEXT_DIST_DIR`, read by `next.config.mjs`),
+because `next dev` refuses to start a second server on a build folder that
+already has one. The one thing it needs
+from `dev:setup` is the `.env` it writes, because the session cookies are
+signed with its `AUTH_SECRET` (the same minting as `dev:session`).
+
+**What is pinned, and what is not.** Playwright's own Chromium, one viewport
+(1440×900, and 390×844 for the mobile screens), `America/Chicago`, motion off,
+and the page's `Date` frozen at a Thursday afternoon — so the clock in the top
+bar, the lock countdown and every "3 minutes ago" hold still. What is *not*
+frozen is the server's clock: a server component that formats "how long ago"
+itself renders it with the real time, and React then regenerates that subtree
+on the client with the frozen one (a hydration warning in the server log, and
+a deterministic result). Fonts are self-hosted except the blackletter, which
+`next/font` fetches from Google once and caches.
+
+**One set of goldens per platform**, under `goldens/darwin/` and
+`goldens/win32/`. The same page drawn on macOS and on Windows is not the same
+PNG: text is rasterised differently and a line height can round to a different
+pixel, so a card sits 4px higher and the run fails with nothing wrong. A meant
+restyle re-baselines the set for the platform you are on, and the other one is
+then stale until somebody on that platform re-baselines it too — say so in the
+PR. A platform with no folder yet (Linux, in a cloud session) gets one written
+on its first run, which is a baseline of whatever the code is now, so take it
+before your change, not after, and do not commit it unless you mean to add
+that platform.
+
+**Only the viewport is compared.** Each screen is the first 1440×900 (or
+390×844) of the page, not the whole scroll height, so a change further down a
+long page — the bottom of a full character sheet — is not caught. A screen
+whose lower half matters needs its own entry that scrolls there first.
+
+**Keep the list short.** Every screen in `pages.spec.mjs` costs a re-baseline
+each time it is meant to change, and this app restyles often. Twenty screens
+that between them touch every shared component is the size; add one when it
+has a shape nothing on the list has (a new page, a new kind of state), not one
+per feature. The goldens are PNGs of a textured page and weigh about 10 MB a
+set — one more reason a re-baseline should be a deliberate act.
+
+**Reading a failure.** The run prints which screen moved and writes three
+images into `test-results/visual/` — expected, actual and the diff — plus an
+HTML report in `test-results/visual-report/`. Look at the diff. If the change
+was the point, re-baseline; if it was not, that is the regression.
+
+Also **`/handbook` is switched off** (`web/lib/handbook.js`) and answers 404,
+which is why the public screen is the sign-in page and `dev:check`'s first
+line currently fails. When it comes back, put it in both.
