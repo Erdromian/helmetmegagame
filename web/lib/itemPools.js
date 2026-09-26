@@ -2,7 +2,8 @@ import "server-only";
 import { isPointerDeviceSlug } from "@lifeweb/db/lib/pointerMint";
 import { BUTCHER_SLUG, MUTILATE_GATE_SLUGS } from "@lifeweb/db/lib/constants";
 import { isLooseCollarSlug } from "@lifeweb/db/lib/collarGlyphs";
-import { canWorkRemote } from "@lifeweb/db/lib/collar";
+import { canWorkRemote, DETONATOR_SLUG } from "@lifeweb/db/lib/collar";
+import { wornRingTokens } from "@lifeweb/db/lib/roomAccess";
 
 // The held-item flags — what is in YOUR pockets, and nothing about the room —
 // that decide which of the registry's rows show (actionRegistry.js). Shared by
@@ -10,12 +11,14 @@ import { canWorkRemote } from "@lifeweb/db/lib/collar";
 // verb in either place is lit on the same facts. Every one is re-checked by
 // its server action; a hidden button is a hint, not a lock.
 //
-// `prisma` and `character` ({ locationId }) are only for the Stepstone's
+// `prisma` and `character` ({ id, locationId }) are for the Stepstone's
 // targets, which are built ONLY for somebody carrying a stone — a sheet with no
-// stone shouldn't print the whole map into its page source. `character.role` is
-// for the Remote Detonator, which answers to one seat (COLLAR.md §3).
+// stone shouldn't print the whole map into its page source — and for the
+// Remote Detonator, which answers to the Exactor's ring (COLLAR.md §3). The
+// ring is only looked up for somebody holding a remote.
 export async function itemPools(prisma, character, heldSlugs) {
   const has = (slug) => heldSlugs.has(slug);
+  const ringTokens = has(DETONATOR_SLUG) ? await wornRingTokens(prisma, character.id) : [];
   const hasStepstone = has("stepstone");
   const stepstoneTargets = hasStepstone
     ? (
@@ -42,9 +45,9 @@ export async function itemPools(prisma, character, heldSlugs) {
     // A collar somebody has already marked is its own minted slug.
     canApplyCollar: [...heldSlugs].some(isLooseCollarSlug),
     canUnlockCollar: has("collar-key"),
-    // The remote in your hand AND the Exactor's seat: in anybody else's hand
-    // it is a box with a button on it.
-    canDetonateCollar: canWorkRemote(character, heldSlugs),
+    // The remote in your hand AND the Exactor's ring on your finger: without
+    // the ring it is a box with a button on it.
+    canDetonateCollar: canWorkRemote(heldSlugs, ringTokens),
     // Shackles only give to an Escape Artist (LESSONS.md §3c).
     canBreakRestraints: has("bound") || (has("shackled") && has("escape-artist")),
     hasDatacard: has("nuclear-datacard"),

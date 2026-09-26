@@ -13,11 +13,10 @@ import {
   isBlackMarketSeal,
 } from "@lifeweb/db";
 import {
-  DETONATOR_SLUG,
   COLLAR_KEY_SLUG,
   COLLAR_SELECT,
   wearsCollar,
-  isExactor,
+  remoteRefusal,
   needsNoConsent as collarNeedsNoConsent,
   pickLooseCollar,
   applyCollar,
@@ -3084,13 +3083,13 @@ async function requireHeld(characterId, slug, refusal) {
   if (!has) throw new UserError(refusal);
 }
 
-// The remote's gate, shared by the readout and the trigger: the Exactor's seat
-// and the remote in his hand, both re-read here. Anybody else holding one gets
-// the same refusal the device would give them.
+// The remote's gate, shared by the readout and the trigger: the remote in hand
+// and the Exactor's ring on the finger, both re-read here. Anybody else holding
+// one gets the same refusal the device would give them.
 async function requireRemote() {
   const { session, character } = await requireCharacter({ needs: ACT });
-  if (!isExactor(character)) throw new UserError("The remote doesn't answer to you.");
-  await requireHeld(character.id, DETONATOR_SLUG, "You don't have a detonator.");
+  const refusal = await remoteRefusal(prisma, character.id);
+  if (refusal) throw new UserError(refusal);
   if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
   return { session, character };
 }

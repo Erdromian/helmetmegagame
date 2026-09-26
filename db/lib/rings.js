@@ -77,6 +77,14 @@ function accessSlugsOf(characterTags) {
   return slugs;
 }
 
+// Just the worn, registered ring's tokens, off tags already loaded (the pure
+// twin of roomAccess.js#wornRingTokens). For a thing only a ring may unlock,
+// where a held tag of the same slug must not count.
+function wornRingAccess(characterTags) {
+  const ring = wornRing(characterTags);
+  return ring && isRegistered(ring) ? [...(ring.ringAccessSlugs ?? [])] : [];
+}
+
 // Which of the tokens in `accessSlugsOf` came from the ring and not from
 // something held, for a surface that wants to say "your ring opens this way".
 function ringOnlyTokens(characterTags) {
@@ -153,6 +161,7 @@ module.exports = {
   initialsOf,
   wornRing,
   accessSlugsOf,
+  wornRingAccess,
   ringOnlyTokens,
   ringAccessFor,
   spawnRingShape,

@@ -12088,10 +12088,10 @@ tags:
   # Chip is the whole gate, and the Exactor is the one seat that starts holding
   # all three.
   #
-  # The trigger answers to the Exactor's seat and nobody else's
+  # The trigger answers to whoever wears the Exactor's ring
   # (db/lib/collar.js#canWorkRemote). Anybody can buy, steal or loot one, and
-  # taking his away disarms him, but in any other hand it is a box with a
-  # button on it. Each collar picks up a glyph the first time it is locked on,
+  # taking his away disarms him, but without that ring on the finger it is a
+  # box with a button on it. Each collar picks up a glyph the first time it is locked on,
   # as its own minted pair of rows (db/lib/collarGlyphs.js) — these two catalog
   # rows are only ever a collar nobody has marked yet.
   #
@@ -12121,7 +12121,7 @@ tags:
     category: items
     group: items-gear
     sprite: c-4detonator-1
-    description: "A small, handheld device with a big red trigger and an antenna on the top. It's keyed to the Exactor. In anybody else's hand, the trigger does nothing."
+    description: "A small, handheld device with a big red trigger and an antenna on the top. It's keyed to the Exactor's ring. Without that ring on your finger, the trigger does nothing."
     manifest: black-market
     pointCost: 0
     depotPrice: 23

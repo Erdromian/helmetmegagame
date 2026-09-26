@@ -564,8 +564,8 @@ export const ACTION_SECTIONS = [
       // filter — the dialog lists everybody and the refusal is what tells you,
       // because a button that lit up only over the collared would publish the
       // Exactor's whole roster to anyone who could see it. Detonate adds one
-      // more fact about your own sheet: your seat. The remote answers to the
-      // Exactor and nobody else.
+      // more fact about your own sheet: the ring on your finger. The remote
+      // answers to whoever wears the Exactor's ring.
       { mode: "applycollar", icon: ShackleIcon, label: "Apply Collar", show: "canApplyCollar" },
       { mode: "unlockcollar", icon: KeyIcon, label: "Unlock Collar", show: "canUnlockCollar" },
       { mode: "detonatecollar", icon: SkullIcon, label: "Detonate", show: "canDetonateCollar" },

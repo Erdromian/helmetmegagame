@@ -102,22 +102,30 @@ actions in `web/app/(app)/character/actions/misc.js` (the three verbs, plus
 |---|---|---|---|
 | **Apply Collar** | a loose collar in hand | somebody here, or yourself | sometimes — see below |
 | **Unlock Collar** | `collar-key` | somebody here, alive or dead | never |
-| **Detonate** | `remote-detonator` **and the Exactor's seat** | any living neck in your zone | never |
+| **Detonate** | `remote-detonator` **and the Exactor's ring, worn** | any living neck in your zone | never |
 
 Each button is **hidden**, not greyed, and only ever on a fact about your own
-sheet — what is in your pockets, and for Detonate, your role. That is the
-metagaming rule in `web/app/components/actionRegistry.js`.
+sheet — what is in your pockets, and for Detonate, what is on your finger. That
+is the metagaming rule in `web/app/components/actionRegistry.js`.
 
-**The remote answers to one seat.** `canWorkRemote` is the Exactor's role slug
-**and** the detonator in hand — keyed on the role the way
-`db/lib/slotMachine.js` keys the house, because a detonator changing hands does
-not make the thief the Exactor. Anybody can buy, steal or loot one. Taking his
-away disarms him; it never arms anybody else. In any other hand it is a box with
-a button on it. The Collar Key stays open to anybody on purpose: freeing
-somebody is a fair thing to steal the means for. Killing somebody is not.
+**The remote answers to the Exactor's ring.** `canWorkRemote` is the detonator
+in hand **and** a worn, registered ring whose tokens include `exactors-key` —
+the token the Exactor's seat puts on his ring (`ring:` in `docs/roles.yaml`,
+`RINGS.md` §3). It reads the ring alone (`rings.js#wornRingAccess`,
+`roomAccess.js#wornRingTokens`), never a held tag, and a ring in a pocket works
+nothing. `remoteRefusal` is the same gate re-read from the database for the
+server actions and the Discord verb.
 
-With no Exactor alive, every collar in the game is dead weight until a new one
-arrives.
+So the remote is keyed like a door, not like a seat. Anybody can buy, steal or
+loot a remote, and on its own it is a box with a button on it. Steal the
+Exactor's ring **as well**, put it on, and the remote answers to you — that is
+the one way to take the power from him. A smith's ring that the Meister
+registers to the Exactor's seat carries the same token and works it too. The
+Collar Key stays open to anybody on purpose: freeing somebody is a fair thing to
+steal the means for. Killing somebody takes two things.
+
+With the Exactor's ring off every finger, every collar in the game is dead
+weight until somebody puts it on.
 
 ### Apply Collar has three doors
 
@@ -158,7 +166,7 @@ So both list everybody standing there, hoods included, under their alias
 (`web/lib/peoplePools.js#collarTargets` / `collarOthers`). Unlocking somebody
 with no collar is refused **by name**, one person per click.
 
-**The remote is the one exception, because it answers to one seat.** The
+**The remote is the one exception, because it answers to one ring.** The
 Exactor put those collars on. It lists every collar round a living neck in his
 zone, by glyph (`remoteReading`). A name goes beside a glyph only for somebody
 standing in his own Location, where he can read the clasp himself — and it is
@@ -173,8 +181,9 @@ The Exactor's own neck is left off the list. The remote is not how he dies.
 
 ## 5. Detonation
 
-**Range: the Exactor's zone.** Any living neck with that glyph in the same
-zone as him, whichever Location they are standing in. A slave can still run —
+**Range: the zone of whoever holds the remote and wears the ring** — the
+Exactor, unless somebody has taken both from him. Any living neck with that
+glyph in the same zone as him, whichever Location they are standing in. A slave can still run —
 but only out of the zone; he can walk from Location to Location pressing
 buttons. The caves are their own zones, so a slave prospecting underground is
 out of range of an Exactor who stays on the surface.

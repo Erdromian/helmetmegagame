@@ -35,6 +35,7 @@ const { locationLine, zoneLine } = require("./placeLine");
 const { SFX } = require("./sfx");
 const { sendDm } = require("./dm");
 const { createWithRetry } = require("./paperMint");
+const { wornRingTokens } = require("./roomAccess");
 const {
   COLLAR_ITEM_SLUG,
   COLLAR_LOCKED_SLUG,
@@ -54,11 +55,12 @@ const {
 const DETONATOR_SLUG = "remote-detonator";
 const COLLAR_KEY_SLUG = "collar-key";
 
-// Whose remote it is. A role slug, not a tag, the way db/lib/slotMachine.js
-// keys the house: the seat owns the trigger, and a detonator changing hands
-// does not make the thief the Exactor. Stealing the remote takes the power
-// away from him; it never hands it to anybody else.
-const EXACTOR_ROLE_SLUG = "exactor";
+// Whose remote it is. The Exactor's ring carries this token (the `ring:` block
+// in docs/roles.yaml, and docs/systemdocs/RINGS.md §3), so the remote answers
+// to whoever has that ring on their finger. The ring is keyed like a door, not
+// like the seat: somebody who steals the ring AND the remote can fire it, and
+// the remote alone arms nobody.
+const EXACTOR_RING_TOKEN = "exactors-key";
 
 // What the dead player is told. Not the Rite of Judgement's line any more: a
 // rite vaporizes, and a collar takes the head and leaves the rest.
@@ -94,14 +96,29 @@ function wearsCollar(character) {
   return [...heldSlugs(character)].some(isLockedCollarSlug);
 }
 
-function isExactor(character) {
-  return character?.role?.slug === EXACTOR_ROLE_SLUG;
+// Whether the ring on somebody's finger is the Exactor's. `ringTokens` is the
+// worn, registered ring's access list (roomAccess.js#wornRingTokens, or
+// rings.js#wornRingAccess off tags already loaded). A ring in a pocket opens
+// nothing, so it works no remote either.
+function wearsExactorsRing(ringTokens) {
+  return [...(ringTokens ?? [])].includes(EXACTOR_RING_TOKEN);
 }
 
-// The Detonate button's whole gate: the remote in your hand, and the seat it
-// answers to. `slugs` defaults to the character's own tags.
-function canWorkRemote(character, slugs = heldSlugs(character)) {
-  return isExactor(character) && slugs.has(DETONATOR_SLUG);
+// The Detonate button's whole gate: the remote in your hand, and the Exactor's
+// ring on your finger.
+function canWorkRemote(slugs, ringTokens) {
+  return Boolean(slugs?.has(DETONATOR_SLUG)) && wearsExactorsRing(ringTokens);
+}
+
+// The same gate, re-read from the database for a server action or a Discord
+// verb. Null when the remote answers, or the refusal to show.
+async function remoteRefusal(prisma, characterId) {
+  const held = await prisma.characterTag.count({
+    where: { characterId, quantity: { gt: 0 }, tag: { slug: DETONATOR_SLUG } },
+  });
+  if (!held) return "You don't have a detonator.";
+  if (!wearsExactorsRing(await wornRingTokens(prisma, characterId))) return "The remote doesn't answer to you.";
+  return null;
 }
 
 // Dead or helpless: no leave needed. bind.js's rule, read off the same derived
@@ -451,13 +468,13 @@ async function unlockCollar(prisma, { actor, target, turn }) {
   return { ok: true, ...effect };
 }
 
-// What the remote shows its owner: every collar round a living neck in the
-// Exactor's own zone, by glyph and nothing else. Who wears one is not the
-// remote's to say -- the caller adds a name only for the people standing in
-// front of him, where he can read the clasp himself (web/app/(app)/character
-// /actions/misc.js#readRemoteRequestImpl).
+// What the remote shows whoever wears the Exactor's ring: every collar round a
+// living neck in their own zone, by glyph and nothing else. Who wears one is
+// not the remote's to say -- the caller adds a name only for the people
+// standing in front of them, where they can read the clasp themselves
+// (web/app/(app)/character/actions/misc.js#readRemoteRequestImpl).
 //
-// The Exactor's own neck is left off: the remote is not how he dies.
+// The holder's own neck is left off: the remote is not how they die.
 async function remoteReading(prisma, actor) {
   if (!actor?.zoneId) return [];
   const inRange = { status: "ALIVE", zoneId: actor.zoneId, id: { not: actor.id } };
@@ -472,7 +489,7 @@ async function remoteReading(prisma, actor) {
     .sort((a, b) => a.index - b.index);
 }
 
-// The trigger. Reaches any collar round a living neck in the Exactor's zone,
+// The trigger. Reaches any collar round a living neck in the holder's zone,
 // wherever in it the wearer stands -- a slave can still run, but only out of
 // the zone. The wearer dies an ORDINARY death: the collar takes their head and
 // nothing else, so there is a body where they fell with everything they were
@@ -557,13 +574,14 @@ module.exports = {
   COLLAR_LOCKED_SLUG,
   DETONATOR_SLUG,
   COLLAR_KEY_SLUG,
-  EXACTOR_ROLE_SLUG,
+  EXACTOR_RING_TOKEN,
   COLLAR_SELECT,
   DETONATION_DEATH_REASON,
   heldSlugs,
   wearsCollar,
-  isExactor,
+  wearsExactorsRing,
   canWorkRemote,
+  remoteRefusal,
   needsNoConsent,
   collarAuthority,
   stampBlankCollars,

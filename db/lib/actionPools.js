@@ -16,7 +16,9 @@
 // `prisma` as a parameter and stays off the @lifeweb/db barrel.
 
 const { hasAttribute, GODFLESH_ATTRIBUTE, SOILERY_ATTRIBUTE } = require("./locationAttributes");
-const { accessSlugsOf } = require("./rings");
+const { accessSlugsOf, wornRingAccess } = require("./rings");
+const { isLooseCollarSlug } = require("./collarGlyphs");
+const { canWorkRemote } = require("./collar");
 const { extractToolFor, extractedThisTurn } = require("./godflesh");
 const { farmRefusalFor } = require("./soilery");
 const { breakInRefusalFor } = require("./arelitz");
@@ -435,9 +437,11 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
     canMutilate: MUTILATE_GATE_SLUGS.some(has),
     canBrand: has("branding-iron"),
     canPickpocket: holdsPocket && !pocketBlocked,
-    canApplyCollar: has("bomb-collar"),
+    // A collar somebody has already marked is its own minted slug (COLLAR.md).
+    canApplyCollar: [...heldSlugs].some(isLooseCollarSlug),
     canUnlockCollar: has("collar-key"),
-    canDetonateCollar: has("remote-detonator"),
+    // The remote in hand AND the Exactor's ring worn — never a held token.
+    canDetonateCollar: canWorkRemote(heldSlugs, wornRingAccess(tags)),
     canButcher: has(BUTCHER_SLUG),
     hasDatacard: has("nuclear-datacard"),
     hasDevice: has("nuclear-device"),
