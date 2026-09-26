@@ -8,7 +8,7 @@ const path = require("node:path");
 const { getGuildChannels, postMessage, deleteMessage, postAttachment } = require("./discordRest");
 const { buildTurnAnnouncement } = require("../turnCalendar");
 const { clockStatus, readGameState } = require("./gameState");
-const { TURNS_CONSOLE_ROW, CONSOLE_TEXT } = require("./turnsConsoleRow");
+const { TURNS_CONSOLE_ROW, CONSOLE_TEXT, LOBBY_CONSOLE_ROW, LOBBY_CONSOLE_TEXT } = require("./turnsConsoleRow");
 const { docsPath } = require("./repoPaths");
 const { clearMessagesExcept } = require("./discordRest");
 const { isTurnsChannel } = require("./turnsChannelAccess");
@@ -160,4 +160,36 @@ async function clearTurnsConsole(prisma) {
   });
 }
 
-module.exports = { postTurnsAnnouncement, postTurnsConsole, clearTurnsConsole };
+// While the lobby is open, #turns is one message with Ready / Not ready /
+// Feedback on it (db/lib/turnsConsoleRow.js#LOBBY_CONSOLE_ROW) — the only
+// Discord surface a player with no character yet has. Posted when a
+// superadmin opens the lobby and on the bot's cold start during one; the
+// first turns console at Start Game replaces it, the way every console
+// replaces the last. Tracked in the same two config columns, so a repost
+// deletes it rather than leaving two.
+async function postLobbyConsole(prisma) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const token = process.env.DISCORD_TOKEN;
+  if (!guildId || !token) return null;
+  const channels = await getGuildChannels();
+  const turnsChannel = channels.find(isTurnsChannel);
+  if (!turnsChannel) return null;
+  const config = await prisma.gameConfig.findUnique({ where: { id: 1 } });
+  if (config?.turnsConsoleChannelId === turnsChannel.id && config.turnsConsoleMessageId) {
+    await deleteMessage(turnsChannel.id, config.turnsConsoleMessageId).catch(() => {});
+  }
+  const sent = await postMessage(turnsChannel.id, LOBBY_CONSOLE_TEXT, [LOBBY_CONSOLE_ROW]).catch((err) => {
+    console.error("Lobby console: post failed:", err);
+    return null;
+  });
+  if (sent) {
+    await prisma.gameConfig.update({
+      where: { id: 1 },
+      data: { turnsConsoleChannelId: turnsChannel.id, turnsConsoleMessageId: sent.id },
+    });
+    await clearMessagesExcept(turnsChannel.id, sent.id).catch(() => {});
+  }
+  return sent;
+}
+
+module.exports = { postTurnsAnnouncement, postTurnsConsole, clearTurnsConsole, postLobbyConsole };

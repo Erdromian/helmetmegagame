@@ -1,8 +1,10 @@
 // The travel graph — the ONE place that reads LocationLink, so no caller has to remember an edge is a single undirected row that could have this location on either side. Every surface offering a destination and every crossing check comes through here: db/lib/locationTravel.js#performLocationMove, the bot's Travel picker, the escort per-follower check (MAP.md §3a), and the modular gate button — gating is not cosmetic: a hidden edge must be genuinely absent from a list, and a locked one must refuse server-side even when a client sends its id directly. Deliberately NOT on the @lifeweb/db barrel; require it by path.
-const { heldTagSlugs } = require("./roomAccess");
+const { heldTagSlugs, withRingTokens } = require("./roomAccess");
+const { RING_SLUG } = require("./rings");
 const { blocksOnFoot, equippedSlugs } = require("./mounts");
 const { heldReasonFor } = require("./intercept");
 const { cavingRestrictionsFor } = require("./cavingPass");
+const { crossingCost } = require("./crossingCost");
 
 // The two endpoints of a link, oriented so `near` is the side you're standing on. Callers only ever want `far`.
 function endpoints(link, locationId) {
@@ -112,7 +114,7 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     // Same wording a nonexistent edge gets, deliberately: a refusal that read differently would tell a player the hidden way is there.
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
-  // A tight squeeze is said to EVERYBODY on every listed branch, Giant or not, passable or not — unlike `railroad` and `openedBy`, which ride only the passable ones. The flag is never a secret (a squeeze is listed, never hidden), and the person who most needs to see it is the one it does not touch: a party leader walking their Giant friend to a hole the friend will be refused at (MAP.md §2a "Tight squeeze"). It says nothing about the lock a refusing branch is keeping quiet about, so it leaks nothing a refusal did not already.
+  // A tight squeeze is said to EVERYBODY on every listed branch, Giant or not, passable or not — unlike `openedBy`, which rides only the passable ones. The flag is never a secret (a squeeze is listed, never hidden), and the person who most needs to see it is the one it does not touch: a party leader walking their Giant friend to a hole the friend will be refused at (MAP.md §2a "Tight squeeze"). It says nothing about the lock a refusing branch is keeping quiet about, so it leaks nothing a refusal did not already.
   const tightSqueeze = Boolean(link.tightSqueeze);
   if (!hasTag) {
     return { listed: true, passable: false, refusal: "This way isn't open to you.", tightSqueeze };
@@ -129,11 +131,10 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     };
   }
   // Dismounts the traveller rather than refusing — db/lib/indoors.js's dismountForNarrowWay, called from applyLocationMoveSideEffects the same way arriving indoors parks a mount at the door. `dismounts` is surfaced so the picker can say so before anyone commits.
-  // `railroad` rides out on the PASSABLE branches only, beside `openedBy` and for the same reason: a refusal that said more than the last one would leak the edge. A tunnel nobody may enter is not a tunnel they get told about.
   if (link.onFoot && onFootBlocked) {
-    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy, railroad: Boolean(link.railroad), tightSqueeze };
+    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy, tightSqueeze };
   }
-  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy, railroad: Boolean(link.railroad), tightSqueeze };
+  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy, tightSqueeze };
 }
 
 // Does this edge have a gate to work at all? Only a modular edge does. The gate button renders off this, on the WATCHTOWER at the gate (db/lib/roomStarterRow.js) — getting into that room is the whole permission model (anyone who can see the winch may pull it), so there's no second predicate here; toggleGate only re-checks the clicker is standing at the gate.
@@ -155,7 +156,9 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
           select: { equipped: true, tag: { select: { slug: true } } },
         })
       : []);
-  const tagSlugs = new Set(tags.map((ct) => ct.tag?.slug).filter(Boolean));
+  // Plus the worn ring's doors (docs/systemdocs/RINGS.md) — a caller's own select never carries them.
+  const tagSlugs = await withRingTokens(prisma, character?.id, tags);
+  const heldPlain = new Set(tags.map((ct) => ct.tag?.slug).filter(Boolean));
   const onFootBlocked = blocksOnFoot(equippedSlugs(tags));
 
   const zoneId = fromZoneId ?? character?.zoneId ?? null;
@@ -167,13 +170,22 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
 
   const rows = links
     .map((link) => {
-      const { far } = endpoints(link, locationId);
+      const { near, far } = endpoints(link, locationId);
+      const crossesZone = Boolean(zoneId) && far.zoneId !== zoneId;
       const row = {
         location: far,
         link,
-        crossesZone: Boolean(zoneId) && far.zoneId !== zoneId,
+        crossesZone,
+        // What the crossing spends in travel (db/lib/crossingCost.js): ½
+        // between the town zones, 1 anywhere else, 0 inside a zone. Stamped
+        // here so every picker quotes the same number the mover charges.
+        cost: crossesZone ? crossingCost(near?.zone?.slug, far.zone?.slug) : 0,
         ...crossingCheck(link, { tagSlugs, onFootBlocked, now }),
       };
+      // A way the worn ring opened, not a key in hand: name the ring
+      // (docs/systemdocs/RINGS.md) — the old key's name would be a key they
+      // don't have.
+      if (row.openedBy && !heldPlain.has(row.openedBy)) row.openedBy = RING_SLUG;
       // Being held shuts every way out, not just zone crossings — an ambush is a hand on your shoulder (INTERCEPT.md). `listed` is deliberately left alone: the way still draws, just SHUT with why, rather than vanishing and reading like it never existed.
       if (heldReason) {
         row.passable = false;
@@ -394,7 +406,8 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
           select: { equipped: true, tag: { select: { slug: true } } },
         })
       : []);
-  const tagSlugs = new Set(tags.map((ct) => ct.tag?.slug).filter(Boolean));
+  // Plus the worn ring's doors (docs/systemdocs/RINGS.md) — a caller's own select never carries them.
+  const tagSlugs = await withRingTokens(prisma, character?.id, tags);
   const onFootBlocked = blocksOnFoot(equippedSlugs(tags));
   // One clock for the whole traversal, the way resolveNeighbors takes one, so a
   // propped keyed way cannot lapse halfway down the search and be both open and

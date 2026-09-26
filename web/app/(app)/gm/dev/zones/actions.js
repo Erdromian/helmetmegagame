@@ -400,9 +400,11 @@ export async function updateRoom(roomId, updatedAt, input) {
       destroysContents: Boolean(input.destroysContents),
       // The phone on the wall (docs/systemdocs/PHONES.md). A blank name means
       // no phone, which is also how a GM takes one OUT of a room — and taking
-      // the name away is the whole removal, since every dial list is built off
-      // this column. A payphone with no name is simply no phone, so the flag
-      // is cleared with it rather than left as a switch on nothing.
+      // the name away is the whole removal, since the exchange and the
+      // Phonebook are both built off this column. A payphone with no name is
+      // simply no phone, so the flag is cleared with it rather than left as a
+      // switch on nothing. A phone added here gets its number the first time
+      // somebody picks it up (db/lib/phoneNumbers.js).
       phone: trimmed(input.phone) || null,
       payphone: Boolean(trimmed(input.phone)) && Boolean(input.payphone),
       // The vending machine on the wall (docs/systemdocs/VENDING.md). Unticking
@@ -542,7 +544,6 @@ export async function createLink(input) {
         modular: Boolean(input.modular),
         keyed: Boolean(input.keyed),
         onFoot: Boolean(input.onFoot),
-        railroad: Boolean(input.railroad),
         tightSqueeze: Boolean(input.tightSqueeze),
         requiredTagSlug: trimmed(input.requiredTagSlug) || null,
         authoredOpen: input.modular ? Boolean(input.authoredOpen) : true,
@@ -565,7 +566,6 @@ export async function updateLink(linkId, updatedAt, input) {
       modular: Boolean(input.modular),
       keyed: Boolean(input.keyed),
       onFoot: Boolean(input.onFoot),
-      railroad: Boolean(input.railroad),
       tightSqueeze: Boolean(input.tightSqueeze),
       requiredTagSlug: trimmed(input.requiredTagSlug) || null,
       authoredOpen: input.modular ? Boolean(input.authoredOpen) : true,

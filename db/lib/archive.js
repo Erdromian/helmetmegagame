@@ -8,7 +8,7 @@ const { hoodToken } = require("./whosHere");
 const { loadPresentedState } = require("./examineSnapshot");
 const { roleGroupHue } = require("./roleGroups");
 const { isSfx } = require("./sfx");
-const { attachSpeaker } = require("./strangers");
+const { attachSpeaker, attachAudience } = require("./strangers");
 
 // The columns the live feed needs off a row, and nothing else — kept beside feedRowShape below so the two never drift.
 const FEED_ROW_SELECT = {
@@ -38,6 +38,11 @@ const FEED_ROW_SELECT = {
   // above is. Deliberately absent from ARCHIVE_ROW_SELECT below: the transcript is a
   // written record, and a sound is not something you read back.
   sfx: true,
+  // Who may read the row, when not the whole place (a telephone's two voices, PHONES.md
+  // §6). Selected so feedRowShape can hide them on a symbol for the lens; they are NEVER
+  // shaped onto the wire, where an id on a room row would say who holds the phone.
+  onlyCharacterId: true,
+  exceptCharacterId: true,
 };
 
 // One archived row as the wire shape /chat and /api/feed speak.
@@ -52,8 +57,10 @@ function feedRowShape(row, extra = {}) {
   const { avatarVersion, roleGroup, ...rest } = extra;
   // The real speaker rides along on a hidden symbol for db/lib/strangers.js#lensRow,
   // which decides per reader whether they can put a name to the line. It is
-  // never serialised: JSON and a spread both leave it behind.
-  return attachSpeaker({
+  // never serialised: JSON and a spread both leave it behind. The row's audience
+  // (onlyCharacterId / exceptCharacterId) rides the same way, for the lens to
+  // decide who reads the row at all.
+  return attachAudience(attachSpeaker({
     seq: String(row.seq),
     placeKey: row.placeKey ?? null,
     characterId: hooded ? null : (row.characterId ?? null),
@@ -79,7 +86,7 @@ function feedRowShape(row, extra = {}) {
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
     ...rest,
-  }, row.characterId ?? null);
+  }, row.characterId ?? null), { only: row.onlyCharacterId ?? null, except: row.exceptCharacterId ?? null });
 }
 
 // A batch of rows shaped with ONE `?v=` per character — feedRowShape falls back to
@@ -235,6 +242,10 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
         // is written as silence rather than refused — a mistyped cue must not be the reason
         // a line nobody could hear failed to be said at all.
         sfx: isSfx(entry.sfx) ? entry.sfx : null,
+        // A row for one reader only, or kept from one (db/lib/phoneVoice.js). Null on
+        // both is the whole place, which is every row that is not a telephone's.
+        onlyCharacterId: entry.onlyCharacterId ?? null,
+        exceptCharacterId: entry.exceptCharacterId ?? null,
         threadName: entry.threadName ?? null,
         discordChannelId: entry.discordChannelId ?? null,
         placeKey: entry.placeKey ?? null,

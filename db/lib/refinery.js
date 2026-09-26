@@ -7,6 +7,7 @@
 // a 28 lb lump around the floor all day to prove they own it. Prisma is a
 // parameter, never a require (db/lib/dm.js convention).
 const { accessibleRooms } = require("./roomAccess");
+const { accessSlugsOf, RING_ACCESS_TAG_FIELDS } = require("./rings");
 const { addToStack, dropCharacterTag, dropRoomTag, addToRoomStack } = require("./tagWrites");
 const { hasAttribute, REFINERY_ATTRIBUTE } = require("./locationAttributes");
 const { GODFLESH_SLUG } = require("./godflesh");
@@ -100,7 +101,7 @@ async function refineryInput(prisma, character) {
     loadRefineryStashes(prisma, [character.locationId]),
     prisma.characterTag.findMany({
       where: { characterId: character.id, quantity: { gt: 0 } },
-      select: { tag: { select: { slug: true } } },
+      select: { equipped: true, tag: { select: RING_ACCESS_TAG_FIELDS } },
     }),
     prisma.roomGuest.findMany({ where: { characterId: character.id }, select: { roomId: true } }),
   ]);
@@ -109,7 +110,7 @@ async function refineryInput(prisma, character) {
     {
       characterId: character.id,
       locationId: character.locationId,
-      heldSlugs: new Set(held.map((h) => h.tag.slug)),
+      heldSlugs: accessSlugsOf(held),
     },
     stashes,
   );
@@ -139,7 +140,7 @@ async function applyRefinery(tx, characterId, locationId) {
   const [held, guests, rooms] = await Promise.all([
     tx.characterTag.findMany({
       where: { characterId, quantity: { gt: 0 } },
-      select: { tag: { select: { slug: true } } },
+      select: { equipped: true, tag: { select: RING_ACCESS_TAG_FIELDS } },
     }),
     tx.roomGuest.findMany({ where: { characterId }, select: { roomId: true } }),
     tx.room.findMany({
@@ -147,7 +148,7 @@ async function applyRefinery(tx, characterId, locationId) {
       select: { id: true, kind: true, accessTagSlugs: true },
     }),
   ]);
-  const heldSlugs = new Set(held.map((h) => h.tag.slug));
+  const heldSlugs = accessSlugsOf(held);
   const source = inputSource({
     holdsInput: heldSlugs.has(GODFLESH_SLUG),
     rooms: accessibleRooms(rooms, heldSlugs, new Set(guests.map((g) => g.roomId))),

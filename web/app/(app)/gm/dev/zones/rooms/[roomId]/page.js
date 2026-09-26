@@ -49,6 +49,7 @@ export default async function DevRoomPage({ params }) {
             destroysContents: room.destroysContents,
             phone: room.phone,
             payphone: room.payphone,
+            phoneNumber: room.phoneNumber,
             vendingMachine: room.vendingMachine,
             accessTagSlugs: room.accessTagSlugs.join(", "),
             updatedAt: room.updatedAt.toISOString(),

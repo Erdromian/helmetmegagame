@@ -64,10 +64,13 @@ function buildLucky({ get, rv, params, caving, trinkets, moveValue, gameTurns })
 
   // ---- Trinket forging -------------------------------------------------------------------------------
   const H = Object.fromEntries(trinkets.holders.map((h) => [h.id, h]));
+  // The shelf pair is read off the shelf loop rather than named here, so a reprice that changes which pair is best
+  // moves this row with it. Its id says "shelf", not the inlay, for the same reason.
+  const shelfPair = trinkets.shelfLoop.bestSkilledLucky;
   const stoneSets = [
     { label: "no stones", inlay: 0 },
     { label: "two 10-inlay stones (Citrine, Onyx…)", inlay: 20 },
-    { label: "Iron and Jewelry off the shelf", inlay: 25 },
+    ...(shelfPair ? [{ key: "shelf", label: `${shelfPair.stones.join(" and ")} off the shelf (the shelf loop)`, inlay: shelfPair.inlay }] : []),
     { label: "Platinum and Black Diamond", inlay: 98 },
   ];
   for (const [smith, plainId, luckyId] of [["Smithing", "apprentice", "apprentice-lucky"], ["Smithing II", "skilled", "skilled-lucky"]]) {
@@ -75,7 +78,7 @@ function buildLucky({ get, rv, params, caving, trinkets, moveValue, gameTurns })
       // At the run's sell tax, which takes its share of the dearer Trinket Lucky makes.
       const d = trinkets.expectedProfit(luckyId, set.inlay) - trinkets.expectedProfit(plainId, set.inlay);
       add({
-        id: `trinket-${plainId}-${set.inlay}`,
+        id: `trinket-${plainId}-${set.key ?? set.inlay}`,
         die: "Forging a Trinket",
         who: `${smith}, forging with ${set.label}`,
         gain: d,

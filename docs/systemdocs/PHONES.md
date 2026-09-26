@@ -1,278 +1,293 @@
 # Phones
 
-The telephone network. A phone is a fixture on a Room's wall: you lift the
-receiver, pick another phone off a list, and it rings there.
+The telephone network. A phone is a fixture on a Room's wall with a four-digit
+number. You pick up the receiver, dial a number on the keypad, and the phone
+with that number rings until somebody answers it.
 
-Before this, Ravenheart had exactly one way for two people in different places
-to talk — the Council Room's intercom, which is a loudspeaker: one voice,
-everybody, one direction, no reply. A phone is the opposite of that in every
-respect, and the interesting part is what it costs you to use one.
+**This doc follows Bascinet's design document, `Phones.docx`** (§1–§7 below are
+its rules). Where the document is silent, the system keeps what it did before
+the overhaul, and those places say so.
 
-**Read this before touching `db/lib/phone.js`, `db/lib/phoneVoice.js` or
-`Room.phone`.**
+**Read this before touching `db/lib/phone.js`, `db/lib/phoneVoice.js`,
+`db/lib/phoneNumbers.js`, `Room.phone` or any `Room.phone*` column.**
 
 ## 1. The shape of it
 
 | | |
 |---|---|
 | Where a phone lives | `Room.phone`, a NAME, authored in `docs/zones.yaml` |
-| Who can be rung | every named phone; **never** a payphone |
-| What a call costs | nothing at a named phone, 1 ¢ at a payphone |
-| How long it rings | 4 rings over 60 seconds, then it gives up |
-| Who hears the ring | everybody standing in that Location, and nobody else |
-| What crosses the line | a VOICE, never a name |
-| How many receivers | one per phone, one per person |
+| Its number | `Room.phoneNumber`, four digits, rolled at every Start Game |
+| How you call | a keypad: four digits, then Dial |
+| Who can be rung | every phone, payphones included |
+| Who holds a phone | one person at a time, `Room.phoneHolderId` — and a held phone with no call still rings |
+| What a call costs | nothing at a named phone; 1 ¢ at a payphone to dial or to answer, which buys 10 minutes |
+| How long it rings | until somebody answers — capped at the caller's 10 idle minutes |
+| Who hears the ring | the phone's own Location loudly, the Locations next to it faintly |
+| What crosses the line | a VOICE, never a name — clear to the far holder, half-garbled to everybody else |
+| Where to find a number | on the phone itself, or in a Phonebook |
 
-## 2. Room.phone is a name, not a flag
+## 2. Numbers and the Phonebook
 
-`Room.phone` holds what the phone is CALLED — `"Baron's Phone"`, `"Sanctuary"`,
-`"Exactor"` — because that is what a dial list prints and what a player asks
-for. The room's own name is not it: nobody rings "Baron's Study", and two rooms
-in the game are both called "Bar".
+Every phone has a four-digit number, 1000–9999, **random and stored, never
+authored.** `docs/zones.yaml` and this repository are public, so a number
+written down anywhere, or worked out from anything a player can read, is one
+somebody could look up before the game began.
 
-`Room.payphone` is the flag beside it, and it does two things at once: the
-phone takes an obol, and it comes OFF every dial list. Those are one fact, not
-two — a payphone calls out and never rings, because there is nobody standing
-next to it whose job is to answer. A `payphone: true` with no `phone:` name is
-a sync problem, caught in `db/lib/syncZones/parse.js`.
+`db/lib/phoneNumbers.js#rollPhoneNumbers` re-rolls every phone inside Start
+Game's transaction (`db/lib/lobby.js#commitAssignment`), so last game's numbers
+are worthless. A phone with no number — one a GM added at `/gm/dev/zones`, or
+every phone in the game already running when the overhaul landed — is given one
+the first time somebody picks it up (`ensurePhoneNumbers`). The column is unique
+and the write is conditional, so two people picking up two new phones at once
+cannot land on one number. A GM reads each phone's number, read-only, on its
+room at `/gm/dev/zones`.
 
-Nothing anywhere holds a list of phones. `db/lib/phone.js#dialablePhones`
-resolves the network off the column, so **adding a phone is a YAML edit**, the
-same posture `Room.stable` takes for the Stable (`ARELITZ.md`). A GM can also
-move one at `/gm/dev/zones` by typing a new name into the room, or take one out
-by clearing the field.
+**The only places a number is matched to a phone** are the phone itself ("This
+phone's number is 3365.") and the **Phonebook**.
 
-### The thirteen
+### The Phonebook
 
-Nine named, four payphones:
+A document tag, `phonebook` in `docs/tags.yaml`: a BOOK (`paperKind`), so it is
+read by holding it and never through the catalog. Every copy is the same Tag
+row, so one write reprints all of them: `writePhonebook` sets `Tag.paperText` to
+every phone's name and number, named phones first and then the payphones, each
+alphabetical. It runs after every roll, and after `ensurePhoneNumbers` numbers
+anything. `gameWritesText: true` on the YAML entry keeps the tag sync from
+printing the placeholder `bookText` back over the numbers on the next deploy
+(`db/lib/syncTags.js`, the `gameWrittenSeal` precedent).
 
-| Phone | Room |
+Copies start in locked rooms, one each unless noted (`docs/zones.yaml` `stash:`,
+and migration `20261101000000_phone_overhaul` for rooms that already exist):
+
+| Where | Room |
 |---|---|
-| Sanctuary | `town-9-1` Ward |
-| Esculap | `town-9-2` Esculap's Office |
-| Censor | `fortress-1-2` Censor's Office |
-| Hand | `fortress-5-3` Hand's Study |
-| Baron's Phone | `fortress-4-6` Baron's Study |
-| Meister | `fortress-5-2` Meister's Study |
-| Exactor | `undertown-9-3` Exactor's Office |
-| Bishop | `town-4-6` Vestry |
-| Banneret | `factory-overseer-box` Overseer Box |
-| **Depot** (pay) | `undertown-5-1` Railway |
-| **Residences** (pay) | `town-8-2` Street |
-| **Inn** (pay) | `town-7-2` Bar, the Old Cock Inn |
-| **Den** (pay) | `undertown-8-1` Bar, the Undertown Den |
+| Order Chambers | `town-4-3` Order Chambers |
+| The Merchant's | `undertown-6-2` Merchant's Office |
+| The Keep (3) | `fortress-4-1` Council Room, `fortress-4-6` Baron's Study, `fortress-4-7` Storehouse |
+| The Den | `undertown-8-2` Dressing Room |
+| The Lifeweb | `undertown-3-3` Mortus Shacks |
+| The Inn | `town-7-6` Cellar |
+| The Gatehouse | `town-1-2` Watchhouse |
+| The Cerberon (3) | `fortress-1-2` Censor's Office, `fortress-1-3` Barracks, `fortress-1-5` Armory |
 
-The Merchant has no phone yet, though he has walls to hang one on now —
-`undertown-6` got its Storefront, Office and Cargo Bay when the Depot was split
-in two. The payphone above is on the Depot's platform next door, which is a
-different place from his counter. Giving him a line of his own is a `phone:`
-key and nothing else.
+On a running game the migration only writes the seed; the copies arrive at the
+next Start Game or wipe, which is when `db/lib/roomStashSeed.js` pours it.
 
-## 3. One button, four meanings
+## 3. Holding a phone
 
-There is one **Phone** button, on the room's starter post and in Chat's place
-panel, from one entry in `db/lib/placeAffordances.js`. What it does is decided
-when it is pressed, by `phoneView`, and never by the client:
+**Holding a phone is not being on a call.** Pressing a room's **Phone** button
+picks the receiver up — `Room.phoneHolderId` is set with a conditional update,
+so of two people reaching for it exactly one gets it — and from then on it is in
+your hand until you let go of it:
 
-| It says | Because |
+| Button | What it does |
 |---|---|
-| a dropdown of every phone | the phone is free |
-| **Answer** | this phone is ringing |
-| **Hang up** | you are holding this phone |
-| "Someone else is holding the phone." | somebody else is |
+| **Dial** | rings the number on the keypad (only with no call on the line) |
+| **Hang up** | ends the current call; **the phone stays in your hand** |
+| **Walk away** | lets go of the phone **without** hanging up — the line is left as it is for whoever picks it up next |
+| **Insert obol** | a payphone's next 10 minutes |
 
-Pressing it while you are on a call hangs up. That is the whole of hanging up —
-there is no second control.
+`phoneHolderId` is a unique index, so one person holds one phone: picking up a
+second phone lets go of the first. Opening a phone somebody else holds says
+"Someone else is using the phone." Opening a phone left hanging mid-call makes
+you the holder on that call.
 
-**The dropdown has no help text and no tooltips.** The list of phones is the
-explanation. The one thing that IS said is the payphone's price, because you
-are about to be charged and that has to be said before it happens.
+**Answering is opening the phone.** A named phone that is ringing is answered by
+pressing Phone. A ringing payphone asks for its coin first ("Insert obol").
 
-## 4. Ringing, and why it is a row
+**A phone in your hand still rings.** Holding a phone at a dial tone is not
+being on a call, so it is not busy: a call to it rings there, the dialog and the
+handset bar (and the Discord keypad) grow an **Answer** button, and reopening the
+phone answers it too. Hang up while it rings turns the caller away — to them it
+is a call hanging up, dead line and all. If you walk away, or are ejected, while
+it rings, the phone goes on ringing on the wall for whoever comes to it.
 
-A call is a `PhoneCall` row from the moment somebody lifts a receiver. The row
-holds `ringsSent` and `startedAt`, and **nothing holds a timer**.
+### The clocks
 
-A 15-second sweep in `bot/src/events/ready.js` rings what is due. It is a
-`setInterval` rather than a cron entry, because cron has no sub-minute
-schedule, and it is the only sweep in the bot that runs faster than a minute.
+All derived from timestamps on the Room, never a timer (rule 3 in
+`db/lib/phone.js`); the 15-second sweep applies them (`holderVerdict`):
 
-The ring count is DERIVED from `startedAt` (`ringsDueBy`), never incremented
-off a clock. That is what makes a bot restart mid-ring ordinary: a phone that
-rang at 0s and then not again until the process came back at 45s is on its
-fourth ring, not its second. It catches up rather than stretching the call.
+- **A payphone** runs on `phonePaidUntil`. Dialling or answering with no time
+  paid takes 1 ¢ and buys `PHONE_PAID_MS` (10 minutes). In the last
+  `PHONE_OBOL_PROMPT_MS` (1 minute) the dialog shows "The phone wants another
+  1 ¢." and an Insert obol button; the sweep says it once into the room too, for
+  a Discord holder. At 0:00 the holder is ejected and any call hangs up. A coin
+  in the last minute adds to it rather than throwing it away. Paid time belongs
+  to the phone, not the person: walk away and whoever picks it up inherits it.
+- **Any phone** drops its holder after `PHONE_HOLD_IDLE_MS` (10 minutes) with no
+  call connected (`phoneIdleSince`). Dialling restarts the clock.
+- **Leaving the Location** hangs up and lets go, as it did before the overhaul
+  (`db/lib/locationMove.js`). The design document's Walk away is a button, not a
+  side effect of walking. A holder who dies or vanishes is swept up the same way.
 
-**Only the first ring pings.** Ring one carries `@here`; the other three are
-`-#` subtext. Four `@here` in sixty seconds is a fire drill, not a phone.
+## 4. Dialling
 
-### Who the ping reaches, on both faces
+`db/lib/phone.js#dialNumber`. The keypad sends four digits (`normalizeDigits`
+refuses anything else — both faces send untrusted strings).
 
-This comes out right for free on Discord, and needs saying because it looks
-like it should not. A Room is a thread under its Location's channel, and
-Location visibility is a **per-member permission overwrite** written by
-`db/lib/locationMove.js`. So `@here` in a Room thread reaches exactly the
-people standing in that Location — not anybody who merely knows the place
-exists, and not anybody seeing it through some other system.
+| The number | What happens |
+|---|---|
+| belongs to no phone | `phone_calling` for `PHONE_MISDIAL_MS` (3 s), then the error sound and "The number you are trying to call is no longer in service." into your room's chat |
+| is busy — a call on its line (ringing, connected, or a dead line whose holder has not hung up), or this very phone | the same wait, then "The number you are trying to call is currently busy." |
+| is free | a RINGING call; `phone_calling` at your ear until somebody picks up |
 
-On the web, `@here` notifies nobody and never has: `DiscordPing`
-(`web/app/components/DiscordMarkupNodes.js`) draws the words inert on purpose.
-The web's attention-getter is the **sound**. `phone-ring` rides
-`ArchiveEntry.sfx`, and a row only reaches a browser whose feed carries that
-place — so it plays for the people in the Location and for nobody else, which
-is the same set. `phone-ring` is one of only two cues that reach a hidden tab
-(`THROUGH_A_HIDDEN_TAB` in `web/app/components/sfx.js`); the other is being
-named. A phone that stayed quiet because the tab was behind something else has
-cost somebody the call.
+The wait is honest: the server action (and the Discord handler, after its ack)
+sleeps for it, so both faces hear the same tone for the same time. The error
+sound is the dialler's own — it is in their ear, not on the wall.
 
-**The intercom is not broken and needs no fix.** It pings correctly on Discord
-(`parse: ["everyone"]`, `db/lib/intercom.js`) and deliberately not on the web,
-where the token is stripped before the row is even written.
+**Busy means a call is on the line**, never just a phone in somebody's hand
+(§3). It is decided under a row lock: both Room rows are locked `FOR UPDATE` in
+id order, then the far phone's dead line and every live call at either phone
+are checked, and only then is the call written. The lock matters because the
+two partial unique indexes on `PhoneCall`'s rooms (§7) only stop a room being
+the FROM end twice or the TO end twice, not ringing out while it is being rung.
 
-## 5. What a phone carries
+## 5. Ringing
+
+A RINGING call rings its phone every `PHONE_RING_INTERVAL_MS` (15 s) **until
+somebody answers**, with "The phone rings urgently." into the room each time.
+The count is derived from `startedAt` (`ringsDueBy`), so a bot restart catches
+up rather than stretching the ring. The design document does not say how long a
+ring may last; it stops when the caller hangs up, walks off or is ejected, and
+at the latest after `PHONE_RING_CAP_MS` — the same 10 minutes a caller standing
+there with no call connected would be dropped after. Then the caller's room
+reads "Nobody picked up."
+
+**Only the first ring pings.** Ring one carries `@here` on Discord; the rest are
+`-#` subtext. `@here` in a Room thread reaches exactly the people in that
+Location, because Location visibility is a per-member overwrite
+(`db/lib/locationMove.js`).
+
+**The bell is a loop, not a line** (§8): the rows carry no sound.
+
+## 6. What a phone carries
 
 `db/lib/phoneVoice.js`, hooked off `recordSpeech` beside the gate echo
-(`db/lib/say.js`). Two voices, and the difference is the whole social design:
+(`db/lib/say.js`). For a line said at phone A of a connected call to phone B:
 
-- **Whoever is holding the receiver** comes through clear:
-  `You hear a voice saying "…"`
-- **Everybody else in their room** comes through half-heard:
-  `You hear a voice in the background saying "…"`, garbled through
-  `db/lib/muffle.js` at `0.4` — the same fraction a shout loses one Location
-  out (`db/lib/shout.js`).
-
-So the Baron taking a call in his study is audible to the Ward, and so is
-whoever is standing behind him, badly. **You cannot take a private call in a
-crowded room, and you cannot be sure what the crowd behind the other person
-just said.** That is the feature.
-
-The caller's own room is untouched — everyone around them hears them normally.
-Only the far room gets the handset version.
-
-**A phone carries a voice, never a name.** Every line written into the far room
-is a `SYSTEM` row with no character on it, so `db/lib/presentedIdentity.js`
-never comes into it and a concealed caller stays concealed for free. A mention
-token is flattened to a bare name first, so the outbox cannot relay a second
-mention DM into a room the named person is not standing in.
-
-Written through `recordArchiveMessage`, **never** `recordSpeech`, so a carried
-line can never carry again — `gateEcho.js`'s rule, for the same reason.
-
-A `SYSTEM` row is not posted to Discord by `feedOutbox.js` (it drains `WEB`
-rows only), so `carryOverPhone` posts the Discord half itself, as `ambientLine`
-subtext. A voice out of a handset is scenery in the room it lands in.
-
-## 6. One receiver per phone, one per person
-
-"The line is busy." is true rather than hopeful, and it is **four partial
-unique indexes** that make it so, not a read-then-write:
-
-```
-PhoneCall_from_active_unique     one live call out of a room
-PhoneCall_to_active_unique       one live call into a room
-PhoneCall_caller_active_unique   one receiver per person, calling
-PhoneCall_callee_active_unique   one receiver per person, answering
-```
-
-`placeCall` checks first for a good refusal message, then treats the `P2002`
-those indexes raise as the busy signal — which is the only way to answer "is
-this line free" without a race. Two offices dialling the Ward in the same tick
-is ordinary; exactly one gets through.
-
-The caller/callee pair is not implied by the room pair: without them, the same
-character could be caller on one line and callee on another, in two different
-rooms, which a person with two hands and one location cannot be.
-
-**Prisma cannot express a partial unique index**, so these live only in the
-migration's raw SQL. Measured: `prisma migrate diff` does not mention them in
-either direction — it neither proposes dropping them nor notices they exist,
-exactly as it treats `ThreatSpawn_pending_unique`. So there is no drop to
-decline here; the danger is the other one. **A hand-written "fix drift"
-migration must not remove them**, the same warning the `DirectMessage_notify`
-trigger carries in CLAUDE.md. Without them the busy signal is a read-then-write
-and races.
-
-## 7. Hanging up
-
-| How | Far end hears | Your end hears |
+| Said by | B's holder reads | Everybody else in B reads |
 |---|---|---|
-| you press Hang up | "The person hung up." + `phone-busy` | `phone-drop` |
-| you leave the room | "The person hung up." + `phone-busy` | nothing |
-| nobody answered | "Nobody picked up." + `phone-drop` | the same |
+| A's holder | `You hear a voice saying "…"`, **clear** | the same, **half-garbled** |
+| anybody else in A | `You hear a voice in the background saying "…"`, **half-garbled** | nothing |
 
-Being hung up on and running into a dead line are the same experience from the
-receiving end, so both get the busy tone.
+With nobody holding B, B's room reads A's holder half-garbled and nothing else.
+The garble is `db/lib/muffle.js` at `PHONE_BACKGROUND_MUFFLE` (0.4), rolled once
+per line so every copy agrees. The near room is untouched.
 
-Walking out is silent on the side you left, because you are not there to hear
-it and the room did not make a noise. `db/lib/locationMove.js` does it, which
-is the writer **every** relocation runs — a teleport, a staged Relocate and a
-rite hang up as surely as walking does — and it is behind `fromLocationId`, so
-a GM Resync, a revive and a first placement are not moves and do not kill a
-live call.
+**Two voices at one place are two rows.** `ArchiveEntry.onlyCharacterId` makes a
+row one reader's alone; `exceptCharacterId` keeps a row from one reader. Both
+are hidden on the shaped row (`db/lib/strangers.js#attachAudience`, a symbol
+like the speaker's) and never put on the wire — an id on a room row would say
+who is holding the phone. `db/lib/strangers.js#readsRow` decides per reader, and
+every surface that hands feed rows to a browser already runs that lens: the
+stream, history, search, the page load and `/memories`. A GM reads both.
+`memoryHearing.logHeard` files each row only for its readers.
 
-**A dead or vanished holder is swept up, not hooked.** `clearStaleCalls` runs
-on every pass and ends any connected call whose holder is no longer ALIVE or no
-longer standing by the phone. It is a sweep rather than another hook because
-the hook list is never finished, and a stuck receiver wedges that phone for the
-rest of the game. It heals within fifteen seconds whatever caused it.
+**On Discord** a thread shows every reader the same message, so the thread gets
+the room's version. A holder who picked the phone up **on Discord**
+(`Room.phoneHeldVia`) also gets their own line as a DM (`source: "phone"`,
+a NOTICE). A web holder reads theirs in web chat.
 
-## 8. The money
+**A phone carries a voice, never a name.** Every line is a `SYSTEM` row with no
+character on it, so a concealed caller stays concealed. Mentions are flattened
+first. Lines are written through `recordArchiveMessage`, never `recordSpeech`,
+so a carried line can never carry again. **And a phone never records where a
+call came from** — no log, no caller ID, and the audit row keeps the number
+dialled, not the phone it reached.
 
-A payphone takes 1 ¢ in **real coin** out of the hand and into the Keep's
-Vault, which is what "the treasury" means here — `takeFromVault` calls it that
-in so many words. **No bank account is credited:** the Keep owns a payphone's
-take, and there is no seat whose claim should swell.
+## 7. Hanging up, and the dead line
 
-The ledger reason is `PAYPHONE`, flow `TRANSFER` — not a SINK, for the same
-reason `SLOTS` is not: the obol is still there, in a room, and somebody could
-in principle come and take it.
+Hang up plays `phone_pickup` at both ends (the design document's choice of
+sound). If the far end has a holder, their phone goes **dead** in their hand
+(`Room.phoneDeadSince`): "The call hung up." into their room, and `phone_busy`
+on loop at their ear until they hang up too. A dead line is busy to callers. If
+nobody holds the far end, the call simply ends — the document only describes a
+busy tone for "the person who has yet to hang up".
 
-**The charge is for lifting the receiver, not for a number.** A real payphone
-gives your obol back when nobody answers; the nearest thing to that which needs
-no coin return is simply letting you dial again. So a call that ends
-`noanswer` or `busy` leaves the coin in the slot for `PHONE_PAID_GRACE_MS`
-(2 minutes), and the modal reopens on the dial list. The alternative was
-charging somebody four times to reach one person who happened to be walking
-between rooms.
+A connected call with nobody holding either end is over; so is a dead line with
+nobody at it (the sweep tidies both).
 
-Named phones are free. The Baron is not renting his own wall.
+### One call per phone, one phone per person
 
-## 9. The noises
+- `PhoneCall_from_active_unique` and `PhoneCall_to_active_unique` — one live
+  call out of and into each room, `WHERE status IN ('RINGING','CONNECTED')`.
+  **Prisma cannot express a partial unique index**, and `migrate diff` does not
+  mention them either way. **A hand-written "fix drift" migration must not drop
+  them.**
+- `Room_phoneHolderId_key` — one phone in one hand, a plain unique index.
 
-Six cues, in `db/lib/sfx.js` and `web/app/components/sfx.js`. Five are the
-OpenSourceWeb library's own phone sounds; `phone-drop` is the UI click, because
-that library never recorded a cradle — the shortest, driest thing in the
-folder, which is what a receiver going down sounds like.
+The two per-person partial indexes the first version had
+(`PhoneCall_caller_active_unique`, `PhoneCall_callee_active_unique`) were
+dropped by `20261101000000_phone_overhaul`. They meant "one receiver per
+person" only while a receiver could never change hands; now it can, and the
+holder column says it directly.
 
-| Cue | When |
-|---|---|
-| `coin-insert` | a payphone takes your obol |
-| `phone-calling` | you dial a free phone |
-| `phone-ring` | the far room, four times |
-| `phone-pickup` | somebody answers |
-| `phone-busy` | the line is busy, or you were hung up on |
-| `phone-drop` | a receiver goes down |
+## 8. The noises
 
-`phone-ring` is the only one heard by a ROOM rather than by one person, which
-is why it rides an `ArchiveEntry` and the other five ride an action result.
-It is also the only one mixed up with the alarms rather than the furniture: it
-has to carry across a room nobody is looking at.
+Cues in `db/lib/sfx.js` and `web/app/components/sfx.js`:
 
-## 10. Player-facing text is a placeholder
+| Cue | File | When |
+|---|---|---|
+| `coin-insert` | `coininsert` | a payphone takes your obol |
+| `phone-calling` | `phone_calling` | **loop** at the caller's ear while it rings out, and during a misdial's wait |
+| `phone-ring` | `phone_ring` | **loop** in the ringing phone's Location |
+| `phone-ring-far` | `phone_ring` | **loop**, faint, in the Locations next to it |
+| `phone-pickup` | `phone_pickup` | somebody answers; either end hangs up |
+| `phone-busy` | `phone_busy` | **loop** at a dead line's holder's ear |
+| `phone-error` | `console_error` | a number not in service, or busy |
+| `phone-drop` | `click` | walking away from the phone |
 
-Every string in `db/lib/phoneText.js` is a stand-in. None of it has had
-Bascinet's pass over it. **Rewrite them there**, in one place — the Discord
-handler, the Chat dialog and the room lines all read the same object.
+**The loops are states, not events.** They cannot ride an `ArchiveEntry`, so the
+web feed carries a `phones` frame instead (`db/lib/phoneFrame.js`, the
+Performance frame's shape): a NOTIFY on the feed channel names the Locations
+that could hear a change, and every stream standing in one of them re-reads its
+own `{ ring: "near" | "far" | null, handset }`. `web/app/components/phoneStore.js`
+turns it into `setPhoneTones`, which holds up to two tracks (the bell, and
+whatever is at your own ear) on a map of their own: an ordinary cue does not
+stop them, and they play through a hidden tab, as the ring always has. Discord
+has no sound.
+
+## 9. The two faces
+
+**Web** (`web/app/(app)/chat/PlacePanel.js`): the Phone button opens a keypad
+dialog — the phone's number, what the line is doing, a payphone's countdown, a
+four-digit readout, the 3×4 pad (the number keys work too), Dial, Hang up, Walk
+away and Insert obol. Closing the dialog **does not** put the phone down: the
+holder has to be able to type into the room, which is how you talk down a
+phone. The **handset bar** at the top of the right column shows the phone in
+your hand, its state and its clock, with Keypad, Hang up and Walk away.
+Actions: `openPhone`, `answerPhone`, `dialPhone`, `insertPhoneObol`,
+`hangUpPhone`, `walkAwayPhone` in `web/app/(app)/chat/actions.js`.
+
+**Discord** (`bot/src/events/interactions/rooms.js`, `db/lib/phoneKeypad.js`): the
+Phone button draws the same keypad as an ephemeral message of buttons — 1–9, ⌫ 0
+Dial, then Hang up, Walk away and Insert obol. The digits typed so far ride in
+each button's custom id (`room:phone:key:<roomId>:<digits>`), and every press
+redraws the message in place, so nothing is stored between presses. The panel is
+not fleeting. The payphone's clock is a `<t:…:R>` timestamp, which counts down
+by itself. Every phone custom id starts `room:phone:`, so
+`interactionCreate.js` routes the keypad's before the plain open.
+
+## 10. Player-facing text
+
+`db/lib/phoneText.js` holds every word. The design document's own sentences are
+marked there; the rest are placeholders that have not had Bascinet's pass.
+**Rewrite them there**, in one place — both faces and the room lines read it.
 
 ## 11. Files
 
 | | |
 |---|---|
-| `db/lib/phone.js` | the network: dial, answer, hang up, the sweep |
+| `db/lib/phone.js` | holding, dialling, answering, hanging up, the sweep |
+| `db/lib/phoneNumbers.js` | the numbers, the Phonebook, the Start Game reset |
+| `db/lib/phoneFrame.js` | the web's `phones` frame and its NOTIFY |
+| `db/lib/phoneKeypad.js` | the Discord keypad's words and buttons |
 | `db/lib/phoneText.js` | every number and every word. Zero requires |
 | `db/lib/phoneVoice.js` | what a phone carries, hooked off `recordSpeech` |
+| `db/lib/strangers.js` | `readsRow`: who reads a row meant for one person |
 | `db/lib/placeAffordances.js` | the one Phone button |
-| `bot/src/events/interactions/rooms.js` | the Discord select and buttons |
+| `bot/src/events/interactions/rooms.js` | the Discord keypad |
 | `bot/src/events/ready.js` | the 15-second sweep |
-| `web/app/(app)/chat/PlacePanel.js` | `PhoneDialog` |
-| `web/app/(app)/chat/actions.js` | `openPhone` / `dialPhone` / `answerPhone` / `hangUpPhone` |
-| `db/test/phone.test.js` | the cadence and the two voices |
+| `web/app/(app)/chat/PlacePanel.js` | `PhoneDialog`, `PhoneHandsetBar` |
+| `web/app/components/phoneStore.js` | the frame, and the held tones |
+| `db/test/phone.test.js` | the numbers, the clocks, the keypad, the two voices |

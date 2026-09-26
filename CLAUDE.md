@@ -262,6 +262,7 @@ you pick the right doc — they are never enough to change code with.
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet — and **always** before adding one a per-turn ration counts |
 | [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, or the Reply window |
+| [`RINGS.md`](docs/systemdocs/RINGS.md) | You're touching signet rings — the `FINGER` slot, **anything that decides which doors a character can open** (`db/lib/rings.js#accessSlugsOf`: held tags plus the worn ring's tokens, which are the retired seat keys' slugs), the infoterminals and their PIN (`depotCounter.js#terminalAccount`), the Meister registering a smithed ring, or which rings seal (only an office's own) |
 | [`PAPERWORK.md`](docs/systemdocs/PAPERWORK.md) | You're touching paper, writing, wax seals, noticeboards, or **anything that asks whether a character can read** (`db/lib/reading.js`) |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |
@@ -272,7 +273,7 @@ you pick the right doc — they are never enough to change code with.
 | [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
 | [`ATTACK.md`](docs/systemdocs/ATTACK.md) | You're touching the Attack verb — the band gate that refuses a hopeless fight, the hold it puts on **both** sides, Break off, or the **Other** lens on `/gm/turns` |
 | [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that touches a Room's `questId`**, which marks a room a GM minted at runtime rather than one `docs/zones.yaml` named |
-| [`PHONES.md`](docs/systemdocs/PHONES.md) | You're touching the telephones — `Room.phone` and the payphones, the dial list, the four rings, what a call costs, **anything that asks whether a line is busy** (the partial unique indexes on `PhoneCall`), or **what a phone carries** (`db/lib/phoneVoice.js` — a voice, never a name) |
+| [`PHONES.md`](docs/systemdocs/PHONES.md) | You're touching the telephones — `Room.phone` and the payphones, the four-digit numbers and the Phonebook, the keypad, **who is holding a phone** (`Room.phoneHolderId`) and its clocks, **anything that asks whether a line is busy** (the partial unique indexes on `PhoneCall`), or **what a phone carries** (`db/lib/phoneVoice.js` — a voice, never a name, and a row meant for one reader) |
 | [`CHARON.md`](docs/systemdocs/CHARON.md) | You're touching the Charon — the ship above the Keep, the Panic Room's button, the six seats, the launch countdown, what `offMap` does to `/map`, or the **ASLEEP status** and the `db/lib/bodies.js` rule that keeps it out of both the curse and the Deadchat seat |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, notes |
@@ -284,7 +285,7 @@ you pick the right doc — they are never enough to change code with.
 | [`SOILERY.md`](docs/systemdocs/SOILERY.md) | You're touching Farming — the Farm button, Foodstuffs, the wither roll, the `soilery` Location attribute, Fertilizer, or moving a running game onto the Soilery Rework (`db:convert-soilery`). What eating restores and the hunger descriptors are `TURN-ENGINE.md` §5 |
 | [`ARELITZ.md`](docs/systemdocs/ARELITZ.md) | You're touching arelitz — the Stable's turn pass, `Room.stable`, breeding/hatching/maturing, breaking one in (the Gambit), butchering livestock, or mount mechanics generally (`db/lib/mounts.js`). Horses are gone; do not add one back |
 | [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
-| [`COLLAR.md`](docs/systemdocs/COLLAR.md) | You're touching the bomb collar — the loose `bomb-collar` item against the `bomb-collar-locked` trait, Apply Collar's consent handshake, the Collar Key, the Remote Detonator and the gib it causes, or **the rule that no collar picker ever says who is wearing one** |
+| [`COLLAR.md`](docs/systemdocs/COLLAR.md) | You're touching the bomb collar — the loose `bomb-collar` item against the `bomb-collar-locked` trait, Apply Collar's consent handshake, unlocking by the Exactor's or the Pusher's ring, the Remote Detonator, or **the rule that no collar picker ever says who is wearing one** |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
 | [`MOOD.md`](docs/systemdocs/MOOD.md) | You're touching the mood dial — the nine bands and the Mood box on the sheet, what sinks or lifts a mood, the phobias, Brave / Rough Camper / Outsider / Spelunker, `moodIntensity`, or the nightly mood pass |
 | [`TORTURE.md`](docs/systemdocs/TORTURE.md) | You're touching the Torture button, the torture die and its thresholds, what a broken character reveals, the `TORTURED` mood hit, the Torturing Equipment kit, or the **Mutilate** button and the body parts it takes |
@@ -1700,14 +1701,15 @@ might need to reach a real environment:
   `DirectMessage_clientNonce_key` is the fourth and the same answer: a PARTIAL
   unique index (`WHERE "clientNonce" IS NOT NULL`), so every DM writer with no
   composer behind it can go on passing null. Decline that drop too — without
-  it a retried send can reach a player twice. The four
+  it a retried send can reach a player twice. The two
   `PhoneCall_*_active_unique` indexes are the same shape again (`WHERE status
   IN ('RINGING','CONNECTED')`), and they behave like the trigger below rather
   than like the four above: `migrate diff` does not mention them in either
   direction, so there is no drop to decline — but a hand-written "fix drift"
-  migration must not remove them. They are what makes "The line is busy." true
-  rather than hopeful, and what stops one person holding two receivers in two
-  rooms (`PHONES.md` §6). The
+  migration must not remove them. They are what makes "The number you are
+  trying to call is currently busy." true rather than hopeful (`PHONES.md` §7).
+  The two per-person ones beside them were dropped on purpose by
+  `20261101000000_phone_overhaul`; `Room.phoneHolderId` is the rule now. The
   `DirectMessage_notify` trigger (`CHAT.md` §2b) is the fifth — Prisma does
   not model triggers, so `migrate diff` never mentions it either way, but a
   hand-written "fix drift" migration must not drop it. The adjudication desk's

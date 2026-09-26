@@ -175,7 +175,7 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   gates on from `docs/desires.yaml` (Mad Doctor, Esoteric, Adventurer, Cruel,
   Charitable, Death Wish, Schemer, Superstitious, Desperate, Hypochondriac,
   Hot-Headed, Corrupt). A tag that never touches Desires has no quarrel with
-  it: Lazy, Insomniac, Guilt Ridden, Torturer, the five phobias, Debtor, Poor
+  it: Lazy, Insomniac, Guilt Ridden, Torturer, the five phobias, both Debtors, Poor
   Swimmer, Motion Sickness and Lightweight all sit beside Depressed quite
   happily. **Adding a Personality tag? It belongs on Depressed's list only if
   it locks or opens Desires** — that test, not a frozen enumeration.
@@ -2136,8 +2136,11 @@ drawbacks, each with its own writer:
   boat (`web/app/(app)/character/equipActions.js`), and grants Vomiting to a
   Motion Sick passenger dragged along a mounted or boated zone crossing
   (`db/lib/locationTravel.js#vomitOnTheRide`).
-- **Debtor** is scripted at creation only: `db/lib/wantedPoster.js` grants 20
-  starting obols and posts the DEBTOR notices (`DEPOT.md`).
+- **Debtor** comes in two, **Debtor (Merchant)** (slug `debtor`) and **Debtor
+  (Exactor)** (`debtor-exactor`), which conflict with each other and are closed
+  to the creditor's own seat. Both are scripted at creation only:
+  `db/lib/wantedPoster.js` grants 20 starting obols and posts the notices for
+  whichever was taken (`DEPOT.md`).
 
 ## Phobias
 
@@ -2235,7 +2238,7 @@ schema, unread and listed under `INTERNAL_KEYS` in
 `equippable` tag names one; sync throws on one that doesn't.
 
 `equipSlot:` is the other half — `HEAD`, `BODY`, `SHIELD`, `WEAPON`,
-`ACCESSORY` and `MOUNT`, the table below. `HEAD`, `BODY` and `MOUNT` are
+`ACCESSORY`, `MOUNT` and `FINGER`, the table below. `HEAD`, `BODY` and `MOUNT` are
 layered (next paragraph), `SHIELD` holds exactly one, `WEAPON` is counted in
 hands rather than a slot, and `ACCESSORY` has no limit at all. **Two equipped
 tags may not share a slot (or, on a layered slot, a layer)** — including two
@@ -2259,6 +2262,7 @@ because a slot holds one physical thing however large the stack behind it is.
 | `WEAPON` | **four hands**, fewer if maimed (below); a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
 | `ACCESSORY` | **four**, not counting anything locked on | badges, pins, jewelry, spectacles, lenses, gloves, hand tools — and the locked bomb collar, the one accessory the wearer cannot take off (`LOCKED_ON_SLUGS` in `equipSlots.js`, `COLLAR.md` §1) |
 | `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
+| `FINGER` | **one ring**, no layers | a signet ring (`RINGS.md`) — it takes nothing from the hands or the accessories, so gloves go on beside it |
 
 ### A maiming takes hands away
 

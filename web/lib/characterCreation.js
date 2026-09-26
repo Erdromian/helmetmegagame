@@ -1,6 +1,7 @@
 // Shared rules for character creation, used by the wizard, createCharacter
 // and the GM panel, so budgets never disagree. Pure functions only.
 import { roleCapacity, SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
+import { chainOf, tagsById, heldHigherTiers } from "@lifeweb/db/lib/craftRecipes";
 
 // Defaults for the two drawback ceilings (GameConfig.maxDrawbackTags/
 // maxDrawbackPoints, editable on /gm/dev); a build stops at whichever it reaches first — TAGS.md §4a.
@@ -41,22 +42,11 @@ function totalCost(tags) {
 }
 
 // A tier chain replaces its lower tier rather than stacking; requiredTag is
-// non-replacing. tag -> [tag, ...ancestors] via parentTagId, closest-first.
-export function chainOf(tag, tagsById) {
-  const chain = [];
-  let current = tag;
-  const seen = new Set();
-  while (current && !seen.has(current.id)) {
-    chain.push(current);
-    seen.add(current.id);
-    current = current.parentTagId ? tagsById.get(current.parentTagId) : null;
-  }
-  return chain;
-}
-
-export function tagsById(tags) {
-  return new Map(tags.map((tag) => [tag.id, tag]));
-}
+// non-replacing. chainOf: tag -> [tag, ...ancestors] via parentTagId,
+// closest-first. These three live in db/lib/craftRecipes.js so the Discord
+// bot's Actions menu reads the same tier rules; imported at the top as well as
+// re-exported here, because this file is one of their readers.
+export { chainOf, tagsById, heldHigherTiers };
 
 export function cumulativeCost(tag, tagsById) {
   return totalCost(chainOf(tag, tagsById));
@@ -86,16 +76,6 @@ export function chainSiblingsToRemove(tag, tagsById, heldOrSelectedIds) {
   const chainIds = new Set(chainOf(tag, tagsById).map((t) => t.id));
   chainIds.delete(tag.id);
   return heldOrSelectedIds.filter((id) => chainIds.has(id));
-}
-
-// Non-empty means acquiring `tag` would be a downgrade, which every purchase path rejects.
-export function heldHigherTiers(tag, tagsById, heldOrSelectedIds) {
-  return heldOrSelectedIds.filter((id) => {
-    if (id === tag.id) return false;
-    const held = tagsById.get(id);
-    if (!held) return false;
-    return chainOf(held, tagsById).some((member) => member.id === tag.id);
-  });
 }
 
 export function holdsRequirement(requiredTagId, tagsById, heldOrSelectedIds) {

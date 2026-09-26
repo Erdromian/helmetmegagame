@@ -8,10 +8,14 @@ import { auth } from "@/lib/auth";
 import { acting, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
-import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
-import { grantTagSlugs, addToRoomStack, dropRoomTag, clampEquippedQuantity } from "@lifeweb/db/lib/tagWrites";
+import { addToRoomStack, dropRoomTag, clampEquippedQuantity } from "@lifeweb/db/lib/tagWrites";
+import {
+  recallComrades as recallComradesVerb,
+  recoverEquipment as recoverEquipmentVerb,
+  setHideout as setHideoutVerb,
+} from "@lifeweb/db/lib/verbs/roles";
 import { record, BURN, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import {
   readCharacterResources,
@@ -22,11 +26,8 @@ import {
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
 import {
   THANATI_SLUG,
-  THANATI_LEADER_SLUG,
-  RECOVERABLE_SLUGS,
   THANATI_WARES,
   OBOL_SLUG,
-  listComrades,
   hideoutRoom,
 } from "@lifeweb/db/lib/thanati";
 
@@ -66,98 +67,42 @@ function revalidate() {
 // ---- Recall Comrades -------------------------------------------------------
 // The roster comes back to the page that asked, as a notice under the
 // cultist's own cursor — private already, so it no longer goes out as a DM
-// too. Costs nothing and spends no Move.
+// too. Costs nothing and spends no Move. The rule is db/lib/verbs/roles.js's,
+// shared with Discord's /thanati recall, as are the two below.
 async function recallComradesImpl() {
   const { session, me } = await cultist();
-  const rows = await listComrades(prisma);
-  await logAudit(prisma, {
-    actorDiscordUserId: session.discordUserId,
-    actionType: "request_recall_comrades",
-    targetCharacterId: me.id,
-    details: { comrades: rows.map((r) => r.name) },
-  });
+  const result = await recallComradesVerb(prisma, { character: me, discordUserId: session.discordUserId });
+  if (!result.ok) throw new UserError(result.error);
   revalidate();
-  return {
-    ok: true,
-    roster: rows.map((r) => ({ name: r.name, role: r.role, leader: r.leader })),
-    line: rows.length ? "Your comrades." : "You are the last of them.",
-  };
+  return { ok: true, roster: result.roster, line: result.line };
 }
 
 // ---- Recover Equipment -----------------------------------------------------
 // Hands back whichever of the robes and the mask the cultist is not holding.
 // Spends the Move, and not on two turns running: the previous turn's row in
-// the audit log is the cooldown, the same way the medic's ration counts rows
-// (REQUESTS.md §1a), so it needs no column of its own.
-const RECOVER_ACTION = "request_recover_equipment";
-
+// the audit log is the cooldown (REQUESTS.md §1a).
 async function recoverEquipmentImpl() {
-  const { session, me, slugs } = await cultist();
-  const missing = RECOVERABLE_SLUGS.filter((slug) => !slugs.has(slug));
-  if (missing.length === 0) throw new UserError("You already hold both.");
-
-  const openTurn = await getOpenTurn();
-  await requireFreeMove(me, openTurn);
-
-  const recentTurns = await prisma.turn.findMany({
-    where: { number: { in: [openTurn.number, openTurn.number - 1] } },
-    select: { id: true },
+  const { session, me } = await cultist();
+  const result = await recoverEquipmentVerb(prisma, {
+    character: me,
+    discordUserId: session.discordUserId,
+    openTurn: await getOpenTurn(),
   });
-  const recent = await prisma.auditLog.count({
-    where: {
-      actionType: RECOVER_ACTION,
-      actorDiscordUserId: session.discordUserId,
-      turnId: { in: recentTurns.map((t) => t.id) },
-    },
-  });
-  if (recent > 0) throw new UserError("Not again so soon.");
-
-  const granted = await prisma.$transaction(async (tx) => {
-    const rows = await grantTagSlugs(tx, me.id, missing, openTurn.number);
-    await fileAutoRoutine(tx, me, openTurn, "Recovered equipment.", "auto:recover");
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: RECOVER_ACTION,
-      targetCharacterId: me.id,
-      turnId: openTurn.id,
-      details: { granted: rows.map((r) => r.tagName) },
-    });
-    return rows;
-  });
-  await afterInventoryChange([me.id]);
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
   revalidate();
-  const names = granted.map((r) => r.tagName);
-  return {
-    ok: true,
-    granted: names,
-    line: `${names.join(" and ")} back in your hands — and that's your Move for the turn.`,
-  };
+  return { ok: true, granted: result.granted, line: result.line };
 }
 
 // ---- Set Hideout -----------------------------------------------------------
 // Leader only. The room must be at the leader's own Location and behind a door
 // they can open — the same accessibleRooms every other door in the game reads.
 async function setHideoutImpl({ roomId }) {
-  const { session, me, slugs } = await cultist();
-  if (!slugs.has(THANATI_LEADER_SLUG)) throw new UserError("Not yours to press.");
-  const room = await prisma.room.findUnique({
-    where: { id: String(roomId ?? "") },
-    select: { id: true, name: true, kind: true, locationId: true, accessTagSlugs: true },
-  });
-  if (!room || room.locationId !== me.locationId) throw new UserError("That room isn't here.");
-  const keys = await roomAccessKeys(prisma, me.id);
-  if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
-    throw new UserError("That door is locked.");
-  }
-  await prisma.gameState.update({ where: { id: 1 }, data: { thanatiHideoutRoomId: room.id } });
-  await logAudit(prisma, {
-    actorDiscordUserId: session.discordUserId,
-    actionType: "thanati_hideout_set",
-    targetCharacterId: me.id,
-    details: { roomId: room.id, room: room.name },
-  });
+  const { session, me } = await cultist();
+  const result = await setHideoutVerb(prisma, { character: me, discordUserId: session.discordUserId, roomId });
+  if (!result.ok) throw new UserError(result.error);
   revalidate();
-  return { ok: true, room: room.name };
+  return { ok: true, room: result.room };
 }
 
 // ---- Purchase Gear ---------------------------------------------------------

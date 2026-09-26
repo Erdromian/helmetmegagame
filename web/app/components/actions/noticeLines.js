@@ -13,6 +13,10 @@ function named(ctx, fallback = "them") {
   return ctx?.name ?? fallback;
 }
 
+function collar(res) {
+  return res?.glyph ? `collar ${res.glyph}` : "the collar";
+}
+
 const LINES = {
   bind: (res, ctx) =>
     res.pending ? `${named(ctx, res.name)} has to agree first.` : `${named(ctx, res.name)} is tied up.`,
@@ -22,12 +26,14 @@ const LINES = {
   torture: (res, ctx) => `${named(ctx, res.name)} has been put to the question.`,
   // Apply Collar has two endings, the same shape bind does: an offer went out,
   // or it is already round their neck.
+  // The glyph is said out loud: it is how the Exactor will know this collar
+  // on his remote (COLLAR.md §2).
   applycollar: (res, ctx) =>
-    res.pending ? `${named(ctx, res.name)} has to agree first.` : `${named(ctx, res.name)} has a collar on.`,
-  unlockcollar: (res, ctx) => `${named(ctx, res.name)} is out of the collar, and it's yours.`,
-  // The server returns its own `line` here, which noticeLine prefers — only it
-  // knows whether anything was still alive to go off. This is the fallback.
-  detonatecollar: (res, ctx) => `${named(ctx, res.name)} is gone.`,
+    res.pending ? `${named(ctx, res.name)} has to agree first.` : `${named(ctx, res.name)} has ${collar(res)} on.`,
+  unlockcollar: (res, ctx) => `${named(ctx, res.name)} is out of ${collar(res)}, and it's yours.`,
+  // The server returns its own `line` here, which noticeLine prefers. This is
+  // the fallback, and like the server it names the glyph and never the wearer.
+  detonatecollar: (res) => (res.glyph ? `Collar ${res.glyph} went off.` : "The collar went off."),
   harm: (res, ctx) => (res.killed ? `${named(ctx)} is dead.` : `${named(ctx)} is hurt.`),
   mutilate: (res, ctx) => `The ${res.part ?? "piece"} is yours.`,
   brand: (res, ctx) => `${named(ctx, res.name)} is branded. It'll never come off.`,

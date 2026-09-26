@@ -9,6 +9,7 @@ const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
 const { normalizeTurnLength, nextBoundaryAfter } = require("./turnClock");
 const { seedAuthoredWorld } = require("./worldSeed");
+const { resetExchange, rollPhoneNumbers } = require("./phoneNumbers");
 
 // Button customId prefix for the assignment DM's Decline (web builds it, bot routes the click).
 const LOBBY_DECLINE_PREFIX = "lobby-decline:";
@@ -178,6 +179,13 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
     // A hold left from before Start was never a seat (seatsAllocated), and
     // counted from here on it would overfill the role the roll just filled.
     await tx.roleReservation.deleteMany({});
+
+    // A new game, a new exchange (docs/systemdocs/PHONES.md §2). Every phone
+    // gets a fresh number in the same step that hands out the roles, so a
+    // number learned last game is worth nothing in this one, and the Phonebook
+    // is reprinted with them. Every receiver goes back on its hook first.
+    await resetExchange(tx);
+    await rollPhoneNumbers(tx);
 
     await tx.gameState.update({
       where: { id: 1 },

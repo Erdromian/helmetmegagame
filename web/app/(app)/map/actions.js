@@ -23,6 +23,7 @@ import {
 } from "@lifeweb/db/lib/locationTravel";
 import { plateOf, plates } from "@/lib/mapPlates";
 import { zoneKey } from "@/lib/zones";
+import { RING_SLUG } from "@lifeweb/db/lib/rings";
 
 // The map's one loader (/map and the /chat overlay both call it). THE FOG IS
 // REAL, NOT CSS: an unknown Location is absent from the payload entirely,
@@ -136,6 +137,7 @@ async function buildMap({ character, unfogged }) {
           walkThrough: null,
           walkDismounts: false,
           crossesZone: false,
+          cost: 0,
           freeLeft: null,
           canExert: false,
           exertWhy: null,
@@ -180,7 +182,9 @@ async function buildMap({ character, unfogged }) {
     void recordArrival(prisma, character, character.locationId, { neighbours }).catch(() => {});
   }
 
-  const tagSlugs = new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  // roomAccessKeys' held set already counts the worn ring's doors (docs/systemdocs/RINGS.md).
+  const heldPlain = new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  const tagSlugs = keys?.heldSlugs ?? heldPlain;
   const onFootBlocked = blocksOnFoot(equippedSlugs(character?.tags ?? []));
   // One clock for the whole graph, so a way can't lapse halfway through the loop.
   const now = new Date();
@@ -206,7 +210,7 @@ async function buildMap({ character, unfogged }) {
     // option, and the reason is shown once the Move is spent and this was
     // the only way across.
     const exertWhy = near?.crossesZone
-      ? exertRefusal(character, config, openTurn, { left: freeLeft, acted })
+      ? exertRefusal(character, config, openTurn, { left: freeLeft, cost: near.cost, acted })
       : null;
 
     nodes.push({
@@ -243,8 +247,9 @@ async function buildMap({ character, unfogged }) {
       walkTightSqueeze: Boolean(walk?.tightSqueeze),
       tightSqueeze: Boolean(near?.tightSqueeze),
       crossesZone: Boolean(near?.crossesZone),
-      // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).
-      railroad: Boolean(near?.railroad),
+      // What the crossing spends in travel — ½ between the town zones, 1
+      // anywhere else (db/lib/crossingCost.js), 0 inside the zone.
+      cost: near?.cost ?? 0,
       freeLeft,
       // Whether Push on belongs on the card for this crossing (MAP.md §3).
       canExert: Boolean(near?.crossesZone && exertWhy === null),
@@ -273,7 +278,8 @@ async function buildMap({ character, unfogged }) {
       a: link.aId,
       b: link.bId,
       gate: gateOf(link, verdict),
-      openedBy: verdict.openedBy ?? null,
+      // A way the worn ring opened names the ring, not the old key (docs/systemdocs/RINGS.md).
+      openedBy: verdict.openedBy && !heldPlain.has(verdict.openedBy) ? RING_SLUG : (verdict.openedBy ?? null),
       // Drawn pinched on the board for everybody (MAP.md §2a).
       squeeze: Boolean(link.tightSqueeze),
     });

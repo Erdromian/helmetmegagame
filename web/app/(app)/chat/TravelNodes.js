@@ -9,7 +9,7 @@ import ChipLabel from "@/app/components/ChipLabel";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, tightSqueezeNote } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, tightSqueezeNote, affordsCrossing, formatTravel } from "@/lib/travelCost";
 import SqueezeChip from "@/app/components/SqueezeChip";
 import { loadTravel, travelTo } from "./actions";
 import { nudgePhase } from "../../components/PhaseProvider";
@@ -29,7 +29,7 @@ function titleFor(option, via) {
   if (!option.passable) return option.reason ?? option.name;
   const head = option.description ? `${option.name} — ${option.description}` : option.name;
   const lines = [head];
-  if (via) lines.push(openedByLabel(via.name));
+  if (via) lines.push(openedByLabel(via.name, via.slug));
   if (option.tightSqueeze) lines.push(tightSqueezeNote());
   return lines.join("\n");
 }
@@ -106,9 +106,9 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
     ? (data.options.find((o) => o.id === target) ?? walks.find((w) => w.id === target) ?? null)
     : null;
   const walking = Boolean(chosen && walks.some((w) => w.id === chosen.id));
-  // chosen's OWN count, not the header's ambient one — a boat's bonus is
-  // earned per crossing.
-  const nextTurn = Boolean(chosen?.crossesZone && chosen.freeLeft <= 0);
+  // chosen's OWN count against chosen's own cost — a hop into the hills costs
+  // twice what one across the town does (MAP.md §3).
+  const nextTurn = Boolean(chosen?.crossesZone && !affordsCrossing(chosen, chosen.freeLeft));
 
   // Travel, in one place. Go is the only door onto it, the way the map's is
   // (MAP.md §6c) — clicking a node only ever picks it.
@@ -120,7 +120,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
   // Push on is the same door with a die in it (MAP.md §3): its own confirm,
   // then the same action with `exert` set.
   const go = async (option, { exert = false } = {}) => {
-    if (option.crossesZone || option.railroad) {
+    if (option.crossesZone) {
       const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert });
       if (!(await confirm(asked))) return;
     }
@@ -158,7 +158,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
           stay out of it. A plain block everywhere else. */}
       <div className="chat-travel-ways" data-swipe-ignore>
         <p className="group-label chat-section-title" title={data.freeReason ?? undefined}>
-          {showTitle ? `Travel · ${data.freeLeft} available` : `${data.freeLeft} available`}
+          {showTitle ? `Travel · ${formatTravel(data.freeLeft)} available` : `${formatTravel(data.freeLeft)} available`}
         </p>
 
         {data.options.length === 0 ? (

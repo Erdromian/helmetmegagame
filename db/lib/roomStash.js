@@ -92,6 +92,20 @@ function formatStashLine(room, { hidden } = {}) {
   return `-# ${resources} ⬢ | **Tags**: ${names || "none"}${under}`;
 }
 
+// /storage's readout (bot/src/lib/roomStorage.js): every stash in the Location
+// the character can see, one room after another, each under a label the caller
+// chose (a thread link, or the bare name). `rooms` are { label, room, hidden },
+// with `room` and `hidden` as formatStashLine takes them.
+function formatLocationStorage(locationName, rooms) {
+  const head = `**Storage at ${locationName}**`;
+  if (rooms.length === 0) return `${head}\n-# There are no rooms here to keep anything in.`;
+  return [
+    head,
+    ...rooms.map(({ label, room, hidden }) => `${label}\n${formatStashLine(room, { hidden })}`),
+    "-# Putting things in or taking them out is Transfer, on the web.",
+  ].join("\n");
+}
+
 module.exports = {
   pickRandomPublicRoom,
   addRoomResources,
@@ -99,6 +113,7 @@ module.exports = {
   joinList,
   formatManifest,
   formatStashLine,
+  formatLocationStorage,
   hiddenCountLine,
   countHiddenStacks,
 };

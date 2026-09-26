@@ -1,5 +1,5 @@
 const { prisma } = require("@lifeweb/db");
-const { postTurnsConsole } = require("@lifeweb/db/lib/turnAnnouncement");
+const { postTurnsConsole, postLobbyConsole } = require("@lifeweb/db/lib/turnAnnouncement");
 const {
   isTurnsChannel,
   syncTurnsChannelAccess,
@@ -41,6 +41,13 @@ async function ensureTurnsConsole(guild) {
   // Move/Travel console back in front of players who have no characters to move. Start Game posts the first message.
   // The access sync above still runs — who may read #turns is a question the lobby has too.
   const { phase } = (await readGameState(prisma, CLOCK_STATE_SELECT)) ?? {};
+  // An open lobby gets its own console instead — Ready / Not ready / Feedback
+  // (db/lib/turnAnnouncement.js#postLobbyConsole) — which is what opening the
+  // lobby posts; this puts it back if it went missing while the bot was down.
+  if (phase === "LOBBY") {
+    await postLobbyConsole(prisma).catch((err) => console.error("Lobby console: cold start failed:", err));
+    return;
+  }
   if (phase !== "RUNNING") return;
 
   // Nothing tracked, or the tracked message is gone: repost against the open
