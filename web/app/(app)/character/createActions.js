@@ -513,14 +513,19 @@ export async function createCharacter(formData) {
   //
   // Best-effort, in the side-effect block rather than the create transaction:
   // a character with no account can open one at the counter in one click, and
-  // failing a whole character creation over a bank is the wrong trade. The
-  // credit is inside the same try, so a failed open never leaves a balance
-  // with no account under it.
+  // failing a whole character creation over a bank is the wrong trade. The open
+  // and the credit share a small transaction of their own, so a failed credit
+  // takes the account with it, and the CHARACTER_START ledger row lands with
+  // the balance it records (docs/systemdocs/ECONOMY.md §3).
   if (role.bankAccountClass) {
-    await openAccount(prisma, created, { accountClass: role.bankAccountClass, turnNumber: openTurn?.number ?? null })
-      .then(async (account) => {
+    await prisma
+      .$transaction(async (tx) => {
+        const account = await openAccount(tx, created, {
+          accountClass: role.bankAccountClass,
+          turnNumber: openTurn?.number ?? null,
+        });
         if (!account || !(role.startingAccountObols > 0)) return;
-        await bumpBankAccount(prisma, account.id, role.startingAccountObols, {
+        await bumpBankAccount(tx, account.id, role.startingAccountObols, {
           holderName: account.holderName,
           econ: { reason: "CHARACTER_START", ...turnStamp(openTurn) },
         });
