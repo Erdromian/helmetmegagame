@@ -6,14 +6,13 @@
 // Under Discord's 2000 with room for the quoting and the subtext line.
 const MAX_FEEDBACK_LENGTH = 1500;
 
-// Ten notes in any ten minutes from one person. This used to be a flat three
+// Five notes in any ten minutes from one person. This used to be a flat three
 // minutes between notes, which is exactly the wait it was meant to spare
 // somebody writing up two bugs in a row — players hit it on their second
-// report. Nobody writing by hand gets near ten in ten minutes; a script or a
-// stuck loop does, and that is all this is here to stop. The Send button is
-// already disabled while a note is in flight, so a double click was never the
-// risk.
-const FEEDBACK_BURST = 10;
+// report. Five leaves room for a run of separate bugs while keeping a script
+// or a stuck loop from flooding #bugs. The Send button is already disabled
+// while a note is in flight, so a double click was never the risk.
+const FEEDBACK_BURST = 5;
 const FEEDBACK_WINDOW_MS = 10 * 60 * 1000;
 
 // How long until this person may send another note, in ms — 0 means now.
