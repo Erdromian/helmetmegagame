@@ -59,6 +59,11 @@ disagrees with this section, this section is right.
   at 1.35, the words at weight 600 in `--chat-said`, names at 800, quoted
   speech in `--chat-speech`, and the game's own lines bold in
   `--chat-scenery` (`globals.css`, `chat.css`).
+  After player feedback on 2026-09-25, `--chat-said` was lifted to AA
+  (`#8f7d5e`, 4.93:1 on `--bg`), a player's stacked log sets at 1.45 with 7px
+  between messages, and **line breaks show**: a newline is a `<br>`
+  (`components/remarkLineBreaks.js`, chat only, as in Discord) and a blank line
+  starts a new paragraph instead of running on.
 - **Names in Here wrap** instead of being cut short. On a phone the drawer is
   at most `min(88vw, 24rem)`, each eye button is floored at 44px, and
   " · you · online" rode in the same one-line span, so names ended in "…".
@@ -2173,6 +2178,32 @@ instead, because an anchor cannot know who is reading it.
 
 Adding an affordance is one entry in the catalog, one dialog in
 Chat's right column and one server action. It is not two lists to keep in step.
+
+### 5e. The Actions menu: the sheet's verbs, from chat
+
+The sheet's verbs (`components/actionRegistry.js` — Craft, Mine, Learn skill,
+Write…) were only on `/character` until 2026-09-25, and players reported
+knowing a feature existed but not where its button was. Chat's head now
+carries an **Actions** button (`chat/next/ChatActions.js`; an icon on a phone,
+beside Search) for anyone with a living character's column.
+
+**It loads on the click, not with the page.** `/chat`'s first paint carries
+only the people half of the sheet's pools (`chat/page.js`), because the rest
+is the whole sheet load and most visits never open the menu. Opening it calls
+`chat/actionSheet.js#loadActionSheet`, which runs `character/page.js#
+FreshCharacter` itself with `raw: true` — the same load, not a second copy of
+its gates, so the menu and the sheet cannot disagree about what is lit. It
+asks again on every open. A second `RequestActionsProvider` is mounted over
+the answer and escaped to `document.body`: it draws its dialogs where it is
+mounted, and inside the head's `.bar` every dialog inherited the girder's
+uppercase face.
+
+**It stays short by showing only what applies here and now.** Work the place
+offers (Mine, Farm, Harvest Godflesh, Refine, Break In, Package — each only
+shown where the Location allows it) comes first under **Work at {place}**,
+greyed with its reason written out when it cannot be done. Everything else
+is listed only when it is lit. A greyed verb is a fact about your own sheet,
+so it is left out and counted in the foot's link to `/character` instead.
 
 ## 5a. Notifications: the DM, and Web Push
 

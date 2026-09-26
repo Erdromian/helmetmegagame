@@ -58,8 +58,9 @@ kits of the cooks and servants (`docs/roles.yaml` — 40 for a cook, which is 20
 Basic meals, one whole Move); the Soilery's Silo and a few other room stashes
 (`docs/zones.yaml`). The `alcohol` brew is made from 2 of them.
 
-The turn close also **eats** Foodstuffs for anybody about to become Starving
-([`TURN-ENGINE.md`](TURN-ENGINE.md) §5), and the Stable's arelitz eat them
+The turn close also **eats** Foodstuffs for anybody about to become Starving,
+and anything better they carry only to keep them from starving to death
+([`TURN-ENGINE.md`](TURN-ENGINE.md) §5a), and the Stable's arelitz eat them
 ([`ARELITZ.md`](ARELITZ.md)).
 
 ## 3. The Farm action

@@ -37,23 +37,37 @@ function dbName(url) {
   return parsed.pathname.replace(/^\//, "") || "bascinet_visual";
 }
 
+// createdb/dropdb connect as the OS user unless told otherwise, which only
+// works where the OS user is a Postgres superuser (Postgres.app). On a
+// Windows install the superuser is `postgres` and the OS user is somebody
+// else entirely ("role does not exist"), so pass the URL's host, port and user.
+function connectionArgs(url) {
+  const parsed = new URL(url);
+  const args = ["-h", parsed.hostname];
+  if (parsed.port) args.push("-p", parsed.port);
+  if (parsed.username) args.push("-U", decodeURIComponent(parsed.username));
+  return args;
+}
+
 function pg(cmd, args) {
   try {
     execFileSync(cmd, args, { stdio: "pipe" });
     return null;
   } catch (err) {
-    return err.stderr?.toString().trim() ?? err.message;
+    if (err.code === "ENOENT") return `${cmd} is not on PATH (it ships in Postgres's bin folder)`;
+    return err.stderr?.toString().trim() || err.message;
   }
 }
 
-function ensureDatabase(name, { fresh }) {
+function ensureDatabase(url, name, { fresh }) {
+  const conn = connectionArgs(url);
   if (fresh) {
     log(`Dropping "${name}"`);
-    const err = pg("dropdb", ["--if-exists", name]);
+    const err = pg("dropdb", [...conn, "--if-exists", name]);
     if (err) throw new Error(`dropdb failed: ${err}`);
   }
   log(`Ensuring "${name}" exists`);
-  const err = pg("createdb", [name]);
+  const err = pg("createdb", [...conn, name]);
   if (!err) console.log(`  + created`);
   else if (/already exists/.test(err)) console.log(`  = already there`);
   else throw new Error(`createdb failed: ${err}\n  Is Postgres running? See LOCAL-DEV.md §1.`);
@@ -94,7 +108,7 @@ async function main() {
   const name = dbName(url);
   console.log(`visual world: ${url}`);
 
-  ensureDatabase(name, { fresh: argv.includes("--fresh") });
+  ensureDatabase(url, name, { fresh: argv.includes("--fresh") });
   build(url);
 
   log("Seeding the fixtures");
@@ -105,7 +119,7 @@ async function main() {
   console.log(
     "\nNext:\n" +
       "  npm run dev:visual                          compare every screen to its golden\n" +
-      "  npm run dev:visual -- --update-snapshots    re-baseline after a restyle you meant\n",
+      '  npm run dev:visual -- -g " <screen>$" --update-snapshots    re-baseline a screen you meant to change\n',
   );
 }
 

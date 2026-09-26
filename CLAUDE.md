@@ -597,17 +597,20 @@ accident fails the run.
 like. Playwright opens twenty-odd screens in a database of its own
 (`bascinet_visual`, built by `dev:visual:setup` from the same migrations and
 YAML syncs as `dev:setup`, plus fixed fixtures) with the page's clock frozen,
-and compares each to the PNG in `scripts/dev/visual/goldens/`. A diff fails the
+and compares each to the PNG in `scripts/dev/visual/goldens/<platform>/`
+(`darwin` or `win32`; each draws text differently). A diff fails the
 run and writes expected/actual/diff images into `test-results/`.
 
 ```
 npm run dev:visual:setup                   # once: the world it runs in
 npm run dev:visual                         # compare every screen
-npm run dev:visual -- --update-snapshots   # the change was the point: re-baseline
+npm run dev:visual -- -g chat             # only screens with "chat" in the name
+npm run dev:visual -- -g " map$" --update-snapshots   # meant it: re-baseline that one
 ```
 
-It starts its own dev server on 3111 and forces `LOCAL_MODE`, so it never
-touches Discord or the shared local database. See `LOCAL-DEV.md` §5 for what
+The filter is `-g`; a bare `-- chat` matches no test at all. It starts its own
+dev server on 3111, in its own build folder so it runs beside `dev:web`, and
+forces `LOCAL_MODE`, so it never touches Discord or the shared local database. See `LOCAL-DEV.md` §5 for what
 is pinned and why the list of screens should stay short.
 
 Two things it knows that a plain `curl` does not. A `redirect()` called from a
@@ -1172,11 +1175,15 @@ it before writing any UI. Six rules apply everywhere:
 - **Run the visual goldens after touching anything a player or GM sees.**
   `npm run dev:visual` (setup and what it pins: "Verifying a change locally"
   above, `LOCAL-DEV.md` §5). Read every diff it reports and sort each into
-  one of two piles: the change you meant, which gets re-baselined with
-  `-- --update-snapshots`, and the change you did not, which is a regression
-  to fix before anything ships. A screen that moved on a page you did not
-  think you were touching is exactly what the goldens are for, so never
-  re-baseline the whole set in one go to make the run green. If the surface
+  one of two piles: the change you meant, which gets re-baselined one screen
+  at a time with `-- -g " <screen>$" --update-snapshots`, and the change you
+  did not, which is a regression to fix before anything ships. A screen that
+  moved on a page you did not think you were touching is exactly what the
+  goldens are for, so never re-baseline the whole set in one go to make the
+  run green — a bare `--update-snapshots` rewrites every screen that failed,
+  regressions included. The goldens are per platform (`goldens/darwin/`,
+  `goldens/win32/`); re-baseline yours and say in the PR that the other
+  platform's set is now stale. If the surface
   you changed is on no golden, add it to `pages.spec.mjs` only if it has a
   shape nothing on the list has; otherwise take the shot without keeping it.
 - **A PR that changes the UI carries a before-and-after picture.** The

@@ -1,11 +1,11 @@
 // The visual goldens: a real browser opens the signed-in app against a
 // database built for nothing else, and every screen is compared to the PNG
-// checked in under scripts/dev/visual/goldens/. A diff fails the run and
-// writes the three images (expected, actual, diff) into test-results/.
+// checked in under scripts/dev/visual/goldens/<platform>/. A diff fails the
+// run and writes the three images (expected, actual, diff) into test-results/.
 //
 //   npm run dev:visual:setup                   # once: the world + fixtures
 //   npm run dev:visual                         # compare
-//   npm run dev:visual -- --update-snapshots   # a restyle was meant: re-baseline
+//   npm run dev:visual -- -g " map$" --update-snapshots   # meant it: re-baseline one
 //
 // Everything that made the old snapshotter (scripts/dev/snapshot-site.mjs)
 // drift is pinned here: its own Chromium rather than whatever Chrome is on
@@ -30,10 +30,11 @@ export default defineConfig({
   testDir: "scripts/dev/visual",
   testMatch: /.*\.spec\.mjs$/,
   outputDir: "test-results/visual",
-  // No platform or browser suffix: the goldens are one set, taken on macOS.
-  // A Linux runner draws fonts differently and needs its own set — add the
-  // {platform} token back when there is one.
-  snapshotPathTemplate: "{testDir}/goldens/{arg}{ext}",
+  // One set per platform (darwin, win32), because each draws fonts a hair
+  // differently and line heights round to a different pixel: the macOS set
+  // failed 5 of 21 screens on Windows with nothing actually wrong. A platform
+  // with no folder yet (Linux) gets one written on its first run.
+  snapshotPathTemplate: "{testDir}/goldens/{platform}/{arg}{ext}",
 
   // `next dev` compiles each route on first request; parallel workers only
   // starve it, and the first load of a desk page can take most of a minute.
@@ -85,6 +86,11 @@ export default defineConfig({
     stderr: "pipe",
     env: {
       DATABASE_URL: VISUAL_DATABASE_URL,
+      // Its own build folder (web/next.config.mjs), so it starts beside a
+      // `dev:web` already running in this checkout. Sharing .next, next dev
+      // refuses a second server on the same folder, and with stdout ignored
+      // below all that surfaced was "exited early".
+      NEXT_DIST_DIR: ".next-visual",
       // Forced, not inherited: web/.env.local may hold a real token, and a
       // golden that depended on the live guild's roles would drift with it.
       LOCAL_MODE: "true",

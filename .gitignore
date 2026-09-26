@@ -31,6 +31,8 @@ local-discord-outbox.jsonl
 # committed, under scripts/dev/visual/goldens/.
 test-results/
 playwright-report/
+# ...and the build folder of the dev server it starts (NEXT_DIST_DIR).
+.next-visual/
 
 # Python bytecode from scripts/copy
 __pycache__/

@@ -178,9 +178,12 @@ async function seed(prisma) {
 }
 
 export async function run(argv = []) {
-  // Standalone, with nothing exported, this means the visual database — never
-  // whatever a .env beside some other script happens to say.
-  if (!process.env.DATABASE_URL) process.env.DATABASE_URL = VISUAL_DATABASE_URL;
+  // Always the visual database, whatever the shell exported. This used to
+  // fall back to it only when DATABASE_URL was unset, so `dev:visual:seed` in
+  // a shell exporting the ordinary local database set that game RUNNING,
+  // resolved its open turn and planted Turn 3 in it. VISUAL_DATABASE_URL is
+  // the way to point it somewhere else.
+  process.env.DATABASE_URL = VISUAL_DATABASE_URL;
 
   const { requireLocalDatabase } = require("../../../db/lib/localDatabase.js");
   requireLocalDatabase("The visual seed");

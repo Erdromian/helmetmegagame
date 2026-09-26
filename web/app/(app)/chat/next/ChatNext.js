@@ -21,6 +21,7 @@ import DecreeDialog from "../DecreeDialog";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { lookAt, lookAtRow } from "../actions";
 import { PlusIcon, SearchIcon } from "@/app/components/icons";
+import ChatActions from "./ChatActions";
 import IconButton from "@/app/components/IconButton";
 import { retryPending } from "../feedStore";
 import usePlaceMembers from "../usePlaceMembers";
@@ -729,6 +730,10 @@ export default function ChatNext(props) {
                     <PlusIcon width={14} height={14} aria-hidden="true" /> Add
                   </button>
                 )}
+                {/* The sheet's verbs, from the page players actually sit on.
+                    Only with a living character's column: a GM seat or a
+                    ghost has no sheet to act from. */}
+                {aside && <ChatActions narrow={narrow} placeName={aside.place?.name ?? null} />}
                 <IconButton
                   icon={SearchIcon}
                   label="Search"
