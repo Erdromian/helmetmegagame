@@ -3,6 +3,7 @@
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
+import { speakAtPlaces } from "@lifeweb/db/lib/inventoryTail";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
@@ -40,7 +41,6 @@ import { SFX } from "@lifeweb/db/lib/sfx";
 import {
   requireCharacter,
   revalidateAll,
-  speakAtSite,
 } from "./shared.js";
 
 // --- Bodies: Butcher, Bury, Engrave --------------------------------------
@@ -413,7 +413,7 @@ export async function buryCharacterRequestImpl({
     const { source, text } = result.announce;
     after(() => announceInRoom(source, character, text));
   }
-  for (const s of result.speak ?? []) speakAtSite(s.channelId, s.line);
+  if (result.speak?.length) after(() => speakAtPlaces(prisma, result.speak).catch((err) => console.error("Scene line failed:", err)));
 
   revalidateAll();
   return { name: result.name, sfx: SFX.DIG };
@@ -438,7 +438,7 @@ export async function engraveHeadstoneRequestImpl({
   // Same as Bury above: the curse lifts, the seat does not. See db/lib/ghost.js.
   await afterInventoryChange(result.touched);
   for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
-  for (const s of result.speak ?? []) speakAtSite(s.channelId, s.line);
+  if (result.speak?.length) after(() => speakAtPlaces(prisma, result.speak).catch((err) => console.error("Scene line failed:", err)));
 
   revalidateAll();
   return { name: result.name, headstone: result.headstone };

@@ -561,6 +561,15 @@ What keeps most of these on the web is how much of their dialog there is. For
 Harm, Mutilate and Mulligan it is two helpers that still live only in `web/lib`
 (`killCharacter`, `ensureCharacterRole`).
 
+**The record is the same from either face.** A verb writes the same
+`AuditLog` row wherever it was pressed. It is written inside the shared rule
+where one exists, or by `db/lib/auditLog.js#logAudit`, the twin of the web's,
+beside an offer. That matters because the per-turn rations count those rows.
+A verb's scenery goes through `db/lib/inventoryTail.js#speakAtPlaces` on both
+faces, which posts the `-#` line and files it in the archive, so `/chat` reads
+what Discord reads. Crucify, Bury and Engrave used to post it without archiving
+it, from the web as well.
+
 **Picking someone.** A verb aimed at a person opens a select built by
 `db/lib/peopleHere.js#pickerRows`. That is the same roster `/chat`'s people
 column reads. A hooded face is listed by its alias and keyed `hood:<token>`,

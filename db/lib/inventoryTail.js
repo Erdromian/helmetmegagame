@@ -14,6 +14,7 @@ const { reconcileCorpses } = require("./corpseFollow");
 const { reconcileNarrowcastAccess } = require("./locationMove");
 const { stillAlive } = require("./deathTeardown");
 const { sendDm } = require("./dm");
+const { locationLine } = require("./placeLine");
 
 // settleCarry, the body's weight, a song whose instrument just left, the
 // narrowcast overwrites and private-room threads, a dropped load, and the
@@ -83,4 +84,19 @@ async function sendOfferDm(prisma, dm, opts = {}) {
   }).catch((err) => console.error("Offer DM failed:", err?.message ?? err));
 }
 
-module.exports = { afterInventoryChangeDb, notifyCharacterDb, sendOfferDm };
+// A verb's `speak` lines — [{ locationId, text }], the scenery a place sees
+// (someone hangs on the cross, a body is buried). Shared by BOTH faces, unlike
+// the two above: placeLine.js#locationLine posts the `-#` line to the channel
+// AND writes it into the archive, so /chat shows what Discord shows. Each face
+// used to post it alone, and the line never reached the transcript.
+async function speakAtPlaces(prisma, speak) {
+  for (const s of speak ?? []) {
+    if (!s?.locationId || !s.text) continue;
+    const location = await prisma.location
+      .findUnique({ where: { id: s.locationId }, select: { id: true, name: true, discordChannelId: true } })
+      .catch(() => null);
+    if (location) await locationLine(prisma, location, s.text);
+  }
+}
+
+module.exports = { afterInventoryChangeDb, notifyCharacterDb, sendOfferDm, speakAtPlaces };

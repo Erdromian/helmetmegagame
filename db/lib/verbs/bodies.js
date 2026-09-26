@@ -12,7 +12,6 @@ const { mintHeadstone } = require("../headstone");
 const { resourcesOf } = require("../resourceStack");
 const { matchesTypedName, FULL_NAME_LIMIT } = require("../characterName");
 const { ENGRAVE_RESOURCE_COST, SHOVEL_SLUG } = require("../constants");
-const { ambientLine } = require("../ambientLine");
 const { logAudit } = require("../auditLog");
 const { refuse, asResult, moveResources } = require("./common");
 
@@ -49,15 +48,6 @@ async function spendCraftMove(tx, { character, openTurn, need, entry, notes }) {
 async function buriableBodies(prisma, character) {
   const reachable = await corpsesInReach(prisma, character);
   return reachable.filter((c) => c.human && c.deadCharacterId);
-}
-
-async function channelOf(prisma, character) {
-  if (!character.locationId) return null;
-  const location = await prisma.location.findUnique({
-    where: { id: character.locationId },
-    select: { discordChannelId: true },
-  });
-  return location?.discordChannelId ?? null;
 }
 
 // --- Bury (web: corpse.js#buryCharacterRequestImpl) ---------------------------
@@ -110,7 +100,7 @@ function buryCorpse(prisma, { character, discordUserId, tagId, sourceKey, openTu
           text: "Your body was buried. The curse has lifted — you may make a new character. You are still watching.",
         },
       ],
-      speak: [{ channelId: await channelOf(prisma, character), line: ambientLine(`${target.name} was buried.`) }],
+      speak: [{ locationId: character.locationId, text: `${target.name} was buried.` }],
       announce: corpse.source.kind === "room" ? { source: corpse.source, text: "takes a body away." } : null,
       name: target.name,
     };
@@ -163,9 +153,7 @@ function engraveHeadstone(prisma, { character, discordUserId, name: rawName, ope
           text: "Somebody carved your name in stone. The curse has lifted — you may make a new character. You are still watching.",
         },
       ],
-      speak: [
-        { channelId: await channelOf(prisma, character), line: ambientLine(`A headstone was engraved for ${target.name}.`) },
-      ],
+      speak: [{ locationId: character.locationId, text: `A headstone was engraved for ${target.name}.` }],
       name: target.name,
       headstone: headstone.name,
     };

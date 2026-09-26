@@ -16,8 +16,7 @@ const { isHere, notHereMessage } = require("@lifeweb/db/lib/presence");
 const { pickerRows } = require("@lifeweb/db/lib/peopleHere");
 const { POOL_CHARACTER_INCLUDE } = require("@lifeweb/db/lib/actionPools");
 const { WEB_ORIGIN } = require("@lifeweb/db/lib/constants");
-const { afterInventoryChangeDb, notifyCharacterDb } = require("@lifeweb/db/lib/inventoryTail");
-const { postMessage } = require("@lifeweb/db/lib/discordRest");
+const { afterInventoryChangeDb, notifyCharacterDb, speakAtPlaces } = require("@lifeweb/db/lib/inventoryTail");
 const { resolveActingMember } = require("../interactionGuild");
 const { ack, respond } = require("../respond");
 
@@ -210,9 +209,7 @@ async function finish(interaction, result, { text = null, components = [] } = {}
   if (!result.ok) return done(interaction, result.error);
   if (result.touched?.length) await afterInventoryChangeDb(prisma, result.touched);
   for (const n of result.notify ?? []) await notifyCharacterDb(prisma, n.character, n.text, n.opts);
-  for (const s of result.speak ?? []) {
-    if (s.channelId && s.line) await postMessage(s.channelId, s.line).catch((err) => console.error("Ambient line failed:", err));
-  }
+  await speakAtPlaces(prisma, result.speak).catch((err) => console.error("Ambient line failed:", err));
   return done(interaction, text ?? result.line ?? "Done.", { components });
 }
 

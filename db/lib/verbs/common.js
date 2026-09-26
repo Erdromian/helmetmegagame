@@ -13,6 +13,9 @@
 //            db/lib/inventoryTail.js).
 //   notify   [{ character, text, opts }] — unattributed notices to the people
 //            a verb happened TO (web/lib/notifyCharacter.js, inventoryTail.js).
+//   speak    [{ locationId, text }] — scenery the place sees. Both faces hand
+//            it to inventoryTail.js#speakAtPlaces, which posts it AND files it
+//            in the archive, so /chat and Discord read the same line.
 const { autoMovesOpen } = require("../turnGate");
 const { fileAutoRoutine: fileAutoRoutineInDb } = require("../moveLedger");
 const { moveParty, InsufficientResourcesError } = require("../resourceTransfer");

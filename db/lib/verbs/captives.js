@@ -13,7 +13,6 @@ const { addToStack, dropCharacterTag } = require("../tagWrites");
 const { applyMood } = require("../mood");
 const { expiryForGrant } = require("../grantExpiry");
 const { structuresAt } = require("../structures");
-const { ambientLine } = require("../ambientLine");
 const { INCAPACITATING_SLUGS } = require("../incapacitation");
 const { RESTRAINT_SLUGS } = require("../bind");
 const { mintCustomCraft, unmintCustomCraft } = require("../customCraftMint");
@@ -144,7 +143,7 @@ function crucifyCharacter(prisma, { character, discordUserId, targetKey, openTur
     return {
       touched: [target.id],
       notify: [{ character: target, text: "You've been put on the cross." }],
-      speak: [{ channelId: location?.discordChannelId ?? null, line: ambientLine(`${target.name} hangs on the cross.`) }],
+      speak: [{ locationId: location?.id ?? character.locationId, text: `${target.name} hangs on the cross.` }],
       name: target.name,
     };
   });

@@ -27,6 +27,7 @@ import {
   detonateCollar,
 } from "@lifeweb/db/lib/collar";
 import { resourcesOf, isResourcesRow } from "@lifeweb/db/lib/resourceStack";
+import { speakAtPlaces } from "@lifeweb/db/lib/inventoryTail";
 import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { concealedNow } from "@lifeweb/db/lib/presence";
 import { resolveHereTarget, refusalFor } from "@/lib/hereTarget";
@@ -230,7 +231,6 @@ import {
   resolveCraftMove,
   spendCraftMove,
   craftLedgerEntry,
-  speakAtSite,
 } from "./shared.js";
 
 // --- Destroy -------------------------------------------------------------
@@ -1687,7 +1687,7 @@ export async function crucifyCharacterRequestImpl({
   if (!result.ok) throw new UserError(result.error);
   await afterInventoryChange(result.touched);
   for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
-  for (const s of result.speak ?? []) speakAtSite(s.channelId, s.line);
+  if (result.speak?.length) after(() => speakAtPlaces(prisma, result.speak).catch((err) => console.error("Scene line failed:", err)));
   revalidateAll();
   return { name: result.name };
 }
