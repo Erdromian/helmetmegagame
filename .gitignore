@@ -26,6 +26,14 @@ docs/systemdocs/SECRETS.md
 # output, never real
 local-discord-outbox.jsonl
 
+# Playwright's output from `npm run dev:visual`: the actual/expected/diff
+# images of a failed golden and the HTML report. The goldens themselves are
+# committed, under scripts/dev/visual/goldens/.
+test-results/
+playwright-report/
+# ...and the build folder of the dev server it starts (NEXT_DIST_DIR).
+.next-visual/
+
 # Python bytecode from scripts/copy
 __pycache__/
 *.pyc

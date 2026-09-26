@@ -450,6 +450,46 @@
   padding: var(--sp-2);
 }
 
+/* A shut block (chat/next/FoldBlock.js) keeps its body mounted and hidden.
+   The attribute alone loses to any display a child rule sets, so say it. */
+[data-chat-next] .block > .body[hidden] {
+  display: none;
+}
+
+/* ---------- The right column's folds (chat/next/FoldBlock.js) ---------- */
+
+/* Every block's girder title IS its fold: it takes the bar's own face —
+   uppercase, the heading weight — rather than the small muted line
+   .chat-details-fold draws, so "Things · 4" reads as a section like "Here · 2",
+   and every head in the column folds the same way. */
+[data-chat-next] .chat-aside-fold {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+[data-chat-next] .chat-aside-fold:hover {
+  color: var(--text-hi);
+}
+[data-chat-next] .chat-aside-fold:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+[data-chat-next] .chat-aside-fold svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  transition: transform 120ms ease-out;
+}
+[data-chat-next] .chat-aside-fold svg[data-open="true"] {
+  transform: rotate(180deg);
+}
+
 /* ── WELL (vocabulary §1) ────────────────────────────────────────────────
    A hole you put something into. Dark PLUS an inset shadow — without the inset
    it reads as a lighter rectangle rather than a hole, and that is the whole
@@ -1039,4 +1079,93 @@
   padding: 2px var(--sp-2);
   font-size: var(--fs-xs);
   line-height: 1;
+}
+
+/* ---------- the Actions menu (next/ChatActions.js) ---------- */
+
+/* The head's button: a labelled .btn-secondary on a desktop, the same size
+   as Add beside it, so it reads as a thing to press rather than a heading. */
+[data-chat-next] .chat-head-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px var(--sp-2);
+  font-size: var(--fs-xs);
+  line-height: 1;
+}
+
+/* The menu is portaled to document.body (ClickMenu.js), outside
+   [data-chat-next], so none of these are scoped to it. */
+.chat-actions-menu {
+  width: min(22rem, calc(100vw - 16px));
+  overflow-y: auto;
+  padding: var(--sp-2) var(--sp-3);
+}
+
+.chat-actions-head {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+}
+
+/* Two columns of verbs: a single column of twenty was a scroll, and the
+   labels are short enough that two fit the menu's width. */
+.chat-actions-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: var(--sp-3);
+}
+
+/* The tooltip's wrapper (.tag-hover) wears the mono face, which is for data;
+   a verb is a word. */
+.chat-actions-item .tag-hover,
+.chat-actions-item .menu-item {
+  font-family: var(--font-sans);
+}
+.chat-actions-item .menu-item {
+  gap: 6px;
+  padding: 3px 0;
+  font-size: var(--fs-sm);
+}
+.chat-actions-item .menu-item svg {
+  color: var(--muted);
+  flex-shrink: 0;
+}
+.chat-actions-item .menu-item:disabled,
+.chat-actions-item .menu-item[aria-disabled="true"] {
+  color: var(--muted);
+  cursor: not-allowed;
+  text-decoration: none;
+}
+
+/* Why a place's work is greyed, written out — a phone can't hover for it. */
+.chat-actions-why {
+  margin: 0 0 2px 21px;
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  font-style: italic;
+}
+
+.chat-actions-note {
+  margin: var(--sp-1) 0;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  font-style: italic;
+}
+
+.chat-actions-sheet {
+  color: var(--accent-text);
+  font-size: var(--fs-xs);
+  text-decoration: underline;
+}
+.chat-actions-sheet:hover {
+  color: var(--text-hi);
+}
+
+@media (max-width: 720px) {
+  .chat-actions-item .menu-item {
+    min-height: var(--tap-sm, 36px);
+  }
 }

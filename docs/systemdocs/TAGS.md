@@ -175,7 +175,7 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   gates on from `docs/desires.yaml` (Mad Doctor, Esoteric, Adventurer, Cruel,
   Charitable, Death Wish, Schemer, Superstitious, Desperate, Hypochondriac,
   Hot-Headed, Corrupt). A tag that never touches Desires has no quarrel with
-  it: Lazy, Insomniac, Guilt Ridden, Torturer, the five phobias, Debtor, Poor
+  it: Lazy, Insomniac, Guilt Ridden, Torturer, the five phobias, both Debtors, Poor
   Swimmer, Motion Sickness and Lightweight all sit beside Depressed quite
   happily. **Adding a Personality tag? It belongs on Depressed's list only if
   it locks or opens Desires** — that test, not a frozen enumeration.
@@ -2136,8 +2136,11 @@ drawbacks, each with its own writer:
   boat (`web/app/(app)/character/equipActions.js`), and grants Vomiting to a
   Motion Sick passenger dragged along a mounted or boated zone crossing
   (`db/lib/locationTravel.js#vomitOnTheRide`).
-- **Debtor** is scripted at creation only: `db/lib/wantedPoster.js` grants 20
-  starting obols and posts the DEBTOR notices (`DEPOT.md`).
+- **Debtor** comes in two, **Debtor (Merchant)** (slug `debtor`) and **Debtor
+  (Exactor)** (`debtor-exactor`), which conflict with each other and are closed
+  to the creditor's own seat. Both are scripted at creation only:
+  `db/lib/wantedPoster.js` grants 20 starting obols and posts the notices for
+  whichever was taken (`DEPOT.md`).
 
 ## Phobias
 

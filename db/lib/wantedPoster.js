@@ -1,13 +1,14 @@
 // The world puts a face up — Wanted and Debtor alike. A character who turns up already Wanted (a creation-time buy) gets three sheets the moment
 // they arrive: one in the garrison mess, one in the Censor's office, one pinned to the board in the Square. Debtor works the same shape in
-// different rooms, and its line never names a zone — the debt is the debt wherever the debtor stands. The Wanted line names the zone the character
+// different rooms — the Merchant's, or the Exactor's Den, by which of the two Debtor tags was taken — and its line never names a zone: the debt
+// is the debt wherever the debtor stands. The Wanted line names the zone the character
 // STARTED in and never updates — a snapshot going stale the moment they move. Three separate sheets, not one: NoticePost.tagId is @unique, so a
 // pinned poster cannot also be sitting in a stash. Takes `prisma`, stays off the @lifeweb/db barrel.
 
 const { mintUnownedPaper } = require("./paperMint");
 const { addToRoomStack } = require("./tagWrites");
 const { expiryFrom } = require("./turnFormat");
-const { DEBTOR_SLUG } = require("./constants");
+const { DEBTOR_SLUG, DEBTOR_EXACTOR_SLUG } = require("./constants");
 // The tag itself lives in wanted.js; this file is only the paper. Both re-exported below.
 const { WANTED_SLUG, isWanted } = require("./wanted");
 
@@ -17,8 +18,8 @@ const DEBTOR_STARTING_OBOLS = 20;
 // NoticePost.expiresTurn is required, so a poster needs a clock — this is the one that reads as "indefinitely".
 const POSTER_TURNS = 30;
 
-// One spec per kind of notice: who authored it, which two rooms get a loose sheet, which Location's noticeboard gets the pinned one, the text, and
-// whether that text needs a zone name.
+// One spec per kind of notice: who authored it, which two rooms get a loose sheet, which Location's noticeboard gets the pinned one (null for
+// none), the text, and whether that text needs a zone name.
 const NOTICE_SPECS = {
   WANTED: {
     author: "The Cerberon",
@@ -37,11 +38,30 @@ const NOTICE_SPECS = {
     text: (name) => `DEBTOR: ${name}. Owes: ${DEBTOR_DEBT_OBOLS} obols. Send the dockers.`,
     needsZone: false,
   },
+  DEBTOR_EXACTOR: {
+    author: "The Exactor",
+    // His office and the Den's bar. Nothing is pinned: the Den has no
+    // noticeboard, and a debt to the Exactor is not announced at the Depot.
+    roomSlugs: ["undertown-9-3", "undertown-8-1"],
+    boardLocationSlug: null,
+    text: (name) => `${name}. Owes the house: ${DEBTOR_DEBT_OBOLS} obols.`,
+    needsZone: false,
+  },
 };
 
-function isDebtor(heldSlugs) {
+// Which notice each Debtor tag puts up. The two conflict (docs/tags.yaml), so a character holds one at most.
+const DEBTOR_NOTICES = [
+  [DEBTOR_SLUG, NOTICE_SPECS.DEBTOR],
+  [DEBTOR_EXACTOR_SLUG, NOTICE_SPECS.DEBTOR_EXACTOR],
+];
+
+function heldDebts(heldSlugs) {
   const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
-  return held.has(DEBTOR_SLUG);
+  return DEBTOR_NOTICES.filter(([slug]) => held.has(slug)).map(([, spec]) => spec);
+}
+
+function isDebtor(heldSlugs) {
+  return heldDebts(heldSlugs).length > 0;
 }
 
 // Puts the three sheets up for one notice spec. Best-effort by contract: a poster may never cost a character that already exists.
@@ -57,10 +77,9 @@ async function postNotices(prisma, character, openTurn, spec) {
     where: { slug: { in: spec.roomSlugs } },
     select: { id: true },
   });
-  const board = await prisma.location.findUnique({
-    where: { slug: spec.boardLocationSlug },
-    select: { id: true },
-  });
+  const board = spec.boardLocationSlug
+    ? await prisma.location.findUnique({ where: { slug: spec.boardLocationSlug }, select: { id: true } })
+    : null;
 
   // One transaction per sheet rather than one for all three — Postgres aborts a whole transaction on the first failed statement, so batching
   // would turn one unlucky waybill code into three lost posters.
@@ -98,8 +117,8 @@ async function postWantedPosters(prisma, character, openTurn) {
   return postNotices(prisma, character, openTurn, NOTICE_SPECS.WANTED);
 }
 
-async function postDebtorNotices(prisma, character, openTurn) {
-  return postNotices(prisma, character, openTurn, NOTICE_SPECS.DEBTOR);
+async function postDebtorNotices(prisma, character, openTurn, heldSlugs) {
+  for (const spec of heldDebts(heldSlugs)) await postNotices(prisma, character, openTurn, spec);
 }
 
 module.exports = {

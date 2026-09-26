@@ -1,0 +1,8 @@
+/* Applied to the page for the duration of a screenshot only
+   (playwright.config.mjs, expect.toHaveScreenshot.stylePath). */
+
+/* Next's dev-mode badge in the corner: "Compiling…", the N, the issue
+   count. It changes with what the server happens to be doing. */
+nextjs-portal {
+  display: none !important;
+}

@@ -546,6 +546,11 @@ groups:
         - War Hammer
         - Silver Knife
         - Shield
+        # The Order's crossbow and tear gas, which used to lie in the
+        # Cathedral's Order Chambers where every Order Key could take them
+        # (docs/zones.yaml town-4-3).
+        - Crossbow
+        - Tear Gas Grenade x3
         - Mail Shirt
         - Post-Christian
         - Inquisitor's Longcoat
@@ -646,7 +651,9 @@ groups:
       starting_tags:
         - Censor's Helmet
         - Armory Key
-        - Cerberus Key
+        # Their own and the Garrison's 3 spares, which used to lie in the
+        # Censor's Office where every Cerberus could pocket one.
+        - Cerberus Key x4
         - Censor's Key
         - Tower Key
         - Ravenhearter
@@ -660,6 +667,12 @@ groups:
         - Truncheon
         - Broadsword
         - Shield
+        # The Garrison's spare crossbow, hound and arelitz start here rather
+        # than in the Watchtower and the Stables, so they are the Censor's
+        # to hand out (docs/zones.yaml fortress-1-8, fortress-2-3).
+        - Crossbow
+        - Hound
+        - Arelitz
         - Radio System (Cerberon)
         - Radio Bracelet (Cerberon)
         - Literacy
@@ -701,6 +714,8 @@ groups:
         - Pious
         - Incarn's Key
         - Cudgel
+        # The Garrison's other hound (docs/zones.yaml fortress-1-8).
+        - Hound
         - Disabler
         - Mail Coif
         - Mail Shirt
@@ -942,7 +957,12 @@ groups:
         - Bore Pistol
         - Melee I
         - Ranged I
-        - Armored Gloves
+        # Their own pair and the factory's 2 spares. The spares, the hatchet
+        # and the ration boxes used to sit in the Logistics Room, which every
+        # Refugee can open (docs/zones.yaml factory-logistics-room).
+        - Armored Gloves x3
+        - Hatchet
+        - Ration Box x8
         - Factory Key
         - Banneret's Key
         - Appraisal

@@ -14,6 +14,9 @@
     "dev:check": "node scripts/dev/check.mjs",
     "dev:setup": "node scripts/dev/setup-local.mjs",
     "dev:seed": "node scripts/dev/seed-test-data.mjs",
+    "dev:visual": "playwright test",
+    "dev:visual:setup": "node scripts/dev/visual/setup.mjs",
+    "dev:visual:seed": "node scripts/dev/visual/seed.mjs",
     "push": "bash scripts/push.sh",
     "changelog": "node scripts/changelog/log.js",
     "patchnote": "node scripts/changelog/patchnote.js",
@@ -86,6 +89,7 @@
   },
   "devDependencies": {
     "@babel/parser": "^8.0.5",
-    "@babel/traverse": "^8.0.5"
+    "@babel/traverse": "^8.0.5",
+    "@playwright/test": "^1.63.0"
   }
 }

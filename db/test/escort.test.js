@@ -212,6 +212,7 @@ test("on foot, any number of people is free", () => {
 test("a mount buys its extra crossing only while the party fits its seats", () => {
   // fastTravelCapacity counts the RIDER, so an arelitz's 2 seats are one saddle
   // for you and one for somebody else.
+  // The extra crossing is a far one's worth of travel (1), on top of the base 1.
   assert.equal(allowance(held("arelitz"), 0), 2);
   assert.equal(allowance(held("arelitz"), 1), 2);
   assert.equal(allowance(held("arelitz"), 2), 1);
@@ -258,11 +259,12 @@ test("ESCORT_SELECT stays a superset of what performLocationMove needs", () => {
 
 // --- what is LEFT after a crossing ---------------------------------------
 
-// The bonus a mount (or a boat, on the water) buys is spent BEFORE the base
-// allowance, and Character.zoneMovesBonusUsed remembers that. Without it, a
-// rider who stables their arelitz at an indoors door lost a crossing they had
-// never spent: the allowance is recomputed every time, so the arelitz's move
-// went away and the base move was already gone.
+// The bonus a mount buys — a far crossing's worth, 1 travel — is spent BEFORE
+// the base allowance, and Character.zoneMovesBonusUsed remembers that. Without
+// it, a rider who stables their arelitz at an indoors door lost travel they had
+// never spent: the allowance is recomputed every time, so the arelitz's travel
+// went away and the base travel was already gone. CONFIG's base is 1, the
+// shipped default.
 const TURN = { id: "t1" };
 const after = (character, spent, bonusSpent, partySize = 0) =>
   freeMovesLeft(
@@ -272,24 +274,29 @@ const after = (character, spent, bonusSpent, partySize = 0) =>
     partySize,
   );
 
-test("a rider who parks their arelitz indoors keeps the crossing they never spent", () => {
-  // Two before, one charged to the arelitz, then the arelitz is unequipped at the
-  // door — the base crossing is still there.
+test("a rider who parks their arelitz indoors keeps the travel they never spent", () => {
+  // Two before, a far crossing (1) charged to the arelitz, then the arelitz
+  // is unequipped at the door — the base travel is still there.
   assert.equal(freeMovesLeft(held("arelitz"), CONFIG, TURN), 2);
   assert.equal(after(held("arelitz"), 1, 1), 1);
   assert.equal(after(held(), 1, 1), 1);
+  // Half of it: a town hop (½) on the arelitz leaves ½ of its travel and all
+  // of the base, and parking it leaves the base whole.
+  assert.equal(after(held("arelitz"), 0.5, 0.5), 1.5);
+  assert.equal(after(held(), 0.5, 0.5), 1);
 });
 
-test("the base crossing is charged only once the bonus is gone", () => {
+test("the base travel is charged only once the bonus is gone", () => {
   assert.equal(after(held("arelitz"), 2, 1), 0);
+  assert.equal(after(held(), 0.5, 0), 0.5);
   assert.equal(after(held(), 1, 0), 0);
 });
 
 test("a stale bonus count can never hand back more than the allowance", () => {
-  // Overburdened after spending both: zero, not a negative that reads as one.
+  // Overburdened after spending it all: zero, not a negative that reads as one.
   assert.equal(after(held("overburdened"), 2, 1), 0);
   // Dismounted at a narrow way BEFORE the arithmetic, so nothing was charged
-  // to a bonus and the base move is spent as it always was.
+  // to a bonus and the base travel is spent as it always was.
   assert.equal(after(held(), 1, 0), 0);
 });
 

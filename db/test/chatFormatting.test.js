@@ -119,3 +119,25 @@ test("a token's payload is escaped, not parsed", async () => {
 
   assert.equal(escape("`{char:cmtt1|Ada}` shown as syntax"), "`{char:cmtt1|Ada}` shown as syntax"); // bar stays bare
 });
+
+test("a newline is a line break, and a quote still stops at it", async () => {
+  const { default: remarkLineBreaks } = await load("remarkLineBreaks.js");
+  const { default: remarkChat } = await load("remarkChat.js");
+
+  // What remark hands over for `*draws her knife*\n"Get out."`: the newline sits in a text node.
+  const tree = paragraph(emphasis("draws her knife"), text('\n"Get out."'));
+  remarkLineBreaks()(tree);
+  remarkChat()(tree);
+  assert.equal(shape(tree.children[0]), 'paragraph[emphasis["draws her knife"] break[] span.speech["\\"Get out.\\""]]');
+
+  // A quote opened on one line never swallows the next.
+  const open = paragraph(text('she said "wait\nand left'));
+  remarkLineBreaks()(open);
+  remarkChat()(open);
+  assert.equal(shape(open.children[0]), 'paragraph["she said \\"" "wait" break[] "and left"]');
+
+  // Inline code keeps its newline; it is not a text node.
+  const code = paragraph({ type: "inlineCode", value: "a\nb" });
+  remarkLineBreaks()(code);
+  assert.equal(shape(code.children[0]), 'paragraph[code("a\\nb")]');
+});
