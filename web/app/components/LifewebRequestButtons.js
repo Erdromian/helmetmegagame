@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { bloodValueForTags } from "@lifeweb/db/lib/lifeweb";
 import RequestDialog from "./RequestDialog";
 import TagChip from "./TagChip";
 import Select from "./Select";
@@ -18,6 +17,11 @@ const DRAINED_SLUG = "drained";
 // reviewed afterwards like every other Request, but they act on SOMEONE ELSE'S
 // character — so each one asks twice: the reason dialog, then the shared
 // confirm on top of it. See docs/systemdocs/REQUESTS.md.
+//
+// `targets` is web/app/(app)/lifeweb/page.js#mortusTargets: yourself and the
+// people standing here, each { key, name, worth }. A hood or a stranger has a
+// "hood:<token>" key, the name they look like, and no `worth` — a price would
+// give away their rank.
 
 const MODES = {
   donate: {
@@ -32,7 +36,7 @@ const MODES = {
   },
 };
 
-export default function LifewebRequestButtons({ characters, disabled = false }) {
+export default function LifewebRequestButtons({ targets, disabled = false }) {
   const confirm = useConfirm();
   const { tagsBySlug } = useTags();
   const drainedTag = tagsBySlug.get(DRAINED_SLUG) ?? null;
@@ -41,8 +45,8 @@ export default function LifewebRequestButtons({ characters, disabled = false }) 
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
 
-  const target = characters.find((c) => c.id === targetId) ?? null;
-  const worth = target ? bloodValueForTags(target.tags) : null;
+  const target = targets.find((t) => t.key === targetId) ?? null;
+  const worth = target?.worth ?? null;
 
   function open(next) {
     setMode(next);
@@ -67,7 +71,8 @@ export default function LifewebRequestButtons({ characters, disabled = false }) 
         "This kills them, now and for good. A GM will read your reason afterwards, not before."
       ) : (
         <>
-          The Lifeweb gains {worth?.amount ?? 0} and {name} is left{" "}
+          {worth ? `The Lifeweb gains ${worth.amount} and ` : ""}
+          {name} is left{" "}
           {drainedTag ? <TagChip tag={drainedTag} /> : "Drained"}.
         </>
       ),
@@ -113,7 +118,7 @@ export default function LifewebRequestButtons({ characters, disabled = false }) 
         onCancel={() => !pending && setMode(null)}
         onConfirm={submit}
       >
-        {characters.length === 0 ? (
+        {targets.length === 0 ? (
           <p className="text-sm text-muted">Nobody is at the tower.</p>
         ) : (
           <label className="field">
@@ -122,9 +127,9 @@ export default function LifewebRequestButtons({ characters, disabled = false }) 
               <option value="" disabled>
                 Choose a person…
               </option>
-              {characters.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
+              {targets.map((t) => (
+                <option key={t.key} value={t.key}>
+                  {t.name}
                 </option>
               ))}
             </Select>

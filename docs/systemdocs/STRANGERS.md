@@ -242,8 +242,10 @@ Name)".
   name), Mutilate, Loot, using an item on somebody, Heal and its Gambit's
   result, Perform Miracle, Apply and Unlock Collar, Escort, Lessons,
   Confession, Transfer's "handed you", a person paying for a cure or a craft,
-  letting somebody go from an Intercept, and the lines about who came along
-  on a move. Most callers hold only an id or a narrow row, so they use
+  letting somebody go from an Intercept, the lines about who came along
+  on a move, and the Lifeweb's Donate Blood and Feed Person (whose picker is
+  the ordinary same-place roster, and prices only the blood of people the
+  Mortus can name — a price is a rank). Most callers hold only an id or a narrow row, so they use
   `seenById(db, viewerId, id)`, which loads what `seenBy` needs. The web's
   `web/lib/hereTarget.js#seenName` is the same, capitalised to open a
   sentence.
