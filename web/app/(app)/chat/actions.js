@@ -163,6 +163,7 @@ import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
+import { formatTravel } from "@lifeweb/db/lib/crossingCost";
 import {
   CHIP_ROW_SELECT,
   chipSelect,
@@ -547,7 +548,7 @@ export async function loadTravel() {
       // the only way across, so a player knows why the way is shut till
       // next turn.
       const exertWhy = row.crossesZone
-        ? exertRefusal(character, config, openTurn, { ...exertOpts, left: freeLeft })
+        ? exertRefusal(character, config, openTurn, { ...exertOpts, left: freeLeft, cost: row.cost })
         : null;
       return {
         id: row.location.id,
@@ -564,6 +565,9 @@ export async function loadTravel() {
         // exempt place left to subtract; the `safe` attribute is gone.
         caveLevel: row.location.zone?.kind === "CAVE_LEVEL",
         crossesZone: row.crossesZone,
+        // What the crossing spends in travel — ½ between the town zones, 1
+        // anywhere else (db/lib/crossingCost.js), 0 inside the zone.
+        cost: row.cost ?? 0,
         // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).
         railroad: Boolean(row.railroad),
         passable: row.passable,
@@ -913,8 +917,8 @@ export async function travelTo({ locationId, exert = false } = {}) {
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
-        ? `${result.freeMovesLeft} free ${result.freeMovesLeft === 1 ? "move" : "moves"} left this turn.`
-        : "That was your last free move this turn.",
+        ? `${formatTravel(result.freeMovesLeft)} travel left this turn.`
+        : "That was the last of your travel this turn.",
     );
   }
   if (result.spentTurn) parts.push("That crossing spent your Move.");

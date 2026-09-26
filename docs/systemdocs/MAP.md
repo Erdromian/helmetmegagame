@@ -501,12 +501,20 @@ carry cap (`CARRY.md` §2), `performLocationMove` refuses the crossing with a
 plain `{ ok: false, reason }` before it opens its transaction; hops inside the
 zone stay free so they can walk to a room and stash. Only the mover is gated.
 
-**A hop whose edge crosses into another zone spends a FREE ZONE MOVE first,
-and only costs the character's Move once those run out.** Everyone gets
+**A hop whose edge crosses into another zone spends FREE TRAVEL first, and
+only costs the character's Move once there is not enough left for it.** What
+a crossing costs is `db/lib/crossingCost.js`: **½ travel between the town
+zones** (Town, Fortress, Undertown) and **1 travel for any other crossing** —
+out to the Black Hills, down into the caves, anywhere else. Everyone gets
 `GameConfig.freeZoneMovesPerTurn` a turn (default 1), an **equipped** mount
-adds one, and being Overburdened takes them all away — the full rule lives in
-[`CARRY.md`](CARRY.md) §2a. So a peasant walks Town → Forest for nothing,
-spends their Move to reach the Fortress, and the way home waits for next turn.
+adds a far crossing's worth (1 more), and being Overburdened takes it all
+away — the full rule lives in [`CARRY.md`](CARRY.md) §2a. So a peasant walks
+Town → Fortress → Undertown for nothing, or Town → Black Hills for nothing,
+and then spends their Move on the next crossing; the way home waits for next
+turn. Travel that is short of a crossing is not lost: ½ left still crosses
+the town, it just no longer reaches the hills. `db/lib/locationGraph.js`
+stamps `cost` on every destination row so the three pickers quote the number
+the mover charges.
 
 **A crossing lands at once, whatever it cost.** The Move is spent and the
 character is standing at the destination by the time the call returns — same as
@@ -568,9 +576,9 @@ A free move files no Action at all. **Acting and crossing on your Move are
 mutually exclusive within a turn, in either order** — the enforcement is
 `@@unique([characterId, turnId])` on `Action`.
 
-**Pushing on.** Once the free crossings are gone AND the Move is spent — on a
-paid crossing or on anything else — a walker can take one more crossing a turn
-on a die: the extra gamble to go the distance, a Push on button in Go's place
+**Pushing on.** Once the travel is short of a crossing AND the Move is spent
+— on a paid crossing or on anything else — a walker can take one more crossing
+a turn on a die: the extra gamble to go the distance, a Push on button in Go's place
 on the Travel panel, `/map` and the `#turns` picker — Go (Discord's Confirm)
 is hidden once the Move is spent, since it could only refuse, and the node's
 foot reads `exertion`, or `next turn` when the push on would be refused too
@@ -598,10 +606,12 @@ the list, and the surfaces ask it before drawing the button. No Action is filed,
 in the Moves history; the `AuditLog` row `exert_crossing` is the record.
 `performLocationMove(..., { exert: true })`, `pushOn`, `exertOutcome`.
 
-**Mounts.** `horse` and `motorcycle`
-(`db/lib/mounts.js#FAST_TRAVEL_SLUGS`) each add one free crossing, **and it refreshes every
-turn** rather than once a day — on a short turn length a horse carries you
-several times a day.
+**Mounts.** `arelitz` and `motorcycle`
+(`db/lib/mounts.js#FAST_TRAVEL_SLUGS`) each add one free far crossing — 1
+travel, so it also covers two hops across the town — **and it refreshes every
+turn** rather than once a day — on a short turn length an arelitz carries you
+several times a day. `fastTravelBonus` still counts crossings; `moveAllowance`
+multiplies by `FAR_CROSSING_COST`.
 They only count while **equipped**, and they are unequipped for you at the door
 of any indoors Location (`CARRY.md` §3).
 
@@ -627,11 +637,14 @@ riders a free crossing on the same lap. The base free move is untouched —
 only the mount's own bonus is gated.
 
 The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`, with
-`zoneMovesBonusUsed` counting how many of those went on a bonus, all three
+`zoneMovesBonusUsed` counting how much of that travel went on a bonus, all three
 claimed by a conditional `updateMany` whose WHERE is the check, so two tabs
-cannot both spend the last one. A push on claims `zoneMovesUsed` too, and
-never the bonus counter, so the base pool reading OVER the base allowance is
-how `exertedThisTurn` knows it already happened — there is no column for it.
+cannot both spend the last of it. `crossingClaim` is the pure arithmetic: the
+cost comes off the bonus while there is any, the rest off the base, so a far
+crossing can straddle the two. A push on charges the crossing's cost to
+`zoneMovesUsed` alone, never the bonus counter, so the base pool reading OVER
+the base allowance is how `exertedThisTurn` knows it already happened — there
+is no column for it.
 A GM's undo of a paid Move zeroes both counters (`travelClaimsToUndo`) and so
 forgets the push on along with the free crossings; GM-gated, accepted.
 
