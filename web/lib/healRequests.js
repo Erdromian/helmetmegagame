@@ -1,15 +1,14 @@
 // Pure — no Prisma, no server imports — so the client picker and healCharacterRequest can never disagree.
 export { buildSkillAncestry, satisfiedSkillIds, canTreatAsRoutine }from "@lifeweb/db/lib/medicalVision";
+// The Heal gate and the Saint's miracle rules live in db/lib/medicalVision.js,
+// so the Discord bot reads the same ones. Imported as well as re-exported,
+// because this file is one of their readers.
+import { HEAL_SKILL_SLUG, SAINT_SLUG, MIRACLE_PER_TURN, isHealable, isMiracleable } from "@lifeweb/db/lib/medicalVision";
 import { DYING_SLUG } from "@lifeweb/db/lib/constants";
 
-export const HEAL_SKILL_SLUG = "medical-basic";
+export { HEAL_SKILL_SLUG, SAINT_SLUG, MIRACLE_PER_TURN, isHealable, isMiracleable };
 
 export const HEALABLE_CATEGORY = "Health";
-
-// A Health tag without the catalog's `healable` flag is tier 0 of the cure ladder (docs/systemdocs/TAGS.md §5c) — untreatable.
-export function isHealable(tag) {
-  return Boolean(tag?.healable);
-}
 
 export const INFLICTABLE_GROUPS = new Set(["health-wounds", "health-maiming"]);
 
@@ -55,23 +54,6 @@ export function healCapFor(heldSlugs, pool) {
   return ladder.some((slug) => heldSlugs.has(slug)) ? pool : 0;
 }
 
-// Saint's Perform Miracle (docs/tags.yaml `saint:`): two free instant cures a
-// turn, capped at the cure ladder's Moderate rung — Dead Simple, Simple, or
-// Moderate (TAGS.md §5c). No ⬢, no Move, no Medical training needed. Not the
+// Saint's Perform Miracle: SAINT_SLUG, MIRACLE_PER_TURN and isMiracleable are
+// re-exported from db/lib/medicalVision.js at the top of this file. Not the
 // medic's MEDICAL_SIMPLE_PER_TURN pool — its own count on the AuditLog.
-export const SAINT_SLUG = "saint";
-export const MIRACLE_PER_TURN = 2;
-
-// A healable tag qualifies for a miracle when it sits at tier 1–3 on the cure
-// ladder (Dead Simple, Simple, Moderate — TAGS.md §5c). The ⬢ column is what
-// tells the three rungs apart from the ones above them: tier 1 costs 1 ⬢, tiers
-// 2 and 3 cost 2 ⬢, and every rung from Severe up costs 4 ⬢ or more. So
-// requirementResources ≤ 2 is the whole ceiling — Grievous Wound (7 ⬢) and the
-// surgical rungs are excluded automatically. A Gambit rung is refused outright
-// too — a miracle is instant, not a roll.
-export function isMiracleable(tag) {
-  if (!isHealable(tag)) return false;
-  if (tag?.requirementGambit) return false;
-  const cost = tag?.requirementResources ?? 0;
-  return cost > 0 && cost <= 2;
-}

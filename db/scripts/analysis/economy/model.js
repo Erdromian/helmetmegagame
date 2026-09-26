@@ -1555,11 +1555,19 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "TRINKETS.md §3",
-      claim: "Forging stones bought off the shelf earns no more per Move than the top rung of the wage table",
+      claim: "Forging stones bought off the shelf earns no more per Move than the top rung of the wage table, Lucky or not",
       docValue: `${trinkets.shelfLoop.topWage} ¢ a Move`,
-      model: `${round1(trinkets.shelfLoop.bestApprentice?.apprenticeRaw)} ¢ for a Smithing smith, ${round1(trinkets.shelfLoop.bestSkilled?.skilledRaw)} ¢ for Smithing II (${(trinkets.shelfLoop.bestSkilled?.stones ?? []).join(" + ")}), before tax`,
-      ok: (trinkets.shelfLoop.bestSkilled?.skilledRaw ?? 0) <= trinkets.shelfLoop.topWage && (trinkets.shelfLoop.bestApprentice?.apprenticeRaw ?? 0) <= trinkets.shelfLoop.topWage,
-      note: "The doc's cap stops one stone converting into a dearer Trinket, but a Trinket also adds its own tier price, and a multiplier above 1, so a round trip through the counter pays whatever the cap says.",
+      model: (() => {
+        const L = trinkets.shelfLoop;
+        return `${round1(L.bestApprentice?.apprenticeRaw)} ¢ for a Smithing smith, ${round1(L.bestSkilled?.skilledRaw)} ¢ for Smithing II (${(L.bestSkilled?.stones ?? []).join(" + ")}); with Lucky ${round1(L.bestApprenticeLucky?.["apprentice-luckyRaw"])} and ${round1(L.bestSkilledLucky?.["skilled-luckyRaw"])}; before tax`;
+      })(),
+      ok: [
+        trinkets.shelfLoop.bestApprentice?.apprenticeRaw,
+        trinkets.shelfLoop.bestSkilled?.skilledRaw,
+        trinkets.shelfLoop.bestApprenticeLucky?.["apprentice-luckyRaw"],
+        trinkets.shelfLoop.bestSkilledLucky?.["skilled-luckyRaw"],
+      ].every((v) => (v ?? 0) <= trinkets.shelfLoop.topWage),
+      note: "The doc's cap stops one stone converting into a dearer Trinket, but a Trinket also adds its own tier price, and a multiplier above 1, so a round trip through the counter pays whatever the cap says. Lucky keeps the better of two dice, which lifts the average multiplier further, and it is one tag anybody may hold.",
     },
     {
       doc: "tags.yaml, Lucky",

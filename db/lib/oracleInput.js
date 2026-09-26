@@ -36,7 +36,7 @@ function stamp(date, turnNumber) {
   return `[turn ${turnNumber ?? "?"} · ${when}]`;
 }
 
-// The only two tag categories worth re-reading every turn — Beliefs and Skills are bought at creation and never move, so shipping the whole catalog would pay repeatedly for a constant. Health/status DO move (injuries, mood band, Tipsy, Ate Meal); everything else reaches the Oracle as a CHANGE through the audit lines.
+// The only two tag categories worth re-reading every turn — Beliefs and Skills are bought at creation and never move, so shipping the whole catalog would pay repeatedly for a constant. Health/status DO move (injuries, the hunger descriptor, Tipsy); everything else reaches the Oracle as a CHANGE through the audit lines.
 const LIVE_TAG_CATEGORIES = ["health", "status"];
 
 // ArchiveEntry kinds that are events rather than speech; already turn-stamped, unlike AuditLog rows.

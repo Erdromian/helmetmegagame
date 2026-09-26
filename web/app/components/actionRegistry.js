@@ -69,6 +69,7 @@ import {
   MusicIcon,
 } from "./icons";
 import { workVerbByKey } from "@lifeweb/db/lib/gathering";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 
 export const ACTION_HELP = {
   examine:
@@ -115,9 +116,9 @@ export const ACTION_HELP = {
   brand:
     "Permanently brand someone who's bound or incapacitated. It costs you nothing, and it never comes off.",
   applycollar:
-    "Permanently lock a collar around someone's neck. It can only be removed with a key.",
+    "Permanently lock a collar around someone's neck. Only the Exactor's or the Pusher's ring can take it off.",
   unlockcollar: "Unlock someone's collar.",
-  detonatecollar: "Detonate a slave collar.",
+  detonatecollar: "Set off a collar anywhere, in any zone. The remote knows each one by its glyph, not by who is wearing it.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
   // Bascinet's words, verbatim.
@@ -144,7 +145,7 @@ export const ACTION_HELP = {
   package:
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
   bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on.",
-  seal: "Close a letter with your wax seal.",
+  seal: RING_TEXT.sealHint,
   // The Thanati's three, Bascinet's words verbatim (docs/systemdocs/THANATI.md).
   // Purchase Gear carries none on purpose.
   recall: "Remember the other Thanati cultists in Ravenheart.",
@@ -562,7 +563,9 @@ export const ACTION_SECTIONS = [
       // is already wearing a collar is deliberately NOT a gate and not a
       // filter — the dialog lists everybody and the refusal is what tells you,
       // because a button that lit up only over the collared would publish the
-      // Exactor's whole roster to anyone who could see it.
+      // Exactor's whole roster to anyone who could see it. Detonate adds one
+      // more fact about your own sheet: the ring on your finger. The remote
+      // answers to whoever wears the Exactor's ring.
       { mode: "applycollar", icon: ShackleIcon, label: "Apply Collar", show: "canApplyCollar" },
       { mode: "unlockcollar", icon: KeyIcon, label: "Unlock Collar", show: "canUnlockCollar" },
       { mode: "detonatecollar", icon: SkullIcon, label: "Detonate", show: "canDetonateCollar" },
@@ -645,6 +648,84 @@ export const ACTION_SECTIONS = [
 const BY_MODE = new Map(
   ACTION_SECTIONS.flatMap((s) => s.actions).map((a) => [a.mode, a]),
 );
+
+// How the SHEET's strip (ActionGrid variant="strip") groups the two big
+// sections, "You" and "Others", by what a verb is FOR. Those two are roughly
+// thirty buttons between them, and drawn as one run with a single hairline
+// they were the "I know it exists but can't find the button" of the player
+// feedback. Each group here is captioned on the strip; the role sections
+// (the device, THANATI, CERBERON, BISHOP) and Paper keep their own section
+// as their group, already being about one thing.
+//
+// Only the strip reads this. The dialogs, the rack and /ledger's columns go on
+// reading ACTION_SECTIONS, so a verb's section is still where its title and
+// help come from. A mode in "You" or "Others" that no group names lands in a
+// trailing "More" group rather than vanishing — so a new verb shows up even
+// if nobody remembers this list.
+export const STRIP_GROUPS = [
+  {
+    key: "things",
+    label: "Things",
+    modes: ["craft", "consume", "transfer", "destroy", "poison", "play", "package", "disguise", "stepstone"],
+  },
+  // Only where the Location allows it (each is a `canSee…` show), so this
+  // group appears and disappears as you walk.
+  { key: "work", label: "Work", modes: ["mine", "farm", "extract", "refine", "breakin"] },
+  { key: "lessons", label: "Learn & confess", modes: ["learn", "teach", "confess"] },
+  { key: "people", label: "People", modes: ["examine", "heal", "miracle", "kiss", "search"] },
+  { key: "theft", label: "Theft", modes: ["steal", "pickpocket"] },
+  { key: "fight", label: "Fight", modes: ["attack", "intercept"] },
+  {
+    key: "captives",
+    label: "Captives",
+    modes: [
+      "bind",
+      "loot",
+      "free",
+      "harm",
+      "breakrestraints",
+      "shackle",
+      "crucify",
+      "torture",
+      "mutilate",
+      "brand",
+      "applycollar",
+      "unlockcollar",
+      "detonatecollar",
+    ],
+  },
+  { key: "dead", label: "The dead", modes: ["butcher", "bury", "engrave"] },
+];
+
+// The sections STRIP_GROUPS re-sorts; every other section is its own group.
+const REGROUPED_SECTIONS = new Set(["self", "others"]);
+
+// The strip's groups, in order, each with its registry actions. A role's own
+// section comes first — only its holder ever sees it, and it is the thing that
+// role is for — then Things, then Paper (writing a letter is an everyday verb,
+// not an afterthought at the end of the row), then the rest of STRIP_GROUPS,
+// then anything in "You"/"Others" they missed. Pure — ActionGrid.js filters by
+// the pools.
+export function stripGroups() {
+  const placed = new Set(STRIP_GROUPS.flatMap((g) => g.modes));
+  const mine = STRIP_GROUPS.map((g) => ({
+    key: g.key,
+    label: g.label,
+    actions: g.modes.map((mode) => BY_MODE.get(mode)).filter(Boolean),
+  }));
+  const strays = ACTION_SECTIONS.filter((s) => REGROUPED_SECTIONS.has(s.key))
+    .flatMap((s) => s.actions)
+    .filter((a) => !placed.has(a.mode));
+  const roles = ACTION_SECTIONS.filter((s) => !REGROUPED_SECTIONS.has(s.key) && s.key !== "letters");
+  const letters = ACTION_SECTIONS.filter((s) => s.key === "letters");
+  return [
+    ...roles,
+    mine[0],
+    ...letters,
+    ...mine.slice(1),
+    ...(strays.length > 0 ? [{ key: "more", label: "More", actions: strays }] : []),
+  ];
+}
 
 // The dialog title and submit label for a mode — the button's own name.
 export function titleFor(mode) {

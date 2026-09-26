@@ -213,7 +213,7 @@ async function grantTagSlugs(tx, characterId, slugs, turnNumber, durations = nul
     });
 
     if (!existing) {
-      // A granted tag's own duration starts its clock now (what makes a chain work: meal -> Ate Meal). expiryFrom counts `turnNumber` as the first live turn, so a 1-turn grant runs out when this turn closes.
+      // A granted tag's own duration starts its clock now (what makes a chain work: drink -> Tipsy). expiryFrom counts `turnNumber` as the first live turn, so a 1-turn grant runs out when this turn closes.
       // A per-grant override (Tag.consumesIntoDurations, web/lib/consumeGrants.js) wins over the tag's own duration — Bliss leaves you High a turn longer than raw fungus does.
       const durationTurns = durations?.[slug] ?? tag.defaultDurationTurns;
       // No turn open (between turns, or mid-advance): stamp against the turn about to open, the same answer expiryForGrant gives every other grant path. A null here would never match the sweep's `lte` and land a permanent, silent tag.

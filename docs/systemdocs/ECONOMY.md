@@ -298,7 +298,14 @@ and make the read path merge rather than choose.
   of one number is how this goes wrong, and it is why ⬢ becoming a tag meant
   DELETING the columns rather than keeping them in step with the stacks.
 - **Don't write a ledger row outside the caller's transaction.** A row
-  recording a write that rolled back is worse than no row.
+  recording a write that rolled back is worse than no row. A caller with no
+  transaction — one that hands a hook the root `prisma` — still gets its row:
+  Postgres refuses a `SAVEPOINT` outside a transaction block (25P01), so
+  `economyLedger.js#inTransaction` spots the root client (the one that can
+  open a transaction) and writes the row bare, beside the write it records.
+  That used to drop the row with a logged "[economy] ledger write failed",
+  which is how character creation's `CHARACTER_START` credit went missing.
+  A bank credit still wants a real transaction, for the reason §3 gives.
 - **Don't let a ledger failure fail a money move.** A try/catch is NOT enough:
   Postgres aborts the whole transaction on a failed statement and refuses every
   statement after it, so catching the error in JavaScript does not un-abort

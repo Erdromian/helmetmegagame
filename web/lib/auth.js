@@ -3,6 +3,7 @@ import Discord from "next-auth/providers/discord";
 import Credentials from "next-auth/providers/credentials";
 import { NextRequest } from "next/server";
 import { isLocalMode } from "@lifeweb/db/lib/localMode";
+import { WEB_ORIGIN } from "@lifeweb/db/lib/constants";
 import { SUPERADMIN_DISCORD_IDS } from "./superadmin";
 
 // Behind Railway's proxy, Next.js builds `request.url` from the container's
@@ -15,7 +16,7 @@ import { SUPERADMIN_DISCORD_IDS } from "./superadmin";
 // than trusted — anything unrecognised falls back to the canonical origin.
 // Adding a domain means adding it here AND registering its callback URL in
 // the Discord Developer Portal.
-export const CANONICAL_ORIGIN = "https://ravenheart.quest";
+export const CANONICAL_ORIGIN = WEB_ORIGIN;
 
 const ALLOWED_HOSTS = new Set([
   "ravenheart.quest",

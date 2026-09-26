@@ -211,9 +211,10 @@ group. Edit and Forget work on every entry.
 ## 3. Who am I?
 
 The character's name, seat, age, the seat's intro and charter lines, and the
-**ATM PIN**: `Character.pin`, 4 digits, minted at creation
-(`acquaintances.js#ensurePin`), by the backfill, or on first visit. For now it
-is **display only**. No ATM asks for it yet (`DEPOT.md`). The fate documents
+**Infoterminal PIN**: `Character.pin`, 4 digits, minted at creation
+(`acquaintances.js#ensurePin`), by the backfill, or on first visit. An
+infoterminal asks for it when the ring on somebody's finger isn't theirs, or
+when they are Concussed or Amnesiac (`RINGS.md` §5). The fate documents
 stay on `/documents`, which links from here.
 
 ## 4. Memories of the day

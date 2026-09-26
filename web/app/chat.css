@@ -3520,3 +3520,96 @@
   padding-left: calc(var(--sp-1) - 2px);
   padding-right: calc(var(--sp-1) - 2px);
 }
+
+/* The telephone's keypad and the handset bar (PlacePanel.js, docs/systemdocs/PHONES.md
+   §3). A readout of four digit wells over a 3×4 pad of the ordinary secondary button,
+   so the pad takes the theme's bevel rather than inventing one. */
+.phone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.phone-state {
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.phone-state.is-calling,
+.phone-state.is-dead {
+  color: var(--accent-text);
+}
+
+.phone-timer {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.phone-timer.is-low {
+  color: var(--warning);
+}
+
+.phone-readout {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-xl);
+}
+
+.phone-readout span {
+  width: 1.6em;
+  text-align: center;
+  border-bottom: 2px solid var(--border);
+  color: var(--muted);
+}
+
+.phone-readout span.is-set {
+  color: var(--text);
+  border-bottom-color: var(--accent-text);
+}
+
+.phone-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-2);
+  max-width: 16rem;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.phone-key {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  min-height: 2.75rem;
+}
+
+.phone-actions {
+  flex-wrap: wrap;
+}
+
+.phone-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.phone-bar-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.phone-bar-name {
+  font-weight: 600;
+}
+
+.phone-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}

@@ -53,6 +53,9 @@ import {
   outOfReachMessage,
 } from "@/lib/transferReach";
 import { heldSlugsOf } from "@/lib/consumeGrants";
+import { RING_SLUG, FORGED_SEAL_SLUG, isRing } from "@lifeweb/db/lib/rings";
+import { createRingRow, createForgedSeal } from "@lifeweb/db/lib/ringMint";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 import { cleanMealName, decorateMealName, cleanMealTaste, needsKitchen, MEAL_DESCRIPTION_MAX } from "@lifeweb/db/lib/meals";
 import { hasAttribute, KITCHEN_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -638,6 +641,44 @@ async function takeFace(tx, source) {
   if (!count) throw new UserError("That face has already been taken.");
 }
 
+// --- Signet rings (docs/systemdocs/RINGS.md) --------------------------------
+// Two recipes whose output is minted for somebody: the smith's ring, engraved
+// for a character they pick, and the forger's wax seal, pressed from a ring
+// they hold. Both picks ride the ingredientChoice channel the Death Mask uses
+// (neither recipe has an anyOf, so nothing collides), and both are re-checked
+// here against what the crafter actually knows and holds.
+
+// Who the ring is for: the smith themselves, or somebody on their Friends list
+// they know by a real person (Acquaintance.subjectId). ingredientChoice carries
+// the character id. The ring is engraved with that person's own initials.
+async function resolveRingTarget(character, ingredientChoice) {
+  const choice = typeof ingredientChoice === "string" ? ingredientChoice.trim() : "";
+  if (!choice) throw new UserError(RING_TEXT.craftTargetMissing);
+  const known =
+    choice === character.id ||
+    (await prisma.acquaintance.findFirst({
+      where: { ownerId: character.id, subjectId: choice },
+      select: { id: true },
+    }));
+  if (!known) throw new UserError(RING_TEXT.craftTargetMissing);
+  const target = await prisma.character.findUnique({ where: { id: choice }, select: { id: true, name: true } });
+  if (!target) throw new UserError(RING_TEXT.craftTargetMissing);
+  return target;
+}
+
+// Which held ring the seal is pressed from. ingredientChoice carries the ring
+// row's slug; one ring in hand is taken as chosen. Only an office's own ring
+// carries a mark; a plain ring has nothing to copy.
+function resolveForgeSource(character, ingredientChoice) {
+  const rings = character.tags.filter((ct) => isRing(ct.tag));
+  if (!rings.length) throw new UserError(RING_TEXT.forgeNoRing);
+  const choice = typeof ingredientChoice === "string" ? ingredientChoice.trim() : "";
+  const picked = choice ? rings.find((ct) => ct.tag.slug === choice) : rings.length === 1 ? rings[0] : null;
+  if (!picked) throw new UserError(RING_TEXT.forgeNoRing);
+  if (!picked.tag.sealMark) throw new UserError(RING_TEXT.forgeSealless);
+  return picked.tag;
+}
+
 export function payerNotice(character, payer, cost, tag) {
   if (payer.kind !== "character" || payer.id === character.id || !cost) return;
   notifyCharacter(
@@ -748,6 +789,21 @@ export async function craftRequestImpl({
     tag.slug === DEATH_MASK_SLUG
       ? resolveDeathMaskSource(character, ingredientChoice)
       : null;
+  // A smith's ring and a forger's seal are minted for somebody, like the mask.
+  // Both recipes are a part-turn's work, so they always finish on the press.
+  const ringTarget = tag.slug === RING_SLUG ? await resolveRingTarget(character, ingredientChoice) : null;
+  const forgeSource = tag.slug === FORGED_SEAL_SLUG ? resolveForgeSource(character, ingredientChoice) : null;
+  const mintForSomebody = async () =>
+    ringTarget
+      ? { tag: await createRingRow(prisma, ringTarget), minted: true }
+      : forgeSource
+        ? { tag: await createForgedSeal(prisma, character.id, forgeSource), minted: true }
+        : null;
+  const somebodyDetails = ringTarget
+    ? { engravedForId: ringTarget.id }
+    : forgeSource
+      ? { copiedFromTagId: forgeSource.id }
+      : {};
   // The shared verdict the dialog prices with (web/lib/customCraft.js): what the words amount to after cleaning, and what this recipe charges (usually CUSTOM_SURCHARGE, zero on the two meals — COOKING.md). Fields posted against a non-customizable recipe are dropped, not refused — same posture as quantity on a non-stackable. `mayCustomize` reads the rung the recipe names (Tag.customizableSkillSlug) so an apprentice can't sign a cudgel; failing it drops the words AND the surcharge — nobody pays for a name they didn't get.
   const { custom: customWanted, surcharge: customSurcharge } = customCraftFor(tag, {
     customName,
@@ -797,11 +853,13 @@ export async function craftRequestImpl({
     if (moveCost.kind === "spill")
       await resolveCraftMove(character, openTurn, moveCost);
     // Minted before the transaction (mintCustomCraft says why), unwound after it only if the transaction fails and the row was fresh. A DISH WITH ANYTHING EXTRA IN IT ALWAYS MINTS — what went in is what it does, so it needs its own row even though no cook can put words on one; a meal with no additional ingredient stays the plain catalog row, Depot-listable and out of the Restart Game ephemeral sweep. The minted row is NAMED after the recipe like the base one, so nothing but eating it says what is in it.
-    const grant = meal
-      ? await mintCustomCraft(prisma, tag, { ...meal, cookedFrom })
-      : custom.active || cookedFrom.length
-        ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
-        : null;
+    const grant = ringTarget || forgeSource
+      ? await mintForSomebody()
+      : meal
+        ? await mintCustomCraft(prisma, tag, { ...meal, cookedFrom })
+        : custom.active || cookedFrom.length
+          ? await mintCustomCraft(prisma, tag, { ...custom, cookedFrom })
+          : null;
     try {
     await prisma.$transaction(async (tx) => {
       // One lock for all the racy things: ration counts, ingredient stacks, the grant re-check, and the Move ledger (spendCraftMove takes it again, free once this transaction holds it).
@@ -841,6 +899,7 @@ export async function craftRequestImpl({
         cost,
         action,
         consumed,
+        extraDetails: somebodyDetails,
         staged,
       }));
     });
@@ -902,6 +961,8 @@ export async function craftRequestImpl({
           description: "",
           literal: true,
         })
+      : ringTarget || forgeSource
+        ? await mintForSomebody()
       : meal
         ? await mintCustomCraft(prisma, tag, { ...meal, cookedFrom })
         : custom.active || cookedFrom.length
@@ -977,7 +1038,7 @@ export async function craftRequestImpl({
         consumed,
         extraDetails: deathMask
           ? { sourceCorpseTagId: deathMask.tagId, sourceCorpseName: deathMask.name }
-          : {},
+          : somebodyDetails,
         staged,
       }));
       await tx.craftProject.update({

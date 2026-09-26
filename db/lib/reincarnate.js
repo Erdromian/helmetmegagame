@@ -23,6 +23,8 @@ const { parseStartingTag } = require("./startingTags");
 const { expiryForGrant } = require("./grantExpiry");
 const { seedMemories } = require("./locationVisits");
 const { seedAcquaintances } = require("./acquaintances");
+const { mintSpawnRing } = require("./ringMint");
+const { syncCharacterRoomAccess } = require("./roomAccess");
 const { startingMemorySlugs } = require("./startingMemories");
 const { formatCharacterName, AGE_MIN } = require("./characterName");
 const { closeDeadchatTo } = require("./deadchat");
@@ -370,6 +372,10 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
   await seedAcquaintances(prisma, created.id).catch((err) =>
     console.error(`Reincarnation acquaintances failed for ${created.id}:`, err.message ?? err),
   );
+  // The seat's signet ring (docs/systemdocs/RINGS.md), as createCharacter gives one.
+  await mintSpawnRing(prisma, created, role)
+    .then((ring) => (ring ? syncCharacterRoomAccess(prisma, created) : null))
+    .catch((err) => console.error(`Reincarnation ring failed for ${created.id}:`, err.message ?? err));
 
   // Alive again, so the ghost seat comes off. Belt to
   // db/lib/deathTeardown.js#stillAlive's brace, since the web's killCharacter

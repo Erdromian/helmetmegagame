@@ -1,110 +1,27 @@
 "use server";
 
 // The Godard Factory's Refine button (db/lib/refinery.js — read its header first, it's the
-// whole rulebook this action enforces). Modelled on ./soilery.js, the closest existing analog:
-// a Location-attribute-gated action with its own refusal chain, filed as a Move that commits
-// now and resolves at the turn push (db/lib/moveEffects.js's `refined` entry).
+// whole rulebook this action enforces). Filed as a Move that commits now and resolves at the
+// turn push (db/lib/moveEffects.js's `refined` entry).
+//
+// The writer is db/lib/verbs/work.js#refineHere, shared with Discord's /work refine; this
+// action resolves the character from the session and applies the web's own tail.
 import { prisma } from "@lifeweb/db";
 import { UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
-import { isDayLongTurn } from "@lifeweb/db/lib/turnClock";
-import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
-import {
-  isRefinery,
-  refineryInput,
-  refineFatigueRefusal,
-  refinersThisTurn,
-  REFINERY_MAX_WORKERS,
-  REFINERY_FULL_MESSAGE,
-} from "@lifeweb/db/lib/refinery";
-import { AUTO_REFINE_NOTE } from "@lifeweb/db/lib/constants";
-import { requireFreeMove, fileAutoRoutine } from "@/lib/moveSpend";
-import { logAudit } from "@/lib/requests";
+import { refineHere } from "@lifeweb/db/lib/verbs/work";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
-import { requireCharacter, revalidateAll, lockCharacter } from "./shared.js";
+import { requireCharacter, revalidateAll } from "./shared.js";
 
 export async function refineRequestImpl() {
   const { session, character } = await requireCharacter();
-
-  const location = character.locationId
-    ? await prisma.location.findUnique({
-        where: { id: character.locationId },
-        select: { id: true, name: true, attributes: true },
-      })
-    : null;
-  if (!isRefinery(location)) {
-    throw new UserError("There's nothing to refine here.");
-  }
-
-  // Bound, Dying, Paralyzed, Catatonic — mirrors extractGodfleshRequestImpl's gate (misc.js).
-  const blocker = blockerFor(character.tags, ACT);
-  if (blocker) {
-    throw new UserError(`You're in no state to work — you're ${blocker.name}.`);
-  }
-
-  // Godflesh in the worker's own hands OR in any Room stash here they can enter. Checked before
-  // the Move is spent so a bare floor costs nobody their day; applyRefinery re-checks under the
-  // transaction at the push, and says so in the close DM when somebody else's shift took the
-  // last lump first.
-  const input = await refineryInput(prisma, { id: character.id, locationId: character.locationId });
-  if (!input) {
-    throw new UserError("There's no Godflesh here to refine.");
-  }
-
-  const openTurn = await getOpenTurn();
-  await requireFreeMove(character, openTurn);
-
-  // A day on the floor climbs the same Tired -> Exhausted ladder Mining does (the `refined` entry in
-  // db/lib/moveEffects.js, db/lib/fatigue.js). Only Exhausted refuses, matching
-  // db/lib/mining.js#computeMiningAccess. The sheet's tooltip asks the same function.
-  const fatigue = refineFatigueRefusal((character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
-  if (fatigue) throw new UserError(fatigue);
-
-  // Only so many people fit on the floor in a turn. Checked here for a fast refusal, and
-  // again under a lock below, which is the check that actually holds.
-  if ((await refinersThisTurn(prisma, openTurn.id)) >= REFINERY_MAX_WORKERS) {
-    throw new UserError(REFINERY_FULL_MESSAGE);
-  }
-
-  await prisma.$transaction(async (tx) => {
-    await lockCharacter(tx, character.id);
-
-    // One lock per turn, taken AFTER the character's, so two people pressing at once queue up
-    // and the count below is the true one. An advisory lock rather than a row lock on Turn:
-    // nothing else takes it, so it can never deadlock against the turn advance.
-    await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`refinery:${openTurn.id}`}))`;
-    if ((await refinersThisTurn(tx, openTurn.id)) >= REFINERY_MAX_WORKERS) {
-      throw new UserError(REFINERY_FULL_MESSAGE);
-    }
-
-    // Commits the Move now — the day is spent — but defers the cubes to the turn push
-    // (db/lib/moveEffects.js's `refined` entry), exactly like Farm. The marker is what that
-    // entry reads to know this was a refining shift.
-    const action = await fileAutoRoutine(
-      tx,
-      character,
-      openTurn,
-      "Refining Godflesh on the Factory floor.",
-      AUTO_REFINE_NOTE,
-      null,
-      { deferEffects: true },
-    );
-
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_refine",
-      targetCharacterId: character.id,
-      turnId: openTurn.id,
-      details: { locationName: location?.name ?? null, actionId: action.id, source: input.kind },
-    });
+  const result = await refineHere(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    openTurn: await getOpenTurn(),
   });
-
-  await afterInventoryChange([character.id]);
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
   revalidateAll();
-
-  return {
-    line: isDayLongTurn(openTurn)
-      ? "You spent the day on the floor. The cubes come off the line when the turn closes."
-      : "You worked your shift on the floor. The cubes come off the line when the turn closes.",
-  };
+  return { line: result.line };
 }
