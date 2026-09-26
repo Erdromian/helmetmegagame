@@ -12,8 +12,6 @@ import {
   normalizeQuantity,
   RESOURCE_IMPORT_PRICE,
   RESOURCE_WARE_ID,
-  loadDepot,
-  creditAvailableObols,
   placeKeyForRoom,
   canOrder,
   bumpBankAccount,
@@ -26,11 +24,12 @@ import { TURNS_PATH } from "@/lib/routes";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { UserError, acting, guarded } from "@/lib/actionResult";
-import { COMPANY, DEPOT_DEBT, record, turnStamp } from "@lifeweb/db/lib/economyLedger";
+import { COMPANY, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
 import { SFX } from "@lifeweb/db/lib/sfx";
+import { depotCredit as depotCreditVerb } from "@lifeweb/db/lib/verbs/place";
 import {
   DESTINATIONS,
   counterState,
@@ -399,67 +398,20 @@ async function depotSaleDestinationImpl({ saleId, destination: rawDestination })
 
 // Draw puts money in the Merchant's own account, repay takes it back out.
 // Refused at the cap, never clamped — he is told he hit the ceiling.
+// The rule is db/lib/verbs/place.js#depotCredit, shared with the Depot post's
+// Merchant credit button on Discord.
 async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
   const { session, character } = await requireLicensedMerchant();
-  const account = character.bankAccount;
-  if (!account) throw new UserError("You don't have an account yet.");
-
-  const depot = await loadDepot(prisma);
-  const draw = rawDirection !== "REPAY";
-  const amount = Number(rawAmount);
-  if (!Number.isInteger(amount) || amount < 1) throw new UserError("That isn't an amount.");
-
-  if (draw && amount > creditAvailableObols(depot)) {
-    throw new UserError(`The line only has ${creditAvailableObols(depot)} ¢ left on it.`);
-  }
-  if (!draw && amount > (depot.debtObols ?? 0)) {
-    throw new UserError(`You only owe ${depot.debtObols ?? 0} ¢.`);
-  }
-  if (!draw && amount > (account.balanceObols ?? 0)) {
-    throw new UserError(`Your account only holds ${account.balanceObols ?? 0} ¢.`);
-  }
-
-  const openTurn = await getOpenTurn();
-
-  await prisma.$transaction(async (tx) => {
-    // A conditional update — the write IS the check, so two tabs drawing the last of the line can't both succeed.
-    const { count } = await tx.depot.updateMany({
-      where: draw
-        ? { id: 1, debtObols: { lte: (depot.creditCapObols ?? 0) - amount } }
-        : { id: 1, debtObols: { gte: amount } },
-      data: { debtObols: draw ? { increment: amount } : { decrement: amount } },
-    });
-    if (count === 0) throw new UserError("The line was edited. Try again.");
-
-    // Two legs: the debt itself (form DEBT) and the cash it puts in the account (form ACCOUNT); repay is the same pair backward.
-    await record(
-      tx,
-      { from: draw ? COMPANY : DEPOT_DEBT, to: draw ? DEPOT_DEBT : COMPANY, form: "DEBT", amount },
-      { reason: "DEPOT_CREDIT", ...turnStamp(openTurn) },
-    );
-    const moved = await bumpBankAccount(tx, account.id, draw ? amount : -amount, {
-      holderName: account.holderName,
-      econ: { other: COMPANY, reason: "DEPOT_CREDIT", ...turnStamp(openTurn) },
-    });
-
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_depot_credit",
-      targetCharacterId: character.id,
-      place: await railyardPlaceKey(tx),
-      turnId: openTurn?.id ?? null,
-      details: {
-        direction: draw ? "DRAW" : "REPAY",
-        amount,
-        debtBefore: depot.debtObols ?? 0,
-        debtAfter: (depot.debtObols ?? 0) + (draw ? amount : -amount),
-        balanceAfter: moved.after,
-      },
-    });
+  const result = await depotCreditVerb(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    direction: rawDirection,
+    amount: rawAmount,
+    openTurn: await getOpenTurn(),
   });
-
+  if (!result.ok) throw new UserError(result.error);
   revalidateAll();
-  return { direction: draw ? "DRAW" : "REPAY", amount, sfx: SFX.COIN };
+  return { direction: result.direction, amount: result.amount, sfx: SFX.COIN };
 }
 
 // ─── The exported surface. `guarded` turns a UserError into { ok: false }. ───

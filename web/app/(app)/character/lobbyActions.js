@@ -2,50 +2,35 @@
 
 import { revalidatePath } from "next/cache";
 import { prisma, normalizeAntagonistSlugs } from "@lifeweb/db";
-import { readGameState } from "@lifeweb/db/lib/gameState";
 import { normalizePriorities, normalizeJoblessRole } from "@lifeweb/db/lib/playerPreferences";
 import { auth } from "@/lib/auth";
-import { isSuperadmin } from "@/lib/superadmin";
-import { getGuildMember, isLeaderWhitelisted, onRoster, playtestRosterClosed } from "@/lib/discordGuild";
+import { getGuildMember } from "@/lib/discordGuild";
+import { lobbyGate as lobbyGateDb, setReady as setReadyDb, setUnready as setUnreadyDb } from "@lifeweb/db/lib/verbs/place";
 import { isSpawnOnly } from "@/lib/characterCreation";
 
 // The lobby's three verbs (docs/systemdocs/LOBBY.md §2). Every one re-derives
 // the gate from the session and the phase — a server action is a public
 // endpoint, and the lobby's own greying is only a hint.
 
+// The phase, the roster and "no living character yet" are db/lib/verbs/place.js's
+// lobbyGate, shared with the Ready / Not ready buttons on Discord's #turns;
+// this supplies the member's roles the way the page that drew the button did.
 async function lobbyGate() {
   const session = await auth();
   if (!session?.discordUserId) return { error: "Sign in first." };
   const discordUserId = session.discordUserId;
+  const roleIds = await memberRoleIds(discordUserId);
+  return lobbyGateDb(prisma, { discordUserId, roleIds });
+}
 
-  const [state, config, member, alive] = await Promise.all([
-    readGameState(prisma, { phase: true }),
-    prisma.gameConfig.findUnique({ where: { id: 1 }, select: { playtestModeEnabled: true, playtestRequiresRole: true } }),
-    // Same window the page that drew the button gated on (character/page.js),
-    // so the action is never stricter than the render — and it shares that
-    // render's memoized cache() entry. Asking for 0 instead skipped the roster
-    // cache entirely and put a live per-member Discord GET behind every click,
-    // which is the one route discordGuild.js keeps as a fallback on purpose.
-    getGuildMember(discordUserId, 60_000),
-    prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" }, select: { id: true } }),
-  ]);
-  const superadmin = isSuperadmin(discordUserId);
-  if (state?.phase !== "LOBBY") return { error: "The lobby isn't open." };
-  const playtestMode = playtestRosterClosed(config);
-  if (!superadmin && !onRoster(member, { playtestMode })) {
-    // In playtest mode this is not something a player can fix by asking, so
-    // say the doors are shut rather than sending them to a GM for a role that
-    // would not help.
-    return {
-      error: playtestMode
-        ? "The game isn't open yet."
-        : "You aren't on the roster for this game. Ask a GM if you think that's wrong.",
-    };
-  }
-  if (alive) return { error: "You already have a character." };
-
-  const whitelisted = superadmin || isLeaderWhitelisted(member);
-  return { discordUserId, whitelisted };
+// Same window the page that drew the button gated on (character/page.js), so
+// the action is never stricter than the render — and it shares that render's
+// memoized cache() entry. Asking for 0 instead skipped the roster cache
+// entirely and put a live per-member Discord GET behind every click, which is
+// the one route discordGuild.js keeps as a fallback on purpose.
+async function memberRoleIds(discordUserId) {
+  const member = await getGuildMember(discordUserId, 60_000);
+  return member?.roles ?? [];
 }
 
 // Which role slugs this player may name at any level: every pickable seat,
@@ -79,56 +64,27 @@ export async function savePreferences({ priorities, antagonistOptIns, joblessRol
   return { ok: true, saved: data };
 }
 
+// The rule is db/lib/verbs/place.js#setReady, shared with the Ready button on
+// Discord's #turns while the lobby is open.
 export async function setReady() {
-  const gate = await lobbyGate();
-  if (gate.error) return { ok: false, error: gate.error };
-  const { discordUserId } = gate;
-
-  // One row per player per game. A row in any state other than READY means
-  // Start already happened to it, which cannot be the case in LOBBY — but the
-  // check costs nothing and a stale tab is exactly when it matters.
-  const existing = await prisma.lobbyEntry.findUnique({ where: { discordUserId } });
-  if (existing && existing.status !== "READY") {
-    return { ok: false, error: "Your seat for this game was already decided." };
-  }
-  // An upsert, not a create: two Readies from one player (a second tab, a
-  // double-tap) both find nothing above, and a plain create threw on the
-  // loser's unique key — a refusal for a player who WAS readied.
-  const entry =
-    existing ??
-    (await prisma.lobbyEntry.upsert({
-      where: { discordUserId },
-      create: { discordUserId, status: "READY" },
-      update: {},
-    }));
-  if (entry.status !== "READY") {
-    return { ok: false, error: "Your seat for this game was already decided." };
-  }
-  if (!existing) {
-    // Every preference row exists once somebody is readied, so Start never has
-    // to special-case a player who touched nothing.
-    await prisma.playerPreference.upsert({
-      where: { discordUserId },
-      create: { discordUserId },
-      update: {},
-    });
-  }
+  const session = await auth();
+  if (!session?.discordUserId) return { ok: false, error: "Sign in first." };
+  const discordUserId = session.discordUserId;
+  const result = await setReadyDb(prisma, { discordUserId, roleIds: await memberRoleIds(discordUserId) });
+  if (!result.ok) return { ok: false, error: result.error };
   // NOT revalidatePath("/character"): that re-renders the whole page inside
   // this action's reply, and the button waits on it. The client owns its own
   // ready state from the value below, and the lobby refreshes itself anyway.
   revalidatePath("/gm/dev");
-  return { ok: true, readyAt: entry.readyAt.toISOString() };
+  return { ok: true, readyAt: result.readyAt };
 }
 
 export async function setUnready() {
-  const gate = await lobbyGate();
-  if (gate.error) return { ok: false, error: gate.error };
-  const { count } = await prisma.lobbyEntry.deleteMany({ where: { discordUserId: gate.discordUserId, status: "READY" } });
-  // Nothing READY to delete but a row still there: Start Game got to it first,
-  // and the player has a seat whatever the button says.
-  if (count === 0 && (await prisma.lobbyEntry.findUnique({ where: { discordUserId: gate.discordUserId } }))) {
-    return { ok: false, error: "Your seat for this game was already decided." };
-  }
+  const session = await auth();
+  if (!session?.discordUserId) return { ok: false, error: "Sign in first." };
+  const discordUserId = session.discordUserId;
+  const result = await setUnreadyDb(prisma, { discordUserId, roleIds: await memberRoleIds(discordUserId) });
+  if (!result.ok) return { ok: false, error: result.error };
   revalidatePath("/gm/dev");
   return { ok: true };
 }
