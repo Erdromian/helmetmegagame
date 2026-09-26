@@ -234,8 +234,8 @@ Name)".
 - **DMs:** `db/lib/intercept.js#seenBy(db, viewerId, row)` is `seenAs` for one
   reader, a stranger reading as "a young man". Every `seenAs` site whose words
   go to one character now uses it: Attack and its list, Search, Pickpocket,
-  Intercept, a declined or expired offer, the Break-off button, the sheet's and
-  `/chat`'s waiting-on-you lists.
+  Intercept, Kiss, a declined or expired offer, the Break-off button, the
+  sheet's and `/chat`'s waiting-on-you lists.
 
 ## 7. What this does not reach yet
 
@@ -250,7 +250,7 @@ Name)".
   - phone carries
   - "X was let in."
 - **Verbs that write `.name` straight into a DM**, never through `seenAs`, still
-  name a stranger outright. These include Kiss, Bind, Collar, Heal and the other
+  name a stranger outright. These include Bind, Collar, Heal and the other
   medical verbs, lesson offers, and corpse and blood abilities. Each needs
   `seenBy` at its own call site; about 180 lines across ~20 files.
 - **The conversion rite's pick list** goes to the whole circle at once, so it
