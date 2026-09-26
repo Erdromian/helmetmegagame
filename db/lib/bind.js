@@ -17,6 +17,8 @@ const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { stopPerformances } = require("./performance");
+const { seenById } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 
 const BIND_SELECT = {
   id: true,
@@ -97,8 +99,13 @@ async function applyBind(prisma, { actor, target, turn, offerId = null }) {
 }
 
 // Files the consent offer. Returns { ok, offer, dm } or { ok: false, reason }.
+// Each side is named the way the other knows them (intercept.js#seenBy): the
+// target was picked by a token when masked or a stranger, and the ask must not
+// hand back the name the picker withheld — nor tell the target who is asking.
 async function createBindOffer(prisma, { actor, target, turn }) {
-  if (!target.discordUserId) return { ok: false, reason: `${target.name} can't be reached.` };
+  if (!target.discordUserId) {
+    return { ok: false, reason: `${capitalizeFirst(await seenById(prisma, actor.id, target.id))} can't be reached.` };
+  }
   const duplicate = await prisma.offer.findFirst({
     where: { kind: "BIND", status: "PENDING", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
     select: { id: true },
@@ -112,7 +119,7 @@ async function createBindOffer(prisma, { actor, target, turn }) {
     offer,
     dm: {
       discordUserId: target.discordUserId,
-      content: `*${actor.name}* wants to bind you. Accept?`,
+      content: `*${capitalizeFirst(await seenById(prisma, target.id, actor.id))}* wants to bind you. Accept?`,
       components: offerButtonRow(offer.id),
       meta: dmAction(DM_ACTION.OFFER, offer.id),
     },
@@ -126,7 +133,10 @@ async function acceptBind(prisma, offer, responder) {
     prisma.character.findUnique({ where: { id: offer.initiatorId }, select: BIND_SELECT }),
     prisma.character.findUnique({ where: { id: offer.responderId }, select: BIND_SELECT }),
   ]);
-  const refuse = async (reason) => {
+  // `reason` goes back to whoever pressed Accept; `toAsker`, when a sentence
+  // is worded from where the asker stands, goes to them by DM instead
+  // (db/lib/kiss.js#acceptKiss does the same).
+  const refuse = async (reason, toAsker = reason) => {
     await prisma.offer.updateMany({
       where: { id: offer.id, status: "PENDING" },
       data: { status: "CANCELLED", respondedAt: new Date() },
@@ -134,18 +144,20 @@ async function acceptBind(prisma, offer, responder) {
     return {
       ok: false,
       reason,
-      dms: actor?.discordUserId ? [{ discordUserId: actor.discordUserId, content: `Your offer fell through: ${reason}` }] : [],
+      dms: actor?.discordUserId ? [{ discordUserId: actor.discordUserId, content: `Your offer fell through: ${toAsker}` }] : [],
     };
   };
   if (!turn || turn.id !== offer.turnId) return refuse("That offer was for a turn that's over.");
   if (!actor || actor.status !== "ALIVE") return refuse("They aren't around any more.");
-  if (!target || target.status !== "ALIVE") return refuse("You aren't in a state to be bound.");
+  if (!target || target.status !== "ALIVE") return refuse("You aren't in a state to be bound.", "They aren't in a state to be bound.");
   // allowConcealed, matching the ASK side and every other body verb: the offer
   // that got here was made to somebody standing in front of the binder, and a
   // mask does not stop a rope. Without it, a hood who SAID YES to being bound
   // was refused at the accept, which is the one place consent was already given.
   if (!isHere(actor, target, { allowConcealed: true })) return refuse(notHereMessage(target));
-  if (isBound(target)) return refuse(`${target.name} is already bound.`);
+  if (isBound(target)) {
+    return refuse("You're already bound.", `${capitalizeFirst(await seenById(prisma, actor.id, target.id))} is already bound.`);
+  }
 
   const claim = await prisma.offer.updateMany({
     where: { id: offer.id, status: "PENDING" },
@@ -158,11 +170,17 @@ async function acceptBind(prisma, offer, responder) {
     where: { id: offer.id },
     data: { status: "RESOLVED", resolvedAt: new Date(), outcome: { bound: true } },
   });
+  const [actorSeen, targetSeen] = await Promise.all([
+    seenById(prisma, target.id, actor.id),
+    seenById(prisma, actor.id, target.id),
+  ]);
   return {
     ok: true,
     boundId: target.id,
-    line: `You let ${actor.name} bind you.`,
-    dms: actor.discordUserId ? [{ discordUserId: actor.discordUserId, content: `${target.name} let you bind them.` }] : [],
+    line: `You let ${actorSeen} bind you.`,
+    dms: actor.discordUserId
+      ? [{ discordUserId: actor.discordUserId, content: `${capitalizeFirst(targetSeen)} let you bind them.` }]
+      : [],
   };
 }
 

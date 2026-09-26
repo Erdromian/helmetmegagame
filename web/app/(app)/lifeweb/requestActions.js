@@ -20,6 +20,8 @@ import { UserError, acting } from "@/lib/actionResult";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { killCharacter } from "@/lib/discordGuild";
 import { SFX } from "@lifeweb/db/lib/sfx";
+import { HERE_FIELDS } from "@lifeweb/db/lib/presence";
+import { resolveHereTarget, seenName } from "@/lib/hereTarget";
 
 // The Lifeweb's two player-facing Requests, same contract as the sheet's
 // (web/app/(app)/character/requestActions.js): authenticate, re-validate,
@@ -47,16 +49,22 @@ async function requireMortusCharacter() {
   return { session, character };
 }
 
-// The target has to be at the tower too — folded into the WHERE clause.
-async function requireLivingTarget(targetCharacterId) {
+// The target has to be standing where the Mortus is, and arrives as a KEY
+// (db/lib/targetKey.js): "character:<id>" for a face they can name,
+// "hood:<token>" for a hood or a stranger. It used to be any bare id anywhere
+// in the Fortress zone, and the picker listed the whole zone by real name and
+// id — a hood-proof roster of the Fortress for every Mortus. resolveHereTarget
+// is the same gate every other body verb uses, and it refuses a plain id for
+// somebody the Mortus cannot name.
+async function requireLivingTarget(character, targetKey) {
+  const here = await resolveHereTarget(character, targetKey, { status: "ALIVE", select: HERE_FIELDS });
+  // The whole row, re-read: Feed Person hands it to killCharacter, which needs
+  // discordRoleId and everything the access teardown reads.
   const target = await prisma.character.findFirst({
-    // `?? ""` is load-bearing: Prisma strips an undefined field from a where
-    // clause instead of matching nothing, so an omitted id must never turn
-    // "bleed this person" into "bleed any living character".
-    where: { id: targetCharacterId ?? "", status: "ALIVE", zone: { slug: FORTRESS_SLUG } },
+    where: { id: here.id, status: "ALIVE" },
     include: { tags: { include: { tag: true } } },
   });
-  if (!target) throw new UserError("They aren't in the Fortress.");
+  if (!target) throw new UserError("They aren't here.");
   return target;
 }
 
@@ -73,10 +81,12 @@ function revalidateAll() {
 // own blood is the obvious reading of the button.
 async function donateBloodRequestImpl({ targetCharacterId }) {
   const { session, character } = await requireMortusCharacter();
-  const target = await requireLivingTarget(targetCharacterId);
+  const target = await requireLivingTarget(character, targetCharacterId);
+  // As the Mortus knows them: a hood or a stranger is "A young man".
+  const seen = target.id === character.id ? "You" : await seenName(character, target.id);
 
   if (target.tags.some((ct) => ct.tag.slug === DRAINED_SLUG)) {
-    throw new UserError(`${target.name} is already Drained.`);
+    throw new UserError(target.id === character.id ? "You're already Drained." : `${seen} is already Drained.`);
   }
 
   const [openTurn, drainedTag] = await Promise.all([
@@ -125,7 +135,7 @@ async function donateBloodRequestImpl({ targetCharacterId }) {
   revalidateAll();
   // The Tower taking blood, in the donor's own ears. It is not a room sound: who is being
   // Drained is nobody else's business, and a noise in the place would say it out loud.
-  return { targetName: target.name, amount: blood.delta, tier, sfx: SFX.LIFEWEB };
+  return { targetName: seen, amount: blood.delta, tier, sfx: SFX.LIFEWEB };
 }
 
 // Feeding someone to the Lifeweb kills them, here, on the click. The kill is
@@ -136,7 +146,8 @@ async function donateBloodRequestImpl({ targetCharacterId }) {
 // revive (REQUESTS.md §2): it only draws the blood back out.
 async function feedPersonRequestImpl({ targetCharacterId }) {
   const { session, character } = await requireMortusCharacter();
-  const target = await requireLivingTarget(targetCharacterId);
+  const target = await requireLivingTarget(character, targetCharacterId);
+  const seen = target.id === character.id ? "You" : await seenName(character, target.id);
 
   const openTurn = await getOpenTurn();
 
@@ -179,7 +190,7 @@ async function feedPersonRequestImpl({ targetCharacterId }) {
   }
 
   revalidateAll();
-  return { targetName: target.name, amount: blood.delta, killed, sfx: SFX.LIFEWEB };
+  return { targetName: seen, amount: blood.delta, killed, sfx: SFX.LIFEWEB };
 }
 
 // Validation comes back as { ok: false, error }, never thrown — Next.js redacts anything thrown out of a Server Action. See web/lib/actionResult.js.

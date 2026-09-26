@@ -12,7 +12,7 @@ import { ChevronDownIcon } from "@/app/components/icons";
 //
 // A shut block HIDES its body rather than unmounting it. The bodies are deep
 // game surfaces with state of their own — HereList seeds its rows into
-// useState, TravelNodes holds a crossing confirm half-answered — and folding a
+// useState, RoomPanel reads the room's stash when it mounts — and folding a
 // block away for a moment must not throw that away or refetch it on reopen.
 export default function FoldBlock({ head, open, onToggle, className = "", children }) {
   return (

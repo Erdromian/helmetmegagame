@@ -1112,6 +1112,12 @@ function AtmDialog({ onClose, onDone }) {
 
   const withdrawing = direction === "WITHDRAW";
   const max = withdrawing ? state.account.balanceObols : state.heldObols;
+  // Refused, never clamped. Firefox lets a letter into a number box and then
+  // reports the whole box as "", so "12o" used to reach the old clamp as 0 and
+  // quietly move 1 ¢. A box that does not hold a whole amount in range greys
+  // the button out and leaves the typo on screen to be fixed.
+  const n = Number(amount);
+  const valid = amount !== "" && Number.isInteger(n) && n >= 1 && n <= max;
 
   return (
     <Modal open title={title} onClose={onClose}>
@@ -1147,11 +1153,11 @@ function AtmDialog({ onClose, onDone }) {
         <button
           type="button"
           className="btn"
-          disabled={pending || !max}
+          disabled={pending || !valid}
           onClick={() =>
             run(
               depotBank,
-              { direction, amount: Math.max(1, Math.min(Number(amount) || 0, max)), pin },
+              { direction, amount: n, pin },
               {
                 onOk: (res) => {
                   onDone({ line: `${res.direction === "WITHDRAW" ? "Withdrew" : "Deposited"} ${res.amount} ¢.` });

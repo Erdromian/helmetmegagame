@@ -39,7 +39,9 @@ import {
 } from "@/lib/transferReach";
 import { concealedNow } from "@lifeweb/db/lib/presence";
 import { medicallyVisibleTags } from "@lifeweb/db/lib/medicalVision";
-import { resolveHereTarget } from "@/lib/hereTarget";
+import { resolveHereTarget, seenName } from "@/lib/hereTarget";
+import { seenById } from "@lifeweb/db/lib/intercept";
+import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { performMiracle } from "@lifeweb/db/lib/verbs/medic";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import {
@@ -253,8 +255,16 @@ export async function healCharacterRequestImpl({
 
   // Straight off the tag, never off the client.
   const cost = healCost(held.tag);
-  if (cost > payer.balance)
-    throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
+  if (cost > payer.balance) {
+    // A person paying is named as the medic knows them; a masked friend picked
+    // by token must not come back under their real name.
+    const payerName = payer.kind === "character" ? await seenName(character, payer.id) : payer.name;
+    throw new UserError(`${payerName} only has ${payer.balance} ⬢.`);
+  }
+  // The patient and the medic, each as the other knows them (intercept.js#seenBy).
+  const self = target.id === character.id;
+  const patientSeen = self ? null : await seenById(prisma, character.id, target.id);
+  const medicSeen = self ? null : capitalizeFirst(await seenById(prisma, target.id, character.id));
 
   const ledger = {
     actorDiscordUserId: session.discordUserId,
@@ -362,7 +372,7 @@ export async function healCharacterRequestImpl({
             confirmedAt: new Date(),
             moveKind: "GAMBIT",
             moveReviewStatus: "OPEN",
-            description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}.`,
+            description: `Treating ${self ? "their own" : `${patientSeen}'s`} ${held.tag.name}.`,
             diceRoll: healGambitAdvantage.die,
             diceModifier:
               gambitModifierTotal(character.tags, { mood: character.mood }) + (surgicalPenalty ? -1 : 0),
@@ -386,7 +396,7 @@ export async function healCharacterRequestImpl({
       });
       if (!heldNow) {
         throw new UserError(
-          `${target.id === character.id ? "You've" : `${target.name} has`} already been treated for that.`,
+          `${self ? "You've" : `${capitalizeFirst(patientSeen)} has`} already been treated for that.`,
         );
       }
       effect.restore = {
@@ -437,19 +447,19 @@ export async function healCharacterRequestImpl({
     notifyCharacter(
       target,
       gambit
-        ? `${character.name} is working on your ${held.tag.name}. You'll know how it went at the end of the turn.`
+        ? `${medicSeen} is working on your ${held.tag.name}. You'll know how it went at the end of the turn.`
         : `Your ${held.tag.name} was treated.`,
     );
   }
   if (payer.kind === "character" && payer.id !== character.id && cost > 0) {
     notifyCharacter(
       payer,
-      `${character.name} paid ${cost} ⬢ from your purse to treat ${target.id === character.id ? "themselves" : target.name}.`,
+      `${capitalizeFirst(await seenById(prisma, payer.id, character.id))} paid ${cost} ⬢ from your purse to treat ${self ? "themselves" : await seenById(prisma, payer.id, target.id)}.`,
     );
   }
   revalidateAll();
   return {
-    targetName: target.name,
+    targetName: self ? target.name : patientSeen,
     tagName: held.tag.name,
     cost,
     gambit,

@@ -687,6 +687,7 @@ export default async function DevPanelPage({ searchParams }) {
             isUnique: true,
             unlimited: true,
             weight: true,
+            baseSeats: true,
             startingLocationId: true,
           },
         }),

@@ -355,6 +355,7 @@ async function releaseMachine(prisma, discordUserId, { roomId, turn = null } = {
   await sayInRoom(prisma, room, text);
   return {
     ok: true,
+    amount: taken,
     line: taken > 0 ? T.youLeft : T.youLeftEmpty,
     text,
     sfx: taken > 0 ? SFX.COIN : null,
@@ -428,7 +429,7 @@ async function insertCoins(prisma, discordUserId, { roomId, amount, turn = null 
 
   // No room line. A coin-by-coin announcement is noise at 100+ players, and
   // roomOpened already told the room somebody is at the machine.
-  return { ok: true, line: T.youInserted(n, total), sfx: SFX.COIN_INSERT };
+  return { ok: true, amount: n, line: T.youInserted(n, total), sfx: SFX.COIN_INSERT };
 }
 
 /** Everything loose in the slot, back into a hand. */
@@ -732,7 +733,7 @@ async function collectTill(prisma, discordUserId, { roomId, turn = null } = {}) 
   const who = await presentedName(prisma, character.id);
   const text = T.roomTill(who);
   await sayInRoom(prisma, room, text);
-  return { ok: true, line: T.youCollected(taken), text, sfx: SFX.COIN };
+  return { ok: true, amount: taken, line: T.youCollected(taken), text, sfx: SFX.COIN };
 }
 
 /** A stack out of a hand and onto the shelf. */

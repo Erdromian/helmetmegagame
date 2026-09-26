@@ -11,13 +11,14 @@ const { ack, respond } = require("./respond");
 async function handleConversionPick(interaction, attemptId) {
   await ack(interaction, { ephemeral: true });
 
-  const targetId = interaction.values?.[0];
-  if (!targetId) return respond(interaction, { content: "Nobody picked." });
+  // The option's code, never a character id (conversionRite.js#pickCode).
+  const pick = interaction.values?.[0];
+  if (!pick) return respond(interaction, { content: "Nobody picked." });
 
   const result = await answerConversionPick(prisma, {
     attemptId,
     discordUserId: interaction.user.id,
-    targetId,
+    pick,
   });
   return respond(interaction, { content: result.ok ? result.line : result.reason });
 }

@@ -33,6 +33,8 @@ const { putChannelOverwrite } = require("@lifeweb/db/lib/discordRest");
 const { LOCATION_MEMBER_ALLOW } = require("@lifeweb/db/lib/zoneChannelSpec");
 const { sendDm } = require("@lifeweb/db/lib/dm");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
+const { seenById } = require("@lifeweb/db/lib/intercept");
+const { capitalizeFirst } = require("@lifeweb/db/lib/concealedIdentity");
 
 // Gateway half of the Travel flow. Rules and writes live in db/lib/locationTravel.js; this is the
 // Discord vocabulary — pickers and the REST side effects db/lib/locationMove.js owns.
@@ -236,14 +238,17 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
 
   // Followers the way wouldn't take, already detached. The leader's message must not say WHY —
   // naming a hidden crawl's refusal would announce that the crawl is there (MAP.md §2a).
+  // Leader and follower each name the other as they know them
+  // (intercept.js#seenBy) — the web face's rule (chat/actions.js#travel).
   for (const entry of result.leftBehind ?? []) {
     if (character.discordUserId) {
+      const follower = await seenById(prisma, character.id, entry.character.id);
       await sendDm(
         prisma,
         character.discordUserId,
         entry.reason === "edge"
-          ? `*You can't move ${entry.character.name} through here. You left them behind.*`
-          : `*${entry.character.name} isn't with you any more.*`,
+          ? `*You can't move ${follower} through here. You left them behind.*`
+          : `*${capitalizeFirst(follower)} isn't with you any more.*`,
         { kind: DM_KIND.QUIET },
       ).catch(() => { });
     }
@@ -251,7 +256,7 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
       await sendDm(
         prisma,
         entry.character.discordUserId,
-        `*${character.name} went on without you.*`,
+        `*${capitalizeFirst(await seenById(prisma, entry.character.id, character.id))} went on without you.*`,
         { kind: DM_KIND.QUIET },
       ).catch(() => { });
     }
@@ -315,7 +320,7 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
     await sendDm(
       prisma,
       entry.character.discordUserId,
-      `*${character.name} brought you along to ${landed.name}.*`,
+      `*${capitalizeFirst(await seenById(prisma, entry.character.id, character.id))} brought you along to ${landed.name}.*`,
       { kind: DM_KIND.QUIET },
     ).catch((err) =>
       console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),

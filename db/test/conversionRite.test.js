@@ -28,6 +28,9 @@ const assert = require("node:assert/strict");
 // half-converted. What the DMs SAY is asserted against the exported constants,
 // which is where the words live anyway.
 process.env.DISCORD_TOKEN = "";
+// A pick option's code is an HMAC under AUTH_SECRET (conversionRite.js#pickCode),
+// and with no secret there is no code at all.
+process.env.AUTH_SECRET ||= "test-secret";
 
 const {
   CONVERSION_WINDOW_MS,
@@ -39,6 +42,8 @@ const {
   PICK_DM,
   dismisses,
   conversionPickRow,
+  pickCode,
+  pickOptions,
   createConversionOffer,
   answerConversionPick,
   refuseConversion,
@@ -423,20 +428,70 @@ test("convertCandidates asks for the opposite set, and drops the cult's own", as
 
 // ---- the picker --------------------------------------------------------------
 
-test("the select carries one option per candidate, labelled as the room sees them", () => {
+test("the select carries one option per candidate, valued by its code", () => {
   const row = conversionPickRow("a1", [
-    { characterId: "v1", label: "Cass" },
-    { characterId: "v2", label: "a young woman" },
+    { code: "k1", label: "Cass" },
+    { code: "k2", label: "a young woman" },
   ]);
   const select = row[0].components[0];
   assert.equal(select.type, 3, "a string select, not a button pair");
   assert.equal(select.custom_id, "rite:convert:a1", "the id on the wire is the ATTEMPT");
   assert.deepEqual(
     select.options.map((o) => o.value),
-    ["v1", "v2"],
+    ["k1", "k2"],
   );
   // A hood is not undone by the picker: the alias is what the cultist picks.
   assert.equal(select.options[1].label, "a young woman");
+});
+
+// The people the candidates are, as rows the picker loads by id.
+const CASS = { id: "v1", name: "Cass", firstName: "Cass", age: 20, gender: "WOMAN", status: "ALIVE", tags: [] };
+const DORA = { id: "v2", name: "Dora", firstName: "Dora", age: 20, gender: "WOMAN", status: "ALIVE", tags: [] };
+const HOOD = {
+  equipped: true,
+  tag: { slug: "hood", name: "Hood", concealsIdentity: true, concealSprite: "hood", forcesConceal: true, equipLayer: 3 },
+};
+
+test("each chanter's list names the candidates the way that chanter knows them", async () => {
+  // Ash knows Cass; Bell has never met her.
+  const db = makeDb({ character: [CASS], acquaintance: [{ ownerId: "c1", subjectId: "v1" }] });
+  const [ash] = await pickOptions(db, [{ id: "v1" }], { attemptId: "a1", readerId: "c1" });
+  const [bell] = await pickOptions(db, [{ id: "v1" }], { attemptId: "a1", readerId: "c2" });
+  assert.equal(ash.label, "Cass");
+  assert.equal(bell.label, "a young woman", "a bare face nobody introduced is what it looks like");
+});
+
+test("a hood is its alias on every chanter's list, even a friend's", async () => {
+  const db = makeDb({ character: [{ ...CASS, tags: [HOOD] }], acquaintance: [{ ownerId: "c1", subjectId: "v1" }] });
+  const [ash] = await pickOptions(db, [{ id: "v1" }], { attemptId: "a1", readerId: "c1" });
+  assert.equal(ash.label, "a young woman");
+});
+
+test("no option carries a character id, and each chanter's codes are their own", async () => {
+  const db = makeDb({ character: [CASS] });
+  const [ash] = await pickOptions(db, [{ id: "v1" }], { attemptId: "a1", readerId: "c1" });
+  const [bell] = await pickOptions(db, [{ id: "v1" }], { attemptId: "a1", readerId: "c2" });
+  assert.deepEqual(Object.keys(ash).sort(), ["code", "label"]);
+  assert.notEqual(ash.code, "v1");
+  assert.ok(!ash.code.includes("v1"));
+  assert.notEqual(ash.code, bell.code, "one chanter's code means nothing on another's list");
+  assert.notEqual(ash.code, pickCode("a2", "c1", "v1"), "nor in the next rite");
+});
+
+test("two lookalikes are told apart by the label every observer shares", async () => {
+  const labelled = makeDb({
+    character: [
+      { ...CASS, presenceLabel: "hunched" },
+      { ...DORA, presenceLabel: "on the left" },
+    ],
+  });
+  const both = await pickOptions(labelled, [{ id: "v1" }, { id: "v2" }], { attemptId: "a1", readerId: "c1" });
+  assert.deepEqual(both.map((o) => o.label), ["a young woman, hunched", "a young woman, on the left"]);
+
+  // No label rolled yet: a number, so the two options still differ.
+  const bare = makeDb({ character: [CASS, DORA] });
+  const numbered = await pickOptions(bare, [{ id: "v1" }, { id: "v2" }], { attemptId: "a1", readerId: "c1" });
+  assert.deepEqual(numbered.map((o) => o.label), ["a young woman (1)", "a young woman (2)"]);
 });
 
 test("only somebody who chanted may pick, and only once", async () => {
@@ -459,18 +514,26 @@ test("only somebody who chanted may pick, and only once", async () => {
   });
 
   // Somebody who was never in the circle.
-  const outsider = await answerConversionPick(db, { attemptId: "a1", discordUserId: "nobody", targetId: "v1" });
+  const outsider = await answerConversionPick(db, { attemptId: "a1", discordUserId: "nobody", pick: pickCode("a1", "c1", "v1") });
   assert.equal(outsider.ok, false);
   assert.equal(attempt.status, "AWAITING", "a stranger's pick does not spend the rite");
 
-  const picked = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", targetId: "v1" });
+  // A bare character id is not a pick: the list never carried one.
+  const byId = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", pick: "v1" });
+  assert.equal(byId.ok, false);
+  // Nor is another chanter's code for the same person.
+  const borrowed = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", pick: pickCode("a1", "c2", "v1") });
+  assert.equal(borrowed.ok, false);
+  assert.equal(attempt.status, "AWAITING");
+
+  const picked = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", pick: pickCode("a1", "c1", "v1") });
   assert.equal(picked.ok, true);
   assert.equal(attempt.status, "FIRED", "the claim is what stops two cultists both calling somebody");
   assert.equal(db._store.offer.length, 1);
   assert.equal(db._store.offer[0].responderId, "v1");
   assert.equal(db._store.offer[0].initiatorId, "c1");
 
-  const again = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", targetId: "v1" });
+  const again = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", pick: pickCode("a1", "c1", "v1") });
   assert.equal(again.ok, false, "the rite is spent");
   assert.equal(db._store.offer.length, 1);
 });
@@ -493,7 +556,7 @@ test("a pick nobody can still convert is refused without spending the rite", asy
 
   // The DM's labels are minutes old; the eligible set is rebuilt at pick time,
   // so somebody bound or converted in the gap is simply not there any more.
-  const out = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", targetId: "gone" });
+  const out = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", pick: pickCode("a1", "c1", "gone") });
 
   assert.equal(out.ok, false);
   assert.equal(attempt.status, "AWAITING", "still answerable, so the circle can pick somebody else");
@@ -506,7 +569,7 @@ test("a rite that is not Conversion cannot be answered by this picker", async ()
   const attempt = { id: "a1", riteKey: "panic", status: "AWAITING", roomId: "r1", participants: [{ characterId: "c1" }] };
   const db = makeDb({ riteAttempt: [attempt] });
 
-  const out = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", targetId: "v1" });
+  const out = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", pick: pickCode("a1", "c1", "v1") });
 
   assert.equal(out.ok, false);
   assert.equal(attempt.status, "AWAITING");

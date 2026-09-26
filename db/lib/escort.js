@@ -3,7 +3,8 @@
 const { INCAPACITATING_SLUGS } = require("./incapacitation");
 // One module owns the hold and every sentence about it (INTERCEPT.md); this
 // only reads it. Required by path rather than off the barrel, same as the rest.
-const { heldReasonFor } = require("./intercept");
+const { heldReasonFor, seenById } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 const { escortButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
@@ -294,17 +295,23 @@ async function releaseParty(prisma, leaderId, { tx = null } = {}) {
 // escorted at all, neither side of this handshake could be masked; now the ask
 // goes out to a hood, and "Sir Alder is with you." on their Accept would hand
 // over the name the helmet was bought to hide.
-function handshakeName(row) {
+//
+// A bare face is named as `viewerId` knows them (intercept.js#seenBy): the
+// two may never have met, and a stranger is "a young man" (STRANGERS.md).
+async function handshakeName(db, viewerId, row) {
   if (!row) return "somebody";
   const forced = forcedNameFrom(row.tags);
   if (forced) return forced; // a forced name is not hiding (PROXYING.md §5).
   const piece = concealmentFrom(row.tags);
-  return piece && (piece.forced || row.concealed) ? "somebody" : row.name;
+  if (piece && (piece.forced || row.concealed)) return "somebody";
+  return seenById(db, viewerId, row.id);
 }
 
 // Files the ask. Returns { ok, offer, dm } or { ok: false, reason }.
 async function createEscortOffer(prisma, { actor, target, turn }) {
-  if (!target.discordUserId) return { ok: false, reason: `${handshakeName(target)} can't be reached.` };
+  if (!target.discordUserId) {
+    return { ok: false, reason: `${capitalizeFirst(await handshakeName(prisma, actor.id, target))} can't be reached.` };
+  }
   const duplicate = await prisma.offer.findFirst({
     where: { kind: "ESCORT", status: "PENDING", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
     select: { id: true },
@@ -318,7 +325,7 @@ async function createEscortOffer(prisma, { actor, target, turn }) {
     offer,
     dm: {
       discordUserId: target.discordUserId,
-      content: `*${handshakeName(actor)}* wants to take you along.`,
+      content: `*${capitalizeFirst(await handshakeName(prisma, target.id, actor))}* wants to take you along.`,
       components: escortButtonRow(offer.id),
       meta: dmAction(DM_ACTION.OFFER, offer.id, "ESCORT"),
     },
@@ -389,22 +396,26 @@ async function acceptEscort(prisma, offer, _responder) {
     });
   });
 
+  const [leader, follower] = await Promise.all([
+    handshakeName(prisma, target.id, actor),
+    handshakeName(prisma, actor.id, target).then(capitalizeFirst),
+  ]);
   return {
     ok: true,
     line: attaches
-      ? `You're with ${handshakeName(actor)} now.`
+      ? `You're with ${leader} now.`
       : together
-        ? `You agreed, but ${handshakeName(actor)} can't bring you along right now.`
-        : `You agreed, but ${handshakeName(actor)} isn't here any more.`,
+        ? `You agreed, but ${leader} can't bring you along right now.`
+        : `You agreed, but ${leader} isn't here any more.`,
     dms: actor.discordUserId
       ? [
           {
             discordUserId: actor.discordUserId,
             content: attaches
-              ? `${handshakeName(target)} is with you.`
+              ? `${follower} is with you.`
               : together
-                ? `${handshakeName(target)} agreed, but you can't bring them along right now.`
-                : `${handshakeName(target)} agreed, but you've moved away.`,
+                ? `${follower} agreed, but you can't bring them along right now.`
+                : `${follower} agreed, but you've moved away.`,
           },
         ]
       : [],

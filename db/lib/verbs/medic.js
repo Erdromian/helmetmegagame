@@ -10,6 +10,8 @@ const { dropCharacterTag } = require("../tagWrites");
 const { lockCharacter } = require("../moveLedger");
 const { logAudit } = require("../auditLog");
 const { refuse, asResult } = require("./common");
+const { seenById } = require("../intercept");
+const { capitalizeFirst } = require("../concealedIdentity");
 
 const TARGET_SELECT = {
   id: true,
@@ -53,7 +55,9 @@ function touchable(target) {
 function miracleableWounds(prisma, { character, targetKey }) {
   return asResult(async () => {
     const target = await miracleTarget(prisma, character, targetKey);
-    return { wounds: touchable(target).map((ct) => ({ tagId: ct.tagId, name: ct.tag.name })), name: target.name };
+    // Mid-sentence, as the Saint knows them: "What do you heal on a young man?"
+    const name = await seenById(prisma, character.id, target.id);
+    return { wounds: touchable(target).map((ct) => ({ tagId: ct.tagId, name: ct.tag.name })), name };
   });
 }
 
@@ -63,6 +67,11 @@ function performMiracle(prisma, { character, discordUserId, targetKey, tagId, op
     const target = await miracleTarget(prisma, character, targetKey);
     const held = touchable(target).find((ct) => ct.tagId === tagId);
     if (!held) refuse("That isn't a wound a miracle could touch.");
+    // Each side named as the other knows them (intercept.js#seenBy).
+    const [targetSeen, saintSeen] = await Promise.all([
+      seenById(prisma, character.id, target.id),
+      seenById(prisma, target.id, character.id),
+    ]);
     if (!openTurn) refuse("No turn is open.");
     // Fast fail; the row-locked re-count below is what holds under a race.
     if ((await miraclesThisTurn(prisma, discordUserId, openTurn.id)) >= MIRACLE_PER_TURN) {
@@ -77,7 +86,7 @@ function performMiracle(prisma, { character, discordUserId, targetKey, tagId, op
       const heldNow = await tx.characterTag.findUnique({
         where: { characterId_tagId: { characterId: target.id, tagId: held.tagId } },
       });
-      if (!heldNow) refuse(`${target.name} no longer has that.`);
+      if (!heldNow) refuse(`${capitalizeFirst(targetSeen)} no longer has that.`);
       await dropCharacterTag(tx, target.id, held.tagId);
       await logAudit(tx, {
         actorDiscordUserId: discordUserId,
@@ -95,10 +104,10 @@ function performMiracle(prisma, { character, discordUserId, targetKey, tagId, op
     });
     return {
       touched: [target.id],
-      notify: [{ character: target, text: `${character.name} healed your ${held.tag.name} with a miracle.` }],
-      targetName: target.name,
+      notify: [{ character: target, text: `${capitalizeFirst(saintSeen)} healed your ${held.tag.name} with a miracle.` }],
+      targetName: targetSeen,
       tagName: held.tag.name,
-      name: target.name,
+      name: capitalizeFirst(targetSeen),
     };
   });
 }

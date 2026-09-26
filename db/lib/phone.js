@@ -334,9 +334,13 @@ async function answerPhone(prisma, discordUserId, roomId, { via = "web", turn = 
     // Somebody else's hand got there between the read and the write. The
     // receiver is still yours, and so is the coin's time.
     await notifyPhones(prisma, [room.id]);
-    return holdingView(prisma, character, room.id, { line: PHONE_TEXT.pickedUp, sfx: paid ? SFX.COIN_INSERT : null });
+    return holdingView(prisma, character, room.id, {
+      line: PHONE_TEXT.pickedUp,
+      sfx: paid ? SFX.COIN_INSERT : null,
+      charged: paid,
+    });
   }
-  return holdingView(prisma, character, room.id, { line: PHONE_TEXT.answered, sfx: SFX.PHONE_PICKUP });
+  return holdingView(prisma, character, room.id, { line: PHONE_TEXT.answered, sfx: SFX.PHONE_PICKUP, charged: paid });
 }
 
 // One obol out of a hand and into the Keep's Vault, which is what "the
@@ -403,7 +407,7 @@ async function insertObol(prisma, discordUserId, roomId, { turn = null } = {}) {
     return fail(err?.userMessage ?? "The coin wouldn't go in. Try again.", { sfx: SFX.REFUSE_MONEY });
   }
   await notifyPhones(prisma, [room.id]);
-  return holdingView(prisma, character, room.id, { line: PHONE_TEXT.paid, sfx: SFX.COIN_INSERT });
+  return holdingView(prisma, character, room.id, { line: PHONE_TEXT.paid, sfx: SFX.COIN_INSERT, charged: true });
 }
 
 // Whether a phone can take a call right now, read off a row fetched under
@@ -473,8 +477,10 @@ async function dialNumber(prisma, discordUserId, roomId, rawDigits, { turn = nul
 
   await audit(prisma, discordUserId, character, room, turn, { dialled: digits, charged });
 
-  if (!target) return misdial(prisma, character, room, "notInService", PHONE_TEXT.notInService);
-  if (target.id === room.id || !takesCalls(target)) return misdial(prisma, character, room, "busy", PHONE_TEXT.busy);
+  if (!target) return misdial(prisma, character, room, "notInService", PHONE_TEXT.notInService, charged);
+  if (target.id === room.id || !takesCalls(target)) {
+    return misdial(prisma, character, room, "busy", PHONE_TEXT.busy, charged);
+  }
 
   // Both rows locked, in id order so two people dialling each other in the
   // same second cannot deadlock, then the far phone checked again under the
@@ -504,7 +510,7 @@ async function dialNumber(prisma, discordUserId, roomId, rawDigits, { turn = nul
       return fail("The line went dead. Try again.");
     }
   }
-  if (!call) return misdial(prisma, character, room, "busy", PHONE_TEXT.busy);
+  if (!call) return misdial(prisma, character, room, "busy", PHONE_TEXT.busy, charged);
 
   await ringOnce(prisma, call, target);
   await notifyPhones(prisma, [room.id, target.id]);
@@ -512,16 +518,18 @@ async function dialNumber(prisma, discordUserId, roomId, rawDigits, { turn = nul
     outcome: "ringing",
     line: PHONE_TEXT.dialled(digits),
     sfx: charged ? SFX.COIN_INSERT : null,
+    charged,
   });
 }
 
 // A number that goes nowhere: ring out for a few seconds, then the error,
 // said into the dialling room. The error sound is the dialler's alone — it is
-// in their ear, not on the wall.
-async function misdial(prisma, character, room, outcome, text) {
+// in their ear, not on the wall. `charged` rides through because the coin went
+// in before the number was looked up, so a misdial on a payphone still cost one.
+async function misdial(prisma, character, room, outcome, text, charged = false) {
   await sleep(PHONE_MISDIAL_MS);
   await roomLine(prisma, room.id, text, null);
-  return holdingView(prisma, character, room.id, { outcome, line: text, sfx: SFX.PHONE_ERROR });
+  return holdingView(prisma, character, room.id, { outcome, line: text, sfx: SFX.PHONE_ERROR, charged });
 }
 
 // One audit row per dial, stamped with the turn (REQUESTS.md 1a). The number
