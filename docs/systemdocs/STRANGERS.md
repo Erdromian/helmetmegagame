@@ -249,6 +249,9 @@ Name)".
   `seenById(db, viewerId, id)`, which loads what `seenBy` needs. The web's
   `web/lib/hereTarget.js#seenName` is the same, capitalised to open a
   sentence.
+- **The conversion rite's pick list** goes out as one DM per chanter, so each
+  list is worded for its reader, and an option is a code made for that
+  chanter rather than a character id (`THANATI.md` §4a).
 - **A refusal at Accept** goes to two people, so each handshake words it
   twice: "You're already bound." to whoever pressed Accept, and "A young man
   is already bound." to the asker. Bind, Collar, Lessons and Confession all
@@ -275,8 +278,6 @@ Name)".
 - **Bodies.** A corpse is an item named after the dead ("Ada's Corpse"), so
   Bury, Engrave and Mutilate on a body name them. That is how bodies work
   (`CORPSES.md`), not a leak this rule closes.
-- **The conversion rite's pick list** goes to the whole circle at once, so it
-  can't be worded per reader.
 
 ## 8. Where the code lives
 
