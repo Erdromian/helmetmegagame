@@ -276,7 +276,7 @@ each arrived at by getting them wrong first.
    so there is no income for it to come after. See §5e.
 8. **Hunger pass** (`db/lib/hungerPass.js`) — **after** the sweep. The hunger
    descriptors carry no clock any more, so the order no longer guards against a
-   re-grant collision, but a Foodstuff eaten to stay out of Starving (§5a) must
+   re-grant collision, but food the close eats on its own (§5a) must
    not be one the sweep is about to expire, and a poison it grants starts its
    clock on the turn about to open.
 8a. **Dawn afflictions pass** (`db/lib/dawnAfflictionPass.js`) — right after
@@ -526,7 +526,7 @@ The thunk performs, in narrative order:
    into the REST breaker's tally), then access revoke, role delete, and one
    combined `#leave` post naming everyone who died this turn.
 4. Hunger DMs — one per player who crossed newly into Hungry or Starving this
-   close, or who ate Foodstuffs to stay out of Starving (§5a), all in one DM;
+   close, or whom the close fed (§5a), all in one DM;
    plus the Dying line for anyone whose meter just reached 0 (§5b).
    A character who stayed in the same band hears nothing from this step.
    (The Dev Panel's Feed Them button sends its own `recovered` line instead,
@@ -719,19 +719,42 @@ tag, so `hungerValue` never reaches a browser.
 the turn before it happened; the doc removes that. A character is told the
 moment they become Hungry or Starving, and not before.
 
-### 5a. Eating to stay out of Starving
+### 5a. Eating at the close without being asked
 
-At the close, a character the decay would drop into Starving who is carrying
-**Foodstuffs** eats as many as it takes to reach the first Hungry value (34),
-or all of them if that is not enough (`db/lib/hunger.js#planAutoEat`). Each
-costs its usual 5 mood; being Starving costs nothing, because they are not.
-They are told: *"You were about to starve, so you ate 3 Foodstuffs from your
-pack."* Nothing happens to somebody with no Foodstuffs, and nothing else they
-carry is eaten.
+The close eats for a character only when the decay would leave them in
+Starving, and then in two steps (`db/lib/hunger.js#planAutoMeals`). Nobody who
+is Hungry or Full eats anything unasked, Glutton or not.
 
-A poisoned Foodstuff eaten this way poisons them exactly as eating it by hand
-would: `db/lib/consumeGrants.js` (moved out of `web/lib` for this) resolves the
-poison's grants against their own resists.
+**Foodstuffs, to stay out of Starving.** A character carrying Foodstuffs eats
+as many as it takes to reach the first Hungry value (34), or all of them if
+that is not enough. Being Starving costs nothing, because they are not.
+*"You were about to starve, so you ate 3 Foodstuffs from your pack."* If that
+is not enough: *"You were starving, so you ate 2 Foodstuffs. It wasn't
+enough."*
+
+**Anything else, only to stay alive.** Meals, dishes and raw ingredients are
+never eaten to stay out of Starving. They are eaten only when the meter would
+otherwise read **0**, which grants `dying` (§5b), and only enough to bring it
+to 1 (`STAY_ALIVE_FLOOR`). The **tastiest** thing goes first: the biggest mood
+figure a unit would give, then whatever fills most (`tastiestFirst`). So a
+servant carrying a feast for their betters will get it there, unless carrying
+it is all that stands between them and death. *"You were starving to death, so
+you ate your Lavish Meal to stay alive."*
+
+**What it will eat** (`autoEdible`): only plain food, meaning it fills you,
+moves your mood and does nothing else. Anything that grants a tag (Dustfish's
+nausea, the cult's Flesh, a stew with human meat in it), cures something, pays
+out or needs a skill to administer stays the player's own decision. A dish is
+checked through its ingredients the way `web/lib/cooking.js` reads them. And
+even starving, nothing below **−20 mood** a unit (`AUTO_EAT_MOOD_FLOOR`) is
+eaten: raw Human Flesh is −50. Foodstuffs (−5) and Moldy Bread (−10) are well
+inside it.
+
+Whatever is eaten does to the dial exactly what eating it by hand would
+(`dishMoodTerms` for a dish, `rawFoodMoodTerms` for raw food). A poisoned one
+poisons them exactly as eating it by hand would: `db/lib/consumeGrants.js`
+(moved out of `web/lib` for this) resolves the poison's grants against their
+own resists.
 
 ### 5b. The pass
 
@@ -742,13 +765,14 @@ cutoff excludes anybody born during this close):
    eaten, where that lands.
 2. In **one** transaction: batch the decay for everybody who is not eating
    (four `updateMany` buckets, each guarded so the meter never goes below 0);
-   for each eater, lock them, re-read their Foodstuffs and meter, eat and set
-   the meter outright; set exactly one descriptor for everyone (none for the
+   for each eater, lock them, re-read their food and meter, re-plan, eat and
+   set the meter outright; set exactly one descriptor for everyone (none for the
    Hungerless); run the zero clock (below).
 3. After it: one mood write per character — the one-time **−30** for dropping
    into Hungry and again into Starving (`HUNGRY_ONSET`/`STARVING_ONSET`, charged
    on where the character *ends*, so eating back to Hungry never costs the
-   Starving hit), −5 per Foodstuff eaten, and −40 for Dying. The nightly −5
+   Starving hit), whatever each thing eaten does to the dial, and −40 for
+   Dying. The nightly −5
    while Hungry and −10 while Starving are the mood pass's (`MOOD.md`).
 4. Hand back the notices; they are DM'd by the side-effect runner, one DM per
    character however many lines it carries (`turnSideEffects/steps/hunger.js`).
@@ -1020,7 +1044,7 @@ markers for the desk's labels.
 | `db/lib/miningYield.js` | Mining coefficient drift, and the quality words |
 | `db/lib/horseUpkeepPass.js` | The horse's feed (§5e) |
 | `db/lib/resourceStack.js` | ⬢ as a stack row — the only reader and writer of a ⬢ balance (`CARRY.md`, `ECONOMY.md`) |
-| `db/lib/hunger.js` | The 0-100 hunger meter itself — the per-day decay, the three descriptors, eating to stay out of Starving (§5) |
+| `db/lib/hunger.js` | The 0-100 hunger meter itself — the per-day decay, the three descriptors, what the close eats for somebody and when (§5) |
 | `db/lib/hungerPass.js` | The Hunger pass |
 | `db/lib/hungerDescriptor.js` | Swapping the one descriptor tag the moment eating moves the meter (§5) |
 | `db/lib/catatonicPass.js` | The Catatonic (AFK) flagging pass |
