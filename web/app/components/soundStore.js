@@ -32,8 +32,14 @@ import { useSyncExternalStore } from "react";
 // (web/app/components/sfx.js), so the levelling is done before this number is reached and
 // full is the level the game was tuned at — a lower default would just mean the quietest
 // files could never reach their tier. The music bus multiplies it in the same way.
+//
+// Under `next dev` the speaker starts OFF. A local dev server is where test browsers and
+// Claude's browser panes sit open on /chat for an hour at a time, and a room full of them
+// all playing the ambience at once is nobody's idea of testing. Only the default changes:
+// click the speaker on and the browser remembers it like any other. Production builds
+// inline NODE_ENV as "production", so players never see this.
 const KEY = "bascinet:sound";
-const DEFAULT = { sfx: true, music: true, volume: 1 };
+const DEFAULT = { sfx: process.env.NODE_ENV !== "development", music: true, volume: 1 };
 
 const listeners = new Set();
 let cached = null;
@@ -71,8 +77,8 @@ function scan() {
   try {
     return window.localStorage.getItem(KEY) ?? "";
   } catch {
-    // A private window, or site data blocked. Sound stays on at the default volume;
-    // it just will not be remembered.
+    // A private window, or site data blocked. Sound stays at the default; it just
+    // will not be remembered.
     return "";
   }
 }
