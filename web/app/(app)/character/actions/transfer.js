@@ -43,6 +43,7 @@ import {
   rowWeight,
 } from "@lifeweb/db/lib/carry";
 import { formatManifest } from "@lifeweb/db/lib/roomStash";
+import { holdLimitRefusal } from "@lifeweb/db/lib/mounts";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import {
   INCAPACITATING_SLUGS,
@@ -179,7 +180,7 @@ export async function transferRequestImpl(
         tagId: true,
         quantity: true,
         expiresTurn: true,
-        tag: { select: { name: true, stackable: true, tradeable: true } },
+        tag: { select: { slug: true, name: true, stackable: true, tradeable: true } },
       },
     });
   } else if (lines.length) {
@@ -267,6 +268,18 @@ export async function transferRequestImpl(
         to.id === character.id
           ? verdict.reason
           : `${to.kind === "character" ? await seenName(character, to.id) : to.name} couldn't carry that. ${verdict.reason}`,
+      );
+    }
+    // One mount, and up to 3 unruly or young arelitz (db/lib/mounts.js) —
+    // refused here like the weight above, rather than landing and being set
+    // down again by the settle.
+    const tooMany = holdLimitRefusal(
+      recipient.tags,
+      moves.map((m) => ({ slug: m.held.tag?.slug, quantity: m.quantity })),
+    );
+    if (tooMany) {
+      throw new UserError(
+        to.id === character.id ? tooMany : `${await seenName(character, to.id)} can't take that. ${tooMany.replace(/^You/, "They")}`,
       );
     }
   }

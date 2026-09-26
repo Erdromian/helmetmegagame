@@ -18,8 +18,8 @@ import useNarrow from "./useNarrow";
 // TRAVEL: every way out of here as a node you can see. Loaded on mount and
 // after a move, never with the page — an exit's state moves under a player
 // standing still. Cost line follows MAP.md §3; travelFoot()
-// (web/lib/travelCost.js, shared with /map) marks a dismount as "· on foot"
-// or "· indoors". Nothing that refuses is hidden — a shut/locked way draws
+// (web/lib/travelCost.js, shared with /map) marks a dismount as "· on foot".
+// Nothing that refuses is hidden — a shut/locked way draws
 // dimmed with the reason, so a player can go find the winch.
 
 // The whole of it, for the hover — the node clamps its name and prints no
@@ -121,7 +121,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
   // then the same action with `exert` set.
   const go = async (option, { exert = false } = {}) => {
     if (option.crossesZone) {
-      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert });
+      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert, breakdown: data.breakdown });
       if (!(await confirm(asked))) return;
     }
     run(travelTo, { locationId: option.id, exert }, {
@@ -157,8 +157,10 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
           scene lays this out as one run of chips and needs the confirm to
           stay out of it. A plain block everywhere else. */}
       <div className="chat-travel-ways" data-swipe-ignore>
+        {/* The count in its two halves — "1 travel, plus 2 rides on your Motorcycle" — so
+            a rider can see which of the two a crossing is about to spend (MAP.md §3a). */}
         <p className="group-label chat-section-title" title={data.freeReason ?? undefined}>
-          {showTitle ? `Travel · ${formatTravel(data.freeLeft)} available` : `${formatTravel(data.freeLeft)} available`}
+          {showTitle ? `Travel · ${data.travelLine ?? `${formatTravel(data.freeLeft)} available`}` : (data.travelLine ?? `${formatTravel(data.freeLeft)} available`)}
         </p>
 
         {data.options.length === 0 ? (
@@ -199,7 +201,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
                 {/* Where no Giant fits (MAP.md §2a) — on every player's list, so
                     a party can see where its Giant can't follow. */}
                 <SqueezeChip show={option.tightSqueeze} />
-                <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved)}</span>
+                <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved, data.breakdown)}</span>
               </button>
               );
             })}

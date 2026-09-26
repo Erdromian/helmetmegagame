@@ -99,7 +99,6 @@ function routeOf(node) {
     hops: node.walkHops ?? 0,
     through: node.walkThrough ?? [],
     dismounts: Boolean(node.walkDismounts),
-    indoors: Boolean(node.indoors),
   };
 }
 
@@ -743,7 +742,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
   // then the same action with `exert` set.
   const go = async (node, { exert = false } = {}) => {
     if (node.crossesZone) {
-      const asked = crossingConfirm(node, node.freeLeft ?? 0, data?.travel?.partySize ?? 0, { exert });
+      const asked = crossingConfirm(node, node.freeLeft ?? 0, data?.travel?.partySize ?? 0, { exert, breakdown: data?.travel?.breakdown });
       if (!(await confirm(asked))) return;
     }
     setNote(null);
@@ -1130,7 +1129,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
                 <ViaChip slug={n.openedBy} />
                 {/* Where no Giant fits (MAP.md §2a), on everybody's list. */}
                 <SqueezeChip show={n.tightSqueeze} className="map-via" />
-                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted, travel?.moved)}</span>
+                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted, travel?.moved, travel?.breakdown)}</span>
               </button>
             ))}
           </div>
@@ -1275,6 +1274,12 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
               <p className="text-sm">
                 {walking ? walkLine(routeOf(node)) : crossingLine(node, nextTurn, travel?.moved)}
               </p>
+              {/* What there is to spend, in its two halves — the map has no
+                  header to carry it the way the Travel panel does, so it sits
+                  under the crossing line, and only on a crossing. */}
+              {!walking && node.crossesZone && travel?.travelLine && (
+                <p className="chat-quiet-line">{travel.travelLine} left this turn.</p>
+              )}
               {travel?.partySize > 0 && (
                 <p className="chat-quiet-line">
                   {travel.partySize === 1 ? "One person" : `${travel.partySize} people`} with you.

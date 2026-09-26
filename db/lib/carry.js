@@ -13,6 +13,7 @@ const { announceInRoom } = require("./roomAnnounce");
 const { sendDm } = require("./dm");
 const { rowWeight, round2 } = require("./tagWeight");
 const { RESOURCES_WEIGHT_LBS, RESOURCES_SLUG } = require("./resourceStack");
+const { holdLimitExcess } = require("./mounts");
 
 // The combined bonus is carried ×1000 as an integer so the sum of several
 // two-decimal bonuses stays exact, never a float epsilon.
@@ -262,15 +263,63 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
     let over = load > caps.weight;
 
     // The watermark is the whole of what distinguishes an ACQUISITION from a capacity
-    // SHRINK. A load that hasn't grown since the last settle sheds nothing, however far over the ceiling the cap has fallen — this is what lets a cart be parked at an inn door without emptying it.
+    // SHRINK. A load that hasn't grown since the last settle sheds nothing, however far over the ceiling the cap has fallen — this is what lets a cart be unequipped at a narrow way without emptying it.
     const seenWeight = character.carryWeightSeen ?? 0;
     const weightGrew = load > seenWeight;
 
     let dropResult = null;
     let deferred = false;
+    // One room for everything this settle sets down, picked the first time
+    // something needs one.
+    let spillRoom;
+    const roomToSpill = async () => {
+      if (spillRoom === undefined) spillRoom = await pickRandomPublicRoom(tx, character.locationId);
+      return spillRoom;
+    };
+
+    // The hold limits (db/lib/mounts.js, ARELITZ.md §2b): one mount, and up to
+    // 3 unruly or young arelitz. The deliberate ways in — a hand-over, a
+    // pickup, a purchase — refuse before anything lands; this is for what
+    // arrived without asking (a GM grant, a staged effect, a break-in at the
+    // push). Unlike the weight shed it does not wait for the load to grow: the
+    // rule is a count, and a count over the limit is over it however it got
+    // there. With no public room the animal simply stays, and the next settle
+    // (arrival, or turn close) tries again.
+    let limitDrop = null;
+    const excess = drop ? holdLimitExcess(character.tags) : [];
+    if (excess.length && (await roomToSpill())) {
+      const room = spillRoom;
+      const shed = [];
+      for (const { row, quantity, reason } of excess) {
+        const { poisonedTaken, poisonPayload } = await dropCharacterTag(tx, character.id, row.tagId, quantity);
+        await addToRoomStack(tx, room.id, row.tagId, quantity, {
+          expiresTurn: row.expiresTurn,
+          poisonedCount: poisonedTaken,
+          poisonPayload,
+        });
+        shed.push({ tagId: row.tagId, tagSlug: row.tag.slug, tagName: row.tag.name, quantity, reason });
+      }
+      await stampLeftOnFloor(tx, room.id, shed.map((t) => t.tagId));
+      character.tags = applyDrops(character.tags, shed);
+      load = carryWeight(character.tags);
+      over = load > caps.weight;
+      await tx.auditLog.create({
+        data: {
+          actorDiscordUserId: "system",
+          actionType: "hold_limit_dropped",
+          targetCharacterId: character.id,
+          details: {
+            roomId: room.id,
+            roomName: room.name,
+            tags: shed.map(({ tagId, tagSlug, tagName, quantity }) => ({ tagId, tagSlug, tagName, quantity })),
+          },
+        },
+      });
+      limitDrop = { tags: shed, reasons: [...new Set(shed.map((t) => t.reason))] };
+    }
 
     if (drop && load > hard.weight && weightGrew) {
-      const room = await pickRandomPublicRoom(tx, character.locationId);
+      const room = await roomToSpill();
       if (!room) {
         // Nowhere to put it down — unplaced, or a Location with no public room. Hold the
         // watermark back so the growth stays unclaimed and the next settle (arrival, or turn close) retries for free — advancing it here would mark the load "seen" and the shed would never happen.
@@ -354,6 +403,25 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
       removed = true;
     }
 
+    // A hold-limit shed rides the same `drop` every caller already delivers,
+    // in the same room, so no caller needs a second branch for it.
+    if (limitDrop) {
+      dropResult = {
+        ...(dropResult ?? {
+          room: spillRoom,
+          tags: [],
+          character: {
+            id: character.id,
+            name: character.name,
+            discordUserId: character.discordUserId,
+            age: character.age,
+            gender: character.gender,
+          },
+        }),
+        limit: limitDrop,
+      };
+    }
+
     if (!granted && !removed && !dropResult) return null;
     return { characterId: character.id, over, granted, removed, drop: dropResult };
   });
@@ -363,6 +431,20 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
 async function deliverCarryDrop(prisma, result) {
   const drop = result?.drop;
   if (!drop) return;
+  // The hold limits first (settleCarry above): a separate sentence, since
+  // "you can't carry it all" is not why an arelitz was left behind.
+  if (drop.limit?.tags?.length) {
+    const animals = formatManifest(drop.limit.tags);
+    if (drop.character.discordUserId) {
+      await sendDm(
+        prisma,
+        drop.character.discordUserId,
+        `${drop.limit.reasons.map((r, i) => (i ? r.replace(/^You/, "you") : r)).join(", and ")}. You leave ${animals} in ${drop.room.name}.`,
+      ).catch((err) => console.error(`Hold limit DM to ${drop.character.discordUserId} failed:`, err.message));
+    }
+    await announceInRoom(drop.room, drop.character, "leaves behind what they can't keep.", [animals]);
+  }
+  if (!drop.tags?.length) return;
   const goods = formatManifest(drop.tags);
   if (drop.character.discordUserId) {
     await sendDm(

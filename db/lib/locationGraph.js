@@ -130,7 +130,7 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
       tightSqueeze,
     };
   }
-  // Dismounts the traveller rather than refusing — db/lib/indoors.js's dismountForNarrowWay, called from applyLocationMoveSideEffects the same way arriving indoors parks a mount at the door. `dismounts` is surfaced so the picker can say so before anyone commits.
+  // Dismounts the traveller rather than refusing — db/lib/indoors.js's dismountForNarrowWay, called from applyLocationMoveSideEffects too, for a move that did not come through the mover. `dismounts` is surfaced so the picker can say so before anyone commits.
   if (link.onFoot && onFootBlocked) {
     return { listed: true, passable: true, refusal: null, dismounts: true, openedBy, tightSqueeze };
   }

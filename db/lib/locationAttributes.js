@@ -98,25 +98,14 @@ function authoredLines(location, ctx = {}) {
   return lines;
 }
 
-// Real column, and no exceptions left. Only parks a mount underground
-// (`zone.kind === "CAVE_LEVEL"`) — every Caves/Depths Location is
-// `indoors: true`, so that's the one place a roof still costs the reins; a
-// surface roof no longer does. The `wheels` attribute used to except a place
-// built to be driven into, and went with the cave mouth's gate. "Cart out
-// here?" readers use this; ROOF readers keep reading `indoors` straight.
-function parksMounts(location) {
-  if (!location?.indoors) return false;
-  return location?.zone?.kind === "CAVE_LEVEL";
-}
-
-// Both halves print — silence outdoors would mean the rule is only stated
-// where it bites. Reads `parksMounts`'s answer, not the raw `indoors` column,
-// since a surface Location no longer parks anything at the door.
+// Whether there is a roof, said on every Location, since it is the one place
+// Examine says so. No roof takes the reins any more — not even underground,
+// which was the last (Bascinet's call, 2026-09-27; CARRY.md §3) — so both
+// halves say a mount comes in. What does still take it is a way too narrow for
+// it, which is a fact about the connection, not the place (db/lib/indoors.js).
 function placementLine(location) {
   if (!location?.indoors) return "**Outdoors**: you can use your arelitz or cart here.";
-  return parksMounts(location)
-    ? "**Indoors**: you can't equip a cart or arelitz here."
-    : "**Indoors**: you can still bring an arelitz or cart in here.";
+  return "**Indoors**: you can still bring an arelitz or cart in here.";
 }
 
 // The machine alone, wherever one stands (db/lib/depot.js#ATM_LOCATION_SLUGS).
@@ -273,7 +262,6 @@ module.exports = {
   KITCHEN_ATTRIBUTE,
   WILDERNESS_ATTRIBUTE,
   HAVEN_ATTRIBUTE,
-  parksMounts,
   depotLines,
   structureLines,
   ATTRIBUTES,

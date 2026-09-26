@@ -47,8 +47,8 @@ const EYES = [
   ["hallucinating", "Hallucinating", -2],
 ];
 
-// Only where there is no daylight to see by — a CAVE_LEVEL zone, the same test
-// db/lib/locationAttributes.js#parksMounts makes for "underground".
+// Only where there is no daylight to see by — a CAVE_LEVEL zone, which is what
+// "underground" means everywhere in the game.
 const CAVE_EYES = ["night-vision", "Night Vision", 1];
 
 // How drunk you are, worst rung first. THE WORST ONE COUNTS AND THEY NEVER SUM,

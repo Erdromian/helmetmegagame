@@ -29,8 +29,20 @@ const {
   HATCH_IN,
   FOODSTUFFS_SLUG,
 } = require("./constants");
+const { ARELITZ_MOUNT_SLUGS, MOUNT_STAGES } = require("./mounts");
 
-const ADULT_SLUGS = [ARELITZ_SLUG, UNRULY_ARELITZ_SLUG];
+// One ladder's rungs, the most-ridden first — read off MOUNT_STAGES so a
+// change to MOUNT_RIDES can never leave a rung out of the eviction order.
+function spentFirst(head) {
+  return [...MOUNT_STAGES]
+    .filter(([, stage]) => stage.head === head)
+    .sort(([, a], [, b]) => b.ridden - a.ridden)
+    .map(([slug]) => slug);
+}
+
+// Every rideable rung of the mount ladder is an adult (tacked, tired or
+// fresh, it is the same animal — mounts.js), plus the unruly one nobody rides.
+const ADULT_SLUGS = [...ARELITZ_MOUNT_SLUGS, UNRULY_ARELITZ_SLUG];
 const BROOD_SLUGS = [ARELITZ_HATCHLING_SLUG, ARELITZ_YOUNGLING_SLUG, ARELITZ_YEARLING_SLUG];
 const ALL_STABLE_SLUGS = [...ADULT_SLUGS, ...BROOD_SLUGS, ARELITZ_EGG_SLUG];
 
@@ -133,7 +145,7 @@ async function runStablePass(prisma, turn) {
       // fetched once above) — a yearling that just matured this same pass
       // is exactly what step 1 added to unruly-arelitz, so it's added back
       // here rather than paying for a fresh query.
-      const adultCount = countOf(ARELITZ_SLUG) + countOf(UNRULY_ARELITZ_SLUG) + yearlings;
+      const adultCount = ADULT_SLUGS.reduce((n, slug) => n + countOf(slug), 0) + yearlings;
       // Foodstuffs and nothing else (the Soilery Rework doc): two a head,
       // left on the stable floor. A cooked meal or a raw fish on the floor is
       // somebody's dinner, not feed.
@@ -189,12 +201,16 @@ async function runStablePass(prisma, turn) {
       for (const n of finalCounts.values()) total += n;
       let excess = total - capacity;
       if (excess <= 0) return;
+      // Of the broken-in ones (the mount ladder, mounts.js), a bare arelitz
+      // goes before a saddled one, and within each a spent rung before a
+      // fresh one — the least of somebody's property first.
       const evictionOrder = [
         ARELITZ_HATCHLING_SLUG,
         ARELITZ_YOUNGLING_SLUG,
         ARELITZ_YEARLING_SLUG,
         UNRULY_ARELITZ_SLUG,
-        ARELITZ_SLUG,
+        ...spentFirst(ARELITZ_SLUG),
+        ...spentFirst("arelitz-tacked"),
       ];
       for (const slug of evictionOrder) {
         if (excess <= 0) break;

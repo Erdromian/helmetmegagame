@@ -11,13 +11,13 @@
 const {
   CORPSE_GROUP_SLUG,
   HUMAN_FLESH_SLUG,
-  ARELITZ_SLUG,
   UNRULY_ARELITZ_SLUG,
   ARELITZ_HATCHLING_SLUG,
   ARELITZ_YOUNGLING_SLUG,
   ARELITZ_YEARLING_SLUG,
 } = require("./constants");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+const { ARELITZ_MOUNT_SLUGS } = require("./mounts");
 
 // Anything not one of these three is a person's and yields Human Flesh — keyed on "not a listed
 // monster", not the character link, so a corpse whose Character row is gone still butchers into something.
@@ -37,15 +37,15 @@ const YOUNG_LIVESTOCK_YIELDS = [
   { slug: "meat", quantity: 5 },
   { slug: "rendered-fat", quantity: 2 },
 ];
+const ADULT_LIVESTOCK_YIELDS = [
+  { slug: "meat", quantity: 20 },
+  { slug: "rendered-fat", quantity: 10 },
+];
 const LIVESTOCK_YIELDS = {
-  [ARELITZ_SLUG]: [
-    { slug: "meat", quantity: 20 },
-    { slug: "rendered-fat", quantity: 10 },
-  ],
-  [UNRULY_ARELITZ_SLUG]: [
-    { slug: "meat", quantity: 20 },
-    { slug: "rendered-fat", quantity: 10 },
-  ],
+  // Every rung of the mount ladder (mounts.js) — a tired or saddled arelitz
+  // is the same animal on the block.
+  ...Object.fromEntries([...ARELITZ_MOUNT_SLUGS].map((slug) => [slug, ADULT_LIVESTOCK_YIELDS])),
+  [UNRULY_ARELITZ_SLUG]: ADULT_LIVESTOCK_YIELDS,
   [ARELITZ_HATCHLING_SLUG]: YOUNG_LIVESTOCK_YIELDS,
   [ARELITZ_YOUNGLING_SLUG]: YOUNG_LIVESTOCK_YIELDS,
   [ARELITZ_YEARLING_SLUG]: YOUNG_LIVESTOCK_YIELDS,

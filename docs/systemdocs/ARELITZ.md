@@ -47,10 +47,93 @@ set, so a tag that can't equip can't appear in `FAST_TRAVEL_SLUGS` or
 anywhere else that matters; no special-case "holds unruly vs. holds
 broken-in" check exists anywhere.
 
-An arelitz seats 2 (6 with a Cart), buys 1 free zone move (2 with
-`arelitz-tack`, renamed from `horseshoes`), and — unlike a horse — costs
+An arelitz seats 2 (6 with a Cart), carries its riders across 1 zone border
+a turn (2 once tack is fitted — §2a), and — unlike a horse — costs
 **no** per-turn upkeep. `db/lib/horseUpkeepPass.js` is deleted, not
 repurposed; nothing else used that mechanism.
+
+## 2a. The rides are on the animal
+
+Bascinet's call, 2026-09-25: players wanted to walk an arelitz out of the
+stable and ride it the same turn, and the rule that stopped them was a guess.
+
+**The ladder.** `db/lib/mounts.js#MOUNT_RIDES` says what a fresh mount of
+each kind buys — `arelitz` 1, `arelitz-tacked` 2, `motorcycle` 2 (Bascinet's
+call, 2026-09-27: the bike is the faster ride) — and generates a rung for
+every ride: `arelitz` → `arelitz-ridden-1`, and `arelitz-tacked` →
+`arelitz-tacked-ridden-1` → `arelitz-tacked-ridden-2`. Every rung is its own
+tag in `docs/tags.yaml` (`keepSlug: true`, since the name says the rides —
+**Tacked Arelitz (1 ride left)**, **Arelitz (Spent)**), identical to its head in everything but the
+rides: same seats, same `sellablePrice` (so the economy ledger adds up
+across a silent swap), same place in the Stable's count and the Butcher's
+yields (`ARELITZ_MOUNT_SLUGS`). Add a rung in `MOUNT_RIDES` and in the YAML
+together; `db/test/mountLadder.test.js` fails if they disagree.
+
+**Spending a ride** (`db/lib/mountRides.js#rideMount`) runs inside the
+crossing's transaction, after the free-travel claim has won its race, and
+shifts one unit of the equipped mount's row onto the next rung's row —
+creating, merging or retagging as the counts need, `equippedQuantity`
+carried across so the MOUNT slot stays exactly as full as it was. One
+arelitz out of a stack of three becomes one **Arelitz (Spent)** beside
+two still fresh (a stack only a stable floor or an older sheet still holds —
+§2b). It goes through none of `tagWrites.js`'s helpers on
+purpose: those stamp `acquiredAt`, charge wound mood, apply supersedes and
+write the ledger, and a tired animal is the same asset it was a minute ago.
+One ride covers a whole crossing, near or far (`MAP.md` §3).
+
+**Resting** is the `mountRest` turn pass (`runMountRestPass`, registered in
+`db/index.js` right after the Stable's): every ridden rung on every sheet
+and every floor back to its head, one transaction per row. A GM's undo of a
+paid Move does not walk a rung back up; the pass does it at the close.
+
+**What this replaced.** `mountRestingThisTurn` refused the bonus to any
+mount whose `CharacterTag.acquiredAt` was after the turn started — meant to
+stop one arelitz handed round a party buying every rider a crossing, which
+it did, but `addToStack` stamps that timestamp on a stable pickup too, so a
+fresh animal was refused the same as a ridden one. The rung tells the two
+apart honestly: a handoff after a ride hands over a ridden animal.
+
+**Tack is fitted, not worn.** `arelitz-tack` used to be an `ACCESSORY` on
+the rider that added a crossing while any arelitz was under them — so one
+saddle passed round a party bought every rider the extra. Now it is spent
+by the **Tacked Arelitz** Craft recipe (`arelitz-tacked`,
+`requirement.items: [arelitz, arelitz-tack]`, `turnsCost: 0`, `perTurn: 1`)
+with one arelitz, and the tacked animal is its own head with its own
+ladder — a tacked arelitz ridden once cannot become a bare one. There is no
+taking it off.
+
+## 2b. How many a character may hold
+
+Bascinet's call, 2026-09-27: **one mount of any kind** — every rung of every
+ladder counts, arelitz, tacked arelitz or motorcycle, fresh or spent — and,
+separately, **up to 3 unruly or young arelitz** (`unruly-arelitz` and the
+three brood rungs, counted together). Eggs are not counted, and a Cart is
+towed rather than ridden, so it is not a mount. The limits and their words
+live in `db/lib/mounts.js` (`MOUNT_HOLD_LIMIT`, `YOUNG_ARELITZ_HOLD_LIMIT`,
+`holdLimitRefusal`, `holdLimitExcess`). A Room has no limit: the Stable's
+floor holds as many as `GameConfig.stableCapacity` lets it (§4).
+
+**Two halves, the carry cap's shape** (`CARRY.md` §2). The deliberate ways
+in refuse before anything lands, with the sentence from `holdLimitRefusal`:
+a Transfer (so a hand-over, a pickup off the stable floor, and a Steal,
+which runs through it), Pickpocket, Loot, the vending machine (buying, and
+the owner taking stock back), and a Depot order, which only checks the
+order itself because it arrives later in a crate. Everything else — a GM
+grant, a staged effect, a Break In resolved at the push, a crate opened
+while already riding — lands, and `db/lib/carry.js#settleCarry` sets the
+excess down in a public room at the character's Location, the way it sheds
+weight past the hard cap. It keeps the **equipped** mount first, then the
+longest-held, so whatever just arrived is what goes back on the ground.
+Unlike the weight shed it does not wait for the load to grow: it is a
+count, and a count over the limit is over it however it got there. The DM
+says which limit it was ("You can only keep one mount at a time. You leave
+Motorcycle in Gate."), the room hears the character leave it behind, and the
+AuditLog row is `hold_limit_dropped`. With no public room to leave it in, the
+animal stays until the next settle (arrival, or the turn's carry pass).
+
+**Existing holdings.** Nothing was grandfathered. A character already over
+either limit when this shipped has the extra set down at their next settle,
+at the latest the first turn close.
 
 ## 3. The Stable
 

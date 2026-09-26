@@ -108,7 +108,7 @@ A turn is 6, 8, 12 or 24 hours long, and the GMs set which. Turns always end on 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the two main controls:  
-- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get one free Zone crossing a turn, and an **equipped mount** gives you a second; past those, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows how many you have left. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, or a body. Anyone else has to agree to come.  
+- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get some free travel each turn — a crossing between the town Zones costs ½ of it, anywhere further costs 1 — and an **equipped mount** carries you across more borders on top of that, near or far: 1 a turn on an arelitz (2 with a saddle fitted), 2 on a motorcycle. The mount's rides are on the animal itself: its name on your sheet says how many it has left, and it is fresh again every turn. You can keep one mount at a time, and up to 3 unruly or young arelitz. Past all that, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows what you have left, travel and rides apart. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, or a body. Anyone else has to agree to come.  
 - **Move** is used to submit your character's Move for the turn.  
 
 ### The Wipe
@@ -366,7 +366,7 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 
 You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand.
 
-**Carts and arelitz have to be equipped to do anything**, and they take up an equipment slot like anything else. You can't bring either one indoors — into the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft, the Factory, the Mountain, or anywhere underground — so they're left at the door for you when you walk in, and you take them up again on the way out.
+**Carts and arelitz have to be equipped to do anything**, and they take up an equipment slot like anything else. You can ride and push them anywhere, indoors and underground included. The one thing that stops them is a way too narrow for them, where you go on foot: they're unequipped and stay with you, and you can put them back on from your equipment. The Travel list marks those ways "on foot" before you pick one.
 
 **Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 10 slots for equippable tags. Click a tag to equip or unequip it instantly.
 

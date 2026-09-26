@@ -30,6 +30,7 @@ import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
 import { SFX } from "@lifeweb/db/lib/sfx";
+import { holdLimitRefusal } from "@lifeweb/db/lib/mounts";
 import { depotCredit as depotCreditVerb } from "@lifeweb/db/lib/verbs/place";
 import {
   DESTINATIONS,
@@ -220,6 +221,15 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous, label:
       sealed: Boolean(tag.sealedShipping),
     });
   }
+
+  // One mount, up to 3 unruly or young arelitz (db/lib/mounts.js). An order
+  // lands later, in a crate, so only the order itself is checked here; what
+  // the buyer holds by then is the settle's to sort out when the crate opens.
+  const tooMany = holdLimitRefusal(
+    [],
+    tags.map((tag) => ({ slug: tag.slug, quantity: wanted.get(tag.id) })),
+  );
+  if (tooMany) throw new UserError(`The depot won't ship that in one order. ${tooMany}`);
 
   // The catalog prices in ¢ (DEPOT.md §0), so the cart total IS the price.
   if ((account.balanceObols ?? 0) < total) {

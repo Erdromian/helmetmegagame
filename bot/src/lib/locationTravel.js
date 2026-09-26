@@ -7,6 +7,8 @@ const {
   exertEdgeSentence,
   exertResultLine,
   freeMovesLeft,
+  freeMovesBreakdown,
+  travelSentence,
   freeZoneMovesReason,
 } = require("@lifeweb/db/lib/locationTravel");
 const {
@@ -375,6 +377,8 @@ module.exports = {
   performMove,
   restoreStandingRoles,
   freeMovesLeft,
+  freeMovesBreakdown,
+  travelSentence,
   freeZoneMovesReason,
   exertRefusal,
   exertEdgeFor,
