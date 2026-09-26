@@ -646,6 +646,84 @@ const BY_MODE = new Map(
   ACTION_SECTIONS.flatMap((s) => s.actions).map((a) => [a.mode, a]),
 );
 
+// How the SHEET's strip (ActionGrid variant="strip") groups the two big
+// sections, "You" and "Others", by what a verb is FOR. Those two are roughly
+// thirty buttons between them, and drawn as one run with a single hairline
+// they were the "I know it exists but can't find the button" of the player
+// feedback. Each group here is captioned on the strip; the role sections
+// (the device, THANATI, CERBERON, BISHOP) and Paper keep their own section
+// as their group, already being about one thing.
+//
+// Only the strip reads this. The dialogs, the rack and /ledger's columns go on
+// reading ACTION_SECTIONS, so a verb's section is still where its title and
+// help come from. A mode in "You" or "Others" that no group names lands in a
+// trailing "More" group rather than vanishing — so a new verb shows up even
+// if nobody remembers this list.
+export const STRIP_GROUPS = [
+  {
+    key: "things",
+    label: "Things",
+    modes: ["craft", "consume", "transfer", "destroy", "poison", "play", "package", "disguise", "stepstone"],
+  },
+  // Only where the Location allows it (each is a `canSee…` show), so this
+  // group appears and disappears as you walk.
+  { key: "work", label: "Work", modes: ["mine", "farm", "extract", "refine", "breakin"] },
+  { key: "lessons", label: "Learn & confess", modes: ["learn", "teach", "confess"] },
+  { key: "people", label: "People", modes: ["examine", "heal", "miracle", "kiss", "search"] },
+  { key: "theft", label: "Theft", modes: ["steal", "pickpocket"] },
+  { key: "fight", label: "Fight", modes: ["attack", "intercept"] },
+  {
+    key: "captives",
+    label: "Captives",
+    modes: [
+      "bind",
+      "loot",
+      "free",
+      "harm",
+      "breakrestraints",
+      "shackle",
+      "crucify",
+      "torture",
+      "mutilate",
+      "brand",
+      "applycollar",
+      "unlockcollar",
+      "detonatecollar",
+    ],
+  },
+  { key: "dead", label: "The dead", modes: ["butcher", "bury", "engrave"] },
+];
+
+// The sections STRIP_GROUPS re-sorts; every other section is its own group.
+const REGROUPED_SECTIONS = new Set(["self", "others"]);
+
+// The strip's groups, in order, each with its registry actions. A role's own
+// section comes first — only its holder ever sees it, and it is the thing that
+// role is for — then Things, then Paper (writing a letter is an everyday verb,
+// not an afterthought at the end of the row), then the rest of STRIP_GROUPS,
+// then anything in "You"/"Others" they missed. Pure — ActionGrid.js filters by
+// the pools.
+export function stripGroups() {
+  const placed = new Set(STRIP_GROUPS.flatMap((g) => g.modes));
+  const mine = STRIP_GROUPS.map((g) => ({
+    key: g.key,
+    label: g.label,
+    actions: g.modes.map((mode) => BY_MODE.get(mode)).filter(Boolean),
+  }));
+  const strays = ACTION_SECTIONS.filter((s) => REGROUPED_SECTIONS.has(s.key))
+    .flatMap((s) => s.actions)
+    .filter((a) => !placed.has(a.mode));
+  const roles = ACTION_SECTIONS.filter((s) => !REGROUPED_SECTIONS.has(s.key) && s.key !== "letters");
+  const letters = ACTION_SECTIONS.filter((s) => s.key === "letters");
+  return [
+    ...roles,
+    mine[0],
+    ...letters,
+    ...mine.slice(1),
+    ...(strays.length > 0 ? [{ key: "more", label: "More", actions: strays }] : []),
+  ];
+}
+
 // The dialog title and submit label for a mode — the button's own name.
 export function titleFor(mode) {
   return BY_MODE.get(mode)?.label ?? "Request";

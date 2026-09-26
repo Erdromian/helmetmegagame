@@ -620,38 +620,52 @@
 }
 
 /* ── The action strip (ActionGrid variant="strip") ──
-   The verb strip under the band: groups of bevelled buttons split by a
-   hairline, as the mockup draws it. Each item IS a .btn-secondary — the bevel,
-   the press and the dashed gated state all come from there, so this family
-   only adds the icon gap and the strip's own spacing. A gated verb's reason is
-   in the tooltip, which fires on the disabled button because Tooltip wraps it
-   rather than sitting on it (ActionButton.js). */
+   The verb strip under the band: captioned groups of bevelled buttons, by
+   what a verb is for (actionRegistry.js#STRIP_GROUPS), flowing in a wrapping
+   row. Each item IS a .btn-secondary — the bevel, the press and the dashed
+   gated state all come from there, so this family only adds the icon gap, the
+   captions and the spacing. A gated verb's reason is in the tooltip, which
+   fires on the disabled button because Tooltip wraps it rather than sitting
+   on it (ActionButton.js).
+
+   It used to be one run of buttons with `.action-strip-group` as
+   `display: contents`, so the row wrapped button by button and only a
+   hairline told "You" from "Others". The groups are real boxes again, and a
+   group that does not fit moves to the next line whole — which keeps its
+   caption with its buttons, the thing the run could not do. */
 .action-strip {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
-  /* Column-gap used to be 0 here, with the between-buttons spacing coming
-     from .action-strip-group's own `gap`. Now every button is a direct flex
-     item of this row (the group is `display: contents`), so this is the
-     only gap left to carry that spacing — between buttons AND between a
-     button and the next .action-strip-sep. */
+  align-items: flex-start;
+  gap: var(--sp-2) var(--sp-4);
+}
+
+.action-strip-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+/* The group's name over its buttons: the same micro-label every other
+   uppercase caption on the sheet wears, quiet enough that the buttons stay
+   the loudest thing in the strip. */
+.action-strip-caption {
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  line-height: var(--lh-table);
+}
+
+.action-strip-buttons {
+  display: flex;
+  flex-wrap: wrap;
   gap: var(--sp-1);
 }
 
-/* No box of its own: its buttons flow as direct items of .action-strip so
-   the outer row wraps BUTTON by button rather than section by section — a
-   section used to be its own flex box, so one that didn't fit the remaining
-   width moved to the next line WHOLE, an orphan row of one icon whenever a
-   section's count didn't divide evenly, and the divider between sections
-   stopped reading once every section was already starting its own line.
-   `display: contents` keeps the element's `role="group"`/`aria-label` in the
-   accessibility tree (screen readers still hear the section boundary) while
-   dropping its layout box; ActionGrid.js draws `.action-strip-sep` as a real
-   sibling element to carry the rule this used to draw as its own border. */
-.action-strip-group {
-  display: contents;
-}
-
+/* No longer drawn in the strip — the captions divide it now — but the top
+   bar (AppBar.js, NavLinks.js) still uses this rule between its clusters. */
 .action-strip-sep {
   align-self: stretch;
   width: 1px;

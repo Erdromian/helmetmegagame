@@ -61,10 +61,11 @@ const DISPLAY_MIN = 2.2; // large-display floor for the blackletter, only ever d
 // The chat log's own ink (--chat-said, --chat-speech, --chat-scenery), which
 // Bascinet picked on the Chat Type Bench on 2026-09-24 against the log's plain
 // --bg, knowing where it sat against AA: a soft brown body at weight 600, set at
-// 13px. Gated on --bg, the ground it is drawn on, at a floor just under the
-// lowest of the three (--chat-said, 3.37), the same way MUTED_MIN admits the
-// mockup's own --muted. Still a real gate: a later edit that darkens any of
-// them further fails the build.
+// 13px. --chat-said was lifted from 3.37 to AA (4.93) on 2026-09-25, after
+// players found the dark brown narration straining. Gated on --bg, the ground
+// it is drawn on, at a floor just under the lowest of the three (--chat-scenery,
+// 3.50), the same way MUTED_MIN admits the mockup's own --muted. Still a real
+// gate: a later edit that darkens any of them further fails the build.
 const CHAT_INK_MIN = 3.2;
 
 function parseColor(value) {

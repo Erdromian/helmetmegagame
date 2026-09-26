@@ -17,7 +17,7 @@ import { placePanel } from "./portalPlacement";
 //
 // Lived in play/ThingsDrawer.js as ThingMenuPortal until the sheet's equip
 // board wanted the same thing for its empty cells.
-export default function ClickMenu({ triggerRef, onClose, ariaLabel, children }) {
+export default function ClickMenu({ triggerRef, onClose, ariaLabel, className = "", children }) {
   const panelRef = useRef(null);
   const [pos, setPos] = useState(null);
 
@@ -61,7 +61,7 @@ export default function ClickMenu({ triggerRef, onClose, ariaLabel, children }) 
   return createPortal(
     <div
       ref={panelRef}
-      className="chat-menu chat-menu-portal"
+      className={`chat-menu chat-menu-portal ${className}`.trim()}
       role="menu"
       aria-label={ariaLabel}
       style={pos ? { top: pos.top, left: pos.left, maxHeight: pos.maxHeight } : { top: 0, left: 0, visibility: "hidden" }}

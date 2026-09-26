@@ -417,7 +417,7 @@ export async function createCharacter(formData) {
         update: { antagonistOptIns },
       });
 
-      // The Merchant advanced him half; the paper says the rest (db/lib/wantedPoster.js#DEBTOR_STARTING_OBOLS).
+      // The Merchant (or the Exactor) advanced him half; the paper says the rest (db/lib/wantedPoster.js#DEBTOR_STARTING_OBOLS).
       if (isDebtor(heldSlugs)) {
         const obolTag = await tx.tag.findUnique({
           where: { slug: OBOL_SLUG },
@@ -470,9 +470,9 @@ export async function createCharacter(formData) {
       openTurn,
     ).catch((err) => console.error("postWantedPosters failed:", err));
   }
-  // Same shape for Debtor, three sheets in the Merchant's rooms instead.
+  // Same shape for Debtor, in the Merchant's rooms or the Exactor's Den by which Debtor tag it is.
   if (isDebtor(heldSlugs)) {
-    await postDebtorNotices(prisma, { ...created, zoneName: role.startingLocation?.zone?.name ?? null }, openTurn)
+    await postDebtorNotices(prisma, { ...created, zoneName: role.startingLocation?.zone?.name ?? null }, openTurn, heldSlugs)
       .catch((err) => console.error("postDebtorNotices failed:", err));
   }
   // The Slave's papers (db/lib/slaveContract.js). Keyed on the ROLE, not a tag:

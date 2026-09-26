@@ -169,6 +169,7 @@ const INSOMNIAC_SLUG = "insomniac";
 const MOTION_SICKNESS_SLUG = "motion-sickness";
 // Lightweight / Iron Liver / Steady's slugs live only in web/lib/consumeGrants.js (ships to the client).
 const DEBTOR_SLUG = "debtor";
+const DEBTOR_EXACTOR_SLUG = "debtor-exactor";
 // Manic keeps its own copy in db/lib/desireGates.js (deep-imported by client components) but stays listed here too.
 // A WOUND, not an illness/state of mind — shared by the mood dial and Second Wind (db/lib/fightingSkill.js).
 const WOUND_TAG_GROUPS = Object.freeze(["health-wounds", "health-maiming", "health-infection"]);
@@ -348,6 +349,7 @@ module.exports = {
   INSOMNIAC_SLUG,
   MOTION_SICKNESS_SLUG,
   DEBTOR_SLUG,
+  DEBTOR_EXACTOR_SLUG,
   WOUND_TAG_GROUPS,
   LUCKY_SLUG,
   MISFORTUNE_SLUG,

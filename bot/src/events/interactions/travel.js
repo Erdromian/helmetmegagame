@@ -33,6 +33,7 @@ const {
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { knownLocations } = require("@lifeweb/db/lib/locationVisits");
+const { crossingCost, formatTravel, FAR_CROSSING_COST } = require("@lifeweb/db/lib/crossingCost");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
 const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
@@ -262,6 +263,13 @@ async function handleTravelPick(interaction) {
 
   const party = await partyOf(prisma, character.id); // decides whether the mount's extra crossing survives (MAP.md §3a)
   const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
+  // What this crossing spends: ½ between the town zones, 1 anywhere else
+  // (db/lib/crossingCost.js) — the same number the mover charges.
+  const fromZone = crossing && character.zoneId
+    ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } })
+    : null;
+  const cost = crossing ? crossingCost(fromZone?.slug, target.zone?.slug) || FAR_CROSSING_COST : 0;
+  const affords = crossing && left >= cost;
   const seatWarning = crossing ? freeZoneMovesReason(character, party.length, { config, openTurn }) : null;
   // Push on: the crossing on a die instead of the Move (MAP.md §3), offered
   // only where performLocationMove would say yes.
@@ -270,13 +278,13 @@ async function handleTravelPick(interaction) {
       ? Boolean(await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } }))
       : false;
   const exertWhy =
-    crossing && left === 0
-      ? exertRefusal(character, config, openTurn, { left, acted })
+    crossing && !affords
+      ? exertRefusal(character, config, openTurn, { left, cost, acted })
       : null;
-  const canExert = crossing && left === 0 && exertWhy === null;
-  // Once the Move is spent a crossing with no free move left has no Confirm
+  const canExert = crossing && !affords && exertWhy === null;
+  // Once the Move is spent a crossing they cannot afford has no Confirm
   // to offer — the web surfaces drop Go the same way (MAP.md §3).
-  const spent = crossing && left === 0 && acted;
+  const spent = crossing && !affords && acted;
 
   // The same sentence the web confirm carries about which way the die leans,
   // when it does — the picker is the only place a Discord player reads the
@@ -298,17 +306,17 @@ async function handleTravelPick(interaction) {
       ? `-# ${walk.hops} moves, through ${listNames(walk.path.slice(0, -1).map((l) => l.name))}. Nothing to pay.${walk.dismounts ? " One of the ways is too narrow for what you're riding." : ""}`
       : null;
 
-  const cost = !character.locationId
+  const costLine = !character.locationId
     ? "-# Arriving costs you nothing."
     : !crossing
-      ? walkLine ?? "-# You have free zone moves left, so this is free."
-      : left > 0
-        ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn.`
+      ? walkLine ?? "-# Inside your own zone, so this costs nothing."
+      : affords
+        ? `-# Crossing into ${target.zone.name} uses ${formatTravel(cost)} of your ${formatTravel(left)} travel this turn.`
         : !acted
-          ? `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move.`
+          ? `-# You don't have the travel left for this crossing, so crossing into ${target.zone.name} spends your Move.`
           : canExert
-            ? `-# You have no free moves left and your Move is spent, so crossing into ${target.zone.name} means pushing on, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
-            : `-# You have no free moves left and your Move is spent, so you can't cross into ${target.zone.name} this turn.${exertWhy ? ` ${exertWhy}` : ""}`;
+            ? `-# You don't have the travel left for this crossing and your Move is spent, so crossing into ${target.zone.name} means pushing on, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
+            : `-# You don't have the travel left for this crossing and your Move is spent, so you can't cross into ${target.zone.name} this turn.${exertWhy ? ` ${exertWhy}` : ""}`;
 
   // A tight squeeze, as the way or somewhere along a walk (MAP.md §2a). Said
   // to everybody before Confirm, the way the web's card says it: the mover
@@ -331,8 +339,8 @@ async function handleTravelPick(interaction) {
     interaction,
     {
       content: [
-        railroad ? "Go into the tunnel?" : `Move to **${target.name}**?`,
-        railroad ? "-# This is dangerous." : cost,
+        railroad ? "Go into the tunnel?" : `Travel to **${target.name}**?`,
+        railroad ? "-# This is dangerous." : costLine,
         squeezeLine,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
@@ -427,8 +435,8 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
-        ? `${result.freeMovesLeft} free ${result.freeMovesLeft === 1 ? "move" : "moves"} left this turn.`
-        : "That was your last free move this turn.",
+        ? `${formatTravel(result.freeMovesLeft)} travel left this turn.`
+        : "That was the last of your travel this turn.",
     );
   }
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);

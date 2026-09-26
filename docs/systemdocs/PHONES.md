@@ -37,10 +37,20 @@ next to it whose job is to answer. A `payphone: true` with no `phone:` name is
 a sync problem, caught in `db/lib/syncZones/parse.js`.
 
 Nothing anywhere holds a list of phones. `db/lib/phone.js#dialablePhones`
-resolves the network off the column, so **adding a phone is a YAML edit**, the
-same posture `Room.stable` takes for the Stable (`ARELITZ.md`). A GM can also
-move one at `/gm/dev/zones` by typing a new name into the room, or take one out
-by clearing the field.
+resolves the network off the column, the same posture `Room.stable` takes for
+the Stable (`ARELITZ.md`).
+
+**The YAML only reaches a room that does not exist yet.** `db:import-zones`
+skips a room that is already there, so a `phone:` added to an existing room
+reaches a fresh `npm run dev:setup` and never the running game. On a live
+database a phone goes in at `/gm/dev/zones`, by typing a name into the room —
+or by a migration, for more than a GM should type by hand. Clearing the field
+takes one out.
+
+The thirteen below were authored on rooms that already existed, and for a
+while the live game had no phone on any wall a GM had not filled in by hand.
+`20261031000000_backfill_phones` writes them in, only where the name was still
+blank.
 
 ### The thirteen
 
