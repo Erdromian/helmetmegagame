@@ -49,7 +49,7 @@ takes one out.
 
 The thirteen below were authored on rooms that already existed, and for a
 while the live game had no phone on any wall a GM had not filled in by hand.
-`20261030000000_backfill_phones` writes them in, only where the name was still
+`20261031000000_backfill_phones` writes them in, only where the name was still
 blank.
 
 ### The thirteen
