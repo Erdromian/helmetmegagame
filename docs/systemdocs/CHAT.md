@@ -16,7 +16,12 @@ disagrees with this section, this section is right.
   party rack follow. **Things** sits above the place card, open by default,
   under a girder head with a count (`Things · 6`) — it was a shut fold line at
   the column's foot until 2026-09-25, and players reported not finding what
-  they could do with an item (`chat/thingsOpenStore.js`). Travel entries print no description (a shut way still says
+  they could do with an item (`chat/thingsOpenStore.js`). **Every block
+  folds**: its girder head is the fold (`next/FoldBlock.js`), every block
+  starts open, and what a player shuts stays shut in that browser
+  (`next/asideFoldStore.js`; Things keeps its own store). A shut block hides its
+  body rather than unmounting it, so a half-answered crossing or a seeded Here
+  list survives a fold. Travel entries print no description (a shut way still says
   why, and the full text rides the hover title). The You plate, the Desires
   fold and the `Sheet ›` link are gone from the column. The GM's tabbed column
   is unchanged.

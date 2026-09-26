@@ -139,6 +139,15 @@ const CASES = [
     after: false,
   },
   {
+    name: "asideFoldStore, a shut right-column block",
+    path: "app/(app)/chat/next/asideFoldStore.js",
+    mount: (m) => m.useAsideFolds(),
+    act: (m) => m.useAsideFolds()[1]("here"),
+    value: (m) => m.useAsideFolds()[0].has("here"),
+    before: false,
+    after: true,
+  },
+  {
     name: "seenStore, a read mark",
     path: "app/(app)/chat/seenStore.js",
     mount: (m) => m.useSeen(),

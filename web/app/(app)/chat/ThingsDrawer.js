@@ -16,6 +16,7 @@ import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 import { myThings } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
 import { useThingsOpen } from "./thingsOpenStore";
+import FoldBlock from "./next/FoldBlock";
 import { playSfx } from "@/app/components/sfx";
 import { actionThrowMessage } from "@/app/components/actionThrow";
 
@@ -219,9 +220,10 @@ function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, onSound
   );
 }
 
-// `framed` is the rebuilt chat's right column (next/ChatAside.js): a girder
-// head like every other block there, carrying the fold and a count, instead of
-// the small fold line the old column drew. Without it, the old look stands.
+// `framed` is the rebuilt chat's right column (next/ChatAside.js): a
+// next/FoldBlock.js like every other block there, its girder head carrying the
+// fold and a count, instead of the small fold line the old column drew. Without
+// it, the old look stands.
 export default function Things({ groups: initialGroups = [], framed = false }) {
   const [open, toggle] = useThingsOpen();
   const [groups, setGroups] = useState(initialGroups);
@@ -289,19 +291,10 @@ export default function Things({ groups: initialGroups = [], framed = false }) {
   // How many different things, not how many units: "Things · 4" is four
   // kinds of item, which is what the chips below number.
   const count = groups.reduce((n, group) => n + group.rows.length, 0);
-  const fold = (
-    <button
-      type="button"
-      className={framed ? "chat-things-fold" : "chat-details-fold"}
-      aria-expanded={open}
-      onClick={toggle}
-    >
-      <ChevronDownIcon data-open={open ? "true" : undefined} />
-      Things{framed && count > 0 ? ` · ${count}` : ""}
-    </button>
-  );
+  // The chips mount only while open, framed or not: a chip's menu is portaled
+  // to document.body, and a shut drawer must not leave one standing.
   const contents = open && (
-    <div className={framed ? "body" : "chat-details-body"}>
+    <>
       {groups.length === 0 ? (
         <p className="chat-quiet-line">Your pockets are empty.</p>
       ) : (
@@ -328,21 +321,28 @@ export default function Things({ groups: initialGroups = [], framed = false }) {
         ))
       )}
       <FormError>{error ?? soundError}</FormError>
-    </div>
+    </>
   );
 
   if (framed) {
     return (
-      <section className="block chat-things" data-open={open ? "true" : undefined}>
-        <h3 className="bar">{fold}</h3>
+      <FoldBlock
+        head={count > 0 ? `Things · ${count}` : "Things"}
+        open={open}
+        onToggle={toggle}
+        className="chat-things"
+      >
         {contents}
-      </section>
+      </FoldBlock>
     );
   }
   return (
     <div className="chat-details chat-things">
-      {fold}
-      {contents}
+      <button type="button" className="chat-details-fold" aria-expanded={open} onClick={toggle}>
+        <ChevronDownIcon data-open={open ? "true" : undefined} />
+        Things
+      </button>
+      {contents && <div className="chat-details-body">{contents}</div>}
     </div>
   );
 }
