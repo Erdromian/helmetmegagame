@@ -16,17 +16,20 @@ const { LESSON_CATALOG_SELECT, learnableSkills, knownTeachableSkills, createLess
 const { confessableTags, createConfessionOffer } = require("@lifeweb/db/lib/confession");
 const { BIND_SELECT, isBound, needsNoConsent: bindNeedsNoConsent, applyBind, createBindOffer } = require("@lifeweb/db/lib/bind");
 const {
-  COLLAR_ITEM_SLUG,
-  COLLAR_KEY_SLUG,
-  DETONATOR_SLUG,
   COLLAR_SELECT,
   wearsCollar,
   needsNoConsent: collarNeedsNoConsent,
+  looseCollarsHeld,
+  pickLooseCollar,
   applyCollar,
   createCollarOffer,
   unlockCollar,
+  unlockRefusal,
+  remoteRefusal,
+  remoteReading,
   detonateCollar,
 } = require("@lifeweb/db/lib/collar");
+const { isLockedCollarSlug } = require("@lifeweb/db/lib/collarGlyphs");
 const { ATTACK_TAG_SELECT, attackRefusal, fileAttack } = require("@lifeweb/db/lib/attack");
 const { attackMoveBlock } = require("@lifeweb/db/lib/combatGate");
 const { IDENTITY_SELECT, seenBy } = require("@lifeweb/db/lib/intercept");
@@ -50,7 +53,7 @@ const {
   createEscortOffer,
 } = require("@lifeweb/db/lib/escort");
 const { syncPartyMembership } = require("@lifeweb/db/lib/partyChat");
-const { rosterHere } = require("@lifeweb/db/lib/peopleHere");
+const { rosterHere, pickerName } = require("@lifeweb/db/lib/peopleHere");
 const { logAudit } = require("@lifeweb/db/lib/auditLog");
 const { sendDm } = require("@lifeweb/db/lib/dm");
 const { afterInventoryChangeDb, notifyCharacterDb, sendOfferDm } = require("@lifeweb/db/lib/inventoryTail");
@@ -359,9 +362,6 @@ const bind = {
   },
 };
 
-async function holds(characterId, slug) {
-  return (await prisma.characterTag.count({ where: { characterId, quantity: { gt: 0 }, tag: { slug } } })) > 0;
-}
 
 // web: character/actions/misc.js#collarActorAndTarget.
 async function collarTarget(character, key, { allowSelf = false, allowDead = false } = {}) {
@@ -375,18 +375,54 @@ async function collarTarget(character, key, { allowSelf = false, allowDead = fal
   if (!allowSelf && target.id === character.id) return { error: "Pick somebody else." };
   const turn = await openTurn();
   if (!turn) return { error: "No turn is open." };
-  const actor = {
+  return { target, turn, actor: collarActor(character) };
+}
+
+function collarActor(character) {
+  return {
     id: character.id,
     name: character.name,
     discordUserId: character.discordUserId,
     locationId: character.locationId,
+    zoneId: character.zoneId,
   };
-  return { target, turn, actor };
+}
+
+// Both ends of Apply Collar: `collarSlug` is the one picked, or null for the
+// first in hand (a blank one before a marked one).
+async function applyCollarTo(interaction, key, collarSlug) {
+  const character = await actorOrRefuse(interaction);
+  if (!character) return;
+  const { target, turn, actor, error } = await collarTarget(character, key, { allowSelf: true, allowDead: true });
+  if (error) return done(interaction, error);
+  const collar = await pickLooseCollar(prisma, character.id, { slug: collarSlug || null });
+  if (!collar) return done(interaction, collarSlug ? "You don't have that collar." : "You don't have a collar.");
+  if (wearsCollar(target)) return done(interaction, `${target.name} already has a collar on.`);
+  const self = target.id === character.id;
+  if (!self && !collarNeedsNoConsent(target)) {
+    const offer = await createCollarOffer(prisma, { actor, target, turn, collar });
+    if (!offer.ok) return done(interaction, offer.reason);
+    await sendOfferDm(prisma, offer.dm);
+    await logAudit(prisma, {
+      actorDiscordUserId: character.discordUserId,
+      actionType: "request_collar_offer",
+      targetCharacterId: target.id,
+      details: { offerId: offer.offer.id, targetName: target.name },
+    });
+    return done(interaction, `${target.name} has to agree first.`);
+  }
+  const applied = await applyCollar(prisma, { actor, target, turn, collar });
+  if (!applied.ok) return done(interaction, applied.reason);
+  await afterInventoryChangeDb(prisma, self ? [character.id] : [character.id, target.id]);
+  if (!self) await notifyCharacterDb(prisma, target, "Someone put a collar on you.");
+  return done(interaction, `${self ? "You have" : `${target.name} has`} a collar on. It is marked ${applied.glyph}.`);
 }
 
 // web: character/actions/misc.js#applyCollarRequestImpl. Two doors, Bind's:
 // anybody who could refuse is asked; somebody helpless, or yourself, is
 // collared on the spot. The picker lists everybody — never who is collared.
+// Holding more than one collar asks which, the web dialog's "Which collar?"
+// row, so a marked collar can be moved onto a new neck on purpose.
 const applycollar = {
   start: (interaction, { character }) =>
     pickSomeone(interaction, character, "applycollar", {
@@ -398,37 +434,31 @@ const applycollar = {
     async pick(interaction) {
       await ackStep(interaction);
       const { value, label } = picked(interaction);
+      const whom = label === "Yourself" ? "yourself" : label ?? "them";
+      const character = await actorOrRefuse(interaction);
+      if (!character) return;
+      const collars = await looseCollarsHeld(prisma, character.id);
+      if (collars.length > 1) {
+        return pickFrom(interaction, "applycollar", "which", {
+          prompt: `Which collar goes on ${whom}? Only the Exactor's ring, or the Pusher's, unlocks it.`,
+          payload: value,
+          options: collars.map((c) => ({ label: c.name, value: c.slug })),
+        });
+      }
       return confirm(interaction, "applycollar", value, {
-        prompt: `Lock the collar on ${label === "Yourself" ? "yourself" : label ?? "them"}? Only a key takes it off.`,
+        prompt: `Lock the collar on ${whom}? Only the Exactor's ring, or the Pusher's, unlocks it.`,
         label: "Apply Collar",
         danger: true,
       });
     },
+    // Picking the collar is the second deliberate click, so it acts at once.
+    async which(interaction, key) {
+      await ackStep(interaction);
+      return applyCollarTo(interaction, key, picked(interaction).value);
+    },
     async go(interaction, key) {
       await ackStep(interaction);
-      const character = await actorOrRefuse(interaction);
-      if (!character) return;
-      const { target, turn, actor, error } = await collarTarget(character, key, { allowSelf: true, allowDead: true });
-      if (error) return done(interaction, error);
-      if (!(await holds(character.id, COLLAR_ITEM_SLUG))) return done(interaction, "You don't have a collar.");
-      if (wearsCollar(target)) return done(interaction, `${target.name} already has a collar on.`);
-      const self = target.id === character.id;
-      if (!self && !collarNeedsNoConsent(target)) {
-        const offer = await createCollarOffer(prisma, { actor, target, turn });
-        if (!offer.ok) return done(interaction, offer.reason);
-        await sendOfferDm(prisma, offer.dm);
-        await logAudit(prisma, {
-          actorDiscordUserId: character.discordUserId,
-          actionType: "request_collar_offer",
-          targetCharacterId: target.id,
-          details: { offerId: offer.offer.id, targetName: target.name },
-        });
-        return done(interaction, `${target.name} has to agree first.`);
-      }
-      await applyCollar(prisma, { actor, target, turn });
-      await afterInventoryChangeDb(prisma, self ? [character.id] : [character.id, target.id]);
-      if (!self) await notifyCharacterDb(prisma, target, "Someone put a collar on you.");
-      return done(interaction, `${self ? "You have" : `${target.name} has`} a collar on.`);
+      return applyCollarTo(interaction, key, null);
     },
   },
 };
@@ -445,42 +475,70 @@ const unlockcollar = {
       if (!character) return;
       const { target, turn, actor, error } = await collarTarget(character, picked(interaction).value, { allowDead: true });
       if (error) return done(interaction, error);
-      if (!(await holds(character.id, COLLAR_KEY_SLUG))) return done(interaction, "You don't have a key.");
+      const refusal = await unlockRefusal(prisma, character.id);
+      if (refusal) return done(interaction, refusal);
       if (!wearsCollar(target)) return done(interaction, `${target.name} doesn't have a collar on.`);
-      await unlockCollar(prisma, { actor, target, turn });
+      const unlocked = await unlockCollar(prisma, { actor, target, turn });
+      if (!unlocked.ok) return done(interaction, unlocked.reason);
       await afterInventoryChangeDb(prisma, [character.id, target.id]);
       await notifyCharacterDb(prisma, target, "Someone took your collar off.");
-      return done(interaction, `${target.name} is out of the collar, and it's yours.`);
+      return done(interaction, `${target.name} is out of the collar, and it's yours. It is marked ${unlocked.glyph}.`);
     },
   },
 };
 
-// web: character/actions/misc.js#detonateCollarRequestImpl. Kills outright and
-// leaves no body, so it takes a confirm on top of the web's re-checks.
+// web: character/actions/misc.js#readRemoteRequestImpl + detonateCollarRequestImpl.
+// The remote answers to the Exactor's ring (COLLAR.md §3) and lists every
+// collar in the game, in any zone, by glyph; a name goes beside one only for
+// somebody standing here, and only the name the holder knows them by. A kill,
+// so it takes a confirm on top of the re-checks.
 const detonatecollar = {
-  start: (interaction, { character }) =>
-    pickSomeone(interaction, character, "detonatecollar", { prompt: "Whose collar do you set off?" }),
+  async start(interaction, { character }) {
+    const refusal = await remoteRefusal(prisma, character.id);
+    if (refusal) return done(interaction, refusal);
+    const collars = await remoteReading(prisma, collarActor(character));
+    const wornHere = new Map();
+    if (collars.length) {
+      const { named, hooded } = await rosterHere(prisma, character, {
+        select: { id: true, name: true, tags: { select: { tag: { select: { slug: true } } } } },
+      });
+      for (const row of [...named, ...hooded]) {
+        for (const ct of row.tags ?? []) {
+          if (isLockedCollarSlug(ct.tag.slug)) wornHere.set(ct.tag.slug, pickerName(row));
+        }
+      }
+    }
+    return pickFrom(interaction, "detonatecollar", "pick", {
+      prompt: "Which collar do you set off?",
+      empty: "The remote shows no collars.",
+      options: collars.map((c) => ({
+        label: wornHere.has(c.slug) ? `Collar ${c.glyph} — ${wornHere.get(c.slug)}` : `Collar ${c.glyph}`,
+        value: c.slug,
+      })),
+    });
+  },
   steps: {
     async pick(interaction) {
       await ackStep(interaction);
       const { value, label } = picked(interaction);
       return confirm(interaction, "detonatecollar", value, {
-        prompt: `Press the detonator on ${label ?? "them"}? There's no taking it back.`,
+        prompt: `Set off ${label ?? "that collar"}? There's no taking it back.`,
         label: "Detonate",
         danger: true,
       });
     },
-    async go(interaction, key) {
+    async go(interaction, collarSlug) {
       await ackStep(interaction);
       const character = await actorOrRefuse(interaction);
       if (!character) return;
-      const { target, turn, actor, error } = await collarTarget(character, key);
-      if (error) return done(interaction, error);
-      if (!(await holds(character.id, DETONATOR_SLUG))) return done(interaction, "You don't have a detonator.");
-      const result = await detonateCollar(prisma, { actor, target, turn });
+      const refusal = await remoteRefusal(prisma, character.id);
+      if (refusal) return done(interaction, refusal);
+      const turn = await openTurn();
+      if (!turn) return done(interaction, "No turn is open.");
+      const result = await detonateCollar(prisma, { actor: collarActor(character), collarSlug, turn });
       if (!result.ok) return done(interaction, result.reason);
-      await afterInventoryChangeDb(prisma, [target.id]);
-      return done(interaction, `${result.name} explodes into mist.`);
+      await afterInventoryChangeDb(prisma, [result.targetId]);
+      return done(interaction, `Collar ${result.glyph} went off.`);
     },
   },
 };

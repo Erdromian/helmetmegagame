@@ -116,9 +116,9 @@ export const ACTION_HELP = {
   brand:
     "Permanently brand someone who's bound or incapacitated. It costs you nothing, and it never comes off.",
   applycollar:
-    "Permanently lock a collar around someone's neck. It can only be removed with a key.",
+    "Permanently lock a collar around someone's neck. Only the Exactor's or the Pusher's ring can take it off.",
   unlockcollar: "Unlock someone's collar.",
-  detonatecollar: "Detonate a slave collar.",
+  detonatecollar: "Set off a collar anywhere, in any zone. The remote knows each one by its glyph, not by who is wearing it.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
   // Bascinet's words, verbatim.
@@ -563,7 +563,9 @@ export const ACTION_SECTIONS = [
       // is already wearing a collar is deliberately NOT a gate and not a
       // filter — the dialog lists everybody and the refusal is what tells you,
       // because a button that lit up only over the collared would publish the
-      // Exactor's whole roster to anyone who could see it.
+      // Exactor's whole roster to anyone who could see it. Detonate adds one
+      // more fact about your own sheet: the ring on your finger. The remote
+      // answers to whoever wears the Exactor's ring.
       { mode: "applycollar", icon: ShackleIcon, label: "Apply Collar", show: "canApplyCollar" },
       { mode: "unlockcollar", icon: KeyIcon, label: "Unlock Collar", show: "canUnlockCollar" },
       { mode: "detonatecollar", icon: SkullIcon, label: "Detonate", show: "canDetonateCollar" },

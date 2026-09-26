@@ -71,7 +71,7 @@ async function railroadGibOnArrival(prisma, { characterId, fromLocationId, toLoc
 
   const roleId = character.discordRoleId;
   // gib: every tag vaporized, no corpse minted, nothing left to bury, loot or
-  // butcher — the Remote Detonator's death exactly (docs/systemdocs/COLLAR.md).
+  // butcher — the Rite of Judgement's death exactly (docs/systemdocs/CORPSES.md §1a).
   const { claimed } = await applyDeathToRow(prisma, character, {
     turn: turn ?? null,
     gib: true,

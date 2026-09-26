@@ -16,7 +16,8 @@
 //      seat's ring is its own named one, the only kind that seals.
 //   2. The retired seat keys come out of every character's hands and every
 //      room's stash. The rooms and ways still name those slugs; a ring opens
-//      them now. The Inn's and the Den's guest-room keys, the Collar Key, the
+//      them now. The Collar Key goes too: the Exactor's and the Pusher's rings unlock
+//      collars now. The Inn's and the Den's guest-room keys, the
 //      Elevator key, the Depot keycard and the Silver Chip are NOT touched.
 //   3. The fifteen wax stamps come out of hands and stashes the same way. A
 //      letter already sealed keeps its wax. `npm run db:prune-tags` removes the
@@ -39,7 +40,7 @@ const RETIRED_KEYS = [
   "barons-key", "baroness-key", "heirs-key", "successors-key", "hands-key", "meisters-key",
   "censors-key", "incarns-key", "tower-key", "armory-key", "cerberus-key", "cathedral-key",
   "order-key", "sanctuary-key", "smithy-key", "soilers-key", "inn-key", "den-key",
-  "exactors-key", "courtesans-key", "mortus-key", "factory-key", "bannerets-key",
+  "exactors-key", "courtesans-key", "mortus-key", "factory-key", "bannerets-key", "collar-key",
 ];
 const RETIRED_STAMPS = [
   "wax-seal-three-cups", "wax-seal-duo-of-saints", "wax-seal-regal-cross", "wax-seal-fleur-de-lis",

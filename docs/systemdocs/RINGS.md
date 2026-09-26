@@ -39,8 +39,9 @@ game does it.
 Bascinet's calls while it was built (2026-09-26):
 
 - **Every seat key goes into the rings.** The Inn's and the Den's guest-room
-  keys and the Collar Key stay keys, so the Innkeeper and the Exactor can still
-  lend them out.
+  keys stay keys, so the Innkeeper and the Exactor can still lend them out. The
+  Collar Key went into the rings later (PR #211): the Exactor's and the
+  Pusher's rings carry `collar-key`, and the item is gone (`COLLAR.md` §3).
 - **Who spawns with a ring is a per-seat switch** (`ring.spawns`), picked seat by
   seat. The default is every Town, Keep and Undertown seat except Bum and Slave.
 - **Only an office's own ring seals.** The nine seats that used to keep a wax

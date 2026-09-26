@@ -23,6 +23,7 @@ import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { seedMemories } from "@lifeweb/db/lib/locationVisits";
 import { seedAcquaintances } from "@lifeweb/db/lib/acquaintances";
 import { issueSlaveContract } from "@lifeweb/db/lib/slaveContract";
+import { stampBlankCollars, COLLAR_LOCKED_SLUG } from "@lifeweb/db/lib/collar";
 import { startingMemorySlugs } from "@lifeweb/db/lib/startingMemories";
 import {
   isWanted,
@@ -483,6 +484,14 @@ export async function createCharacter(formData) {
   if (role.slug === "slave") {
     await issueSlaveContract(prisma, created)
       .catch((err) => console.error("issueSlaveContract failed:", err));
+  }
+  // A collar that starts round somebody's neck gets its glyph now, so the
+  // wearer can read it off their own sheet from turn one (COLLAR.md §2). Keyed
+  // on the TAG, not the role, for the reason the contract above gives in
+  // reverse. Best-effort: the Exactor's remote marks anything this missed.
+  if (heldSlugs.includes(COLLAR_LOCKED_SLUG)) {
+    await stampBlankCollars(prisma, { id: created.id })
+      .catch((err) => console.error("stampBlankCollars failed:", err));
   }
   if (!created.locationId) await syncCharacterNarrowcastAccess(created.id).catch(() => {});
   // UNCONDITIONAL, and it must stay that way. The old line was `if (cursed)`, back when one

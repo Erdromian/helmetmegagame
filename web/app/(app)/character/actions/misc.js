@@ -13,19 +13,19 @@ import {
   isBlackMarketSeal,
 } from "@lifeweb/db";
 import {
-  COLLAR_ITEM_SLUG,
-  COLLAR_LOCKED_SLUG,
-  DETONATOR_SLUG,
-  COLLAR_KEY_SLUG,
   COLLAR_SELECT,
-  heldSlugs as collarHeldSlugs,
   wearsCollar,
+  remoteRefusal,
+  unlockRefusal,
   needsNoConsent as collarNeedsNoConsent,
+  pickLooseCollar,
   applyCollar,
   createCollarOffer,
   unlockCollar,
+  remoteReading,
   detonateCollar,
 } from "@lifeweb/db/lib/collar";
+import { isLockedCollarSlug } from "@lifeweb/db/lib/collarGlyphs";
 import { resourcesOf, isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import { speakAtPlaces } from "@lifeweb/db/lib/inventoryTail";
 import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
@@ -94,6 +94,8 @@ import {
 import {
   isHere,
   notHereMessage,
+  rosterHere,
+  pickerName,
 } from "@/lib/peopleHere";
 import {
   applyBind,
@@ -3032,15 +3034,18 @@ export async function readPointerDeviceImpl() {
 // ---------------------------------------------------------------------------
 // The bomb collar (docs/systemdocs/COLLAR.md)
 //
-// Three verbs sharing one gate. Each re-checks the tag its BUTTON was hidden
-// on: a hidden button is a hint, and a server action is a public endpoint.
+// Four actions: three verbs and the remote's readout. Each re-checks the tag
+// its BUTTON was hidden on: a hidden button is a hint, and a server action is a
+// public endpoint.
 //
-// None of them filters its roster on who is already collared, and neither does
-// the refusal shortcut past a real lookup — the whole point is that you learn
-// one person's answer per click and never the room's.
+// Apply and Unlock never filter their roster on who is already collared, and
+// neither does the refusal shortcut past a real lookup — the whole point is
+// that you learn one person's answer per click and never the room's. The
+// remote is the one exception, and only because it answers to one seat: the
+// Exactor put those collars on (§4).
 
-// Everything the three share: resolve the posted key, refuse anywhere you
-// can't act, and hand back the actor shape db/lib/collar.js wants.
+// Everything Apply and Unlock share: resolve the posted key, refuse anywhere
+// you can't act, and hand back the actor shape db/lib/collar.js wants.
 async function collarActorAndTarget(session, character, targetCharacterId, { allowSelf = false, allowDead = false } = {}) {
   const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
   if (!character.locationId) throw new UserError("You aren't anywhere you could do that.");
@@ -3056,42 +3061,49 @@ async function collarActorAndTarget(session, character, targetCharacterId, { all
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is open.");
 
+  return { target, openTurn, actor: collarActor(session, character) };
+}
+
+function collarActor(session, character) {
   return {
-    target,
-    openTurn,
-    actor: {
-      id: character.id,
-      name: character.name,
-      discordUserId: session.discordUserId,
-      locationId: character.locationId,
-    },
+    id: character.id,
+    name: character.name,
+    discordUserId: session.discordUserId,
+    locationId: character.locationId,
+    zoneId: character.zoneId,
   };
 }
 
-// Re-read the actor's own stock from the database rather than trusting the
-// page's `heldSlugs`, which was rendered who-knows-when.
-async function requireHeld(characterId, slug, refusal) {
-  const has = await prisma.characterTag.count({
-    where: { characterId, quantity: { gt: 0 }, tag: { slug } },
-  });
-  if (!has) throw new UserError(refusal);
+// The remote's gate, shared by the readout and the trigger: the remote in hand
+// and the Exactor's ring on the finger, both re-read here. Anybody else holding
+// one gets the same refusal the device would give them.
+async function requireRemote() {
+  const { session, character } = await requireCharacter({ needs: ACT });
+  const refusal = await remoteRefusal(prisma, character.id);
+  if (refusal) throw new UserError(refusal);
+  return { session, character };
 }
 
 // Two doors, exactly as Bind has them: anybody who could refuse is asked;
-// somebody helpless, or yourself, is collared on the spot.
-export async function applyCollarRequestImpl({ targetCharacterId }) {
+// somebody helpless, or yourself, is collared on the spot. `collarSlug` picks
+// which collar when there is more than one in hand — a marked one keeps its
+// glyph onto the new neck, which is what the Apply dialog offers the choice for.
+export async function applyCollarRequestImpl({ targetCharacterId, collarSlug = null }) {
   const { session, character } = await requireCharacter({ needs: ACT });
   const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId, {
     allowSelf: true,
     allowDead: true,
   });
 
-  await requireHeld(character.id, COLLAR_ITEM_SLUG, "You don't have a collar.");
+  const collar = await pickLooseCollar(prisma, character.id, {
+    slug: typeof collarSlug === "string" && collarSlug ? collarSlug : null,
+  });
+  if (!collar) throw new UserError(collarSlug ? "You don't have that collar." : "You don't have a collar.");
   if (wearsCollar(target)) throw new UserError(`${target.name} already has a collar on.`);
 
   const self = target.id === character.id;
   if (!self && !collarNeedsNoConsent(target)) {
-    const offer = await createCollarOffer(prisma, { actor, target, turn: openTurn });
+    const offer = await createCollarOffer(prisma, { actor, target, turn: openTurn, collar });
     if (!offer.ok) throw new UserError(offer.reason);
     after(() =>
       sendDm(offer.dm.discordUserId, offer.dm.content, {
@@ -3112,51 +3124,84 @@ export async function applyCollarRequestImpl({ targetCharacterId }) {
     return { pending: true, name: target.name };
   }
 
-  await applyCollar(prisma, { actor, target, turn: openTurn });
+  const applied = await applyCollar(prisma, { actor, target, turn: openTurn, collar });
+  if (!applied.ok) throw new UserError(applied.reason);
   await afterInventoryChange(self ? [character.id] : [character.id, target.id]);
   if (!self) notifyCharacter(target, "Someone put a collar on you.");
   revalidateAll();
-  return { name: target.name };
+  return { name: target.name, glyph: applied.glyph };
 }
 
-// The key. No consent and no offer — a collar coming OFF needs nobody's leave.
+// The unlocking ring — the Exactor's or the Pusher's, worn, re-read here rather
+// than trusted off the page. No consent and no offer — a collar coming OFF
+// needs nobody's leave.
 export async function unlockCollarRequestImpl({ targetCharacterId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
   const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId, {
     allowDead: true,
   });
 
-  await requireHeld(character.id, COLLAR_KEY_SLUG, "You don't have a key.");
+  const refusal = await unlockRefusal(prisma, character.id);
+  if (refusal) throw new UserError(refusal);
   if (!wearsCollar(target)) throw new UserError(`${target.name} doesn't have a collar on.`);
 
-  await unlockCollar(prisma, { actor, target, turn: openTurn });
+  const unlocked = await unlockCollar(prisma, { actor, target, turn: openTurn });
+  if (!unlocked.ok) throw new UserError(unlocked.reason);
   await afterInventoryChange([character.id, target.id]);
   notifyCharacter(target, "Someone took your collar off.");
   revalidateAll();
-  return { name: target.name };
+  return { name: target.name, glyph: unlocked.glyph };
 }
 
-// The trigger. Kills outright and leaves no body, so it takes the same
-// re-checks as the two above and one more: the detonator itself.
-export async function detonateCollarRequestImpl({ targetCharacterId }) {
-  const { session, character } = await requireCharacter({ needs: ACT });
-  const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId);
+// What the remote shows: every collar in the game, by glyph. A name goes beside a
+// glyph only for somebody standing in front of the Exactor, where he can read
+// the clasp for himself — and it is the name HE holds for them, so a hood
+// stays a hood (web/lib/peopleHere.js#rosterHere strips the real one).
+export async function readRemoteRequestImpl() {
+  const { session, character } = await requireRemote();
+  const collars = await remoteReading(prisma, collarActor(session, character));
+  if (collars.length === 0) return { collars: [] };
 
-  await requireHeld(character.id, DETONATOR_SLUG, "You don't have a detonator.");
+  const { named, hooded } = await rosterHere(character, {
+    select: { id: true, name: true, tags: { select: { tag: { select: { slug: true } } } } },
+  });
+  const wornHere = new Map();
+  for (const row of [...named, ...hooded]) {
+    for (const ct of row.tags ?? []) {
+      if (isLockedCollarSlug(ct.tag.slug)) wornHere.set(ct.tag.slug, pickerName(row));
+    }
+  }
+  return {
+    collars: collars.map((c) => ({ slug: c.slug, glyph: c.glyph, wornBy: wornHere.get(c.slug) ?? null })),
+  };
+}
 
-  const result = await detonateCollar(prisma, { actor, target, turn: openTurn });
-  // The uncollared refusal comes back from db/lib/collar.js rather than being
-  // decided here, so the sentence lives beside the rule it enforces.
+// The trigger, by glyph. Any collar in any zone; see
+// db/lib/collar.js#detonateCollar for why the body stays.
+export async function detonateCollarRequestImpl({ collarSlug }) {
+  const { session, character } = await requireRemote();
+  if (typeof collarSlug !== "string" || !collarSlug) throw new UserError("Pick a collar.");
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open.");
+
+  const result = await detonateCollar(prisma, {
+    actor: collarActor(session, character),
+    collarSlug,
+    turn: openTurn,
+  });
+  // Every refusal comes back from db/lib/collar.js rather than being decided
+  // here, so the sentence lives beside the rule it enforces.
   if (!result.ok) throw new UserError(result.reason);
 
-  await afterInventoryChange([target.id]);
+  await afterInventoryChange([result.targetId]);
   revalidateAll();
-  // A click for the hand on the detonator; the bang belongs to the Location the collar
-  // went off in, and db/lib/collar.js puts it there (Bascinet's call).
+  // A click for the hand on the detonator; the bang belongs to the Location the
+  // collar went off in, and db/lib/collar.js puts it there (Bascinet's call).
+  // The glyph and nothing else — never the name, which the Exactor may not know.
   return {
-    name: result.name,
-    alreadyDead: result.alreadyDead,
-    line: `${result.name} explodes into mist.`,
+    glyph: result.glyph,
+    line: `Collar ${result.glyph} went off.`,
     sfx: SFX.OK_QUIET,
   };
 }

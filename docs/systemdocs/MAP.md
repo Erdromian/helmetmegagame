@@ -438,8 +438,8 @@ loses by it first.
 nobody and refuses nothing — it composes with every other modifier above, and
 it changes one thing only: **the cargo train uses this edge.** Cross it while
 the train is out on the line and the crosser is **gibbed on arrival** — every
-tag vaporized, no corpse, nothing to bury or loot, the Remote Detonator's death
-exactly (`COLLAR.md` §5). Cross it while the train stands at the platform and
+tag vaporized, no corpse, nothing to bury or loot, the Rite of Judgement's
+death exactly (`CORPSES.md` §1a). Cross it while the train stands at the platform and
 nothing happens at all.
 
 The clock is the train's own — `db/lib/train.js#trainHere`, read against the

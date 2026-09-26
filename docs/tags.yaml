@@ -1570,7 +1570,7 @@ tags:
 
   # Worn, not carried: this is the collar once it is SHUT. The loose collar is
   # the `bomb-collar` item in the Depot imports block; Apply Collar spends one
-  # to write this, and the Collar Key turns this back into one
+  # to write this, and the Exactor's or the Pusher's ring turns this back into one
   # (docs/systemdocs/COLLAR.md).
   #
   # It is an ACCESSORY so it sits on the equip board round your neck, with the
@@ -1586,14 +1586,14 @@ tags:
   # category (DESTROYABLE_CATEGORIES, CRAFTING.md §5) and `general` never had
   # the button. The sync throws on the line rather than ignoring it, which is
   # how it caught this being written here in the first place. The only ways off
-  # are the Collar Key and the detonator.
+  # are the Exactor's or the Pusher's ring, and the detonator.
   bomb-collar-locked:
     catalog: gm
     name: Bomb Collar (Locked)
     category: general
     group: general-traits
     sprite: collar
-    description: "You have a shock collar locked around your neck. Only a key takes it off."
+    description: "You have a shock collar locked around your neck. Only the Exactor's ring, or the Pusher's, unlocks it."
     equippable: true
     equipSlot: ACCESSORY
     pointCost: 0
@@ -12082,14 +12082,21 @@ tags:
     consumable: true
     consumesInto: []
 
-  # The collar kit (docs/systemdocs/COLLAR.md). Three wares that only make
-  # sense together, so they sit together: the collar, the key that takes it off
-  # and the trigger that sets it off. All three are Black Market — the Silver
-  # Chip is the whole gate, and the Exactor is the one seat that starts holding
-  # all three.
+  # The collar kit (docs/systemdocs/COLLAR.md). The collar and the trigger
+  # that sets it off are Black Market wares — the Silver Chip is the whole gate,
+  # and the Exactor is the one seat that starts holding both. What takes a
+  # collar off is no longer a ware: the Exactor's and the Pusher's rings carry
+  # the retired Collar Key's token (below).
   #
-  # NOT craftable, any of them. A forge that could strike a collar key would
-  # free every slave in Ravenheart on a Dead Simple recipe, and one that could
+  # The trigger answers to whoever wears the Exactor's ring
+  # (db/lib/collar.js#canWorkRemote). Anybody can buy, steal or loot one, and
+  # taking his away disarms him, but without that ring on the finger it is a
+  # box with a button on it. Each collar picks up a glyph the first time it is locked on,
+  # as its own minted pair of rows (db/lib/collarGlyphs.js) — these two catalog
+  # rows are only ever a collar nobody has marked yet.
+  #
+  # NOT craftable, either of them. There is no collar key to strike -- the
+  # Exactor's and the Pusher's rings unlock collars -- and a forge that could
   # strike collars would let anybody start a slave trade without ever paying
   # the Merchant. Import or steal, nothing else.
   bomb-collar:
@@ -12098,7 +12105,7 @@ tags:
     category: items
     group: items-gear
     sprite: collar
-    description: "A collar that can be locked around someone's neck, controlled by a remote detonator."
+    description: "A collar that can be locked around someone's neck, controlled by a remote detonator. The clasp is blank until the first time it locks."
     manifest: black-market
     pointCost: 0
     depotPrice: 15
@@ -12114,7 +12121,7 @@ tags:
     category: items
     group: items-gear
     sprite: c-4detonator-1
-    description: "A small, handheld device with a big red trigger and an antenna on the top."
+    description: "A small, handheld device with a big red trigger and an antenna on the top. It's keyed to the Exactor's ring. Without that ring on your finger, the trigger does nothing."
     manifest: black-market
     pointCost: 0
     depotPrice: 23
@@ -12124,6 +12131,10 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Retired as an item, the way the seat keys were (RINGS.md §3): nobody starts
+  # with one and the Black Market no longer stocks it. The row stays as the
+  # token the Exactor's and the Pusher's rings carry, which is what Unlock
+  # Collar reads now (db/lib/collar.js#canUnlockCollar).
   collar-key:
     catalog: gm
     name: Collar Key
@@ -12131,9 +12142,7 @@ tags:
     group: items-keys
     sprite: key1
     description: "It unlocks slave collars."
-    manifest: black-market
     pointCost: 0
-    depotPrice: 4
     weight: 0
     stackable: true
     visible: false
