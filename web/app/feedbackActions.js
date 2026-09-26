@@ -2,9 +2,11 @@
 
 import { prisma } from "@lifeweb/db";
 import {
-  FEEDBACK_COOLDOWN_MESSAGE,
-  FEEDBACK_COOLDOWN_MS,
+  FEEDBACK_BURST,
+  FEEDBACK_WINDOW_MS,
   MAX_FEEDBACK_LENGTH,
+  feedbackWaitMessage,
+  feedbackWaitMs,
 } from "@lifeweb/db/lib/feedbackLimits";
 import { postFeedbackToDiscord } from "@lifeweb/db/lib/feedback";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
@@ -31,14 +33,15 @@ export async function submitFeedback(body) {
     return { error: `It must be under ${MAX_FEEDBACK_LENGTH} characters.` };
   }
 
-  const newest = await prisma.feedback.findFirst({
-    where: { discordUserId },
+  const now = Date.now();
+  const recent = await prisma.feedback.findMany({
+    where: { discordUserId, createdAt: { gt: new Date(now - FEEDBACK_WINDOW_MS) } },
     orderBy: { createdAt: "desc" },
+    take: FEEDBACK_BURST,
     select: { createdAt: true },
   });
-  if (newest && Date.now() - newest.createdAt.getTime() < FEEDBACK_COOLDOWN_MS) {
-    return { error: FEEDBACK_COOLDOWN_MESSAGE };
-  }
+  const waitMs = feedbackWaitMs(recent.map((f) => f.createdAt), now);
+  if (waitMs > 0) return { error: feedbackWaitMessage(waitMs) };
 
   const [member, character] = await Promise.all([
     listGuildMembers()
