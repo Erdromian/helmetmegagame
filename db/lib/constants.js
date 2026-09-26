@@ -169,6 +169,7 @@ const INSOMNIAC_SLUG = "insomniac";
 const MOTION_SICKNESS_SLUG = "motion-sickness";
 // Lightweight / Iron Liver / Steady's slugs live only in web/lib/consumeGrants.js (ships to the client).
 const DEBTOR_SLUG = "debtor";
+const DEBTOR_EXACTOR_SLUG = "debtor-exactor";
 // Manic keeps its own copy in db/lib/desireGates.js (deep-imported by client components) but stays listed here too.
 // A WOUND, not an illness/state of mind — shared by the mood dial and Second Wind (db/lib/fightingSkill.js).
 const WOUND_TAG_GROUPS = Object.freeze(["health-wounds", "health-maiming", "health-infection"]);
@@ -252,7 +253,13 @@ const TAG_CATEGORY = Object.freeze({
   DEMONESS: "Demoness",
 });
 
+// The web app's public address, for anything off the web that links a player
+// to it — a Discord reply, a DM. web/lib/auth.js re-exports it as
+// CANONICAL_ORIGIN, the fallback host for sign-in, so there is one copy.
+const WEB_ORIGIN = "https://ravenheart.quest";
+
 module.exports = {
+  WEB_ORIGIN,
   FORTRESS_SLUG,
   LEAVE_ANNOUNCE_CHANNEL_ID,
   VAMPIRE_SLUG,
@@ -348,6 +355,7 @@ module.exports = {
   INSOMNIAC_SLUG,
   MOTION_SICKNESS_SLUG,
   DEBTOR_SLUG,
+  DEBTOR_EXACTOR_SLUG,
   WOUND_TAG_GROUPS,
   LUCKY_SLUG,
   MISFORTUNE_SLUG,

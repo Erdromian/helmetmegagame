@@ -161,22 +161,25 @@ test("the Dropbox hangs off the Depot LOCATION, so it is reachable from any room
 // The Depot is ONE room since the Merchant moved out, so the Railway carries
 // the drop box and a cash machine both. The Merchant kept the other machine.
 // Storage and Search sit on every room (CARRY.md §8, SEARCH.md §9), so they
-// lead every list here.
+// lead every list here. Send money and the Merchant's credit line are Discord's
+// own buttons for what /depot does on the web (db/test/placeButtons.test.js).
 test("and again on the Railway, where somebody meeting the train already is", () => {
   assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-1" })), [
     "Storage",
     "Search (0.33 Move)",
-    "ATM",
+    "Infoterminal",
     "Dropbox",
+    "Send money",
+    "Merchant credit",
   ]);
 });
 
 test("the Merchant's Storefront has a machine of its own, and no drop box", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-6-1" })), ["Storage", "Search (0.33 Move)", "ATM"]);
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-6-1" })), ["Storage", "Search (0.33 Move)", "Infoterminal"]);
 });
 
 test("the Inn's bar has the second machine, and nothing else of the counter's", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-2" })), ["Storage", "Search (0.33 Move)", "ATM"]);
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-2" })), ["Storage", "Search (0.33 Move)", "Infoterminal"]);
 });
 
 test("an ordinary room has no machine on its wall", () => {

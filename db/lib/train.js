@@ -8,12 +8,6 @@
 //
 // Pure constants and helpers — no Prisma, no network — so both faces and the
 // passes can read it. See docs/systemdocs/DEPOT.md §0d.
-//
-// `trainHere` HAS A SECOND CONSUMER now, and it is not about deliveries:
-// db/lib/railroad.js asks it whether the rail tunnels out of the Depot are
-// survivable this turn (docs/systemdocs/MAP.md §2). So the parity below is
-// load-bearing in two places — changing what "the train is at the platform"
-// means also changes who walks out of a tunnel alive.
 
 // Where it stops. A ROOM slug (docs/zones.yaml), under the Depot location, and
 // it must follow whichever Location the platforms sit in — get this wrong and

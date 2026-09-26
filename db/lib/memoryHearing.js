@@ -107,7 +107,14 @@ async function logHeard(prisma, row) {
   if (!row?.placeKey || row.dayNumber == null || row.seq == null) return 0;
   const where = await presentWhere(prisma, row.placeKey, { speakerId: row.characterId ?? null });
   if (!where) return 0;
-  const present = await prisma.character.findMany({ where, select: { id: true } });
+  const everyone = await prisma.character.findMany({ where, select: { id: true } });
+  // A row meant for one reader, or kept from one (a telephone's two voices,
+  // PHONES.md §6), is only a memory for the people who read it.
+  const present = everyone.filter(
+    (c) =>
+      (!row.onlyCharacterId || c.id === row.onlyCharacterId) &&
+      (!row.exceptCharacterId || c.id !== row.exceptCharacterId),
+  );
   if (present.length === 0) return 0;
   const { count } = await prisma.heardLine.createMany({
     data: present.map((c) => ({ characterId: c.id, seq: row.seq, dayNumber: row.dayNumber })),

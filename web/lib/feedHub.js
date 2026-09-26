@@ -12,6 +12,7 @@ import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/
 import { concealedAlias } from "@lifeweb/db/lib/concealedIdentity";
 import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { livePerformancesAt, MUSIC_OP } from "@lifeweb/db/lib/performance";
+import { PHONE_OP } from "@lifeweb/db/lib/phoneFrame";
 
 // One Postgres LISTEN per web process, fanned out to every open SSE stream —
 // Railway runs `next start` as one long-lived Node server with one replica,
@@ -21,7 +22,7 @@ import { livePerformancesAt, MUSIC_OP } from "@lifeweb/db/lib/performance";
 const HUB_KEY = "__bascinetFeedHub";
 // Bumped whenever createHub() gains a field, so a hot reload backfills an
 // older hub instead of throwing on the missing one. See hub().
-const HUB_SHAPE = 6;
+const HUB_SHAPE = 7;
 const BACKOFF_MIN_MS = 1000;
 const BACKOFF_MAX_MS = 60_000;
 
@@ -52,6 +53,10 @@ function createHub() {
     // A notify carries only the place; the hub reads the live list ONCE per notify and
     // every stream standing there gets the same frame.
     musicSubscribers: new Map(),
+    // locationId -> Set<() => void>. A phone rang, was answered or hung up near here
+    // (PHONES.md §8). Unlike music the hub reads nothing: each stream re-reads its own
+    // frame, because the handset in it is that reader's alone.
+    phoneSubscribers: new Map(),
     // characterId -> { name, at }. Resolving forced name + concealment is
     // two queries; nobody's mask comes off often enough to pay that per keystroke.
     nameMemo: new Map(),
@@ -371,6 +376,10 @@ async function handleNotification(msg) {
     await handleMusic(parsed.placeKey);
     return;
   }
+  if (parsed?.op === PHONE_OP) {
+    handlePhones(parsed.locationIds);
+    return;
+  }
   if (!parsed?.seq || !parsed?.placeKey) return;
   const op = parsed.op ?? "new";
 
@@ -532,6 +541,46 @@ async function handleMusic(placeKey) {
 export async function musicFrameFor(locationId) {
   if (!locationId) return { locationId: null, performances: [] };
   return { locationId, performances: await livePerformancesAt(prisma, locationId) };
+}
+
+// A phone changed somewhere that these Locations can hear. Every stream standing in
+// one of them looks again.
+function handlePhones(locationIds) {
+  if (!Array.isArray(locationIds)) return;
+  const h = hub();
+  for (const id of locationIds) {
+    const set = h.phoneSubscribers.get(id);
+    if (!set) continue;
+    for (const refresh of [...set]) {
+      try {
+        refresh();
+      } catch (err) {
+        console.error("Phone subscriber failed:", err);
+      }
+    }
+  }
+}
+
+// One Location at a time per stream, like music: the route moves it when the
+// character walks. `refresh` re-reads that stream's own frame.
+export function subscribeToPhones(locationId, refresh) {
+  if (!locationId) return () => {};
+  const h = hub();
+  let set = h.phoneSubscribers.get(locationId);
+  if (!set) {
+    set = new Set();
+    h.phoneSubscribers.set(locationId, set);
+  }
+  set.add(refresh);
+
+  connect().catch((err) => console.error("Feed hub connect failed:", err));
+
+  return () => {
+    const current = h.phoneSubscribers.get(locationId);
+    if (!current) return;
+    current.delete(refresh);
+    if (current.size === 0) h.phoneSubscribers.delete(locationId);
+  };
 }
 
 // One Location at a time per stream: the route moves it when the character walks.

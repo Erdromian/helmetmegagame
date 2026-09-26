@@ -12,6 +12,7 @@ const {
   describeEquipFit,
   MAX_ACCESSORIES,
   isLockedOn,
+  NOT_LOCKED_ON_WHERE,
 } = require("../lib/equipSlots");
 
 const head = (name) => ({ tag: { name, equipSlot: "HEAD", equipLayer: null } });
@@ -60,6 +61,16 @@ test("a locked-on accessory is known by slug alone", () => {
   assert.equal(isLockedOn(collar()), true, "accepts the CharacterTag shape too");
   assert.equal(isLockedOn(accessory("Sheriff's Badge", "sheriffs-badge").tag), false);
   assert.equal(isLockedOn(null), false);
+});
+
+test("a collar marked with a glyph is locked on too, and its loose twin is not", () => {
+  assert.equal(isLockedOn(accessory("Bomb Collar Ж (Locked)", "custom-collar-locked-11").tag), true);
+  assert.equal(isLockedOn(accessory("Bomb Collar Ж", "custom-collar-loose-11").tag), false);
+});
+
+test("the death unequip's SQL filter skips both spellings of a shut collar", () => {
+  assert.deepEqual(NOT_LOCKED_ON_WHERE.slug, { notIn: ["bomb-collar-locked"] });
+  assert.deepEqual(NOT_LOCKED_ON_WHERE.NOT, [{ slug: { startsWith: "custom-collar-locked-" } }]);
 });
 
 test("the collar does not spend one of the four accessory cells", () => {

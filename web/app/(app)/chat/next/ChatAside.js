@@ -18,6 +18,8 @@ import { usePlaceActions } from "../PlacePanel";
 import { waitingOnYou, answerWaiting } from "../actions";
 import useVisiblePoll from "../useVisiblePoll";
 import useMyMove from "../useMyMove";
+import FoldBlock from "./FoldBlock";
+import { useAsideFolds } from "./asideFoldStore";
 
 // THE RIGHT COLUMN, rebuilt (docs/systemdocs/CHAT-REBUILD.md phase 5).
 //
@@ -30,8 +32,11 @@ import useMyMove from "../useMyMove";
 // headings: the place card, the room, travel and the party arrived as bare
 // bodies with nothing naming them, so a reader scrolling the column met three
 // unlabelled boxes in a row. Every framed section here wears a girder head
-// (chat-vocabulary.md §4), and Things, which carries its own fold heading,
-// keeps it rather than being given a second one.
+// (chat-vocabulary.md §4), and that head is the block's fold (./FoldBlock.js):
+// every block starts open, and a player can shut the ones they do not use,
+// remembered by this browser (./asideFoldStore.js). Things and the party rack
+// draw their own (ThingsDrawer.js and PartyRack.js `framed`), because their
+// titles are live.
 //
 // The children are MOUNTED, not rewritten. PlaceCard carries fixtures and the
 // Depot/Factory doors, TravelNodes the crossing confirm, PartyRack
@@ -93,14 +98,15 @@ function WaitingList({ rows, onAnswered }) {
   );
 }
 
-// One framed section. The head is the only thing every block shares, so it is
-// the only thing this takes — everything else is the child's own.
-function Block({ head, children }) {
+// One framed section. The head and its fold are the only things every block
+// shares, so they are the only things this takes — everything else is the
+// child's own. `fold` is the key it is remembered under in ./asideFoldStore.js.
+function Block({ head, fold, folds, children }) {
+  const [shut, toggle] = folds;
   return (
-    <section className="block">
-      <h3 className="bar">{head}</h3>
-      <div className="body">{children}</div>
-    </section>
+    <FoldBlock head={head} open={!shut.has(fold)} onToggle={() => toggle(fold)}>
+      {children}
+    </FoldBlock>
   );
 }
 
@@ -125,9 +131,10 @@ export default function ChatAside({
   onPlaceChanged = null,
   onOpenMap = null,
 }) {
-  const { affordances: live, openFixture, openConverse, say: placeSay, notice, error, pending, dialogs } =
+  const { affordances: live, openFixture, openConverse, say: placeSay, notice, error, pending, dialogs, phoneBar } =
     usePlaceActions(affordances, onPlaceChanged);
   const requestActions = useRequestActions();
+  const folds = useAsideFolds();
   const openAction = requestActions?.open ?? null;
 
   // Travel / Who's here? / Secret rooms? / Examine are answered by this column
@@ -170,17 +177,21 @@ export default function ChatAside({
   // Sheet link are gone from chat altogether.
   return (
     <div className="chat-aside-stack">
-      <Block head="Travel">
+      {/* The phone in their hand, if any, above everything (PHONES.md §3): a
+          receiver off the hook is the one state here that is ticking. */}
+      {phoneBar}
+
+      <Block head="Travel" fold="travel" folds={folds}>
         <TravelNodes onDone={placeSay} pick={travelPick} showTitle={false} />
       </Block>
 
       {selected?.kind === "room" && (
-        <Block head={selected?.name ?? "Room"}>
+        <Block head={selected?.name ?? "Room"} fold="room" folds={folds}>
           <RoomPanel selected={selected} affordances={live} onFixture={openFixture} pending={pending} />
         </Block>
       )}
 
-      <Block head={`Here · ${hereCount}`}>
+      <Block head={`Here · ${hereCount}`} fold="here" folds={folds}>
         {/* Keyed on the SERVER's list, so walking out remounts it rather than
             leaving the poll's answer for the street you have left. */}
         <HereList
@@ -195,7 +206,7 @@ export default function ChatAside({
         />
       </Block>
 
-      <Block head="Turn">
+      <Block head="Turn" fold="turn" folds={folds}>
         <TurnCard
           turn={moveState.turn}
           move={moveState.move}
@@ -207,12 +218,18 @@ export default function ChatAside({
       {/* No card at all when nothing is waiting — an empty box saying it is
           empty is one more thing to read past. */}
       {waiting.length > 0 && (
-        <Block head={`Waiting · ${waiting.length}`}>
+        <Block head={`Waiting · ${waiting.length}`} fold="waiting" folds={folds}>
           <WaitingList rows={waiting} onAnswered={onWaitingAnswered} />
         </Block>
       )}
 
-      <Block head={place?.name ?? "Place"}>
+      {/* Above the place card, open by default, with a girder head like
+          every other block: it was a small fold line at the very foot of the
+          column, shut, and players reported not finding what they could do
+          with an item. It draws its own head, since the fold lives in it. */}
+      <Things groups={things} framed />
+
+      <Block head={place?.name ?? "Place"} fold="place" folds={folds}>
         <PlaceCard
           place={place}
           zone={zone}
@@ -238,13 +255,10 @@ export default function ChatAside({
 
       {/* BELOW the place card on purpose (MAP.md §3a): it fetches its party on
           mount, so above the card the Location's prose would jump every visit.
-          Unheaded because it draws its own heading and hides itself entirely
-          when there is nobody to bring — a "Party" girder over nothing would
+          Framed by itself rather than in a Block: it hides itself entirely
+          when there is nobody to bring, and a "Party" girder over nothing would
           be a permanent empty box for most players. */}
-      <PartyRack />
-
-      {/* Carries its own fold heading; it is not given a second one. */}
-      <Things groups={things} />
+      <PartyRack framed />
 
       {dialog === "move" && (
         <MoveDialog

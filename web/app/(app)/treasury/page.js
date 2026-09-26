@@ -3,6 +3,9 @@ import PageShell from "@/app/components/PageShell";
 import TreasuryDesk from "./TreasuryDesk";
 import { prisma, loadDepot, vaultObols, loadTreasuryTransactions, TREASURY } from "@lifeweb/db";
 import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
+import { unregisteredRingsHeld } from "@lifeweb/db/lib/ringRegistry";
+import { groupRoles } from "@lifeweb/db/lib/roleGroups";
+import { heldTagSlugs } from "@lifeweb/db/lib/roomAccess";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 
@@ -33,6 +36,42 @@ export default async function TreasuryPage({ searchParams }) {
 
   const params = await searchParams;
   const selectedId = typeof params?.account === "string" ? params.account : null;
+
+  // The rings the person at the desk could register, and the seats a ring can
+  // be given (only those whose ring opens something). docs/systemdocs/RINGS.md.
+  const [rings, seats] = holder
+    ? await Promise.all([
+        unregisteredRingsHeld(prisma, gate.character.id),
+        prisma.role
+          .findMany({
+            where: { ringAccessSlugs: { isEmpty: false } },
+            orderBy: { sortOrder: "asc" },
+            select: { slug: true, name: true, groupSlug: true, ringAuthorisedBy: true },
+          })
+          // The picker's own order: court, clergy, cerberon… (db/lib/roleGroups.js).
+          .then(async (rows) => {
+            // A seat whose access needs an item in the registrar's hands says so,
+            // and is shut when they don't hold it. The server checks it again.
+            const held = await heldTagSlugs(prisma, gate.character.id);
+            const itemNames = new Map(
+              (
+                await prisma.tag.findMany({
+                  where: { slug: { in: rows.map((r) => r.ringAuthorisedBy).filter(Boolean) } },
+                  select: { slug: true, name: true },
+                })
+              ).map((t) => [t.slug, t.name]),
+            );
+            return groupRoles(rows)
+              .flatMap((g) => g.roles)
+              .map(({ slug, name, ringAuthorisedBy }) => ({
+                slug,
+                name,
+                needs: ringAuthorisedBy ? (itemNames.get(ringAuthorisedBy) ?? ringAuthorisedBy) : null,
+                allowed: !ringAuthorisedBy || held.has(ringAuthorisedBy),
+              }));
+          }),
+      ])
+    : [[], []];
 
   const [depot, accounts, coin, staged, transactions] = await Promise.all([
     loadDepot(prisma),
@@ -68,6 +107,8 @@ export default async function TreasuryPage({ searchParams }) {
         claims={claims}
         stagedValue={stagedValue}
         readOnly={!holder}
+        rings={rings}
+        seats={seats}
         selectedId={selectedId}
         transactions={transactions.map((t) => ({ ...t, at: t.at ? new Date(t.at).toISOString() : null }))}
         accounts={accounts.map((a) => ({

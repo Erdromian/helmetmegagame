@@ -14,8 +14,9 @@
 const ITEM_VERBS = [
   { mode: "play", match: { flag: "instrument" } },
   { mode: "detonatecollar", match: { slug: "remote-detonator" } },
-  { mode: "unlockcollar", match: { slug: "collar-key" } },
   { mode: "applycollar", match: { slug: "bomb-collar" } },
+  // A collar somebody has already marked with a glyph (db/lib/collarGlyphs.js).
+  { mode: "applycollar", match: { prefix: "custom-collar-loose-" } },
   { mode: "brand", match: { slug: "branding-iron" } },
   // Equipment in reach improves the torture roll (character/actions/misc.js).
   { mode: "torture", match: { slug: "torturing-equipment" } },
@@ -27,7 +28,8 @@ const ITEM_VERBS = [
   { mode: "disguise", match: { slug: "disguise-kit" } },
   { mode: "write", match: { slug: "paper" } },
   { mode: "write", match: { slug: "blank-book" } },
-  // A wax stamp, the test db/lib/paper.js#isSeal makes: a mark and no paper.
+  // A seal — an office's signet ring or a wax seal forged from one — the test
+  // db/lib/paper.js#isSeal makes: a mark and no paper.
   { mode: "seal", match: { flag: "sealMark", unless: "paperKind" } },
   { mode: "bird", match: { slug: "bird" } },
   { mode: "mine", match: { slug: "pickaxe" } },

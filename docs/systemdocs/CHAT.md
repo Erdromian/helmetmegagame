@@ -12,8 +12,16 @@ page (`web/app/(app)/chat/next/ChatNext.js`). Where an older passage below
 disagrees with this section, this section is right.
 
 - **The player's right column** runs Travel, then the room block when you are
-  in a room, then Here, then Turn. Waiting, the place card, the party rack and
-  Things follow. Travel entries print no description (a shut way still says
+  in a room, then Here, then Turn. Waiting, Things, the place card and the
+  party rack follow. **Things** sits above the place card, open by default,
+  under a girder head with a count (`Things · 6`) — it was a shut fold line at
+  the column's foot until 2026-09-25, and players reported not finding what
+  they could do with an item (`chat/thingsOpenStore.js`). **Every block
+  folds**: its girder head is the fold (`next/FoldBlock.js`), every block
+  starts open, and what a player shuts stays shut in that browser
+  (`next/asideFoldStore.js`; Things keeps its own store). A shut block hides its
+  body rather than unmounting it, so a half-answered crossing or a seeded Here
+  list survives a fold. Travel entries print no description (a shut way still says
   why, and the full text rides the hover title). The You plate, the Desires
   fold and the `Sheet ›` link are gone from the column. The GM's tabbed column
   is unchanged.
@@ -1767,8 +1775,9 @@ a 48px head and a one-line composer:
      caller passes `numbers={true}` (its default); the you-frame passes
      `false`, since its own `.kv` rows already say Resources and Carrying in
      words.
-  3. **`ThingsDrawer.js`** — **Things**, the pockets drawer, collapsed by
-     default and remembered in `localStorage`. Every tag
+  3. **`ThingsDrawer.js`** — **Things**, the pockets drawer, open by
+     default (it was collapsed) and remembered in `localStorage` through
+     `chat/thingsOpenStore.js`. Every tag
      whose category is **Items** or **Assets**, grouped in that order, as one
      chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
      menu: **Equip / Unequip** (`equippable`, the sheet's own
@@ -1782,7 +1791,7 @@ a 48px head and a one-line composer:
      only while it is open.
 
      Above those, the item's **own** verbs: Play Instrument on a lute, Detonate
-     on a remote, Seal letter on a wax stamp. The list linking an item to its
+     on a remote, Seal letter on an office's signet ring or a wax seal. The list linking an item to its
      verb is `db/lib/itemVerbs.js`, one line per link, keyed on a slug, a
      prefix/suffix or a tag flag. It is resolved server-side in
      `thingRows.js#thingVerbs` (`row.itemVerbs`), and each mode is drawn off

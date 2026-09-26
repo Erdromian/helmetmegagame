@@ -128,13 +128,13 @@
 #   on the room inherits it. Prints on the room's own starter as
 #   `**Muffled**: shouts do not carry out of here.` A Location is never
 #   soundproof itself; only a Room can carry this.
-# - phone (rooms only): the NAME of the telephone on this room's wall, as every
-#   dial list in the game prints it — `phone: "Baron's Phone"`. A name and not
-#   a flag, because nobody asks the operator for a room number. Absent means
-#   no phone, which is nearly every room. See docs/systemdocs/PHONES.md.
+# - phone (rooms only): the NAME of the telephone on this room's wall, as the
+#   Phonebook prints it — `phone: "Baron's Phone"`. A name and not a flag.
+#   Absent means no phone, which is nearly every room. Its four-digit NUMBER is
+#   never written here: it is rolled at every Start Game, and this file is
+#   public. See docs/systemdocs/PHONES.md.
 # - payphone (rooms only): true makes that phone take an obol into the Keep's
-#   Vault, and keeps it OFF every dial list — a payphone calls out and never
-#   rings, because there is nobody standing by it whose job is to answer.
+#   Vault to dial out or to answer, each coin buying ten minutes on the line.
 #   Requires `phone:`; a payphone with no name is a sync PROBLEM.
 #
 # PROSE STYLE — every prose value in this file is a `>-` folded block
@@ -202,15 +202,7 @@
 #     on_foot: true                # too tight, steep or enclosed for a horse
 #                                  #   or a cart. A MOUNTED character is
 #                                  #   dismounted at the threshold.
-#     railroad: true               # a rail tunnel. Crossing it while the cargo
-#                                  #   train is OUT ON THE LINE gibs the
-#                                  #   crosser on arrival; at the platform it
-#                                  #   is an ordinary crossing. The clock is
-#                                  #   the train's own (db/lib/train.js), so
-#                                  #   there is no die in it — which is why the
-#                                  #   confirm is asked EVERY time, on both
-#                                  #   faces. See db/lib/railroad.js.
-#     keyed: true                  # on crossing, the KEY-HOLDER is DM'd "Leave
+#     keyed: true                 # on crossing, the KEY-HOLDER is DM'd "Leave
 #                                  #   it open for the next 24 hours?". Yes and
 #                                  #   the way ignores its tag and shows in
 #                                  #   everyone's travel list until the window
@@ -261,7 +253,7 @@ zones:
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
             description: >-
               The winch to the gate is here, and you can also shoot people through holes in the walls. This is a hard place to assault.
-            stash: [shortbow, spear]
+            stash: [shortbow, spear, phonebook]
       town-2:
         name: Square
         # The public board (docs/systemdocs/PAPERWORK.md). The Square is where
@@ -349,18 +341,20 @@ zones:
             name: Order Chambers
             description: >-
               The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
+            # The Order's headquarters, so every Order Key opens it: the
+            # Practicii need the torture kit here. The crossbow and the tear
+            # gas that used to lie here start with the Inquisitor instead
+            # (docs/roles.yaml), so they are the Inquisitor's to hand out.
             access: [order-key, bishops-key]
             soundproof: true
             stash:
               items:
                 paper: 12
-                inquisitors-wax-stamp: 1
                 torturing-equipment: 1
                 bag: 1
                 mace: 1
                 padded-cap: 1
-                crossbow: 1
-                tear-gas-grenade: 3
+                phonebook: 1
           town-4-4:
             name: Hall
             description: >-
@@ -392,7 +386,6 @@ zones:
             stash:
               items:
                 paper: 20
-                bishops-wax-stamp: 1
       town-5:
         name: Alleys
         description: >-
@@ -432,12 +425,14 @@ zones:
               resources: 8
               items:
                 sewer-key: 1
-                elevator-key: 1
                 obol: 4
-                dagger: 4
+                dagger: 1
                 foodstuffs: 4
-                black-robes: 1
                 paper: 19
+              hidden:
+                elevator-key: 1
+                dagger: 3
+                black-robes: 1
       town-6:
         name: Smithies
         # "Some possessing industrial forges" — one standing Forge, so every
@@ -480,7 +475,7 @@ zones:
             phone: "Inn"
             payphone: true
             description: >-
-              Stairs lead down into the general floor. It's cozy, with a pair of braziers opposite from the entrance. There are tables, a bar, and a rage cage (the bars are electrified). Usually for cock fights, but sometimes people get in there too. The Baron mandated that his intercom be installed in here too, which sometimes kills the mood. There's also a stage for minstrels and singers. There's an ATM here.
+              Stairs lead down into the general floor. It's cozy, with a pair of braziers opposite from the entrance. There are tables, a bar, and a rage cage (the bars are electrified). Usually for cock fights, but sometimes people get in there too. The Baron mandated that his intercom be installed in here too, which sometimes kills the mood. There's also a stage for minstrels and singers. There's an infoterminal here.
           town-7-3:
             name: Second Floor
             description: >-
@@ -505,6 +500,7 @@ zones:
                 cheese: 1
                 alcohol: 1
                 cigarette: 3
+                phonebook: 1
           town-7-7:
             name: Room A
             description: >-
@@ -605,7 +601,6 @@ zones:
             stash:
               items:
                 paper: 15
-                esculaps-wax-stamp: 1
           town-9-3:
             name: Operating Theater
             description: >-
@@ -675,8 +670,7 @@ zones:
             stash:
               items:
                 paper: 8
-                censors-wax-stamp: 1
-                cerberus-key: 3
+                phonebook: 1
           fortress-1-3:
             name: Barracks
             access: [cerberus-key, barons-key]
@@ -686,6 +680,7 @@ zones:
               items:
                 cigarette: 1
                 radio-bracelet-cerberon: 2
+                phonebook: 1
           # No door, deliberately. The Cerberon's goods sit in the open, where
           # anybody standing in the hall can walk off with them — the room is
           # the Garrison's common one, not a strongroom. A cerberus-key on it
@@ -724,6 +719,7 @@ zones:
                 mail-shirt: 4
                 padded-armor: 5
                 padded-cap: 3
+                phonebook: 1
           fortress-1-6:
             name: Dungeons
             access: [censors-key, incarns-key, cerberus-key, barons-key]
@@ -738,15 +734,14 @@ zones:
             stash:
               items:
                 truncheon: 4
+          # No stash, on purpose. The Garrison's two hounds and its arelitz
+          # start with the Censor and the Incarn (docs/roles.yaml), so the
+          # first Cerberus through the door cannot ride off with them.
           fortress-1-8:
             name: Stables
             access: [cerberus-key, barons-key]
             description: >-
               A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human. Good and mean dogs both are caged along the back wall, ready to hunt unruly peasants.
-            stash:
-              items:
-                hound: 2
-                arelitz: 1
       fortress-2:
         name: Gatehouse
         attributes:
@@ -772,7 +767,6 @@ zones:
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
             description: >-
               A pair of thin, menacing watchtowers lined with spikes and draped with the Raven banner.
-            stash: [crossbow]
       fortress-3:
         name: Court
         attributes:
@@ -842,6 +836,7 @@ zones:
             stash:
               items:
                 paper: 4
+                phonebook: 1
           fortress-4-2:
             name: Library
             description: >-
@@ -907,10 +902,9 @@ zones:
               Scrolls, books, and the elegant skeleton of a cave beast. A balcony looks out onto Ravenheart.
             stash:
               items:
-                armory-key: 1
                 elevator-key: 1
                 paper: 20
-                barons-wax-stamp: 1
+                phonebook: 1
           fortress-4-7:
             name: Storehouse
             access: [barons-key, hands-key, servant-key]
@@ -921,7 +915,7 @@ zones:
               items:
                 foodstuffs: 4
                 paper: 5
-                meisters-wax-stamp: 1
+                phonebook: 1
           fortress-4-8:
             name: Kitchen
             access: [barons-key, hands-key, servant-key]
@@ -984,12 +978,13 @@ zones:
             stash:
               resources: 5
               items:
-                antibiotics: 1
-                antidote: 1
-                mulligan-potion: 1
                 graga-sac: 1
                 cave-fungus: 1
                 eth-lod: 1
+              hidden:
+                antibiotics: 1
+                antidote: 1
+                mulligan-potion: 1
           fortress-5-2:
             name: Meister's Study
             phone: "Meister"
@@ -1012,8 +1007,6 @@ zones:
               items:
                 paper: 7
                 cleaning-powder: 1
-                hands-wax-stamp: 1
-                tower-key: 2
       # The ship, drawn one tile above the Keep on the barony1 plate. It has
       # NO entry in connections: below, on purpose — there is no road to it
       # and no edge to light it up, so it shows on the map only for the three
@@ -1143,8 +1136,9 @@ zones:
               A destroyed home, previously belonging to a merchant.
             stash:
               items:
-                depot-keycard: 1
                 burnt-home-key: 3
+              hidden:
+                depot-keycard: 1
           undertown-2-4:
             name: Destroyed Cellar
             access: [burnt-home-key]
@@ -1153,9 +1147,10 @@ zones:
             stash:
               items:
                 nekker-corpse: 2
+                mail-coif: 1
+              hidden:
                 longbow: 1
                 gladius: 1
-                mail-coif: 1
       undertown-3:
         name: Lifeweb
         description: >-
@@ -1182,9 +1177,9 @@ zones:
                 hatchet: 1
                 cudgel: 1
                 mortus-rags: 1
-                mortus-key: 1
                 shovel: 3
                 corpse-salts: 1
+                phonebook: 1
       undertown-4:
         name: Sewer
         indoors: true
@@ -1209,6 +1204,7 @@ zones:
             stash:
               items:
                 flooded-crate: 1
+              hidden:
                 obol: 12
       # The freight end of the station, and only that. The shop that used to
       # share this Location is its own place next door now (undertown-6), so
@@ -1266,6 +1262,7 @@ zones:
             stash:
               items:
                 paper: 32
+                phonebook: 1
           undertown-6-3:
             name: Cargo Bay
             access: [depot-keycard]
@@ -1278,7 +1275,6 @@ zones:
                 obol: 10
                 cargo-crate: 1
                 paper: 6
-                merchants-wax-stamp: 1
                 # The Company's own crating bench, alongside the Factory's
                 # in factory-logistics-room. The Depot sells the crates and
                 # the Merchant fills them, so the outfit that ships the
@@ -1351,6 +1347,7 @@ zones:
                 perfume: 4
                 cigarette: 1
                 disguise-kit: 1
+                phonebook: 1
           # The slot machine is a button on this room's starter post, not a
           # stash item — db/lib/slotMachine.js, and the affordance that draws
           # it in db/lib/placeAffordances.js.
@@ -1477,12 +1474,9 @@ zones:
             stash:
               items:
                 paper: 12
-                inquisitors-wax-stamp: 1
                 bag: 1
                 mace: 1
                 padded-cap: 1
-                crossbow: 1
-                tear-gas-grenade: 3
       undertown-c:
         name: Lake
         description: >-
@@ -1738,7 +1732,6 @@ zones:
                 trench-knife: 1
                 work-knife: 2
                 paper: 13
-                bannerets-wax-stamp: 1
                 obol: 6
                 brigandine: 1
                 supply-kit: 1
@@ -1748,7 +1741,7 @@ zones:
               A cluster of granite boulders rises sharply above the stripped field, providing an uninterrupted view across Graywall, the old logging grounds, and the refuse pit. From this height, narrow trails and breaks in the path become visible that cannot be seen from below.
             access: [caving]
             stash:
-              items:
+              hidden:
                 graywall-key: 1
       cliffs:
         name: Cliffs
@@ -1769,9 +1762,10 @@ zones:
             access: [caving]
             stash:
               items:
-                silver: 2
                 malachite: 3
                 milk-quartz: 1
+              hidden:
+                silver: 2
       gullies:
         name: Gullies
         attributes:
@@ -1822,15 +1816,16 @@ zones:
                 spear: 2
                 buckler: 2
                 work-knife: 3
-                mace: 1
-                shortbow: 1
                 padded-armor: 1
                 padded-cap: 2
+                skinned-cave-rat: 1
+                paper: 4
+              hidden:
+                mace: 1
+                shortbow: 1
                 hood: 2
                 brigandine: 1
-                skinned-cave-rat: 1
                 disguise-kit: 1
-                paper: 4
       east-river:
         name: East River
         attributes:
@@ -1871,13 +1866,14 @@ zones:
             description: >-
               The Godflesh is prepared for production here while Squeeze is stacked into neat little crates. There's a ramp leading down to dry ground, where the cart is usually staged.
             access: [factory-key]
+            # The spare gloves, the hatchet and the ration boxes start with
+            # the Banneret (docs/roles.yaml) rather than on this floor, where
+            # every Refugee holds the key. The Packaging Equipment stays: it
+            # is the room's fixture, not anybody's kit (FACTORY.md).
             stash:
               resources: 2
               items:
                 packaging-equipment: 1
-                armored-gloves: 2
-                hatchet: 1
-                ration-box: 8
           factory-main-floor:
             name: Main Floor
             description: >-
@@ -1912,7 +1908,6 @@ zones:
                 cleaning-powder: 1
                 military-autoinjector: 1
                 paper: 9
-                bannerets-wax-stamp: 1
                 cigarette: 1
 
   underground:
@@ -2097,8 +2092,9 @@ zones:
                   items:
                     cheese: 1
                     alcohol: 3
-                    ravenheart-red: 1
                     moonshine: 3
+                  hidden:
+                    ravenheart-red: 1
                     obol: 17
       depths:
         name: Depths
@@ -2155,9 +2151,10 @@ zones:
                 stash:
                   items:
                     supply-kit: 3
+                    old-coin: 9
+                  hidden:
                     purse: 2
                     bastard-sword: 1
-                    old-coin: 9
           depths-3:
             name: Last Chance
             indoors: true
@@ -2181,6 +2178,7 @@ zones:
                 stash:
                   items:
                     cart: 1
+                  hidden:
                     obol: 46
           depths-4:
             name: Fork
@@ -2208,8 +2206,9 @@ zones:
                 stash:
                   items:
                     iron: 6
-                    black-powder: 8
                     saltpeter: 4
+                  hidden:
+                    black-powder: 8
           depths-5:
             name: Grand Chamber
             indoors: true
@@ -2441,13 +2440,11 @@ connections:
   # carefully climb through countless of these vicious crystals" (depths-6-1's
   # own description) — a giant does not force that either, climbing or not.
   # A Giant comes at the Chambers from the Chasm side instead (depths-7 <->
-  # depths-6, just below). With no tags, that means the rail tunnel from the
-  # Depot (`railroad: true` below), which kills anyone inside while the
-  # train is out, so it's a question of timing, not a closed door. With
-  # climbing, it's the climb down from the Grand Ravine (`locked: climbing`
-  # below). From the Grand Chamber the tunnel route is six hops and two zone
-  # crossings: up to the Lake, through the Undertown to the Depot, and down
-  # the tunnel to the Chasm.
+  # depths-6, just below), and the only way into the Chasm that skips the
+  # Razor Tunnels is the climb down from the Grand Ravine (`locked: climbing`
+  # below). So a Giant without climbing does not reach the Chambers, the
+  # Chasm or the shrine at its foot at all. There used to be a rail tunnel
+  # from the Depot too; it was taken out.
   - pair: [depths/depths-5, depths/depths-6]
     tight_squeeze: true
   - [depths/depths-6, depths/depths-7]
@@ -2484,7 +2481,8 @@ connections:
       open: true
 
   # The Baron's lift, top to bottom: the Keep's cage down into the Refuse Pit.
-  # Given as a starting tag to the Hand and the Baron.
+  # The Baron's signet ring opens it (docs/systemdocs/RINGS.md); an Elevator
+  # Key found or bought opens it too.
   #
   # Keyed, so whoever rides it is asked whether to leave it open behind them
   # for 24 hours — which is how anybody without the key gets to follow.
@@ -2633,18 +2631,6 @@ connections:
   - pair: [undertown/undertown-h, caves/caves-3]
     hidden: strong-swimmer
     on_foot: true
-
-  # --- The railroad ------------------------------------------------------
-  # One tunnel out of the Depot, and the cargo train is in it every other turn
-  # (db/lib/train.js). Go in while it is out on the line and there is nothing
-  # left to bury — db/lib/railroad.js, and the unconditional confirm in
-  # web/lib/travelCost.js#crossingConfirm is the only warning anybody gets. An
-  # ordinary border crossing otherwise: it costs the Move.
-  #
-  # There were two. The other ran to the Grand Ravine, and the Ravine reaches
-  # the deep on foot now instead — see the climb below.
-  - pair: [undertown/undertown-5, depths/depths-7]
-    railroad: true
 
   # --- Into the deep from the Black Hills --------------------------------
   # The Chasm used to open at the Cliffs. It opens at the Grand Ravine now, and
