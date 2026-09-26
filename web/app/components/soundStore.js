@@ -154,6 +154,11 @@ export function setSoundVolume(volume) {
   write({ ...soundSetting(), volume: level(volume) });
 }
 
+/** Hear about a change to the switches or the slider, outside React. Returns the unsubscribe. */
+export function onSoundChange(callback) {
+  return subscribe(callback);
+}
+
 export function useSound() {
   return parse(useSyncExternalStore(subscribe, read, readServer));
 }

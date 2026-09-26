@@ -3,56 +3,59 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
-import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
+import { setSellTax } from "@lifeweb/db/lib/verbs/place";
+import { registerHeldRing } from "@lifeweb/db/lib/ringRegistry";
+import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
-import { logAudit } from "@/lib/requests";
 import { UserError, acting } from "@/lib/actionResult";
-import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 
 // The terminal's one control. A server action is a public endpoint, so the gate
 // is re-checked here and never taken from the page — a superadmin reads the desk
 // but does not get the dial, since that is game permission rather than host
-// access.
-async function setSellTaxRateImpl({ rate: rawRate }) {
+// access. The rule is db/lib/verbs/place.js#setSellTax, shared with the Sell tax
+// button on the Meister's Study post on Discord.
+async function setSellTaxRateImpl({ rate }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
-
-  const gate = await canReadTreasury(prisma, session.discordUserId);
-  if (!gate.ok) throw new UserError(gate.error);
-
-  const character = await prisma.character.findUnique({
-    where: { id: gate.character.id },
-    include: { tags: { include: { tag: true } } },
+  const result = await setSellTax(prisma, {
+    discordUserId: session.discordUserId,
+    rate,
+    openTurn: await getOpenTurn(),
   });
-  const blocker = blockerFor(character.tags, ACT);
-  if (blocker) throw new UserError(`You can't act — you're ${blocker.name}.`);
-
-  const rate = Number(rawRate);
-  if (!Number.isInteger(rate) || rate < 0 || rate > 100) {
-    throw new UserError("A rate is a whole number from 0 to 100.");
-  }
-
-  const openTurn = await getOpenTurn();
-  const before = (await prisma.depot.findUnique({ where: { id: 1 }, select: { sellTaxRate: true } }))?.sellTaxRate ?? 0;
-
-  await prisma.$transaction(async (tx) => {
-    await tx.depot.upsert({ where: { id: 1 }, update: { sellTaxRate: rate }, create: { id: 1, sellTaxRate: rate } });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "sell_tax_rate_set",
-      targetCharacterId: character.id,
-      turnId: openTurn?.id ?? null,
-      details: { before, after: rate },
-    });
-  });
-
+  if (!result.ok) throw new UserError(result.error);
   revalidatePath("/treasury");
   revalidatePath("/depot");
   revalidatePath("/gm/audit");
-  return { rate };
+  return { rate: result.rate };
 }
 
 export async function setSellTaxRate(input) {
   return acting(() => setSellTaxRateImpl(input));
+}
+
+// The terminal's second control: registering a smithed ring (docs/systemdocs/RINGS.md).
+// Everything is re-checked in db/lib/ringRegistry.js — where the viewer stands,
+// that the ring is in their hands and unregistered, the seats, the account.
+async function registerRingAtTerminalImpl(input) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  const result = await registerHeldRing(prisma, {
+    discordUserId: session.discordUserId,
+    ringTagId: input?.ringTagId,
+    roleSlugs: input?.roleSlugs,
+    accountId: input?.accountId ?? null,
+    newAccount: input?.newAccount === true,
+    turn: await getOpenTurn(),
+  });
+  if (!result.ok) throw new UserError(result.error);
+  // The ring may already be on the holder's finger, so its new doors need the room sync.
+  await afterInventoryChange(result.characterId);
+  revalidatePath("/treasury");
+  revalidatePath("/gm/audit");
+  return { line: result.line };
+}
+
+export async function registerRingAtTerminal(input) {
+  return acting(() => registerRingAtTerminalImpl(input));
 }

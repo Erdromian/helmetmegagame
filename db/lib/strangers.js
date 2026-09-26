@@ -175,6 +175,34 @@ function attachSpeaker(shaped, characterId) {
   return shaped;
 }
 
+// Who may read a shaped row, when not everybody at its place (a telephone's two
+// voices, PHONES.md §6): `{ only, except }`, each a character id or null. Hidden
+// the same way the speaker is and for a sharper reason — an id on a room row
+// would say who is holding the phone. From the global registry for the reason
+// SPEAKER gives.
+const AUDIENCE = Symbol.for("bascinet.feed.audience");
+
+function attachAudience(shaped, { only = null, except = null } = {}) {
+  if (shaped && (only || except)) {
+    Object.defineProperty(shaped, AUDIENCE, { value: { only, except }, enumerable: false });
+  }
+  return shaped;
+}
+
+/**
+ * Whether this reader may see this row at all. A GM reads everything; a row
+ * with no audience is for the whole place. A reader with no character (a
+ * ghost, the lobby) never reads a row meant for one person, and does read one
+ * that is only kept from somebody.
+ */
+function readsRow(row, { characterId = null, gm = false } = {}) {
+  const audience = row?.[AUDIENCE];
+  if (!audience || gm) return true;
+  if (audience.only && audience.only !== characterId) return false;
+  if (audience.except && audience.except === characterId) return false;
+  return true;
+}
+
 // The row's own characterId is the fallback. A bare-faced row carries it anyway,
 // so a row that somehow lost its symbol is still judged rather than waved
 // through under a name the reader may not know. A hooded row has none, and
@@ -220,11 +248,14 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
     }
   }
 
-  const apply = (row) => lensRow(row, { characterId, gm, facts });
+  // Null for a row this reader may not see at all (readsRow): every surface
+  // drops those rather than drawing them.
+  const apply = (row) => (readsRow(row, { characterId, gm }) ? lensRow(row, { characterId, gm, facts }) : null);
 
   async function all(rows) {
-    await prepare(rows);
-    return (rows ?? []).map(apply);
+    const visible = (rows ?? []).filter((row) => readsRow(row, { characterId, gm }));
+    await prepare(visible);
+    return visible.map(apply);
   }
 
   return { prepare, apply, all, characterId, gm };
@@ -295,6 +326,9 @@ module.exports = {
   SPEAKER,
   attachSpeaker,
   speakerOf,
+  AUDIENCE,
+  attachAudience,
+  readsRow,
   createLens,
   lensRow,
   lensTyping,

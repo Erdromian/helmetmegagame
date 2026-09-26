@@ -3,6 +3,7 @@
 // A STACKABLE tag takes one slot/hand PER EQUIPPED UNIT, not one for the whole stack — CharacterTag.equippedQuantity says how many of a held stack are actually out, and every function below expands a row into that many physical instances before asking about slots, layers or hands (five swords readied is three hands spent, two still in the pack; two units of the same stackable layered tag fight over their one layer like two different hats would). Two independent code paths flip CharacterTag.equipped — the player's own toggle (web/app/(app)/character/equipActions.js) and the GM/staged batch (db/lib/tagOps.js) — so the rule lives here, written as "look at the whole equipped set and find a problem" rather than "may I add this one?", because the batch path applies its writes first and a two-argument form couldn't express "unequip A, equip B" without rejecting B for a conflict with an A already gone. See docs/systemdocs/TAGS.md.
 
 const { COLLAR_LOCKED_SLUG, LOCKED_GLYPH_PREFIX } = require("./collarGlyphs");
+const { RING_TEXT } = require("./ringText");
 
 const WEAPON_HANDS = 4;
 
@@ -52,7 +53,10 @@ const NOT_LOCKED_ON_WHERE = {
 // keys on the bare slot in findSlotClash below, which is the whole rule.
 const LAYERED_SLOTS = new Set(["BODY", "MOUNT"]);
 // SHIELD is deliberately absent: syncTags.js validates against this list, so a YAML entry still naming it throws instead of sliding through.
-const EQUIP_SLOTS = ["HEAD", "BODY", "WEAPON", "ACCESSORY", "MOUNT"];
+// FINGER is the signet ring (docs/systemdocs/RINGS.md): unlayered, so findSlotClash
+// allows one, and it is not a hand or an accessory, so gloves and everything held
+// go on beside it.
+const EQUIP_SLOTS = ["HEAD", "BODY", "WEAPON", "ACCESSORY", "MOUNT", "FINGER"];
 
 const SLOT_LABELS = {
   HEAD: "on your head",
@@ -60,6 +64,7 @@ const SLOT_LABELS = {
   WEAPON: "in your hands",
   ACCESSORY: "about your person",
   MOUNT: "under you",
+  FINGER: RING_TEXT.slotLabel,
 };
 
 const SLOT_TITLES = {
@@ -68,6 +73,7 @@ const SLOT_TITLES = {
   WEAPON: "Held",
   ACCESSORY: "Accessories",
   MOUNT: "Ride",
+  FINGER: RING_TEXT.slotTitle,
 };
 // The layer names, in order, for each layered slot. The ARRAY LENGTH is the
 // layer cap — db/lib/syncTags.js validates docs/tags.yaml against it, so

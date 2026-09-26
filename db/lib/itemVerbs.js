@@ -29,7 +29,8 @@ const ITEM_VERBS = [
   { mode: "disguise", match: { slug: "disguise-kit" } },
   { mode: "write", match: { slug: "paper" } },
   { mode: "write", match: { slug: "blank-book" } },
-  // A wax stamp, the test db/lib/paper.js#isSeal makes: a mark and no paper.
+  // A seal — an office's signet ring or a wax seal forged from one — the test
+  // db/lib/paper.js#isSeal makes: a mark and no paper.
   { mode: "seal", match: { flag: "sealMark", unless: "paperKind" } },
   { mode: "bird", match: { slug: "bird" } },
   { mode: "mine", match: { slug: "pickaxe" } },

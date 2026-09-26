@@ -75,19 +75,26 @@ const SFX = {
 
   // The world, heard by everyone reading the place it happened in. These ride
   // ArchiveEntry.sfx on a line that is being written anyway.
-  // The telephone (docs/systemdocs/PHONES.md). Six moments, because the whole
-  // feature is a sequence of noises with words in the middle: a coin, a dial
-  // tone, a bell in another room, somebody lifting a receiver, and the click
-  // that ends it. PHONE_RING is the only one that is heard by a ROOM rather
-  // than by one person, which is why it rides an ArchiveEntry and the rest
-  // ride an action result or a DM.
+  // The telephone (docs/systemdocs/PHONES.md §8). A sequence of noises with
+  // words in the middle: a coin, the long tone while it rings out, a bell in
+  // another room, somebody lifting a receiver, the busy tone of a dead line,
+  // and the error of a number that goes nowhere.
+  //
+  // Three of them are LOOPS the browser holds rather than events it plays:
+  // the bell while a phone rings (PHONE_RING near it, PHONE_RING_FAR one
+  // Location out), the caller's PHONE_CALLING and the dead line's PHONE_BUSY.
+  // Those are driven by the feed's `phones` frame (web/lib/phoneFrame.js),
+  // never by a row, because a loop is a state and a row is a moment.
   PHONE_RING: "phone-ring",
+  PHONE_RING_FAR: "phone-ring-far",
   PHONE_CALLING: "phone-calling",
   PHONE_PICKUP: "phone-pickup",
   PHONE_BUSY: "phone-busy",
+  PHONE_ERROR: "phone-error",
   // A receiver going back on the cradle. The OpenSourceWeb library has no
   // hang-up sound of its own, so this is the UI click — the shortest, driest
-  // thing in the folder, which is what a cradle sounds like.
+  // thing in the folder, which is what a cradle sounds like. Walking away from
+  // a phone makes it; hanging up plays PHONE_PICKUP, per the design document.
   PHONE_DROP: "phone-drop",
   COIN_INSERT: "coin-insert",
 

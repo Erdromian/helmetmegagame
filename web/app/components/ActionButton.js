@@ -140,6 +140,9 @@ export default function ActionButton({
           onClick={fire}
           {...gate}
         >
+          {/* Only /chat's Actions menu passes one (next/ChatActions.js); a
+              person's menu (HereList.js) is spelled-out verbs, glyph-free. */}
+          {Icon ? <Icon width="15" height="15" aria-hidden="true" /> : null}
           {busy ? "Working…" : label}
         </button>
       </Tooltip>

@@ -425,10 +425,9 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         // edit here, not a code change.
         stable: room.stable === true,
         // The phone on the wall (PHONES.md). A NAME, not a flag: it is what
-        // every dial list in the game calls this phone, and the room's own
-        // name is not what anybody asks the operator for. `payphone: true`
-        // makes it take an obol and keeps it OFF every dial list — a payphone
-        // calls out and never rings.
+        // the Phonebook calls this phone, and the room's own name is not what
+        // anybody would look up. `payphone: true` makes it take an obol to
+        // dial out or to answer.
         phone: typeof room.phone === "string" && room.phone.trim() ? room.phone.trim() : null,
         payphone: room.payphone === true,
         // The Merchant's vending machine (VENDING.md). A plain flag, resolved

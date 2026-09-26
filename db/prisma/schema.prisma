@@ -184,6 +184,9 @@ enum EquipSlot {
   WEAPON
   ACCESSORY
   MOUNT
+  // A signet ring (docs/systemdocs/RINGS.md). One at a time, and it blocks
+  // nothing: gloves and everything held go on as before.
+  FINGER
 }
 
 // Who may see a tag in the /documents Tag Catalog (`catalog:` in
@@ -540,10 +543,12 @@ model GameConfig {
   // character choosing between a fortune and their armour is the point.
   carryWeightLbs Int @default(71)
 
-  // Free zone crossings per character per turn, before a crossing starts
-  // spending the Move (docs/systemdocs/CARRY.md §2). An equipped mount adds
-  // one on top; Overburdened zeroes the allowance. Live on /gm/dev.
-  freeZoneMovesPerTurn Int @default(1)
+  // Free TRAVEL per character per turn, before a crossing starts spending
+  // the Move (docs/systemdocs/CARRY.md §2). A crossing between the town zones
+  // costs half of it, any other crossing 1 (db/lib/crossingCost.js), so it is
+  // a Float. An equipped mount adds a far crossing's worth on top;
+  // Overburdened zeroes the allowance. Live on /gm/dev.
+  freeZoneMovesPerTurn Float @default(1)
 
   // TWO ceilings on drawbacks at creation, and a build stops at whichever it
   // reaches first (TAGS.md §4a). Neither works alone: with a count cap only,
@@ -976,6 +981,8 @@ model BankAccount {
 
   orders DepotOrder[]
   sales  DepotSale[]
+  // The signet rings the Meister has linked to this account (Tag.ringBankAccountId).
+  rings  Tag[]      @relation("RingAccount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -1644,10 +1651,41 @@ model Room {
   phone String?
 
   // A phone that takes coins. Set from `payphone: true` in docs/zones.yaml.
-  // Two things follow: a call off it costs PHONE_COST into the treasury, and
-  // it is absent from every dial list — a payphone calls out and never rings,
-  // because there is nobody standing next to it whose job is to answer.
+  // Dialling out or answering on one costs PHONE_COST into the treasury, and
+  // each coin buys PHONE_PAID_MS on the receiver (phonePaidUntil below).
   payphone Boolean @default(false)
+
+  // This phone's four-digit number (docs/systemdocs/PHONES.md §2). Rolled
+  // afresh for every phone at Start Game (db/lib/phoneNumbers.js), so last
+  // game's numbers are worthless, and never authored anywhere: docs/zones.yaml
+  // and this repository are public. A phone added mid-game is given one the
+  // first time somebody picks it up.
+  phoneNumber Int? @unique
+
+  // Who has the receiver in their hand, if anyone (PHONES.md §3). Holding a
+  // phone is not the same as being on a call: you pick it up, then dial, and
+  // hanging up leaves it in your hand. A unique index, like
+  // VendingMachine.holderId, so one person holds one phone at a time and a
+  // phone is held by one person, without raw SQL.
+  phoneHolderId String?    @unique
+  phoneHolder   Character? @relation("PhoneHolder", fields: [phoneHolderId], references: [id], onDelete: SetNull)
+  // When they picked it up, and on which face ("web" | "discord"). The face
+  // decides where the far end's words go: a Discord holder gets them as a DM,
+  // since a Discord thread cannot show one reader a different line.
+  phoneHeldAt  DateTime?
+  phoneHeldVia String?
+  // Since when this phone has been in a hand with no call connected. A named
+  // phone drops its holder after PHONE_HOLD_IDLE_MS of this.
+  phoneIdleSince DateTime?
+  // A payphone's paid time. Every coin moves this PHONE_PAID_MS on; when it
+  // passes, the holder is ejected and any call on it hangs up.
+  phonePaidUntil DateTime?
+  // Whether the "insert another obol" line has gone out for this stretch of
+  // paid time, so the sweep says it once. Cleared by every coin.
+  phoneObolPrompted Boolean @default(false)
+  // The far end hung up and this end has not: the busy tone, until the holder
+  // here hangs up too. Null the rest of the time.
+  phoneDeadSince DateTime?
 
   // A vending machine bolted to this wall. Set from `vending: true` in
   // docs/zones.yaml, the way `stable` and `payphone` above are.
@@ -2217,11 +2255,12 @@ model Character {
   // weighed item and started counting in carryWeightSeen like everything else.
   carryWeightSeen Float @default(0)
 
-  // The free zone crossings this character has already spent, and the turn
-  // they were spent in (docs/systemdocs/CARRY.md §2). Everyone gets
-  // GameConfig.freeZoneMovesPerTurn a turn; an EQUIPPED mount adds one; being
-  // Overburdened takes them all away. Past the allowance a crossing spends the
-  // Move instead, exactly as it always did.
+  // The free TRAVEL this character has already spent, and the turn it was
+  // spent in (docs/systemdocs/CARRY.md §2). Everyone gets
+  // GameConfig.freeZoneMovesPerTurn a turn; an EQUIPPED mount adds a far
+  // crossing's worth; being Overburdened takes it all away. A crossing costs
+  // ½ or 1 of it (db/lib/crossingCost.js), and one that cannot be afforded
+  // spends the Move instead, exactly as it always did.
   // A push on (docs/systemdocs/MAP.md §3) claims this counter too — and only
   // this one, never zoneMovesBonusUsed below — which is how
   // db/lib/locationTravel.js#exertedThisTurn tells one happened: the base
@@ -2236,15 +2275,15 @@ model Character {
   // Not a foreign key on purpose — it is a claim token, and deleting a turn
   // must never cascade into a character row.
   zoneMovesTurnId String?
-  zoneMovesUsed   Int     @default(0)
+  zoneMovesUsed   Float   @default(0)
 
-  // How many of those spent crossings were charged to a BONUS crossing (a
-  // mount's, or a boat's on the water) rather than the base allowance. The
+  // How much of that spent travel was charged to a mount's BONUS rather
+  // than the base allowance. The
   // bonus is always charged first, so losing the bonus later in the turn —
   // a horse parked at an indoors door — can never reach back and take the
   // base crossing the rider still had. Reset by the same differing-turn-id
   // write as the counter above.
-  zoneMovesBonusUsed Int @default(0)
+  zoneMovesBonusUsed Float @default(0)
 
   // The movement mood ration (db/lib/mood.js, MOVE_MOOD_TURN_CAP). Same claim-
   // token shape as zoneMovesTurnId above, and not a foreign key for the same
@@ -2595,6 +2634,8 @@ model Character {
   // Both ends of a telephone call. See PhoneCall.
   phoneCallsPlaced PhoneCall[] @relation("PhoneCallCaller")
   phoneCallsTaken  PhoneCall[] @relation("PhoneCallCallee")
+  // The phone in this character's hand, if any. See Room.phoneHolderId.
+  phoneHeld        Room?       @relation("PhoneHolder")
 
   // The vending machine this character is standing at, if any. At most one —
   // see VendingMachine.holderId for why that is a unique index rather than a
@@ -2744,6 +2785,37 @@ model Tag {
   // FK — the print outlives the person. Null on prints from before this
   // column existed, which fall back to the name.
   photoOfCharacterId String?
+
+  // A signet ring (db/lib/ringMint.js, docs/systemdocs/RINGS.md). Every ring is
+  // its own minted row, the same custom+ephemeral door as a photo, because each
+  // is engraved for one person and registered to its own doors and account.
+  //
+  // ringOfCharacterId is who it was engraved for — a snapshot id with no FK, the
+  // photo's posture: the ring outlives the person. Non-null is what makes a row
+  // a ring. ringRoleSlugs are the seats whose doors the Meister registered it to;
+  // ringAccessSlugs is the union of those seats' Role.ringAccessSlugs, copied
+  // here so every access check reads it off the worn row with no join
+  // (db/lib/roomAccess.js#accessSlugsOf). db:sync-roles refreshes the copy when
+  // a seat's list changes. Nothing opens until ringRegisteredAt is set.
+  //
+  // Only an office's own ring carries a sealMark (Role.ringSealMark): a plain
+  // ring, smithed or spawned, leaves no seal of any kind.
+  ringOfCharacterId String?
+  // The engraving, "A.V." — kept on its own because the ring's name need not
+  // carry it (docs/systemdocs/RINGS.md), and its description is rewritten
+  // from it when the Meister registers the ring.
+  ringInitials      String?
+  ringRoleSlugs     String[]     @default([])
+  ringAccessSlugs   String[]     @default([])
+  ringRegisteredAt  DateTime?
+  ringBankAccountId String?
+  ringBankAccount   BankAccount? @relation("RingAccount", fields: [ringBankAccountId], references: [id], onDelete: SetNull)
+
+  // The short label a seal presses into a letter's title — "Baron" for the
+  // Baron's own ring, and for a wax seal forged from it. Null on everything
+  // else, where the label is read off the name's parentheses instead
+  // (db/lib/paper.js#sealLabel).
+  sealOffice String?
 
   // Whether other players who 🔍-react to this character's proxied messages
   // see this tag, alongside Character.appearance (see
@@ -3889,6 +3961,25 @@ model Role {
   // does for a dynasty member's last name; the disabled picker in the wizard
   // is only the hint.
   lockedGender Gender?
+
+  // The seat's signet ring, from the `ring:` block in docs/roles.yaml
+  // (docs/systemdocs/RINGS.md). ringSpawns: a character created in this seat
+  // starts wearing a registered ring. ringAccessSlugs: the door tokens a ring
+  // registered to this seat opens — the retired seat keys' slugs, which rooms
+  // and ways still name. ringSealOffice/ringSealMark: an office's own ring, the
+  // only kind that seals; null means the seat's ring leaves no seal.
+  // ringName/ringDescription: that office ring's own words ({initials} filled
+  // in); null means the plain "Signet Ring (A.V.)".
+  ringSpawns      Boolean  @default(false)
+  ringAccessSlugs String[] @default([])
+  ringSealOffice  String?
+  ringSealMark    String?
+  ringName        String?
+  ringDescription String?
+  // A tag slug the Meister's terminal demands before it registers a ring to
+  // this seat's access — the Merchant's License, the Baron's Scepter. Null:
+  // anybody at the terminal may grant it (db/lib/ringRegistry.js).
+  ringAuthorisedBy String?
 
   // Where characters with this role begin. startingLocationId is what
   // creation writes; startingZoneId is its zone, kept for the readers that
@@ -5973,6 +6064,21 @@ model ArchiveEntry {
   // transcript, which is why /archive's select leaves it behind.
   sfx String?
 
+  // Who may read this row, when not everybody at its place may. Null on both,
+  // which is nearly every row, means the whole place reads it. Written only by
+  // the telephone (db/lib/phoneVoice.js, PHONES.md §6): the person holding a
+  // receiver hears the far end clearly while the room around them hears it
+  // half-garbled, and those are two rows at one place. `onlyCharacterId` is
+  // the one reader a row is for; `exceptCharacterId` is the one reader it is
+  // kept from. Snapshot strings, not FKs, like `characterId` above.
+  //
+  // Decided per reader by db/lib/strangers.js#createLens, which every surface
+  // that hands feed rows to a browser already runs; a GM reads everything.
+  // NEVER put either on the wire: an id on a room row would say who is holding
+  // the phone. db/lib/archive.js#feedRowShape carries them on a hidden symbol.
+  onlyCharacterId   String?
+  exceptCharacterId String?
+
   // Forum post / thread title, so a scene reads as one unit rather than
   // scattered lines under its location.
   threadName String?
@@ -6599,10 +6705,10 @@ model PhoneCall {
   toRoomId   String
   toRoom     Room   @relation("PhoneCallTo", fields: [toRoomId], references: [id], onDelete: Cascade)
 
-  // Who is holding each receiver. The caller is known from the first moment;
-  // the callee is null for as long as the phone is still ringing. Exactly one
-  // person may hold a phone, which is what these two columns mean and what the
-  // partial unique indexes below enforce.
+  // Who dialled, and who first picked up at the far end — a record, not who
+  // holds each receiver now. The receiver can change hands mid-call (walk away,
+  // and somebody else picks it up), so the live answer is Room.phoneHolderId.
+  // The callee is null for as long as the phone is still ringing.
   callerId String
   caller   Character  @relation("PhoneCallCaller", fields: [callerId], references: [id], onDelete: Cascade)
   calleeId String?
@@ -6610,19 +6716,20 @@ model PhoneCall {
 
   status PhoneCallStatus @default(RINGING)
 
-  // How many of the four rings have gone out. The sweep's whole memory.
+  // How many rings have gone out. The sweep's whole memory: a phone rings
+  // until somebody answers, and this is how it knows one is due.
   ringsSent Int @default(0)
 
-  // Whether the coin is already in the slot. A payphone charges for LIFTING
-  // THE RECEIVER, not per number dialled, so a call nobody answered lets the
-  // caller try somebody else on the same obol -- db/lib/phone.js#PAID_GRACE_MS.
+  // Whether this call took a coin when it was dialled. A payphone's paid time
+  // lives on the Room (phonePaidUntil); this is only the record.
   paid Boolean @default(false)
 
   startedAt   DateTime  @default(now())
   answeredAt  DateTime?
   endedAt     DateTime?
-  // "hungup" | "left" | "noanswer" | "busy" | "gm". Read by nothing in the
-  // game rules; it is there so a GM reading a stuck row can tell what happened.
+  // "hungup" | "left" | "walked" | "ejected" | "unpaid" | "newgame". Read by
+  // nothing in the game rules; it is there so a GM reading a stuck row can
+  // tell what happened.
   endedReason String?
 
   // REQUESTS.md 1a: an action a ration could ever count must stamp the turn,

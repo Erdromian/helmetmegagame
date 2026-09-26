@@ -36,9 +36,14 @@ test("every slug, prefix and suffix names something in tags.yaml", () => {
   }
 });
 
+// A seal is only ever minted now — an office's own signet ring, or a wax seal
+// forged from one (docs/systemdocs/RINGS.md) — so no catalogued item carries a
+// sealMark, and the flag is pinned by the "wax stamp seals" test below instead.
+const MINTED_ONLY_FLAGS = new Set(["sealMark"]);
+
 test("every flag matches at least one catalogued item", () => {
   for (const { match } of ITEM_VERBS) {
-    if (!match.flag) continue;
+    if (!match.flag || MINTED_ONLY_FLAGS.has(match.flag)) continue;
     const hits = SLUGS.filter((s) => verbsForTag({ slug: s, ...TAGS[s] }).length > 0 && TAGS[s][match.flag]);
     assert.ok(hits.length > 0, `no tag carries ${match.flag}`);
   }

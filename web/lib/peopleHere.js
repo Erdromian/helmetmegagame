@@ -29,79 +29,17 @@
 // only remaining job is shaping the rows.
 import { prisma } from "@lifeweb/db";
 import { hereWhere } from "@lifeweb/db/lib/presence";
-import { whosHere } from "@lifeweb/db/lib/whosHere";
+import { rosterHere as rosterHereWith, pickerName, pickerKey } from "@lifeweb/db/lib/peopleHere";
 
 export { hereWhere, isHere, HERE_FIELDS, notHereMessage } from "@lifeweb/db/lib/presence";
 
-const NAME_ORDER = [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }];
+// The rows themselves are db/lib/peopleHere.js's: the Discord bot's pickers
+// read the same roster, so the split and the shaping live there once. These
+// wrappers only supply the web's own Prisma client.
+export { pickerName, pickerKey };
 
-// What a picker calls somebody, and what it posts back for them. Both halves
-// already carry the presented name — the one the VIEWER holds, forced names and
-// aliases resolved — so neither of these re-derives anything.
-export function pickerName(row) {
-  return row?.name ?? "somebody";
-}
-export function pickerKey(row) {
-  return row?.hooded ? row.id : `character:${row.id}`;
-}
-
-// Both halves, from one room read and one row read.
-//
-//   named   real ids, and the name the viewer HOLDS for them.
-//   hooded  "hood:<token>" for an id, the alias for a name, `hooded: true`.
-//           The real id and real name are stripped on the way out rather than
-//           never selected, so a caller cannot leak one by writing its `select`
-//           carelessly — shipping an id IS the unmasking.
-//
-// `room` lets a caller that has already asked whosHere hand the answer in
-// rather than paying for it twice.
-export async function rosterHere(character, { includeDead = false, select, room = null } = {}) {
-  if (!character?.locationId) return { named: [], hooded: [], room: null };
-  const answer =
-    room ??
-    (await whosHere(prisma, character, {
-      includeSelf: false,
-      includeDead,
-      withSightings: true,
-      withHoodIds: true,
-    }));
-
-  const hoodIds = answer.hoodIds ?? new Map();
-  const tokenById = new Map([...hoodIds].map(([token, id]) => [id, token]));
-  const aliasByToken = new Map(answer.concealed.filter((c) => c.token).map((c) => [c.token, c.alias]));
-  // The name the viewer holds, not Character.name: presentRows has already
-  // resolved a forced name and any sighting.
-  const heldName = new Map(answer.named.map((c) => [c.characterId, c.name]));
-
-  const ids = [...heldName.keys(), ...hoodIds.values()];
-  if (ids.length === 0) return { named: [], hooded: [], room: answer };
-  const rows = await prisma.character.findMany({ where: { id: { in: ids } }, orderBy: NAME_ORDER, select });
-
-  const named = [];
-  const hooded = [];
-  for (const row of rows) {
-    const token = tokenById.get(row.id);
-    if (!token) {
-      named.push({ ...row, name: heldName.get(row.id) ?? row.name });
-      continue;
-    }
-    const { id: _id, name: _name, ...rest } = row;
-    hooded.push({
-      ...rest,
-      // `token` alongside the key because the two consumers want different
-      // shapes: a dialog posts `id` straight back, while PartySelect builds its
-      // own value as `${kind}:${id}` and needs the bare token plus kind "hood".
-      id: `hood:${token}`,
-      token,
-      name: aliasByToken.get(token) ?? "somebody",
-      hooded: true,
-    });
-  }
-  // By alias, then token — never the NAME_ORDER the rows came back in, which is
-  // the real name's, and would put two identical aliases in their real names'
-  // order in every picker (db/lib/whosHere.js#hoodOrder says the same).
-  hooded.sort((a, b) => a.name.localeCompare(b.name) || (a.token < b.token ? -1 : a.token > b.token ? 1 : 0));
-  return { named, hooded, room: answer };
+export async function rosterHere(character, options = {}) {
+  return rosterHereWith(prisma, character, options);
 }
 
 // The named half alone, for the two callers that look somebody up by real id.

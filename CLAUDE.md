@@ -262,6 +262,7 @@ you pick the right doc — they are never enough to change code with.
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet — and **always** before adding one a per-turn ration counts |
 | [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, or the Reply window |
+| [`RINGS.md`](docs/systemdocs/RINGS.md) | You're touching signet rings — the `FINGER` slot, **anything that decides which doors a character can open** (`db/lib/rings.js#accessSlugsOf`: held tags plus the worn ring's tokens, which are the retired seat keys' slugs), the infoterminals and their PIN (`depotCounter.js#terminalAccount`), the Meister registering a smithed ring, or which rings seal (only an office's own) |
 | [`PAPERWORK.md`](docs/systemdocs/PAPERWORK.md) | You're touching paper, writing, wax seals, noticeboards, or **anything that asks whether a character can read** (`db/lib/reading.js`) |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |
@@ -272,7 +273,7 @@ you pick the right doc — they are never enough to change code with.
 | [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
 | [`ATTACK.md`](docs/systemdocs/ATTACK.md) | You're touching the Attack verb — the band gate that refuses a hopeless fight, the hold it puts on **both** sides, Break off, or the **Other** lens on `/gm/turns` |
 | [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that touches a Room's `questId`**, which marks a room a GM minted at runtime rather than one `docs/zones.yaml` named |
-| [`PHONES.md`](docs/systemdocs/PHONES.md) | You're touching the telephones — `Room.phone` and the payphones, the dial list, the four rings, what a call costs, **anything that asks whether a line is busy** (the partial unique indexes on `PhoneCall`), or **what a phone carries** (`db/lib/phoneVoice.js` — a voice, never a name) |
+| [`PHONES.md`](docs/systemdocs/PHONES.md) | You're touching the telephones — `Room.phone` and the payphones, the four-digit numbers and the Phonebook, the keypad, **who is holding a phone** (`Room.phoneHolderId`) and its clocks, **anything that asks whether a line is busy** (the partial unique indexes on `PhoneCall`), or **what a phone carries** (`db/lib/phoneVoice.js` — a voice, never a name, and a row meant for one reader) |
 | [`CHARON.md`](docs/systemdocs/CHARON.md) | You're touching the Charon — the ship above the Keep, the Panic Room's button, the six seats, the launch countdown, what `offMap` does to `/map`, or the **ASLEEP status** and the `db/lib/bodies.js` rule that keeps it out of both the curse and the Deadchat seat |
 | [`CAVING.md`](docs/systemdocs/CAVING.md) | You're touching the Caving Die, the cave loot table, or the Caving lens on `/gm/turns` |
 | [`PROXYING.md`](docs/systemdocs/PROXYING.md) | You're touching how a player's message becomes a character's — proxying, avatars, reactions, `/conceal`, mentions, notes |
@@ -592,6 +593,26 @@ npm run dev:check -- --anon /character    # no cookie, to confirm a gate still s
 `npm run dev:web` must already be running. `dev:check` also asserts the negative
 cases — that a player is still bounced off `/gm/*` — so loosening a gate by
 accident fails the run.
+
+`dev:check` says a page rendered; the **visual goldens** say what it looked
+like. Playwright opens twenty-odd screens in a database of its own
+(`bascinet_visual`, built by `dev:visual:setup` from the same migrations and
+YAML syncs as `dev:setup`, plus fixed fixtures) with the page's clock frozen,
+and compares each to the PNG in `scripts/dev/visual/goldens/<platform>/`
+(`darwin` or `win32`; each draws text differently). A diff fails the
+run and writes expected/actual/diff images into `test-results/`.
+
+```
+npm run dev:visual:setup                   # once: the world it runs in
+npm run dev:visual                         # compare every screen
+npm run dev:visual -- -g chat             # only screens with "chat" in the name
+npm run dev:visual -- -g " map$" --update-snapshots   # meant it: re-baseline that one
+```
+
+The filter is `-g`; a bare `-- chat` matches no test at all. It starts its own
+dev server on 3111, in its own build folder so it runs beside `dev:web`, and
+forces `LOCAL_MODE`, so it never touches Discord or the shared local database. See `LOCAL-DEV.md` §5 for what
+is pinned and why the list of screens should stay short.
 
 Two things it knows that a plain `curl` does not. A `redirect()` called from a
 page rather than a layout arrives as a **200** with `NEXT_REDIRECT` buried in the
@@ -1128,7 +1149,7 @@ JSX, use `RequestDialog.js` instead (`REQUESTS.md`).
 ## Web UI conventions
 
 Full detail in [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) — read
-it before writing any UI. Four rules apply everywhere:
+it before writing any UI. Six rules apply everywhere:
 
 - **Never hardcode a hex/rgb colour.** Always use `var(--x)`, so the colour
   follows the active theme. There are currently zero hardcoded colours in the
@@ -1152,6 +1173,29 @@ it before writing any UI. Four rules apply everywhere:
   result: a component referenced without its import built clean, linted
   clean, and threw only when someone opened the page. That's why the rule is
   on.
+- **Run the visual goldens after touching anything a player or GM sees.**
+  `npm run dev:visual` (setup and what it pins: "Verifying a change locally"
+  above, `LOCAL-DEV.md` §5). Read every diff it reports and sort each into
+  one of two piles: the change you meant, which gets re-baselined one screen
+  at a time with `-- -g " <screen>$" --update-snapshots`, and the change you
+  did not, which is a regression to fix before anything ships. A screen that
+  moved on a page you did not think you were touching is exactly what the
+  goldens are for, so never re-baseline the whole set in one go to make the
+  run green — a bare `--update-snapshots` rewrites every screen that failed,
+  regressions included. The goldens are per platform (`goldens/darwin/`,
+  `goldens/win32/`); re-baseline yours and say in the PR that the other
+  platform's set is now stale. If the surface
+  you changed is on no golden, add it to `pages.spec.mjs` only if it has a
+  shape nothing on the list has; otherwise take the shot without keeping it.
+- **A PR that changes the UI carries a before-and-after picture.** The
+  reviewer is Bascinet, and a picture shows a visual change faster than a
+  diff. The checked-in golden is the "before"; the actual that
+  `dev:visual` writes into `test-results/` is the "after", and the same
+  seeded scene in both is the point, so use those rather than a hand-taken
+  shot of some other character. `gh` cannot attach an image, so push the two
+  PNGs to an images-only orphan branch on the remote you push to and link
+  their `raw.githubusercontent.com` URLs in the PR body. Do it before opening
+  the PR, without being asked.
 
 ## Game state
 
@@ -1281,6 +1325,8 @@ Use a branch and a PR when the work wants eyes on it before it ships — a
 schema change, a rebalance, anything touching the live database, or a change
 large enough that "pull it and see" is a poor review. Push straight to
 `master` for the ordinary finished thing. **When it isn't obvious which, ask.**
+Either way, a change to anything on screen runs the visual goldens first, and
+a PR for one carries the before-and-after pair — see "Web UI conventions".
 
 Branch names here are plain kebab-case and say what changed, with no
 `feature/` or `fix/` prefix on Bascinet's own branches.
@@ -1655,14 +1701,15 @@ might need to reach a real environment:
   `DirectMessage_clientNonce_key` is the fourth and the same answer: a PARTIAL
   unique index (`WHERE "clientNonce" IS NOT NULL`), so every DM writer with no
   composer behind it can go on passing null. Decline that drop too — without
-  it a retried send can reach a player twice. The four
+  it a retried send can reach a player twice. The two
   `PhoneCall_*_active_unique` indexes are the same shape again (`WHERE status
   IN ('RINGING','CONNECTED')`), and they behave like the trigger below rather
   than like the four above: `migrate diff` does not mention them in either
   direction, so there is no drop to decline — but a hand-written "fix drift"
-  migration must not remove them. They are what makes "The line is busy." true
-  rather than hopeful, and what stops one person holding two receivers in two
-  rooms (`PHONES.md` §6). The
+  migration must not remove them. They are what makes "The number you are
+  trying to call is currently busy." true rather than hopeful (`PHONES.md` §7).
+  The two per-person ones beside them were dropped on purpose by
+  `20261101000000_phone_overhaul`; `Room.phoneHolderId` is the rule now. The
   `DirectMessage_notify` trigger (`CHAT.md` §2b) is the fifth — Prisma does
   not model triggers, so `migrate diff` never mentions it either way, but a
   hand-written "fix drift" migration must not drop it. The adjudication desk's

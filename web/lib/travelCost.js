@@ -7,15 +7,27 @@
 // are already computed server-side by loadTravel/loadMap.
 //
 // A local hop is free full stop and never touches the header's count. A zone
-// crossing while one is still available SPENDS one, which used to read as the
+// crossing you can still afford SPENDS travel, which used to read as the
 // identical word "free" and told a player nothing about the difference. "1
-// travel" is what it actually costs — singular, because a single crossing is
-// always exactly one no matter how many are left.
+// travel" or "½ travel" is what it actually costs (`option.cost`, stamped by
+// db/lib/locationGraph.js from db/lib/crossingCost.js: ½ between the town
+// zones, 1 anywhere else) — "travel" as a mass noun, whatever the number,
+// and every number printed through formatTravel so a half reads "½".
 //
 // `moved` is whether the Move is already spent this turn. Past that point a
-// crossing with no travel left is paid on the push on's die (MAP.md §3) —
+// crossing you cannot afford is paid on the push on's die (MAP.md §3) —
 // "exertion" — or not at all until next turn, when the server would refuse the
 // push on too (`option.canExert`).
+import { formatTravel } from "@lifeweb/db/lib/crossingCost";
+import { RING_SLUG } from "@lifeweb/db/lib/rings";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
+
+export { formatTravel };
+
+export function affordsCrossing(option, freeLeft) {
+  return (freeLeft ?? 0) >= (option.cost ?? 1);
+}
+
 export function travelFoot(option, freeLeft, mounted, moved = false) {
   if (!option.passable) {
     const reason = option.reason ?? "";
@@ -25,8 +37,8 @@ export function travelFoot(option, freeLeft, mounted, moved = false) {
   }
   const cost = !option.crossesZone
     ? "free"
-    : freeLeft > 0
-      ? "1 travel"
+    : affordsCrossing(option, freeLeft)
+      ? `${formatTravel(option.cost ?? 1)} travel`
       : !moved
         ? "the turn"
         : option.canExert
@@ -41,8 +53,8 @@ export function travelFoot(option, freeLeft, mounted, moved = false) {
 }
 
 // The line over the buttons once a destination is picked, on both surfaces.
-// `nextTurn` is the caller's "this crossing has no travel left" (a
-// destination's OWN count, not the header's); `moved` whether the Move is
+// `nextTurn` is the caller's "this crossing cannot be afforded" (a
+// destination's OWN count against its own cost); `moved` whether the Move is
 // already spent. Once it is, Go is gone and the push on is the only way
 // across — or none this turn, and `option.exertWhy` is the server's reason.
 export function crossingLine(option, nextTurn, moved) {
@@ -57,7 +69,10 @@ export function crossingLine(option, nextTurn, moved) {
 // is what the hover and the screen reader get. Here rather than in either
 // component for the same reason travelFoot is: /chat and /map both say it, and
 // two copies would drift.
-export function openedByLabel(tagName) {
+// A way the worn signet ring opened (openedBy is the Ring recipe's slug then,
+// db/lib/locationGraph.js) says so in its own words (docs/systemdocs/RINGS.md).
+export function openedByLabel(tagName, slug = null) {
+  if (slug === RING_SLUG) return RING_TEXT.openedByRing;
   return `Opened by your ${tagName}.`;
 }
 
@@ -90,8 +105,8 @@ function crossingWarning(option) {
 // counterpart below.
 //
 // Built here rather than in either component for the reason travelFoot is: two
-// surfaces, one sentence. `freeLeft` is the DESTINATION's own count, not the
-// header's ambient one — a boat's bonus is earned per crossing.
+// surfaces, one sentence. `freeLeft` is the DESTINATION's own count, weighed
+// against the destination's own `cost`.
 //
 // `exert` is the other question, asked from the other button: pushing on for
 // one more crossing on a die instead of the Move (MAP.md §3). `option.exertNote`
@@ -125,15 +140,18 @@ export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false
     const note = option.exertNote ? ` ${option.exertNote}` : "";
     return {
       title: `Push on to ${option.zoneName}?`,
-      message: `${option.name} is in ${option.zoneName} and you have no free travels left. You can choose to push yourself, risking exhaustion and possible injury.${note}${party}`,
+      message: `${option.name} is in ${option.zoneName} and you don't have the travel left for it. You can choose to push yourself, risking exhaustion and possible injury.${note}${party}`,
       confirmLabel: "Push on",
       cancelLabel: "Stay",
     };
   }
-  const price =
-    (freeLeft ?? 0) > 0
-      ? "This spends one of your travels."
-      : "You have no travels left, so this spends your Move for the turn.";
+  const cost = option.cost ?? 1;
+  const left = freeLeft ?? 0;
+  const price = affordsCrossing(option, freeLeft)
+    ? `This spends ${formatTravel(cost)} of your ${formatTravel(left)} travel.`
+    : left > 0
+      ? `This costs ${formatTravel(cost)} travel and you only have ${formatTravel(left)} left, so it spends your Move for the turn.`
+      : "You have no travel left, so this spends your Move for the turn.";
   return {
     title: `Cross into ${option.zoneName}?`,
     message: `${option.name} is in ${option.zoneName}. ${price}${party}`,

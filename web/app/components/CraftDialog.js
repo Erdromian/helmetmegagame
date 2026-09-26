@@ -297,7 +297,7 @@ export default function CraftDialog({
                 (ingredientPick.options.length > 0 ? (
                   <label className="field">
                     <span className="field-label">
-                      Which goes in?
+                      {ingredientPick.fieldLabel ?? "Which goes in?"}
                     </span>
                     <Select
                       value={ingredientChoice}
@@ -313,8 +313,8 @@ export default function CraftDialog({
                   </label>
                 ) : (
                   <p className="text-xs text-accent">
-                    This needs {ingredientPick.label}, and you have none of
-                    them.
+                    {ingredientPick.empty ??
+                      `This needs ${ingredientPick.label}, and you have none of them.`}
                   </p>
                 ))}
               {ingredientPickers?.map((picker) =>

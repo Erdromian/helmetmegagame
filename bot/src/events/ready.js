@@ -254,16 +254,17 @@ module.exports = {
     // feature, self-rescheduling (bot/src/lib/deathSmell.js).
     startDeathSmell(prisma);
 
-    // The telephones (docs/systemdocs/PHONES.md). A ringing phone rings four
-    // times over sixty seconds, so this is the one sweep that cannot live on
-    // the minute cron above — it runs every PHONE_RING_INTERVAL_MS instead.
+    // The telephones (docs/systemdocs/PHONES.md). A ringing phone rings every
+    // fifteen seconds until somebody answers, so this is the one sweep that
+    // cannot live on the minute cron above — it runs every
+    // PHONE_RING_INTERVAL_MS instead.
     //
     // setInterval rather than cron, which has no sub-minute schedule. The
-    // state is entirely in the PhoneCall row, so this timer holds nothing: the
-    // bot restarting mid-ring picks the call back up on the next pass instead
-    // of leaving a phone ringing in an empty office. It also hangs up a
-    // receiver whose holder died or was taken away, which is what stops a
-    // stuck row wedging that phone for the rest of the game.
+    // state is entirely in the PhoneCall and Room rows, so this timer holds
+    // nothing: the bot restarting mid-ring picks the call back up on the next
+    // pass instead of leaving a phone ringing in an empty office. It also runs
+    // the holders' clocks — a payphone's paid time, a named phone's ten idle
+    // minutes — and frees a receiver whose holder died or was taken away.
     //
     // One sweep in flight at a time, the rite sweep's posture below: each pass
     // posts to Discord once per ringing call, and a slow guild must not stack.
@@ -272,8 +273,8 @@ module.exports = {
       if (phoneSweepRunning) return;
       phoneSweepRunning = true;
       tickPhones(prisma)
-        .then(({ rang, expired, cleared }) => {
-          if (expired || cleared) console.log(`Phone sweep: ${rang} rang, ${expired} unanswered, ${cleared} cleared.`);
+        .then(({ rang, expired, ejected }) => {
+          if (expired || ejected) console.log(`Phone sweep: ${rang} rang, ${expired} lines closed, ${ejected} receivers freed.`);
         })
         .catch((err) => console.error("Phone sweep failed:", err))
         .finally(() => {
