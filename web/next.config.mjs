@@ -11,6 +11,12 @@ const nextConfig = {
   // this off in dev.
   deploymentId: process.env.RAILWAY_GIT_COMMIT_SHA,
 
+  // `next dev` holds a lock in its build folder and refuses a second server
+  // on the same one. The visual goldens (playwright.config.mjs) start their
+  // own server beside whatever `dev:web` is already running, so they set this
+  // to build into a folder of their own. Unset everywhere else.
+  distDir: process.env.NEXT_DIST_DIR || ".next",
+
   // sharp is a native/binary module used only inside "use server" actions
   // (avatar resizing). Without this, Turbopack tries to trace its
   // platform-detection code (which touches node:fs) into client bundles

@@ -231,8 +231,16 @@ falls over on a dead character, a desk column that stopped lining up — and
 npm run dev:visual:setup                   # once: build the world it runs in
 npm run dev:visual                         # compare every screen to its golden
 npm run dev:visual -- --update-snapshots   # a restyle was meant: re-baseline
-npm run dev:visual -- chat                 # one screen, by name
+npm run dev:visual -- -g chat              # only the screens with "chat" in their name
+npm run dev:visual -- -g " map$" --update-snapshots   # re-baseline exactly one
 ```
+
+The screen filter is `-g`. A bare `-- chat` filters by test **file**, and
+there is one file, so it runs nothing. Put `--update-snapshots` last: it takes
+an optional value and will swallow whatever comes after it. And `-g " map$"`
+is anchored on the space, not with `^`, because the title it matches starts
+with the file name. Without a `-g`, `--update-snapshots` re-baselines every
+screen that failed, the regressions along with the change you meant.
 
 **It runs in a database of its own.** `dev:visual:setup` builds
 `bascinet_visual` beside the ordinary `bascinet` — the same migrations, the
@@ -248,7 +256,10 @@ golden taken next month. The seed removes its own rows before writing them, so
 **It starts its own dev server**, on port 3111 (`VISUAL_PORT` to change it),
 pointed at that database with `LOCAL_MODE` forced on whatever the root `.env`
 says — so a checkout holding a real bot token still asks Discord nothing during
-a run. `dev:web` on 3000 can keep running beside it. The one thing it needs
+a run. `dev:web` on 3000 can keep running beside it: the visual server
+builds into `web/.next-visual` (`NEXT_DIST_DIR`, read by `next.config.mjs`),
+because `next dev` refuses to start a second server on a build folder that
+already has one. The one thing it needs
 from `dev:setup` is the `.env` it writes, because the session cookies are
 signed with its `AUTH_SECRET` (the same minting as `dev:session`).
 
@@ -261,6 +272,22 @@ itself renders it with the real time, and React then regenerates that subtree
 on the client with the frozen one (a hydration warning in the server log, and
 a deterministic result). Fonts are self-hosted except the blackletter, which
 `next/font` fetches from Google once and caches.
+
+**One set of goldens per platform**, under `goldens/darwin/` and
+`goldens/win32/`. The same page drawn on macOS and on Windows is not the same
+PNG: text is rasterised differently and a line height can round to a different
+pixel, so a card sits 4px higher and the run fails with nothing wrong. A meant
+restyle re-baselines the set for the platform you are on, and the other one is
+then stale until somebody on that platform re-baselines it too — say so in the
+PR. A platform with no folder yet (Linux, in a cloud session) gets one written
+on its first run, which is a baseline of whatever the code is now, so take it
+before your change, not after, and do not commit it unless you mean to add
+that platform.
+
+**Only the viewport is compared.** Each screen is the first 1440×900 (or
+390×844) of the page, not the whole scroll height, so a change further down a
+long page — the bottom of a full character sheet — is not caught. A screen
+whose lower half matters needs its own entry that scrolls there first.
 
 **Keep the list short.** Every screen in `pages.spec.mjs` costs a re-baseline
 each time it is meant to change, and this app restyles often. Twenty screens

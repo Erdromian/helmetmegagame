@@ -22,6 +22,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // The visual goldens' dev server builds here (playwright.config.mjs).
+    ".next-visual/**",
   ]),
 ]);
 
