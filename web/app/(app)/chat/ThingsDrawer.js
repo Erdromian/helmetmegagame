@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, useTransition } from "react";
+import { useCallback, useEffect, useRef, useState, useSyncExternalStore, useTransition } from "react";
 import ClickMenu from "@/app/components/ClickMenu";
 import FormError from "@/app/components/FormError";
 import HoverCard from "@/app/components/HoverCard";
@@ -15,7 +15,6 @@ import useSoundItem, { soundLabel } from "@/app/components/useSoundItem";
 import { equipOne, unequipOne } from "@/app/(app)/character/equipActions";
 import { myThings } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
-import { useThingsOpen } from "./thingsOpenStore";
 import { playSfx } from "@/app/components/sfx";
 import { actionThrowMessage } from "@/app/components/actionThrow";
 
@@ -34,10 +33,38 @@ import { actionThrowMessage } from "@/app/components/actionThrow";
 // the item and not about the world; an item verb greys with the registry's own
 // reason. Every one is re-checked server-side.
 //
-// Open by default, and it stays however this browser left it
-// (./thingsOpenStore.js).
+// Closed by default, and it stays however this browser left it, in
+// localStorage.
 
+const KEY = "chat-things-open";
 const POLL_MS = 60_000;
+
+function subscribe(callback) {
+  window.addEventListener("storage", callback);
+  return () => window.removeEventListener("storage", callback);
+}
+
+function read() {
+  try {
+    return window.localStorage.getItem(KEY) === "1";
+  } catch {
+    return false;
+  }
+}
+
+function readServer() {
+  return false;
+}
+
+function write(open) {
+  try {
+    window.localStorage.setItem(KEY, open ? "1" : "0");
+    // The storage event never fires in the tab that wrote it.
+    window.dispatchEvent(new Event("storage"));
+  } catch {
+    /* private window / blocked site data */
+  }
+}
 
 // Just the buttons — ClickMenu owns the .chat-menu box itself, so wrapping
 // them in a second one here would double it up.
@@ -219,17 +246,15 @@ function ThingChip({ row, isOpen, onToggle, onClose, onEquip, onUnequip, onSound
   );
 }
 
-// `framed` is the rebuilt chat's right column (next/ChatAside.js): a girder
-// head like every other block there, carrying the fold and a count, instead of
-// the small fold line the old column drew. Without it, the old look stands.
-export default function Things({ groups: initialGroups = [], framed = false }) {
-  const [open, toggle] = useThingsOpen();
+export default function Things({ groups: initialGroups = [] }) {
+  const open = useSyncExternalStore(subscribe, read, readServer);
   const [groups, setGroups] = useState(initialGroups);
   const [openId, setOpenId] = useState(null);
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const { sound, pending: soundPending, error: soundError } = useSoundItem();
 
+  const toggle = useCallback(() => write(!read()), []);
   const close = useCallback(() => setOpenId(null), []);
 
   const refresh = useCallback(() => {
@@ -286,63 +311,42 @@ export default function Things({ groups: initialGroups = [], framed = false }) {
     [refresh],
   );
 
-  // How many different things, not how many units: "Things · 4" is four
-  // kinds of item, which is what the chips below number.
-  const count = groups.reduce((n, group) => n + group.rows.length, 0);
-  const fold = (
-    <button
-      type="button"
-      className={framed ? "chat-things-fold" : "chat-details-fold"}
-      aria-expanded={open}
-      onClick={toggle}
-    >
-      <ChevronDownIcon data-open={open ? "true" : undefined} />
-      Things{framed && count > 0 ? ` · ${count}` : ""}
-    </button>
-  );
-  const contents = open && (
-    <div className={framed ? "body" : "chat-details-body"}>
-      {groups.length === 0 ? (
-        <p className="chat-quiet-line">Your pockets are empty.</p>
-      ) : (
-        groups.map((group) => (
-          <div key={group.category}>
-            <p className="chat-quiet-line">{group.category}</p>
-            <div className="chat-chips">
-              {group.rows.map((row) => (
-                <ThingChip
-                  key={row.characterTagId ?? row.tagId}
-                  row={row}
-                  isOpen={openId === row.tagId}
-                  onToggle={() => setOpenId(openId === row.tagId ? null : row.tagId)}
-                  onClose={close}
-                  onEquip={equip}
-                  onUnequip={unequip}
-                  onSound={sound}
-                  soundPending={soundPending}
-                  pending={pending}
-                />
-              ))}
-            </div>
-          </div>
-        ))
-      )}
-      <FormError>{error ?? soundError}</FormError>
-    </div>
-  );
-
-  if (framed) {
-    return (
-      <section className="block chat-things" data-open={open ? "true" : undefined}>
-        <h3 className="bar">{fold}</h3>
-        {contents}
-      </section>
-    );
-  }
   return (
     <div className="chat-details chat-things">
-      {fold}
-      {contents}
+      <button type="button" className="chat-details-fold" aria-expanded={open} onClick={toggle}>
+        <ChevronDownIcon data-open={open ? "true" : undefined} />
+        Things
+      </button>
+      {open && (
+        <div className="chat-details-body">
+          {groups.length === 0 ? (
+            <p className="chat-quiet-line">Your pockets are empty.</p>
+          ) : (
+            groups.map((group) => (
+              <div key={group.category}>
+                <p className="chat-quiet-line">{group.category}</p>
+                <div className="chat-chips">
+                  {group.rows.map((row) => (
+                    <ThingChip
+                      key={row.characterTagId ?? row.tagId}
+                      row={row}
+                      isOpen={openId === row.tagId}
+                      onToggle={() => setOpenId(openId === row.tagId ? null : row.tagId)}
+                      onClose={close}
+                      onEquip={equip}
+                      onUnequip={unequip}
+                      onSound={sound}
+                      soundPending={soundPending}
+                      pending={pending}
+                    />
+                  ))}
+                </div>
+              </div>
+            ))
+          )}
+          <FormError>{error ?? soundError}</FormError>
+        </div>
+      )}
     </div>
   );
 }

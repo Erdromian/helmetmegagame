@@ -130,15 +130,6 @@ const CASES = [
     after: true,
   },
   {
-    name: "thingsOpenStore, chat's Things section",
-    path: "app/(app)/chat/thingsOpenStore.js",
-    mount: (m) => m.useThingsOpen(),
-    act: (m) => m.useThingsOpen()[1](),
-    value: (m) => m.useThingsOpen()[0],
-    before: true,
-    after: false,
-  },
-  {
     name: "seenStore, a read mark",
     path: "app/(app)/chat/seenStore.js",
     mount: (m) => m.useSeen(),

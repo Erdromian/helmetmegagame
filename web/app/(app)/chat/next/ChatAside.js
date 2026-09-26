@@ -30,8 +30,8 @@ import useMyMove from "../useMyMove";
 // headings: the place card, the room, travel and the party arrived as bare
 // bodies with nothing naming them, so a reader scrolling the column met three
 // unlabelled boxes in a row. Every framed section here wears a girder head
-// (chat-vocabulary.md §4). Things draws its own girder head (ThingsDrawer.js
-// `framed`), because the fold lives in it.
+// (chat-vocabulary.md §4), and Things, which carries its own fold heading,
+// keeps it rather than being given a second one.
 //
 // The children are MOUNTED, not rewritten. PlaceCard carries fixtures and the
 // Depot/Factory doors, TravelNodes the crossing confirm, PartyRack
@@ -212,12 +212,6 @@ export default function ChatAside({
         </Block>
       )}
 
-      {/* Above the place card, open by default, with a girder head like
-          every other block: it was a small fold line at the very foot of the
-          column, shut, and players reported not finding what they could do
-          with an item. It draws its own head, since the fold lives in it. */}
-      <Things groups={things} framed />
-
       <Block head={place?.name ?? "Place"}>
         <PlaceCard
           place={place}
@@ -248,6 +242,9 @@ export default function ChatAside({
           when there is nobody to bring — a "Party" girder over nothing would
           be a permanent empty box for most players. */}
       <PartyRack />
+
+      {/* Carries its own fold heading; it is not given a second one. */}
+      <Things groups={things} />
 
       {dialog === "move" && (
         <MoveDialog
