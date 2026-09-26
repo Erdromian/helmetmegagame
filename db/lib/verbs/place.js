@@ -15,7 +15,13 @@ const { RAILYARD_ROOM_SLUG } = require("../train");
 const { placeKeyForRoom } = require("../placeKey");
 const { readGameState } = require("../gameState");
 const { hasGmRole, hasPlaytestRole, hasContributorRole, PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID, SUPERADMIN_DISCORD_IDS } = require("../roleIds");
-const { FEEDBACK_COOLDOWN_MESSAGE, FEEDBACK_COOLDOWN_MS, MAX_FEEDBACK_LENGTH } = require("../feedbackLimits");
+const {
+  FEEDBACK_BURST,
+  FEEDBACK_WINDOW_MS,
+  MAX_FEEDBACK_LENGTH,
+  feedbackWaitMessage,
+  feedbackWaitMs,
+} = require("../feedbackLimits");
 const { postFeedbackToDiscord } = require("../feedback");
 const { logAudit } = require("../auditLog");
 const { refuse, asResult } = require("./common");
@@ -144,12 +150,15 @@ function submitFeedback(prisma, { discordUserId, username, avatarUrl, body }) {
     const text = String(body ?? "").trim();
     if (!text) refuse("Write something first.");
     if (text.length > MAX_FEEDBACK_LENGTH) refuse(`It must be under ${MAX_FEEDBACK_LENGTH} characters.`);
-    const newest = await prisma.feedback.findFirst({
-      where: { discordUserId },
+    const now = Date.now();
+    const recent = await prisma.feedback.findMany({
+      where: { discordUserId, createdAt: { gt: new Date(now - FEEDBACK_WINDOW_MS) } },
       orderBy: { createdAt: "desc" },
+      take: FEEDBACK_BURST,
       select: { createdAt: true },
     });
-    if (newest && Date.now() - newest.createdAt.getTime() < FEEDBACK_COOLDOWN_MS) refuse(FEEDBACK_COOLDOWN_MESSAGE);
+    const waitMs = feedbackWaitMs(recent.map((f) => f.createdAt), now);
+    if (waitMs > 0) refuse(feedbackWaitMessage(waitMs));
     const character = await prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" }, select: { name: true } });
     const who = username || "Someone";
     await prisma.feedback.create({

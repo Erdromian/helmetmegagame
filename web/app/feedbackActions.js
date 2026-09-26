@@ -7,12 +7,12 @@ import { avatarUrlFor } from "@/lib/gmProfiles";
 
 // The Feedback composer's one action (FeedbackButton.js). Open to anybody
 // signed in and still in the guild — a spectator noticing a broken page is
-// worth hearing from as much as a player is. The rule, the cooldown and the
+// worth hearing from as much as a player is. The rule, the rate limit and the
 // post are db/lib/verbs/place.js#submitFeedback, shared with Discord's
 // /feedback; this looks up the name and avatar the note is signed with.
 //
 // It returns {error} rather than throwing, because every refusal here is a
-// sentence the composer shows in its own error line, the cooldown included.
+// sentence the composer shows in its own error line, the rate limit included.
 export async function submitFeedback(body) {
   const { session, inGuild } = await getGmSession();
   if (!session?.discordUserId || !inGuild) {

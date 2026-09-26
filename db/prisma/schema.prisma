@@ -6650,8 +6650,8 @@ model LateJoinRole {
 // playing at the time is what a GM reading the list months later needs, and a
 // renamed or deleted character must not rewrite the record.
 //
-// It is also the cooldown's clock — the newest row for a discordUserId is what
-// db/lib/feedback.js#FEEDBACK_COOLDOWN_MS is measured against, which is why the
+// It is also the rate limit's clock — a discordUserId's rows inside the window
+// are what db/lib/feedbackLimits.js#feedbackWaitMs counts, which is why the
 // composite index leads with the user.
 model Feedback {
   id String @id @default(cuid())
