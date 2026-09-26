@@ -94,6 +94,17 @@ export const TONE_CLASS = { go: "btn", danger: "btn-danger", plain: "btn-seconda
 // noticeboard cannot both be open at once.
 export function usePlaceActions(initialAffordances, onChanged) {
   const [affordances, setAffordances] = useState(initialAffordances ?? []);
+  // A fresh list from the server replaces whatever this hook was holding.
+  // useState reads its argument once, so without this a router.refresh()
+  // after travelling from the map, a move made on Discord or a key picked up
+  // left the column drawing the LAST place's room buttons — walk into the
+  // Baron's Study and there was no Phone until the page was reloaded.
+  // Adjusted during render rather than in an effect (set-state-in-effect).
+  const [fromServer, setFromServer] = useState(initialAffordances);
+  if (initialAffordances !== fromServer) {
+    setFromServer(initialAffordances);
+    setAffordances(initialAffordances ?? []);
+  }
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState(null);
   const { run, pending, error, setError } = useActionRunner();
