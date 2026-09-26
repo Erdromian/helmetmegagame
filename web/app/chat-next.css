@@ -450,6 +450,39 @@
   padding: var(--sp-2);
 }
 
+/* ---------- Things as a framed block (ThingsDrawer.js `framed`) ---------- */
+
+/* The fold IS the girder's title: it takes the bar's own face — uppercase,
+   the heading weight — rather than the small muted line .chat-details-fold
+   draws, so "Things · 4" reads as a section like "Here · 2" above it. */
+[data-chat-next] .chat-things-fold {
+  all: unset;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+}
+[data-chat-next] .chat-things-fold:hover {
+  color: var(--text-hi);
+}
+[data-chat-next] .chat-things-fold:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+[data-chat-next] .chat-things-fold svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  transition: transform 120ms ease-out;
+}
+[data-chat-next] .chat-things-fold svg[data-open="true"] {
+  transform: rotate(180deg);
+}
+
 /* ── WELL (vocabulary §1) ────────────────────────────────────────────────
    A hole you put something into. Dark PLUS an inset shadow — without the inset
    it reads as a lighter rectangle rather than a hole, and that is the whole
