@@ -21,6 +21,7 @@ import CallReinforcementsButton from "./CallReinforcementsButton";
 import TagDetails from "./TagDetails";
 import TurnForecast from "./TurnForecast";
 import FeedbackButton from "./FeedbackButton";
+import { formatTravel } from "@/lib/travelCost";
 
 // A signed figure with a real U+2212 minus, matching
 // db/lib/gambitModifier.js#formatGambitModifiers and the bot's roll line.
@@ -168,7 +169,7 @@ export default function LedgerBand({
           {/* One open slot across the band, so two boxes never show detail at once. */}
           <DetailTile
             label="Travel"
-            value={zoneMoves != null ? zoneMoves : "—"}
+            value={zoneMoves != null ? formatTravel(zoneMoves) : "—"}
             over={zoneMoves === 0}
             // "Gambit filed"/"not yet filed" used to sit here too, but the
             // This turn box beside the strip already says the same thing —

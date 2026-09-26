@@ -244,7 +244,7 @@ async function buildMap({ character, unfogged }) {
       walkTightSqueeze: Boolean(walk?.tightSqueeze),
       tightSqueeze: Boolean(near?.tightSqueeze),
       crossesZone: Boolean(near?.crossesZone),
-      // What the crossing spends in travel — 1 between the town zones, 2
+      // What the crossing spends in travel — ½ between the town zones, 1
       // anywhere else (db/lib/crossingCost.js), 0 inside the zone.
       cost: near?.cost ?? 0,
       // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).

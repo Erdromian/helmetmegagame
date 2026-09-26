@@ -163,6 +163,7 @@ import { CAMERA_SLUG, mintPhoto } from "@lifeweb/db/lib/photoMint";
 import { sendDm } from "@/lib/discordGuild";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
+import { formatTravel } from "@lifeweb/db/lib/crossingCost";
 import {
   CHIP_ROW_SELECT,
   chipSelect,
@@ -564,7 +565,7 @@ export async function loadTravel() {
         // exempt place left to subtract; the `safe` attribute is gone.
         caveLevel: row.location.zone?.kind === "CAVE_LEVEL",
         crossesZone: row.crossesZone,
-        // What the crossing spends in travel — 1 between the town zones, 2
+        // What the crossing spends in travel — ½ between the town zones, 1
         // anywhere else (db/lib/crossingCost.js), 0 inside the zone.
         cost: row.cost ?? 0,
         // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).
@@ -916,7 +917,7 @@ export async function travelTo({ locationId, exert = false } = {}) {
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
-        ? `${result.freeMovesLeft} travel left this turn.`
+        ? `${formatTravel(result.freeMovesLeft)} travel left this turn.`
         : "That was the last of your travel this turn.",
     );
   }

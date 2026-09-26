@@ -8,7 +8,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import ChipLabel from "@/app/components/ChipLabel";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, tightSqueezeNote, affordsCrossing } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, tightSqueezeNote, affordsCrossing, formatTravel } from "@/lib/travelCost";
 import SqueezeChip from "@/app/components/SqueezeChip";
 import { loadTravel, travelTo } from "./actions";
 import { nudgePhase } from "../../components/PhaseProvider";
@@ -148,7 +148,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true }) {
   return (
     <div className="chat-travel">
       <p className="group-label chat-section-title" title={data.freeReason ?? undefined}>
-        {showTitle ? `Travel · ${data.freeLeft} available` : `${data.freeLeft} available`}
+        {showTitle ? `Travel · ${formatTravel(data.freeLeft)} available` : `${formatTravel(data.freeLeft)} available`}
       </p>
 
       {/* Held where they stand (INTERCEPT.md). List stays up, every way drawn shut. */}

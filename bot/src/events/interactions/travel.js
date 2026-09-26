@@ -33,7 +33,7 @@ const {
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { knownLocations } = require("@lifeweb/db/lib/locationVisits");
-const { crossingCost, FAR_CROSSING_COST } = require("@lifeweb/db/lib/crossingCost");
+const { crossingCost, formatTravel, FAR_CROSSING_COST } = require("@lifeweb/db/lib/crossingCost");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
 const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
@@ -254,7 +254,7 @@ async function handleTravelPick(interaction) {
 
   const party = await partyOf(prisma, character.id); // decides whether the mount's extra crossing survives (MAP.md §3a)
   const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
-  // What this crossing spends: 1 between the town zones, 2 anywhere else
+  // What this crossing spends: ½ between the town zones, 1 anywhere else
   // (db/lib/crossingCost.js) — the same number the mover charges.
   const fromZone = crossing && character.zoneId
     ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } })
@@ -297,12 +297,12 @@ async function handleTravelPick(interaction) {
       ? `-# ${walk.hops} moves, through ${listNames(walk.path.slice(0, -1).map((l) => l.name))}. Nothing to pay.${walk.dismounts ? " One of the ways is too narrow for what you're riding." : ""}`
       : null;
 
-  const cost = !character.locationId
+  const costLine = !character.locationId
     ? "-# Arriving costs you nothing."
     : !crossing
       ? walkLine ?? "-# Inside your own zone, so this costs nothing."
       : affords
-        ? `-# Crossing into ${target.zone.name} uses ${cost} of your ${left} travel this turn.`
+        ? `-# Crossing into ${target.zone.name} uses ${formatTravel(cost)} of your ${formatTravel(left)} travel this turn.`
         : !acted
           ? `-# You don't have the travel left for this crossing, so crossing into ${target.zone.name} spends your Move.`
           : canExert
@@ -331,7 +331,7 @@ async function handleTravelPick(interaction) {
     {
       content: [
         railroad ? "Go into the tunnel?" : `Travel to **${target.name}**?`,
-        railroad ? "-# This is dangerous." : cost,
+        railroad ? "-# This is dangerous." : costLine,
         squeezeLine,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
@@ -426,7 +426,7 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
-        ? `${result.freeMovesLeft} travel left this turn.`
+        ? `${formatTravel(result.freeMovesLeft)} travel left this turn.`
         : "That was the last of your travel this turn.",
     );
   }

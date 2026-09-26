@@ -107,7 +107,7 @@ const FIELDS = [
   // against the pound cap above beside the gear and the column is gone from the
   // schema. A dead entry here would fail db:check-config, not just sit unread.
   {
-    key: "freeZoneMovesPerTurn", type: "int", group: "carry", default: 2, min: 0, max: 10,
+    key: "freeZoneMovesPerTurn", type: "float", group: "carry", default: 1, min: 0, max: 5, step: 0.5,
     label: "Free travel a turn",
   },
   {

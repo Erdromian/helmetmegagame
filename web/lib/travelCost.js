@@ -9,14 +9,19 @@
 // A local hop is free full stop and never touches the header's count. A zone
 // crossing you can still afford SPENDS travel, which used to read as the
 // identical word "free" and told a player nothing about the difference. "1
-// travel" or "2 travel" is what it actually costs (`option.cost`, stamped by
-// db/lib/locationGraph.js from db/lib/crossingCost.js: 1 between the town
-// zones, 2 anywhere else) — "travel" as a mass noun, whatever the number.
+// travel" or "½ travel" is what it actually costs (`option.cost`, stamped by
+// db/lib/locationGraph.js from db/lib/crossingCost.js: ½ between the town
+// zones, 1 anywhere else) — "travel" as a mass noun, whatever the number,
+// and every number printed through formatTravel so a half reads "½".
 //
 // `moved` is whether the Move is already spent this turn. Past that point a
 // crossing you cannot afford is paid on the push on's die (MAP.md §3) —
 // "exertion" — or not at all until next turn, when the server would refuse the
 // push on too (`option.canExert`).
+import { formatTravel } from "@lifeweb/db/lib/crossingCost";
+
+export { formatTravel };
+
 export function affordsCrossing(option, freeLeft) {
   return (freeLeft ?? 0) >= (option.cost ?? 1);
 }
@@ -31,7 +36,7 @@ export function travelFoot(option, freeLeft, mounted, moved = false) {
   const cost = !option.crossesZone
     ? "free"
     : affordsCrossing(option, freeLeft)
-      ? `${option.cost ?? 1} travel`
+      ? `${formatTravel(option.cost ?? 1)} travel`
       : !moved
         ? "the turn"
         : option.canExert
@@ -138,9 +143,9 @@ export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false
   const cost = option.cost ?? 1;
   const left = freeLeft ?? 0;
   const price = affordsCrossing(option, freeLeft)
-    ? `This spends ${cost} of your ${left} travel.`
+    ? `This spends ${formatTravel(cost)} of your ${formatTravel(left)} travel.`
     : left > 0
-      ? `This costs ${cost} travel and you only have ${left} left, so it spends your Move for the turn.`
+      ? `This costs ${formatTravel(cost)} travel and you only have ${formatTravel(left)} left, so it spends your Move for the turn.`
       : "You have no travel left, so this spends your Move for the turn.";
   return {
     title: `Cross into ${option.zoneName}?`,

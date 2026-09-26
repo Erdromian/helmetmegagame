@@ -1224,7 +1224,7 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
   // Whether the double-click / Enter shortcut applies to this node at all.
   const gestural = canGestureTo(node, here);
   // node's OWN count against node's own cost — a hop into the hills costs
-  // twice what one across the town does (MAP.md §3), so 1 travel left still
+  // twice what one across the town does (MAP.md §3), so ½ travel left still
   // crosses the town and no longer reaches the caves.
   const nextTurn = Boolean(node.crossesZone && !affordsCrossing(node, node.freeLeft));
 

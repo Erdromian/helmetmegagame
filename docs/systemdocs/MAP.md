@@ -503,15 +503,15 @@ zone stay free so they can walk to a room and stash. Only the mover is gated.
 
 **A hop whose edge crosses into another zone spends FREE TRAVEL first, and
 only costs the character's Move once there is not enough left for it.** What
-a crossing costs is `db/lib/crossingCost.js`: **1 travel between the town
-zones** (Town, Fortress, Undertown) and **2 travel for any other crossing** —
+a crossing costs is `db/lib/crossingCost.js`: **½ travel between the town
+zones** (Town, Fortress, Undertown) and **1 travel for any other crossing** —
 out to the Black Hills, down into the caves, anywhere else. Everyone gets
-`GameConfig.freeZoneMovesPerTurn` a turn (default 2), an **equipped** mount
-adds a far crossing's worth (2 more), and being Overburdened takes it all
+`GameConfig.freeZoneMovesPerTurn` a turn (default 1), an **equipped** mount
+adds a far crossing's worth (1 more), and being Overburdened takes it all
 away — the full rule lives in [`CARRY.md`](CARRY.md) §2a. So a peasant walks
 Town → Fortress → Undertown for nothing, or Town → Black Hills for nothing,
 and then spends their Move on the next crossing; the way home waits for next
-turn. Travel that is short of a crossing is not lost: 1 left still crosses
+turn. Travel that is short of a crossing is not lost: ½ left still crosses
 the town, it just no longer reaches the hills. `db/lib/locationGraph.js`
 stamps `cost` on every destination row so the three pickers quote the number
 the mover charges.
@@ -607,7 +607,7 @@ in the Moves history; the `AuditLog` row `exert_crossing` is the record.
 `performLocationMove(..., { exert: true })`, `pushOn`, `exertOutcome`.
 
 **Mounts.** `arelitz` and `motorcycle`
-(`db/lib/mounts.js#FAST_TRAVEL_SLUGS`) each add one free far crossing — 2
+(`db/lib/mounts.js#FAST_TRAVEL_SLUGS`) each add one free far crossing — 1
 travel, so it also covers two hops across the town — **and it refreshes every
 turn** rather than once a day — on a short turn length an arelitz carries you
 several times a day. `fastTravelBonus` still counts crossings; `moveAllowance`

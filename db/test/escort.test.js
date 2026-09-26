@@ -212,16 +212,16 @@ test("on foot, any number of people is free", () => {
 test("a mount buys its extra crossing only while the party fits its seats", () => {
   // fastTravelCapacity counts the RIDER, so an arelitz's 2 seats are one saddle
   // for you and one for somebody else.
-  // The extra crossing is a far one's worth of travel (2), on top of the base 1 here.
-  assert.equal(allowance(held("arelitz"), 0), 3);
-  assert.equal(allowance(held("arelitz"), 1), 3);
+  // The extra crossing is a far one's worth of travel (1), on top of the base 1.
+  assert.equal(allowance(held("arelitz"), 0), 2);
+  assert.equal(allowance(held("arelitz"), 1), 2);
   assert.equal(allowance(held("arelitz"), 2), 1);
-  assert.equal(allowance(held("motorcycle"), 1), 3);
+  assert.equal(allowance(held("motorcycle"), 1), 2);
   assert.equal(allowance(held("motorcycle"), 2), 1);
 });
 
 test("a cart upgrades the arelitz's pair to six, and cannot reach the motorcycle", () => {
-  assert.equal(allowance(held("arelitz", "cart"), 5), 3);
+  assert.equal(allowance(held("arelitz", "cart"), 5), 2);
   assert.equal(allowance(held("arelitz", "cart"), 6), 1);
   // A hand-cart towed behind a motorcycle is not a thing (db/lib/mounts.js).
   assert.equal(allowance(held("motorcycle", "cart"), 2), 1);
@@ -259,12 +259,12 @@ test("ESCORT_SELECT stays a superset of what performLocationMove needs", () => {
 
 // --- what is LEFT after a crossing ---------------------------------------
 
-// The bonus a mount buys — a far crossing's worth, 2 travel — is spent BEFORE
+// The bonus a mount buys — a far crossing's worth, 1 travel — is spent BEFORE
 // the base allowance, and Character.zoneMovesBonusUsed remembers that. Without
 // it, a rider who stables their arelitz at an indoors door lost travel they had
 // never spent: the allowance is recomputed every time, so the arelitz's travel
-// went away and the base travel was already gone. CONFIG's base is 1 here so
-// the two pools read apart at a glance; the shipped default is 2.
+// went away and the base travel was already gone. CONFIG's base is 1, the
+// shipped default.
 const TURN = { id: "t1" };
 const after = (character, spent, bonusSpent, partySize = 0) =>
   freeMovesLeft(
@@ -275,34 +275,39 @@ const after = (character, spent, bonusSpent, partySize = 0) =>
   );
 
 test("a rider who parks their arelitz indoors keeps the travel they never spent", () => {
-  // Three before, a far crossing (2) charged to the arelitz, then the arelitz
+  // Two before, a far crossing (1) charged to the arelitz, then the arelitz
   // is unequipped at the door — the base travel is still there.
-  assert.equal(freeMovesLeft(held("arelitz"), CONFIG, TURN), 3);
-  assert.equal(after(held("arelitz"), 2, 2), 1);
-  assert.equal(after(held(), 2, 2), 1);
+  assert.equal(freeMovesLeft(held("arelitz"), CONFIG, TURN), 2);
+  assert.equal(after(held("arelitz"), 1, 1), 1);
+  assert.equal(after(held(), 1, 1), 1);
+  // Half of it: a town hop (½) on the arelitz leaves ½ of its travel and all
+  // of the base, and parking it leaves the base whole.
+  assert.equal(after(held("arelitz"), 0.5, 0.5), 1.5);
+  assert.equal(after(held(), 0.5, 0.5), 1);
 });
 
 test("the base travel is charged only once the bonus is gone", () => {
-  assert.equal(after(held("arelitz"), 3, 2), 0);
+  assert.equal(after(held("arelitz"), 2, 1), 0);
+  assert.equal(after(held(), 0.5, 0), 0.5);
   assert.equal(after(held(), 1, 0), 0);
 });
 
 test("a stale bonus count can never hand back more than the allowance", () => {
   // Overburdened after spending it all: zero, not a negative that reads as one.
-  assert.equal(after(held("overburdened"), 3, 2), 0);
+  assert.equal(after(held("overburdened"), 2, 1), 0);
   // Dismounted at a narrow way BEFORE the arithmetic, so nothing was charged
   // to a bonus and the base travel is spent as it always was.
   assert.equal(after(held(), 1, 0), 0);
 });
 
 test("with no open turn the number is just the allowance", () => {
-  assert.equal(freeMovesLeft(held("arelitz"), CONFIG, null), 3);
+  assert.equal(freeMovesLeft(held("arelitz"), CONFIG, null), 2);
   assert.equal(freeMovesLeft(held(), CONFIG, null), 1);
 });
 
 test("last turn's counters do not follow you into this one", () => {
-  const yesterday = { ...held("arelitz"), zoneMovesTurnId: "t0", zoneMovesUsed: 3, zoneMovesBonusUsed: 2 };
-  assert.equal(freeMovesLeft(yesterday, CONFIG, TURN), 3);
+  const yesterday = { ...held("arelitz"), zoneMovesTurnId: "t0", zoneMovesUsed: 2, zoneMovesBonusUsed: 1 };
+  assert.equal(freeMovesLeft(yesterday, CONFIG, TURN), 2);
 });
 
 // The rows come off the database in REAL-name order. A hood kept that place in

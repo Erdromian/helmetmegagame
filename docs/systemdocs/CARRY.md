@@ -195,11 +195,13 @@ cleared the moment you are back under, never by a player and never on a clock.
 Crossing a zone used to always spend your Move, with a mount buying one extra
 crossing per *day*. Now:
 
-- Everyone gets `GameConfig.freeZoneMovesPerTurn` travel a turn, default 2.
+- Everyone gets `GameConfig.freeZoneMovesPerTurn` travel a turn, default 1.
 - A crossing **between the town zones** — Town, Fortress, Undertown — costs
-  **1** of it; **any other crossing** costs **2** (`db/lib/crossingCost.js`).
+  **½** of it; **any other crossing** costs **1** (`db/lib/crossingCost.js`).
+  The allowance and both counters are Float columns, since halves add up
+  exactly in a double.
   A hop inside a zone still costs nothing.
-- An **equipped** mount adds a far crossing's worth (2 travel), and it
+- An **equipped** mount adds a far crossing's worth (1 travel), and it
   refreshes every turn — an arelitz carries you out to the hills once per
   turn, or across the town twice, which on a short turn length is several
   times a day. It is **spent first**: the mount's travel

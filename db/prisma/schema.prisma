@@ -542,10 +542,10 @@ model GameConfig {
 
   // Free TRAVEL per character per turn, before a crossing starts spending
   // the Move (docs/systemdocs/CARRY.md §2). A crossing between the town zones
-  // costs 1 of it, any other crossing 2 (db/lib/crossingCost.js). An equipped
-  // mount adds a far crossing's worth on top; Overburdened zeroes the
-  // allowance. Live on /gm/dev.
-  freeZoneMovesPerTurn Int @default(2)
+  // costs half of it, any other crossing 1 (db/lib/crossingCost.js), so it is
+  // a Float. An equipped mount adds a far crossing's worth on top;
+  // Overburdened zeroes the allowance. Live on /gm/dev.
+  freeZoneMovesPerTurn Float @default(1)
 
   // TWO ceilings on drawbacks at creation, and a build stops at whichever it
   // reaches first (TAGS.md §4a). Neither works alone: with a count cap only,
@@ -2223,7 +2223,7 @@ model Character {
   // spent in (docs/systemdocs/CARRY.md §2). Everyone gets
   // GameConfig.freeZoneMovesPerTurn a turn; an EQUIPPED mount adds a far
   // crossing's worth; being Overburdened takes it all away. A crossing costs
-  // 1 or 2 of it (db/lib/crossingCost.js), and one that cannot be afforded
+  // ½ or 1 of it (db/lib/crossingCost.js), and one that cannot be afforded
   // spends the Move instead, exactly as it always did.
   // A push on (docs/systemdocs/MAP.md §3) claims this counter too — and only
   // this one, never zoneMovesBonusUsed below — which is how
@@ -2239,7 +2239,7 @@ model Character {
   // Not a foreign key on purpose — it is a claim token, and deleting a turn
   // must never cascade into a character row.
   zoneMovesTurnId String?
-  zoneMovesUsed   Int     @default(0)
+  zoneMovesUsed   Float   @default(0)
 
   // How much of that spent travel was charged to a mount's BONUS rather
   // than the base allowance. The
@@ -2247,7 +2247,7 @@ model Character {
   // a horse parked at an indoors door — can never reach back and take the
   // base crossing the rider still had. Reset by the same differing-turn-id
   // write as the counter above.
-  zoneMovesBonusUsed Int @default(0)
+  zoneMovesBonusUsed Float @default(0)
 
   // The movement mood ration (db/lib/mood.js, MOVE_MOOD_TURN_CAP). Same claim-
   // token shape as zoneMovesTurnId above, and not a foreign key for the same

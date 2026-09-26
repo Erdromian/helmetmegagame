@@ -174,8 +174,8 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
         location: far,
         link,
         crossesZone,
-        // What the crossing spends in travel (db/lib/crossingCost.js): 1
-        // between the town zones, 2 anywhere else, 0 inside a zone. Stamped
+        // What the crossing spends in travel (db/lib/crossingCost.js): ½
+        // between the town zones, 1 anywhere else, 0 inside a zone. Stamped
         // here so every picker quotes the same number the mover charges.
         cost: crossesZone ? crossingCost(near?.zone?.slug, far.zone?.slug) : 0,
         ...crossingCheck(link, { tagSlugs, onFootBlocked, now }),

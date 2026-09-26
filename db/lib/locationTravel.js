@@ -53,8 +53,8 @@ const CHARACTER_SELECT = {
 };
 
 // How much TRAVEL this character gets for free this turn, before a crossing
-// starts spending their Move (CARRY.md §2). Everyone gets GameConfig.freeZoneMovesPerTurn (default 2); an EQUIPPED mount adds one far crossing's worth (FAR_CROSSING_COST), refreshed every turn. Being Overburdened takes the lot — an overloaded character can still cross, they just pay their Move. A ruined leg takes it too, unless an arelitz is doing the walking.
-// A crossing spends what db/lib/crossingCost.js says it costs: 1 between the town zones, 2 anywhere else. A crossing you cannot afford in full spends the Move instead, and whatever travel was left stays for a cheaper hop.
+// starts spending their Move (CARRY.md §2). Everyone gets GameConfig.freeZoneMovesPerTurn (default 1); an EQUIPPED mount adds one far crossing's worth (FAR_CROSSING_COST), refreshed every turn. Being Overburdened takes the lot — an overloaded character can still cross, they just pay their Move. A ruined leg takes it too, unless an arelitz is doing the walking.
+// A crossing spends what db/lib/crossingCost.js says it costs: ½ between the town zones, 1 anywhere else. A crossing you cannot afford in full spends the Move instead, and whatever travel was left stays for a cheaper hop.
 // The mount's travel is spent BEFORE the base pool (moveAllowance returns the two pools separately, Character.zoneMovesBonusUsed remembers what was charged) — otherwise a rider who stables their arelitz at an indoors door would lose travel they still had, since the allowance is recomputed every time.
 
 // How much is LEFT right now, for surfaces that must say so before a player commits
@@ -140,7 +140,7 @@ function exertOutcome(die) {
 function exertedThisTurn(character, config, openTurn) {
   if (!openTurn || character?.zoneMovesTurnId !== openTurn.id) return false;
   const baseSpent = Math.max(0, (character.zoneMovesUsed ?? 0) - (character.zoneMovesBonusUsed ?? 0));
-  return baseSpent > (config?.freeZoneMovesPerTurn ?? 2);
+  return baseSpent > (config?.freeZoneMovesPerTurn ?? 1);
 }
 
 // Why this character cannot push on right now, or null. `left` is THIS
@@ -298,7 +298,7 @@ function freeZoneMoves(character, config, partySize = 0, turnStartedAt = null) {
 function moveAllowance(character, config, partySize = 0, turnStartedAt = null) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return { base: 0, bonus: 0 };
-  const base = config?.freeZoneMovesPerTurn ?? 2;
+  const base = config?.freeZoneMovesPerTurn ?? 1;
   const active = equippedSlugs(held);
   // An arelitz carries you whatever your legs are, so it's checked FIRST and cancels
   // lameness outright rather than adding one to a zero — but only while the party FITS it (fastTravelCapacity counts the rider: an arelitz seats two, a cart six, mounts.js). No cap on party size — going over just costs the mount's extra crossing, so an overloaded arelitz is never WORSE than legs, only no better.
@@ -552,7 +552,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
 
       if (crossedZone) {
         // A crossing spends FREE TRAVEL first, only spending the Move once there is not enough left for it
-        // (CARRY.md §2) — a peasant walks Town->Fortress for 1, out to the Black Hills for 2, and once the travel is short the crossing costs the Move and the way back waits for next turn. What this one costs is db/lib/crossingCost.js's answer for the two zones. The allowance is claimed by a conditional updateMany whose WHERE is the check, so two tabs can't both spend the last of it; a differing turn id resets the counter in the same statement, so nothing ever has to sweep this field. partyPreview, not the re-authorized list — seats are spent on who you SET OUT with, since somebody the gate drops at the threshold already took a saddle for this crossing.
+        // (CARRY.md §2) — a peasant walks Town->Fortress for ½, out to the Black Hills for 1, and once the travel is short the crossing costs the Move and the way back waits for next turn. What this one costs is db/lib/crossingCost.js's answer for the two zones. The allowance is claimed by a conditional updateMany whose WHERE is the check, so two tabs can't both spend the last of it; a differing turn id resets the counter in the same statement, so nothing ever has to sweep this field. partyPreview, not the re-authorized list — seats are spent on who you SET OUT with, since somebody the gate drops at the threshold already took a saddle for this crossing.
         const allowance = moveAllowance(character, config, partyPreview.length, openTurn.startedAt);
         const sameTurn = character.zoneMovesTurnId === openTurn.id;
         const spentFree = sameTurn ? (character.zoneMovesUsed ?? 0) : 0;
