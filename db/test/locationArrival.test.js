@@ -7,8 +7,7 @@
 // action freezes the page (ARCHITECTURE.md §4) — a travel click used to sit
 // there for minutes, and on an eight-hop walk for very much longer.
 //
-// A SOURCE CHECK, deliberately, the way railroad.test.js checks docs/zones.yaml
-// rather than standing up a world. The thing that can quietly break this is
+// A SOURCE CHECK, deliberately, rather than standing up a world. The thing that can quietly break this is
 // somebody adding a Discord call to the facts half — the halves would still
 // both run for every caller of the wrapper, every test would pass, and the
 // click would just be slow again. Only reading the file catches that.
@@ -73,25 +72,16 @@ test("the game half makes no Discord calls, so nothing a player waits for can be
   }
 });
 
-test("the two deaths keep their announcements, which are the documented exceptions", () => {
+test("the turret keeps its announcement, which is the documented exception", () => {
   const { facts } = halves();
 
-  // A turret and the train both kill ABOVE the guard on purpose: being shot is a
-  // database fact and must not wait on there being a token (locationMove.js's
-  // own comment, and the note on announceTurretBurst). Their letters and lines
-  // ride along beside the roll rather than being deferred, because a death
-  // announced late reads as a death that did not happen. Rare enough to cost a
-  // living arrival nothing.
+  // A turret kills ABOVE the guard on purpose: being shot is a database fact
+  // and must not wait on there being a token (locationMove.js's own comment,
+  // and the note on announceTurretBurst). Its letter and burst ride along
+  // beside the roll rather than being deferred, because a death announced late
+  // reads as a death that did not happen. Rare enough to cost a living arrival
+  // nothing.
   assert.ok(facts.includes("announceTurretBurst("), "the turret burst left the facts half");
-  assert.ok(facts.includes("railroadGibOnArrival("), "the railroad left the facts half");
-
-  // And the railroad's death must still refuse to run the Discord half at all —
-  // the teardown has just revoked this sheet's threads, and telling Discord
-  // about the arrival would hand them back.
-  assert.ok(
-    /dead sheet its threads back\.\s*\n\s*return null;/.test(facts),
-    "the railroad death must return null, so applyArrivalDiscord is skipped entirely",
-  );
 });
 
 test("the web is told where they stand before Discord is told anything", () => {

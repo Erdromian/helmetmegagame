@@ -32,7 +32,6 @@ export default function LinksTable({ rows, locationOptions, canSuper }) {
             <th scope="col">Open (live)</th>
             <th scope="col">Keyed</th>
             <th scope="col">On foot</th>
-            <th scope="col">Railroad</th>
             <th scope="col">Tight squeeze</th>
             <th scope="col">Required tag</th>
             <th scope="col" aria-label="Save" />
@@ -60,7 +59,6 @@ export default function LinksTable({ rows, locationOptions, canSuper }) {
               modular: form.get("modular") === "on",
               keyed: form.get("keyed") === "on",
               onFoot: form.get("onFoot") === "on",
-              railroad: form.get("railroad") === "on",
               tightSqueeze: form.get("tightSqueeze") === "on",
               requiredTagSlug: form.get("requiredTagSlug"),
               authoredOpen: form.get("authoredOpen") === "on",
@@ -128,10 +126,6 @@ export default function LinksTable({ rows, locationOptions, canSuper }) {
             <span>On foot</span>
           </label>
           <label className="check-row">
-            <input type="checkbox" name="railroad" />
-            <span>Railroad</span>
-          </label>
-          <label className="check-row">
             <input type="checkbox" name="tightSqueeze" />
             <span>Tight squeeze</span>
           </label>
@@ -154,7 +148,6 @@ function LinkRow({ link, canSuper, pending, onSave, onDelete }) {
       modular: form.get("modular") === "on",
       keyed: form.get("keyed") === "on",
       onFoot: form.get("onFoot") === "on",
-      railroad: form.get("railroad") === "on",
       tightSqueeze: form.get("tightSqueeze") === "on",
       requiredTagSlug: form.get("requiredTagSlug"),
       authoredOpen: form.get("authoredOpen") === "on",
@@ -192,9 +185,6 @@ function LinkRow({ link, canSuper, pending, onSave, onDelete }) {
       </td>
       <td>
         <input type="checkbox" name="onFoot" defaultChecked={link.onFoot} form={`link-${link.id}`} />
-      </td>
-      <td>
-        <input type="checkbox" name="railroad" defaultChecked={link.railroad} form={`link-${link.id}`} />
       </td>
       <td>
         <input type="checkbox" name="tightSqueeze" defaultChecked={link.tightSqueeze} form={`link-${link.id}`} />

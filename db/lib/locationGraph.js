@@ -114,7 +114,7 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     // Same wording a nonexistent edge gets, deliberately: a refusal that read differently would tell a player the hidden way is there.
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
   }
-  // A tight squeeze is said to EVERYBODY on every listed branch, Giant or not, passable or not — unlike `railroad` and `openedBy`, which ride only the passable ones. The flag is never a secret (a squeeze is listed, never hidden), and the person who most needs to see it is the one it does not touch: a party leader walking their Giant friend to a hole the friend will be refused at (MAP.md §2a "Tight squeeze"). It says nothing about the lock a refusing branch is keeping quiet about, so it leaks nothing a refusal did not already.
+  // A tight squeeze is said to EVERYBODY on every listed branch, Giant or not, passable or not — unlike `openedBy`, which rides only the passable ones. The flag is never a secret (a squeeze is listed, never hidden), and the person who most needs to see it is the one it does not touch: a party leader walking their Giant friend to a hole the friend will be refused at (MAP.md §2a "Tight squeeze"). It says nothing about the lock a refusing branch is keeping quiet about, so it leaks nothing a refusal did not already.
   const tightSqueeze = Boolean(link.tightSqueeze);
   if (!hasTag) {
     return { listed: true, passable: false, refusal: "This way isn't open to you.", tightSqueeze };
@@ -131,11 +131,10 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     };
   }
   // Dismounts the traveller rather than refusing — db/lib/indoors.js's dismountForNarrowWay, called from applyLocationMoveSideEffects the same way arriving indoors parks a mount at the door. `dismounts` is surfaced so the picker can say so before anyone commits.
-  // `railroad` rides out on the PASSABLE branches only, beside `openedBy` and for the same reason: a refusal that said more than the last one would leak the edge. A tunnel nobody may enter is not a tunnel they get told about.
   if (link.onFoot && onFootBlocked) {
-    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy, railroad: Boolean(link.railroad), tightSqueeze };
+    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy, tightSqueeze };
   }
-  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy, railroad: Boolean(link.railroad), tightSqueeze };
+  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy, tightSqueeze };
 }
 
 // Does this edge have a gate to work at all? Only a modular edge does. The gate button renders off this, on the WATCHTOWER at the gate (db/lib/roomStarterRow.js) — getting into that room is the whole permission model (anyone who can see the winch may pull it), so there's no second predicate here; toggleGate only re-checks the clicker is standing at the gate.

@@ -38,7 +38,6 @@ export default async function DevLinksPage() {
     keyed: l.keyed,
     openUntil: l.openUntil ? l.openUntil.toISOString() : null,
     onFoot: l.onFoot,
-    railroad: l.railroad,
     tightSqueeze: l.tightSqueeze,
     requiredTagSlug: l.requiredTagSlug ?? "",
     updatedAt: l.updatedAt.toISOString(),
