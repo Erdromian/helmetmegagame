@@ -127,6 +127,26 @@
 #
 # `extra_starting_points` (optional, defaults 0) is added to
 # GameConfig.startingTagPoints to form that role's point-buy budget.
+#
+# `ring:` (optional) is the seat's signet ring (docs/systemdocs/RINGS.md).
+# Rings replaced the seat keys and the office wax stamps:
+#   spawns       true: created wearing a ring engraved with their initials,
+#                registered to this seat and linked to their account.
+#   opens        the door tokens a ring registered to this seat carries. They
+#                are the old seat keys' slugs, because that is still what every
+#                room's `access:` and every locked way names.
+#   authorised_by  a tag slug: the Meister's terminal will only register a ring
+#                to this seat's access for somebody holding it (the Merchant's
+#                License, the Baron's Scepter).
+#   seal_office  an OFFICE ring — the nine seats that used to keep a wax stamp.
+#   seal_mark    The seat's own spawned ring wears `name` and `description`
+#   name         and is the only kind of ring that seals: it presses seal_mark
+#   description  into wax under the seal_office label. All four or none;
+#                {initials} is filled in wherever it appears. Any other ring,
+#                and every ring a smith makes (even one the Meister registers
+#                to an office seat), is a plain "Silver Ring" that
+#                opens doors and leaves no seal of any kind.
+# The guest-room keys (the Inn's and the Den's) and the Collar Key stay keys.
 groups:
   # Court
   court:
@@ -156,14 +176,17 @@ groups:
       starting_location: fortress-4
       extra_starting_points: 5
       whitelist: true
+      ring:
+        spawns: true
+        opens: [armory-key, cerberus-key, barons-key, tower-key, elevator-key]
+        authorised_by: barons-scepter
+        seal_office: Baron
+        seal_mark: "A raven clutching a banner, the seal of the Baron."
+        name: "Baron's Ring"
+        description: "A ring of pure gold with the initials {initials} finely etched. It is crested with a gemstone, the face painstakingly carved into the shape of a raven clutching a banner with which to seal letters."
       starting_tags:
-        - Armory Key
         - Ravenhearter
         - Nobility
-        - Cerberus Key
-        - Baron's Key
-        - Tower Key
-        - Elevator Key
         - Baron's Scepter
         - Brigandine
         - Sabre
@@ -197,13 +220,15 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
+      ring:
+        spawns: true
+        opens: [baroness-key]
       starting_tags:
         - Ravenhearter
         - Courtier
         - Nobility
         - Jewelry
         - Literacy
-        - Baroness's Key
         - Obol x5
         - Post-Christian
         - Foodstuffs x4
@@ -228,12 +253,14 @@ groups:
       knows: *townsfolk
       starting_location: fortress-4
       extra_starting_points: 5
+      ring:
+        spawns: true
+        opens: [heirs-key]
       starting_tags:
         - Ravenhearter
         - Courtier
         - Nobility
         - Literacy
-        - Heir's Key
         - Obol x5
         - Post-Christian
         - Foodstuffs x4
@@ -255,13 +282,15 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
+      ring:
+        spawns: true
+        opens: [successors-key]
       starting_tags:
         - Ravenhearter
         - Courtier
         - Nobility
         - Jewelry
         - Literacy
-        - Successor's Key
         - Post-Christian
         - Foodstuffs x4
       doc_elements:
@@ -287,14 +316,18 @@ groups:
       knows: *townsfolk
       starting_location: fortress-4
       extra_starting_points: 5
+      ring:
+        spawns: true
+        opens: [armory-key, hands-key, tower-key]
+        seal_office: Hand
+        seal_mark: "An open palm, the seal of the Hand."
+        name: "Hand's Ring"
+        description: "A thin ring of gold engraved with the initials {initials}. The face bears an open palm, the seal of the Hand."
       starting_tags:
-        - Armory Key
         - Ravenhearter
         - Courtier
         - Literacy
         - Hand's Pin
-        - Hand's Key
-        - Tower Key
         - Obol x10
         - Foodstuffs x4
       doc_elements:
@@ -319,14 +352,19 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
+      ring:
+        spawns: true
+        opens: [meisters-key, tower-key]
+        seal_office: Meister
+        seal_mark: "A single goblet, the seal of the Meister."
+        name: "Meister's Ring"
+        description: "A polished brass ring engraved with the initials {initials} and encrusted with tiny jewels. The face bears a single goblet, the seal of the Meister."
       starting_tags:
         - Ravenhearter
         - Courtier
         - Frail
         - Medical I
         - Literacy
-        - Meister's Key
-        - Tower Key
         - Bird
         - Obol x5
         - Foodstuffs x4
@@ -354,6 +392,9 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
+      ring:
+        spawns: true
+        opens: []
       starting_tags:
         - Ravenhearter
         - Literacy
@@ -385,6 +426,9 @@ groups:
       # its own price and its own conflict list, deciding a courtier's whole
       # sheet before they reached the catalog. The points buy the same things.
       extra_starting_points: 7
+      ring:
+        spawns: true
+        opens: []
       starting_tags:
         - Ravenhearter
         - Courtier
@@ -406,6 +450,9 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
+      ring:
+        spawns: true
+        opens: []
       starting_tags:
         - Ravenhearter
         - Musician
@@ -429,6 +476,9 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
+      ring:
+        spawns: true
+        opens: [servant-key]
       starting_tags:
         - Ravenhearter
         - Servant
@@ -465,8 +515,14 @@ groups:
       knows: *townsfolk
       starting_location: town-4
       whitelist: true
+      ring:
+        spawns: true
+        opens: [cathedral-key, bishops-key]
+        seal_office: Bishop
+        seal_mark: "The psychick cross, the seal of the Bishop."
+        name: "Bishop's Ring"
+        description: "An ornate gold ring engraved with the initials {initials}. The face bears the psychick cross, the seal of the Bishop."
       starting_tags:
-        - Cathedral Key
         - Ravenhearter
         - Chaplain
         # The office as a tag, the same move Chaplain above is. Every gate
@@ -503,8 +559,10 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-4
+      ring:
+        spawns: true
+        opens: [cathedral-key]
       starting_tags:
-        - Cathedral Key
         - Ravenhearter
         - Chaplain
         - Teaching
@@ -537,9 +595,14 @@ groups:
       knows: *townsfolk
       starting_location: town-4
       whitelist: true
+      ring:
+        spawns: true
+        opens: [order-key, cathedral-key]
+        seal_office: Inquisitor
+        seal_mark: "A sword drenched in flame, the seal of the Inquisitor."
+        name: "Inquisitor's Ring"
+        description: "A blackened silver ring engraved with the initials {initials}. The face bears a sword drenched in flame, the seal of the Inquisitor."
       starting_tags:
-        - Order Key
-        - Cathedral Key
         - Ravenhearter
         - Pious
         - Melee I
@@ -547,7 +610,7 @@ groups:
         - Silver Knife
         - Shield
         # The Order's crossbow and tear gas, which used to lie in the
-        # Cathedral's Order Chambers where every Order Key could take them
+        # Cathedral's Order Chambers where every Order ring could take them
         # (docs/zones.yaml town-4-3).
         - Crossbow
         - Tear Gas Grenade x3
@@ -581,8 +644,10 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-4
+      ring:
+        spawns: true
+        opens: [order-key]
       starting_tags:
-        - Order Key
         - Ravenhearter
         - Pious
         - Melee I
@@ -617,8 +682,10 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-4
+      ring:
+        spawns: true
+        opens: [order-key]
       starting_tags:
-        - Order Key
         - Ravenhearter
         - Pious
         - Post-Christian
@@ -648,14 +715,17 @@ groups:
       knows: *townsfolk
       starting_location: fortress-1
       whitelist: true
+      ring:
+        spawns: true
+        opens: [armory-key, cerberus-key, censors-key, tower-key]
+        seal_office: Censor
+        seal_mark: "The head of a wolf, the seal of the Censor."
+        name: "Censor's Ring"
+        description: "A hefty cast iron ring engraved with the initials {initials}. The face bears the head of a wolf, the seal of the Censor."
       starting_tags:
         - Censor's Helmet
-        - Armory Key
         # Their own and the Garrison's 3 spares, which used to lie in the
         # Censor's Office where every Cerberus could pocket one.
-        - Cerberus Key x4
-        - Censor's Key
-        - Tower Key
         - Ravenhearter
         - Cerberon
         - Tactician
@@ -703,16 +773,16 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-1
+      ring:
+        spawns: true
+        opens: [armory-key, cerberus-key, incarns-key]
       starting_tags:
-        - Armory Key
         - Ravenhearter
         - Melee II
         - Ranged I
         - Cerberon
-        - Cerberus Key
         - Melee (Shield Wall)
         - Pious
-        - Incarn's Key
         - Cudgel
         # The Garrison's other hound (docs/zones.yaml fortress-1-8).
         - Hound
@@ -744,11 +814,13 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-1
+      ring:
+        spawns: true
+        opens: [cerberus-key]
       starting_tags:
         - Cerberus Helmet
         - Ravenhearter
         - Cerberon
-        - Cerberus Key
         - Melee I
         - Ranged I
         - Melee (Shield Wall)
@@ -782,10 +854,12 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-1
+      ring:
+        spawns: true
+        opens: [cerberus-key]
       starting_tags:
         - Ravenhearter
         - Cerberon
-        - Cerberus Key
         - Cudgel
         - Simple Helm
         - Buckler
@@ -822,8 +896,14 @@ groups:
       knows: *townsfolk
       starting_location: town-9
       whitelist: true
+      ring:
+        spawns: true
+        opens: [sanctuary-key]
+        seal_office: Esculap
+        seal_mark: "A staff wrapped with snakes, the seal of the Esculap."
+        name: "Esculap's Ring"
+        description: "A silver ring engraved with the initials {initials}. The face bears a staff wrapped with snakes, the seal of the Esculap."
       starting_tags:
-        - Sanctuary Key
         - Ravenhearter
         - Medical III
         - Brewing III
@@ -853,8 +933,10 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-9
+      ring:
+        spawns: true
+        opens: [sanctuary-key]
       starting_tags:
-        - Sanctuary Key
         - Ravenhearter
         - Medical II
         - Brewing II
@@ -882,7 +964,7 @@ groups:
         - >-
           You may issue loans, lending at high rates and calling on your Dockers to collect.
         - >-
-          Unlike other people's accounts, your ATM's obols are backed off-world, so if the Keep's treasury is drained during a bank run you'll still be able to withdraw obols.
+          Unlike other people's accounts, your account's obols are backed off-world, so if the Keep's treasury is drained during a bank run you'll still be able to withdraw obols.
       difficulty: hard
       bank_account: offshore
       starting_account: 55
@@ -891,12 +973,19 @@ groups:
       knows: *townsfolk
       starting_location: undertown-6
       whitelist: true
+      ring:
+        spawns: true
+        opens: [depot-keycard]
+        authorised_by: merchants-license
+        seal_office: Merchant
+        seal_mark: "The initials {initials} emblazoned on a shield, the seal of the Merchant."
+        name: "Merchant's Ring"
+        description: "A silver ring encrusted with gold and jewels. The face bears the initials {initials} emblazoned on a shield, the seal of the Merchant."
       starting_tags:
         - Cart
         - Literacy
         - Merchant's Garb
         - Merchant's License
-        - Depot Keycard
         - Silencer
         - Obol x20
         - Nobility
@@ -921,8 +1010,10 @@ groups:
       starting_zone: undertown
       knows: *townsfolk
       starting_location: undertown-6
+      ring:
+        spawns: true
+        opens: [depot-keycard]
       starting_tags:
-        - Depot Keycard
         - Appraisal
         - Ration Box
       doc_elements:
@@ -947,6 +1038,13 @@ groups:
       starting_zone: hills
       knows: *townsfolk
       starting_location: factory
+      ring:
+        spawns: true
+        opens: [factory-key, bannerets-key]
+        seal_office: Banneret
+        seal_mark: "Three ravens on a tree branch, the seal of the Banneret."
+        name: "Banneret's Ring"
+        description: "A steel ring engraved with the initials {initials}. The face bears three ravens on a tree branch, the seal of the Banneret."
       starting_tags:
         - Ravenhearter
         - Arelitz
@@ -963,8 +1061,6 @@ groups:
         - Armored Gloves x3
         - Hatchet
         - Ration Box x8
-        - Factory Key
-        - Banneret's Key
         - Appraisal
         - Foodstuffs x4
       doc_elements:
@@ -989,6 +1085,9 @@ groups:
       starting_zone: hills
       knows: *townsfolk
       starting_location: factory
+      ring:
+        spawns: true
+        opens: [factory-key, bannerets-key]
       starting_tags:
         - Ravenhearter
         - Tough
@@ -1004,8 +1103,6 @@ groups:
         - Foodstuffs x40
         - Cleaning Powder
         - Armored Gloves
-        - Factory Key
-        - Banneret's Key
         - Appraisal
         - Cheese x3
       doc_elements:
@@ -1028,11 +1125,13 @@ groups:
       starting_zone: hills
       knows: *townsfolk
       starting_location: factory
+      ring:
+        spawns: true
+        opens: [factory-key]
       starting_tags:
         - Hatchet
         - Cleaning Powder
         - Armored Gloves
-        - Factory Key
         - Moldy Bread
       doc_elements:
         - godardfactory
@@ -1046,7 +1145,7 @@ groups:
         - >-
           You have a few tools: the Pusher, a brewer and drug seller; the Slaves, miners with bomb collars you can detonate; and the Courtesans, who do not work for you but will pay some of their cut for your protection.
         - >-
-          Your Silver Chip allows you to obtain items from the Black Market manifest at the depot.
+          Your ring allows you to obtain items from the Black Market manifest at the depot.
         - >-
           Your only job is to make as much money as possible. The slaves and the Pusher will make you money by default, but you should plan big business moves. One lucrative enterprise is selling your slaves or getting new ones. The Incarn might sell you prisoners if you can cut a deal.
       difficulty: normal
@@ -1057,6 +1156,9 @@ groups:
       knows: *townsfolk
       starting_location: undertown-8
       whitelist: true
+      ring:
+        spawns: true
+        opens: [silver-chip, den-key, exactors-key]
       starting_tags:
         - Bore Pistol
         - Machete
@@ -1065,12 +1167,10 @@ groups:
         - Bomb Collar
         - Remote Detonator
         - Collar Key
-        - Silver Chip
         - Literacy
-        # Every door in the Den. The two room keys are his second copies —
-        # there is another pair on the desk in his office (docs/zones.yaml).
-        - Den Key
-        - Exactor's Key
+        # His ring opens the Den itself. The two guest-room keys stay keys, to
+        # lend out, and these are his second copies — there is another pair on
+        # the desk in his office (docs/zones.yaml).
         - Room A Key (Den)
         - Room B Key (Den)
         - Appraisal
@@ -1094,6 +1194,9 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-2
+      ring:
+        spawns: true
+        opens: []
       starting_tags:
         - Ravenhearter
         - Melee I
@@ -1123,10 +1226,12 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-2
+      ring:
+        spawns: true
+        opens: [smithy-key]
       starting_tags:
         - Ravenhearter
         - Smithing I
-        - Smithy Key
         - Resources x20
         - Appraisal
         - Foodstuffs x4
@@ -1157,6 +1262,9 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-7
+      ring:
+        spawns: true
+        opens: []
       starting_tags:
         - Ravenhearter
         - Prospecting
@@ -1166,7 +1274,7 @@ groups:
     # Added 2026-09-20. Starts inside the Soilery (town-3) rather than the
     # town square, because the Farm button only exists on `soilery` ground —
     # a Soiler who starts anywhere else spends their first Move walking.
-    # The Soiler's Key is not decoration: the Silo (town-3-2) where the
+    # The Soiler's ring is not decoration: the Silo (town-3-2) where the
     # harvest is kept and the Stable (town-3-3) are both locked behind it.
     soiler:
       name: Soiler
@@ -1178,7 +1286,7 @@ groups:
         - >-
           Food fetches nothing at the Depot's counter, so cut a deal with the Inn or other organizations instead. A hungry town will pay for it.
         - >-
-          Your key opens the Silo, where the harvest is kept, and the Stable beside it.
+          Your ring opens the Silo, where the harvest is kept, and the Stable beside it.
         - >-
           The arelitz in the Stable eat Foodstuffs left on the floor, two each, and lay eggs, and the eggs hatch and grow on their own clock. A grown one is unruly, and nobody rides it until somebody breaks it in.
         - >-
@@ -1191,10 +1299,12 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-3
+      ring:
+        spawns: true
+        opens: [soilers-key]
       starting_tags:
         - Ravenhearter
         - Soilery
-        - Soiler's Key
         - Work Knife
         - Resources x2
         - Plebeian Hood
@@ -1222,10 +1332,12 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-a
+      ring:
+        spawns: true
+        opens: [mortus-key]
       starting_tags:
         - Ravenhearter
         - Mortus
-        - Mortus Key
         - Mortus Rags
         - Melee I
         - Cudgel
@@ -1263,7 +1375,7 @@ groups:
         - >-
           You should give the Exactor some of your cut so that he continues to protect you.
         - >-
-          You have the Silver Chip, which allows you to buy drugs from the Depot.
+          Your ring allows you to buy drugs from the Depot.
       difficulty: normal
       bank_account: treasury
       starting_account: 14
@@ -1271,11 +1383,12 @@ groups:
       starting_zone: undertown
       knows: *townsfolk
       starting_location: undertown-8
+      ring:
+        spawns: true
+        opens: [den-key, silver-chip]
       starting_tags:
         - Ravenhearter
         - Brewing II
-        - Den Key
-        - Silver Chip
         - Heroin x2
         - Changa
         - Cave Fungus
@@ -1303,8 +1416,10 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-7
+      ring:
+        spawns: true
+        opens: [inn-key]
       starting_tags:
-        - Inn Key x3
         - Room A Key x2
         - Room B Key x2
         - Room C Key x2
@@ -1334,8 +1449,10 @@ groups:
       starting_zone: town
       knows: *townsfolk
       starting_location: town-7
+      ring:
+        spawns: true
+        opens: [inn-key]
       starting_tags:
-        - Inn Key
         - Ravenhearter
         - Cooking I
         # A turn's cooking to start with, as for the Servant.
@@ -1361,6 +1478,9 @@ groups:
       starting_zone: undertown
       knows: *townsfolk
       starting_location: undertown-8
+      ring:
+        spawns: true
+        opens: [den-key, courtesans-key]
       starting_tags:
         # The SLUG, not the name: "Seductive" is also the display name of the
         # catalog: secret Demoness power, and the sync refuses an ambiguous
@@ -1368,8 +1488,6 @@ groups:
         - seductive
         - Ration Box x2
         - Cigarette
-        - Den Key
-        - Courtesan's Key
     slave:
       name: Slave
       intro: >-
@@ -1410,6 +1528,9 @@ groups:
       starting_zone: undertown
       knows: *townsfolk
       starting_location: undertown-8
+      ring:
+        spawns: true
+        opens: []
       starting_tags:
         - Strong
         - Melee I
@@ -1453,6 +1574,9 @@ groups:
       starting_zone: caves
       knows: *townsfolk
       starting_location: caves-1
+      ring:
+        spawns: true
+        opens: []
       starting_tags:
         - Melee I
         - Ranged I

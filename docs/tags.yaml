@@ -2705,7 +2705,7 @@ tags:
     name: Forgery
     category: skills
     teachable: true
-    description: "You know how to make letters, seals, and writing appear as though another wrote it. Allows you to craft wax seals."
+    description: "Grants the ability to perfectly copy the seal of a signet ring to a wax stamp."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
@@ -8857,15 +8857,6 @@ tags:
     stackable: true
     weight: 0
     purchasable: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: barons-key
-          keep: true
 
   # The Baroness's own key. It opens the Baron's Chambers and nothing else --
   # she shares his bed, not his ring.
@@ -8887,15 +8878,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: baroness-key
-          keep: true
 
   # The rest of Ravenheart's locks. Every one is weightless, tradeable and
   # stackable: a key is meant to be handed over, stolen off a body or copied,
@@ -8903,15 +8885,18 @@ tags:
   # Invisible on the sheet, so carrying one is not something a stranger reads
   # off you.
   #
-  # "Copied" is now a real recipe, not just flavor: `craftable: true` below
-  # with `items: [{tag: <itself>, keep: true}]` lets a Skilled Blacksmith
+  # THE SEAT KEYS ARE RETIRED AS ITEMS (docs/systemdocs/RINGS.md). Every key a
+  # seat used to start with — the Baron's, the Tower's, the Cerberus key, the
+  # Cathedral's and so on — is now a door TOKEN a signet ring carries
+  # (`ring.opens` in docs/roles.yaml). No kit or stash hands one out and they
+  # have no copy recipe, but the rows stay: every room's `access:` and every
+  # locked way still names these slugs, and a worn ring's tokens count as held.
+  # A GM grant of one still works as a key.
+  #
+  # "Copied" is a real recipe on the keys that are still items — the guest
+  # rooms' and the other found keys: `craftable: true` with
+  # `items: [{tag: <itself>, keep: true}]` lets a Skilled Blacksmith
   # (`smithing-skilled`) hold a key at the forge and walk away with two.
-  # Every key here gets it except the four ABOVE this comment (sewer-key,
-  # elevator-key, foresters-key, graywall-key) plus barons-key and
-  # incarns-key, none of which are `stackable` -- `craftGrantChecks` refuses
-  # a non-stackable duplicate outright ("You already have that tag."), which
-  # a keep-and-recraft recipe would trip on every single attempt. Mark one
-  # `stackable: true` to extend the recipe to it.
   cerberus-key:
     catalog: gm
     name: Cerberus Key
@@ -8925,15 +8910,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: cerberus-key
-          keep: true
 
   armory-key:
     catalog: gm
@@ -8948,15 +8924,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: armory-key
-          keep: true
 
   inn-key:
     catalog: gm
@@ -8971,15 +8938,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: inn-key
-          keep: true
 
   order-key:
     catalog: gm
@@ -8994,15 +8952,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: order-key
-          keep: true
 
   cathedral-key:
     catalog: gm
@@ -9017,15 +8966,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: cathedral-key
-          keep: true
 
   sanctuary-key:
     catalog: gm
@@ -9040,15 +8980,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: sanctuary-key
-          keep: true
 
   smithy-key:
     catalog: gm
@@ -9063,15 +8994,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: smithy-key
-          keep: true
 
   # ---- The map rework's keys (2026-09-19) ------------------------------
   # Six doors that had no key before the Town became the Soilery, the
@@ -9276,15 +9198,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: den-key
-          keep: true
 
   # Old Town (docs/zones.yaml, undertown-2). Three of these sit in the Burnt
   # Home, which is itself behind `tunnel-rat` — so the cellar below is two
@@ -9326,15 +9239,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: exactors-key
-          keep: true
 
   courtesans-key:
     catalog: gm
@@ -9349,15 +9253,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: courtesans-key
-          keep: true
 
   room-a-key-den:
     catalog: gm
@@ -9418,15 +9313,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: mortus-key
-          keep: true
 
   hands-key:
     catalog: gm
@@ -9441,15 +9327,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: hands-key
-          keep: true
 
   meisters-key:
     catalog: gm
@@ -9464,15 +9341,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: meisters-key
-          keep: true
 
   censors-key:
     catalog: gm
@@ -9487,15 +9355,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: censors-key
-          keep: true
 
   tower-key:
     catalog: gm
@@ -9510,15 +9369,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: tower-key
-          keep: true
 
   heirs-key:
     catalog: gm
@@ -9533,15 +9383,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: heirs-key
-          keep: true
 
   successors-key:
     catalog: gm
@@ -9556,15 +9397,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: successors-key
-          keep: true
 
   #Uncraftable
   neoclassic-rw10:
@@ -12053,15 +11885,6 @@ tags:
     weight: 0
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: incarns-key
-          keep: true
 
   ordinator-insignia:
     catalog: gm
@@ -13100,347 +12923,58 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # THE SIX COURTIER SEALS are the one place a tag is both bought and made, and
-  # TAGS.md §4's "nothing is both" invariant is knowingly bent here. A courtier
-  # buys their own mark at creation; a character with Forgery FORGES somebody
-  # else's at 1 turn and 2 ⬢. That is the whole feature — the
-  # point cost is the honest route and the recipe is the dishonest one, and
-  # they are meant to reach the same object. It is not an Add Tag loophole:
-  # §3b removed the menu's buy route, so `craftable` here only ever costs
-  # resources and a turn.
+  # SIGNET RINGS (docs/systemdocs/RINGS.md). Rings replaced the seat keys and
+  # the wax stamps: every seat that spawns in Ravenheart (`ring: spawns` in
+  # docs/roles.yaml) starts wearing one, engraved with the holder's initials
+  # and registered to that seat's doors and account.
   #
-  # `exclusive: true` still applies on the craft route (craftRequest calls
-  # exclusiveConflict), so a forger holds ONE seal at a time and has to hand
-  # each off before making the next. Deliberate throttle, not a bug.
-  wax-seal-three-cups:
-    catalog: all
-    name: Wax Seal (Three Cups)
-    category: items
-    group: items-paper
-    sprite: paper-talisman
-    sealMark: "Three cups, stacked."
-    pointCost: 1
-    exclusive: true
-    requiredTag: courtier
-    weight: 0
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  wax-seal-duo-of-saints:
-    catalog: all
-    name: Wax Seal (Duo of Saints)
-    category: items
-    group: items-paper
-    sprite: paper-talisman
-    sealMark: "Two saints beholding each other."
-    pointCost: 1
-    exclusive: true
-    requiredTag: courtier
-    weight: 0
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  wax-seal-regal-cross:
-    catalog: all
-    name: Wax Seal (Regal Cross)
-    category: items
-    group: items-paper
-    sprite: cross
-    sealMark: "A cross wrapped in vines."
-    pointCost: 1
-    exclusive: true
-    requiredTag: courtier
-    weight: 0
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  wax-seal-fleur-de-lis:
-    catalog: all
-    name: Wax Seal (Fleur de Lis)
-    category: items
-    group: items-paper
-    sprite: paper-talisman
-    sealMark: "A fleur de lis—chivalrous and noble."
-    pointCost: 1
-    exclusive: true
-    requiredTag: courtier
-    weight: 0
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  wax-seal-mounted-knight:
-    catalog: all
-    name: Wax Seal (Mounted Knight)
-    category: items
-    group: items-paper
-    sprite: paper-talisman
-    sealMark: "A knight on a warhorse."
-    pointCost: 1
-    exclusive: true
-    requiredTag: courtier
-    weight: 0
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  wax-seal-ox:
-    catalog: all
-    name: Wax Seal (Ox)
-    category: items
-    group: items-paper
-    sprite: paper-talisman
-    sealMark: "An ox."
-    pointCost: 1
-    exclusive: true
-    requiredTag: courtier
-    weight: 0
-    visible: false
-    purchasable: true
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  # The offices' own stamps. These are never bought — each one starts in the
-  # room the seat works out of (docs/zones.yaml `stash:`) and is `tradeable`
-  # like every other piece of office regalia, so prying the Bishop's stamp off
-  # the Bishop is exactly the kind of thing the game is for (TAGS.md §5).
+  # These two rows are RECIPES ONLY and are never granted. What a smith or a
+  # forger walks away with is a minted row of its own (db/lib/ringMint.js,
+  # web/app/(app)/character/actions/crafting.js), because each ring is
+  # engraved for one person and each forged seal carries one ring's mark. So
+  # the catalog row carries no equipSlot — the minted ring is the one that
+  # goes on a finger.
   #
-  # A forger can now make every one of them, on the same recipe as the six
-  # courtier seals above (Bascinet's call: a forger can craft ANY stamp in the
-  # game). Nothing else opens: they stay `purchasable: false`, so the only two
-  # routes to a Baron's stamp are taking it off the Baron and forging one.
-  # Secrecy holds without extra work, because `forger` is a `catalog: gm`
-  # skill and character/page.js strips a recipe gated on a hidden trade from
-  # everyone who does not hold it.
-  #
-  # NOT `exclusive`, unlike the six above. A stamp is an object attached to a
-  # seat rather than a signature you chose, so holding the Bishop's and the
-  # Censor's at once is a real and interesting situation — you took one of
-  # them off somebody. Note this now MATTERS where it used to be inert:
-  # `exclusiveConflict` runs on the craft route, so marking these exclusive
-  # would stop a forger holding two forged stamps at once. Leaving them open
-  # is deliberate.
-
-  bannerets-wax-stamp:
-    catalog: gm
-    name: Banneret's Wax Stamp
+  # The smith picks who the ring is for from the names they know. It comes out
+  # unregistered, opening nothing until the Meister registers it at his
+  # terminal, and it never seals: only an office's own spawned ring does
+  # (`ring:` in docs/roles.yaml), even when the Meister registers a smithed
+  # one to that office's doors.
+  ring:
+    catalog: all
+    name: Ring
     category: items
-    group: items-paper
-    sprite: stamp-cap
-    sealOffice: Banneret
-    sealMark: "Three ravens on a tree branch."
+    group: items-gear
+    sprite: gearring
+    description: "A silver ring, engraved with someone's initials."
     pointCost: 0
     weight: 0
-    visible: false
     purchasable: false
     purchasableAfterStart: false
     craftable: true
     requirement:
-      turnsCost: 1
+      turnsCost: 0.25
       resourceCost: 2
-      skills: [forgery]
+      skills: [smithing]
       gambit: false
 
-  barons-wax-stamp:
+  # The only way to get an office's wax seal now: hold the office's own ring
+  # and press it. The forger picks which ring they are holding; the stamp comes
+  # out minted with that ring's mark and label, and seals exactly as the ring
+  # would. A plain ring carries no mark, so this refuses it.
+  # `catalog: gm` like Forgery itself, so the recipe line stays with the trade.
+  forged-wax-seal:
     catalog: gm
-    name: Baron's Wax Stamp
-    category: items
-    group: items-paper
-    sprite: stamp-ce
-    sealOffice: Baron
-    sealMark: "A raven clutching a banner."
-    pointCost: 0
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  esculaps-wax-stamp:
-    catalog: gm
-    name: Esculap's Wax Stamp
-    category: items
-    group: items-paper
-    sprite: stamp-cent
-    sealOffice: Esculap
-    sealMark: "A staff wrapped with snakes."
-    pointCost: 0
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  meisters-wax-stamp:
-    catalog: gm
-    name: Meister's Wax Stamp
-    category: items
-    group: items-paper
-    sprite: stamp-cmo
-    sealOffice: Meister
-    sealMark: "A single goblet."
-    pointCost: 0
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  censors-wax-stamp:
-    catalog: gm
-    name: Censor's Wax Stamp
-    category: items
-    group: items-paper
-    sprite: stamp-hop
-    sealOffice: Censor
-    sealMark: "A shield with a sword."
-    pointCost: 0
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  hands-wax-stamp:
-    catalog: gm
-    name: Hand's Wax Stamp
-    category: items
-    group: items-paper
-    sprite: stamp-hos
-    sealOffice: Hand
-    sealMark: "An open palm."
-    pointCost: 0
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  bishops-wax-stamp:
-    catalog: gm
-    name: Bishop's Wax Stamp
-    category: items
-    group: items-paper
-    sprite: stamp-intaff
-    sealOffice: Bishop
-    sealMark: "A cross wreathed in vines."
-    pointCost: 0
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  inquisitors-wax-stamp:
-    catalog: gm
-    name: Inquisitor's Wax Stamp
-    category: items
-    group: items-paper
-    sprite: stamp-intaff
-    sealOffice: Inquisitor
-    sealMark: "A cross with a rapier on one side and a skull on the other."
-    pointCost: 0
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    craftable: true
-    requirement:
-      turnsCost: 1
-      resourceCost: 2
-      skills: [forgery]
-      gambit: false
-
-  # The one stamp with no mark in this file. The Merchant's bears his actual
-  # initials, so it is written once at character creation, beside the line that
-  # teaches the Depot turret his face
-  # (web/app/(app)/character/createActions.js). Until a Merchant exists it
-  # reads as an unreadable smudge, which is honest — nobody has pressed it yet.
-  merchants-wax-stamp:
-    catalog: gm
-    name: Merchant's Wax Stamp
+    name: Forged Wax Seal
     category: items
     group: items-paper
     sprite: stamp-rd
-    sealOffice: Merchant
+    description: "Press an office's signet ring you're holding into soft wax and cut a stamp from the impression. It seals letters with the ring's mark."
     pointCost: 0
     weight: 0
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    # Forgeable like the other eight. It was the one stamp the 2026-09-08 pass
-    # missed, because the comment above it separates this block from the run
-    # the six new lines were pasted down. A forger copying an unreadable smudge
-    # is fine: the mark is written at creation, so a forgery made before there
-    # is a Merchant is as blank as his own.
     craftable: true
     requirement:
       turnsCost: 1
@@ -16839,15 +16373,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: factory-key
-          keep: true
 
   bannerets-key:
     catalog: gm
@@ -16862,15 +16387,6 @@ tags:
     visible: false
     purchasable: false
     purchasableAfterStart: false
-    craftable: true
-    requirement:
-      skills: [smithing-skilled]
-      turnsCost: 0.25
-      resourceCost: 2
-      gambit: false
-      items:
-        - tag: bannerets-key
-          keep: true
 
   flooded-crate:
     catalog: all

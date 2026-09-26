@@ -16,6 +16,8 @@ const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { seedMemories } = require("./locationVisits");
 const { seedAcquaintances } = require("./acquaintances");
+const { mintSpawnRing } = require("./ringMint");
+const { syncCharacterRoomAccess } = require("./roomAccess");
 const { startingMemorySlugs } = require("./startingMemories");
 const {
   threatBySlug,
@@ -291,6 +293,20 @@ async function applySpawnSideEffects(prisma, sideEffects) {
   // Tribunal and the Bastard's host know nobody by default, and their seats
   // are never given a role on anybody's entry either way.
   await seedAcquaintances(prisma, characterId).catch((err) => console.error("Spawn acquaintance seeding failed:", err));
+  // A seat that spawns with a signet ring gets it here too (docs/systemdocs/RINGS.md).
+  if (roleSlug) {
+    try {
+      const [seat, character] = await Promise.all([
+        prisma.role.findUnique({ where: { slug: roleSlug } }),
+        prisma.character.findUnique({ where: { id: characterId }, select: { id: true, name: true, discordUserId: true, locationId: true, status: true } }),
+      ]);
+      if (seat && character && (await mintSpawnRing(prisma, character, seat))) {
+        await syncCharacterRoomAccess(prisma, character);
+      }
+    } catch (err) {
+      console.error("Spawn ring failed:", err);
+    }
+  }
 
   // A spawned threat is alive again, so the Deadchat seat comes off — neither the curse nor the
   // ghost seat needs a write, db/lib/curse.js and db/lib/ghost.js both derive from the ALIVE row.

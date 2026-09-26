@@ -19,6 +19,8 @@
 // "exertion" — or not at all until next turn, when the server would refuse the
 // push on too (`option.canExert`).
 import { formatTravel } from "@lifeweb/db/lib/crossingCost";
+import { RING_SLUG } from "@lifeweb/db/lib/rings";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 
 export { formatTravel };
 
@@ -67,7 +69,10 @@ export function crossingLine(option, nextTurn, moved) {
 // is what the hover and the screen reader get. Here rather than in either
 // component for the same reason travelFoot is: /chat and /map both say it, and
 // two copies would drift.
-export function openedByLabel(tagName) {
+// A way the worn signet ring opened (openedBy is the Ring recipe's slug then,
+// db/lib/locationGraph.js) says so in its own words (docs/systemdocs/RINGS.md).
+export function openedByLabel(tagName, slug = null) {
+  if (slug === RING_SLUG) return RING_TEXT.openedByRing;
   return `Opened by your ${tagName}.`;
 }
 

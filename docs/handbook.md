@@ -200,7 +200,7 @@ Each Location's channel has a pinned message at the top with its description, th
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
 | **A Location** (text channel) | The open street. You can see what happens here, but talk belongs in its Rooms — step into one to speak. |
-| **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key. |
+| **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key, or wear the signet ring that opens it. |
 
 The three buttons on the pinned message:
 - **Who's here?** — the characters standing in this Location. Anyone concealed shows up as "a young man" or the like.

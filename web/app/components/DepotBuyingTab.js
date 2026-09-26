@@ -8,6 +8,7 @@ import Pager from "./Pager";
 import RequestDialog from "./RequestDialog";
 import TagChip from "./TagChip";
 import { playSfx } from "@/app/components/sfx";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 
 // What you may order, which is not what the station stocks.
 //
@@ -220,7 +221,7 @@ export default function DepotBuyingTab({ wares, openManifests, account, train, d
           Place order
         </button>
 
-        {!account && <p className="mt-3 text-sm text-muted">Open an account on the ATMs tab first.</p>}
+        {!account && <p className="mt-3 text-sm text-muted">{RING_TEXT.infoterminalDepotHint}</p>}
         {error && <p className="mt-3 text-sm text-danger">{error}</p>}
       </section>
 

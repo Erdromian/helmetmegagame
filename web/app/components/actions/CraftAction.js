@@ -48,6 +48,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
     craftBudget = null,
     craftAllowances = {},
     deathMaskCorpses = [],
+    recipePicks = {},
     hasWorkshop = false,
     // Whether the place stood in has a kitchen — a Lavish meal needs one (COOKING.md).
     atKitchen = false,
@@ -132,6 +133,10 @@ export default function CraftAction({ presets, onDone, onClose }) {
     if (chosen?.slug === "death-mask") {
       return { label: "Whose face?", options: deathMaskCorpses };
     }
+    // The signet ring's engraving and the forged seal's ring: the same channel
+    // again, with their own words (docs/systemdocs/RINGS.md).
+    const pick = chosen ? recipePicks[chosen.slug] : null;
+    if (pick) return { label: pick.label, fieldLabel: pick.label, empty: pick.empty, options: pick.options };
     if (ingredientPickers) return null;
     const entry = anyOfEntries[0];
     if (!entry) return null;
@@ -139,7 +144,7 @@ export default function CraftAction({ presets, onDone, onClose }) {
       label: entry.label,
       options: (entry.options ?? []).filter((o) => heldSlugs.has(o.slug)),
     };
-  }, [mode, chosen, heldSlugs, deathMaskCorpses, anyOfEntries, ingredientPickers]);
+  }, [mode, chosen, heldSlugs, deathMaskCorpses, recipePicks, anyOfEntries, ingredientPickers]);
   // One option needs no decision, so it is taken as made rather than asked for.
   const ingredientChoiceValue =
     ingredientChoice ||

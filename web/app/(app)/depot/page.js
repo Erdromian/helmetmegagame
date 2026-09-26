@@ -25,7 +25,9 @@ import {
   presentedIdentity,
   forcedNameFrom,
 } from "@lifeweb/db";
-import { depotAccessFor, sendableAccounts } from "@lifeweb/db/lib/depotCounter";
+import { depotAccessFor, sendableAccounts, terminalAccount } from "@lifeweb/db/lib/depotCounter";
+import { RING_ACCESS_TAG_FIELDS } from "@lifeweb/db/lib/rings";
+import { withRingTokens } from "@lifeweb/db/lib/roomAccess";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getOpenTurn } from "@/lib/turn";
@@ -140,7 +142,8 @@ async function FreshDepot() {
     },
   });
 
-  const heldSlugs = new Set((character?.tags ?? []).map((ct) => ct.tag.slug));
+  // Plus the worn ring's keycard or Silver Chip (docs/systemdocs/RINGS.md).
+  const heldSlugs = await withRingTokens(prisma, character?.id, character?.tags);
   const licensed = heldSlugs.has(MERCHANT_LICENSE_SLUG);
   const keycard = heldSlugs.has(DEPOT_KEYCARD_SLUG);
   const superadmin = isSuperadmin(session.discordUserId);
@@ -155,6 +158,19 @@ async function FreshDepot() {
   const depot = await loadDepot(prisma);
   const openTurn = await getOpenTurn();
   const account = character?.bankAccount ?? null;
+  // What the Infoterminals tab can move money with: the account the ring on
+  // their finger reaches, or why none (docs/systemdocs/RINGS.md). Read without
+  // a PIN — the tab asks for one when this says so, and every money call
+  // re-checks it server-side.
+  const terminal = character
+    ? await terminalAccount(prisma, {
+        id: character.id,
+        tags: await prisma.characterTag.findMany({
+          where: { characterId: character.id },
+          select: { equipped: true, tag: { select: RING_ACCESS_TAG_FIELDS } },
+        }),
+      })
+    : { ok: false, error: null };
 
   const [wareTags, pricedTags, obolTag, ledgerRows, mySales, allStagedSales, sendTargets, resourcesTag] = await Promise.all([
     // `resources` itself carries a depotPrice (docs/tags.yaml), so it is
@@ -331,6 +347,16 @@ async function FreshDepot() {
               backed: account.class === TREASURY,
             }
           : null,
+        terminal: terminal.ok
+          ? {
+              ok: true,
+              own: terminal.account.characterId === character.id,
+              fingerprint: terminal.account.fingerprint,
+              holderName: terminal.account.holderName,
+              balanceObols: terminal.account.balanceObols,
+              backed: terminal.account.class === TREASURY,
+            }
+          : { ok: false, problem: terminal.error ?? null, pinNeeded: Boolean(terminal.pinNeeded) },
         licensed,
         keycard,
         superadmin,

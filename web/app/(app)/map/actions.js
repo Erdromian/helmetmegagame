@@ -23,6 +23,7 @@ import {
 } from "@lifeweb/db/lib/locationTravel";
 import { plateOf, plates } from "@/lib/mapPlates";
 import { zoneKey } from "@/lib/zones";
+import { RING_SLUG } from "@lifeweb/db/lib/rings";
 
 // The map's one loader (/map and the /chat overlay both call it). THE FOG IS
 // REAL, NOT CSS: an unknown Location is absent from the payload entirely,
@@ -181,7 +182,9 @@ async function buildMap({ character, unfogged }) {
     void recordArrival(prisma, character, character.locationId, { neighbours }).catch(() => {});
   }
 
-  const tagSlugs = new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  // roomAccessKeys' held set already counts the worn ring's doors (docs/systemdocs/RINGS.md).
+  const heldPlain = new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
+  const tagSlugs = keys?.heldSlugs ?? heldPlain;
   const onFootBlocked = blocksOnFoot(equippedSlugs(character?.tags ?? []));
   // One clock for the whole graph, so a way can't lapse halfway through the loop.
   const now = new Date();
@@ -277,7 +280,8 @@ async function buildMap({ character, unfogged }) {
       a: link.aId,
       b: link.bId,
       gate: gateOf(link, verdict),
-      openedBy: verdict.openedBy ?? null,
+      // A way the worn ring opened names the ring, not the old key (docs/systemdocs/RINGS.md).
+      openedBy: verdict.openedBy && !heldPlain.has(verdict.openedBy) ? RING_SLUG : (verdict.openedBy ?? null),
       // Drawn pinched on the board for everybody (MAP.md §2a).
       squeeze: Boolean(link.tightSqueeze),
     });

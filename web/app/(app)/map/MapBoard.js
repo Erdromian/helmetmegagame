@@ -1207,7 +1207,7 @@ function ViaChip({ slug }) {
   const tag = slug ? (tagsBySlug.get(slug) ?? null) : null;
   if (!tag) return null;
   return (
-    <span className="map-via" title={openedByLabel(tag.name)}>
+    <span className="map-via" title={openedByLabel(tag.name, tag.slug)}>
       <ChipLabel tag={tag} />
     </span>
   );

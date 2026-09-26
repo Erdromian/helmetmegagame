@@ -127,7 +127,7 @@ const ACTIONS = [
   // --- Paper ------------------------------------------------------------------
   { mode: "readpaper", label: "Read a paper", section: "paper", show: "hasPaper", command: "paper", sub: "read", description: "Read a letter, note or book you're carrying.", run: "native", open: true },
   { mode: "write", label: "Write", section: "paper", show: "canRead", gate: "canWrite", gateReason: "You can't see to write right now.", command: "paper", sub: "write", description: "Write on a sheet of paper you're carrying.", run: "native", web: true },
-  { mode: "seal", label: "Seal letter", section: "paper", show: "hasSeal", gate: "canSeal", gateReason: "You have no written letter to close.", command: "paper", sub: "seal", description: "Close a letter with your wax seal.", run: "native", web: true },
+  { mode: "seal", label: "Seal letter", section: "paper", show: "hasSeal", gate: "canSeal", gateReason: "You have no written letter to close.", command: "paper", sub: "seal", description: "Close a letter with an office's signet ring or a wax seal.", run: "native", web: true },
   { mode: "bird", label: "Send bird", section: "paper", show: "hasBird", gate: "canSendBirdToday", gateReason: "Your bird has already flown today.", command: "paper", sub: "bird", description: "Send a letter you're holding by bird.", run: "link", web: true },
   { mode: "birdReply", label: "Answer a letter", section: "paper", show: "hasBirdReply", command: "paper", sub: "reply", description: "Answer a letter a bird brought you.", run: "native" },
 

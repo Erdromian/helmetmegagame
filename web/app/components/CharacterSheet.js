@@ -126,6 +126,8 @@ export default function CharacterSheet({
   teachCostsMove = true,
   knownRecipeIds = [],
   deathMaskCorpses = [],
+  // The ring recipes' pickers (docs/systemdocs/RINGS.md), built in character/page.js.
+  recipePicks = {},
   craftProjects = [],
   // Crafts waiting on the turn push, and whether new ones will (CRAFTING.md §3a).
   stagedCraftYields = [],
@@ -280,6 +282,7 @@ export default function CharacterSheet({
         teachCostsMove={teachCostsMove}
         knownRecipeIds={knownRecipeIds}
         deathMaskCorpses={deathMaskCorpses}
+        recipePicks={recipePicks}
         craftProjects={craftProjects}
         craftYieldStaged={craftYieldStaged}
         craftBudget={craftBudget}

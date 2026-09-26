@@ -262,6 +262,7 @@ you pick the right doc — they are never enough to change code with.
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
 | [`REQUESTS.md`](docs/systemdocs/REQUESTS.md) | You're adding or changing anything a player does to their own sheet — and **always** before adding one a per-turn ration counts |
 | [`BIRD.md`](docs/systemdocs/BIRD.md) | You're touching the Bird's letters, the once-a-day send, or the Reply window |
+| [`RINGS.md`](docs/systemdocs/RINGS.md) | You're touching signet rings — the `FINGER` slot, **anything that decides which doors a character can open** (`db/lib/rings.js#accessSlugsOf`: held tags plus the worn ring's tokens, which are the retired seat keys' slugs), the infoterminals and their PIN (`depotCounter.js#terminalAccount`), the Meister registering a smithed ring, or which rings seal (only an office's own) |
 | [`PAPERWORK.md`](docs/systemdocs/PAPERWORK.md) | You're touching paper, writing, wax seals, noticeboards, or **anything that asks whether a character can read** (`db/lib/reading.js`) |
 | [`ADJUDICATION.md`](docs/systemdocs/ADJUDICATION.md) | You're working on `/gm/turns` — the arbitration workspace, staging, or the turn-end push |
 | [`PLAYER-DESK.md`](docs/systemdocs/PLAYER-DESK.md) | You're working on `/gm/players` — the merged roster + conversations desk, GM notes, or ⌘K |

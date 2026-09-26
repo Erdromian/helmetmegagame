@@ -167,7 +167,7 @@ test("and again on the Railway, where somebody meeting the train already is", ()
   assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-1" })), [
     "Storage",
     "Search (0.33 Move)",
-    "ATM",
+    "Infoterminal",
     "Dropbox",
     "Send money",
     "Merchant credit",
@@ -175,11 +175,11 @@ test("and again on the Railway, where somebody meeting the train already is", ()
 });
 
 test("the Merchant's Storefront has a machine of its own, and no drop box", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-6-1" })), ["Storage", "Search (0.33 Move)", "ATM"]);
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-6-1" })), ["Storage", "Search (0.33 Move)", "Infoterminal"]);
 });
 
 test("the Inn's bar has the second machine, and nothing else of the counter's", () => {
-  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-2" })), ["Storage", "Search (0.33 Move)", "ATM"]);
+  assert.deepEqual(labels(roomAffordances({ id: "r", slug: "town-7-2" })), ["Storage", "Search (0.33 Move)", "Infoterminal"]);
 });
 
 test("an ordinary room has no machine on its wall", () => {

@@ -184,6 +184,9 @@ enum EquipSlot {
   WEAPON
   ACCESSORY
   MOUNT
+  // A signet ring (docs/systemdocs/RINGS.md). One at a time, and it blocks
+  // nothing: gloves and everything held go on as before.
+  FINGER
 }
 
 // Who may see a tag in the /documents Tag Catalog (`catalog:` in
@@ -978,6 +981,8 @@ model BankAccount {
 
   orders DepotOrder[]
   sales  DepotSale[]
+  // The signet rings the Meister has linked to this account (Tag.ringBankAccountId).
+  rings  Tag[]      @relation("RingAccount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2781,6 +2786,37 @@ model Tag {
   // column existed, which fall back to the name.
   photoOfCharacterId String?
 
+  // A signet ring (db/lib/ringMint.js, docs/systemdocs/RINGS.md). Every ring is
+  // its own minted row, the same custom+ephemeral door as a photo, because each
+  // is engraved for one person and registered to its own doors and account.
+  //
+  // ringOfCharacterId is who it was engraved for — a snapshot id with no FK, the
+  // photo's posture: the ring outlives the person. Non-null is what makes a row
+  // a ring. ringRoleSlugs are the seats whose doors the Meister registered it to;
+  // ringAccessSlugs is the union of those seats' Role.ringAccessSlugs, copied
+  // here so every access check reads it off the worn row with no join
+  // (db/lib/roomAccess.js#accessSlugsOf). db:sync-roles refreshes the copy when
+  // a seat's list changes. Nothing opens until ringRegisteredAt is set.
+  //
+  // Only an office's own ring carries a sealMark (Role.ringSealMark): a plain
+  // ring, smithed or spawned, leaves no seal of any kind.
+  ringOfCharacterId String?
+  // The engraving, "A.V." — kept on its own because the ring's name need not
+  // carry it (docs/systemdocs/RINGS.md), and its description is rewritten
+  // from it when the Meister registers the ring.
+  ringInitials      String?
+  ringRoleSlugs     String[]     @default([])
+  ringAccessSlugs   String[]     @default([])
+  ringRegisteredAt  DateTime?
+  ringBankAccountId String?
+  ringBankAccount   BankAccount? @relation("RingAccount", fields: [ringBankAccountId], references: [id], onDelete: SetNull)
+
+  // The short label a seal presses into a letter's title — "Baron" for the
+  // Baron's own ring, and for a wax seal forged from it. Null on everything
+  // else, where the label is read off the name's parentheses instead
+  // (db/lib/paper.js#sealLabel).
+  sealOffice String?
+
   // Whether other players who 🔍-react to this character's proxied messages
   // see this tag, alongside Character.appearance (see
   // bot/src/events/messageReactionAdd.js). Three states, authored in
@@ -3925,6 +3961,25 @@ model Role {
   // does for a dynasty member's last name; the disabled picker in the wizard
   // is only the hint.
   lockedGender Gender?
+
+  // The seat's signet ring, from the `ring:` block in docs/roles.yaml
+  // (docs/systemdocs/RINGS.md). ringSpawns: a character created in this seat
+  // starts wearing a registered ring. ringAccessSlugs: the door tokens a ring
+  // registered to this seat opens — the retired seat keys' slugs, which rooms
+  // and ways still name. ringSealOffice/ringSealMark: an office's own ring, the
+  // only kind that seals; null means the seat's ring leaves no seal.
+  // ringName/ringDescription: that office ring's own words ({initials} filled
+  // in); null means the plain "Signet Ring (A.V.)".
+  ringSpawns      Boolean  @default(false)
+  ringAccessSlugs String[] @default([])
+  ringSealOffice  String?
+  ringSealMark    String?
+  ringName        String?
+  ringDescription String?
+  // A tag slug the Meister's terminal demands before it registers a ring to
+  // this seat's access — the Merchant's License, the Baron's Scepter. Null:
+  // anybody at the terminal may grant it (db/lib/ringRegistry.js).
+  ringAuthorisedBy String?
 
   // Where characters with this role begin. startingLocationId is what
   // creation writes; startingZoneId is its zone, kept for the readers that

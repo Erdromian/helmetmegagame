@@ -19,6 +19,7 @@ const {
   RAILYARD_ROOM_SLUG,
 } = require("./train");
 const { ATM_ROOM_SLUGS, MEISTERS_OFFICE_ROOM_SLUG } = require("./depot");
+const { RING_TEXT } = require("./ringText");
 const { ACTIONS_OPEN_ID } = require("./turnsConsoleRow");
 const { ACTION_START_PREFIX } = require("./actionCatalog");
 const { BELL_ROOM_SLUG } = require("./bell");
@@ -195,7 +196,7 @@ const ROOM_AFFORDANCES = [
   // behind it.
   {
     id: "atm",
-    label: "ATM",
+    label: RING_TEXT.infoterminalButton,
     tone: PLAIN,
     prefix: ROOM_ATM_PREFIX,
     when: (room) => ATM_ROOM_SLUGS.has(room?.slug),

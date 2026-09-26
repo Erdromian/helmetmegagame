@@ -132,10 +132,12 @@ function stubGraph({ rolls }) {
         return rolls;
       },
     },
+    // No ring on anybody's finger (db/lib/roomAccess.js#wornRingTokens).
+    characterTag: { findFirst: async () => null },
   };
 }
 
-const CAVER = { id: "char1", zoneId: "depths", tags: [] };
+const CAVER ={ id: "char1", zoneId: "depths", tags: [] };
 
 test("a held caver may still walk the level, but not out of it", async () => {
   const rows = await resolveNeighbors(stubGraph({ rolls: 1 }), CAVER, "tunnel");
@@ -196,7 +198,7 @@ function stubWalk({ rolls }) {
     seen,
     locationLink: { findMany: async () => [way("tunnel", "gallery"), way("gallery", "shaft")] },
     location: { findMany: async ({ where }) => places.filter((l) => l.zoneId === where.zoneId) },
-    characterTag: { findMany: async () => [] },
+    characterTag: { findMany: async () => [], findFirst: async () => null },
     cavingRoll: {
       count: async ({ where }) => {
         seen.push(where);

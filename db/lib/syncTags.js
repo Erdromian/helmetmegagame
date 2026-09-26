@@ -219,34 +219,6 @@ function consumesIntoScalars(entries) {
 // docsPath() is null only when docs/ cannot be found at all — fatal here,
 // since a missing master would read as "everything was deleted" and prune
 // the lot. See db/lib/repoPaths.js.
-// A wax stamp's description, composed rather than authored, so the boilerplate
-// is written once and cannot drift across fifteen entries. Returns null for
-// everything that is not a stamp. See docs/systemdocs/PAPERWORK.md.
-//
-// Two sentences: what the thing is, then what is cut into it. An office stamp
-// names its seat; a courtier's private seal does not, because it belongs to
-// whoever is holding it.
-//
-// The Merchant's is the deliberate gap — `sealOffice` with no `sealMark`. His
-// mark bears his own initials and is written at character creation
-// (web/app/(app)/character/createActions.js), so until a Merchant exists the
-// description honestly says nobody has pressed it yet.
-// Whose mark is this — the file's, or the game's? A stamp that names an office
-// but carries no mark is one the game fills in at runtime. There is exactly one
-// today (the Merchant's) and the rule is written rather than the slug, so a
-// second one needs no code.
-function gameWrittenSeal(entry) {
-  return Boolean(entry.sealOffice?.trim()) && !entry.sealMark?.trim();
-}
-
-function sealDescription(entry) {
-  const mark = entry.sealMark?.trim();
-  const office = entry.sealOffice?.trim();
-  if (!mark && !office) return null;
-  const opening = office ? `The ${office}'s wax stamp.` : "A wax stamp for sealing letters.";
-  return mark ? `${opening} ${mark}` : `${opening} Nobody has pressed it yet.`;
-}
-
 function requireDocsPath(...segments) {
   const p = docsPath(...segments);
   if (!p) throw new Error(`Cannot find docs/${segments.join("/")} — see db/lib/repoPaths.js`);
@@ -710,19 +682,15 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" sells back for ${t.sellablePrice} ¢ but costs ${t.depotPrice} ¢ at the Depot — buying and selling it in a loop prints money`,
       );
     }
-    // A wax stamp is declared BY its mark: `sealMark` is the line the wax
-    // carries ("Three cups, stacked."), and the sync composes the whole
-    // description around it so the boilerplate is written once. Authoring a
-    // description beside one is therefore an error rather than an override —
-    // silently ignoring it would leave the file claiming something the game
-    // does not say. See docs/systemdocs/PAPERWORK.md.
-    if (t.sealMark !== undefined) {
-      if (typeof t.sealMark !== "string" || !t.sealMark.trim()) {
-        throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sealMark but it is empty — give the line the wax carries`);
-      }
-      if (t.description != null) {
+    // Wax comes from signet rings now (docs/systemdocs/RINGS.md): a seat's
+    // mark is `ring.seal_mark` in docs/roles.yaml, and a stamp is only ever
+    // minted from a ring by Forgery. An authored stamp would be a second,
+    // unforgeable source of an office's seal, so the old keys are refused
+    // rather than quietly ignored.
+    for (const key of ["sealMark", "sealOffice"]) {
+      if (t[key] !== undefined) {
         throw new Error(
-          `docs/tags.yaml: tag "${t.slug}" sets both sealMark and description — the sync composes a stamp's description from sealMark and sealOffice`,
+          `docs/tags.yaml: tag "${t.slug}" sets ${key} — wax seals come from signet rings now; put an office's mark on its seat's ring: in docs/roles.yaml`,
         );
       }
     }
@@ -751,17 +719,6 @@ async function syncTagsFromYaml(prisma) {
     // starts with.
     if (t.gameWritesText !== undefined && (t.gameWritesText !== true || t.bookText === undefined)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" sets gameWritesText — it takes true, and only on a book with a bookText`);
-    }
-
-    // `sealOffice` names the seat a stamp belongs to, and only changes the
-    // sentence the mark is set into. The Merchant's is the one stamp with an
-    // office and no mark: his bears his own initials, written at character
-    // creation, so an empty sealMark here is expected rather than a mistake.
-    if (t.sealOffice !== undefined && (typeof t.sealOffice !== "string" || !t.sealOffice.trim())) {
-      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sealOffice but it is empty`);
-    }
-    if (t.sealOffice !== undefined && t.description != null) {
-      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets both sealOffice and description`);
     }
 
     // expiresInto/removesInto: shared shape and rules in db/lib/tagShapes.js.
@@ -999,14 +956,7 @@ async function syncTagsFromYaml(prisma) {
     }
     const scalars = {
       name: entry.name,
-      // A stamp whose mark the GAME writes rather than the YAML — the
-      // Merchant's, which bears his own initials — keeps both of these fields
-      // out of `scalars` entirely, so the diff never compares them and the
-      // upsert never touches them. Without that, the next db:sync-tags would
-      // quietly rub his initials back off.
-      ...(gameWrittenSeal(entry)
-        ? {}
-        : { description: sealDescription(entry) ?? entry.description ?? null, sealMark: entry.sealMark?.trim() ?? null }),
+      description: entry.description ?? null,
       // An authored book. `description` above is already null for one (the
       // validation refuses both), and paperDescription composes what a given
       // reader sees out of these two columns instead.
@@ -1135,11 +1085,7 @@ async function syncTagsFromYaml(prisma) {
         data: {
           slug: entry.slug,
           ...scalars,
-          // A game-written stamp is left out of `scalars` so a re-sync cannot
-          // rub its mark off — but a brand-new row still needs SOMETHING to
-          // say, so the placeholder is seeded here and only here.
-          ...(gameWrittenSeal(entry) ? { description: sealDescription(entry) } : {}),
-          // Same for a book the game writes: the placeholder, once.
+          // A book the game writes gets its placeholder text here, once.
           ...(entry.gameWritesText ? { paperText: entry.bookText?.trim() ?? null } : {}),
         },
       });

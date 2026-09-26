@@ -13,7 +13,7 @@ const { applyPendingInvites } = require("./threadInvites");
 const { syncPartyMembership } = require("./partyChat");
 const { conversationsFor } = require("./conversations");
 const { notifyPresence } = require("./presenceNotify");
-const { syncCharacterRoomAccess } = require("./roomAccess");
+const { syncCharacterRoomAccess, withRingTokens } = require("./roomAccess");
 const { ambientLine } = require("./ambientLine");
 const { STEALTH_SLUG } = require("./constants");
 const { sceneLineAt } = require("./scene");
@@ -228,7 +228,7 @@ async function announceGateCrossing(prisma, character, fromLocationId, toLocatio
 async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
   if (!fromLocationId) return;
   const link = await linkBetween(prisma, fromLocationId, toLocation.id);
-  const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
+  const tagSlugs = await withRingTokens(prisma, character.id, character.tags);
   if (!shouldPromptKeyed(link, { tagSlugs })) return;
 
   const far = endpoints(link, toLocation.id).far;

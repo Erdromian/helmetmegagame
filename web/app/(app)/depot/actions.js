@@ -23,6 +23,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { TURNS_PATH } from "@/lib/routes";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
+import { accessSlugsOf } from "@lifeweb/db/lib/rings";
 import { UserError, acting, guarded } from "@/lib/actionResult";
 import { COMPANY, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
@@ -33,7 +34,6 @@ import { depotCredit as depotCreditVerb } from "@lifeweb/db/lib/verbs/place";
 import {
   DESTINATIONS,
   counterState,
-  openCounterAccount,
   bankMove,
   bankSend,
   dropIntoBox,
@@ -108,8 +108,9 @@ async function requireAccount() {
   return { ...gate, account: gate.character.bankAccount };
 }
 
+// Plus the worn ring's keycard or Silver Chip (docs/systemdocs/RINGS.md).
 function heldSlugSet(character) {
-  return new Set(character.tags.map((ct) => ct.tag.slug));
+  return accessSlugsOf(character.tags);
 }
 
 function revalidateAll() {
@@ -298,19 +299,6 @@ async function whoAmI() {
   return session;
 }
 
-async function depotOpenAccountImpl() {
-  const session = await whoAmI();
-  const openTurn = await getOpenTurn();
-  const result = lift(
-    await openCounterAccount(prisma, session.discordUserId, {
-      turnNumber: openTurn?.number ?? null,
-      turnId: openTurn?.id ?? null,
-    }),
-  );
-  revalidateAll();
-  return { fingerprint: result.fingerprint };
-}
-
 async function depotDropImpl(input) {
   const session = await whoAmI();
   const openTurn = await getOpenTurn();
@@ -338,9 +326,11 @@ async function depotSendImpl(input) {
   return { amount: result.amount, line: result.line, sfx: SFX.COIN };
 }
 
-async function depotCounterStateImpl() {
+// `pin` is what the viewer typed when the infoterminal asked for one
+// (db/lib/depotCounter.js#terminalAccount); absent, the account is withheld.
+async function depotCounterStateImpl(input) {
   const session = await whoAmI();
-  return lift(await counterState(prisma, session.discordUserId));
+  return lift(await counterState(prisma, session.discordUserId, { pin: input?.pin ?? null }));
 }
 
 async function depotTurretPanelImpl() {
@@ -367,9 +357,11 @@ async function depotSaleDestinationImpl({ saleId, destination: rawDestination })
   // Standing AT THE DEPOT, not merely at an ATM: counterState answers at the
   // Inn's machine too now (db/lib/depotCounter.js), and a staged sale is
   // counter business.
-  const { session } = await requireDepotStanding();
+  // The seller's own account, not whichever ring they happen to wear: a sale is
+  // theirs, so this reads their account row rather than the infoterminal's.
+  const { session, character } = await requireDepotStanding();
   const state = lift(await counterState(prisma, session.discordUserId));
-  if (!state.account) throw new UserError("You don't have an account yet.");
+  if (!character.bankAccount) throw new UserError("You don't have an account yet.");
 
   const destination = DESTINATIONS.has(rawDestination) ? rawDestination : "SELF";
   if (destination === "MERCHANT" && !state.canSellToMerchant) {
@@ -381,7 +373,7 @@ async function depotSaleDestinationImpl({ saleId, destination: rawDestination })
   const { count } = await prisma.depotSale.updateMany({
     where: {
       id: String(saleId ?? ""),
-      account: { fingerprint: state.account.fingerprint },
+      account: { fingerprint: character.bankAccount.fingerprint },
       settledAt: null,
     },
     data: { destination },
@@ -416,12 +408,8 @@ async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
 
 // ─── The exported surface. `guarded` turns a UserError into { ok: false }. ───
 
-export async function depotCounterState() {
-  return guarded(() => depotCounterStateImpl());
-}
-
-export async function depotOpenAccount() {
-  return acting(() => depotOpenAccountImpl());
+export async function depotCounterState(input) {
+  return guarded(() => depotCounterStateImpl(input));
 }
 
 export async function depotOrder(input) {

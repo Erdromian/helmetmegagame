@@ -7,6 +7,7 @@ const { writableTags, sealableTags, writePaper, sealLetter, readHeldPaper } = re
 const { isPaper, WRITE_MAX, BOOK_MAX, TITLE_MAX, BLANK_BOOK_SLUG, PAPER_SLUG } = require("@lifeweb/db/lib/paper");
 const { handleBirdReplyOpen } = require("../birdReply");
 const { ack, respond } = require("../respond");
+const { RING_TEXT } = require("@lifeweb/db/lib/ringText");
 const { prisma, done, pickFrom, ackStep, picked, actorOrRefuse, loadActor, finish, modalId } = require("./context");
 
 // Discord caps one modal box at 4000 characters; a book holds more on the web.
@@ -118,10 +119,10 @@ const seal = {
       const character = await actorOrRefuse(interaction);
       if (!character) return;
       return pickFrom(interaction, "seal", "go", {
-        prompt: "With which stamp?",
+        prompt: RING_TEXT.sealPickBot,
         payload: picked(interaction).value,
         options: sealableTags(character).stamps.map((ct) => ({ label: ct.tag.name, value: ct.tagId })),
-        empty: "You have no wax stamp.",
+        empty: RING_TEXT.sealNone,
       });
     },
     async go(interaction, tagId) {

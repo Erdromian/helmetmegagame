@@ -16,6 +16,7 @@
 // `prisma` as a parameter and stays off the @lifeweb/db barrel.
 
 const { hasAttribute, GODFLESH_ATTRIBUTE, SOILERY_ATTRIBUTE } = require("./locationAttributes");
+const { accessSlugsOf } = require("./rings");
 const { extractToolFor, extractedThisTurn } = require("./godflesh");
 const { farmRefusalFor } = require("./soilery");
 const { breakInRefusalFor } = require("./arelitz");
@@ -305,7 +306,8 @@ async function paperFlags(prisma, character, { openTurn, canReadNow }) {
 async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentAction: givenAction } = {}) {
   const tags = character.tags ?? [];
   const heldIds = tags.map((ct) => ct.tagId);
-  const heldSlugs = new Set(tags.map((ct) => ct.tag?.slug).filter(Boolean));
+  // Held slugs plus the worn ring's doors, so a ring carries the Censor's warrant badge (docs/systemdocs/RINGS.md).
+  const heldSlugs = accessSlugsOf(tags);
   const has = (slug) => heldSlugs.has(slug);
 
   const openTurn =

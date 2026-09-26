@@ -1791,7 +1791,7 @@ a 48px head and a one-line composer:
      only while it is open.
 
      Above those, the item's **own** verbs: Play Instrument on a lute, Detonate
-     on a remote, Seal letter on a wax stamp. The list linking an item to its
+     on a remote, Seal letter on an office's signet ring or a wax seal. The list linking an item to its
      verb is `db/lib/itemVerbs.js`, one line per link, keyed on a slug, a
      prefix/suffix or a tag flag. It is resolved server-side in
      `thingRows.js#thingVerbs` (`row.itemVerbs`), and each mode is drawn off
