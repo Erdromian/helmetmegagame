@@ -11724,7 +11724,7 @@ tags:
 
   # A mount, not loot: it sits in FAST_TRAVEL_SLUGS beside the Horse
   # (db/lib/mounts.js), so equipping it buys the extra
-  # crossing, parks it at any indoors door, refuses to share a hand with the
+  # crossing, is left behind on a way too narrow for it, refuses to share a hand with the
   # boat, and turns a Motion Sick rider's stomach — all of that falls out of
   # the one set membership. It seats 2 like a horse and is checked BEFORE the
   # horse in fastTravelCapacity, so the Cart's upgrade to 6 can never reach it.

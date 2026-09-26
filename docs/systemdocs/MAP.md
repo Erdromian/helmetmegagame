@@ -126,11 +126,9 @@ Marshes Location except the factory, the farms and the marshes village), and
 Inn, the Keep and the Sanctuary.
 
 There used to be a third, `wheels`, an authored exception letting an indoors
-Location admit a cart anyway. It is gone. `indoors` only parks a mount
-**underground** (`zone.kind === "CAVE_LEVEL"`) — a surface roof no longer takes
-the reins away at all, which left the attribute doing real work on exactly one
-Location, and that one was the cave mouth's cart gate. The gate went, so the
-exception went with it (`CARRY.md` §3).
+Location admit a cart anyway. It is gone, and so is the rule it excepted:
+`indoors` no longer parks a mount anywhere, underground included (`CARRY.md`
+§3). A roof is a roof, for the mood dial and for building, and nothing more.
 
 Every key must exist in the registry in `db/lib/locationAttributes.js`, which
 is the only module that reads the column. An unknown key is reported as a sync
@@ -303,14 +301,13 @@ wipe, not as part of importing or mirroring.
 
 ### 2c. On-foot ways
 
-`onFoot` is the edge-level sibling of `Location.indoors`: same effect
-(`db/lib/indoors.js#dismountForNarrowWay`, right beside `parkMountsIndoors`),
-earlier moment. Both keep a horse and a cart out of somewhere they do not
-fit; `onFoot` used to refuse the crossing outright rather than dismount for
+`onFoot` is the one thing left that keeps a mount out
+(`db/lib/indoors.js#dismountForNarrowWay`). An indoors roof used to do it too,
+at the door on arrival; it no longer does anywhere (`CARRY.md` §3). `onFoot` used to refuse the crossing outright rather than dismount for
 it, on purpose — see the timing note below for why that mattered, and why
 dismounting works just as well now.
 
-**Timing is the whole reason it isn't a plain reuse of `parkMountsIndoors`.**
+**Timing is the whole reason it isn't done on arrival, the way the roof once was.**
 An equipped mount buys one extra free zone-crossing per turn (`freeZoneMoves`,
 `db/lib/locationTravel.js`), so dismounting only on arrival — after that
 crossing's own cost was already computed — would let a rider bank the bonus
@@ -583,8 +580,8 @@ the summed travel number each ride is worth `FAR_CROSSING_COST` so every
 "can I afford it" gate on the surfaces says yes while a ride is left. It
 refreshes every turn rather than once a day, so on a short turn length an
 arelitz carries you several times a day. Mounts only count while
-**equipped**, and they are unequipped for you at the door of any indoors
-Location (`CARRY.md` §3).
+**equipped**, indoors or out, and only a way too narrow for them unequips
+them (§2c, `CARRY.md` §3).
 
 **The rides live on the mount, not on the rider** (`ARELITZ.md` §2a). Every
 ride charged to a mount swaps its tag one rung down a ladder inside the
@@ -608,7 +605,7 @@ exactly that. The rung closes the leak the honest way: a handoff after a ride
 hands over a **ridden** animal, and one from the stable is fresh.
 
 **The mount's ride is spent before the base travel.** It stays with the
-animal, so stabling it at an indoors door later gives nothing back and takes
+animal, so unequipping it later gives nothing back and takes
 nothing back — the base pool was never touched. The narrow-way case is
 untouched, because `dismountForNarrowWay` runs *inside* the transaction
 before any of this arithmetic — a rider who cannot get their animal through
@@ -973,7 +970,7 @@ those are gated on `crossedZone`.
 understand before touching the walk.** An arrival is two halves, split at the
 `DISCORD_TOKEN` guard that was always in `applyLocationMoveSideEffects`:
 
-- **`applyArrivalFacts`** is the game — the fog, a parked mount, a hand on a
+- **`applyArrivalFacts`** is the game — the fog, a narrow-way dismount, a hand on a
   shoulder, a turret's kill. Awaited, **per hop, in order**. The
   next hop does not start until a turret has had its say, which is what makes
   the paragraph above this one true.

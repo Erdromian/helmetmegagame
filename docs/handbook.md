@@ -366,7 +366,7 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 
 You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand.
 
-**Carts and arelitz have to be equipped to do anything**, and they take up an equipment slot like anything else. You can't bring either one indoors — into the Cathedral, the Sanctuary, the Inn, the Keep, the Undercroft, the Factory, the Mountain, or anywhere underground — so they're left at the door for you when you walk in, and you take them up again on the way out.
+**Carts and arelitz have to be equipped to do anything**, and they take up an equipment slot like anything else. You can ride and push them anywhere, indoors and underground included. The one thing that stops them is a way too narrow for them, where you go on foot: they're unequipped and stay with you, and you can put them back on from your equipment. The Travel list marks those ways "on foot" before you pick one.
 
 **Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 10 slots for equippable tags. Click a tag to equip or unequip it instantly.
 

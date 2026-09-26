@@ -3,7 +3,6 @@
 import { useSearchParams } from "next/navigation";
 import { MOTION_SICKNESS_SLUG, TRUMPET_SLUG } from "@lifeweb/db/lib/constants";
 import { BASTARD_TAG_SLUG, DEEP_BEAST_HORN_SLUG } from "@lifeweb/db/lib/lateJoin";
-import { parksMounts } from "@lifeweb/db/lib/locationAttributes";
 // Submodule path, not the @lifeweb/db barrel — this is a client component and
 // the barrel drags PrismaClient into the browser bundle (ARCHITECTURE.md §2).
 import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
@@ -239,11 +238,8 @@ export default function CharacterSheet({
   const isBastard = character.tags?.some(
     (ct) => (ct?.tag?.slug ?? ct?.slug) === BASTARD_TAG_SLUG,
   );
-  // The two facts the rig needs beyond the slot rule, because equipActions.js
-  // refuses on them too: a cart is not set up indoors — bar the places built
-  // to be driven into (locationAttributes.js#parksMounts) — and a queasy stomach
-  // rules out riding anything at all.
-  const indoors = parksMounts(character.location);
+  // The one fact the rig needs beyond the slot rule, because equipActions.js
+  // refuses on it too: a queasy stomach rules out riding anything at all.
   const motionSick = Boolean(
     character.tags?.some((ct) => (ct?.tag?.slug ?? ct?.slug) === MOTION_SICKNESS_SLUG),
   );
@@ -449,7 +445,6 @@ export default function CharacterSheet({
             <EquipBoard
               characterTags={character.tags}
               isSelf={isSelf}
-              indoors={indoors}
               motionSick={motionSick}
               // The same rooms the Transfer dialog offers, so the board's empty
               // cells can hold out what a stash here is keeping. One list, one

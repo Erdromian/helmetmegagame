@@ -1,8 +1,8 @@
 // Mount tags: buy extra free zone crossings (db/lib/locationTravel.js) and set
 // mount seats. Lives in db/ so both faces read one set; web/lib/tagRequests.js
 // re-exports for page gates. See DEPOT.md §3, CARRY.md §2 and ARELITZ.md.
-// A mount only works while EQUIPPED (MOUNT slot, db/lib/equipSlots.js) and is
-// unequipped at any indoors door — helpers here take ACTIVE slugs
+// A mount only works while EQUIPPED (MOUNT slot, db/lib/equipSlots.js), indoors
+// or out, and is unequipped only on a way too narrow for it — helpers here take ACTIVE slugs
 // (`equippedSlugs` below), never a bare held-slug set.
 //
 // ZERO REQUIRES, EVER. web/app/components/EquipBoard.js is a client component
@@ -215,10 +215,10 @@ function isMounted(activeSlugs) {
   return activeMountSlug(activeSlugs) !== null;
 }
 
-// STOWABLE_SLUGS an indoors Location parks on arrival (db/lib/indoors.js),
-// checked before the crossing so it refuses instead of spending the free
-// move first (MAP.md §2c). Wider than isMounted: a bare Cart buys no free
-// move but still won't fit where a horse can't.
+// STOWABLE_SLUGS a narrow way dismounts (db/lib/indoors.js), checked before
+// the crossing so it is said instead of spending the free move first (MAP.md
+// §2c). Wider than isMounted: a bare Cart buys no free move but still won't
+// fit where a horse can't.
 function blocksOnFoot(activeSlugs) {
   for (const slug of STOWABLE_SLUGS) if (activeSlugs.has(slug)) return true;
   return false;

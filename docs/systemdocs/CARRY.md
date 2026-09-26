@@ -209,8 +209,8 @@ crossing per *day*. Now:
   rung down — Motorcycle, then Motorcycle (1 ride left), then Motorcycle (Spent) — so
   whoever holds it can read what is left, and the turn pass rests it. It is
   **spent first**: the mount's ride goes before the base pool and stays with
-  the animal, so parking the arelitz at an indoors door later in the turn
-  cannot take back travel you never spent. **Only while your escort party
+  the animal, so unequipping the arelitz later in the turn (a narrow way, or
+  by hand) cannot take back travel you never spent. **Only while your escort party
   fits its seats**: go over `fastTravelCapacity` and the mount buys nothing
   this crossing (`MAP.md` §3a). On foot there are no seats and nothing to
   lose, so walking any number of people is free.
@@ -304,58 +304,24 @@ crossing doesn't get a say: `db/lib/locationTravel.js#vomitOnTheRide`
 grants them Vomiting (and DMs them) the moment a mounted mover
 crosses a zone with them in tow.
 
-A **connection** can keep a mount out too — `on_foot: true`, which dismounts a
-mounted character crossing it rather than parking them on arrival (`MAP.md`
-§2c). The two are complements: `indoors` covers a place, `on_foot` covers a
-way in — and the timing has to differ: `on_foot` dismounts *inside* the
-crossing's own transaction, before the free-move accounting reads it, or a
-rider could bank the mount's bonus crossing on a ride that never survives the
-threshold (`MAP.md` §2c).
+**A roof never takes the reins.** A mount and a cart ride into any Location,
+`indoors: true` or not, underground included (Bascinet's call, 2026-09-27).
+Surface roofs stopped parking mounts first; the Caves and the Depths, the last
+places that did, followed. `parksMounts`, `parkMountsIndoors`, the equip
+refusal and the `· indoors` marks on the travel pickers all went with it. The
+readers that ask about the **roof** — `examineVision.js`, `paper.js`,
+`mood.js#placeClassOf`, `structures.js` — keep reading `indoors` as they
+always did, and Examine still says **Indoors** or **Outdoors**.
 
-A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
-Sanctuary, the Inn, the Keep, the Undercroft — is a place you walk into. **On
-the surface that roof no longer costs you the reins**: an arelitz and a cart
-ride into a chapel same as the square outside it. **Underground it still
-does** — every Location in the Caves and the Depths is authored
-`indoors: true`, since
-there is no open sky down there, and that roof is the one that still parks a
-mount at the door. On arrival somewhere that counts,
-`db/lib/indoors.js#parkMountsIndoors` unequips them and DMs the character;
-`equipOne` refuses to put them back on while they stand there. The anchor
-message says so in its own `-#` line, written by `syncZones` and hashed with
-the rest of the body, so it appears once and never again.
-
-There is no return leg. A parked mount stays stowed until the player puts it
-back on from the equip board. (An **Automatically ride my mount** switch used
-to do that on arrival; it was removed, and `Character.autoMount` is an orphan
-column now.)
-
-**There is no exception any more.** `indoors` was answering two questions with
-one column — is there a roof over this place (the mood dial, whether a palisade
-can be raised in it) and do wheels stay outside — and a warehouse is a yes to
-the first and a no to the second. The `wheels` attribute existed to split them,
-and three places wore it: the **Godard Factory**, the **Depot** and **Customs**.
-
-The split that survived is a different one. A surface roof stopped parking
-anything, so `parksMounts` was already letting the Factory's and the Depot's
-wagons through before the attribute was read — on those two it only ever
-shortened the Examine line. That left it load-bearing on exactly one Location,
-the cave mouth, which was a gate built to be driven through. When that gate went
-so did the attribute, and the Entrance parks a mount at the door like the rest
-of the Caves.
-
-Every reader that asks "may a mount be out here" goes through
-`locationAttributes.js#parksMounts(location)` rather than the column — the
-arrival parking, the equip refusal, the sheet's equip board, and the `·
-indoors` marks on the /map and /chat travel pickers. Reading the column
-directly in a new caller is how the Factory would come to admit a wagon on one
-surface and refuse it on another. The readers that ask about the **roof** —
-`examineVision.js`, `paper.js`, `mood.js#placeClassOf`, `structures.js` — keep
-reading `indoors` straight, which is the entire point of the split.
-
-The parking happens **before** the settle, so the reduced cap is what the
-settle sees, and Overburdened goes on in the same pass. Nothing is dropped for
-it — see §4.
+The one thing that still keeps a mount out is a **connection** marked
+`on_foot: true` in `docs/zones.yaml` — a way too tight, steep or enclosed for
+it (`MAP.md` §2c). Crossing one dismounts rather than refusing: the mount and
+the cart are unequipped and stay in the pack, and the player puts them back on
+from the equip board (an **Automatically ride my mount** switch used to do
+that; it was removed, and `Character.autoMount` is an orphan column now). The
+dismount runs *inside* the crossing's own transaction, before the free-move
+accounting reads it, or a rider could bank the mount's ride on a crossing it
+never survives. Nothing is dropped for it — see §4.
 
 ## 4. Settlement: pull-based, post-commit
 
@@ -415,9 +381,9 @@ Overburdened and no more.
 at the last settle, and the shed fires only when
 the load has **grown** past the ceiling — never when the cap fell beneath a
 load that did not move. Without that comparison the settle cannot distinguish
-"you picked something up" from "you put your cart down", and since §3 parks a
-cart at every indoors door, the second reading would empty it onto the chapel
-tiles every time you walked in. (The old watermark tracked the *multiplier*,
+"you picked something up" from "you put your cart down", and since a narrow
+way unequips a cart (§3), the second reading would empty it onto the floor
+every time somebody climbed a stair. (The old watermark tracked the *multiplier*,
 for the narrower job of noticing a Cart had left; this one tracks the load,
 because the load is the thing the rule is actually about.)
 
@@ -721,7 +687,7 @@ it out for a while, which made every stash in the game a one-way drop.
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
 | Free travel, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
 | Mounts: what counts while equipped | `db/lib/mounts.js` |
-| Parking at an indoors door | `db/lib/indoors.js`, `db/lib/locationMove.js` |
+| Dismounting on a narrow way | `db/lib/indoors.js`, `db/lib/locationTravel.js`, `db/lib/locationMove.js` |
 | Storage button | `db/lib/roomStarterRow.js`, `db/lib/syncZones.js`, `bot/src/lib/roomStorage.js` |
 | Caps on `/gm/dev` | `web/app/(desk)/gm/dev/page.js`, `web/app/(app)/gm/dev/actions.js` |
 | Constants | `OVERBURDENED_SLUG` in `db/lib/constants.js` |

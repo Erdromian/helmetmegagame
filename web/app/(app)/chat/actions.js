@@ -43,7 +43,7 @@ import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { searchRoom as searchRoomInDb } from "@lifeweb/db/lib/roomSearch";
 import { countHiddenStacks, hiddenCountLine } from "@lifeweb/db/lib/roomStash";
 import { announceInRoom } from "@lifeweb/db/lib/roomAnnounce";
-import { parksMounts, hasAttribute } from "@lifeweb/db/lib/locationAttributes";
+import { hasAttribute } from "@lifeweb/db/lib/locationAttributes";
 import { toggleGate, holdKeyedOpen, GATE_CHARACTER_SELECT } from "@lifeweb/db/lib/gates";
 import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/lib/moves";
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
@@ -534,8 +534,7 @@ export async function loadTravel() {
     travelLine: travelSentence(freeMovesBreakdown(character, config, openTurn, party.length)),
     // Whether there's anything to dismount at all — the node list only
     // marks a specific way or a specific destination as a consequence when
-    // this is true, since neither "on foot" nor "indoors" means anything to
-    // somebody already walking.
+    // this is true, since "on foot" means nothing to somebody already walking.
     mounted: blocksOnFoot(equippedSlugs(character.tags ?? [])),
     // The Move already spent this turn: Go leaves the strip and the push on
     // is the only way across a zone with no travel left (MAP.md §3).
@@ -556,7 +555,6 @@ export async function loadTravel() {
         // A tight squeeze somewhere along the road (MAP.md §2a) — said to
         // everybody, so a leader knows their Giant cannot finish this walk.
         tightSqueeze: Boolean(row.tightSqueeze),
-        indoors: parksMounts(row.location),
       })),
     options: options.map((row) => {
       // Which way the push on's die leans for this character, said before
@@ -595,9 +593,6 @@ export async function loadTravel() {
         canExert: row.crossesZone && exertWhy === null,
         exertWhy,
         exertNote,
-        // A Location a mount gets parked at on arrival (db/lib/indoors.js) —
-        // which is not every Location with a roof over it.
-        indoors: parksMounts(row.location),
         // A way too narrow to ride or push through — crossing it dismounts
         // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
         dismounts: Boolean(row.dismounts),
@@ -840,7 +835,7 @@ export async function travelTo({ locationId, exert = false } = {}) {
     tell.push(() => sendDm(left, `*${leader} went on without you.*`));
   }
 
-  // The arrival's GAME half, AWAITED: the fog, a parked mount, a hand on a
+  // The arrival's GAME half, AWAITED: the fog, a narrow-way dismount, a hand on a
   // shoulder, a turret's kill. MAP.md §3 promises the character is standing at
   // the destination by the time this call returns, and the sentence built at
   // the bottom of this function reads the result of it.

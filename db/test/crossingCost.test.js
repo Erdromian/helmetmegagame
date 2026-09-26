@@ -72,7 +72,7 @@ test("a ride is never counted twice: once off the rider's counters and again off
   // An arelitz has only the one ride, so after it the rider is back to the base.
   const arelitzRider = { tags: [{ equipped: true, tag: { slug: "arelitz-ridden-1", name: "Arelitz (Spent)" } }], ...spent(1, 1) };
   assert.equal(freeMovesLeft(arelitzRider, CONFIG, TURN), 1);
-  // Parked indoors afterwards: the base travel is untouched.
+  // Left at a narrow way afterwards: the base travel is untouched.
   assert.equal(freeMovesLeft({ tags: [], ...spent(1, 1) }, CONFIG, TURN), 1);
   // And a fresh arelitz picked up from the stable this turn rides at once —
   // there is no "changed hands" gate any more, the rung is the whole truth.

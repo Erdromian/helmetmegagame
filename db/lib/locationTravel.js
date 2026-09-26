@@ -632,7 +632,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
           outcome.exert = await pushOn(tx, character, openTurn, targetLocation);
           outcome.freeMovesLeft = leftAfter;
         } else if (left >= cost) {
-          // The mount's ride goes first — and the ride is spent ON THE MOUNT, in this same transaction, after the claim has won its race: the tag goes a rung down (mountRides.js), so the next read of the allowance sees one ride fewer without any counter having to remember it. Parking the arelitz indoors afterwards gives back nothing and takes back nothing: the rung stays where the ride left it, and the base travel was never touched.
+          // The mount's ride goes first — and the ride is spent ON THE MOUNT, in this same transaction, after the claim has won its race: the tag goes a rung down (mountRides.js), so the next read of the allowance sees one ride fewer without any counter having to remember it. Unequipping the arelitz afterwards (a narrow way, or by hand) gives back nothing and takes back nothing: the rung stays where the ride left it, and the base travel was never touched.
           const { left: leftAfter, rode, ...claim } = crossingClaim(allowance, character, openTurn, cost);
           const claimed = await tx.character.updateMany({ where: claimWhere, data: claim });
           if (claimed.count === 0) throw new MoveRefused("You've already moved. Try again in a moment.");

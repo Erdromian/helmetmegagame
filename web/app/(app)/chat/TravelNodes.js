@@ -18,8 +18,8 @@ import useNarrow from "./useNarrow";
 // TRAVEL: every way out of here as a node you can see. Loaded on mount and
 // after a move, never with the page — an exit's state moves under a player
 // standing still. Cost line follows MAP.md §3; travelFoot()
-// (web/lib/travelCost.js, shared with /map) marks a dismount as "· on foot"
-// or "· indoors". Nothing that refuses is hidden — a shut/locked way draws
+// (web/lib/travelCost.js, shared with /map) marks a dismount as "· on foot".
+// Nothing that refuses is hidden — a shut/locked way draws
 // dimmed with the reason, so a player can go find the winch.
 
 // The whole of it, for the hover — the node clamps its name and prints no

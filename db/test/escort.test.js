@@ -265,7 +265,7 @@ test("ESCORT_SELECT stays a superset of what performLocationMove needs", () => {
 // THE MOUNT: each ride takes its tag a rung down (db/lib/mounts.js), so the
 // bonus pool is read off the rung and Character.zoneMovesBonusUsed only
 // serves to tell the base pool apart. Without that split, a rider who stables
-// their arelitz at an indoors door lost travel they had never spent. CONFIG's
+// their arelitz at a narrow way lost travel they had never spent. CONFIG's
 // base is 1, the shipped default; each ride is a far crossing's worth (1
 // travel) in the summed number.
 const TURN = { id: "t1" };
@@ -277,10 +277,10 @@ const after = (character, spent, bonusSpent, partySize = 0) =>
     partySize,
   );
 
-test("a rider who parks their arelitz indoors keeps the travel they never spent", () => {
+test("a rider who leaves their arelitz at a narrow way keeps the travel they never spent", () => {
   // Two before (1 + its one ride), a far crossing (1) charged to the arelitz,
-  // whose tag is now spent; then the arelitz is unequipped at the door — the
-  // base travel is still there.
+  // whose tag is now spent; then the arelitz is left behind — the base travel
+  // is still there.
   assert.equal(freeMovesLeft(held("arelitz"), CONFIG, TURN), 2);
   assert.equal(after(held("arelitz-ridden-1"), 1, 1), 1);
   assert.equal(after(held(), 1, 1), 1);

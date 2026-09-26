@@ -49,11 +49,9 @@ export function travelFoot(option, freeLeft, mounted, moved = false, breakdown =
         : option.canExert
           ? "exertion"
           : "next turn";
-  // Only worth saying when there's something to lose — dismounts wins over
-  // indoors when a way is both, since either one ends the same way and saying
-  // it twice would be noise.
+  // Only worth saying when there's something to lose: a way too narrow to
+  // ride. No Location takes a mount at its door any more (CARRY.md §3).
   if (option.dismounts) return `${cost} · on foot`;
-  if (mounted && option.indoors) return `${cost} · indoors`;
   return cost;
 }
 
@@ -172,10 +170,8 @@ function listOf(names) {
 // travelFoot is here: /chat and /map both say it, and two copies would drift.
 export function walkFoot(route, mounted) {
   const far = route.hops === 1 ? "1 away" : `${route.hops} away`;
-  // Same precedence travelFoot uses — a dismount is the one consequence worth
-  // the space, and saying "indoors" beside it would be the same news twice.
+  // Same as travelFoot: a dismount is the one consequence worth the space.
   if (route.dismounts) return `${far} · on foot`;
-  if (mounted && route.indoors) return `${far} · indoors`;
   return far;
 }
 

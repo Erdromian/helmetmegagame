@@ -99,7 +99,6 @@ function routeOf(node) {
     hops: node.walkHops ?? 0,
     through: node.walkThrough ?? [],
     dismounts: Boolean(node.walkDismounts),
-    indoors: Boolean(node.indoors),
   };
 }
 
