@@ -45,6 +45,10 @@ export default function RequestActionsProvider({
   // False on someone else's sheet — hooks still run unconditionally, but no
   // context/dialog is handed down, so the tag rail's rows stay read-only.
   enabled = true,
+  // A dialog to open on arrival — /character?act=<mode>, the link the Discord
+  // bot answers a verb it has not built yet with (bot/src/lib/verbs/context.js).
+  // Only a DIALOGS mode: an INSTANT verb would run the moment the page loaded.
+  initialMode = null,
   selfId,
   selfName,
   catalog = [],
@@ -274,7 +278,7 @@ export default function RequestActionsProvider({
   hideoutStock = null,
   thanatiWares = [],
 }) {
-  const [mode, setMode] = useState(null);
+  const [mode, setMode] = useState(() => (initialMode && DIALOGS[initialMode] ? initialMode : null));
   const confirm = useConfirm();
   const notice = useNotice();
   const [, startTransition] = useTransition();
@@ -691,13 +695,24 @@ export default function RequestActionsProvider({
 
   // The dialog for the open mode (components/actions/index.js).
   const Dialog = mode ? (DIALOGS[mode] ?? null) : null;
+  // Closing takes ?act off the address too, so a reload or the snapshot's
+  // refresh does not open the same dialog again. In the handler, never an
+  // effect — the repo's react-hooks rules.
+  const closeDialog = useCallback(() => {
+    setMode(null);
+    if (typeof window !== "undefined" && new URLSearchParams(window.location.search).has("act")) {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("act");
+      window.history.replaceState(window.history.state, "", url);
+    }
+  }, []);
   // Closes the dialog and says what it did, if it did anything.
   const done = useCallback(
     (line) => {
-      setMode(null);
+      closeDialog();
       if (line) notice(line);
     },
-    [notice],
+    [notice, closeDialog],
   );
 
   return (
@@ -712,7 +727,7 @@ export default function RequestActionsProvider({
         // to avoid (this file imports every dialog through
         // components/actions/index.js).
         <ActionPoolsContext.Provider value={{ ...bag, open }}>
-          <Dialog mode={mode} presets={presets ?? {}} onDone={done} onClose={() => setMode(null)} />
+          <Dialog mode={mode} presets={presets ?? {}} onDone={done} onClose={closeDialog} />
         </ActionPoolsContext.Provider>
       )}
     </RequestActionsContext.Provider>

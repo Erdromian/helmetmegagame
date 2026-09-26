@@ -1,5 +1,6 @@
 const { SlashCommandBuilder, InteractionContextType } = require("discord.js");
 const { MESSAGE_LIMIT } = require("@lifeweb/db/lib/sayLimits");
+const { commandGroups } = require("@lifeweb/db/lib/actionCatalog");
 
 // Slash command definitions, registered GLOBALLY (see registerCommands) so
 // they are usable in the bot's DMs as well as in the guild — a guild command
@@ -14,6 +15,28 @@ const { MESSAGE_LIMIT } = require("@lifeweb/db/lib/sayLimits");
 // these would put commands in the DM picker that can only ever refuse.
 const GUILD_ONLY = [InteractionContextType.Guild];
 const ANYWHERE = [InteractionContextType.Guild, InteractionContextType.BotDM];
+
+// The line under each family's name in Discord's picker.
+const GROUP_DESCRIPTIONS = {
+  work: "A day's work at a place that offers it.",
+  item: "Do something with a thing you're carrying.",
+  perform: "Play a song on your instrument, or stop.",
+  sound: "Sound something the whole town can hear.",
+  lesson: "Learn a skill from someone, or teach one.",
+  captive: "What you can do to somebody tied up or helpless.",
+  take: "Take from a room or from a person.",
+  intercept: "Lie in wait for somebody, or stop.",
+  escort: "Take somebody along with you, or put them down.",
+  medic: "Heal somebody.",
+  collar: "The bomb collar.",
+  body: "Deal with the dead.",
+  nuke: "The nuclear datacard and the pointer devices.",
+  thanati: "The cult's own.",
+  warrant: "The Cerberon's warrant book.",
+  bishop: "The Bishop's excommunications.",
+  paper: "Read, write, seal and answer letters.",
+  money: "Money at the Depot.",
+};
 
 const commandDefinitions = [
   // setMaxLength on both message options below. A Discord string option
@@ -79,8 +102,8 @@ const commandDefinitions = [
 
   // --- player commands, usable in a DM ---------------------------------
 
-  // The twins of the three buttons on the #turns console
-  // (bot/src/lib/turnsConsole.js). Each opens the same flow the button does.
+  // The twins of the Move and Travel buttons on the #turns console
+  // (db/lib/turnsConsoleRow.js). Each opens the same flow the button does.
   new SlashCommandBuilder()
     .setName("move")
     .setDescription("Lock in your Move for this turn.")
@@ -163,7 +186,45 @@ const commandDefinitions = [
     .setName("roll")
     .setDescription("Roll a die in this channel, for everyone to see.")
     .setContexts(GUILD_ONLY),
+  // The Actions menu: every verb this character can use right now, and
+  // nothing else (bot/src/lib/verbs/index.js). The same menu as the Actions
+  // button on every Location anchor and the #turns console.
+  new SlashCommandBuilder()
+    .setName("actions")
+    .setDescription("See everything you can do right now, and do it.")
+    .setContexts(ANYWHERE),
+  // A player's own two, not a character's (bot/src/lib/verbs/meta.js).
+  new SlashCommandBuilder()
+    .setName("feedback")
+    .setDescription("Tell the GMs about something broken, or something that could be better.")
+    .setContexts(ANYWHERE),
+  new SlashCommandBuilder()
+    .setName("lobby")
+    .setDescription("Ready up for a seat in the next game.")
+    .addSubcommand((sub) => sub.setName("ready").setDescription("Be in the roll for a seat when the game starts."))
+    .addSubcommand((sub) => sub.setName("unready").setDescription("Take yourself out of the roll."))
+    .setContexts(ANYWHERE),
+  ...verbCommands(),
 ].map((builder) => builder.toJSON());
+
+// Every player verb's typed twin (docs/systemdocs/COMMANDS.md §2e), built from
+// db/lib/actionCatalog.js so a verb added there gets its command here without
+// a second list to keep in step. A family is one command and each verb its
+// subcommand — /collar apply, /nuke arm — which keeps the bot well under
+// Discord's 100-command cap. None takes options: each opens the verb's own
+// picker or modal, the same flow the Actions menu starts.
+function verbCommands() {
+  return commandGroups().map(({ command, actions }) => {
+    const builder = new SlashCommandBuilder().setName(command).setContexts(ANYWHERE);
+    if (actions.length === 1 && actions[0].sub == null) return builder.setDescription(actions[0].description);
+    builder.setDescription(GROUP_DESCRIPTIONS[command] ?? actions.map((a) => a.label).join(", ").slice(0, 100));
+    for (const action of actions) {
+      builder.addSubcommand((sub) => sub.setName(action.sub).setDescription(action.description));
+    }
+    return builder;
+  });
+}
+
 
 // Global, not per-guild: a guild command is invisible in DMs no matter what
 // contexts it declares. `set` is a full replace, so removing a command from
@@ -187,4 +248,5 @@ async function registerCommands(client) {
 
 module.exports = {
   registerCommands,
+  commandDefinitions,
 };

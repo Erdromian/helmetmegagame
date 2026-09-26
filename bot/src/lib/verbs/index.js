@@ -16,10 +16,12 @@
 // sheet reads. A typed command for a verb this character can't use says why,
 // because Discord shows every command to everybody and cannot hide one per
 // player; the Actions menu simply leaves it out.
-const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require("discord.js");
-const { SECTIONS, ACTIONS, actionFor, actionForCommand, actionState } = require("@lifeweb/db/lib/actionCatalog");
+const { ActionRowBuilder, StringSelectMenuBuilder } = require("discord.js");
+const { ACTION_START_PREFIX, SECTIONS, ACTIONS, actionFor, actionForCommand, actionState } = require("@lifeweb/db/lib/actionCatalog");
 const { actionPoolsFor } = require("@lifeweb/db/lib/actionPools");
 const { WEB_ORIGIN } = require("@lifeweb/db/lib/constants");
+const { ACTIONS_OPEN_ID } = require("@lifeweb/db/lib/turnsConsoleRow");
+const { workVerbByKey } = require("@lifeweb/db/lib/gathering");
 const { ack, respond } = require("../respond");
 const {
   OPTION_LIMIT,
@@ -48,9 +50,10 @@ const FAMILIES = [
 const VERBS = Object.assign({}, ...FAMILIES);
 
 // The Actions button's own custom id (Location anchors, the #turns console),
-// and the menu's one select per section.
-const ACTIONS_OPEN_ID = "act:open";
+// the menu's one select per section, and a button that starts one verb
+// outright — the Depot's Send money, the Meister's Sell tax (db/lib/placeAffordances.js).
 const MENU_PREFIX = "act:menu:";
+const START_PREFIX = ACTION_START_PREFIX;
 
 // Why a verb isn't offered, as a player reads it. Hidden verbs get no reason
 // of their own on purpose: the catalog only writes sentences for greys.
@@ -145,7 +148,7 @@ function menuPayload(pools, { placeName = null } = {}) {
             .setPlaceholder(`${section.label}${part}`)
             .addOptions(
               chunk.map((a) => ({
-                label: a.mode === "mine" && pools.workVerb === "gather" ? "Gather" : a.label,
+                label: a.mode === "mine" ? workVerbByKey(pools.workVerb).label : a.label,
                 value: a.mode,
                 description: a.description.slice(0, 100),
               })),
@@ -182,11 +185,17 @@ function handleMenuPick(interaction) {
   return startVerb(interaction, interaction.values?.[0]);
 }
 
+// A room's own button for one verb.
+function handleStartButton(interaction) {
+  return startVerb(interaction, interaction.customId.slice(START_PREFIX.length));
+}
+
 // Reads and the menu stay clickable between sessions (SESSIONS.md §5); every
 // verb's own final step is an act and meets the session gate.
 const OPEN_VERB_PREFIXES = [
   ACTIONS_OPEN_ID,
   MENU_PREFIX,
+  ...ACTIONS.filter((a) => a.open).map((a) => `${START_PREFIX}${a.mode}`),
   ...ACTIONS.filter((a) => a.open).map((a) => `${VERB_PREFIX}${a.mode}:`),
 ];
 
@@ -195,16 +204,12 @@ function isOpenCommand(commandName, sub) {
   return Boolean(actionForCommand(commandName, sub ?? null)?.open);
 }
 
-// For the Actions button on a Location anchor and the console.
-function actionsButton() {
-  return new ButtonBuilder().setCustomId(ACTIONS_OPEN_ID).setLabel("Actions").setStyle(ButtonStyle.Secondary);
-}
-
 module.exports = {
   VERBS,
   VERB_COMMANDS,
   ACTIONS_OPEN_ID,
   MENU_PREFIX,
+  START_PREFIX,
   VERB_PREFIX,
   MODAL_PREFIX,
   OPEN_VERB_PREFIXES,
@@ -215,6 +220,6 @@ module.exports = {
   handleVerbModal,
   handleActionsOpen,
   handleMenuPick,
+  handleStartButton,
   menuPayload,
-  actionsButton,
 };

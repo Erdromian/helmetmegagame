@@ -21,7 +21,7 @@ import { newSeed } from "@lifeweb/db/lib/roleAssignment";
 import { endGameInDb, resumeGameInDb, postGameEnded } from "@lifeweb/db/lib/gameEnd";
 import { formatEpilogue } from "@lifeweb/db/lib/epilogue";
 import { syncSpectatorAccess } from "@lifeweb/db/lib/spectatorAccess";
-import { postTurnsAnnouncement } from "@lifeweb/db/lib/turnAnnouncement";
+import { postTurnsAnnouncement, postLobbyConsole, clearTurnsConsole } from "@lifeweb/db/lib/turnAnnouncement";
 import { postTurnToGame } from "@lifeweb/db/lib/gameChannel";
 import { openSession, closeSession } from "@lifeweb/db/lib/session";
 import { speakIntoTurns } from "@lifeweb/db/lib/sessionNotice";
@@ -72,6 +72,10 @@ export async function openLobby() {
   await audit(session, "game_lobby_opened");
   refresh();
   sweepSpectators();
+  // #turns gets the lobby console — Ready / Not ready / Feedback — the one
+  // Discord surface somebody with no character yet has. Post-commit and
+  // best-effort, the rule for every Discord call (ARCHITECTURE.md §5).
+  after(() => postLobbyConsole(prisma).catch((err) => console.error("Lobby console post failed:", err)));
   return { ok: true };
 }
 
@@ -86,6 +90,9 @@ export async function closeLobby() {
   await audit(session, "game_lobby_closed");
   refresh();
   sweepSpectators();
+  // The lobby console comes down with the lobby: a Ready button on a closed
+  // lobby would only answer "The lobby isn't open."
+  after(() => clearTurnsConsole(prisma).catch((err) => console.error("Lobby console clear failed:", err)));
   return { ok: true };
 }
 

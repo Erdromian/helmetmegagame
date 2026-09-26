@@ -32,6 +32,11 @@
 //               dialog opens from /character?act=<mode>).
 //   open        a read that stays clickable between sessions (SESSIONS.md §5).
 
+// A button that starts one verb outright — a room's own fixture for a verb
+// tied to it (db/lib/placeAffordances.js), routed by the bot to the same start
+// as the verb's command.
+const ACTION_START_PREFIX = "act:start:";
+
 const SECTIONS = [
   { key: "work", label: "Work here" },
   { key: "self", label: "Yourself" },
@@ -164,4 +169,4 @@ function actionState(action, pools) {
   return { state: "ready", reason: null };
 }
 
-module.exports = { SECTIONS, ACTIONS, actionFor, actionForCommand, commandGroups, actionState };
+module.exports = { ACTION_START_PREFIX, SECTIONS, ACTIONS, actionFor, actionForCommand, commandGroups, actionState };

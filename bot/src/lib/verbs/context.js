@@ -16,6 +16,8 @@ const { isHere, notHereMessage } = require("@lifeweb/db/lib/presence");
 const { pickerRows } = require("@lifeweb/db/lib/peopleHere");
 const { POOL_CHARACTER_INCLUDE } = require("@lifeweb/db/lib/actionPools");
 const { WEB_ORIGIN } = require("@lifeweb/db/lib/constants");
+const { afterInventoryChangeDb, notifyCharacterDb } = require("@lifeweb/db/lib/inventoryTail");
+const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { resolveActingMember } = require("../interactionGuild");
 const { ack, respond } = require("../respond");
 
@@ -200,6 +202,20 @@ function picked(interaction) {
   return { value, label };
 }
 
+// Everything a db/lib/verbs/ result owes after it commits (db/lib/verbs/common.js):
+// the inventory tail over `touched`, the notices in `notify`, the ambient lines
+// in `speak` — then the answer, the result's own `line` unless the caller has a
+// better one. A refusal answers with its sentence and does nothing else.
+async function finish(interaction, result, { text = null, components = [] } = {}) {
+  if (!result.ok) return done(interaction, result.error);
+  if (result.touched?.length) await afterInventoryChangeDb(prisma, result.touched);
+  for (const n of result.notify ?? []) await notifyCharacterDb(prisma, n.character, n.text, n.opts);
+  for (const s of result.speak ?? []) {
+    if (s.channelId && s.line) await postMessage(s.channelId, s.line).catch((err) => console.error("Ambient line failed:", err));
+  }
+  return done(interaction, text ?? result.line ?? "Done.", { components });
+}
+
 // The answer to "who is acting?", with the refusals every verb shares: nobody
 // alive, or held by something on their own sheet. Null means it has already
 // answered and the caller should stop.
@@ -239,5 +255,6 @@ module.exports = {
   ackStep,
   picked,
   actorOrRefuse,
+  finish,
   prisma,
 };
