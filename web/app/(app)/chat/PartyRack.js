@@ -6,6 +6,8 @@ import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
 import { loadParty, bringAlong, putDown, answerEscort } from "./actions";
 import useVisiblePoll from "./useVisiblePoll";
+import FoldBlock from "./next/FoldBlock";
+import { useAsideFolds } from "./next/asideFoldStore";
 
 // BRINGING: the people attached to you, drawn as the seats they take up.
 //
@@ -45,11 +47,27 @@ function seatLine(seats, size) {
   };
 }
 
-export default function PartyRack() {
+// `framed` is the rebuilt chat's right column (next/ChatAside.js): the title
+// becomes a next/FoldBlock.js girder head that folds the rack, like every
+// other block there. Without it, the old column's small caption stands.
+export default function PartyRack({ framed = false }) {
   const [data, setData] = useState(null);
   const [nonce, setNonce] = useState(0);
   const [open, setOpen] = useState(false);
   const { run, pending, error } = useActionRunner();
+  const [shut, toggleFold] = useAsideFolds();
+
+  const frame = (title, body) =>
+    framed ? (
+      <FoldBlock head={title} open={!shut.has("party")} onToggle={() => toggleFold("party")} className="chat-party">
+        {body}
+      </FoldBlock>
+    ) : (
+      <div className="chat-party">
+        <p className="group-label chat-section-title">{title}</p>
+        {body}
+      </div>
+    );
 
   useEffect(() => {
     let cancelled = false;
@@ -73,12 +91,7 @@ export default function PartyRack() {
     // Silent while it loads, and silent on failure: this panel is an
     // affordance, not a reading, and an error line here would sit under the
     // place card forever for a player who has nobody to bring anyway.
-    return data?.error ? (
-      <div className="chat-party">
-        <p className="group-label chat-section-title">Bringing</p>
-        <FormError>{data.error}</FormError>
-      </div>
-    ) : null;
+    return data?.error ? frame("Bringing", <FormError>{data.error}</FormError>) : null;
   }
 
   const { party, candidates, incoming, seats, riding } = data;
@@ -92,22 +105,20 @@ export default function PartyRack() {
   // brought along is exactly the thing this panel exists to say.
   if (!riding && party.length === 0 && pickable.length === 0 && incoming.length === 0) return null;
 
-  return (
-    <div className="chat-party">
-      {riding ? (
-        <>
-          <p className="group-label chat-section-title">With {riding.leaderName}</p>
-          {riding.companions.length > 0 && (
-            <p className="text-sm text-muted">
-              Also along: {riding.companions.map((c) => c.name).join(", ")}
-            </p>
-          )}
-        </>
-      ) : (
-        <p className="group-label chat-section-title">
-          Bringing · {party.length}
-          {seat && <span className="text-muted"> · {seat.label}</span>}
-        </p>
+  const title = riding ? (
+    `With ${riding.leaderName}`
+  ) : (
+    <>
+      Bringing · {party.length}
+      {seat && <span className="text-muted"> · {seat.label}</span>}
+    </>
+  );
+
+  return frame(
+    title,
+    <>
+      {riding && riding.companions.length > 0 && (
+        <p className="text-sm text-muted">Also along: {riding.companions.map((c) => c.name).join(", ")}</p>
       )}
 
       {/* An ask aimed at YOU. The Accept and Cancel on the Discord DM are
@@ -214,6 +225,6 @@ export default function PartyRack() {
       )}
 
       <FormError>{error}</FormError>
-    </div>
+    </>,
   );
 }
