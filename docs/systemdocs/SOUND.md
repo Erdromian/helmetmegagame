@@ -23,6 +23,13 @@ stopped when the tab blurs, and capped by `maxMs`. Every one of those rules is
 right for a rite and fatal for a soundtrack, which is why the music did not get
 built on top of it.
 
+The telephone's three loops — the bell while a phone rings, the caller's long
+tone, a dead line's busy tone — are NOT that drone. They live on a map of their
+own in `sfx.js` (`setPhoneTones`), set as a whole from the feed's `phones`
+frame: an ordinary cue does not stop them and a hidden tab does not either,
+because a ringing phone has to keep ringing through every line said beside it.
+See `PHONES.md` §8.
+
 Both modules carry the same twelve lines of autoplay-gate code. That is
 deliberate — `music.js` has to `resume()` an `AudioContext` inside the gesture
 handler itself, which is not the same act as setting a boolean, and exporting a

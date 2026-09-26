@@ -131,9 +131,12 @@ const {
 const {
   PRAY_CONFIRM_PREFIX,
   SLOTS_CONFIRM_PREFIX,
-  PHONE_DIAL_PREFIX,
+  PHONE_KEY_PREFIX,
+  PHONE_CALL_PREFIX,
   PHONE_ANSWER_PREFIX,
   PHONE_HANGUP_PREFIX,
+  PHONE_WALK_PREFIX,
+  PHONE_COIN_PREFIX,
   handleIntercomOpen,
   handleQuestOpen,
   handleQuestSubmit,
@@ -147,9 +150,12 @@ const {
   handlePrayConfirm,
   handleSlotsOpen,
   handlePhoneOpen,
-  handlePhoneDial,
+  handlePhoneKey,
+  handlePhoneCall,
   handlePhoneAnswer,
   handlePhoneHangup,
+  handlePhoneWalk,
+  handlePhoneCoin,
   handleSlotsConfirm,
   handleBellSubmit,
   handleTurretSubmit,
@@ -438,14 +444,27 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_PRAY_PREFIX)) {
           return void (await handlePrayOpen(interaction, interaction.customId.slice(ROOM_PRAY_PREFIX.length)));
         }
-        // The answer and the hang-up before the open, for the reason Pray's
-        // pair gives just below: "room:phone:answer:<id>" also starts with the
-        // open prefix "room:phone:".
+        // The keypad and the handset's buttons before the open, for the
+        // reason Pray's pair gives just below: "room:phone:key:<id>:<digits>"
+        // and the rest all start with the open prefix "room:phone:"
+        // (db/lib/phoneKeypad.js).
+        if (interaction.customId.startsWith(PHONE_KEY_PREFIX)) {
+          return void (await handlePhoneKey(interaction));
+        }
+        if (interaction.customId.startsWith(PHONE_CALL_PREFIX)) {
+          return void (await handlePhoneCall(interaction));
+        }
         if (interaction.customId.startsWith(PHONE_ANSWER_PREFIX)) {
           return void (await handlePhoneAnswer(interaction, interaction.customId.slice(PHONE_ANSWER_PREFIX.length)));
         }
         if (interaction.customId.startsWith(PHONE_HANGUP_PREFIX)) {
-          return void (await handlePhoneHangup(interaction, interaction.customId.slice(PHONE_HANGUP_PREFIX.length)));
+          return void (await handlePhoneHangup(interaction));
+        }
+        if (interaction.customId.startsWith(PHONE_WALK_PREFIX)) {
+          return void (await handlePhoneWalk(interaction));
+        }
+        if (interaction.customId.startsWith(PHONE_COIN_PREFIX)) {
+          return void (await handlePhoneCoin(interaction));
         }
         if (interaction.customId.startsWith(ROOM_PHONE_PREFIX)) {
           return void (await handlePhoneOpen(interaction, interaction.customId.slice(ROOM_PHONE_PREFIX.length)));
@@ -626,10 +645,6 @@ module.exports = {
         // Opens a modal, so it must NOT be acked first.
         if (interaction.customId === DROP_PICK_PREFIX) {
           return void (await handleDropBoxPick(interaction));
-        }
-        // Which phone to ring. No modal behind it, so it acks normally.
-        if (interaction.customId.startsWith(PHONE_DIAL_PREFIX)) {
-          return void (await handlePhoneDial(interaction, interaction.customId.slice(PHONE_DIAL_PREFIX.length)));
         }
         // The vending machine's three selects. The two "pick:" ones are checked
         // first because they share their parent's prefix, and the two that open

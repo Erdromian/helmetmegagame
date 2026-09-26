@@ -745,6 +745,13 @@ async function syncTagsFromYaml(prisma) {
         throw new Error(`docs/tags.yaml: tag "${t.slug}" sets bookText but is not in group ${PAPER_GROUP_SLUG}`);
       }
     }
+    // `gameWritesText: true` — a book whose words the GAME prints, not the
+    // file: the Phonebook, rewritten with every game's numbers
+    // (db/lib/phoneNumbers.js). Its bookText is only the words a brand-new row
+    // starts with.
+    if (t.gameWritesText !== undefined && (t.gameWritesText !== true || t.bookText === undefined)) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets gameWritesText — it takes true, and only on a book with a bookText`);
+    }
 
     // `sealOffice` names the seat a stamp belongs to, and only changes the
     // sentence the mark is set into. The Merchant's is the one stamp with an
@@ -1004,7 +1011,10 @@ async function syncTagsFromYaml(prisma) {
       // validation refuses both), and paperDescription composes what a given
       // reader sees out of these two columns instead.
       paperKind: entry.bookText?.trim() ? "BOOK" : null,
-      paperText: entry.bookText?.trim() ?? null,
+      // A book the game writes keeps its text out of `scalars`, the way a
+      // game-written seal keeps its mark out: the next deploy's sync would
+      // otherwise print the placeholder over this game's phone numbers.
+      ...(entry.gameWritesText ? {} : { paperText: entry.bookText?.trim() ?? null }),
       category: categoryNameBySlug.get(entry.category),
       pointCost: entry.pointCost ?? 0,
       inspectVisibility: VISIBILITY_BY_YAML.get(entry.visible ?? false),
@@ -1129,6 +1139,8 @@ async function syncTagsFromYaml(prisma) {
           // rub its mark off — but a brand-new row still needs SOMETHING to
           // say, so the placeholder is seeded here and only here.
           ...(gameWrittenSeal(entry) ? { description: sealDescription(entry) } : {}),
+          // Same for a book the game writes: the placeholder, once.
+          ...(entry.gameWritesText ? { paperText: entry.bookText?.trim() ?? null } : {}),
         },
       });
       tagsCreated += 1;
