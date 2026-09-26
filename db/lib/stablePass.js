@@ -29,7 +29,16 @@ const {
   HATCH_IN,
   FOODSTUFFS_SLUG,
 } = require("./constants");
-const { ARELITZ_MOUNT_SLUGS } = require("./mounts");
+const { ARELITZ_MOUNT_SLUGS, MOUNT_STAGES } = require("./mounts");
+
+// One ladder's rungs, the most-ridden first — read off MOUNT_STAGES so a
+// change to MOUNT_RIDES can never leave a rung out of the eviction order.
+function spentFirst(head) {
+  return [...MOUNT_STAGES]
+    .filter(([, stage]) => stage.head === head)
+    .sort(([, a], [, b]) => b.ridden - a.ridden)
+    .map(([slug]) => slug);
+}
 
 // Every rideable rung of the mount ladder is an adult (tacked, tired or
 // fresh, it is the same animal — mounts.js), plus the unruly one nobody rides.
@@ -200,13 +209,8 @@ async function runStablePass(prisma, turn) {
         ARELITZ_YOUNGLING_SLUG,
         ARELITZ_YEARLING_SLUG,
         UNRULY_ARELITZ_SLUG,
-        "arelitz-ridden-2",
-        "arelitz-ridden-1",
-        ARELITZ_SLUG,
-        "arelitz-tacked-ridden-3",
-        "arelitz-tacked-ridden-2",
-        "arelitz-tacked-ridden-1",
-        "arelitz-tacked",
+        ...spentFirst(ARELITZ_SLUG),
+        ...spentFirst("arelitz-tacked"),
       ];
       for (const slug of evictionOrder) {
         if (excess <= 0) break;

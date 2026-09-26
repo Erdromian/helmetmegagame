@@ -201,12 +201,12 @@ crossing per *day*. Now:
   The allowance and both counters are Float columns, since halves add up
   exactly in a double.
   A hop inside a zone still costs nothing.
-- An **equipped** mount adds **rides**: 2 a turn on a fresh arelitz or
-  motorcycle, 3 on a tacked arelitz, and **a ride covers any crossing** — a
+- An **equipped** mount adds **rides**: 1 a turn on a fresh arelitz, 2 on a
+  tacked arelitz or a motorcycle, and **a ride covers any crossing** — a
   town hop or the hills, one ride each (`MAP.md` §3, `ARELITZ.md` §2a). It
   refreshes every turn, which on a short turn length is several times a day.
   The rides are **on the mount's own tag**: each one ridden takes the tag a
-  rung down — Arelitz, then Arelitz (1 ride left), then Arelitz (Spent) — so
+  rung down — Motorcycle, then Motorcycle (1 ride left), then Motorcycle (Spent) — so
   whoever holds it can read what is left, and the turn pass rests it. It is
   **spent first**: the mount's ride goes before the base pool and stays with
   the animal, so parking the arelitz at an indoors door later in the turn
@@ -277,7 +277,7 @@ motorcycle do not — one thing per layer.
 is **not worn any more**. It is a plain item, spent by the **Tacked Arelitz**
 Craft recipe (`docs/tags.yaml`, `requirement.items: [arelitz, arelitz-tack]`,
 no Move, once a turn) together with one arelitz, minting an `arelitz-tacked`
-— the same animal with 3 rides a turn instead of 2, on its own ladder. It
+— the same animal with 2 rides a turn instead of 1, on its own ladder. It
 cannot be taken off again, and it cannot be passed round a party to buy every
 rider the extra ride, which is why it stopped being an accessory. It does
 nothing for the Motorcycle (no hooves).
@@ -397,6 +397,12 @@ It runs, in this order, at:
 Returned, never sent: `settleCarry` hands back
 `{ characterId, over, granted, removed, drop }` and `deliverCarryDrop` does the
 Discord half — the DM and the aliased room line (§6).
+
+**It also enforces the hold limits** — one mount, up to 3 unruly or young
+arelitz (`ARELITZ.md` §2b). That half runs before the weight half, sets its
+excess down in the same room, and rides the same `drop` as `drop.limit`, so no
+caller needed a second branch; `deliverCarryDrop` gives it its own sentence.
+It does not wait for the load to grow, and `{ drop: false }` skips it.
 
 ## 5. The overflow drop
 

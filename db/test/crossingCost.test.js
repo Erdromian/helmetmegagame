@@ -35,7 +35,7 @@ const CONFIG = { freeZoneMovesPerTurn: 1 };
 const fresh = { zoneMovesTurnId: null, zoneMovesUsed: 0, zoneMovesBonusUsed: 0 };
 const spent = (used, bonusUsed = 0) => ({ zoneMovesTurnId: TURN.id, zoneMovesUsed: used, zoneMovesBonusUsed: bonusUsed });
 const onFoot = { base: 1, bonus: 0 };
-// A fresh arelitz: 2 rides, each worth a far crossing (FAR_CROSSING_COST, 1)
+// A fresh motorcycle or tacked arelitz: 2 rides, each worth a far crossing (FAR_CROSSING_COST, 1)
 // in the summed number — so 2 travel of bonus. The rides live on the mount's
 // own tag (db/lib/mounts.js), which is why nothing below subtracts
 // zoneMovesBonusUsed from the bonus: after a ride the caller hands in the
@@ -51,9 +51,9 @@ test("crossingClaim: a town hop takes ½, a far one 1, and the rest stays for a 
 });
 
 test("crossingClaim: a ride covers a whole crossing, near or far, and the mount goes first", () => {
-  // A far crossing on a fresh arelitz: all of it on the animal, one ride gone.
+  // A far crossing on a fresh motorcycle: all of it on the mount, one ride gone.
   assert.deepEqual(crossingClaim(riding, fresh, TURN, 1), { zoneMovesTurnId: "t1", zoneMovesUsed: 1, zoneMovesBonusUsed: 1, rode: true, left: 2 });
-  // A town hop (½) on the same animal still costs it a whole ride — no
+  // A town hop (½) on the same mount still costs it a whole ride — no
   // straddle, no half-ride left on the rung.
   assert.deepEqual(crossingClaim(riding, fresh, TURN, 0.5), { zoneMovesTurnId: "t1", zoneMovesUsed: 0.5, zoneMovesBonusUsed: 0.5, rode: true, left: 2 });
   // The second crossing is asked with the NEXT rung's allowance (the ride
@@ -64,17 +64,20 @@ test("crossingClaim: a ride covers a whole crossing, near or far, and the mount 
 });
 
 test("a ride is never counted twice: once off the rider's counters and again off the animal", () => {
-  // After one far crossing on a fresh arelitz the counters read 1 used, 1 of
-  // it on the mount, and the tag is one rung down. What is left must be the
+  // After one far crossing on a fresh motorcycle the counters read 1 used, 1
+  // of it on the mount, and the tag is one rung down. What is left must be the
   // base 1 plus the ONE ride on the rung — not 1 + (rung 1 − counter 1).
-  const rider = { tags: [{ equipped: true, tag: { slug: "arelitz-ridden-1", name: "Arelitz (1 ride left)" } }], ...spent(1, 1) };
+  const rider = { tags: [{ equipped: true, tag: { slug: "motorcycle-ridden-1", name: "Motorcycle (1 ride left)" } }], ...spent(1, 1) };
   assert.equal(freeMovesLeft(rider, CONFIG, TURN), 2);
+  // An arelitz has only the one ride, so after it the rider is back to the base.
+  const arelitzRider = { tags: [{ equipped: true, tag: { slug: "arelitz-ridden-1", name: "Arelitz (Spent)" } }], ...spent(1, 1) };
+  assert.equal(freeMovesLeft(arelitzRider, CONFIG, TURN), 1);
   // Parked indoors afterwards: the base travel is untouched.
   assert.equal(freeMovesLeft({ tags: [], ...spent(1, 1) }, CONFIG, TURN), 1);
   // And a fresh arelitz picked up from the stable this turn rides at once —
   // there is no "changed hands" gate any more, the rung is the whole truth.
   const fresh2 = { tags: [{ equipped: true, tag: { slug: "arelitz", name: "Arelitz" } }], ...spent(1, 1) };
-  assert.equal(freeMovesLeft(fresh2, CONFIG, TURN), 3);
+  assert.equal(freeMovesLeft(fresh2, CONFIG, TURN), 2);
 });
 
 test("crossingClaim: last turn's counters are reset by the same write", () => {

@@ -12,8 +12,8 @@
 //
 // THE RIDES LIVE ON THE MOUNT (ARELITZ.md §2a). A fresh mount buys a fixed
 // number of crossings a turn, and every crossing charged to it swaps the tag
-// one stage down its ladder — `arelitz` → `arelitz-ridden-1` →
-// `arelitz-ridden-2` — so the chip's own name says how many rides are left,
+// one stage down its ladder — `motorcycle` → `motorcycle-ridden-1` →
+// `motorcycle-ridden-2` — so the chip's own name says how many rides are left,
 // whoever is holding it: a rider, a stable floor, the other side of a
 // Transfer. The turn pass (mountRides.js#runMountRestPass) walks every stage
 // back to the head. This replaced a rule that read the mount's acquiredAt
@@ -31,8 +31,8 @@
 // the rider any more: it is fitted to one animal (the Tacked Arelitz recipe,
 // docs/tags.yaml), which is a different head with one more ride on it.
 const MOUNT_RIDES = Object.freeze({
-  arelitz: 2,
-  "arelitz-tacked": 3,
+  arelitz: 1,
+  "arelitz-tacked": 2,
   motorcycle: 2,
 });
 
@@ -66,6 +66,72 @@ const STOWABLE_SLUGS = new Set([...FAST_TRAVEL_SLUGS, "cart"]);
 // The consumable that upgrades one arelitz. Renamed from "horseshoes" — an
 // arachnid does not wear shoes.
 const ARELITZ_TACK_SLUG = "arelitz-tack";
+
+// HOW MANY A CHARACTER MAY HOLD (ARELITZ.md §2b). One mount of any kind —
+// every rung of every ladder counts, ridden or fresh, arelitz or motorcycle —
+// and, separately, up to 3 arelitz that can't be ridden yet: an unruly adult
+// or any rung of the brood. Eggs are not animals and are not counted; a Cart
+// is towed, not ridden, and is not a mount. The slugs mirror db/lib/constants.js
+// (this file may not require it).
+const MOUNT_HOLD_LIMIT = 1;
+const YOUNG_ARELITZ_HOLD_LIMIT = 3;
+const YOUNG_ARELITZ_SLUGS = new Set(["unruly-arelitz", "arelitz-hatchling", "arelitz-youngling", "arelitz-yearling"]);
+
+const HOLD_LIMITS = [
+  {
+    slugs: FAST_TRAVEL_SLUGS,
+    limit: MOUNT_HOLD_LIMIT,
+    refusal: "You can only keep one mount at a time.",
+    dropped: "You can only keep one mount at a time",
+  },
+  {
+    slugs: YOUNG_ARELITZ_SLUGS,
+    limit: YOUNG_ARELITZ_HOLD_LIMIT,
+    refusal: `You can only keep ${YOUNG_ARELITZ_HOLD_LIMIT} unruly or young arelitz at a time.`,
+    dropped: `You can only keep ${YOUNG_ARELITZ_HOLD_LIMIT} unruly or young arelitz at a time`,
+  },
+];
+
+// Whether `incoming` ([{ slug, quantity }]) would take a character holding
+// `held` (CharacterTag rows with `tag.slug`) past either limit. The refusal
+// sentence, or null. The same "check before it lands" posture as
+// db/lib/carry.js#carryAdmits: a hand-over, a pickup or a purchase is refused
+// rather than landing and being set down again.
+function holdLimitRefusal(held = [], incoming = []) {
+  for (const rule of HOLD_LIMITS) {
+    const adding = incoming.reduce((n, i) => n + (rule.slugs.has(i?.slug) ? Math.max(0, i.quantity ?? 1) : 0), 0);
+    if (adding === 0) continue;
+    const holding = (held ?? []).reduce((n, ct) => n + (rule.slugs.has(ct?.tag?.slug) ? (ct.quantity ?? 1) : 0), 0);
+    if (holding + adding > rule.limit) return rule.refusal;
+  }
+  return null;
+}
+
+// What has to be set down when a character is ALREADY over a limit — goods
+// that arrived without asking (a GM grant, a staged effect, a break-in at the
+// push). Returns [{ row, quantity, reason }]. Keeps the equipped mount first,
+// then the longest-held, so the thing that just arrived is what goes back on
+// the ground — the same newest-first rule carry.js#drawDrops uses, and for the
+// same reason: handing somebody a second animal must not make them lose theirs.
+function holdLimitExcess(characterTags = []) {
+  const out = [];
+  for (const rule of HOLD_LIMITS) {
+    const rows = (characterTags ?? []).filter((ct) => rule.slugs.has(ct?.tag?.slug) && (ct.quantity ?? 1) > 0);
+    rows.sort(
+      (a, b) =>
+        (b.equippedQuantity ?? (b.equipped ? 1 : 0)) - (a.equippedQuantity ?? (a.equipped ? 1 : 0)) ||
+        (new Date(a.acquiredAt ?? 0).getTime() - new Date(b.acquiredAt ?? 0).getTime()),
+    );
+    let room = rule.limit;
+    for (const row of rows) {
+      const qty = row.quantity ?? 1;
+      const keep = Math.min(qty, room);
+      room -= keep;
+      if (qty > keep) out.push({ row, quantity: qty - keep, reason: rule.dropped });
+    }
+  }
+  return out;
+}
 
 function mountStage(slug) {
   return MOUNT_STAGES.get(slug) ?? null;
@@ -132,7 +198,7 @@ function fastTravelBonus(activeSlugs) {
 }
 
 // The full number of rides this mount buys when fresh, for the sentence that
-// explains a lower number ("2 of its 3 rides").
+// explains a lower number ("1 of its 2 rides").
 function fastTravelRides(activeSlugs) {
   const slug = activeMountSlug(activeSlugs);
   return slug ? MOUNT_RIDES[mountHead(slug)] : 0;
@@ -174,6 +240,11 @@ module.exports = {
   ARELITZ_MOUNT_SLUGS,
   STOWABLE_SLUGS,
   ARELITZ_TACK_SLUG,
+  MOUNT_HOLD_LIMIT,
+  YOUNG_ARELITZ_HOLD_LIMIT,
+  YOUNG_ARELITZ_SLUGS,
+  holdLimitRefusal,
+  holdLimitExcess,
   mountStage,
   ridesLeft,
   nextStage,

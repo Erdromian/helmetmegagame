@@ -29,6 +29,7 @@ const { sceneLineAt } = require("./scene");
 const { placeKeyForRoom } = require("./placeKey");
 const { isTradeable } = require("./tradeable");
 const { carryAdmits } = require("./carry");
+const { holdLimitRefusal } = require("./mounts");
 const { rowWeight } = require("./tagWeight");
 const { MERCHANT_LICENSE_SLUG } = require("./depot");
 const { OBOL_SLUG } = require("./depotState");
@@ -528,6 +529,9 @@ async function buySlot(prisma, discordUserId, { roomId, tagId, turn = null } = {
   });
   const verdict = carryAdmits(character, config, { weightLbs: rowWeight({ tag, quantity: 1 }) });
   if (!verdict.ok) return fail(T.noRoom(verdict.reason));
+  // One mount, up to 3 unruly or young arelitz (db/lib/mounts.js).
+  const tooMany = holdLimitRefusal(character.tags, [{ slug: tag?.slug, quantity: 1 }]);
+  if (tooMany) return fail(tooMany);
 
   const me = characterParty(character);
   const box = machineParty({ id: machine.id, zoneId: room.location?.zoneId ?? null });
@@ -863,6 +867,8 @@ async function unstockMachine(prisma, discordUserId, { roomId, tagId, quantity, 
   });
   const verdict = carryAdmits(character, config, { weightLbs: rowWeight({ tag, quantity: take }) });
   if (!verdict.ok) return fail(T.noRoom(verdict.reason));
+  const tooMany = holdLimitRefusal(character.tags, [{ slug: tag?.slug, quantity: take }]);
+  if (tooMany) return fail(tooMany);
 
   const me = characterParty(character);
   const box = machineParty({ id: machine.id, zoneId: room.location?.zoneId ?? null });

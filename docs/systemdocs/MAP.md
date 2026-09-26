@@ -574,9 +574,10 @@ the list, and the surfaces ask it before drawing the button. No Action is filed,
 in the Moves history; the `AuditLog` row `exert_crossing` is the record.
 `performLocationMove(..., { exert: true })`, `pushOn`, `exertOutcome`.
 
-**Mounts.** A fresh `arelitz` or `motorcycle` carries its riders across
-**2 borders a turn**, a `arelitz-tacked` across **3**
-(`db/lib/mounts.js#MOUNT_RIDES`). **A ride covers a whole crossing, near or
+**Mounts.** A fresh `arelitz` carries its riders across **1 border a
+turn**, an `arelitz-tacked` or a `motorcycle` across **2**
+(`db/lib/mounts.js#MOUNT_RIDES`). A character holds one mount at most
+(`ARELITZ.md` §2b). **A ride covers a whole crossing, near or
 far** — a town hop on the animal costs it a ride just as the hills do, and in
 the summed travel number each ride is worth `FAR_CROSSING_COST` so every
 "can I afford it" gate on the surfaces says yes while a ride is left. It
@@ -587,9 +588,10 @@ Location (`CARRY.md` §3).
 
 **The rides live on the mount, not on the rider** (`ARELITZ.md` §2a). Every
 ride charged to a mount swaps its tag one rung down a ladder inside the
-crossing's own transaction — `arelitz` → `arelitz-ridden-1` →
-`arelitz-ridden-2` (`db/lib/mountRides.js#rideMount`) — and the rung's own
-name says what is left: **Arelitz (1 ride left)**, **Arelitz (Spent)**. The
+crossing's own transaction — `motorcycle` → `motorcycle-ridden-1` →
+`motorcycle-ridden-2` (`db/lib/mountRides.js#rideMount`) — and the rung's
+own name says what is left: **Motorcycle (1 ride left)**, **Motorcycle
+(Spent)**. The
 turn pass (`runMountRestPass`, key `mountRest`) walks every rung back to the
 head, on sheets and stable floors alike. So `fastTravelBonus` is simply the
 rides left on the equipped rung, read fresh every time, and **nothing
@@ -630,8 +632,8 @@ walked back up (the animal did carry them; the turn pass fixes it at the
 close); GM-gated, accepted.
 
 **Every surface says the two halves apart.** `freeMovesBreakdown` splits the
-count into base travel and rides, `travelSentence` says it — "2 travel, plus
-2 rides on your Arelitz" — and the sheet's Travel tile, the Travel panel's
+count into base travel and rides, `travelSentence` says it — "1 travel, plus
+1 ride on your Arelitz" — and the sheet's Travel tile, the Travel panel's
 header, the map card's crossing line, both confirms and the bot's confirm all
 carry it, so a rider always knows which of the two a crossing is about to
 spend.

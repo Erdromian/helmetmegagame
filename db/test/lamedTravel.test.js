@@ -23,7 +23,7 @@ test("freeZoneMoves: Cripple zeroes the allowance too", () => {
 test("freeZoneMoves: a mount cancels Pain Shock's lameness, same as it does a bad leg", () => {
   const config = { freeZoneMovesPerTurn: 1 };
   const mounted = withTags("pain-shock", "arelitz");
-  assert.equal(freeZoneMoves(mounted, config), 3); // base + the mount's two rides (1 travel each), same as a clear-headed rider
+  assert.equal(freeZoneMoves(mounted, config), 2); // base + the arelitz's one ride (1 travel), same as a clear-headed rider
 });
 
 test("freeZoneMovesReason: names Pain Shock and Cripple the same way it names Crippled Leg", () => {

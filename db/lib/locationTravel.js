@@ -51,14 +51,14 @@ const CHARACTER_SELECT = {
   heldUntil: true,
   heldReason: true,
   // `name` rides along for stowedMounts(), which puts it in a sentence, and
-  // for the "plus 2 rides on your Arelitz" half of the travel readout.
+  // for the "plus 1 ride on your Arelitz" half of the travel readout.
   tags: { select: { equipped: true, acquiredAt: true, tag: { select: { slug: true, name: true } } } },
 };
 
 // How much TRAVEL this character gets for free this turn, before a crossing
 // starts spending their Move (CARRY.md §2). Everyone gets GameConfig.freeZoneMovesPerTurn (default 1). Being Overburdened takes the lot — an overloaded character can still cross, they just pay their Move. A ruined leg takes it too, unless an arelitz is doing the walking.
 // A crossing spends what db/lib/crossingCost.js says it costs: ½ between the town zones, 1 anywhere else. A crossing you cannot afford in full spends the Move instead, and whatever travel was left stays for a cheaper hop.
-// AN EQUIPPED MOUNT'S RIDES ARE ON THE MOUNT (db/lib/mounts.js, ARELITZ.md §2a): a fresh arelitz or motorcycle carries you across 2 borders a turn, a tacked arelitz 3, whatever each crossing costs — one ride covers a whole crossing. Every ride charged to it takes the mount's tag one rung down its ladder inside the same transaction (mountRides.js#rideMount), so the bonus pool is simply "rides left on the rung", read fresh every time, and nothing subtracts a per-rider counter from it: the ride that was spent already changed the tag. That is what stops a ride being counted twice — once off the rider's sheet and once off the animal.
+// AN EQUIPPED MOUNT'S RIDES ARE ON THE MOUNT (db/lib/mounts.js, ARELITZ.md §2a): a fresh arelitz carries you across 1 border a turn, a tacked arelitz or a motorcycle 2, whatever each crossing costs — one ride covers a whole crossing. Every ride charged to it takes the mount's tag one rung down its ladder inside the same transaction (mountRides.js#rideMount), so the bonus pool is simply "rides left on the rung", read fresh every time, and nothing subtracts a per-rider counter from it: the ride that was spent already changed the tag. That is what stops a ride being counted twice — once off the rider's sheet and once off the animal.
 // The mount's ride is spent BEFORE the base pool. Character.zoneMovesBonusUsed still records what was charged to a mount, but only so the base pool can be told apart (baseSpent = zoneMovesUsed - zoneMovesBonusUsed); it is never read back as "bonus left".
 
 // How much is LEFT right now, for surfaces that must say so before a player commits
@@ -68,7 +68,7 @@ function freeMovesLeft(character, config, openTurn, partySize = 0) {
 }
 
 // The two halves of that number, for a surface that says them apart ("2
-// travel, plus 2 rides on your Arelitz"): `baseLeft` is travel, `ridesLeft`
+// travel, plus 2 rides on your Motorcycle"): `baseLeft` is travel, `ridesLeft`
 // is crossings on the mount, `mount` its display name (null on foot, and
 // null when the mount is out but buying nothing — over its seats — so the
 // caller's sentence doesn't promise rides the crossing won't get).

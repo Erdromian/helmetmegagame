@@ -157,7 +157,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
           scene lays this out as one run of chips and needs the confirm to
           stay out of it. A plain block everywhere else. */}
       <div className="chat-travel-ways" data-swipe-ignore>
-        {/* The count in its two halves — "2 travel, plus 2 rides on your Arelitz" — so
+        {/* The count in its two halves — "1 travel, plus 2 rides on your Motorcycle" — so
             a rider can see which of the two a crossing is about to spend (MAP.md §3a). */}
         <p className="group-label chat-section-title" title={data.freeReason ?? undefined}>
           {showTitle ? `Travel · ${data.travelLine ?? `${formatTravel(data.freeLeft)} available`}` : (data.travelLine ?? `${formatTravel(data.freeLeft)} available`)}

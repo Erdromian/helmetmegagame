@@ -526,8 +526,8 @@ export async function loadTravel() {
     // party, so a mount's extra crossing is already reflected (MAP.md §3a).
     freeLeft: freeMovesLeft(character, config, openTurn, party.length),
     freeReason: freeZoneMovesReason(character, party.length, { config, openTurn }),
-    // The same count in two halves — "2 travel, plus 2 rides on your
-    // Arelitz" — for the header and the confirm (MAP.md §3a). The sentence
+    // The same count in two halves — "1 travel, plus 2 rides on your
+    // Motorcycle" — for the header and the confirm (MAP.md §3a). The sentence
     // is built here because TravelNodes is a client component and
     // locationTravel.js is not for the browser bundle.
     breakdown: freeMovesBreakdown(character, config, openTurn, party.length),

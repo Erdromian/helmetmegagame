@@ -65,7 +65,7 @@ function fakeDb({ tags, characterTags = [], roomTags = [] }) {
   return { tx, held, floor, rows: ct };
 }
 
-const LADDER = ["arelitz", "arelitz-ridden-1", "arelitz-ridden-2", "arelitz-tacked", "arelitz-tacked-ridden-1", "motorcycle", "motorcycle-ridden-1", "cart"];
+const LADDER = ["arelitz", "arelitz-ridden-1", "arelitz-tacked", "arelitz-tacked-ridden-1", "arelitz-tacked-ridden-2", "motorcycle", "motorcycle-ridden-1", "cart"];
 
 test("a lone equipped arelitz is retagged in place — same row, one rung down, still equipped", async () => {
   const db = fakeDb({ tags: LADDER, characterTags: [{ characterId: "A", slug: "arelitz", equipped: true }] });
@@ -73,10 +73,9 @@ test("a lone equipped arelitz is retagged in place — same row, one rung down, 
   assert.deepEqual(await rideMount(db.tx, "A"), { from: "arelitz", to: "arelitz-ridden-1" });
   assert.deepEqual(db.held("A"), [{ slug: "arelitz-ridden-1", quantity: 1, equippedQuantity: 1, equipped: true }]);
   assert.equal(db.rows[0].id, before);
-  // And again: the bottom of the ladder.
-  assert.deepEqual(await rideMount(db.tx, "A"), { from: "arelitz-ridden-1", to: "arelitz-ridden-2" });
+  // An arelitz has the one ride, so that was the bottom of its ladder.
   assert.equal(await rideMount(db.tx, "A"), null, "a spent mount has no ride to spend");
-  assert.deepEqual(db.held("A"), [{ slug: "arelitz-ridden-2", quantity: 1, equippedQuantity: 1, equipped: true }]);
+  assert.deepEqual(db.held("A"), [{ slug: "arelitz-ridden-1", quantity: 1, equippedQuantity: 1, equipped: true }]);
 });
 
 test("one out of a stack of three splits off: two fresh in the pack, the ridden one still under you", async () => {
@@ -108,6 +107,8 @@ test("a stowed mount and a cart are not ridden; a tacked arelitz walks its own l
   assert.equal(await rideMount(stowed.tx, "A"), null);
   const tacked = fakeDb({ tags: LADDER, characterTags: [{ characterId: "A", slug: "arelitz-tacked", equipped: true }] });
   assert.deepEqual(await rideMount(tacked.tx, "A"), { from: "arelitz-tacked", to: "arelitz-tacked-ridden-1" });
+  assert.deepEqual(await rideMount(tacked.tx, "A"), { from: "arelitz-tacked-ridden-1", to: "arelitz-tacked-ridden-2" });
+  assert.equal(await rideMount(tacked.tx, "A"), null);
 });
 
 test("a rung missing from the catalog leaves the mount fresh rather than refusing the crossing", async () => {
@@ -127,7 +128,7 @@ test("the turn pass rests every rung on every sheet and floor, merging back into
     tags: LADDER,
     characterTags: [
       { characterId: "A", slug: "arelitz", quantity: 1, equipped: false },
-      { characterId: "A", slug: "arelitz-ridden-2", quantity: 1, equipped: true },
+      { characterId: "A", slug: "arelitz-ridden-1", quantity: 1, equipped: true },
       { characterId: "B", slug: "arelitz-tacked-ridden-1", quantity: 2, equipped: true },
       { characterId: "C", slug: "motorcycle-ridden-1", quantity: 1, equipped: false },
     ],

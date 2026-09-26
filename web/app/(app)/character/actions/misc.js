@@ -69,6 +69,7 @@ import { SFX } from "@lifeweb/db/lib/sfx";
 import { describeTurn } from "@/lib/turnFormat";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { holdLimitRefusal } from "@lifeweb/db/lib/mounts";
 import {
   requireFreeMove,
   fileAutoRoutine,
@@ -1421,6 +1422,14 @@ export async function lootCharacterRequestImpl({
   const targetResources = resourcesOf(target);
   if (amount > targetResources)
     throw new UserError(`${await seenName(character, target.id)} only has ${targetResources} ⬢.`);
+
+  // One mount, up to 3 unruly or young arelitz (db/lib/mounts.js): refused
+  // rather than taken and set straight back down by the settle.
+  const tooMany = holdLimitRefusal(
+    character.tags,
+    takenTags.map((t) => ({ slug: target.tags.find((ct) => ct.tagId === t.tagId)?.tag?.slug, quantity: t.quantity })),
+  );
+  if (tooMany) throw new UserError(tooMany);
 
   const openTurn = await getOpenTurn();
 
