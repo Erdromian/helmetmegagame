@@ -1,6 +1,13 @@
 "use server";
 
 import { after } from "next/server";
+// The Purse on the You plate (./next/YouPlate.js) is a server prop, so a verb
+// here that moves obols through the player's hand calls refresh() on success,
+// and only when coin really moved: the page redraws in the same response.
+// refresh() rather than revalidatePath because /chat is force-dynamic, so
+// there is no cache to drop, only the page in front of the player. Every other
+// verb here leaves the page alone.
+import { refresh } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
@@ -1713,6 +1720,8 @@ export async function playSlots({ roomId } = {}) {
   const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
   const result = await playSlotsInDb(prisma, me.discordUserId, { turn });
   if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
+  // The stake always leaves the purse, win or lose.
+  refresh();
   return { ok: true, line: result.line, sfx: result.sfx };
 }
 
@@ -1741,6 +1750,10 @@ async function vendingVerb(roomId, fn, args = {}) {
   // Anything that moved a tag has to settle the carry (docs/systemdocs/CARRY.md)
   // — the same bargain every other inventory writer strikes.
   if (result.moved !== false) await afterInventoryChange([me.character.id]).catch(() => {});
+  // `amount` is the coin that crossed the presser's hand: Insert, Withdraw,
+  // Empty the till, and Step away with change in the slot. A purchase moves
+  // coin from the slot to the till, not out of a purse, so it sets none.
+  if (result.amount > 0) refresh();
   return { ok: true, line: result.line, sfx: result.sfx };
 }
 
@@ -1867,11 +1880,14 @@ export async function openPhone({ roomId } = {}) {
   return phoneAnswer(view);
 }
 
+// `charged` is set only when a payphone took an obol (PHONES.md §3): a named
+// phone is free, and so is anything inside the 10 minutes a coin already paid for.
 export async function answerPhone({ roomId } = {}) {
   const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
   const view = await answerPayphone(prisma, me.discordUserId, roomId, { via: "web", turn: await openTurn() });
   if (!view.ok) return { ok: false, error: view.error, sfx: view.sfx ?? SFX.REFUSE };
+  if (view.charged) refresh();
   return phoneAnswer(view);
 }
 
@@ -1882,6 +1898,7 @@ export async function dialPhone({ roomId, digits } = {}) {
   if (me.error) return { ok: false, error: me.error };
   const view = await dialNumber(prisma, me.discordUserId, roomId, digits, { turn: await openTurn() });
   if (!view.ok) return { ok: false, error: view.error, sfx: view.sfx ?? SFX.REFUSE };
+  if (view.charged) refresh();
   return phoneAnswer(view);
 }
 
@@ -1890,6 +1907,7 @@ export async function insertPhoneObol({ roomId } = {}) {
   if (me.error) return { ok: false, error: me.error };
   const view = await insertObol(prisma, me.discordUserId, roomId, { turn: await openTurn() });
   if (!view.ok) return { ok: false, error: view.error, sfx: view.sfx ?? SFX.REFUSE };
+  if (view.charged) refresh();
   return phoneAnswer(view);
 }
 

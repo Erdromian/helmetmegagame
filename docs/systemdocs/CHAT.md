@@ -1606,7 +1606,12 @@ a 48px head and a one-line composer:
      rows — **Mood** (the band word, `db/lib/mood.js#bandOf`), **Resources**
      (`N ⬢`), **Purse** (`N ¢`, `web/lib/purse.js#obolsOf` — the SAME reducer
      `LedgerBand.js`'s ⬢ tile counts obols with, lifted out to one copy for
-     both), **Carrying** (`used/cap lb`), then the descriptor rows (§0,
+     both; a server prop, so the Chat verbs that move coin through a hand —
+     slots, a payphone taking its obol (Dial, Answer or Insert obol), the
+     vending machine's Insert, Withdraw, Empty till and Step away — call
+     `refresh()` from `next/cache` when coin moved, see the note at the top
+     of `chat/actions.js`),
+     **Carrying** (`used/cap lb`), then the descriptor rows (§0,
      **Hunger**) — then `StatusStrip.js`'s own load meter, with no chips
      (`tags={[]}`), and `numbers={false}` since the kv rows already said
      Resources and Carrying in words.
