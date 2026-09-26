@@ -772,26 +772,155 @@
   margin-bottom: 0;
 }
 
-/* ── Travel, compact ─────────────────────────────────────────────────────
-   A node carries a name, its zone and the cost now — no description since
-   Chat Overhaul.docx — so it is sized to exactly that. The 6rem floor
-   chat.css gives it was room for a three-line description, and with that gone
-   it was mostly empty card. Bascinet asked for them as small as they go
-   without the words shrinking or being cut, so the TYPE is untouched, and so
-   is the column width: narrower cards would clip "UNDERTOWN" and
-   two-line names. Only the air goes — the floor, the padding, the gaps. */
-[data-chat-next] .chat-nodes {
+/* ── Travel, the strip over the scene ───────────────────────────────────
+   Every way out, under the head of the place they lead out of. It headed the
+   right column until player feedback asked for it above the chat, with the
+   entries smaller again (vocabulary §1, "travel strip").
+
+   A way is still a CARD, cut to one line: the name, the zone only where the
+   way leaves this one, then the cost. A walk keeps its stops, because the
+   double-click that takes it is only safe while they are on screen
+   (travelCost.js#walkLine). What a card used to say on its second and third
+   lines rides the hover title, as the description already did. The type is
+   untouched — Bascinet asked for these as small as they go without the words
+   shrinking — so only the lines and the air go. */
+[data-chat-next] .chat-travel-bar {
+  flex: 0 0 auto;
+  padding: var(--sp-1) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+
+/* One run: both headings and every way wrap as a single line of chips. The
+   two grids TravelNodes draws step out of the way; their cards become the
+   run's own items. */
+[data-chat-next] .chat-travel-ways {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
   gap: var(--sp-1);
 }
 
-[data-chat-next] .chat-node {
-  min-height: 0;
-  gap: 1px;
-  padding: 3px var(--sp-2) 2px;
+[data-chat-next] .chat-travel-ways .chat-nodes {
+  display: contents;
 }
 
-[data-chat-next] .chat-node-foot {
-  padding-top: 2px;
+/* QUIET heads (vocabulary §4), inline. chat.css spaces a second one above
+   its grid; in a run, a gap before it says the same thing. */
+[data-chat-next] .chat-travel-ways .chat-section-title {
+  margin: 0;
+  padding: 0 var(--sp-1) 0 0;
+  font-size: var(--fs-3xs);
+}
+
+[data-chat-next] .chat-travel-ways .chat-nodes + .chat-section-title {
+  margin-left: var(--sp-2);
+}
+
+[data-chat-next] .chat-travel-ways .chat-node {
+  min-height: 0;
+  max-width: 100%;
+  flex-direction: row;
+  align-items: baseline;
+  gap: var(--sp-1);
+  padding: 2px var(--sp-2);
+}
+
+[data-chat-next] .chat-travel-ways .chat-node-name {
+  display: block;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* The zone is only news on a crossing; a way inside this zone says nothing
+   the head above it has not. */
+[data-chat-next] .chat-travel-ways .chat-node:not([data-crossing]):not([data-walk]) .chat-node-zone {
+  display: none;
+}
+
+[data-chat-next] .chat-travel-ways .chat-node-zone {
+  flex: 0 1 auto;
+  min-width: 0;
+  max-width: 14rem;
+}
+
+/* A shut way's foot already says why ("locked", "shut", or the reason in
+   full), so the second copy under it goes. */
+[data-chat-next] .chat-travel-ways .chat-node-desc {
+  display: none;
+}
+
+[data-chat-next] .chat-travel-ways .chat-node-foot {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: 0;
+  max-width: 14rem;
+}
+
+[data-chat-next] .chat-travel-ways .chat-node .chip {
+  align-self: center;
+}
+
+/* The sentences under the run — held, what the last move said, the confirm
+   and its buttons — sit tight to it. */
+[data-chat-next] .chat-travel-bar .chat-travel > :not(.chat-travel-ways) {
+  margin: var(--sp-1) 0 0;
+}
+
+[data-chat-next] .chat-travel-bar .chat-travel-confirm {
+  flex-direction: row;
+  flex-wrap: wrap;
+  align-items: center;
+  padding-top: var(--sp-1);
+}
+
+[data-chat-next] .chat-travel-bar .chat-travel-confirm > p {
+  margin: 0;
+}
+
+/* The composer's refusal line pads itself for the foot of the scene; here it
+   lines up with the ways instead. */
+[data-chat-next] .chat-travel-bar .chat-quiet-line {
+  padding: 0;
+}
+
+/* A phone gets ONE line of ways, swiped sideways, rather than four lines of
+   them wrapping over the scene. The one scroller in chat that runs sideways,
+   and allowed for the reason .chip-row is: it scrolls inside itself, so the
+   column stays locked, and data-swipe-ignore keeps the swipe from opening a
+   drawer. */
+@media (max-width: 720px) {
+  [data-chat-next] .chat-travel-bar {
+    padding-inline: 0;
+  }
+  [data-chat-next] .chat-travel-ways {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    padding-inline: var(--sp-3);
+  }
+  /* The cards too: `display: contents` makes them the run's items without
+     making them its children, so `> *` alone would let them shrink. */
+  [data-chat-next] .chat-travel-ways > *,
+  [data-chat-next] .chat-travel-ways .chat-node {
+    flex: 0 0 auto;
+  }
+  [data-chat-next] .chat-travel-ways .chat-section-title {
+    white-space: nowrap;
+  }
+  [data-chat-next] .chat-travel-bar .chat-travel > :not(.chat-travel-ways) {
+    margin-inline: var(--sp-3);
+  }
+}
+
+/* The touch floor (DESIGN-SYSTEM §9): a way is a control a thumb aims at. */
+@media (pointer: coarse) {
+  [data-chat-next] .chat-travel-ways .chat-node {
+    min-height: var(--tap-sm);
+    align-items: center;
+  }
 }
 
 /* ── The scene's own parts ───────────────────────────────────────────────── */
