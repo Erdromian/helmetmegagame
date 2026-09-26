@@ -48,7 +48,7 @@ for (const [head, rides] of Object.entries(MOUNT_RIDES)) {
 }
 
 // Every rideable slug, at every stage. This is what "is a mount" means to the
-// rest of the codebase (isMounted, the indoors park, the equip board's menu,
+// rest of the codebase (isMounted, the equip board's menu,
 // the Motion Sickness gate).
 const FAST_TRAVEL_SLUGS = new Set(MOUNT_STAGES.keys());
 

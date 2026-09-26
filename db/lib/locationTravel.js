@@ -534,7 +534,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   try {
     await prisma.$transaction(async (tx) => {
       // A way too narrow for what they had out dismounts them instead of refusing outright
-      // (indoors.js#dismountForNarrowWay) — but it must happen HERE, first, inside this same transaction, not as a post-commit side effect the way arriving indoors is: arriving indoors only affects the NEXT crossing, this affects free-move accounting for THIS one. A mount buys an extra free crossing (freeZoneMoves below), so dismounting after the fact would let a rider bank that bonus on a ride that never survives the threshold — the exploit refusing at the threshold exists to close (MAP.md §2c). Mutating `character.tags` in memory is what makes freeZoneMoves see the dismount too, with no extra query.
+      // (indoors.js#dismountForNarrowWay) — but it must happen HERE, first, inside this same transaction, not as a post-commit side effect: it affects free-move accounting for THIS crossing. A mount buys an extra free crossing (freeZoneMoves below), so dismounting after the fact would let a rider bank that bonus on a ride that never survives the threshold — the exploit refusing at the threshold exists to close (MAP.md §2c). Mutating `character.tags` in memory is what makes freeZoneMoves see the dismount too, with no extra query.
       outcome.dismounted = await dismountForNarrowWay(tx, character.id, crossingLink);
       if (outcome.dismounted.length > 0) {
         character.tags = (character.tags ?? []).map((ct) =>
