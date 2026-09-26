@@ -178,6 +178,26 @@ test("a character with no role falls back to the frozen name, not to the raw tok
   assert.equal(content, "over here Sir Alder");
 });
 
+// A role mention prints the role's title — the real bare name — to the whole channel. So only a token frozen
+// under the subject's own name may become one; a hood's alias or a forced name goes out as the text it froze.
+test("a token frozen under an alias goes out as the alias, never as the role", async () => {
+  const alder = { ...withRole("p1", 'Sir Wat "the Bold" Alder', "12345678901234567"), firstName: "Wat", lastName: "Alder" };
+  const prisma = fakeRoleset([alder]);
+  const hooded = await tokensToRoles(prisma, "over here {char:p1|Young Man}");
+  assert.equal(hooded.content, "over here Young Man");
+  assert.deepEqual(hooded.characters.map((c) => c.id), ["p1"], "the relay DM still knows who was named");
+  assert.equal((await tokensToRoles(prisma, "{char:p1|Beast}")).content, "Beast");
+});
+
+test("a token frozen under the subject's own name, full or bare, is still the role", async () => {
+  const alder = { ...withRole("p1", 'Sir Wat "the Bold" Alder', "12345678901234567"), firstName: "Wat", lastName: "Alder" };
+  const prisma = fakeRoleset([alder]);
+  assert.equal((await tokensToRoles(prisma, '{char:p1|Sir Wat "the Bold" Alder}')).content, "<@&12345678901234567>");
+  assert.equal((await tokensToRoles(prisma, "{char:p1|Wat Alder}")).content, "<@&12345678901234567>");
+  // A token from before names were frozen has nothing to compare, and keeps the role as it always did.
+  assert.equal((await tokensToRoles(prisma, "{char:p1}")).content, "<@&12345678901234567>");
+});
+
 test("a line with no mention costs no query", async () => {
   const prisma = {
     character: {

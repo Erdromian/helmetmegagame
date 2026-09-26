@@ -15,7 +15,9 @@ export async function moveResources(tx, party, delta, ctx) {
   } catch (err) {
     if (!(err instanceof InsufficientResourcesError)) throw err;
     if (party?.kind === "room") throw new UserError(`${party.name ?? "That room"} no longer holds ${err.amount} ⬢.`);
-    throw new UserError(`${party?.name ?? "That character"} no longer has ${err.amount} ⬢.`);
+    // Names nobody. The payer is often somebody picked by a hood token, and
+    // `party.name` is their real name; this runs too deep to know who reads it.
+    throw new UserError(`Not enough Resources left to pay ${err.amount} ⬢.`);
   }
 }
 

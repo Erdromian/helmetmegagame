@@ -24,6 +24,8 @@
 const { blockerFor, ACT } = require("./incapacitation");
 const { roomAccessKeys, accessibleRooms } = require("./roomAccess");
 const { loadPresentedIdentity } = require("./presentedIdentity");
+const { seenById } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 const { postMessage } = require("./discordRest");
 const { sceneLineAt } = require("./scene");
 const { placeKeyForRoom } = require("./placeKey");
@@ -186,10 +188,10 @@ async function machineView(prisma, discordUserId, roomId) {
   const mine = holder === character.id;
   let holderName = null;
   if (holder && !mine) {
-    // The identity the ROOM would see, never the row — a hooded customer reads
-    // as "A young man" here exactly as anywhere else.
-    const { identity } = await loadPresentedIdentity(prisma, holder);
-    holderName = identity?.name ?? "Somebody";
+    // As THIS viewer knows them (intercept.js#seenBy), never the row — a hooded
+    // customer, or a face this viewer has never met, reads as "A young man"
+    // here exactly as anywhere else.
+    holderName = capitalizeFirst(await seenById(prisma, character.id, holder));
   }
 
   const unlocked = mine && unlockedNow(machine);

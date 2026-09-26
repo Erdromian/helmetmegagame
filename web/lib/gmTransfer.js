@@ -1,6 +1,7 @@
 import { prisma } from "@lifeweb/db";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
 import { applyTransfer, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
+import { seenById } from "@lifeweb/db/lib/intercept";
 import { getGmSession } from "@/lib/discordGuild";
 import { getOpenTurn } from "@/lib/turn";
 import { UserError } from "@/lib/actionResult";
@@ -75,11 +76,17 @@ export async function gmTransferResources({ fromKey, toKey, amount: rawAmount, r
   // Carry caps (CARRY.md): a GM handing someone 40 ⬢ can push them over.
   await afterInventoryChange([from, to].filter((p) => p.kind === "character"));
 
+  // Each notice goes to one player, so the OTHER side is named the way that
+  // player knows them (intercept.js#seenBy) — a GM moving ⬢ between two
+  // strangers must not be how either learns the other's name. The GM's own
+  // answer below keeps the true labels.
+  const knownAs = (reader, party) =>
+    party.kind === "character" ? seenById(prisma, reader.id, party.id) : Promise.resolve(partyLabel(party));
   if (from.kind === "character") {
-    notifyCharacter({ id: from.id, discordUserId: from.discordUserId }, `${from.name} paid ${amount} ⬢ to ${partyLabel(to)}.`);
+    notifyCharacter({ id: from.id, discordUserId: from.discordUserId }, `${from.name} paid ${amount} ⬢ to ${await knownAs(from, to)}.`);
   }
   if (to.kind === "character") {
-    notifyCharacter({ id: to.id, discordUserId: to.discordUserId }, `${to.name} received ${amount} ⬢ from ${partyLabel(from)}.`);
+    notifyCharacter({ id: to.id, discordUserId: to.discordUserId }, `${to.name} received ${amount} ⬢ from ${await knownAs(to, from)}.`);
   }
 
   return { from: partyLabel(from), to: partyLabel(to), amount };

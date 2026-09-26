@@ -301,6 +301,22 @@ function lensRow(row, lens) {
   return out;
 }
 
+// Who a KEPT copy of a line is filed under — a Highlight (web/lib/starNote.js)
+// — and the face kept beside it. `row` is the ArchiveEntry as stored, `shown`
+// the same row through the keeper's own lens. Pure.
+//
+// A line said under a hood or a forced name keeps that name and the face the
+// room saw. A bare face the keeper could not name keeps the alias the lens
+// gave them and NO face: the chat fetches a stranger's face by line
+// (/api/avatar/line/<seq>), which answers only while the keeper can still
+// read the line, and a Highlight is kept long after that. Somebody the keeper
+// knows keeps their name; the page draws their face from the id.
+function keptSpeaker(row, shown) {
+  if (row?.concealedAlias) return { name: row.concealedAlias, avatarPath: row.presentedAvatarPath ?? null };
+  if (shown?.alias) return { name: shown.alias, avatarPath: null };
+  return { name: row?.characterName ?? null, avatarPath: null };
+}
+
 // A typing notice as this reader should see it. `event` comes from the hub with
 // the real id, the presented name, whether that name hides them (`hidden`), and
 // the alias their face would give. The id is swapped for a scene key whenever
@@ -331,5 +347,6 @@ module.exports = {
   readsRow,
   createLens,
   lensRow,
+  keptSpeaker,
   lensTyping,
 };

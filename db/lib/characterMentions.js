@@ -3,6 +3,7 @@
 
 const { parsePlaceKey } = require("./placeKey");
 const { charactersNamedIn } = require("./mentions");
+const { formatBareName } = require("./characterName");
 const { buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUGS } = require("./specialChannels");
 const {
   CONCEALMENT_TAG_FIELDS,
@@ -81,7 +82,24 @@ function mentionedIdsIn(content) {
   return ids;
 }
 
-// Web/row -> Discord. Returns `{ content, characters }`: the rewritten text, and the characters it actually named. A token whose character is gone or has no role falls back to the NAME the token froze, printed as plain text (not a ping — there is no role to ping).
+// Whether a token's frozen name is the subject's own, so a role mention — which Discord draws as the role's
+// title, their bare name, for everybody — says nothing the token did not. Either spelling counts: the full name
+// stampMentionNames freezes today, or the bare first-and-last the role itself carries. A token with no frozen
+// name predates the freeze and has nothing to compare, so it keeps the role as it always did.
+function frozenAsOwnName(frozenName, character) {
+  if (!frozenName) return true;
+  const own = [character?.name, formatBareName(character ?? {})].map(freezeMentionName).filter(Boolean);
+  return own.includes(freezeMentionName(frozenName));
+}
+
+// Web/row -> Discord. Returns `{ content, characters }`: the rewritten text, and the characters it actually named.
+//
+// A token becomes a role mention only when it was frozen under the subject's OWN name. A role mention prints the
+// role's title — the real bare name — to everybody in the channel, so a token frozen as a hood's "Young Woman" or a
+// forced "Beast" relayed as `<@&role>` would put the name the hood was bought to hide on Discord. Those, and a token
+// whose character is gone or has no role, print the NAME the token froze as plain text instead (not a ping). Nothing
+// is lost by it: a character role pings nobody (PROXYING.md §6), and the relay DM is built off `characters`, which
+// still lists everybody named.
 async function tokensToRoles(prisma, content) {
   const ids = mentionedIdsIn(content);
   if (ids.length === 0) return { content, characters: [] };
@@ -91,6 +109,8 @@ async function tokensToRoles(prisma, content) {
     select: {
       id: true,
       name: true,
+      firstName: true,
+      lastName: true,
       status: true,
       discordRoleId: true,
       discordUserId: true,
@@ -103,7 +123,7 @@ async function tokensToRoles(prisma, content) {
 
   const rewritten = content.replace(TOKEN_RE, (raw, id, frozenName) => {
     const character = byId.get(id);
-    if (character?.discordRoleId) return `<@&${character.discordRoleId}>`;
+    if (character?.discordRoleId && frozenAsOwnName(frozenName, character)) return `<@&${character.discordRoleId}>`;
     return frozenName || raw;
   });
 

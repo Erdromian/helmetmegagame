@@ -124,7 +124,8 @@ export async function setSearchHidden(offerId, tagIds) {
 // which re-resolves who is eligible rather than trusting the labels the DM was
 // drawn from — they may be minutes stale.
 // `pick` is the option's code off this chanter's own list, never a
-// character id (conversionRite.js#pickCode).
+// character id (conversionRite.js#pickCode). The answer is a sentence and
+// nothing else — never who was picked, which is the GMs' to read.
 export async function pickConversionTarget(attemptId, pick) {
   const session = await auth();
   if (!session?.discordUserId) return { ok: false, reason: "You are not signed in." };

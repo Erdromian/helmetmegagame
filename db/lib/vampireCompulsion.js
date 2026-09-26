@@ -20,7 +20,7 @@
 // moved on.
 const { BLOODCRAZED_SLUG, WIGHT_SLUG } = require("./constants");
 const { alivePassCharacters } = require("./aliveCharacters");
-const { IDENTITY_SELECT } = require("./intercept");
+const { IDENTITY_SELECT, seenBy } = require("./intercept");
 const { fileAttack } = require("./attack");
 
 function pickRandom(list) {
@@ -84,7 +84,9 @@ async function runVampireCompulsion(prisma, newTurn) {
           confirmedAt: new Date(),
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
-          description: `Blood-crazed, ${vampire.name} ravenously feeds on ${feedTarget.name}.`,
+          // The victim as the vampire knows them (intercept.js#seenBy): this is
+          // the vampire's own sheet, and a hood or a stranger stays one there.
+          description: `Blood-crazed, ${vampire.name} ravenously feeds on ${await seenBy(prisma, vampire.id, feedTarget)}.`,
           zoneId: vampire.zoneId ?? null,
           gmNotes: heldWight ? "auto:wight" : "auto:bloodcrazed",
         },

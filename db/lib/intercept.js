@@ -224,12 +224,31 @@ function seenAs(presented) {
 // for reads as what it looks like, "a young man" (docs/systemdocs/STRANGERS.md).
 // `row` needs IDENTITY_SELECT. Use this wherever the words go to one
 // character, which is nearly every DM. `db` may be a transaction.
+//
+// This, seenByMany and the two id-shaped wrappers below are the ONE place a
+// line to one reader decides what to call somebody. Every DM, notice, refusal
+// and Move description that names another character comes through here, so a
+// change to what a reader knows people by is made here and nowhere else.
 async function seenBy(db, viewerId, row) {
-  const presented = identityOf(row);
-  if (!row?.id || !viewerId || row.id === viewerId || presented.concealed || presented.forced) return seenAs(presented);
-  const known = await knownSubjects(db, viewerId, [row.id]);
-  if (!known || known.has(row.id)) return seenAs(presented);
-  return withArticle(concealedAlias(row).toLowerCase());
+  const [name] = await seenByMany(db, viewerId, [row]);
+  return name;
+}
+
+// seenBy for a whole list, one reader: ONE Friends lookup for everybody, not
+// one a row. Answers in the order `rows` came, so a caller zips it back by
+// index. Row by row the rule is seenBy's — yourself, a hood and a forced name
+// never ask about Friends, a stranger is what they look like, a row that is
+// missing is "somebody". `rows` need IDENTITY_SELECT; `db` may be a transaction.
+async function seenByMany(db, viewerId, rows) {
+  const list = (Array.isArray(rows) ? rows : []).map((row) => ({ row, presented: row ? identityOf(row) : null }));
+  const asks = ({ row, presented }) =>
+    Boolean(presented && row.id && viewerId && row.id !== viewerId && !presented.concealed && !presented.forced);
+  const ids = list.filter(asks).map(({ row }) => row.id);
+  const known = ids.length > 0 ? await knownSubjects(db, viewerId, ids) : null;
+  return list.map((entry) => {
+    if (!asks(entry) || !known || known.has(entry.row.id)) return seenAs(entry.presented);
+    return withArticle(concealedAlias(entry.row).toLowerCase());
+  });
 }
 
 // seenBy for a caller holding only an id, or a row loaded without
@@ -239,6 +258,17 @@ async function seenById(db, viewerId, characterId) {
   if (!characterId) return "somebody";
   const row = await db.character.findUnique({ where: { id: characterId }, select: IDENTITY_SELECT });
   return row ? seenBy(db, viewerId, row) : "somebody";
+}
+
+// seenByMany for ids: one read for the rows, one for the Friends list. In the
+// order `ids` came, "somebody" for one that is gone.
+async function seenByIdMany(db, viewerId, ids) {
+  const wanted = [...new Set((ids ?? []).filter(Boolean))];
+  const rows = wanted.length
+    ? await db.character.findMany({ where: { id: { in: wanted } }, select: IDENTITY_SELECT })
+    : [];
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return seenByMany(db, viewerId, (ids ?? []).map((id) => byId.get(id) ?? null));
 }
 
 // What a whole place reads a person as, for a line everybody there sees: a
@@ -455,7 +485,7 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
     if (safe.length > 0) {
       dms.push({
         discordUserId: who.discordUserId,
-        content: `You successfully intercepted ${(await Promise.all(safe.map((h) => seenBy(db, who.id, h.target)))).join(", ")}.`,
+        content: `You successfully intercepted ${(await seenByMany(db, who.id, safe.map((h) => h.target))).join(", ")}.`,
         kind: DM_KIND.NOTICE,
       });
     }
@@ -528,7 +558,9 @@ module.exports = {
   matchesArrival,
   seenAs,
   seenBy,
+  seenByMany,
   seenById,
+  seenByIdMany,
   seenByPlace,
   saidWord,
   IDENTITY_SELECT,

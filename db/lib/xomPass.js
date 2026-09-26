@@ -23,6 +23,8 @@ const { expiryFrom } = require("./turnFormat");
 const { grantTagSlugs, replaceLowerTiers } = require("./tagWrites");
 const { applyDeathToRow } = require("./characterDeath");
 const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
+const { seenByPlace } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 const {
   OLD_WAYS_XOM_SLUG,
   FECES_SLUG,
@@ -270,10 +272,14 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
           toLocationName: target.locationName,
           alive: true,
         });
+        // Named for the faces the two of them show (intercept.js#seenByPlace):
+        // the name is the thread's, read by both, so a hood is its alias here
+        // too. A bare face is named, as on every place line (STRANGERS.md §7).
+        const [one, two] = await Promise.all([seenByPlace(prisma, character.id), seenByPlace(prisma, target.id)]);
         conversations.push({
           locationId: target.locationId,
           characterIds: [character.id, target.id],
-          name: `${character.name} & ${target.name}`.slice(0, 90),
+          name: `${capitalizeFirst(one)} & ${capitalizeFirst(two)}`.slice(0, 90),
           line: XOM_LONELY_LINE,
         });
         tell(character, NOTICES.lonely);

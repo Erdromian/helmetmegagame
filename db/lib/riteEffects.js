@@ -30,6 +30,8 @@ const { askCircleToPick } = require("./conversionRite");
 const { broadcastToZones } = require("./worldBroadcast");
 const { SFX } = require("./sfx");
 const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
+const { seenByPlace } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 // roomStash's addRoomResources, NOT resourceStack's. The bare stack writer moves
 // the ⬢ and books nothing; this one records the ledger row and the CLAMP
 // shortfall. A rite minting ⬢ onto a floor is real money appearing out of
@@ -396,6 +398,9 @@ const EFFECTS = {
       select: { id: true, name: true, discordUserId: true, discordRoleId: true, locationId: true, zoneId: true, location: { select: { id: true, name: true, discordChannelId: true } } },
     });
     if (!full) throw new Error("the target is gone");
+    // The face the room saw (intercept.js#seenByPlace), read BEFORE the gib
+    // takes what they wore with them: a hood stays a hood even now.
+    const seen = capitalizeFirst(await seenByPlace(db, full.id));
     await db.$transaction(async (tx) => {
       await spendFromHolder(tx, holder, tag.id, "photograph");
     });
@@ -410,7 +415,7 @@ const EFFECTS = {
     // Same as sacrifice: the gib left no body, so the mist drops somewhere chosen.
     const where = await pickRandomPublicRoom(db, full.locationId);
     const spawned = where ? await spawnRemains(db, where, { flesh: false, resources: false }) : {};
-    await locationLine(db, full.location, `${full.name} explodes into mist!`, { sfx: SFX.GIB });
+    await locationLine(db, full.location, `${seen} explodes into mist!`, { sfx: SFX.GIB });
     return { result: { judged: full.name, characterId: full.id, spawned } };
   },
 

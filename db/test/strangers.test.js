@@ -16,6 +16,7 @@ const {
   attachSpeaker,
   createLens,
   lensRow,
+  keptSpeaker,
   lensTyping,
   knownSubjects,
 } = require("../lib/strangers");
@@ -283,6 +284,43 @@ test("the real speaker never serialises", () => {
   assert.ok(!JSON.stringify(shaped).includes("s1"));
   const copy = { ...shaped };
   assert.equal(Object.getOwnPropertySymbols(copy).length, 0, "a spread copy drops it");
+});
+
+// A Highlight (web/lib/starNote.js) is filed under the name its keeper saw on
+// the line. `stored` is the ArchiveEntry as written; the second argument is the
+// same line through the keeper's lens.
+const stored = (extra = {}) => ({
+  characterId: "s1",
+  characterName: "Una Stray",
+  concealedAlias: null,
+  presentedAvatarPath: null,
+  ...extra,
+});
+
+test("a kept line from a stranger is filed under their alias, with no face and no number", () => {
+  const lens = {
+    characterId: "viewer",
+    facts: facts([["s1", { known: false, voice: { number: 3, live: true }, age: 20, gender: "WOMAN" }]]),
+  };
+  assert.deepEqual(keptSpeaker(stored(), lensRow(row(), lens)), { name: "Young Woman", avatarPath: null });
+});
+
+test("a kept line from a friend, or your own, keeps the name", () => {
+  const friend = { characterId: "viewer", facts: facts([["s1", { known: true, voice: null }]]) };
+  assert.deepEqual(keptSpeaker(stored(), lensRow(row(), friend)), { name: "Una Stray", avatarPath: null });
+  const own = row({ speaker: "viewer", characterId: "viewer" });
+  const mine = keptSpeaker(stored({ characterId: "viewer" }), lensRow(own, { characterId: "viewer", facts: new Map() }));
+  assert.equal(mine.name, "Una Stray");
+});
+
+test("a kept line said under a hood or a forced name keeps that name and the face the room saw", () => {
+  const helm = "/assets/helms/hood.webp";
+  const hooded = stored({ concealedAlias: "Young Man", presentedAvatarPath: helm });
+  const friend = { characterId: "viewer", facts: facts([["s1", { known: true }]]) };
+  const shown = lensRow(row({ characterId: null, name: "Young Man", alias: "Young Man" }), friend);
+  assert.deepEqual(keptSpeaker(hooded, shown), { name: "Young Man", avatarPath: helm }, "a friend's hood is still a hood");
+  const beast = stored({ concealedAlias: "Beast", presentedAvatarPath: "/assets/letters/b.webp" });
+  assert.equal(keptSpeaker(beast, null).name, "Beast");
 });
 
 test("createLens reads every speaker in a batch in one round", async () => {

@@ -869,16 +869,16 @@ async function cancelOffersForAction(tx, actionId) {
         where: { id: offer.learnerId },
         select: { discordUserId: true },
       });
-      const teacher = await tx.character.findUnique({
-        where: { id: offer.teacherId },
-        select: { name: true },
-      });
       if (learner?.discordUserId) {
         // This hook is shared with Confession, whose "teacher" is a chaplain.
+        // Named as the learner knows them (intercept.js#seenBy), the way every
+        // other line of the lesson named them.
         const what = offer.kind === "CONFESSION" ? "confession" : "lesson";
-        const who =
-          teacher?.name ??
-          (offer.kind === "CONFESSION" ? "your chaplain" : "your teacher");
+        const who = offer.teacherId
+          ? await seenById(tx, offer.learnerId, offer.teacherId)
+          : offer.kind === "CONFESSION"
+            ? "your chaplain"
+            : "your teacher";
         dms.push({
           discordUserId: learner.discordUserId,
           content: `Your ${what} with ${who} was called off by a GM. Your Move wasn't spent.`,

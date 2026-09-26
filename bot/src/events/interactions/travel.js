@@ -37,7 +37,8 @@ const {
 const { knownLocations } = require("@lifeweb/db/lib/locationVisits");
 const { crossingCost, formatTravel, FAR_CROSSING_COST } = require("@lifeweb/db/lib/crossingCost");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
-const { heldReasonFor, INTERCEPT_RELEASE_PREFIX, seenById } = require("@lifeweb/db/lib/intercept");
+const { heldReasonFor, INTERCEPT_RELEASE_PREFIX, seenByIdMany } = require("@lifeweb/db/lib/intercept");
+const { capitalizeFirst } = require("@lifeweb/db/lib/concealedIdentity");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { sendDm } = require("../../lib/dm");
@@ -417,12 +418,17 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
     return;
   }
 
-  // As the mover knows them — a hood or a stranger in the party is "a young man".
-  const brought = await Promise.all(
-    result.moved
-      .filter((entry) => entry.character.id !== character.id)
-      .map((entry) => seenById(prisma, character.id, entry.character.id)),
+  // As the mover knows them — a hood or a stranger in the party is "a young man",
+  // whether they came along or were left behind. One lookup for the lot.
+  const passengers = result.moved.filter((entry) => entry.character.id !== character.id);
+  const leftBehind = result.leftBehind ?? [];
+  const names = await seenByIdMany(
+    prisma,
+    character.id,
+    [...passengers, ...leftBehind].map((entry) => entry.character.id),
   );
+  const brought = names.slice(0, passengers.length);
+  const leftNames = names.slice(passengers.length);
   // Where they ACTUALLY got to. A walk of several hops can be stopped on the
   // road — an ambush, a gate shut behind somebody, the gun at the Depot — and
   // the ground they covered is real, so the line names it rather than the place
@@ -446,10 +452,10 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
     );
   }
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
-  const stranded = (result.leftBehind ?? []).filter((e) => e.reason !== "held").map((e) => e.character.name);
-  if (stranded.length > 0) parts.push(`${listNames(stranded)} couldn't follow.`);
+  const stranded = leftNames.filter((_, i) => leftBehind[i].reason !== "held");
+  if (stranded.length > 0) parts.push(`${capitalizeFirst(listNames(stranded))} couldn't follow.`);
   // "held" is the only reason given, since it's plain to see (INTERCEPT.md).
-  const heldBack = (result.leftBehind ?? []).filter((e) => e.reason === "held").map((e) => e.character.name);
+  const heldBack = leftNames.filter((_, i) => leftBehind[i].reason === "held");
   if (heldBack.length > 0) parts.push(`Somebody has hold of ${listNames(heldBack)}.`);
   if (result.dismounted?.length > 0) { // dismounted, not refused (db/lib/indoors.js#dismountForNarrowWay)
     parts.push(

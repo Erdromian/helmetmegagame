@@ -236,6 +236,12 @@ Name)".
   go to one character now uses it: Attack and its list, Search, Pickpocket,
   Intercept, Kiss, a declined or expired offer, the Break-off button, the
   sheet's and `/chat`'s waiting-on-you lists.
+- **One function decides it.** `seenBy`, and `seenByMany(db, viewerId, rows)`
+  for a list, are the only place a line to one reader decides what to call
+  somebody. `seenBy` is `seenByMany` of one, so the two cannot disagree, and a
+  list costs one Friends lookup rather than one a row. `seenById` and
+  `seenByIdMany` are the same for a caller holding ids. So when what a reader
+  knows people by changes, it changes there and nowhere else.
 - **Every verb done to somebody else** names them through it too, in the
   refusal, the line handed back to the actor, and the DM to the other side:
   Bind, Free, Crucify, Shackle, Brand, Harm, Torture (until a break tells the
@@ -249,6 +255,21 @@ Name)".
   `seenById(db, viewerId, id)`, which loads what `seenBy` needs. The web's
   `web/lib/hereTarget.js#seenName` is the same, capitalised to open a
   sentence.
+- **The last of them** went through it in a second sweep: who "couldn't
+  follow" or is being held back on a Discord move, a lesson or confession a GM
+  calls off, a bloodcrazed vampire's Move ("feeds on a young man"), Enthral and
+  Nourish's refusals, "already has that" when handing something over, a GM
+  moving ⬢ between two players, and who is at the vending machine. A payer
+  running out of ⬢ halfway through a cure or a craft names nobody at all.
+- **Nothing goes to a browser that the page does not print.** A server
+  action's answer reaches the browser whole, drawn or not. So a conversion
+  pick answers with its sentence alone; who was picked stays on the rite's row
+  for the GMs.
+- **Highlights** (`web/lib/starNote.js`) are filed under the name their keeper
+  saw on the line (`strangers.js#keptSpeaker`): a stranger's line is kept as
+  "Young Man", with no face, never under the real name the row holds. A star
+  from Discord keeps the name the webhook posted under, which is all a Discord
+  reader saw.
 - **The conversion rite's pick list** goes out as one DM per chanter, so each
   list is worded for its reader, and an option is a code made for that
   chanter rather than a character id (`THANATI.md` §4a).
@@ -258,15 +279,25 @@ Name)".
   do this now, as Kiss does.
 - **A line the whole place reads** can't be worded per reader (§7), but it
   never names a hood: `intercept.js#seenByPlace` is the face the room saw.
-  The cross ("X hangs on the cross."), a collar going off, and praying at
-  Xom's shrine use it.
+  The cross ("X hangs on the cross."), a collar going off, praying at Xom's
+  shrine, Xom moving somebody and the conversation it opens, and Judgement's
+  "X explodes into mist!" use it.
 
 ## 7. What this does not reach yet
+
+Every line written for ONE reader now names people through `seenBy` — the
+DMs, the notices, the refusals, the lines handed back, the Move descriptions.
+That gap is closed. What is left is either a line many people read, or a name
+the game is meant to say.
 
 - **Discord.** A webhook carries one name for everybody in a channel, so
   Discord keeps the old behaviour: a hood is an alias, a bare face is a name.
   Discord's Who's here readout does follow the rule, since it is built per
-  viewer.
+  viewer. A `{char:…}` chip only goes to Discord as the person's role when it
+  was frozen under their own name (`characterMentions.js#tokensToRoles`): a role
+  prints the real name to the whole channel, so a chip frozen as a hood's
+  "Young Woman" or a forced "Beast" goes out as that text instead. The relay DM
+  to the person named still goes.
 - **Baked scenery lines.** Lines that bake a name into their text can't be
   relabelled per reader without storing who each line is about:
   - arrival and departure lines (`db/lib/roomAnnounce.js`)
@@ -275,9 +306,31 @@ Name)".
   - "X was let in."
 - **Place lines about a bare face** — the cross, a collar going off, a prayer
   — name them, the same as arrivals. Only a hood is kept out of them.
+- **Names a place is called by.** A party is "Ada's Party" and a conversation
+  Xom opens is "Ada & Bo", on the Discord thread and on the web alike. A hood
+  is its alias in both; a bare face is named.
 - **Bodies.** A corpse is an item named after the dead ("Ada's Corpse"), so
   Bury, Engrave and Mutilate on a body name them. That is how bodies work
-  (`CORPSES.md`), not a leak this rule closes.
+  (`CORPSES.md`), not a leak this rule closes. Death notices and the
+  transcript's own records name the dead too.
+- **Names the game is meant to say.** These tell a reader a real name on
+  purpose, and stay that way:
+  - anything that finds a person BY name, which only matches the real one: an
+    arrest warrant, Excommunicate and Engrave (typed), and the Bird's list of
+    who to write to (every character, by name — `BIRD.md` §2)
+  - a torture break, and the Rite of Omniscience ("Their name is …"), which
+    exist to tell it
+  - the Thanati knowing one another (Recall Comrades)
+  - the treasury's ring register, and the Depot's list of bank accounts
+  - the @-mention directory (`PROXYING.md` §5)
+  - every GM surface
+- **An open question: the Bird.** A letter arrives saying who it is from, by
+  real name, and so does its reply (`db/lib/bird.js`). Whether a letter from
+  somebody you have never met should say so is a design call, not a leak this
+  sweep closed, so it is left as it was.
+- **Somebody you know** is still shown under their real name, not under what
+  your Friends entry calls them (§1). That is Bascinet's rule from
+  2026-09-25, and changing it is a change to `seenBy`.
 
 ## 8. Where the code lives
 
@@ -289,12 +342,14 @@ Name)".
 | Who is hidden, labels on lists | `db/lib/whosHere.js`, `db/lib/presentedMembers.js` |
 | Tokens and scene keys | `db/lib/hoodToken.js` |
 | Clearing on a move | `db/lib/locationMove.js#applyArrivalFacts` |
-| DM wording per reader | `db/lib/intercept.js#seenBy`, `seenById`, `seenByPlace`; `web/lib/hereTarget.js#seenName` |
+| DM wording per reader | `db/lib/intercept.js#seenBy`, `seenByMany`, `seenById`, `seenByIdMany`, `seenByPlace`; `web/lib/hereTarget.js#seenName` |
+| What a Highlight is filed under | `db/lib/strangers.js#keptSpeaker`, `web/lib/starNote.js` |
+| A chip on its way to Discord | `db/lib/characterMentions.js#tokensToRoles` |
 | Looking | `db/lib/examineRow.js`, `db/lib/examine.js` |
 | Faces without ids | `web/app/api/avatar/here/`, `web/app/api/avatar/line/`, `web/lib/avatarResponse.js` |
 | The lens on the web | `web/lib/strangerLens.js`, `web/app/api/feed/route.js` |
 | Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory` |
-| Tests | `db/test/strangers.test.js`, `presentedMembers.test.js`, `roomGuests.test.js` |
+| Tests | `db/test/strangers.test.js`, `presentedMembers.test.js`, `roomGuests.test.js`, `verbFaces.test.js`, `seenByMany.test.js`, and `strangerNameCanary.test.js` — every builder that names somebody to one reader, run against a stranger called Zzyzx Quorble, who must never be named |
 
 ## 9. Switching it off
 

@@ -528,6 +528,10 @@ test("only somebody who chanted may pick, and only once", async () => {
 
   const picked = await answerConversionPick(db, { attemptId: "a1", discordUserId: "ash", pick: pickCode("a1", "c1", "v1") });
   assert.equal(picked.ok, true);
+  // The chanter's answer is the sentence and nothing else: who was picked,
+  // by name or by id, stays on the attempt row for the GMs. The web hands
+  // this object to a browser whole.
+  assert.deepEqual(picked, { ok: true, line: "Lord Tzchernobog reaches out to them." });
   assert.equal(attempt.status, "FIRED", "the claim is what stops two cultists both calling somebody");
   assert.equal(db._store.offer.length, 1);
   assert.equal(db._store.offer[0].responderId, "v1");
