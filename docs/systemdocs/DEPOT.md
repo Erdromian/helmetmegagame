@@ -418,10 +418,15 @@ deposit and a withdrawal that took them the other way round would deadlock.
 **Debtor** is a separate faucet, off the drawback catalog rather than
 `docs/roles.yaml`: taking the tag grants 20 obols in the creation transaction
 (`DEBTOR_STARTING_OBOLS`, `db/lib/wantedPoster.js`), and the character owes
-40 back. That debt is only ever paper — three notices go up ("DEBTOR:
-{name}. Owes: 40 obols. Send the dockers."), a loose sheet each in the
-Merchant's Office and the Storefront, and one pinned to the Depot
-noticeboard. Nothing collects it automatically.
+40 back. The debt is owed to either the Merchant or the Exactor — two tags,
+**Debtor (Merchant)** (`debtor`) and **Debtor (Exactor)** (`debtor-exactor`),
+which conflict, and neither seat may take its own. That debt is only ever
+paper. Owed to the Merchant, three notices go up ("DEBTOR: {name}. Owes: 40
+obols. Send the dockers."), a loose sheet each in the Merchant's Office and
+the Storefront, and one pinned to the Depot noticeboard. Owed to the Exactor,
+two go up ("{name}. Owes the house: 40 obols."), in the Exactor's Office and
+the Den's Bar, and nothing is pinned — the Den has no board, and his debts are
+not announced at the Depot. Nothing collects either automatically.
 
 ## 0h. The Meister's terminal
 
