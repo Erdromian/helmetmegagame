@@ -4,8 +4,14 @@ import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
-import { phoneView, placeCall, answerCall, hangUp } from "@lifeweb/db/lib/phone";
-import { PHONE_TEXT } from "@lifeweb/db/lib/phoneText";
+import {
+  phoneView,
+  answerPhone as answerPayphone,
+  dialNumber,
+  hangUp,
+  walkAway,
+  insertObol,
+} from "@lifeweb/db/lib/phone";
 import { questInteract } from "@lifeweb/db/lib/quests";
 import { playSlots as playSlotsInDb, CASINO_ROOM_SLUG } from "@lifeweb/db/lib/slotMachine";
 import {
@@ -1825,62 +1831,81 @@ export async function vendStockables({ roomId } = {}) {
 
 // ------------------------------------------------------------- the telephone
 //
-// Four actions for one button, because the dialog is dynamic: what the Phone
-// button does depends on what this phone is doing right now, and that is
-// decided server-side on every open (docs/systemdocs/PHONES.md). A server
-// action is a public endpoint, so each one re-resolves the acting character
-// from the session and re-checks the room — the dialog's own state is a hint.
-
-export async function openPhone({ roomId } = {}) {
-  const me = await actor();
-  if (me.error) return { ok: false, error: me.error };
-
-  const view = await phoneView(prisma, me.discordUserId, roomId);
-  if (!view.ok) return { ok: false, error: view.error, sfx: SFX.REFUSE };
-
-  // Only what the dialog draws. The call row itself never crosses: it carries
-  // both characters' ids, and the far end of a call is exactly the thing a
-  // phone is not supposed to tell you.
+// One button, and a dialog that follows whatever the phone is doing
+// (docs/systemdocs/PHONES.md §3). Opening it picks the receiver up — and
+// answers a named phone that is ringing — so every action below re-resolves
+// the acting character from the session and re-checks the room: a server
+// action is a public endpoint, and the dialog's own state is a hint.
+//
+// Only what the dialog draws crosses back. The call row never does: it carries
+// both characters' ids, and the far end of a call is exactly the thing a phone
+// is not supposed to tell you.
+function phoneAnswer(view) {
   return {
     ok: true,
     mode: view.mode,
-    phone: view.room.phone,
-    payphone: Boolean(view.room.payphone),
-    paid: Boolean(view.paid),
-    phones: view.phones.map((p) => ({ id: p.id, name: p.phone })),
+    phone: view.room?.phone ?? null,
+    payphone: Boolean(view.room?.payphone),
+    price: view.price ?? null,
+    handset: view.handset ?? null,
+    outcome: view.outcome ?? null,
+    line: view.line ?? null,
+    sfx: view.sfx ?? null,
   };
 }
 
-export async function dialPhone({ roomId, toRoomId } = {}) {
+const openTurn = () => prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+
+export async function openPhone({ roomId } = {}) {
   const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
-  if (!toRoomId) return { ok: false, error: "Pick a phone." };
-
-  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
-  const result = await placeCall(prisma, me.discordUserId, { fromRoomId: roomId, toRoomId, turn });
-  // A busy line carries its own sound up from db/lib/phone.js; everything else
-  // refuses in the ordinary voice, and a payphone that could not be paid for
-  // gets the money refusal rather than the flat one.
-  if (!result.ok) {
-    return { ok: false, error: result.error, sfx: result.sfx ?? SFX.REFUSE_MONEY };
-  }
-  return { ok: true, line: PHONE_TEXT.dialling, sfx: result.sfx };
+  const view = await phoneView(prisma, me.discordUserId, roomId, { via: "web" });
+  if (!view.ok) return { ok: false, error: view.error, sfx: SFX.REFUSE };
+  return phoneAnswer(view);
 }
 
 export async function answerPhone({ roomId } = {}) {
   const me = await actor(undefined, { acting: true });
   if (me.error) return { ok: false, error: me.error };
-  const result = await answerCall(prisma, me.discordUserId, roomId);
-  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE };
-  return { ok: true, line: PHONE_TEXT.pickedUp, sfx: result.sfx };
+  const view = await answerPayphone(prisma, me.discordUserId, roomId, { via: "web", turn: await openTurn() });
+  if (!view.ok) return { ok: false, error: view.error, sfx: view.sfx ?? SFX.REFUSE };
+  return phoneAnswer(view);
 }
 
+// Holds for a few seconds on a number that goes nowhere — the exchange ringing
+// it out (db/lib/phone.js#dialNumber). The dialog plays the long tone meanwhile.
+export async function dialPhone({ roomId, digits } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const view = await dialNumber(prisma, me.discordUserId, roomId, digits, { turn: await openTurn() });
+  if (!view.ok) return { ok: false, error: view.error, sfx: view.sfx ?? SFX.REFUSE };
+  return phoneAnswer(view);
+}
+
+export async function insertPhoneObol({ roomId } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const view = await insertObol(prisma, me.discordUserId, roomId, { turn: await openTurn() });
+  if (!view.ok) return { ok: false, error: view.error, sfx: view.sfx ?? SFX.REFUSE };
+  return phoneAnswer(view);
+}
+
+// Hanging up and walking away are never session-gated: putting a receiver
+// down is not an action anybody should be kept from.
 export async function hangUpPhone({ roomId } = {}) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
-  const result = await hangUp(prisma, me.discordUserId, roomId);
-  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE };
-  return { ok: true, line: "You put the receiver down.", sfx: result.sfx };
+  const view = await hangUp(prisma, me.discordUserId, roomId);
+  if (!view.ok) return { ok: false, error: view.error, sfx: SFX.REFUSE };
+  return phoneAnswer(view);
+}
+
+export async function walkAwayPhone({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const view = await walkAway(prisma, me.discordUserId, roomId);
+  if (!view.ok) return { ok: false, error: view.error, sfx: SFX.REFUSE };
+  return phoneAnswer(view);
 }
 
 export async function speakOnIntercom({ roomId, body } = {}) {

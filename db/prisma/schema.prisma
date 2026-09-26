@@ -1646,10 +1646,41 @@ model Room {
   phone String?
 
   // A phone that takes coins. Set from `payphone: true` in docs/zones.yaml.
-  // Two things follow: a call off it costs PHONE_COST into the treasury, and
-  // it is absent from every dial list — a payphone calls out and never rings,
-  // because there is nobody standing next to it whose job is to answer.
+  // Dialling out or answering on one costs PHONE_COST into the treasury, and
+  // each coin buys PHONE_PAID_MS on the receiver (phonePaidUntil below).
   payphone Boolean @default(false)
+
+  // This phone's four-digit number (docs/systemdocs/PHONES.md §2). Rolled
+  // afresh for every phone at Start Game (db/lib/phoneNumbers.js), so last
+  // game's numbers are worthless, and never authored anywhere: docs/zones.yaml
+  // and this repository are public. A phone added mid-game is given one the
+  // first time somebody picks it up.
+  phoneNumber Int? @unique
+
+  // Who has the receiver in their hand, if anyone (PHONES.md §3). Holding a
+  // phone is not the same as being on a call: you pick it up, then dial, and
+  // hanging up leaves it in your hand. A unique index, like
+  // VendingMachine.holderId, so one person holds one phone at a time and a
+  // phone is held by one person, without raw SQL.
+  phoneHolderId String?    @unique
+  phoneHolder   Character? @relation("PhoneHolder", fields: [phoneHolderId], references: [id], onDelete: SetNull)
+  // When they picked it up, and on which face ("web" | "discord"). The face
+  // decides where the far end's words go: a Discord holder gets them as a DM,
+  // since a Discord thread cannot show one reader a different line.
+  phoneHeldAt  DateTime?
+  phoneHeldVia String?
+  // Since when this phone has been in a hand with no call connected. A named
+  // phone drops its holder after PHONE_HOLD_IDLE_MS of this.
+  phoneIdleSince DateTime?
+  // A payphone's paid time. Every coin moves this PHONE_PAID_MS on; when it
+  // passes, the holder is ejected and any call on it hangs up.
+  phonePaidUntil DateTime?
+  // Whether the "insert another obol" line has gone out for this stretch of
+  // paid time, so the sweep says it once. Cleared by every coin.
+  phoneObolPrompted Boolean @default(false)
+  // The far end hung up and this end has not: the busy tone, until the holder
+  // here hangs up too. Null the rest of the time.
+  phoneDeadSince DateTime?
 
   // A vending machine bolted to this wall. Set from `vending: true` in
   // docs/zones.yaml, the way `stable` and `payphone` above are.
@@ -2598,6 +2629,8 @@ model Character {
   // Both ends of a telephone call. See PhoneCall.
   phoneCallsPlaced PhoneCall[] @relation("PhoneCallCaller")
   phoneCallsTaken  PhoneCall[] @relation("PhoneCallCallee")
+  // The phone in this character's hand, if any. See Room.phoneHolderId.
+  phoneHeld        Room?       @relation("PhoneHolder")
 
   // The vending machine this character is standing at, if any. At most one —
   // see VendingMachine.holderId for why that is a unique index rather than a
@@ -5976,6 +6009,21 @@ model ArchiveEntry {
   // transcript, which is why /archive's select leaves it behind.
   sfx String?
 
+  // Who may read this row, when not everybody at its place may. Null on both,
+  // which is nearly every row, means the whole place reads it. Written only by
+  // the telephone (db/lib/phoneVoice.js, PHONES.md §6): the person holding a
+  // receiver hears the far end clearly while the room around them hears it
+  // half-garbled, and those are two rows at one place. `onlyCharacterId` is
+  // the one reader a row is for; `exceptCharacterId` is the one reader it is
+  // kept from. Snapshot strings, not FKs, like `characterId` above.
+  //
+  // Decided per reader by db/lib/strangers.js#createLens, which every surface
+  // that hands feed rows to a browser already runs; a GM reads everything.
+  // NEVER put either on the wire: an id on a room row would say who is holding
+  // the phone. db/lib/archive.js#feedRowShape carries them on a hidden symbol.
+  onlyCharacterId   String?
+  exceptCharacterId String?
+
   // Forum post / thread title, so a scene reads as one unit rather than
   // scattered lines under its location.
   threadName String?
@@ -6602,10 +6650,10 @@ model PhoneCall {
   toRoomId   String
   toRoom     Room   @relation("PhoneCallTo", fields: [toRoomId], references: [id], onDelete: Cascade)
 
-  // Who is holding each receiver. The caller is known from the first moment;
-  // the callee is null for as long as the phone is still ringing. Exactly one
-  // person may hold a phone, which is what these two columns mean and what the
-  // partial unique indexes below enforce.
+  // Who dialled, and who first picked up at the far end — a record, not who
+  // holds each receiver now. The receiver can change hands mid-call (walk away,
+  // and somebody else picks it up), so the live answer is Room.phoneHolderId.
+  // The callee is null for as long as the phone is still ringing.
   callerId String
   caller   Character  @relation("PhoneCallCaller", fields: [callerId], references: [id], onDelete: Cascade)
   calleeId String?
@@ -6613,19 +6661,20 @@ model PhoneCall {
 
   status PhoneCallStatus @default(RINGING)
 
-  // How many of the four rings have gone out. The sweep's whole memory.
+  // How many rings have gone out. The sweep's whole memory: a phone rings
+  // until somebody answers, and this is how it knows one is due.
   ringsSent Int @default(0)
 
-  // Whether the coin is already in the slot. A payphone charges for LIFTING
-  // THE RECEIVER, not per number dialled, so a call nobody answered lets the
-  // caller try somebody else on the same obol -- db/lib/phone.js#PAID_GRACE_MS.
+  // Whether this call took a coin when it was dialled. A payphone's paid time
+  // lives on the Room (phonePaidUntil); this is only the record.
   paid Boolean @default(false)
 
   startedAt   DateTime  @default(now())
   answeredAt  DateTime?
   endedAt     DateTime?
-  // "hungup" | "left" | "noanswer" | "busy" | "gm". Read by nothing in the
-  // game rules; it is there so a GM reading a stuck row can tell what happened.
+  // "hungup" | "left" | "walked" | "ejected" | "unpaid" | "newgame". Read by
+  // nothing in the game rules; it is there so a GM reading a stuck row can
+  // tell what happened.
   endedReason String?
 
   // REQUESTS.md 1a: an action a ration could ever count must stamp the turn,

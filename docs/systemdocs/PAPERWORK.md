@@ -131,6 +131,14 @@ seal. A surface that skips the compose shows a GM nothing at all.
 
 ### 4a. Books
 
+**One book the game writes: the Phonebook** (`PHONES.md` §2). An authored
+BOOK like the Keep's shelf, but its words are every phone's number, rolled
+afresh at every Start Game, so `db/lib/phoneNumbers.js#writePhonebook`
+rewrites its `paperText` and `gameWritesText: true` in `docs/tags.yaml`
+keeps the tag sync off it. Every copy is one Tag row, so one write reprints
+them all — which is safe only because a BOOK is never Write's or Seal's to
+change in place.
+
 A book is ten sheets bound together and written in one pass, and then it is
 finished — **Write refuses a `BOOK`**. That single rule is the whole difference
 between a book and a sheet, and it is what makes a book worth stealing rather

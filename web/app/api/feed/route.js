@@ -13,7 +13,9 @@ import {
   subscribeToDm,
   subscribeToMusic,
   musicFrameFor,
+  subscribeToPhones,
 } from "@/lib/feedHub";
+import { phoneFrameFor } from "@lifeweb/db/lib/phoneFrame";
 
 // GET /api/feed?since=<seq> — ONE server-sent event stream per open tab,
 // carrying every place the viewer may read.
@@ -133,7 +135,10 @@ export async function GET(request) {
                 console.error("Feed lens failed:", err);
               }
             }
-            write(`event: message\ndata: ${JSON.stringify(lens.apply(row))}\n\n`);
+            // Null is a row this reader may not see at all — the half of a
+            // telephone call meant for somebody else (PHONES.md §6).
+            const shown = lens.apply(row);
+            if (shown) write(`event: message\ndata: ${JSON.stringify(shown)}\n\n`);
           })
           .catch((err) => console.error("Feed write failed:", err));
       };
@@ -290,6 +295,7 @@ export async function GET(request) {
         }
         if (closed) return;
         await followMusic(character?.locationId ?? null);
+        await followPhones(character?.id ?? null, character?.locationId ?? null);
         if (onlyPlace) places = places.filter((entry) => entry.placeKey === onlyPlace);
 
         const wanted = new Set(places.map((entry) => entry.placeKey));
@@ -324,6 +330,8 @@ export async function GET(request) {
       const followMusic = async (locationId) => {
         if (locationId === musicLocationId) return;
         unsubscribeMusic();
+        unsubscribePhones();
+        if (phoneTimer) clearTimeout(phoneTimer);
         musicLocationId = locationId;
         unsubscribeMusic = subscribeToMusic(locationId, sendMusic);
         try {
@@ -331,6 +339,48 @@ export async function GET(request) {
         } catch (err) {
           console.error("Feed music frame failed:", err);
         }
+      };
+
+      // The seventh event: the telephone near where the character stands
+      // (PHONES.md §8) — whether a phone is ringing here or one Location over,
+      // and the handset in their own hand. The browser holds the loops. Like
+      // music it follows the character's OWN Location, so a GM or a ghost
+      // hears no bell; unlike music every stream reads its own frame, because
+      // the handset is this reader's alone. A burst of notifies (a dial rings
+      // AND notifies) is folded into one read.
+      let phoneLocationId = null;
+      let phoneCharacterId = null;
+      let unsubscribePhones = () => {};
+      let phoneTimer = null;
+      let lastPhones = "";
+      const sendPhones = async () => {
+        phoneTimer = null;
+        if (closed) return;
+        try {
+          const frame = JSON.stringify(
+            await phoneFrameFor(prisma, { characterId: phoneCharacterId, locationId: phoneLocationId }),
+          );
+          if (frame === lastPhones) return;
+          lastPhones = frame;
+          write(`event: phones
+data: ${frame}
+
+`);
+        } catch (err) {
+          console.error("Feed phone frame failed:", err);
+        }
+      };
+      const refreshPhones = () => {
+        if (phoneTimer) return;
+        phoneTimer = setTimeout(sendPhones, 150);
+      };
+      const followPhones = async (characterId, locationId) => {
+        if (locationId === phoneLocationId && characterId === phoneCharacterId) return;
+        unsubscribePhones();
+        phoneLocationId = locationId;
+        phoneCharacterId = characterId;
+        unsubscribePhones = characterId ? subscribeToPhones(locationId, refreshPhones) : () => {};
+        if (characterId) await sendPhones();
       };
 
       // The list first, so a client that reconnects knows what it is looking

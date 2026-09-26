@@ -128,13 +128,13 @@
 #   on the room inherits it. Prints on the room's own starter as
 #   `**Muffled**: shouts do not carry out of here.` A Location is never
 #   soundproof itself; only a Room can carry this.
-# - phone (rooms only): the NAME of the telephone on this room's wall, as every
-#   dial list in the game prints it — `phone: "Baron's Phone"`. A name and not
-#   a flag, because nobody asks the operator for a room number. Absent means
-#   no phone, which is nearly every room. See docs/systemdocs/PHONES.md.
+# - phone (rooms only): the NAME of the telephone on this room's wall, as the
+#   Phonebook prints it — `phone: "Baron's Phone"`. A name and not a flag.
+#   Absent means no phone, which is nearly every room. Its four-digit NUMBER is
+#   never written here: it is rolled at every Start Game, and this file is
+#   public. See docs/systemdocs/PHONES.md.
 # - payphone (rooms only): true makes that phone take an obol into the Keep's
-#   Vault, and keeps it OFF every dial list — a payphone calls out and never
-#   rings, because there is nobody standing by it whose job is to answer.
+#   Vault to dial out or to answer, each coin buying ten minutes on the line.
 #   Requires `phone:`; a payphone with no name is a sync PROBLEM.
 #
 # PROSE STYLE — every prose value in this file is a `>-` folded block
@@ -261,7 +261,7 @@ zones:
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
             description: >-
               The winch to the gate is here, and you can also shoot people through holes in the walls. This is a hard place to assault.
-            stash: [shortbow, spear]
+            stash: [shortbow, spear, phonebook]
       town-2:
         name: Square
         # The public board (docs/systemdocs/PAPERWORK.md). The Square is where
@@ -363,6 +363,7 @@ zones:
                 bag: 1
                 mace: 1
                 padded-cap: 1
+                phonebook: 1
           town-4-4:
             name: Hall
             description: >-
@@ -509,6 +510,7 @@ zones:
                 cheese: 1
                 alcohol: 1
                 cigarette: 3
+                phonebook: 1
           town-7-7:
             name: Room A
             description: >-
@@ -680,6 +682,7 @@ zones:
               items:
                 paper: 8
                 censors-wax-stamp: 1
+                phonebook: 1
           fortress-1-3:
             name: Barracks
             access: [cerberus-key, barons-key]
@@ -689,6 +692,7 @@ zones:
               items:
                 cigarette: 1
                 radio-bracelet-cerberon: 2
+                phonebook: 1
           # No door, deliberately. The Cerberon's goods sit in the open, where
           # anybody standing in the hall can walk off with them — the room is
           # the Garrison's common one, not a strongroom. A cerberus-key on it
@@ -727,6 +731,7 @@ zones:
                 mail-shirt: 4
                 padded-armor: 5
                 padded-cap: 3
+                phonebook: 1
           fortress-1-6:
             name: Dungeons
             access: [censors-key, incarns-key, cerberus-key, barons-key]
@@ -843,6 +848,7 @@ zones:
             stash:
               items:
                 paper: 4
+                phonebook: 1
           fortress-4-2:
             name: Library
             description: >-
@@ -912,6 +918,7 @@ zones:
                 elevator-key: 1
                 paper: 20
                 barons-wax-stamp: 1
+                phonebook: 1
           fortress-4-7:
             name: Storehouse
             access: [barons-key, hands-key, servant-key]
@@ -923,6 +930,7 @@ zones:
                 foodstuffs: 4
                 paper: 5
                 meisters-wax-stamp: 1
+                phonebook: 1
           fortress-4-8:
             name: Kitchen
             access: [barons-key, hands-key, servant-key]
@@ -1189,6 +1197,7 @@ zones:
                 mortus-key: 1
                 shovel: 3
                 corpse-salts: 1
+                phonebook: 1
       undertown-4:
         name: Sewer
         indoors: true
@@ -1271,6 +1280,7 @@ zones:
             stash:
               items:
                 paper: 32
+                phonebook: 1
           undertown-6-3:
             name: Cargo Bay
             access: [depot-keycard]
@@ -1356,6 +1366,7 @@ zones:
                 perfume: 4
                 cigarette: 1
                 disguise-kit: 1
+                phonebook: 1
           # The slot machine is a button on this room's starter post, not a
           # stash item — db/lib/slotMachine.js, and the affordance that draws
           # it in db/lib/placeAffordances.js.

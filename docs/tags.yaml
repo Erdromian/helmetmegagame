@@ -12697,6 +12697,27 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Every phone's name and number, payphones included (PHONES.md §2). The
+  # numbers are rolled afresh at Start Game, and the game prints them into
+  # this book then (db/lib/phoneNumbers.js#writePhonebook) — so the text below
+  # is only what a brand-new row says before the first game rolls any, and
+  # `gameWritesText` keeps the tag sync from printing it back over them.
+  # Copies start in locked rooms across town (docs/zones.yaml `stash:`).
+  phonebook:
+    catalog: gm
+    name: Phonebook
+    category: items
+    group: items-paper
+    sprite: phonebook
+    bookText: >-
+      The pages are blank. The exchange has not printed this year's numbers yet.
+    gameWritesText: true
+    pointCost: 0
+    weight: 1.5
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   100-years-of-solitude:
     catalog: gm
     name: 100 Years of Solitude
