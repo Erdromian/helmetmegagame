@@ -4,7 +4,14 @@
 // and never a held tag that happens to share the ring's token.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { canWorkRemote, wearsExactorsRing, DETONATOR_SLUG, EXACTOR_RING_TOKEN } = require("../lib/collar");
+const {
+  canWorkRemote,
+  canUnlockCollar,
+  wearsExactorsRing,
+  DETONATOR_SLUG,
+  EXACTOR_RING_TOKEN,
+  COLLAR_KEY_TOKEN,
+} = require("../lib/collar");
 const { accessSlugsOf, wornRingAccess } = require("../lib/rings");
 
 const ring = (over = {}) => ({
@@ -46,6 +53,23 @@ test("somebody else's ring works no remote", () => {
 
 test("a held tag with the ring's token is not the ring", () => {
   assert.equal(gate([remote, { equipped: false, tag: { slug: EXACTOR_RING_TOKEN } }]), false);
+});
+
+// Unlock Collar: the retired Collar Key is a token the Exactor's and the
+// Pusher's rings carry, read off the worn ring alone.
+function unlockGate(tags) {
+  return canUnlockCollar(wornRingAccess(tags));
+}
+
+test("the Exactor's and the Pusher's rings unlock collars", () => {
+  assert.equal(unlockGate([{ equipped: true, tag: ring({ ringAccessSlugs: ["den-key", "exactors-key", COLLAR_KEY_TOKEN] }) }]), true);
+  assert.equal(unlockGate([{ equipped: true, tag: ring({ ringAccessSlugs: ["den-key", "silver-chip", COLLAR_KEY_TOKEN] }) }]), true);
+});
+
+test("no other ring, a pocketed ring, or a held collar-key tag unlocks", () => {
+  assert.equal(unlockGate([{ equipped: true, tag: ring({ ringAccessSlugs: ["barons-key"] }) }]), false);
+  assert.equal(unlockGate([{ equipped: false, tag: ring({ ringAccessSlugs: [COLLAR_KEY_TOKEN] }) }]), false);
+  assert.equal(unlockGate([{ equipped: false, tag: { slug: COLLAR_KEY_TOKEN } }]), false);
 });
 
 test("wornRingAccess reads only a worn, registered ring", () => {

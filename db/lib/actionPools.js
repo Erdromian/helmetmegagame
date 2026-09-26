@@ -18,7 +18,7 @@
 const { hasAttribute, GODFLESH_ATTRIBUTE, SOILERY_ATTRIBUTE } = require("./locationAttributes");
 const { accessSlugsOf, wornRingAccess } = require("./rings");
 const { isLooseCollarSlug } = require("./collarGlyphs");
-const { canWorkRemote } = require("./collar");
+const { canWorkRemote, canUnlockCollar } = require("./collar");
 const { extractToolFor, extractedThisTurn } = require("./godflesh");
 const { farmRefusalFor } = require("./soilery");
 const { breakInRefusalFor } = require("./arelitz");
@@ -439,7 +439,8 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
     canPickpocket: holdsPocket && !pocketBlocked,
     // A collar somebody has already marked is its own minted slug (COLLAR.md).
     canApplyCollar: [...heldSlugs].some(isLooseCollarSlug),
-    canUnlockCollar: has("collar-key"),
+    // The Exactor's or the Pusher's ring, worn. There is no Collar Key item.
+    canUnlockCollar: canUnlockCollar(wornRingAccess(tags)),
     // The remote in hand AND the Exactor's ring worn — never a held token.
     canDetonateCollar: canWorkRemote(heldSlugs, wornRingAccess(tags)),
     canButcher: has(BUTCHER_SLUG),

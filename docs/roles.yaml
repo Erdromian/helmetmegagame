@@ -146,7 +146,8 @@
 #                and every ring a smith makes (even one the Meister registers
 #                to an office seat), is a plain "Silver Ring" that
 #                opens doors and leaves no seal of any kind.
-# The guest-room keys (the Inn's and the Den's) and the Collar Key stay keys.
+# The guest-room keys (the Inn's and the Den's) stay keys. The Collar Key is
+# gone: the Exactor's and the Pusher's rings carry its token (COLLAR.md §3).
 groups:
   # Court
   court:
@@ -1158,7 +1159,8 @@ groups:
       whitelist: true
       ring:
         spawns: true
-        opens: [silver-chip, den-key, exactors-key]
+        # collar-key: his ring unlocks collars; there is no Collar Key item.
+        opens: [silver-chip, den-key, exactors-key, collar-key]
       starting_tags:
         - Bore Pistol
         - Machete
@@ -1166,7 +1168,6 @@ groups:
         - Hood
         - Bomb Collar
         - Remote Detonator
-        - Collar Key
         - Literacy
         # His ring opens the Den itself. The two guest-room keys stay keys, to
         # lend out, and these are his second copies — there is another pair on
@@ -1385,7 +1386,8 @@ groups:
       starting_location: undertown-8
       ring:
         spawns: true
-        opens: [den-key, silver-chip]
+        # collar-key: the Pusher's ring unlocks collars, the Exactor's other hand.
+        opens: [den-key, silver-chip, collar-key]
       starting_tags:
         - Ravenhearter
         - Brewing II

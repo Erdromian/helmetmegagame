@@ -21,7 +21,7 @@ import {
 // Apply and Unlock have no `fit`. That is the whole design and not an
 // omission: both list everybody standing here, whether or not they are wearing
 // a collar, because a picker that showed only the collared would publish who
-// is collared to anybody holding a key. The server refuses an uncollared
+// is collared to anybody wearing an unlocking ring. The server refuses an uncollared
 // target by name; you spend a click to learn one person's answer instead of
 // reading the room's.
 //
@@ -46,7 +46,7 @@ export const COLLAR_VERBS = {
     empty: "There's nobody here.",
     pool: "collarOthers",
     note: "The collar comes off in one piece, glyph and all, and is yours to keep.",
-    confirm: (name) => ({ title: `Unlock ${name}'s collar?`, confirmLabel: "Turn the key" }),
+    confirm: (name) => ({ title: `Unlock ${name}'s collar?`, confirmLabel: "Unlock" }),
     run: (id) => unlockCollarRequest({ targetCharacterId: id }),
   },
 };
@@ -124,7 +124,7 @@ function PeopleCollarDialog({ mode, presets, onDone, onClose }) {
 // The Remote Detonator. Read when the dialog opens, not when the page
 // rendered, the way useRoster reads a room: the list is every collar round a
 // living neck in the game, in any zone, and it moves whenever somebody dies or
-// turns a key.
+// unlocks one.
 //
 // A collar is a glyph here. A name goes beside it only for somebody standing
 // in front of you, where you can read the clasp yourself — anywhere else, the

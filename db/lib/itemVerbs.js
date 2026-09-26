@@ -14,7 +14,6 @@
 const ITEM_VERBS = [
   { mode: "play", match: { flag: "instrument" } },
   { mode: "detonatecollar", match: { slug: "remote-detonator" } },
-  { mode: "unlockcollar", match: { slug: "collar-key" } },
   { mode: "applycollar", match: { slug: "bomb-collar" } },
   // A collar somebody has already marked with a glyph (db/lib/collarGlyphs.js).
   { mode: "applycollar", match: { prefix: "custom-collar-loose-" } },

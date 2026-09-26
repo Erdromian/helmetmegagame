@@ -308,7 +308,7 @@ function unequipOneTag(prisma, { character, characterTagId }) {
     });
     if (!held) refuse("You aren't holding that.");
     if (held.equippedQuantity <= 0) refuse(`${held.tag.name} isn't equipped.`);
-    if (isLockedOn(held.tag)) refuse(`${held.tag.name} is locked on. It needs a key.`);
+    if (isLockedOn(held.tag)) refuse(`${held.tag.name} is locked on. It needs the Exactor's or the Pusher's ring.`);
     const equippedQuantity = held.equippedQuantity - 1;
     await prisma.characterTag.update({
       where: { id: held.id },

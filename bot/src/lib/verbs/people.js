@@ -16,7 +16,6 @@ const { LESSON_CATALOG_SELECT, learnableSkills, knownTeachableSkills, createLess
 const { confessableTags, createConfessionOffer } = require("@lifeweb/db/lib/confession");
 const { BIND_SELECT, isBound, needsNoConsent: bindNeedsNoConsent, applyBind, createBindOffer } = require("@lifeweb/db/lib/bind");
 const {
-  COLLAR_KEY_SLUG,
   COLLAR_SELECT,
   wearsCollar,
   needsNoConsent: collarNeedsNoConsent,
@@ -25,6 +24,7 @@ const {
   applyCollar,
   createCollarOffer,
   unlockCollar,
+  unlockRefusal,
   remoteRefusal,
   remoteReading,
   detonateCollar,
@@ -362,9 +362,6 @@ const bind = {
   },
 };
 
-async function holds(characterId, slug) {
-  return (await prisma.characterTag.count({ where: { characterId, quantity: { gt: 0 }, tag: { slug } } })) > 0;
-}
 
 // web: character/actions/misc.js#collarActorAndTarget.
 async function collarTarget(character, key, { allowSelf = false, allowDead = false } = {}) {
@@ -443,13 +440,13 @@ const applycollar = {
       const collars = await looseCollarsHeld(prisma, character.id);
       if (collars.length > 1) {
         return pickFrom(interaction, "applycollar", "which", {
-          prompt: `Which collar goes on ${whom}? Only a key takes it off.`,
+          prompt: `Which collar goes on ${whom}? Only the Exactor's ring, or the Pusher's, unlocks it.`,
           payload: value,
           options: collars.map((c) => ({ label: c.name, value: c.slug })),
         });
       }
       return confirm(interaction, "applycollar", value, {
-        prompt: `Lock the collar on ${whom}? Only a key takes it off.`,
+        prompt: `Lock the collar on ${whom}? Only the Exactor's ring, or the Pusher's, unlocks it.`,
         label: "Apply Collar",
         danger: true,
       });
@@ -478,7 +475,8 @@ const unlockcollar = {
       if (!character) return;
       const { target, turn, actor, error } = await collarTarget(character, picked(interaction).value, { allowDead: true });
       if (error) return done(interaction, error);
-      if (!(await holds(character.id, COLLAR_KEY_SLUG))) return done(interaction, "You don't have a key.");
+      const refusal = await unlockRefusal(prisma, character.id);
+      if (refusal) return done(interaction, refusal);
       if (!wearsCollar(target)) return done(interaction, `${target.name} doesn't have a collar on.`);
       const unlocked = await unlockCollar(prisma, { actor, target, turn });
       if (!unlocked.ok) return done(interaction, unlocked.reason);

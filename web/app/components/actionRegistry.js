@@ -116,7 +116,7 @@ export const ACTION_HELP = {
   brand:
     "Permanently brand someone who's bound or incapacitated. It costs you nothing, and it never comes off.",
   applycollar:
-    "Permanently lock a collar around someone's neck. It can only be removed with a key.",
+    "Permanently lock a collar around someone's neck. Only the Exactor's or the Pusher's ring can take it off.",
   unlockcollar: "Unlock someone's collar.",
   detonatecollar: "Set off a collar anywhere, in any zone. The remote knows each one by its glyph, not by who is wearing it.",
   bury: "Bury someone. Removes the player's Cursed status.",

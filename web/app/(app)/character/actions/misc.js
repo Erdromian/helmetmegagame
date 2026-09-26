@@ -13,10 +13,10 @@ import {
   isBlackMarketSeal,
 } from "@lifeweb/db";
 import {
-  COLLAR_KEY_SLUG,
   COLLAR_SELECT,
   wearsCollar,
   remoteRefusal,
+  unlockRefusal,
   needsNoConsent as collarNeedsNoConsent,
   pickLooseCollar,
   applyCollar,
@@ -3074,15 +3074,6 @@ function collarActor(session, character) {
   };
 }
 
-// Re-read the actor's own stock from the database rather than trusting the
-// page's `heldSlugs`, which was rendered who-knows-when.
-async function requireHeld(characterId, slug, refusal) {
-  const has = await prisma.characterTag.count({
-    where: { characterId, quantity: { gt: 0 }, tag: { slug } },
-  });
-  if (!has) throw new UserError(refusal);
-}
-
 // The remote's gate, shared by the readout and the trigger: the remote in hand
 // and the Exactor's ring on the finger, both re-read here. Anybody else holding
 // one gets the same refusal the device would give them.
@@ -3141,14 +3132,17 @@ export async function applyCollarRequestImpl({ targetCharacterId, collarSlug = n
   return { name: target.name, glyph: applied.glyph };
 }
 
-// The key. No consent and no offer — a collar coming OFF needs nobody's leave.
+// The unlocking ring — the Exactor's or the Pusher's, worn, re-read here rather
+// than trusted off the page. No consent and no offer — a collar coming OFF
+// needs nobody's leave.
 export async function unlockCollarRequestImpl({ targetCharacterId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
   const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId, {
     allowDead: true,
   });
 
-  await requireHeld(character.id, COLLAR_KEY_SLUG, "You don't have a key.");
+  const refusal = await unlockRefusal(prisma, character.id);
+  if (refusal) throw new UserError(refusal);
   if (!wearsCollar(target)) throw new UserError(`${target.name} doesn't have a collar on.`);
 
   const unlocked = await unlockCollar(prisma, { actor, target, turn: openTurn });

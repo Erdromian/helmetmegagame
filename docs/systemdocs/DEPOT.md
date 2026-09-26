@@ -913,7 +913,6 @@ buying one mid-game is still a real decision.
 | `sugar-candy` | 3 | 2 | Food: 6 hunger raw |
 | `alcohol` | 4 | — | He stocks the local brew too |
 | `kzozel-yantar` | 4 | — | Black Market. Consumes into `tipsy` |
-| `collar-key` | 4 | — | Black Market. Turns a shut collar back into a loose one, into the UNLOCKER's hands (`COLLAR.md`) |
 | `cigarette` | 4 | — | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
 | `coffee` | 5 | 3 | Consumes into `caffeinated` (2t) |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source, and it is priced below real gear on purpose: a paper-thin disguise shouldn't compete with it. |

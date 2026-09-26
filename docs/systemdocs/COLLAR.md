@@ -13,7 +13,7 @@ seat is a seat rather than a job title.
 | Weighs | 1 lb | nothing |
 | Carried? | yes — put down, handed over, stolen, looted | no; it is round your neck |
 | On the equip board? | only once it is locked on | yes — `ACCESSORY`, written **equipped** |
-| Comes off by | being locked onto somebody | the Collar Key, or the detonator |
+| Comes off by | being locked onto somebody | the Exactor's or the Pusher's ring, or the detonator |
 | Destroy button? | yes (an item) | **no** |
 
 Each of those comes in two spellings, and §2 says why:
@@ -45,12 +45,12 @@ as a Prisma filter).
   thing. Collaring somebody whose pockets are already full of trinkets is not
   an overflow, and their next equip is not refused for it.
 - **Unequip refuses it** (`equipActions.js#unequipOne`: "is locked on. It
-  needs a key."), and no surface offers the toggle: the board's cell has no ✕
+  needs the Exactor's or the Pusher's ring."), and no surface offers the toggle: the board's cell has no ✕
   and says *locked on*, and `thingRows.js#thingVerbs` reports it not
   equippable, which is what the rail and the drawer read.
 - **Death leaves it on the body.** The death unequip pass in
   `db/lib/characterDeath.js` skips locked-on tags, so a corpse still wears its
-  collar, and a Revive comes back with it buckled. A key still opens it on a
+  collar, and a Revive comes back with it buckled. The ring still opens it on a
   body, which is one way to get a marked collar back.
 - A GM's batch (`db/lib/tagOps.js`) is not gated: a GM may unbuckle it by hand.
 
@@ -60,7 +60,7 @@ Every collar that has been locked on carries a glyph — Γ, Ж, Þ and so on,
 `db/lib/collarGlyphs.js#GLYPHS` — and the glyph goes wherever the collar goes.
 The remote lists collars **by glyph, never by who is wearing them.**
 
-That is the whole trick. Somebody with a stolen key takes collar Ж off a slave,
+That is the whole trick. Somebody wearing the Pusher's ring — or a stolen one — takes collar Ж off a slave,
 locks it round somebody else's neck, and the Exactor's remote still shows Ж
 glowing. Unless he walks over and reads the clasp, he has no idea it
 moved — and if he sets it off, the wrong person dies.
@@ -78,7 +78,7 @@ marked yet. `db/lib/collar.js` marks one:
 - the moment it is **locked on** (Apply Collar), and
 - whenever a blank shut collar is found round a neck — `stampBlankCollars`,
   which runs when a character is **created** wearing one (the Slave), when the
-  **remote is read**, and before a **key turns**. That catches the starting
+  **remote is read**, and before a collar is **unlocked**. That catches the starting
   collar and anything a GM granted by hand.
 
 A glyph is **never reused** inside a game, even once its collar is gone. One
@@ -101,11 +101,11 @@ actions in `web/app/(app)/character/actions/misc.js` (the three verbs, plus
 | Button | Needs | Reaches | Asks permission? |
 |---|---|---|---|
 | **Apply Collar** | a loose collar in hand | somebody here, or yourself | sometimes — see below |
-| **Unlock Collar** | `collar-key` | somebody here, alive or dead | never |
+| **Unlock Collar** | **the Exactor's or the Pusher's ring, worn** | somebody here, alive or dead | never |
 | **Detonate** | `remote-detonator` **and the Exactor's ring, worn** | any living neck, in any zone | never |
 
 Each button is **hidden**, not greyed, and only ever on a fact about your own
-sheet — what is in your pockets, and for Detonate, what is on your finger. That
+sheet — what is in your pockets, and for Unlock and Detonate, what is on your finger. That
 is the metagaming rule in `web/app/components/actionRegistry.js`.
 
 **The remote answers to the Exactor's ring.** `canWorkRemote` is the detonator
@@ -120,9 +120,18 @@ So the remote is keyed like a door, not like a seat. Anybody can buy, steal or
 loot a remote, and on its own it is a box with a button on it. Steal the
 Exactor's ring **as well**, put it on, and the remote answers to you — that is
 the one way to take the power from him. A smith's ring that the Meister
-registers to the Exactor's seat carries the same token and works it too. The
-Collar Key stays open to anybody on purpose: freeing somebody is a fair thing to
-steal the means for. Killing somebody takes two things.
+registers to the Exactor's seat carries the same token and works it too.
+Killing somebody takes two things; freeing them takes one.
+
+**Unlocking answers to two rings.** There is no Collar Key item any more. Its
+slug is a token, the way the seat keys became tokens (`RINGS.md` §3), and the
+Exactor's and the Pusher's rings both carry it (`ring.opens` in
+`docs/roles.yaml`). `canUnlockCollar` reads it off the worn, registered ring
+alone, the same way the remote does, and `unlockRefusal` re-reads it for the
+server action and the Discord verb. So the Pusher can free a slave or take a
+collar back for the Exactor, and anybody who steals either ring can free
+slaves too — the fair thing to steal for. A ring registered to either seat by
+the Meister works the same.
 
 With the Exactor's ring off every finger, every collar in the game is dead
 weight until somebody puts it on.
@@ -159,8 +168,8 @@ away while waiting.
 **Apply and Unlock never say.** Neither dialog filters its roster on who is
 wearing a collar, and neither button greys on it:
 
-> A list that showed only the collared would hand anybody who picked up a key
-> a map of who could be freed, and whose collar to take.
+> A list that showed only the collared would hand anybody wearing an unlocking
+> ring a map of who could be freed, and whose collar to take.
 
 So both list everybody standing there, hoods included, under their alias
 (`web/lib/peoplePools.js#collarTargets` / `collarOthers`). Unlocking somebody
@@ -183,7 +192,7 @@ The Exactor's own neck is left off the list. The remote is not how he dies.
 
 **Range: every zone.** Any living neck with that glyph, wherever it is —
 the surface, the Keep, the caves. Running does not get a slave out of range;
-only a key does. Whoever holds the remote and wears the ring can fire from
+only an unlocking ring does. Whoever holds the remote and wears the ring can fire from
 anywhere, with no zone of their own needed. This used to be the holder's own
 zone, which put a slave prospecting in the caves out of reach of an Exactor
 who stayed in Undertown (Bascinet's call, 2026-09-26).
@@ -217,7 +226,7 @@ A character stands in a Location, never in a Room — a Room is a thread with an
 access list (`db/lib/roomAccess.js`), not a place a body occupies — so "the room
 it went off in" is the Location channel.
 
-A key turning at the same moment is not an error: whichever gets to the row
+An unlock at the same moment is not an error: whichever gets to the row
 first wins, and the loser is told `Collar Ж doesn't answer.` Something else
 killing the wearer between the lookup and the trigger is not an error either:
 the collar is spent and nothing explodes twice.
@@ -229,9 +238,8 @@ the collar is spent and nothing explodes twice.
   rather than `boundId` precisely so `afterBind`'s room-access and carry work
   never runs for one.
 - **It costs no Move and no ⬢.**
-- **It is not craftable**, in any of its three pieces. A forge that could strike
-  a collar key would free every slave in Ravenheart on a Dead Simple recipe, and
-  one that could strike collars would let anybody start a slave trade without
+- **It is not craftable**, in either of its pieces, and there is no collar key
+  to strike: only the two rings unlock. A forge that could strike collars would let anybody start a slave trade without
   ever paying the Merchant. Import from the Black Market, or steal.
 - **It does not check the Slave's contract.** The 50 obols on that paper
   (`db/lib/slaveContract.js`) is fiction a GM adjudicates against. Nothing

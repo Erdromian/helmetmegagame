@@ -4,8 +4,8 @@
 // is a trait -- `general`, so no menu can hand it over, steal it or destroy it,
 // but an ACCESSORY, so it sits on the equip board round the neck. Apply Collar
 // spends the item to write the trait EQUIPPED, and db/lib/equipSlots.js
-// #isLockedOn is what refuses Unequip. The Collar Key turns the trait back into
-// an item, and the Exactor's remote sets it off.
+// #isLockedOn is what refuses Unequip. The Exactor's or the Pusher's ring turns
+// the trait back into an item, and the Exactor's remote sets it off.
 //
 // Every collar that has been locked on carries a GLYPH, and the glyph goes
 // wherever the collar goes (db/lib/collarGlyphs.js says how). The remote lists
@@ -53,7 +53,11 @@ const {
 } = require("./collarGlyphs");
 
 const DETONATOR_SLUG = "remote-detonator";
-const COLLAR_KEY_SLUG = "collar-key";
+
+// What unlocks a collar. Not an item any more: the retired Collar Key's slug is
+// a token the Exactor's and the Pusher's rings carry (their `ring:` blocks in
+// docs/roles.yaml), the way the seat keys became ring tokens (RINGS.md §3).
+const COLLAR_KEY_TOKEN = "collar-key";
 
 // Whose remote it is. The Exactor's ring carries this token (the `ring:` block
 // in docs/roles.yaml, and docs/systemdocs/RINGS.md §3), so the remote answers
@@ -121,6 +125,19 @@ async function remoteRefusal(prisma, characterId) {
   return null;
 }
 
+// The Unlock Collar button's whole gate: a worn, registered ring that carries
+// the collar-key token — the Exactor's or the Pusher's, stolen or not. Like the
+// remote, it reads the ring alone, never a held tag.
+function canUnlockCollar(ringTokens) {
+  return [...(ringTokens ?? [])].includes(COLLAR_KEY_TOKEN);
+}
+
+// The same gate, re-read from the database. Null when the ring unlocks.
+async function unlockRefusal(prisma, characterId) {
+  if (!canUnlockCollar(await wornRingTokens(prisma, characterId))) return "Your ring doesn't open collars.";
+  return null;
+}
+
 // Dead or helpless: no leave needed. bind.js's rule, read off the same derived
 // set, so a tag that stops counting as incapacitating stops counting here too.
 function needsNoConsent(target) {
@@ -155,7 +172,7 @@ async function requireTag(db, slug) {
 
 function glyphDescription(glyph, { locked }) {
   return locked
-    ? `You have a shock collar locked around your neck, with the glyph ${glyph} etched into the clasp. Only a key takes it off.`
+    ? `You have a shock collar locked around your neck, with the glyph ${glyph} etched into the clasp. Only the Exactor's ring, or the Pusher's, unlocks it.`
     : `A collar that can be locked around someone's neck. The glyph ${glyph} is etched into the clasp.`;
 }
 
@@ -233,7 +250,7 @@ async function lockCharacterRow(tx, characterId) {
 // The catalog's `bomb-collar-locked` is a collar nobody has read yet — the
 // Slave's starting collar, or one a GM granted by hand — and the remote can
 // only list what has a glyph. Called when a Slave is made, when the remote is
-// read, and before a key turns, so a glyph always exists by the time anybody
+// read, and before a collar is unlocked, so a glyph always exists by the time anybody
 // could see it. Idempotent.
 async function stampBlankCollars(prisma, where = {}) {
   const blank = await prisma.tag.findUnique({ where: { slug: COLLAR_LOCKED_SLUG }, select: { id: true } });
@@ -426,9 +443,9 @@ async function acceptCollar(prisma, offer, responder) {
   };
 }
 
-// The key's half. The collar comes off the target and lands in the UNLOCKER's
+// The unlocking ring's half. The collar comes off the target and lands in the UNLOCKER's
 // hands, not the freed person's -- an Exactor who unlocks a collar keeps it to
-// use again, which is the whole reason a key is worth carrying. It keeps its
+// use again, which is why a slave's collar is worth taking back. It keeps its
 // glyph, which is what lets somebody who is not the Exactor put it on a
 // different neck and have the remote none the wiser.
 async function unlockCollar(prisma, { actor, target, turn }) {
@@ -490,7 +507,7 @@ async function remoteReading(prisma, actor) {
 }
 
 // The trigger. Reaches any collar round a living neck in any zone, caves
-// included -- running does not get a slave out of range; only a key does. The
+// included -- running does not get a slave out of range; only an unlocking ring does. The
 // wearer dies an ORDINARY death: the collar takes their head and
 // nothing else, so there is a body where they fell with everything they were
 // carrying still on it (docs/systemdocs/CORPSES.md). A collar that vaporized
@@ -540,7 +557,7 @@ async function detonateCollar(prisma, { actor, collarSlug, turn }) {
     });
     return true;
   });
-  // A key got there first.
+  // An unlocking ring got there first.
   if (!gone) return silent;
 
   const { claimed } = await applyDeathToRow(prisma, target, {
@@ -572,7 +589,7 @@ module.exports = {
   COLLAR_ITEM_SLUG,
   COLLAR_LOCKED_SLUG,
   DETONATOR_SLUG,
-  COLLAR_KEY_SLUG,
+  COLLAR_KEY_TOKEN,
   EXACTOR_RING_TOKEN,
   COLLAR_SELECT,
   DETONATION_DEATH_REASON,
@@ -581,6 +598,8 @@ module.exports = {
   wearsExactorsRing,
   canWorkRemote,
   remoteRefusal,
+  canUnlockCollar,
+  unlockRefusal,
   needsNoConsent,
   collarAuthority,
   stampBlankCollars,

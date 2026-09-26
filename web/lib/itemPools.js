@@ -2,7 +2,7 @@ import "server-only";
 import { isPointerDeviceSlug } from "@lifeweb/db/lib/pointerMint";
 import { BUTCHER_SLUG, MUTILATE_GATE_SLUGS } from "@lifeweb/db/lib/constants";
 import { isLooseCollarSlug } from "@lifeweb/db/lib/collarGlyphs";
-import { canWorkRemote, DETONATOR_SLUG } from "@lifeweb/db/lib/collar";
+import { canWorkRemote, canUnlockCollar } from "@lifeweb/db/lib/collar";
 import { wornRingTokens } from "@lifeweb/db/lib/roomAccess";
 
 // The held-item flags — what is in YOUR pockets, and nothing about the room —
@@ -13,12 +13,12 @@ import { wornRingTokens } from "@lifeweb/db/lib/roomAccess";
 //
 // `prisma` and `character` ({ id, locationId }) are for the Stepstone's
 // targets, which are built ONLY for somebody carrying a stone — a sheet with no
-// stone shouldn't print the whole map into its page source — and for the
-// Remote Detonator, which answers to the Exactor's ring (COLLAR.md §3). The
-// ring is only looked up for somebody holding a remote.
+// stone shouldn't print the whole map into its page source — and for the worn
+// ring, which is what Unlock Collar and the Remote Detonator answer to
+// (COLLAR.md §3). One indexed lookup.
 export async function itemPools(prisma, character, heldSlugs) {
   const has = (slug) => heldSlugs.has(slug);
-  const ringTokens = has(DETONATOR_SLUG) ? await wornRingTokens(prisma, character.id) : [];
+  const ringTokens = await wornRingTokens(prisma, character.id);
   const hasStepstone = has("stepstone");
   const stepstoneTargets = hasStepstone
     ? (
@@ -44,7 +44,8 @@ export async function itemPools(prisma, character, heldSlugs) {
     // The collar's three (COLLAR.md) — never "is anybody here collared".
     // A collar somebody has already marked is its own minted slug.
     canApplyCollar: [...heldSlugs].some(isLooseCollarSlug),
-    canUnlockCollar: has("collar-key"),
+    // The Exactor's or the Pusher's ring, worn. There is no Collar Key item.
+    canUnlockCollar: canUnlockCollar(ringTokens),
     // The remote in your hand AND the Exactor's ring on your finger: without
     // the ring it is a box with a button on it.
     canDetonateCollar: canWorkRemote(heldSlugs, ringTokens),

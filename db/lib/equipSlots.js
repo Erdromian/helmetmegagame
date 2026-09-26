@@ -28,7 +28,7 @@ const HANDS_TAG_FIELDS = { handsLost: true };
 const MAX_ACCESSORIES = 4;
 // Worn things the wearer cannot take off. The locked bomb collar (docs/systemdocs/COLLAR.md) is
 // an ACCESSORY so it shows on the board round the neck, but it went on by somebody else's hand
-// and only a Collar Key or the detonator takes it off: unequipOne refuses it, the accessory cap
+// and only an unlocking ring (the Exactor's or the Pusher's) or the detonator takes it off: unequipOne refuses it, the accessory cap
 // below does not count it (a collar is put on you, and refusing the collar because your hands
 // are full of trinkets is the tail wagging the dog), and death leaves it equipped on the body.
 // Named by slug because nothing on a Tag row says "locked on", and one slug is not a column.
