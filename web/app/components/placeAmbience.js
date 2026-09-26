@@ -62,8 +62,8 @@ function place(id, beds, spots = []) {
 // stone, it is not the stone.
 const CHAPEL_SPOTS = ["ambicha2.ogg", "ambicha3.ogg", "ambicha4.ogg", "ambicha1.ogg"].map((f) => once(f));
 
-// "Ambience in proximity to fire." The Keep and the Inn both have one going, and it is the
-// same fire.
+// "Ambience in proximity to fire." Only where a fire is actually written into the room's
+// description, which makes it a ROOM sound — see BY_ROOM below.
 const FIRE = loop("newfireloop.ogg", { spanMs: [120_000, 240_000] });
 
 // "Played atop ambience, quiet wind" through to "moderately loud but high pitch wind".
@@ -79,17 +79,18 @@ const WIND_SPOTS = [
 
 // ------------------------------------------------------------------------ what plays where
 //
-// Slugs are from docs/zones.yaml. A Location wins over its Zone, a Zone over a bare
-// `indoors`. Add a place by adding a line; nothing below is a special case in code.
+// Slugs are from docs/zones.yaml. A Room wins over its Location, a Location over its Zone,
+// a Zone over a bare `indoors`. Add a place by adding a line; nothing below is a special case
+// in code.
+
+const INN_SONG = once(`${M}song_game.ogg`);
 
 const BY_LOCATION = {
-  // "Ambience within the inn", and the Keep and the Inn both have a fire going — the same
-  // fire. `song_game` used to be the lobby's song and was the lute's as well; it is the
-  // inn's now, which is the only thing the document ever says about it.
-  // The fire is a BED and not a spot: "Ambience in proximity to fire", so it is one of the
-  // things the room sounds like rather than something that happens over the top of it.
-  "town-7": place("inn", [once(`${M}song_game.ogg`), FIRE]),
-  "fortress-4": place("keep", [loop("loop_airy1.ogg", { spanMs: [120_000, 240_000] }), FIRE]),
+  // "Ambience within the inn". `song_game` used to be the lobby's song and was the lute's
+  // as well; it is the inn's now, which is the only thing the document ever says about it.
+  // The fire is the Bar's alone (BY_ROOM), not the Street's or the Balcony's.
+  "town-7": place("inn", [INN_SONG]),
+  "fortress-4": place("keep", [loop("loop_airy1.ogg", { spanMs: [120_000, 240_000] })]),
 
   // "Ambience within the cathedral". The Order Chambers are the same stone and the same
   // silence, so they get the same pool.
@@ -141,6 +142,23 @@ const BY_ZONE = {
   hills: place("hills", [once(`${M}surfacing.ogg`)], WIND_SPOTS),
 };
 
+// A ROOM is heard only while Chat has it open (heardPlace.js), because a character stands in
+// a Location and READS a room — there is no room column to ask. So a room here is a pool
+// that replaces its Location's while you are reading it, and every other room at the
+// Location keeps the Location's. Only rooms that sound different belong in this table.
+//
+// The fire is a BED and not a spot: "Ambience in proximity to fire", so it is one of the
+// things the room sounds like rather than something that happens over the top of it. Each
+// room below has one written into its description.
+const BY_ROOM = {
+  // "A pair of braziers opposite from the entrance."
+  "town-7-2": place("inn-bar", [INN_SONG, FIRE]),
+  // "A hearth to the right." The Court's own bed, with the fire beside it.
+  "fortress-3-1": place("throne-room", [...BY_ZONE.fortress.pieces, FIRE], BY_ZONE.fortress.spots),
+  // "A smouldering hole in the ground." The fire is the whole room, so it is the only bed.
+  "undertown-a-1": place("firepit", [FIRE]),
+};
+
 // Ordered, not an object: a Location may carry several attributes and the order is the
 // answer. Keys are from db/lib/locationAttributes.js.
 const BY_ATTRIBUTE = [
@@ -166,6 +184,7 @@ const TOWN_LOW = place("town-low", [loop("loop_airy4.ogg")], WIND_SPOTS);
 // calls and only their position in `place()` says which. This file imports nothing, so a
 // plain Node script can load it the way sim-schedule.mjs loads musicSchedule.js.
 export const ALL_PLACES = [
+  ...Object.values(BY_ROOM),
   ...Object.values(BY_LOCATION),
   ...Object.values(BY_ZONE),
   ...BY_ATTRIBUTE.map(([, p]) => p),
@@ -179,14 +198,22 @@ export const ALL_PLACES = [
  * The pool for where somebody is standing: `{ id, pieces, spots }`, or null if they are
  * standing nowhere (no character, or the payload has not landed). Most specific wins, and
  * what the listener IS wins over that.
+ *
+ * `heardKey` is the place key Chat has open (`room:<id>`, `loc:<id>`, …) or null. It only
+ * counts when it names a room at the Location they stand in — `standing.rooms` is exactly
+ * those, id to slug — so a key left over from somewhere they have since walked out of
+ * falls through to the Location.
  */
-export function resolveAmbience(standing) {
+export function resolveAmbience(standing, heardKey = null) {
   if (!standing) return null;
-  const { locationSlug, zoneSlug, indoors, attributes = [], trainFresh, moodTone, impaired } = standing;
+  const { locationSlug, zoneSlug, indoors, attributes = [], trainFresh, moodTone, impaired, rooms } = standing;
 
   // Read first: a character in pain shock hears that and not the room.
   if (impaired) return IMPAIRED;
   if (moodTone === "bad" && zoneSlug === "town") return TOWN_LOW;
+
+  const roomSlug = heardKey?.startsWith("room:") ? rooms?.[heardKey.slice("room:".length)] : null;
+  if (roomSlug && BY_ROOM[roomSlug]) return BY_ROOM[roomSlug];
 
   if (locationSlug === "undertown-5" && !trainFresh) {
     // The rails are empty. The Depot is indoors and gets what any cellar gets.

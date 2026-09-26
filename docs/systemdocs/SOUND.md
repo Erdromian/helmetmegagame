@@ -431,17 +431,31 @@ beds (class `ambience`), one at a time on the `ambient` layer. `spots` are class
 the chapel tones are spots over the Cathedral; both were beds until the document
 said otherwise.
 
-### Resolution, and the one thing it cannot ask
+### Resolution, and how a room gets heard
 
-Most specific wins: **Location slug → attribute → Zone slug → `indoors`**. The
-attribute list is ordered rather than an object, because a place can carry
-several and the order is the answer.
+Most specific wins: **Room slug → Location slug → attribute → Zone slug →
+`indoors`**. The attribute list is ordered rather than an object, because a
+place can carry several and the order is the answer.
 
-**There is no room.** `Character` has `locationId` and `zoneId` and no room
-column — which room you *hear* is the room you are *reading*, and that is
-`/chat`'s business, not the database's. So this resolves at Location level and
-above. A per-room sound needs a client overlay off `chat/openPlace.js`, and it
-belongs with the jukebox pass.
+**A room is the one Chat has open.** `Character` has `locationId` and `zoneId`
+and no room column, so which room you *hear* is the room you are *reading*.
+Chat reports the place it is drawing to `heardPlace.js`, `MusicDirector` passes
+that key to `resolveAmbience`, and the standing payload carries
+`rooms` — id to slug for the rooms at the character's Location — so a
+`room:<id>` can be looked up in `BY_ROOM`. A room somewhere else is not in that
+map, so a key left open after walking away falls through to the Location.
+Leaving Chat keeps the last room; a fresh page load that never opens Chat hears
+the Location.
+
+It is not `chat/openPlace.js` read from the root layout: that store adopts
+whatever is in the URL hash, and on any other page the hash is not a place.
+
+`BY_ROOM` holds only rooms that sound different from their Location. Today that
+is the fire, which goes where one is written into the room's description: the
+Inn's **Bar** (the braziers), the Court's **Throne Room** (the hearth) and the
+Slums' **Firepit**. It used to sit on the whole Inn and the whole Keep, so the
+Inn's Street and Balcony crackled and the Keep, which has no fire, crackled
+everywhere.
 
 Every entry in the table is built once at module load, so two neighbouring
 caves resolve to the very same object.
@@ -501,7 +515,9 @@ poll would have been a second answer to a question being asked once a minute
 anyway. The character select widens by one join and no extra round trip, and
 what crosses to the client is slugs and booleans: never the `Location` row,
 which carries descriptions and stash contents the soundtrack has no business
-shipping to a browser. `useStanding()` is the hook.
+shipping to a browser. The one exception is `rooms`, id to slug for the rooms at
+that Location, which is how the room Chat has open is matched (§4b); ids are
+already in every place key Chat holds. `useStanding()` is the hook.
 
 **`standing` also carries what the LISTENER is**, because two of the document's
 use cases are about the person rather than the room (§4b):

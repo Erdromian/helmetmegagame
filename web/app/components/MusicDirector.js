@@ -4,6 +4,7 @@ import { useEffect } from "react";
 import { usePathname } from "next/navigation";
 import { setMasterVolume, setMusicMuted } from "./music";
 import { resolveAmbience } from "./placeAmbience";
+import { useHeardPlace } from "./heardPlace";
 import { resolveProgram, runProgram } from "./musicProgram";
 import { setPlace, start as startConductor, stop as stopConductor } from "./musicConductor";
 import { usePhase, useStanding } from "./PhaseProvider";
@@ -35,6 +36,7 @@ import { musicIsAudible, useSound } from "./soundStore";
 export default function MusicDirector() {
   const phase = usePhase();
   const standing = useStanding();
+  const heardKey = useHeardPlace();
   const setting = useSound();
   const audible = musicIsAudible(setting);
   const pathname = usePathname();
@@ -52,7 +54,8 @@ export default function MusicDirector() {
   // A place is only heard when no phase tape is talking over it. The `closed` tape owns
   // the ambient layer — that is the wind behind the shut door.
   const inGame = !program && !onDesk && Boolean(phase?.hasCharacter);
-  const here = inGame ? resolveAmbience(standing) : null;
+  // The room Chat has open can outrank the Location (placeAmbience.js#BY_ROOM).
+  const here = inGame ? resolveAmbience(standing, heardKey) : null;
 
   // Nothing is stopped by hand here. runProgram's own cancel stops the layer it was
   // using, so a tape that stops being wanted is taken off by its effect's cleanup.

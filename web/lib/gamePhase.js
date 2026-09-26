@@ -55,6 +55,10 @@ export const getMusicPhase = cache(async (discordUserId) => {
                 indoors: true,
                 attributes: true,
                 zone: { select: { slug: true, kind: true } },
+                // Id to slug for the rooms here, so a `room:<id>` Chat has open can be
+                // matched against placeAmbience.js#BY_ROOM. Ordered, so an unchanged
+                // answer compares equal in PhaseProvider.js#sameAnswer.
+                rooms: { select: { id: true, slug: true }, orderBy: { slug: "asc" } },
               },
             },
           },
@@ -91,6 +95,8 @@ function standingFor(character, turn) {
     // (db/lib/locationAttributes.js), and a bare list is what the ambience table matches
     // against.
     attributes: location.attributes ? Object.keys(location.attributes) : [],
+    // Only the rooms at THIS Location: a room anywhere else is not one you can be reading.
+    rooms: Object.fromEntries((location.rooms ?? []).map((r) => [r.id, r.slug])),
     // The BAND's tone, not the number. db/lib/mood.js already sorts the ten bands into
     // bad / warn / muted / good, which is the axis "mood is low" is asking about, and the
     // raw dial is a number no player is ever shown (MOOD.md) — it has no business crossing

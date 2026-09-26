@@ -25,6 +25,7 @@ import { addMember, setChatViewAs } from "./actions";
 import { useSeen, markSeen, markAllSeen, seedSeenIfFresh, isUnread } from "./seenStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
 import { useOpenPlace, setOpenPlace } from "./openPlace";
+import { useReportHeardPlace } from "@/app/components/heardPlace";
 import { seedCachedRows, startRowCache } from "./rowCache";
 import { useNotified, clearNotified, clearAllNotified } from "./notifiedStore";
 // By PATH, not through the @lifeweb/db barrel — the barrel pulls Prisma into
@@ -158,6 +159,8 @@ export default function Chat({
   const selectedKey = (wanted && byKey.has(wanted) ? wanted : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
   const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
   const dmOpen = Boolean(dmKey && selectedKey === dmKey);
+  // The room on screen is the room the soundtrack plays (placeAmbience.js#BY_ROOM).
+  useReportHeardPlace(selectedKey);
 
   const onSelect = useCallback((placeKey) => {
     setOpenPlace(placeKey);

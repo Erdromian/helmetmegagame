@@ -11,7 +11,7 @@ export function usePhase() {
 
 /**
  * Where this viewer is standing — `{ locationSlug, zoneSlug, zoneKind, indoors,
- * attributes, trainFresh }` — or null for somebody with no living character.
+ * attributes, rooms, trainFresh, moodTone, impaired }` — or null for somebody with no living character.
  *
  * It rides the phase payload rather than having a provider of its own: the ambience bed
  * is picked from it (placeAmbience.js), the phase query was already loading the
@@ -53,7 +53,8 @@ function sameAnswer(a, b) {
     x.trainFresh === y.trainFresh &&
     x.moodTone === y.moodTone &&
     x.impaired === y.impaired &&
-    x.attributes.join() === y.attributes.join()
+    x.attributes.join() === y.attributes.join() &&
+    JSON.stringify(x.rooms) === JSON.stringify(y.rooms)
   );
 }
 
