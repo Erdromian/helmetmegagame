@@ -53,6 +53,7 @@ function startingAccount(role, slug) {
 //   ring:
 //     spawns: true            # created wearing a registered ring
 //     opens: [barons-key]     # door tokens: the retired seat keys' slugs
+//     authorised_by: barons-scepter   # only a registrar holding this may grant it
 //     seal_office: Baron      # an OFFICE ring: the label pressed into a letter
 //     seal_mark: "A raven clutching a banner."   # the wax it leaves
 //     name: "Baron's Signet Ring"                # the office ring's own name
@@ -65,10 +66,10 @@ function startingAccount(role, slug) {
 function parseRing(role, slug) {
   const ring = role.ring;
   if (ring == null) {
-    return { ringSpawns: false, ringAccessSlugs: [], ringSealOffice: null, ringSealMark: null, ringName: null, ringDescription: null };
+    return { ringSpawns: false, ringAccessSlugs: [], ringSealOffice: null, ringSealMark: null, ringName: null, ringDescription: null, ringAuthorisedBy: null };
   }
   if (typeof ring !== "object" || Array.isArray(ring)) throw new Error(`docs/roles.yaml: role "${slug}" ring: must be a map`);
-  const known = new Set(["spawns", "opens", "seal_office", "seal_mark", "name", "description"]);
+  const known = new Set(["spawns", "opens", "authorised_by", "seal_office", "seal_mark", "name", "description"]);
   for (const key of Object.keys(ring)) {
     if (!known.has(key)) throw new Error(`docs/roles.yaml: role "${slug}" ring: has unknown key "${key}"`);
   }
@@ -90,6 +91,7 @@ function parseRing(role, slug) {
     ringSealMark: mark || null,
     ringName: name || null,
     ringDescription: description || null,
+    ringAuthorisedBy: text("authorised_by") || null,
   };
 }
 
@@ -294,6 +296,9 @@ async function syncRolesFromYaml(prisma) {
         throw new Error(`docs/roles.yaml: role "${r.name}" ring opens "${token}", which is not a tag slug in docs/tags.yaml`);
       }
     }
+    if (r.ringAuthorisedBy && !knownSlugs.has(r.ringAuthorisedBy)) {
+      throw new Error(`docs/roles.yaml: role "${r.name}" ring is authorised_by "${r.ringAuthorisedBy}", which is not a tag slug in docs/tags.yaml`);
+    }
   }
 
   const stats = { rolesCreated: 0, rolesUpdated: 0, rolesPruned: [] };
@@ -325,6 +330,7 @@ async function syncRolesFromYaml(prisma) {
       ringSealMark: entry.ringSealMark,
       ringName: entry.ringName,
       ringDescription: entry.ringDescription,
+      ringAuthorisedBy: entry.ringAuthorisedBy,
       startingZoneId: entry.startingZoneSlug
         ? presenceZoneIdBySlug.get(entry.startingZoneSlug)
         : (startingLocationFor(entry)?.zoneId ?? null),

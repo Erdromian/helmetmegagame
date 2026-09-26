@@ -129,7 +129,9 @@ Keep's Storehouse, Kitchen and Workshop).
 
 Only an office's own ring carries a `sealMark` and a `sealOffice`. It seals a
 letter through the ordinary Seal verb, titled with the office — "Sealed Letter
-(Baron)" (`paper.js#sealLabel` reads `sealOffice` first).
+(Baron)" (`paper.js#sealLabel` reads `sealOffice` first). The wax says what the
+ring's face bears, worded the way its description puts it: the letter reads
+"This one bears a seal: A raven clutching a banner, the seal of the Baron."
 
 The fifteen wax stamps are gone from `docs/tags.yaml` and from every stash. The
 sync now refuses a `sealMark` or `sealOffice` authored in the YAML: an
@@ -138,7 +140,7 @@ office's mark lives on its seat's `ring:`.
 **Forged Wax Seal** (`forged-wax-seal`, Forgery, 1 turn, 2 ⬢) is the one way to
 get an office's wax seal. The forger picks which ring in their hands to press
 (`resolveForgeSource` in `actions/crafting.js`, the Death Mask's
-`ingredientChoice` channel), and gets a minted stamp — "Wax Seal (Baron)" —
+`ingredientChoice` channel), and gets a minted stamp — "Wax Seal of the Baron" —
 carrying that ring's mark and label (`ringMint.js#createForgedSeal`). A plain
 ring has no mark and is refused.
 
@@ -178,14 +180,19 @@ Tower with a way into the Meister's Study (`canReadTreasury`), so the Baron can
 do it too, and so can anybody who got in. The panel offers the unregistered
 rings the person at the desk is holding (`ringRegistry.js`):
 
-- tick any seats whose doors it should open (none is allowed: an account-only
-  ring);
+- tick any seats whose access it should grant (none is allowed: an
+  account-only ring). A seat with `ring.authorised_by` is the office's own to
+  hand out: registering a ring to **the Merchant's** access needs the
+  **Merchant's License** in the registrar's hands, and **the Baron's** needs the
+  **Baron's Scepter**. The panel greys those seats out for anybody not holding
+  it, and the server refuses them regardless;
 - link the engraved person's account — opened now if they have none — or any
   existing account.
 
 A registration is compare-and-swapped on `ringRegisteredAt`, so a ring can't be
 registered twice, and it writes a `ring_registered` audit row. A ring registered
-to an office seat's doors gets "It won't seal a letter." on its description.
+to an office seat's doors gets "It lacks the signet seal of the original." on
+its description.
 
 ## 7. Spawning
 

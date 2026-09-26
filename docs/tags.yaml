@@ -2705,7 +2705,7 @@ tags:
     name: Forgery
     category: skills
     teachable: true
-    description: "You know how to make letters, seals, and writing appear as though another wrote it. Allows you to copy an office's signet ring into a wax stamp."
+    description: "Grants the ability to perfectly copy the seal of a signet ring to a wax stamp."
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true

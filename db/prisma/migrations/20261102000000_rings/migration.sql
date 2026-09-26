@@ -18,7 +18,8 @@ ADD COLUMN     "ringAccessSlugs" TEXT[] DEFAULT ARRAY[]::TEXT[],
 ADD COLUMN     "ringSealOffice" TEXT,
 ADD COLUMN     "ringSealMark" TEXT,
 ADD COLUMN     "ringName" TEXT,
-ADD COLUMN     "ringDescription" TEXT;
+ADD COLUMN     "ringDescription" TEXT,
+ADD COLUMN     "ringAuthorisedBy" TEXT;
 
 -- AddForeignKey
 ALTER TABLE "Tag" ADD CONSTRAINT "Tag_ringBankAccountId_fkey" FOREIGN KEY ("ringBankAccountId") REFERENCES "BankAccount"("id") ON DELETE SET NULL ON UPDATE CASCADE;

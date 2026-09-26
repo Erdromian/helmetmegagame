@@ -272,7 +272,7 @@ six courtier seals and the nine office stamps — are gone, and the sync refuses
   initials. Every other ring, and every ring a smith makes, leaves no seal.
 - **A wax seal is forged from one of those rings** — the Forged Wax Seal recipe,
   Forgery, 1 turn, 2 ⬢, pressing a ring the forger is holding. It is a minted
-  stamp, "Wax Seal (Baron)", with that ring's mark and label, and it seals
+  stamp, "Wax Seal of the Baron", with that ring's mark and label, and it seals
   exactly as the ring would. It is the only way to get an office's wax seal.
 
 A seal is anything `paper.js#isSeal` says is one: a row with a mark and no

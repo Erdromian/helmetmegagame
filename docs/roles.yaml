@@ -135,6 +135,9 @@
 #   opens        the door tokens a ring registered to this seat carries. They
 #                are the old seat keys' slugs, because that is still what every
 #                room's `access:` and every locked way names.
+#   authorised_by  a tag slug: the Meister's terminal will only register a ring
+#                to this seat's access for somebody holding it (the Merchant's
+#                License, the Baron's Scepter).
 #   seal_office  an OFFICE ring — the nine seats that used to keep a wax stamp.
 #   seal_mark    The seat's own spawned ring wears `name` and `description`
 #   name         and is the only kind of ring that seals: it presses seal_mark
@@ -176,8 +179,9 @@ groups:
       ring:
         spawns: true
         opens: [armory-key, cerberus-key, barons-key, tower-key, elevator-key]
+        authorised_by: barons-scepter
         seal_office: Baron
-        seal_mark: "A raven clutching a banner."
+        seal_mark: "A raven clutching a banner, the seal of the Baron."
         name: "Baron's Ring"
         description: "A ring of pure gold with the initials {initials} finely etched. It is crested with a gemstone, the face painstakingly carved into the shape of a raven clutching a banner with which to seal letters."
       starting_tags:
@@ -316,7 +320,7 @@ groups:
         spawns: true
         opens: [armory-key, hands-key, tower-key]
         seal_office: Hand
-        seal_mark: "An open palm."
+        seal_mark: "An open palm, the seal of the Hand."
         name: "Hand's Ring"
         description: "A thin ring of gold engraved with the initials {initials}. The face bears an open palm, the seal of the Hand."
       starting_tags:
@@ -352,7 +356,7 @@ groups:
         spawns: true
         opens: [meisters-key, tower-key]
         seal_office: Meister
-        seal_mark: "A single goblet."
+        seal_mark: "A single goblet, the seal of the Meister."
         name: "Meister's Ring"
         description: "A polished brass ring engraved with the initials {initials} and encrusted with tiny jewels. The face bears a single goblet, the seal of the Meister."
       starting_tags:
@@ -515,7 +519,7 @@ groups:
         spawns: true
         opens: [cathedral-key, bishops-key]
         seal_office: Bishop
-        seal_mark: "The psychick cross."
+        seal_mark: "The psychick cross, the seal of the Bishop."
         name: "Bishop's Ring"
         description: "An ornate gold ring engraved with the initials {initials}. The face bears the psychick cross, the seal of the Bishop."
       starting_tags:
@@ -595,7 +599,7 @@ groups:
         spawns: true
         opens: [order-key, cathedral-key]
         seal_office: Inquisitor
-        seal_mark: "A sword drenched in flame."
+        seal_mark: "A sword drenched in flame, the seal of the Inquisitor."
         name: "Inquisitor's Ring"
         description: "A blackened silver ring engraved with the initials {initials}. The face bears a sword drenched in flame, the seal of the Inquisitor."
       starting_tags:
@@ -715,7 +719,7 @@ groups:
         spawns: true
         opens: [armory-key, cerberus-key, censors-key, tower-key]
         seal_office: Censor
-        seal_mark: "The head of a wolf."
+        seal_mark: "The head of a wolf, the seal of the Censor."
         name: "Censor's Ring"
         description: "A hefty cast iron ring engraved with the initials {initials}. The face bears the head of a wolf, the seal of the Censor."
       starting_tags:
@@ -896,7 +900,7 @@ groups:
         spawns: true
         opens: [sanctuary-key]
         seal_office: Esculap
-        seal_mark: "A staff wrapped with snakes."
+        seal_mark: "A staff wrapped with snakes, the seal of the Esculap."
         name: "Esculap's Ring"
         description: "A silver ring engraved with the initials {initials}. The face bears a staff wrapped with snakes, the seal of the Esculap."
       starting_tags:
@@ -972,8 +976,9 @@ groups:
       ring:
         spawns: true
         opens: [depot-keycard]
+        authorised_by: merchants-license
         seal_office: Merchant
-        seal_mark: "The initials {initials}, emblazoned on a shield."
+        seal_mark: "The initials {initials} emblazoned on a shield, the seal of the Merchant."
         name: "Merchant's Ring"
         description: "A silver ring encrusted with gold and jewels. The face bears the initials {initials} emblazoned on a shield, the seal of the Merchant."
       starting_tags:
@@ -1037,7 +1042,7 @@ groups:
         spawns: true
         opens: [factory-key, bannerets-key]
         seal_office: Banneret
-        seal_mark: "Three ravens on a tree branch."
+        seal_mark: "Three ravens on a tree branch, the seal of the Banneret."
         name: "Banneret's Ring"
         description: "A steel ring engraved with the initials {initials}. The face bears three ravens on a tree branch, the seal of the Banneret."
       starting_tags:

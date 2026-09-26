@@ -21,11 +21,11 @@ const RING_TEXT = {
   craftTargetLabel: "Engrave it for",
   craftTargetNone: "You don't know anybody's name to engrave.",
   craftTargetMissing: "Pick who the ring is for.",
-  forgedSealName: "Wax Seal ({label})",
-  forgedSealDescription: "A wax stamp copied from a signet ring. {mark}",
+  forgedSealName: "Wax Seal of the {label}",
+  forgedSealDescription: "A wax stamp designed to perfectly imitate an official seal. {mark}",
   forgePickLabel: "Copy the seal of",
   forgeNoRing: "Hold a signet ring to copy its seal.",
-  forgeSealless: "That ring leaves no seal to copy. Only an office's own ring does.",
+  forgeSealless: "That ring bears no seal for you to copy.",
 
   // Sealing a letter.
   sealNone: "You have nothing that leaves a seal.",
@@ -38,10 +38,10 @@ const RING_TEXT = {
   infoterminalAttribute: "**Infoterminal**: you can reach your treasury account here.",
   infoterminalTitle: "The Infoterminal",
   infoterminalReading: "Reading your ring…",
-  infoterminalNoRing: "The infoterminal reads the ring on your finger. You aren't wearing one.",
-  infoterminalUnregistered: "This ring isn't registered. Take it to the Meister.",
-  infoterminalPinStranger: "This ring isn't yours. Enter the account's PIN.",
-  infoterminalPinForgot: "The numbers won't come to you. Enter your PIN.",
+  infoterminalNoRing: "The infoterminal patiently waits for you to present your ring… except you aren't wearing one.",
+  infoterminalUnregistered: "This ring isn't registered to anyone. Take it to the Meister.",
+  infoterminalPinStranger: "Enter your PIN.",
+  infoterminalPinForgot: "Enter your PIN.",
   infoterminalPinLabel: "PIN",
   infoterminalWrongPin: "Wrong PIN.",
   infoterminalDepotTab: "Infoterminals",
@@ -50,14 +50,16 @@ const RING_TEXT = {
 
   // The Meister's terminal.
   registerTitle: "Register a ring",
-  registerIntro: "Hold an unregistered ring to register it. Choose whose doors it opens and which account it reaches.",
+  registerIntro: "Hold an unregistered ring to register it. Choose what access it grants and which account it reaches.",
   registerNone: "You aren't holding an unregistered ring.",
-  registerRoles: "Opens the doors of",
+  registerRoles: "Grants the access of",
   registerAccountNew: "Open a new account for {name}",
   registerAccountExisting: "Link an existing account",
   registerConfirm: "Register",
-  registerDone: "Registered. The ring opens the doors of {roles}.",
-  registerDoneNone: "Registered. The ring reaches its account and opens no doors.",
+  registerDone: "Registered. The ring now grants {roles} access.",
+  registerDoneNone: "Registered. The ring reaches its account and grants no access.",
+  // A seat whose access only its holder of office may hand out (`ring.authorised_by`).
+  registerNeedsAuth: "Granting the {role}'s access needs the {item} in your hands.",
 };
 
 // Initials end in a full stop ("A.V."), so one set at the end of a sentence

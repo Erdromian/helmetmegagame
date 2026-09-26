@@ -105,7 +105,9 @@ test("a seat's ring: block reads, and an office ring needs all four of its keys"
     ringSealMark: null,
     ringName: null,
     ringDescription: null,
+    ringAuthorisedBy: null,
   });
+  assert.equal(parseRing({ ring: { opens: [], authorised_by: "barons-scepter" } }, "baron").ringAuthorisedBy, "barons-scepter");
   const baron = parseRing(
     {
       ring: {

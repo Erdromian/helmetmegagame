@@ -100,9 +100,12 @@ export default function RegisterRing({ rings = [], seats = [], accounts = [] }) 
               key={seat.slug}
               id={`register-seat-${seat.slug}`}
               checked={picked.has(seat.slug)}
+              disabled={!seat.allowed}
+              title={seat.allowed ? undefined : fillRingText("registerNeedsAuth", { role: seat.name, item: seat.needs })}
               onChange={() => toggle(seat.slug)}
             >
               {seat.name}
+              {seat.needs && <span className="text-xs text-muted"> · {seat.needs}</span>}
             </CheckField>
           ))}
         </fieldset>

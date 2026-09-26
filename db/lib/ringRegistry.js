@@ -16,6 +16,7 @@ const { openAccount } = require("./bankAccounts");
 const { registerRing } = require("./ringMint");
 const { isRing, isRegistered } = require("./rings");
 const { RING_TEXT, fillRingText } = require("./ringText");
+const { heldTagSlugs } = require("./roomAccess");
 function fail(error) {
   return { ok: false, error };
 }
@@ -69,9 +70,22 @@ async function registerHeldRing(prisma, { discordUserId, ringTagId, roleSlugs: r
   const wanted = [...new Set((Array.isArray(rawRoles) ? rawRoles : []).map(String))];
   const roles = await prisma.role.findMany({
     where: { slug: { in: wanted } },
-    select: { slug: true, name: true, ringAccessSlugs: true, ringSealOffice: true },
+    select: { slug: true, name: true, ringAccessSlugs: true, ringSealOffice: true, ringAuthorisedBy: true },
   });
   if (roles.length !== wanted.length) return fail("That seat doesn't exist.");
+
+  // Some seats' access is only the office's to hand out: registering a ring to
+  // the Merchant's needs his License in the registrar's hands, the Baron's his
+  // Scepter (`ring.authorised_by` in docs/roles.yaml).
+  const gated = roles.filter((r) => r.ringAuthorisedBy);
+  if (gated.length) {
+    const held = await heldTagSlugs(prisma, me.id);
+    const missing = gated.find((r) => !held.has(r.ringAuthorisedBy));
+    if (missing) {
+      const item = await prisma.tag.findUnique({ where: { slug: missing.ringAuthorisedBy }, select: { name: true } });
+      return fail(fillRingText("registerNeedsAuth", { role: missing.name, item: item?.name ?? missing.ringAuthorisedBy }));
+    }
+  }
 
   let account = null;
   if (newAccount) {

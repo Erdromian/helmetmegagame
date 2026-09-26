@@ -3976,6 +3976,10 @@ model Role {
   ringSealMark    String?
   ringName        String?
   ringDescription String?
+  // A tag slug the Meister's terminal demands before it registers a ring to
+  // this seat's access — the Merchant's License, the Baron's Scepter. Null:
+  // anybody at the terminal may grant it (db/lib/ringRegistry.js).
+  ringAuthorisedBy String?
 
   // Where characters with this role begin. startingLocationId is what
   // creation writes; startingZoneId is its zone, kept for the readers that
