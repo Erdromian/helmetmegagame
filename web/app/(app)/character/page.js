@@ -335,9 +335,14 @@ export default async function CharacterPage({ searchParams }) {
 // The whole load. Four outcomes — a closed door, the lobby, the wizard, the
 // sheet — each a `kind` in the one object CharacterView draws. `scope` is the
 // snapshot bucket the result is written into (web/lib/snapshot) — keeps a second surface from painting /character's stored copy.
-export async function FreshCharacter({ userId, searchParams, scope = "character" }) {
+//
+// `raw` hands back the object itself instead of the snapshot element that
+// carries it. /chat's Actions menu (chat/actionSheet.js) loads the sheet that
+// way on demand, so the verbs it offers are gated by this one load and never
+// by a second copy of it.
+export async function FreshCharacter({ userId, searchParams, scope = "character", raw = false }) {
   const session = { discordUserId: userId };
-  const fresh = (data) => <SnapshotFresh scope={scope} userId={userId} data={data} />;
+  const fresh = raw ? (data) => data : (data) => <SnapshotFresh scope={scope} userId={userId} data={data} />;
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },

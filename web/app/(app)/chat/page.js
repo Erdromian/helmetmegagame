@@ -606,8 +606,9 @@ async function FreshChat({ userId }) {
   // Look at, Heal, Transfer, Loot, Bind, Free, Harm and Move Player are the
   // SHEET's dialogs, mounted over the same pools rather than rebuilt (in
   // ChatView). Only the people half is handed down: the rest of the sheet's
-  // pools — craft, paper, the bird, the Factory — belong to the sheet, and
-  // ActionGrid is not mounted here at all.
+  // pools — craft, paper, the bird, the Factory — belong to the sheet. The
+  // head's Actions menu fetches them on the click instead (next/ChatActions.js,
+  // CHAT.md §5e), so they cost nothing on a visit that never opens it.
   const providers = aside
     ? {
         selfId: viewer.character.id,
