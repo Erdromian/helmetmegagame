@@ -221,37 +221,6 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_DEPOT_TURRET_PREFIX,
     when: (room) => room?.slug === MERCHANTS_OFFICE_ROOM_SLUG,
   },
-  // Money at the Depot's counter (docs/systemdocs/DEPOT.md). `discordOnly` —
-  // the web does both from its /depot page. Each starts the verb of the same
-  // name (bot/src/lib/verbs/place.js), which refuses anybody not standing
-  // here, and the credit line anybody without the Merchant's License.
-  {
-    id: "sendMoney",
-    label: "Send money",
-    tone: PLAIN,
-    customId: () => `${ACTION_START_PREFIX}sendmoney`,
-    when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
-    discordOnly: true,
-  },
-  {
-    id: "merchantCredit",
-    label: "Merchant credit",
-    tone: PLAIN,
-    customId: () => `${ACTION_START_PREFIX}credit`,
-    when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
-    discordOnly: true,
-  },
-  // The Meister's terminal (docs/systemdocs/DEPOT.md): the sell tax. The web
-  // has it on /treasury, so `discordOnly` again. The office is behind a
-  // locked door, and setSellTax asks canReadTreasury on every press.
-  {
-    id: "sellTax",
-    label: "Sell tax",
-    tone: PLAIN,
-    customId: () => `${ACTION_START_PREFIX}selltax`,
-    when: (room) => room?.slug === MEISTERS_OFFICE_ROOM_SLUG,
-    discordOnly: true,
-  },
   // The Den's slot machine. The only affordance that takes money off you for
   // an outcome nobody controls (db/lib/slotMachine.js).
   {
@@ -331,6 +300,38 @@ const ROOM_AFFORDANCES = [
     tone: DANGER,
     prefix: ROOM_PRAY_PREFIX,
     when: (room) => room?.slug === XOM_SHRINE_ROOM_SLUG,
+  },
+
+  // Money at the Depot's counter (docs/systemdocs/DEPOT.md). `discordOnly` —
+  // the web does both from its /depot page. Each starts the verb of the same
+  // name (bot/src/lib/verbs/place.js), which refuses anybody not standing
+  // here, and the credit line anybody without the Merchant's License.
+  {
+    id: "sendMoney",
+    label: "Send money",
+    tone: PLAIN,
+    customId: () => `${ACTION_START_PREFIX}sendmoney`,
+    when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
+    discordOnly: true,
+  },
+  {
+    id: "merchantCredit",
+    label: "Merchant credit",
+    tone: PLAIN,
+    customId: () => `${ACTION_START_PREFIX}credit`,
+    when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
+    discordOnly: true,
+  },
+  // The Meister's terminal (docs/systemdocs/DEPOT.md): the sell tax. The web
+  // has it on /treasury, so `discordOnly` again. The office is behind a
+  // locked door, and setSellTax asks canReadTreasury on every press.
+  {
+    id: "sellTax",
+    label: "Sell tax",
+    tone: PLAIN,
+    customId: () => `${ACTION_START_PREFIX}selltax`,
+    when: (room) => room?.slug === MEISTERS_OFFICE_ROOM_SLUG,
+    discordOnly: true,
   },
 ];
 

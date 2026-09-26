@@ -1,4 +1,4 @@
-// Every player verb on Discord, behind one door (docs/systemdocs/COMMANDS.md §2e).
+// Every player verb on Discord, behind one door (docs/systemdocs/COMMANDS.md §2g).
 //
 //   /<command> [sub]      the typed twin of every verb — db/lib/actionCatalog.js
 //                         names them, bot/src/lib/commands.js registers them.
@@ -162,7 +162,7 @@ function menuPayload(pools, { placeName = null } = {}) {
   const dropped = rows.length > 5 ? rows.length - 5 : 0;
   if (rows.length === 0) lines.push("-# There's nothing you can do right now.");
   lines.push(
-    `-# ${leftOut > 0 ? `${leftOut} more you can't do right now` : "Everything else"} is on your sheet: ${WEB_ORIGIN}/character`,
+    `-# ${leftOut > 0 ? `${leftOut} more you can't do right now — on your sheet` : "Everything else is on your sheet"}: ${WEB_ORIGIN}/character`,
   );
   if (dropped) lines.push(`-# ${dropped} more section${dropped === 1 ? "" : "s"} didn't fit — type the command instead.`);
   return { content: lines.join("\n"), components: rows.slice(0, 5) };

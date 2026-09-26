@@ -207,7 +207,7 @@ const commandDefinitions = [
   ...verbCommands(),
 ].map((builder) => builder.toJSON());
 
-// Every player verb's typed twin (docs/systemdocs/COMMANDS.md §2e), built from
+// Every player verb's typed twin (docs/systemdocs/COMMANDS.md §2g), built from
 // db/lib/actionCatalog.js so a verb added there gets its command here without
 // a second list to keep in step. A family is one command and each verb its
 // subcommand — /collar apply, /nuke arm — which keeps the bot well under

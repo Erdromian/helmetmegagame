@@ -12,7 +12,7 @@
 // On top of the registry this lists the verbs a player starts from somewhere
 // else on the web — the trumpet on the sheet, a Move's edit box, the Here
 // list's Pick up — so the Discord Actions menu is the one place for all of
-// them (docs/systemdocs/COMMANDS.md §2e).
+// them (docs/systemdocs/COMMANDS.md §2g).
 //
 // Fields:
 //   mode        the registry's mode where there is one; a new key otherwise.
@@ -60,8 +60,8 @@ const ACTIONS = [
   { mode: "destroy", label: "Destroy", section: "self", gate: "canDestroy", gateReason: "You're carrying nothing you could destroy.", command: "item", sub: "destroy", description: "Destroy something you're carrying.", run: "native" },
   { mode: "consume", label: "Consume", section: "self", gate: "canConsume", gateReason: "Nothing you're carrying can be used up.", command: "item", sub: "consume", description: "Eat, drink or use something up.", run: "link", web: true },
   { mode: "poison", label: "Poison", section: "self", show: "canPoison", command: "item", sub: "poison", description: "Lace a meal or drink you're holding with poison.", run: "native" },
-  { mode: "equip", label: "Equip", section: "self", show: "canEquip", command: "item", sub: "equip", description: "Put on or take up something you're carrying.", run: "native" },
-  { mode: "unequip", label: "Unequip", section: "self", show: "canUnequip", command: "item", sub: "unequip", description: "Take off something you have on.", run: "native" },
+  { mode: "equip", label: "Equip", section: "self", show: "canEquip", command: "item", sub: "equip", description: "Put on or take up something you're carrying.", run: "native", open: true },
+  { mode: "unequip", label: "Unequip", section: "self", show: "canUnequip", command: "item", sub: "unequip", description: "Take off something you have on.", run: "native", open: true },
   { mode: "transfer", label: "Transfer", section: "self", command: "item", sub: "transfer", description: "Give, drop or pick up things and Resources.", run: "link", web: true },
   { mode: "play", label: "Play Instrument", section: "self", show: "canSeePlay", gate: "canPlay", gateReason: "Equip an instrument first.", command: "perform", sub: "start", description: "Start playing a song on the instrument in your hands.", run: "native" },
   { mode: "stopplay", label: "Stop playing", section: "self", show: "isPerforming", command: "perform", sub: "stop", description: "Stop the song you're playing.", run: "native" },

@@ -156,12 +156,17 @@ Four things stay open, and they have one thing in common: none of them changes
 the world.
 
 - **Reading.** The sheet, the map, Examine, Who's here?, a notice on a board,
-  a room's Storage (the button and `/storage`), the roster. Reading is never
+  a room's Storage (the button and `/storage`), the roster. On Discord that
+  also means the Actions menu itself and the verbs that only read — `/look`,
+  `/mymove`, `/nuke pointer|device`, `/warrant list`, `/paper read` — which
+  `db/lib/actionCatalog.js` marks `open` (`COMMANDS.md` §2g). Reading is never
   an act.
 - **Equipping and unequipping.** It costs no Move even in session, and what is
   on your own body is nobody else's afternoon.
 - **The lobby and character creation.** They sit outside the game, so a
-  boundary inside the game is not theirs to answer to. A late-join seat offer
+  boundary inside the game is not theirs to answer to. The lobby console's
+  Ready / Not ready and `/lobby` are the Discord side of it, and Feedback
+  (button and `/feedback`) is open for the same reason. A late-join seat offer
   and a threat-spawn offer are the same shape.
 - **Everything a GM does.** They run the sitting; they work whenever they like.
 

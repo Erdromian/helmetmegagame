@@ -249,20 +249,36 @@ const stopplay = {
 
 // --- The trumpet and the Deep Beast Horn ------------------------------------------------
 
-function soundVerb(sound, broadcast, heard) {
+// Asks first, in the web's own words (web/app/components/useSoundItem.js): one
+// click is heard a long way off and cannot be taken back (COMMANDS.md §2e).
+function soundVerb(mode, sound, broadcast, { prompt, label, heard }) {
   return {
-    async start(interaction, { character }) {
-      const result = await sound(prisma, { character, discordUserId: character.discordUserId });
-      if (!result.ok) return done(interaction, result.error);
-      // Post-commit and catch-logged (ARCHITECTURE.md §5).
-      await broadcast(result.locationId).catch((err) => console.error("Sound broadcast failed:", err));
-      return done(interaction, heard);
+    start: (interaction) => confirm(interaction, mode, null, { prompt, label }),
+    steps: {
+      async go(interaction) {
+        await ackStep(interaction);
+        const character = await actorOrRefuse(interaction);
+        if (!character) return;
+        const result = await sound(prisma, { character, discordUserId: character.discordUserId });
+        if (!result.ok) return done(interaction, result.error);
+        // Post-commit and catch-logged (ARCHITECTURE.md §5).
+        await broadcast(result.locationId).catch((err) => console.error("Sound broadcast failed:", err));
+        return done(interaction, heard);
+      },
     },
   };
 }
 
-const trumpet = soundVerb(soundTrumpet, (locationId) => broadcastTrumpet(prisma, locationId), "You sound the trumpet.");
-const horn = soundVerb(soundHorn, () => broadcastDeepBeastHorn(prisma), "You sound the Deep Beast Horn.");
+const trumpet = soundVerb("trumpet", soundTrumpet, (locationId) => broadcastTrumpet(prisma, locationId), {
+  prompt: "**Sound the trumpet?**\nIt will be heard for a long way around, and everyone will know something is happening here.",
+  label: "Sound it",
+  heard: "You sound the trumpet.",
+});
+const horn = soundVerb("horn", soundHorn, () => broadcastDeepBeastHorn(prisma), {
+  prompt: "**Sound the horn?**\nIt will be heard everywhere above ground. Nobody will be able to tell where from.",
+  label: "Sound it",
+  heard: "You sound the Deep Beast Horn.",
+});
 
 // --- Disguise -----------------------------------------------------------------------------
 
