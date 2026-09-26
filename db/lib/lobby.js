@@ -39,7 +39,7 @@ async function loadAssignmentInput(db, memberRoles) {
     db.playerPreference.findMany(),
     db.role.findMany({
       select: {
-        id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true,
+        id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true, baseSeats: true,
         requiresWhitelist: true,
       },
     }),
@@ -87,7 +87,7 @@ async function validateDraft(db, draft) {
   if (!draft?.rows) return ["There is no preview to commit."];
   const [ready, roles] = await Promise.all([
     db.lobbyEntry.findMany({ where: { status: "READY" }, select: { discordUserId: true } }),
-    db.role.findMany({ select: { id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true } }),
+    db.role.findMany({ select: { id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true, baseSeats: true } }),
   ]);
   const readySet = new Set(ready.map((r) => r.discordUserId));
   const bySlug = new Map(roles.map((r) => [r.slug, r]));

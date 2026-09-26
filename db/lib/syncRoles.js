@@ -48,6 +48,22 @@ function startingAccount(role, slug) {
   return raw;
 }
 
+// `base_seats:` -- seats a weighted role has before its per-100 share is
+// counted (db/lib/roleCapacity.js). Absent is 0. Refused on a unique or
+// unlimited seat, where roleCapacity would never read it, and on anything but
+// a whole number of 0 or more.
+function baseSeats(role, slug) {
+  const raw = role.base_seats;
+  if (raw == null) return 0;
+  if (!Number.isInteger(raw) || raw < 0) {
+    throw new Error(`docs/roles.yaml: role "${slug}" base_seats must be a whole number of 0 or more`);
+  }
+  if (typeof role.weight !== "number") {
+    throw new Error(`docs/roles.yaml: role "${slug}" sets base_seats but has no numeric weight -- only a weighted seat counts it`);
+  }
+  return raw;
+}
+
 function parseRolesYaml(doc) {
   const roles = [];
   for (const [groupSlug, group] of Object.entries(doc?.groups ?? {})) {
@@ -67,6 +83,7 @@ function parseRolesYaml(doc) {
         isUnique: role.multiple === false,
         unlimited: role.weight === "unlimited",
         weight: typeof role.weight === "number" ? role.weight : null,
+        baseSeats: baseSeats(role, role.slug),
         extraStartingPoints: role.extra_starting_points ?? 0,
         startingZoneSlug: role.starting_zone ?? null,
         startingLocationSlug: role.starting_location ?? null,
@@ -257,6 +274,7 @@ async function syncRolesFromYaml(prisma) {
       isUnique: entry.isUnique,
       unlimited: entry.unlimited,
       weight: entry.weight,
+      baseSeats: entry.baseSeats,
       extraStartingPoints: entry.extraStartingPoints,
       startingTagSlugs: entry.startingTagSlugsResolved,
       bankAccountClass: entry.bankAccountClass,

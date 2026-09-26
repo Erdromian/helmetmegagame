@@ -167,7 +167,7 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
           seats = null;
         } else {
           // The game's own rule (db/lib/roleCapacity.js): never below one seat.
-          seats = roleCapacity({ weight: Number(r.weight ?? 1) }, players);
+          seats = roleCapacity({ weight: Number(r.weight ?? 1), baseSeats: r.base_seats ?? 0 }, players);
         }
       }
       roles.push({

@@ -36,10 +36,16 @@
 # db/lib/threats.js instead (docs/systemdocs/THREATS.md).
 #
 # `weight` (only present on `multiple: true` roles) is the seat cap,
-# expressed as seats allowed per 100 total players — the picker computes
-# `round(weight * GameConfig.playerCount / 100)`, so raising playerCount to
-# 120 scales every capped role by 1.2. `weight: unlimited` means no cap at
-# any scale (chaff roles like Commoner/Migrant).
+# expressed as seats allowed per 100 total players — the cap is
+# `max(1, round(base_seats + weight * playerCount / 100))`, where playerCount
+# is the number Start Game stamped (the readied count plus 9%), or the
+# `/gm/dev` expected-players knob before then. `weight: unlimited` means no
+# cap at any scale (chaff roles like Commoner/Migrant).
+#
+# `base_seats` (optional, defaults 0, only beside a numeric `weight`) is how
+# many seats the role has before the per-100 share is counted — it is what
+# makes a small game roomier without growing a large one. `weight: 5` with
+# `base_seats: 1` is 2 seats at 20 players, 3 at 40 and 6 at 100.
 #
 # `multiple: false` roles get no `weight` field at all — they're a single
 # specific named character (Baron, Bishop, Sheriff, ...) and always stay
@@ -376,7 +382,8 @@ groups:
       bank_account: treasury
       starting_account: 5
       multiple: true
-      weight: 6
+      weight: 5
+      base_seats: 1
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
@@ -725,7 +732,8 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 6
+      weight: 5
+      base_seats: 1
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-1

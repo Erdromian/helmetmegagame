@@ -3816,10 +3816,13 @@ model Role {
   // db/lib/roleCapacity.js:
   //   isUnique  -> exactly 1 seat, forever (`multiple: false`)
   //   unlimited -> no cap at any scale (`weight: unlimited`)
-  //   weight    -> round(weight * GameConfig.playerCount / 100)
+  //   weight    -> round(baseSeats + weight * playerCount / 100)
+  // baseSeats is the YAML's `base_seats`, only ever set beside a numeric
+  // weight: seats a small game gets before the per-100 share is counted.
   isUnique  Boolean @default(false)
   unlimited Boolean @default(false)
   weight    Int?
+  baseSeats Int     @default(0)
 
   // The starting package handed to a character who picks this role. No ⬢ line
   // here any more: ⬢ are the stackable `resources` Tag now, so a role that

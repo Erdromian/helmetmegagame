@@ -1,10 +1,10 @@
 // Seat math for a Role, shared by the character-creation picker, createCharacter's race check, and the GM panel, so all three agree on "full".
-// isUnique -> exactly 1 seat; unlimited -> uncapped; weight -> seats per 100 players (docs/roles.yaml). Infinity for uncapped roles; never rounds below 1.
+// isUnique -> exactly 1 seat; unlimited -> uncapped; weight -> seats per 100 players on top of baseSeats (docs/roles.yaml). Infinity for uncapped roles; never rounds below 1.
 function roleCapacity(role, playerCount) {
   if (role.isUnique) return 1;
   if (role.unlimited) return Infinity;
   if (role.weight == null) return 1;
-  return Math.max(1, Math.round((role.weight * playerCount) / 100));
+  return Math.max(1, Math.round((role.baseSeats ?? 0) + (role.weight * playerCount) / 100));
 }
 
 // The only two seats that reopen when their holder dies. Every OTHER role is
