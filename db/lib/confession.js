@@ -15,6 +15,8 @@ const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./constants");
 const { autoMovesOpen } = require("./turnGate");
+const { seenById } = require("./intercept");
+const { capitalizeFirst } = require("./concealedIdentity");
 
 // mood feeds the penitent's Gambit modifier, same as a hand-filed Gambit
 // (Hunger comes off held tags instead, already part of `tags` below).
@@ -79,24 +81,27 @@ async function openTurnAndWindow(db) {
 
 // One confession is one whole Routine, always — a chaplain hears one person a
 // day, and unlike teaching there is no tag that buys the Move back.
-async function freeSlot(db, character, turnId) {
+// `viewerId` reads the refusal: "You…" when it is about them, otherwise
+// the other one as they know them (intercept.js#seenBy). A confessional is
+// built so neither side sees the other; a refusal must not undo that.
+async function freeSlot(db, character, turnId, viewerId = character.id) {
   const action = await db.action.findFirst({
     where: { characterId: character.id, turnId },
     select: { id: true },
   });
-  return action
-    ? {
-        ok: false,
-        reason: `${character.name} has already locked in a Move this turn.`,
-      }
-    : { ok: true };
+  if (!action) return { ok: true };
+  if (character.id === viewerId) return { ok: false, reason: LOCKED_IN };
+  return {
+    ok: false,
+    reason: `${capitalizeFirst(await seenById(db, viewerId, character.id))} has already locked in a Move this turn.`,
+  };
 }
 
 // Checked the same way at offer time and accept time. `checkSlotsFor` is the
 // penitent alone at offer time and both at accept time.
 async function validateConfession(
   db,
-  { chaplain, penitent, tag, turnId, checkSlotsFor },
+  { chaplain, penitent, tag, turnId, checkSlotsFor, viewerId },
 ) {
   if (!chaplain || chaplain.status !== "ALIVE")
     return "That chaplain isn't around any more.";
@@ -111,17 +116,20 @@ async function validateConfession(
   if (!isHere(chaplain, penitent, { allowConcealed: true })) return notHereMessage(penitent);
   if (!isHere(penitent, chaplain, { allowConcealed: true })) return notHereMessage(chaplain);
   if (!isChaplain(chaplain))
-    return `${chaplain.name} can't take a confession.`;
+    return `${capitalizeFirst(await seenById(db, viewerId, chaplain.id))} can't take a confession.`;
   if (!tag) return "Unknown burden.";
   // Re-derived from the penitent's own row, never trusted from the client.
   if (!confessableTags(penitent).some((t) => t.id === tag.id)) {
-    return `That isn't something ${penitent.name} can confess.`;
+    return penitent.id === viewerId
+      ? "That isn't something you can confess."
+      : `That isn't something ${await seenById(db, viewerId, penitent.id)} can confess.`;
   }
   for (const who of checkSlotsFor) {
     const slot = await freeSlot(
       db,
       who === chaplain.id ? chaplain : penitent,
       turnId,
+      viewerId,
     );
     if (!slot.ok) return slot.reason;
   }
@@ -165,11 +173,12 @@ async function createConfessionOffer(
     tag,
     turnId: turn.id,
     checkSlotsFor: [penitentId],
+    viewerId: penitentId,
   });
   if (problem) return { ok: false, reason: problem };
 
   if (!chaplain.discordUserId)
-    return { ok: false, reason: `${chaplain.name} can't be reached.` };
+    return { ok: false, reason: `${capitalizeFirst(await seenById(prisma, penitent.id, chaplain.id))} can't be reached.` };
 
   const duplicate = await prisma.offer.findFirst({
     where: {
@@ -201,7 +210,7 @@ async function createConfessionOffer(
   });
 
   // Tag deliberately absent: naming it would put the sin in the chaplain's DMs before they agreed.
-  const content = `*${penitent.name}* wants to confess to you. Accept?`;
+  const content = `*${capitalizeFirst(await seenById(prisma, chaplain.id, penitent.id))}* wants to confess to you. Accept?`;
   return {
     ok: true,
     offer,
@@ -267,8 +276,25 @@ async function acceptConfession(prisma, offer, responder) {
     tag,
     turnId: turn.id,
     checkSlotsFor: [chaplain?.id, penitent?.id].filter(Boolean),
+    viewerId: responder.id,
   });
-  if (problem) return await cancelWith(prisma, offer, problem);
+  if (problem) {
+    const toAsker = await validateConfession(prisma, {
+      chaplain,
+      penitent,
+      tag,
+      turnId: turn.id,
+      checkSlotsFor: [chaplain?.id, penitent?.id].filter(Boolean),
+      viewerId: offer.initiatorId,
+    });
+    return await cancelWith(prisma, offer, problem, { toAsker: toAsker ?? problem });
+  }
+
+  // What each calls the other, for the Moves and the DM below.
+  const [chaplainSeen, penitentSeen] = await Promise.all([
+    seenById(prisma, penitent.id, chaplain.id),
+    seenById(prisma, chaplain.id, penitent.id),
+  ]);
 
   try {
     const result = await prisma.$transaction(async (tx) => {
@@ -291,7 +317,7 @@ async function acceptConfession(prisma, offer, responder) {
           confirmedAt: new Date(),
           moveKind: "GAMBIT",
           moveReviewStatus: "OPEN",
-          description: `Confessing ${tag.name} to ${chaplain.name}.`,
+          description: `Confessing ${tag.name} to ${chaplainSeen}.`,
           diceRoll: penitentAdvantage.die,
           diceModifier: gambitModifierTotal(penitent.tags, { mood: penitent.mood }),
           zoneId: penitent.zoneId ?? null,
@@ -309,7 +335,7 @@ async function acceptConfession(prisma, offer, responder) {
           confirmedAt: new Date(),
           moveKind: "ROUTINE",
           moveReviewStatus: "PASSED",
-          description: `Hearing ${penitent.name}'s confession.`,
+          description: `Hearing ${penitentSeen}'s confession.`,
           appliedEffects: {},
           zoneId: chaplain.zoneId ?? null,
           gmNotes: "auto:confession",
@@ -355,7 +381,7 @@ async function acceptConfession(prisma, offer, responder) {
       dms: [
         {
           discordUserId: penitent.discordUserId,
-          content: `${chaplain.name} will hear you.\n${confirmLines(result.penitentAction)}`,
+          content: `${capitalizeFirst(chaplainSeen)} will hear you.\n${confirmLines(result.penitentAction)}`,
         },
       ].filter((dm) => dm.discordUserId),
     };
@@ -371,7 +397,8 @@ async function acceptConfession(prisma, offer, responder) {
 // Marks the offer CANCELLED and hands back a DM for the penitent. Before the
 // claim only a PENDING row may be cancelled; `claimed` is a post-claim
 // failure. Same shape as lessons.js#cancelWith.
-async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
+// `reason` is for whoever pressed Accept, `toAsker` for the penitent's DM.
+async function cancelWith(prisma, offer, reason, { claimed = false, toAsker = reason } = {}) {
   await prisma.offer.updateMany({
     where: { id: offer.id, status: claimed ? "ACCEPTED" : "PENDING" },
     data: { status: "CANCELLED", respondedAt: new Date() },
@@ -387,7 +414,7 @@ async function cancelWith(prisma, offer, reason, { claimed = false } = {}) {
       ? [
           {
             discordUserId: initiator.discordUserId,
-            content: `Your confession fell through: ${reason}`,
+            content: `Your confession fell through: ${toAsker}`,
           },
         ]
       : [],

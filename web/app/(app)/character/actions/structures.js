@@ -247,7 +247,7 @@ export async function openBuildSiteImpl(
     character.id,
     payer.kind === "character" ? payer.id : null,
   ]);
-  payerNotice(character, payer, cost, tag);
+  await payerNotice(character, payer, cost, tag);
   const spoken = { typeName: tag.name, turnsNeeded: turns };
   speakAtSite(
     location.discordChannelId,

@@ -4,6 +4,8 @@
 // submit (modal, or confirm button) pair.
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
+const { seenByPlace } = require("@lifeweb/db/lib/intercept");
+const { capitalizeFirst } = require("@lifeweb/db/lib/concealedIdentity");
 const {
   syncCharacterRoomAccess,
   accessibleRooms,
@@ -239,7 +241,8 @@ async function handlePrayConfirm(interaction, roomId) {
     .catch((err) => console.error("Pray audit log failed:", err));
 
   // Witnessed only within the shrine — the tag is `catalog: secret` and never announced elsewhere.
-  const witnessed = `${character.name} kneels, and the face seems to lean down.`;
+  // The shrine sees the face, not the name behind a hood (chat/actions.js#pray).
+  const witnessed = `${capitalizeFirst(await seenByPlace(prisma, character.id))} kneels, and the face seems to lean down.`;
   // Same line, same noise as the web face's Pray button (web/app/(app)/chat/actions.js) —
   // a player praying from Discord should sound the same to whoever is reading the shrine.
   await sceneLineAt(prisma, { roomId: room.id, text: witnessed, sfx: SFX.CONVERT }).catch(() => {});

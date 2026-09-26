@@ -59,7 +59,7 @@ import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { structuresAt } from "@lifeweb/db/lib/structures";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
-import { heldReasonFor, seenBy, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
+import { heldReasonFor, seenBy, seenById, seenByPlace, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
@@ -813,12 +813,16 @@ export async function travelTo({ locationId, exert = false } = {}) {
   // this action returns is built out of them — it is only the telling that
   // waits. See the block below for why any of it waits at all.
   const tell = [];
+  // Leader and follower each name the other as they know them
+  // (intercept.js#seenBy): the escort rack offered a hood or a stranger by
+  // token, so neither line may hand back the name.
   for (const entry of result.leftBehind ?? []) {
     // "held" is the one reason the leader IS told — it's plain to see anyway.
-    (entry.reason === "held" ? heldBack : stranded).push(entry.character.name);
+    (entry.reason === "held" ? heldBack : stranded).push(await seenById(prisma, me.character.id, entry.character.id));
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     const left = entry.character.discordUserId;
-    tell.push(() => sendDm(left, `*${me.character.name} went on without you.*`));
+    const leader = capitalizeFirst(await seenById(prisma, entry.character.id, me.character.id));
+    tell.push(() => sendDm(left, `*${leader} went on without you.*`));
   }
 
   // The arrival's GAME half, AWAITED: the fog, a parked mount, a hand on a
@@ -886,10 +890,11 @@ export async function travelTo({ locationId, exert = false } = {}) {
   const brought = [];
   for (const entry of result.moved) {
     if (entry.character.id === me.character.id) continue;
-    brought.push(entry.character.name);
+    brought.push(await seenById(prisma, me.character.id, entry.character.id));
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     const passenger = entry.character.discordUserId;
-    tell.push(() => sendDm(passenger, `*${me.character.name} brought you along to ${landed.name}.*`));
+    const leader = capitalizeFirst(await seenById(prisma, entry.character.id, me.character.id));
+    tell.push(() => sendDm(passenger, `*${leader} brought you along to ${landed.name}.*`));
   }
 
   // Everything owed to Discord, after the response has gone. SEQUENTIAL, never
@@ -1573,8 +1578,8 @@ export async function pray({ roomId } = {}) {
 
   // Anybody else standing in the shrine sees it. Nothing leaves the room —
   // the tag is `catalog: secret`, and this is the only place it is ever
-  // announced at all.
-  const witnessed = `${me.character.name} kneels, and the face seems to lean down.`;
+  // announced at all. The shrine sees the face, not the name behind a hood.
+  const witnessed = `${capitalizeFirst(await seenByPlace(prisma, me.character.id))} kneels, and the face seems to lean down.`;
   // The statue's noise rides the line that was already being written — everyone reading the
   // shrine hears it, and nobody outside it does (db/lib/sfx.js).
   await sceneLineAt(prisma, { roomId: found.room.id, text: witnessed, sfx: SFX.CONVERT }).catch(() => {});

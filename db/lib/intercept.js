@@ -232,6 +232,25 @@ async function seenBy(db, viewerId, row) {
   return withArticle(concealedAlias(row).toLowerCase());
 }
 
+// seenBy for a caller holding only an id, or a row loaded without
+// IDENTITY_SELECT — most verbs load their own narrow shape. "somebody" for a
+// row that is gone. `db` may be a transaction.
+async function seenById(db, viewerId, characterId) {
+  if (!characterId) return "somebody";
+  const row = await db.character.findUnique({ where: { id: characterId }, select: IDENTITY_SELECT });
+  return row ? seenBy(db, viewerId, row) : "somebody";
+}
+
+// What a whole place reads a person as, for a line everybody there sees: a
+// hood is its alias, a forced name is that name. There is no one reader to
+// ask about Friends entries, so a bare face is named (STRANGERS.md §7, baked
+// scenery lines) — but a mask never is.
+async function seenByPlace(db, characterId) {
+  if (!characterId) return "somebody";
+  const row = await db.character.findUnique({ where: { id: characterId }, select: IDENTITY_SELECT });
+  return row ? seenAs(identityOf(row)) : "somebody";
+}
+
 // "He said" / "She said" / "They said" — Bascinet's line is "He said", wrong for half the cast; the shape is theirs, the agreement is arithmetic. Straight off Character.gender, the same column concealedIdentity.js reads.
 function saidWord(character) {
   if (character?.gender === "MAN") return "He said";
@@ -509,6 +528,8 @@ module.exports = {
   matchesArrival,
   seenAs,
   seenBy,
+  seenById,
+  seenByPlace,
   saidWord,
   IDENTITY_SELECT,
   identityOf,

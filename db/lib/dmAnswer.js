@@ -20,7 +20,7 @@ const { acceptThreatSpawn, declineThreatSpawn } = require("./threatSpawn");
 const { declineAssignment } = require("./lobby");
 const { holdKeyedOpen } = require("./gates");
 const { settleCarry } = require("./carry");
-const { releaseHeldBy, seenBy, IDENTITY_SELECT } = require("./intercept");
+const { releaseHeldBy, seenBy, seenById, IDENTITY_SELECT } = require("./intercept");
 const { cancelAttack, ATTACK_CALLED_OFF_DM } = require("./attack");
 const { recordArchiveEvent } = require("./archive");
 
@@ -182,7 +182,8 @@ async function answerInterceptHold(prisma, { id, discordUserId }) {
   if (target.discordUserId && target.status === "ALIVE") {
     dms.push({ discordUserId: target.discordUserId, content: "You've been let go. You can move again." });
   }
-  return { ok: true, line: `You let ${target.name} go.`, ...empty(), dms };
+  // Named as the holder knows them, the way the Break-off line below does.
+  return { ok: true, line: `You let ${await seenById(prisma, holder.id, target.id)} go.`, ...empty(), dms };
 }
 
 // (docs/systemdocs/ATTACK.md) Same rule as above — initiator answers — but

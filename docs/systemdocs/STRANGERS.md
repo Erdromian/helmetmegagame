@@ -236,6 +236,25 @@ Name)".
   go to one character now uses it: Attack and its list, Search, Pickpocket,
   Intercept, Kiss, a declined or expired offer, the Break-off button, the
   sheet's and `/chat`'s waiting-on-you lists.
+- **Every verb done to somebody else** names them through it too, in the
+  refusal, the line handed back to the actor, and the DM to the other side:
+  Bind, Free, Crucify, Shackle, Brand, Harm, Torture (until a break tells the
+  name), Mutilate, Loot, using an item on somebody, Heal and its Gambit's
+  result, Perform Miracle, Apply and Unlock Collar, Escort, Lessons,
+  Confession, Transfer's "handed you", a person paying for a cure or a craft,
+  letting somebody go from an Intercept, and the lines about who came along
+  on a move. Most callers hold only an id or a narrow row, so they use
+  `seenById(db, viewerId, id)`, which loads what `seenBy` needs. The web's
+  `web/lib/hereTarget.js#seenName` is the same, capitalised to open a
+  sentence.
+- **A refusal at Accept** goes to two people, so each handshake words it
+  twice: "You're already bound." to whoever pressed Accept, and "A young man
+  is already bound." to the asker. Bind, Collar, Lessons and Confession all
+  do this now, as Kiss does.
+- **A line the whole place reads** can't be worded per reader (§7), but it
+  never names a hood: `intercept.js#seenByPlace` is the face the room saw.
+  The cross ("X hangs on the cross."), a collar going off, and praying at
+  Xom's shrine use it.
 
 ## 7. What this does not reach yet
 
@@ -249,10 +268,11 @@ Name)".
   - shouts
   - phone carries
   - "X was let in."
-- **Verbs that write `.name` straight into a DM**, never through `seenAs`, still
-  name a stranger outright. These include Bind, Collar, Heal and the other
-  medical verbs, lesson offers, and corpse and blood abilities. Each needs
-  `seenBy` at its own call site; about 180 lines across ~20 files.
+- **Place lines about a bare face** — the cross, a collar going off, a prayer
+  — name them, the same as arrivals. Only a hood is kept out of them.
+- **Bodies.** A corpse is an item named after the dead ("Ada's Corpse"), so
+  Bury, Engrave and Mutilate on a body name them. That is how bodies work
+  (`CORPSES.md`), not a leak this rule closes.
 - **The conversion rite's pick list** goes to the whole circle at once, so it
   can't be worded per reader.
 
@@ -266,7 +286,7 @@ Name)".
 | Who is hidden, labels on lists | `db/lib/whosHere.js`, `db/lib/presentedMembers.js` |
 | Tokens and scene keys | `db/lib/hoodToken.js` |
 | Clearing on a move | `db/lib/locationMove.js#applyArrivalFacts` |
-| DM wording per reader | `db/lib/intercept.js#seenBy` |
+| DM wording per reader | `db/lib/intercept.js#seenBy`, `seenById`, `seenByPlace`; `web/lib/hereTarget.js#seenName` |
 | Looking | `db/lib/examineRow.js`, `db/lib/examine.js` |
 | Faces without ids | `web/app/api/avatar/here/`, `web/app/api/avatar/line/`, `web/lib/avatarResponse.js` |
 | The lens on the web | `web/lib/strangerLens.js`, `web/app/api/feed/route.js` |
