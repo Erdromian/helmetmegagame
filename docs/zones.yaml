@@ -202,15 +202,7 @@
 #     on_foot: true                # too tight, steep or enclosed for a horse
 #                                  #   or a cart. A MOUNTED character is
 #                                  #   dismounted at the threshold.
-#     railroad: true               # a rail tunnel. Crossing it while the cargo
-#                                  #   train is OUT ON THE LINE gibs the
-#                                  #   crosser on arrival; at the platform it
-#                                  #   is an ordinary crossing. The clock is
-#                                  #   the train's own (db/lib/train.js), so
-#                                  #   there is no die in it — which is why the
-#                                  #   confirm is asked EVERY time, on both
-#                                  #   faces. See db/lib/railroad.js.
-#     keyed: true                  # on crossing, the KEY-HOLDER is DM'd "Leave
+#     keyed: true                 # on crossing, the KEY-HOLDER is DM'd "Leave
 #                                  #   it open for the next 24 hours?". Yes and
 #                                  #   the way ignores its tag and shows in
 #                                  #   everyone's travel list until the window
@@ -2448,13 +2440,11 @@ connections:
   # carefully climb through countless of these vicious crystals" (depths-6-1's
   # own description) — a giant does not force that either, climbing or not.
   # A Giant comes at the Chambers from the Chasm side instead (depths-7 <->
-  # depths-6, just below). With no tags, that means the rail tunnel from the
-  # Depot (`railroad: true` below), which kills anyone inside while the
-  # train is out, so it's a question of timing, not a closed door. With
-  # climbing, it's the climb down from the Grand Ravine (`locked: climbing`
-  # below). From the Grand Chamber the tunnel route is six hops and two zone
-  # crossings: up to the Lake, through the Undertown to the Depot, and down
-  # the tunnel to the Chasm.
+  # depths-6, just below), and the only way into the Chasm that skips the
+  # Razor Tunnels is the climb down from the Grand Ravine (`locked: climbing`
+  # below). So a Giant without climbing does not reach the Chambers, the
+  # Chasm or the shrine at its foot at all. There used to be a rail tunnel
+  # from the Depot too; it was taken out.
   - pair: [depths/depths-5, depths/depths-6]
     tight_squeeze: true
   - [depths/depths-6, depths/depths-7]
@@ -2641,18 +2631,6 @@ connections:
   - pair: [undertown/undertown-h, caves/caves-3]
     hidden: strong-swimmer
     on_foot: true
-
-  # --- The railroad ------------------------------------------------------
-  # One tunnel out of the Depot, and the cargo train is in it every other turn
-  # (db/lib/train.js). Go in while it is out on the line and there is nothing
-  # left to bury — db/lib/railroad.js, and the unconditional confirm in
-  # web/lib/travelCost.js#crossingConfirm is the only warning anybody gets. An
-  # ordinary border crossing otherwise: it costs the Move.
-  #
-  # There were two. The other ran to the Grand Ravine, and the Ravine reaches
-  # the deep on foot now instead — see the climb below.
-  - pair: [undertown/undertown-5, depths/depths-7]
-    railroad: true
 
   # --- Into the deep from the Black Hills --------------------------------
   # The Chasm used to open at the Cliffs. It opens at the Grand Ravine now, and

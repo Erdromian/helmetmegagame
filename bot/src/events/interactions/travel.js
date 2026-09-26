@@ -243,14 +243,10 @@ async function handleTravelPick(interaction) {
 
   // Cost model, and a warning before Confirm rather than a regret after (CARRY.md §2).
   const crossing = Boolean(character.locationId) && character.zoneId !== target.zoneId;
-  // A rail tunnel (db/lib/railroad.js). The Confirm button below IS the
-  // two-step the web gets from its dialog, so nothing new is needed here —
-  // only the sentence, and it has to be the same sentence, or Discord and the
-  // web would warn about the tunnel in two different voices.
+  // The edge itself, for what the picker says about the way (a tight squeeze).
   const adjacentLink = character.locationId
     ? await linkBetween(prisma, character.locationId, target.id).catch(() => null)
     : null;
-  const railroad = Boolean(adjacentLink?.railroad);
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: { freeZoneMovesPerTurn: true },
@@ -339,8 +335,8 @@ async function handleTravelPick(interaction) {
     interaction,
     {
       content: [
-        railroad ? "Go into the tunnel?" : `Travel to **${target.name}**?`,
-        railroad ? "-# This is dangerous." : costLine,
+        `Travel to **${target.name}**?`,
+        costLine,
         squeezeLine,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,

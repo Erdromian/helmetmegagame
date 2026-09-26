@@ -179,13 +179,6 @@ turn 1 excepted, since nothing has arrived yet. Reading presence off
 `isArrivalTurn()` instead tells everybody the train is in on the one turn it
 demonstrably is not; `db/test/train.test.js` pins that.
 
-**`trainHere()` decides more than deliveries now.** The two rail tunnels out of
-the Depot (`MAP.md` §2, `db/lib/railroad.js`) read the same predicate to answer
-whether walking into one is survivable this turn: at the platform the tunnel is
-empty, out on the line it gibs whoever enters. So the parity above is
-load-bearing twice over — change what "at the platform" means and you change who
-walks out of a tunnel alive.
-
 The cycle:
 
 1. **Order** off a manifest. Obols leave your account now; the goods do not

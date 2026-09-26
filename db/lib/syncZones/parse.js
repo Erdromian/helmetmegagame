@@ -128,7 +128,6 @@ function parseZonesYaml(doc) {
 //     modular: { roles: [...], tags: [...], open: true }
 //     keyed: true
 //     on_foot: true
-//     railroad: true
 //     tight_squeeze: true
 //
 // `locked`/`hidden` are the same requirement with different visibility, one
@@ -149,7 +148,6 @@ const CONNECTION_KEYS = new Set([
   "modular",
   "keyed",
   "on_foot",
-  "railroad",
   "tight_squeeze",
 ]);
 
@@ -194,7 +192,6 @@ function parseConnection(raw, locationByRef, problems) {
     isOpen: true,
     keyed: false,
     onFoot: false,
-    railroad: false,
     tightSqueeze: false,
   };
 
@@ -228,15 +225,6 @@ function parseConnection(raw, locationByRef, problems) {
       problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean on_foot: ${JSON.stringify(spec.on_foot)}`);
     } else {
       entry.onFoot = spec.on_foot;
-    }
-  }
-
-  // A rail tunnel. It changes nothing about who may cross — it changes what crossing costs you while the cargo train is out on the line, which is nothing at all or everything (db/lib/railroad.js).
-  if (spec.railroad != null) {
-    if (typeof spec.railroad !== "boolean") {
-      problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean railroad: ${JSON.stringify(spec.railroad)}`);
-    } else {
-      entry.railroad = spec.railroad;
     }
   }
 

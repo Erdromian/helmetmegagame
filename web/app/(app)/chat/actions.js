@@ -574,8 +574,6 @@ export async function loadTravel() {
         // What the crossing spends in travel — ½ between the town zones, 1
         // anywhere else (db/lib/crossingCost.js), 0 inside the zone.
         cost: row.cost ?? 0,
-        // The ONE flag that makes the confirm unconditional (db/lib/railroad.js).
-        railroad: Boolean(row.railroad),
         passable: row.passable,
         freeLeft,
         // Whether the Push on button belongs on the strip for this crossing.
