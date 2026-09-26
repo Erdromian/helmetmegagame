@@ -3090,7 +3090,6 @@ async function requireRemote() {
   const { session, character } = await requireCharacter({ needs: ACT });
   const refusal = await remoteRefusal(prisma, character.id);
   if (refusal) throw new UserError(refusal);
-  if (!character.zoneId) throw new UserError("You aren't anywhere you could do that.");
   return { session, character };
 }
 
@@ -3160,7 +3159,7 @@ export async function unlockCollarRequestImpl({ targetCharacterId }) {
   return { name: target.name, glyph: unlocked.glyph };
 }
 
-// What the remote shows: every collar in range, by glyph. A name goes beside a
+// What the remote shows: every collar in the game, by glyph. A name goes beside a
 // glyph only for somebody standing in front of the Exactor, where he can read
 // the clasp for himself — and it is the name HE holds for them, so a hood
 // stays a hood (web/lib/peopleHere.js#rosterHere strips the real one).
@@ -3183,7 +3182,7 @@ export async function readRemoteRequestImpl() {
   };
 }
 
-// The trigger, by glyph. Anywhere in the Exactor's zone; see
+// The trigger, by glyph. Any collar in any zone; see
 // db/lib/collar.js#detonateCollar for why the body stays.
 export async function detonateCollarRequestImpl({ collarSlug }) {
   const { session, character } = await requireRemote();

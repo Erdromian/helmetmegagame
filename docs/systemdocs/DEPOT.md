@@ -933,7 +933,7 @@ buying one mid-game is still a real decision.
 | `bomb-collar` | 15 | — | Black Market. The loose collar, blank; Apply Collar spends one and marks it with a glyph on the way round the neck (`COLLAR.md`) |
 | `buffout` | 20 | — | Black Market. Also a Skilled brew (0.25t, `changa` + `cave-fungus`). +1.5 melee, none of Changa's risk |
 | `poison-snooper` | 22 | 13 | **The exception:** also buyable at creation, 9 pt |
-| `remote-detonator` | 23 | — | Black Market. Answers to the Exactor alone: sets off any shut collar in his zone, by its glyph. The body stays where it fell (`COLLAR.md` §5) |
+| `remote-detonator` | 23 | — | Black Market. Answers to whoever wears the Exactor's ring: sets off any shut collar in any zone, by its glyph. The body stays where it fell (`COLLAR.md` §5) |
 | `sword-cane` | 24 | 14 | Also a 7-pt creation pick |
 | `instant-camera` | 27 | 16 | Also a 2-pt creation pick |
 | `microscope` | 31 | 19 | |

@@ -490,15 +490,14 @@ const unlockcollar = {
 };
 
 // web: character/actions/misc.js#readRemoteRequestImpl + detonateCollarRequestImpl.
-// The remote answers to the Exactor's ring (COLLAR.md §3) and lists collars in
-// the holder's zone by glyph; a name goes beside one only for somebody standing
-// here, and only the name the holder knows them by. A kill, so it takes a
-// confirm on top of the re-checks.
+// The remote answers to the Exactor's ring (COLLAR.md §3) and lists every
+// collar in the game, in any zone, by glyph; a name goes beside one only for
+// somebody standing here, and only the name the holder knows them by. A kill,
+// so it takes a confirm on top of the re-checks.
 const detonatecollar = {
   async start(interaction, { character }) {
     const refusal = await remoteRefusal(prisma, character.id);
     if (refusal) return done(interaction, refusal);
-    if (!character.zoneId) return done(interaction, "You aren't anywhere you could do that.");
     const collars = await remoteReading(prisma, collarActor(character));
     const wornHere = new Map();
     if (collars.length) {
@@ -513,7 +512,7 @@ const detonatecollar = {
     }
     return pickFrom(interaction, "detonatecollar", "pick", {
       prompt: "Which collar do you set off?",
-      empty: "The remote shows no collars in range.",
+      empty: "The remote shows no collars.",
       options: collars.map((c) => ({
         label: wornHere.has(c.slug) ? `Collar ${c.glyph} — ${wornHere.get(c.slug)}` : `Collar ${c.glyph}`,
         value: c.slug,
@@ -536,7 +535,6 @@ const detonatecollar = {
       if (!character) return;
       const refusal = await remoteRefusal(prisma, character.id);
       if (refusal) return done(interaction, refusal);
-      if (!character.zoneId) return done(interaction, "You aren't anywhere you could do that.");
       const turn = await openTurn();
       if (!turn) return done(interaction, "No turn is open.");
       const result = await detonateCollar(prisma, { actor: collarActor(character), collarSlug, turn });

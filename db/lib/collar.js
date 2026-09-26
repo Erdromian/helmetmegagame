@@ -469,15 +469,15 @@ async function unlockCollar(prisma, { actor, target, turn }) {
 }
 
 // What the remote shows whoever wears the Exactor's ring: every collar round a
-// living neck in their own zone, by glyph and nothing else. Who wears one is
-// not the remote's to say -- the caller adds a name only for the people
-// standing in front of them, where they can read the clasp themselves
-// (web/app/(app)/character/actions/misc.js#readRemoteRequestImpl).
+// living neck anywhere in the game, in every zone, by glyph and nothing else.
+// Who wears one is not the remote's to say -- the caller adds a name only for
+// the people standing in front of them, where they can read the clasp
+// themselves (web/app/(app)/character/actions/misc.js#readRemoteRequestImpl).
 //
 // The holder's own neck is left off: the remote is not how they die.
 async function remoteReading(prisma, actor) {
-  if (!actor?.zoneId) return [];
-  const inRange = { status: "ALIVE", zoneId: actor.zoneId, id: { not: actor.id } };
+  if (!actor?.id) return [];
+  const inRange = { status: "ALIVE", id: { not: actor.id } };
   await stampBlankCollars(prisma, inRange);
   const rows = await prisma.characterTag.findMany({
     where: { quantity: { gt: 0 }, character: inRange, tag: { slug: { startsWith: LOCKED_GLYPH_PREFIX } } },
@@ -489,9 +489,9 @@ async function remoteReading(prisma, actor) {
     .sort((a, b) => a.index - b.index);
 }
 
-// The trigger. Reaches any collar round a living neck in the holder's zone,
-// wherever in it the wearer stands -- a slave can still run, but only out of
-// the zone. The wearer dies an ORDINARY death: the collar takes their head and
+// The trigger. Reaches any collar round a living neck in any zone, caves
+// included -- running does not get a slave out of range; only a key does. The
+// wearer dies an ORDINARY death: the collar takes their head and
 // nothing else, so there is a body where they fell with everything they were
 // carrying still on it (docs/systemdocs/CORPSES.md). A collar that vaporized
 // its wearer gave the Exactor every reason never to use it on a slave who ran
@@ -508,12 +508,11 @@ async function detonateCollar(prisma, { actor, collarSlug, turn }) {
   const glyph = glyphOf(collarSlug);
   if (!glyph || !isLockedCollarSlug(collarSlug)) return { ok: false, reason: "That isn't a collar the remote knows." };
   const silent = { ok: false, reason: `Collar ${glyph} doesn't answer.` };
-  if (!actor?.zoneId) return silent;
+  if (!actor?.id) return silent;
 
   const target = await prisma.character.findFirst({
     where: {
       status: "ALIVE",
-      zoneId: actor.zoneId,
       id: { not: actor.id },
       tags: { some: { quantity: { gt: 0 }, tag: { slug: collarSlug } } },
     },

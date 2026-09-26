@@ -118,7 +118,7 @@ export const ACTION_HELP = {
   applycollar:
     "Permanently lock a collar around someone's neck. It can only be removed with a key.",
   unlockcollar: "Unlock someone's collar.",
-  detonatecollar: "Set off a collar anywhere in your zone. The remote knows each one by its glyph, not by who is wearing it.",
+  detonatecollar: "Set off a collar anywhere, in any zone. The remote knows each one by its glyph, not by who is wearing it.",
   bury: "Bury someone. Removes the player's Cursed status.",
   engrave: "Memorialize someone's name. Removes the player's Cursed status.",
   // Bascinet's words, verbatim.

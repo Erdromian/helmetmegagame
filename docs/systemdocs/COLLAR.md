@@ -1,7 +1,7 @@
 # The bomb collar
 
 A collar you can lock round somebody's neck and set off from anywhere in the
-zone. The Exactor's instrument (`docs/roles.yaml`), and the reason the Slave
+game. The Exactor's instrument (`docs/roles.yaml`), and the reason the Slave
 seat is a seat rather than a job title.
 
 ## 1. The loose collar and the shut one
@@ -62,7 +62,7 @@ The remote lists collars **by glyph, never by who is wearing them.**
 
 That is the whole trick. Somebody with a stolen key takes collar Ж off a slave,
 locks it round somebody else's neck, and the Exactor's remote still shows Ж
-glowing in the zone. Unless he walks over and reads the clasp, he has no idea it
+glowing. Unless he walks over and reads the clasp, he has no idea it
 moved — and if he sets it off, the wrong person dies.
 
 **Why a glyph is its own pair of tags.** It has to survive a trade, a theft, a
@@ -102,7 +102,7 @@ actions in `web/app/(app)/character/actions/misc.js` (the three verbs, plus
 |---|---|---|---|
 | **Apply Collar** | a loose collar in hand | somebody here, or yourself | sometimes — see below |
 | **Unlock Collar** | `collar-key` | somebody here, alive or dead | never |
-| **Detonate** | `remote-detonator` **and the Exactor's ring, worn** | any living neck in your zone | never |
+| **Detonate** | `remote-detonator` **and the Exactor's ring, worn** | any living neck, in any zone | never |
 
 Each button is **hidden**, not greyed, and only ever on a fact about your own
 sheet — what is in your pockets, and for Detonate, what is on your finger. That
@@ -167,26 +167,26 @@ So both list everybody standing there, hoods included, under their alias
 with no collar is refused **by name**, one person per click.
 
 **The remote is the one exception, because it answers to one ring.** The
-Exactor put those collars on. It lists every collar round a living neck in his
-zone, by glyph (`remoteReading`). A name goes beside a glyph only for somebody
+Exactor put those collars on. It lists every collar round a living neck in the
+game, in every zone, by glyph (`remoteReading`). A name goes beside a glyph only for somebody
 standing in his own Location, where he can read the clasp himself — and it is
 the name **he** holds for them, off `rosterHere`, so a hood stays a hood. For
-everybody else in the zone the remote shows the glyph alone.
+everybody else the remote shows the glyph alone.
 
 What the remote gives away, and means to: a glyph vanishes when its wearer
-leaves the zone, dies, or has the collar unlocked, and a new one appears when
+dies or has the collar unlocked, and a new one appears when
 somebody locks a collar on. It does not say which of those happened.
 
 The Exactor's own neck is left off the list. The remote is not how he dies.
 
 ## 5. Detonation
 
-**Range: the zone of whoever holds the remote and wears the ring** — the
-Exactor, unless somebody has taken both from him. Any living neck with that
-glyph in the same zone as him, whichever Location they are standing in. A slave can still run —
-but only out of the zone; he can walk from Location to Location pressing
-buttons. The caves are their own zones, so a slave prospecting underground is
-out of range of an Exactor who stays on the surface.
+**Range: every zone.** Any living neck with that glyph, wherever it is —
+the surface, the Keep, the caves. Running does not get a slave out of range;
+only a key does. Whoever holds the remote and wears the ring can fire from
+anywhere, with no zone of their own needed. This used to be the holder's own
+zone, which put a slave prospecting in the caves out of reach of an Exactor
+who stayed in Undertown (Bascinet's call, 2026-09-26).
 
 **It takes the head, not the body.** An ordinary death through
 `applyDeathToRow`, with **no** `gib`. A corpse is minted where they fell, and

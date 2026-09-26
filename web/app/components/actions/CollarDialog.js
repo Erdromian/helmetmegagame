@@ -123,12 +123,12 @@ function PeopleCollarDialog({ mode, presets, onDone, onClose }) {
 
 // The Remote Detonator. Read when the dialog opens, not when the page
 // rendered, the way useRoster reads a room: the list is every collar round a
-// living neck in your zone, and it moves whenever somebody walks, dies or
+// living neck in the game, in any zone, and it moves whenever somebody dies or
 // turns a key.
 //
 // A collar is a glyph here. A name goes beside it only for somebody standing
-// in front of you, where you can read the clasp yourself — anywhere else in
-// the zone, the remote cannot tell you whose neck it is on.
+// in front of you, where you can read the clasp yourself — anywhere else, the
+// remote cannot tell you whose neck it is on.
 function useRemoteReading() {
   const [state, setState] = useState({ collars: [], loading: true, error: null });
   useEffect(() => {
@@ -163,7 +163,7 @@ function RemoteDialog({ mode, onDone, onClose }) {
       title: `Set off collar ${picked.glyph}?`,
       message: picked.wornBy
         ? `It's round ${picked.wornBy}'s neck.`
-        : "Whoever is wearing it is somewhere else in this zone.",
+        : "Whoever is wearing it is somewhere else.",
       confirmLabel: "Detonate",
     });
     if (!ok) return;
@@ -179,7 +179,7 @@ function RemoteDialog({ mode, onDone, onClose }) {
       busy={busy}
       error={error ?? readError}
       loading={loading}
-      empty={!loading && !readError && collars.length === 0 ? "No collar in this zone answers." : null}
+      empty={!loading && !readError && collars.length === 0 ? "No collar answers." : null}
       canSubmit={Boolean(picked)}
       onClose={onClose}
       onSubmit={onSubmit}
@@ -191,8 +191,8 @@ function RemoteDialog({ mode, onDone, onClose }) {
         onChange={setSlug}
       />
       <p className="text-xs text-muted">
-        The remote reaches every collar in this zone. It can&apos;t tell you whose neck one is on unless they&apos;re
-        standing in front of you.
+        The remote reaches every collar, wherever it is. It can&apos;t tell you whose neck one is on unless
+        they&apos;re standing in front of you.
       </p>
     </ActionDialog>
   );
