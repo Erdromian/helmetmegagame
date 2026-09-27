@@ -7,6 +7,7 @@ import FightPanel from "../FightPanel";
 import { useConfirm } from "../ConfirmProvider";
 import useSubmit from "./useSubmit";
 import { loadAttacks, attackCharacterRequest, interveneRequest } from "@/app/(app)/character/attackActions";
+import { joinSideLine } from "@lifeweb/db/lib/combatMode";
 
 // Attacking (docs/systemdocs/ATTACK.md, from Bascinet's Combat Overhaul.docx). Three faces, one dialog:
 //
@@ -84,7 +85,7 @@ export default function AttackDialog({ onDone, onClose }) {
   async function join(fight, side) {
     const ok = await confirm({
       title: side === "ATTACKER" ? "Join the attackers?" : "Join the defenders?",
-      message: "You'll be held here until the fight is over. The further you came to get here, the worse your chances.",
+      message: joinSideLine(fight, side),
       confirmLabel: "Join",
     });
     if (!ok) return;
@@ -120,7 +121,10 @@ export default function AttackDialog({ onDone, onClose }) {
         <div key={fight.combatId} className="field">
           <span className="field-label">A fight is going on here</span>
           <p className="text-sm">
-            {fight.attackers.join(", ")} against {fight.defenders.join(", ")}.
+            <span className="text-muted">Attacking:</span> {fight.attackers.join(", ")}
+          </p>
+          <p className="text-sm">
+            <span className="text-muted">Defending:</span> {fight.defenders.join(", ")}
           </p>
           <div className="chat-buttons">
             <button type="button" className="btn-quiet" disabled={busy || Boolean(blocked)} onClick={() => join(fight, "ATTACKER")}>

@@ -2207,6 +2207,7 @@ export async function myMove() {
       ? {
           locationName: fight.locationName,
           status: fight.status,
+          inviter: fight.inviter,
           needsWriting: fight.canDescribe && !fight.description,
         }
       : null,

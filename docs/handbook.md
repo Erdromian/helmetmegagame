@@ -402,7 +402,7 @@ If a fight is already going on where you are, Attack lets you **join a side** in
 
 A fight is **called off** only when everybody on the attacking side has pressed Call off. The defenders go free straight away; the attackers stay where they are for another 30 minutes, in case the other side wants to answer.
 
-An **ambush** is a fight sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too — and anybody else it catches that turn joins the same fight.
+An **ambush** is a fight sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too — and anybody else it catches that turn joins the same fight. When the fight ends, so does the ambush; set it again if you still want to lie in wait.
 
 Once Moves lock, nobody can start a fight, join one, or travel anywhere until the next turn.
 

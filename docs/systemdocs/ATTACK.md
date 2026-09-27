@@ -136,6 +136,10 @@ is answered Join or Decline — in the fight's DM, on Discord or the web
 thread, or in the Attack dialog. Until then the invitee is held (Bascinet,
 2026-09-27). Decline, and they may go, but not attack anyone here until next
 turn (§1). An invitation still unanswered at the push counts as declined.
+The invitation names who asked — the fight's initiator, or the ambush's owner,
+by the name the invitee knows them by — in the DM, the fight panel, the Discord
+readout and the line under the turn card ("A young man has asked you to join
+the attack.", `combatMode.js#invitedLine`, off `combatViewFor`'s `inviter`).
 
 **Writing.** Everybody in the fight who was in combat mode when it reached
 them is asked to write what they do: the DM says so and carries **Write your
@@ -185,7 +189,12 @@ Somebody not in the fight who presses Attack where a fight is going on is
 offered **Join the attackers**, **Join the defenders**, or **Start a separate
 attack** on people not already fighting (`combat.js#intervene`). Joining is an
 Attack, so it takes the same gates (§1) — which makes an intervener always
-alert.
+alert. Each fight is listed as two labelled lines, **Attacking:** and
+**Defending:**, and the confirm names who they would fight beside and against
+("You'll fight alongside Bo against Ada and a young man.",
+`combatMode.js#joinSideLine`), so nobody has to guess which half of a list is
+which. On Discord, with more than one fight here, each is numbered and so are
+its buttons.
 
 How far they were **when the fight started** (§2) decides it:
 
@@ -220,6 +229,12 @@ and on which side, by the name they know them by.
 - **The push** closes every fight still open (`TURN_ENDED`), in the
   `combatClose` pass after the staged push. Nobody is told; the holds lapse on
   the turn's own clock.
+
+**An ambush ends with its fight**, however the fight ends (Bascinet,
+2026-09-27): `endCombatTx` and `closeCombatsAtPush` delete the owner's Ambush
+watch (`combat.js#cancelAmbushes`), and the owner is told "Your ambush is over.
+Set it again if you still want to lie in wait." — on the end-of-fight DM, or,
+at the push, as a notice of its own.
 
 A fight that ends stays on the desk, because the GM still rules on it.
 
@@ -275,6 +290,8 @@ An Intercept watch in Ambush mode is a fight laid in advance
   change it until the fight is over."), so re-setting it to "Anyone"
   mid-fight can't pull in people it was never set for. Stopping it is still
   allowed, since that only narrows it.
+- The fight ending ends the ambush (§7): nothing springs again until the owner
+  sets a new one, which takes the ordinary gates.
 - An arrival already in a fight, or an owner busy in some other fight, is
   skipped before the ration is claimed.
 

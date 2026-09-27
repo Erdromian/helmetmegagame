@@ -567,7 +567,9 @@ async function resolveNeeds(turn, config) {
   await runPass("cavingRelease", "Caving release", () => releaseUnresolvedCavingRolls(prisma, turn));
 
   // The fights (docs/systemdocs/ATTACK.md §7). See TURN_PASSES.
-  await runPass("combatClose", "Combat close", () => closeCombatsAtPush(prisma, turn));
+  // An ambush ends with its fight, and its owner is told (`notices`, sent with the tag notices below).
+  const combatClose = await runPass("combatClose", "Combat close", () => closeCombatsAtPush(prisma, turn));
+  const { notices: combatCloseNotices = [] } = combatClose ?? {};
 
   // Combat mode: Tired, or Exhausted and turned off. Before tagExpiry — see
   // TURN_PASSES. Its DMs join tagExpiryDms once that list exists, below.
@@ -586,8 +588,8 @@ async function resolveNeeds(turn, config) {
   // this one list — vision decay, hunger's mood band, the Vampire's band, the
   // dawn afflictions, Xom, the mood dial — rather than each threading a
   // variable of its own through runSideEffects/advanceTurn. Combat mode's
-  // notices ran before this list existed, so they lead it.
-  const tagExpiryDms = [...combatModeNotices, ...tagExpiryDmsFromProgression];
+  // notices ran before this list existed, so they lead it, after the ambushes the push ended.
+  const tagExpiryDms = [...combatCloseNotices, ...combatModeNotices, ...tagExpiryDmsFromProgression];
   if (progressed) await audit("tag_expiry_resolved", tagExpirySummary, "Tag expiry");
 
   // Moonshine's slow bill.
