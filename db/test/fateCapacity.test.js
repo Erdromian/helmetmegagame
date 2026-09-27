@@ -13,6 +13,7 @@ const {
   FATE_SHARE_TOTAL,
   fateSeatsFor,
   fateCapacity,
+  fateMinimum,
   isLobbyFate,
   isPermanentSeat,
   isSpawnOnly,
@@ -64,12 +65,25 @@ test("the three shapes", () => {
   assert.equal(fateCapacity({ unlimited: true }, 10), Infinity);
   // A share of the pool: 80 seats less 20 constant = 60, so a weight is its own seat count.
   assert.equal(fateCapacity({ weight: 4 }, 80), 4);
-  // Pool of 30: 1 * 30 / 60 is exactly a half, and a half rounds up.
-  assert.equal(fateCapacity({ weight: 1 }, 50), 1);
-  assert.equal(fateCapacity({ weight: 3 }, 50), 2);
-  // Never below 1, even with no pool at all.
-  assert.equal(fateCapacity({ weight: 6 }, 11), 1);
-  assert.equal(fateCapacity({ weight: 6 }, 0), 1);
+  // Pool of 90: 1 * 90 / 60 is exactly a half over, and a half rounds up.
+  assert.equal(fateCapacity({ weight: 1 }, 110), 2);
+  assert.equal(fateCapacity({ weight: 3 }, 110), 5);
+  // Never below its minimum, even with no pool at all.
+  assert.equal(fateCapacity({ weight: 6 }, 11), 3);
+  assert.equal(fateCapacity({ weight: 6 }, 0), 3);
+  assert.equal(fateCapacity({ weight: 1 }, 0), 1);
+});
+
+test("a fate's minimum is half its share, rounded up, never 0", () => {
+  // The doc's own two examples: a Cerberus keeps 3, a Preacher 1.
+  assert.deepEqual([1, 2, 3, 4, 5, 6].map(fateMinimum), [1, 1, 2, 2, 3, 3]);
+  const roles = bySlug();
+  assert.equal(fateCapacity(roles.get("cerberus"), fateSeatsFor(1)), 3);
+  assert.equal(fateCapacity(roles.get("preacher"), fateSeatsFor(1)), 1);
+  // The minimum gives way to the share once the share is bigger: Cerberus
+  // stays at 3 through 49 readied (a pool of 34, 3.4 seats) and is 4 at 50.
+  assert.equal(fateCapacity(roles.get("cerberus"), fateSeatsFor(49)), 3);
+  assert.equal(fateCapacity(roles.get("cerberus"), fateSeatsFor(50)), 4);
 });
 
 test("the roster holds the doc's 20 constant fates, Minstrel among them", () => {
@@ -106,17 +120,17 @@ test("the published examples, at 10 to 150 readied", () => {
   const readied = [10, 20, 40, 50, 60, 72, 80, 100, 120, 150];
   const roles = bySlug();
   const row = (slug) => readied.map((n) => fateCapacity(roles.get(slug), fateSeatsFor(n)));
-  assert.deepEqual(row("cerberus"), [1, 1, 2, 4, 5, 6, 7, 9, 11, 15]);
-  assert.deepEqual(row("soiler"), [1, 1, 2, 3, 4, 5, 6, 8, 9, 12]);
-  assert.deepEqual(row("servant"), [1, 1, 2, 2, 3, 4, 5, 6, 7, 10]);
-  assert.deepEqual(row("courtier"), [1, 1, 1, 2, 2, 3, 3, 5, 6, 7]);
+  assert.deepEqual(row("cerberus"), [3, 3, 3, 4, 5, 6, 7, 9, 11, 15]);
+  assert.deepEqual(row("soiler"), [3, 3, 3, 3, 4, 5, 6, 8, 9, 12]);
+  assert.deepEqual(row("servant"), [2, 2, 2, 2, 3, 4, 5, 6, 7, 10]);
+  assert.deepEqual(row("courtier"), [2, 2, 2, 2, 2, 3, 3, 5, 6, 7]);
   assert.deepEqual(row("squire"), [1, 1, 1, 1, 2, 2, 2, 3, 4, 5]);
   assert.deepEqual(row("preacher"), [1, 1, 1, 1, 1, 1, 1, 2, 2, 2]);
-  // Every capped seat in the lobby, constants included. Below ~36 readied the
-  // floor of 1 leaves more seats than players; from 50 up it tracks the +10%.
+  // Every capped seat in the lobby, constants included. The minimums hold it
+  // at 54 until 49 readied; from 50 up it tracks the +10%.
   const lobby = roster().filter(isLobbyFate);
   const total = (n) => lobby.reduce((sum, r) => sum + fateCapacity(r, fateSeatsFor(n)), 0);
-  assert.deepEqual(readied.map(total), [39, 39, 46, 55, 67, 80, 87, 114, 133, 166]);
+  assert.deepEqual(readied.map(total), [54, 54, 54, 55, 67, 80, 87, 114, 133, 166]);
 });
 
 test("the sync accepts the real roster and refuses one that drifts from the rules", () => {

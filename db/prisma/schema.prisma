@@ -597,7 +597,7 @@ model GameConfig {
   // its own seat count. Raising it widens every proportional fate without
   // touching the YAML.
   //
-  // fateCapacity() floors a weighted fate at 1 seat, so shrinking this never
+  // fateCapacity() floors a weighted fate at half its share, so shrinking this never
   // makes a fate in the YAML unpickable.
   playerCount Int @default(80)
 
@@ -3880,8 +3880,9 @@ model Role {
   // db/lib/fateCapacity.js:
   //   isUnique  -> a constant fate: exactly 1 seat, forever (`multiple: false`)
   //   unlimited -> no cap at any scale (`weight: unlimited`)
-  //   weight    -> max(1, round(weight * pool / 60)), a share out of 60 of
-  //                the pool: playerCount less the 20 constant fates
+  //   weight    -> round(weight * pool / 60), a share out of 60 of the pool
+  //                (playerCount less the 20 constant fates), never below
+  //                ceil(weight / 2)
   // baseSeats is RETIRED (2026-09-27): it was a head start on the old
   // per-100 weight. The sync refuses `base_seats` and writes 0; nothing reads
   // the column. Kept rather than dropped, like GameConfig.equipSlots.

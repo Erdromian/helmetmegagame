@@ -5,7 +5,8 @@
 //   - a constant fate (`multiple: false`) has exactly 1 seat at any game size;
 //   - an open fate (`weight: unlimited`) is uncapped;
 //   - every other fate carries a share out of FATE_SHARE_TOTAL (`weight:` in docs/roles.yaml) of the POOL — the total
-//     fate seats less the CONSTANT_FATE_COUNT constant ones — rounded to the nearest whole seat and never below 1.
+//     fate seats less the CONSTANT_FATE_COUNT constant ones — rounded to the nearest whole seat, and never below its
+//     own minimum: half its share, rounded up (fateMinimum).
 //
 // `fateSeats` is the total: the readied count plus 10% (fateSeatsFor), which Start Game stamps on
 // GameState.playerCount; before Start, the GameConfig.playerCount knob stands in (effectivePlayerCount).
@@ -22,13 +23,20 @@ function fateSeatsFor(readied) {
   return Math.ceil((readied * 11) / 10);
 }
 
+// The seats a proportional fate has however few players ready up: its share halved, rounded up, and never 0 — a
+// Cerberus (6) keeps 3, a Soiler (5) 3, a Preacher (1) 1. The pool only takes over once its share is bigger.
+function fateMinimum(weight) {
+  return Math.max(1, Math.ceil(weight / 2));
+}
+
 function fateCapacity(fate, fateSeats) {
   if (fate.isUnique) return 1;
   if (fate.unlimited) return Infinity;
   if (fate.weight == null) return 1;
   const pool = Math.max(0, fateSeats - CONSTANT_FATE_COUNT);
   // round(weight * pool / total), half up, kept in integers.
-  return Math.max(1, Math.floor((2 * fate.weight * pool + FATE_SHARE_TOTAL) / (2 * FATE_SHARE_TOTAL)));
+  const share = Math.floor((2 * fate.weight * pool + FATE_SHARE_TOTAL) / (2 * FATE_SHARE_TOTAL));
+  return Math.max(fateMinimum(fate.weight), share);
 }
 
 // Bum and Migrant: the two open fates. Both are uncapped, both are left off the lobby's priority list (a player the
@@ -87,6 +95,7 @@ module.exports = {
   FATE_SHARE_TOTAL,
   fateSeatsFor,
   fateCapacity,
+  fateMinimum,
   OPEN_FATE_SLUGS,
   SPAWN_ONLY_FATE_SLUGS,
   isSpawnOnly,

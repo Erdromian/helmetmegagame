@@ -481,12 +481,17 @@ action, the roll and the GM panel:
 |---|---|---|
 | `multiple: false` | `isUnique` | a constant fate: exactly 1, at any game size |
 | `weight: unlimited` | `unlimited` | uncapped (`Infinity`) |
-| `weight: N` | `weight` | `max(1, round(N * pool / 60))` |
+| `weight: N` | `weight` | `max(ceil(N / 2), round(N * pool / 60))` |
 
 The **pool** is the fate seats less the 20 constant fates. So `weight` reads as
 *a share out of 60 of the pool*, and at 72 readied (80 seats, a pool of 60)
 every proportional fate has exactly its weight in seats. Rounding is to the
-nearest seat, half up, and nothing falls below 1 however small the game.
+nearest seat, half up.
+
+**Each proportional fate has a minimum**, however few players ready up: its
+share halved, rounded up, and never 0 (`fateMinimum`). A Cerberus (6) keeps 3
+seats, a Soiler (5) 3, a share-4 or share-3 fate 2, and a share-2 fate or the
+Preacher 1. The pool's share takes over only once it is bigger than that.
 
 The **20 constant fates** are the Baron, Baroness, Heir, Successor, Hand,
 Meister, Arbiter, Censor, Incarn, Sheriff, Bishop, Inquisitor, Esculap,
@@ -525,17 +530,19 @@ checks these against the real YAML):
 |---|---|---|---|---|---|---|---|---|---|---|
 | Fate seats (+10%) | 11 | 22 | 44 | 55 | 66 | **80** | 88 | 110 | 132 | 165 |
 | Pool (− 20) | 0 | 2 | 24 | 35 | 46 | **60** | 68 | 90 | 112 | 145 |
-| Cerberus (6) | 1 | 1 | 2 | 4 | 5 | **6** | 7 | 9 | 11 | 15 |
-| Soiler (5) | 1 | 1 | 2 | 3 | 4 | **5** | 6 | 8 | 9 | 12 |
-| each share-4 fate | 1 | 1 | 2 | 2 | 3 | **4** | 5 | 6 | 7 | 10 |
-| each share-3 fate | 1 | 1 | 1 | 2 | 2 | **3** | 3 | 5 | 6 | 7 |
-| each share-2 fate | 1 | 1 | 1 | 1 | 2 | **2** | 2 | 3 | 4 | 5 |
-| Preacher (1) | 1 | 1 | 1 | 1 | 1 | **1** | 1 | 2 | 2 | 2 |
-| Capped seats in all | 39 | 39 | 46 | 55 | 67 | **80** | 87 | 114 | 133 | 166 |
+| Cerberus (6, min 3) | 3 | 3 | 3 | 4 | 5 | **6** | 7 | 9 | 11 | 15 |
+| Soiler (5, min 3) | 3 | 3 | 3 | 3 | 4 | **5** | 6 | 8 | 9 | 12 |
+| each share-4 fate (min 2) | 2 | 2 | 2 | 2 | 3 | **4** | 5 | 6 | 7 | 10 |
+| each share-3 fate (min 2) | 2 | 2 | 2 | 2 | 2 | **3** | 3 | 5 | 6 | 7 |
+| each share-2 fate (min 1) | 1 | 1 | 1 | 1 | 2 | **2** | 2 | 3 | 4 | 5 |
+| Preacher (1, min 1) | 1 | 1 | 1 | 1 | 1 | **1** | 1 | 2 | 2 | 2 |
+| Capped seats in all | 54 | 54 | 54 | 55 | 67 | **80** | 87 | 114 | 133 | 166 |
 
-Bum and Migrant sit on top of these, uncapped. Below about 36 readied the
-floor of 1 leaves more capped seats than players; from about 50 up the total
-tracks the +10% within a seat or two, since each fate rounds on its own.
+Bum and Migrant sit on top of these, uncapped. The minimums add up to 54
+capped seats (the 20 constant fates and 34 more), so up to 49 readied the game
+has 54 capped seats whatever its size, and more of them than players. From 50
+readied up every fate's share has passed its minimum, and the total tracks the
++10% within a seat or two, since each fate rounds on its own.
 
 **Bum and Migrant** are the two **open fates** (`OPEN_FATE_SLUGS`). Both are
 `weight: unlimited`, both are left off the lobby's priority list

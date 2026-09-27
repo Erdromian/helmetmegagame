@@ -190,7 +190,7 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
           seats = null;
         } else {
           // The game's own rule (db/lib/fateCapacity.js): a share of the pool
-          // left by `players` readied plus 10%, never below one seat.
+          // left by `players` readied plus 10%, never below half its share.
           seats = fateCapacity({ weight: Number(r.weight ?? 1) }, fateSeatsFor(players));
         }
       }
