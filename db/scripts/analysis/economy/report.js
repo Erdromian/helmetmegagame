@@ -4,7 +4,7 @@
 //   npm run economy:report                    # -> economy-report/index.html
 //   npm run economy:report -- --players 150   # a bigger town
 //   npm run economy:report -- --turns 40      # a longer game (fatigue over N turns)
-//   npm run economy:report -- --free-moves 2  # free zone crossings a turn (2 with a mount)
+//   npm run economy:report -- --free-moves 2  # free travel a turn (a town crossing is ½ of it, any other 1)
 //   npm run economy:report -- --resource-value sell   # value ⬢ at the 1 ¢ sell-back (default: the Depot's buy price)
 //   npm run economy:report -- --mined-value buy      # value a Prospector's ⬢ at the 3 ¢ import price (default: the midpoint of the Depot's two prices)
 //   npm run economy:report -- --obols off     # preview the game with obol payment for smithing removed (default: read the source)
@@ -26,6 +26,7 @@ const path = require("path");
 const { execSync } = require("child_process");
 const { buildModel } = require("./model");
 const { median } = require("./stats");
+const { formatTravel } = require("../../../lib/crossingCost");
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -914,7 +915,7 @@ ${budgetChart("caves")}
 ${budgetChart("depths")}
 ${table({ cols: budgetCols, rows: C.budgets, filters: [{ label: "Where", get: (r) => zoneName(r.zone) }] })}
 <h2>Extra rolls, and everything that bends a die</h2>
-<p class="lede">The source is scanned for every place a character's die goes through the advantage helper (${C.rolls.dice.length} files), and this report fails a claim if one appears that it has not labelled. <b>No tag gives an extra draw on either loot table.</b> The Caving Die's loot draw and the prospecting draw are each made once. The only ways to change them are Lucky (a better die on the Caving Die, so more finds and fewer 1s) and Prospecting (a richer column on the prospecting table, not an extra roll). Lucky's description also says it covers "the laboring die", but mining rolls no die now, so that phrase is stale (the claims table lists it).</p>
+<p class="lede">The source is scanned for every place a character's die goes through the advantage helper (${C.rolls.dice.length} files), and this report fails a claim if one appears that it has not labelled. <b>No tag gives an extra draw on either loot table.</b> The Caving Die's loot draw and the prospecting draw are each made once. The only ways to change them are Lucky (a better die on the Caving Die, so more finds and fewer 1s) and Prospecting (a richer column on the prospecting table, not an extra roll).${/laboring/i.test(model.params.luckyDescription ?? "") ? ` Lucky's description also says it covers "the laboring die", but mining rolls no die now, so that phrase is stale (the claims table lists it).` : ""}</p>
 ${table({ cols: diceCols, rows: C.rolls.dice, id: "cavdice" })}
 ${table({ cols: tagCols, rows: C.rolls.tags, id: "cavtags" })}
 </section>`;
@@ -1178,7 +1179,7 @@ function sectionStarting() {
     { h: "Dying at turn", num: true, get: (r) => (Number.isFinite(r.dyingTurn) ? r.dyingTurn : "never"), sort: (r) => r.dyingTurn },
     { h: "Turns of food if all coin is spent on rations", num: true, get: (r) => (Number.isFinite(r.turnsWithFunds) ? fmt(r.turnsWithFunds, 1) : "endless"), sort: (r) => r.turnsWithFunds },
     { h: "Crafting kit on person", get: (r) => (r.kit.length ? r.kit.join(", ") : "—") },
-    { h: "Keys and passes", get: (r) => (r.keys.length ? r.keys.join(", ") : "—") },
+    { h: "Rings, keys and passes", get: (r) => (r.keys.length ? r.keys.join(", ") : "—") },
     { h: "Locked doors between places that it can pass", get: (r) => (r.doors.length ? r.doors.join("; ") : "—") },
     { h: "Locked rooms it can open with those (with something in them)", get: roomsText },
     { h: "What is in them", get: keyedText },
@@ -1218,13 +1219,13 @@ function sectionStarting() {
   return `<section><h2>The starting economy</h2>
 <p class="lede">What each role begins with, and how long it lasts. Factions were removed, so seats are grouped the way the character picker groups them (by social position). Everything is read from <code>docs/roles.yaml</code> (a role's seat, coin, bank account and free starting tags), <code>docs/zones.yaml</code> (which rooms hold what, and which tag opens them) and <code>db/lib/hunger.js</code>. Seats are worked out for <b>${S.players} players</b> (<code>--players N</code> changes it); ${S.unlimited.length} roles (${esc(S.unlimited.join(", "))}) have no seat cap and are left out of the totals. Points spent on more skills or keys at character creation are not counted.</p>
 <h3>How long until people starve</h3>
-<p class="lede">A character starts at ${S.start} hunger and loses <b>${S.decay} a turn</b> (${S.fastDecay} for Big Appetite). Hungry is at ${S.hungryAt} or less, Starving at ${S.starvingAt} or less, and <b>the close that takes the meter to 0 grants Dying</b>. With no food that is Hungry at the close of turn ${S.noFoodHungry}, Starving at turn ${S.noFoodStarve} and Dying at turn ${S.noFoodDying}. Food on the person adds its hunger to the ${S.start}, spent in time so no bite is wasted (the turn close eats carried Foodstuffs on its own to hold off Starving). The whole town's starting coin buys about <b>${fmt(S.town.funds / S.costPerPersonTurn, 0)} person-turns</b> of ration at ${fmt(S.costPerPersonTurn, 1)} ¢ each, and everyone carrying food has ${fmt(S.town.food, 0)} hunger between them raw, ${fmt(S.town.foodTurns, 1)} person-turns, against ${fmt(S.town.needPerTurn, 0)} hunger the town burns every turn. The ${S.town.cookSeats} cooking seats each start with a turn of cooking${S.town.cookKit ? ` (${fmt(S.town.cookKit.crops, 0)} Foodstuffs, ${fmt(S.town.cookKit.dishes, 0)} meals, ${fmt(S.town.cookKit.moves, 2)} Move${S.town.cookKit.moves === 1 ? "" : "s"})` : ""}, which is ${fmt(S.town.dishes, 0)} meals and ${fmt(S.town.cropTurns, 0)} person-turns once cooked, or ${fmt(S.town.cropTurns / S.town.seats, 1)} turns of food for every named seat if it were shared out. Everybody else starts with a little food (${fmt(S.town.mealHunger, 0)} hunger is the median)${S.town.mealKit ? `: ${S.town.mealKit.seats} seats carry ${esc(S.town.mealKit.kit)}` : ""}.</p>
+<p class="lede">A character starts at ${S.start} hunger and loses <b>${S.decay} a turn</b> (${S.fastDecay} for Big Appetite). Hungry is at ${S.hungryAt} or less, Starving at ${S.starvingAt} or less, and <b>the close that takes the meter to 0 grants Dying</b>. With no food that is Hungry at the close of turn ${S.noFoodHungry}, Starving at turn ${S.noFoodStarve} and Dying at turn ${S.noFoodDying}. The table assumes nobody eats by hand, only what the turn close eats on its own: carried Foodstuffs to hold off Starving, so they push back the Starving turn, and a meal, dish or raw ingredient only when the meter would otherwise reach 0, so all of it pushes back the Dying turn but only Foodstuffs push back Starving. Nothing is eaten while a character is merely Hungry, and a Ration Box is never opened for anybody, so a seat that starts with only boxes starves on the no-food schedule unless its player opens one. The whole town's starting coin buys about <b>${fmt(S.town.funds / S.costPerPersonTurn, 0)} person-turns</b> of ration at ${fmt(S.costPerPersonTurn, 1)} ¢ each, and everyone carrying food has ${fmt(S.town.food, 0)} hunger between them raw, ${fmt(S.town.foodTurns, 1)} person-turns, against ${fmt(S.town.needPerTurn, 0)} hunger the town burns every turn. The ${S.town.cookSeats} cooking seats each start with a turn of cooking${S.town.cookKit ? ` (${fmt(S.town.cookKit.crops, 0)} Foodstuffs, ${fmt(S.town.cookKit.dishes, 0)} meals, ${fmt(S.town.cookKit.moves, 2)} Move${S.town.cookKit.moves === 1 ? "" : "s"})` : ""}, which is ${fmt(S.town.dishes, 0)} meals and ${fmt(S.town.cropTurns, 0)} person-turns once cooked, or ${fmt(S.town.cropTurns / S.town.seats, 1)} turns of food for every named seat if it were shared out. Everybody else starts with a little food (${fmt(S.town.mealHunger, 0)} hunger is the median)${S.town.mealKit ? `: ${S.town.mealKit.seats} seats carry ${esc(S.town.mealKit.kit)}` : ""}.</p>
 ${table({ cols: starveCols, rows: S.starveRows, id: "startstarve" })}
 ${table({ cols: fundCols, rows: S.fundedRows, id: "startfunded" })}
 <h3>By group</h3>
 ${table({ cols: groupCols, rows: S.groups, id: "startgroups" })}
 <h3>By role</h3>
-<p class="lede">Coin is in ¢ and Resources in ⬢; 1 ¢ is not 1 ⬢ (a ⬢ costs ${params.rv.buy} ¢ at the Depot). <b>Bank</b> is what is in the account the moment it opens (only the Depot can pay it out, and a treasury account is backed by the Vault, which holds ${vault ? fmt(vault.coin, 0) : "?"} ¢ against ${fmt(S.treasuryClaims, 0)} ¢ of treasury claims at this size, ${vault ? fmt((vault.coin / S.treasuryClaims) * 100, 0) : "?"}%). <b>In hand</b> coin can be stolen or pickpocketed. <b>Food if all coin is spent</b> counts the bank as well as the coin in hand, and assumes the buyer can reach the Depot. A room in the last two columns is one the role's own free keys and tags open, counting only rooms with something in them, and several roles may share a key (Baron's key opens almost everything, and the Cerberus key opens ${S.roles.filter((r) => r.tagSlugs.includes("cerberus-key")).length} roles' rooms).</p>
+<p class="lede">Coin is in ¢ and Resources in ⬢; 1 ¢ is not 1 ⬢ (a ⬢ costs ${params.rv.buy} ¢ at the Depot). <b>Bank</b> is what is in the account the moment it opens (only the Depot can pay it out, and a treasury account is backed by the Vault, which holds ${vault ? fmt(vault.coin, 0) : "?"} ¢ against ${fmt(S.treasuryClaims, 0)} ¢ of treasury claims at this size, ${vault ? fmt((vault.coin / S.treasuryClaims) * 100, 0) : "?"}%). <b>In hand</b> coin can be stolen or pickpocketed. <b>Food if all coin is spent</b> counts the bank as well as the coin in hand, and assumes the buyer can reach the Depot. A room in the last two columns is one the role's own tags and signet ring open (a ring worn counts its door tokens as held, <code>db/lib/rings.js</code>), counting only rooms with something in them (a thing marked hidden lies under the floor's stash and turns up only to a Search, SEARCH.md §9), and several roles may share a token (the Baron's Ring opens almost everything, and ${S.roles.filter((r) => r.tagSlugs.includes("cerberus-key")).length} roles carry the Cerberus token).</p>
 ${table({ cols: roleCols, rows: S.roles, filters: [{ label: "Group", get: (r) => r.groupName }] })}
 <h3>Rooms with something in them</h3>
 <p class="lede">Everything the game puts in a room when it starts, biggest first. <b>Open</b> rooms hold ${fmt(S.commons.resources, 0)} ⬢, ${fmt(S.commons.coin, 0)} ¢ and ${fmt(S.commons.food, 0)} hunger of food between them, for anybody. A locked room is opened by a key or tag its starting roles hold; roles may also open it with skills bought with points (the Caving skill opens the caves' stashes).</p>
@@ -1333,7 +1334,7 @@ function sectionSeats() {
 ${table({ cols, rows: c.seatSensitivity })}`;
 }
 
-// The selling trip and what a mount's extra crossing is worth (travel.js).
+// The selling trip and what a mount's rides are worth (travel.js).
 function combosTravel(c, TV, label, tagsCell) {
   const seen = new Set();
   const rows = TV.base.rows
@@ -1348,15 +1349,15 @@ function combosTravel(c, TV, label, tagsCell) {
     { h: "Loadout", get: (r) => label(r.l) },
     { h: "Tags", get: (r) => tagsCell(r.l) },
     { h: "Planner ¢ / turn", num: true, get: (r) => fmt(Math.max(r.l.withFactory.rate, r.l.noFactory.rate)) },
-    { h: `After the sale trip, ${TV.base.free} free`, num: true, get: (r) => fmt(r.at1), sort: (r) => r.at1 },
-    { h: `…${TV.mount.free} free`, num: true, get: (r) => fmt(r.at2), sort: (r) => r.at2 ?? -1 },
+    { h: "After the sale trip, on foot", num: true, get: (r) => fmt(r.at1), sort: (r) => r.at1 },
+    { h: `…riding an ${esc(TV.mountName)}`, num: true, get: (r) => fmt(r.at2), sort: (r) => r.at2 ?? -1 },
     { h: "Worth a mount", num: true, get: (r) => fmt(r.diff), sort: (r) => r.diff ?? -1 },
-    { h: "Where (with the Factory)", get: (r) => `${r.base.withFactory.workZones.join(", ")} → ${r.base.withFactory.sellZone}, ${r.base.withFactory.far} hop${r.base.withFactory.far === 1 ? "" : "s"}` },
+    { h: "Where (with the Factory)", get: (r) => `${r.base.withFactory.workZones.join(", ")} → ${r.base.withFactory.sellZone}, ${formatTravel(r.base.withFactory.far)} travel` },
   ];
   const gainers = rows.filter((r) => r.diff > 0.05).slice(0, 3);
   const nothing = rows.filter((r) => Math.abs(r.diff ?? 0) < 0.05);
   return `<h3>The sale trip, and what a mount is worth</h3>
-<p class="lede">The planner sells nothing, so this charges each loadout for getting its output to the Depot in ${esc(TV.base.depot)}, by one rule: one sale trip a production cycle, out from the furthest zone the pattern works in and back (two trips for the Factory's cubes, which a bare carrier cannot take in one, per the Transport tab); the crossings come out of the ${TV.base.free} free a turn the pattern is not already using, a rest turn's idle Move covers one more crossing for nothing, and any crossing past that costs a working turn's Move and stretches the cycle. A crafter with no fixed workshop is taken to stand at the Depot. Then the same with ${TV.mount.free} free, an equipped ${esc(TV.mountName)}'s extra crossing (<code>db/lib/mounts.js</code>), with the planner rerun at that allowance. ${gainers.length ? `The mount is worth most to ${listAnd(gainers.map((r) => `${esc(label(r.l))} (+${fmt(r.diff)} ¢ a turn)`))}.` : "No loadout gains from the mount."} ${nothing.length ? `It does nothing for ${nothing.length} of the ${rows.length}, patterns whose work sits one hop from the Depot with a rest turn to walk it.` : ""} <code>--free-moves</code> still sets the main planner above.</p>
+<p class="lede">The planner sells nothing, so this charges each loadout for getting its output to the Depot in ${esc(TV.base.depot)}, by one rule: one sale trip a production cycle, out from the furthest zone the pattern works in and back (two trips for the Factory's cubes, which a bare carrier cannot take in one, per the Transport tab); the walk is counted in travel (½ a crossing between Town, Fortress and Undertown, 1 any other, <code>db/lib/crossingCost.js</code>) and comes out of the ${formatTravel(TV.base.free)} free a turn the pattern is not already using, a rest turn's idle Move covers one more crossing for nothing, and any crossing past that costs a working turn's Move and stretches the cycle. A crafter with no fixed workshop is taken to stand at the Depot. Then the same riding an equipped fresh ${esc(TV.mountName)}, whose ${TV.mountBonus} ride${TV.mountBonus === 1 ? "" : "s"} a turn each carry one crossing of either kind before the free travel is touched (<code>db/lib/mounts.js</code>), with the planner rerun that way. ${gainers.length ? `The mount is worth most to ${listAnd(gainers.map((r) => `${esc(label(r.l))} (+${fmt(r.diff)} ¢ a turn)`))}.` : "No loadout gains from the mount."} ${nothing.length ? `It does nothing for ${nothing.length} of the ${rows.length}, patterns whose walk to the Depot already fits in the free travel or a rest turn.` : ""} <code>--free-moves</code> still sets the main planner above.</p>
 ${table({ cols, rows: rows.slice(0, 25), id: "combostravel" })}`;
 }
 
@@ -1387,8 +1388,8 @@ function sectionCombos() {
     { h: "Costs", num: true, get: (r) => `${r.l.points} pt`, sort: (r) => r.l.points },
     { h: "Tags", get: (r) => tagsCell(r.l) },
     { h: "¢ / turn", num: true, get: (r) => fmt(r.l[key].rate), sort: (r) => r.l[key].rate },
-    { h: `After the sale trip, ${TV.base.free} free`, num: true, get: (r) => fmt(tv(r.l, key)?.after), sort: (r) => tv(r.l, key)?.after ?? -1 },
-    { h: `…with ${TV.mount.free} free (${esc(TV.mountName)})`, num: true, get: (r) => fmt(tv(r.l, key, "mount")?.after), sort: (r) => tv(r.l, key, "mount")?.after ?? -1 },
+    { h: "After the sale trip, on foot", num: true, get: (r) => fmt(tv(r.l, key)?.after), sort: (r) => tv(r.l, key)?.after ?? -1 },
+    { h: `…riding an ${esc(TV.mountName)}`, num: true, get: (r) => fmt(tv(r.l, key, "mount")?.after), sort: (r) => tv(r.l, key, "mount")?.after ?? -1 },
     { h: "Where", get: (r) => whereCell(r.l, key) },
     { h: `Over ${c.gameTurns} turns`, num: true, get: (r) => fmt(r.l[key].total, 0), sort: (r) => r.l[key].total },
     { h: "Schedule", get: (r) => r.l[key].pattern, style: () => "font-family:var(--mono);letter-spacing:1px" },
@@ -1405,8 +1406,8 @@ function sectionCombos() {
     { h: "Points", num: true, get: (l) => l.points },
     { h: "Tags", get: (l) => tagsCell(l) },
     { h: "With the Factory", num: true, get: (l) => fmt(l.withFactory.rate), sort: (l) => l.withFactory.rate },
-    { h: `…after the sale trip, ${TV.base.free} free`, num: true, get: (l) => fmt(tv(l, "withFactory")?.after), sort: (l) => tv(l, "withFactory")?.after ?? -1 },
-    { h: `…${TV.mount.free} free`, num: true, get: (l) => fmt(tv(l, "withFactory", "mount")?.after), sort: (l) => tv(l, "withFactory", "mount")?.after ?? -1 },
+    { h: "…after the sale trip, on foot", num: true, get: (l) => fmt(tv(l, "withFactory")?.after), sort: (l) => tv(l, "withFactory")?.after ?? -1 },
+    { h: `…riding an ${esc(TV.mountName)}`, num: true, get: (l) => fmt(tv(l, "withFactory", "mount")?.after), sort: (l) => tv(l, "withFactory", "mount")?.after ?? -1 },
     { h: "Where", get: (l) => whereCell(l, "withFactory") },
     { h: "Schedule", get: (l) => l.withFactory.pattern, style: () => "font-family:var(--mono);letter-spacing:1px" },
     { h: "Without it", num: true, get: (l) => fmt(l.noFactory.rate), sort: (l) => l.noFactory.rate },
@@ -1423,7 +1424,7 @@ function sectionCombos() {
   const P = params.skillPoints;
   const cubes = params.refineryYield;
   const lbs = cubes * params.squeezeLbs;
-  const zoneRows = Object.entries(c.crossings).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${v}</td><td>${v <= c.free ? "free" : v === c.free + 1 ? `costs the Move` : "two or more turns"}</td></tr>`).join("");
+  const zoneRows = Object.entries(c.crossings).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="num">${v == null ? "—" : formatTravel(v)}</td><td>${v == null ? "no way" : v <= c.free ? "free" : v <= c.free + 1 ? `costs the Move` : "two or more turns"}</td></tr>`).join("");
   const verbRows = model.combos.verbs.map((v) => `<tr><td>${esc(v.label)}</td><td>${esc(v.zone ?? "anywhere")}</td><td class="num">${fmt(v.value)}</td><td>${v.fatigue ? "climbs the ladder" : "no fatigue"}</td><td>${v.needs.length ? esc(v.needs.join(", ")) : "no skill"}</td></tr>`).join("");
   return `<section><h2>Combining activities</h2>
 <p class="lede">Each day-verb is rationed by something different, so they can fill each other's gaps. This is a planner, not a guess: it searches every schedule for the best one, turn by turn, using the game's own fatigue gates. It is exact within the rules below.</p>
@@ -1432,11 +1433,11 @@ function sectionCombos() {
 <li><b>Fatigue.</b> Mine, Refine and Farm all climb the Tired and Exhausted ladder (one step at a time, Tired then Exhausted), so each can be pressed only some turns. Crafts, cutting Godflesh and Butcher never touch it, so a craft fills the turns a day-verb is locked out.</li>
 <li><b>Seats.</b> Only ${params.refinerySeats} people may refine at the Factory in a turn. The main tables assume you can always get a seat; the crowd table below shows what competition does.</li>
 <li><b>Skill points and tools.</b> Mine needs a pickaxe (${params.pickaxe.points} point${params.pickaxe.points === 1 ? "" : "s"} at creation, or a smith makes one) and Prospecting (${P.prospecting} points) pays ×${params.prospectingMultiplier} on top. A <b>Smithing</b> smith also forges the stones a Mine press turns up into Trinkets on the rest turn a miner has anyway (the extra is what the Trinkets clear over selling the stones raw, less the rest-turn Moves they take), and a Trinket bought at the shelf is a craft like any other. Refine and cutting Godflesh need no skill. <b>Farm is not one of this planner's verbs</b>: Soilery earns food, not ¢ (Foodstuffs never sell), so it never competes for a Move here the way a dish never does either — see "Food" for what Farm and Fertilizer are worth in their own currency.</li>
-<li><b>Place.</b> Hops inside a zone are free, and a turn allows ${c.free} free zone crossing${c.free === 1 ? "" : "s"} (a mount adds one; <code>--free-moves</code> changes it). A crossing beyond that costs the Move, so nearby workplaces do not cost formal Moves.</li>
+<li><b>Place.</b> Hops inside a zone are free, and a turn allows ${formatTravel(c.free)} free travel (<code>--free-moves</code> changes it): a crossing between Town, Fortress and Undertown costs ½, any other crossing 1. A mount's rides each carry one crossing on top (the sale-trip table below). A crossing beyond that costs the Move, so nearby workplaces do not cost formal Moves.</li>
 </ul>
 <h3>Where the work is</h3>
 <div class="tablewrap"><table><thead><tr><th>Verb</th><th>Zone</th><th class="num">¢ per press</th><th>Fatigue</th><th>Needs</th></tr></thead><tbody>${verbRows}</tbody></table></div>
-<div class="tablewrap"><table><thead><tr><th>Trip</th><th class="num">Crossings</th><th>Cost</th></tr></thead><tbody>${zoneRows}</tbody></table></div>
+<div class="tablewrap"><table><thead><tr><th>Trip</th><th class="num">Travel</th><th>Cost</th></tr></thead><tbody>${zoneRows}</tbody></table></div>
 <h3>Each activity on its own</h3>
 ${table({ cols: aloneCols, rows: c.alone })}
 <h3>The best mix at each skill budget</h3>
@@ -1462,7 +1463,7 @@ ${(() => {
   })()}
 ${sectionSeats()}
 <h3>What this leaves out</h3>
-<p class="lede">The plan above sells nothing and carries nothing; the sale-trip columns and the table above charge the walk to the Depot, and the Transport tab the carrying. A refining day is ${cubes} cubes at ${fmt(params.squeezeLbs, 0)} lb, so ${fmt(lbs, 0)} lb (${fmt(lbs / 2, 0)} lb crated), against a ${params.carryWeightLbs} lb carry cap, and an Overburdened character has no free crossings, so every crossing costs the Move and they cannot act that turn. Turning cubes into ¢ means a trip to the Depot in Undertown, which is one crossing from both the town and the hills, so a plain walker cannot refine and sell in the same turn without a mount or cart. These figures are a ceiling on Moves, fatigue and skill points, not a wage. Also left out: the 1-in-6 injury on every Godflesh cut, a forge for smithing, ⬢ bought at the Depot, and how many other players want the same seat.</p>
+<p class="lede">The plan above sells nothing and carries nothing; the sale-trip columns and the table above charge the walk to the Depot, and the Transport tab the carrying. A refining day is ${cubes} cubes at ${fmt(params.squeezeLbs, 0)} lb, so ${fmt(lbs, 0)} lb (${fmt(lbs / 2, 0)} lb crated), against a ${params.carryWeightLbs} lb carry cap, and an Overburdened character has no free travel, so every crossing costs the Move and they cannot act that turn. Turning cubes into ¢ means a trip to the Depot in Undertown, ${c.crossings["Factory to the Depot"] == null ? "which the map does not connect to the Factory" : `${formatTravel(c.crossings["Factory to the Depot"])} travel from the Factory`}, and a refiner has pressed their Move already, so the cubes wait for a turn with the travel to spare or ride on a mount or cart. These figures are a ceiling on Moves, fatigue and skill points, not a wage. Also left out: the 1-in-6 injury on every Godflesh cut, a forge for smithing, ⬢ bought at the Depot, and how many other players want the same seat.</p>
 </section>`;
 }
 
@@ -1476,7 +1477,8 @@ function miningPanel() {
     { h: "Activity", get: (r) => r.name },
     { h: "¢ a turn", num: true, get: (r) => fmt(r.net), sort: (r) => r.net },
     { h: "Hops from the Depot", num: true, get: (r) => r.hops },
-    { h: "Free crossings a turn", num: true, get: (r) => r.free },
+    { h: "Travel to the Depot", num: true, get: (r) => (r.travel == null ? "—" : formatTravel(r.travel)), sort: (r) => r.travel },
+    { h: "Free travel a turn", num: true, get: (r) => formatTravel(r.free) },
     { h: "Move-costing crossings a trip", num: true, get: (r) => r.paidCrossingsTrip },
     { h: "Die arrivals a trip", num: true, get: (r) => r.arrivalsRolling },
     { h: "Trouble chance an arrival", num: true, get: (r) => (r.trouble == null ? "—" : `1 in ${fmt(1 / r.trouble, 0)}`) },
@@ -1493,7 +1495,7 @@ function miningPanel() {
   const dp = top("depths");
   const tagList = (list) => listAnd(list.map((t) => `${esc(t.name)} ×${fmt(t.factor, 2)}`));
   return `<h2>Mining: pay, risk and the walk</h2>
-<p class="lede">Each mine and gather row's pay a turn against what the walk costs. Assumed: one selling trip to the Depot in ${esc(M.depot ?? "?")} per mining cycle (a press one turn in ${fmt(1 / M.tripsPerTurn, 0)}, so a trip that often), one arrival for each hop into a cave level both ways, and the miner sleeping where they work. The Caving Die's cost per arrival is the Caving tab's, wounds and the trouble's mood together; it is the same per arrival at any trouble budget, so it is the 3-trouble plain figure for a bare miner. The walk is counted in hops, not turns: a crossing inside the ${M.free} free a turn costs no Move. The mood column is the nightly place term every turn plus the arrival term on each trip, from mood.js: underground ${tagList(C.moodTags.cave)} scale it, and in the wild ${tagList(C.moodTags.wilderness)}. The seam's drift and Lifeweb failure are not modelled. ${best ? `<b>${esc(best.name)}</b> pays most net of risk, ${fmt(best.payLessRisk)} ¢ a turn.` : ""} ${cv && dp ? `The Depths' best seam clears ${fmt(dp.payLessRisk)} ¢ against the Caves' ${fmt(cv.payLessRisk)}, so its extra pay ${dp.payLessRisk > cv.payLessRisk ? "more than covers" : "does not cover"} its extra danger and walk.` : ""}</p>
+<p class="lede">Each mine and gather row's pay a turn against what the walk costs. Assumed: one selling trip to the Depot in ${esc(M.depot ?? "?")} per mining cycle (a press one turn in ${fmt(1 / M.tripsPerTurn, 0)}, so a trip that often), one arrival for each hop into a cave level both ways, and the miner sleeping where they work. The Caving Die's cost per arrival is the Caving tab's, wounds and the trouble's mood together; it is the same per arrival at any trouble budget, so it is the 3-trouble plain figure for a bare miner. The walk is counted in hops for the die and in travel for the Move (½ a crossing inside the town, 1 any other): travel inside the ${formatTravel(M.free)} free a turn costs no Move. The mood column is the nightly place term every turn plus the arrival term on each trip, from mood.js: underground ${tagList(C.moodTags.cave)} scale it, and in the wild ${tagList(C.moodTags.wilderness)}. The seam's drift and Lifeweb failure are not modelled. ${best ? `<b>${esc(best.name)}</b> pays most net of risk, ${fmt(best.payLessRisk)} ¢ a turn.` : ""} ${cv && dp ? `The Depths' best seam clears ${fmt(dp.payLessRisk)} ¢ against the Caves' ${fmt(cv.payLessRisk)}, so its extra pay ${dp.payLessRisk > cv.payLessRisk ? "more than covers" : "does not cover"} its extra danger and walk.` : ""}</p>
 ${scatter({ points: pts, xLabel: "net ¢ a turn", yLabel: "risk ¢ a turn (die and mood)", tip: (p) => `${p.label} — ${fmt(p.x)} ¢ a turn, ${fmt(p.y, 2)} ¢ of risk, ${p.note}` })}
 ${table({ cols, rows, id: "miningrisk" })}`;
 }
@@ -1844,7 +1846,7 @@ function sectionTransport() {
   const bars = cl.map((r) => ({ label: `Factory solo, ${r.label}`, value: r.perTurn, color: r.key === "bare" ? "var(--bad)" : "var(--c0)" }));
   const heavy = X.flows.filter((f) => f.lbs > X.base / 2);
   return `<section><h2>Transport: what is hard to carry</h2>
-<p class="lede">Measured with the game's own carry rules (<code>db/lib/carry.js</code>): the base cap is <b>${X.base} lb</b> (GameConfig.carryWeightLbs), carry bonuses add to one multiplier, and nothing can be picked up past <b>${fmt(X.hardRatio, 1)}×</b> the cap. Between the cap and the hard cap you are Overburdened, which zeroes the ${X.freeCrossings} free zone crossing${X.freeCrossings === 1 ? "" : "s"} a turn, so a crossing costs the Move. A crate weighs half of what went in, rounded up (up to ${X.packageMaxLbs} lb and ${X.packageMaxUnits} units a crate), and can only be packed where Packaging Equipment is: ${listAnd(X.packaging.map((p) => `the ${esc(p.where)} in ${esc(p.zone)}${p.access.length ? ` (behind the ${esc(listAnd(p.access))})` : ""}`))}. Packing costs no Move. ⬢ cannot go in a hand-packed crate, though a Depot order arrives crated. ${heavy.length ? `${listAnd(heavy.map((f) => esc(f.what)))} weigh${heavy.length === 1 ? "s" : ""} more than half the base cap.` : ""}</p>
+<p class="lede">Measured with the game's own carry rules (<code>db/lib/carry.js</code>): the base cap is <b>${X.base} lb</b> (GameConfig.carryWeightLbs), carry bonuses add to one multiplier, and nothing can be picked up past <b>${fmt(X.hardRatio, 1)}×</b> the cap. Between the cap and the hard cap you are Overburdened, which zeroes the ${formatTravel(X.freeCrossings)} free travel a turn, so a crossing costs the Move. A crate weighs half of what went in, rounded up (up to ${X.packageMaxLbs} lb and ${X.packageMaxUnits} units a crate), and can only be packed where Packaging Equipment is: ${listAnd(X.packaging.map((p) => `the ${esc(p.where)} in ${esc(p.zone)}${p.access.length ? ` (behind the ${esc(listAnd(p.access))})` : ""}`))}. Packing costs no Move. ⬢ cannot go in a hand-packed crate, though a Depot order arrives crated. ${heavy.length ? `${listAnd(heavy.map((f) => esc(f.what)))} weigh${heavy.length === 1 ? "s" : ""} more than half the base cap.` : ""}</p>
 ${table({ cols: carrierCols, rows: X.carriers, id: "carriers" })}
 ${table({ cols, rows, id: "transport" })}
 <h3>Factory solo, carry-limited</h3>
@@ -2091,7 +2093,7 @@ function sectionMedicine() {
     { h: "Wound", get: (r) => r.name },
     { h: "Turns to death untreated", num: true, get: (r) => r.deadTurns },
     { h: "Needs a site", get: (r) => yn(r.site) },
-    ...M.injuryZones.map((z) => ({ h: `From ${z}`, get: (r) => { const b = r.byZone.find((x) => x.zone === z); return `${b.hops ?? "?"} hop${b.hops === 1 ? "" : "s"}${r.site ? (b.inTime ? ", in time" : ", too far") : ""}`; } })),
+    ...M.injuryZones.map((z) => ({ h: `From ${z}`, get: (r) => { const b = r.byZone.find((x) => x.zone === z); return `${Number.isFinite(b.travel) ? `${formatTravel(b.travel)} travel` : "no way"}${r.site ? (b.inTime ? ", in time" : ", too far") : ""}`; } })),
   ];
   const injCols = [
     { h: "Injury", get: (r) => r.name },
@@ -2123,7 +2125,7 @@ ${table({ cols: ladderCols, rows: M.rungs, id: "medladder" })}
 <p class="lede">Every medic has a free pool of <b>${M.freePool} zero-turn cures</b> a turn; past it each costs ${M.spillShare} of the Move. The one Move buys the Move-costing rungs in shares, or one Gambit heal, which takes it all. Reaching above your tier is a Gambit at the game's own threshold (<code>db/lib/healGambit.js</code>), and a miss leaves the wound on and adds a complication scaled to the margin.</p>
 ${table({ cols: tierCols, rows: M.tiers, id: "medtiers" })}
 <h3>Where</h3>
-<p class="lede">Rungs below the site rule can be treated wherever the medic stands; the rest need a site: ${listAnd(M.sites.map((x) => `${esc(x.what)} at the ${esc(x.where)} (${esc(x.zone)})`))}. A Surgical Equipment kit is ${M.buyables.equipment.coin ?? "—"} ¢ or ${M.buyables.equipment.points} points and ${M.buyables.equipment.weight} lb; a ${esc(M.buyables.theater.name)} can be built for ${M.buyables.theater.resources} ⬢ and ${M.buyables.theater.moves} Moves (${esc(M.buyables.theater.skill)}); a ${esc(M.buyables.pack.name)} is a ${esc(M.buyables.pack.skill)} craft (${M.buyables.pack.resources} ⬢, ${M.buyables.pack.moves} Move) and costs −1 on the die when it is the only site. For each wound that can kill, the hops from where injuries happen to the nearest site, walked at the free crossings a turn:</p>
+<p class="lede">Rungs below the site rule can be treated wherever the medic stands; the rest need a site: ${listAnd(M.sites.map((x) => `${esc(x.what)} at the ${esc(x.where)} (${esc(x.zone)})`))}. A Surgical Equipment kit is ${M.buyables.equipment.coin ?? "—"} ¢ or ${M.buyables.equipment.points} points and ${M.buyables.equipment.weight} lb; a ${esc(M.buyables.theater.name)} can be built for ${M.buyables.theater.resources} ⬢ and ${M.buyables.theater.moves} Moves (${esc(M.buyables.theater.skill)}); a ${esc(M.buyables.pack.name)} is a ${esc(M.buyables.pack.skill)} craft (${M.buyables.pack.resources} ⬢, ${M.buyables.pack.moves} Move) and costs −1 on the die when it is the only site. For each wound that can kill, the travel from where injuries happen to the nearest site (½ a town crossing, 1 any other), walked at the free travel a turn:</p>
 ${table({ cols: reachCols, rows: M.reach, id: "medreach" })}
 <h3>Leave it or treat it</h3>
 <p class="lede">A computed comparison per health tag: what treating it now costs (its ⬢ at ${params.rvMain} ¢, its Move share at ${fmt(model.investments.moveValue, 1)} ¢, or the cheapest item that cures it), against the expected cost of letting its clock run once, each outcome priced at the cheaper of treating it then or waiting again. Anything with no cure and no harmful successor costs nothing; a loss nothing repairs is priced at a labelled ${M.permanentCost} ¢; death is infinite. <b>Wait</b> where waiting is cheaper and the next step is not Dying or death; <b>treat now</b> otherwise. ${waits.length ? `Waiting saves most on ${listAnd(waits.map((r) => `${esc(r.name)} (${fmt(r.saved, 1)} ¢)`))}.` : ""} At the injury rate below, a town that follows the verdicts saves about <b>${fmt(M.townSaved, 1)} ¢ a turn</b>.</p>
@@ -2586,7 +2588,7 @@ const md = [
   "",
   "## Combined activities",
   "",
-  `| Skills | Points | With the Factory | Without it | After the sale trip, ${model.travel.base.free} free | …${model.travel.mount.free} free |`,
+  `| Skills | Points | With the Factory | Without it | After the sale trip, on foot | …riding an ${model.travel.mountName} |`,
   "|---|---:|---:|---:|---:|---:|",
   ...model.combos.loadouts.filter((l) => l.points <= params.startingTagPoints).sort((x, y) => y.withFactory.rate - x.withFactory.rate).filter((l, i, a) => a.findIndex((x) => x.skills.join() === l.skills.join()) === i).slice(0, 8).map((l) => {
     const k = l.picked.join("+");

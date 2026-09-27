@@ -239,6 +239,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     resourceTagCopy,
     sellTaxRate,
     sellTaxRateDefault: schemaDefault("sellTaxRate"),
+    // Read by the Caving tab's roll audit, which calls out a die the description names that no longer exists.
+    luckyDescription: get("lucky")?.description ?? "",
     // The most ⬢ (or any ware) one Depot order line may carry (db/lib/depot.js, the order action's clamp).
     depotMaxQuantity: depotRules.DEPOT_MAX_QUANTITY,
     rvMain,
@@ -1255,16 +1257,17 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     for (const a of activities.filter((x) => x.kind === "refine")) {
       a.flags.push(`carry: ${round1(sq.lbs)} lb a shift against a ${transport.base} lb cap (${round1(sq.cratedLbs ?? sq.lbs)} crated): see Transport`);
     }
-    // The selling trip, charged to every loadout at the game's free crossings and again with an equipped arelitz's
-    // extra one (db/lib/mounts.js), whatever --free-moves set the main planner to.
+    // The selling trip, charged to every loadout at the game's free travel and again with an equipped fresh
+    // arelitz's rides (db/lib/mounts.js: each ride covers one crossing, town or far), whatever --free-moves set the
+    // main planner to.
     const freeBase = schemaDefault("freeZoneMovesPerTurn");
     const mountBonus = mounts.fastTravelBonus(new Set(["arelitz"]));
-    const plannerAt = (free) => (free === combos.free ? combos : buildCombos({ activities, fatigue, bySlug, params, gameTurns, free, seats: refinery.REFINERY_MAX_WORKERS, trinkets }));
+    const plannerAt = (free, rides = 0) => (free === combos.free && rides === (combos.rides ?? 0) ? combos : buildCombos({ activities, fatigue, bySlug, params, gameTurns, free, rides, seats: refinery.REFINERY_MAX_WORKERS, trinkets }));
     const atBase = plannerAt(freeBase);
-    const atMount = plannerAt(freeBase + mountBonus);
+    const atMount = plannerAt(freeBase, mountBonus);
     travel = {
       base: buildTravel({ combos: atBase, params, transport, free: freeBase }),
-      mount: buildTravel({ combos: atMount, params, transport, free: freeBase + mountBonus }),
+      mount: buildTravel({ combos: atMount, params, transport, free: freeBase }),
       mountBonus,
       mountName: get("arelitz")?.name ?? "arelitz",
     };
@@ -1887,7 +1890,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
 
   // The sell tax, read from the code that sets and takes it, and the one doc that describes a tax the code lacks.
   {
-    const treasurySrc = fs.readFileSync(path.join(REPO, "web/app/(app)/treasury/actions.js"), "utf8");
+    // The /treasury action hands the rate to the shared verb, which is where the check lives now.
+    const treasurySrc = fs.readFileSync(path.join(REPO, "db/lib/verbs/place.js"), "utf8");
     const wholeZeroToHundred = /Number\.isInteger\(rate\)/.test(treasurySrc) && /rate < 0 \|\| rate > 100/.test(treasurySrc);
     const passSrc = fs.readFileSync(path.join(REPO, "db/lib/trainDeparturePass.js"), "utf8");
     const taxFn = (passSrc.match(/function taxOn[\s\S]*?\n}\n/) ?? [""])[0];
@@ -1898,7 +1902,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     claims.push(
       {
         doc: "DEPOT.md §0f",
-        claim: "The sell tax rate is a whole percent from 0 to 100 (treasury/actions.js)",
+        claim: "The sell tax rate is a whole percent from 0 to 100 (db/lib/verbs/place.js, behind /treasury)",
         docValue: "whole, 0–100",
         model: wholeZeroToHundred ? "whole, 0–100" : "the treasury action no longer checks a whole 0–100",
         ok: wholeZeroToHundred,

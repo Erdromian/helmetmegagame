@@ -271,6 +271,9 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
   const hops = (a, b) => combos.hops[a]?.[b] ?? null;
   const siteZones = [...new Set(sites.map((s) => s.zone))];
   const nearestSite = (zone) => Math.min(...siteZones.map((z) => hops(zone, z) ?? Infinity));
+  // The same walk in TRAVEL (½ a town crossing, 1 any other), which is what the free allowance pays for.
+  const travelTo = (a, b) => combos.travel?.[a]?.[b] ?? hops(a, b);
+  const nearestTravel = (zone) => Math.min(...siteZones.map((z) => travelTo(zone, z) ?? Infinity));
   const injuryZones = [...new Set([...params.caveLevels, combos.sites.refine, combos.sites.cut, combos.sites.depot].filter(Boolean))];
   const reach = leave
     .filter((r) => r.pDead > 0 && r.healable)
@@ -280,9 +283,10 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
       deadTurns: r.deadTurns,
       byZone: injuryZones.map((z) => {
         const h = nearestSite(z);
-        // A crossing a turn is free; more cost the Move. Hops are turns of walking at the free allowance.
-        const turnsToWalk = Number.isFinite(h) ? Math.ceil(h / Math.max(1, params.freeZoneMoves)) : Infinity;
-        return { zone: z, hops: h, inTime: !r.site || turnsToWalk < r.deadTurns };
+        const t = nearestTravel(z);
+        // The free travel a turn is spent first; past it a crossing costs the Move. Turns of walking at the free allowance.
+        const turnsToWalk = Number.isFinite(t) ? Math.ceil(t / Math.max(0.5, params.freeZoneMoves) - 1e-9) : Infinity;
+        return { zone: z, hops: h, travel: t, inTime: !r.site || turnsToWalk < r.deadTurns };
       }),
     }));
   const buyables = {

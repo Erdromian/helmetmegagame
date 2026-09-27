@@ -55,7 +55,7 @@ const VERBS = [
       held.delete(TIRED_SLUG);
       if (!held.has(target)) held.set(target, expiryFrom(turn + 1, dur[target]));
     },
-    source: "web/app/(app)/character/actions/refine.js, db/lib/refinery.js, db/lib/moveEffects.js",
+    source: "db/lib/verbs/work.js#refineHere, db/lib/refinery.js, db/lib/moveEffects.js",
     mechanism: "Steps the ladder like Mine: Tired, then Exhausted. Only Exhausted refuses the next shift.",
   },
   {
@@ -78,7 +78,7 @@ const VERBS = [
 // Verbs with no ladder in the code. Their duty is 1 unless the scan below
 // finds a fatigue reference in their files, in which case the report flags it.
 const UNTIRED = [
-  { id: "cut", label: "Harvest Godflesh", files: ["db/lib/godflesh.js"], region: ["web/app/(app)/character/actions/misc.js", "extractGodfleshRequestImpl"] },
+  { id: "cut", label: "Harvest Godflesh", files: ["db/lib/godflesh.js"], region: ["db/lib/verbs/work.js", "extractGodflesh("] },
   { id: "craft", label: "Craft (any recipe)", files: ["web/app/(app)/character/actions/crafting.js", "web/lib/craftBudget.js"] },
   { id: "butcher", label: "Butcher", files: ["web/app/(app)/character/actions/corpse.js"] },
   { id: "cave", label: "Caving Die (walking)", files: ["db/lib/cavingPass.js"] },

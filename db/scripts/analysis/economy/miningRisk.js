@@ -35,6 +35,8 @@ function buildMiningRisk({ activities, caving, combos, params }) {
     .map((a) => {
       const zone = a.zone;
       const hops = hopsFrom(depot, zone);
+      // The same walk in TRAVEL (½ a town crossing, 1 any other), which is what the free allowance pays.
+      const travel = combos.travel?.[depot]?.[zone] ?? hops;
       const inward = pathTo(zone);
       // Out again: every zone on the way back except the Depot's own, in reverse, starting from the one before `zone`.
       const outward = inward.slice(0, -1).reverse();
@@ -56,8 +58,10 @@ function buildMiningRisk({ activities, caving, combos, params }) {
         zone,
         net: a.netPerTurn,
         hops,
+        travel,
         free,
-        paidCrossingsTrip: Math.max(0, 2 * hops - free),
+        // Each crossing past the free travel costs a Move, and a Move carries one crossing of up to 1 travel.
+        paidCrossingsTrip: Math.max(0, Math.ceil(2 * travel - free - 1e-9)),
         arrivalsRolling: arrivalsRolling.length,
         trouble,
         dangerPerArrival,
