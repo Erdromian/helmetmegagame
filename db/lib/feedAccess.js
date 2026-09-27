@@ -22,6 +22,7 @@ const {
   computeNarrowcastAccess,
 } = require("./specialChannels");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+const { loadRoomsAt } = require("./roomSides");
 const { hasNoticeboard } = require("./noticeboard");
 const { conversationsFor } = require("./conversations");
 const { visibleZoneIds } = require("./gmZoneView");
@@ -227,9 +228,10 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
   if (!location) return [];
 
   const [rooms, keys, conversations, scrying] = await Promise.all([
-    prisma.room.findMany({
-      where: { locationId: location.id, retiredAt: null },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    // Every room that opens onto here, a counter whose home is next door
+    // included, each gated as seen from THIS side (db/lib/roomSides.js).
+    loadRoomsAt(prisma, location.id, {
+      where: { retiredAt: null },
       select: { id: true, name: true, description: true, kind: true, accessTagSlugs: true },
     }),
     roomAccessKeys(prisma, character.id),
@@ -308,7 +310,14 @@ async function placesFor(prisma, character, { gm = false, ghost = false, discord
   // THE FOG OF WAR (db/lib/vantages.js): the streets walked out of this turn
   // that are still next door, read-only. After Here/Rooms so the place you
   // actually stand in is never buried under the places you don't.
-  list.push(...(await vantagePlacesFor(prisma, { id: character.id, locationId: location.id }, keys, location.id)));
+  // A room that opens onto here AND onto a street walked out of is already
+  // listed above with its voice, so the vantage copy is dropped.
+  const listed = new Set(list.map((p) => p.placeKey));
+  list.push(
+    ...(await vantagePlacesFor(prisma, { id: character.id, locationId: location.id }, keys, location.id)).filter(
+      (p) => !listed.has(p.placeKey),
+    ),
+  );
 
   if (location.zone) {
     list.push(
@@ -367,9 +376,8 @@ async function vantagePlacesFor(prisma, character, keys, hereLocationId) {
         where: { id: locationId },
         select: { id: true, name: true, description: true, zone: { select: { id: true, name: true } } },
       }),
-      prisma.room.findMany({
-        where: { locationId, retiredAt: null },
-        orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+      loadRoomsAt(prisma, locationId, {
+        where: { retiredAt: null },
         select: { id: true, name: true, description: true, kind: true, accessTagSlugs: true },
       }),
       conversationsFor(prisma, character.id, { locationId }),

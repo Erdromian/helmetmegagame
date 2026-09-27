@@ -7,7 +7,10 @@ import useActionRunner from "@/app/components/useActionRunner";
 import useRetireDelete from "@/app/components/useRetireDelete";
 import { createRoom, retireRoom, unretireRoom, hardDeleteRoom, roomDeleteBlockers } from "../../actions";
 
-export default function RoomsList({ locationId, rows, canSuper }) {
+// `fromElsewhere`: rooms whose home is another Location that open onto this one
+// too — a counter or a window (docs/systemdocs/MAP.md §2d). Edited from the room's
+// own page, where its sides live, so here they are only listed and linked.
+export default function RoomsList({ locationId, rows, canSuper, fromElsewhere = [] }) {
   const { call, pending, error } = useActionRunner();
 
   const { onDelete, onRetire } = useRetireDelete({
@@ -22,6 +25,22 @@ export default function RoomsList({ locationId, rows, canSuper }) {
   return (
     <Panel title="Rooms">
       <FormError>{error}</FormError>
+      {fromElsewhere.length > 0 && (
+        <p className="text-sm">
+          Also open onto here:{" "}
+          {fromElsewhere.map((r, i) => (
+            <span key={r.id}>
+              {i > 0 ? ", " : ""}
+              <Link href={`/gm/dev/zones/rooms/${r.id}`} className="menu-item">
+                {r.name}
+              </Link>{" "}
+              <span className="text-muted">
+                (home {r.homeName}, {r.kind === "PRIVATE" ? "private" : "public"} from here)
+              </span>
+            </span>
+          ))}
+        </p>
+      )}
       <table className="mono-table w-full">
         <thead>
           <tr>

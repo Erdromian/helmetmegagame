@@ -36,6 +36,7 @@ const {
 const CASINO_ROOM_SLUG = "undertown-8-3";
 const { linksFor, gateOperable, endpoints, isHeldOpen } = require("./locationGraph");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+const { loadRoomsAt } = require("./roomSides");
 
 // The one room with a big red button on the wall (docs/zones.yaml). Named
 // here rather than imported from gatehouseTurret.js, which pulls in the whole turret engine.
@@ -375,8 +376,19 @@ function locationAffordances(location, { web = false } = {}) {
 // (docs/systemdocs/CHARON.md) and the same Room row means a different thing on
 // the ground and in orbit. Optional, so a caller with only a room in hand still
 // gets every affordance that does not depend on one.
+//
+// A room seen from a side it opens onto rather than its home (db/lib/roomSides.js
+// — `sideId` is set) offers Storage and nothing else. What passes over a counter
+// is talk and what is left lying on it; the bell, the phone, the machine and the
+// rest are fixtures on the home side's wall.
+const SIDE_AFFORDANCE_IDS = new Set(["storage"]);
 function roomAffordances(room, location = null, { web = false } = {}) {
-  return ROOM_AFFORDANCES.filter((def) => !(web && def.discordOnly) && (!def.when || def.when(room, location))).map((def) => ({
+  return ROOM_AFFORDANCES.filter(
+    (def) =>
+      !(web && def.discordOnly) &&
+      (!room.sideId || SIDE_AFFORDANCE_IDS.has(def.id)) &&
+      (!def.when || def.when(room, location)),
+  ).map((def) => ({
     id: def.id,
     label: def.label,
     tone: def.tone,
@@ -407,9 +419,8 @@ async function affordancesFor(prisma, character) {
       where: { id: character.locationId },
       select: { id: true, name: true, slug: true, attributes: true },
     }),
-    prisma.room.findMany({
-      where: { locationId: character.locationId },
-      orderBy: { sortOrder: "asc" },
+    // Every room that opens onto here, each as seen from this side.
+    loadRoomsAt(prisma, character.locationId, {
       select: {
         id: true,
         name: true,
@@ -437,7 +448,7 @@ async function affordancesFor(prisma, character) {
   }
 
   // Reaching the room IS the permission — anyone its `access:` list lets in may work the gate.
-  const gateRoom = open.find((room) => WATCHTOWER_ROOM_SLUGS.has(room.slug)) ?? null;
+  const gateRoom = open.find((room) => !room.sideId && WATCHTOWER_ROOM_SLUGS.has(room.slug)) ?? null;
   const control = gateRoom ? gateControlIn(gateRoom.slug) : null;
   const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
   for (const link of links ?? []) {

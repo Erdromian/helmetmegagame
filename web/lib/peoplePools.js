@@ -8,6 +8,7 @@ import { caughtSecondsLeft, inFight } from "@lifeweb/db/lib/intercept";
 import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
+import { loadRoomsAt } from "@lifeweb/db/lib/roomSides";
 import { RESOURCES_SELECT, resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import { rosterHere, pickerName, pickerKey } from "@/lib/peopleHere";
 import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
@@ -674,9 +675,9 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
   // chipContextFor(null-ish) fails CLOSED — an unreadable line, never the text.
   const ctx = chipCtx ?? (await chipContextFor(character));
   const [rows, keys] = await Promise.all([
-    prisma.room.findMany({
-      where: { locationId: character.locationId },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    // Every room that opens onto here — a counter whose home is next door
+    // included — gated as seen from this side (db/lib/roomSides.js).
+    loadRoomsAt(prisma, character.locationId, {
       select: {
         id: true,
         name: true,

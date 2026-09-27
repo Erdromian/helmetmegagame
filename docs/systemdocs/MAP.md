@@ -438,6 +438,92 @@ train coming, so the tunnel, the flag, its column and its GM checkbox were all
 taken out (`20261103000000_remove_railroad`). The train itself still runs on
 its own clock (`DEPOT.md` §0d); it only carries cargo.
 
+### 2d. A room that opens onto several Locations
+
+From Bascinet's `Multi-locational rooms.docx`:
+
+> Certain rooms can be accessed while standing in multiple locations. This
+> allows characters to converse through a window, or over a counter.
+> Characters can communicate, and transfer things across locations by dropping
+> them in the room, however they cannot target characters on the other
+> location with actions that require them to be in the same location (ie,
+> attacking or kissing or any other direct action). […] The Who's Here should
+> display everyone who is present in the cross-locational room, from both
+> locations and they should be inspectable with it. Some multi-locational rooms
+> are gated behind different requirements depending on which location a
+> character is in.
+
+The doc also names four such rooms — the Meistery onto the streets outside the
+Keep, the Merchant onto the streets, and the Incarn's gatehouse onto the fort's
+streets and onto the fortress entrance. None of those places exists on the map
+yet; they come with the gates rework, and are made at `/gm/dev/zones` (below)
+once they do. Nothing in the code names them.
+
+**The model.** A Room still has one home, `Room.locationId`, gated by its own
+`kind`/`accessTagSlugs` as ever. Each `RoomSide` row is one more Location it
+opens onto, with a gate of its own: an empty access list is a public side, any
+slug makes that side private. So the Merchant's counter can be private from the
+Merchant (the licence) and public from the street.
+
+**`db/lib/roomSides.js` is the one module that reads the table**, and it works
+by one trick: `roomAt(room, L)` is the room *as seen from L* — the same object
+with that side's gate, thread and sort order swapped in, and `locationId` set
+to L. `accessibleRooms()`, the anchor index, the thread sync and every "is this
+room where I stand" test then answer for the side a character is on without
+knowing sides exist. `loadRoomsAt(prisma, L)` is every room that opens onto L,
+overlaid; a new reader of "the rooms here" should use it rather than
+`where: { locationId }`.
+
+**What crosses** is the room itself:
+
+- **Its feed.** One place key, `room:<id>`, on every side. `placesFor` lists it
+  at each side it opens onto, with `canSpeak` from that side's gate
+  (`db/lib/feedAccess.js`). Hearing and learning names follow
+  (`memoryHearing.js#presentWhere` → `roomSides.js#roomPresenceWhere`), and so
+  does a mention's earshot (`characterMentions.js#earshotForPlaceKey`).
+- **Its stash.** Transfer, Steal, the Things drawer, `/storage` and the Storage
+  button reach it from any side whose gate lets you in (`CARRY.md` §6).
+- **Who is in it.** Who's here? lists the far side under the room's name
+  (below).
+
+**What never crosses is a Location.** Every verb on a person — Attack, Kiss,
+Heal, Search, Bind, Transfer to a person, all of them — resolves its target
+through `presentRows` / `resolveHoodToken` / `isHere`, which stay Location-grain
+on purpose. Nobody on the far side is ever in `hoodIds` or a picker. That is
+the doc's "cannot target characters on the other location", and it is the rule
+that must not be widened.
+
+Neither do the room's **fixtures**. A side offers Storage and nothing else
+(`placeAffordances.js#roomAffordances`): the bell, the phone, the vending
+machine, the intercom, room Search, a watchtower's winch, the rites and
+workshop equipment are on the home side's wall, and every one of them still
+checks the home Location. Conversations are opened from the home side only.
+
+**Who's here** (`whosHere(…, { withAcross: true })`, the web HERE column and
+the Discord button) carries `rooms`: one group per such room the viewer is IN,
+titled `Room · Location`, listing the people on every other side who are in it
+too. Rows are `presentRows`' own, so hoods, strangers and labels read exactly
+as they do for your own street. They carry the eye — a look lands on the line
+you last heard them say, which is readable because the room is in your
+`placesFor` — and no menu. A hooded or stranger row carries a `lookRef` rather
+than a token: `resolveCrossRoomRef` resolves it for `/look` and for a
+stranger's face (`/api/avatar/here`) only, and `db/lib/targetKey.js` never
+calls it.
+
+**Guests are bound to a side.** `RoomGuest.locationId` is where the pass was
+given, and it is spent on leaving that Location: a nod over the easy counter is
+no key to the strict one (`CHANNELS.md` §4a).
+
+**On Discord** a thread can only be read by somebody who can see its parent
+channel, so a room has one thread per side, each under its side's Location
+channel and linked from that side's anchor (`CHANNELS.md` §4). The bot's outbox
+relays every line between them (`CHAT.md` §4).
+
+**Authoring.** `/gm/dev/zones/rooms/<id>` carries an **Also opens onto** panel
+(`DEV-PANEL.md`). `docs/zones.yaml` can name sides too, for a fresh game
+(`SYNC.md`). A room's name must be unique at every Location it opens onto,
+because the mirror adopts a thread by its name under its parent.
+
 ## 3. What a move costs
 
 **`db/lib/locationTravel.js#performLocationMove(prisma, character,
@@ -1650,7 +1736,8 @@ second one needs no code.
 | `db/lib/travelArrivalPass.js` | a DRAIN. Nothing files work for it; it lands anybody left mid-journey by the removal of deferred travel (§3) |
 | `db/lib/intercept.js` | Laying in wait, and the hold it puts on somebody — [`INTERCEPT.md`](INTERCEPT.md). The ONLY module that decides who a watch catches |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half, shared by every caller |
-| `db/lib/roomAccess.js` | `syncCharacterRoomAccess` — private Room membership |
+| `db/lib/roomAccess.js` | `syncCharacterRoomAccess` — private Room membership, one unit per private thread (§2d) |
+| `db/lib/roomSides.js` | Rooms that open onto several Locations — §2d. The ONLY module that reads `RoomSide`; `roomAt` / `loadRoomsAt` are what every side-aware reader goes through |
 | `db/lib/threadInvites.js` | `applyPendingInvites` — replays standing `/add` invites on arrival |
 | `db/lib/seatZone.js` | `seatZoneIdFor` — the presence-zone → seat-zone mapping |
 | `db/lib/mounts.js` | `FAST_TRAVEL_SLUGS`, `isMounted`, `fastTravelCapacity` (the seat count §3a gates the mount's bonus on) |

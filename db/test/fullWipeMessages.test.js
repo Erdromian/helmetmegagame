@@ -45,8 +45,8 @@ function fakeDiscord({ threads = [] } = {}) {
   };
 }
 
-function fakePrisma({ rooms }) {
-  const updateManyCalls = { location: [], room: [] };
+function fakePrisma({ rooms, sides = [] }) {
+  const updateManyCalls = { location: [], room: [], roomSide: [] };
   return {
     updateManyCalls,
     zone: {
@@ -65,6 +65,14 @@ function fakePrisma({ rooms }) {
         return { count: 0 };
       },
     },
+    // A room's thread under a further Location it opens onto (db/lib/roomSides.js).
+    roomSide: {
+      findMany: async () => sides,
+      updateMany: async (args) => {
+        updateManyCalls.roomSide.push(args);
+        return { count: 0 };
+      },
+    },
     location: {
       updateMany: async (args) => {
         updateManyCalls.location.push(args);
@@ -73,6 +81,33 @@ function fakePrisma({ rooms }) {
     },
   };
 }
+
+test("wipeGameMessages keeps a room's thread on another side and nulls its starter", async () => {
+  const fake = fakeDiscord({
+    threads: [{ id: "thread-side", channelId: "chan-loc-1", name: "The Counter" }],
+  });
+  delete require.cache[require.resolve("../lib/fullWipe")];
+  const { wipeGameMessages } = require("../lib/fullWipe");
+
+  try {
+    const prisma = fakePrisma({
+      rooms: [],
+      sides: [{ roomId: "room-counter", discordThreadId: "thread-side", room: { questId: null } }],
+    });
+
+    await wipeGameMessages(prisma);
+
+    assert.equal(fake.calls.filter((c) => c.name === "deleteThread").length, 0, "the side's thread was kept");
+    const reads = fake.calls.filter((c) => c.name === "fetchAllMessages").map((c) => c.args[0]);
+    assert.ok(reads.includes("thread-side"), "the side's thread had its messages read");
+    const sideUpdate = prisma.updateManyCalls.roomSide.find((u) => u.where?.room?.questId === null);
+    assert.ok(sideUpdate, "sides got a starter-nulling update");
+    assert.equal(sideUpdate.data.starterMessageId, null);
+    assert.ok(!("discordThreadId" in sideUpdate.data));
+  } finally {
+    fake.restore();
+  }
+});
 
 test("wipeGameMessages keeps a zone Room's thread and clears its messages", async () => {
   const fake = fakeDiscord({

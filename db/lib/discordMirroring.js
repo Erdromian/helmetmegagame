@@ -26,6 +26,7 @@
 
 const { revokeAllCharacterAccess } = require("./accessSweep");
 const { removeThreadMember } = require("./discordRest");
+const { threadIdsForMembershipKeys } = require("./roomSides");
 const { materializeDiscordPresence } = require("./locationMove");
 const { conversationsFor } = require("./conversations");
 const { notifyPresence } = require("./presenceNotify");
@@ -41,15 +42,13 @@ async function shedThreads(prisma, character) {
   const discordUserId = character.discordUserId;
   if (!discordUserId) return;
 
+  // Membership keys: a bare room id at home, `roomId@locationId` for a side's thread (db/lib/roomSides.js).
   const roomIds = character.roomThreadRoomIds ?? [];
   if (roomIds.length > 0) {
-    const rooms = await prisma.room
-      .findMany({ where: { id: { in: roomIds } }, select: { id: true, name: true, discordThreadId: true } })
-      .catch(() => []);
-    for (const room of rooms) {
-      if (!room.discordThreadId) continue;
-      await removeThreadMember(room.discordThreadId, discordUserId).catch((err) =>
-        console.error(`Discord mirror off: failed to drop ${character.id} from room "${room.name}":`, err.message ?? err),
+    const threadIds = await threadIdsForMembershipKeys(prisma, roomIds).catch(() => []);
+    for (const threadId of threadIds) {
+      await removeThreadMember(threadId, discordUserId).catch((err) =>
+        console.error(`Discord mirror off: failed to drop ${character.id} from room thread ${threadId}:`, err.message ?? err),
       );
     }
     // Cleared whatever Discord answered — a stale id here would make every one of those rooms un-removable later.

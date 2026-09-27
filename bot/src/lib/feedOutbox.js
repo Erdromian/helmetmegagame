@@ -19,7 +19,13 @@ const { addConversationMember } = require("@lifeweb/db/lib/conversations");
 const { loadForcedName, loadConcealment, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
 const { FEED_CHANNEL } = require("@lifeweb/db/lib/feedNotify");
-const { discordTargetForPlaceKey, archiveContextForPlaceKey, parsePlaceKey } = require("@lifeweb/db/lib/placeKey");
+const {
+  discordTargetForPlaceKey,
+  discordTargetForThread,
+  archiveContextForPlaceKey,
+  parsePlaceKey,
+} = require("@lifeweb/db/lib/placeKey");
+const { relayRow, crossRoomPlaceKeys } = require("./roomRelay");
 const {
   tokensToRoles,
   earshotForPlaceKey,
@@ -171,6 +177,13 @@ const ROW_SELECT = {
   editedAt: true,
   deletedAt: true,
   discordSyncedAt: true,
+  // What the room relay (./roomRelay.js) decides on: which thread a line was
+  // said in, what kind of row it is, and whether it was meant for one reader.
+  kind: true,
+  channelKind: true,
+  discordChannelId: true,
+  onlyCharacterId: true,
+  exceptCharacterId: true,
 };
 
 // Is Discord behind on this row? `discordSyncedAt` is the watermark.
@@ -286,7 +299,9 @@ async function editRow(row) {
   if (!fresh || fresh.deletedAt || !fresh.discordMessageId) return false;
   if (!behind(fresh.editedAt, fresh.discordSyncedAt)) return false;
 
-  const target = await targetFor(row.placeKey);
+  // The thread the line is actually in: a room with more than one (db/lib/roomSides.js)
+  // keeps each line where it was said, and the relay edits the copies.
+  const target = await discordTargetForThread(prisma, row.placeKey, row.discordChannelId);
   if (!target) return false;
 
   const webhook = await ensureChannelWebhook(target.channelId);
@@ -308,7 +323,7 @@ async function deleteRow(row) {
   if (!fresh?.deletedAt || !fresh.discordMessageId) return false;
   if (!behind(fresh.deletedAt, fresh.discordSyncedAt)) return false;
 
-  const target = await targetFor(row.placeKey);
+  const target = await discordTargetForThread(prisma, row.placeKey, row.discordChannelId);
   if (!target) return false;
 
   const webhook = await ensureChannelWebhook(target.channelId);
@@ -319,12 +334,21 @@ async function deleteRow(row) {
 }
 
 // Chosen off the ROW, not the notification's `op` — the row is the truth, and the drain has no op at all.
+//
+// Then, for a room with a thread under more than one Location, every other
+// thread gets its copy (./roomRelay.js) — for web, Discord and scenery rows
+// alike, since all three reach this function.
 async function syncRow(row) {
   if (!row) return false;
-  if (row.deletedAt) return deleteRow(row);
-  if (!row.discordMessageId) return pushRow(row);
-  if (row.editedAt) return editRow(row);
-  return false;
+  let done = false;
+  if (row.deletedAt) done = await deleteRow(row);
+  else if (!row.discordMessageId) done = await pushRow(row);
+  else if (row.editedAt) done = await editRow(row);
+  const relayed = await relayRow(row).catch((err) => {
+    console.error(`Room relay failed for archive row ${row.id}:`, err);
+    return 0;
+  });
+  return done || relayed > 0;
 }
 
 async function syncBySeq(seq) {
@@ -364,11 +388,41 @@ async function drainFeedOutbox() {
       }
     }
     if (sent) console.log(`Feed outbox: ${sent} archive row(s) carried across to Discord.`);
+    await drainRoomRelays(gameId);
     return sent;
   } catch (err) {
     console.error("Feed outbox drain failed:", err);
     return 0;
   }
+}
+
+// The newest lines in every room with more than one thread, looked at again so
+// a copy the relay missed while the bot was down still goes out. A query of its
+// own, newest first, so a busy counter can never crowd the drain above out of
+// the web lines it exists to post.
+async function drainRoomRelays(gameId) {
+  const crossRooms = await crossRoomPlaceKeys().catch(() => []);
+  if (crossRooms.length === 0) return 0;
+  const rows = await prisma.archiveEntry.findMany({
+    where: {
+      ...(gameId ? { gameId } : {}),
+      placeKey: { in: crossRooms },
+      kind: "MESSAGE",
+      sentAt: { gte: new Date(Date.now() - DRAIN_WINDOW_MS) },
+    },
+    orderBy: { seq: "desc" },
+    take: DRAIN_LIMIT,
+    select: ROW_SELECT,
+  });
+  let moved = 0;
+  for (const row of rows.reverse()) {
+    moved += await relayRow(row).catch((err) => {
+      console.error(`Room relay drain failed for archive row ${row.id}:`, err);
+      return 0;
+    });
+  }
+  if (moved) console.log(`Feed outbox: ${moved} room line(s) relayed between threads.`);
+  return moved;
 }
 
 function scheduleReconnect() {

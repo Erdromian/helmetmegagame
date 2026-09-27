@@ -33,6 +33,7 @@ const { locationAnchorRows } = require("../locationAnchorRow");
 const { hashBody } = require("../syncZones/shared");
 const { intendedPositions, LEVEL_CHANNEL_STRIDE } = require("../syncZones/ordering");
 const { managedOverwriteIds } = require("../syncZones/parse");
+const { membershipKey, otherSides, roomViews } = require("../roomSides");
 const { CHANNEL_TYPE_TEXT, CHANNEL_TYPE_CATEGORY } = require("./live");
 
 const PERM_VIEW_CHANNEL = 1024n;
@@ -96,7 +97,8 @@ function outsideZoneOverwrites(guildId, { gmAllow, gmDeny, spectators }) {
 // `rows` is everything loaded up front by index.js:
 //   zones, locations, rooms, config, spectators,
 //   liveStates          Map<liveKey, state>        (db/lib/roomLive.js)
-//   componentsByRoomId  Map<roomId, components[]>  (syncZones/roomThreads.js)
+//   componentsByRoomId  Map<threadKey, components[]>  (syncZones/roomThreads.js;
+//                       roomSides.js#membershipKey — the room id at home)
 //
 // The last two are passed in rather than fetched because both need prisma, and
 // this module stays pure. A missing entry just means "no live line" / "no
@@ -405,20 +407,32 @@ function buildDesired({
   // The hash is composed exactly the way syncRoomThread composes it — body plus
   // the JSON of its component rows. Compose it any other way and every run
   // decides the starter has moved and reposts it, forever.
+  //
+  // A room that opens onto several Locations (db/lib/roomSides.js) is one
+  // thread per side, each under its own Location's channel, because a thread
+  // can only be read by somebody who can see its parent. Every view below is
+  // the room as seen from one side; the subject stays the room, so one room
+  // job rebuilds every one of its threads.
+  const views = rooms.flatMap(roomViews);
   const roomsByLocationId = new Map();
-  for (const room of rooms) {
+  for (const room of views) {
     const list = roomsByLocationId.get(room.locationId);
     if (list) list.push(room);
     else roomsByLocationId.set(room.locationId, [room]);
   }
-  for (const room of rooms) {
+  const nameById = new Map(locations.map((l) => [l.id, l.name]));
+  for (const room of views) {
     const location = locationById.get(room.locationId);
-    const body = buildRoomBody(room, room.live ? liveStates.get(room.live) ?? null : null);
-    const components = componentsByRoomId.get(room.id) ?? [];
+    const alsoReachedFrom = otherSides(room, room.locationId)
+      .map((id) => nameById.get(id))
+      .filter(Boolean);
+    const body = buildRoomBody(room, room.live ? liveStates.get(room.live) ?? null : null, { alsoReachedFrom });
+    const threadKey = membershipKey(room);
+    const components = componentsByRoomId.get(threadKey) ?? [];
     targets.push({
       targetType: "thread",
       kind: "room-thread",
-      key: `thread:room:${room.id}`,
+      key: `thread:room:${threadKey}`,
       subject: { type: "room", id: room.id },
       room,
       location: location ?? null,
@@ -432,7 +446,9 @@ function buildDesired({
       currentHash: room.postHash ?? null,
       hasStarter: Boolean(room.starterMessageId),
       currentId: room.discordThreadId ?? null,
-      idColumn: { model: "room", id: room.id, field: "discordThreadId" },
+      idColumn: room.sideId
+        ? { model: "roomSide", id: room.sideId, field: "discordThreadId" }
+        : { model: "room", id: room.id, field: "discordThreadId" },
     });
   }
 

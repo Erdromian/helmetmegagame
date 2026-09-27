@@ -60,6 +60,16 @@ async function wipeGameMessages(prisma) {
     select: { id: true, discordThreadId: true, questId: true },
   });
   const roomByThreadId = new Map(rooms.map((r) => [r.discordThreadId, r]));
+  // A room's other threads, one per further Location it opens onto
+  // (db/lib/roomSides.js). Kept and cleared exactly like the home thread, or
+  // every Restart would delete them and leave the mirror rebuilding each one.
+  const sides = await prisma.roomSide.findMany({
+    where: { discordThreadId: { not: null } },
+    select: { roomId: true, discordThreadId: true, room: { select: { questId: true } } },
+  });
+  for (const side of sides) {
+    roomByThreadId.set(side.discordThreadId, { id: side.roomId, questId: side.room?.questId ?? null, side: true });
+  }
   const questRoomIdsToUnlink = [];
 
   const zones = await prisma.zone.findMany({ include: { locations: true } });
@@ -80,7 +90,7 @@ async function wipeGameMessages(prisma) {
           await wipeChannelMessages(thread.id);
         } else {
           await deleteThread(thread.id);
-          if (room) questRoomIdsToUnlink.push(room.id);
+          if (room && !room.side) questRoomIdsToUnlink.push(room.id);
         }
       }
 
@@ -94,11 +104,19 @@ async function wipeGameMessages(prisma) {
     where: { questId: null },
     data: { starterMessageId: null, postHash: null },
   });
+  await prisma.roomSide.updateMany({
+    where: { room: { questId: null } },
+    data: { starterMessageId: null, postHash: null },
+  });
   // Quest rooms lost their thread outright; unlink so the mirror creates a
   // fresh one instead of trying to hash-match a thread that is gone.
   if (questRoomIdsToUnlink.length > 0) {
     await prisma.room.updateMany({
       where: { id: { in: questRoomIdsToUnlink } },
+      data: { discordThreadId: null, starterMessageId: null, postHash: null },
+    });
+    await prisma.roomSide.updateMany({
+      where: { roomId: { in: questRoomIdsToUnlink } },
       data: { discordThreadId: null, starterMessageId: null, postHash: null },
     });
   }

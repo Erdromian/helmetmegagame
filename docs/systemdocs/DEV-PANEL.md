@@ -964,7 +964,7 @@ Pages:
 | `zones/[zoneId]/page.js` | The Zone's own fields (name, kind, sort order, description, map polygon) and its Locations |
 | `zones/locations/[locationId]/page.js` | The Location's fields, its `LocationMining` base (the live `current` coefficient is read-only — it drifts on its own every turn close), its Rooms, and its travel links |
 | `zones/links/page.js` | Every `LocationLink` in the game. `isOpen` is shown read-only — it's play state, only `authoredOpen` is edited here |
-| `zones/rooms/[roomId]/page.js` | The Room's fields and its stash: existing `RoomTag` rows (read-only quantities — those move by play, not by this form) plus a **Seed these items now** box that writes new rows and appends to `seededStashSlugs` |
+| `zones/rooms/[roomId]/page.js` | The Room's fields (Kind and Access are its gate from home), an **Also opens onto** panel — the other Locations it opens onto, each with its own access list, added, edited and removed there (`MAP.md` §2d) — and its stash: existing `RoomTag` rows (read-only quantities — those move by play, not by this form) plus a **Seed these items now** box that writes new rows and appends to `seededStashSlugs` |
 
 Rules the editor enforces, all server-side in `zones/actions.js`:
 

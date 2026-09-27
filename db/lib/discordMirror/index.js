@@ -25,6 +25,7 @@ const { isLocalMode } = require("../localMode");
 const { spectatorsVisibleNow } = require("../spectatorAccess");
 const { loadLiveStates } = require("../roomLive");
 const { roomComponents } = require("../syncZones/roomThreads");
+const { WITH_SIDES, membershipKey, roomViews } = require("../roomSides");
 const { makeReporter } = require("../channelDoctor/shared");
 const { buildDesired } = require("./desired");
 const { loadLiveSnapshot, snapshotFromDesired } = require("./live");
@@ -37,7 +38,8 @@ async function loadRows(prisma) {
   const [zones, locations, rooms, config] = await Promise.all([
     prisma.zone.findMany({ where: { retiredAt: null }, orderBy: { sortOrder: "asc" } }),
     prisma.location.findMany({ where: { retiredAt: null }, orderBy: { sortOrder: "asc" } }),
-    prisma.room.findMany({ where: { retiredAt: null }, orderBy: { sortOrder: "asc" } }),
+    // With the other Locations each room opens onto, since every side is a thread of its own.
+    prisma.room.findMany({ where: { retiredAt: null }, orderBy: { sortOrder: "asc" }, include: WITH_SIDES }),
     // Upsert, not findUnique — an empty database (LOCAL_MODE's first run, or a
     // fresh Postgres nobody has synced yet) has no GameConfig row at all, and
     // an adopt op that tries to write one of its columns back would throw
@@ -48,9 +50,11 @@ async function loadRows(prisma) {
   // The two things desired.js cannot work out for itself, because both need
   // the database: a room's live line and its button rows.
   const liveStates = await loadLiveStates(prisma, rooms.map((r) => r.live).filter(Boolean));
+  // Keyed per THREAD (db/lib/roomSides.js#membershipKey — the bare room id at
+  // home), because a side's starter carries its own, shorter button row.
   const componentsByRoomId = new Map();
-  for (const room of rooms) {
-    componentsByRoomId.set(room.id, await roomComponents(prisma, room, room.locationId));
+  for (const view of rooms.flatMap(roomViews)) {
+    componentsByRoomId.set(membershipKey(view), await roomComponents(prisma, view, view.locationId));
   }
 
   return { zones, locations, rooms, config, liveStates, componentsByRoomId };

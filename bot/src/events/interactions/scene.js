@@ -24,6 +24,7 @@ const {
   accessibleRooms,
   roomAccessKeys,
 } = require("@lifeweb/db/lib/roomAccess");
+const { loadRoomsAt } = require("@lifeweb/db/lib/roomSides");
 const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../../lib/interactionGuild");
 const { toggleConceal } = require("@lifeweb/db/lib/conceal");
 const { whosHere, whosHereLines } = require("@lifeweb/db/lib/whosHere");
@@ -121,11 +122,10 @@ async function handleSecretRooms(interaction, locationId) {
   }
 
   const [rooms, keys, invites] = await Promise.all([
-    prisma.room.findMany({
-      where: { locationId, kind: "PRIVATE", discordThreadId: { not: null } },
+    // Every room that opens onto here, private from THIS side, linked to this side's thread (db/lib/roomSides.js).
+    loadRoomsAt(prisma, locationId, {
       select: { id: true, name: true, kind: true, accessTagSlugs: true, discordThreadId: true },
-      orderBy: { sortOrder: "asc" },
-    }),
+    }).then((views) => views.filter((room) => room.kind === "PRIVATE" && room.discordThreadId)),
     roomAccessKeys(prisma, character.id),
     prisma.playerThreadInvite.findMany({
       where: { characterId: character.id },

@@ -22,6 +22,7 @@
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel.
 
 const { parsePlaceKey } = require("./placeKey");
+const { roomPresenceWhere } = require("./roomSides");
 const {
   CONCEALMENT_TAG_FIELDS,
   presentedIdentity,
@@ -56,26 +57,11 @@ async function presentWhere(prisma, placeKey, { speakerId = null } = {}) {
   if (parsed.kind === "loc") return { ...alive, locationId: parsed.id };
   if (parsed.kind === "zone") return { ...alive, zoneId: parsed.id };
 
-  if (parsed.kind === "room") {
-    const room = await prisma.room.findUnique({
-      where: { id: parsed.id },
-      select: {
-        locationId: true,
-        kind: true,
-        accessTagSlugs: true,
-        quest: { select: { status: true, allowedCharacterIds: true } },
-      },
-    });
-    if (!room) return null;
-    if (room.kind !== "PRIVATE") return { ...alive, locationId: room.locationId };
-    // A private room holds the people entitled to it: a key, a guest pass, or
-    // a quest door — db/lib/roomAccess.js#accessibleRooms, asked backwards.
-    const entitled = [{ roomGuestOf: { some: { roomId: parsed.id } } }];
-    if (room.accessTagSlugs.length > 0) entitled.push({ tags: { some: { tag: { slug: { in: room.accessTagSlugs } } } } });
-    const questIds = room.quest?.status === "OPEN" ? room.quest.allowedCharacterIds : [];
-    if (questIds.length > 0) entitled.push({ id: { in: questIds } });
-    return { ...alive, locationId: room.locationId, OR: entitled };
-  }
+  // A room holds everybody standing at a side it opens onto and passing that
+  // side's gate — a key, the worn ring, a guest pass given there, or a quest
+  // door (db/lib/roomSides.js#roomPresenceWhere, accessibleRooms asked
+  // backwards). A counter between two Locations is heard on both.
+  if (parsed.kind === "room") return roomPresenceWhere(prisma, parsed.id);
 
   if (parsed.kind === "conv") {
     const thread = await prisma.playerThread.findUnique({

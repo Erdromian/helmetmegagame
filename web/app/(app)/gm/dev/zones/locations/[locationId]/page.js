@@ -22,6 +22,11 @@ export default async function DevLocationPage({ params }) {
       rooms: { orderBy: [{ sortOrder: "asc" }, { name: "asc" }] },
       linksA: { include: { b: { select: { id: true, name: true } } } },
       linksB: { include: { a: { select: { id: true, name: true } } } },
+      // Rooms whose home is elsewhere that open onto here too (db/lib/roomSides.js).
+      roomSides: {
+        orderBy: { sortOrder: "asc" },
+        select: { kind: true, room: { select: { id: true, name: true, location: { select: { name: true } } } } },
+      },
     },
   });
   if (!location) notFound();
@@ -76,7 +81,17 @@ export default async function DevLocationPage({ params }) {
           }))}
         />
         <YieldPanel locationId={location.id} row={mining} />
-        <RoomsList locationId={location.id} rows={rooms} canSuper={tier === "super"} />
+        <RoomsList
+          locationId={location.id}
+          rows={rooms}
+          canSuper={tier === "super"}
+          fromElsewhere={location.roomSides.map((side) => ({
+            id: side.room.id,
+            name: side.room.name,
+            homeName: side.room.location.name,
+            kind: side.kind,
+          }))}
+        />
         <LinksPanel locationId={location.id} links={links} />
       </PageShell>
     </>

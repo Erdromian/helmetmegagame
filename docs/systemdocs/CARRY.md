@@ -423,6 +423,15 @@ per tag, `@@unique([roomId, tagId])`), and ⬢ are one of them — a `resources`
 row like any other. A room is where you put what you can't carry, which since
 ⬢ started weighing a pound each is most of a fortune.
 
+**A room that opens onto several Locations** (`MAP.md` §2d) has one stash,
+reached from every side whose gate lets you in: that is how the doc's "transfer
+things across locations by dropping them in the room" works. Transfer and
+Steal (`transferReach.js#canReachParty` asks `partyRoom(party, where you stand)`),
+the sheet's and chat's stash lists, `/storage` and the Storage button all go
+through `roomSides.js`, and the sheet refreshes when the far side drops
+something. Workshop equipment and bodies lying in the room are still reached
+from its home side only.
+
 **Two rooms hold nothing at all.** `Room.destroysContents` — the Godard
 Factory's Spillway and the Servant Wing's Latrines — makes both writers into a room
 (`giveTagTo`, `moveParty`) no-ops, so what goes in is gone. Undo can still hand

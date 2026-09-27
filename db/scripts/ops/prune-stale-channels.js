@@ -20,7 +20,7 @@ async function main() {
   const guildId = process.env.DISCORD_GUILD_ID;
   if (!guildId) throw new Error("DISCORD_GUILD_ID is not set.");
 
-  const [channels, roles, zones, locations, rooms] = await Promise.all([
+  const [channels, roles, zones, locations, rooms, roomSides] = await Promise.all([
     discordRequest(`/guilds/${guildId}/channels`),
     discordRequest(`/guilds/${guildId}/roles`),
     prisma.zone.findMany({
@@ -33,6 +33,8 @@ async function main() {
     }),
     prisma.location.findMany({ select: { discordChannelId: true } }),
     prisma.room.findMany({ select: { discordThreadId: true } }),
+    // A room's thread under each further Location it opens onto (db/lib/roomSides.js).
+    prisma.roomSide.findMany({ select: { discordThreadId: true } }),
   ]);
 
   const keep = new Set(); // every Discord id the live game still owns; membership is an absolute veto
@@ -42,6 +44,7 @@ async function main() {
   }
   for (const l of locations) if (l.discordChannelId) keep.add(l.discordChannelId);
   for (const r of rooms) if (r.discordThreadId) keep.add(r.discordThreadId);
+  for (const s of roomSides) if (s.discordThreadId) keep.add(s.discordThreadId);
 
   const zoneNames = new Set(zones.map((z) => z.name));
   const byId = new Map(channels.map((c) => [c.id, c]));

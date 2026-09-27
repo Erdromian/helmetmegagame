@@ -2,6 +2,7 @@
 // Takes `prisma` as the first parameter, same reason as db/lib/dm.js: db/index.js is the one importing this module, so requiring it back would resolve to a partial (prisma-less) exports object.
 
 const { RESOURCES_SELECT, resourcesOf } = require("./resourceStack");
+const { roomAt } = require("./roomSides");
 
 // "character:<id>" / "room:<id>". Prisma DELETES an undefined field from a where clause rather than matching nothing, so a malformed key with no id would quietly match "any living character" — `?? ""` matches nobody instead.
 async function resolveParty(prisma, key, { allowDead = false } = {}) {
@@ -53,6 +54,8 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
         destroysContents: true,
         discordThreadId: true,
         location: { select: { name: true, zoneId: true } },
+        // The other Locations it opens onto, each with its own gate (db/lib/roomSides.js).
+        sides: { select: { locationId: true, kind: true, accessTagSlugs: true } },
       },
     });
     return r
@@ -69,6 +72,7 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
           // The Godard Factory's Spillway, carried on the party rather than looked up again by every writer.
           destroysContents: r.destroysContents === true,
           discordThreadId: r.discordThreadId,
+          sides: r.sides,
         }
       : null;
   }
@@ -78,9 +82,20 @@ async function resolveParty(prisma, key, { allowDead = false } = {}) {
 // A room party in the shape roomAccess.js#accessibleRooms reads. Not the party itself: a party's `kind` is
 // "room" for every room, so handed over as-is it never equals "PRIVATE" and every private door opens. The real
 // kind is `roomKind`. Null for a character party.
-function partyRoom(party) {
+//
+// `atLocationId` asks for the room as seen from that Location: a counter between two Locations is gated
+// separately on each side (db/lib/roomSides.js), and null comes back from a Location it does not open onto.
+function partyRoom(party, atLocationId = null) {
   if (party?.kind !== "room") return null;
-  return { id: party.id, kind: party.roomKind, accessTagSlugs: party.accessTagSlugs ?? [] };
+  const home = {
+    id: party.id,
+    name: party.name,
+    locationId: party.locationId,
+    kind: party.roomKind,
+    accessTagSlugs: party.accessTagSlugs ?? [],
+    sides: party.sides ?? [],
+  };
+  return atLocationId ? roomAt(home, atLocationId) : home;
 }
 
 function partyKey(party) {

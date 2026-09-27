@@ -211,7 +211,7 @@ export default function HereList({
   const pollPeople = useCallback(() => {
     loadPeopleHere()
       .then((res) => {
-        if (res?.ok) setLive({ named: res.named, concealed: res.concealed });
+        if (res?.ok) setLive({ named: res.named, concealed: res.concealed, rooms: res.rooms });
       })
       .catch(() => {
         // A missed read costs one stale minute; the next one fixes it.
@@ -448,6 +448,63 @@ export default function HereList({
                   {person.alias}
                 </span>
               </span>
+            </div>
+          ))}
+        </div>
+      ))}
+
+      {/* Over a counter: the far side of a room that opens onto here too (db/lib/roomSides.js).
+          In the room with you, so a face and an eye once you have heard them — but standing
+          somewhere else, so no menu: nothing is done to anybody across it. */}
+      {(live?.rooms ?? []).map((group) => (
+        <div key={`${group.roomId}:${group.locationId}`}>
+          <p className="group-label chat-section-title">
+            {group.roomName} · {group.locationName} · {group.named.length + group.concealed.length}
+          </p>
+          {group.named.map((person) => (
+            <div key={person.characterId} className="chat-person-row">
+              <span className="chat-person">
+                <CharacterAvatar
+                  characterId={person.characterId}
+                  name={person.name}
+                  version={person.avatarVersion}
+                  src={person.avatarPath ?? undefined}
+                  size={24}
+                  online={person.online}
+                />
+                <span className="chat-person-name" data-role-group={person.roleGroup ?? undefined}>
+                  {person.name}
+                </span>
+              </span>
+              {person.sightingSeq && (
+                <span className="chat-person-eye">
+                  <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
+                </span>
+              )}
+            </div>
+          ))}
+          {group.concealed.map((person, index) => (
+            <div key={`counter-hooded-${index}`} className="chat-person-row">
+              <span className="chat-person">
+                <CharacterAvatar
+                  characterId={null}
+                  name={person.alias}
+                  src={person.avatarPath ?? undefined}
+                  unknown={person.unknownFace}
+                  size={24}
+                />
+                <span
+                  className={person.stranger ? "chat-person-name" : "chat-person-name text-muted"}
+                  data-role-group={person.roleGroup ?? undefined}
+                >
+                  {person.alias}
+                </span>
+              </span>
+              {person.sightingSeq && (
+                <span className="chat-person-eye">
+                  <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
+                </span>
+              )}
             </div>
           ))}
         </div>

@@ -12,15 +12,24 @@ function italicParagraphs(text) {
 }
 
 // The live line joins the description's LAST paragraph with a pipe rather than standing on its own — it is a fact about the room, not a second post stapled under it.
-function buildRoomBody(room, liveState) {
+//
+// `alsoReachedFrom` names the other Locations a room opens onto (db/lib/roomSides.js),
+// so whoever reads the thread knows the far side of the counter hears them too.
+function buildRoomBody(room, liveState, { alsoReachedFrom = [] } = {}) {
   const parts = [`**${room.name}**`];
   const description = italicParagraphs(room.description);
   const live = liveLine(room.live, liveState);
   if (description) parts.push(live ? `${description} | ${live}` : description);
   else if (live) parts.push(live);
   if (room.soundproof) parts.push("**Muffled**: shouts do not carry out of here.");
+  if (alsoReachedFrom.length > 0) parts.push(`-# Also reached from ${listPlaces(alsoReachedFrom)}.`);
   // One newline, not two — a blank line between the bolded name and its `-#` subtext would read as two separate posts stapled together.
   return parts.join("\n");
+}
+
+function listPlaces(names) {
+  if (names.length <= 1) return names.join("");
+  return `${names.slice(0, -1).join(", ")} and ${names[names.length - 1]}`;
 }
 
 // The pinned anchor: name, -# description, and the Public Rooms index. Private rooms are deliberately absent — that's what the Secret rooms? button is for.

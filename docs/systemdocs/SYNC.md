@@ -165,6 +165,10 @@ zones:
                                        #   Appends one line read off live state to
                                        #   the starter message, repainted whenever
                                        #   that state moves. Unknown key ⇒ problem.
+            sides:                     # optional; other Locations it opens onto
+              - location: town-3       #   (MAP.md §2d), each gated on its own:
+                access: [some-key]     #   omitted or empty ⇒ public from there.
+                                       #   Created only with the room itself.
     levels:               # groups only; each becomes a standable CAVE_LEVEL zone
       caves:
         locations:

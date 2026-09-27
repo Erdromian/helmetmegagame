@@ -3,6 +3,7 @@
 // invites. Moved verbatim out of runChannelDoctor (W2d).
 const { getChannel, patchThread, listThreadMembers, addThreadMember, removeThreadMember } = require("../../discordRest");
 const { accessibleRooms, roomAccessKeys, recordRoomThread } = require("../../roomAccess");
+const { WITH_SIDES, membershipKey, persistThread, roomViews } = require("../../roomSides");
 
 async function runThreadsSweep({ report, errors, prisma, alive, characters, characterUserIds }) {
   // Room threads: unarchived, and the row still points at something real.
@@ -14,10 +15,15 @@ async function runThreadsSweep({ report, errors, prisma, alive, characters, char
   // lists only active threads and an archived room looks identical: so this is
   // where that gets settled, by forgetting the dead id. The next mirror run
   // sees a room with no thread and builds one.
-  const rooms = await prisma.room.findMany({ include: { location: { select: { name: true } } } });
+  //
+  // One pass per THREAD: a room that opens onto several Locations has one
+  // under each (db/lib/roomSides.js), and each view below carries its own.
+  const rooms = (await prisma.room.findMany({ include: { location: { select: { name: true } }, ...WITH_SIDES } })).flatMap(
+    roomViews,
+  );
   const privateRooms = [];
   for (const room of rooms) {
-    const label = `${room.location.name}/${room.name}`;
+    const label = `${room.location?.name ?? "?"}/${room.name}`;
     if (!room.discordThreadId) continue;
     let live;
     try {
@@ -28,10 +34,7 @@ async function runThreadsSweep({ report, errors, prisma, alive, characters, char
     }
     if (!live) {
       await report("room-thread", label, "recorded room thread no longer exists — the mirror will rebuild it", () =>
-        prisma.room.update({
-          where: { id: room.id },
-          data: { discordThreadId: null, starterMessageId: null, postHash: null },
-        }),
+        persistThread(prisma, room, { discordThreadId: null, starterMessageId: null, postHash: null }),
       );
       continue;
     }
@@ -74,7 +77,9 @@ async function runThreadsSweep({ report, errors, prisma, alive, characters, char
           .filter((c) => c.discordUserId && c.discordMirrored)
           .filter((c) => {
             const keys = keysByCharacter.get(c.id);
-            return accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length > 0;
+            // A guest pass opens the side it was given at, and nowhere else.
+            const guests = c.locationId === room.locationId ? keys.guestRoomIds : new Set();
+            return accessibleRooms([room], keys.heldSlugs, guests, keys.allowedRoomIds).length > 0;
           })
           .map((c) => c.discordUserId),
       );
@@ -95,7 +100,7 @@ async function runThreadsSweep({ report, errors, prisma, alive, characters, char
         // away again. See db/lib/roomAccess.js#recordRoomThread.
         await report("room-membership", `${room.label}/${userId}`, "holds a key and isn't in the room", async () => {
           await addThreadMember(room.discordThreadId, userId);
-          await recordRoomThread(prisma, userIdToCharacterId.get(userId), room.id, true);
+          await recordRoomThread(prisma, userIdToCharacterId.get(userId), membershipKey(room), true);
         });
       }
       for (const userId of present) {
@@ -103,7 +108,7 @@ async function runThreadsSweep({ report, errors, prisma, alive, characters, char
         if (!characterUserIds.has(userId)) continue; // GMs and the bot may sit in any thread
         await report("room-membership", `${room.label}/${userId}`, "in the room without a key", async () => {
           await removeThreadMember(room.discordThreadId, userId);
-          await recordRoomThread(prisma, userIdToCharacterId.get(userId), room.id, false);
+          await recordRoomThread(prisma, userIdToCharacterId.get(userId), membershipKey(room), false);
         });
       }
     }
@@ -124,13 +129,13 @@ async function runThreadsSweep({ report, errors, prisma, alive, characters, char
   // Room guests who no longer qualify: dead, or wandered off. The membership
   // check above repairs the THREAD; this repairs the row behind it, so a
   // guest who left doesn't sit in the table until they happen to move again.
+  // "The room's location" is the side the pass was given at (RoomGuest.locationId).
   const guests = await prisma.roomGuest.findMany({
-    include: { room: { select: { locationId: true, name: true } } },
+    include: { room: { select: { name: true } } },
   });
   for (const guest of guests) {
     const character = characters.find((c) => c.id === guest.characterId);
-    const stillHere =
-      character?.status === "ALIVE" && guest.room && character.locationId === guest.room.locationId;
+    const stillHere = character?.status === "ALIVE" && guest.room && character.locationId === guest.locationId;
     if (stillHere) continue;
     await report(
       "room-guest",
