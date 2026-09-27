@@ -66,7 +66,7 @@ documents:
     description: |-
       Endlessly overworked, you must somehow turn failed harvests and catastrophic disasters into financial gains for the Baron. After all the economic miracles you have worked for the treasury in the past, expectations are high.
 
-      Micromanagement is key, the headman cannot be relied upon if experience has taught you anything. Make sure your presence is overbearing and scrutinize every {tag:obol} and resource they send your way. If the treasury winds up empty, you will be the one taking the fall along with the headman.
+      Micromanagement is key, the Banneret cannot be relied upon if experience has taught you anything. Make sure your presence is overbearing and scrutinize every {tag:obol} and resource they send your way. If the treasury winds up empty, you will be the one taking the fall along with the Banneret.
   fate-arbiter:
     name: "Fate: Arbiter"
     public: false
