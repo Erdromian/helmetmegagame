@@ -16,8 +16,8 @@ import {
   releaseNotification,
   ROLL_PHASES,
 } from "@lifeweb/db/lib/lobby";
-import { isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
-import { newSeed } from "@lifeweb/db/lib/roleAssignment";
+import { isSpawnOnly } from "@lifeweb/db/lib/fateCapacity";
+import { newSeed } from "@lifeweb/db/lib/fateAssignment";
 import { endGameInDb, resumeGameInDb, postGameEnded } from "@lifeweb/db/lib/gameEnd";
 import { formatEpilogue } from "@lifeweb/db/lib/epilogue";
 import { syncSpectatorAccess } from "@lifeweb/db/lib/spectatorAccess";

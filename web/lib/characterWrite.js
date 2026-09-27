@@ -96,7 +96,7 @@ export async function normalizeCoreEdits({ prisma, existing, core }) {
     data.gender = value;
   }
 
-  // Deliberately NO roleCapacity() check — a GM hand-assigning a role overrides the seat cap.
+  // Deliberately NO fateCapacity() check — a GM hand-assigning a role overrides the seat cap.
   const roleId = "roleId" in picked ? trimmedOrNull(picked.roleId) : existing.roleId;
   const role = roleId ? await prisma.role.findUnique({ where: { id: roleId } }) : null;
   if (roleId && !role) throw new UserError("That role no longer exists.");

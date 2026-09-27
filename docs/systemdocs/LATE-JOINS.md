@@ -30,8 +30,8 @@ The two share the plumbing on purpose: the same `Role` row, the same
 `db/lib/roleIds.js`: fixed values that can never differ per environment, and a
 column would only add a way to drift from `docs/roles.yaml`.
 
-Every candidate is also in `SPAWN_ONLY_ROLE_SLUGS`
-(`db/lib/roleCapacity.js`), which is what keeps it out of the ordinary picker,
+Every candidate is also in `SPAWN_ONLY_FATE_SLUGS`
+(`db/lib/fateCapacity.js`), which is what keeps it out of the ordinary picker,
 out of the assignment roll and out of the lobby's hand-set dropdown. A late
 join does **not** un-hide the seat there; it draws its own section instead.
 
@@ -55,10 +55,10 @@ sitting in its row.** That is what makes the Dev Panel's checkbox a real closed
 door rather than a label, and it is why `lateJoinCapacity()` exists rather than
 callers reading `slots` themselves.
 
-**The cap replaces `roleCapacity()`, it does not combine with it.** A bucket
+**The cap replaces `fateCapacity()`, it does not combine with it.** A bucket
 seat scales with the roster; a late join is however many chairs a GM opened.
-Both `createCharacter` and `reserveRole` ask `lateJoinOpeningFor` first and use
-`roleCapacity` only when the answer is no — and both re-ask **under the row
+Both `createCharacter` and `reserveFate` ask `lateJoinOpeningFor` first and use
+`fateCapacity` only when the answer is no — and both re-ask **under the row
 lock**, so a GM closing the door mid-wizard wins.
 
 ## 4. The curse does not reach a late join
@@ -77,7 +77,7 @@ Three places implement it, and all three must agree:
 - `CreateCharacterWizard.js` — with that flag the social buckets are hidden
   **outright**, not greyed: every one of them is a seat the curse really does
   refuse. Only the Special section is drawn.
-- `createActions.js` — `createCharacter` and `reserveRoleAction` each re-check
+- `createActions.js` — `createCharacter` and `reserveFateAction` each re-check
   it. A server action is a public endpoint, and the narrowed wizard is a hint.
 
 Close the last open seat and a cursed player is back to `CreationCursed` on the
@@ -150,8 +150,8 @@ cooldown stamped at the end.
 |---|---|
 | `db/lib/lateJoin.js` | The catalog, the reinforcement prices, the readers and the two writers. Zero requires — reachable from a client component |
 | `db/lib/deepBeastHorn.js` | The horn's reach and its line |
-| `db/lib/roleCapacity.js` | `SPAWN_ONLY_ROLE_SLUGS`, which hides every candidate from the ordinary picker |
-| `db/lib/roleReservation.js` | The wizard's hold, which honours the late-join cap |
+| `db/lib/fateCapacity.js` | `SPAWN_ONLY_FATE_SLUGS`, which hides every candidate from the ordinary picker |
+| `db/lib/fateReservation.js` | The wizard's hold, which honours the late-join cap |
 | `web/lib/lateJoin.js` | Client-safe re-export shim |
 | `web/app/(app)/gm/dev/lateJoinActions.js` | `updateLateJoinRole` |
 | `web/app/(app)/gm/dev/threats/LateJoinsPanel.js` | The GM table |
@@ -163,7 +163,7 @@ cooldown stamped at the end.
 ## 9. Adding a late-join role
 
 1. Write the seat in `docs/roles.yaml` and run `npm run db:sync-roles`.
-2. Add its slug to `LATE_JOIN_ROLE_SLUGS` **and** `SPAWN_ONLY_ROLE_SLUGS`.
+2. Add its slug to `LATE_JOIN_ROLE_SLUGS` **and** `SPAWN_ONLY_FATE_SLUGS`.
 3. If the Bastard should be able to buy it, add it to `REINFORCEMENTS` with a
    price.
 

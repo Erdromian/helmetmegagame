@@ -3,7 +3,7 @@
 import FormError from "@/app/components/FormError";
 import CheckField from "@/app/components/CheckField";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { createCharacter, reserveRoleAction } from "./createActions";
+import { createCharacter, reserveFateAction } from "./createActions";
 import PointBuy from "../../components/PointBuy";
 import {
   computeBudget,
@@ -203,7 +203,7 @@ export default function CreateCharacterWizard({
     if (error) errorRef.current?.scrollIntoView({ block: "center" });
   }, [error]);
   // Set once the picked role is actually held server-side (see
-  // reserveRoleAction), so the hold notice only shows a real claim rather
+  // reserveFateAction), so the hold notice only shows a real claim rather
   // than the browsing state before Next is first hit on step 0.
   const [heldUntil, setHeldUntil] = useState(null);
   const [reserving, setReserving] = useState(false);
@@ -395,7 +395,7 @@ export default function CreateCharacterWizard({
     setReserving(true);
     setError(null);
     try {
-      const result = await reserveRoleAction(roleId);
+      const result = await reserveFateAction(roleId);
       if (result?.error) {
         setError(result.error);
         return;

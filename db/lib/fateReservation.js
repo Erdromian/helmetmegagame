@@ -1,15 +1,15 @@
-// Seat holds for a role in progress on the creation wizard, so a player who
-// picks a capacity-1 role and spends ten minutes on the tag menu doesn't lose
+// Seat holds for a fate in progress on the creation wizard, so a player who
+// picks a capacity-1 fate and spends ten minutes on the tag menu doesn't lose
 // the seat at Confirm with no warning. Wizard-side half; the race-closing
 // lock lives in createActions.js's create transaction.
 //
 // Takes `prisma` as its first parameter (db/lib/dm.js convention),
-// deliberately off the @lifeweb/db barrel — db/lib/roleCapacity.js (the
+// deliberately off the @lifeweb/db barrel — db/lib/fateCapacity.js (the
 // seat-cap math this builds on) IS in the barrel, so requiring by path keeps
 // the two call shapes distinct.
-const { roleCapacity } = require("./roleCapacity");
+const { fateCapacity } = require("./fateCapacity");
 const { lateJoinOpeningFor, lateJoinCapacity } = require("./lateJoin");
-const { heldSeats, heldSeatsByRole } = require("./seatCount");
+const { heldSeats, heldSeatsByFate } = require("./seatCount");
 
 // Long enough to read the tag menu, short enough that an abandoned tab frees
 // a unique seat the same session. Refreshed on every wizard step advance.
@@ -22,7 +22,7 @@ async function sweepExpired(tx, roleId) {
 
 // Takes a row lock on the Role first so two concurrent reservers serialize
 // instead of both reading the same stale count.
-async function reserveRole(prisma, discordUserId, roleId, playerCount) {
+async function reserveFate(prisma, discordUserId, roleId, playerCount) {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${roleId} FOR UPDATE`;
     await sweepExpired(tx, roleId);
@@ -34,7 +34,7 @@ async function reserveRole(prisma, discordUserId, roleId, playerCount) {
     // not a share of the roster. Asked under the same row lock as everything
     // else here, so closing the door mid-wizard wins.
     const opening = await lateJoinOpeningFor(tx, role.slug);
-    const cap = opening?.enabled ? lateJoinCapacity(opening) : roleCapacity(role, playerCount);
+    const cap = opening?.enabled ? lateJoinCapacity(opening) : fateCapacity(role, playerCount);
     // Caller's own hold on THIS role doesn't count against itself.
     if ((await heldSeats(tx, role, { excludeDiscordUserId: discordUserId })) >= cap) {
       return { ok: false, reason: "ROLE_FULL" };
@@ -59,11 +59,11 @@ async function takenCounts(prisma, roles, excludeDiscordUserId, { countReservati
   await prisma.roleReservation.deleteMany({
     where: { roleId: { in: roles.map((r) => r.id) }, expiresAt: { lt: new Date() } },
   });
-  return heldSeatsByRole(prisma, roles, { excludeDiscordUserId: excludeDiscordUserId ?? null, countReservations });
+  return heldSeatsByFate(prisma, roles, { excludeDiscordUserId: excludeDiscordUserId ?? null, countReservations });
 }
 
-async function releaseRole(prisma, discordUserId) {
+async function releaseFate(prisma, discordUserId) {
   await prisma.roleReservation.deleteMany({ where: { discordUserId } });
 }
 
-module.exports = { reserveRole, takenCounts, releaseRole };
+module.exports = { reserveFate, takenCounts, releaseFate };

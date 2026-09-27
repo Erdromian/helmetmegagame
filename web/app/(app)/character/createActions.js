@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import {
   prisma,
-  roleCapacity,
+  fateCapacity,
   isDynastyHead,
   isDynastyMember,
   normalizeAntagonistSlugs,
@@ -66,7 +66,7 @@ import {
   CURSED_REFUSAL,
 } from "@/lib/characterCreation";
 
-import { reserveRole, releaseRole } from "@lifeweb/db/lib/roleReservation";
+import { reserveFate, releaseFate } from "@lifeweb/db/lib/fateReservation";
 import { closeDeadchatTo } from "@lifeweb/db/lib/deadchat";
 import { heldSeats } from "@lifeweb/db/lib/seatCount";
 import { settleLobbyEntry, seatsAllocated } from "@lifeweb/db/lib/lobby";
@@ -155,7 +155,7 @@ export async function createCharacter(formData) {
   // A LATE JOIN (db/lib/lateJoin.js) is a spawn-only seat the GM has opened to
   // whoever wants it. Read once, here, and then used for three separate
   // answers below: it lets the seat past the spawn-only refusal, past the
-  // curse, and it replaces roleCapacity() as the cap inside the transaction.
+  // curse, and it replaces fateCapacity() as the cap inside the transaction.
   const lateJoin = await lateJoinOpeningFor(prisma, role.slug);
   const lateJoinSeats = lateJoinCapacity(lateJoin);
   const openLateJoin = lateJoinSeats > 0;
@@ -370,12 +370,12 @@ export async function createCharacter(formData) {
       // the check above and here must win.
       const cap = openLateJoin
         ? lateJoinCapacity(await lateJoinOpeningFor(tx, role.slug))
-        : roleCapacity(role, effectivePlayerCount(config, state));
+        : fateCapacity(role, effectivePlayerCount(config, state));
       if (held >= cap) {
         throw new Error("ROLE_FULL");
       }
       // Release the caller's own hold in the same transaction.
-      await releaseRole(tx, discordUserId);
+      await releaseFate(tx, discordUserId);
 
       const character = await tx.character.create({
         data: {
@@ -589,7 +589,7 @@ export async function createCharacter(formData) {
 }
 
 // Slides the reservation hold's expiry on each wizard Next. Re-checks the same gates createCharacter does.
-export async function reserveRoleAction(roleId) {
+export async function reserveFateAction(roleId) {
   const session = await auth();
   if (!session?.discordUserId) return { error: "Sign in to hold a role." };
   const discordUserId = session.discordUserId;
@@ -635,7 +635,7 @@ export async function reserveRoleAction(roleId) {
 
   // Before Start Game a pick holds nothing (db/lib/lobby.js#seatsAllocated).
   if (!seatsAllocated(state?.phase)) return { ok: true, expiresAt: null };
-  const result = await reserveRole(prisma, discordUserId, roleId, effectivePlayerCount(config, state));
+  const result = await reserveFate(prisma, discordUserId, roleId, effectivePlayerCount(config, state));
   if (!result.ok) {
     return { error: `${role.name} was taken while you were deciding. Pick another role.` };
   }

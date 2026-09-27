@@ -126,7 +126,7 @@ If you want to remember something, use the ⭐ reaction on the message before th
 ## Character Creation
 The first thing you will do is open the **Character** page on the website, from the button at the top of the sidebar.
 
-**Before the game starts** that page is the lobby. Set how much you want each role — Off, Low, Med or High, with only one High at a time — say what should happen if none of them is free (join as a Commoner, join as a Migrant, or sit it out and join by hand later), tick any antagonist you are open to being handed, and press **Ready**. Everything saves as you go and is remembered for the next game. When the GMs start the game, the roll hands out seats: players who wanted a role more get it before players who wanted it less, and a role's seats fill until they run out. You get a DM with your seat, a link, and a deadline. Build your character before it, or the seat opens to anyone.
+**Before the game starts** that page is the lobby. Set how much you want each role — Off, Low, Med or High, with only one High at a time — say what should happen if none of them is free (spawn as a Bum, spawn as a Migrant, or sit it out and join by hand later), tick any antagonist you are open to being handed, and press **Ready**. Everything saves as you go and is remembered for the next game. When the GMs start the game, the roll hands out seats: players who wanted a role more get it before players who wanted it less, and a role's seats fill until they run out. You get a DM with your seat, a link, and a deadline. Build your character before it, or the seat opens to anyone.
 
 **After the game starts**, or if you missed the roll, you join by hand: pick from whatever seats are open. Character creation takes place in 5 steps:
 
@@ -542,7 +542,7 @@ When your character dies:
 - Their body drops somewhere public where they died, as something anyone can pick up and carry off. Their ⬢ and anything portable they carried can be **looted** from wherever the body currently is, and the body can be carried elsewhere, buried, or cut up. What can't be carried off a corpse — a house, a manor, something grafted into them — stays with them.
 - Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every Zone, but you can no longer interact with the world of the living.
 - As a ghost you have no voice at all. What speaks for you is your body: while it lies unburied it stinks, and every few hours the Location it is in is told so.
-- You can create a new character at any time, but while Cursed you only have access to the **Bum** and **Migrant** roles. You also receive a 6-point penalty during character creation.
+- While Cursed you cannot create a new character. Once the curse lifts you can make one at any time, from whatever roles still have a seat; **Bum** and **Migrant** always do.
 - The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone who has your body in hand can do so). A buried body can no longer be looted or moved. If nobody can find you, someone can **engrave** a headstone with your name instead — it costs them, but it frees you the same way. Being cut up is not a burial, and does not free you.
 
 ## Credits

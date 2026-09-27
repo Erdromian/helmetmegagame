@@ -6,22 +6,25 @@
 //   1. shuffle the readied players;
 //   2. head-of-staff pass — HIGH, then MEDIUM, then LOW, every unassigned
 //      player who wants a leader seat at that level gets one at random;
-//   3. main pass — same three levels over every seat;
-//   4. whoever is left gets their jobless fallback: the overflow seat they
-//      named (Migrant, unlimited) or a walk back to the lobby.
+//   3. main pass — same three levels over every lobby fate;
+//   4. whoever is left gets their jobless fallback: Spawn as Bum, Spawn as
+//      Migrant (both uncapped), or a walk back to the lobby.
 //
-// No "overflow first" pass — the fallback dropdown is the overflow. No head
-// is ever forced; an unwanted whitelisted seat stays empty and is a warning.
-// The shuffle and every pick come from a seeded generator, so a previewed
-// draft is the draft Start commits, hand-set rows included.
+// Bum and Migrant are never PICKED here — they are left off the lobby's
+// priority list (fateCapacity.js#isLobbyFate), so a priority saved on one
+// before that is ignored, and the only way the roll hands either out is as
+// the fallback the player chose. No head is ever forced; an unwanted
+// whitelisted seat stays empty and is a warning. The shuffle and every pick
+// come from a seeded generator, so a previewed draft is the draft Start
+// commits, hand-set rows included.
 
-const { roleCapacity } = require("./roleCapacity");
+const { fateCapacity, isLobbyFate } = require("./fateCapacity");
 
 const LEVEL_ORDER = ["HIGH", "MEDIUM", "LOW"];
-// Migrant is the only overflow seat now. A jobless preference naming no seat
-// walks to the lobby, which is what the fallback below already did for a
-// missing slug.
-const OVERFLOW_SLUG = { MIGRANT: "migrant" };
+// PlayerPreference.joblessRole -> the open fate it spawns into. A jobless
+// preference naming no fate (RETURN_TO_LOBBY) walks to the lobby, which is
+// what the fallback below already did for a missing slug.
+const OVERFLOW_SLUG = { BUM: "bum", MIGRANT: "migrant" };
 
 // Good enough for a shuffle — not a security boundary.
 function hashSeed(seed) {
@@ -56,13 +59,15 @@ function shuffled(items, rng) {
 // players:  [{ discordUserId, priorities: { [slug]: level }, joblessRole, whitelisted }]
 // roles:    [{ slug, name, isUnique, unlimited, weight, requiresWhitelist, spawnOnly }]
 // taken:    Map<slug, number> — seats already held before the roll
+// playerCount: total fate seats (fateCapacity.js#fateSeatsFor), as stamped on GameState.playerCount
 // Returns { rows: [{ discordUserId, roleSlug, source }], warnings: [string], seed }
-function assignRoles({ players, roles, taken = new Map(), playerCount, leaderWhitelistEnabled = true, seed }) {
+function assignFates({ players, roles, taken = new Map(), playerCount, leaderWhitelistEnabled = true, seed }) {
   const rng = mulberry32(hashSeed(seed));
   const used = new Map();
   const result = new Map();
+  const lobbyFates = roles.filter(isLobbyFate);
 
-  const capOf = (role) => roleCapacity(role, playerCount);
+  const capOf = (role) => fateCapacity(role, playerCount);
   const heldOf = (role) => (taken.get(role.slug) ?? 0) + (used.get(role.slug) ?? 0);
   const isOpen = (role) => capOf(role) - heldOf(role) > 0;
   const mayHold = (player, role) =>
@@ -86,7 +91,7 @@ function assignRoles({ players, roles, taken = new Map(), playerCount, leaderWhi
     for (const level of LEVEL_ORDER) {
       for (const player of order) {
         if (result.has(player.discordUserId)) continue;
-        const candidates = roles.filter(
+        const candidates = lobbyFates.filter(
           (role) =>
             (player.priorities?.[role.slug] ?? null) === level &&
             (!reservedOnly || role.requiresWhitelist) &&
@@ -133,4 +138,4 @@ function newSeed() {
   return `${Date.now().toString(36)}${Math.floor(Math.random() * 1e6).toString(36)}`;
 }
 
-module.exports = { assignRoles, newSeed };
+module.exports = { assignFates, newSeed };

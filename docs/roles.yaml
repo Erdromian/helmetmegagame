@@ -35,34 +35,34 @@
 # never appear in the player-facing picker), so the whole brief lives in
 # db/lib/threats.js instead (docs/systemdocs/THREATS.md).
 #
-# `weight` (only present on `multiple: true` roles) is the seat cap,
-# expressed as seats allowed per 100 total players — the cap is
-# `max(1, round(base_seats + weight * playerCount / 100))`, where playerCount
-# is the number Start Game stamped (the readied count plus 9%), or the
-# `/gm/dev` expected-players knob before then. `weight: unlimited` means no
-# cap at any scale (chaff roles like Commoner/Migrant).
+# Seats (Fate Slot Logic.docx; db/lib/fateCapacity.js, docs/systemdocs/
+# CHARACTERS.md "Fate seats"). A game has the readied count plus 10% in fate
+# seats, rounded up — 72 readied is 80. Three shapes:
 #
-# `base_seats` (optional, defaults 0, only beside a numeric `weight`) is how
-# many seats the role has before the per-100 share is counted — it is what
-# makes a small game roomier without growing a large one. `weight: 5` with
-# `base_seats: 1` is 2 seats at 20 players, 3 at 40 and 6 at 100.
+# `multiple: false` — a constant fate: a single specific named character
+# (Baron, Bishop, Sheriff, ...) with exactly one seat no matter how large the
+# game gets. There are 20 of them in the lobby, and the sync refuses a file
+# that says otherwise.
 #
-# `multiple: false` roles get no `weight` field at all — they're a single
-# specific named character (Baron, Bishop, Sheriff, ...) and always stay
-# at exactly one seat no matter how large the game gets, which is not the
-# same thing as "1 per 100 players".
+# `weight: N` (on `multiple: true`) — a share, out of 60, of the POOL: the fate
+# seats less the 20 constant ones. The seats are `max(1, round(N * pool / 60))`,
+# so at 72 readied every fate has exactly N. The lobby's weights must add up to
+# 60, and the sync refuses a file where they do not. `base_seats` is retired.
 #
-# A seat normally frees up when its holder dies — but only two of them do.
-# Which ones is listed in code, by slug, not here:
-# db/lib/roleCapacity.js#REOPENING_SEAT_ROLE_SLUGS. Every other seat is spent
-# for the rest of the run.
+# `weight: unlimited` — no cap at any scale: Bum and Migrant, and the Bastard's
+# spawn-only troops. Bum and Migrant are also left off the lobby's priority
+# list — a player the roll cannot seat chooses one of them as their fallback —
+# and they are the only two seats that free up when their holder dies. Which
+# ones is listed in code, by slug, not here:
+# db/lib/fateCapacity.js#OPEN_FATE_SLUGS. Every other seat is spent for the
+# rest of the run.
 #
 # `whitelist: true` is who may claim this seat at all. Picking a whitelisted
 # role needs the @Leader Whitelist Discord role (db/lib/roleIds.js), always —
 # that used to be a Dev Panel switch and is now simply the rule. It is a
 # HOSTING decision: these are the named seats the game cannot open without, so
 # they are also the ones the assignment roll fills first
-# (db/lib/roleAssignment.js) and the ones the picker marks with a ★.
+# (db/lib/fateAssignment.js) and the ones the picker marks with a ★.
 #
 # `examine_visible` (optional, defaults TRUE) now only decides whether the seat
 # is listed in #info's public roles thread (db/lib/infoChannel.js). It is set to
@@ -424,8 +424,7 @@ groups:
       bank_account: treasury
       starting_account: 5
       multiple: true
-      weight: 5
-      base_seats: 1
+      weight: 3
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
@@ -453,8 +452,7 @@ groups:
       difficulty: easy
       bank_account: treasury
       starting_account: 5
-      multiple: true
-      weight: 1
+      multiple: false
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
@@ -480,7 +478,7 @@ groups:
       bank_account: treasury
       starting_account: 5
       multiple: true
-      weight: 3
+      weight: 4
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
@@ -563,7 +561,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 3
+      weight: 2
       starting_zone: town
       knows: *townsfolk
       starting_location: town-4
@@ -648,7 +646,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 2
+      weight: 3
       starting_zone: town
       knows: *townsfolk
       starting_location: town-4
@@ -818,8 +816,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 5
-      base_seats: 1
+      weight: 6
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-1
@@ -1015,7 +1012,7 @@ groups:
       bank_account: offshore
       starting_account: 3
       multiple: true
-      weight: 2
+      weight: 3
       starting_zone: undertown
       knows: *townsfolk
       starting_location: undertown-6
@@ -1130,7 +1127,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 3
+      weight: 4
       starting_zone: hills
       knows: *townsfolk
       starting_location: factory
@@ -1231,7 +1228,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 2
+      weight: 3
       starting_zone: town
       knows: *townsfolk
       starting_location: town-2
@@ -1304,7 +1301,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 3
+      weight: 5
       starting_zone: town
       knows: *townsfolk
       starting_location: town-3
@@ -1337,7 +1334,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 3
+      weight: 4
       starting_zone: town
       knows: *townsfolk
       starting_location: town-a
@@ -1364,7 +1361,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 4
+      weight: unlimited
       starting_zone: undertown
       knows: *townsfolk
       starting_location: undertown-a
@@ -1455,7 +1452,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 2
+      weight: 3
       starting_zone: town
       knows: *townsfolk
       starting_location: town-7
@@ -1580,7 +1577,7 @@ groups:
       bank_account: treasury
       starting_account: 3
       multiple: true
-      weight: 3
+      weight: 4
       starting_zone: caves
       knows: *townsfolk
       starting_location: caves-1

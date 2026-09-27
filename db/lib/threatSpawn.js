@@ -4,7 +4,7 @@
 // the personal role and placing the character are REST calls the two faces already own differently. The transaction mirrors createCharacter's
 // (web/app/(app)/character/createActions.js); where it differs, nobody is picking — name, gender and rank are all rolled off the seat (rollSpawnIdentity).
 const { parseStartingTag } = require("./startingTags");
-const { roleCapacity } = require("./roleCapacity");
+const { fateCapacity } = require("./fateCapacity");
 const { heldSeats } = require("./seatCount");
 const { settleLobbyEntry } = require("./lobby");
 const { readGameState, effectivePlayerCount } = require("./gameState");
@@ -161,7 +161,7 @@ async function acceptThreatSpawn(prisma, spawnId, discordUserId) {
       // The lock that actually closes the seat race — Prisma runs READ COMMITTED, so counting without it can seat two people at once.
       await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${spawn.roleId} FOR UPDATE`;
       const taken = await heldSeats(tx, spawn.role, { excludeDiscordUserId: discordUserId });
-      if (taken >= roleCapacity(spawn.role, effectivePlayerCount(config, state))) throw new Error("ROLE_FULL");
+      if (taken >= fateCapacity(spawn.role, effectivePlayerCount(config, state))) throw new Error("ROLE_FULL");
 
       // Re-read under the lock: two clicks race here; the status check above is only an early out.
       const fresh = await tx.threatSpawn.findUnique({ where: { id: spawn.id }, select: { status: true } });

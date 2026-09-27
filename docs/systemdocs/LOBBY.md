@@ -58,13 +58,18 @@ commit (`ROLL_PHASES` in `db/lib/lobby.js`).
 **`PlayerPreference`** as they change (`lobbyActions.js#savePreferences`,
 debounced on the client):
 
-- **Role priorities** — every pickable role in the seven buckets
+- **Role priorities** — every lobby fate in the seven buckets
   (`db/lib/roleGroups.js`) with Off / Low / Med / High. **One High at a
   time**: setting another demotes the old one to Med
   (`db/lib/playerPreferences.js#setPriority`, a port of tgstation's
   `set_job_preference_level`). Whitelisted seats are greyed for a player
   without the Whitelist role and dropped server-side if posted anyway.
-- **If none are available** — Migrant (the default) or Return to lobby.
+  **Bum and Migrant are not on the list** (`fateCapacity.js#isLobbyFate`,
+  from `Fate Slot Logic.docx`): they are the fallback below, never a pick,
+  and a priority posted on either is dropped server-side.
+- **If none are available** — Spawn as Bum, Spawn as Migrant (the default)
+  or Return to lobby (`PlayerPreference.joblessRole`: `BUM`, `MIGRANT`,
+  `RETURN_TO_LOBBY`).
 - **Antagonist opt-in** — one box, "Enable antagonist roles". Ticking it
   stores every opt-in seat the player may take (`takeableAntagonistSlugs`),
   whitelisted ones included only for a player who holds the Whitelist role;
@@ -150,34 +155,38 @@ creation gates (`createActions.js`, `lobbyActions.js`) always refetch.
 
 ## 3. The roll
 
-`db/lib/roleAssignment.js#assignRoles` is a pure function, a port of
+`db/lib/fateAssignment.js#assignFates` is a pure function, a port of
 tgstation's `SSjob.divide_occupations`:
 
 1. shuffle the readied players with a seeded generator;
 2. **leader pass** — for High, then Med, then Low, every unassigned player who
    wants a `leader: true` seat at that level gets one, at random among the
    open ones they may hold;
-3. **main pass** — the same three levels over every seat;
-4. **jobless** — whoever is left gets Migrant, the one unlimited overflow seat
-   and the default, or a walk back to the lobby (`roleSlug: null`). Commoner
-   was the other option until it was removed with Laboring; it only ever
-   existed to be the seat for somebody who wanted to work for a living.
+3. **main pass** — the same three levels over every lobby fate;
+4. **jobless** — whoever is left gets the fallback they chose: Bum or Migrant,
+   the two open fates, both uncapped, or a walk back to the lobby
+   (`roleSlug: null`). Commoner was an option until it was removed with
+   Laboring; it only ever existed to be the seat for somebody who wanted to
+   work for a living.
 
-Eligibility: not spawn-only (`SPAWN_ONLY_ROLE_SLUGS`, `db/lib/roleCapacity.js`),
-whitelist always honoured, and a seat with room
-— capacity from `roleCapacity()` at the stamped player count minus what
-`heldSeatsByRole` (`db/lib/seatCount.js`) already counts.
+Eligibility in the two passes: a lobby fate (`fateCapacity.js#isLobbyFate` —
+not spawn-only, per `SPAWN_ONLY_FATE_SLUGS`, and not Bum or Migrant), whitelist
+always honoured, and a seat with room — capacity from `fateCapacity()` at the
+stamped player count minus what `heldSeatsByFate` (`db/lib/seatCount.js`)
+already counts. A priority a player saved on Bum or Migrant before they left the
+list is ignored; the only way the roll hands either out is as the fallback.
 
-Two deliberate departures from SS13: no "overflow first" pass (Migrant is an
-ordinary row, the fallback dropdown is the overflow), and **no
-forced head** — a leader seat nobody eligible wants stays empty and becomes a
-warning.
+Two deliberate departures from SS13: no "overflow first" pass (the fallback
+dropdown is the overflow), and **no forced head** — a leader seat nobody
+eligible wants stays empty and becomes a warning.
 
-**Player count** = `ceil(readied × 1.09)`, the 9% being headroom for late
-joins, stamped on `GameState.playerCount` at Start. Before Start the
-`GameConfig.playerCount` knob stands in (`effectivePlayerCount`).
+**Player count** is the total fate seats: the readied count plus 10%, rounded
+up (`fateCapacity.js#fateSeatsFor`), the 10% being headroom for late joins —
+72 readied is 80. Stamped on `GameState.playerCount` at Start. Before Start the
+`GameConfig.playerCount` knob stands in (`effectivePlayerCount`). How the seats
+are shared out is `CHARACTERS.md` "Fate seats".
 
-Tests: `db/test/roleAssignment.test.js`, `npm test --workspace=db`.
+Tests: `db/test/fateAssignment.test.js`, `npm test --workspace=db`.
 
 ### Preview, hand-set, Start
 
@@ -361,10 +370,10 @@ of the last game (`CHAT.md` §7).
 | `db/lib/gameState.js` | `getGameState`, `readGameState`, `effectivePlayerCount`, `clockFrozen`, `GAME_STATE_CREATE` |
 | `db/lib/gameConfigFields.js` | The registry every `GameConfig` knob is declared in; `npm run db:check-config` |
 | `db/lib/playerPreferences.js` | One-High rule, normalisation |
-| `db/lib/roleAssignment.js` | The roll, pure |
+| `db/lib/fateAssignment.js` | The roll, pure |
 | `db/lib/lobby.js` | Draft build / validate / commit, DMs, Decline, `settleLobbyEntry` |
 | `db/lib/lobbySweep.js` | Resend, reminder, expiry |
-| `db/lib/seatCount.js` | `heldSeats`, `heldSeatsByRole` |
+| `db/lib/seatCount.js` | `heldSeats`, `heldSeatsByFate` |
 | `db/lib/gameEnd.js`, `db/lib/epilogue.js` | Ending and the reveal |
 | `web/app/(app)/character/lobby/Lobby.js`, `lobbyActions.js` | The player lobby |
 | `web/app/(app)/gm/dev/gameActions.js` | Phase transitions, Preview, hand-set, Start, End, Resume |

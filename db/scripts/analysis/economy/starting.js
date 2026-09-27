@@ -19,7 +19,7 @@ const hunger = require("../../../lib/hunger");
 const { FAST_METABOLISM_SLUG, HUNGERLESS_SLUG, FOODSTUFFS_SLUG } = require("../../../lib/constants");
 const { ALL_GROUPS } = require("../../../lib/roleGroups");
 const { median } = require("./stats");
-const { roleCapacity } = require("../../../lib/roleCapacity");
+const { fateCapacity, fateSeatsFor } = require("../../../lib/fateCapacity");
 const { ringName } = require("../../../lib/rings");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -189,8 +189,9 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
           unlimited = true;
           seats = null;
         } else {
-          // The game's own rule (db/lib/roleCapacity.js): never below one seat.
-          seats = roleCapacity({ weight: Number(r.weight ?? 1), baseSeats: r.base_seats ?? 0 }, players);
+          // The game's own rule (db/lib/fateCapacity.js): a share of the pool
+          // left by `players` readied plus 10%, never below one seat.
+          seats = fateCapacity({ weight: Number(r.weight ?? 1) }, fateSeatsFor(players));
         }
       }
       roles.push({

@@ -1,8 +1,8 @@
-// How many of a role's seats are spoken for: characters sitting in them (ALIVE, plus DEAD on every seat but the two that reopen — db/lib/roleCapacity.js), a live wizard hold (RoleReservation), and a live lobby assignment (LobbyEntry ASSIGNED with a future expiresAt — LOBBY.md §4). One function so every caller agrees what "full" means.
+// How many of a fate's seats are spoken for: characters sitting in them (ALIVE, plus DEAD on every seat but the two that reopen — db/lib/fateCapacity.js), a live wizard hold (RoleReservation), and a live lobby assignment (LobbyEntry ASSIGNED with a future expiresAt — LOBBY.md §4). One function so every caller agrees what "full" means.
 // `countReservations: false` leaves out wizard holds, for before Start Game, when a hold is not a seat (db/lib/lobby.js#seatsAllocated).
 // `excludeDiscordUserId` leaves out the caller's OWN hold and assignment, so re-reserving to slide an expiry never fails against itself.
 
-const { seatHolderStatuses, isPermanentSeat } = require("./roleCapacity");
+const { seatHolderStatuses, isPermanentSeat } = require("./fateCapacity");
 
 async function heldSeats(db, role, { excludeDiscordUserId = null, now = new Date(), countReservations = true } = {}) {
   const others = excludeDiscordUserId ? { discordUserId: { not: excludeDiscordUserId } } : {};
@@ -17,7 +17,7 @@ async function heldSeats(db, role, { excludeDiscordUserId = null, now = new Date
 }
 
 // The same count for MANY roles at once, as three groupBys rather than three queries per role. Returns Map<roleId, held>.
-async function heldSeatsByRole(db, roles, { excludeDiscordUserId = null, now = new Date(), countReservations = true } = {}) {
+async function heldSeatsByFate(db, roles, { excludeDiscordUserId = null, now = new Date(), countReservations = true } = {}) {
   if (roles.length === 0) return new Map();
   const roleIds = roles.map((r) => r.id);
   const permanentIds = roles.filter(isPermanentSeat).map((r) => r.id);
@@ -47,4 +47,4 @@ async function heldSeatsByRole(db, roles, { excludeDiscordUserId = null, now = n
   return counts;
 }
 
-module.exports = { heldSeats, heldSeatsByRole };
+module.exports = { heldSeats, heldSeatsByFate };

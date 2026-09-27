@@ -20,10 +20,12 @@ import { savePreferences, setReady, setUnready } from "../lobbyActions";
 
 const LEVEL_LABEL = { OFF: "Off", LOW: "Low", MEDIUM: "Med", HIGH: "High" };
 const JOBLESS_OPTIONS = [
-  { value: "MIGRANT", label: "Join as Migrant" },
+  { value: "BUM", label: "Spawn as Bum" },
+  { value: "MIGRANT", label: "Spawn as Migrant" },
   { value: "RETURN_TO_LOBBY", label: "Return to lobby" },
 ];
 const NOTHING_LINE = {
+  BUM: "Every role is Off: you'll start as a Bum.",
   MIGRANT: "Every role is Off: you'll start as a Migrant.",
   RETURN_TO_LOBBY: "Every role is Off: you'll go back to the lobby.",
 };

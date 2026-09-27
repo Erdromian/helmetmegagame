@@ -589,14 +589,16 @@ model GameConfig {
   // 2026-09-19.
   desireSlotLockTurns Int @default(1)
 
-  // Expected total number of players, the denominator for every role's seat
-  // cap: a role with `weight: 6` in docs/roles.yaml gets
-  // round(6 * playerCount / 100) seats — so the weight is always "seats per
-  // 100 players" no matter what this is set to. Raising it mid-signup widens
-  // every capped role proportionally without touching the YAML.
+  // Expected total fate seats, standing in for GameState.playerCount until
+  // Start Game stamps the real one (the readied count plus 10%). A fate with
+  // `weight: 6` in docs/roles.yaml gets round(6 * pool / 60) seats, the pool
+  // being this less the 20 constant fates — so the default 80 is the 72-
+  // readied game Fate Slot Logic.docx is written for, where every weight is
+  // its own seat count. Raising it widens every proportional fate without
+  // touching the YAML.
   //
-  // roleCapacity() floors a weighted role at 1 seat, so shrinking this never
-  // makes a role in the YAML unpickable.
+  // fateCapacity() floors a weighted fate at 1 seat, so shrinking this never
+  // makes a fate in the YAML unpickable.
   playerCount Int @default(80)
 
   // The narrowcast channels (#cerberon, #27.065) live under a shared Discord
@@ -791,8 +793,9 @@ model GameState {
   startedAt     DateTime?
   endedAt       DateTime?
 
-  // Stamped by Start Game as ceil(readied players * 1.09), the 9% being
-  // headroom for late joins. The denominator for every weighted seat from
+  // The total fate seats, stamped by Start Game as the readied count plus
+  // 10%, rounded up (db/lib/fateCapacity.js#fateSeatsFor) — the 10% being
+  // headroom for late joins. What every weighted seat is a share of from
   // then on; before Start, GameConfig.playerCount stands in
   // (db/lib/gameState.js#effectivePlayerCount).
   playerCount Int?
@@ -3873,13 +3876,15 @@ model Role {
   groupSlug String @default("other")
 
   // Seat math, from the YAML's `multiple`/`weight` pair. Exactly one of
-  // these three shapes applies, resolved by roleCapacity() in
-  // db/lib/roleCapacity.js:
-  //   isUnique  -> exactly 1 seat, forever (`multiple: false`)
+  // these three shapes applies, resolved by fateCapacity() in
+  // db/lib/fateCapacity.js:
+  //   isUnique  -> a constant fate: exactly 1 seat, forever (`multiple: false`)
   //   unlimited -> no cap at any scale (`weight: unlimited`)
-  //   weight    -> round(baseSeats + weight * playerCount / 100)
-  // baseSeats is the YAML's `base_seats`, only ever set beside a numeric
-  // weight: seats a small game gets before the per-100 share is counted.
+  //   weight    -> max(1, round(weight * pool / 60)), a share out of 60 of
+  //                the pool: playerCount less the 20 constant fates
+  // baseSeats is RETIRED (2026-09-27): it was a head start on the old
+  // per-100 weight. The sync refuses `base_seats` and writes 0; nothing reads
+  // the column. Kept rather than dropped, like GameConfig.equipSlots.
   isUnique  Boolean @default(false)
   unlimited Boolean @default(false)
   weight    Int?
@@ -3920,7 +3925,7 @@ model Role {
   // Whether picking this role needs the @Leader Whitelist Discord role -- a
   // hosting decision about who may claim this seat at all. These are the named
   // seats the game cannot open without, so they are also the ones the
-  // assignment roll fills first (db/lib/roleAssignment.js) and the ones the
+  // assignment roll fills first (db/lib/fateAssignment.js) and the ones the
   // picker marks with a star. Declared as `whitelist:` in docs/roles.yaml.
   // Gated by GameConfig.leaderWhitelistEnabled; superadmins bypass. See
   // docs/systemdocs/CHARACTERS.md §2.
@@ -3997,8 +4002,8 @@ model Role {
 // A creation-wizard-in-progress hold on a Role seat. Without this, a player
 // who picks a capacity-1 role at step 1 and spends ten minutes on the tag
 // menu can lose the seat at Confirm with no warning — reported verbatim as
-// "someone took my role". See db/lib/roleReservation.js for the seat math
-// and CHARACTERS.md's Seat caps section.
+// "someone took my role". See db/lib/fateReservation.js for the seat math
+// and CHARACTERS.md's Fate seats section.
 //
 // discordUserId is @unique so a player can hold exactly one seat at a time —
 // reserving a second role is an upsert that releases the first. Expiry is
@@ -4015,11 +4020,13 @@ model RoleReservation {
 }
 
 /// What a player asked for if the roll leaves them with nothing
-/// (docs/systemdocs/LOBBY.md §3). MIGRANT is the one unlimited seat left.
-/// RETURN_TO_LOBBY means they late-join by hand after Start.
+/// (docs/systemdocs/LOBBY.md §3). BUM and MIGRANT spawn them into one of the
+/// two open, uncapped fates; RETURN_TO_LOBBY means they late-join by hand
+/// after Start. BUM is last only because Postgres appends a new enum value.
 enum JoblessRole {
   MIGRANT
   RETURN_TO_LOBBY
+  BUM
 }
 
 /// A player's lobby preferences, keyed by Discord user and DURABLE — Restart
@@ -6636,7 +6643,7 @@ model OocMute {
 //
 // `slots` is the CAP, not what is left -- how many of them are spent is
 // counted off the Character rows holding the role, exactly the way every other
-// seat count in the game is (db/lib/roleCapacity.js#seatHolderStatuses). A
+// seat count in the game is (db/lib/fateCapacity.js#seatHolderStatuses). A
 // second column would be a second copy of the truth and would be wrong the
 // moment a GM deleted a character by hand.
 model LateJoinRole {

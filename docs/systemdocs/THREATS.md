@@ -37,7 +37,7 @@ Three mechanisms are worth knowing about regardless of which seat uses them:
   prefers a GM's explicit pick, then this, then the role's own start.
 - **A Role no player may take.** A spawn needs a Role for its charter, kit and
   start, so a seat can own `docs/roles.yaml` roles whose slugs sit in
-  `SPAWN_ONLY_ROLE_SLUGS` (`db/lib/roleCapacity.js`, re-exported by
+  `SPAWN_ONLY_FATE_SLUGS` (`db/lib/fateCapacity.js`, re-exported by
   `web/lib/characterCreation.js`). That withholds them from the creation
   picker outright, rather than greying them the way a whitelisted seat is
   greyed — and keeps them out of the lobby's roll and its hand-set dropdown
@@ -250,7 +250,7 @@ Its transaction mirrors `createCharacter`'s, which until this landed was the
 only code that had ever written a `Character` row:
 
 - `SELECT id FROM "Role" … FOR UPDATE`, then re-count seats against
-  `roleCapacity()` with `seatHolderStatuses()`. Prisma runs READ COMMITTED, so
+  `fateCapacity()` with `seatHolderStatuses()`. Prisma runs READ COMMITTED, so
   the row lock is what actually stops two people taking one seat.
 - The `ThreatSpawn` row is **re-read under that lock**. Two fast clicks on the
   same button race here, and the status check before the transaction is only an

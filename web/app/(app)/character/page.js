@@ -11,7 +11,7 @@ import {
 import { cultureForRole } from "@lifeweb/db/lib/nameCorpus";
 import {
   prisma,
-  roleCapacity,
+  fateCapacity,
   isDynastyMember,
   presentedIdentity,
   concealmentFrom,
@@ -80,7 +80,7 @@ import {
   travelSentence,
   freeZoneMovesReason,
 } from "@lifeweb/db/lib/locationTravel";
-import { takenCounts } from "@lifeweb/db/lib/roleReservation";
+import { takenCounts } from "@lifeweb/db/lib/fateReservation";
 import { seatsAllocated } from "@lifeweb/db/lib/lobby";
 import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import {
@@ -111,6 +111,7 @@ import {
 } from "@/lib/discordGuild";
 import {
   isSpawnOnly,
+  isLobbyFate,
   isRoleSelectable,
   DEFAULT_MAX_DRAWBACK_TAGS,
   DEFAULT_MAX_DRAWBACK_POINTS,
@@ -191,8 +192,9 @@ async function loadLobbyData(discordUserId, { leaderWhitelisted }) {
       .map((group) => ({
         slug: group.slug,
         name: group.name,
+        // Bum and Migrant are the fallback below, never a priority (LOBBY.md §2).
         roles: group.roles
-          .filter((role) => !isSpawnOnly(role))
+          .filter(isLobbyFate)
           .map((r) => ({
             id: r.id,
             slug: r.slug,
@@ -241,7 +243,7 @@ async function loadCreationData(discordUserId, { config, state, leaderWhiteliste
 
   // LATE JOINS (db/lib/lateJoin.js): the seats a GM has opened, drawn in their
   // own "Special" section above the social buckets. `slots` is the cap here
-  // rather than roleCapacity() — a late join is a door somebody opened by hand,
+  // rather than fateCapacity() — a late join is a door somebody opened by hand,
   // so the number of chairs is the GM's answer, not a function of the roster.
   // `taken` still comes from takenCounts, so a live wizard hold counts against
   // the seat exactly as it does on every other card.
@@ -274,7 +276,7 @@ async function loadCreationData(discordUserId, { config, state, leaderWhiteliste
         // characterCreation.js#isSpawnOnly.
         roles: group.roles
           .filter((role) => !isSpawnOnly(role))
-          .map((role) => roleCard(role, roleCapacity(role, playerCount))),
+          .map((role) => roleCard(role, fateCapacity(role, playerCount))),
       }))
       .filter((g) => g.roles.length > 0),
     // The late-join seats a GM has opened, above the buckets. Empty is the
@@ -290,7 +292,7 @@ async function loadCreationData(discordUserId, { config, state, leaderWhiteliste
 // One role card, shared by the social buckets and the Special section so the
 // two can never disagree about what a seat looks like. `cap` is passed in
 // because the two answer it differently: a bucket seat scales with the roster
-// (roleCapacity), a late join is however many chairs the GM opened.
+// (fateCapacity), a late join is however many chairs the GM opened.
 function makeRoleCard({ leaderWhitelisted, takenByRole }) {
   return function roleCard(role, cap) {
     return {

@@ -1,9 +1,9 @@
 // Who is a GHOST — the watching seat. `ghost(player) := they have a body, and no ALIVE character`. A dead player reads the game from `/chat` and talks in Deadchat (db/lib/deadchatAccess.js)
 // until they take a new body, and nothing else ends it.
 //
-// NOT the curse (db/lib/curse.js), which answers a different question with a different rule and
-// drives only the re-roll penalty (migrant/bum only, six fewer points). The two used to be one
-// predicate, so burying a body — which is supposed to LIFT a re-roll penalty — also evicted that
+// NOT the curse (db/lib/curse.js), which answers a different question with a different rule:
+// whether this player may make a new character at all. The two used to be one
+// predicate, so burying a body — which is supposed to LIFT the curse — also evicted that
 // player from watching the game. Burial says nothing about who may watch; only re-rolling does.
 //
 // Takes `prisma` as a parameter rather than requiring db/index.js: that would resolve to a partial

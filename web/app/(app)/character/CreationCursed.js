@@ -4,7 +4,7 @@ import { CURSED_REFUSAL } from "@/lib/characterCreation";
 // Shown in place of the creation wizard while this player's last body lies
 // unburied (db/lib/curse.js). The curse used to narrow the wizard to Migrant
 // and Bum at six fewer points; it shuts the door outright now, so there is no
-// wizard to grey out. createCharacter and reserveRoleAction enforce it
+// wizard to grey out. createCharacter and reserveFateAction enforce it
 // independently — this only says so before four steps of work.
 export default function CreationCursed() {
   return (

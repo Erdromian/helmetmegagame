@@ -4,7 +4,7 @@
 // DMing them an offer (THREATS.md §4); a late join is the GM opening a door and
 // letting whoever wants it walk through. The two share a shape -- a Role that
 // the ordinary picker hides, kit from `starting_tags`, a seat count -- which is
-// why the candidate roles below all sit in SPAWN_ONLY_ROLE_SLUGS too. They are
+// why the candidate roles below all sit in SPAWN_ONLY_FATE_SLUGS too. They are
 // deliberately NOT the same switch: sometimes the GM wants to choose the people
 // who play the Tribunal, and sometimes they want to open three chairs and let
 // the room fill them.
