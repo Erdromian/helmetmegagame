@@ -37,7 +37,7 @@ const {
   COMBAT_WRITE_PREFIX,
   COMBAT_CALL_OFF_PREFIX,
 } = require("@lifeweb/db/lib/combat");
-const { SURPRISED, invitedLine, joinSideLine } = require("@lifeweb/db/lib/combatMode");
+const { SURPRISED, DECLINED_ATTACKERS, invitedLine, joinSideLine } = require("@lifeweb/db/lib/combatMode");
 const { sendCombatDms } = require("../combatButtons");
 const { seenById } = require("@lifeweb/db/lib/intercept");
 const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
@@ -357,7 +357,11 @@ const attack = {
     const rows = fights.map((f, i) => {
       const n = several ? ` (${i + 1})` : "";
       return new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(verbId("attack", "side", `A~${f.combatId}`)).setLabel(`Join the attackers${n}`).setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder()
+          .setCustomId(verbId("attack", "side", `A~${f.combatId}`))
+          .setLabel(`Join the attackers${n}`)
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(Boolean(f.declined)),
         new ButtonBuilder().setCustomId(verbId("attack", "side", `D~${f.combatId}`)).setLabel(`Join the defenders${n}`).setStyle(ButtonStyle.Secondary),
       );
     });
@@ -370,6 +374,7 @@ const attack = {
       ...(several ? [`**Fight ${i + 1}**`] : []),
       `Attacking: ${f.attackers.join(", ")}`,
       `Defending: ${f.defenders.join(", ")}`,
+      ...(f.declined ? [`-# ${DECLINED_ATTACKERS}`] : []),
     ]);
     const head = several ? "Fights are going on here:" : "A fight is going on here:";
     return respond(interaction, { content: [head, ...lines].join("\n"), components: rows }, { fleeting: false });

@@ -52,7 +52,7 @@ export default function FightPanel({ view, onChanged }) {
               Decline
             </button>
           </div>
-          <p className="text-xs text-muted">If you decline you can go, but you can&apos;t attack anyone here until next turn.</p>
+          <p className="text-xs text-muted">If you decline you can go, but you can&apos;t join this fight&apos;s attackers later.</p>
         </div>
       ) : null}
 

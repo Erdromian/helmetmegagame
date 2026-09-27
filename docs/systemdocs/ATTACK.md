@@ -68,9 +68,12 @@ the server's own sentence):
 2. **Not in combat mode** — required to attack (Combat Mode.docx).
 3. **Already in a fight** — one at a time.
 4. **Withdrawing** — you called a fight off in the last 30 minutes (§7).
-5. **You declined a fight here this turn** — the doc: somebody who was asked
-   and said no "may not perform an attack action in the location where the
-   combat is occurring until next turn".
+
+Declining an invitation is **not** one of these gates. The doc barred a
+decliner from attacking anywhere at that Location until next turn; Bascinet
+narrowed it (2026-09-27) to one thing, joining the **attackers of the fight
+they turned down** (§4, §6). New attacks, other fights, and that same fight's
+defenders all stay open.
 
 Plus ACT: a bound or paralysed character is told why.
 
@@ -134,8 +137,10 @@ somebody leaving never interleave.
 **An invitation** (a collaborator, or somebody an ambush's owner asked along)
 is answered Join or Decline — in the fight's DM, on Discord or the web
 thread, or in the Attack dialog. Until then the invitee is held (Bascinet,
-2026-09-27). Decline, and they may go, but not attack anyone here until next
-turn (§1). An invitation still unanswered at the push counts as declined.
+2026-09-27). Decline, and they may go, and may not join that fight's attackers
+later (`DECLINED_ATTACKERS`, asked in `combat.js#intervene`). They may still
+join its defenders, start a new attack, or join any other fight, invitations to
+other fights included (Bascinet, 2026-09-27). An invitation still unanswered at the push counts as declined.
 The invitation names who asked — the fight's initiator, or the ambush's owner,
 by the name the invitee knows them by — in the DM, the fight panel, the Discord
 readout and the line under the turn card ("A young man has asked you to join
@@ -189,7 +194,11 @@ Somebody not in the fight who presses Attack where a fight is going on is
 offered **Join the attackers**, **Join the defenders**, or **Start a separate
 attack** on people not already fighting (`combat.js#intervene`). Joining is an
 Attack, so it takes the same gates (§1) — which makes an intervener always
-alert. Each fight is listed as two labelled lines, **Attacking:** and
+alert. A fight the viewer turned down (§4) has its Join the attackers button
+greyed with the reason (`combatsHere`'s `declined`). Joining its defenders is
+allowed, and since there is one row per person per fight (the unique on
+`combatId` + `characterId`), their declined row becomes their place on the
+defending side rather than a second row. Each fight is listed as two labelled lines, **Attacking:** and
 **Defending:**, and the confirm names who they would fight beside and against
 ("You'll fight alongside Bo against Ada and a young man.",
 `combatMode.js#joinSideLine`), so nobody has to guess which half of a list is

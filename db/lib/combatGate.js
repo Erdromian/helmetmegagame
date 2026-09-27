@@ -15,7 +15,6 @@ const {
   INTERCEPT_LOCKED,
   ALREADY_FIGHTING,
   WITHDRAWING_BLOCK,
-  DECLINED_HERE,
   AMBUSH_SPRUNG,
 } = require("./combatMode");
 
@@ -36,7 +35,8 @@ async function lockBlock(db, turn, sentence) {
 //   2. combat mode — required to attack (Combat Mode.docx)
 //   3. already in a fight — one at a time
 //   4. withdrawing — they called one off, and wait thirty minutes (Bascinet, 2026-09-27)
-//   5. they were asked to join a fight HERE this turn and declined (the doc)
+// Declining an invitation is NOT a gate here: it bars only that one fight's attackers, which
+// combat.js#intervene asks, since only it knows which fight (Bascinet, 2026-09-27).
 // `character` needs id, combatModeSinceTurn, heldUntil and heldReason; `locationId` is where they stand.
 async function combatBlock(db, { character, turn, locationId = character?.locationId ?? null, now = new Date() }) {
   if (!turn) return "No turn is open.";
@@ -50,13 +50,6 @@ async function combatBlock(db, { character, turn, locationId = character?.locati
   if (busy) return ALREADY_FIGHTING;
   if (character.heldReason === WITHDRAWING && character.heldUntil && new Date(character.heldUntil) > now) {
     return WITHDRAWING_BLOCK;
-  }
-  if (locationId) {
-    const declined = await db.combatParticipant.findFirst({
-      where: { characterId: character.id, status: "DECLINED", combat: { turnId: turn.id, locationId } },
-      select: { id: true },
-    });
-    if (declined) return DECLINED_HERE;
   }
   return null;
 }

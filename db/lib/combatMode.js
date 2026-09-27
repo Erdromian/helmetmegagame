@@ -22,7 +22,9 @@ const CALL_OFF_LOCKED = "Moves are locked for this turn, so the fight can't be c
 const DESCRIBE_LOCKED = "Moves are locked for this turn, so your attack can't be changed now.";
 const ALREADY_FIGHTING = "You're already in a fight.";
 const WITHDRAWING_BLOCK = "You've just called off a fight. You can't start another one yet.";
-const DECLINED_HERE = "You stayed out of the fight here. You can't attack anyone here until next turn.";
+// Turning an invitation down bars one thing: joining that same fight's attackers later. Its defenders, other
+// fights and new attacks all stay open (Bascinet, 2026-09-27).
+const DECLINED_ATTACKERS = "You turned down this fight, so you can't join its attackers.";
 // A sprung ambush keeps the targets it was set with until its fight is over (Bascinet, 2026-09-27).
 const AMBUSH_SPRUNG = "Your ambush has already sprung. You can't change it until the fight is over.";
 // An ambush ends with the fight it sprang (Bascinet, 2026-09-27); its owner is told.
@@ -108,7 +110,7 @@ module.exports = {
   DESCRIBE_LOCKED,
   ALREADY_FIGHTING,
   WITHDRAWING_BLOCK,
-  DECLINED_HERE,
+  DECLINED_ATTACKERS,
   AMBUSH_SPRUNG,
   AMBUSH_ENDED,
   TOO_FAR_TO_INTERVENE,

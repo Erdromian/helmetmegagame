@@ -49,6 +49,7 @@ const {
   DESCRIBE_LOCKED,
   ATTACK_LOCKED,
   DESCRIPTION_LIMIT,
+  DECLINED_ATTACKERS,
   AMBUSH_ENDED,
   listNames,
 } = require("./combatMode");
@@ -559,7 +560,7 @@ function answerInvite(db, { participantId, characterId, join, turn, now = new Da
     if (join) dms.push(fightDm(me, out, ["You join the fight."]));
     return {
       ok: true,
-      line: join ? "You join the fight." : "You stay out of it. You can go, but you can't attack anyone here until next turn.",
+      line: join ? "You join the fight." : "You stay out of it. You can go, but you can't join its attackers now.",
       dms: dms.filter(Boolean),
       speak: [],
     };
@@ -594,6 +595,15 @@ function intervene(db, { character, combatId, side, turn, now = new Date() }) {
     });
     if (!combat || combat.endedAt || combat.turnId !== turn.id) refuse("That fight is over.");
     if (combat.locationId !== row.locationId) refuse("That fight isn't here.");
+    // Somebody who turned an invitation to THIS fight down may not join its attackers after all, but may join
+    // its defenders (Bascinet, 2026-09-27). One row per person per fight (the unique on combatId+characterId),
+    // so joining the defenders turns the declined row into their place on that side.
+    const earlier = await db.combatParticipant.findFirst({
+      where: { combatId: combat.id, characterId: row.id },
+      select: { id: true, status: true },
+    });
+    if (earlier?.status === "DECLINED" && side === "ATTACKER") refuse(DECLINED_ATTACKERS);
+    if (earlier && earlier.status !== "DECLINED") refuse(ALREADY_FIGHTING);
     const { hops, fromLocationId } = distanceOf(combat, row.id);
     if (hops > MAX_INTERVENE_DISTANCE) refuse(TOO_FAR_TO_INTERVENE);
     const from = fromLocationId
@@ -605,7 +615,17 @@ function intervene(db, { character, combatId, side, turn, now = new Date() }) {
       await lockCombat(tx, combat.id);
       const fresh = await tx.combat.findUnique({ where: { id: combat.id }, select: { endedAt: true } });
       if (fresh?.endedAt) refuse("That fight is over.");
-      const { count } = await tx.combatParticipant.createMany({ data: [{ ...data, combatId: combat.id }], skipDuplicates: true });
+      let count = 0;
+      if (earlier) {
+        try {
+          ({ count } = await tx.combatParticipant.updateMany({ where: { id: earlier.id, status: "DECLINED" }, data }));
+        } catch (err) {
+          // The one-fight claim: pulled into another fight since the gate was asked.
+          if (err?.code !== "P2002") throw err;
+        }
+      } else {
+        ({ count } = await tx.combatParticipant.createMany({ data: [{ ...data, combatId: combat.id }], skipDuplicates: true }));
+      }
       if (count !== 1) refuse(ALREADY_FIGHTING);
       await settleHold(tx, row.id, turn, now);
       // The other side may have had nobody to be held BY until now.
@@ -1022,11 +1042,23 @@ async function combatsHere(db, viewer, turn) {
     },
     orderBy: { startedAt: "asc" },
   });
+  const turnedDown = new Set(
+    fights.length
+      ? (
+          await db.combatParticipant.findMany({
+            where: { characterId: viewer.id, status: "DECLINED", combatId: { in: fights.map((f) => f.id) } },
+            select: { combatId: true },
+          })
+        ).map((r) => r.combatId)
+      : [],
+  );
   const out = [];
   for (const fight of fights) {
     const names = await seenByMany(db, viewer.id, fight.participants.map((p) => p.character));
     out.push({
       combatId: fight.id,
+      // They turned this one down: its attackers are shut to them, its defenders are not.
+      declined: turnedDown.has(fight.id),
       attackers: fight.participants.map((p, i) => (p.side === "ATTACKER" ? names[i] : null)).filter(Boolean),
       defenders: fight.participants.map((p, i) => (p.side === "DEFENDER" ? names[i] : null)).filter(Boolean),
     });

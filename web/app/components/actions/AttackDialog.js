@@ -7,7 +7,7 @@ import FightPanel from "../FightPanel";
 import { useConfirm } from "../ConfirmProvider";
 import useSubmit from "./useSubmit";
 import { loadAttacks, attackCharacterRequest, interveneRequest } from "@/app/(app)/character/attackActions";
-import { joinSideLine } from "@lifeweb/db/lib/combatMode";
+import { joinSideLine, DECLINED_ATTACKERS } from "@lifeweb/db/lib/combatMode";
 
 // Attacking (docs/systemdocs/ATTACK.md, from Bascinet's Combat Overhaul.docx). Three faces, one dialog:
 //
@@ -127,13 +127,14 @@ export default function AttackDialog({ onDone, onClose }) {
             <span className="text-muted">Defending:</span> {fight.defenders.join(", ")}
           </p>
           <div className="chat-buttons">
-            <button type="button" className="btn-quiet" disabled={busy || Boolean(blocked)} onClick={() => join(fight, "ATTACKER")}>
+            <button type="button" className="btn-quiet" disabled={busy || Boolean(blocked) || fight.declined} onClick={() => join(fight, "ATTACKER")}>
               Join the attackers
             </button>
             <button type="button" className="btn-quiet" disabled={busy || Boolean(blocked)} onClick={() => join(fight, "DEFENDER")}>
               Join the defenders
             </button>
           </div>
+          {fight.declined ? <p className="text-xs text-muted">{DECLINED_ATTACKERS}</p> : null}
         </div>
       ))}
 
