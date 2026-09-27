@@ -204,14 +204,15 @@ export default function ChatAside({
       </Block>
 
       <Block head="Turn" fold="turn" folds={folds}>
-        <TurnCard
-          turn={moveState.turn}
-          move={moveState.move}
-          onFile={() => setDialog("move")}
-          onEdit={() => setDialog("move")}
-        />
-        {/* Under the Turn block, per Combat Mode.docx (COMBAT-MODE.md §2). */}
-        <CombatModeButton state={moveState.combatMode} onChanged={moveState.refresh} />
+        {/* Combat mode sits beside Move…, per Combat Mode.docx (COMBAT-MODE.md §2). */}
+        <CombatModeButton state={moveState.combatMode} onChanged={moveState.refresh}>
+          <TurnCard
+            turn={moveState.turn}
+            move={moveState.move}
+            onFile={() => setDialog("move")}
+            onEdit={() => setDialog("move")}
+          />
+        </CombatModeButton>
       </Block>
 
       {/* No card at all when nothing is waiting — an empty box saying it is

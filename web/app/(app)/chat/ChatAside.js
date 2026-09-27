@@ -236,13 +236,14 @@ export default function ChatAside({
       <div className="block">
         <h3 className="bar">Turn</h3>
         <div className="body">
-          <TurnCard
-            turn={moveState.turn}
-            move={moveState.move}
-            onFile={() => setDialog("move")}
-            onEdit={() => setDialog("move")}
-          />
-          <CombatModeButton state={moveState.combatMode} onChanged={moveState.refresh} />
+          <CombatModeButton state={moveState.combatMode} onChanged={moveState.refresh}>
+            <TurnCard
+              turn={moveState.turn}
+              move={moveState.move}
+              onFile={() => setDialog("move")}
+              onEdit={() => setDialog("move")}
+            />
+          </CombatModeButton>
         </div>
       </div>
 

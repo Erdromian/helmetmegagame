@@ -47,11 +47,22 @@ turn it on. Both writes are conditional `updateMany`s, so two presses racing
 stamp once. Each change writes a `character_combat_mode_set` audit row.
 
 **On the web** it is `web/app/components/CombatModeButton.js`: a square button
-with crossed swords, "Combat mode", and On/Off.
+with crossed swords and On/Off, **to the right of the Move… button** — in the
+**Turn** block on `/chat` (`chat/next/ChatAside.js`, and the old aside behind
+`?old=1`) and in the sheet's **This turn** box (`components/SheetTurn.js`).
 
-- Under the **Turn** block on `/chat` (`chat/next/ChatAside.js`, and the old
-  aside behind `?old=1`).
-- Larger, in the sheet's **This turn** box (`components/SheetTurn.js`).
+**It is as large as it can be without making the box any taller** (Bascinet,
+2026-09-27). It wraps the turn card and measures it (`fitSquare`): the largest
+square whose foot is on the card's foot, just right of the card's last button,
+that touches no line of text — so it rises beside a short last line of the turn
+line, and on the sheet it fills the height the band row already gives the box.
+It is positioned absolutely, so it can never push anything down, and it is
+re-measured whenever the card changes size or its words change. What is inside
+scales with the square (`container-type: size`): "Combat mode" only shows once
+the square is 64px tall, and below that it is the swords and On/Off. Around
+42–46px on a desktop and 35px on a phone, as the seed scenes stand. Under 32px
+there is no square worth pressing, so it drops under the card and the card makes
+room — the one case where it does grow the box.
 
 Its state rides `chat/actions.js#myMove`, the poll the turn card already runs,
 so the push switching it off reaches both surfaces on the next minute without a
@@ -63,8 +74,9 @@ every other boolean uses, on purpose. A Switch says "flip it back whenever you
 like", and this one can't come off on the turn it went on — so turning it on
 asks first, through `useConfirm()`. Off comes off at once.
 
-What it says beside it is printed, never a tooltip (`SHEET.md` §3): why it
-won't press (locked on, or Exhausted), or what it is for.
+Nothing is printed beside it, since there is no room. Pressing it while it
+cannot change — locked on, or Exhausted — prints why under the card, never in a
+tooltip (`SHEET.md` §3); the confirm for turning it on says what it is for.
 
 **On Discord** it is `/combat`, and **Combat mode** in the Actions menu's
 Yourself section (`db/lib/actionCatalog.js`, `bot/src/lib/verbs/self.js`). Off

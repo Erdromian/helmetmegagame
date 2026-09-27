@@ -1015,34 +1015,41 @@ input[type="radio"]:focus-visible,
 }
 
 /* Combat mode (COMBAT-MODE.md §2): a square toggle that glows red while on
-   (Combat Mode.docx). Off it is the everyday grey bevel; on it takes the
-   .btn-danger face plus a --danger glow, since being on guard is an alarm
-   state. A pressed button, not a Switch: it can't come off on the turn it went
-   on (DESIGN-SYSTEM.md §5a). Disabled keeps full colour, so a locked-on button
-   still glows; the note beside it says why it won't press. */
-.combat-mode {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-top: 8px;
+   (Combat Mode.docx), beside the Move… button. Off it is the everyday grey
+   bevel; on it takes the .btn-danger face plus a --danger glow, since being on
+   guard is an alarm state. A pressed button, not a Switch: it can't come off on
+   the turn it went on (DESIGN-SYSTEM.md §5a).
+
+   Sized by CombatModeButton.js, not here: the largest square that fits to the
+   right of the card's last button without touching a line of text, so the
+   frame never grows for it. Absolute for that reason, and hidden until that
+   first measurement lands. `container-type: size` lets what is inside scale
+   with whatever square it got — the label only shows once there is room. */
+.combat-frame {
+  position: relative;
+  min-width: 0;
 }
 
 .combat-mode-note {
-  min-width: 0;
+  margin: var(--sp-1) 0 0;
 }
 
 .btn-combat {
   all: unset;
+  position: absolute;
+  visibility: hidden;
+  width: 44px;
+  height: 44px;
+  container-type: size;
   cursor: pointer;
   box-sizing: border-box;
-  flex: none;
-  width: 64px;
-  aspect-ratio: 1;
-  display: inline-flex;
+  display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 2px;
+  gap: 1px;
+  padding: 2px;
+  overflow: hidden;
   border-top: 2px solid var(--border-hi);
   border-left: 2px solid var(--border-hi);
   border-right: 2px solid var(--border-lo);
@@ -1050,29 +1057,50 @@ input[type="radio"]:focus-visible,
   border-radius: var(--r);
   background: var(--surface-raised);
   color: var(--text);
-  font-size: var(--fs-2xs);
-  line-height: 1.15;
+  line-height: 1.1;
   text-align: center;
 }
 
-.combat-mode[data-size="lg"] .btn-combat {
-  width: 84px;
+.btn-combat > svg {
+  flex: none;
+  width: 42cqh;
+  height: 42cqh;
 }
 
 .btn-combat-label {
+  display: none;
   font-weight: 700;
+  font-size: clamp(9px, 14cqh, 14px);
 }
 
 .btn-combat-state {
   color: var(--muted);
+  font-size: clamp(9px, 20cqh, 13px);
+  font-weight: 700;
 }
 
-.btn-combat:hover:not(:disabled) {
+/* Room for the words as well: the icon shrinks to make it. */
+@container (min-height: 64px) {
+  .btn-combat > svg {
+    width: 34cqh;
+    height: 34cqh;
+  }
+
+  .btn-combat-label {
+    display: block;
+  }
+
+  .btn-combat-state {
+    font-size: clamp(9px, 14cqh, 13px);
+  }
+}
+
+.btn-combat:hover:not(:disabled, [aria-disabled="true"]) {
   background: color-mix(in srgb, var(--text) 8%, var(--surface-raised));
   color: var(--text-hi);
 }
 
-.btn-combat:active:not(:disabled) {
+.btn-combat:active:not(:disabled, [aria-disabled="true"]) {
   border-top-color: var(--border-lo);
   border-left-color: var(--border-lo);
   border-right-color: var(--border-hi);
@@ -1100,17 +1128,20 @@ input[type="radio"]:focus-visible,
   color: var(--danger);
 }
 
-.btn-combat[aria-pressed="true"]:hover:not(:disabled) {
+.btn-combat[aria-pressed="true"]:hover:not(:disabled, [aria-disabled="true"]) {
   background: color-mix(in srgb, var(--danger) 26%, var(--surface));
   color: var(--danger);
 }
 
+/* Locked on, or Exhausted: pressing it only prints why. It keeps its colour,
+   so a locked-on button still glows; an Exhausted one takes the gated-verb
+   well, as .btn-secondary does. */
+.btn-combat[aria-disabled="true"],
 .btn-combat:disabled {
-  cursor: not-allowed;
+  cursor: default;
 }
 
-/* Off and unpressable (Exhausted): the gated-verb well, as .btn-secondary. */
-.btn-combat[aria-pressed="false"]:disabled {
+.btn-combat[aria-pressed="false"][aria-disabled="true"] {
   border: 2px dashed var(--well-border);
   background: var(--well-bg);
   color: var(--well-text);
