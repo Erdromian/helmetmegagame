@@ -14,6 +14,7 @@ import RoomPanel from "../RoomPanel";
 import Things from "../ThingsDrawer";
 import TurnCard from "../TurnCard";
 import CombatModeButton from "@/app/components/CombatModeButton";
+import FightLine from "@/app/components/FightLine";
 import { usePlaceActions } from "../PlacePanel";
 import { waitingOnYou, answerWaiting } from "../actions";
 import useVisiblePoll from "../useVisiblePoll";
@@ -123,6 +124,7 @@ export default function ChatAside({
   turn,
   moveCharacterId,
   combatMode = null,
+  fight = null,
   move,
   things,
   canSeeExtract = false,
@@ -152,7 +154,7 @@ export default function ChatAside({
       entry.kind === "keyed",
   );
 
-  const moveState = useMyMove({ turn, move, combatMode, characterId: moveCharacterId });
+  const moveState = useMyMove({ turn, move, combatMode, fight, characterId: moveCharacterId });
   const [dialog, setDialog] = useState(null);
   const [waiting, setWaiting] = useState(initialWaiting);
 
@@ -219,6 +221,7 @@ export default function ChatAside({
             />
           )}
         </CombatModeButton>
+        <FightLine fight={moveState.fight} />
       </Block>
 
       {/* No card at all when nothing is waiting — an empty box saying it is

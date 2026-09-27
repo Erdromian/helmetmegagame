@@ -12,6 +12,7 @@ const { GIBBED_SLUG, METEMPSYCHOSIS_SLUG, HEIGHTENED_PSYCHOSIS_SLUG } = require(
 const { THANATI_SLUG } = require("./thanati");
 const { NOT_A_FIGHT } = require("./intercept");
 const { closeFightsFor } = require("./attack");
+const { leaveCombatsFor, sendCombatDms } = require("./combat");
 const { stopPerformances } = require("./performance");
 const { teardownPartyThread } = require("./partyChat");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom } = require("./presentedIdentity");
@@ -108,8 +109,12 @@ async function releaseEntanglements(prisma, characterId) {
   );
 
   // A man who is gone holds nobody (INTERCEPT.md). Their OWN heldUntil is left alone — costs a
-  // corpse nothing and lapses on its own. A FIGHT comes off first, through the row not heldById
-  // (ATTACK.md §2): both attacker and target release, or settleHold would keep pinning the survivor.
+  // corpse nothing and lapses on its own. A FIGHT comes off first, through the participant rows not
+  // heldById (ATTACK.md §7): they are out of it, and a side left with nobody ends it and frees the rest.
+  await leaveCombatsFor(prisma, characterId, "died")
+    .then((out) => sendCombatDms(prisma, out.dms))
+    .catch((err) => console.error(`Failed to leave the fight leaving play for ${characterId}:`, err));
+  // An old one-on-one Attack from the turn the overhaul deployed (db/lib/attack.js, legacy).
   await closeFightsFor(prisma, characterId).catch((err) =>
     console.error(`Failed to close fights leaving play for ${characterId}:`, err),
   );

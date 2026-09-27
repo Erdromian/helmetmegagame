@@ -22,7 +22,8 @@ import {
 } from "@lifeweb/db/lib/intercept";
 import { setWatch, stopWatch } from "@lifeweb/db/lib/verbs/watch";
 import { interceptBlock } from "@lifeweb/db/lib/combatGate";
-import { WATCH_DORMANT } from "@lifeweb/db/lib/combatMode";
+import { WATCH_DORMANT, inCombatMode } from "@lifeweb/db/lib/combatMode";
+import { whosHere } from "@lifeweb/db/lib/whosHere";
 
 // LAYING IN WAIT, from the character sheet (docs/systemdocs/INTERCEPT.md).
 // Same posture as cerberonActions.js: the actor is resolved from the session
@@ -31,15 +32,15 @@ import { WATCH_DORMANT } from "@lifeweb/db/lib/combatMode";
 // dialog's own filtering is advisory — a server action is a public endpoint.
 //
 // Nothing here costs a Move, ⬢ or a per-turn ration. Setting a watch is free,
-// but it needs combat mode (docs/systemdocs/COMBAT-MODE.md §3); stopping one
-// never does.
+// but an Ambush needs combat mode (docs/systemdocs/COMBAT-MODE.md §3), and no
+// watch can be set once Moves lock; stopping one never asks.
 
 async function me({ needs = null } = {}) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: { ...IDENTITY_SELECT, heldUntil: true },
+    select: { ...IDENTITY_SELECT, heldUntil: true, combatModeSinceTurn: true },
   });
   if (!character) redirect("/character");
   if (needs) {
@@ -77,6 +78,20 @@ async function holdingRows(characterId) {
   return rows.map((row, i) => ({ id: row.id, name: names[i] }));
 }
 
+// Who an Ambush could ask along: everybody standing here, a hood by its token (db/lib/targetKey.js), each
+// marked if the watch already names them. The watch keeps ids, and those never come to the browser — the
+// match is made here, server-side, against the room as it is now.
+async function collaboratorPicker(character, pickedIds) {
+  const picked = new Set(pickedIds);
+  const room = await whosHere(prisma, character, { includeSelf: false, withSightings: true, withHoodIds: true });
+  return [
+    ...room.named.map((row) => ({ key: `character:${row.characterId}`, name: row.name, picked: picked.has(row.characterId) })),
+    ...room.concealed
+      .filter((row) => row.token)
+      .map((row) => ({ key: `hood:${row.token}`, name: row.alias, picked: picked.has(room.hoodIds?.get(row.token)) })),
+  ];
+}
+
 async function loadInterceptImpl() {
   const { character } = await me();
   const watch = await prisma.interceptWatch.findUnique({
@@ -91,11 +106,17 @@ async function loadInterceptImpl() {
   // Why Save is dead, or null — advisory, setWatch throws the same sentence. A
   // standing watch out of combat mode is kept but dormant (fireWatches), and
   // the dialog says so rather than drawing a watch that will not fire.
-  const blocked = await interceptBlock(prisma, character.id);
+  const turn = await getOpenTurn();
+  const blocked = {
+    SAFE: await interceptBlock(prisma, character.id, { mode: "SAFE", turn }),
+    AMBUSH: await interceptBlock(prisma, character.id, { mode: "AMBUSH", turn }),
+  };
   return {
     ok: true,
     blocked,
-    dormant: live && blocked ? WATCH_DORMANT : null,
+    // Only an Ambush sleeps out of combat mode (Combat Overhaul.docx); a Safe watch never does.
+    dormant: live && live.mode === "AMBUSH" && !inCombatMode(character) ? WATCH_DORMANT : null,
+    people: await collaboratorPicker(character, live?.collaboratorIds ?? []),
     limits: { names: MAX_NAMES, message: MESSAGE_LIMIT },
     watch: live
       ? {
@@ -104,6 +125,7 @@ async function loadInterceptImpl() {
           names: live.targetNames ?? [],
           anyConcealed: live.anyConcealed,
           anyPerson: live.anyPerson,
+          anyUnidentified: live.anyUnidentified,
           outsideZoneOnly: live.outsideZoneOnly,
           autoSearch: live.autoSearch,
           place: live.location?.name ?? null,
@@ -120,14 +142,26 @@ async function setInterceptImpl({
   names,
   anyConcealed,
   anyPerson,
+  anyUnidentified,
   outsideZoneOnly,
   autoSearch,
+  collaboratorKeys,
 }) {
   const { session, character } = await me({ needs: ACT });
   const result = await setWatch(prisma, {
     character,
     discordUserId: session.discordUserId,
-    input: { mode, message, names, anyConcealed, anyPerson, outsideZoneOnly, autoSearch },
+    input: {
+      mode,
+      message,
+      names,
+      anyConcealed,
+      anyPerson,
+      anyUnidentified,
+      outsideZoneOnly,
+      autoSearch,
+      collaboratorKeys: Array.isArray(collaboratorKeys) ? collaboratorKeys.map(String) : [],
+    },
     openTurn: await getOpenTurn(),
   });
   if (!result.ok) throw new UserError(result.error);

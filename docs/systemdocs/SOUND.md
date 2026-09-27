@@ -172,7 +172,10 @@ back to open) and a floor down there would leak the top of every track.
 
 **`ambient`, `spot`, `music` and `player` have callers.** `room` and `event` are
 reachable by `playOn("room", …)` and wired into the rules above, waiting for the
-jukeboxes and the sirens.
+jukeboxes and the sirens. The Den's jukebox is the first one the design document
+describes — its eleven songs are in the library as class `jukebox` (§7) — and it will
+want `room` plus a muffle, "to imitate a low quality speaker". Nothing builds the jukebox
+yet.
 
 ### Muting, and where a track comes back
 
@@ -221,7 +224,9 @@ ramp on `element.volume`. One branch inside one function — not a second engine
    `musicArmed()` says. There is deliberately no "click to enable sound" dialog.
 2. **Is the master off?** `soundSetting()` in the console.
 3. **Is there a program for this state at all?** `resolveProgram` returns `null`
-   for a running game with a living character, and for every `/gm/` path.
+   for a living character, a ghost or a GM in a running game, and for every `/gm/`
+   path — and then it is the conductor's turn (§4a), which is silent between pieces
+   about three quarters of the time.
 4. **On iOS**, the silent switch mutes Web Audio whatever the volume says. That
    is not a bug in this code.
 
@@ -236,14 +241,30 @@ fade or a loop point by editing a number, never by editing control flow.
 `MusicDirector.js` — mounted once in the root layout, renders nothing — picks the
 program from the phase and runs it.
 
-| state | character? | program |
+| state | who | program |
 |---|---|---|
-| any `/gm/` path | either | silence |
-| `CLOSED` | either | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
-| anything but `CLOSED` | no | the **lobby**: one track, looping, the same one for everybody, changing on the hour |
-| anything but `CLOSED` | **yes** | no phase tape — the conductor takes over (§4a) |
+| any `/gm/` path | anyone | no phase tape. The conductor still plays for the three rows at the bottom |
+| `CLOSED` | anyone | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
+| anything but `CLOSED` | a living character | no phase tape — the conductor plays where they stand (§4a) |
+| `RUNNING` | a **ghost** | no phase tape — the conductor plays the dead's own ambience (§4b) |
+| `RUNNING` | a **GM** with no character | no phase tape — the conductor plays the place they are looking at in Chat (below) |
+| anything but `CLOSED` | anyone else | the **lobby**: one track, looping, the same one for everybody, changing on the hour |
 
 Read it top to bottom; that is the order the code asks in.
+
+**"Ambience is universal across all pages, including GM ones."** That is the new
+design document's sentence, and it is why a living character hears their place on
+`/gm/*` too, and why a GM hears one at all. A GM has no character to stand anywhere, so
+the document gives them the place they are **viewing in Chat, or last viewed** —
+`heardPlace.js#useLastHeardPlace` reads Chat's open place, falling back to the
+`bascinet:play:last-place` key Chat keeps across page loads. Chat's keys are ids, so
+`gmPlaces.js` turns one into slugs through `/api/music-places`, a GM-only route fetched
+once per page load. A key that names no place — a DM, a net, Deadchat — leaves the last
+place standing. And "GMs do not have ambience tracks end until they have reached
+completion": a GM's piece is never faded for a move (§4a).
+
+`ghost` and `gm` ride the phase payload (§5), asked only when there is no living
+character in a running game, so a player's poll never pays for either.
 
 ### The lobby, and why it is one row rather than two
 
@@ -267,9 +288,15 @@ with the next hour's anchor.
 | Track | Role |
 |---|---|
 | `a-thousand-empty-rooms` `beyondretrieval` `newlobby31` `outpost` `track3` `track13` | the hourly rotation |
+| `red-calx` `conflict-and-climax` `friction` `manunkind` `stone-in-focus` | (same) — the new document's lobby music |
 | `white_waking` | *"Rare Lobby Music"* — one slot in twelve (`RARE_ONE_IN`) |
 | `haruspex` | *"Lobby Music when there is a lateparty"* — **not wired**, see §7 |
 | `holywarlobby` | *"Special round lobby music"* — **not wired**, see §7 |
+| `surfacing` `identity-theft` | *"Lobby music after the game has started and the count is in play"* — **not wired**: there is no Count |
+| `mission-end` | *"Lobby music after the round starts and the gamemode is OS13"* — **not wired**: there is no OS13 gamemode |
+
+"Only lobby music tracks can play during lobby" — the new document says so outright, and
+it is what the lobby tape already was: nothing but `LOBBY_TRACKS` and the rare slot.
 
 The rare slot is decided by the slot number too, never by a roll: a rare track
 only some of the lobby could hear would not be rare, it would be broken. Rare
@@ -363,8 +390,8 @@ later, and leaks exactly the few milliseconds of intro the offset exists to skip
 [piece] → [silence] → [piece] → [silence] → …
 ```
 
-A piece is whatever the place you are standing in sounds like (§4b). **There is
-only one kind of piece.**
+A piece is whatever the place you are standing in sounds like (§4b), picked off its
+stack of tiers by `musicSchedule.js#pickTiered`. **There is only one kind of piece.**
 
 This used to alternate an ambient bed with a track off a general music rotation,
 on a 35% roll once you had settled in for eight minutes. **The design document has
@@ -374,9 +401,23 @@ was in it is either lobby music, the ambience of a particular place, or marked
 `AMBIENT_GAIN` and `music: false` all went with the idea. A long track is still a
 long track; it just belongs somewhere now.
 
-- **Nothing on the timeline cuts anything off**, because only one thing is ever on
-  it. A piece plays to its end. The only interruption is a performance — a
-  jukebox or somebody playing — and §3's rules handle that.
+- **A piece plays to its end, with two exceptions, and both are the document's:**
+  "Ambience tracks continue to completion unless they are interrupted by an ambience
+  interrupting SFX, or the character leaves the specific zone in which they can play,
+  in which case they fade out."
+  - `interrupt(piece)` fades the piece out over 1.5 s and plays the interrupter in its
+    place, to its own end, then the ordinary gap. Two are wired: `geist.ogg` the moment
+    this page sees its viewer become a ghost, and `locus-meropis.ogg` for the Charon's
+    passengers once per launch (`standing.charonLaunchedAt`, a 10-minute window, and a
+    `bascinet:music:charon` stamp so a reload does not play it twice). Asked for before
+    the conductor starts, an interrupter is the first thing it plays.
+  - `setPlace(next)` fades the piece over 4 s if `next` could never have picked it
+    (`placeAmbience.js#placeHas`). Town to Undertown keeps a general or fortress track
+    going, because it can play in both; Town to space does not. A spot is held to the
+    same test against the new place's spots.
+  - **A GM's piece is never faded for a move** — `setPlace(next, { keep: true })`.
+  A performance — a jukebox or somebody playing — still covers a piece rather than
+  ending it, and §3's rules handle that.
 - **About 75% of in-game time is silence**, which is the document's first rule for
   an ambience track. After a piece that lasted *d*, the gap is *d* × 3, ±30%,
   never under 2 minutes (`SILENCE_SHARE`, `MIN_GAP_MS`). Scaling the gap to the
@@ -390,9 +431,8 @@ long track; it just belongs somewhere now.
   play it on the `spot` layer, wait 45–180 s, again. §3's third rule is what keeps
   the two from fighting. That range is **ours**, not the document's — it says what
   a spot is for and never how often.
-- **Walking somewhere new queues rather than cuts.** It changes what "here"
-  means, and the next piece is picked from the new place. No exceptions now: the
-  one that existed was for a song following you into a quiet place.
+- **Walking somewhere new changes what plays NEXT.** The next piece is picked from
+  the new place; the one in the air carries on if it may play there too (above).
 - **It lives at module scope**, so a soft navigation never restarts it.
   `MusicDirector.js` calls `start()` / `stop()` when in-game play begins and
   ends, and `setPlace()` when where you are standing changes.
@@ -407,20 +447,20 @@ fails if the silence share drifts or a piece repeats back to back. Set
 
 ## 4b. What a PLACE sounds like
 
-`web/app/components/placeAmbience.js` answers **what** would play here: a pool
-of pieces per place. The conductor (§4a) decides **when**.
+`web/app/components/placeAmbience.js` answers **what** could play here: a stack of
+tiers of pieces per place. The conductor (§4a) decides **when**.
 
 **A piece is one of two things, and the difference is whether the file has an
 end.**
 
-- A file with an **end** — `once()` — plays start to finish and is never cut
-  off. The Cathedral's organ room, a drip in the Lifeweb, a six-minute drone.
+- A file with an **end** — `once()` — plays start to finish. The Cathedral's organ
+  room, a drip in the Lifeweb, a six-minute drone.
 - A **texture** — `loop()` — has no end of its own: a three-second fire, a wind
   gust, an idling engine. It loops for a span (60–150 s unless the place says
   otherwise) and then fades out over 6 seconds. That fade is the end it was
   always going to have.
 
-A pool never plays the same piece twice running when it has a choice.
+A place never plays the same piece twice running when it has a choice.
 
 **Every placement in this file comes out of `docs/sounds.yaml` (§7), and each one
 carries its use case as a comment beside it** — the sentence is the reason the
@@ -428,18 +468,52 @@ file is there and the filename is not. `ambimine.ogg` sounds like it belongs in 
 mine and the document puts it in space, which is exactly the sort of thing this
 file used to get wrong.
 
-**A place has two pools, which is the document's own split.** `pieces` are the
-beds (class `ambience`), one at a time on the `ambient` layer. `spots` are class
-`atop` — "short sounds which add to the atmosphere", laid *over* the bed on the
-`spot` layer rather than in place of it. The winds are spots over the surface and
-the chapel tones are spots over the Cathedral; both were beds until the document
-said otherwise.
+**Beds and spots are the document's own split.** Beds are class `ambience`, one at
+a time on the `ambient` layer. Spots are class `atop` — "short sounds which add to
+the atmosphere", laid *over* the bed on the `spot` layer rather than in place of it.
+The winds are spots over the surface and the chapel tones are spots over the
+Cathedral.
 
-### Resolution, and how a room gets heard
+### The placement rules
 
-Most specific wins: **Room slug → Location slug → attribute → Zone slug →
-`indoors`**. The attribute list is ordered rather than an object, because a
-place can carry several and the order is the answer.
+The new design document opens with rules for where any ambience may play, old files
+and new (`placement:` in `docs/sounds.yaml`, word for word). This file is those rules
+in code, and `web/lib/__tests__/placeAmbience.test.mjs` holds it to them:
+
+- **"ONLY ambience tracks referring to space are to be used in space."** Space has
+  one tier and nothing else, whoever is listening. That moved `spookyspace1` and
+  `spookyspace2` ("Quiet ambience in space") out of the Caves and the Depths and
+  into space, took `ambigen11` ("atop silence in space stations") off the Depths,
+  and keeps `charon_loop` ("in proximity to charon") to the ship on the ground.
+- **"General ambience is for use in the town/undertown/keep/blackhills/caves/depths."**
+  Eleven tracks, the bottom tier of every place in those six zones.
+- **"The fortress" is every location in the Keep, the Town and the Undertown.** The
+  Keep is the zone called `fortress` — the document lists "the keep" beside the town
+  as a zone — and "the underfort" is the Undertown. So `loop_airy1` ("Ambience in the
+  fortress") is in all three now, with six new fortress tracks.
+- **Caves/depths tracks play in the Black Hills too.** The Hills have no bed of their
+  own; `surfacing`, which was one, is lobby music for a Count that does not exist yet.
+- **"The most specific ambience track to a situation will be selected over more
+  general tracks, with some variation."** See the tiers below.
+
+### Tiers, and how a room gets heard
+
+A place is a **stack of tiers, most specific first**, with the empty ones dropped:
+
+```
+what the listener is → room → Location (or attribute) → zone → fortress → general
+```
+
+`musicSchedule.js#pickTiered` rolls a tier off `TIER_WEIGHTS` — 0.55, 0.25, 0.12,
+0.08, renormalised over the tiers a place has — then a piece within it, never the
+last one played. At the Inn that is its two tracks about half the time, the town's
+walk, the fortress and the general tracks the rest. The weights are data: retune a
+number, not control flow.
+
+A Location attribute sits at the Location's tier; the list is ordered, because a
+place can carry several and the order is the answer. `resolveAmbience` memoises
+each distinct answer, so two neighbouring caves resolve to the very same object and
+a re-render never looks like a move.
 
 **A room is the one Chat has open.** `Character` has `locationId` and `zoneId`
 and no room column, so which room you *hear* is the room you are *reading*.
@@ -464,39 +538,44 @@ It is only for a fire that is out of control, and `docs/sounds.yaml` records
 that as the file's `needs`. Nothing in the game can tell that a fire is out of
 control yet, so nothing plays it.
 
-Every entry in the table is built once at module load, so two neighbouring
-caves resolve to the very same object.
+### What the LISTENER is: the most specific tier
 
-### What the LISTENER is, which outranks where they are
-
-Two placements are conditions on the person rather than on the room, and both are
-read before any of the above:
+Some placements are conditions on the person rather than on the room. They make the
+top tier — the most specific thing about a situation is who is in it — but a tier,
+not a wall: the place still gets a word in. Space is the exception, because space
+is space.
 
 | Use case | Reading |
 |---|---|
 | `ambi2.ogg` — "Ambience while in pain shock or sedated" | `impaired`, anywhere |
+| `parhelic-triangle.ogg`, `fools-village.ogg` — "Ambience while hallucinating" | the `hallucinating` tag |
+| `abyssus-abyssum-invocat.ogg` — "Ambience while wearing thanati robes" | `black-robes`, **equipped** |
 | `loop_airy4.ogg` — "Ambience in town when character mood is low" | zone `town` and `moodTone: "bad"` |
 
-`impaired` and `moodTone` ride the phase payload (§5). **"Sedated" has no
-counterpart in the tag catalog** — `pain-shock` is real and `unconscious` is the
-nearest thing to it, so `IMPAIRED_TAGS` in `gamePhase.js` is a reading rather than
-a translation. Say so before relying on it.
+These ride the phase payload (§5). **"Sedated" has no counterpart in the tag
+catalog** — `pain-shock` is real and `unconscious` is the nearest thing to it, so
+`IMPAIRED_TAGS` in `gamePhase.js` is a reading rather than a translation. Say so
+before relying on it.
 
-### There is no `music: false` any more
+**A ghost is not anywhere.** `GHOST` is its own place: "Ambience while a ghost",
+"Ambience for ghosts", and `geist.ogg`, which is both that and the interrupter for
+becoming one (§4a).
 
-It used to keep the general music rotation out of the **Caves**, the **Depths**,
-the **Lifeweb** and **Space**. There is no rotation to keep out (§4a), and each of
-those four now has a bed of its own from the document — `to_hell.ogg` in the
-caves, `spookyspace2.ogg` in the Depths, `lifeweb2b.ogg` in the Tower,
-`ambispace.ogg` and `ambimine.ogg` in space. Nothing is keeping you company down
-there either way; it is just named now.
+### Conditional beds
 
-The **Depot** is the one place whose bed is conditional: `train_loop` plays only
-while the train is actually standing at the platform, which is
-`db/lib/train.js#trainHere` and the first hour of the turn
-(`web/lib/gamePhase.js`). It has to stop, or "the train is in" stops meaning
-anything and becomes the Depot's permanent room tone. Rails empty, it is an
-ordinary cellar.
+The **Depot**'s bed is conditional: `train_loop` plays only while the train is
+actually standing at the platform, which is `db/lib/train.js#trainHere` and the
+first hour of the turn (`web/lib/gamePhase.js`). It has to stop, or "the train is
+in" stops meaning anything and becomes the Depot's permanent room tone. Rails empty,
+the Depot is the Undertown like anywhere else down there.
+
+### What is described and not placed
+
+Most of the new document's tracks are for things the game does not have yet — the
+Count's camp, limbo, an alien location, a Wonder, the Dreamer, THEY, soulbreakers,
+an alarm in the fortress, a space station, the Den's jukebox, three drugs, a
+revolutionary. Each one is in the library and the registry with a `needs` line
+saying what is missing, and nothing plays it. `npm run sounds:report` lists them.
 
 ---
 
@@ -526,18 +605,26 @@ shipping to a browser. The one exception is `rooms`, id to slug for the rooms at
 that Location, which is how the room Chat has open is matched (§4b); ids are
 already in every place key Chat holds. `useStanding()` is the hook.
 
-**`standing` also carries what the LISTENER is**, because two of the document's
+**`standing` also carries what the LISTENER is**, because some of the documents'
 use cases are about the person rather than the room (§4b):
 
 - `moodTone` — the *tone* of the mood band (`bad` / `warn` / `muted` / `good`)
   from `db/lib/mood.js#bandOf`, never the dial itself. The number is one no player
   is ever shown (`MOOD.md`), and it has no business crossing to a browser just so
   the soundtrack can compare it against a threshold of its own.
-- `impaired` — whether they hold any of `IMPAIRED_TAGS`. Filtered in the query
-  with `take: 1` rather than fetching the tag list and scanning it.
+- `impaired`, `hallucinating` and `robed` — whether they hold any of
+  `IMPAIRED_TAGS`, the `hallucinating` tag, and `black-robes` **equipped**. One join,
+  filtered in the query to those few slugs rather than fetching the tag list.
+- `charonLaunchedAt` — the launch time, for ten minutes after the Charon lifts, and
+  only for somebody standing at the orbit Location it lifted them to. One more read,
+  and only there.
 
 Mood is free: it is a scalar on the `Character` row already being read. The tags
 are the one extra join.
+
+**With no living character in a running game**, the payload adds `ghost`
+(`db/lib/ghost.js#isPlayerGhost`) and `gm` (`getGmSession`). Both are `false`
+otherwise and cost nothing, so a living player's poll never pays for them (§4).
 
 Two things that are easy to get wrong here:
 
@@ -576,6 +663,14 @@ megabytes spent on detail nobody in that mix can hear; mono at 32 kHz keeps
 everything up to 16 kHz for a third of the size. It took the served set from
 about 60 MB to 25. `ffmpeg` is a dev tool — nothing in the repo builds or runs
 against it, and the committed outputs are what matter.
+
+**Bascinet's own picks are the one exception to "byte-for-byte".** The 75 tracks
+from the new design document came in through `scripts/audio/import-bascinet-sounds.mjs`,
+which keeps them re-encoded (stereo Vorbis, about 96 kbps) rather than as originals —
+Bascinet's choice, to keep 290 MB out of the history. `assets/osw-sounds/bascinet-sources.json`
+records the artist, title and YouTube id of each, and their served copies are credited
+in their own section of each `ATTRIBUTION.md`, **with no license claimed**: they are
+published recordings, not OpenSourceWeb files. The served set is about 80 MB with them.
 
 `preload="none"` on every element, `src` set only when a step is about to start,
 and **never** a `<link rel="preload">` in the head — that would pull megabytes on
@@ -642,8 +737,9 @@ in the same Location hears it in their browser.
 `instrument: true`, and the code reads that flag, never a list of slugs. They
 go in the WEAPON slot and take one hand. The Instrument Kit is what a Minstrel
 starts with, and anyone can buy one at creation for 1 point: Consume it and
-the player picks one of its `consumeChoice` list
-(`web/app/components/actions/ConsumeChoiceDialog.js`). That is the one
+the player picks one of its `consumeChoice` list, a Lute or an Accordion
+(`web/app/components/actions/ConsumeChoiceDialog.js`). The Boombox is not on
+it; it comes from the Merchant's order or a GM. That is the one
 difference from `consumesInto`'s `oneOf`, which rolls.
 
 **The songs.** `db/lib/instrumentSongs.js` holds each instrument's list as
@@ -676,7 +772,7 @@ subtext.
 | What | Where |
 |---|---|
 | The instrument leaves the rack (unequip, give, destroy, a GM's tag op) | `web/lib/afterInventoryChange.js`, `db/lib/tagOps.js` (`stopIfInstrumentGone`) |
-| An attack, both sides | `db/lib/attack.js#fileAttack` |
+| A fight, everybody in it | `db/lib/combat.js` (`startCombat`, `intervene`, `springAmbush`) |
 | An intercept hold, whoever is held | `db/lib/intercept.js#fireWatches` |
 | Being bound | `db/lib/bind.js#applyBind` |
 | Leaving the Location, however it happens | `db/lib/locationMove.js`, beside the phone hang-up |
@@ -719,12 +815,22 @@ nobody else's.
 
 ## 7. What each sound is FOR
 
-**Before you wire a sound, read its use case.** All 743 files in
-`assets/osw-sounds/` have one, and they are Bascinet's own sentences —
-`E:\Bascinet\V3\Music and Sounds.docx`, hand-written, one row per file.
+**Before you wire a sound, read its use case.** 810 of the 816 files in
+`assets/osw-sounds/` have one, and they are Bascinet's own sentences, hand-written,
+one row per file, in two documents:
 
-That document is the source of truth. `docs/sounds.yaml` is it projected into the
-repo so that tooling can read it:
+- `E:\Bascinet\V3\Sounds\Music and Sounds(OLD).docx` — the OpenSourceWeb library.
+- `E:\Bascinet\V3\Sounds\New Music and Sounds.docx` — Bascinet's own picks (§6),
+  and the placement rules for everything (§4b). Its rows are matched on the YouTube id
+  in each filename, through `assets/osw-sounds/bascinet-sources.json`.
+
+**Where both describe one file, the new document wins.** That happened twice:
+`a-thousand-empty-rooms` (lobby music either way) and `surfacing`, which went from
+"Ambience on the surface" to Count lobby music. The importer prints every such
+replacement.
+
+Those documents are the source of truth. `docs/sounds.yaml` is them projected into
+the repo so that tooling can read it:
 
 ```
 npm run sounds:import            # dry run: what it would write, and what it cannot place
@@ -739,7 +845,7 @@ is the one field the repo owns and is carried across. Nothing syncs it to
 Postgres — like `docs/assets/maps/nodes.yaml` it is a file that tooling reads,
 not a table.
 
-### The six classes, which are the document's own words
+### The eight classes, which are the documents' own words
 
 | Class | What it means |
 |---|---|
@@ -749,18 +855,27 @@ not a table.
 | `lobby` | **a track is always playing, every player in the lobby hears the same one**, rotating roughly hourly |
 | `instrument` | gated behind the instrument it belongs to |
 | `unused` | not to be selected |
+| `interrupt` | **cuts the ambience** — "Ambience interrupting sfx…" (the new document) |
+| `jukebox` | a song for the Den's jukebox — "Den music…" (the new document) |
 
 `atop` is the class that needed a new voice to exist at all. The top layer holding
 a track is normally the one you hear, so "over" was not something the bus could
-say — it is the `spot` layer plus §3's third rule now, and 13 of the 42 are wired.
+say — it is the `spot` layer plus §3's third rule now, and 12 of the 42 are wired.
 
-### Two names the document uses that the code does not have
+### Names the documents use that the code does not have
 
 `haruspex.ogg` is *"Lobby Music when there is a lateparty"* and
 `holywarlobby.ogg` is *"Special round lobby music"*. Neither **lateparty** nor
 **special round** exists anywhere in this repo, so both files sit in the registry
 described and unwired. The same goes for *"sedated"* in `ambi2.ogg`'s use case:
 the catalog has `pain-shock` and `unconscious` and nothing else that fits.
+
+The new document names many more, each recorded as the file's `needs` and left
+unwired: the Count and its camp, limbo, an alien location, a Wonder, an ancient super
+intelligence, the Dreamer, THEY, soulbreakers and their ship, a space station, an
+alarm declared in the fortress, an OS13 gamemode, the Den's jukebox, DOB and
+marijuana and a bad trip, and becoming a revolutionary. `npm run sounds:report`
+groups them by what is missing.
 
 ### The checks
 

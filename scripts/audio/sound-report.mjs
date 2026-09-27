@@ -95,6 +95,11 @@ const WANTS = {
   lobby: ["lobby tape"],
   cue: ["sfx cue"],
   instrument: ["instrument"],
+  // An interrupter is played by musicConductor.js#interrupt out of placeAmbience.js, whose
+  // INTERRUPTS sit in ALL_PLACES beside the beds.
+  interrupt: ["place bed"],
+  // The Den's jukebox would be the `room` layer (SOUND.md §3); nothing plays it yet.
+  jukebox: [],
   unused: [],
 };
 

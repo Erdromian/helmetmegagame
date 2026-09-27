@@ -109,8 +109,12 @@ near-identical private helpers collapsed into it), the four
 `character/actions/*` files, `trinketActions.js`, `web/lib/moveSpend.js`, and
 `bot/src/events/interactions/actions.js#moveLockNotice`.
 
-**The lock window is for Moves a GM has to rule on, and only those.** It exists
-to give the desk a quiet stretch to adjudicate what players wrote. So
+**The lock window is for Moves a GM has to rule on — and, since the Combat
+Overhaul, for fights and travel.** It exists to give the desk a quiet stretch to
+adjudicate what players wrote, and a fight is adjudicated off where everybody
+stood, so the lock also refuses starting, joining, writing or calling off a
+fight, setting a watch (`db/lib/combatGate.js`), and every walk
+(`turnGate.js#travelLockReason`, `ATTACK.md` §10). So
 `movesOpen` — the whole gate — guards the written Move alone: `db/lib/moves.js`
 (`fileMove`, `moveIsEditable`) and the bot's `moveLockNotice`. Every verb that
 settles itself asks `autoMovesOpen`, which runs the same checks in the same

@@ -4,14 +4,15 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 const PhaseContext = createContext(null);
 
-/** `{ phase, hasCharacter, standing }`, or null until the first read lands. */
+/** `{ phase, hasCharacter, standing, ghost, gm }`, or null until the first read lands. */
 export function usePhase() {
   return useContext(PhaseContext);
 }
 
 /**
  * Where this viewer is standing — `{ locationSlug, zoneSlug, zoneKind, indoors,
- * attributes, rooms, trainFresh, moodTone, impaired }` — or null for somebody with no living character.
+ * attributes, rooms, trainFresh, moodTone, impaired, hallucinating, robed, charonLaunchedAt }`
+ * — or null for somebody with no living character.
  *
  * It rides the phase payload rather than having a provider of its own: the ambience bed
  * is picked from it (placeAmbience.js), the phase query was already loading the
@@ -42,6 +43,7 @@ const POLL_MS = 60_000;
 // that to the place somebody was standing in.
 function sameAnswer(a, b) {
   if (a.phase !== b.phase || a.hasCharacter !== b.hasCharacter) return false;
+  if (a.ghost !== b.ghost || a.gm !== b.gm) return false;
   const x = a.standing;
   const y = b.standing;
   if (!x || !y) return x === y;
@@ -53,6 +55,9 @@ function sameAnswer(a, b) {
     x.trainFresh === y.trainFresh &&
     x.moodTone === y.moodTone &&
     x.impaired === y.impaired &&
+    x.hallucinating === y.hallucinating &&
+    x.robed === y.robed &&
+    x.charonLaunchedAt === y.charonLaunchedAt &&
     x.attributes.join() === y.attributes.join() &&
     JSON.stringify(x.rooms) === JSON.stringify(y.rooms)
   );

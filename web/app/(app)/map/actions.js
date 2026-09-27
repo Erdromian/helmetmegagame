@@ -26,6 +26,7 @@ import {
 import { plateOf, plates } from "@/lib/mapPlates";
 import { zoneKey } from "@/lib/zones";
 import { RING_SLUG } from "@lifeweb/db/lib/rings";
+import { scrambleState, scrambleFields, scrambleText } from "@lifeweb/db/lib/memoryScramble";
 
 // The map's one loader (/map and the /chat overlay both call it). THE FOG IS
 // REAL, NOT CSS: an unknown Location is absent from the payload entirely,
@@ -39,26 +40,33 @@ import { RING_SLUG } from "@lifeweb/db/lib/rings";
 // no plate draws yet — the Caves, the Depths — belongs to neither and is
 // listed rather than drawn (MAP.md §6h).
 
-export async function loadMap() {
+// `revealAll` is the GM's Show all switch (Map.docx): the whole plate, every
+// place and every way, while still standing where their character stands. It is
+// a request, not a grant — re-checked against the guild here, since a server
+// action is a public endpoint and a player posting `true` must get their own
+// fogged map back.
+export async function loadMap({ revealAll = false } = {}) {
   const session = await auth();
   if (!session?.discordUserId) return { ok: false, error: "You are not signed in." };
 
-  const character = await prisma.character.findFirst({
-    where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    select: MOVER_SELECT,
-  });
+  const [character, { isGm }] = await Promise.all([
+    prisma.character.findFirst({
+      where: { discordUserId: session.discordUserId, status: "ALIVE" },
+      select: MOVER_SELECT,
+    }),
+    getGmSession(),
+  ]);
 
-  // A GM with no living character reads the whole plate; a GM playing somebody gets their character's fogged map like anyone else.
+  // A GM with no living character reads the whole plate, with nothing to switch.
   if (!character) {
-    const { isGm } = await getGmSession();
     if (!isGm) return { ok: false, error: "You have no living character." };
-    return buildMap({ character: null, unfogged: true });
+    return buildMap({ character: null, unfogged: true, canReveal: false });
   }
 
   // The self-heal below used to run HERE, awaited, before anything else — two
   // writes and a graph read in front of every single map load. It moved inside
   // buildMap, where the neighbour list it needs already exists (MAP.md §4).
-  return buildMap({ character, unfogged: false });
+  return buildMap({ character, unfogged: Boolean(isGm && revealAll), canReveal: Boolean(isGm) });
 }
 
 // TWO WAVES, not a queue of awaits. Everything here used to be awaited one at
@@ -69,7 +77,7 @@ export async function loadMap() {
 // that need wave A. Nothing below reads a table twice: `graph` is ONE read of
 // Location and LocationLink, handed to the two callers that used to fetch their
 // own (db/lib/locationGraph.js#loadGraph).
-async function buildMap({ character, unfogged }) {
+async function buildMap({ character, unfogged, canReveal }) {
 
   const [graph, config, openTurn, known, party, keys, conversations, acted] = await Promise.all([
     loadGraph(prisma),
@@ -108,7 +116,7 @@ async function buildMap({ character, unfogged }) {
   const standing = character?.locationId
     ? locations.find((l) => l.id === character.locationId)
     : null;
-  if (standing && hasAttribute(standing, "offMap")) {
+  if (standing && !unfogged && hasAttribute(standing, "offMap")) {
     return {
       ok: true,
       offMap: true,
@@ -117,7 +125,7 @@ async function buildMap({ character, unfogged }) {
       // that is visibly off says the thing that is actually true — there is no
       // plate under you to switch between. Nothing is drawn from them.
       plates: plates(),
-      you: { locationId: standing.id, plate: null, gm: unfogged },
+      you: { locationId: standing.id, plate: null, gm: unfogged, canReveal },
       nodes: [
         {
           id: standing.id,
@@ -160,7 +168,10 @@ async function buildMap({ character, unfogged }) {
   // or LocationLink where they used to make three. Underground each still asks
   // the Caving Die once (cavingRestrictionsFor — the hold and the ten-1s stop),
   // so a caver's map costs two small counts; on the surface, none.
-  const [neighbours, walks, inside] = await Promise.all([
+  // The tags that open a gated way, by name, for the hover on its line
+  // (Map.docx). Only the slugs some way actually names — a dozen rows.
+  const gateSlugs = [...new Set(links.map((l) => l.requiredTagSlug).filter(Boolean))];
+  const [neighbours, walks, inside, gateTags, ringRoles] = await Promise.all([
     // Same call the Travel panel makes, so the two never disagree about a hop.
     character?.locationId ? travelOptions(prisma, character, character.locationId, { graph }) : [],
     // Everywhere in their own zone they could WALK to (MAP.md §3c). Fed the very
@@ -169,7 +180,17 @@ async function buildMap({ character, unfogged }) {
     character?.locationId ? routesWithinZone(prisma, character, { known: known.seen, graph }) : [],
     // Only places they have stood — a room is a door you must have stood in front of.
     roomsInside(prisma, character, unfogged, known.stood, { keys, conversations }),
+    gateSlugs.length
+      ? prisma.tag.findMany({ where: { slug: { in: gateSlugs } }, select: { slug: true, name: true } })
+      : [],
+    // Which door tokens a seat's signet ring carries (docs/systemdocs/RINGS.md):
+    // a way keyed to one of those opens to the ring as well as to the key.
+    gateSlugs.length
+      ? prisma.role.findMany({ where: { ringAccessSlugs: { hasSome: gateSlugs } }, select: { ringAccessSlugs: true } })
+      : [],
   ]);
+  const gateNames = new Map(gateTags.map((t) => [t.slug, t.name]));
+  const ringTokens = new Set(ringRoles.flatMap((r) => r.ringAccessSlugs ?? []));
   const adjacent = new Map(neighbours.map((row) => [row.location.id, row]));
   const walkTo = new Map(walks.map((row) => [row.location.id, row]));
 
@@ -191,6 +212,27 @@ async function buildMap({ character, unfogged }) {
   const now = new Date();
 
   const visible = (id) => unfogged || known.seen.has(id) || adjacent.has(id);
+
+  // THE MAP IS A MEMORY (Map.docx; db/lib/mapMemory.js), so Concussed and
+  // Amnesiac scramble it the way they scramble /memories (MEMORIES.md §6) —
+  // same seed, same three-in-four roll, nothing stored. A scrambled place
+  // loses its name and its description together; the real ones are never
+  // sent. A GM's Show all is not a memory and is never scrambled.
+  const scramble = character && !unfogged
+    ? scrambleState({ characterId: character.id, tags: character.tags, dayNumber: openTurn?.dayNumber ?? 0 })
+    : { active: false };
+  const recall = new Map();
+  const remembered = (location) => {
+    let row = recall.get(location.id);
+    if (!row) {
+      row = scrambleFields(scramble, `place:${location.id}`, {
+        name: location.name,
+        description: location.description || "",
+      });
+      recall.set(location.id, row);
+    }
+    return row;
+  };
 
   const nodes = [];
   for (const location of locations) {
@@ -214,10 +256,14 @@ async function buildMap({ character, unfogged }) {
       ? exertRefusal(character, config, openTurn, { left: freeLeft, cost: near.cost, acted })
       : null;
 
+    const memory = remembered(location);
     nodes.push({
       id: location.id,
       slug: location.slug,
-      name: location.name,
+      name: memory.name,
+      // Drawn in a quieter hand on the board, so a garbled name reads as a
+      // memory slipping rather than as a place really called that.
+      scrambled: memory.scrambled || undefined,
       zoneName: location.zone?.name ?? null,
       zoneKey: zoneKey(location.zone?.name) ?? "none",
       plate: at?.plate ?? null,
@@ -226,7 +272,7 @@ async function buildMap({ character, unfogged }) {
       state: here ? "here" : stood ? "stood" : "seen",
       // `near.passable`, NOT `near`: a locked/shut way is visible but blocked,
       // and its description stays hidden until it's actually open.
-      description: stood || near?.passable ? location.description || null : null,
+      description: stood || near?.passable ? memory.description || null : null,
       // Rooms/conversations only where actually stood — see roomsInside().
       inside: inside.get(location.id) ?? null,
       adjacent: Boolean(near),
@@ -238,7 +284,7 @@ async function buildMap({ character, unfogged }) {
       walkHops: walk?.hops ?? null,
       // The stops on the way, named before they commit — the guard that makes
       // the gesture safe (MAP.md §6c). Never the destination itself.
-      walkThrough: walk ? walk.path.slice(0, -1).map((l) => l.name) : null,
+      walkThrough: walk ? walk.path.slice(0, -1).map((l) => remembered(l).name) : null,
       // A narrow way somewhere along the road would take their horse off them.
       walkDismounts: Boolean(walk?.dismounts),
       // A tight squeeze on the road, or AS the road (MAP.md §2a). Said to
@@ -274,6 +320,12 @@ async function buildMap({ character, unfogged }) {
     const verdict = crossingCheck(link, { tagSlugs, onFootBlocked, now });
     // The GM sees every way; only the `listed` filter is lifted.
     if (!unfogged && !verdict.listed) continue;
+    // A scrambled way comes off the board, except one touching where they
+    // stand: what is next door is in front of them, not remembered (Map.docx).
+    // The Ways out list and every travel check are untouched — this is only
+    // what is DRAWN.
+    const touchesHere = link.aId === character?.locationId || link.bId === character?.locationId;
+    if (!touchesHere && scrambleText(scramble, `way:${link.id}`, "x").scrambled) continue;
     edges.push({
       a: link.aId,
       b: link.bId,
@@ -282,6 +334,15 @@ async function buildMap({ character, unfogged }) {
       openedBy: verdict.openedBy && !heldPlain.has(verdict.openedBy) ? RING_SLUG : (verdict.openedBy ?? null),
       // Drawn pinched on the board for everybody (MAP.md §2a).
       squeeze: Boolean(link.tightSqueeze),
+      // What opens it, for the hover on the line (Map.docx). Only ever on a way
+      // already in this payload, so a hidden crawl the character cannot use is
+      // never named — it was dropped above with the rest of it.
+      needs: link.requiredTagSlug
+        ? { name: gateNames.get(link.requiredTagSlug) ?? link.requiredTagSlug, ring: ringTokens.has(link.requiredTagSlug) }
+        : null,
+      // Only on Show all, where a hidden way is drawn for a GM who holds nothing:
+      // without it a hidden crawl and a locked door looked the same.
+      hidden: unfogged && link.hidden ? true : undefined,
     });
   }
 
@@ -297,6 +358,7 @@ async function buildMap({ character, unfogged }) {
       locationId: character?.locationId ?? null,
       plate: plateOf(locations.find((l) => l.id === character?.locationId)?.slug ?? "")?.plate ?? null,
       gm: unfogged,
+      canReveal,
     },
     nodes,
     edges,

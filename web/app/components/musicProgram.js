@@ -58,6 +58,9 @@ const WINDS = [
 // it: `pick` rolls per browser, which is exactly the thing that would break.
 const LOBBY_SLOT_MS = 60 * 60 * 1000;
 
+// "Lobby Music", every one, from both documents. "Only lobby music tracks can play during
+// lobby." The new document's lobby tracks for a game where the Count is in play or the
+// gamemode is OS13 are not here: neither exists yet (docs/sounds.yaml, `needs`).
 const LOBBY_TRACKS = [
   "a-thousand-empty-rooms.ogg",
   "beyondretrieval.ogg",
@@ -65,6 +68,11 @@ const LOBBY_TRACKS = [
   "outpost.ogg",
   "track3.ogg",
   "track13.ogg",
+  "red-calx.ogg",
+  "conflict-and-climax.ogg",
+  "friction.ogg",
+  "manunkind.ogg",
+  "stone-in-focus.ogg",
 ];
 
 // "Rare Lobby Music", so it takes one slot in twelve rather than a turn in the rotation.
@@ -194,8 +202,10 @@ const owners = new Map();
 /** Which tape, if any, this state should be playing. */
 export function resolveProgram(phase, pathname = "") {
   if (!phase) return null;
-  // A GM adjudicating has no character of their own, which would otherwise start the
-  // character-creation loop under the audit desk. The desks stay quiet.
+  // No phase tape on a GM desk: a GM adjudicating has no character of their own, which would
+  // otherwise start the character-creation loop under the audit desk. What a desk DOES hear
+  // in a running game is ambience — "Ambience is universal across all pages, including GM
+  // ones" — and that is MusicDirector's, not a tape.
   if (pathname.startsWith("/gm/")) return null;
   // The shut door keeps its own soundtrack whatever else is true. CLOSED is the game not
   // being open, the wind behind it is the point, and white_waking lives on the `ambient`
@@ -216,6 +226,10 @@ export function resolveProgram(phase, pathname = "") {
   // the game is past LOBBY (LOBBY.md §1) — and it happens in the lobby, so it hears the
   // lobby. This used to be two rows, the second of them a tape of its own.
   if (phase.hasCharacter) return null;
+  // Two more listeners with no living character are not in the lobby either, once a game is
+  // running. A GHOST hears the dead ("Ambience while a ghost"), and a GM hears whatever place
+  // they are looking at in Chat. Both are the conductor's, so no tape.
+  if (phase.phase === "RUNNING" && (phase.ghost || phase.gm)) return null;
   return PROGRAMS.lobby;
 }
 

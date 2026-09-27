@@ -594,7 +594,7 @@ instance is a change to the hub, not a slider.
   is open right now — Zone stays derived from what's actually loaded. The
   whole view survives a reload, split across three `sessionStorage` keys by
   write frequency (`web/app/components/useSessionState.js`): `gm-turns-rail`
-  (filters per lens — `moves`, `caving`, `other`, `desires`, `ooc`, `history`,
+  (filters per lens — `moves`, `caving`, `combat`, `other`, `desires`, `ooc`, `history`,
   `history-caving` — the two travel toggles, the active lens — subscribed,
   click-frequency), `gm-turns-desk` (tray open/expanded, the inspected
   character, the History turn — Workspace.js's half), and `gm-turns-view`
@@ -605,8 +605,18 @@ instance is a change to the hub, not a slider.
   Routine/Gambit to review) render as "Travel" and stay hidden by default
   behind a "Show N travel" toggle beside the Kind dropdown; picking Travel
   from that dropdown always overrides the hide.
-- **Other lens** — everything holding somebody in place this turn: attacks,
-  ambushes and Safe intercepts in one list (`ATTACK.md` §7). To a GM reading
+- **Combat lens** — every fight on the open turn, one row each, keyboard `f`
+  (`ATTACK.md` §8). Unlike Other it has a desk (`CombatDesk.js`): everybody in
+  the fight grouped by side, with their snapshot, their hidden roll and what they
+  wrote, then ONE result for the whole fight — the Result box, staged rows
+  anchored by `combatId`, Solve — and End fight while it is live. Every composer
+  opened there offers the fight's people one tap each (`QuickPicks.js`), and
+  "Message them" on a card stages a message to that one person. Store-backed,
+  live through the `Combat_notify` and `CombatParticipant_notify` triggers.
+- **Other lens** — everything else holding somebody in place this turn: Safe
+  intercepts and caught thieves, plus any pre-overhaul `Attack` row still live
+  on the turn the Combat Overhaul deployed (`ATTACK.md` §12). What follows
+  describes those legacy attack rows. To a GM reading
   the queue those are one question — who cannot leave, and who is standing over
   them — and knowing it before reading the Gambits is the point. Named for the
   shape rather than the contents; it is where the next thing that is neither a
@@ -787,7 +797,7 @@ keeps itself current and stays reachable from the keyboard:
   build) latches the chip on the way past, instead of reaching `error.js`
   and taking the column away.
 - **Keyboard**: `↑↓` / `j k` walk the rail, `⏎` opens the focused row,
-  `m`/`r`/`c`/`o`/`h` flip the lens, Escape peels the layers below. All of it stands down while a
+  `m`/`r`/`c`/`f`/`o`/`h` flip the lens, Escape peels the layers below. All of it stands down while a
   field has focus or a modal is open.
 - **GM identity** shows as a small avatar (`GmAvatar.js`, roster from
   `web/lib/gmProfiles.js`) wherever a GM is named: the lock holder on an
@@ -888,8 +898,8 @@ guarantees: `TURN-ENGINE.md` §2–3). What a GM needs to know:
 
 ## 5. Where player actions went
 
-**There is no Requests lens any more.** The desk carries Moves, Caving, Other
-and History; a player action files no `Request` row, asks for no reason, and
+**There is no Requests lens any more.** The desk carries Moves, Caving, Combat,
+Other, Desires, OOC and History; a player action files no `Request` row, asks for no reason, and
 cannot be undone (`REQUESTS.md` §1).
 
 What a GM watches instead is **`/gm/audit`**, which now defaults to the player
@@ -958,8 +968,8 @@ adjudicable the moment the Ram is a ruin.
 | `web/app/(desk)/layout.js` | The full-viewport route group's GM gate |
 | `web/app/(desk)/gm/turns/page.js` | RSC: queue, staged rows, catalog, roster — all DTOs |
 | `.../Workspace.js` | Client shell: selection, inspector context + cache, layout |
-| `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue. **There is no tab registry** — the six lenses are a `LENSES` whitelist in `Workspace.js`, a hand-written button each in the `.desk-rail-lens` strip, and a branch each in one ternary. Adding a seventh means touching all three, plus `parseSelection` in `page.js` if it takes a deep link |
-| `.desk-rail-lens` (globals.css) | **Three across, two deep — measured, not guessed.** Six labels want about 415px of text and one row of a 23rem rail gives them 341, so every tab clipped its own name; the arithmetic was wrong twice before anybody put a browser on it. Three columns give each ~113px against a 92px worst case. `.segmented` draws one seam per row, so the grid puts the borders back by `nth-child`. The rail itself went 19rem → 23rem in `.desk-body`, and the literal is repeated in the 1024px block — both have to move together |
+| `.../QueueRail.js` | Lens, filters (zone-seat seeded), the queue. **There is no tab registry** — the seven lenses are a `LENSES` whitelist in `Workspace.js`, a hand-written button each in the `.desk-rail-lens` strip, and a branch each in one ternary. Adding another means touching all three, plus `parseSelection` in `page.js` if it takes a deep link |
+| `.desk-rail-lens` (globals.css) | **Three across, three deep since Combat joined — measured, not guessed.** Six labels want about 415px of text and one row of a 23rem rail gives them 341, so every tab clipped its own name; the arithmetic was wrong twice before anybody put a browser on it. Three columns give each ~113px against a 92px worst case. `.segmented` draws one seam per row, so the grid puts the borders back by `nth-child`. The rail itself went 19rem → 23rem in `.desk-body`, and the literal is repeated in the 1024px block — both have to move together |
 | `.../OocDesk.js` | One OOC line in its scene, plus Message player and Mute OOC |
 | `web/app/components/ArchiveContext.js` | The "in context" slice itself — shared by that desk and `ArchiveContextModal.js`, which is only the frame now |
 | `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |

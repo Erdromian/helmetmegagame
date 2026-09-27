@@ -18,6 +18,7 @@ const {
 } = require("../lib/locationTravel");
 const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
 const { ATTACK_CANCEL_PREFIX } = require("@lifeweb/db/lib/attack");
+const { isCombatButton, isCombatModal, handleCombatButton, handleCombatDescribe } = require("../lib/combatButtons");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const {
   WHOS_HERE_PREFIX,
@@ -617,6 +618,7 @@ module.exports = {
             interaction.customId.slice(INTERCEPT_RELEASE_PREFIX.length),
           ));
         }
+        // Legacy: a Cancel attack button from before the Combat Overhaul (db/lib/attack.js).
         if (interaction.customId.startsWith(ATTACK_CANCEL_PREFIX)) {
           return void (await handleHoldEnd(
             interaction,
@@ -624,6 +626,9 @@ module.exports = {
             interaction.customId.slice(ATTACK_CANCEL_PREFIX.length),
           ));
         }
+        // A fight's DM buttons (docs/systemdocs/ATTACK.md): Join, Decline, Write your attack, Call off. Write opens a
+        // modal, which is its own acknowledgement, so the handler acks the others itself.
+        if (isCombatButton(interaction.customId)) return void (await handleCombatButton(interaction));
         if (interaction.customId === "move:open") return void (await handleMoveOpen(interaction));
         if (interaction.customId === "say:open") return void (await handleSpeakOpen(interaction));
         // Arrive in a DM on a consent offer (docs/systemdocs/LESSONS.md), so
@@ -768,6 +773,7 @@ module.exports = {
         }
       } else if (interaction.isModalSubmit()) {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
+        if (isCombatModal(interaction.customId)) return void (await handleCombatDescribe(interaction));
         if (interaction.customId.startsWith(ACT_MODAL_PREFIX)) return void (await handleVerbModal(interaction));
         if (interaction.customId.startsWith(META_PREFIX)) return void (await handleMetaComponent(interaction));
         if (interaction.customId.startsWith(CONVERSE_MODAL_PREFIX)) {

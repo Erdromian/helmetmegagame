@@ -12,6 +12,10 @@ import { useState } from "react";
 // to live only in a `title` tooltip, which a touch screen never shows. Tapping it now says
 // the reason under the row instead of choosing it. A greyed option with no reason stays
 // truly disabled — there is nothing to say (IngredientSlots.js's slotted chips).
+//
+// `multi` makes every tap report the chip it was — onChange(id), chosen or not — so a caller keeping a
+// list of choices can toggle it (AttackDialog.js's targets and collaborators). Off, a tap on the chosen
+// chip reports "" as it always has.
 
 export default function ChipPicker({
   label = null,
@@ -20,6 +24,7 @@ export default function ChipPicker({
   onChange,
   emptyLabel = "Nothing to choose from.",
   disabled = false,
+  multi = false,
 }) {
   // Which greyed option was last tapped. Stored by id, so an option whose reason has
   // since gone away simply stops being explained.
@@ -50,7 +55,7 @@ export default function ChipPicker({
                   if (explains) setAsked((was) => (was === o.id ? null : o.id));
                   else {
                     setAsked(null);
-                    onChange(active ? "" : o.id);
+                    onChange(multi ? o.id : active ? "" : o.id);
                   }
                 }}
               >

@@ -2,8 +2,9 @@
 
 You stand somewhere and say who you are watching for. When one of them walks
 in, they are stopped and handed a line you wrote. **Safe** holds them two
-minutes; **Ambush** files a real Attack (`ATTACK.md`), which holds *both* of you
-until the turn ends, or until you break it off.
+minutes; **Ambush** starts a real fight (`ATTACK.md` §9), which holds everybody
+in it until it is over — and anybody else it catches that turn joins the same
+fight.
 
 It is the first mechanic in the game that takes **movement alone**. Everything
 else that stops a person — Bound, Paralyzed, Dying, Catatonic — takes ACT with
@@ -19,14 +20,18 @@ whole of "you can only follow one person". Editing is an upsert; there is no
 history to keep, so the `AuditLog` row written on each save is the only record
 of what a watch said at the time.
 
-It carries a Location, a mode, a message, a list of typed names, two
-dragnet flags, one filter on where an arrival came from (§2a), and one box that
+It carries a Location, a mode, a message, a list of typed names, three
+dragnet flags, an Ambush's collaborators (§5a), one filter on where an arrival came from (§2a), and one box that
 is not about who it catches at all (§5b).
 
 **Setting or editing one is free**, whether or not your Move for the turn is
-already spent. **It needs combat mode**, though (`COMBAT-MODE.md` §3):
-`setWatch` refuses with "You need to be in combat mode to lie in wait."
-(`db/lib/combatGate.js#interceptBlock`), on both faces. On Discord the watch
+already spent. **An Ambush needs combat mode**, though (`COMBAT-MODE.md` §3):
+`setWatch` refuses one with "You need to be in combat mode to lie in wait."
+(`db/lib/combatGate.js#interceptBlock`), on both faces. **A Safe watch needs
+none** (Combat Overhaul.docx) — it is a word on the road, not a fight. And **no
+watch can be set once Moves lock** ("Moves are locked for this turn, so you
+can't lie in wait."), the turn lock that shuts fighting and travel too
+(`ATTACK.md` §10). On Discord the watch
 opens as a modal first, inside Discord's three seconds, so the refusal comes
 after the modal is sent. **Stopping** a watch and **Release** are never gated,
 and `stopInterceptImpl` and `releaseHeldImpl` carry no such check.
@@ -93,11 +98,23 @@ move of any kind.
 
 `db/lib/intercept.js#matchesArrival` is the whole rule, and it is pure:
 
-| The watch says | An open face | A hood | A forced name (`Beast`) |
-|---|---|---|---|
-| Any person | caught | caught | caught |
-| Any concealed person | — | caught | — |
-| A typed name | caught if it matches | **never** | **never** |
+| The watch says | A face you know | A stranger's face | A hood | A forced name (`Beast`) |
+|---|---|---|---|---|
+| Any person | caught | caught | caught | caught |
+| Anyone I can't identify | — | caught | caught | caught |
+| Any concealed person | — | — | caught | — |
+| A typed name | caught if it matches | **never** | **never** | **never** |
+
+**A name only catches somebody you know** (Combat Overhaul.docx: "only intercept
+people recognized as targets, concealed or unfamiliar characters will not be
+stopped"). "Know" is a Friends entry (`strangers.js#knownSubjects`, one lookup
+per watcher for the whole arriving party); with the stranger rule switched off
+everybody is known. It is worked out **before** the ration is claimed, so a
+stranger a name did not reach never spends the turn's one catch. "Anyone I can't
+identify" (`InterceptWatch.anyUnidentified`) is how a watch reaches the rest —
+my reading counts a forced name among them, since nobody can name a Beast.
+`anyPerson` subsumes both narrower dragnets, and `anyUnidentified` subsumes
+`anyConcealed`, so `setWatch` stores only the widest.
 
 A typed name is matched against the identity the room would **see**
 (`db/lib/presentedIdentity.js`), never against the row. So a hooded Greeblus
@@ -162,15 +179,14 @@ sweeps**: past the timestamp you are free, and nothing had to notice. It is the
 keyed-way pattern (`MAP.md` §2b) applied to a person instead of a door.
 
 - **Safe** — `now + 2 minutes`.
-- **Ambush** — `db/lib/turnClock.js#turnEndsAt(openTurn)`, so the turn advance
-  releases everybody for free. This is also what "when the gambit is
-  adjudicated" means: a Gambit's die is revealed by the turn push and only by
-  it (`ADJUDICATION.md`), which is the same moment. An Ambush writes that hold
-  through `db/lib/attack.js#fileAttack` rather than here — see §5a.
+- **Ambush** — a fight's hold, written by `db/lib/combat.js#settleHold`
+  rather than here (§5a, `ATTACK.md` §3): until the fight is over, and never
+  past the turn's end.
 
 `Character.heldReason` says **which** has hold of somebody — `HELD_REASON` in
-this file, and there are four values rather than two because a fight holds both
-sides and they must not read the same sentence (`ATTACK.md` §1), and because a
+this file, and there are six values rather than two because a fight holds
+everybody in it and they must not read the same sentence — the jumped, the
+jumper, somebody asked to join, somebody withdrawing (`ATTACK.md` §3) — and because a
 thief who was caught (`caught`, five minutes) is held by nobody at all when the
 stash had no owner (`THEFT.md` §1e, no `heldById`, so only the clock ends it) and
 by the victim when there was one (§2g, a failed or noticed Pickpocket — `heldById` is the
@@ -203,8 +219,8 @@ GM.
 of them know whose holds to clear. All three are about an *intercept* hold:
 each carries `heldReason: { notIn: FIGHT_REASONS }`, because both sides of a
 fight are held, `heldById` names only one opponent of possibly several, and only
-the `Attack` row knows whether either of them is still in another fight. Breaking off is `db/lib/attack.js#cancelAttack`, and
-only that (`ATTACK.md` §2).
+the fight's participant rows know who is still in it. A fight ends through
+`db/lib/combat.js`, and only there (`ATTACK.md` §7).
 
 1. The holder presses **Release** — on the sheet, or on the button in their own
    DM. Both go through `db/lib/dmAnswer.js#answerInterceptHold`, so the faces
@@ -258,9 +274,10 @@ any move at all cancels it.
 
 ## 5. Firing
 
-**A watch whose owner is out of combat mode is dormant** (`COMBAT-MODE.md` §3).
+**An Ambush whose owner is out of combat mode is dormant** (`COMBAT-MODE.md` §3).
 `fireWatches` drops it in its `live` filter, beside the ACT check, and keeps
-the row: it works again the moment its owner is alert. Combat mode can go off
+the row: it works again the moment its owner is alert. A Safe watch is never
+dormant. Combat mode can go off
 under a standing watch — turned off on a later turn, or switched off by the
 push at Exhausted — and the dialog says so rather than drawing a watch that
 cannot fire.
@@ -298,8 +315,8 @@ meant to build.
 - Several watches may match one arrival. They are frozen **once**: the longest
   hold wins, so an Ambush always beats a Safe stop and a second Safe stop
   cannot shorten the first. The write is conditional on the clock, so a hold
-  already running longer is left where it is. Ambushes hold through `fileAttack`
-  and Safe stops through the loop here, and both writes carry the same
+  already running longer is left where it is. Ambushes hold through their fight
+  (`combat.js#settleHold`) and Safe stops through the loop here, and both writes carry the same
   condition, so the two cannot fight over one person.
 - The victim gets **one DM per intercepting character**. Three guards at the
   gate is three lines, because walking into three people is what happened.
@@ -330,7 +347,7 @@ never the answer — the consent DM is the ordinary one, No is a real answer, an
 they still get the Hide items picker first.
 
 It runs **last**, after the `InterceptHit` ration above has claimed the catch
-and after an Ambush has filed, and it skips an ambush that filed nothing
+and after an Ambush has sprung, and it skips an ambush that caught nobody
 (`hit.held`) — searching somebody you did not actually stop would be a lie, the
 same flag the victim's DM already gates on.
 
@@ -346,42 +363,52 @@ line under the interceptor's own catch confirmation, because silence there would
 read as a bug.
 
 `fireWatches` requires `db/lib/search.js` lazily, at call time, for the same
-reason §5a requires `attack.js` that way: that module requires this one back for
+reason §5a requires `combat.js` that way: that module requires this one back for
 `seenAs` / `identityOf` / `IDENTITY_SELECT`.
 
-### 5a. An Ambush is an Attack
+### 5a. An Ambush is a fight
 
-When an Ambush fires it files an `Attack` row (`fromAmbush: true`) and that row
-is what holds both sides. Two things follow, and both are deliberate:
+When an Ambush fires it calls `db/lib/combat.js#springAmbush` (Combat
+Overhaul.docx; `ATTACK.md` §9):
 
-- **No strength gate.** `ATTACK.md` §3 refuses a target more than two bands
-  above you; an ambush skips it, because you set the watch blind and do not get
-  to pick who walks into it.
-- **The ambusher is held too.** Springing the trap puts you in the fight. That
-  is a real change to this verb, and it is the whole point of the rework: an
-  ambush and an attack are one thing in one queue.
+- **The first catch of the turn starts a fight**: the owner is its initiator,
+  the arrival its target, and the watch's `message` is the opening line on the
+  target's DM. The ambusher is held too — springing the trap puts you in it.
+- **Every later catch joins that same fight** as a target, snapshotted as they
+  walk in, with no distance rule. Ambushers are snapshotted when it first
+  sprang.
+- **Collaborators.** An Ambush may name people standing there when it is set
+  (`InterceptWatch.collaboratorIds`, ids kept server-side and never sent to a
+  browser; the dialog re-derives who is picked from the room). Those still
+  standing there when it springs are asked to join, like an attack's
+  collaborators. The Discord modal has no room for a picker, so the bot asks in
+  a second step after the watch saves (`verbs/watch.js#setWatchCollaborators`).
+- **Skipped before the ration** — an arrival already in a fight, or an owner
+  busy in some other fight — so a catch that could not happen never spends the
+  turn's one.
 
-`fireWatches` requires `db/lib/attack.js` **lazily**, at call time, because that
-module requires this one back for the hold's own vocabulary. A cycle resolved
-at call time rather than load time, so neither half ever sees a partial exports
+`fireWatches` requires `db/lib/combat.js` **lazily**, at call time, because that
+module requires this one back for the hold's own vocabulary. A cycle resolved at
+call time rather than load time, so neither half ever sees a partial exports
 object.
 
 ## 6. The DMs
 
-Four lines. Three of them are Bascinet's words verbatim.
+Three lines here, and an Ambush's are the fight's (`ATTACK.md` §4): the victim
+hears "You were stopped on the road. It's an ambush!" with the watch's message
+on a `»` line under it and the fight's own buttons.
 
 | Line | `DM_KIND` |
 |---|---|
 | The victim, Safe — carries the typed message | `NOTICE` |
-| The victim, Ambush — carries it too, as a `»` line | `NOTICE` |
 | The interceptor's confirmation | `NOTICE` |
 | The victim, released | `NOTICE` |
 
-All four are `NOTICE`, the first two included. They used to be `CONVERSATION`
+All of them are `NOTICE`, the first included. They used to be `CONVERSATION`
 because the interceptor typed the words, but a stop on the road is still the
 game delivering it, and as `CONVERSATION` every one of them pinged the GM inbox.
-`authorDiscordUserId` is still set on the first two, so who said it stays on
-record.
+`authorDiscordUserId` is still set on the Safe stop and on an ambush's opening
+line, so who said it stays on record.
 
 Bascinet's Ambush line does not mention the message, but a player who typed one
 and had it silently dropped would read that as a bug, so it rides along on its
@@ -409,7 +436,11 @@ otherwise go out unmuzzled.
 
 ## 7. Release
 
-The button in the ambusher's DM is `DM_ACTION.ATTACK_HOLD`, labelled **Cancel
+An ambush is a fight now, and a fight ends the fight's ways (`ATTACK.md` §7) —
+Call off, a side emptying, a GM, the push. What follows is the legacy button a
+pre-overhaul ambush DM still carries.
+
+The button in an old ambusher's DM is `DM_ACTION.ATTACK_HOLD`, labelled **Cancel
 attack**, and it is the odd one out of that family: every other kind is a
 **pending row somebody is being asked about**, and this is the person who
 imposed a state ending it. That is also why it never became an `Offer` kind — an
@@ -423,12 +454,12 @@ in somebody's DMs when the change shipped still does something — but nothing
 builds a new one, and `interceptReleaseRow` is gone.
 
 A Safe hit also draws its own row on the GM's Other lens, carrying both people
-and what each of them filed this turn (`ATTACK.md` §7) — but no cancel button.
+and what each of them filed this turn (`ADJUDICATION.md`, the Other lens) — but no cancel button.
 The two-minute hold lapsed on its own clock long before a GM got there, so one
 could only ever answer *They're already free.*
 
-The authoritative control is the **You are fighting** list at the foot of the
-Attack dialog. The DM button is the convenience. The Intercept dialog's own
+The authoritative control for a fight is the Attack dialog's fight panel. The
+Intercept dialog's own
 holding list is Safe stops and caught pickpockets (`THEFT.md` §2g) — it excludes
 both fight reasons, for the reason §3 gives: listing a fight there would draw a Let-them-go button whose
 only possible answer is *They're already free.*
@@ -500,7 +531,7 @@ Nothing here is destructive, so no `restore` snapshot is owed (`REQUESTS.md` §2
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — cancels the watch on ANY relocation, and sends the letter |
 | `db/lib/locationGraph.js` | `resolveNeighbors` draws the refusal on every way |
 | `db/lib/escort.js` | Refuses to attach somebody being held |
-| `db/lib/attack.js` | What an Ambush actually files (`ATTACK.md`) |
+| `db/lib/combat.js` | What an Ambush actually starts (`ATTACK.md` §9) |
 | `db/lib/dmAnswer.js` | `answerInterceptHold` — Release, shared by both faces |
 | `db/lib/search.js` | What `autoSearch` raises when a watch fires ([`SEARCH.md`](SEARCH.md)) |
 | `web/app/(app)/character/interceptActions.js` | Load, save, stop, release |

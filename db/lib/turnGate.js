@@ -14,9 +14,12 @@
 // settles itself — every craft, Bury, Mine, Refine, Farm, a build site, a heal, a Trinket, a lesson, a confession — asks
 // `autoMovesOpen` instead, which is the same gate without the window. No GM reads those rows, so there is nothing for the
 // lock to protect, and a player can keep working right up to the push. Being out of session still refuses both.
+// Two things a GM also reads off the picture are shut by the lock as well, since the Combat Overhaul: starting
+// or joining a fight and laying in wait (db/lib/combatGate.js), and walking anywhere (travelLockReason below).
 
 const { moveWindow } = require("./turnClock");
 const { clockStatus } = require("./gameState");
+const { TRAVEL_LOCKED } = require("./combatMode");
 
 // Keyed by the same vocabulary db/lib/gameState.js#frozenReason speaks, plus the two this gate adds of its own.
 const GATE_MESSAGES = {
@@ -68,4 +71,20 @@ function refusal(reason, turn, window) {
   return { ok: false, reason, message: gateMessage(reason), turn, window };
 }
 
-module.exports = { movesOpen, autoMovesOpen, gateMessage, GATE_MESSAGES };
+// TRAVEL IS SHUT BY THE LOCK TOO (Bascinet's Combat Overhaul.docx: "Movement between locations is locked
+// during turn lock henceforth"). The one exception to the header's rule above, and a deliberate one: a
+// fight is adjudicated off where everybody stood, so nobody may walk in or out of the picture while the
+// desk reads it. Only the lock's own refusal — whether the game is in session is sessionGate's question,
+// asked first by the mover (db/lib/locationTravel.js). Null means they may walk. A GM's relocation never
+// comes this way. A client with no Turn model (the unit tests' fakes) is never locked.
+async function travelLockReason(db, { now = new Date(), turn = null } = {}) {
+  if (!turn && typeof db?.turn?.findFirst !== "function") return null;
+  try {
+    const out = await gate(db, { now, turn, lockApplies: true });
+    return out.reason === "LOCKED" ? TRAVEL_LOCKED : null;
+  } catch {
+    return null;
+  }
+}
+
+module.exports = { movesOpen, autoMovesOpen, travelLockReason, gateMessage, GATE_MESSAGES };

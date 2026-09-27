@@ -139,6 +139,134 @@ function centreOf(node, cell) {
   return { x: node.x * cell + cell / 2, y: node.y * cell + cell / 2 };
 }
 
+// ---------------------------------------------------------------- labels
+//
+// Names are ON by default now (Map.docx), which made the old rule — every name
+// centred under its own mark — a pile-up wherever two places sit a cell or two
+// apart: The Old Cock Inn ran straight through the Square beside it, and the
+// Den through the Den Interior. So each name is PLACED: tried under its mark,
+// then over it, then to either side, then the four corners, and it takes the
+// first spot that clears every name already placed and every mark on the
+// plate. The most important names are placed first, so they get first pick.
+//
+// Everything is in plate pixels, where the board draws, so the answer does not
+// change with zoom — a name that fits at 1× fits at 16×.
+
+// The label font, as .map-node-label sets it. Two sizes because a seen place
+// is written smaller (globals.css), and the box must match what is drawn.
+const LABEL_PX = 6;
+const LABEL_HEIGHT = 7;
+let measurer = null;
+function labelWidth(text) {
+  if (typeof document === "undefined") return text.length * LABEL_PX * 0.55;
+  if (!measurer) {
+    const ctx = document.createElement("canvas").getContext("2d");
+    const family = getComputedStyle(document.body).fontFamily || "sans-serif";
+    measurer = { ctx, family };
+  }
+  measurer.ctx.font = `600 ${LABEL_PX}px ${measurer.family}`;
+  // The halo stroke adds a little each side.
+  return measurer.ctx.measureText(text).width + 1.5;
+}
+
+function overlap(a, b) {
+  const w = Math.min(a.x + a.w, b.x + b.w) - Math.max(a.x, b.x);
+  const h = Math.min(a.y + a.h, b.y + b.h) - Math.max(a.y, b.y);
+  return w > 0 && h > 0 ? w * h : 0;
+}
+
+// `nodes` are the drawn nodes whose name is showing; `marks` every drawn node
+// (a name must not sit on anybody's crosshair). Returns id -> { x, y, anchor }
+// for the <text>: `y` is the baseline, `anchor` its text-anchor.
+function placeLabels(nodes, marks, cell, rank) {
+  const blocked = marks.map((n) => ({ x: n.x * cell + 1, y: n.y * cell + 1, w: cell - 2, h: cell - 2 }));
+  const placed = [];
+  const out = new Map();
+  const order = [...nodes].sort((a, b) => rank(a) - rank(b) || a.y - b.y || a.x - b.x);
+  for (const n of order) {
+    const w = labelWidth(n.name);
+    const h = LABEL_HEIGHT;
+    const left = n.x * cell;
+    const top = n.y * cell;
+    const cx = left + cell / 2;
+    const cy = top + cell / 2;
+    const gap = 1;
+    // Each spot as the box it would take and where the text is written from.
+    const spots = [
+      { x: cx - w / 2, y: top + cell + gap, anchor: "middle" }, // under
+      { x: cx - w / 2, y: top - h - gap, anchor: "middle" }, // over
+      { x: left + cell + gap, y: cy - h / 2, anchor: "start" }, // right
+      { x: left - gap - w, y: cy - h / 2, anchor: "end" }, // left
+      { x: left + cell - 2, y: top + cell + gap, anchor: "start" }, // under, right
+      { x: left + 2 - w, y: top + cell + gap, anchor: "end" }, // under, left
+      { x: left + cell - 2, y: top - h - gap, anchor: "start" }, // over, right
+      { x: left + 2 - w, y: top - h - gap, anchor: "end" }, // over, left
+      { x: cx - w / 2, y: top + cell + gap + h, anchor: "middle" }, // a line lower
+      { x: cx - w / 2, y: top - 2 * h - gap, anchor: "middle" }, // a line higher
+    ];
+    let best = null;
+    for (const s of spots) {
+      const box = { x: s.x, y: s.y, w, h };
+      let cost = 0;
+      for (const p of placed) cost += overlap(box, p);
+      for (const m of blocked) cost += overlap(box, m) * 0.5;
+      if (!best || cost < best.cost) best = { ...s, box, cost };
+      if (cost === 0) break;
+    }
+    placed.push(best.box);
+    const x = best.anchor === "middle" ? cx : best.anchor === "start" ? best.box.x : best.box.x + w;
+    // The baseline sits a pixel above the box's foot, where the old
+    // `y + cell + 7` put it for the spot under the mark.
+    out.set(n.id, { x, y: best.box.y + h - 1, anchor: best.anchor });
+  }
+  return out;
+}
+
+// The ways from each drawn place to the OTHER plate — the Barony down to the
+// Undertown, or back up — read off the edges already in the payload. That is
+// what makes a staircase only as visible as the way it stands for: a hidden
+// crawl the character cannot use, or a way their scrambled memory lost, never
+// arrived, so it draws no stair either. Keyed by node id, the far side's
+// nodes in name order.
+function stairsOf(nodes, edges, plateId) {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const out = new Map();
+  for (const e of edges) {
+    for (const [near, far] of [
+      [e.a, e.b],
+      [e.b, e.a],
+    ]) {
+      const n = byId.get(near);
+      const f = byId.get(far);
+      if (!n || !f || n.plate !== plateId || !f.plate || f.plate === plateId) continue;
+      if (!out.has(n.id)) out.set(n.id, []);
+      out.get(n.id).push(f);
+    }
+  }
+  for (const list of out.values()) list.sort((a, b) => a.name.localeCompare(b.name));
+  return out;
+}
+
+// "Down to" from the Barony, "Up to" from under it. Plate ids rather than a
+// zone test, for the reason MAP.md §6h gives: the Undercroft is a Fortress
+// place drawn on the Undertown plate, and its stair goes UP to the Court.
+function stairsHeading(plateId) {
+  return plateId === "barony2" ? "Up to" : "Down to";
+}
+
+// What the hover on a gated way says. The tag's own name, from the catalog;
+// a door a signet ring also opens says so, since the key and the ring are the
+// same token now (docs/systemdocs/RINGS.md).
+function needsLines(edge) {
+  const lines = [];
+  if (edge.hidden) lines.push("A hidden way.");
+  if (edge.needs) {
+    lines.push(`${edge.needs.name} opens this way.`);
+    if (edge.needs.ring) lines.push("So does a signet ring that carries it.");
+  }
+  return lines;
+}
+
 // The board for a place no plate draws (docs/systemdocs/CHARON.md). There is
 // nothing under you, nothing next to you and nowhere to pan to, so this shows
 // exactly that: a dithered grey field, the layer switch visibly turned off, and
@@ -260,12 +388,21 @@ export default function MapBoard({ onClose = null, initial = null }) {
   // is the resting state, so the plate gets the screen it is the point of.
   const narrow = useMapNarrow();
   const [sheetOpen, setSheetOpen] = useState(false);
-  // Names OFF by default, which is the one thing the drawn plate changed about
-  // the chrome. Fifty names over a 1-bit drawing is fifty captions competing
-  // with the art they are captioning — and the art is the map now, so a place
-  // is found by its crosshair. The one you pick and the one you stand in are
-  // always named whatever this says.
-  const [labels, setLabels] = useState(false);
+  // Names ON by default (Map.docx). They used to start off, on the argument that
+  // fifty captions compete with the art — but a map you have to switch on
+  // before it tells you anything read as a picture rather than a map, and the
+  // placer below keeps neighbours from writing over each other. The chip still
+  // turns them off; the one you pick and the one you stand in are always named.
+  const [labels, setLabels] = useState(true);
+  // The GM's Show all (Map.docx): every place and every way, re-asked of the
+  // server, which checks the GM seat itself. A ref beside the state because the
+  // fetch effect below is keyed on the nonce alone, and must read the switch as
+  // it stands when it fires.
+  const [revealAll, setRevealAll] = useState(false);
+  const revealRef = useRef(false);
+  // The one hover card on the board — a staircase's far side, or what opens a
+  // gated way. Stage-relative CSS pixels, so it sits where the pointer was.
+  const [tip, setTip] = useState(null);
   const [plateId, setPlateId] = useState(null);
   // The drawn plate: the fetched art document, and the picture made from it.
   // Both change twice in a session at most — a plate switch and nothing else —
@@ -293,6 +430,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
   }, [data, plateId]);
 
   const svgRef = useRef(null);
+  const stageRef = useRef(null);
   const rootRef = useRef(null);
   // The plate's dimensions, read by applyView's clamp. A ref rather than a
   // dependency so applyView keeps a stable identity — it is in the deps of the
@@ -384,7 +522,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
       return undefined;
     }
     let cancelled = false;
-    loadMap()
+    loadMap({ revealAll: revealRef.current })
       .then((res) => {
         if (!cancelled) setData(res);
       })
@@ -612,6 +750,9 @@ export default function MapBoard({ onClose = null, initial = null }) {
   // not start a pan.
   const onPointerDown = (ev) => {
     if (ev.button !== 0) return;
+    // Any press that is not on a staircase or a gated way puts the hover card
+    // away; it belongs to the spot it was opened at, and a pan moves that spot.
+    if (!ev.target?.closest?.(".map-tip-target")) setTip(null);
     const p = toWorld(ev);
     if (!p) return;
     pointers.current.set(ev.pointerId, { cx: ev.clientX, cy: ev.clientY });
@@ -640,7 +781,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
   // guard the nodes use: the end of a drag is not a tap.
   const onBoardClick = (ev) => {
     if (panned.current) return;
-    if (ev.target?.closest?.(".map-node")) return;
+    if (ev.target?.closest?.(".map-node, .map-tip-target")) return;
     setSel(null);
     // And on a phone it puts the sheet back down to its one-line bar, since
     // the open lists cover the plate just as much as a card does.
@@ -825,7 +966,11 @@ export default function MapBoard({ onClose = null, initial = null }) {
   const cell = plate.cell;
   // The two marks, as paths in cell units. Made once per plate and cached on
   // the art document.
-  const marks = { faint: glyphPath(art, art.ui.faint), locked: glyphPath(art, art.ui.locked) };
+  const marks = {
+    faint: glyphPath(art, art.ui.faint),
+    locked: glyphPath(art, art.ui.locked),
+    stairs: art.ui.stairs != null ? glyphPath(art, art.ui.stairs) : null,
+  };
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const drawn = nodes.filter((n) => onPlate(n, plate.id));
   const drawnIds = new Set(drawn.map((n) => n.id));
@@ -851,9 +996,44 @@ export default function MapBoard({ onClose = null, initial = null }) {
     .filter((n) => n.walkable && !n.adjacent)
     .sort((x, y) => (x.walkHops ?? 0) - (y.walkHops ?? 0) || x.name.localeCompare(y.name));
 
+  // The staircases on this plate, and where every name goes (placeLabels).
+  // Worked out per render rather than memoised: a render is a pick, a fetch or
+  // a plate switch, never a pan, and forty boxes is nothing.
+  const stairs = stairsOf(nodes, edges, plate.id);
+  const named = drawn.filter((n) => labels || sel === n.id || n.state === "here");
+  const rank = (n) => (n.state === "here" ? 0 : sel === n.id ? 1 : n.state === "stood" ? 2 : 3);
+  const spots = placeLabels(named, drawn, cell, rank);
+
+  // Opens the hover card at the pointer. A mouse opens it on hover and a
+  // finger on a tap (there is no hover on glass); the same key again shuts it,
+  // so a second tap is the way out on a phone.
+  const openTip = (ev, key, heading, lines, { toggle = false } = {}) => {
+    const box = stageRef.current?.getBoundingClientRect();
+    if (!box) return;
+    if (toggle && tip?.key === key) {
+      setTip(null);
+      return;
+    }
+    setTip({ key, heading, lines, x: ev.clientX - box.left, y: ev.clientY - box.top });
+  };
+  const tipHandlers = (key, heading, lines) => ({
+    onPointerEnter: (ev) => {
+      if (ev.pointerType === "mouse") openTip(ev, key, heading, lines);
+    },
+    onPointerLeave: (ev) => {
+      if (ev.pointerType === "mouse") setTip((t) => (t?.key === key ? null : t));
+    },
+    onClick: (ev) => {
+      ev.stopPropagation();
+      // A mouse already has it open from the hover; a click must not shut it.
+      if (panned.current || pointerKind.current === "mouse") return;
+      openTip(ev, key, heading, lines, { toggle: true });
+    },
+  });
+
   return (
     <div className="map-board">
-      <div className="map-stage">
+      <div className="map-stage" ref={stageRef}>
         <svg
           ref={svgRef}
           className="map-svg"
@@ -878,23 +1058,37 @@ export default function MapBoard({ onClose = null, initial = null }) {
               height={plate.height}
             />
 
+            {/* A way is two lines: a dark outline under a near-white core
+                (Map.docx), so it reads over the lit art and over the black
+                rock alike. A gated way carries a third, invisible and wide, for
+                the hover that says what opens it. */}
             <g className="map-edges">
               {edges.map((e) => {
                 if (!drawnIds.has(e.a) || !drawnIds.has(e.b)) return null;
                 const a = centreOf(byId.get(e.a), cell);
                 const b = centreOf(byId.get(e.b), cell);
+                const key = `${e.a}-${e.b}`;
+                const says = needsLines(e);
+                const ends = { x1: a.x, y1: a.y, x2: b.x, y2: b.y };
                 return (
-                  <line
-                    key={`${e.a}-${e.b}`}
-                    className="map-edge"
+                  <g
+                    key={key}
+                    className="map-way"
                     data-gate={e.gate ?? undefined}
                     data-opened={e.openedBy ? "true" : undefined}
                     data-squeeze={e.squeeze ? "true" : undefined}
-                    x1={a.x}
-                    y1={a.y}
-                    x2={b.x}
-                    y2={b.y}
-                  />
+                    data-hidden={e.hidden ? "true" : undefined}
+                  >
+                    <line className="map-edge-rim" {...ends} />
+                    <line className="map-edge" {...ends} />
+                    {says.length > 0 && (
+                      <line
+                        className="map-edge-hit map-tip-target"
+                        {...ends}
+                        {...tipHandlers(`way:${key}`, `${byId.get(e.a).name} — ${byId.get(e.b).name}`, says)}
+                      />
+                    )}
+                  </g>
                 );
               })}
             </g>
@@ -979,18 +1173,45 @@ export default function MapBoard({ onClose = null, initial = null }) {
                 halo, its cross — so on a crowded stretch of the plate a name
                 was half painted over by its neighbours. Inert, the way
                 .map-node-label has always been, so a tap still reaches the node. */}
+            {/* The staircases (Map.docx): a red stair at the top-right of a
+                place with a way to the other plate. Over the marks, under the
+                names. Hover, or tap on a phone, names the places at the far end;
+                the card says the same for anybody who does neither. */}
+            {marks.stairs && (
+              <g className="map-stairs">
+                {drawn.map((n) => {
+                  const far = stairs.get(n.id);
+                  if (!far) return null;
+                  const heading = stairsHeading(plate.id);
+                  return (
+                    <g
+                      key={n.id}
+                      className="map-stair map-tip-target"
+                      transform={`translate(${n.x * cell + cell * 0.62} ${n.y * cell - cell * 0.38}) scale(0.6)`}
+                      {...tipHandlers(`stairs:${n.id}`, `${heading}:`, far.map((f) => f.name))}
+                    >
+                      <rect className="map-stair-hit" x="-2" y="-2" width={cell + 4} height={cell + 4} />
+                      <path className="map-stair-halo" transform="translate(1 1)" d={marks.stairs} />
+                      <path className="map-stair-glyph" d={marks.stairs} />
+                    </g>
+                  );
+                })}
+              </g>
+            )}
+
             <g className="map-labels">
-              {drawn.map((n) => {
-                const strong = sel === n.id || n.state === "here";
-                if (!labels && !strong) return null;
+              {named.map((n) => {
+                const spot = spots.get(n.id);
+                if (!spot) return null;
                 return (
                   <text
                     key={n.id}
                     className="map-node-label"
                     data-state={n.state}
-                    x={n.x * cell + cell / 2}
-                    y={n.y * cell + cell + 7}
-                    textAnchor="middle"
+                    data-scrambled={n.scrambled ? "true" : undefined}
+                    x={spot.x}
+                    y={spot.y}
+                    textAnchor={spot.anchor}
                   >
                     {n.name}
                   </text>
@@ -999,6 +1220,17 @@ export default function MapBoard({ onClose = null, initial = null }) {
             </g>
           </g>
         </svg>
+
+        {/* The hover card. Opaque, like the HUD, since it floats over the art;
+            pointer-events off so it never swallows the hover it answers. */}
+        {tip && (
+          <div className="map-tip" role="status" style={{ left: tip.x, top: tip.y }}>
+            <p className="map-tip-head">{tip.heading}</p>
+            {tip.lines.map((line) => (
+              <p key={line}>{line}</p>
+            ))}
+          </div>
+        )}
 
         {/* The two HUD blocks in one wrapper. It is display: contents on a
             desktop, so each keeps the corner it has always had; on a phone it
@@ -1047,6 +1279,26 @@ export default function MapBoard({ onClose = null, initial = null }) {
             >
               Names
             </button>
+            {/* A GM playing a character sees that character's map, like anyone
+                — this lifts the fog for them alone. The server re-checks the
+                seat; the chip is only the ask. */}
+            {data.you.canReveal && (
+              <button
+                type="button"
+                className="chip"
+                data-active={revealAll ? "true" : undefined}
+                aria-pressed={revealAll}
+                onClick={() => {
+                  revealRef.current = !revealAll;
+                  setRevealAll(!revealAll);
+                  setSel(null);
+                  setTip(null);
+                  setNonce((n) => n + 1);
+                }}
+              >
+                Show all
+              </button>
+            )}
             <span className="map-count mono">
               {data.known} of {data.total}
             </span>
@@ -1110,6 +1362,9 @@ export default function MapBoard({ onClose = null, initial = null }) {
             pending={pending}
             error={error}
             note={note}
+            // The card's own plate, not the one on screen: with nothing picked
+            // on a wide screen it is where you stand, whichever plate that is.
+            stairs={card.plate ? { heading: stairsHeading(card.plate), far: stairsOf(nodes, edges, card.plate).get(card.id) ?? [] } : null}
             onCancel={() => setSel(null)}
             onGo={() => go(card)}
             onExert={() => go(card, { exert: true })}
@@ -1211,7 +1466,7 @@ function ViaChip({ slug }) {
   );
 }
 
-function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onExert }) {
+function MapCard({ node, here, travel, pending, error, note, stairs = null, onCancel, onGo, onExert }) {
   const isHere = here && node.id === here.id;
   const reachable = canTravelTo(node, here);
   // Farther in this zone rather than next door — a walk of several hops. Note
@@ -1243,6 +1498,14 @@ function MapCard({ node, here, travel, pending, error, note, onCancel, onGo, onE
       </div>
 
       {node.description && <p className="text-sm">{node.description}</p>}
+
+      {/* The staircase's far side, for a phone with no hover and anyone who
+          would rather read than point. */}
+      {stairs?.far.length > 0 && (
+        <p className="chat-quiet-line">
+          Stairs {stairs.heading.toLowerCase()} {stairs.far.map((f) => f.name).join(", ")}.
+        </p>
+      )}
 
       {isHere && <p className="chat-quiet-line">You are standing here.</p>}
       {isHere && note && <p className="text-sm">{note}</p>}

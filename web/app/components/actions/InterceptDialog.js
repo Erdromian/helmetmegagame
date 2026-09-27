@@ -28,14 +28,13 @@ const MODES = [
   { id: "AMBUSH", label: "Ambush" },
 ];
 
-// Bascinet's words, both of them. Ambush needed rewriting once it became a
-// real attack (docs/systemdocs/ATTACK.md §4): the ambusher is held too now,
-// and calling it off is Break off in the Attack dialog rather than a Release
-// in this one.
+// Safe is Bascinet's words. Ambush was rewritten again for the Combat Overhaul (docs/systemdocs/ATTACK.md
+// §6): springing it starts a fight — everybody in it held until it's over, each writing what they do — and
+// it no longer asks for a Gambit. Only Ambush needs combat mode now.
 const MODE_HELP = {
-  SAFE: "Freezes them for two minutes and sends them the message.",
+  SAFE: "Freezes them for two minutes and sends them the message. Needs no combat mode.",
   AMBUSH:
-    "You attack whoever enters the location. Neither of you can move until the end of the turn. Make sure to declare a Gambit with your intention.",
+    "You attack whoever enters the location, and anyone else who walks in after joins the same fight. Nobody in it can move until it's over. Needs combat mode.",
 };
 
 export default function InterceptDialog({ mode: verb, onDone, onClose }) {
@@ -45,13 +44,18 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
   const [names, setNames] = useState([]);
   const [anyConcealed, setAnyConcealed] = useState(false);
   const [anyPerson, setAnyPerson] = useState(false);
+  const [anyUnidentified, setAnyUnidentified] = useState(false);
+  // An Ambush's collaborators, as picker keys (never ids), and who could be picked.
+  const [people, setPeople] = useState([]);
+  const [helpers, setHelpers] = useState([]);
   const [outsideZoneOnly, setOutsideZoneOnly] = useState(false);
   const [autoSearch, setAutoSearch] = useState(false);
   const [holding, setHolding] = useState([]);
   const [place, setPlace] = useState(null);
   const [limits, setLimits] = useState({ names: 12, message: 300 });
-  // Combat mode (COMBAT-MODE.md §3): why Save is dead, and whether a standing watch has gone dormant.
-  const [blocked, setBlocked] = useState(null);
+  // Why Save is dead for each mode (the lock for both, combat mode for Ambush), and whether a standing
+  // Ambush has gone dormant (COMBAT-MODE.md §3).
+  const [blockedBy, setBlockedBy] = useState({ SAFE: null, AMBUSH: null });
   const [dormant, setDormant] = useState(null);
   // Whether a watch actually EXISTS server-side, as opposed to whether this
   // form currently describes one. Stop watching hangs off this: clearing the
@@ -66,7 +70,9 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
         if (!live || !res?.ok) return;
         setLimits(res.limits ?? { names: 12, message: 300 });
         setHolding(res.holding ?? []);
-        setBlocked(res.blocked ?? null);
+        setBlockedBy(res.blocked ?? { SAFE: null, AMBUSH: null });
+        setPeople(res.people ?? []);
+        setHelpers((res.people ?? []).filter((p) => p.picked).map((p) => p.key));
         setDormant(res.dormant ?? null);
         setHasWatch(Boolean(res.watch));
         if (res.watch) {
@@ -75,6 +81,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
           setNames(res.watch.names);
           setAnyConcealed(res.watch.anyConcealed);
           setAnyPerson(res.watch.anyPerson);
+          setAnyUnidentified(Boolean(res.watch.anyUnidentified));
           setOutsideZoneOnly(Boolean(res.watch.outsideZoneOnly));
           setAutoSearch(Boolean(res.watch.autoSearch));
           setPlace(res.watch.place ?? null);
@@ -86,7 +93,9 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
     };
   }, []);
 
-  const watching = anyPerson || anyConcealed || names.length > 0;
+  const watching = anyPerson || anyConcealed || anyUnidentified || names.length > 0;
+  const blocked = blockedBy[mode] ?? null;
+  const ambush = mode === "AMBUSH";
 
   return (
     <ActionDialog
@@ -99,7 +108,18 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       onClose={onClose}
       onSubmit={() =>
         submit(
-          () => setIntercept({ mode, message, names, anyConcealed, anyPerson, outsideZoneOnly, autoSearch }),
+          () =>
+            setIntercept({
+              mode,
+              message,
+              names,
+              anyConcealed,
+              anyPerson,
+              anyUnidentified,
+              outsideZoneOnly,
+              autoSearch,
+              collaboratorKeys: ambush ? helpers : [],
+            }),
           (res) => onDone(noticeLine(verb, res)),
         )
       }
@@ -127,10 +147,22 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
             className="chip"
             data-active={anyConcealed ? "true" : undefined}
             aria-pressed={anyConcealed}
-            disabled={anyPerson}
+            disabled={anyPerson || anyUnidentified}
             onClick={() => setAnyConcealed((on) => !on)}
           >
             Any concealed person
+          </button>
+          {/* A name only catches somebody you know (Combat Overhaul.docx), so this is how a watch reaches
+              everybody else: a hood, a forced name, or a face you have never been told the name of. */}
+          <button
+            type="button"
+            className="chip"
+            data-active={anyUnidentified ? "true" : undefined}
+            aria-pressed={anyUnidentified}
+            disabled={anyPerson}
+            onClick={() => setAnyUnidentified((on) => !on)}
+          >
+            Anyone I can&apos;t identify
           </button>
           {/* Not a "who" — it narrows whichever who you picked, names included, so
               "Any person" does not subsume it the way it subsumes the chip above and
@@ -160,8 +192,10 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
         disabled={anyPerson}
       />
 
+      <p className="text-xs text-muted">A name only stops somebody you know by that name. A hood or a stranger&apos;s face passes it.</p>
+
       <label className="field">
-        <span className="field-label">What do you want to message them?</span>
+        <span className="field-label">{ambush ? "What do you say when you spring it?" : "What do you want to message them?"}</span>
         <textarea
           rows={2}
           value={message}
@@ -178,6 +212,19 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       <p className="text-xs text-muted">
         <strong>Ambush.</strong> {MODE_HELP.AMBUSH}
       </p>
+
+      {ambush && people.length > 0 ? (
+        <>
+          <ChipPicker
+            multi
+            label="Who lies in wait with you? (optional)"
+            options={people.map((p) => ({ id: p.key, label: p.name, active: helpers.includes(p.key) }))}
+            value=""
+            onChange={(key) => key && setHelpers((list) => (list.includes(key) ? list.filter((k) => k !== key) : [...list, key]))}
+          />
+          <p className="text-xs text-muted">When it springs, anyone you picked who is still here is asked to join you.</p>
+        </>
+      ) : null}
 
       {/* Under the mode picker, NOT up in the dragnet row with the other three
           toggles. Those say WHO this watch catches, and "Only from outside the

@@ -394,15 +394,17 @@ You will never be shown this for anybody else, and nobody will be shown it for y
 
 ### Attacking Somebody
 
-Press **Attack** on somebody standing with you and neither of you goes anywhere. You are both held where you are until the turn ends and a Gamemaster reads what you each filed — so nobody starts a fight and then wanders off to have a nice afternoon. Make a Gambit declaring what you are actually trying to do.
+Press **Attack** and pick who you are attacking — one person or several — and anybody standing with you that you want at your side. You need to be in combat mode to do it. Everybody in the fight is held where they are until it is over, so nobody starts a fight and then wanders off to have a nice afternoon. The people you asked along get to choose whether to join, and can't leave until they answer.
 
-It costs nothing. The Gambit is what costs your Move.
+It costs nothing, and it doesn't use your Move. Instead, everybody in the fight who was in combat mode when it reached them **writes what they do** — from the Attack panel, from the line under your Turn box, or from the button on the DM — and can change it until Moves lock. Anybody who wasn't in combat mode is caught by surprise: they can't choose how they fight, and it goes worse for them. A Gamemaster reads the whole fight and rules on it as one.
 
-You can **break it off** at any point before the turn ends, from the Attack panel or from the button on your own DM, and that frees you both. But you only get one attack on a given person per turn, so breaking off is the end of it for today.
+If a fight is already going on where you are, Attack lets you **join a side** instead. You can join a fight you came to from elsewhere, but the further away you were when it started, the worse it goes for you, and from four places away or more you're simply too late.
 
-Some people are simply out of your league, and the button will say so rather than let you freeze somebody far above you for a whole day. It will not tell you how far above you they are, or anything at all about the people it lets you attack.
+A fight is **called off** only when everybody on the attacking side has pressed Call off. The defenders go free straight away; the attackers stay where they are for another 30 minutes, in case the other side wants to answer.
 
-An **ambush** is the same thing sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too.
+An **ambush** is a fight sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too — and anybody else it catches that turn joins the same fight.
+
+Once Moves lock, nobody can start a fight, join one, or travel anywhere until the next turn.
 
 **Teaching:** Most skills can be taught by someone standing with you who holds them, and anybody can teach — you don't need a tag for it. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, learning becomes your Gambit. How hard it is depends on who's teaching you: an ordinary person spends their whole turn on it and you succeed on a 6; someone with the Teaching tag spends no Move at all, can take up to three students a turn, and you succeed on a 5 or 6; and you succeed on a 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill.
 

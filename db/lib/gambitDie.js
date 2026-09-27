@@ -86,4 +86,4 @@ async function ensureGambitDie(tx, { turnId, character }) {
   return { die: existing.die, rolls: existing.rolls, source: existing.advantageSource, fresh: false };
 }
 
-module.exports = { ensureGambitDie };
+module.exports = { ensureGambitDie, GAMBIT_BETTER, GAMBIT_WORSE };

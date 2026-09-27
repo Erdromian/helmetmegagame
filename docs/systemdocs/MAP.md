@@ -602,9 +602,12 @@ it once they have.
 The two columns stay in the schema, unwritten, beside `missedMealStreak` and
 `mindlinkChannelId`.
 
-**Being HELD is the one thing that stops a move outright.** Somebody laid in
-wait where you walked in and stopped you — see
-[`INTERCEPT.md`](INTERCEPT.md). `performLocationMove` refuses with the hold's
+**Being HELD, or the turn being LOCKED, stops a move outright.** Somebody laid
+in wait where you walked in and stopped you, or you are in a fight — see
+[`INTERCEPT.md`](INTERCEPT.md) and [`ATTACK.md`](ATTACK.md). And once Moves lock
+nobody walks anywhere until the push (`turnGate.js#travelLockReason`, Combat
+Overhaul.docx), checked after the session gate and drawn on every way by
+`resolveNeighbors` and `routesWithinZone`; a first placement is not a walk. `performLocationMove` refuses with the hold's
 own sentence, beside its incapacitation gate, and `travelOptions` draws every
 way shut and says why. A held follower is left behind rather than carried out
 (§3a).
@@ -1224,9 +1227,39 @@ Three things about it are easy to get wrong:
 `loadMap()` re-records the character's current Location on every open, so a
 sighting the post-commit hook dropped heals itself the next time they look.
 
-**The fog does not start fully closed.** A character is made knowing the places
-their life would have taught them — the home cluster, plus the road their trade
-actually walks. A Sheriff opens the board already seeing the bridge he has
+**The fog does not start fully closed, and for most seats it barely starts at
+all.** Map.docx: "all roles excluding migrants and late parties start off with
+memory of all locations and connections outside of the caves and depths". That
+is `db/lib/mapMemory.js`:
+
+- **The floor.** Every live Location outside a `CAVE_LEVEL` zone, not
+  `offMap`, that has at least one **non-hidden** way to another such place.
+  That second half is the whole guard against a leak, and it is a rule rather
+  than a list. It keeps out the Charon (`fortress-6`, no way at all), the ship
+  in orbit (`offMap`) and the Hole in the Wall (only hidden crawls, and a climb
+  up from the Depths). A locked way still counts, because a door you can see
+  and not open is on everybody's board anyway (§2a).
+- **Seen, not stood.** The floor is written as sightings: a hollow crosshair
+  and a name, with no description and no rooms. You know the Keep is there,
+  not what is inside it. It is one bulk write rather than `recordArrival` per
+  place, because that paints every listed neighbour too, and would hand over
+  the cave mouth off the Bridge and the Depot.
+- **The outsiders** skip the floor: the Migrant and the late joins (the
+  Tribunal and the Bastard's party, `db/lib/lateJoin.js`). The Mercenary and a
+  threat spawn get it like anybody else.
+- **Connections need no store.** A way draws when both ends are known and
+  `crossingCheck` lists it, so "every connection" follows from "every place",
+  and a hidden way still shows only to somebody who can go through it.
+- **New characters only.** Everybody already alive keeps the map they had.
+
+`seedStartingMap` is what all three creation paths call (`createCharacter`,
+`reincarnate.js`, `threatSpawn.js`): the floor, then the per-role table below
+on top of it. The map is a memory in the Memories sense as well, so Concussed
+and Amnesiac scramble it (`MEMORIES.md` §6a).
+
+**The role table is the `stood` layer on top.** A character is made having
+stood in the places their life would have taught them — the home cluster, plus
+the road their trade actually walks. A Sheriff opens the board already seeing the bridge he has
 walked for years; a Banneret sees every step of the run up to town. The table is
 `db/lib/startingMemories.js`, keyed by role slug. `createCharacter` calls
 `seedMemories()` once, after the transaction commits — after, because
@@ -1296,6 +1329,19 @@ brooding grounds and two from the mouth of the Depths.
 **The fog is server-side, not CSS.** An unknown Location is absent from
 `loadMap`'s payload; it is not sent and hidden. A server action is a public
 endpoint.
+
+**A GM's Show all is the one way round the fog for somebody playing.** A GM
+with no living character has always read the whole plate. A GM who is playing
+gets their character's map like anyone, plus a **Show all** chip beside Names
+(Map.docx). It asks `loadMap({ revealAll: true })`, and the server re-checks
+the GM seat before lifting anything, since a player can post `true` too. On
+Show all every place and way is drawn, nothing is scrambled, and a hidden way
+is sent with `hidden: true` and drawn faded. Before, a hidden crawl and a
+locked door looked the same on the one board that draws both.
+
+**A scrambled memory is fog as well.** A name a Concussed or Amnesiac
+character cannot recall is garbled on the server, and a way they have lost is
+not sent at all, unless it touches where they stand (`MEMORIES.md` §6a).
 
 **An edge draws only when both ends are known *and* `crossingCheck` says
 `listed`.** That is the §2a rule applied to a picture: a locked door draws
@@ -1611,9 +1657,42 @@ near half opacity rather than a third, for the same reason. Numbers were what
 this replaced — fifty digits floating over the art read as a spreadsheet, not
 a map.
 
-**Names are off by default**, and the two loud marks are named anyway. Fifty
-captions over a 1-bit drawing compete with the art they are captioning, and
-the art is the map now. The **Names** chip turns the rest on.
+**Names are on by default** (Map.docx). They were off for a while, on the
+argument that fifty captions compete with the art. But a map you have to switch
+on before it tells you anything read as a picture. The **Names** chip turns them
+off, and the two loud marks are named whatever it says.
+
+**Every name is placed, not dropped under its mark.** With all of them showing,
+the old rule — centred one line under the crosshair — piled neighbours onto
+each other: The Old Cock Inn ran through the Square, the Den through the Den
+Interior. `MapBoard.js#placeLabels` measures each name in the label font and
+tries under, over, right, left, then the corners, then a line further out. It
+takes the first spot that clears every name already placed and every
+crosshair. The loud names go first (where you stand, what you picked), then
+places stood in, then places seen. It works in plate pixels, so zoom never
+changes the answer.
+
+**A way is a white line with a black rim** (Map.docx): `.map-edge` over
+`.map-edge-rim`, with `vector-effect: non-scaling-stroke` so both stay one
+crisp screen width from the floor of the zoom to 16×. It used to be a faint
+pencil line at a third opacity that players could not follow across the art.
+State is still readable: a way shut to you is dashed, a tight squeeze dotted.
+
+**A gated way says what opens it.** Hover it, or tap it on a phone, and a
+card reads "Tower Key opens this way.", plus "So does a signet ring that
+carries it." when some seat's ring carries that token (`RINGS.md`). The name
+comes from `needs` on the edge, sent only for a way already in the payload, so
+a hidden crawl the character cannot use is never named.
+
+**A red stair marks a way to the other plate** (Map.docx): the charset's own
+staircase (glyph 194, `uiGlyphs.stairs` in `nodes.yaml`), at the top right of
+the place's cell. Hover or tap names the far side ("Down to:" from the Barony,
+"Up to:" from under it), and the place's card says the same in a line, for a
+phone. It is worked out from the edges already in the payload (`stairsOf`), so
+a stair is exactly as visible as the way it stands for. A hidden crawl you
+cannot use draws no stair, and neither does a way your scrambled memory has
+lost. It is keyed on plates, not zones, so the Undercroft (a Fortress place
+drawn on the Undertown plate) takes the stair up to the Court.
 
 `Zone.mapPolygon` / `mapLabelX` / `mapLabelY` stay as dead as §6d leaves them;
 none of this reads them.
@@ -1685,6 +1764,13 @@ loss: `applyView`'s clamp means you cannot get lost off the plate, and pinching
 out to the floor shows the whole thing. Only the layer switch is left up there,
 and a tablet wide enough for the two-column layout keeps the bar.
 
+**The sheet is opaque.** The card is a `.panel`, and a panel is a translucent
+wash (`--sunk-wash-deep`). Beside the board that did no harm, but over it the
+plate showed through, and players on phones reported the whole map looking
+see-through (Map.docx). Under 640px it takes `--surface`, like the HUD boxes.
+The `/chat` overlay, if it is open when the window narrows, keeps the whole
+screen too, instead of becoming the modal's 92dvh sheet over the dim.
+
 **Under 640px the card is a sheet over the board, not a column beside it.**
 It used to be a strip underneath taking 40% of an already short screen, which
 letterboxed the plate. Over it, the drawing runs on underneath and anything
@@ -1754,7 +1840,8 @@ second one needs no code.
 | `db/lib/locationGraph.js` | `LocationLink` reads and the gating verdict — the only module that touches the edge model. Also the two multi-hop questions: `soundRange` for how far a shout carries, and `routesWithinZone` / `pathWithinZone` for a walk (§3c) |
 | `db/lib/locationAttributes.js` | The attribute registry, its sync-time validation, and the prose Examine prints |
 | `db/lib/locationVisits.js` | The fog: what one character knows of the map. The ONLY module that reads or writes `LocationVisit` |
-| `db/lib/startingMemories.js` | The map a character is made knowing — role slug to Location slugs — §6a |
+| `db/lib/mapMemory.js` | The map everybody but the outsiders starts knowing, and `seedStartingMap`, which every creation path calls — §6a |
+| `db/lib/startingMemories.js` | The places a seat starts having STOOD in — role slug to Location slugs — §6a |
 | `web/app/(app)/map/` | `loadMap()`, the board, and the route — §6 |
 | `web/app/(app)/map/plateRender.js` | The plate, drawn: channels, the stipple, the light, and the crosshair paths — §6f. Client-side, React-free, and the ONLY thing that turns a plate into pixels |
 | `web/lib/mapPlates.js` | Server-only: which plate places a slug, and where on it. The place table never reaches the browser — §6b |

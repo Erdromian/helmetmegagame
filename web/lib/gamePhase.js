@@ -3,11 +3,24 @@ import { prisma } from "@lifeweb/db";
 // By path, not through the barrel: db/lib is CommonJS and this is the server half.
 import { trainHere } from "@lifeweb/db/lib/train";
 import { bandOf } from "@lifeweb/db/lib/mood";
+import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
+import { CHARON_SPACE_SLUG } from "@lifeweb/db/lib/charonPlaces";
+import { getGmSession } from "@/lib/discordGuild";
 
 // What "in pain shock or sedated" resolves to. `pain-shock` is the document's own words and
 // a real tag; SEDATED IS NOT IN THE CATALOG AT ALL, and `unconscious` is the nearest thing
 // to it, so this list is a reading rather than a translation. See SOUND.md §7.
 const IMPAIRED_TAGS = ["pain-shock", "unconscious"];
+// "Ambience while hallucinating" — a real tag, and the document's own word.
+const HALLUCINATING_TAG = "hallucinating";
+// "Ambience while wearing thanati robes". WEARING, so the robes count only while equipped.
+const ROBES_TAG = "black-robes";
+const LISTENER_TAGS = [...IMPAIRED_TAGS, HALLUCINATING_TAG, ROBES_TAG];
+
+// How long after the Charon lifts its passengers still hear it lift. "Plays immediately
+// after the charon has taken off" — the phase poll is a minute, so this only has to outlast
+// one poll and a tab that was asleep for a few.
+const CHARON_FRESH_MS = 10 * 60 * 1000;
 
 // The facts the soundtrack needs, and nothing else (docs/systemdocs/SOUND.md §3, §5).
 //
@@ -45,9 +58,8 @@ export const getMusicPhase = cache(async (discordUserId) => {
             // narrow join, filtered in the query rather than fetched and scanned.
             mood: true,
             tags: {
-              where: { tag: { slug: { in: IMPAIRED_TAGS } } },
-              select: { tagId: true },
-              take: 1,
+              where: { tag: { slug: { in: LISTENER_TAGS } } },
+              select: { equipped: true, tag: { select: { slug: true } } },
             },
             location: {
               select: {
@@ -69,11 +81,33 @@ export const getMusicPhase = cache(async (discordUserId) => {
       select: { number: true, startedAt: true },
     }),
   ]);
-  return {
-    phase: state?.phase ?? "CLOSED",
-    hasCharacter: Boolean(character),
-    standing: standingFor(character, turn),
-  };
+  const phase = state?.phase ?? "CLOSED";
+  const standing = standingFor(character, turn);
+  if (standing && character.location.slug === CHARON_SPACE_SLUG) {
+    const launch = await prisma.charonLaunch.findFirst({
+      where: { launchedAt: { not: null } },
+      orderBy: { launchedAt: "desc" },
+      select: { launchedAt: true },
+    });
+    const at = launch?.launchedAt ? new Date(launch.launchedAt).getTime() : null;
+    // The stamp is the launch itself, so a listener can tell one lift-off from the next.
+    standing.charonLaunchedAt = at !== null && Date.now() - at < CHARON_FRESH_MS ? at : null;
+  }
+
+  // WITH NO LIVING CHARACTER the soundtrack has two more questions, and only in a running
+  // game (SOUND.md §4): is this a ghost, who hears the dead rather than the lobby, and is
+  // this a GM, who hears whatever place they are looking at in Chat. Both are asked only
+  // here, so a living player's poll never pays for them.
+  let ghost = false;
+  let gm = false;
+  if (!character && discordUserId && phase === "RUNNING") {
+    [ghost, gm] = await Promise.all([
+      isPlayerGhost(prisma, discordUserId),
+      getGmSession().then((s) => s.isGm),
+    ]);
+  }
+
+  return { phase, hasCharacter: Boolean(character), standing, ghost, gm };
 });
 
 // How long after a turn opens the train still counts as having just pulled in. It rolls
@@ -102,7 +136,10 @@ function standingFor(character, turn) {
     // raw dial is a number no player is ever shown (MOOD.md) — it has no business crossing
     // to a browser just so the soundtrack can compare it against a threshold of its own.
     moodTone: bandOf(character.mood)?.tone ?? null,
-    impaired: character.tags.length > 0,
+    impaired: character.tags.some((t) => IMPAIRED_TAGS.includes(t.tag.slug)),
+    hallucinating: character.tags.some((t) => t.tag.slug === HALLUCINATING_TAG),
+    robed: character.tags.some((t) => t.tag.slug === ROBES_TAG && t.equipped),
+    charonLaunchedAt: null,
     trainFresh:
       trainHere(turn?.number ?? 0) &&
       started !== null &&

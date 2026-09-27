@@ -7742,7 +7742,7 @@ tags:
     purchasable: true
     purchasableAfterStart: false
     consumable: true
-    consumeChoice: [lute, accordion, boombox]
+    consumeChoice: [lute, accordion]
 
   # The instruments (SOUND.md, "Performances"). `instrument: true` is what the
   # code reads; equipped in one hand, they open the Play Instrument panel.

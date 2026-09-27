@@ -14,7 +14,7 @@ import StagedItems from "./StagedItems";
 import StagingStrip from "./StagingStrip";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import StatusPill from "@/app/components/StatusPill";
-import CombatTile from "@/app/components/CombatReadout";
+import SnapshotBody from "./SnapshotBody";
 import { CAVING_KIND_LABELS, foldCountLabel } from "@/lib/cavingLabels";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { resolveCavingRoll, undoCavingFind, getCavingSnapshot } from "./actions";
@@ -45,7 +45,6 @@ import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDes
 // what they had on — the three things a GM wants for a fight in the dark.
 function LastFailSnapshot({ rollId, latestId }) {
   const [state, setState] = useState({ key: null, snapshot: null, error: null });
-  const [combatOpen, setCombatOpen] = useState(false);
   useEffect(() => {
     let live = true;
     getCavingSnapshot({ cavingRollId: rollId })
@@ -63,32 +62,7 @@ function LastFailSnapshot({ rollId, latestId }) {
   if (state.error) return <FormError>{state.error}</FormError>;
   const snap = state.snapshot;
   if (!snap) return <p className="text-xs text-muted">No snapshot for this roll.</p>;
-  const worn = snap.tags.filter((t) => t.equipped && t.tag.equippable).map((t) => t.tag.name);
-  const health = snap.tags.filter((t) => t.tag.category === "Health").map((t) => t.tag.name);
-  return (
-    <div className="flex flex-col gap-2">
-      <p className="flex flex-wrap items-center gap-2 text-sm">
-        <StatusPill tone={snap.combatMode ? "bad" : "neutral"}>{snap.combatMode ? "Combat mode on" : "Combat mode off"}</StatusPill>
-        <span className="text-xs text-muted">
-          {snap.locationName ? <>{snap.locationName} · </> : null}
-          <span className="mono">{snap.atLabel}</span>
-        </span>
-      </p>
-      <div className="flex">
-        <CombatTile tags={snap.tags} showArmorPieces open={combatOpen} onOpen={setCombatOpen} />
-      </div>
-      <p className="text-xs">
-        <span className="text-muted">Wearing: </span>
-        {worn.length ? worn.join(", ") : "nothing"}
-      </p>
-      {health.length > 0 && (
-        <p className="text-xs">
-          <span className="text-muted">Health: </span>
-          {health.join(", ")}
-        </p>
-      )}
-    </div>
-  );
+  return <SnapshotBody snap={snap} />;
 }
 
 export default function CavingDesk({

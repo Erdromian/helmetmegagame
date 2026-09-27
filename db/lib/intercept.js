@@ -1,7 +1,7 @@
 // LAYING IN WAIT (docs/systemdocs/INTERCEPT.md). You set a watch — mode, a line
 // to say, who you're watching for — and when a match walks in where you're standing they're stopped and handed your words. Safe holds two minutes; Ambush holds until the turn ends or you release them.
 // This is the only module that knows what a watch is (the db/lib/escort.js posture). Takes `db` as a parameter, deliberately NOT on the @lifeweb/db barrel (dm.js convention); require by path. IT SENDS NOTHING — fireWatches returns DM descriptors like the Caving Die's `cavingDm`, sent by the caller after its transaction commits (no network call inside a $transaction, ARCHITECTURE.md §5).
-// THE HOLD IS DERIVED — Character.heldUntil is a plain timestamp, past it you're free and nothing had to notice, so this needs no cron, turn pass or rows to sweep (the keyed-way pattern, MAP.md §2b, applied to a person). An Ambush gets its timestamp from attack.js instead, since an Ambush IS an attack now; either way it's the turn's own end, so the turn advance releases everybody for free.
+// THE HOLD IS DERIVED — Character.heldUntil is a plain timestamp, past it you're free and nothing had to notice, so this needs no cron, turn pass or rows to sweep (the keyed-way pattern, MAP.md §2b, applied to a person). An Ambush gets its timestamp from combat.js instead, since an Ambush IS a fight now; either way it's the turn's own end, so the turn advance releases everybody for free.
 // A hold takes MOVEMENT only, never ACT — deliberately not an incapacitating tag (incapacitation.js): a person held at knifepoint can still talk, fight back and file a Gambit. An ambush is a standoff, not a paralysis.
 const { presentedIdentity, CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
 const { withArticle, concealedAlias } = require("./concealedIdentity");
@@ -21,15 +21,23 @@ const { ambientLine } = require("./ambientLine");
 // WHY somebody cannot move, written onto Character.heldReason beside the timestamp.
 // Four values, not two: a fight holds BOTH sides and they're not in the same position, so the jumped and the jumper must not read the same sentence. A frozen table rather than hand-written strings across files — db/lib/characterDeath.js's clear once lacked this guard, and a typo'd literal is how that happens twice.
 // CAUGHT is a thief the scene saw, pinned where they stand for CAUGHT_HOLD_MS so whoever they robbed can answer — words, or an Attack. Two writers: a Steal that failed its roll (THEFT.md §1e), which has NO heldById because a stash has no owner, so nothing but the clock ends it; and a Pickpocket the victim felt, failed or noticed (THEFT.md §2g), held BY THE VICTIM, so the ordinary Release, walk-off and death clears all work for them. Either way the caught hand stays out of pockets until the clock runs (caughtSecondsLeft below).
+// INVITED is a collaborator asked to join a fight who has not answered yet — held like everybody in it
+// (Bascinet, 2026-09-27), with their own sentence. WITHDRAWING is the attacking party after a call-off:
+// held thirty minutes so the defenders can answer (Combat Overhaul.docx), and held by nobody, since no
+// opponent's Release or walk-off should end it early — only the clock does.
 const HELD_REASON = Object.freeze({
   INTERCEPT: "intercept",
   ATTACK: "attack",
   ATTACKING: "attacking",
+  INVITED: "invited",
+  WITHDRAWING: "withdrawing",
   CAUGHT: "caught",
 });
 
-// The two that a fight writes. releaseHeldBy and every other heldById clear must leave these alone — only the Attack row knows whether either side is still in another fight (ATTACK.md §2).
-const FIGHT_REASONS = Object.freeze([HELD_REASON.ATTACK, HELD_REASON.ATTACKING]);
+// The ones a fight writes. releaseHeldBy and every other heldById clear must leave these alone — only the
+// CombatParticipant rows know whether somebody is still in a fight (db/lib/combat.js#settleHold).
+// WITHDRAWING is not here: it is not a fight any more, and carries no heldById for anything to clear.
+const FIGHT_REASONS = Object.freeze([HELD_REASON.ATTACK, HELD_REASON.ATTACKING, HELD_REASON.INVITED]);
 
 // "...and this hold is not a fight", as a `where` fragment to spread in. Written as
 // an explicit OR, not a bare `notIn` — the column is nullable and in SQL `x NOT IN (…)` is NULL (FALSE) when x is NULL, so a bare notIn would read every already-running intercept hold (NULL heldReason) as a fight and leave it unreleasable until the turn ended; the migration also backfills those rows, but this half doesn't depend on Prisma's query generation.
@@ -47,7 +55,7 @@ const CAUGHT_HOLD_MS = 5 * 60 * 1000;
 const MAX_NAMES = 12;
 const MESSAGE_LIMIT = 300;
 
-// The Release button that used to ride the ambusher's DM. Nothing builds one any more (an ambush files an Attack and wears Cancel attack instead, attack.js), but the prefix and its answerer stay so a button already sitting in somebody's DMs still does something.
+// The Release button that used to ride the ambusher's DM. Nothing builds one any more (an ambush opens a fight instead, combat.js), but the prefix and its answerer stay so a button already sitting in somebody's DMs still does something.
 const INTERCEPT_RELEASE_PREFIX = "icept:release:";
 
 // ─── The message a player typed ───────────────────────────────────────────
@@ -85,14 +93,23 @@ function heldReasonFor(character, now = new Date()) {
   const until = character?.heldUntil ? new Date(character.heldUntil) : null;
   if (!until || until.getTime() <= now.getTime()) return null;
   // WHICH of the two things has hold of them — a column rather than a query, since this function is pure and eight surfaces read it (see Character.heldReason in schema.prisma).
+  // "Until it's over", not "until the end of the turn": a fight can end sooner now — called off, or one
+  // side gone (docs/systemdocs/ATTACK.md) — and the push ends every fight left.
   if (character.heldReason === HELD_REASON.ATTACK) {
-    return "Somebody attacked you. You can't move until the end of the turn.";
+    return "Somebody attacked you. You can't move until the fight is over.";
   }
   // The other side of the same fight — they started it, so telling them they were attacked would be a plain lie on every shut way and every banner.
   if (character.heldReason === HELD_REASON.ATTACKING) {
-    return "You're in a fight. You can't move until the end of the turn.";
+    return "You're in a fight. You can't move until it's over.";
+  }
+  if (character.heldReason === HELD_REASON.INVITED) {
+    return "You've been asked to join a fight. Answer before you go anywhere.";
   }
   const seconds = Math.ceil((until.getTime() - now.getTime()) / 1000);
+  // Minutes, not seconds: it starts at thirty.
+  if (character.heldReason === HELD_REASON.WITHDRAWING) {
+    return `You called off a fight. You can't leave for another ${Math.ceil(seconds / 60)} min.`;
+  }
   // Caught stealing. No "somebody" — a Steal's hold has nobody behind it, and a pickpocket's victim they already know.
   if (character.heldReason === HELD_REASON.CAUGHT) {
     return `You were caught stealing. You can't leave for another ${seconds}s.`;
@@ -120,7 +137,7 @@ function caughtSecondsLeft(character, now = new Date()) {
 
 // Pin somebody where they stand until `until`, held by `heldById` — or by nobody, the default, which is what a Steal writes since a stash has no owner (THEFT.md §1e). A failed or noticed Pickpocket passes the victim, so the victim's Release button, walk-off and death all free the thief (§2g). Two rules in the WHERE:
 // - THE CLOCK RULE: a hold already running longer is left exactly where it is (the fireWatches and holdBothSides rule).
-// - A LIVE FIGHT IS NEVER OVERWRITTEN, however soon it ends. A fight's hold runs to the turn's end, so in a turn's last five minutes the clock rule alone would let this land on it — and swap the reason and heldById out from under attack.js#settleHold, which only re-points rows still carrying a fight reason. A fight that has already lapsed on its own clock still carries its reason (the turn advance releases by the clock, clearing nothing), so only a RUNNING one counts.
+// - A LIVE FIGHT IS NEVER OVERWRITTEN, however soon it ends. A fight's hold runs to the turn's end, so in a turn's last five minutes the clock rule alone would let this land on it — and swap the reason and heldById out from under combat.js#settleHold, which only re-points rows still carrying a fight reason. A fight that has already lapsed on its own clock still carries its reason (the turn advance releases by the clock, clearing nothing), so only a RUNNING one counts.
 // Resolves to whether the hold landed, so a caller never announces a hold that didn't happen.
 async function holdWhereTheyStand(db, characterId, { until, reason, heldById = null, now = new Date() }) {
   const { count } = await db.character.updateMany({
@@ -140,7 +157,7 @@ async function holdWhereTheyStand(db, characterId, { until, reason, heldById = n
 // same button in their DM, and the holder walking away or dying. Conditional on `heldById` so nobody can free somebody else's prisoner, and a lapsed or handed-on hold isn't clobbered.
 async function releaseHeldBy(db, holderId, { targetId = null } = {}) {
   // An ATTACK hold is not this function's to end — both sides of a fight are held and
-  // each names the other, so letting Release touch one would free the victim, leave the Attack row live, and leave the attacker held by a fight that no longer holds anybody. Breaking off is attack.js#cancelAttack, and only that.
+  // each names the other, so letting Release touch one would free the victim, leave the fight live, and leave the attackers held by a fight that no longer holds anybody. A fight ends through combat.js (call-off, a side emptying, the GM, the push), and only there.
   const where = { heldById: holderId, heldUntil: { gt: new Date() }, ...NOT_A_FIGHT };
   if (targetId) where.id = targetId;
   const freed = await db.character.findMany({
@@ -204,12 +221,20 @@ const INTERCEPT_CANCELLED_DM = "You left, so your interception was canceled.";
 
 // A HOOD BEATS A NAME, and this is the line that makes it true. A typed name is
 // matched against the identity the room would SEE, never the row — a hooded Greeblus reads as "a young man" and no watch naming him reaches him (that's what "any concealed person" is for). Without this rule Intercept would be a hood-defeating radar: a free watch would tell you Greeblus is here AND that he's hiding it, exactly what the hood is bought to prevent. A forced name (Apex Form's "Beast") is unmatchable for the same reason. `presented` is presentedIdentity()'s result for the arrival.
-function matchesArrival(watch, arrival, presented) {
+// AND A NAME ONLY CATCHES SOMEBODY YOU KNOW (Combat Overhaul.docx). `known` is whether the watcher has a
+// Friends entry for the arrival (strangers.js#knownSubjects — true when the stranger rule is off). A bare
+// face the watcher has never met is a stranger to them, and a typed name must not reach past that any more
+// than past a hood. "Anyone I can't identify" is the dragnet for the rest: a hood, a forced name, or a
+// stranger's face.
+function matchesArrival(watch, arrival, presented, { known = true } = {}) {
   if (!watch) return null;
   if (watch.anyPerson) return "anyPerson";
-  if (presented?.concealed || presented?.forced) {
+  const hidden = Boolean(presented?.concealed || presented?.forced);
+  if (watch.anyUnidentified && (hidden || !known)) return "anyUnidentified";
+  if (hidden) {
     return watch.anyConcealed && presented.concealed ? "anyConcealed" : null;
   }
+  if (!known) return null;
   const typed = (watch.targetNames ?? []).find((name) => matchesTypedName(arrival, name));
   return typed ? "name" : null;
 }
@@ -331,7 +356,12 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
       // character clause stays beside it rather than replacing it, since the cancel can be missed — every applyLocationMoveSideEffects caller swallows its throw, so a Discord failure mid-relocation can leave a live row anchored to a place its owner already left. This makes that a dud instead of a ghost.
       locationId,
       character: { locationId, status: "ALIVE" },
-      OR: [{ anyPerson: true }, { anyConcealed: true }, { NOT: { targetNames: { isEmpty: true } } }],
+      OR: [
+        { anyPerson: true },
+        { anyConcealed: true },
+        { anyUnidentified: true },
+        { NOT: { targetNames: { isEmpty: true } } },
+      ],
     },
     include: { character: { select: { ...IDENTITY_SELECT, combatModeSinceTurn: true } } },
   });
@@ -343,12 +373,21 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
     // Dying, bound, catatonic, crucified: none of them stop a stranger walking past. The
     // watch row survives — a standing preference, like an escort consent — and works again the moment they can act.
     if (blockerFor(w.character.tags, ACT)) return false;
-    // Out of combat mode, the watch is dormant (COMBAT-MODE.md §3): kept, the same standing-preference
-    // reasoning, and it wakes the moment its owner is alert again. A filter rather than a `where` so
-    // the fake databases in db/test/ reach it.
-    return inCombatMode(w.character);
+    // An AMBUSH out of combat mode is dormant (COMBAT-MODE.md §3): kept, the same standing-preference
+    // reasoning, and it wakes the moment its owner is alert again. A Safe watch never needs combat mode
+    // (Combat Overhaul.docx). A filter rather than a `where` so the fake databases in db/test/ reach it.
+    return w.mode !== "AMBUSH" || inCombatMode(w.character);
   });
   if (live.length === 0) return { dms, hits: [] };
+
+  // Who each watcher RECOGNISES among the arrivals — one Friends lookup per watcher for the whole party. A
+  // typed name only catches somebody the watcher knows (matchesArrival). Null means the stranger rule is off,
+  // which reads as knowing everybody.
+  const knownBy = new Map();
+  for (const w of live) knownBy.set(w.characterId, await knownSubjects(db, w.characterId, [...arrivalIds]));
+
+  // Lazily: combat.js requires this module back, so the cycle resolves at call time.
+  const { activeFightOf } = require("./combat");
 
   const now = new Date();
   const hits = [];
@@ -361,11 +400,22 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
     const presented = identityOf(row);
 
     for (const watch of live) {
-      const matchedBy = matchesArrival(watch, row, presented);
+      const known = knownBy.get(watch.characterId);
+      const matchedBy = matchesArrival(watch, row, presented, { known: !known || known.has(row.id) });
       if (!matchedBy) continue;
       // Where they came from, not who they are. It reads `arrival` and not `row`, since
       // the journey is on the descriptor the mover handed us and the fresh row knows only the face. BEFORE the ration insert below: a local this watch deliberately ignored must not burn the turn's one catch, or a stranger arriving later the same turn would walk straight through.
       if (!originHolds(watch, arrival, zoneId)) continue;
+      // An ambush can only pull somebody into a fight who is not in one already, and only an ambusher who is
+      // not busy in some OTHER fight can spring it. Checked before the ration for the same reason as the line
+      // above: a catch that could not happen must not spend the turn's one.
+      if (watch.mode === "AMBUSH") {
+        if (await activeFightOf(db, row.id, openTurn.id)) continue;
+        const busy = await activeFightOf(db, watch.characterId, openTurn.id);
+        if (busy && !(busy.combat?.fromAmbush && busy.combat?.ambushOwnerId === watch.characterId && busy.combat?.locationId === locationId)) {
+          continue;
+        }
+      }
 
       // THE RATION, and the insert IS the enforcement. Without it a lapsed two-minute
       // hold is walked straight back into, and a Safe watch on a busy road becomes an endless roadblock and DM feed. A unique violation means this catcher already caught this target this turn — not an error, the rule working. Keyed to the CATCHER, never the watch row: a watch dies when its owner walks off, so a row-keyed ration would reset by stepping out and back.
@@ -378,7 +428,7 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
         throw err;
       }
 
-      // An Ambush carries NO deadline of its own — attack.js#fileAttack owns that clock now, so there's exactly one "when does the turn end", not two copies drifting apart.
+      // An Ambush carries NO deadline of its own — combat.js#settleHold owns that clock now, so there's exactly one "when does the turn end", not two copies drifting apart.
       const ambush = watch.mode === "AMBUSH";
       const until = ambush ? null : new Date(now.getTime() + SAFE_HOLD_MS);
       hits.push({ watch, interceptor: watch.character, target: row, presented, matchedBy, ambush, until });
@@ -402,23 +452,18 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
 
   if (hits.length === 0) return { dms, hits: [] };
 
-  // AN AMBUSH IS AN ATTACK (ATTACK.md). It files a real Attack row and that's what
-  // holds both sides — the ambusher included, since springing the trap puts you in the fight too. No strength gate: you set a watch blind and don't get to pick who walks into it. Required lazily since attack.js requires this module back for the hold's own vocabulary — a cycle resolved at call time, not load time, so neither half ever sees a partial exports object.
-  const { fileAttack } = require("./attack");
+  // AN AMBUSH IS A FIGHT (ATTACK.md §9). The first catch opens a Combat with the ambusher as its
+  // initiator and the arrival as its target; every later catch the same turn is added to that same fight,
+  // snapshotted as they walk in (Combat Overhaul.docx). The ambusher is in it too — springing the trap puts
+  // you in the fight. combat.js writes the holds and every DM for it, the victim's included.
+  const { springAmbush } = require("./combat");
   const attackDmsOut = [];
   for (const hit of hits.filter((h) => h.ambush)) {
-    const filed = await fileAttack(db, {
-      attacker: hit.interceptor,
-      target: hit.target,
-      openTurn,
-      fromAmbush: true,
-      locationId,
-    });
-    // The unique on Attack already has these two, this turn, and the row said no:
-    // a fight still going, or one broken off inside its cooling-off hour
-    // (attack.js#ATTACK_COOLDOWN_MS). Nobody was newly held, so the victim must NOT be told "it's an ambush, you can't move": a false line is worse than no line. Very hard to reach (the InterceptHit ration above stops the same catcher twice a turn), but it costs one flag to never lie.
-    hit.held = filed.ok;
-    attackDmsOut.push(...filed.dms);
+    const sprung = await springAmbush(db, { watch: hit.watch, arrivalId: hit.target.id, turn: openTurn, locationId });
+    // A race lost to another fight between the check above and here: nobody was newly held, so nobody
+    // is told they were. A false "it's an ambush" is worse than no line.
+    hit.held = sprung.ok;
+    attackDmsOut.push(...(sprung.dms ?? []));
   }
 
   // ONE hold per person, however many caught them: the longest wins, so a second Safe stop can't shorten the first. Conditional on the clock, so a hold already running longer (an Ambush's, above) is left exactly where it is.
@@ -444,36 +489,22 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
   // The victim hears from each of them. Three guards at the gate is three lines, since walking into three people is what happened.
   for (const hit of hits) {
     if (!hit.target.discordUserId) continue;
-    if (hit.ambush && !hit.held) continue;
+    // An ambush's victim hears from combat.js, whose line carries the fight's own prompt.
+    if (hit.ambush) continue;
     // As the victim would name them (docs/systemdocs/STRANGERS.md).
     const stopper = await seenBy(db, hit.target.id, hit.interceptor);
-    if (hit.ambush) {
-      dms.push({
-        discordUserId: hit.target.discordUserId,
-        content: [
-          "You were stopped on the road. It's an ambush! You can't move until the end of the turn. Make a Gambit declaring your intent!",
-          ...(hit.watch.message ? [`» ${hit.watch.message}`] : []),
-        ].join("\n"),
-        kind: DM_KIND.NOTICE,
-        // A net closing, in the stopped person's own browser. The third carrier (CHAT.md
-        // 5b): being ambushed happens TO you, and nothing on the road says it out loud.
-        sfx: SFX.HELD,
-        authorDiscordUserId: hit.watch.message ? hit.interceptor.discordUserId ?? null : null,
-      });
-    } else {
-      dms.push({
-        discordUserId: hit.target.discordUserId,
-        content: [
-          `You were stopped on the road by ${stopper}. ${saidWord(hit.interceptor)}:`,
-          `» ${hit.watch.message || "…"}`,
-          "You can't move for two minutes.",
-        ].join("\n"),
-        // NOTICE even with typed words in it — it's the game delivering a stop; as CONVERSATION every stop on the road pinged the GM inbox.
-        kind: DM_KIND.NOTICE,
-        sfx: SFX.HELD,
-        authorDiscordUserId: hit.interceptor.discordUserId ?? null,
-      });
-    }
+    dms.push({
+      discordUserId: hit.target.discordUserId,
+      content: [
+        `You were stopped on the road by ${stopper}. ${saidWord(hit.interceptor)}:`,
+        `» ${hit.watch.message || "…"}`,
+        "You can't move for two minutes.",
+      ].join("\n"),
+      // NOTICE even with typed words in it — it's the game delivering a stop; as CONVERSATION every stop on the road pinged the GM inbox.
+      kind: DM_KIND.NOTICE,
+      sfx: SFX.HELD,
+      authorDiscordUserId: hit.interceptor.discordUserId ?? null,
+    });
   }
 
   // And the interceptor hears what they caught. A Safe watch reports its whole haul in
@@ -494,7 +525,7 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
         kind: DM_KIND.NOTICE,
       });
     }
-    // The ambusher's own line is attack.js's now, since the button calls off a fight rather than releasing a hold — still one DM per victim, a button answers about exactly one person.
+    // The ambusher's own lines are combat.js's now.
   }
   dms.push(...attackDmsOut);
 
@@ -502,7 +533,7 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
   // ASKS to search whoever it caught — it buys the ask and never the answer, so
   // the consent DM is the ordinary one and No is a real answer.
   //
-  // Required lazily for fileAttack's reason one block up: search.js requires this
+  // Required lazily for springAmbush's reason one block up: search.js requires this
   // module back for seenAs/identityOf/IDENTITY_SELECT, so the cycle is resolved at
   // call time rather than load time and neither half sees a partial exports object.
   //

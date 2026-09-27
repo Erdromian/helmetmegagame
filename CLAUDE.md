@@ -271,7 +271,7 @@ you pick the right doc — they are never enough to change code with.
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, `/gm/dev/tags`, or the `/gm/dev/zones` place editor |
 | [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, **walking several hops across a zone** (§3c), or the `/map` panel — geography is authored live at `/gm/dev/zones` now, not by re-syncing YAML |
 | [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
-| [`ATTACK.md`](docs/systemdocs/ATTACK.md) | You're touching the Attack verb — the band gate that refuses a hopeless fight, the hold it puts on **both** sides, Break off, or the **Other** lens on `/gm/turns` |
+| [`ATTACK.md`](docs/systemdocs/ATTACK.md) | You're touching a fight — Attack with several targets and collaborators, the snapshots and the gated distances, the attack description, the hidden roll nobody is shown, intervening, Call off, an ambush springing, **anything that asks whether somebody is in a fight** (`CombatParticipant.activeTurnId`), the turn lock on fighting and travel, or the **Combat** lens on `/gm/turns` |
 | [`COMBAT-MODE.md`](docs/systemdocs/COMBAT-MODE.md) | You're touching combat mode — the square button on `/chat` and the sheet, **anything that asks whether somebody is on guard** (`db/lib/combatMode.js`), the Attack and Intercept gates it opens, dormant watches, the Tired/Exhausted it costs at the push, or "They look alert." |
 | [`QUESTS.md`](docs/systemdocs/QUESTS.md) | You're touching Quests — the `/gm/dev?s=quests` panel, a GM-staged room and its **Interact** button, the quest gates, the noticeboard manager or the zone broadcaster — or **anything that touches a Room's `questId`**, which marks a room a GM minted at runtime rather than one `docs/zones.yaml` named |
 | [`NUKE.md`](docs/systemdocs/NUKE.md) | You're touching the bomb — its room and code rolled every game (`GameState.nukeRoomId` / `nukeCode`), the eight-digit keypad and its green button, the three-strike lockout (`NukeLockout`), who starts the game knowing where it is (`db/lib/nukeBriefing.js`), or the Reports block on `/gm/dev`. What the blast does is `TURN-ENGINE.md` §2 4c |
@@ -305,7 +305,7 @@ you pick the right doc — they are never enough to change code with.
 | [`CHAT-REBUILD.md`](docs/systemdocs/CHAT-REBUILD.md) | You're rebuilding `/chat`'s interface on the mockup's skeleton — the phases, the feature checklist that stops a rewrite losing things, and which half of the page is presentation and which is transport. **Adding any surface to chat** starts at its Phase 0 doc, [`docs/design/chat-vocabulary.md`](docs/design/chat-vocabulary.md) |
 | [`DOCUMENTS.md`](docs/systemdocs/DOCUMENTS.md) | You're touching `/documents`, `docs/documents.yaml`, `/handbook`, or `docs/handbook.md` |
 | [`INFOCHANNEL.md`](docs/systemdocs/INFOCHANNEL.md) | You're changing `#info` or `docs/systemdocs/infochannel.yaml` |
-| [`SOUND.md`](docs/systemdocs/SOUND.md) | You're touching anything the browser makes a noise with — **what any sound is FOR** (`docs/sounds.yaml`, §7: all 743 of them, out of Bascinet's own design document, and the place to look BEFORE wiring one), a cue in `sfx.js`, the music bus and its six layers (`music.js`), what a PLACE sounds like (`placeAmbience.js`) or what plays in the lobby or behind the closed door (`musicProgram.js`), **how loud any of it is** (`musicGain.js` and `scripts/audio/`), the two switches and the volume slider, or **anything that asks whether a sound may be heard right now** (`soundStore.js` — the speaker is master over the music) |
+| [`SOUND.md`](docs/systemdocs/SOUND.md) | You're touching anything the browser makes a noise with — **what any sound is FOR** (`docs/sounds.yaml`, §7: 810 of them, out of Bascinet's two design documents, and the place to look BEFORE wiring one), a cue in `sfx.js`, the music bus and its six layers (`music.js`), what a PLACE sounds like (`placeAmbience.js`) or what plays in the lobby or behind the closed door (`musicProgram.js`), **how loud any of it is** (`musicGain.js` and `scripts/audio/`), the two switches and the volume slider, or **anything that asks whether a sound may be heard right now** (`soundStore.js` — the speaker is master over the music) |
 | [`PORTRAITS.md`](docs/systemdocs/PORTRAITS.md) | You're touching the portrait maker, avatar art, or `Character.avatarData` |
 | [`DESIGN-SYSTEM.md`](docs/systemdocs/DESIGN-SYSTEM.md) | You're writing or restyling **any** web UI |
 | [`LATE-JOINS.md`](docs/systemdocs/LATE-JOINS.md) | You're touching the seats somebody may walk into mid-game — the `/gm/dev?s=latejoins` panel, the picker's **Special** section, **the one thing the curse does not stop** (`db/lib/lateJoin.js`), the Bastard's Call reinforcements button, or the Deep Beast Horn |
@@ -1686,7 +1686,10 @@ might need to reach a real environment:
   hunger meter replaced the streak it counted (`TURN-ENGINE.md` §5). Hunger is
   `Character.hungerValue` now, and the Gambit penalty comes off the `starving`
   descriptor rather than off a streak — nothing reads the column, and nothing
-  should start.
+  should start. The `Attack` table joined them with the Combat Overhaul
+  (`ATTACK.md` §12): a fight is `Combat` and `CombatParticipant` now, and
+  `db/lib/attack.js` survives only as a shim for rows live on the deploy turn —
+  delete it, and `DM_ACTION.ATTACK_HOLD`, once a turn has pushed.
 - The **mid-game tag store is `/store`**: the shared `PointBuy.js` experience
   mounted with `afterStartOnly`, spending `Character.tagPoints`, each cart
   filed as one `BUY_TAGS` request. What's still open is the rules for earning
@@ -1730,7 +1733,9 @@ might need to reach a real environment:
   `Performance_live_unique` is the PhoneCall shape again (`WHERE "stoppedAt" IS
   NULL`): `migrate diff` does not mention it, but a hand-written "fix drift"
   migration must not drop it — it is what keeps one character to one song
-  (`SOUND.md` §6b).
+  (`SOUND.md` §6b). `Combat_notify` and `CombatParticipant_notify` are the
+  desk's Combat lens (`ATTACK.md` §8), the same answer as the four above; the
+  second announces its PARENT fight, the `Delivery_notify` shape.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

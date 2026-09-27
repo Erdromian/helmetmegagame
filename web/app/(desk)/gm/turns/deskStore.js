@@ -3,13 +3,14 @@
 import { useSyncExternalStore } from "react";
 import { noteDeskDraftTurn, pruneDeskDrafts } from "./deskDraft";
 
-// Adjudication desk's client-owned model of its rows — Moves, Caving rolls, staged effects/messages. Every action hands back the rows it changed and the desk folds them in, so what a GM sees is what a GM did; the page payload is a reconciliation, not the only source.
+// Adjudication desk's client-owned model of its rows — Moves, Caving rolls, fights, staged effects/messages. Every action hands back the rows it changed and the desk folds them in, so what a GM sees is what a GM did; the page payload is a reconciliation, not the only source.
 // Module-level state read through useSyncExternalStore (liveInbox.js's shape). Every rebuild makes a new Map/array: react-hooks/immutability is an error here.
 
 const EMPTY_VIEWS = Object.freeze({
   seeded: false,
   moves: Object.freeze([]),
   cavingRolls: Object.freeze([]),
+  combats: Object.freeze([]),
   stagedEffects: Object.freeze([]),
   stagedMessages: Object.freeze([]),
 });
@@ -20,6 +21,7 @@ const TOMBSTONE_CAP = 2000;
 const state = {
   moves: new Map(),
   caving: new Map(),
+  combats: new Map(),
   effects: new Map(),
   messages: new Map(),
   turnId: null,
@@ -100,6 +102,7 @@ function rebuildViews() {
     seeded: state.seeded,
     moves: Object.freeze(liveRows(state.moves).sort(byCreatedDesc)),
     cavingRolls: Object.freeze(liveRows(state.caving).sort(byCreatedDesc)),
+    combats: Object.freeze(liveRows(state.combats).sort(byCreatedDesc)),
     stagedEffects: Object.freeze(liveRows(state.effects).sort(byCreatedAsc)),
     stagedMessages: Object.freeze(liveRows(state.messages).sort(byCreatedAsc)),
   });
@@ -108,6 +111,7 @@ function rebuildViews() {
 const TYPES = [
   ["moves", "moves", "moveIds"],
   ["caving", "cavingRolls", "cavingRollIds"],
+  ["combats", "combats", "combatIds"],
   ["effects", "stagedEffects", "stagedEffectIds"],
   ["messages", "stagedMessages", "stagedMessageIds"],
 ];
@@ -121,6 +125,7 @@ export function seedDesk(payload) {
   if (payload.turnId !== state.turnId && !older) {
     state.moves = new Map();
     state.caving = new Map();
+    state.combats = new Map();
     state.effects = new Map();
     state.messages = new Map();
     state.turnId = payload.turnId ?? null;
@@ -153,6 +158,7 @@ export function seedDesk(payload) {
     const liveDraftKeys = new Set();
     for (const row of liveRows(state.moves)) liveDraftKeys.add(`move:${row.id}`);
     for (const row of liveRows(state.caving)) liveDraftKeys.add(`caving:${row.id}`);
+    for (const row of liveRows(state.combats)) liveDraftKeys.add(`combat:${row.id}`);
     pruneDeskDrafts(liveDraftKeys);
   }
 
