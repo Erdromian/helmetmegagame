@@ -21,6 +21,8 @@ import {
   IDENTITY_SELECT,
 } from "@lifeweb/db/lib/intercept";
 import { setWatch, stopWatch } from "@lifeweb/db/lib/verbs/watch";
+import { interceptBlock } from "@lifeweb/db/lib/combatGate";
+import { WATCH_DORMANT } from "@lifeweb/db/lib/combatMode";
 
 // LAYING IN WAIT, from the character sheet (docs/systemdocs/INTERCEPT.md).
 // Same posture as cerberonActions.js: the actor is resolved from the session
@@ -28,8 +30,9 @@ import { setWatch, stopWatch } from "@lifeweb/db/lib/verbs/watch";
 // (a production build redacts anything thrown out of a server action), and the
 // dialog's own filtering is advisory — a server action is a public endpoint.
 //
-// Nothing here costs a Move, ⬢ or a per-turn ration. Setting a watch is free
-// and open to everyone: it is a fact about nobody until somebody walks in.
+// Nothing here costs a Move, ⬢ or a per-turn ration. Setting a watch is free,
+// but it needs combat mode (docs/systemdocs/COMBAT-MODE.md §3); stopping one
+// never does.
 
 async function me({ needs = null } = {}) {
   const session = await auth();
@@ -85,8 +88,14 @@ async function loadInterceptImpl() {
   // a relocation that never ran the cancel — but the dialog must never draw a
   // watch that could not fire.
   const live = watch && anchorHolds(watch, character.locationId) ? watch : null;
+  // Why Save is dead, or null — advisory, setWatch throws the same sentence. A
+  // standing watch out of combat mode is kept but dormant (fireWatches), and
+  // the dialog says so rather than drawing a watch that will not fire.
+  const blocked = await interceptBlock(prisma, character.id);
   return {
     ok: true,
+    blocked,
+    dormant: live && blocked ? WATCH_DORMANT : null,
     limits: { names: MAX_NAMES, message: MESSAGE_LIMIT },
     watch: live
       ? {

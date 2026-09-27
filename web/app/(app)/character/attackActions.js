@@ -15,7 +15,7 @@ import { HERE_FIELDS } from "@lifeweb/db/lib/presence";
 import { SFX } from "@lifeweb/db/lib/sfx";
 import { whosHere } from "@lifeweb/db/lib/whosHere";
 import { IDENTITY_SELECT, seenBy } from "@lifeweb/db/lib/intercept";
-import { attackMoveBlock } from "@lifeweb/db/lib/combatGate";
+import { attackBlock } from "@lifeweb/db/lib/combatGate";
 import {
   ATTACK_TAG_SELECT,
   ATTACK_CALLED_OFF_DM,
@@ -111,7 +111,7 @@ async function loadAttacksImpl() {
     // Why the dialog's Attack button is dead, or null. Advisory — the same
     // sentence is thrown for real below — and it deliberately does NOT reach
     // the Break off rows, which stay live for exactly the player this refuses.
-    blocked: await attackMoveBlock(prisma, character.id, openTurn?.id ?? null),
+    blocked: await attackBlock(prisma, character.id, openTurn?.id ?? null),
   };
 }
 
@@ -128,7 +128,7 @@ async function attackCharacterImpl({ targetKey, targetCharacterId }) {
   // Ahead of the band gate on purpose: somebody who cannot attack at all this
   // turn must not be told, as a consolation prize, that the person they picked
   // was out of their league (docs/systemdocs/COMBAT.md §5).
-  const spent = await attackMoveBlock(prisma, character.id, openTurn.id);
+  const spent = await attackBlock(prisma, character.id, openTurn.id);
   if (spent) throw new UserError(spent);
 
   // Re-checked server-side on the posted key, never trusted from the dialog.

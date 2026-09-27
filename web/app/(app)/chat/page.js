@@ -436,6 +436,8 @@ async function FreshChat({ userId }) {
           // Seeded alongside the Move so the dialog can key its unfiled draft
           // on the first paint rather than waiting out a poll.
           moveCharacterId: mine.ok ? mine.characterId : null,
+          // The combat mode button under the Turn block (COMBAT-MODE.md §2), off the same poll.
+          combatMode: mine.ok ? (mine.combatMode ?? null) : null,
           desires,
           letters,
           // What is in this character's pockets, for the Things drawer under

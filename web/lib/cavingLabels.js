@@ -13,42 +13,70 @@ export const CAVING_KIND_LABELS = {
 // bundle. db/test/cavingTally.test.js fails the build if the two disagree.
 export const CAVING_TROUBLE_CAP = 10;
 
-export function ordinal(n) {
-  const rem100 = n % 100;
-  if (rem100 >= 11 && rem100 <= 13) return `${n}th`;
-  const suffix = { 1: "st", 2: "nd", 3: "rd" }[n % 10] ?? "th";
-  return `${n}${suffix}`;
-}
-
-// Which 1 of the turn each TROUBLE row is, for the Caving lens. Takes one
-// turn's rows (cavingRollRow shape, web/lib/moveRows.js) and answers, per row
-// id, { nth, total, stuck }: this is the character's nth 1 in this zone on
-// this turn, out of `total`, and `stuck` once the total has reached the cap —
-// the same count db/lib/cavingPass.js#cavingRestrictionsFor makes, recomputed
-// from the rows the desk already holds so no server round trip is needed and
-// the live stream keeps it current. Grouped by character AND zone, because
-// that is the stop's own scope. Only TROUBLE rows are tallied; the rest get
-// no entry.
-export function troubleTallies(rows) {
+// The Caving lens folds a caver's failed rolls into ONE result (Combat Mode.docx; CAVING.md §5):
+// every TROUBLE row one character rolled in one zone on one turn is one row on the rail, one desk,
+// one Save and one Mark resolved. Grouped by character AND zone, the stop's own scope (§2e). Takes
+// one turn's rows (cavingRollRow shape, web/lib/moveRows.js) and answers { rows, groupOf }:
+//
+//   rows     QUIET and FIND unchanged, and one row per group. A group row is keyed by its OLDEST
+//            roll, so the id never changes while a caver keeps failing — the GM's selection and
+//            keyboard cursor hold, and every staged message or effect attaches to that one id. The
+//            die, place and time are the NEWEST roll's, which is also the snapshot the desk reads.
+//   groupOf  any roll id -> the id of the row it is shown under, so an old link to one 1 still
+//            opens its group.
+//
+// Recomputed from the rows the desk already holds, so the live stream keeps it current.
+export function foldCavingRolls(rows) {
   const groups = new Map();
+  const out = [];
   for (const row of rows ?? []) {
-    if (row.kind !== "TROUBLE") continue;
+    if (row.kind !== "TROUBLE") {
+      out.push(row);
+      continue;
+    }
     const key = `${row.characterId}|${row.zoneId ?? row.zoneName ?? ""}`;
     if (!groups.has(key)) groups.set(key, []);
     groups.get(key).push(row);
   }
-  const out = new Map();
-  for (const group of groups.values()) {
-    group.sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0) || String(a.id).localeCompare(String(b.id)));
-    const total = group.length;
-    group.forEach((row, i) => out.set(row.id, { nth: i + 1, total, stuck: total >= CAVING_TROUBLE_CAP }));
+  const groupOf = new Map();
+  for (const members of groups.values()) {
+    members.sort((a, b) => (a.createdAtMs ?? 0) - (b.createdAtMs ?? 0) || String(a.id).localeCompare(String(b.id)));
+    const oldest = members[0];
+    const latest = members[members.length - 1];
+    const resolved = members.filter((m) => m.resolvedAt);
+    const open = members.length - resolved.length;
+    // The newest resolved member says who resolved it and how (by hand, or the push).
+    const lastResolved = resolved[resolved.length - 1] ?? null;
+    const count = members.length;
+    for (const m of members) groupOf.set(m.id, oldest.id);
+    out.push({
+      ...oldest,
+      memberIds: members.map((m) => m.id),
+      latestId: latest.id,
+      count,
+      stuck: count >= CAVING_TROUBLE_CAP,
+      die: latest.die,
+      locationName: latest.locationName,
+      createdAtMs: latest.createdAtMs,
+      // Needs attention while ANY 1 in it is undecided — a fresh failure after a GM resolved the
+      // group reopens it, and says how many are new.
+      statusLabel: open > 0 ? "Needs attention" : "Resolved",
+      resolvedAt: open > 0 ? null : (lastResolved?.resolvedAt ?? null),
+      resolvedAtLabel: open > 0 ? null : (lastResolved?.resolvedAtLabel ?? null),
+      resolvedByUsername: open > 0 ? null : (lastResolved?.resolvedByUsername ?? null),
+      autoResolved: open === 0 && Boolean(lastResolved?.autoResolved),
+      newSinceResolved: resolved.length > 0 ? open : 0,
+      // The Result box lives on the oldest roll. A group from before the fold may have notes on a
+      // later one, so the newest non-empty note stands in for an empty first.
+      gmNotes: oldest.gmNotes || [...members].reverse().find((m) => m.gmNotes)?.gmNotes || "",
+    });
   }
-  return out;
+  return { rows: out, groupOf };
 }
 
-// The rail's second line for a tallied row: "3rd 1 this turn", or nothing
-// for the first — one 1 is the ordinary case and needs no count.
-export function tallyLabel(tally) {
-  if (!tally || tally.total < 2) return null;
-  return `${ordinal(tally.nth)} 1 this turn`;
+// The rail's and the desk's count for a folded row: "3 failed rolls this turn", or nothing for a lone 1 —
+// the ordinary case, which needs no count.
+export function foldCountLabel(row) {
+  if (!row?.count || row.count < 2) return null;
+  return `${row.count} failed rolls this turn`;
 }

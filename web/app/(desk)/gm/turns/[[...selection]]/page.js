@@ -33,6 +33,8 @@ import {
   tagsByIdFor,
 } from "@/lib/moveRows";
 import { deskRowContext, structuresByLocation } from "@/lib/deskRows";
+import { troubleGroupWhere } from "@lifeweb/db/lib/cavingPass";
+import { foldCavingRolls } from "@/lib/cavingLabels";
 import { pgNowMs } from "@/lib/pgClock";
 import {
   ATTACK_INCLUDE,
@@ -396,21 +398,28 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       include: CAVING_ROLL_INCLUDE,
     });
     if (roll) {
+      // A 1 is shown folded with the caver's other 1s in that zone that turn (CAVING.md §5), so the
+      // link loads the whole group and its staged rows, not only the roll it names.
+      const members =
+        roll.kind === "TROUBLE"
+          ? await prisma.cavingRoll.findMany({ where: troubleGroupWhere(roll), include: CAVING_ROLL_INCLUDE })
+          : [roll];
+      const memberIds = members.map((m) => m.id);
       const [rollEffects, rollMessages] = await Promise.all([
         prisma.stagedEffect.findMany({
-          where: { cavingRollId: roll.id },
+          where: { cavingRollId: { in: memberIds } },
           orderBy: { createdAt: "asc" },
           include: STAGED_EFFECT_INCLUDE,
         }),
         prisma.stagedMessage.findMany({
-          where: { cavingRollId: roll.id },
+          where: { cavingRollId: { in: memberIds } },
           orderBy: { createdAt: "asc" },
           include: STAGED_MESSAGE_INCLUDE,
         }),
       ]);
       initialCaving = {
         turnId: roll.turnId,
-        roll: cavingRollRow(roll, { usernameById, catatonicIds }),
+        roll: foldCavingRolls(members.map((m) => cavingRollRow(m, { usernameById, catatonicIds }))).rows[0],
         effects: rollEffects.map((e) => stagedEffectRow(e, effectCtx)),
         messages: rollMessages.map((m) => stagedMessageRow(m, messageCtx)),
       };

@@ -1014,6 +1014,108 @@ input[type="radio"]:focus-visible,
   border-bottom-color: color-mix(in srgb, var(--danger) 45%, var(--surface));
 }
 
+/* Combat mode (COMBAT-MODE.md §2): a square toggle that glows red while on
+   (Combat Mode.docx). Off it is the everyday grey bevel; on it takes the
+   .btn-danger face plus a --danger glow, since being on guard is an alarm
+   state. A pressed button, not a Switch: it can't come off on the turn it went
+   on (DESIGN-SYSTEM.md §5a). Disabled keeps full colour, so a locked-on button
+   still glows; the note beside it says why it won't press. */
+.combat-mode {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.combat-mode-note {
+  min-width: 0;
+}
+
+.btn-combat {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  flex: none;
+  width: 64px;
+  aspect-ratio: 1;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-top: 2px solid var(--border-hi);
+  border-left: 2px solid var(--border-hi);
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
+  border-radius: var(--r);
+  background: var(--surface-raised);
+  color: var(--text);
+  font-size: var(--fs-2xs);
+  line-height: 1.15;
+  text-align: center;
+}
+
+.combat-mode[data-size="lg"] .btn-combat {
+  width: 84px;
+}
+
+.btn-combat-label {
+  font-weight: 700;
+}
+
+.btn-combat-state {
+  color: var(--muted);
+}
+
+.btn-combat:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--text) 8%, var(--surface-raised));
+  color: var(--text-hi);
+}
+
+.btn-combat:active:not(:disabled) {
+  border-top-color: var(--border-lo);
+  border-left-color: var(--border-lo);
+  border-right-color: var(--border-hi);
+  border-bottom-color: var(--border-hi);
+}
+
+.btn-combat:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn-combat[aria-pressed="true"] {
+  border-top-color: color-mix(in srgb, var(--danger) 70%, var(--surface));
+  border-left-color: color-mix(in srgb, var(--danger) 70%, var(--surface));
+  border-right-color: color-mix(in srgb, var(--danger) 35%, var(--border-lo));
+  border-bottom-color: color-mix(in srgb, var(--danger) 35%, var(--border-lo));
+  background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+  color: var(--danger);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--danger) 55%, transparent),
+    0 0 2px var(--danger);
+}
+
+.btn-combat[aria-pressed="true"] .btn-combat-state {
+  color: var(--danger);
+}
+
+.btn-combat[aria-pressed="true"]:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--danger) 26%, var(--surface));
+  color: var(--danger);
+}
+
+.btn-combat:disabled {
+  cursor: not-allowed;
+}
+
+/* Off and unpressable (Exhausted): the gated-verb well, as .btn-secondary. */
+.btn-combat[aria-pressed="false"]:disabled {
+  border: 2px dashed var(--well-border);
+  background: var(--well-bg);
+  color: var(--well-text);
+}
+
 .btn-quiet {
   all: unset;
   cursor: pointer;

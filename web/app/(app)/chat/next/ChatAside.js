@@ -13,6 +13,7 @@ import PlaceCard from "../PlaceCard";
 import RoomPanel from "../RoomPanel";
 import Things from "../ThingsDrawer";
 import TurnCard from "../TurnCard";
+import CombatModeButton from "@/app/components/CombatModeButton";
 import { usePlaceActions } from "../PlacePanel";
 import { waitingOnYou, answerWaiting } from "../actions";
 import useVisiblePoll from "../useVisiblePoll";
@@ -119,6 +120,7 @@ export default function ChatAside({
   selfId,
   turn,
   moveCharacterId,
+  combatMode = null,
   move,
   things,
   depotHref = null,
@@ -147,7 +149,7 @@ export default function ChatAside({
       entry.kind === "keyed",
   );
 
-  const moveState = useMyMove({ turn, move, characterId: moveCharacterId });
+  const moveState = useMyMove({ turn, move, combatMode, characterId: moveCharacterId });
   const [dialog, setDialog] = useState(null);
   const [waiting, setWaiting] = useState(initialWaiting);
 
@@ -208,6 +210,8 @@ export default function ChatAside({
           onFile={() => setDialog("move")}
           onEdit={() => setDialog("move")}
         />
+        {/* Under the Turn block, per Combat Mode.docx (COMBAT-MODE.md §2). */}
+        <CombatModeButton state={moveState.combatMode} onChanged={moveState.refresh} />
       </Block>
 
       {/* No card at all when nothing is waiting — an empty box saying it is

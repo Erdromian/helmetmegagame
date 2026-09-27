@@ -8,6 +8,7 @@ import FormError from "./FormError";
 import TagChip from "./TagChip";
 import { useTags } from "./TagsProvider";
 import { peopleToExamine, examineCharacter } from "@/app/(app)/character/examineActions";
+import { ALERT_LINE } from "@lifeweb/db/lib/combatMode";
 
 // Look at — the Examine control. One of two grid entries filing no Request
 // (ReadDialog.js is the other), so it gets its own plain modal. See
@@ -137,6 +138,8 @@ export function Readout({ readout }) {
 
       {readout.line && <p className="text-sm text-muted">{readout.line}</p>}
       {readout.appearance && <p className="text-sm" style={{ whiteSpace: "pre-wrap" }}>{readout.appearance}</p>}
+      {/* Combat mode, frozen with the rest of the look (COMBAT-MODE.md §5). */}
+      {readout.alert && <p className="text-sm">{ALERT_LINE}</p>}
 
       {/* Above the gear, because an office is part of who somebody is rather
           than a thing found on them. It is what the LOOKER remembers of them

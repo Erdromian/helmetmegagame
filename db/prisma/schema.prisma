@@ -2339,6 +2339,13 @@ model Character {
   // risk, since the button is hidden the whole time `bound` is absent.
   boundSinceTurnNumber Int?
 
+  // Combat mode (docs/systemdocs/COMBAT-MODE.md). Null is off; otherwise the
+  // Turn.number it was turned on, which is what refuses turning it off again
+  // on that same turn. Not a foreign key, the extractTurnKey reasoning. Set
+  // and cleared by db/lib/verbs/combatMode.js, cleared by the push once it
+  // leaves somebody Exhausted (db/lib/combatModePass.js).
+  combatModeSinceTurn Int?
+
   // Orphan since the hunger rework.
   hungerStreak Int @default(0)
 
@@ -5762,6 +5769,13 @@ model CavingRoll {
   resolvedAt              DateTime?
   resolvedByDiscordUserId String?
   gmNotes                 String?
+
+  // A TROUBLE row only: the caver as they stood at this 1, in the
+  // db/lib/examineSnapshot.js shape (tags with equipped flags, combat mode).
+  // The Caving lens folds a caver's 1s into one result and reads the newest
+  // row's snapshot (docs/systemdocs/CAVING.md §5). Null on QUIET/FIND and on
+  // rows written before this existed.
+  presentedState Json?
 
   createdAt DateTime @default(now())
 

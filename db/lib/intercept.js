@@ -8,6 +8,7 @@ const { withArticle, concealedAlias } = require("./concealedIdentity");
 const { knownSubjects } = require("./strangers");
 const { matchesTypedName } = require("./characterName");
 const { blockerFor, ACT } = require("./incapacitation");
+const { inCombatMode } = require("./combatMode");
 const { reFor } = require("./discordMarkup");
 const { DM_KIND } = require("./dmKinds");
 const { stopPerformances } = require("./performance");
@@ -332,7 +333,7 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
       character: { locationId, status: "ALIVE" },
       OR: [{ anyPerson: true }, { anyConcealed: true }, { NOT: { targetNames: { isEmpty: true } } }],
     },
-    include: { character: { select: IDENTITY_SELECT } },
+    include: { character: { select: { ...IDENTITY_SELECT, combatModeSinceTurn: true } } },
   });
 
   const live = watches.filter((w) => {
@@ -341,7 +342,11 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
     if (arrivalIds.has(w.characterId)) return false;
     // Dying, bound, catatonic, crucified: none of them stop a stranger walking past. The
     // watch row survives — a standing preference, like an escort consent — and works again the moment they can act.
-    return !blockerFor(w.character.tags, ACT);
+    if (blockerFor(w.character.tags, ACT)) return false;
+    // Out of combat mode, the watch is dormant (COMBAT-MODE.md §3): kept, the same standing-preference
+    // reasoning, and it wakes the moment its owner is alert again. A filter rather than a `where` so
+    // the fake databases in db/test/ reach it.
+    return inCombatMode(w.character);
   });
   if (live.length === 0) return { dms, hits: [] };
 

@@ -24,10 +24,12 @@ dragnet flags, one filter on where an arrival came from (§2a), and one box that
 is not about who it catches at all (§5b).
 
 **Setting or editing one is free**, whether or not your Move for the turn is
-already spent — laying in wait carries no gate of its own (Attack keeps its
-own, unrelated to this: `db/lib/combatGate.js`, `ATTACK.md` §5a). **Stopping**
-a watch and **Release** are likewise never gated, and `setInterceptImpl`,
-`stopInterceptImpl` and `releaseHeldImpl` carry no such check.
+already spent. **It needs combat mode**, though (`COMBAT-MODE.md` §3):
+`setWatch` refuses with "You need to be in combat mode to lie in wait."
+(`db/lib/combatGate.js#interceptBlock`), on both faces. On Discord the watch
+opens as a modal first, inside Discord's three seconds, so the refusal comes
+after the modal is sent. **Stopping** a watch and **Release** are never gated,
+and `stopInterceptImpl` and `releaseHeldImpl` carry no such check.
 
 **It is anchored.** `locationId` is stamped from where its owner stood when
 they saved it, and the watch works there and nowhere else. **Any move at all
@@ -255,6 +257,13 @@ walker's **own** watch dies at the first hop either way, under §1's rule that
 any move at all cancels it.
 
 ## 5. Firing
+
+**A watch whose owner is out of combat mode is dormant** (`COMBAT-MODE.md` §3).
+`fireWatches` drops it in its `live` filter, beside the ACT check, and keeps
+the row: it works again the moment its owner is alert. Combat mode can go off
+under a standing watch — turned off on a later turn, or switched off by the
+push at Exhausted — and the dialog says so rather than drawing a watch that
+cannot fire.
 
 `fireWatches` is called once by `performLocationMove` with the whole arriving
 party — mover first, then everyone they brought — which is what makes "if

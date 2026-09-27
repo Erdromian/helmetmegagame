@@ -1,7 +1,7 @@
-// Tired -> Exhausted ladder (docs/systemdocs/TAGS.md). Four unrelated things climb it and they
+// Tired -> Exhausted ladder (docs/systemdocs/TAGS.md). Five unrelated things climb it and they
 // all climb it identically: a day's mining, a day on the Factory floor (both
-// db/lib/moveEffects.js), a bad night (db/lib/dawnAfflictionPass.js) and pushing on through a
-// travel gate (db/lib/locationTravel.js). The Exhausted->Tired decay is the ordinary
+// db/lib/moveEffects.js), a bad night (db/lib/dawnAfflictionPass.js), pushing on through a
+// travel gate (db/lib/locationTravel.js) and a push spent in combat mode (db/lib/combatModePass.js). The Exhausted->Tired decay is the ordinary
 // `expiresInto` chain (TAGS.md §5c).
 const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");

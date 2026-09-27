@@ -33,6 +33,8 @@ import { muteDurationLabel, oocMuteFor } from "@lifeweb/db/lib/ooc";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH, MAX_REASON_LENGTH } from "@/lib/constants";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
+import { troubleGroupWhere } from "@lifeweb/db/lib/cavingPass";
+import { readPresentedState } from "@lifeweb/db/lib/examineSnapshot";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import {
   MOVE_INCLUDE,
@@ -1191,29 +1193,87 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "
   const roll = await prisma.cavingRoll.findUnique({ where: { id: cavingRollId ?? "" } });
   if (!roll) throw new UserError("Caving roll not found.");
 
+  // A 1 is one of a caver's folded failed rolls (CAVING.md §5): Save and Mark resolved act on the
+  // whole group, worked out here from the roll rather than from ids the desk sent. The notes live
+  // on the oldest, the id the desk keys the group by.
+  const members =
+    roll.kind === "TROUBLE"
+      ? await prisma.cavingRoll.findMany({
+          where: troubleGroupWhere(roll),
+          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
+          select: { id: true, resolvedAt: true },
+        })
+      : [{ id: roll.id, resolvedAt: roll.resolvedAt }];
+  const ids = members.map((m) => m.id);
+  const notesId = ids[0] ?? roll.id;
+
   const gmNotes = rawNotes?.toString().trim() || null;
 
   // A save touches the text and nothing else: it must not resolve an open roll,
   // and must not re-stamp somebody else as the GM who resolved it.
-  const data =
-    mode === "save"
-      ? { gmNotes }
-      : { gmNotes, resolvedAt: roll.resolvedAt ?? new Date(), resolvedByDiscordUserId: session.discordUserId };
-
-  await prisma.cavingRoll.update({ where: { id: roll.id }, data });
+  await prisma.$transaction(async (tx) => {
+    await tx.cavingRoll.update({ where: { id: notesId }, data: { gmNotes } });
+    if (mode === "resolve") {
+      await tx.cavingRoll.updateMany({
+        where: { id: { in: ids }, resolvedAt: null },
+        data: { resolvedAt: new Date(), resolvedByDiscordUserId: session.discordUserId },
+      });
+    }
+  });
 
   await prisma.auditLog.create({
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: mode === "save" ? "caving_roll_saved" : "caving_roll_resolved",
       targetCharacterId: roll.characterId,
-      details: { cavingRollId: roll.id, die: roll.die, kind: roll.kind },
+      details: { cavingRollId: notesId, cavingRollIds: ids, die: roll.die, kind: roll.kind },
     },
   });
 
-  const patch = await deskPatchFor({ cavingRollIds: [roll.id] });
-  if (mode === "save") return { status: roll.resolvedAt ? "RESOLVED" : "OPEN", note: "Saved.", patch };
+  const patch = await deskPatchFor({ cavingRollIds: ids });
+  if (mode === "save") {
+    return { status: members.every((m) => m.resolvedAt) ? "RESOLVED" : "OPEN", note: "Saved.", patch };
+  }
   return { status: "RESOLVED", patch };
+}
+
+// The caver as they stood at their newest 1 (CAVING.md §5, Combat Mode.docx: "the snapshot a GM
+// uses when adjudicating a failed cave result is from the most recent failed roll"). Frozen tags with
+// their equipped flags read against the LIVE catalog, the examineSnapshot.js rule — so the band a
+// GM sees uses today's rules on that moment's kit. Null when no roll in the group has one.
+async function getCavingSnapshotImpl({ cavingRollId }) {
+  await requireGm();
+  const roll = await prisma.cavingRoll.findUnique({ where: { id: cavingRollId ?? "" } });
+  if (!roll) throw new UserError("Caving roll not found.");
+  if (roll.kind !== "TROUBLE") return { snapshot: null };
+  const latest = await prisma.cavingRoll.findFirst({
+    where: { ...troubleGroupWhere(roll), NOT: { presentedState: { equals: Prisma.DbNull } } },
+    orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+    select: { id: true, createdAt: true, presentedState: true, location: { select: { name: true } } },
+  });
+  const state = readPresentedState(latest?.presentedState);
+  if (!state) return { snapshot: null };
+  const catalog = await prisma.tag.findMany({
+    where: { id: { in: state.tags.map((t) => t.tagId) } },
+    select: { id: true, ...chipSelect({ equippable: true, stackable: true }) },
+  });
+  const byId = new Map(catalog.map((tag) => [tag.id, tag]));
+  const tags = state.tags
+    .map((row) => {
+      const tag = byId.get(row.tagId);
+      if (!tag) return null;
+      return { tagId: row.tagId, equipped: row.equipped, expiresTurn: row.expiresTurn, quantity: 1, tag: composeChipTag(tag, GM_CHIP_CTX) };
+    })
+    .filter(Boolean);
+  return {
+    snapshot: {
+      rollId: latest.id,
+      combatMode: state.alert,
+      locationName: latest.location?.name ?? null,
+      atLabel: latest.createdAt.toISOString().slice(0, 16).replace("T", " "),
+      tags,
+    },
+  };
 }
 
 // "Reject" on the desk. Deletes the Action outright, since the turn-economy
@@ -2018,6 +2078,10 @@ export async function cancelHoldAsGm(input) {
 
 export async function resolveCavingRoll(input) {
   return guarded(() => resolveCavingRollImpl(input));
+}
+
+export async function getCavingSnapshot(input) {
+  return guarded(() => getCavingSnapshotImpl(input));
 }
 export async function undoCavingFind(input) {
   return guarded(() => undoCavingFindImpl(input));

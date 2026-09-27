@@ -222,6 +222,22 @@ holds. And the exception is the Move's *kind*, not its contents — the auto-fil
 Gambits (`auto:lesson`, `auto:confession`, `auto:heal_gambit`) are nobody's
 combat declaration but read as one here.
 
+### 5b. And not out of combat mode
+
+> You need to be in combat mode to attack.
+
+Combat mode is required to Attack (`COMBAT-MODE.md` §3). The check is
+`db/lib/combatGate.js#attackBlock`, which is §5a's refusal first and this one
+second — on purpose. The spent Move can't be fixed this turn, and naming combat
+mode first would send a player off to turn it on, which can't be undone until
+tomorrow and makes them Tired, only to be refused anyway. The dialog greys
+Confirm with the sentence, the server action throws it, and the Discord verb
+asks before its picker as well as at the end.
+
+The involuntary attacks stay ungated: a Vampire's compulsion, and an Ambush
+firing — a watch whose owner is out of combat mode is dormant instead
+(`INTERCEPT.md` §5).
+
 **Break off is never gated.** `cancelAttackImpl` carries no such check, on
 purpose: it is the way out for exactly the player this refuses, and locking it
 would be worse than the thing being prevented.
@@ -404,7 +420,7 @@ Nothing here is destructive, so no `restore` snapshot is owed
 | File | Role |
 |---|---|
 | `db/lib/attack.js` | The whole mechanism — the band gate, the row, both holds, the lines |
-| `db/lib/combatGate.js` | §5a — the spent-Move refusal |
+| `db/lib/combatGate.js` | §5a and §5b — the spent-Move and combat mode refusals (`attackBlock`) |
 | `db/lib/locationMove.js` | `closeFightsOnMove` — a relocation ends the fight |
 | `db/lib/characterDeath.js` | A dead man is in no fight |
 | `db/lib/fightingSkill.js` | `bandRank`, and nothing else changed |

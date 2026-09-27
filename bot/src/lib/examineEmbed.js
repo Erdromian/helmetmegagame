@@ -2,6 +2,7 @@
 // (bot/src/events/messageReactionAdd.js) and the /look command
 // (bot/src/lib/verbs/people.js), over db/lib/examineRow.js's one readout.
 const { EmbedBuilder } = require("discord.js");
+const { ALERT_LINE } = require("@lifeweb/db/lib/combatMode");
 
 // Discord embed limits: a breach rejects the whole embed silently. Trim with
 // fitField/fitDescription below before adding a field.
@@ -21,10 +22,12 @@ function fitDescription(value) {
 // Shared by 🔍 and 📸 — a photograph shows the same thing looking at somebody does.
 function examineEmbed(readout) {
   const embed = new EmbedBuilder();
+  // "They look alert." under whatever the description says, hood or no hood (COMBAT-MODE.md §5).
+  const alert = readout.alert ? `\n\n${ALERT_LINE}` : "";
   if (readout.concealed) {
-    embed.setDescription(readout.line);
+    embed.setDescription(fitDescription(`${readout.line}${alert}`));
   } else {
-    embed.setTitle(readout.name).setDescription(fitDescription(readout.appearance || "No visible appearance."));
+    embed.setTitle(readout.name).setDescription(fitDescription(`${readout.appearance || "No visible appearance."}${alert}`));
   }
   // An office is part of who somebody is, so it sits above what they are
   // carrying. It is what the looker REMEMBERS of them (the Friends section of

@@ -23,6 +23,7 @@ const {
 const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
 const { revealedTags } = require("./torture");
 const { withoutResources, isResourcesRow } = require("./resourceStack");
+const { inCombatMode } = require("./combatMode");
 
 // TAG half split out for db/lib/examineSnapshot.js — name/armour/requirement are RULES, read live even for an old look.
 const EXAMINE_TAG_SELECT = {
@@ -46,6 +47,7 @@ const EXAMINE_SUBJECT_SELECT = {
   name: true,
   appearance: true,
   concealed: true,
+  combatModeSinceTurn: true,
   age: true,
   gender: true,
   updatedAt: true,
@@ -61,6 +63,13 @@ const EXAMINE_SUBJECT_SELECT = {
     },
   },
 };
+
+// "They look alert." (COMBAT-MODE.md §5). A subject rebuilt from a line carries `alert` frozen off that
+// line (db/lib/examineSnapshot.js#rehydrateSubject), which must win over the live column it was spread
+// onto; a live subject answers from the column.
+function alertOf(subject) {
+  return typeof subject?.alert === "boolean" ? subject.alert : inCombatMode(subject);
+}
 
 // `viaSkill` marks a row the subject is NOT showing the room, rendered "your diagnosis" so a medic doesn't repeat it as common knowledge.
 function describeTag({ characterTag: ct, viaSkill }, openTurnNumber) {
@@ -103,6 +112,8 @@ function concealedReadout(identity, subject) {
     // any passer-by that there is a balance worth taking.
     equipment: withoutResources(seen.filter((ct) => !isHealth(ct))).map((ct) => ct.tag.name),
     tags: [],
+    // A hood hides WHO somebody is, never that they are on guard.
+    alert: alertOf(subject),
     desire: null,
     // No title either, for the same reason there is no name: an office is part
     // of who somebody is, and the hood is there to stop the room knowing that.
@@ -158,6 +169,7 @@ function examineReadout({
     avatarPath: unnamed ? (strangerSeq ? `/api/avatar/line/${strangerSeq}` : null) : identity.avatarPath,
     line: null,
     appearance: subject.appearance || null,
+    alert: alertOf(subject),
     ailments: [],
     equipment: [],
     tags: [

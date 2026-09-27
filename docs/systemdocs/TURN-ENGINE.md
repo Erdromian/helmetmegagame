@@ -141,6 +141,14 @@ each arrived at by getting them wrong first.
    `tagPoints` is a plain `increment` with no clamp — a GM may take points
    back off a sheet, and negative is a legal balance. `appliedEffect`
    snapshots each of the three that actually moved.
+
+   **Combat mode fatigue** (`db/lib/combatModePass.js`, `COMBAT-MODE.md` §4)
+   runs right after it, and after the caving release. Everybody still in
+   combat mode steps one rung up the Tired → Exhausted ladder, and reaching
+   Exhausted switches it off. It has to run **before** the progression and the
+   sweep below: the Tired it granted last push expires at this push, and after
+   the sweep there would be nothing left to step up from. Its DMs lead
+   `tagExpiryDms`.
 4. **Tag progression pass** (`db/lib/tagExpiryPass.js`) — **before** the sweep,
    never after. Any expiring tag carrying `Tag.expiresInto` turns into
    something else first: Infected festers, Festering goes both Feverish and
@@ -1056,6 +1064,7 @@ markers for the desk's labels.
 | `db/lib/worldBroadcast.js` | The two whole-map fan-outs (every `#summary`, every Location) |
 | `db/lib/characterDeath.js` | The shared DB half of death (`applyDeathToRow`) |
 | `db/lib/playerDeparture.js` | Guild-leave marking, shared by the live handler and the startup reconcile |
+| `db/lib/combatModePass.js` | Combat mode fatigue, before the progression (`COMBAT-MODE.md` §4) |
 | `db/lib/tagExpiryPass.js` | The tag progression pass (`Tag.expiresInto`) |
 | `db/lib/turnAnnouncement.js` | The rolling `#turns` announcement |
 | `db/lib/messageWipe.js` | The message wipe (`CHANNELS.md` §8) |

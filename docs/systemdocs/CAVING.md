@@ -424,13 +424,12 @@ in the Depths would otherwise put a hundred quiet 2–5s in front of a GM every
 day. Flip the filter to see the full log.
 
 Rows show the die face, the kind, the character, the zone, and — for a `FIND`
-— the tier and what was found. A `TROUBLE` row that is one of several for the
-same character in the same zone also says which — *"3rd 1 this turn"* — and
-at ten (§2e) every one of them wears a **Stuck** pill, with the desk header
-saying so in a sentence. The pill and the sentence are for the open turn only:
-History keeps the count but drops both, since that turn's push already let the
-caver go. The count is `troubleTallies` in
-`web/lib/cavingLabels.js`, recomputed from the rows the desk already holds
+— the tier and what was found. A caver's `TROUBLE` rows in one zone are ONE
+row (§5a), which says how many there were — *"3 failed rolls this turn"* — and
+at ten (§2e) wears a **Stuck** pill, with the desk header saying so in a
+sentence. The pill and the sentence are for the open turn only: History keeps
+the count but drops both, since that turn's push already let the caver go. The
+fold is `foldCavingRolls` in `web/lib/cavingLabels.js`, recomputed from the rows the desk already holds
 rather than fetched, so the live stream keeps it current; that module carries
 its own copy of `CAVING_TROUBLE_CAP`, since `cavingPass.js` cannot reach a
 client bundle, and `db/test/cavingTally.test.js` fails if the two disagree.
@@ -438,6 +437,41 @@ The kind's label comes from
 `CAVING_KIND_LABELS` in `web/lib/cavingLabels.js`, shared by the rail's DTO
 and the desk header; it lives in its own module because when the desk owned
 the only copy, the rail printed every row's kind as "undefined" for months.
+
+### 5a. A caver's failed rolls are one result
+
+Combat Mode.docx: failed cave rolls are aggregated into a single result, and
+the snapshot a GM adjudicates it from is the one taken at the **most recent**
+failed roll.
+
+**The rows stay as they are.** Every 1 is still its own `CavingRoll`, because
+the hold, the ten-1 stop and the push's release all count rows (§2c–§2e). The
+folding happens on the desk: `web/lib/cavingLabels.js#foldCavingRolls` turns
+every `TROUBLE` row one character rolled in one zone on one turn into **one row
+on the rail and one desk**, and it replaced the old "3rd 1 this turn" tally.
+
+- **Keyed by the oldest roll.** The id never changes while the caver keeps
+  failing, so a GM's selection and keyboard cursor hold. The Result box and
+  everything staged on the desk hang off that one id. A link to any later roll
+  opens its group (`groupOf`).
+- **Shows the newest roll** — its die, its room, its time — and says how many
+  there were ("3 failed rolls this turn").
+- **Needs attention while any 1 in it does.** A fresh failure after a GM marked
+  the group resolved reopens it, and the rail and desk say how many are new.
+- **Save and Mark resolved act on the group**, worked out on the server from
+  the roll (`db/lib/cavingPass.js#troubleGroupWhere`), never from ids the desk
+  sent. Resolve stamps every unresolved member. The audit row lists them all.
+- The desk header's "Caving to answer" counts results, not rolls.
+
+**The snapshot.** Every `TROUBLE` row stores the caver as they stood at that 1,
+in `CavingRoll.presentedState` — the same shape a chat line freezes
+(`db/lib/examineSnapshot.js`): tags with their equipped flags, and whether they
+were in combat mode (`COMBAT-MODE.md`). The desk's **At their last failed roll**
+panel reads the newest one that has a snapshot (`getCavingSnapshot` in
+`web/app/(desk)/gm/turns/actions.js`): combat mode on or off, the Combat tile,
+what they were wearing and their health tags. The tags are read against the
+live catalog, the snapshot rule everywhere. A roll from before this has no
+snapshot, and the panel says so.
 
 `CavingDesk.js` (modeled on `MoveDesk.js`, much thinner) is where a GM
 narrates a `TROUBLE` roll. It carries the same **Result** box and **Stage as

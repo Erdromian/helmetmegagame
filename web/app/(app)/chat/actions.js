@@ -49,6 +49,8 @@ import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/li
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
 import { clockStatus } from "@lifeweb/db/lib/gameState";
+import { combatModeState } from "@lifeweb/db/lib/combatMode";
+import { setCombatMode as setCombatModeInDb } from "@lifeweb/db/lib/verbs/combatMode";
 import { sessionGate } from "@lifeweb/db/lib/betweenSessions";
 import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
@@ -2033,15 +2035,21 @@ export async function submitMove({ moveKind, description } = {}) {
 // `move.editable` is the whole Change/Take it back affordance: a Gambit the player
 // wrote is theirs until the cutoff, everything else is a receipt (db/lib/moves.js).
 // Polled rather than computed once, so the buttons go away on their own at lock-in.
+// It carries the combat mode button's state too (COMBAT-MODE.md §2), so the push turning it
+// off reaches both surfaces on the same poll.
 export async function myMove() {
-  const me = await actor({ id: true });
+  const me = await actor({
+    id: true,
+    combatModeSinceTurn: true,
+    tags: { where: { quantity: { gt: 0 } }, select: { tag: { select: { slug: true } } } },
+  });
   if (me.error) return { ok: false, error: me.error };
 
   const openTurn = await prisma.turn.findFirst({
     where: { status: "OPEN" },
     select: { id: true, number: true, dayNumber: true, turnLengthHours: true, endsAt: true, startedAt: true },
   });
-  if (!openTurn) return { ok: true, turn: null, move: null, characterId: me.character.id };
+  if (!openTurn) return { ok: true, turn: null, move: null, combatMode: null, characterId: me.character.id };
 
   const [clock, action] = await Promise.all([
     clockStatus(prisma),
@@ -2084,6 +2092,7 @@ export async function myMove() {
     move: action
       ? { id: action.id, kind: action.moveKind, description: action.description, editable }
       : null,
+    combatMode: combatModeState(me.character, openTurn, me.character.tags),
     // The dialog keys its unfiled draft on it, so two characters don't inherit each other's day.
     characterId: me.character.id,
   };
@@ -2498,6 +2507,16 @@ export async function toggleConceal() {
   const result = await concealRule(prisma, { ...me.character, discordUserId: me.discordUserId });
   if (!result.ok) return { ok: false, error: result.error };
   return { ok: true, concealed: result.concealed, alias: result.alias, line: result.line };
+}
+
+// Combat mode (COMBAT-MODE.md), the button on the Turn block and the sheet. `on` is the state the
+// player wants, never a flip — db/lib/verbs/combatMode.js says why. The rule re-checks everything.
+export async function setCombatMode({ on } = {}) {
+  const me = await actor({ id: true }, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const result = await setCombatModeInDb(prisma, { character: me.character, discordUserId: me.discordUserId, on: on === true });
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, on: result.on, line: result.line };
 }
 
 // /shout. db/lib/shout.js answers who hears it and what they hear; this does

@@ -11,6 +11,7 @@ const { applyMood } = require("./mood");
 const { rollWithAdvantage } = require("./advantage");
 const { LUCKY_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
+const { loadPresentedState } = require("./examineSnapshot");
 
 function quietDm(die) {
   return `Caving Die: ${die} — Nothing happens.`;
@@ -28,6 +29,18 @@ function stuckDm(die) {
 
 function findDm(die, tagName) {
   return `Caving Die: ${die} — You found something: ${tagName}.`;
+}
+
+// The caver as they stood at this 1 — tags with equipped flags, and combat mode — for the GM who
+// adjudicates the folded result off the newest one (CAVING.md §5). Never fails the roll: a snapshot
+// that cannot be taken is a null column, and the desk says so.
+async function troubleSnapshot(tx, characterId) {
+  try {
+    return (await loadPresentedState(tx, characterId)).state ?? undefined;
+  } catch (err) {
+    console.error("Caving pass: snapshot failed:", err.message ?? err);
+    return undefined;
+  }
 }
 
 // Always writes a row and returns { roll, dm }; never sends the DM itself.
@@ -56,6 +69,7 @@ async function rollCaving(prisma, character, turn, location) {
           die,
           kind: rowKind,
           resolvedAt: rowKind === "QUIET" ? new Date() : null,
+          presentedState: rowKind === "TROUBLE" ? await troubleSnapshot(tx, character.id) : undefined,
         },
       });
       let stuck = false;
@@ -92,6 +106,7 @@ async function rollCaving(prisma, character, turn, location) {
           locationId: location.id,
           die,
           kind: "TROUBLE",
+          presentedState: await troubleSnapshot(tx, character.id),
         },
       });
       return {
@@ -198,6 +213,12 @@ function troubleWhere(characterId, zoneId) {
   return { characterId, zoneId, kind: "TROUBLE", turn: { status: "OPEN" } };
 }
 
+// One folded Caving result (CAVING.md §5): every 1 this caver rolled in this zone on this turn. The
+// desk's Save and Mark resolved act on the group, never on one roll of it.
+function troubleGroupWhere({ turnId, characterId, zoneId }) {
+  return { turnId, characterId, zoneId, kind: "TROUBLE" };
+}
+
 // Both answers off one count. `hold` shuts the ways OUT of the zone; `stuck`
 // shuts every way. A stuck caver is always also held — the cap is a count of
 // the very rows the hold reads — so a caller that only asks about crossings
@@ -293,6 +314,7 @@ module.exports = {
   cavingPartyRestrictions,
   cavingHeldIds,
   releaseUnresolvedCavingRolls,
+  troubleGroupWhere,
   CAVING_HOLD_REASON,
   CAVING_STUCK_REASON,
   CAVING_TROUBLE_CAP,

@@ -14,7 +14,7 @@ export default function useMyMove(initial) {
   const refresh = useCallback(() => {
     myMove()
       .then((res) => {
-        if (res?.ok) setState({ turn: res.turn, move: res.move, characterId: res.characterId });
+        if (res?.ok) setState({ turn: res.turn, move: res.move, combatMode: res.combatMode ?? null, characterId: res.characterId });
       })
       .catch(() => {
         // The card is a reminder, not the record. A failed refresh loses

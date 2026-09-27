@@ -175,3 +175,43 @@ test("readPresentedState survives junk inside a well-formed payload", () => {
     { tagId: "bad", equipped: false, expiresTurn: null },
   ]);
 });
+
+// Combat mode rides the line too (docs/systemdocs/COMBAT-MODE.md §5): "They look alert." answers for
+// the moment the line was said, like everything else a look reads.
+test("combat mode is frozen onto the line, and only written when on", () => {
+  const off = presentedStateFrom(speaker([]));
+  assert.equal("m" in off, false, "everybody else's payload is unchanged");
+  const on = presentedStateFrom({ ...speaker([]), combatModeSinceTurn: 4 });
+  assert.equal(on.m, 1);
+  assert.equal(readPresentedState(on).alert, true);
+  assert.equal(readPresentedState(off).alert, false);
+});
+
+test("a look says they looked alert when the line was said, not now", () => {
+  const state = roundTrip({ ...speaker([]), combatModeSinceTurn: 4 });
+  // Live, they have since come out of it: the line still answers.
+  const alertThen = rehydrateSubject({ live: { ...live, combatModeSinceTurn: null }, state, tags: [] });
+  assert.equal(examineReadout({ subject: alertThen, openTurnNumber: 9 }).alert, true);
+  // And the other way round: on now, off when they spoke.
+  const calmThen = rehydrateSubject({ live: { ...live, combatModeSinceTurn: 8 }, state: roundTrip(speaker([])), tags: [] });
+  assert.equal(examineReadout({ subject: calmThen, openTurnNumber: 9 }).alert, false);
+});
+
+test("a hood hides who is alert, never that they are", () => {
+  const state = roundTrip({ ...speaker([held(ROBES, { equipped: true })]), concealed: true, combatModeSinceTurn: 4 });
+  const subject = rehydrateSubject({ live, state, tags: [ROBES] });
+  const readout = examineReadout({ subject, openTurnNumber: 9 });
+  assert.equal(readout.concealed, true);
+  assert.equal(readout.alert, true);
+});
+
+test("a live look with no line behind it reads the column", () => {
+  const subject = { ...live, appearance: null, concealed: false, tags: [], combatModeSinceTurn: 3 };
+  assert.equal(examineReadout({ subject, openTurnNumber: 9 }).alert, true);
+  assert.equal(examineReadout({ subject: { ...subject, combatModeSinceTurn: null }, openTurnNumber: 9 }).alert, false);
+});
+
+test("a line older than combat mode reads as not alert", () => {
+  const state = readPresentedState({ v: 1, n: "Semyun Varyutskaya", a: null, s: 0, c: false, t: [] });
+  assert.equal(state.alert, false);
+});
