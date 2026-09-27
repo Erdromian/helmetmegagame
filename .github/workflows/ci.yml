@@ -52,7 +52,12 @@ jobs:
       # The archive round-trip imports a whole game, so it gets its own.
       ARCHIVE_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bascinet_archive
       PGPASSWORD: postgres
+      # LOCAL_MODE answers every Discord call locally, but the guild lookups
+      # still return early unless these two are set to something
+      # (db/lib/localMode.js); without them every signed-in page bounces to /.
       LOCAL_MODE: "true"
+      DISCORD_TOKEN: local
+      DISCORD_GUILD_ID: local
       NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
