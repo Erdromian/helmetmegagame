@@ -77,14 +77,36 @@ function refusal(reason, turn, window) {
 // desk reads it. Only the lock's own refusal — whether the game is in session is sessionGate's question,
 // asked first by the mover (db/lib/locationTravel.js). Null means they may walk. A GM's relocation never
 // comes this way. A client with no Turn model (the unit tests' fakes) is never locked.
-async function travelLockReason(db, { now = new Date(), turn = null } = {}) {
+//
+// A walk INTO the caves is refused in Caving.docx's own words, since the lock is also what gives the desk
+// time to answer every failed Caving roll before the push. `intoZoneKind` is the destination zone's kind;
+// leave it out and the plain sentence comes back.
+async function travelLockReason(db, { now = new Date(), turn = null, intoZoneKind = null } = {}) {
   if (!turn && typeof db?.turn?.findFirst !== "function") return null;
   try {
     const out = await gate(db, { now, turn, lockApplies: true });
-    return out.reason === "LOCKED" ? TRAVEL_LOCKED : null;
+    if (out.reason !== "LOCKED") return null;
+    return lockedTravelSentence(intoZoneKind);
   } catch {
     return null;
   }
 }
 
-module.exports = { movesOpen, autoMovesOpen, travelLockReason, gateMessage, GATE_MESSAGES };
+// Caving.docx, verbatim.
+const CAVING_TRAVEL_LOCKED = "It is too close to the turn push, wait till next turn to move in the caves.";
+
+// The lock's sentence for a walk into a zone of this kind — for a caller that has already asked
+// travelLockReason once and is drawing many ways off the one answer (db/lib/locationGraph.js).
+function lockedTravelSentence(intoZoneKind) {
+  return intoZoneKind === "CAVE_LEVEL" ? CAVING_TRAVEL_LOCKED : TRAVEL_LOCKED;
+}
+
+module.exports = {
+  movesOpen,
+  autoMovesOpen,
+  travelLockReason,
+  lockedTravelSentence,
+  gateMessage,
+  GATE_MESSAGES,
+  CAVING_TRAVEL_LOCKED,
+};

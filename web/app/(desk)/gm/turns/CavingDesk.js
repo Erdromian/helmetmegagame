@@ -15,7 +15,7 @@ import StagingStrip from "./StagingStrip";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import StatusPill from "@/app/components/StatusPill";
 import SnapshotBody from "./SnapshotBody";
-import { CAVING_KIND_LABELS, foldCountLabel } from "@/lib/cavingLabels";
+import { CAVING_KIND_LABELS, severityLabel } from "@/lib/cavingLabels";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
 import { resolveCavingRoll, undoCavingFind, getCavingSnapshot } from "./actions";
 import { applyDeskPatch } from "./deskStore";
@@ -37,7 +37,7 @@ import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDes
 // very same undo the Caving lens runs (undoCavingFind in ./actions.js)
 // so there is exactly one way the tag ever comes back off.
 //
-// A TROUBLE row is FOLDED: every 1 the caver rolled in this zone this turn, as one result
+// A TROUBLE row is FOLDED: every 1 the caver rolled this turn, as one result of that severity
 // (web/lib/cavingLabels.js#foldCavingRolls, CAVING.md §5). `roll.id` is the oldest of them — the
 // Result box and everything staged here hang off it — and the snapshot panel reads the newest.
 
@@ -178,7 +178,7 @@ export default function CavingDesk({
             {roll.roleTitle && <>{roll.roleTitle} · </>}
             {roll.locationName ? <>{roll.locationName} · </> : null}
             {roll.zoneName} · ⚀ {roll.die} · {roll.kindLabel ?? CAVING_KIND_LABELS[roll.kind] ?? roll.kind}
-            {foldCountLabel(roll) ? <> · {foldCountLabel(roll)}</> : null}
+            {severityLabel(roll) ? <> · {severityLabel(roll)}</> : null}
             {readOnly && turnLabel ? <> · {turnLabel}</> : null}
           </p>
           {/* Not on a History pick: the push has already let them go. */}

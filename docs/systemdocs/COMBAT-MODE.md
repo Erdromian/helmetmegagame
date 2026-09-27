@@ -165,9 +165,9 @@ The design doc's cave half (`CAVING.md` §5):
 - Every `TROUBLE` row now stores the caver as they stood at that 1:
   `CavingRoll.presentedState`, the same snapshot shape a chat line keeps,
   including combat mode.
-- The Caving lens folds a caver's 1s in one zone on one turn into **one
-  result**. The GM adjudicates it once, off the snapshot from the **most recent**
-  failed roll.
+- The Caving lens folds a caver's 1s on one turn into **one result**, whose
+  severity is how many there were (Caving.docx). The GM adjudicates it once, off
+  the snapshot from the **most recent** failed roll.
 
 The prompt an alert caver gets is the part not built yet.
 

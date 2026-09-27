@@ -607,7 +607,9 @@ in wait where you walked in and stopped you, or you are in a fight — see
 [`INTERCEPT.md`](INTERCEPT.md) and [`ATTACK.md`](ATTACK.md). And once Moves lock
 nobody walks anywhere until the push (`turnGate.js#travelLockReason`, Combat
 Overhaul.docx), checked after the session gate and drawn on every way by
-`resolveNeighbors` and `routesWithinZone`; a first placement is not a walk. `performLocationMove` refuses with the hold's
+`resolveNeighbors` and `routesWithinZone`; a first placement is not a walk, and a
+way into the caves says Caving.docx's sentence rather than the plain one
+(`CAVING.md` §2f). `performLocationMove` refuses with the hold's
 own sentence, beside its incapacitation gate, and `travelOptions` draws every
 way shut and says why. A held follower is left behind rather than carried out
 (§3a).
@@ -994,9 +996,10 @@ map's double-click may do (§6c).
 
 Every edge is judged by `crossingCheck`, the very verdict `performLocationMove`
 reaches again at each hop — there is no second copy of the gating rule here. The
-Caving Die is deliberately **not** asked: it only ever shuts a way *out* of the
-zone, which a same-zone walk never crosses, so the mover asks it, in its own
-words, at the hop that meets it. A **hold** is asked, once, up front, the same
+Caving Die's hold is deliberately **not** asked: it only ever shuts a way *up*
+out of the caves, which a same-zone walk never takes, so the mover asks it, in
+its own words, at the hop that meets it. Its severity-10 stop is asked, once, up
+front (`CAVING.md` §2e). A **hold** is asked, once, up front, the same
 `heldReasonFor` call `resolveNeighbors` already makes for the adjacent list —
 being held shuts every way, not just the ones that cross a zone
 ([`INTERCEPT.md`](INTERCEPT.md) §4), so a held character has no first hop to

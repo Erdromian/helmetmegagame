@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import DeskRail from "@/app/components/DeskRail";
 import CheckField from "@/app/components/CheckField";
 import StatusPill from "@/app/components/StatusPill";
-import { foldCavingRolls, foldCountLabel } from "@/lib/cavingLabels";
+import { foldCavingRolls, isCavingFailure, severityLabel } from "@/lib/cavingLabels";
 import Select from "@/app/components/Select";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -99,8 +99,8 @@ const getTrue = () => true;
 const getFalse = () => false;
 
 // The Caving lens — see docs/systemdocs/CAVING.md. Only a TROUBLE row is
-// ever "Needs attention"; every roll shows by default, unresolved TROUBLE
-// just ranks first.
+// ever "Needs attention", and only failures show by default (the "Show other
+// rolls" box brings back the rest); unresolved TROUBLE ranks first.
 const CAVING_FILTER_DEFS = [
   // The zone the die rolled in — see cavingRollRow in web/lib/moveRows.js.
   { key: "zone", label: "Zone", value: (r) => r.zoneName },
@@ -330,7 +330,7 @@ function MoveRows({
 
 
 // A caver's failed rolls arrive folded into one row (web/lib/cavingLabels.js#foldCavingRolls,
-// CAVING.md §5). Ten 1s in a zone stop the caver moving (§2e), and the row says so rather than
+// CAVING.md §5), with its severity. At severity 10 the caver stops moving (§2e), and the row says so rather than
 // leaving a GM to adjudicate an ordinary encounter for somebody already as good as dead.
 // `showStuck` is off for History: a past turn's cavers were let go at its push, so the pill would
 // claim a stop that is no longer on them.
@@ -338,7 +338,7 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
   return rows.map((row) => {
     // A link to any one of the folded rolls lights its group.
     const active = selected?.type === "caving" && (selected.id === row.id || Boolean(row.memberIds?.includes(selected.id)));
-    const tallyText = foldCountLabel(row);
+    const severityText = severityLabel(row);
     return (
       <button
         key={row.id}
@@ -365,7 +365,7 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
         </span>
         <span className="block truncate text-xs text-muted">
           {row.zoneName} · {row.kindLabel}
-          {tallyText && <> · {tallyText}</>}
+          {severityText && <> · {severityText}</>}
           {row.newSinceResolved > 0 && <> · {row.newSinceResolved} new since resolved</>}
         </span>
         {row.lootTagName && <span className="block truncate text-xs text-muted">{row.lootTier} → {row.lootTagName}</span>}
@@ -1034,28 +1034,50 @@ export default function QueueRail({
   }, [historyTable.visible, historyTable.filters.kind, hideHistoryTravel]);
   const hiddenHistoryTravelCount = historyTable.visible.length - historyShown.length;
 
+  // Caving results that were not failures — the 2–5s and the finds — are hidden until a GM ticks
+  // "Show other rolls" (Caving.docx). One switch for the open turn and History alike.
+  const showCavingOthers = rail.showCavingOthers ?? false;
+  const setShowCavingOthers = useCallback((v) => setRail((r) => ({ ...r, showCavingOthers: v })), [setRail]);
+  const cavingShown = useMemo(
+    () => (showCavingOthers ? cavingTable.visible : cavingTable.visible.filter(isCavingFailure)),
+    [cavingTable.visible, showCavingOthers],
+  );
+  const hiddenCavingCount = cavingTable.visible.length - cavingShown.length;
+  const historyCavingShown = useMemo(
+    () => (showCavingOthers ? historyCavingTable.visible : historyCavingTable.visible.filter(isCavingFailure)),
+    [historyCavingTable.visible, showCavingOthers],
+  );
+  const hiddenHistoryCavingCount = historyCavingTable.visible.length - historyCavingShown.length;
+  // The box stays up while it is ticked, so a GM can always untick it again.
+  const cavingOthersBox = (hiddenCount) =>
+    (hiddenCount > 0 || showCavingOthers) && (
+      <CheckField checked={showCavingOthers} onChange={(e) => setShowCavingOthers(e.target.checked)}>
+        {showCavingOthers ? "Show other rolls" : `Show ${hiddenCount} other roll${hiddenCount === 1 ? "" : "s"}`}
+      </CheckField>
+    );
+
   // The History lens reads either past Moves or past Caving rolls, chosen
   // by its header switch (historyKind). Everything below branches on it.
   const historyIsCaving = lens === "history" && historyKind === "caving";
   const rowsForLens = useMemo(
     () => ({
       moves: movesShown,
-      caving: cavingTable.visible,
+      caving: cavingShown,
       combat: combatTable.visible,
       other: otherTable.visible,
       desires: desireTable.visible,
       ooc: oocTable.visible,
-      history: historyIsCaving ? historyCavingTable.visible : historyShown,
+      history: historyIsCaving ? historyCavingShown : historyShown,
     }),
     [
       movesShown,
-      cavingTable.visible,
+      cavingShown,
       combatTable.visible,
       otherTable.visible,
       desireTable.visible,
       oocTable.visible,
       historyIsCaving,
-      historyCavingTable.visible,
+      historyCavingShown,
       historyShown,
     ],
   );
@@ -1276,12 +1298,13 @@ export default function QueueRail({
                 Show {hiddenHistoryTravelCount} travel
               </label>
             )}
+            {historyIsCaving && cavingOthersBox(hiddenHistoryCavingCount)}
           </RailFilters>
           <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
             {historyIsCaving ? (
               <>
                 <CavingRows
-                  rows={historyCavingTable.visible}
+                  rows={historyCavingShown}
                   matchFor={historyCavingTable.matchFor}
                   selected={selected}
                   onSelect={onSelect}
@@ -1294,11 +1317,13 @@ export default function QueueRail({
                 {!historyError && historyLoading && (
                   <p className="p-3 text-sm text-muted">Loading that turn…</p>
                 )}
-                {!historyError && !historyLoading && historyCavingTable.visible.length === 0 && (
+                {!historyError && !historyLoading && historyCavingShown.length === 0 && (
                   <p className="p-3 text-sm text-muted">
-                    {historyTurnOptions?.length
-                      ? "No Caving rolls on that turn match."
-                      : "No turn to read back yet."}
+                    {!historyTurnOptions?.length
+                      ? "No turn to read back yet."
+                      : hiddenHistoryCavingCount > 0
+                        ? `No failed Caving rolls on that turn match — ${hiddenHistoryCavingCount} other roll${hiddenHistoryCavingCount === 1 ? "" : "s"} hidden.`
+                        : "No Caving rolls on that turn match."}
                   </p>
                 )}
               </>
@@ -1429,17 +1454,25 @@ export default function QueueRail({
             table={cavingTable}
             filterDefs={cavingFilterDefs}
             searchPlaceholder="name, @handle, tag:…"
-          />
+          >
+            {cavingOthersBox(hiddenCavingCount)}
+          </RailFilters>
           <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
             <CavingRows
-              rows={cavingTable.visible}
+              rows={cavingShown}
               matchFor={cavingTable.matchFor}
               selected={selected}
               onSelect={onSelect}
               kbdId={kbdId}
               kbdLens={lens}
             />
-            {cavingTable.total === 0 && <p className="p-3 text-sm text-muted">No Caving rolls match.</p>}
+            {cavingShown.length === 0 && (
+              <p className="p-3 text-sm text-muted">
+                {hiddenCavingCount > 0
+                  ? `No failed Caving rolls match — ${hiddenCavingCount} other roll${hiddenCavingCount === 1 ? "" : "s"} hidden.`
+                  : "No Caving rolls match."}
+              </p>
+            )}
           </div>
         </>
       ) : (
