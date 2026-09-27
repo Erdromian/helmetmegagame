@@ -46,10 +46,18 @@ test("the reserved pass seats a reserved seat before the main pass hands them so
 });
 
 test("a weighted seat caps at its share of the pool", () => {
-  const players = Array.from({ length: 6 }, (_, i) => P(`p${i}`, { courtier: "HIGH" }));
-  // 38 fate seats less 20 constant = a pool of 18; weight 10 of 60 = 3 seats
+  const players = Array.from({ length: 8 }, (_, i) => P(`p${i}`, { courtier: "HIGH" }));
+  // 56 fate seats less 20 constant = a pool of 36; weight 10 of 60 = 6 seats
+  const out = assignFates({ players, roles: ROLES, playerCount: 56, seed: "x" });
+  assert.equal(out.rows.filter((r) => r.roleSlug === "courtier").length, 6);
+  assert.equal(out.rows.filter((r) => r.roleSlug === "migrant").length, 2);
+});
+
+test("a small game still opens a weighted fate's minimum", () => {
+  const players = Array.from({ length: 8 }, (_, i) => P(`p${i}`, { courtier: "HIGH" }));
+  // 38 fate seats is a pool of 18, a share of only 3 — but weight 10 keeps 5.
   const out = assignFates({ players, roles: ROLES, playerCount: 38, seed: "x" });
-  assert.equal(out.rows.filter((r) => r.roleSlug === "courtier").length, 3);
+  assert.equal(out.rows.filter((r) => r.roleSlug === "courtier").length, 5);
   assert.equal(out.rows.filter((r) => r.roleSlug === "migrant").length, 3);
 });
 

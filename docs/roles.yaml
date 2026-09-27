@@ -45,9 +45,11 @@
 # that says otherwise.
 #
 # `weight: N` (on `multiple: true`) — a share, out of 60, of the POOL: the fate
-# seats less the 20 constant ones. The seats are `max(1, round(N * pool / 60))`,
-# so at 72 readied every fate has exactly N. The lobby's weights must add up to
-# 60, and the sync refuses a file where they do not. `base_seats` is retired.
+# seats less the 20 constant ones. The seats are `round(N * pool / 60)`, so at
+# 72 readied every fate has exactly N — but never fewer than half of N, rounded
+# up (a `weight: 6` fate keeps 3 seats in the smallest game, a `weight: 1` fate
+# 1). The lobby's weights must add up to 60, and the sync refuses a file where
+# they do not. `base_seats` is retired.
 #
 # `weight: unlimited` — no cap at any scale: Bum and Migrant, and the Bastard's
 # spawn-only troops. Bum and Migrant are also left off the lobby's priority
