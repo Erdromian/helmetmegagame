@@ -79,7 +79,7 @@ const {
   OPTION_LIMIT,
 } = require("./context");
 const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require("discord.js");
-const { speakAtPlaces } = require("@lifeweb/db/lib/inventoryTail");
+const { announceFight } = require("@lifeweb/db/lib/combatAnnounce");
 
 // --- Kiss and Search: an offer, and the other side says yes (KISS.md, SEARCH.md)
 
@@ -280,7 +280,11 @@ function takeStash(nonce, discordUserId) {
 
 async function sendFightResult(interaction, result) {
   await sendCombatDms(interaction.client, result.dms);
-  await speakAtPlaces(prisma, result.speak).catch((err) => console.error("Attack: scene line failed:", err));
+  if (result.announce) {
+    await announceFight(prisma, result.announce, { skipIds: result.announce.fighters }).catch((err) =>
+      console.error("Attack: announcement failed:", err),
+    );
+  }
 }
 
 // The fight you are in, with the same buttons the fight's DMs carry (bot/src/lib/combatButtons.js).

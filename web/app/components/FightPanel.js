@@ -3,7 +3,7 @@
 import { useState } from "react";
 import FormError from "./FormError";
 import useSubmit from "./actions/useSubmit";
-import { SURPRISED, DESCRIPTION_LIMIT } from "@lifeweb/db/lib/combatMode";
+import { SURPRISED, INVITE_SURPRISED, DESCRIPTION_LIMIT } from "@lifeweb/db/lib/combatMode";
 import {
   answerFightInviteRequest,
   describeFightRequest,
@@ -43,6 +43,7 @@ export default function FightPanel({ view, onChanged }) {
       {view.status === "INVITED" ? (
         <div className="field">
           <p className="text-sm">You&apos;ve been asked to join the attack. You can&apos;t leave until you answer.</p>
+          {view.alert ? null : <p className="text-sm text-muted">{INVITE_SURPRISED}</p>}
           <div className="chat-buttons">
             <button type="button" className="btn" disabled={busy || !view.canAnswer} onClick={() => run(answerFightInviteRequest, { join: true })}>
               Join

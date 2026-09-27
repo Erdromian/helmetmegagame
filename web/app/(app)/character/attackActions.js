@@ -8,7 +8,7 @@ import { auth } from "@/lib/auth";
 import { sendDm } from "@/lib/discordGuild";
 import { acting, guarded, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
-import { speakAtPlaces } from "@lifeweb/db/lib/inventoryTail";
+import { announceFight } from "@lifeweb/db/lib/combatAnnounce";
 import {
   loadAttack,
   startFight,
@@ -54,8 +54,8 @@ function revalidate() {
 // outage must not undo the fight.
 function sendAfter(result) {
   const dms = result?.dms ?? [];
-  const speak = result?.speak ?? [];
-  if (dms.length === 0 && speak.length === 0) return;
+  const announce = result?.announce ?? null;
+  if (dms.length === 0 && !announce) return;
   after(async () => {
     for (const dm of dms) {
       await sendDm(dm.discordUserId, dm.content, {
@@ -68,7 +68,9 @@ function sendAfter(result) {
         allowedMentions: { parse: [] },
       }).catch(() => {});
     }
-    if (speak.length) await speakAtPlaces(prisma, speak).catch((err) => console.error("Attack: scene line failed:", err));
+    // The room hears it in the names each reader knows (db/lib/combatAnnounce.js): one lensed row on the
+    // web, a DM each to the Discord players standing there.
+    if (announce) await announceFight(prisma, announce, { skipIds: announce.fighters }).catch((err) => console.error("Attack: announcement failed:", err));
   });
 }
 

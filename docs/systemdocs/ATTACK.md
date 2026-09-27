@@ -24,10 +24,27 @@ Discord `/attack` verb (`bot/src/lib/verbs/people.js`) both run
 - **With you:** anybody else here you want on your side. They are *asked*;
   they choose (§4).
 - **Confirm.** The fight starts, everybody picked is held (§3), and the room
-  is told: `Att attacks Bo and Cy!` — a line through
-  `inventoryTail.js#speakAtPlaces`, named the way the place sees people
-  (`intercept.js#seenByPlace`: a hood by its alias, a bare face by name, the
-  STRANGERS.md §7 rule for every place line).
+  is told — "Att attacks Bo and Cy!" — **in the names each reader knows**
+  (Bascinet, 2026-09-27; `db/lib/combatAnnounce.js`). A friend is named, a
+  stranger's face is what it looks like ("a young man"), a hood is its alias to
+  everybody. So the line is not one text:
+  - **On the web** the place gets ONE row. Its `content` has every bare face as
+    its alias, for anything that reads a row with no reader in mind (the Oracle,
+    search, the day's heard lines), and it carries the fighters on
+    `ArchiveEntry.subjects` — a template (`{0} attacks {1} and {2}!`) and each
+    person's name, alias and whether they are masked. The feed lens renders it
+    per reader (`strangers.js#lensRow`, through `db/lib/peopleLine.js`), on
+    every surface that already lenses rows: the stream, `/chat`'s first paint,
+    history, `/memories`. The template rides a hidden symbol, like the speaker,
+    and never reaches a browser. A GM, and a reader with no character, read
+    every face by name.
+  - **On Discord** a channel post is one text for everybody, so nothing is
+    posted to the channel. The line is relayed as a DM to each Discord player
+    (`discordMirrored`) standing there, rendered for them, with the place under
+    it. The fighters are left out: they already have their own DMs.
+
+  This takes the fight's line out of the STRANGERS.md §7 list of place lines
+  that name a bare face.
 
 The picker lists everybody here, both halves of the room: a hood by its token,
 never its id (`db/lib/targetKey.js`). Anybody already in a fight is greyed
@@ -135,9 +152,14 @@ reached them is told they were caught by surprise and cannot write — the doc's
 afterwards counts only for fights that start later, and the Combat button says
 so when it is pressed mid-fight (`ALERT_TOO_LATE`).
 
-A collaborator does not need combat mode to join (my reading: the doc
-prompts "all members involved who have combat mode enabled", which assumes
-some do not). One who joins without it is caught by surprise like anybody else.
+**A collaborator is snapshotted and rolled the moment they are asked**, not
+when they answer (Bascinet, 2026-09-27) — at the Attack press, or when an
+ambush springs. So they fare exactly like a target: one out of combat mode is
+caught by surprise, −3 and no attack to write, and turning combat mode on
+before answering changes nothing about this fight. The invitation says so up
+front ("You aren't on guard, so if you join you'll be caught by surprise…"),
+and so does the Attack panel. Answering never re-snapshots or re-rolls. Joining
+does not need combat mode.
 
 ## 5. The roll — GM only
 
@@ -323,6 +345,7 @@ reads.
 | `db/lib/combatGate.js` | `combatBlock`, `interceptBlock` |
 | `db/lib/combatMode.js` | The sentences, import-free |
 | `db/lib/combatRoll.js` | The roll and its modifiers |
+| `db/lib/combatAnnounce.js`, `db/lib/peopleLine.js` | The announcement: one lensed row on the web, a DM relay on Discord, and the per-reader renderer |
 | `db/lib/locationGraph.js` | `distancesFrom` |
 | `db/lib/intercept.js` | The hold and its sentences; ambushes fire here |
 | `db/lib/turnGate.js` | `travelLockReason` |

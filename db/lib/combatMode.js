@@ -25,6 +25,9 @@ const WITHDRAWING_BLOCK = "You've just called off a fight. You can't start anoth
 const DECLINED_HERE = "You stayed out of the fight here. You can't attack anyone here until next turn.";
 const TOO_FAR_TO_INTERVENE = "You arrived too late to intervene.";
 const SURPRISED = "You were caught by surprise, so you can't choose how you fight this one.";
+// Said to a collaborator asked along while out of combat mode: they are snapshotted and rolled the moment they
+// are asked, so turning it on before answering changes nothing (Bascinet, 2026-09-27).
+const INVITE_SURPRISED = "You aren't on guard, so if you join you'll be caught by surprise and can't choose how you fight.";
 // What one attack description may run to. Discord's modal paragraph takes 4000; a GM reads a whole fight's
 // worth of these, so this is the smaller of the two. Here, import-free, so the web's editor counts to it.
 const DESCRIPTION_LIMIT = 2000;
@@ -73,6 +76,7 @@ module.exports = {
   DECLINED_HERE,
   TOO_FAR_TO_INTERVENE,
   SURPRISED,
+  INVITE_SURPRISED,
   ALERT_TOO_LATE,
   DESCRIPTION_LIMIT,
   inCombatMode,

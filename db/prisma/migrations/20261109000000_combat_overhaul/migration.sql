@@ -24,6 +24,10 @@ CREATE TYPE "CombatStatus" AS ENUM ('INVITED', 'JOINED', 'DECLINED', 'LEFT');
 CREATE TYPE "CombatEndReason" AS ENUM ('CALLED_OFF', 'TURN_ENDED', 'SIDE_EMPTY', 'GM');
 
 -- AlterTable
+-- A fight's announcement, told to each reader in the names they know (ATTACK.md §1).
+ALTER TABLE "ArchiveEntry" ADD COLUMN "subjects" JSONB;
+
+-- AlterTable
 ALTER TABLE "InterceptWatch" ADD COLUMN     "anyUnidentified" BOOLEAN NOT NULL DEFAULT false,
 ADD COLUMN     "collaboratorIds" TEXT[] DEFAULT ARRAY[]::TEXT[];
 

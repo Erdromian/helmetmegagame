@@ -6398,6 +6398,15 @@ model ArchiveEntry {
   onlyCharacterId   String?
   exceptCharacterId String?
 
+  // A place line that NAMES people, told to each reader in the names THEY know
+  // (a fight's announcement, docs/systemdocs/ATTACK.md §1). { text, people }:
+  // `text` is a template with {0}, {1}… and each person is { id, name, alias,
+  // masked }. `content` above holds the line with every bare face as its alias,
+  // for anything that reads the row without a reader in mind. The feed lens
+  // renders this per reader (db/lib/strangers.js#lensRow); like the audience
+  // it rides a hidden symbol and never reaches the wire.
+  subjects Json?
+
   // Forum post / thread title, so a scene reads as one unit rather than
   // scattered lines under its location.
   threadName String?

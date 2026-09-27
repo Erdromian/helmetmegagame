@@ -177,3 +177,57 @@ test("no player-facing select carries a roll", () => {
     assert.ok(!view.includes(field), `combatViewFor mentions ${field}`);
   }
 });
+
+// ─── The announcement, told per reader ───────────────────────────────────────
+
+const { renderPeopleLine, slotList } = require("../lib/peopleLine");
+const { lensRow, attachSubjects } = require("../lib/strangers");
+const { participantData } = require("../lib/combat");
+
+const announcement = {
+  text: `{0} attacks ${slotList(1, 2)}!`,
+  people: [
+    { id: "A", name: "Ada Vane", alias: "a young woman", masked: false },
+    { id: "B", name: "Bo Reed", alias: "an old man", masked: false },
+    { id: "H", name: "a young man", alias: "a young man", masked: true },
+  ],
+};
+
+test("the stored line names nobody by a bare face", () => {
+  assert.equal(renderPeopleLine(announcement), "A young woman attacks an old man and a young man!");
+});
+
+test("each reader reads the names they know, and themselves by name", () => {
+  const bo = renderPeopleLine(announcement, { viewerId: "B", knows: (id) => id === "A" });
+  assert.equal(bo, "Ada Vane attacks Bo Reed and a young man!");
+  const stranger = renderPeopleLine(announcement, { viewerId: "X", knows: () => false });
+  assert.equal(stranger, "A young woman attacks an old man and a young man!");
+  // A hood is its alias even to a GM's all-names view: the row never held the name behind it.
+  assert.equal(renderPeopleLine(announcement, { everyone: true }), "Ada Vane attacks Bo Reed and a young man!");
+});
+
+test("the feed lens renders the line for its reader, and a GM reads every name", () => {
+  const row = attachSubjects({ seq: "1", content: renderPeopleLine(announcement), characterId: null }, announcement);
+  const facts = new Map([["A", { known: true }], ["B", { known: false }]]);
+  assert.equal(lensRow(row, { characterId: "R", facts }).content, "Ada Vane attacks an old man and a young man!");
+  assert.equal(lensRow(row, { gm: true }).content, "Ada Vane attacks Bo Reed and a young man!");
+  // The template never reaches the wire: JSON drops the symbol.
+  assert.ok(!JSON.stringify(row).includes("Bo Reed"));
+});
+
+// ─── A collaborator is snapshotted and rolled when asked ─────────────────────
+
+test("a collaborator out of combat mode is snapshotted when asked, and surprised like a target", () => {
+  const asked = new Date("2026-09-27T12:00:00Z");
+  const row = { id: "C", name: "Col", mood: 0, combatModeSinceTurn: null, tags: [] };
+  const data = withDie(5, () =>
+    participantData(row, { side: "ATTACKER", role: "COLLABORATOR", status: "INVITED", turnId: "t", now: asked }),
+  );
+  assert.equal(data.alert, false);
+  assert.equal(data.snapshotAt, asked);
+  assert.equal(data.answeredAt, null);
+  assert.deepEqual(data.modifiers, [{ label: "Surprised", value: -3 }]);
+  assert.equal(data.total, 2);
+  const target = withDie(5, () => participantData(row, { side: "DEFENDER", role: "TARGET", status: "JOINED", turnId: "t", now: asked }));
+  assert.deepEqual(target.modifiers, data.modifiers);
+});

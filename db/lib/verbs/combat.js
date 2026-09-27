@@ -5,7 +5,8 @@
 // (Bascinet, 2026-09-27); what somebody does in it is their attack description.
 //
 // Every function answers `{ ok: false, error }` for a refusal a player reads, or `{ ok: true, line, dms,
-// speak, ... }`. The face sends the DMs and the speak lines after it returns (inventoryTail.js#speakAtPlaces).
+// announce, ... }`. The face sends the DMs, and hands `announce` (a new fight's line to the room) to
+// combatAnnounce.js#announceFight, after it returns.
 const combat = require("../combat");
 const { combatBlock } = require("../combatGate");
 const { resolveTargetKey } = require("../targetKey");
@@ -107,7 +108,7 @@ async function startFight(prisma, { characterId, discordUserId, targetKeys, coll
     combatId: out.combat.id,
     line: `You attack ${combat.listNames(targetNames)}.`,
     dms: out.dms,
-    speak: out.speak,
+    announce: out.announce ? { ...out.announce, fighters: [character.id, ...targets, ...collaborators] } : null,
   };
 }
 

@@ -35,7 +35,9 @@ const {
 // `sfx` is the noise the line makes on the web face — a token from ./sfx.js, validated at
 // the archive write so nothing arbitrary can reach a browser. Most scenery is silent and
 // leaves it null.
-async function sceneLine(prisma, { placeKey, text, lines = [], signed = true, channelKind = "scene", sfx = null } = {}) {
+// `subjects` is a line that names people per reader (./peopleLine.js): `text` is then that line with every
+// bare face as its alias, and the feed lens tells each reader their own version.
+async function sceneLine(prisma, { placeKey, text, lines = [], signed = true, channelKind = "scene", sfx = null, subjects = null } = {}) {
   if (!placeKey) return null;
 
   const body = [
@@ -59,6 +61,7 @@ async function sceneLine(prisma, { placeKey, text, lines = [], signed = true, ch
       // Not "location"/"summary": nobody typed this into a channel.
       channelKind,
       sfx,
+      subjects,
     });
   } catch (err) {
     console.error("Scene line failed:", err.message ?? err);

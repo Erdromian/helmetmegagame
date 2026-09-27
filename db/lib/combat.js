@@ -28,8 +28,10 @@ const {
   SAFE_HOLD_MS,
   seenBy,
   seenByMany,
-  seenByPlace,
+  seenAs,
+  identityOf,
 } = require("./intercept");
+const { slotList } = require("./peopleLine");
 const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
 const { rollCombat, MAX_INTERVENE_DISTANCE } = require("./combatRoll");
 const { loadGraph, distancesFrom, GIANT_TAG_SLUG } = require("./locationGraph");
@@ -40,6 +42,7 @@ const { combatBlock } = require("./combatGate");
 const {
   inCombatMode,
   SURPRISED,
+  INVITE_SURPRISED,
   TOO_FAR_TO_INTERVENE,
   ALREADY_FIGHTING,
   CALL_OFF_LOCKED,
@@ -52,7 +55,7 @@ const { DM_KIND } = require("./dmKinds");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { stopPerformances } = require("./performance");
 const { SFX } = require("./sfx");
-const { capitalizeFirst: cap } = require("./concealedIdentity");
+const { capitalizeFirst: cap, withArticle, concealedAlias } = require("./concealedIdentity");
 
 // Thirty minutes, Bascinet's number (the doc): after a call-off the attackers stay where they are "in
 // case the defenders wish to counterattack".
@@ -324,11 +327,14 @@ function fightDm(character, participant, lines, extra = {}) {
   };
 }
 
+// A collaborator is snapshotted and rolled the moment they are asked (participantData, at startCombat or
+// springAmbush), exactly as a target is when the fight reaches them — so one out of combat mode is told now
+// that joining means being caught by surprise, the same −3 and no attack to write (Bascinet, 2026-09-27).
 function inviteDm(character, participant, lines) {
   if (!character?.discordUserId) return null;
   return {
     discordUserId: character.discordUserId,
-    content: [...lines, "You can't leave until you answer."].join("\n"),
+    content: [...lines, ...(participant.alert ? [] : [INVITE_SURPRISED]), "You can't leave until you answer."].join("\n"),
     kind: DM_KIND.NOTICE,
     components: joinDeclineRow(participant.id),
     meta: dmAction(DM_ACTION.COMBAT_INVITE, participant.id),
@@ -389,7 +395,8 @@ async function startDms(db, { combat, parts, rowsById }) {
 // Opens a fight. `initiatorId` and every id in the two lists must be standing at `locationId`, alive, and
 // in no other fight; the caller has already checked the gates (combatBlock) unless this is involuntary (a
 // Vampire's compulsion) or an ambush springing, neither of which a player chose at this moment.
-// Returns { ok, combat, dms, speak } or { ok: false, error }.
+// Returns { ok, combat, dms, announce } or { ok: false, error }. `announce` is for the face to hand to
+// combatAnnounce.js#announceFight after the commit.
 function startCombat(
   db,
   { initiatorId, targetIds, collaboratorIds = [], turn, locationId, fromAmbush = false, openingMessage = null, now = new Date() },
@@ -461,18 +468,33 @@ function startCombat(
     });
     const dms = await startDms(db, { combat, parts, rowsById });
 
-    // The doc: confirming "announces their attack". Scenery the whole place sees, named the way the
-    // place sees them — a hood by its alias, never the name behind it. An ambush makes no announcement:
-    // the road does not know it has been watched.
-    const speak = [];
-    if (!fromAmbush) {
-      const attackerName = await seenByPlace(db, initiatorId);
-      const victims = [];
-      for (const id of targets) victims.push(await seenByPlace(db, id));
-      speak.push({ locationId, text: `${attackerName} attacks ${listNames(victims)}!` });
-    }
-    return { ok: true, combat, dms, speak };
+    // The doc: confirming "announces their attack". Told to everybody standing there in the names THEY
+    // know the fighters by (db/lib/combatAnnounce.js): the face picks its own words per reader. An ambush
+    // makes no announcement: the road does not know it has been watched.
+    const announce = fromAmbush
+      ? null
+      : {
+          locationId,
+          subjects: {
+            text: `{0} attacks ${slotList(1, targets.length)}!`,
+            people: [initiatorId, ...targets].map((id) => subjectOf(rowsById.get(id))),
+          },
+        };
+    return { ok: true, combat, dms, speak: [], announce };
   });
+}
+
+// One fighter as a place line names them (./peopleLine.js): who they are to somebody who knows them, what
+// they look like to somebody who does not, and whether a hood or a forced name makes that the same for
+// everybody. `row` is a COMBAT_SELECT row (its tags are the held ones, as identityOf expects).
+function subjectOf(row) {
+  const presented = identityOf(row);
+  return {
+    id: row.id,
+    name: seenAs(presented),
+    alias: withArticle(concealedAlias(row).toLowerCase()),
+    masked: Boolean(presented?.concealed || presented?.forced),
+  };
 }
 
 function participantData(row, { side, role, status, turnId, distance = null, from = null, now = new Date() }) {
@@ -1005,4 +1027,5 @@ module.exports = {
   springAmbush,
   combatViewFor,
   combatsHere,
+  participantData,
 };

@@ -104,9 +104,9 @@ async function runVampireCompulsion(prisma, newTurn) {
       });
       if (fight.ok) {
         await sendCombatDms(prisma, fight.dms);
-        if (fight.speak?.length) {
-          const { speakAtPlaces } = require("./inventoryTail");
-          await speakAtPlaces(prisma, fight.speak).catch((err) =>
+        if (fight.announce) {
+          const { announceFight } = require("./combatAnnounce");
+          await announceFight(prisma, fight.announce, { skipIds: [vampire.id, attackTarget.id] }).catch((err) =>
             console.error(`Vampire compulsion: announcing the fight failed for ${vampire.id}:`, err.message ?? err),
           );
         }
