@@ -11,12 +11,29 @@ Bascinet's design doc `E:\Bascinet\V3\UI\Chat Overhaul.docx` reshaped the live
 page (`web/app/(app)/chat/next/ChatNext.js`). Where an older passage below
 disagrees with this section, this section is right.
 
-- **The player's right column** runs Travel, then the room block when you are
-  in a room, then Here, then Turn. Waiting, the place card, the party rack and
-  Things follow. Travel entries print no description (a shut way still says
-  why, and the full text rides the hover title). The You plate, the Desires
-  fold and the `Sheet ›` link are gone from the column. The GM's tabbed column
-  is unchanged.
+- **Travel sits over the scene**, in a strip under the chat head (2026-09-25,
+  player feedback; `ChatNext.js`), not at the top of the right column. Every
+  way out is one line: its name, its zone only when it crosses into another,
+  and the cost. A walk keeps its stops, since a double-click takes it. A shut
+  way's cost line says why, and the full text rides the hover title. Picking
+  a way puts the Go / Push on / Cancel line straight under the strip, and the
+  move's own sentence ("Moved to Gatehouse.") stays there after. On a phone
+  the ways are one line you swipe sideways. The strip shows on every pane,
+  because it is about where the character stands. It is a player's only: a GM
+  with no body keeps the Travel tab in `GmAside`. `?old=1` still has Travel in
+  its right column.
+- **The player's right column** runs the room block when you are in a room,
+  then Here, then Turn. Waiting, Things, the place card and the party rack
+  follow. **Things** sits above the place card, open by default, under a
+  girder head with a count (`Things · 6`) — it was a shut fold line at the
+  column's foot until 2026-09-25, and players reported not finding what they
+  could do with an item (`chat/thingsOpenStore.js`). **Every block folds**:
+  its girder head is the fold (`next/FoldBlock.js`), every block starts open,
+  and what a player shuts stays shut in that browser (`next/asideFoldStore.js`;
+  Things keeps its own store). A shut block hides its body rather than
+  unmounting it, so a seeded Here list survives a fold. The You plate, the
+  Desires fold and the `Sheet ›` link are gone from the column. The GM's
+  tabbed column is unchanged.
 - **The You plate** sits in the bottom-left corner, pinned in the foot of the
   places column (`next/YouPlate.js`). On a phone it is at the foot of the ≡
   drawer. It carries **no tag chips** (the Soilery Rework doc: Ate Meal and
@@ -48,6 +65,11 @@ disagrees with this section, this section is right.
   at 1.35, the words at weight 600 in `--chat-said`, names at 800, quoted
   speech in `--chat-speech`, and the game's own lines bold in
   `--chat-scenery` (`globals.css`, `chat.css`).
+  After player feedback on 2026-09-25, `--chat-said` was lifted to AA
+  (`#8f7d5e`, 4.93:1 on `--bg`), a player's stacked log sets at 1.45 with 7px
+  between messages, and **line breaks show**: a newline is a `<br>`
+  (`components/remarkLineBreaks.js`, chat only, as in Discord) and a blank line
+  starts a new paragraph instead of running on.
 - **Names in Here wrap** instead of being cut short. On a phone the drawer is
   at most `min(88vw, 24rem)`, each eye button is floored at 44px, and
   " · you · online" rode in the same one-line span, so names ended in "…".
@@ -1584,7 +1606,12 @@ a 48px head and a one-line composer:
      rows — **Mood** (the band word, `db/lib/mood.js#bandOf`), **Resources**
      (`N ⬢`), **Purse** (`N ¢`, `web/lib/purse.js#obolsOf` — the SAME reducer
      `LedgerBand.js`'s ⬢ tile counts obols with, lifted out to one copy for
-     both), **Carrying** (`used/cap lb`), then the descriptor rows (§0,
+     both; a server prop, so the Chat verbs that move coin through a hand —
+     slots, a payphone taking its obol (Dial, Answer or Insert obol), the
+     vending machine's Insert, Withdraw, Empty till and Step away — call
+     `refresh()` from `next/cache` when coin moved, see the note at the top
+     of `chat/actions.js`),
+     **Carrying** (`used/cap lb`), then the descriptor rows (§0,
      **Hunger**) — then `StatusStrip.js`'s own load meter, with no chips
      (`tags={[]}`), and `numbers={false}` since the kv rows already said
      Resources and Carrying in words.
@@ -1762,8 +1789,9 @@ a 48px head and a one-line composer:
      caller passes `numbers={true}` (its default); the you-frame passes
      `false`, since its own `.kv` rows already say Resources and Carrying in
      words.
-  3. **`ThingsDrawer.js`** — **Things**, the pockets drawer, collapsed by
-     default and remembered in `localStorage`. Every tag
+  3. **`ThingsDrawer.js`** — **Things**, the pockets drawer, open by
+     default (it was collapsed) and remembered in `localStorage` through
+     `chat/thingsOpenStore.js`. Every tag
      whose category is **Items** or **Assets**, grouped in that order, as one
      chip each (`Paper ×23`, a `·` after anything equipped). A chip opens a
      menu: **Equip / Unequip** (`equippable`, the sheet's own
@@ -1777,7 +1805,7 @@ a 48px head and a one-line composer:
      only while it is open.
 
      Above those, the item's **own** verbs: Play Instrument on a lute, Detonate
-     on a remote, Seal letter on a wax stamp. The list linking an item to its
+     on a remote, Seal letter on an office's signet ring or a wax seal. The list linking an item to its
      verb is `db/lib/itemVerbs.js`, one line per link, keyed on a slug, a
      prefix/suffix or a tag flag. It is resolved server-side in
      `thingRows.js#thingVerbs` (`row.itemVerbs`), and each mode is drawn off
@@ -2162,6 +2190,32 @@ instead, because an anchor cannot know who is reading it.
 
 Adding an affordance is one entry in the catalog, one dialog in
 Chat's right column and one server action. It is not two lists to keep in step.
+
+### 5e. The Actions menu: the sheet's verbs, from chat
+
+The sheet's verbs (`components/actionRegistry.js` — Craft, Mine, Learn skill,
+Write…) were only on `/character` until 2026-09-25, and players reported
+knowing a feature existed but not where its button was. Chat's head now
+carries an **Actions** button (`chat/next/ChatActions.js`; an icon on a phone,
+beside Search) for anyone with a living character's column.
+
+**It loads on the click, not with the page.** `/chat`'s first paint carries
+only the people half of the sheet's pools (`chat/page.js`), because the rest
+is the whole sheet load and most visits never open the menu. Opening it calls
+`chat/actionSheet.js#loadActionSheet`, which runs `character/page.js#
+FreshCharacter` itself with `raw: true` — the same load, not a second copy of
+its gates, so the menu and the sheet cannot disagree about what is lit. It
+asks again on every open. A second `RequestActionsProvider` is mounted over
+the answer and escaped to `document.body`: it draws its dialogs where it is
+mounted, and inside the head's `.bar` every dialog inherited the girder's
+uppercase face.
+
+**It stays short by showing only what applies here and now.** Work the place
+offers (Mine, Farm, Harvest Godflesh, Refine, Break In, Package — each only
+shown where the Location allows it) comes first under **Work at {place}**,
+greyed with its reason written out when it cannot be done. Everything else
+is listed only when it is lit. A greyed verb is a fact about your own sheet,
+so it is left out and counted in the foot's link to `/character` instead.
 
 ## 5a. Notifications: the DM, and Web Push
 

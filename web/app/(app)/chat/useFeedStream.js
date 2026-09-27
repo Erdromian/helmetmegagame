@@ -11,6 +11,7 @@ import { noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
 import { setPlaces, applyRow, removeRow, isOwnRow, resetHistory, placeKind } from "./feedStore";
 import { playSfx, stopSfxLoops } from "@/app/components/sfx";
 import { setPerformances } from "@/app/components/performanceStore";
+import { setPhoneFrame, clearPhones } from "@/app/components/phoneStore";
 
 // THE LIVE STREAM, lifted out of ./Chat.js whole (CHAT-REBUILD.md).
 //
@@ -295,6 +296,15 @@ export default function useFeedStream({
           // Same.
         }
       });
+      // The telephone near here: a bell ringing in this Location or the next, and the
+      // handset in this character's hand (PHONES.md §8). phoneStore.js holds the loops.
+      source.addEventListener("phones", (event) => {
+        try {
+          setPhoneFrame(JSON.parse(event.data));
+        } catch {
+          // Same.
+        }
+      });
       source.addEventListener("typing", (event) => {
         try {
           noteTyping(JSON.parse(event.data));
@@ -392,6 +402,8 @@ export default function useFeedStream({
       disposed = true;
       if (timer) clearTimeout(timer);
       source?.close();
+      // A tab that is not listening for the frame must not go on ringing.
+      clearPhones();
       document.removeEventListener("visibilitychange", wake);
       window.removeEventListener("online", wake);
       window.removeEventListener("pageshow", wake);

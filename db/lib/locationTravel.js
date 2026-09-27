@@ -13,14 +13,19 @@ const {
   equippedSlugs,
   fastTravelCapacity,
   fastTravelBonus,
-  mountRestingThisTurn,
+  fastTravelRides,
+  fastTravelMountTag,
+  mountLabel,
   STOWABLE_SLUGS,
 } = require("./mounts");
+const { rideMount } = require("./mountRides");
 const { rollWithEdge, edgeFor } = require("./advantage");
 const { nextFatigueSlug } = require("./fatigue");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
 const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
 const { linkBetween, crossingCheck } = require("./locationGraph");
+const { withRingTokens } = require("./roomAccess");
+const { crossingCost, FAR_CROSSING_COST, formatTravel } = require("./crossingCost");
 const { dismountForNarrowWay } = require("./indoors");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
 const { expiryForGrant } = require("./grantExpiry");
@@ -45,31 +50,90 @@ const CHARACTER_SELECT = {
   // The hold: one timestamp, read by heldReasonFor() (INTERCEPT.md), plus WHICH thing has hold of them — a select carrying one without the other tells an attacked player they were ambushed (ATTACK.md §1).
   heldUntil: true,
   heldReason: true,
-  // `name` rides along for stowedMounts(), which puts it in a sentence.
-  // `acquiredAt` is what mountRestingThisTurn (db/lib/mounts.js) reads to tell
-  // a mount that just changed hands from one that's been ridden all along.
+  // `name` rides along for stowedMounts(), which puts it in a sentence, and
+  // for the "plus 1 ride on your Arelitz" half of the travel readout.
   tags: { select: { equipped: true, acquiredAt: true, tag: { select: { slug: true, name: true } } } },
 };
 
-// How many zone crossings this character gets for free this turn, before a crossing
-// starts spending their Move (CARRY.md §2). Everyone gets GameConfig.freeZoneMovesPerTurn; an EQUIPPED mount adds one, refreshed every turn. Being Overburdened takes the lot — an overloaded character can still cross, they just pay their Move. A ruined leg takes it too, unless an arelitz is doing the walking.
-// The mount's crossing is spent BEFORE the base one (moveAllowance returns the two pools separately, Character.zoneMovesBonusUsed remembers which was charged) — otherwise a rider who stables their arelitz at an indoors door would lose a crossing they still had, since the allowance is recomputed every time.
+// How much TRAVEL this character gets for free this turn, before a crossing
+// starts spending their Move (CARRY.md §2). Everyone gets GameConfig.freeZoneMovesPerTurn (default 1). Being Overburdened takes the lot — an overloaded character can still cross, they just pay their Move. A ruined leg takes it too, unless an arelitz is doing the walking.
+// A crossing spends what db/lib/crossingCost.js says it costs: ½ between the town zones, 1 anywhere else. A crossing you cannot afford in full spends the Move instead, and whatever travel was left stays for a cheaper hop.
+// AN EQUIPPED MOUNT'S RIDES ARE ON THE MOUNT (db/lib/mounts.js, ARELITZ.md §2a): a fresh arelitz carries you across 1 border a turn, a tacked arelitz or a motorcycle 2, whatever each crossing costs — one ride covers a whole crossing. Every ride charged to it takes the mount's tag one rung down its ladder inside the same transaction (mountRides.js#rideMount), so the bonus pool is simply "rides left on the rung", read fresh every time, and nothing subtracts a per-rider counter from it: the ride that was spent already changed the tag. That is what stops a ride being counted twice — once off the rider's sheet and once off the animal.
+// The mount's ride is spent BEFORE the base pool. Character.zoneMovesBonusUsed still records what was charged to a mount, but only so the base pool can be told apart (baseSpent = zoneMovesUsed - zoneMovesBonusUsed); it is never read back as "bonus left".
 
-// How many are LEFT right now, for surfaces that must say so before a player commits
+// How much is LEFT right now, for surfaces that must say so before a player commits
 // (Travel confirm, character sheet).
 function freeMovesLeft(character, config, openTurn, partySize = 0) {
-  return movesLeft(moveAllowance(character, config, partySize, openTurn?.startedAt ?? null), character, openTurn);
+  return movesLeft(moveAllowance(character, config, partySize), character, openTurn);
 }
 
-// The arithmetic both the display above and the spend below run: base and bonus are
-// counted SEPARATELY, since a bonus that goes away mid-turn must not take a base crossing with it — whatever was charged to a bonus stays charged to it, so an arelitz parked at an indoors door leaves the rider the crossing they never spent.
+// The two halves of that number, for a surface that says them apart ("2
+// travel, plus 2 rides on your Motorcycle"): `baseLeft` is travel, `ridesLeft`
+// is crossings on the mount, `mount` its display name (null on foot, and
+// null when the mount is out but buying nothing — over its seats — so the
+// caller's sentence doesn't promise rides the crossing won't get).
+function freeMovesBreakdown(character, config, openTurn, partySize = 0) {
+  const allowance = moveAllowance(character, config, partySize);
+  const baseLeft = movesLeft({ base: allowance.base, bonus: 0 }, character, openTurn);
+  const ridesLeft = allowance.bonus / FAR_CROSSING_COST;
+  const mount = ridesLeft > 0 ? fastTravelMountTag(character?.tags ?? []) : null;
+  return {
+    baseLeft,
+    ridesLeft,
+    rides: mount ? fastTravelRides(equippedSlugs(character.tags ?? [])) : 0,
+    mount: mount ? mountLabel(mount.tag?.name ?? "mount") : null,
+  };
+}
+
+// The one sentence both faces say for that breakdown — "2 travel, plus 2
+// rides on your Arelitz", or just "2 travel" on foot. `travel` is a mass noun
+// (never "moves": a Move is the turn action), and the mount's side is in
+// rides, because one ride covers any crossing whatever it costs.
+function travelSentence({ baseLeft = 0, ridesLeft = 0, mount = null } = {}) {
+  const base = `${formatTravel(baseLeft)} travel`;
+  if (!mount || ridesLeft <= 0) return base;
+  return `${base}, plus ${ridesLeft} ${ridesLeft === 1 ? "ride" : "rides"} on your ${mount}`;
+}
+
+// The arithmetic both the display above and the spend below run. The base
+// pool is the allowance less what was charged to it; the bonus pool is the
+// mount's rides left, which the rung already reflects — so it is added as it
+// is, and NOT less zoneMovesBonusUsed. A far crossing's worth per ride
+// (moveAllowance), so every `left >= cost` gate on the surfaces is satisfied
+// while a ride is left, whatever the crossing costs.
 function movesLeft({ base, bonus }, character, openTurn) {
   if (!openTurn) return base + bonus;
   const sameTurn = character?.zoneMovesTurnId === openTurn.id;
   const spent = sameTurn ? (character.zoneMovesUsed ?? 0) : 0;
   const bonusSpent = sameTurn ? (character.zoneMovesBonusUsed ?? 0) : 0;
   const baseSpent = Math.max(0, spent - bonusSpent);
-  return Math.max(0, base - baseSpent) + Math.max(0, bonus - bonusSpent);
+  return Math.max(0, base - baseSpent) + bonus;
+}
+
+// The counters a crossing writes. Pure, so db/test can pin the arithmetic.
+// While the mount has a ride left, the WHOLE cost goes on the bonus counter
+// and `rode` is true — one ride covers one crossing, near or far, and the
+// caller takes the mount a rung down (mountRides.js#rideMount). Otherwise the
+// cost comes off the base. A push on charges the base pool alone and never
+// the bonus — that overspend is what exertedThisTurn reads back. `left` is
+// what is left afterwards, the ride just spent already off the bonus.
+function crossingClaim({ base, bonus }, character, openTurn, cost, { exert = false } = {}) {
+  const sameTurn = character?.zoneMovesTurnId === openTurn.id;
+  const spentFree = sameTurn ? (character.zoneMovesUsed ?? 0) : 0;
+  const spentBonus = sameTurn ? (character.zoneMovesBonusUsed ?? 0) : 0;
+  const rode = !exert && bonus > 0;
+  const onBonus = rode ? cost : 0;
+  return {
+    zoneMovesTurnId: openTurn.id,
+    zoneMovesUsed: spentFree + cost,
+    zoneMovesBonusUsed: spentBonus + onBonus,
+    rode,
+    left: movesLeft(
+      { base, bonus: rode ? Math.max(0, bonus - FAR_CROSSING_COST) : bonus },
+      { zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree + cost, zoneMovesBonusUsed: spentBonus + onBonus },
+      openTurn,
+    ),
+  };
 }
 
 // PUSHING ON (docs/systemdocs/MAP.md §3): one more crossing a turn, on foot,
@@ -119,13 +183,15 @@ function exertedThisTurn(character, config, openTurn) {
 }
 
 // Why this character cannot push on right now, or null. `left` is THIS
-// crossing's own free count, the same per-destination number the surfaces
-// already compute; `acted` is whether an Action already stands for this
+// crossing's own travel count, the same per-destination number the surfaces
+// already compute, and `cost` what the crossing would spend
+// (db/lib/crossingCost.js) — a push on is only for a crossing you cannot
+// afford; `acted` is whether an Action already stands for this
 // turn — the Move spent, on a paid crossing or anything else — which the
 // caller reads, since this stays pure. The reasons a player can read off
 // their own sheet come first, the counter last. Bascinet's wording,
 // 2026-09-12.
-function exertRefusal(character, config, openTurn, { left = 0, acted = false } = {}) {
+function exertRefusal(character, config, openTurn, { left = 0, cost = 1, acted = false } = {}) {
   const held = character.tags ?? [];
   const active = equippedSlugs(held);
   if (isMounted(active)) return "Your arelitz has ridden as hard as it can.";
@@ -137,7 +203,7 @@ function exertRefusal(character, config, openTurn, { left = 0, acted = false } =
     return "You're already Exhausted, you have nothing left to push on with.";
   }
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return "You're overburdened, drop some weight to push on.";
-  if (left > 0) return "You still have a free crossing.";
+  if (left >= cost) return "You still have the travel for this crossing.";
   // The gamble is for going the distance: only once the Move is gone.
   if (!acted) return "You haven't spent your Move yet.";
   if (exertedThisTurn(character, config, openTurn)) return "You've already pushed on this turn.";
@@ -229,6 +295,7 @@ function exertResultLine(exert) {
 // OUTSIDE Action.appliedEffects entirely (performLocationMove writes it straight onto Character instead of snapshotting on the Action): EVERY crossing this turn, free or paid, claims against zoneMovesUsed/zoneMovesTurnId, so deleting the Action alone left the day's free crossings spent even though the Move that (over-)spent them came back.
 // WHAT IT NO LONGER UNDOES IS THE CROSSING ITSELF — travel lands at once now (MAP.md §3), the character is already at the destination, and handing their Move back doesn't walk them home; a GM who wants that teleports them.
 // Pure on purpose — web/lib/moveEconomy.js#deleteActionRestoringTurn is the only caller and applies whatever this returns, but keeping the decision separate from the write is what makes it testable without a database. `action` needs { turnId, characterId, character: { zoneMovesTurnId, zoneMovesUsed, zoneMovesBonusUsed } }. Returns a Character update object, or null when this Action never claimed a crossing — zoneMovesBonusUsed resets alongside zoneMovesUsed, a claim undone this turn owes back whatever pool it was charged to. Action.turnId is unique per character (@@unique([characterId, turnId])), so a match against it can only mean THIS Action.
+// THE MOUNT'S RUNG IS NOT WALKED BACK UP. A ride lives on the animal's tag now (mounts.js), the animal did carry them, and a GM who wants it fresh again can retag it from /gm/dev; the turn pass does it anyway at the close.
 function travelClaimsToUndo(action) {
   const character = action?.character;
   if (!character) return null;
@@ -262,21 +329,21 @@ async function vomitOnTheRide(prisma, row, openTurn) {
   }
 }
 
-function freeZoneMoves(character, config, partySize = 0, turnStartedAt = null) {
-  const { base, bonus } = moveAllowance(character, config, partySize, turnStartedAt);
+function freeZoneMoves(character, config, partySize = 0) {
+  const { base, bonus } = moveAllowance(character, config, partySize);
   return base + bonus;
 }
 
-// The same rules, split into the two pools now spent in order: BONUS is whatever a mount is buying for this crossing; BASE is the flat per-turn allowance everybody gets. `turnStartedAt` (the open turn's own startedAt) is what fastTravelBonus checks a mount's acquiredAt against — a mount that changed hands this turn buys no bonus (mounts.js#mountRestingThisTurn).
-function moveAllowance(character, config, partySize = 0, turnStartedAt = null) {
+// The same rules, split into the two pools now spent in order: BONUS is what the equipped mount has left in it, BASE is the flat per-turn allowance everybody gets. Both are in TRAVEL, not crossings — each ride left on the mount is worth a far crossing (FAR_CROSSING_COST), because one ride covers any crossing. The rides come off the mount's own rung (mounts.js#fastTravelBonus), which is why a mount picked up fresh from the stable rides at once and one handed over after a ride does not: the tag says which it is.
+function moveAllowance(character, config, partySize = 0) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) return { base: 0, bonus: 0 };
   const base = config?.freeZoneMovesPerTurn ?? 1;
   const active = equippedSlugs(held);
   // An arelitz carries you whatever your legs are, so it's checked FIRST and cancels
-  // lameness outright rather than adding one to a zero — but only while the party FITS it (fastTravelCapacity counts the rider: an arelitz seats two, a cart six, mounts.js). No cap on party size — going over just costs the mount's extra crossing, so an overloaded arelitz is never WORSE than legs, only no better.
+  // lameness outright rather than adding one to a zero — but only while the party FITS it (fastTravelCapacity counts the rider: an arelitz seats two, a cart six, mounts.js). No cap on party size — going over just costs the mount's rides, so an overloaded arelitz is never WORSE than legs, only no better.
   if (isMounted(active)) {
-    return { base, bonus: fitsMount(active, partySize) ? fastTravelBonus(active, held, turnStartedAt) : 0 };
+    return { base, bonus: fitsMount(active, partySize) ? fastTravelBonus(active) * FAR_CROSSING_COST : 0 };
   }
   if (held.some((ct) => LAMED_SLUGS.has(ct.tag?.slug))) return { base: 0, bonus: 0 };
   return { base, bonus: 0 };
@@ -299,17 +366,20 @@ function fitsMount(activeSlugs, partySize = 0) {
 function freeZoneMovesReason(character, partySize = 0, turn = null) {
   const held = character.tags ?? [];
   if (held.some((ct) => ct.tag?.slug === OVERBURDENED_SLUG)) {
-    return "Overburdened: you don't have a free move anymore.";
+    return "Overburdened: you don't have any free travel anymore.";
   }
   const active = equippedSlugs(held);
   if (isMounted(active)) {
     // The one case where the number is lower than a player expects for a
     // reason they cannot read off their own sheet.
     if (!fitsMount(active, partySize)) {
-      return `You're taking more people than your ${fastTravelCapacity(active)} seats, so you've lost the free move.`;
+      return `You're taking more people than your ${fastTravelCapacity(active)} seats, so you've lost the free travel.`;
     }
-    if (mountRestingThisTurn(held, turn?.openTurn?.startedAt)) {
-      return "Your mount just changed hands — it won't buy you a bonus crossing until next turn.";
+    // A rung with nothing left on it says so in its own name, but the number
+    // beside it is still lower than a rider expects the first time.
+    if (fastTravelBonus(active) === 0) {
+      const mount = fastTravelMountTag(held);
+      return `Your ${mount?.tag?.name ?? "mount"} has ridden as far as it will this turn. It'll be fresh again next turn.`;
     }
     return null;
   }
@@ -387,7 +457,8 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     // shut-modular edge all refuse here; the picker filters the same verdict, but a client can post any location id, so this is the check that counts.
     crossingLink = await linkBetween(prisma, currentLocation.id, targetLocation.id);
     const gate = crossingCheck(crossingLink, {
-      tagSlugs: (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+      // Held tags plus the worn ring's doors (docs/systemdocs/RINGS.md).
+      tagSlugs: await withRingTokens(prisma, character.id, character.tags),
       // Equipped, not merely held — CHARACTER_SELECT already loads `equipped`
       // for exactly this kind of question.
       onFootBlocked: blocksOnFoot(equippedSlugs(character.tags ?? [])),
@@ -504,7 +575,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
           // The edge, judged against the FOLLOWER's own tags and mount, not the leader's — a crawl the leader has the Caving for is still a crawl their unskilled companion can't follow, and a rider can't be led through an onFoot gap.
           if (currentLocation) {
             const gate = crossingCheck(followerLink, {
-              tagSlugs: (row.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean),
+              tagSlugs: await withRingTokens(prisma, row.id, row.tags),
               onFootBlocked: blocksOnFoot(equippedSlugs(row.tags ?? [])),
             });
             if (!gate.passable) {
@@ -524,15 +595,13 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
       }
 
       if (crossedZone) {
-        // A crossing spends a FREE ZONE MOVE first, only spending the Move once those run
-        // out (CARRY.md §2) — a peasant walks town->forest free, then pays for the fortress, and the way back waits for next turn. The allowance is claimed by a conditional updateMany whose WHERE is the check, so two tabs can't both spend the last one; a differing turn id resets the counter in the same statement, so nothing ever has to sweep this field. partyPreview, not the re-authorized list — seats are spent on who you SET OUT with, since somebody the gate drops at the threshold already took a saddle for this crossing.
-        const allowance = moveAllowance(character, config, partyPreview.length, openTurn.startedAt);
+        // A crossing spends FREE TRAVEL first, only spending the Move once there is not enough left for it
+        // (CARRY.md §2) — a peasant walks Town->Fortress for ½, out to the Black Hills for 1, and once the travel is short the crossing costs the Move and the way back waits for next turn. What this one costs is db/lib/crossingCost.js's answer for the two zones. The allowance is claimed by a conditional updateMany whose WHERE is the check, so two tabs can't both spend the last of it; a differing turn id resets the counter in the same statement, so nothing ever has to sweep this field. partyPreview, not the re-authorized list — seats are spent on who you SET OUT with, since somebody the gate drops at the threshold already took a saddle for this crossing.
+        const allowance = moveAllowance(character, config, partyPreview.length);
         const sameTurn = character.zoneMovesTurnId === openTurn.id;
         const spentFree = sameTurn ? (character.zoneMovesUsed ?? 0) : 0;
-        const spentBonus = sameTurn ? (character.zoneMovesBonusUsed ?? 0) : 0;
         const left = movesLeft(allowance, character, openTurn);
-        // The bonus pool goes first — a crossing charged to it stays charged to it for the rest of the turn, so parking the arelitz indoors afterwards gives back nothing and takes back nothing.
-        const onBonus = allowance.bonus > spentBonus;
+        const cost = crossingCost(currentLocation?.zone?.slug, targetLocation.zone?.slug) || FAR_CROSSING_COST;
         // The claim's WHERE, shared by a free crossing and a push on: the
         // counter as this read saw it, or a stale/absent turn id.
         const claimWhere =
@@ -553,31 +622,32 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
             where: { characterId: character.id, turnId: openTurn.id },
             select: { id: true },
           });
-          const why = exertRefusal(character, config, openTurn, { left, acted: Boolean(acted) });
+          const why = exertRefusal(character, config, openTurn, { left, cost, acted: Boolean(acted) });
           if (why) throw new MoveRefused(why);
           // Charged to the base pool and never the bonus — that overspend is
           // what exertedThisTurn reads back.
-          const claimed = await tx.character.updateMany({
-            where: claimWhere,
-            data: { zoneMovesTurnId: openTurn.id, zoneMovesUsed: spentFree + 1, zoneMovesBonusUsed: spentBonus },
-          });
+          const { left: leftAfter, rode: _rode, ...claim } = crossingClaim(allowance, character, openTurn, cost, { exert: true });
+          const claimed = await tx.character.updateMany({ where: claimWhere, data: claim });
           if (claimed.count === 0) throw new MoveRefused("You've already moved. Try again in a moment.");
           outcome.exert = await pushOn(tx, character, openTurn, targetLocation);
-          outcome.freeMovesLeft = 0;
-        } else if (left > 0) {
-          const claimed = await tx.character.updateMany({
-            where: claimWhere,
-            data: {
-              zoneMovesTurnId: openTurn.id,
-              zoneMovesUsed: spentFree + 1,
-              zoneMovesBonusUsed: onBonus ? spentBonus + 1 : spentBonus,
-            },
-          });
+          outcome.freeMovesLeft = leftAfter;
+        } else if (left >= cost) {
+          // The mount's ride goes first — and the ride is spent ON THE MOUNT, in this same transaction, after the claim has won its race: the tag goes a rung down (mountRides.js), so the next read of the allowance sees one ride fewer without any counter having to remember it. Unequipping the arelitz afterwards (a narrow way, or by hand) gives back nothing and takes back nothing: the rung stays where the ride left it, and the base travel was never touched.
+          const { left: leftAfter, rode, ...claim } = crossingClaim(allowance, character, openTurn, cost);
+          const claimed = await tx.character.updateMany({ where: claimWhere, data: claim });
           if (claimed.count === 0) throw new MoveRefused("You've already moved. Try again in a moment.");
+          if (rode) outcome.rode = await rideMount(tx, character.id);
           outcome.usedFreeMove = true;
-          outcome.freeMovesLeft = left - 1;
+          outcome.freeMovesLeft = leftAfter;
+          // The two halves of that, for the result line (travelSentence): the
+          // rung has already moved, so the rides are what the claim left.
+          outcome.travelLeft = {
+            baseLeft: Math.max(0, allowance.base - (claim.zoneMovesUsed - claim.zoneMovesBonusUsed)),
+            ridesLeft: Math.max(0, allowance.bonus - (rode ? FAR_CROSSING_COST : 0)) / FAR_CROSSING_COST,
+            mount: allowance.bonus > 0 ? mountLabel(fastTravelMountTag(character.tags ?? [])?.tag?.name ?? "mount") : null,
+          };
         } else {
-          // Out of free moves, so this costs the Move. Acting and crossing are mutually exclusive within a turn, in either order — @@unique([characterId, turnId]) is the real enforcement and this read is for the message.
+          // Not enough travel for this one, so it costs the Move. Acting and crossing are mutually exclusive within a turn, in either order — @@unique([characterId, turnId]) is the real enforcement and this read is for the message.
           const existing = await tx.action.findFirst({
             where: { characterId: character.id, turnId: openTurn.id },
             select: { id: true },
@@ -585,8 +655,8 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
           if (existing) {
             throw new MoveRefused(
               allowance.base + allowance.bonus === 0
-                ? "You're overburdened, so you have no free moves left."
-                : "You're out of free moves this turn and you've already acted.",
+                ? "You're overburdened, so you have no free travel left."
+                : "You don't have the travel left for this crossing and you've already acted.",
             );
           }
           await tx.action.create({
@@ -605,6 +675,8 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
             },
           });
           outcome.spentTurn = true;
+          // Whatever was short of this crossing is still there for a cheaper one.
+          outcome.freeMovesLeft = left;
         }
         outcome.freeMovesLeft ??= 0;
         // Paid or free, the crossing lands NOW — a paid one used to park its destination and wait for turn advance; it doesn't any more (MAP.md §3), so the two branches are one write.
@@ -760,6 +832,9 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
       reason: e.reason,
     })),
     freeMovesLeft: outcome.freeMovesLeft,
+    // The two halves of that for the result line (travelSentence); null on a
+    // paid crossing or a walk, where there is nothing to split.
+    travelLeft: outcome.travelLeft ?? null,
     // The push on's die and what it cost, or null. Said by the caller in
     // exertResultLine's words; the AuditLog row already exists.
     exert: outcome.exert ?? null,
@@ -772,6 +847,10 @@ module.exports = {
   freeZoneMoves,
   freeMovesLeft,
   freeZoneMovesReason,
+  freeMovesBreakdown,
+  travelSentence,
+  crossingClaim,
+  crossingCost,
   travelClaimsToUndo,
   fitsMount,
   exertOutcome,

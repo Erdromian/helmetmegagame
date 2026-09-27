@@ -13,17 +13,12 @@ const { applyPendingInvites } = require("./threadInvites");
 const { syncPartyMembership } = require("./partyChat");
 const { conversationsFor } = require("./conversations");
 const { notifyPresence } = require("./presenceNotify");
-const { syncCharacterRoomAccess } = require("./roomAccess");
+const { syncCharacterRoomAccess, withRingTokens } = require("./roomAccess");
 const { ambientLine } = require("./ambientLine");
 const { STEALTH_SLUG } = require("./constants");
 const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
-const {
-  parkMountsIndoors,
-  parkedMessage,
-  dismountForNarrowWay,
-  dismountedMessage,
-} = require("./indoors");
+const { dismountForNarrowWay, dismountedMessage } = require("./indoors");
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
 const { dropCallsForCharacter } = require("./phone");
@@ -42,12 +37,6 @@ const { clearPresence } = require("./strangers");
 const { sendDm } = require("./dm");
 const { rollTurretOnArrival, TURRET_DM } = require("./depotPass");
 const { applyDeathTeardown } = require("./deathTeardown");
-const {
-  railroadGibOnArrival,
-  RAILROAD_DEATH_REASON,
-  RAILROAD_LOCATION_LINE,
-} = require("./railroad");
-const { locationLine } = require("./placeLine");
 const {
   rollGatehouseTurretOnArrival,
   GATEHOUSE_TURRET_DM,
@@ -228,7 +217,7 @@ async function announceGateCrossing(prisma, character, fromLocationId, toLocatio
 async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
   if (!fromLocationId) return;
   const link = await linkBetween(prisma, fromLocationId, toLocation.id);
-  const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
+  const tagSlugs = await withRingTokens(prisma, character.id, character.tags);
   if (!shouldPromptKeyed(link, { tagSlugs })) return;
 
   const far = endpoints(link, toLocation.id).far;
@@ -248,7 +237,7 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
   if (!characterId || !toLocationId) return null;
   if (fromLocationId === toLocationId) return null;
 
-  // The map remembers. Here rather than in performLocationMove because this function is the one every writer of Character.locationId runs (§4 below) — a GM teleport, first placement, a rite and the turn's arrival pass all land here; hooking the mover instead would leave each a hole in somebody's map. Before the Discord guard for the same reason parking a mount is: knowing where you've been is a database fact and must not depend on there being a token to talk to Discord with.
+  // The map remembers. Here rather than in performLocationMove because this function is the one every writer of Character.locationId runs (§4 below) — a GM teleport, first placement, a rite and the turn's arrival pass all land here; hooking the mover instead would leave each a hole in somebody's map. Before the Discord guard for the same reason a narrow-way dismount is: knowing where you've been is a database fact and must not depend on there being a token to talk to Discord with.
   // Wrapped, because losing a node off a map must never wedge a move — /map's own loader re-records the character's current location on every open, so a drop here heals itself next time they look.
   await recordArrival(prisma, { id: characterId }, toLocationId).catch((err) => {
     console.error(`Move: recording the visit failed for ${characterId}:`, err.message ?? err);
@@ -273,8 +262,8 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     );
   }
 
-  // A phone goes back on its cradle when the person holding it walks out
-  // (docs/systemdocs/PHONES.md). Here rather than in performLocationMove for
+  // Walking out lets go of the phone in your hand and hangs up any call on it
+  // (docs/systemdocs/PHONES.md §3). Here rather than in performLocationMove for
   // the reason every clear above gives: this is the writer EVERY relocation
   // runs, so a teleport, a staged Relocate and a rite hang up as surely as
   // walking does. Above the Discord guard, because a call ending is a database
@@ -282,8 +271,9 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
   // because a Resync, a revive and a first placement are not moves, and a
   // Resync silently killing a live call would be exactly the INTERCEPT bug.
   //
-  // The far end hears "The person hung up"; the side that walked out hears
-  // nothing, because they are not there and the room they left made no noise.
+  // The far end reads "The call hung up." and is left on a dead line; the side
+  // that walked out hears nothing, because they are not there and the room they
+  // left made no noise. A phone that was ringing in their hand goes on ringing.
   if (fromLocationId) {
     await dropCallsForCharacter(prisma, characterId).catch((err) =>
       console.error(`Move: hanging up the phone failed for ${characterId}:`, err.message ?? err),
@@ -324,13 +314,8 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
       })
     : [];
 
-  // Before the Discord guard below, because this is a DB change that must happen whether or not there's a token to talk to Discord with. Also before the settle further down, so the settle sees the reduced cap and grants Overburdened in the same pass (docs/systemdocs/CARRY.md §3).
-  const parked = await parkMountsIndoors(prisma, characterId, toLocationId).catch((err) => {
-    console.error(`Move: parking mounts failed for ${characterId}:`, err.message ?? err);
-    return [];
-  });
-
-  // The other trigger for the same thing: a way too narrow for what they had out. `performLocationMove` already does this itself, inside its own transaction, so a mount that doesn't survive a crossing can never bank the extra free move it buys (MAP.md §2c) — the caller passes those names straight through as `dismounted`, skipping a redo that would only ever find nothing left to unequip. A caller with no such result (a GM teleport, a rite, a spawn — none of which cross a graph edge) leaves it undefined and gets the independent check below, a no-op unless there really is a matching onFoot link.
+  // Mounts are no longer parked at any door, underground included (CARRY.md §3): the one thing
+  // that still takes the reins is a way too narrow for what they had out. `performLocationMove` already does this itself, inside its own transaction, so a mount that doesn't survive a crossing can never bank the extra free move it buys (MAP.md §2c) — the caller passes those names straight through as `dismounted`, skipping a redo that would only ever find nothing left to unequip. A caller with no such result (a GM teleport, a rite, a spawn — none of which cross a graph edge) leaves it undefined and gets the independent check below, a no-op unless there really is a matching onFoot link.
   const dismountedNames =
     dismounted ??
     (fromLocationId
@@ -343,8 +328,8 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
       : []);
 
 
-  // What walking in here does to the nerves is a DB fact too, same as parking
-  // a mount above — before the Discord guard, so it lands whether or not
+  // What walking in here does to the nerves is a DB fact too, same as the
+  // narrow-way dismount above — before the Discord guard, so it lands whether or not
   // there's a token to talk to Discord with (docs/systemdocs/MOOD.md). No
   // per-turn ration on the arrival cost: a mount's two crossings are two real
   // arrivals. The Cathedral's relief rations itself inside.
@@ -352,7 +337,7 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     console.error(`Move: mood on arrival failed for ${characterId}:`, err.message ?? err);
   });
 
-  // Walking into an armed turret. Before the Discord guard and the early return, same reason parking a mount is: being shot is a database fact and must not depend on there being a token to announce it with. Wrapped, because a gun malfunctioning must never wedge a move.
+  // Walking into an armed turret. Before the Discord guard and the early return, same reason a narrow-way dismount is: being shot is a database fact and must not depend on there being a token to announce it with. Wrapped, because a gun malfunctioning must never wedge a move.
   // Both guns are asked, because a move only ever arrives in one place: each checks the destination slug first and costs a single indexed read to say no. See db/lib/turretPass.js on why the armed check is a thunk.
   const openTurn = await prisma.turn.findFirst({
     where: { status: "OPEN" },
@@ -384,48 +369,6 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     await announceTurretBurst(prisma, shot.locationId).catch((err) =>
       console.error(`Move: turret burst failed for ${characterId}:`, err.message ?? err),
     );
-  }
-
-  // Walking into a rail tunnel with the train in it (db/lib/railroad.js). Here
-  // for the reason the turrets are here: a kill on arrival is a database fact
-  // and must not wait on there being a token to announce it with. `fromLocationId`
-  // gates it, so a teleport, a spawn, a rite and a first placement cross no edge
-  // and can never die to this. Wrapped, because the train must never wedge a
-  // move that has already committed.
-  //
-  // AFTER the commit and not inside performLocationMove's transaction, on
-  // purpose: the crossing really happened and stays paid, and applyDeathToRow
-  // fires a pile of un-tx'd writes — including a reincarnate that recurses back
-  // through this very function — which has no business nested in a move.
-  const hit = await railroadGibOnArrival(prisma, {
-    characterId,
-    fromLocationId,
-    toLocationId,
-    turn: openTurn,
-  }).catch((err) => {
-    console.error(`Move: the railroad failed for ${characterId}:`, err.message ?? err);
-    return null;
-  });
-  if (hit?.death) {
-    await applyDeathTeardown(prisma, hit.death).catch((err) =>
-      console.error(`Move: railroad death teardown failed for ${characterId}:`, err.message ?? err),
-    );
-    if (hit.death.discordUserId) {
-      await sendDm(prisma, hit.death.discordUserId, `You have died. ${RAILROAD_DEATH_REASON}`).catch((err) =>
-        console.error(`Move: railroad DM failed for ${characterId}:`, err.message ?? err),
-      );
-    }
-    const where = await prisma.location
-      .findUnique({ where: { id: toLocationId }, select: { id: true, name: true, discordChannelId: true } })
-      .catch(() => null);
-    await locationLine(prisma, where, RAILROAD_LOCATION_LINE(hit.death.name)).catch((err) =>
-      console.error(`Move: railroad line failed for ${characterId}:`, err.message ?? err),
-    );
-    // Everything below here is owed to a LIVING arrival — the zone role, the
-    // narrowcast seat, room access, pending invites, party membership. The
-    // teardown above has just revoked all of it, so running on would hand a
-    // dead sheet its threads back.
-    return null;
   }
 
   const [fromLocation, toLocation, character] = await Promise.all([
@@ -508,7 +451,6 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     toLocation,
     droppedWatch,
     searchesOff,
-    parked,
     dismountedNames,
     droppedVantages,
   };
@@ -516,9 +458,7 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
 
 // The Discord half of an arrival — everything the token guard used to stand in
 // front of, in the order it has always run. `facts` is what applyArrivalFacts
-// returned; NULL means either there was nothing to do or a railroad death has
-// already taken this sheet's threads away, and in both cases there is nothing
-// to tell.
+// returned; NULL means there was nothing to do, so there is nothing to tell.
 //
 // Every call in here is sequential and never Promise.all'd: Discord bans an IP
 // for an hour after ten thousand invalid responses (ARCHITECTURE.md §5).
@@ -535,7 +475,6 @@ async function applyArrivalDiscord(prisma, facts) {
     toLocation,
     droppedWatch,
     searchesOff,
-    parked,
     dismountedNames,
     droppedVantages,
   } = facts;
@@ -599,11 +538,6 @@ async function applyArrivalDiscord(prisma, facts) {
     );
   }
 
-  if (parked.length > 0) {
-    await sendDm(prisma, discordUserId, parkedMessage(parked, toLocation.name)).catch((err) =>
-      console.error(`Move: parked-mount DM to ${discordUserId} failed:`, err.message ?? err),
-    );
-  }
   if (dismountedNames.length > 0) {
     await sendDm(prisma, discordUserId, dismountedMessage(dismountedNames)).catch((err) =>
       console.error(`Move: dismount DM to ${discordUserId} failed:`, err.message ?? err),

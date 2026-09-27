@@ -40,6 +40,7 @@ Each command declares its contexts:
 | `/move` | — | Living character | Guild, DM | `handleMoveOpen` |
 | `/location` | — | Living character | Guild, DM | `handleTravelOpen` — the **Location** picker (§4) |
 | `/travel` | — | Living character | Guild, DM | `handleTravelOpen` — the same picker, under the name people reach for |
+| `/storage` | — | Living character | Guild, DM | `handleStorageCommand` — every stash in the Location the character can see (`CARRY.md` §8) |
 | `/conceal` | — | Living character | Guild, DM | `handleConcealCommand` |
 | `/message` | — | Living character | Guild, DM | `handleMessageCommand` |
 | `/play` | — | Living character with an equipped instrument (plays), or with Musician (sings); neither is refused | Guild | `handlePlayCommand` — the Play Instrument panel runs the same `playInstrument` when a song starts (`SOUND.md` §6b) |
@@ -52,6 +53,10 @@ Each command declares its contexts:
 | `/dm` | `recipient` (user), `message` | GM | Guild | `handleGmDmCommand` |
 | `/heal` | `character` (role) | GM | Guild | `handleHealCommand` |
 | `/zone` | — | GM | Guild | `handleZoneCommand` — the select menu is `handleZoneViewPick` |
+| `/actions` | — | Living character | Guild, DM | `handleActionsOpen` — the Actions menu, only what you can do right now (§2g) |
+| `/feedback` | — | Anyone | Guild, DM | `handleMetaCommand` — a modal to the GMs, the web's Feedback twin (§2g) |
+| `/lobby` | `ready` \| `unready` | Anyone on the roster | Guild, DM | `handleMetaCommand` — Ready / Not ready while the lobby is open (§2g) |
+| **31 verb commands** | a subcommand per verb, no options | Living character | Guild, DM | `startFromCommand` — `/kiss`, `/collar apply`, `/paper write`… Every player verb has one (§2g) |
 
 Notes:
 
@@ -65,6 +70,15 @@ Notes:
   `loc:open` and is not worth a migration; only the surface names changed.
   Retiring `/location` needs no deregistration step, since
   `client.application.commands.set` fully replaces the list.
+- `/storage` is the Storage button for a whole Location at once. The button
+  sits on each Room's first post, so reaching it means finding the thread and
+  scrolling to the top of it, which on a phone is most of the effort. The
+  command answers from anywhere, a DM included, and lists every Room the
+  character can see — public ones, and private ones their keys, a guest row or
+  a quest open (`db/lib/roomAccess.js#accessibleRooms`). Rooms print as thread
+  links for a character who plays on Discord, and as names for anyone else,
+  whose links would read "No access". Reading only, and open out of session
+  like the button (`SESSIONS.md` §5).
 - `/zone` is the Discord twin of the **Zones** control at the bottom of the
   inspector on `/gm/turns` and `/gm/players`. It takes no options: it opens an
   ephemeral select menu (`min_values: 0`) with the caller's current zones
@@ -464,16 +478,142 @@ close enough to hear.
 **Who may.** The bell is whoever can reach the rope — the Bell Tower's `Sound
 Bell` button, confirmed by typing `RING` into a modal, because one click is
 heard across most of the barony and cannot be taken back. The trumpet is
-whoever holds the `trumpet` tag, and its button is on the **web Character
-page**, not in Discord: "only if you have one" is a per-reader question, and a
-Discord button sits on an anchor message everybody shares. It asks for a
-confirm for the same reason the rope does. Sounding it takes ACT, not SPEAK — a
+whoever holds the `trumpet` tag. Its button is on the **web Character page**,
+and on Discord it is `/sound trumpet` or the Actions menu (§2g) rather than a
+button on an anchor: "only if you have one" is a per-reader question, and an
+anchor message is shared by everybody. Both faces ask for a confirm, in the
+same words, for the same reason the rope does. Sounding it takes ACT, not SPEAK — a
 trumpet needs breath *and* hands, so Bound stops it where it deliberately would
 not stop a shout.
 
 Both write an AuditLog row (`bell_rung`, `trumpet_sounded`), and both claim
 their cooldown **before** the posting loop, for `/shout`'s reason: the loop is
 two or three dozen REST posts and takes real seconds.
+
+### 2g. Every player verb: `/actions` and the verb commands
+
+Everything a player can do from the web's Actions menu on `/chat`, plus the
+verbs that live elsewhere on the sheet, can be done on Discord. There are three
+ways in, and they all lead to the same handler:
+
+- **The Actions menu.** This is the `/actions` command, the **Actions** button
+  on every Location anchor, and the one on the `#turns` console.
+- **A typed command per verb.** Related verbs share a command as subcommands:
+  `/collar apply`, `/paper write`, `/work mine`.
+- **A button on the room it belongs to**, for the few verbs tied to one place.
+
+**One list says what a verb is: `db/lib/actionCatalog.js`.** It has zero
+requires, like `itemVerbs.js`. Each entry gives:
+
+- the verb's mode and label
+- its menu section: Work, Yourself, Someone here, Your role or Paper
+- the `show`/`gate` flag that hides or greys it
+- its command and subcommand
+- whether it runs on Discord (`native`) or hands off to the web (`link`)
+- whether it is `open` out of session
+
+`db/test/actionCatalog.test.js` reads `web/app/components/actionRegistry.js`
+as text and fails if the web has a mode the catalog lacks.
+
+**The flags come from `db/lib/actionPools.js#actionPoolsFor`.** It is the same
+arithmetic `character/page.js#FreshCharacter` and `RequestActionsProvider` do.
+The web doesn't call it yet; switching it over is a follow-up. It keeps the
+registry's rule: **a verb is hidden or greyed only for a fact about your own
+sheet, never for who is standing nearby**. Otherwise the menu would tell you
+somebody is in the room before you had looked.
+
+**The menu lists only what you can do right now.**
+
+- Hidden and greyed verbs are left out and counted in one closing line. That
+  line links to the sheet, where the full list is.
+- The one exception is greyed **work at this place**. It is shown as a `-#`
+  line with its reason ("You need a pickaxe to break rock"), because "why can't
+  I mine here?" is the question a player at a mine is asking.
+- Each section is one select, which fits Discord's limit of 25 options.
+- Picking a verb starts it in a new ephemeral message, so the menu stays put
+  for the next pick. The menu does not self-delete (`{ fleeting: false }`).
+
+**Commands are visible to everybody.** Discord cannot hide a command from one
+player. So a verb that doesn't apply to you gives a reason when you type it:
+the catalog's greyed reason, or "That isn't something you can do right now."
+for a hidden verb.
+
+**Native or link.** A verb runs on Discord when its rule already lives in
+`db/lib` or was small enough to move there. The moved rules are in
+`db/lib/verbs/*.js`, and each web `…Impl` now calls the same function. The rest
+answer with a link button to `/character?act=<mode>`. `CharacterSheet.js` reads
+that parameter and opens the dialog straight away. Only a key in
+`RequestActionsProvider`'s `DIALOGS` is accepted: an instant verb opened by a
+link would spend a Move on page load.
+
+The link verbs, for now:
+
+- `/item craft|consume|transfer|package`
+- `/take steal|loot|pickpocket`
+- `/medic heal`
+- `/captive torture|mutilate|harm`
+- `/body butcher`
+- `/thanati gear`
+- `/paper bird`
+- `/mulligan`, `/desire` and `/blood`
+
+What keeps most of these on the web is how much of their dialog there is. For
+Harm, Mutilate and Mulligan it is two helpers that still live only in `web/lib`
+(`killCharacter`, `ensureCharacterRole`).
+
+**The record is the same from either face.** A verb writes the same
+`AuditLog` row wherever it was pressed. It is written inside the shared rule
+where one exists, or by `db/lib/auditLog.js#logAudit`, the twin of the web's,
+beside an offer. That matters because the per-turn rations count those rows.
+A verb's scenery goes through `db/lib/inventoryTail.js#speakAtPlaces` on both
+faces, which posts the `-#` line and files it in the archive, so `/chat` reads
+what Discord reads. Crucify, Bury and Engrave used to post it without archiving
+it, from the web as well.
+
+**Picking someone.** A verb aimed at a person opens a select built by
+`db/lib/peopleHere.js#pickerRows`. That is the same roster `/chat`'s people
+column reads. A hooded face is listed by its alias and keyed `hood:<token>`,
+and `resolveTargetKey` turns it back into a person on the server. A refusal
+never names somebody the player only knows as a hood.
+
+**Anything a misclick would make cruel asks first.** That covers Attack, Bind,
+the collar, Crucify, Shackle, Destroy, Arm/Disarm, Recover, the trumpet and
+horn, withdrawing your Move, and the three work verbs that spend the whole
+Move.
+
+**The place buttons** come from `db/lib/placeAffordances.js`. Entries marked
+`discordOnly` are dropped from the web's place panels, since the web already has
+`/depot` and `/treasury`.
+
+| Button | Where | Starts |
+|---|---|---|
+| Actions | every Location anchor, after Travel | the Actions menu |
+| Send money | the Depot's Railway post | `/money send` |
+| Merchant credit | the Depot's Railway post | `/money credit` |
+| Sell tax | the Meister's Study | `/selltax` |
+
+Each place button refuses anybody who isn't standing there. The rule itself
+decides that, not the button. The Railway post now has seven buttons, so
+`db/lib/roomStarterRow.js#roomStarterRows` splits a post into rows of five.
+
+**The player's own buttons**, which are not a character's:
+
+- **Feedback** is on both `#turns` consoles and at `/feedback`. It opens a
+  modal and posts through the web's `db/lib/verbs/place.js#submitFeedback`, with
+  the same cooldown.
+- **Ready / Not ready** is on the lobby console (§3) and at `/lobby`. It checks
+  the roster from the member's roles, the same rule the web uses
+  (`lobbyGate`).
+
+**Out of session** (`SESSIONS.md` §5), these stay open because they only read:
+the menu, `/look`, `/mymove`, `/nuke pointer|device`, `/warrant list` and
+`/paper read`. Equip and Unequip stay open because they are open on the web.
+Feedback and the lobby stay open because they sit outside the game. Everything
+else meets the act gate on the step that does the thing.
+
+The code is in `bot/src/lib/verbs/`. `index.js` has the menu, routing and
+command dispatch. Each family has its own file: `people`, `self`, `captives`,
+`work`, `roles`, `paper`, `place` and `meta`. Shared helpers are in `context`.
 
 ## 3. The `#turns` console
 
@@ -497,8 +637,18 @@ deleted and files nothing.
 
 | Button | Emoji | customId | Opens |
 |---|---|---|---|
-| Travel | 🗺️ | `loc:open` | The Location picker (§4) |
 | Move | ⚜️ | `move:open` | The Move modal (§5) |
+| Travel | 🗺️ | `loc:open` | The Location picker (§4) |
+| Actions | — | `act:open` | The Actions menu (§2g) |
+| Feedback | — | `meta:feedback` | The Feedback modal (§2g) |
+
+**While the lobby is open, the console is the lobby console instead**
+(`LOBBY_CONSOLE_ROW`). Nobody has a character to move yet, so it offers
+**Ready** (`meta:lobby:ready`), **Not ready** (`meta:lobby:unready`) and
+Feedback, under a line pointing at `/character` for the role priorities. Open
+Lobby posts it (`turnAnnouncement.js#postLobbyConsole`), Close Lobby clears it,
+and the cold start above posts it when the phase is `LOBBY`. It is the first
+Discord surface a player with no character has had.
 
 Tracked on `GameConfig.turnsConsoleChannelId` / `turnsConsoleMessageId`.
 
@@ -529,6 +679,14 @@ parsed by literal `startsWith` + `slice`.
 | `edit:send:{messageId}` | Modal | Rewrite a proxied message |
 | `offer:accept:{offerId}` | Button | Accept a Lesson or Bind `Offer` |
 | `offer:decline:{offerId}` | Button | Decline a Lesson or Bind `Offer` |
+| `act:open` | Button | The Actions menu (§2g) — on the anchors and the `#turns` console |
+| `act:menu:{section}:{n}` | Select | Start the verb picked from one section of the menu |
+| `act:start:{mode}` | Button | Start one verb — the place buttons (`act:start:sendmoney`, `…credit`, `…selltax`) |
+| `act:v:{mode}:{step}[:{payload}]` | Button / Select | One step of a verb's flow — a picker, a confirm, `cancel` |
+| `act:m:{mode}[:{payload}]` | Modal | A verb's form submitted |
+| `meta:feedback` | Button | Show the Feedback modal |
+| `meta:feedback:send` | Modal | Post the feedback to the GMs |
+| `meta:lobby:ready` / `meta:lobby:unready` | Button | Ready up, or stand down, in the lobby |
 
 Retired with the zone rework: `zone:place`, `zone:confirm:{zoneId}`,
 `zone:cancel`, `zone:who:{zoneId}`, `topic:new:{zoneId}`,
@@ -563,6 +721,22 @@ description and a `-#` line rather than asking the server anything: "Same
 zone" (free, on a cooldown), "Crosses into {Zone} — costs your Move", or
 "Arriving costs you nothing" on a first placement.
 
+**The picker does not self-delete.** Every ephemeral reply is deleted 60s
+after it is sent unless it opts out (`bot/src/lib/respond.js`), and the
+picker's message is the same one the pick later turns into Bring/Confirm. So a
+timer set when the picker opened took Confirm with it a minute later, however
+far the player had got — on a phone that was often mid-choice, and read as
+"can't travel on Discord". `handleTravelOpen` opts out whenever it offers a
+destination; the outcome (Moved, Canceled, a refusal) is what cleans the
+message up.
+
+**The outcome links to where they landed.** A character who plays on Discord
+gets one `-#` line under "Moved to" with the Location's channel and its public
+Rooms as mentions (`db/lib/syncZones/bodies.js#arrivalLinksLine`, which shares
+its room list with the anchor's Public Rooms line). A new channel and a thread
+nobody has joined are hard to find in the mobile sidebar, and a tap on a
+mention goes straight there.
+
 **Every hop offers the party**, on the same message as the Confirm/Cancel
 row: `loc:bring` lists everyone standing **here** with a verdict from
 `db/lib/escort.js#escortCandidates` — a corpse, anyone helpless, or somebody
@@ -591,6 +765,10 @@ answers the clicks over the gateway). The Location id rides in the custom id
 so the handlers need no channel→Location lookup; change a prefix in that
 file and you must change it in `interactionCreate.js` too.
 
+- **Actions** (`act:open`, straight after Travel) opens the Actions menu
+  (§2g). The id carries no Location, because the menu reads where the
+  character stands, not which anchor was pressed. Adding it changed every
+  anchor's hash, so each one re-edits once on the next mirror pass.
 - **Who's here?** (`handleWhosHere`) lists everyone `ALIVE` and standing in
   this Location. Since phase 3 of Chat the rule itself is
   **`db/lib/whosHere.js#whosHere`**, and the handler only speaks the answer —

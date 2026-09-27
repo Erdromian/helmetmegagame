@@ -29,10 +29,7 @@ import {
   healCost,
   isGambitHeal,
   isHealable,
-  isMiracleable,
-  MIRACLE_PER_TURN,
   needsSurgicalSite,
-  SAINT_SLUG,
   satisfiedSkillIds,
 } from "@/lib/healRequests";
 import { medicTierOf, healThreshold } from "@lifeweb/db/lib/healGambit";
@@ -42,7 +39,10 @@ import {
 } from "@/lib/transferReach";
 import { concealedNow } from "@lifeweb/db/lib/presence";
 import { medicallyVisibleTags } from "@lifeweb/db/lib/medicalVision";
-import { resolveHereTarget } from "@/lib/hereTarget";
+import { resolveHereTarget, seenName } from "@/lib/hereTarget";
+import { seenById } from "@lifeweb/db/lib/intercept";
+import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
+import { performMiracle } from "@lifeweb/db/lib/verbs/medic";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import {
   SURGICAL_EQUIPMENT_SLUG,
@@ -255,8 +255,16 @@ export async function healCharacterRequestImpl({
 
   // Straight off the tag, never off the client.
   const cost = healCost(held.tag);
-  if (cost > payer.balance)
-    throw new UserError(`${payer.name} only has ${payer.balance} ⬢.`);
+  if (cost > payer.balance) {
+    // A person paying is named as the medic knows them; a masked friend picked
+    // by token must not come back under their real name.
+    const payerName = payer.kind === "character" ? await seenName(character, payer.id) : payer.name;
+    throw new UserError(`${payerName} only has ${payer.balance} ⬢.`);
+  }
+  // The patient and the medic, each as the other knows them (intercept.js#seenBy).
+  const self = target.id === character.id;
+  const patientSeen = self ? null : await seenById(prisma, character.id, target.id);
+  const medicSeen = self ? null : capitalizeFirst(await seenById(prisma, target.id, character.id));
 
   const ledger = {
     actorDiscordUserId: session.discordUserId,
@@ -364,7 +372,7 @@ export async function healCharacterRequestImpl({
             confirmedAt: new Date(),
             moveKind: "GAMBIT",
             moveReviewStatus: "OPEN",
-            description: `Treating ${target.id === character.id ? "their own" : `${target.name}'s`} ${held.tag.name}.`,
+            description: `Treating ${self ? "their own" : `${patientSeen}'s`} ${held.tag.name}.`,
             diceRoll: healGambitAdvantage.die,
             diceModifier:
               gambitModifierTotal(character.tags, { mood: character.mood }) + (surgicalPenalty ? -1 : 0),
@@ -388,7 +396,7 @@ export async function healCharacterRequestImpl({
       });
       if (!heldNow) {
         throw new UserError(
-          `${target.id === character.id ? "You've" : `${target.name} has`} already been treated for that.`,
+          `${self ? "You've" : `${capitalizeFirst(patientSeen)} has`} already been treated for that.`,
         );
       }
       effect.restore = {
@@ -439,19 +447,19 @@ export async function healCharacterRequestImpl({
     notifyCharacter(
       target,
       gambit
-        ? `${character.name} is working on your ${held.tag.name}. You'll know how it went at the end of the turn.`
+        ? `${medicSeen} is working on your ${held.tag.name}. You'll know how it went at the end of the turn.`
         : `Your ${held.tag.name} was treated.`,
     );
   }
   if (payer.kind === "character" && payer.id !== character.id && cost > 0) {
     notifyCharacter(
       payer,
-      `${character.name} paid ${cost} ⬢ from your purse to treat ${target.id === character.id ? "themselves" : target.name}.`,
+      `${capitalizeFirst(await seenById(prisma, payer.id, character.id))} paid ${cost} ⬢ from your purse to treat ${self ? "themselves" : await seenById(prisma, payer.id, target.id)}.`,
     );
   }
   revalidateAll();
   return {
-    targetName: target.name,
+    targetName: self ? target.name : patientSeen,
     tagName: held.tag.name,
     cost,
     gambit,
@@ -464,109 +472,19 @@ export async function healCharacterRequestImpl({
 // somebody else's Moderate-or-lesser wound. No ⬢, no Move, no Medical
 // training. Own AuditLog count — never touches MEDICAL_SIMPLE_PER_TURN.
 
-async function miraclesThisTurn(db, discordUserId, turnId) {
-  if (!turnId || !discordUserId) return 0;
-  return db.auditLog.count({
-    where: {
-      actorDiscordUserId: discordUserId,
-      actionType: "request_perform_miracle",
-      turnId,
-    },
-  });
-}
-
+// The rule is db/lib/verbs/medic.js#performMiracle, shared with Discord's /medic miracle.
 export async function performMiracleRequestImpl({ targetCharacterId, tagId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
-  if (!heldSlugs.has(SAINT_SLUG)) {
-    throw new UserError("Only a Saint may perform a miracle.");
-  }
-  if (!character.locationId) {
-    throw new UserError("You aren't anywhere you could touch anyone.");
-  }
-
-  // A hood is a body you can lay hands on, so this takes a target key like the
-  // rest (db/lib/targetKey.js). The self check moved BELOW the resolve: a key
-  // naming you is "character:<id>", not a bare id, and comparing the raw string
-  // would have quietly stopped catching it.
-  const target = await resolveHereTarget(character, targetCharacterId, {
-    status: "ALIVE",
-    select: {
-      id: true,
-      name: true,
-      concealed: true,
-      locationId: true,
-      status: true,
-      buriedAt: true,
-      discordUserId: true,
-      tags: { include: { tag: true } },
-    },
+  const result = await performMiracle(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    targetKey: targetCharacterId,
+    tagId,
+    openTurn: await getOpenTurn(),
   });
-  if (target.id === character.id) {
-    throw new UserError("A Saint doesn't perform miracles on themselves.");
-  }
-
-  const held = target.tags.find((ct) => ct.tagId === tagId);
-  if (!held || !isMiracleable(held.tag)) {
-    throw new UserError("That isn't a wound a miracle could touch.");
-  }
-  // On a masked subject, only a wound the room can plainly see. An empty
-  // `satisfied` set is the point rather than an oversight: sainthood is not a
-  // medical training, so the doctor's-eye exception inside medicallyVisibleTags
-  // buys a Saint nothing and this reduces to the bystander read.
-  if (concealedNow(target) && !medicallyVisibleTags(target.tags, new Set(), false)
-      .some((row) => row.characterTag.tagId === held.tagId)) {
-    throw new UserError("That isn't a wound a miracle could touch.");
-  }
-
-  const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open.");
-
-  // Fast fail before the transaction — the row-locked re-count below is what
-  // actually holds under a race.
-  if ((await miraclesThisTurn(prisma, session.discordUserId, openTurn.id)) >= MIRACLE_PER_TURN) {
-    throw new UserError("You've used both miracles this turn.");
-  }
-
-  const effect = {
-    targetCharacterId: target.id,
-    targetName: target.name,
-    tagId: held.tagId,
-    tagSlug: held.tag.slug,
-    tagName: held.tag.name,
-  };
-
-  await prisma.$transaction(async (tx) => {
-    // Sorted-id lock — same deadlock avoidance the heal action uses when two
-    // Saints in one Room miracle each other's neighbours.
-    const lockIds = [character.id, target.id].sort();
-    for (const id of lockIds) await lockCharacter(tx, id);
-
-    if ((await miraclesThisTurn(tx, session.discordUserId, openTurn.id)) >= MIRACLE_PER_TURN) {
-      throw new UserError("You've used both miracles this turn.");
-    }
-
-    const heldNow = await tx.characterTag.findUnique({
-      where: { characterId_tagId: { characterId: target.id, tagId: held.tagId } },
-    });
-    if (!heldNow) {
-      throw new UserError(`${target.name} no longer has that.`);
-    }
-
-    await dropCharacterTag(tx, target.id, held.tagId);
-
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_perform_miracle",
-      targetCharacterId: target.id,
-      turnId: openTurn.id,
-      details: effect,
-    });
-  });
-
-  await afterInventoryChange([target.id]);
-  notifyCharacter(target, `${character.name} healed your ${held.tag.name} with a miracle.`);
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
+  for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
   revalidateAll();
-  return { targetName: target.name, tagName: held.tag.name, name: target.name, sfx: SFX.HEAL };
+  return { targetName: result.targetName, tagName: result.tagName, name: result.name, sfx: SFX.HEAL };
 }

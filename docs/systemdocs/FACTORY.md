@@ -240,9 +240,9 @@ the target: 5 turns of production is ~2.5 producing turns, 3 refugees × 8 cubes
 five-turn run in one trip**. It takes about 41 cubes, a bit over three turns'
 worth; the rest waits in the Logistics Room for the next wagon.
 
-**The wagon comes inside.** The Factory is `indoors: true`, but a surface roof
-no longer parks a mount — only an underground one does (`CARRY.md` §3) — so the
-cart stays equipped on the factory floor and loads where the crates are. It
+**The wagon comes inside.** The Factory is `indoors: true`, but no roof parks
+a mount any more (`CARRY.md` §3), so the cart stays equipped on the factory
+floor and loads where the crates are. It
 carried the `wheels` attribute for this once, back when any roof took the reins;
 that attribute is gone and nothing here needed to change, because the Factory
 stands in the Black Hills. The roof is untouched either way: the mood dial and

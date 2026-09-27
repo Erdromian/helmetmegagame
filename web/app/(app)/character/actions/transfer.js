@@ -17,7 +17,7 @@ import {
   forcedNameFrom,
   concealmentFrom,
 } from "@lifeweb/db/lib/presentedIdentity";
-import { aliasSubject } from "@lifeweb/db/lib/concealedIdentity";
+import { seenName } from "@/lib/hereTarget";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
 import { isTradeable } from "@/lib/tagRequests";
@@ -43,6 +43,7 @@ import {
   rowWeight,
 } from "@lifeweb/db/lib/carry";
 import { formatManifest } from "@lifeweb/db/lib/roomStash";
+import { holdLimitRefusal } from "@lifeweb/db/lib/mounts";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import {
   INCAPACITATING_SLUGS,
@@ -179,7 +180,7 @@ export async function transferRequestImpl(
         tagId: true,
         quantity: true,
         expiresTurn: true,
-        tag: { select: { name: true, stackable: true, tradeable: true } },
+        tag: { select: { slug: true, name: true, stackable: true, tradeable: true } },
       },
     });
   } else if (lines.length) {
@@ -266,7 +267,19 @@ export async function transferRequestImpl(
       throw new UserError(
         to.id === character.id
           ? verdict.reason
-          : `${to.name} couldn't carry that. ${verdict.reason}`,
+          : `${to.kind === "character" ? await seenName(character, to.id) : to.name} couldn't carry that. ${verdict.reason}`,
+      );
+    }
+    // One mount, and up to 3 unruly or young arelitz (db/lib/mounts.js) —
+    // refused here like the weight above, rather than landing and being set
+    // down again by the settle.
+    const tooMany = holdLimitRefusal(
+      recipient.tags,
+      moves.map((m) => ({ slug: m.held.tag?.slug, quantity: m.quantity })),
+    );
+    if (tooMany) {
+      throw new UserError(
+        to.id === character.id ? tooMany : `${await seenName(character, to.id)} can't take that. ${tooMany.replace(/^You/, "They")}`,
       );
     }
   }
@@ -299,8 +312,10 @@ export async function transferRequestImpl(
     concealment: concealmentFrom(character.tags),
   });
   const by = identity.name;
-  // The recipient's DM names the giver the way shout.js does: a hood gets "A young man", not the Title Case alias.
-  const giver = identity.concealed ? aliasSubject(character) : identity.name;
+  // The recipient's DM names the giver as the recipient knows them: a hood,
+  // or a face they have never met, is "A young man" (intercept.js#seenBy).
+  const giver =
+    to.kind === "character" && to.id !== character.id ? await seenName({ id: to.id }, character.id) : identity.name;
   const moveId = crypto.randomUUID();
   // The Spillway (Room.destroysContents). Nothing is written on the receiving
   // end — giveTagTo and moveParty both refuse — so the effect has to say so,

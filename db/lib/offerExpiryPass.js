@@ -21,14 +21,14 @@
 //
 // Returns Discord work as data for advanceTurn()'s runSideEffects(), never sends it.
 // Returns an object even when idle: db/index.js treats null as a failed pass to retry.
-// For the SEARCH expiry line only — see presentedNameOf below.
 const { seenBy, IDENTITY_SELECT } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
 const { refuseConversion } = require("./conversionRite");
 
 // The DM the asker gets when the turn closes on an unanswered offer, per kind.
-// `other` is the responder's row name, `presented` the face the asker actually
-// saw (Search is the one kind whose responder may be hooded). Pure and
+// `other` is the responder as the asker would name them, never the bare row
+// name (intercept.js#seenBy). `presented` defaults to it; the runner passes
+// only `other`, since the two are now the same answer. Pure and
 // exported so db/test/offerWording.test.js can hold every OfferKind to a row;
 // null for a kind it does not know, so the caller falls back to a plain line
 // instead of the lesson pair -- which used to be the default arm, and told a
@@ -94,15 +94,9 @@ async function runOfferExpiryPass(prisma, turn) {
     ).map((c) => [c.id, c]),
   );
   // Named as the initiator, who gets the notice, would name them: a stranger
-  // is "a young man" (docs/systemdocs/STRANGERS.md).
+  // is "A young man" (docs/systemdocs/STRANGERS.md). Capitalised because every
+  // row in expiryNotice opens its sentence with it.
   const nameOf = async (viewerId, id) => {
-    const row = people.get(id);
-    return row ? seenBy(prisma, viewerId, row) : "someone";
-  };
-  // Search is the one kind either end of which may be hooded, so its expiry
-  // notice is the one that must name the face rather than the row — the same
-  // rule INTERCEPT.md §2 applies to every other line about a concealed person.
-  const presentedNameOf = async (viewerId, id) => {
     const row = people.get(id);
     return row ? capitalizeFirst(await seenBy(prisma, viewerId, row)) : "Someone";
   };
@@ -141,7 +135,7 @@ async function runOfferExpiryPass(prisma, turn) {
       expired += 1;
       const other = await nameOf(offer.initiatorId, offer.responderId);
       const content =
-        expiryNotice(offer, { other, presented: await presentedNameOf(offer.initiatorId, offer.responderId) }) ??
+        expiryNotice(offer, { other }) ??
         `${other} never answered.`;
       const dm = dmTo(offer.initiatorId, content);
       if (dm) dms.push(dm);

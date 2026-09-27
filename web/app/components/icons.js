@@ -71,6 +71,7 @@ import {
   VenetianMask,
   Coins,
   Brain,
+  Pointer,
 } from "lucide-react";
 
 const STROKE = 1.6;
@@ -129,6 +130,8 @@ export const CloseIcon = lucide(X, "CloseIcon");
 
 // The uploaded-portrait queue on /gm/turns. Plain tick, not thumbs-up: the GM is signing off, not liking it.
 export const CheckIcon = lucide(Check, "CheckIcon");
+// /chat's Actions menu (chat/next/ChatActions.js): a hand about to do something.
+export const ActionsIcon = lucide(Pointer, "ActionsIcon");
 // The Chat page: a doorway you speak through. A plain speech bubble would read as MessageIcon (the GM's inbox).
 export const PlayIcon = lucide(DoorOpen, "PlayIcon");
 export const BellRingIcon = lucide(BellRing, "BellRingIcon");

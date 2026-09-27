@@ -114,8 +114,8 @@ key on.
 | Holds `hungry` at turn end | HUNGER | −5 | mood pass |
 | Holds `starving` at turn end | STARVING | −10 | mood pass (one hunger descriptor at a time, so never both) |
 | Freshly crossed into Hungry this close | HUNGRY_ONSET | −30 | one-time, `hungerPass.js`, not the mood pass |
-| Freshly crossed into Starving this close | STARVING_ONSET | −30 | one-time, `hungerPass.js`; not charged to somebody who ate Foodstuffs at the close to stay Hungry (`TURN-ENGINE.md` §5a) |
-| Eat a raw Foodstuff (by hand or at the close) | DISGUST | −5 each | `consumeTagRequestImpl`, `hungerPass.js` |
+| Freshly crossed into Starving this close | STARVING_ONSET | −30 | one-time, `hungerPass.js`; not charged to somebody the close fed to keep them Hungry (`TURN-ENGINE.md` §5a) |
+| Eat a raw Foodstuff (by hand or at the close) | DISGUST | −5 each | `consumeTagRequestImpl`, `hungerPass.js` — anything else the close eats moves the dial exactly as eating it by hand would |
 | Looted while alive | ROBBED | −10 | `lootCharacterRequestImpl` |
 
 **Place classes** come from `placeClassOf(location)`, in this precedence:

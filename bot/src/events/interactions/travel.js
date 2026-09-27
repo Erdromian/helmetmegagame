@@ -17,6 +17,8 @@ const {
   freeZoneMovesReason,
   buildConfirmRow,
   freeMovesLeft,
+  freeMovesBreakdown,
+  travelSentence,
   exertRefusal,
   exertEdgeFor,
   exertEdgeSentence,
@@ -33,13 +35,15 @@ const {
   KEYED_OPEN_MS,
 } = require("@lifeweb/db/lib/locationGraph");
 const { knownLocations } = require("@lifeweb/db/lib/locationVisits");
+const { crossingCost, formatTravel, FAR_CROSSING_COST } = require("@lifeweb/db/lib/crossingCost");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
-const { heldReasonFor, INTERCEPT_RELEASE_PREFIX } = require("@lifeweb/db/lib/intercept");
+const { heldReasonFor, INTERCEPT_RELEASE_PREFIX, seenById } = require("@lifeweb/db/lib/intercept");
 const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { sendDm } = require("../../lib/dm");
 const { escortCandidates, partyOf } = require("@lifeweb/db/lib/escort");
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
+const { arrivalLinksLine } = require("@lifeweb/db/lib/syncZones/bodies");
 const { GATE_CHARACTER_SELECT, toggleGate, holdKeyedOpen } = require("@lifeweb/db/lib/gates");
 const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
@@ -114,17 +118,25 @@ async function handleTravelOpen(interaction) {
           .map((row) => (squeezeIds.has(row.location.id) ? `${row.location.name} (tight squeeze)` : row.location.name))
           .join(", ")}.`
       : null;
-  await respond(interaction, {
-    content: [
-      held ? `» *${held}*` : null,
-      entries.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
-      shutLine,
-      truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25.` : null,
-    ]
-      .filter(Boolean)
-      .join("\n"),
-    components: entries.length > 0 ? [buildLocationSelectRow(entries, current)] : [],
-  });
+  // Not fleeting: this message becomes the Bring/Confirm step when a place is
+  // picked, so a self-delete scheduled here would take Confirm with it 60s
+  // after opening — which on a phone is often mid-choice. The pick and the
+  // outcome are what clean it up.
+  await respond(
+    interaction,
+    {
+      content: [
+        held ? `» *${held}*` : null,
+        entries.length > 0 ? "Where would you like to go?" : "» *Every way out of here is closed to you.*",
+        shutLine,
+        truncated > 0 ? `-# ${truncated} more not shown — Discord caps this list at 25.` : null,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      components: entries.length > 0 ? [buildLocationSelectRow(entries, current)] : [],
+    },
+    { fleeting: entries.length === 0 },
+  );
 }
 
 
@@ -233,14 +245,10 @@ async function handleTravelPick(interaction) {
 
   // Cost model, and a warning before Confirm rather than a regret after (CARRY.md §2).
   const crossing = Boolean(character.locationId) && character.zoneId !== target.zoneId;
-  // A rail tunnel (db/lib/railroad.js). The Confirm button below IS the
-  // two-step the web gets from its dialog, so nothing new is needed here —
-  // only the sentence, and it has to be the same sentence, or Discord and the
-  // web would warn about the tunnel in two different voices.
+  // The edge itself, for what the picker says about the way (a tight squeeze).
   const adjacentLink = character.locationId
     ? await linkBetween(prisma, character.locationId, target.id).catch(() => null)
     : null;
-  const railroad = Boolean(adjacentLink?.railroad);
   const config = await prisma.gameConfig.findUnique({
     where: { id: 1 },
     select: { freeZoneMovesPerTurn: true },
@@ -253,6 +261,16 @@ async function handleTravelPick(interaction) {
 
   const party = await partyOf(prisma, character.id); // decides whether the mount's extra crossing survives (MAP.md §3a)
   const left = crossing ? freeMovesLeft(character, config, openTurn, party.length) : null;
+  // The two halves of `left` — the ride the mount is about to spend, or the
+  // travel the walker is (MAP.md §3a).
+  const breakdown = crossing ? freeMovesBreakdown(character, config, openTurn, party.length) : null;
+  // What this crossing spends: ½ between the town zones, 1 anywhere else
+  // (db/lib/crossingCost.js) — the same number the mover charges.
+  const fromZone = crossing && character.zoneId
+    ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } })
+    : null;
+  const cost = crossing ? crossingCost(fromZone?.slug, target.zone?.slug) || FAR_CROSSING_COST : 0;
+  const affords = crossing && left >= cost;
   const seatWarning = crossing ? freeZoneMovesReason(character, party.length, { config, openTurn }) : null;
   // Push on: the crossing on a die instead of the Move (MAP.md §3), offered
   // only where performLocationMove would say yes.
@@ -261,13 +279,13 @@ async function handleTravelPick(interaction) {
       ? Boolean(await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } }))
       : false;
   const exertWhy =
-    crossing && left === 0
-      ? exertRefusal(character, config, openTurn, { left, acted })
+    crossing && !affords
+      ? exertRefusal(character, config, openTurn, { left, cost, acted })
       : null;
-  const canExert = crossing && left === 0 && exertWhy === null;
-  // Once the Move is spent a crossing with no free move left has no Confirm
+  const canExert = crossing && !affords && exertWhy === null;
+  // Once the Move is spent a crossing they cannot afford has no Confirm
   // to offer — the web surfaces drop Go the same way (MAP.md §3).
-  const spent = crossing && left === 0 && acted;
+  const spent = crossing && !affords && acted;
 
   // The same sentence the web confirm carries about which way the die leans,
   // when it does — the picker is the only place a Discord player reads the
@@ -289,17 +307,19 @@ async function handleTravelPick(interaction) {
       ? `-# ${walk.hops} moves, through ${listNames(walk.path.slice(0, -1).map((l) => l.name))}. Nothing to pay.${walk.dismounts ? " One of the ways is too narrow for what you're riding." : ""}`
       : null;
 
-  const cost = !character.locationId
+  const costLine = !character.locationId
     ? "-# Arriving costs you nothing."
     : !crossing
-      ? walkLine ?? "-# You have free zone moves left, so this is free."
-      : left > 0
-        ? `-# Crossing into ${target.zone.name} uses 1 of your ${left} free ${left === 1 ? "move" : "moves"} this turn.`
+      ? walkLine ?? "-# Inside your own zone, so this costs nothing."
+      : affords
+        ? breakdown?.ridesLeft > 0 && breakdown.mount
+          ? `-# Your ${breakdown.mount} carries you into ${target.zone.name}: 1 of its ${breakdown.ridesLeft} ${breakdown.ridesLeft === 1 ? "ride" : "rides"} this turn. You have ${travelSentence(breakdown)}.`
+          : `-# Crossing into ${target.zone.name} uses ${formatTravel(cost)} of your ${formatTravel(left)} travel this turn.`
         : !acted
-          ? `-# You have no free moves left, so crossing into ${target.zone.name} spends your Move.`
+          ? `-# You don't have the travel left for this crossing, so crossing into ${target.zone.name} spends your Move.`
           : canExert
-            ? `-# You have no free moves left and your Move is spent, so crossing into ${target.zone.name} means pushing on, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
-            : `-# You have no free moves left and your Move is spent, so you can't cross into ${target.zone.name} this turn.${exertWhy ? ` ${exertWhy}` : ""}`;
+            ? `-# You don't have the travel left for this crossing and your Move is spent, so crossing into ${target.zone.name} means pushing on, risking exhaustion and possible injury.${exertNote ? ` ${exertNote}` : ""}`
+            : `-# You don't have the travel left for this crossing and your Move is spent, so you can't cross into ${target.zone.name} this turn.${exertWhy ? ` ${exertWhy}` : ""}`;
 
   // A tight squeeze, as the way or somewhere along a walk (MAP.md §2a). Said
   // to everybody before Confirm, the way the web's card says it: the mover
@@ -322,8 +342,8 @@ async function handleTravelPick(interaction) {
     interaction,
     {
       content: [
-        railroad ? "Go into the tunnel?" : `Move to **${target.name}**?`,
-        railroad ? "-# This is dangerous." : cost,
+        `Travel to **${target.name}**?`,
+        costLine,
         squeezeLine,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
@@ -397,9 +417,12 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
     return;
   }
 
-  const brought = result.moved
-    .filter((entry) => entry.character.id !== character.id)
-    .map((entry) => entry.character.name);
+  // As the mover knows them — a hood or a stranger in the party is "a young man".
+  const brought = await Promise.all(
+    result.moved
+      .filter((entry) => entry.character.id !== character.id)
+      .map((entry) => seenById(prisma, character.id, entry.character.id)),
+  );
   // Where they ACTUALLY got to. A walk of several hops can be stopped on the
   // road — an ambush, a gate shut behind somebody, the gun at the Depot — and
   // the ground they covered is real, so the line names it rather than the place
@@ -418,8 +441,8 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
   if (result.usedFreeMove) {
     parts.push(
       result.freeMovesLeft > 0
-        ? `${result.freeMovesLeft} free ${result.freeMovesLeft === 1 ? "move" : "moves"} left this turn.`
-        : "That was your last free move this turn.",
+        ? `${result.travelLeft ? travelSentence(result.travelLeft) : `${formatTravel(result.freeMovesLeft)} travel`} left this turn.`
+        : "That was the last of your travel this turn.",
     );
   }
   if (brought.length > 0) parts.push(`Bringing ${listNames(brought)}.`);
@@ -434,7 +457,23 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
     );
   }
 
-  await respond(interaction, { content: parts.join(" "), components: [] });
+  const links = await arrivalLinks(character.id, landed.id);
+  await respond(interaction, { content: [parts.join(" "), links].filter(Boolean).join("\n"), components: [] });
+}
+
+// Links to where they landed, for a character who plays on Discord — for
+// anybody else the channel is closed and a mention reads "No access".
+async function arrivalLinks(characterId, locationId) {
+  const [mover, location, rooms] = await Promise.all([
+    prisma.character.findUnique({ where: { id: characterId }, select: { discordMirrored: true } }),
+    prisma.location.findUnique({ where: { id: locationId }, select: { discordChannelId: true } }),
+    prisma.room.findMany({
+      where: { locationId, retiredAt: null },
+      select: { kind: true, discordThreadId: true, sortOrder: true },
+    }),
+  ]).catch(() => []);
+  if (!mover?.discordMirrored) return null;
+  return arrivalLinksLine(location, rooms ?? []);
 }
 
 

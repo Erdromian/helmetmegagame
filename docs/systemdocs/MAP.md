@@ -126,11 +126,9 @@ Marshes Location except the factory, the farms and the marshes village), and
 Inn, the Keep and the Sanctuary.
 
 There used to be a third, `wheels`, an authored exception letting an indoors
-Location admit a cart anyway. It is gone. `indoors` only parks a mount
-**underground** (`zone.kind === "CAVE_LEVEL"`) — a surface roof no longer takes
-the reins away at all, which left the attribute doing real work on exactly one
-Location, and that one was the cave mouth's cart gate. The gate went, so the
-exception went with it (`CARRY.md` §3).
+Location admit a cart anyway. It is gone, and so is the rule it excepted:
+`indoors` no longer parks a mount anywhere, underground included (`CARRY.md`
+§3). A roof is a roof, for the mood dial and for building, and nothing more.
 
 Every key must exist in the registry in `db/lib/locationAttributes.js`, which
 is the only module that reads the column. An unknown key is reported as a sync
@@ -303,14 +301,13 @@ wipe, not as part of importing or mirroring.
 
 ### 2c. On-foot ways
 
-`onFoot` is the edge-level sibling of `Location.indoors`: same effect
-(`db/lib/indoors.js#dismountForNarrowWay`, right beside `parkMountsIndoors`),
-earlier moment. Both keep a horse and a cart out of somewhere they do not
-fit; `onFoot` used to refuse the crossing outright rather than dismount for
+`onFoot` is the one thing left that keeps a mount out
+(`db/lib/indoors.js#dismountForNarrowWay`). An indoors roof used to do it too,
+at the door on arrival; it no longer does anywhere (`CARRY.md` §3). `onFoot` used to refuse the crossing outright rather than dismount for
 it, on purpose — see the timing note below for why that mattered, and why
 dismounting works just as well now.
 
-**Timing is the whole reason it isn't a plain reuse of `parkMountsIndoors`.**
+**Timing is the whole reason it isn't done on arrival, the way the roof once was.**
 An equipped mount buys one extra free zone-crossing per turn (`freeZoneMoves`,
 `db/lib/locationTravel.js`), so dismounting only on arrival — after that
 crossing's own cost was already computed — would let a rider bank the bonus
@@ -357,7 +354,7 @@ character without the `giant` tag is never touched by it at all.
 on every listed verdict, passable or not, and the walk resolver carries the
 flag stickily down a route the way it carries `dismounts` — a three-hop walk
 whose second hop is a squeeze is a walk with a squeeze on it. That is the
-opposite of how `railroad` and `openedBy` behave (passable branches only),
+opposite of how `openedBy` behaves (passable branches only),
 and on purpose: the person who most needs to see a squeeze is the one it
 doesn't refuse, the party leader about to walk their Giant friend up to a
 hole and lose them there. A refusing branch says no more about its lock than
@@ -389,10 +386,11 @@ refusal — but they get them too; there is no per-tag branch in any of it.
 **Because the block is unconditional, every `tightSqueeze` edge needs some
 OTHER route left standing for a Giant.** Cutting a region off entirely from
 a sixth of the catalog's most expensive tag is a design mistake, not a
-feature. It's used on three edges today, and none of them closes anything
-off: with no tags at all, a Giant can still reach every Location anyone else
-can. What they lose is the shortcut. The way round is longer, and it crosses
-zone lines, and every crossing costs the Move (§3).
+feature. It's used on three edges today. Two of them close nothing off: the
+way round is longer, and it crosses zone lines, and every crossing costs the
+Move (§3). The third, the Razor Tunnels, is the one exception, and it is a
+chosen one: since the rail tunnel out of the Depot was taken out, a Giant
+without `climbing` cannot reach the Chasm side of the Depths at all.
 
 - The Brooding Grounds (`caves-4 ↔ caves-5`) — "a winding forest of
   mushrooms... any attempt to establish a proper path through has been
@@ -405,14 +403,13 @@ zone lines, and every crossing costs the Move (§3).
   (`undertown-5 ↔ caves-4`, `hidden: caving`).
 - The Crystal Chambers (`depths-5 ↔ depths-6`) — the Razor Tunnels' own
   "carefully climb through countless of these vicious crystals." A Giant
-  comes at the Chambers from the Chasm instead (`depths-6 ↔ depths-7`). With
-  no tags, that means the rail tunnel from the Depot (`undertown-5 ↔
-  depths-7`, see "The railroad" below), which kills anyone inside while the train is
-  out on the line. So this one is about timing, not a closed door. From the
-  Grand Chamber it's six hops and two zone crossings: Lake, Slums, Merchant,
-  Depot, down the tunnel to the Chasm, then the Chambers. A Giant with
-  `climbing` can also come down from the Grand Ravine (`depths-7 ↔
-  hills/grand-ravine`, `locked: climbing`) and skip the train.
+  comes at the Chambers from the Chasm instead (`depths-6 ↔ depths-7`), and
+  the only way into the Chasm that skips the Razor Tunnels is the climb down
+  from the Grand Ravine (`depths-7 ↔ hills/grand-ravine`, `locked:
+  climbing`). So a Giant needs `climbing` to reach the Chasm, the Chambers
+  and the shrine at the Chasm's foot. There used to be a rail tunnel from the
+  Depot as well (`undertown-5 ↔ depths-7`); migration
+  `20261103000000_remove_railroad` took it out.
 - Last Chance's own bored tunnel west into the Fork (`depths-3 ↔ depths-4`)
   — "a tunnel has been bored into a smaller cavern system to the West"
   (depths-3's own description). The shortest detour of the three:
@@ -432,46 +429,14 @@ them before the flag existed. To flag any other existing edge, a GM ticks it
 in `/gm/dev/zones/links`, and whoever does that needs to check what a Giant
 loses by it first.
 
-### The railroad
+### No railroad
 
-`railroad: true` on a `connections:` entry marks a rail tunnel. It gates
-nobody and refuses nothing — it composes with every other modifier above, and
-it changes one thing only: **the cargo train uses this edge.** Cross it while
-the train is out on the line and the crosser is **gibbed on arrival** — every
-tag vaporized, no corpse, nothing to bury or loot, the Remote Detonator's death
-exactly (`COLLAR.md` §5). Cross it while the train stands at the platform and
-nothing happens at all.
-
-The clock is the train's own — `db/lib/train.js#trainHere`, read against the
-**open** turn — so there is no second timetable to keep in step. The train rolls
-in at the close of an even turn and pulls out at the close of the odd turn after
-it, so an odd turn is the safe one. Turn 1 is **not** safe: nothing has run yet,
-`trainHere(1)` is false, and the tunnel reads that as "the line is not clear."
-
-There is **no roll** in it. No armour helps, no skill helps, nobody is spared.
-That is why the confirm is asked **every single time**, on both faces and
-whatever the crossing would otherwise cost — `web/lib/travelCost.js#crossingConfirm`
-takes the railroad branch above the cost and exert branches, and the bot's
-picker (`bot/src/events/interactions/travel.js`) replaces its cost line with the
-same two sentences. A tunnel is also never taken by the `/map` board's
-double-click or Enter shortcut: `canGestureTo` refuses one, because a gesture
-that skips the dialog would skip the only warning there is.
-
-One edge carries it today, out of the Depot: `undertown-5 ↔ depths/depths-7`.
-There were two — the other ran to the Grand Ravine, which reaches the deep on
-foot now instead, by a `locked: climbing` descent into the Chasm. It crosses a
-zone, which is what keeps §3c's auto-walk off it — `walkWithinZone` is same-zone
-only. **Author a same-zone railroad edge and that stops being true**, so
-`db/test/railroad.test.js` asserts the property rather than trusting it.
-
-The decision and the death live in `db/lib/railroad.js`; it is called from
-`applyLocationMoveSideEffects` **after** the move commits, beside the turrets and
-for the same reason — a kill on arrival is a database fact and must not wait on
-there being a Discord token to announce it. The crosser therefore **arrives, then
-dies at the far end**: the origin sees an ordinary departure, the destination
-gets the line, and the GM desk gets a `system_railroad_gib` audit row filed
-against the destination's **seat** zone (`db/lib/seatZone.js`), so a death in the
-Chasm reaches the Caves GM rather than a desk nobody staffs.
+There used to be a `railroad: true` edge modifier: a rail tunnel from the
+Depot to the Chasm (`undertown-5 ↔ depths-7`) that killed anyone who crossed it
+while the cargo train was out on the line. Players had no fair way to see the
+train coming, so the tunnel, the flag, its column and its GM checkbox were all
+taken out (`20261103000000_remove_railroad`). The train itself still runs on
+its own clock (`DEPOT.md` §0d); it only carries cargo.
 
 ## 3. What a move costs
 
@@ -501,12 +466,20 @@ carry cap (`CARRY.md` §2), `performLocationMove` refuses the crossing with a
 plain `{ ok: false, reason }` before it opens its transaction; hops inside the
 zone stay free so they can walk to a room and stash. Only the mover is gated.
 
-**A hop whose edge crosses into another zone spends a FREE ZONE MOVE first,
-and only costs the character's Move once those run out.** Everyone gets
+**A hop whose edge crosses into another zone spends FREE TRAVEL first, and
+only costs the character's Move once there is not enough left for it.** What
+a crossing costs is `db/lib/crossingCost.js`: **½ travel between the town
+zones** (Town, Fortress, Undertown) and **1 travel for any other crossing** —
+out to the Black Hills, down into the caves, anywhere else. Everyone gets
 `GameConfig.freeZoneMovesPerTurn` a turn (default 1), an **equipped** mount
-adds one, and being Overburdened takes them all away — the full rule lives in
-[`CARRY.md`](CARRY.md) §2a. So a peasant walks Town → Forest for nothing,
-spends their Move to reach the Fortress, and the way home waits for next turn.
+adds a far crossing's worth (1 more), and being Overburdened takes it all
+away — the full rule lives in [`CARRY.md`](CARRY.md) §2a. So a peasant walks
+Town → Fortress → Undertown for nothing, or Town → Black Hills for nothing,
+and then spends their Move on the next crossing; the way home waits for next
+turn. Travel that is short of a crossing is not lost: ½ left still crosses
+the town, it just no longer reaches the hills. `db/lib/locationGraph.js`
+stamps `cost` on every destination row so the three pickers quote the number
+the mover charges.
 
 **A crossing lands at once, whatever it cost.** The Move is spent and the
 character is standing at the destination by the time the call returns — same as
@@ -568,9 +541,9 @@ A free move files no Action at all. **Acting and crossing on your Move are
 mutually exclusive within a turn, in either order** — the enforcement is
 `@@unique([characterId, turnId])` on `Action`.
 
-**Pushing on.** Once the free crossings are gone AND the Move is spent — on a
-paid crossing or on anything else — a walker can take one more crossing a turn
-on a die: the extra gamble to go the distance, a Push on button in Go's place
+**Pushing on.** Once the travel is short of a crossing AND the Move is spent
+— on a paid crossing or on anything else — a walker can take one more crossing
+a turn on a die: the extra gamble to go the distance, a Push on button in Go's place
 on the Travel panel, `/map` and the `#turns` picker — Go (Discord's Confirm)
 is hidden once the Move is spent, since it could only refuse, and the node's
 foot reads `exertion`, or `next turn` when the push on would be refused too
@@ -598,42 +571,69 @@ the list, and the surfaces ask it before drawing the button. No Action is filed,
 in the Moves history; the `AuditLog` row `exert_crossing` is the record.
 `performLocationMove(..., { exert: true })`, `pushOn`, `exertOutcome`.
 
-**Mounts.** `horse` and `motorcycle`
-(`db/lib/mounts.js#FAST_TRAVEL_SLUGS`) each add one free crossing, **and it refreshes every
-turn** rather than once a day — on a short turn length a horse carries you
-several times a day.
-They only count while **equipped**, and they are unequipped for you at the door
-of any indoors Location (`CARRY.md` §3).
+**Mounts.** A fresh `arelitz` carries its riders across **1 border a
+turn**, an `arelitz-tacked` or a `motorcycle` across **2**
+(`db/lib/mounts.js#MOUNT_RIDES`). A character holds one mount at most
+(`ARELITZ.md` §2b). **A ride covers a whole crossing, near or
+far** — a town hop on the animal costs it a ride just as the hills do, and in
+the summed travel number each ride is worth `FAR_CROSSING_COST` so every
+"can I afford it" gate on the surfaces says yes while a ride is left. It
+refreshes every turn rather than once a day, so on a short turn length an
+arelitz carries you several times a day. Mounts only count while
+**equipped**, indoors or out, and only a way too narrow for them unequips
+them (§2c, `CARRY.md` §3).
 
-**A bonus crossing is spent before the base one.** The mount's move goes
-first, and it stays charged to the mount for the rest of the turn — so
-stabling the horse at an indoors door gives nothing back and, more to the
-point, takes nothing back. Before this, the allowance was one number
-recomputed from scratch on every read: a rider with two crossings who rode
-into the Customs house had their ride charged to their base move, and then
-watched the horse's move leave with the horse. Two, ride once, none left. The
-narrow-way case is untouched, because `dismountForNarrowWay` runs *inside* the
-transaction before any of this arithmetic — a rider who cannot get their horse
-through the gap never earns the bonus to begin with (§2c).
+**The rides live on the mount, not on the rider** (`ARELITZ.md` §2a). Every
+ride charged to a mount swaps its tag one rung down a ladder inside the
+crossing's own transaction — `motorcycle` → `motorcycle-ridden-1` →
+`motorcycle-ridden-2` (`db/lib/mountRides.js#rideMount`) — and the rung's
+own name says what is left: **Motorcycle (1 ride left)**, **Motorcycle
+(Spent)**. The
+turn pass (`runMountRestPass`, key `mountRest`) walks every rung back to the
+head, on sheets and stable floors alike. So `fastTravelBonus` is simply the
+rides left on the equipped rung, read fresh every time, and **nothing
+subtracts a per-rider counter from it**: the ride that was spent already
+changed the tag. That is what stops a ride being counted twice, once off the
+rider's sheet and once off the animal.
 
-**The bonus follows the mount, not only the rider.** A mount that changed
-hands this turn — Transfer, a stable pickup, anything that (re)wrote its
-`CharacterTag` row — doesn't buy its bonus crossing until next turn
-(`mounts.js#mountRestingThisTurn`, checked against the row's own
-`acquiredAt`). Same shape as the Bird's once-a-day claim (`BIRD.md` §6),
-scoped to the turn instead of the day since the bonus itself refreshes every
-turn: without it, one arelitz handed off mid-turn could buy two different
-riders a free crossing on the same lap. The base free move is untouched —
-only the mount's own bonus is gated.
+This replaced a rule that read the mount's `acquiredAt` against the turn
+start and refused the bonus to any mount that "changed hands this turn". It
+existed to stop one arelitz handed round a party buying every rider a
+crossing, and it did — but a stable pickup stamps the same timestamp, so an
+animal walked fresh out of the stable was refused too, and players wanted
+exactly that. The rung closes the leak the honest way: a handoff after a ride
+hands over a **ridden** animal, and one from the stable is fresh.
 
-The allowance is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`, with
-`zoneMovesBonusUsed` counting how many of those went on a bonus, all three
+**The mount's ride is spent before the base travel.** It stays with the
+animal, so unequipping it later gives nothing back and takes
+nothing back — the base pool was never touched. The narrow-way case is
+untouched, because `dismountForNarrowWay` runs *inside* the transaction
+before any of this arithmetic — a rider who cannot get their animal through
+the gap never earns the ride to begin with (§2c).
+
+The base pool is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`,
+with `zoneMovesBonusUsed` recording how much of that travel went on a mount —
+only so the base can be told apart (`baseSpent = zoneMovesUsed −
+zoneMovesBonusUsed`); it is never read back as "bonus left". All three are
 claimed by a conditional `updateMany` whose WHERE is the check, so two tabs
-cannot both spend the last one. A push on claims `zoneMovesUsed` too, and
-never the bonus counter, so the base pool reading OVER the base allowance is
-how `exertedThisTurn` knows it already happened — there is no column for it.
+cannot both spend the last of it. `crossingClaim` is the pure arithmetic:
+while the mount has a ride, the whole cost goes on the bonus counter and
+`rode` comes back true (the caller then takes the rung down); otherwise the
+cost comes off the base. A push on charges the crossing's cost to
+`zoneMovesUsed` alone, never the bonus counter, so the base pool reading OVER
+the base allowance is how `exertedThisTurn` knows it already happened — there
+is no column for it.
 A GM's undo of a paid Move zeroes both counters (`travelClaimsToUndo`) and so
-forgets the push on along with the free crossings; GM-gated, accepted.
+forgets the push on along with the free travel; the mount's rung is **not**
+walked back up (the animal did carry them; the turn pass fixes it at the
+close); GM-gated, accepted.
+
+**Every surface says the two halves apart.** `freeMovesBreakdown` splits the
+count into base travel and rides, `travelSentence` says it — "1 travel, plus
+1 ride on your Arelitz" — and the sheet's Travel tile, the Travel panel's
+header, the map card's crossing line, both confirms and the bot's confirm all
+carry it, so a rider always knows which of the two a crossing is about to
+spend.
 
 The **`FAST_TRAVEL` Request is retired** — there's no separate route through
 `requestActions.js`; a mount is just a larger allowance.
@@ -781,13 +781,14 @@ picks them up, so a chain can never form by attaching in the other order
 either (an already-leading character getting picked up themselves).
 
 **Seats decide the mount's bonus, not the party's size.** There is no cap on
-how many people you take. `fastTravelCapacity` (horse 2, horse + cart 6,
+how many people you take. `fastTravelCapacity` (arelitz 2, arelitz + cart 6,
 motorcycle 2, on foot 0 — the rider counts) gates the `isMounted` branch of
-`freeZoneMoves`: fit, and the mount buys its usual extra crossing; go over,
-and it buys nothing. On foot there is no bonus to lose, so walking any number
-of people is free — an overloaded horse is never *worse* than legs, only no
-better. This is `fastTravelCapacity`'s first live caller; it had none from the
-day it was written until this rework.
+`freeZoneMoves`: fit, and the mount buys its rides; go over, and it buys
+nothing (and, since no ride is spent, the rung does not move). On foot there
+is no bonus to lose, so walking any number of people is free — an overloaded
+arelitz is never *worse* than legs, only no better. This is
+`fastTravelCapacity`'s first live caller; it had none from the day it was
+written until this rework.
 
 **A stale attachment is inert, not dangerous.** `escortAuthority` returns
 `null` the moment two people are not co-located, so a row left behind by a GM
@@ -969,8 +970,8 @@ those are gated on `crossedZone`.
 understand before touching the walk.** An arrival is two halves, split at the
 `DISCORD_TOKEN` guard that was always in `applyLocationMoveSideEffects`:
 
-- **`applyArrivalFacts`** is the game — the fog, a parked mount, a hand on a
-  shoulder, a turret's kill, the railroad. Awaited, **per hop, in order**. The
+- **`applyArrivalFacts`** is the game — the fog, a narrow-way dismount, a hand on a
+  shoulder, a turret's kill. Awaited, **per hop, in order**. The
   next hop does not start until a turret has had its say, which is what makes
   the paragraph above this one true.
 - **`applyArrivalDiscord`** is the telling — channels, roles, threads, the
@@ -992,9 +993,9 @@ spent and the character is still standing at the destination when the call
 returns, exactly as §3 promises; it is only the telling that lands over the next
 few seconds, which is the lag §3 already tolerates.
 
-Two Discord calls stay in the game half on purpose, and both are deaths: a
-turret's burst and the railroad's line. A death announced late reads as a death
-that did not happen, and both are rare enough to cost a living arrival nothing.
+One Discord call stays in the game half on purpose, and it is a death: a
+turret's burst. A death announced late reads as a death that did not happen,
+and it is rare enough to cost a living arrival nothing.
 `db/test/locationArrival.test.js` is a source check that holds the seam — add a
 Discord call to the facts half and it fails by name.
 
@@ -1063,8 +1064,12 @@ somebody physically makes, checked against `Character.zoneId` exactly as
 before.
 
 The Lifeweb is the same rule with a fixed address: bleeding or feeding
-someone to the Web needs the Mortus **and** the target standing in the
-Fortress zone, because that is where the tower is (`REQUESTS.md` §5a).
+someone to the Web needs the Mortus standing in the Fortress zone, because
+that is where the tower is (`REQUESTS.md` §5a). The target is anyone
+standing in the same Location as the Mortus, or the Mortus themselves — the
+ordinary people-picker roster, so a hood or a stranger is offered by token
+under what they look like (`STRANGERS.md` §6). It used to be every living
+character in the zone, by real name.
 
 ## 6. The web `/map` panel
 

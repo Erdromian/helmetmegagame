@@ -5,9 +5,11 @@ import {
   FORTRESS_SLUG,
   LIFEWEB_SPUTTER_THRESHOLD,
   DONATE_BLOOD_BY_TAG,
+  bloodValueForTags,
 } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
+import { rosterHere, pickerKey, pickerName } from "@/lib/peopleHere";
 import LifewebDonateBloodPanel from "../../components/LifewebDonateBloodPanel";
 import LifewebFeedPersonButton from "../../components/LifewebFeedPersonButton";
 import LifewebRequestButtons from "../../components/LifewebRequestButtons";
@@ -23,6 +25,31 @@ function bloodBand(blood) {
 // The only tags that change what a donation is worth; everything else on a
 // character's sheet is irrelevant to this page.
 const BLOOD_TIER_SLUGS = DONATE_BLOOD_BY_TAG.map((t) => t.slug);
+const BLOOD_TIER_TAGS = {
+  where: { tag: { slug: { in: BLOOD_TIER_SLUGS } } },
+  select: { tag: { select: { slug: true } } },
+};
+
+// Who a Mortus may bleed or feed: themselves, and the ordinary roster of the
+// place they stand in (web/lib/peopleHere.js) — the same two halves every other
+// body verb offers. A hood, or a face they have never met, comes as a
+// "hood:<token>" key under what they look like. It used to be every living
+// character in the Fortress zone, by real name and id, masks included.
+//
+// `worth` is priced here, and only for somebody the Mortus can name: Nobility
+// and Courtier blood are worth more, so a price beside a hood would tell them
+// the rank under it. The server re-prices on the click either way.
+async function mortusTargets(character) {
+  const { named, hooded } = await rosterHere(character, {
+    select: { id: true, name: true, tags: BLOOD_TIER_TAGS },
+  });
+  const own = await prisma.characterTag.findMany({ where: { characterId: character.id, ...BLOOD_TIER_TAGS } });
+  return [
+    { key: `character:${character.id}`, name: character.name, worth: bloodValueForTags(own) },
+    ...named.map((row) => ({ key: pickerKey(row), name: pickerName(row), worth: bloodValueForTags(row.tags) })),
+    ...hooded.map((row) => ({ key: pickerKey(row), name: pickerName(row), worth: null })),
+  ];
+}
 
 export default async function LifewebPage() {
   const { session } = await getGmSession();
@@ -37,49 +64,37 @@ export default async function LifewebPage() {
 
   // A superadmin reaches the page without a Mortus character; only a Mortus
   // gets the player-facing Request buttons, since the server action re-checks
-  // the tag.
+  // the tag. The whole row, since the roster below reads the viewer the way
+  // whosHere does.
   const mortusCharacter = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE", tags: { some: { tag: { slug: MORTUS_SLUG } } } },
-    select: { id: true, zone: { select: { slug: true } } },
+    include: { zone: { select: { slug: true } } },
   });
   if (!mortusCharacter && !superadmin) redirect("/character");
 
-  const [state, aliveCharacters] = await Promise.all([
+  const atFortress = mortusCharacter?.zone?.slug === FORTRESS_SLUG;
+  const [state, aliveCharacters, targets] = await Promise.all([
     // findUnique, not upsert: this is a page render, and the row is created by
     // the bot on ready and by every write path that touches it. Upserting here
     // made a read-only page take a write lock on the game's hottest row on
     // every single load.
     prisma.gameState.findUnique({ where: { id: 1 }, select: { lifewebBlood: true } }),
-    // Tags come down with them so the Donate Blood dialog can price a target
-    // (Nobility 40 / Courtier 30 / 20) without a round trip per selection.
-    //
-    // Only the two tags that actually set a price, and only their slugs. The
-    // unfiltered version pulled every tag of every living character — about
-    // fifteen joined rows each — to read at most one slug off each.
-    prisma.character.findMany({
-      where: { status: "ALIVE" },
-      orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
-      select: {
-        id: true,
-        name: true,
-        firstName: true,
-        lastName: true,
-        // The Mortus picker only offers people standing at the tower; the GM
-        // panel below still gets the whole roster.
-        zone: { select: { slug: true } },
-        tags: {
-          where: { tag: { slug: { in: BLOOD_TIER_SLUGS } } },
-          select: { tag: { select: { slug: true } } },
-        },
-      },
-    }),
+    // The superadmin's GM panel: every living character, by name — host
+    // access, not a player's view. Tags come down so the dialog can price a
+    // target (Nobility 40 / Courtier 30 / 20) without a round trip; only the
+    // two that set a price, and only their slugs.
+    superadmin
+      ? prisma.character.findMany({
+          where: { status: "ALIVE" },
+          orderBy: [{ firstName: "asc" }, { lastName: { sort: "asc", nulls: "first" } }],
+          select: { id: true, name: true, firstName: true, lastName: true, tags: BLOOD_TIER_TAGS },
+        })
+      : [],
+    mortusCharacter && atFortress ? mortusTargets(mortusCharacter) : [],
   ]);
 
   const blood = state?.lifewebBlood ?? 0;
   const band = bloodBand(blood);
-
-  const atFortress = mortusCharacter?.zone?.slug === FORTRESS_SLUG;
-  const fortressCharacters = aliveCharacters.filter((c) => c.zone?.slug === FORTRESS_SLUG);
 
   return (
     <PageShell width="narrow">
@@ -107,7 +122,7 @@ export default async function LifewebPage() {
       {mortusCharacter && (
         <section className="panel p-5">
           <h2 className="panel-header">Tend the Web</h2>
-          <LifewebRequestButtons characters={fortressCharacters} disabled={!atFortress} />
+          <LifewebRequestButtons targets={targets} disabled={!atFortress} />
           <p className="mt-3 text-xs text-muted">
             {atFortress
               ? "These actions take effect immediately, but are reviewed by a GM later."

@@ -270,8 +270,12 @@
      shade off the body. Their own tokens rather than --text/--speech/--muted,
      which the rest of the app still reads. Deliberately softer than AA on
      --bg; audit-contrast.js gates them at the values chosen (CHAT_INK_MIN) so
-     a later edit cannot push them further down unnoticed. */
-  --chat-said: #77623f;
+     a later edit cannot push them further down unnoticed.
+
+     --chat-said was #77623f (3.37:1). Players read long emotes in it and found
+     the dark yellow straining, so it is lifted to AA (4.93:1) and pulled a
+     little toward grey, still brown and still well under the pale speech. */
+  --chat-said: #8f7d5e;
   --chat-speech: #b8a8a0;
   --chat-scenery: #746460;
   --fs-chat: 0.8125rem; /* 13px */

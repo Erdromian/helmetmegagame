@@ -12,8 +12,6 @@ import {
   normalizeQuantity,
   RESOURCE_IMPORT_PRICE,
   RESOURCE_WARE_ID,
-  loadDepot,
-  creditAvailableObols,
   placeKeyForRoom,
   canOrder,
   bumpBankAccount,
@@ -25,16 +23,18 @@ import { getOpenTurn } from "@/lib/turn";
 import { TURNS_PATH } from "@/lib/routes";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
+import { accessSlugsOf } from "@lifeweb/db/lib/rings";
 import { UserError, acting, guarded } from "@/lib/actionResult";
-import { COMPANY, DEPOT_DEBT, record, turnStamp } from "@lifeweb/db/lib/economyLedger";
+import { COMPANY, turnStamp } from "@lifeweb/db/lib/economyLedger";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { cleanCustomText } from "@lifeweb/db/lib/customText";
 import { SFX } from "@lifeweb/db/lib/sfx";
+import { holdLimitRefusal } from "@lifeweb/db/lib/mounts";
+import { depotCredit as depotCreditVerb } from "@lifeweb/db/lib/verbs/place";
 import {
   DESTINATIONS,
   counterState,
-  openCounterAccount,
   bankMove,
   bankSend,
   dropIntoBox,
@@ -109,8 +109,9 @@ async function requireAccount() {
   return { ...gate, account: gate.character.bankAccount };
 }
 
+// Plus the worn ring's keycard or Silver Chip (docs/systemdocs/RINGS.md).
 function heldSlugSet(character) {
-  return new Set(character.tags.map((ct) => ct.tag.slug));
+  return accessSlugsOf(character.tags);
 }
 
 function revalidateAll() {
@@ -221,6 +222,15 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous, label:
     });
   }
 
+  // One mount, up to 3 unruly or young arelitz (db/lib/mounts.js). An order
+  // lands later, in a crate, so only the order itself is checked here; what
+  // the buyer holds by then is the settle's to sort out when the crate opens.
+  const tooMany = holdLimitRefusal(
+    [],
+    tags.map((tag) => ({ slug: tag.slug, quantity: wanted.get(tag.id) })),
+  );
+  if (tooMany) throw new UserError(`The depot won't ship that in one order. ${tooMany}`);
+
   // The catalog prices in ¢ (DEPOT.md §0), so the cart total IS the price.
   if ((account.balanceObols ?? 0) < total) {
     throw new UserError(`That order is ${total} ¢ and your account holds ${account.balanceObols ?? 0}.`);
@@ -299,19 +309,6 @@ async function whoAmI() {
   return session;
 }
 
-async function depotOpenAccountImpl() {
-  const session = await whoAmI();
-  const openTurn = await getOpenTurn();
-  const result = lift(
-    await openCounterAccount(prisma, session.discordUserId, {
-      turnNumber: openTurn?.number ?? null,
-      turnId: openTurn?.id ?? null,
-    }),
-  );
-  revalidateAll();
-  return { fingerprint: result.fingerprint };
-}
-
 async function depotDropImpl(input) {
   const session = await whoAmI();
   const openTurn = await getOpenTurn();
@@ -339,9 +336,11 @@ async function depotSendImpl(input) {
   return { amount: result.amount, line: result.line, sfx: SFX.COIN };
 }
 
-async function depotCounterStateImpl() {
+// `pin` is what the viewer typed when the infoterminal asked for one
+// (db/lib/depotCounter.js#terminalAccount); absent, the account is withheld.
+async function depotCounterStateImpl(input) {
   const session = await whoAmI();
-  return lift(await counterState(prisma, session.discordUserId));
+  return lift(await counterState(prisma, session.discordUserId, { pin: input?.pin ?? null }));
 }
 
 async function depotTurretPanelImpl() {
@@ -368,9 +367,11 @@ async function depotSaleDestinationImpl({ saleId, destination: rawDestination })
   // Standing AT THE DEPOT, not merely at an ATM: counterState answers at the
   // Inn's machine too now (db/lib/depotCounter.js), and a staged sale is
   // counter business.
-  const { session } = await requireDepotStanding();
+  // The seller's own account, not whichever ring they happen to wear: a sale is
+  // theirs, so this reads their account row rather than the infoterminal's.
+  const { session, character } = await requireDepotStanding();
   const state = lift(await counterState(prisma, session.discordUserId));
-  if (!state.account) throw new UserError("You don't have an account yet.");
+  if (!character.bankAccount) throw new UserError("You don't have an account yet.");
 
   const destination = DESTINATIONS.has(rawDestination) ? rawDestination : "SELF";
   if (destination === "MERCHANT" && !state.canSellToMerchant) {
@@ -382,7 +383,7 @@ async function depotSaleDestinationImpl({ saleId, destination: rawDestination })
   const { count } = await prisma.depotSale.updateMany({
     where: {
       id: String(saleId ?? ""),
-      account: { fingerprint: state.account.fingerprint },
+      account: { fingerprint: character.bankAccount.fingerprint },
       settledAt: null,
     },
     data: { destination },
@@ -399,77 +400,26 @@ async function depotSaleDestinationImpl({ saleId, destination: rawDestination })
 
 // Draw puts money in the Merchant's own account, repay takes it back out.
 // Refused at the cap, never clamped — he is told he hit the ceiling.
+// The rule is db/lib/verbs/place.js#depotCredit, shared with the Depot post's
+// Merchant credit button on Discord.
 async function depotCreditImpl({ direction: rawDirection, amount: rawAmount }) {
   const { session, character } = await requireLicensedMerchant();
-  const account = character.bankAccount;
-  if (!account) throw new UserError("You don't have an account yet.");
-
-  const depot = await loadDepot(prisma);
-  const draw = rawDirection !== "REPAY";
-  const amount = Number(rawAmount);
-  if (!Number.isInteger(amount) || amount < 1) throw new UserError("That isn't an amount.");
-
-  if (draw && amount > creditAvailableObols(depot)) {
-    throw new UserError(`The line only has ${creditAvailableObols(depot)} ¢ left on it.`);
-  }
-  if (!draw && amount > (depot.debtObols ?? 0)) {
-    throw new UserError(`You only owe ${depot.debtObols ?? 0} ¢.`);
-  }
-  if (!draw && amount > (account.balanceObols ?? 0)) {
-    throw new UserError(`Your account only holds ${account.balanceObols ?? 0} ¢.`);
-  }
-
-  const openTurn = await getOpenTurn();
-
-  await prisma.$transaction(async (tx) => {
-    // A conditional update — the write IS the check, so two tabs drawing the last of the line can't both succeed.
-    const { count } = await tx.depot.updateMany({
-      where: draw
-        ? { id: 1, debtObols: { lte: (depot.creditCapObols ?? 0) - amount } }
-        : { id: 1, debtObols: { gte: amount } },
-      data: { debtObols: draw ? { increment: amount } : { decrement: amount } },
-    });
-    if (count === 0) throw new UserError("The line was edited. Try again.");
-
-    // Two legs: the debt itself (form DEBT) and the cash it puts in the account (form ACCOUNT); repay is the same pair backward.
-    await record(
-      tx,
-      { from: draw ? COMPANY : DEPOT_DEBT, to: draw ? DEPOT_DEBT : COMPANY, form: "DEBT", amount },
-      { reason: "DEPOT_CREDIT", ...turnStamp(openTurn) },
-    );
-    const moved = await bumpBankAccount(tx, account.id, draw ? amount : -amount, {
-      holderName: account.holderName,
-      econ: { other: COMPANY, reason: "DEPOT_CREDIT", ...turnStamp(openTurn) },
-    });
-
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_depot_credit",
-      targetCharacterId: character.id,
-      place: await railyardPlaceKey(tx),
-      turnId: openTurn?.id ?? null,
-      details: {
-        direction: draw ? "DRAW" : "REPAY",
-        amount,
-        debtBefore: depot.debtObols ?? 0,
-        debtAfter: (depot.debtObols ?? 0) + (draw ? amount : -amount),
-        balanceAfter: moved.after,
-      },
-    });
+  const result = await depotCreditVerb(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    direction: rawDirection,
+    amount: rawAmount,
+    openTurn: await getOpenTurn(),
   });
-
+  if (!result.ok) throw new UserError(result.error);
   revalidateAll();
-  return { direction: draw ? "DRAW" : "REPAY", amount, sfx: SFX.COIN };
+  return { direction: result.direction, amount: result.amount, sfx: SFX.COIN };
 }
 
 // ─── The exported surface. `guarded` turns a UserError into { ok: false }. ───
 
-export async function depotCounterState() {
-  return guarded(() => depotCounterStateImpl());
-}
-
-export async function depotOpenAccount() {
-  return acting(() => depotOpenAccountImpl());
+export async function depotCounterState(input) {
+  return guarded(() => depotCounterStateImpl(input));
 }
 
 export async function depotOrder(input) {

@@ -1037,6 +1037,15 @@
   color: var(--text);
 }
 
+/* A player's log has room to breathe where a GM's dense log does not. With the
+   name printed once per run, two messages in a row from one speaker were 3px
+   apart, and a long exchange of emotes read as one wall of text. A little more
+   leading and a clear gap between messages keep each one its own. */
+.tline[data-density="feed"][data-layout="stacked"] {
+  line-height: 1.45;
+  margin-bottom: 7px;
+}
+
 /* THE STACKED SHAPE — /chat as a player reads it (Chat Overhaul.docx). The
    name sits on a line of its own above what was said, with the clock beside
    it, and a speaker's later lines carry no head at all (next/Feed.js passes
@@ -1073,6 +1082,17 @@
   font-weight: 600;
 }
 
+/* ...but only the FIRST paragraph runs on from the name. A blank line in what
+   somebody typed starts a new paragraph, and drawing every paragraph inline ran
+   a long emote into one wall of text. The generated newlines keep each later
+   paragraph inline, so "(edited)" still sits on the words' last line, and the
+   blank line between them is the one the writer typed. A single newline is a
+   <br> (remarkLineBreaks.js), as in Discord. */
+.tline[data-density="feed"] .markdown-content p + p::before {
+  content: "\A\A";
+  white-space: pre;
+}
+
 /* Quoted speech in the log, the pale tint off the Chat Type Bench. The
    app-wide .chat-markdown .speech (--speech) still dresses every other place
    ChatMarkdown draws. */
@@ -1095,9 +1115,10 @@
    at the pending dim so they do not read as something that was said. Never
    removed silently; .chat-unsent under the body carries the Try again. */
 .tline[data-density="feed"][data-failed] {
-  border-left: 2px solid var(--danger);
-  margin-left: -2px;
-  padding-left: 2px;
+  /* An inset shadow, not a border: it draws the rule without touching the
+     row's padding. A border here came with a padding-left of its own, which
+     wiped out the portrait's indent and slid the name under the face. */
+  box-shadow: inset 2px 0 0 var(--danger);
   opacity: 1;
 }
 
@@ -3498,4 +3519,97 @@
 .chat-text-size .segmented button[aria-pressed="true"] {
   padding-left: calc(var(--sp-1) - 2px);
   padding-right: calc(var(--sp-1) - 2px);
+}
+
+/* The telephone's keypad and the handset bar (PlacePanel.js, docs/systemdocs/PHONES.md
+   §3). A readout of four digit wells over a 3×4 pad of the ordinary secondary button,
+   so the pad takes the theme's bevel rather than inventing one. */
+.phone {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.phone-state {
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.phone-state.is-calling,
+.phone-state.is-dead {
+  color: var(--accent-text);
+}
+
+.phone-timer {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.phone-timer.is-low {
+  color: var(--warning);
+}
+
+.phone-readout {
+  display: flex;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) 0;
+  font-size: var(--fs-xl);
+}
+
+.phone-readout span {
+  width: 1.6em;
+  text-align: center;
+  border-bottom: 2px solid var(--border);
+  color: var(--muted);
+}
+
+.phone-readout span.is-set {
+  color: var(--text);
+  border-bottom-color: var(--accent-text);
+}
+
+.phone-keypad {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: var(--sp-2);
+  max-width: 16rem;
+  width: 100%;
+  margin: 0 auto;
+}
+
+.phone-key {
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  min-height: 2.75rem;
+}
+
+.phone-actions {
+  flex-wrap: wrap;
+}
+
+.phone-bar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2);
+  border: 1px solid var(--border);
+  background: var(--surface-raised);
+}
+
+.phone-bar-line {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin: 0;
+}
+
+.phone-bar-name {
+  font-weight: 600;
+}
+
+.phone-bar-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
 }

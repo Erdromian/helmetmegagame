@@ -324,8 +324,8 @@ no `tagEffects.js` case for any of them. Eating moves the meter, and the
 descriptor follows (`db/lib/hungerDescriptor.js#syncHungerDescriptor`, shared
 with the Dev Panel's Feed Them). `db/lib/hungerPass.js#runHungerPass` is the
 only turn-pass writer of `hungerValue`, `starvingSinceTurn` and the
-descriptors; `TURN-ENGINE.md` §5 has its steps, the per-day decay, eating
-Foodstuffs to stay out of Starving, and reaching 0, which grants `dying`.
+descriptors; `TURN-ENGINE.md` §5 has its steps, the per-day decay, what the
+close eats for somebody (§5a), and reaching 0, which grants `dying`.
 
 **Hunger costs no ⬢ at all.** `Character.hungerStreak` is an orphan column, the
 same fate as `Character.missedMealStreak`; nothing writes or reads it.
@@ -363,11 +363,11 @@ they taste bland."
 **The Hungerless may eat** at any meter, but food gives them neither hunger
 nor mood; its other effects still land.
 
-The DM copy — becoming Hungry, becoming Starving, eating Foodstuffs at the
-close, and `recovered` for Feed Them — lives in
+The DM copy — becoming Hungry, becoming Starving, the close eating for
+somebody, and `recovered` for Feed Them — lives in
 `db/lib/hunger.js#hungerDm`, with `DYING_DM` beside it. No line names a number.
 `runHungerPass` sends none of them itself: it returns `hungerNotices` (one per
-character, each carrying its `kinds`, how many Foodstuffs were eaten, and
+character, each carrying its `kinds`, what was eaten (`ate`), and
 `justDied`) and the side-effect runner sends one DM per character.
 
 The pass writes **one summary `hunger_resolved` audit row** per turn, not one

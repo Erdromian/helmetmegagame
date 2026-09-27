@@ -10,7 +10,7 @@ import {
   handsUsed,
   isLockedOn,
 } from "@lifeweb/db/lib/equipSlots";
-import { FAST_TRAVEL_SLUGS, STOWABLE_SLUGS } from "@lifeweb/db/lib/mounts";
+import { FAST_TRAVEL_SLUGS } from "@lifeweb/db/lib/mounts";
 import { armorWord, combineArmor } from "@lifeweb/db/lib/armorValue";
 import { formatTagWeight } from "@/lib/formatTagWeight";
 import { carryBonusLabel } from "@/lib/sheetCards";
@@ -47,7 +47,9 @@ import { actionThrowMessage } from "@/app/components/actionThrow";
 // not four with two of them permanently dashed and empty, which would have
 // read as room they do not have.
 function rowsFor(hands) {
-  return ["HEAD", "BODY", "WEAPON", "MOUNT"].map((slot) => ({
+  // FINGER is the signet ring (docs/systemdocs/RINGS.md): one cell, and it
+  // takes nothing from the hands or the accessories.
+  return ["HEAD", "BODY", "WEAPON", "FINGER", "MOUNT"].map((slot) => ({
     slot,
     cells: LAYER_NAMES[slot]?.length ?? (slot === "WEAPON" ? hands : 1),
   }));
@@ -78,19 +80,15 @@ function fact(tag) {
 }
 
 // The MOUNT row's menu. equipActions.js refuses more than the slot rule does —
-// a cart or a mount is not set up indoors, a boat and a road kit are never out
-// at once, and Motion Sickness rules out riding at all — so offering those and
+// a boat and a road kit are never out at once, and Motion Sickness rules out
+// riding at all — so offering those and
 // then failing them is a worse menu than one that leaves them out and says
 // why. Everything else on the board is filtered on the slot alone, because the
 // slot really is the whole rule there.
-function mountMenu(fits, wornRows, { indoors, motionSick }) {
+function mountMenu(fits, wornRows, { motionSick }) {
   const why = new Set();
   const options = fits.filter((ct) => {
     const slug = ct.tag.slug;
-    if (indoors && STOWABLE_SLUGS.has(slug)) {
-      why.add("there is no setting one up indoors");
-      return false;
-    }
     if (motionSick && FAST_TRAVEL_SLUGS.has(slug)) {
       why.add("your stomach won't have it");
       return false;
@@ -215,7 +213,6 @@ function WornCell({ unit, onUnequip, pending, span = 1, canAct }) {
 export default function EquipBoard({
   characterTags,
   isSelf,
-  indoors = false,
   motionSick = false,
   // Every room stash at this Location the character can actually open, from
   // the same loader the Transfer dialog reads (web/lib/peoplePools.js), so a
@@ -412,7 +409,7 @@ export default function EquipBoard({
         } else {
           const menu =
             slot === "MOUNT"
-              ? mountMenu(fits, wornRows, { indoors, motionSick })
+              ? mountMenu(fits, wornRows, { motionSick })
               : { options: fits, note: null };
           // One cell, and one thing in it — but draw EVERY unit actually worn
           // here, not just the first. An unlayered slot holds one piece by
@@ -447,8 +444,8 @@ export default function EquipBoard({
               />,
             ];
         }
-        // A ride nobody owns is not worth a row of dashes.
-        if (slot === "MOUNT" && inSlot.length === 0 && fits.length === 0) return null;
+        // A ride nobody owns, or a finger with no ring to put on it, is not worth a row of dashes.
+        if ((slot === "MOUNT" || slot === "FINGER") && inSlot.length === 0 && fits.length === 0) return null;
         return (
           <div key={slot} className="equip-row">
             <span className="field-label equip-row-title">

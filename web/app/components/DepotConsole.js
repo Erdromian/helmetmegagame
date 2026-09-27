@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import DepotAtmsTab from "./DepotAtmsTab";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 import DepotSellingTab from "./DepotSellingTab";
 import DepotBuyingTab from "./DepotBuyingTab";
 import DepotPriceListTab from "./DepotPriceListTab";
@@ -20,7 +21,7 @@ import DepotLedgerTab from "./DepotLedgerTab";
 // transactions, because a disabled input is not a lock.
 
 const TABS = [
-  { key: "atms", label: "ATMs" },
+  { key: "atms", label: RING_TEXT.infoterminalDepotTab },
   { key: "selling", label: "Selling" },
   { key: "buying", label: "Buying" },
   { key: "prices", label: "Price list" },

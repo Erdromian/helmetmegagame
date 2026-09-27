@@ -5,11 +5,6 @@
 // bot relaying them.
 
 const { ambientLine } = require("./ambientLine");
-const {
-  FEEDBACK_COOLDOWN_MESSAGE,
-  FEEDBACK_COOLDOWN_MS,
-  MAX_FEEDBACK_LENGTH,
-} = require("./feedbackLimits");
 const { ensureChannelWebhook, executeWebhook } = require("./discordRest");
 
 // #bugs, in the contributor category. Hardcoded for the reason db/lib/roleIds.js
@@ -51,9 +46,6 @@ async function postFeedbackToDiscord({ username, avatarUrl, characterName, body 
 
 module.exports = {
   BUGS_CHANNEL_ID,
-  FEEDBACK_COOLDOWN_MS,
-  FEEDBACK_COOLDOWN_MESSAGE,
-  MAX_FEEDBACK_LENGTH,
   formatFeedback,
   postFeedbackToDiscord,
 };

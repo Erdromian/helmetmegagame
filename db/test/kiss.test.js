@@ -129,14 +129,113 @@ test("a refusal about somebody hooded never names them", () => {
   assert.match(kissBlock(other({ name: "Sir Alder", tags: [hood()] }), { self: false }), /face covered/);
 });
 
+// A bare face can still be a stranger (STRANGERS.md), so a refusal about the
+// other person names them only by what the caller says the asker calls them.
+test("a refusal about somebody bare-faced names them only as the asker knows them", () => {
+  const bound = other({ name: "Bo", tags: [tag("bound", { name: "Bound" })] });
+  assert.equal(kissAuthority(person(), bound), "They're Bound.");
+  assert.equal(kissAuthority(person(), bound, { seen: "a young man" }), "A young man is Bound.");
+  assert.equal(kissAuthority(person(), bound, { seen: "Bo" }), "Bo is Bound.");
+});
+
 test("KISS_SELECT carries what the rules actually read", () => {
-  for (const field of ["id", "name", "status", "locationId", "concealed", "buriedAt", "discordUserId", "tags"]) {
+  for (const field of ["id", "name", "status", "locationId", "concealed", "buriedAt", "discordUserId", "tags", "age", "gender"]) {
     assert.ok(KISS_SELECT[field], `KISS_SELECT is missing ${field}`);
   }
   assert.equal(KISS_SELECT.tags.select.equipped, true);
-  for (const field of ["slug", "name", "concealsIdentity", "concealSprite", "forcesConceal", "equipLayer"]) {
+  for (const field of ["slug", "name", "forcedName", "concealsIdentity", "concealSprite", "forcesConceal", "equipLayer"]) {
     assert.ok(KISS_SELECT.tags.select.tag.select[field], `KISS_SELECT tags missing ${field}`);
   }
+});
+
+// ─── The DMs, through a fake database ────────────────────────────────────────
+//
+// Ada (A) is a young woman, Bo (B) a young man. `known` is each one's Friends
+// list, which is all intercept.js#seenBy reads. The transaction's own
+// character lookup answers nothing, so applyKissMood moves no dial and the test
+// is only about the words.
+function fakeDb({ known = {}, rows = {} } = {}) {
+  const sent = { audit: [] };
+  const offer = {
+    findFirst: async () => null,
+    create: async ({ data }) => ({ id: "offer-1", ...data }),
+    updateMany: async () => ({ count: 1 }),
+    update: async () => ({}),
+  };
+  const auditLog = {
+    findFirst: async () => null,
+    count: async () => 0,
+    create: async ({ data }) => sent.audit.push(data),
+    createMany: async ({ data }) => sent.audit.push(...data),
+  };
+  const tx = { offer, auditLog, character: { findUnique: async () => null } };
+  return {
+    sent,
+    acquaintance: {
+      findMany: async ({ where }) =>
+        (known[where.ownerId] ?? []).filter((id) => where.subjectId.in.includes(id)).map((subjectId) => ({ subjectId })),
+    },
+    gameConfig: { findUnique: async () => ({ anonymizeStrangers: true }) },
+    turn: { findFirst: async () => null },
+    character: { findUnique: async ({ where }) => rows[where.id] ?? null },
+    offer,
+    auditLog,
+    $transaction: async (fn) => fn(tx),
+  };
+}
+
+const ada = (over = {}) => person({ age: 20, gender: "WOMAN", ...over });
+const bo = (over = {}) => other({ age: 20, gender: "MAN", ...over });
+const TURN = { id: "turn-1" };
+const OFFER = { id: "offer-1", initiatorId: "A", responderId: "B" };
+
+test("the ask names a stranger by what they look like", async () => {
+  const { createKissOffer } = require("../lib/kiss");
+  const out = await createKissOffer(fakeDb(), { actor: ada(), target: bo(), turn: TURN });
+  assert.equal(out.ok, true);
+  assert.equal(out.dm.content, "*A young woman* would like to kiss you.");
+});
+
+test("the ask names somebody by name once they are on your Friends list", async () => {
+  const { createKissOffer } = require("../lib/kiss");
+  const out = await createKissOffer(fakeDb({ known: { B: ["A"] } }), { actor: ada(), target: bo(), turn: TURN });
+  assert.equal(out.dm.content, "*Ada* would like to kiss you.");
+});
+
+test("a refused ask names a stranger by what they look like", async () => {
+  const { createKissOffer } = require("../lib/kiss");
+  const target = bo({ tags: [tag("bound", { name: "Bound" })] });
+  const out = await createKissOffer(fakeDb(), { actor: ada(), target, turn: TURN });
+  assert.equal(out.ok, false);
+  assert.equal(out.reason, "A young man is Bound.");
+});
+
+test("a kiss between strangers names neither of them", async () => {
+  const { acceptKiss } = require("../lib/kiss");
+  const db = fakeDb({ rows: { A: ada(), B: bo() } });
+  const out = await acceptKiss(db, OFFER, { id: "B" });
+  assert.equal(out.ok, true);
+  // The line is for Bo, who pressed Accept; the DM is for Ada, who asked.
+  assert.equal(out.line, "You kissed a young woman.");
+  assert.deepEqual(out.dms, [{ discordUserId: "1", content: "A young man kissed you back." }]);
+});
+
+test("a kiss between friends names each of them to the other", async () => {
+  const { acceptKiss } = require("../lib/kiss");
+  const db = fakeDb({ rows: { A: ada(), B: bo() }, known: { A: ["B"], B: ["A"] } });
+  const out = await acceptKiss(db, OFFER, { id: "B" });
+  assert.equal(out.line, "You kissed Ada.");
+  assert.deepEqual(out.dms, [{ discordUserId: "1", content: "Bo kissed you back." }]);
+});
+
+test("a kiss that fell through tells each side from where they stand", async () => {
+  const { acceptKiss } = require("../lib/kiss");
+  const db = fakeDb({ rows: { A: ada(), B: bo({ tags: [tag("bound", { name: "Bound" })] }) } });
+  const out = await acceptKiss(db, OFFER, { id: "B" });
+  assert.equal(out.ok, false);
+  // Bo is the one who is Bound, and Bo is the one reading this line.
+  assert.equal(out.reason, "You're Bound.");
+  assert.deepEqual(out.dms, [{ discordUserId: "1", content: "Your offer fell through: A young man is Bound." }]);
 });
 
 test("the cooldown is two hours", () => {

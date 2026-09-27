@@ -35,10 +35,14 @@ const {
   TURRET_ARMED_LINE,
   TURRET_DISARMED_LINE,
 } = require("./gatehouseTurret");
-const { openAccount, bumpBankAccount, vaultAndCoin, takeFromVault, TREASURY } = require("./bankAccounts");
+const { bumpBankAccount, vaultAndCoin, takeFromVault, TREASURY } = require("./bankAccounts");
 const { addToStack, dropCharacterTag, addToRoomStack } = require("./tagWrites");
 const { COMPANY, characterParty, roomParty, bankParty, turnStamp } = require("./economyLedger");
 const { blockerFor, ACT } = require("./incapacitation");
+const { accessSlugsOf, RING_ACCESS_TAG_FIELDS, wornRing, isRegistered } = require("./rings");
+const { RING_TEXT } = require("./ringText");
+const { SCRAMBLING_TAG_SLUGS } = require("./memoryScramble");
+const { ensurePin } = require("./acquaintances");
 
 const DESTINATIONS = new Set(["SELF", "TREASURY", "MERCHANT"]);
 
@@ -58,7 +62,46 @@ function fail(error) {
 // Depot. Default is the Depot alone, so a function that says nothing is gated
 // exactly as it was before there were two machines.
 const AT_THE_DEPOT = { places: null, name: "the Depot" };
-const AT_AN_ATM = { places: ATM_LOCATION_SLUGS, name: "an ATM" };
+const AT_AN_ATM = { places: ATM_LOCATION_SLUGS, name: "an infoterminal" };
+
+// Whose account the terminal opens (docs/systemdocs/RINGS.md). An infoterminal
+// reads the signet ring on your finger, never your face: no ring, no account,
+// and a stolen one opens the account it was registered to — but only for the
+// account's PIN. The holder types it too while Concussed or Amnesiac, when the
+// number won't come to them (docs/systemdocs/MEMORIES.md). Otherwise the PIN is
+// entered for you, which is the whole point of the ring.
+//
+// Returns { ok, account } or { ok: false, error, pinNeeded?, pinPrompt? }. A
+// caller drawing a dialog shows pinPrompt beside a PIN box and asks again with
+// the PIN; a caller moving money just refuses with the error.
+async function terminalAccount(prisma, character, { pin = null } = {}) {
+  const ring = wornRing(character.tags);
+  if (!ring) return fail(RING_TEXT.infoterminalNoRing);
+  if (!isRegistered(ring) || !ring.ringBankAccountId) return fail(RING_TEXT.infoterminalUnregistered);
+  const account = await prisma.bankAccount.findUnique({
+    where: { id: ring.ringBankAccountId },
+    include: { character: { select: { id: true, pin: true } } },
+  });
+  if (!account) return fail(RING_TEXT.infoterminalUnregistered);
+
+  const own = account.characterId === character.id;
+  const forgot = (character.tags ?? []).some((ct) => SCRAMBLING_TAG_SLUGS.includes(ct.tag?.slug));
+  if (own && !forgot) return { ok: true, account };
+
+  const pinPrompt = own ? RING_TEXT.infoterminalPinForgot : RING_TEXT.infoterminalPinStranger;
+  const typed = String(pin ?? "").trim();
+  if (!typed) return { ok: false, error: pinPrompt, pinNeeded: true, pinPrompt };
+  // A holder from before PINs existed gets one now, so the number can be learned at all.
+  let holderPin = account.character?.pin ?? null;
+  if (!holderPin && account.characterId) {
+    await ensurePin(prisma, account.characterId);
+    holderPin = (await prisma.character.findUnique({ where: { id: account.characterId }, select: { pin: true } }))?.pin ?? null;
+  }
+  if (!holderPin || typed !== holderPin) {
+    return { ok: false, error: RING_TEXT.infoterminalWrongPin, pinNeeded: true, pinPrompt };
+  }
+  return { ok: true, account };
+}
 
 async function counterActor(prisma, discordUserId, where = AT_THE_DEPOT) {
   const character = await prisma.character.findFirst({
@@ -77,7 +120,8 @@ async function counterActor(prisma, discordUserId, where = AT_THE_DEPOT) {
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) return fail(`You can't act — you're ${blocker.name}.`);
 
-  const held = new Set(character.tags.map((ct) => ct.tag.slug));
+  // A worn ring carries the Depot keycard and the Silver Chip for its seat (docs/systemdocs/RINGS.md).
+  const held = accessSlugsOf(character.tags);
   return {
     ok: true,
     character,
@@ -89,17 +133,22 @@ async function counterActor(prisma, discordUserId, where = AT_THE_DEPOT) {
 
 // Everything the three dialogs draw against, in one read, so there is a single
 // answer to "what is a counter" rather than three that can disagree. Answers at
-// an ATM as well as at the counter, since the ATM dialog draws against it; the
-// sell and drop-box fields it also carries simply go undrawn at the Inn, and
-// every write behind them keeps its own Depot gate.
-async function counterState(prisma, discordUserId) {
+// an infoterminal as well as at the counter, since the infoterminal dialog
+// draws against it; the sell and drop-box fields it also carries simply go
+// undrawn at the Inn, and every write behind them keeps its own Depot gate.
+//
+// The account is the worn ring's (terminalAccount), withheld until the PIN is
+// typed when one is needed — `pinNeeded` and `pinPrompt` say so, and
+// `accountProblem` says why there is none at all.
+async function counterState(prisma, discordUserId, { pin = null } = {}) {
   const actor = await counterActor(prisma, discordUserId, AT_AN_ATM);
   if (!actor.ok) return actor;
   const { character, held, licensed, keycard } = actor;
 
   const { coin } = await vaultAndCoin(prisma);
   const depot = await loadDepot(prisma);
-  const account = character.bankAccount;
+  const access = await terminalAccount(prisma, character, { pin });
+  const account = access.ok ? access.account : null;
 
   const heldObols = coin
     ? ((
@@ -118,8 +167,14 @@ async function counterState(prisma, discordUserId) {
           class: account.class,
           balanceObols: account.balanceObols,
           backed: account.class === TREASURY,
+          own: account.characterId === character.id,
         }
       : null,
+    accountProblem: access.ok ? null : access.error,
+    // The drop box pays into the seller's OWN account, ring or no ring.
+    ownAccount: Boolean(character.bankAccount),
+    pinNeeded: Boolean(access.pinNeeded),
+    pinPrompt: access.pinPrompt ?? null,
     heldObols,
     sellable: character.tags
       .filter((ct) => ct.tag.sellablePrice != null && ct.quantity > 0)
@@ -136,30 +191,10 @@ async function counterState(prisma, discordUserId) {
   };
 }
 
-// Opening one. Everybody with a town seat is given one at creation
-// (docs/roles.yaml's `bank_account:`); this is for everybody else, and it costs
-// nothing, takes one click, and opens EMPTY.
-async function openCounterAccount(prisma, discordUserId, { turnNumber = null, turnId = null } = {}) {
-  const actor = await counterActor(prisma, discordUserId, AT_AN_ATM);
-  if (!actor.ok) return actor;
-  if (actor.character.bankAccount) return fail("You already have an account here.");
-
-  const row = await prisma.$transaction(async (tx) => {
-    const account = await openAccount(tx, actor.character, { turnNumber });
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "request_depot_account_open",
-        targetCharacterId: actor.character.id,
-        turnId,
-        details: { fingerprint: account.fingerprint, class: account.class },
-      },
-    });
-    return account;
-  });
-
-  return { ok: true, fingerprint: row.fingerprint, line: `Account ${row.fingerprint} is open.` };
-}
+// There is no opening an account at a terminal any more. A seat's account
+// opens at creation (docs/roles.yaml's `bank_account:`) and its ring is linked
+// to it; everybody else has a ring smithed and the Meister opens one when he
+// registers it (docs/systemdocs/RINGS.md).
 
 // The ATM. A claim on one side, coins on the other.
 //
@@ -167,12 +202,13 @@ async function openCounterAccount(prisma, discordUserId, { turnNumber = null, tu
 // so a withdrawal the Vault cannot cover is refused rather than clamped — the
 // claim is only worth what is behind it. An OFFSHORE account skips the Vault
 // entirely: that money is held off-world.
-async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, turn = null } = {}) {
+async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, pin = null, turn = null } = {}) {
   const actor = await counterActor(prisma, discordUserId, AT_AN_ATM);
   if (!actor.ok) return actor;
   const { character } = actor;
-  const account = character.bankAccount;
-  if (!account) return fail("You don't have an account yet.");
+  const access = await terminalAccount(prisma, character, { pin });
+  if (!access.ok) return access;
+  const account = access.account;
 
   const withdrawing = direction !== "DEPOSIT";
   const amount = Math.trunc(Number(rawAmount));
@@ -250,6 +286,8 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, t
             balanceAfter: moved.after,
             backed,
             fingerprint: account.fingerprint,
+            // Whose account it was — a ring on the wrong finger reaches somebody else's.
+            ...(account.characterId !== character.id ? { accountHolderId: account.characterId } : {}),
           },
         },
       });
@@ -280,12 +318,13 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, t
 // sending to it SURRENDERS the claim: the balance falls and the coin behind it
 // stays where it was. The Keep ends up better backed rather than richer, which
 // is the only honest thing a claim can do when it has nowhere to be paid into.
-async function bankSend(prisma, discordUserId, { toAccountId, toTreasury = false, amount: rawAmount, turn = null } = {}) {
+async function bankSend(prisma, discordUserId, { toAccountId, toTreasury = false, amount: rawAmount, pin = null, turn = null } = {}) {
   const actor = await counterActor(prisma, discordUserId);
   if (!actor.ok) return actor;
   const { character } = actor;
-  const account = character.bankAccount;
-  if (!account) return fail("You don't have an account yet.");
+  const access = await terminalAccount(prisma, character, { pin });
+  if (!access.ok) return access;
+  const account = access.account;
 
   const amount = Math.trunc(Number(rawAmount));
   if (!Number.isInteger(amount) || amount < 1) return fail("That isn't an amount.");
@@ -588,12 +627,12 @@ async function canReadDepot(prisma, discordUserId) {
     select: {
       id: true,
       location: { select: { slug: true } },
-      tags: { select: { tag: { select: { slug: true } } } },
+      tags: { select: { equipped: true, tag: { select: RING_ACCESS_TAG_FIELDS } } },
     },
   });
   if (!character) return { ok: false, atDepot: false, error: "You don't have a living character." };
 
-  const held = new Set(character.tags.map((ct) => ct.tag.slug));
+  const held = accessSlugsOf(character.tags);
   const access = depotAccessFor(character.location?.slug, held);
   return access.ok ? { ...access, character } : access;
 }
@@ -606,7 +645,7 @@ module.exports = {
   canReadTreasury,
   counterActor,
   counterState,
-  openCounterAccount,
+  terminalAccount,
   bankMove,
   bankSend,
   sendableAccounts,

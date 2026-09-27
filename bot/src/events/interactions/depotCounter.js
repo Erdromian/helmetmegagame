@@ -1,4 +1,4 @@
-// The Depot's counter, on Discord: the ATM on the Storefront (and on the
+// The Depot's counter, on Discord: the infoterminal (the ATM, renamed) on the Storefront (and on the
 // Inn's bar, db/lib/depot.js#ATM_ROOM_SLUGS), the drop box
 // beside it, and the Merchant's gun on his office wall. Each is a button on a
 // Room's starter post (db/lib/placeAffordances.js), and the rules behind all
@@ -8,11 +8,10 @@
 // Every one of these is deliberately thinner than its web twin. The Depot's
 // page is where you compare prices and re-point a sale; these are for the
 // moment you are standing at the machine with your phone out.
-const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle } = require("discord.js");
+const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, LabelBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const {
   counterState,
-  openCounterAccount,
   bankMove,
   dropIntoBox,
   depotTurretPanel,
@@ -24,10 +23,15 @@ const { DROPBOX_HELP, DROPBOX_EMPTY } = require("@lifeweb/db/lib/placeAffordance
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ack, respond } = require("../../lib/respond");
+const { RING_TEXT } = require("@lifeweb/db/lib/ringText");
 
 const ATM_OUT_PREFIX = "depotatm:out";
 const ATM_IN_PREFIX = "depotatm:in";
-const ATM_OPEN_PREFIX = "depotatm:open";
+// A button or modal id ending in this asks for the account's PIN as well
+// (db/lib/depotCounter.js#terminalAccount): the ring is somebody else's, or its
+// owner is Concussed or Amnesiac.
+const ATM_PIN_SUFFIX = ":pin";
+const ATM_PIN_FIELD = "depotatm:pin";
 const ATM_MODAL_PREFIX = "depotatm:m:";
 const ATM_AMOUNT_FIELD = "depotatm:amount";
 
@@ -45,8 +49,11 @@ async function openTurn() {
   return prisma.turn.findFirst({ where: { closedAt: null }, orderBy: { number: "desc" } });
 }
 
-// ------------------------------------------------------------------- the ATM
+// ---------------------------------------------------------- the infoterminal
 
+// It reads the ring on the presser's finger (docs/systemdocs/RINGS.md). When a
+// PIN is needed the balance stays hidden, and each amount modal carries a PIN
+// box instead: Discord has no dialog to keep a typed PIN in between steps.
 async function handleAtmOpen(interaction) {
   await ack(interaction);
   const state = await counterState(prisma, interaction.user.id);
@@ -55,15 +62,20 @@ async function handleAtmOpen(interaction) {
     return;
   }
 
-  if (!state.account) {
+  if (!state.account && state.pinNeeded) {
     await respond(interaction, {
-      content: "» *Opening an account costs nothing.*",
+      content: `» *${state.pinPrompt}*`,
       components: [
         new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(ATM_OPEN_PREFIX).setLabel("Create an account").setStyle(ButtonStyle.Primary),
+          new ButtonBuilder().setCustomId(ATM_OUT_PREFIX + ATM_PIN_SUFFIX).setLabel("Take coin out").setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId(ATM_IN_PREFIX + ATM_PIN_SUFFIX).setLabel("Put coin in").setStyle(ButtonStyle.Secondary),
         ),
       ],
     });
+    return;
+  }
+  if (!state.account) {
+    await respond(interaction, state.accountProblem);
     return;
   }
 
@@ -81,34 +93,34 @@ async function handleAtmOpen(interaction) {
   });
 }
 
-async function handleAtmAccountOpen(interaction) {
-  await ack(interaction);
-  const turn = await openTurn();
-  const result = await openCounterAccount(prisma, interaction.user.id, {
-    turnNumber: turn?.number ?? null,
-    turnId: turn?.id ?? null,
-  });
-  await respond(interaction, result.ok ? result.line : result.error);
-}
-
 // showModal IS the acknowledgement, so these must NOT be acked first.
-async function handleAtmAmountOpen(interaction, withdrawing) {
-  await interaction.showModal(
-    buildAmountModal({
-      customId: `${ATM_MODAL_PREFIX}${withdrawing ? "out" : "in"}`,
-      field: ATM_AMOUNT_FIELD,
-      title: withdrawing ? "Take coin out" : "Put coin in",
-      label: "How many obols",
-    }),
-  );
+async function handleAtmAmountOpen(interaction, withdrawing, withPin = false) {
+  const modal = buildAmountModal({
+    customId: `${ATM_MODAL_PREFIX}${withdrawing ? "out" : "in"}${withPin ? ATM_PIN_SUFFIX : ""}`,
+    field: ATM_AMOUNT_FIELD,
+    title: withdrawing ? "Take coin out" : "Put coin in",
+    label: "How many obols",
+  });
+  if (withPin) {
+    modal.addLabelComponents(
+      new LabelBuilder()
+        .setLabel(RING_TEXT.infoterminalPinLabel)
+        .setTextInputComponent(
+          new TextInputBuilder().setCustomId(ATM_PIN_FIELD).setStyle(TextInputStyle.Short).setMaxLength(8).setRequired(true),
+        ),
+    );
+  }
+  await interaction.showModal(modal);
 }
 
 async function handleAtmSubmit(interaction, which) {
   await ack(interaction);
   const turn = await openTurn();
+  const withPin = which.endsWith(ATM_PIN_SUFFIX);
   const result = await bankMove(prisma, interaction.user.id, {
-    direction: which === "out" ? "WITHDRAW" : "DEPOSIT",
+    direction: which.startsWith("out") ? "WITHDRAW" : "DEPOSIT",
     amount: Number(interaction.fields.getTextInputValue(ATM_AMOUNT_FIELD)),
+    pin: withPin ? interaction.fields.getTextInputValue(ATM_PIN_FIELD) : null,
     turn,
   });
   await respond(interaction, result.ok ? result.line : result.error);
@@ -123,7 +135,7 @@ async function handleDropBoxOpen(interaction) {
     await respond(interaction, state.error);
     return;
   }
-  if (!state.account) {
+  if (!state.ownAccount) {
     await respond(interaction, "You don't have an account yet.");
     return;
   }
@@ -225,13 +237,12 @@ async function handleDepotTurretSubmit(interaction) {
 module.exports = {
   ATM_OUT_PREFIX,
   ATM_IN_PREFIX,
-  ATM_OPEN_PREFIX,
+  ATM_PIN_SUFFIX,
   ATM_MODAL_PREFIX,
   DROP_PICK_PREFIX,
   DROP_MODAL_PREFIX,
   DEPOT_TURRET_MODAL_PREFIX,
   handleAtmOpen,
-  handleAtmAccountOpen,
   handleAtmAmountOpen,
   handleAtmSubmit,
   handleDropBoxOpen,

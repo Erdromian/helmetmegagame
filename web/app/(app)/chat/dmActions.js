@@ -123,12 +123,14 @@ export async function setSearchHidden(offerId, tagIds) {
 // and both land on the same db/lib/conversionRite.js#answerConversionPick,
 // which re-resolves who is eligible rather than trusting the labels the DM was
 // drawn from — they may be minutes stale.
-export async function pickConversionTarget(attemptId, targetId) {
+// `pick` is the option's code off this chanter's own list, never a
+// character id (conversionRite.js#pickCode).
+export async function pickConversionTarget(attemptId, pick) {
   const session = await auth();
   if (!session?.discordUserId) return { ok: false, reason: "You are not signed in." };
   return answerConversionPick(prisma, {
     attemptId: String(attemptId),
     discordUserId: session.discordUserId,
-    targetId: String(targetId ?? ""),
+    pick: String(pick ?? ""),
   });
 }

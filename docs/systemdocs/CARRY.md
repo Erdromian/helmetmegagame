@@ -180,7 +180,7 @@ different ways:
 
 ### What Overburdened costs
 
-Being over the cap **zeroes your free zone moves** (§2a). It is no longer a
+Being over the cap **zeroes your free travel** (§2a). It is no longer a
 refusal: an overloaded character can still cross into another zone, they just
 pay their Move to do it, and cannot then act. Only the mover is affected — the
 dragged are corpses and the helpless. Escorting is not gated at all: a party
@@ -190,21 +190,30 @@ The tag itself (`docs/tags.yaml`, `OVERBURDENED_SLUG` in
 `db/lib/constants.js`) is granted the moment you are over either cap and
 cleared the moment you are back under, never by a player and never on a clock.
 
-## 2a. The free zone move
+## 2a. Free travel
 
 Crossing a zone used to always spend your Move, with a mount buying one extra
 crossing per *day*. Now:
 
-- Everyone gets `GameConfig.freeZoneMovesPerTurn` crossings a turn, default 1.
-- An **equipped** mount adds one, and it refreshes every turn — an arelitz
-  carries you once per turn, which on a short turn length is several times a
-  day. It is **spent first**: the mount's crossing
-  goes before the base one and stays charged to the mount, so parking the
-  arelitz at an indoors door later in the turn cannot take back a crossing you
-  never spent. **Only while your escort party fits its
-  seats**: go over `fastTravelCapacity` and the mount buys nothing this
-  crossing (`MAP.md` §3a). On foot there are no seats and nothing to lose, so
-  walking any number of people is free.
+- Everyone gets `GameConfig.freeZoneMovesPerTurn` travel a turn, default 1.
+- A crossing **between the town zones** — Town, Fortress, Undertown — costs
+  **½** of it; **any other crossing** costs **1** (`db/lib/crossingCost.js`).
+  The allowance and both counters are Float columns, since halves add up
+  exactly in a double.
+  A hop inside a zone still costs nothing.
+- An **equipped** mount adds **rides**: 1 a turn on a fresh arelitz, 2 on a
+  tacked arelitz or a motorcycle, and **a ride covers any crossing** — a
+  town hop or the hills, one ride each (`MAP.md` §3, `ARELITZ.md` §2a). It
+  refreshes every turn, which on a short turn length is several times a day.
+  The rides are **on the mount's own tag**: each one ridden takes the tag a
+  rung down — Motorcycle, then Motorcycle (1 ride left), then Motorcycle (Spent) — so
+  whoever holds it can read what is left, and the turn pass rests it. It is
+  **spent first**: the mount's ride goes before the base pool and stays with
+  the animal, so unequipping the arelitz later in the turn (a narrow way, or
+  by hand) cannot take back travel you never spent. **Only while your escort party
+  fits its seats**: go over `fastTravelCapacity` and the mount buys nothing
+  this crossing (`MAP.md` §3a). On foot there are no seats and nothing to
+  lose, so walking any number of people is free.
 - Overburdened sets the allowance to **0**.
 - A **lamed** character's allowance is also 0 — a leg too hurt to carry you
   (`crippled-leg`, `cripple`, `missing-leg`, `sprained-ankle`) or too dazed to
@@ -212,8 +221,9 @@ crossing per *day*. Now:
   A mount cancels it outright — the arelitz or the bike does the walking —
   and it's the free crossing that's gone, not the ability to cross: pay the
   Move, or have someone Escort you.
-- Past the allowance, a crossing files the `MOVE` Action as it always did.
-  Once you have acted, you cannot cross.
+- A crossing you cannot afford in full files the `MOVE` Action as it always
+  did, and whatever travel was short of it stays for a cheaper hop. Once you
+  have acted, you cannot cross.
 - Or **push on**, once the Move is spent too: one more crossing a turn on foot
   on a d6 — 1 Sprained Ankle, 2–3 Exhausted, 4–5 Tired, 6 Winded
   (`MAP.md` §3). Once a turn, never while riding, lamed, bleeding out,
@@ -224,13 +234,15 @@ crossing per *day*. Now:
   lands next turn (`MAP.md` §3) — the Move goes now, the traveller stands still
   until the turn turns.
 
-So a peasant walks Town → Black Hills for nothing, spends their Move to reach
-the Fortress, and the way back waits for the next turn. That is the whole
+So a peasant walks Town → Black Hills for nothing, spends their Move to come
+back, and the next crossing waits for the next turn — or walks Town →
+Fortress → Undertown for nothing and still has the Move. That is the whole
 model.
 
-`Character.zoneMovesTurnId` + `zoneMovesUsed` track it, and
-`zoneMovesBonusUsed` counts how many of those crossings went on a mount's extra
-rather than the base allowance. All three are claimed by a
+`Character.zoneMovesTurnId` + `zoneMovesUsed` track the base pool, and
+`zoneMovesBonusUsed` counts how much of that travel went on a mount's ride
+rather than the base allowance — only so the two can be told apart; what the
+mount has left is read off its rung, never off this counter. All three are claimed by a
 conditional `updateMany` whose WHERE is the check, so two tabs cannot both
 spend the last one. A differing turn id resets the counter in the same
 statement, so nothing ever sweeps the field. `freeZoneMoves()` and
@@ -238,13 +250,12 @@ statement, so nothing ever sweeps the field. `freeZoneMoves()` and
 number and Discord's Travel confirm says what the hop will cost before you take
 it.
 
-The count does **not** depend on where you are going. It did once: the boat's
-bonus was earned per crossing and only on the water, so `freeMovesLeft()` and
-`freeZoneMoves()` both took a `{ fromZoneSlug, toZoneSlug }` crossing and every
-surface had to pass the real one per node. The boat is gone and the argument
-went with it — a mount's extra is bought once a turn and spends the same
-wherever you point it, so one number is now honest for the whole list of
-destinations.
+The count does **not** depend on where you are going; the **cost** does.
+`freeMovesLeft()` and `freeZoneMoves()` answer one number for the whole list
+of destinations, and each destination row carries its own `cost` from
+`db/lib/locationGraph.js`, so a surface asks "is `freeLeft` at least `cost`"
+per node (`web/lib/travelCost.js#affordsCrossing`). The boat's per-crossing
+bonus, which once made the count itself depend on the crossing, is gone.
 
 What the number *does* still turn on is **who is coming with you**, which is
 why the last argument is `partySize`: over the seats and `fitsMount()` zeroes
@@ -263,11 +274,13 @@ arelitz or a motorcycle is *ridden* (layer 1) and a cart is *towed*
 motorcycle do not — one thing per layer.
 
 `arelitz-tack` (renamed from `horseshoes` — an arachnid does not wear shoes)
-is a plain `ACCESSORY`, not a third `MOUNT` layer, and does
-nothing on its own — `fastTravelBonus()` (`db/lib/mounts.js`) only counts it
-while an **Arelitz** is equipped alongside it, turning that arelitz's one
-extra crossing into two. It does nothing for the Motorcycle (no hooves), which
-is worth its flat 1 with or without tack.
+is **not worn any more**. It is a plain item, spent by the **Tacked Arelitz**
+Craft recipe (`docs/tags.yaml`, `requirement.items: [arelitz, arelitz-tack]`,
+no Move, once a turn) together with one arelitz, minting an `arelitz-tacked`
+— the same animal with 2 rides a turn instead of 1, on its own ladder. It
+cannot be taken off again, and it cannot be passed round a party to buy every
+rider the extra ride, which is why it stopped being an accessory. It does
+nothing for the Motorcycle (no hooves).
 
 **Seats, from `fastTravelCapacity()`:** an Arelitz alone is 2, and a Cart
 upgrades that pair to 6 — the biggest ride there is. They count the **rider**,
@@ -291,58 +304,24 @@ crossing doesn't get a say: `db/lib/locationTravel.js#vomitOnTheRide`
 grants them Vomiting (and DMs them) the moment a mounted mover
 crosses a zone with them in tow.
 
-A **connection** can keep a mount out too — `on_foot: true`, which dismounts a
-mounted character crossing it rather than parking them on arrival (`MAP.md`
-§2c). The two are complements: `indoors` covers a place, `on_foot` covers a
-way in — and the timing has to differ: `on_foot` dismounts *inside* the
-crossing's own transaction, before the free-move accounting reads it, or a
-rider could bank the mount's bonus crossing on a ride that never survives the
-threshold (`MAP.md` §2c).
+**A roof never takes the reins.** A mount and a cart ride into any Location,
+`indoors: true` or not, underground included (Bascinet's call, 2026-09-27).
+Surface roofs stopped parking mounts first; the Caves and the Depths, the last
+places that did, followed. `parksMounts`, `parkMountsIndoors`, the equip
+refusal and the `· indoors` marks on the travel pickers all went with it. The
+readers that ask about the **roof** — `examineVision.js`, `paper.js`,
+`mood.js#placeClassOf`, `structures.js` — keep reading `indoors` as they
+always did, and Examine still says **Indoors** or **Outdoors**.
 
-A Location marked `indoors: true` in `docs/zones.yaml` — the Cathedral, the
-Sanctuary, the Inn, the Keep, the Undercroft — is a place you walk into. **On
-the surface that roof no longer costs you the reins**: an arelitz and a cart
-ride into a chapel same as the square outside it. **Underground it still
-does** — every Location in the Caves and the Depths is authored
-`indoors: true`, since
-there is no open sky down there, and that roof is the one that still parks a
-mount at the door. On arrival somewhere that counts,
-`db/lib/indoors.js#parkMountsIndoors` unequips them and DMs the character;
-`equipOne` refuses to put them back on while they stand there. The anchor
-message says so in its own `-#` line, written by `syncZones` and hashed with
-the rest of the body, so it appears once and never again.
-
-There is no return leg. A parked mount stays stowed until the player puts it
-back on from the equip board. (An **Automatically ride my mount** switch used
-to do that on arrival; it was removed, and `Character.autoMount` is an orphan
-column now.)
-
-**There is no exception any more.** `indoors` was answering two questions with
-one column — is there a roof over this place (the mood dial, whether a palisade
-can be raised in it) and do wheels stay outside — and a warehouse is a yes to
-the first and a no to the second. The `wheels` attribute existed to split them,
-and three places wore it: the **Godard Factory**, the **Depot** and **Customs**.
-
-The split that survived is a different one. A surface roof stopped parking
-anything, so `parksMounts` was already letting the Factory's and the Depot's
-wagons through before the attribute was read — on those two it only ever
-shortened the Examine line. That left it load-bearing on exactly one Location,
-the cave mouth, which was a gate built to be driven through. When that gate went
-so did the attribute, and the Entrance parks a mount at the door like the rest
-of the Caves.
-
-Every reader that asks "may a mount be out here" goes through
-`locationAttributes.js#parksMounts(location)` rather than the column — the
-arrival parking, the equip refusal, the sheet's equip board, and the `·
-indoors` marks on the /map and /chat travel pickers. Reading the column
-directly in a new caller is how the Factory would come to admit a wagon on one
-surface and refuse it on another. The readers that ask about the **roof** —
-`examineVision.js`, `paper.js`, `mood.js#placeClassOf`, `structures.js` — keep
-reading `indoors` straight, which is the entire point of the split.
-
-The parking happens **before** the settle, so the reduced cap is what the
-settle sees, and Overburdened goes on in the same pass. Nothing is dropped for
-it — see §4.
+The one thing that still keeps a mount out is a **connection** marked
+`on_foot: true` in `docs/zones.yaml` — a way too tight, steep or enclosed for
+it (`MAP.md` §2c). Crossing one dismounts rather than refusing: the mount and
+the cart are unequipped and stay in the pack, and the player puts them back on
+from the equip board (an **Automatically ride my mount** switch used to do
+that; it was removed, and `Character.autoMount` is an orphan column now). The
+dismount runs *inside* the crossing's own transaction, before the free-move
+accounting reads it, or a rider could bank the mount's ride on a crossing it
+never survives. Nothing is dropped for it — see §4.
 
 ## 4. Settlement: pull-based, post-commit
 
@@ -385,6 +364,12 @@ Returned, never sent: `settleCarry` hands back
 `{ characterId, over, granted, removed, drop }` and `deliverCarryDrop` does the
 Discord half — the DM and the aliased room line (§6).
 
+**It also enforces the hold limits** — one mount, up to 3 unruly or young
+arelitz (`ARELITZ.md` §2b). That half runs before the weight half, sets its
+excess down in the same room, and rides the same `drop` as `drop.limit`, so no
+caller needed a second branch; `deliverCarryDrop` gives it its own sentence.
+It does not wait for the load to grow, and `{ drop: false }` skips it.
+
 ## 5. The overflow drop
 
 **Drops are acquisition-driven, and only acquisition-driven.** Nothing comes
@@ -396,9 +381,9 @@ Overburdened and no more.
 at the last settle, and the shed fires only when
 the load has **grown** past the ceiling — never when the cap fell beneath a
 load that did not move. Without that comparison the settle cannot distinguish
-"you picked something up" from "you put your cart down", and since §3 parks a
-cart at every indoors door, the second reading would empty it onto the chapel
-tiles every time you walked in. (The old watermark tracked the *multiplier*,
+"you picked something up" from "you put your cart down", and since a narrow
+way unequips a cart (§3), the second reading would empty it onto the floor
+every time somebody climbed a stair. (The old watermark tracked the *multiplier*,
 for the narrower job of noticing a Cart had left; this one tracks the load,
 because the load is the thing the rule is actually about.)
 
@@ -670,6 +655,15 @@ ephemeral, to anyone standing in the room's Location, in Bascinet's format:
 Reading is free; moving things is the web's Transfer. A Discord select menu
 caps at 25 options, which is why there is no native deposit/withdraw flow.
 
+**`/storage` reads every stash at once** (`handleStorageCommand`, same file):
+one block per Room the character can see where they stand — public Rooms, and
+private ones their keys, a guest row or a quest open — in the same format,
+closing on a line that says moving things is Transfer, on the web. It works
+from a DM, which is the point: the button is on each Room's first post, and on
+a phone finding the thread and scrolling to its top is most of the effort.
+Both the button and the command are open out of session, since reading is not
+an act (`SESSIONS.md` §5).
+
 **Taking things out of a stash is From: the room, To: yourself.** You are in
 your own "To" list — that is the whole of looting a room, and the dialog left
 it out for a while, which made every stash in the game a one-way drop.
@@ -691,9 +685,9 @@ it out for a while, which made every stash in the game a one-way drop.
 | Undo, party-shaped moves | `web/lib/tagEffects.js#takeTagFrom` / `giveTagTo` |
 | Dialog, grid, readout | `components/actions/MoveThingsDialog.js`, `StackRow.js`, `ActionGrid.js`, `LedgerBand.js` |
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
-| Free zone moves, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
+| Free travel, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
 | Mounts: what counts while equipped | `db/lib/mounts.js` |
-| Parking at an indoors door | `db/lib/indoors.js`, `db/lib/locationMove.js` |
+| Dismounting on a narrow way | `db/lib/indoors.js`, `db/lib/locationTravel.js`, `db/lib/locationMove.js` |
 | Storage button | `db/lib/roomStarterRow.js`, `db/lib/syncZones.js`, `bot/src/lib/roomStorage.js` |
 | Caps on `/gm/dev` | `web/app/(desk)/gm/dev/page.js`, `web/app/(app)/gm/dev/actions.js` |
 | Constants | `OVERBURDENED_SLUG` in `db/lib/constants.js` |

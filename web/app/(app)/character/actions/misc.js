@@ -12,27 +12,26 @@ import {
   canOpenCrate,
   isBlackMarketSeal,
 } from "@lifeweb/db";
-import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import {
-  COLLAR_ITEM_SLUG,
-  COLLAR_LOCKED_SLUG,
-  DETONATOR_SLUG,
-  COLLAR_KEY_SLUG,
   COLLAR_SELECT,
-  heldSlugs as collarHeldSlugs,
   wearsCollar,
+  remoteRefusal,
+  unlockRefusal,
   needsNoConsent as collarNeedsNoConsent,
+  pickLooseCollar,
   applyCollar,
   createCollarOffer,
   unlockCollar,
+  remoteReading,
   detonateCollar,
 } from "@lifeweb/db/lib/collar";
+import { isLockedCollarSlug } from "@lifeweb/db/lib/collarGlyphs";
 import { resourcesOf, isResourcesRow } from "@lifeweb/db/lib/resourceStack";
+import { speakAtPlaces } from "@lifeweb/db/lib/inventoryTail";
 import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
-import { concealedNow } from "@lifeweb/db/lib/presence";
-import { resolveHereTarget, refusalFor } from "@/lib/hereTarget";
-import { cleanCustomText, CUSTOM_DESCRIPTION_MAX } from "@/lib/customCraft";
-import { mintCustomCraft, unmintCustomCraft } from "./crafting.js";
+import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
+import { resolveHereTarget, refusalFor, seenName } from "@/lib/hereTarget";
+import { seenById } from "@lifeweb/db/lib/intercept";
 import { applyHiddenCures } from "@lifeweb/db/lib/hiddenCures";
 import {
   canSendBird as holdsBirdAndLetters,
@@ -70,17 +69,11 @@ import { SFX } from "@lifeweb/db/lib/sfx";
 import { describeTurn } from "@/lib/turnFormat";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
+import { holdLimitRefusal } from "@lifeweb/db/lib/mounts";
 import {
   requireFreeMove,
   fileAutoRoutine,
 } from "@/lib/moveSpend";
-import {
-  DISGUISE_KIT_SLUG,
-  DISGUISE_TURNS,
-  normalizeDisguiseName,
-  mintDisguise,
-  activeDisguise,
-} from "@lifeweb/db/lib/disguiseMint";
 import {
   isTradeable,
   isCrate,
@@ -103,13 +96,14 @@ import {
 import {
   isHere,
   notHereMessage,
+  rosterHere,
+  pickerName,
 } from "@/lib/peopleHere";
 import {
   applyBind,
   createBindOffer,
   needsNoConsent,
   isBound as isBoundTarget,
-  RESTRAINT_SLUGS,
   BIND_SELECT,
 } from "@lifeweb/db/lib/bind";
 import {
@@ -124,21 +118,15 @@ import {
   killCharacter,
 } from "@/lib/discordGuild";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import {
-  rollCavingOnArrival,
-  cavingRestrictionsFor,
-} from "@lifeweb/db/lib/cavingPass";
+import { rollCavingOnArrival } from "@lifeweb/db/lib/cavingPass";
 import { revealSurface } from "@lifeweb/db/lib/locationVisits";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { breakSeal } from "@lifeweb/db/lib/paperMint";
 import { CAMERA_SLUG } from "@lifeweb/db/lib/photoMint";
 import {
   POINTER_DEVICE_KIT_SLUG,
-  isPointerDeviceSlug,
-  partnerSlugOf,
   mintPointerPair,
   attachPointerPair,
-  locatePointerPartner,
 } from "@lifeweb/db/lib/pointerMint";
 import { WANTED_SLUG } from "@lifeweb/db/lib/wanted";
 import {
@@ -158,23 +146,11 @@ import {
   formatTortureRoll,
   buildTortureEmbed,
 } from "@lifeweb/db/lib/torture";
-import { resolveBreakRestraints, formatBreakRestraintsRoll, ESCAPE_ARTIST_SLUG } from "@lifeweb/db/lib/breakRestraints";
 import {
   EXAMINE_SUBJECT_SELECT,
   tortureReadout,
 } from "@lifeweb/db/lib/examine";
-import {
-  hasAttribute,
-  GODFLESH_ATTRIBUTE,
-} from "@lifeweb/db/lib/locationAttributes";
 import { crateWeight } from "@lifeweb/db/lib/depotCrates";
-import {
-  GODFLESH_SLUG,
-  extractToolFor,
-  rollExtraction,
-  extractionDm,
-  extractTurnKey,
-} from "@lifeweb/db/lib/godflesh";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import {
@@ -197,8 +173,18 @@ import {
   structuresAt,
   WORKING_STATUSES,
 } from "@lifeweb/db/lib/structures";
-import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { notifyCharacter } from "@/lib/notifyCharacter";
+// The verbs both faces run: the rule is there, and each action below resolves
+// the character from the session and applies the web's own tail.
+import {
+  destroyHeldTag,
+  breakRestraints,
+  disguiseSelf,
+  stepstone,
+  readPointerDevice,
+} from "@lifeweb/db/lib/verbs/self";
+import { freeCharacter, crucifyCharacter, shackleCharacter, brandCharacter } from "@lifeweb/db/lib/verbs/captives";
+import { extractGodflesh } from "@lifeweb/db/lib/verbs/work";
 import {
   evaluateDesireCatalog,
   slotStates,
@@ -249,8 +235,6 @@ import {
   resolveCraftMove,
   spendCraftMove,
   craftLedgerEntry,
-  loadBuildGround,
-  speakAtSite,
 } from "./shared.js";
 
 // --- Destroy -------------------------------------------------------------
@@ -261,53 +245,16 @@ export async function destroyTagRequestImpl({
   quantity: rawQuantity,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  const held = character.tags.find((ct) => ct.tagId === tagId);
-  if (!held) throw new UserError("You don't have that tag.");
-  if (!held.tag.removable)
-    throw new UserError("That isn't something you can destroy.");
-
-  const quantity = held.tag.stackable
-    ? (parseCount(rawQuantity, { min: 1, max: held.quantity }) ?? 1)
-    : held.quantity;
-
-  const openTurn = await getOpenTurn();
-  const restore = {
-    tagId: held.tagId,
-    source: held.source,
-    expiresTurn: held.expiresTurn,
-    quantity,
-  };
-
-  // Aftermath (Tag.removesInto) rolled up front so the transaction commits
-  // exactly what the snapshot records. Fires once regardless of quantity.
-  const aftermathSlugs = rollTagChain(held.tag.removesInto);
-
-  let granted = [];
-  await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, character.id, tagId, quantity);
-    granted = await grantTagSlugs(
-      tx,
-      character.id,
-      aftermathSlugs,
-      openTurn?.number ?? null,
-    );
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_destroy_tag",
-      targetCharacterId: character.id,
-      details: {
-        tagId,
-        tagName: held.tag.name,
-        quantity,
-        granted: granted.map((g) => g.tagName),
-        // The details blob is the only record now, so it carries what a GM
-        // needs to put the tag back AS IT WAS rather than as a fresh grant.
-        restore,
-      },
-    });
+  // The rule is db/lib/verbs/self.js's, shared with Discord's /item destroy.
+  const result = await destroyHeldTag(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    tagId,
+    quantity: rawQuantity,
+    openTurn: await getOpenTurn(),
   });
-  await afterInventoryChange(character.id);
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
   revalidateAll();
   return {};
 }
@@ -852,9 +799,9 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
     const targetSlugs = new Set(found.tags.map((ct) => ct.tag.slug));
     const intersects = curesList.some((slug) => targetSlugs.has(slug));
     if (!intersects && !held.tag.administerable) {
-      // Never their name when a mask is what you are looking at.
-      const who = concealedNow(found) ? "They" : found.name;
-      throw new UserError(`${who} ${concealedNow(found) ? "don't" : "doesn't"} have anything that ${held.tag.name} can treat.`);
+      // Never their name when a mask, or a face you don't know, is what you
+      // are looking at (seenName).
+      throw new UserError(`${await seenName(character, found.id)} doesn't have anything that ${held.tag.name} can treat.`);
     }
     target = found;
   }
@@ -1103,7 +1050,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
       const freshSlugs = new Set(freshTags.map((ct) => ct.tag.slug));
       const stillIntersects = curesList.some((slug) => freshSlugs.has(slug));
       if (!stillIntersects && !held.tag.administerable) {
-        throw new UserError(`${target.name} was already treated for that.`);
+        throw new UserError(`${await seenName(character, target.id)} was already treated for that.`);
       }
       curedHeldNow = curesList.length
         ? freshTags.filter((ct) => curesList.includes(ct.tag.slug))
@@ -1338,7 +1285,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
   });
   await afterInventoryChange([character.id, administered ? target.id : null]);
   if (administered) {
-    notifyCharacter(target, `${character.name} used ${held.tag.name} on you.`);
+    notifyCharacter(target, `${await seenName(target, character.id)} used ${held.tag.name} on you.`);
   }
   // Corpse Salts answers straight away rather than waiting up to a minute for
   // the sweep to notice (db/lib/corpseSense.js). Keyed on the CONSUMED tag's
@@ -1474,7 +1421,15 @@ export async function lootCharacterRequestImpl({
 
   const targetResources = resourcesOf(target);
   if (amount > targetResources)
-    throw new UserError(`${target.name} only has ${targetResources} ⬢.`);
+    throw new UserError(`${await seenName(character, target.id)} only has ${targetResources} ⬢.`);
+
+  // One mount, up to 3 unruly or young arelitz (db/lib/mounts.js): refused
+  // rather than taken and set straight back down by the settle.
+  const tooMany = holdLimitRefusal(
+    character.tags,
+    takenTags.map((t) => ({ slug: target.tags.find((ct) => ct.tagId === t.tagId)?.tag?.slug, quantity: t.quantity })),
+  );
+  if (tooMany) throw new UserError(tooMany);
 
   const openTurn = await getOpenTurn();
 
@@ -1617,7 +1572,7 @@ export async function bindCharacterRequestImpl({
     select: BIND_SELECT,
   });
   if (isBoundTarget(target))
-    throw new UserError(`${target.name} is already bound.`);
+    throw new UserError(`${await seenName(character, target.id)} is already bound.`);
 
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is open.");
@@ -1653,7 +1608,7 @@ export async function bindCharacterRequestImpl({
       },
     });
     revalidateAll();
-    return { pending: true, name: target.name };
+    return { pending: true, name: await seenName(character, target.id) };
   }
 
   await applyBind(prisma, { actor, target, turn: openTurn });
@@ -1671,57 +1626,15 @@ export async function freeCharacterRequestImpl({
   targetCharacterId,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  // The picker posts a KEY, not an id: somebody in a mask is listed by HMAC token, because
-  // /api/avatar/<id> would draw the face the mask is for (db/lib/targetKey.js). Resolving it here
-  // keeps every check below working on a real id, and it answers null for anybody not standing
-  // here — which is what stops a token being a way to ask after somebody who has already left.
-  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
-
-  if (!character.locationId)
-    throw new UserError("You aren't anywhere you could do that.");
-
-  // Ropes or shackles — Free cuts either (Bascinet's ruling on Dungeons).
-  const target = await prisma.character.findFirst({
-    where: { id: targetId ?? "", status: "ALIVE" },
-    include: {
-      tags: {
-        where: { tag: { slug: { in: RESTRAINT_SLUGS } } },
-        include: { tag: { select: { id: true, name: true } } },
-      },
-    },
+  // The rule is db/lib/verbs/captives.js's, shared with Discord's /captive free.
+  const result = await freeCharacter(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    targetKey: targetCharacterId,
   });
-  if (!target || !isHere(character, target, { allowConcealed: true }))
-    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
-    // because a refusal that prints the name is the unmasking itself.
-    throw new UserError(refusalFor(targetCharacterId, target));
-
-  const held = target.tags[0];
-  if (!held) throw new UserError(`${target.name} isn't bound.`);
-
-  const openTurn = await getOpenTurn();
-
-  await prisma.$transaction(async (tx) => {
-    for (const row of target.tags) await dropCharacterTag(tx, target.id, row.tagId);
-    const effect = {
-      targetCharacterId: target.id,
-      targetName: target.name,
-      tagId: held.tagId,
-      tagName: held.tag.name,
-      quantity: held.quantity,
-      source: held.source,
-      expiresTurn: held.expiresTurn,
-    };
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_free_character",
-      targetCharacterId: target.id,
-      details: effect,
-    });
-  });
-
-  await afterInventoryChange(target.id);
-  notifyCharacter(target, "Someone freed you.");
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
+  for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
   revalidateAll();
   return {};
 }
@@ -1744,85 +1657,20 @@ export async function freeCharacterRequestImpl({
 // still instant.
 export async function breakRestraintsRequestImpl() {
   const { session, character } = await requireCharacter();
-
-  // Ropes or shackles (Dungeons). Shackles give only to an Escape Artist, and
-  // that refusal comes before the Move is spent.
-  const restraint = character.tags.find((ct) => RESTRAINT_SLUGS.includes(ct.tag.slug));
-  if (!restraint) throw new UserError("You aren't restrained.");
-  const heldSlugs = character.tags.map((ct) => ct.tag.slug);
-  const shackled = restraint.tag.slug === "shackled";
-  if (shackled && !heldSlugs.includes(ESCAPE_ARTIST_SLUG))
-    throw new UserError("Breaking free is impossible.");
-
-  const openTurn = await getOpenTurn();
-  await requireFreeMove(character, openTurn);
-  // 0 on the same turn the bind landed; boundSinceTurnNumber is only ever
-  // null for a character who was already bound before this column existed.
-  const turnsElapsed = character.boundSinceTurnNumber == null
-    ? 0
-    : openTurn.number - character.boundSinceTurnNumber;
-
-  // The character's own die — their Lucky or Inspired bends it, the same
-  // side gambitMods work on any other Gambit roll.
-  const roll = rollWithAdvantage(character.tags, 6);
-  const result = resolveBreakRestraints({ die: roll.die, turnsElapsed, heldSlugs, shackled });
-  const rollLine = result.automatic
-    ? null
-    : formatBreakRestraintsRoll({ die: roll.die, threshold: result.threshold, rolls: roll.rolls });
-  const outcome = result.success ? "broke free" : "still bound";
-
-  await prisma.$transaction(async (tx) => {
-    if (result.success) {
-      // Not dropped now: stamped to expire with this turn, so the expirySweep
-      // pass (db/index.js) takes `bound` off at the close. Bascinet's ruling.
-      await tx.characterTag.updateMany({
-        where: { characterId: character.id, tagId: restraint.tagId },
-        data: { expiresTurn: openTurn.number },
-      });
-      await tx.character.update({
-        where: { id: character.id },
-        data: { boundSinceTurnNumber: null },
-      });
-    }
-    await fileAutoRoutine(
-      tx,
-      character,
-      openTurn,
-      `Tried to break their restraints${rollLine ? `: ${rollLine}` : ""} — ${outcome}.`,
-      "auto:breakRestraints",
-    );
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_break_restraints",
-      targetCharacterId: character.id,
-      turnId: openTurn.id,
-      details: {
-        automatic: result.automatic,
-        die: roll.die,
-        threshold: result.threshold,
-        success: result.success,
-      },
-    });
+  // The rule is db/lib/verbs/self.js's, shared with Discord's /captive escape.
+  const result = await breakRestraints(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    openTurn: await getOpenTurn(),
   });
-
-  await afterInventoryChange(character.id);
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
   revalidateAll();
-  return {
-    sfx: SFX.UNBIND,
-    success: result.success,
-    line: result.success
-      ? result.automatic
-        ? "You broke your restraints. This will take effect at the end of the turn."
-        : `${rollLine}. You broke your restraints. This will take effect at the end of the turn.`
-      : `${rollLine}. ${shackled ? "The shackles hold." : "The knots hold."}`,
-  };
+  return { sfx: SFX.UNBIND, success: result.success, line: result.line };
 }
 
 // --- Crucifixion -----------------------------------------------------------
 
-const CRUCIFIX_SLUG = "crucifix";
-const CRUCIFIED_SLUG = "crucified";
-const FUNDAMENTALIST_SLUG = "fundamentalist";
 
 // Nailing someone to the cross. Three gates and no consent: the actor is a
 // Fundamentalist, a COMPLETE Cross stands where they are (a half-built or
@@ -1841,96 +1689,23 @@ export async function crucifyCharacterRequestImpl({
   targetCharacterId,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  // The picker posts a KEY, not an id: somebody in a mask is listed by HMAC token, because
-  // /api/avatar/<id> would draw the face the mask is for (db/lib/targetKey.js). Resolving it here
-  // keeps every check below working on a real id, and it answers null for anybody not standing
-  // here — which is what stops a token being a way to ask after somebody who has already left.
-  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
-
-  if (!character.locationId)
-    throw new UserError("You aren't anywhere you could do that.");
-  if (targetId === character.id)
-    throw new UserError("You can't crucify yourself.");
-  if (!character.tags.some((ct) => ct.tag.slug === FUNDAMENTALIST_SLUG))
-    throw new UserError("Only a Fundamentalist would.");
-
-  const location = await loadBuildGround(character.locationId);
-  const standing = await structuresAt(prisma, character.locationId, {
-    statuses: ["COMPLETE"],
+  // The rule is db/lib/verbs/captives.js's, shared with Discord's /captive crucify.
+  const result = await crucifyCharacter(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    targetKey: targetCharacterId,
+    openTurn: await getOpenTurn(),
   });
-  const cross = standing.find((s) => s.typeSlug === CRUCIFIX_SLUG) ?? null;
-  if (!cross) throw new UserError("There is no cross standing here.");
-
-  const target = await prisma.character.findFirst({
-    where: { id: targetId ?? "", status: "ALIVE" },
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      locationId: true,
-      concealed: true,
-      discordUserId: true,
-      tags: { select: { tag: { select: { slug: true } } } },
-    },
-  });
-  if (!target || !isHere(character, target, { allowConcealed: true }))
-    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
-    // because a refusal that prints the name is the unmasking itself.
-    throw new UserError(refusalFor(targetCharacterId, target));
-  if (target.tags.some((ct) => ct.tag.slug === CRUCIFIED_SLUG))
-    throw new UserError(`${target.name} is already on the cross.`);
-
-  const crucified = await prisma.tag.findUnique({
-    where: { slug: CRUCIFIED_SLUG },
-  });
-  if (!crucified)
-    throw new UserError("The Crucified tag is missing from the catalog — tell a GM.");
-
-  const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open.");
-  const expiresTurn = await expiryForGrant(prisma, crucified, openTurn);
-
-  const effect = {
-    targetCharacterId: target.id,
-    targetName: target.name,
-    tagId: crucified.id,
-    tagName: crucified.name,
-    expiresTurn,
-    structureId: cross.id,
-    locationId: location?.id ?? character.locationId,
-    locationName: location?.name ?? null,
-  };
-  await prisma.$transaction(async (tx) => {
-    await addToStack(tx, target.id, crucified.id, 1, {
-      source: "EVENT",
-      expiresTurn,
-      stackable: crucified.stackable,
-    });
-    // The single most frightening thing that can happen to a person (MOOD.md).
-    await applyMood(tx, target.id, { kind: "CRUCIFIED" });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_crucify_character",
-      targetCharacterId: target.id,
-      details: effect,
-    });
-  });
-
-  await afterInventoryChange(target.id);
-  notifyCharacter(target, "You've been put on the cross.");
-  speakAtSite(
-    location?.discordChannelId,
-    ambientLine(`${target.name} hangs on the cross.`),
-  );
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
+  for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
+  if (result.speak?.length) after(() => speakAtPlaces(prisma, result.speak).catch((err) => console.error("Scene line failed:", err)));
   revalidateAll();
-  return { name: target.name };
+  return { name: result.name };
 }
 
 // --- Shackling (Dungeons) --------------------------------------------------
 
-const DUNGEONS_SLUG = "dungeons";
-const SHACKLED_SLUG = "shackled";
 
 // Turning someone's ropes into shackles. Two gates and no consent: COMPLETE
 // Dungeons stand where the actor is, and the target is standing there, Bound.
@@ -1942,87 +1717,18 @@ export async function shackleCharacterRequestImpl({
   targetCharacterId,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  // The picker posts a KEY, not an id: somebody in a mask is listed by HMAC token, because
-  // /api/avatar/<id> would draw the face the mask is for (db/lib/targetKey.js). Resolving it here
-  // keeps every check below working on a real id, and it answers null for anybody not standing
-  // here — which is what stops a token being a way to ask after somebody who has already left.
-  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
-
-  if (!character.locationId)
-    throw new UserError("You aren't anywhere you could do that.");
-  if (targetId === character.id)
-    throw new UserError("You can't shackle yourself.");
-
-  const location = await loadBuildGround(character.locationId);
-  const standing = await structuresAt(prisma, character.locationId, {
-    statuses: ["COMPLETE"],
+  // The rule is db/lib/verbs/captives.js's, shared with Discord's /captive shackle.
+  const result = await shackleCharacter(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    targetKey: targetCharacterId,
+    openTurn: await getOpenTurn(),
   });
-  const dungeon = standing.find((s) => s.typeSlug === DUNGEONS_SLUG) ?? null;
-  if (!dungeon) throw new UserError("There are no dungeons here.");
-
-  const target = await prisma.character.findFirst({
-    where: { id: targetId ?? "", status: "ALIVE" },
-    select: {
-      id: true,
-      name: true,
-      status: true,
-      locationId: true,
-      concealed: true,
-      discordUserId: true,
-      tags: { select: { tagId: true, tag: { select: { slug: true } } } },
-    },
-  });
-  if (!target || !isHere(character, target, { allowConcealed: true }))
-    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
-    // because a refusal that prints the name is the unmasking itself.
-    throw new UserError(refusalFor(targetCharacterId, target));
-  if (target.tags.some((ct) => ct.tag.slug === SHACKLED_SLUG))
-    throw new UserError(`${target.name} is already shackled.`);
-  const boundRow = target.tags.find((ct) => ct.tag.slug === "bound");
-  if (!boundRow) throw new UserError(`${target.name} isn't bound.`);
-
-  const shackledTag = await prisma.tag.findUnique({
-    where: { slug: SHACKLED_SLUG },
-  });
-  if (!shackledTag)
-    throw new UserError("The Shackled tag is missing from the catalog — tell a GM.");
-
-  const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open.");
-
-  const effect = {
-    targetCharacterId: target.id,
-    targetName: target.name,
-    tagId: shackledTag.id,
-    tagName: shackledTag.name,
-    structureId: dungeon.id,
-    locationId: location?.id ?? character.locationId,
-    locationName: location?.name ?? null,
-  };
-  await prisma.$transaction(async (tx) => {
-    await dropCharacterTag(tx, target.id, boundRow.tagId);
-    await addToStack(tx, target.id, shackledTag.id, 1, {
-      source: "EVENT",
-      stackable: shackledTag.stackable,
-    });
-    await tx.character.update({
-      where: { id: target.id },
-      data: { boundSinceTurnNumber: openTurn.number },
-    });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_shackle_character",
-      targetCharacterId: target.id,
-      turnId: openTurn.id,
-      details: effect,
-    });
-  });
-
-  await afterInventoryChange(target.id);
-  notifyCharacter(target, "You've been shackled.");
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
+  for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
   revalidateAll();
-  return { name: target.name };
+  return { name: result.name };
 }
 
 // --- Torture (docs/systemdocs/TORTURE.md) ----------------------------------
@@ -2079,8 +1785,12 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
     // refusalFor, not notHereMessage: a hood key is refused in the blank form,
     // because a refusal that prints the name is the unmasking itself.
     throw new UserError(refusalFor(targetCharacterId, target));
+  // What the torturer calls them. A break tells them the name (the embed
+  // below); nothing before it does.
+  const seenMid = await seenById(prisma, character.id, target.id);
+  const seen = capitalizeFirst(seenMid);
   if (!isBoundTarget(target))
-    throw new UserError(`${target.name} isn't tied up.`);
+    throw new UserError(`${seen} isn't tied up.`);
   const openTurn = await getOpenTurn();
   await requireFreeMove(character, openTurn);
 
@@ -2093,7 +1803,7 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
   // torturer roll and waste it. The target's mood and the −40 are still spared.
   if (target.tags.some((ct) => ct.tag.slug === IMPERTURBABLE_SLUG))
     throw new UserError(
-      `${target.name} looks back at you, entirely unbothered. There is nothing here to break.`,
+      `${seen} looks back at you, entirely unbothered. There is nothing here to break.`,
     );
 
   const equipmentInReach = await hasEquipmentInReach(
@@ -2173,7 +1883,7 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
       tx,
       character,
       openTurn,
-      `Tortured ${target.name}: ${rollLine} — ${outcome}.`,
+      `Tortured ${reveal ? target.name : seenMid}: ${rollLine} — ${outcome}.`,
       "auto:torture",
     );
     await logAudit(tx, {
@@ -2228,7 +1938,7 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
     notifyCharacter(target, "You were tortured, but held out. It won't be long, now...");
   }
   revalidateAll();
-  return { name: target.name, success: result.success, die: result.die };
+  return { name: reveal ? target.name : seen, success: result.success, die: result.die };
 }
 
 // --- Putting on a face that isn't yours ------------------------------------
@@ -2248,49 +1958,15 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
 // rather than their portrait, and /conceal refuses while it is on.
 export async function disguiseSelfRequestImpl({ name: rawName }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  // Re-checked here and not merely in the UI: a server action is a public
-  // endpoint, and page.js's predicate is a hint.
-  if (!character.tags.some((ct) => ct.tag.slug === DISGUISE_KIT_SLUG))
-    throw new UserError("You have no disguise kit.");
-
-  const name = normalizeDisguiseName(rawName);
-  if (!name) throw new UserError("Pick a name to go by.");
-  if (name === character.name)
-    throw new UserError("That is already your name.");
-
-  // One at a time. Two forcedName rows would race, and forcedNameFrom takes
-  // whichever comes back first.
-  const already = await activeDisguise(prisma, character.id);
-  if (already)
-    throw new UserError(
-      `You are already going by ${already.tag.forcedName}. Wait for it to wear off.`,
-    );
-
-  const openTurn = await getOpenTurn();
-  if (!openTurn) throw new UserError("No turn is open.");
-
-  // Minted OUTSIDE the transaction, on purpose: the retry loop it uses cannot
-  // run inside one, because Postgres aborts the whole transaction on the first
-  // failed statement (see db/lib/paperMint.js). Two players picking the same
-  // false name is exactly the collision it retries past.
-  const tag = await mintDisguise(prisma, character.id, name, openTurn);
-  if (!tag) throw new UserError("Couldn't put that name on. Try another.");
-
-  const effect = {
-    tagId: tag.id,
-    tagName: tag.name,
-    disguiseName: name,
-    turns: DISGUISE_TURNS,
-  };
-  await prisma.$transaction(async (tx) => {
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_disguise_self",
-      targetCharacterId: character.id,
-      details: effect,
-    });
+  // The rule is db/lib/verbs/self.js's, shared with Discord's /disguise.
+  const result = await disguiseSelf(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    name: rawName,
+    openTurn: await getOpenTurn(),
   });
+  if (!result.ok) throw new UserError(result.error);
+  const { name } = result;
 
   // The mention token follows the false name (PROXYING.md §6), and this is the
   // one moment a player is watching for it — a disguise that only takes hold
@@ -2375,7 +2051,7 @@ export async function harmCharacterRequestImpl({
     if (!tag) throw new UserError("Unknown injury.");
     if (!isInflictable(tag)) throw new UserError("That isn't an injury.");
     if (target.tags.some((ct) => ct.tagId === tag.id)) {
-      throw new UserError(`${target.name} already has ${tag.name}.`);
+      throw new UserError(`${await seenName(character, target.id)} already has ${tag.name}.`);
     }
   }
 
@@ -2442,9 +2118,6 @@ export async function harmCharacterRequestImpl({
 
 // --- Branding someone bound or incapacitated -------------------------------
 
-const BRANDING_IRON_SLUG = "branding-iron";
-const BRAND_SLUG = "brand";
-const ACHING_SLUG = "aching";
 
 // The Branding Iron's whole gate (TORTURE.md §8) is holding the tag — no
 // separate skill, unlike Torture's `torturer`. Free: no Move, no ⬢, no turn,
@@ -2454,83 +2127,20 @@ const ACHING_SLUG = "aching";
 // brand doesn't need the victim to be able to struggle for it to work.
 export async function brandCharacterRequestImpl({ targetCharacterId, description: rawDescription }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  // A KEY, not an id (db/lib/targetKey.js) — a brand goes on a body, and a hood is still a body.
-  const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
-
-  if (!character.locationId)
-    throw new UserError("You aren't anywhere you could do that.");
-  if (targetId === character.id)
-    throw new UserError("You can't brand yourself.");
-  // Re-checked here and not merely in the UI: the hidden button is a hint.
-  if (!character.tags.some((ct) => ct.tag.slug === BRANDING_IRON_SLUG))
-    throw new UserError("You don't have a branding iron.");
-
-  const description = cleanCustomText(rawDescription, CUSTOM_DESCRIPTION_MAX);
-  if (!description) throw new UserError("Say what the brand marks them with.");
-
-  const target = await prisma.character.findFirst({
-    where: { id: targetId ?? "", status: "ALIVE" },
-    include: { tags: { include: { tag: { select: { slug: true } } } } },
+  // The rule is db/lib/verbs/captives.js's, shared with Discord's /captive brand.
+  const result = await brandCharacter(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    targetKey: targetCharacterId,
+    description: rawDescription,
+    openTurn: await getOpenTurn(),
   });
-  if (!target || !isHere(character, target, { allowConcealed: true }))
-    // refusalFor, not notHereMessage: a hood key is refused in the blank form,
-    // because a refusal that prints the name is the unmasking itself.
-    throw new UserError(refusalFor(targetCharacterId, target));
-  const targetSlugs = target.tags.map((ct) => ct.tag.slug);
-  if (!targetSlugs.some((slug) => INCAPACITATING_SLUGS.has(slug)))
-    throw new UserError(`${target.name} could still stop you — that's not something you can just do to them.`);
-
-  const openTurn = await getOpenTurn();
-  const [achingTag, brandBase] = await Promise.all([
-    prisma.tag.findUnique({ where: { slug: ACHING_SLUG }, select: { id: true, stackable: true, defaultDurationTurns: true } }),
-    prisma.tag.findUnique({ where: { slug: BRAND_SLUG } }),
-  ]);
-  if (!achingTag || !brandBase)
-    throw new UserError("Something's missing from the catalog. Tell a GM.");
-  const achingExpiresTurn = await expiryForGrant(prisma, achingTag, openTurn, {
-    characterId: target.id,
-    where: "brandCharacter",
-  });
-
-  // Minted OUTSIDE the transaction (mintCustomCraft says why), unwound after
-  // it only if the transaction below fails and the row was fresh.
-  const grant = await mintCustomCraft(prisma, brandBase, {
-    description: `A permanent brand. ${description}`,
-  });
-  try {
-    await prisma.$transaction(async (tx) => {
-      await addToStack(tx, target.id, achingTag.id, 1, {
-        source: "EVENT",
-        expiresTurn: achingExpiresTurn,
-        stackable: achingTag.stackable,
-      });
-      await addToStack(tx, target.id, grant.tag.id, 1, { source: "EVENT", stackable: false });
-      // −40, or nothing under Pain Immunity / an Opium High (MOOD.md §6) —
-      // the same two rows that zero TORTURED.
-      await applyMood(tx, target.id, { kind: "BRANDED" });
-      await logAudit(tx, {
-        actorDiscordUserId: session.discordUserId,
-        actionType: "request_brand_character",
-        targetCharacterId: target.id,
-        turnId: openTurn?.id ?? null,
-        details: {
-          targetName: target.name,
-          description,
-          brandTagId: grant.tag.id,
-        },
-      });
-    });
-  } catch (err) {
-    await unmintCustomCraft(prisma, grant);
-    throw err;
-  }
-
-  await afterInventoryChange(target.id);
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
   // Unattributed, like every other request that acts on somebody else.
-  notifyCharacter(target, "Somebody held a hot iron to you. It'll never fade.");
+  for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
   revalidateAll();
-  return { name: target.name };
+  return { name: result.name };
 }
 
 // The one generic rejection text a hidden Desire and a nonexistent/retired
@@ -2856,122 +2466,20 @@ export async function changeNameRequestImpl({
 // client's menus are advisory (REQUESTS.md §3).
 export async function extractGodfleshRequestImpl() {
   const { session, character } = await requireCharacter();
-
-  const location = character.locationId
-    ? await prisma.location.findUnique({
-        where: { id: character.locationId },
-        select: { id: true, name: true, attributes: true },
-      })
-    : null;
-  if (!hasAttribute(location, GODFLESH_ATTRIBUTE)) {
-    throw new UserError("There's nothing to cut here.");
-  }
-  if (!extractToolFor(character.tags)) {
-    throw new UserError(
-      "You need a hatchet, a battle-axe or a chainsaw in your hands.",
-    );
-  }
-  // Bound, Dying, Paralyzed, Catatonic — or mid-Seizure from a cube, which is
-  // the one this exists for. This is the ONLY thing standing between a man on
-  // the floor and a wade into the marsh with an axe: the day claim below cares
-  // about the calendar and nothing else, and there is no Move gate left at all.
-  const floored = blockerFor(character.tags, ACT);
-  if (floored) {
-    throw new UserError(`You're in no state to be swinging anything — you're ${floored.name}.`);
-  }
-
-  // Still needed, for the claim key and for dating the injury — but no longer
-  // as a gate. The move lock is deliberately NOT consulted: Harvest Godflesh is
-  // outside that window, the same way the Bird is.
-  const openTurn = await getOpenTurn();
-  const turnKey = extractTurnKey(openTurn);
-  if (!turnKey) throw new UserError("No turn is open.");
-
-  const result = rollExtraction(character.tags);
-  const [godflesh, injury] = await Promise.all([
-    prisma.tag.findUnique({
-      where: { slug: GODFLESH_SLUG },
-      select: { id: true, name: true, stackable: true },
-    }),
-    result.injury
-      ? prisma.tag.findUnique({
-          where: { slug: result.injury.tagSlug },
-          select: { id: true, name: true, defaultDurationTurns: true },
-        })
-      : null,
-  ]);
-  if (!godflesh)
-    throw new UserError("The catalog has no Godflesh in it. Tell a GM.");
-
-  const effect = {
-    die: result.die,
-    tool: result.tool,
-    tagId: godflesh.id,
-    tagName: godflesh.name,
-    quantity: result.quantity,
-    injuryTagId: injury?.id ?? null,
-    injuryTagName: injury?.name ?? null,
-    locationName: location?.name ?? null,
-  };
-
-  await prisma.$transaction(async (tx) => {
-    // The claim, and the first thing written — the Bird's shape (BIRD.md): a
-    // conditional updateMany whose WHERE *is* the check, so two tabs submitting
-    // at once cannot both cut. A stale key from an earlier turn is overwritten
-    // by the same statement, so nothing has to sweep it.
-    const claimed = await tx.character.updateMany({
-      where: {
-        id: character.id,
-        OR: [{ extractTurnKey: null }, { extractTurnKey: { not: turnKey } }],
-      },
-      data: { extractTurnKey: turnKey },
-    });
-    if (claimed.count === 0) {
-      throw new UserError("You already harvested Godflesh this turn.");
-    }
-    await addToStack(tx, character.id, godflesh.id, result.quantity, {
-      source: "EVENT",
-      stackable: godflesh.stackable,
-    });
-    if (injury) {
-      await addToStack(tx, character.id, injury.id, 1, {
-        source: "EVENT",
-        expiresTurn: await expiryForGrant(tx, injury, openTurn, {
-          characterId: character.id,
-          where: "extractGodflesh",
-        }),
-      });
-    }
-    // No Action row any more, so this audit line is the WHOLE trace a cut
-    // leaves. It carries turnId for the same reason every rationed action does
-    // (REQUESTS.md §1a) — it is the only thing a GM can count.
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_extract_godflesh",
-      targetCharacterId: character.id,
-      turnId: openTurn.id,
-      details: effect,
-    });
-  });
-
-  await afterInventoryChange([character.id]);
-  // The die is the point of the whole button, so it is DM'd whatever it said.
-  notifyCharacter(
+  // The rule is db/lib/verbs/work.js's, shared with Discord's /work harvest.
+  const result = await extractGodflesh(prisma, {
     character,
-    extractionDm(result, { locationName: location?.name ?? null }),
-  );
-
+    discordUserId: session.discordUserId,
+    openTurn: await getOpenTurn(),
+  });
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
+  // The die is the point of the whole button, so it is DM'd whatever it said.
+  for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
   revalidateAll();
   // The DM above carries the same facts with Discord's formatting; this is
   // the one-line version the page's notice shows.
-  const got = result.quantity > 0 ? `${result.quantity} Godflesh` : "nothing";
-  const hurt = injury ? ` It got hold of you first — ${injury.name}.` : "";
-  return {
-    die: result.die,
-    quantity: result.quantity,
-    injury: injury?.name ?? null,
-    line: `You went out into the marsh and cut. The die came up ${result.die}: ${got}.${hurt}`,
-  };
+  return { die: result.die, quantity: result.quantity, injury: result.injury, line: result.line };
 }
 
 // Packing goods into a crate that weighs half what is in it.
@@ -3480,101 +2988,15 @@ const STEPSTONE_SLUG = "stepstone";
 
 export async function stepstoneRequestImpl({ locationId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  const held = character.tags.find(
-    (ct) => ct.tag.slug === STEPSTONE_SLUG && ct.quantity > 0,
-  );
-  if (!held) throw new UserError("You aren't carrying a Stepstone.");
-
-  // A hold stops a walk at locationTravel.js#performLocationMove, and it has to
-  // stop a step for the same reason: an ambush is a hand on your shoulder
-  // (docs/systemdocs/INTERCEPT.md). Without this the stone is the one way out
-  // of an intercept in the game.
-  const heldBy = heldReasonFor(character);
-  if (heldBy) throw new UserError(heldBy);
-
-  // And an unresolved Caving 1 stops it for the same reason one step further
-  // on (docs/systemdocs/CAVING.md §2c). The stone only ever lands on the
-  // SURFACE, so used from underground it is exactly the crossing the hold
-  // exists to refuse — without this it is the one way out of the dark. Ten
-  // 1s say so in their own words (§2e); the stone is a step like any other.
-  const caving = await cavingRestrictionsFor(prisma, character.id, character.zoneId);
-  if (caving.stuck) throw new UserError(caving.stuck);
-  if (caving.hold) throw new UserError(caving.hold);
-
-  const targetId = String(locationId ?? "");
-  if (!targetId) throw new UserError("Pick somewhere.");
-  if (character.locationId === targetId) {
-    throw new UserError("You're already there.");
-  }
-
-  const location = await prisma.location.findUnique({
-    where: { id: targetId },
-    include: { zone: true },
+  // The rule is db/lib/verbs/self.js's, shared with Discord's /stepstone.
+  const result = await stepstone(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    locationId,
+    openTurn: await getOpenTurn(),
   });
-  if (!location) throw new UserError("There's no such place.");
-
-  // Re-checked here rather than trusted from the dialog: the picker is a hint,
-  // and a posted id for a cave level must be refused whatever the client drew.
-  //
-  // SURFACE only. CAVE_LEVEL is the underground, and CAVE_GROUP is not a place
-  // anybody stands (db/prisma/schema.prisma, ZoneKind) — testing for SURFACE
-  // rather than listing the two keeps a new kind out by default, which is the
-  // safe direction for a refusal.
-  if (location.zone?.kind !== "SURFACE") {
-    throw new UserError("The stone will not carry you underground.");
-  }
-
-  const fromLocationId = character.locationId;
-  const openTurn = await getOpenTurn();
-  const restore = {
-    tagId: held.tagId,
-    source: held.source,
-    expiresTurn: held.expiresTurn,
-    quantity: 1,
-  };
-
-  await prisma.$transaction(async (tx) => {
-    await lockCharacter(tx, character.id);
-    const stillHeld = await tx.characterTag.findFirst({
-      where: { characterId: character.id, tagId: held.tagId, quantity: { gt: 0 } },
-      select: { id: true },
-    });
-    if (!stillHeld) throw new UserError("You aren't carrying a Stepstone.");
-    await dropCharacterTag(tx, character.id, held.tagId, 1);
-    await tx.character.update({
-      where: { id: character.id },
-      data: {
-        locationId: location.id,
-        // Denormalized mirror — every writer of locationId writes both.
-        zoneId: location.zoneId,
-        // An escort you have vanished out of is over.
-        escortedById: null,
-      },
-    });
-    // Nobody follows a stone. Cut the party loose here rather than leaving
-    // them pointed at somebody standing in another zone — the same tidy-up
-    // db/lib/characterDeath.js does when a leader leaves play. Left dangling,
-    // partyOf() still counts them and can cost a mounted leader the horse's
-    // extra crossing for followers who are nowhere near them.
-    await tx.character.updateMany({
-      where: { escortedById: character.id },
-      data: { escortedById: null },
-    });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_stepstone",
-      targetCharacterId: character.id,
-      turnId: openTurn?.id ?? null,
-      details: {
-        restore,
-        fromLocationId,
-        toLocationId: location.id,
-        toLocationName: location.name,
-        toZoneName: location.zone?.name ?? null,
-      },
-    });
-  });
+  if (!result.ok) throw new UserError(result.error);
+  const { fromLocationId, toLocationId, location } = result.moved;
 
   // Post-commit and out of band: this is the one hook every writer of
   // locationId owes — the map row, the channel overwrite, the zone role, the
@@ -3585,7 +3007,7 @@ export async function stepstoneRequestImpl({ locationId }) {
       await applyLocationMoveSideEffects(prisma, {
         characterId: character.id,
         fromLocationId,
-        toLocationId: location.id,
+        toLocationId,
       });
     } catch (err) {
       console.error("Stepstone: location side effects failed:", err);
@@ -3605,7 +3027,7 @@ export async function stepstoneRequestImpl({ locationId }) {
   });
 
   revalidateAll();
-  return { ok: true, locationName: location.name, zoneName: location.zone?.name ?? null };
+  return { ok: true, locationName: result.locationName, zoneName: result.zoneName };
 }
 
 // The Pointer Device Kit's own button. Not named usePointer* — nukeActions.js
@@ -3615,17 +3037,10 @@ export async function stepstoneRequestImpl({ locationId }) {
 // instant action uses.
 export async function readPointerDeviceImpl() {
   const { character } = await requireCharacter();
-  const held = character.tags.find((ct) => isPointerDeviceSlug(ct.tag.slug) && ct.quantity > 0);
-  if (!held) throw new UserError("You aren't carrying a pointer device.");
-
-  const partnerSlug = partnerSlugOf(held.tag.slug);
-  const locationId = partnerSlug ? await locatePointerPartner(prisma, partnerSlug) : null;
-  if (!locationId) return { ok: true, line: "The other pointer isn't anywhere the map can see." };
-
-  const location = await prisma.location.findUnique({ where: { id: locationId }, select: { name: true } });
-  if (!location) return { ok: true, line: "The other pointer isn't anywhere the map can see." };
-
-  return { ok: true, line: `The other pointer is located in ${location.name}.` };
+  // The rule is db/lib/verbs/self.js's, shared with Discord's /nuke device.
+  const result = await readPointerDevice(prisma, { character });
+  if (!result.ok) throw new UserError(result.error);
+  return { ok: true, line: result.line };
 }
 
 
@@ -3633,15 +3048,18 @@ export async function readPointerDeviceImpl() {
 // ---------------------------------------------------------------------------
 // The bomb collar (docs/systemdocs/COLLAR.md)
 //
-// Three verbs sharing one gate. Each re-checks the tag its BUTTON was hidden
-// on: a hidden button is a hint, and a server action is a public endpoint.
+// Four actions: three verbs and the remote's readout. Each re-checks the tag
+// its BUTTON was hidden on: a hidden button is a hint, and a server action is a
+// public endpoint.
 //
-// None of them filters its roster on who is already collared, and neither does
-// the refusal shortcut past a real lookup — the whole point is that you learn
-// one person's answer per click and never the room's.
+// Apply and Unlock never filter their roster on who is already collared, and
+// neither does the refusal shortcut past a real lookup — the whole point is
+// that you learn one person's answer per click and never the room's. The
+// remote is the one exception, and only because it answers to one seat: the
+// Exactor put those collars on (§4).
 
-// Everything the three share: resolve the posted key, refuse anywhere you
-// can't act, and hand back the actor shape db/lib/collar.js wants.
+// Everything Apply and Unlock share: resolve the posted key, refuse anywhere
+// you can't act, and hand back the actor shape db/lib/collar.js wants.
 async function collarActorAndTarget(session, character, targetCharacterId, { allowSelf = false, allowDead = false } = {}) {
   const targetId = await resolveTargetKey(prisma, character, targetCharacterId);
   if (!character.locationId) throw new UserError("You aren't anywhere you could do that.");
@@ -3657,42 +3075,51 @@ async function collarActorAndTarget(session, character, targetCharacterId, { all
   const openTurn = await getOpenTurn();
   if (!openTurn) throw new UserError("No turn is open.");
 
+  return { target, openTurn, actor: collarActor(session, character) };
+}
+
+function collarActor(session, character) {
   return {
-    target,
-    openTurn,
-    actor: {
-      id: character.id,
-      name: character.name,
-      discordUserId: session.discordUserId,
-      locationId: character.locationId,
-    },
+    id: character.id,
+    name: character.name,
+    discordUserId: session.discordUserId,
+    locationId: character.locationId,
+    zoneId: character.zoneId,
   };
 }
 
-// Re-read the actor's own stock from the database rather than trusting the
-// page's `heldSlugs`, which was rendered who-knows-when.
-async function requireHeld(characterId, slug, refusal) {
-  const has = await prisma.characterTag.count({
-    where: { characterId, quantity: { gt: 0 }, tag: { slug } },
-  });
-  if (!has) throw new UserError(refusal);
+// The remote's gate, shared by the readout and the trigger: the remote in hand
+// and the Exactor's ring on the finger, both re-read here. Anybody else holding
+// one gets the same refusal the device would give them.
+async function requireRemote() {
+  const { session, character } = await requireCharacter({ needs: ACT });
+  const refusal = await remoteRefusal(prisma, character.id);
+  if (refusal) throw new UserError(refusal);
+  return { session, character };
 }
 
 // Two doors, exactly as Bind has them: anybody who could refuse is asked;
-// somebody helpless, or yourself, is collared on the spot.
-export async function applyCollarRequestImpl({ targetCharacterId }) {
+// somebody helpless, or yourself, is collared on the spot. `collarSlug` picks
+// which collar when there is more than one in hand — a marked one keeps its
+// glyph onto the new neck, which is what the Apply dialog offers the choice for.
+export async function applyCollarRequestImpl({ targetCharacterId, collarSlug = null }) {
   const { session, character } = await requireCharacter({ needs: ACT });
   const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId, {
     allowSelf: true,
     allowDead: true,
   });
 
-  await requireHeld(character.id, COLLAR_ITEM_SLUG, "You don't have a collar.");
-  if (wearsCollar(target)) throw new UserError(`${target.name} already has a collar on.`);
-
+  const collar = await pickLooseCollar(prisma, character.id, {
+    slug: typeof collarSlug === "string" && collarSlug ? collarSlug : null,
+  });
+  if (!collar) throw new UserError(collarSlug ? "You don't have that collar." : "You don't have a collar.");
   const self = target.id === character.id;
+  if (wearsCollar(target)) {
+    throw new UserError(self ? "You already have a collar on." : `${await seenName(character, target.id)} already has a collar on.`);
+  }
+
   if (!self && !collarNeedsNoConsent(target)) {
-    const offer = await createCollarOffer(prisma, { actor, target, turn: openTurn });
+    const offer = await createCollarOffer(prisma, { actor, target, turn: openTurn, collar });
     if (!offer.ok) throw new UserError(offer.reason);
     after(() =>
       sendDm(offer.dm.discordUserId, offer.dm.content, {
@@ -3710,54 +3137,87 @@ export async function applyCollarRequestImpl({ targetCharacterId }) {
       },
     });
     revalidateAll();
-    return { pending: true, name: target.name };
+    return { pending: true, name: await seenName(character, target.id) };
   }
 
-  await applyCollar(prisma, { actor, target, turn: openTurn });
+  const applied = await applyCollar(prisma, { actor, target, turn: openTurn, collar });
+  if (!applied.ok) throw new UserError(applied.reason);
   await afterInventoryChange(self ? [character.id] : [character.id, target.id]);
   if (!self) notifyCharacter(target, "Someone put a collar on you.");
   revalidateAll();
-  return { name: target.name };
+  return { name: self ? target.name : await seenName(character, target.id), glyph: applied.glyph };
 }
 
-// The key. No consent and no offer — a collar coming OFF needs nobody's leave.
+// The unlocking ring — the Exactor's or the Pusher's, worn, re-read here rather
+// than trusted off the page. No consent and no offer — a collar coming OFF
+// needs nobody's leave.
 export async function unlockCollarRequestImpl({ targetCharacterId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
   const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId, {
     allowDead: true,
   });
 
-  await requireHeld(character.id, COLLAR_KEY_SLUG, "You don't have a key.");
-  if (!wearsCollar(target)) throw new UserError(`${target.name} doesn't have a collar on.`);
+  const refusal = await unlockRefusal(prisma, character.id);
+  if (refusal) throw new UserError(refusal);
+  if (!wearsCollar(target)) throw new UserError(`${await seenName(character, target.id)} doesn't have a collar on.`);
 
-  await unlockCollar(prisma, { actor, target, turn: openTurn });
+  const unlocked = await unlockCollar(prisma, { actor, target, turn: openTurn });
+  if (!unlocked.ok) throw new UserError(unlocked.reason);
   await afterInventoryChange([character.id, target.id]);
   notifyCharacter(target, "Someone took your collar off.");
   revalidateAll();
-  return { name: target.name };
+  return { name: await seenName(character, target.id), glyph: unlocked.glyph };
 }
 
-// The trigger. Kills outright and leaves no body, so it takes the same
-// re-checks as the two above and one more: the detonator itself.
-export async function detonateCollarRequestImpl({ targetCharacterId }) {
-  const { session, character } = await requireCharacter({ needs: ACT });
-  const { target, actor, openTurn } = await collarActorAndTarget(session, character, targetCharacterId);
+// What the remote shows: every collar in the game, by glyph. A name goes beside a
+// glyph only for somebody standing in front of the Exactor, where he can read
+// the clasp for himself — and it is the name HE holds for them, so a hood
+// stays a hood (web/lib/peopleHere.js#rosterHere strips the real one).
+export async function readRemoteRequestImpl() {
+  const { session, character } = await requireRemote();
+  const collars = await remoteReading(prisma, collarActor(session, character));
+  if (collars.length === 0) return { collars: [] };
 
-  await requireHeld(character.id, DETONATOR_SLUG, "You don't have a detonator.");
+  const { named, hooded } = await rosterHere(character, {
+    select: { id: true, name: true, tags: { select: { tag: { select: { slug: true } } } } },
+  });
+  const wornHere = new Map();
+  for (const row of [...named, ...hooded]) {
+    for (const ct of row.tags ?? []) {
+      if (isLockedCollarSlug(ct.tag.slug)) wornHere.set(ct.tag.slug, pickerName(row));
+    }
+  }
+  return {
+    collars: collars.map((c) => ({ slug: c.slug, glyph: c.glyph, wornBy: wornHere.get(c.slug) ?? null })),
+  };
+}
 
-  const result = await detonateCollar(prisma, { actor, target, turn: openTurn });
-  // The uncollared refusal comes back from db/lib/collar.js rather than being
-  // decided here, so the sentence lives beside the rule it enforces.
+// The trigger, by glyph. Any collar in any zone; see
+// db/lib/collar.js#detonateCollar for why the body stays.
+export async function detonateCollarRequestImpl({ collarSlug }) {
+  const { session, character } = await requireRemote();
+  if (typeof collarSlug !== "string" || !collarSlug) throw new UserError("Pick a collar.");
+
+  const openTurn = await getOpenTurn();
+  if (!openTurn) throw new UserError("No turn is open.");
+
+  const result = await detonateCollar(prisma, {
+    actor: collarActor(session, character),
+    collarSlug,
+    turn: openTurn,
+  });
+  // Every refusal comes back from db/lib/collar.js rather than being decided
+  // here, so the sentence lives beside the rule it enforces.
   if (!result.ok) throw new UserError(result.reason);
 
-  await afterInventoryChange([target.id]);
+  await afterInventoryChange([result.targetId]);
   revalidateAll();
-  // A click for the hand on the detonator; the bang belongs to the Location the collar
-  // went off in, and db/lib/collar.js puts it there (Bascinet's call).
+  // A click for the hand on the detonator; the bang belongs to the Location the
+  // collar went off in, and db/lib/collar.js puts it there (Bascinet's call).
+  // The glyph and nothing else — never the name, which the Exactor may not know.
   return {
-    name: result.name,
-    alreadyDead: result.alreadyDead,
-    line: `${result.name} explodes into mist.`,
+    glyph: result.glyph,
+    line: `Collar ${result.glyph} went off.`,
     sfx: SFX.OK_QUIET,
   };
 }

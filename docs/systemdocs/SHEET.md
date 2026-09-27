@@ -204,15 +204,25 @@ Who this is, where they stand, and:
   walks, so an animal added later shows up here with no second edit — and says
   either what they will consume or that you cannot feed them.
 - **The verb strip** — `ActionGrid variant="strip"`: every action in
-  `actionRegistry.js` as one wrapping row of bevelled buttons, the sections split
-  by a hairline. Each one **is a `.btn-secondary`** (`.action-strip-item` only
+  `actionRegistry.js` as **captioned groups** by what a verb is for —
+  `actionRegistry.js#STRIP_GROUPS`: Things, Paper, Work, Learn & confess,
+  People, Theft, Fight, Captives, The dead, with a role's own section (THANATI,
+  CERBERON, BISHOP, the device) first for whoever holds it. Each group is a
+  small box, its name over its buttons, and the groups flow in a wrapping row;
+  within a group, what you can do now comes first and the greyed verbs follow.
+  It was one run of about thirty same-weight buttons split only by a hairline
+  between "You" and "Others" until 2026-09-25, when players reported knowing a
+  feature existed and not finding its button. Only the strip reads the groups:
+  a verb's section in `ACTION_SECTIONS` is still where its dialog title and help
+  come from, and a "You"/"Others" verb no group names falls into a trailing
+  **More** group rather than vanishing. Each one **is a `.btn-secondary`** (`.action-strip-item` only
   adds the icon gap and the strip's spacing), so the bevel, the press and the
   dashed gated state all come from the shared class and a verb here looks like
   every other button in the app (`REDESIGN.md` §5). **Every button hovers**, the
   same tooltip the verb wears everywhere else: its name, the sentence saying what
   it does, and — when it is greyed — the pool's `gateReason`. A gated verb is
   dashed and does not press. The **Trumpet** joins the end of the row when held,
-  in its own hairline group, as the one filled red `.btn` among the greys — it
+  in its own uncaptioned group, as the one filled red `.btn` among the greys — it
   commits on the spot rather than opening a dialog, and it asks first.
 - **On a touch screen that tooltip IS the button** (`ActionButton.js`). It could
   not be read at all before: every variant passed `pinnable={false}`, which is

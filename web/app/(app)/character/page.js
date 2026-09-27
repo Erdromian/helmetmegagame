@@ -35,6 +35,8 @@ import {
   hideoutRoom,
 } from "@lifeweb/db/lib/thanati";
 import { CERBERON_SLUG, WARRANT_BADGE_SLUGS } from "@lifeweb/db/lib/wanted";
+import { accessSlugsOf, isRing, RING_SLUG, FORGED_SEAL_SLUG } from "@lifeweb/db/lib/rings";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 import {
   BISHOP_SLUG,
   excommunicationCap,
@@ -74,6 +76,8 @@ import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { hungerOf } from "@/lib/descriptors";
 import {
   freeMovesLeft,
+  freeMovesBreakdown,
+  travelSentence,
   freeZoneMovesReason,
 } from "@lifeweb/db/lib/locationTravel";
 import { takenCounts } from "@lifeweb/db/lib/roleReservation";
@@ -335,9 +339,14 @@ export default async function CharacterPage({ searchParams }) {
 // The whole load. Four outcomes — a closed door, the lobby, the wizard, the
 // sheet — each a `kind` in the one object CharacterView draws. `scope` is the
 // snapshot bucket the result is written into (web/lib/snapshot) — keeps a second surface from painting /character's stored copy.
-export async function FreshCharacter({ userId, searchParams, scope = "character" }) {
+//
+// `raw` hands back the object itself instead of the snapshot element that
+// carries it. /chat's Actions menu (chat/actionSheet.js) loads the sheet that
+// way on demand, so the verbs it offers are gated by this one load and never
+// by a second copy of it.
+export async function FreshCharacter({ userId, searchParams, scope = "character", raw = false }) {
   const session = { discordUserId: userId };
-  const fresh = (data) => <SnapshotFresh scope={scope} userId={userId} data={data} />;
+  const fresh = raw ? (data) => data : (data) => <SnapshotFresh scope={scope} userId={userId} data={data} />;
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -566,7 +575,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     : null;
 
   // Every Room stash at this Location reachable, with contents — CARRY.md; a room you can't enter isn't listed.
-  const heldSlugsForRooms = new Set(character.tags.map((ct) => ct.tag.slug));
+  // Held slugs plus the worn ring's doors (docs/systemdocs/RINGS.md).
+  const heldSlugsForRooms = accessSlugsOf(character.tags);
   // Rooms somebody let this character into by hand — the reason this page and the Transfer gate agree.
   const guestRoomIds = await roomGuestIds(prisma, character.id);
   const questRoomIds = await questAllowedRoomIds(prisma, character.id);
@@ -748,6 +758,11 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Free zone crossings left this turn (CARRY.md §2). Resolved server-side so no allowance math reaches the client bundle.
   const zoneMoves = freeMovesLeft(character, gameConfig, openTurn);
   const zoneMovesReason = freeZoneMovesReason(character, 0, { config: gameConfig, openTurn });
+  // The same count in two halves, and the sentence for it, so the tile can say
+  // which of the two a mount is buying (MAP.md §3a). Built here: LedgerBand is
+  // a client component.
+  const zoneMovesBreakdown = { ...freeMovesBreakdown(character, gameConfig, openTurn), line: null };
+  zoneMovesBreakdown.line = travelSentence(zoneMovesBreakdown);
   // Craft (CRAFTING.md): the recipes whose every skill this character holds
   // (or a higher tier of), decided here and re-checked by craftRequest. The
   // client filters its picker to these ids and nothing else.
@@ -810,6 +825,32 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
         !(ct.tag.description ?? "").includes("The face has been taken."),
     )
     .map((ct) => ({ slug: ct.tag.slug, name: ct.tag.name }));
+  // The two ring recipes' pickers (docs/systemdocs/RINGS.md), server-computed so
+  // they can't drift from actions/crafting.js#resolveRingTarget and
+  // #resolveForgeSource. A ring is engraved for yourself or somebody you know by
+  // a real person; a wax seal is pressed from an office ring you're holding.
+  const knownPeople = await prisma.acquaintance.findMany({
+    where: { ownerId: character.id, subjectId: { not: null }, subject: { status: "ALIVE" } },
+    select: { subjectId: true, name: true },
+    orderBy: { name: "asc" },
+  });
+  const recipePicks = {
+    [RING_SLUG]: {
+      label: RING_TEXT.craftTargetLabel,
+      empty: RING_TEXT.craftTargetNone,
+      options: [
+        { slug: character.id, name: character.name },
+        ...knownPeople.filter((p) => p.subjectId !== character.id).map((p) => ({ slug: p.subjectId, name: p.name })),
+      ],
+    },
+    [FORGED_SEAL_SLUG]: {
+      label: RING_TEXT.forgePickLabel,
+      empty: RING_TEXT.forgeNoRing,
+      options: character.tags
+        .filter((ct) => isRing(ct.tag) && ct.tag.sealMark)
+        .map((ct) => ({ slug: ct.tag.slug, name: ct.tag.name })),
+    },
+  };
   // computeKnownRecipeIds is the shared, pure verdict (web/lib/tagRequests.js).
   const knownRecipeIds = computeKnownRecipeIds(tagCatalog, satisfied, character.tags, {
     visibilityBySlug,
@@ -946,7 +987,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const isThanati = heldSlugs.has(THANATI_SLUG);
   const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
   const isCerberon = heldSlugs.has(CERBERON_SLUG); // cerberonActions.js re-checks both
-  const canWarrant = WARRANT_BADGE_SLUGS.some((slug) => heldSlugs.has(slug));
+  // The Censor's ring is a warrant badge too (docs/systemdocs/RINGS.md).
+  const canWarrant = WARRANT_BADGE_SLUGS.some((slug) => heldSlugsForRooms.has(slug));
   // THE BISHOP (docs/systemdocs/CHARACTERS.md). The office is a tag, the
   // same move Chaplain is — bishopActions.js re-checks it. The list and the
   // cap are only read for the Bishop: nobody else has a dialog to show them
@@ -1235,6 +1277,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       carry: carry,
       zoneMoves: zoneMoves,
       zoneMovesReason: zoneMovesReason,
+      zoneMovesBreakdown: zoneMovesBreakdown,
       examineBlocked: examineBlocked,
       hasWorkshop: hasWorkshop,
       atKitchen: atKitchen,
@@ -1259,6 +1302,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       teachCostsMove: teachCostsMove,
       knownRecipeIds: knownRecipeIds,
       deathMaskCorpses: deathMaskCorpses,
+      recipePicks: recipePicks,
       craftProjects: craftProjects,
       stagedCraftYields: stagedCraftYields,
       // With no open turn a craft lands at once (craftYieldStaged in actions/crafting.js), so the dialog must not promise the push.

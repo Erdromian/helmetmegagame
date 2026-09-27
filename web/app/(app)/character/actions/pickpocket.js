@@ -46,6 +46,7 @@ import {
 import { CONCEALMENT_TAG_FIELDS } from "@lifeweb/db/lib/presentedIdentity";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { carryAdmits } from "@lifeweb/db/lib/carry";
+import { holdLimitRefusal } from "@lifeweb/db/lib/mounts";
 import { rowWeight, round2 } from "@lifeweb/db/lib/tagWeight";
 import { dropCharacterTag, addToStack } from "@/lib/tagEffects";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -415,6 +416,13 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
     weightLbs: takenLbs,
   });
   if (!verdict.ok) throw new UserError(verdict.reason);
+  // The hold limits (db/lib/mounts.js), refused for the same reason: a second
+  // mount set down by the settle would announce the theft.
+  const tooMany = holdLimitRefusal(
+    character.tags,
+    moves.map((m) => ({ slug: m.held.tag?.slug, quantity: m.quantity })),
+  );
+  if (tooMany) throw new UserError(tooMany);
 
   await prisma.$transaction(async (tx) => {
     // Sorted-id locking, the lootCharacterRequestImpl deadlock discipline: two

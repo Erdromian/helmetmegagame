@@ -21,6 +21,7 @@ import DecreeDialog from "../DecreeDialog";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { lookAt, lookAtRow } from "../actions";
 import { PlusIcon, SearchIcon } from "@/app/components/icons";
+import ChatActions from "./ChatActions";
 import IconButton from "@/app/components/IconButton";
 import { retryPending } from "../feedStore";
 import usePlaceMembers from "../usePlaceMembers";
@@ -54,6 +55,7 @@ import Feed from "./Feed";
 import Composer from "./Composer";
 import { useChatTextSize } from "@/app/components/chatTextStore";
 import ChatAside from "./ChatAside";
+import TravelNodes from "../TravelNodes";
 import GmAside from "./GmAside";
 import DmPane from "./DmPane";
 import { actionThrowMessage } from "@/app/components/actionThrow";
@@ -397,7 +399,7 @@ export default function ChatNext(props) {
   // ---- What a slash command reaches for ----------------------------------
   //
   // Three of them end in something this component owns rather than in a
-  // server action: `/travel` picks a node in the aside's grid, `/converse`
+  // server action: `/travel` picks a way in the travel strip, `/converse`
   // and `/decree` open dialogs. They are mounted HERE and not in the aside
   // because on a phone the aside is not mounted at all.
   const [travelPick, setTravelPick] = useState(null);
@@ -693,7 +695,6 @@ export default function ChatNext(props) {
               selected={selected}
               onOpenMap={openMap}
               onPlaceChanged={bumpBoard}
-              travelPick={travelPick}
               addPlace={addPlace}
               onAddMember={onAddMember}
             />
@@ -729,6 +730,10 @@ export default function ChatNext(props) {
                     <PlusIcon width={14} height={14} aria-hidden="true" /> Add
                   </button>
                 )}
+                {/* The sheet's verbs, from the page players actually sit on.
+                    Only with a living character's column: a GM seat or a
+                    ghost has no sheet to act from. */}
+                {aside && <ChatActions narrow={narrow} placeName={aside.place?.name ?? null} />}
                 <IconButton
                   icon={SearchIcon}
                   label="Search"
@@ -742,6 +747,18 @@ export default function ChatNext(props) {
               </>
             }
           />
+          {/* TRAVEL, over the scene rather than at the top of the right
+              column: every way out on one or two lines, under the name of
+              the place they lead out of. It is here for every pane (the Game
+              channel, a DM) because it is about where the character stands,
+              not what the reader has open, and `/travel` picks into it from
+              any composer. A player's seat only — a GM with no body has the
+              Travel tab in GmAside. */}
+          {aside && (
+            <div className="chat-travel-bar">
+              <TravelNodes onDone={bumpBoard} pick={travelPick} showResult />
+            </div>
+          )}
           {/* The stream is down. HERE rather than in the feed or a column
               foot: this row is on screen whichever pane is open, and the
               phone is where a connection drops most — every screen lock. The

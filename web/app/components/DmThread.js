@@ -149,10 +149,13 @@ function LetterBody({ message }) {
 // which is why RITE_TARGET draws no generic button row (db/lib/dmActions.js).
 // The names come off the row's own meta, cached when the DM was sent; the
 // server action rebuilds the eligible set and refuses a stale one, so an
-// option going grey here is a courtesy and never the check.
+// option going grey here is a courtesy and never the check. Each option is a
+// `code` made for this reader alone, never a character id
+// (db/lib/conversionRite.js#pickCode); a list from before codes has none, and
+// draws nothing.
 function ConversionPick({ message }) {
   const action = message.actionable ? dmActionOf(message) : null;
-  const targets = Array.isArray(message.meta?.riteTargets) ? message.meta.riteTargets : [];
+  const targets = (Array.isArray(message.meta?.riteTargets) ? message.meta.riteTargets : []).filter((t) => t?.code);
   const [choice, setChoice] = useState("");
   const [line, setLine] = useState(null);
   const [busy, setBusy] = useState(false);
@@ -179,7 +182,7 @@ function ConversionPick({ message }) {
         <select value={choice} onChange={(e) => setChoice(e.target.value)} disabled={busy}>
           <option value="">Pick somebody</option>
           {targets.map((t) => (
-            <option key={t.characterId} value={t.characterId}>
+            <option key={t.code} value={t.code}>
               {t.label}
             </option>
           ))}

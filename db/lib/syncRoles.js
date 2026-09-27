@@ -48,6 +48,69 @@ function startingAccount(role, slug) {
   return raw;
 }
 
+// `base_seats:` -- seats a weighted role has before its per-100 share is
+// counted (db/lib/roleCapacity.js). Absent is 0. Refused on a unique or
+// unlimited seat, where roleCapacity would never read it, and on anything but
+// a whole number of 0 or more.
+function baseSeats(role, slug) {
+  const raw = role.base_seats;
+  if (raw == null) return 0;
+  if (!Number.isInteger(raw) || raw < 0) {
+    throw new Error(`docs/roles.yaml: role "${slug}" base_seats must be a whole number of 0 or more`);
+  }
+  if (typeof role.weight !== "number") {
+    throw new Error(`docs/roles.yaml: role "${slug}" sets base_seats but has no numeric weight -- only a weighted seat counts it`);
+  }
+  return raw;
+}
+
+// `ring:` -- the seat's signet ring (docs/systemdocs/RINGS.md). Absent means a
+// ring registered to this seat opens nothing, and the seat spawns without one:
+//   ring:
+//     spawns: true            # created wearing a registered ring
+//     opens: [barons-key]     # door tokens: the retired seat keys' slugs
+//     authorised_by: barons-scepter   # only a registrar holding this may grant it
+//     seal_office: Baron      # an OFFICE ring: the label pressed into a letter
+//     seal_mark: "A raven clutching a banner."   # the wax it leaves
+//     name: "Baron's Signet Ring"                # the office ring's own name
+//     description: "…"                           # and its own description
+// Only an office ring seals, and only the seat's own spawned one: a plain ring,
+// or any ring a smith makes, leaves no seal at all. {initials} is filled in
+// wherever it appears. The office keys come as a set — a seal with no office
+// would press a mark under no name, and a name or description without one
+// would be a plain ring pretending otherwise — so a partial set is refused.
+function parseRing(role, slug) {
+  const ring = role.ring;
+  if (ring == null) {
+    return { ringSpawns: false, ringAccessSlugs: [], ringSealOffice: null, ringSealMark: null, ringName: null, ringDescription: null, ringAuthorisedBy: null };
+  }
+  if (typeof ring !== "object" || Array.isArray(ring)) throw new Error(`docs/roles.yaml: role "${slug}" ring: must be a map`);
+  const known = new Set(["spawns", "opens", "authorised_by", "seal_office", "seal_mark", "name", "description"]);
+  for (const key of Object.keys(ring)) {
+    if (!known.has(key)) throw new Error(`docs/roles.yaml: role "${slug}" ring: has unknown key "${key}"`);
+  }
+  const opens = ring.opens ?? [];
+  if (!Array.isArray(opens)) throw new Error(`docs/roles.yaml: role "${slug}" ring.opens must be a list`);
+  const text = (key) => (typeof ring[key] === "string" ? ring[key].trim() : "");
+  const office = text("seal_office");
+  const mark = text("seal_mark");
+  const name = text("name");
+  const description = text("description");
+  const given = [office, mark, name, description].filter(Boolean).length;
+  if (given > 0 && given < 4) {
+    throw new Error(`docs/roles.yaml: role "${slug}" ring: an office ring needs all of seal_office, seal_mark, name and description`);
+  }
+  return {
+    ringSpawns: ring.spawns === true,
+    ringAccessSlugs: [...new Set(opens.map(String))],
+    ringSealOffice: office || null,
+    ringSealMark: mark || null,
+    ringName: name || null,
+    ringDescription: description || null,
+    ringAuthorisedBy: text("authorised_by") || null,
+  };
+}
+
 function parseRolesYaml(doc) {
   const roles = [];
   for (const [groupSlug, group] of Object.entries(doc?.groups ?? {})) {
@@ -67,6 +130,7 @@ function parseRolesYaml(doc) {
         isUnique: role.multiple === false,
         unlimited: role.weight === "unlimited",
         weight: typeof role.weight === "number" ? role.weight : null,
+        baseSeats: baseSeats(role, role.slug),
         extraStartingPoints: role.extra_starting_points ?? 0,
         startingZoneSlug: role.starting_zone ?? null,
         startingLocationSlug: role.starting_location ?? null,
@@ -101,6 +165,7 @@ function parseRolesYaml(doc) {
         // and group slugs mixed. Expanded and validated by resolveKnows once
         // every role is parsed, since it points across the whole file.
         knowsAuthored: role.knows ?? [],
+        ...parseRing(role, role.slug),
       });
     }
   }
@@ -241,6 +306,16 @@ async function syncRolesFromYaml(prisma) {
       }
       return formatStartingTag(slug, quantity);
     });
+    // A ring's door tokens are what rooms and ways name, so a typo would be a
+    // door that silently never opens.
+    for (const token of r.ringAccessSlugs) {
+      if (!knownSlugs.has(token)) {
+        throw new Error(`docs/roles.yaml: role "${r.name}" ring opens "${token}", which is not a tag slug in docs/tags.yaml`);
+      }
+    }
+    if (r.ringAuthorisedBy && !knownSlugs.has(r.ringAuthorisedBy)) {
+      throw new Error(`docs/roles.yaml: role "${r.name}" ring is authorised_by "${r.ringAuthorisedBy}", which is not a tag slug in docs/tags.yaml`);
+    }
   }
 
   const stats = { rolesCreated: 0, rolesUpdated: 0, rolesPruned: [] };
@@ -257,6 +332,7 @@ async function syncRolesFromYaml(prisma) {
       isUnique: entry.isUnique,
       unlimited: entry.unlimited,
       weight: entry.weight,
+      baseSeats: entry.baseSeats,
       extraStartingPoints: entry.extraStartingPoints,
       startingTagSlugs: entry.startingTagSlugsResolved,
       bankAccountClass: entry.bankAccountClass,
@@ -266,6 +342,13 @@ async function syncRolesFromYaml(prisma) {
       lockedGender: entry.lockedGender,
       docElements: entry.docElements,
       knowsRoleSlugs: knowsBySlug.get(entry.slug) ?? [],
+      ringSpawns: entry.ringSpawns,
+      ringAccessSlugs: entry.ringAccessSlugs,
+      ringSealOffice: entry.ringSealOffice,
+      ringSealMark: entry.ringSealMark,
+      ringName: entry.ringName,
+      ringDescription: entry.ringDescription,
+      ringAuthorisedBy: entry.ringAuthorisedBy,
       startingZoneId: entry.startingZoneSlug
         ? presenceZoneIdBySlug.get(entry.startingZoneSlug)
         : (startingLocationFor(entry)?.zoneId ?? null),
@@ -296,6 +379,11 @@ async function syncRolesFromYaml(prisma) {
     stats.rolesPruned.push(role.name);
   }
 
+  // Pass 3: rings in play follow their seats. A ring carries a copy of its
+  // seats' door tokens (Tag.ringAccessSlugs), so a changed `opens:` list has to
+  // reach the rings already on fingers.
+  stats.ringsRefreshed = await refreshRingAccess(prisma);
+
   // Titles are earned from tags and roles (db/lib/titles.js); both catalogs
   // exist by now (SYNC.md). Checked last so a bad reference doesn't abort a
   // sync that has already done its real work.
@@ -304,4 +392,23 @@ async function syncRolesFromYaml(prisma) {
   return stats;
 }
 
-module.exports = { syncRolesFromYaml, parseRolesYaml, resolveKnows };
+async function refreshRingAccess(prisma) {
+  const { ringAccessFor } = require("./rings");
+  const rings = await prisma.tag.findMany({
+    where: { ringOfCharacterId: { not: null }, ringRegisteredAt: { not: null } },
+    select: { id: true, ringRoleSlugs: true, ringAccessSlugs: true },
+  });
+  if (rings.length === 0) return 0;
+  const roles = await prisma.role.findMany({ select: { slug: true, ringAccessSlugs: true } });
+  let refreshed = 0;
+  for (const ring of rings) {
+    const next = ringAccessFor(ring.ringRoleSlugs, roles);
+    const same = next.length === ring.ringAccessSlugs.length && next.every((s, i) => s === ring.ringAccessSlugs[i]);
+    if (same) continue;
+    await prisma.tag.update({ where: { id: ring.id }, data: { ringAccessSlugs: next } });
+    refreshed++;
+  }
+  return refreshed;
+}
+
+module.exports = { syncRolesFromYaml, parseRolesYaml, resolveKnows, parseRing };

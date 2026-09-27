@@ -3,14 +3,14 @@
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
-import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
+import { speakAtPlaces } from "@lifeweb/db/lib/inventoryTail";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { UserError } from "@/lib/actionResult";
+import { seenName } from "@/lib/hereTarget";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import {
   addToStack,
-  debitResources,
   dropCharacterTag,
 } from "@/lib/tagEffects";
 import {
@@ -29,48 +29,20 @@ import {
   resolveMutilation,
   harvestableOrgans,
 } from "@lifeweb/db/lib/mutilate";
-import { mintHeadstone } from "@lifeweb/db/lib/headstone";
+import { buryCorpse, engraveHeadstone } from "@lifeweb/db/lib/verbs/bodies";
 import { dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import {
   BUTCHER_SLUG,
-  ENGRAVE_RESOURCE_COST,
   MUTILATE_GATE_SLUGS,
-  SHOVEL_SLUG,
 } from "@lifeweb/db/lib/constants";
-import { ambientLine } from "@lifeweb/db/lib/ambientLine";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import { applyMood } from "@lifeweb/db/lib/mood";
-import {
-  FULL_NAME_LIMIT,
-  matchesTypedName,
-} from "@/lib/characterName";
 import { SFX } from "@lifeweb/db/lib/sfx";
 import {
   requireCharacter,
   revalidateAll,
-  speakAtSite,
-  resolveCraftMove,
-  spendCraftMove,
 } from "./shared.js";
-
-// A whole turn's Routine each, on the same ledger crafting uses (CRAFTING.md
-// §2a): digging a grave or cutting a stone is a day's work with your hands.
-// A SHOVEL halves the digging — two bodies in the ground in a turn — and does
-// nothing at all for the stone. `family` only has to be non-medical —
-// craftLedgerDescription groups these with the turn's crafting — and it stays
-// on both so a half-Move burial can still share its turn with work at the
-// bench.
-const BURIAL_MOVE = { num: 1, den: 1, family: "burial" };
-const SHOVEL_BURY = { num: 1, den: 2, family: "burial" };
-
-// One ledger entry, built by hand: these verbs have no recipe tag behind them,
-// so craftLedgerEntry has nothing to read. Takes the `need` it is billing for
-// rather than assuming one, or the ledger would read back a different price
-// than the gate actually charged.
-function burialLedgerEntry(name, need) {
-  return { tagId: null, name, family: "burial", qty: 1, num: need.num, den: need.den };
-}
 
 // --- Bodies: Butcher, Bury, Engrave --------------------------------------
 // All three act on a CORPSE TAG rather than a typed name (docs/systemdocs/CORPSES.md): a body is an object you hold
@@ -326,7 +298,7 @@ export async function mutilateRequestImpl({
     if (!subject || !isHere(character, subject, { allowConcealed: true }))
       throw new UserError(notHereMessage(subject));
     if (!isBoundTarget(subject))
-      throw new UserError(`${subject.name} isn't tied up.`);
+      throw new UserError(`${await seenName(character, subject.id)} isn't tied up.`);
   }
 
   const step = resolveMutilation(
@@ -412,17 +384,9 @@ export async function mutilateRequestImpl({
   }
 
   revalidateAll();
-  return { part: named.label, name: subject.name };
-}
-
-// Scenery into the Location the actor is standing in. `requireCharacter` carries no `character.location`, so the channel is read here.
-async function speakHere(character, text) {
-  if (!character.locationId) return;
-  const location = await prisma.location.findUnique({
-    where: { id: character.locationId },
-    select: { discordChannelId: true },
-  });
-  speakAtSite(location?.discordChannelId, ambientLine(text));
+  // A body carries its name on the corpse itself; a living subject is named
+  // the way the cutter knows them, since they were picked by token.
+  return { part: named.label, name: corpse ? subject.name : await seenName(character, subject.id) };
 }
 
 // Burying. Takes the body — you have to actually have it, or be able to reach it — and spends your whole
@@ -432,157 +396,53 @@ export async function buryCharacterRequestImpl({
   sourceKey,
 }) {
   const { session, character } = await requireCharacter();
-
-  const corpse = await resolveCorpseSource(character, { tagId, sourceKey });
-  if (!corpse.human || !corpse.deadCharacterId) {
-    throw new UserError("There's no soul in that one.");
-  }
-  const target = await prisma.character.findUnique({
-    where: { id: corpse.deadCharacterId },
+  // The rule is db/lib/verbs/bodies.js#buryCorpse, shared with Discord's /body bury.
+  const result = await buryCorpse(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    tagId,
+    sourceKey,
+    openTurn: await getOpenTurn(),
   });
-  if (!target) throw new UserError("There's nobody left to bury.");
-  if (target.buriedAt) throw new UserError("They're already in the ground.");
-
-  // Resolved ONCE, and the same object goes into the transaction below. Reading
-  // the shovel twice would let an unequip between the two checks bill half a
-  // Move for work the gate passed at a whole one. `equipped` is the canonical
-  // "at least one unit is worn" column (schema.prisma, CharacterTag.equipped),
-  // and requireCharacter already loaded the tags, so this costs no query.
-  const need = character.tags.some(
-    (ct) => ct.equipped && ct.tag?.slug === SHOVEL_SLUG,
-  )
-    ? SHOVEL_BURY
-    : BURIAL_MOVE;
-
-  const openTurn = await getOpenTurn();
-  // The fast fail; spendCraftMove below re-asks under the row lock.
-  await resolveCraftMove(character, openTurn, need);
-  const buriedAt = new Date();
-
-  await prisma.$transaction(async (tx) => {
-    await takeCorpse(tx, corpse);
-    await tx.character.update({ where: { id: target.id }, data: { buriedAt } });
-    await spendCraftMove(tx, {
-      character,
-      openTurn,
-      need,
-      entry: burialLedgerEntry(`Buried ${target.name}`, need),
-      notes: "auto:craft auto:bury",
-    });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_bury_character",
-      targetCharacterId: target.id,
-      details: { zoneId: character.zoneId, corpse: corpse.tagName },
-    });
-  });
+  if (!result.ok) throw new UserError(result.error);
 
   // NOTHING to revoke here. Burial lifts the CURSE — which is now the whole
   // right to make a new character, and which db/lib/curse.js derives from
   // `buriedAt` with no write of its own — and leaves the watching seat alone.
-  // db/lib/ghost.js ends that only when a living character is theirs again. The two used to be one
-  // predicate, so burying somebody also threw them out of the game they were still watching.
-  await afterInventoryChange([character.id]);
-
-  // PLACEHOLDER — Bascinet's wording pending. "The curse has lifted" now means
-  // they may make a new character at all, which it did not before.
-  notifyCharacter(
-    target,
-    "Your body was buried. The curse has lifted — you may make a new character. You are still watching.",
-  );
-  if (corpse.source.kind === "room") {
-    after(() => announceInRoom(corpse.source, character, "takes a body away."));
+  // db/lib/ghost.js ends that only when a living character is theirs again.
+  await afterInventoryChange(result.touched);
+  for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
+  if (result.announce) {
+    const { source, text } = result.announce;
+    after(() => announceInRoom(source, character, text));
   }
-  await speakHere(character, `${target.name} was buried.`);
+  if (result.speak?.length) after(() => speakAtPlaces(prisma, result.speak).catch((err) => console.error("Scene line failed:", err)));
 
   revalidateAll();
-  return { name: target.name, sfx: SFX.DIG };
+  return { name: result.name, sfx: SFX.DIG };
 }
 
 // Engraving. The answer to a body nobody can find — the ONE action here with no corpse/reach check, searching the
 // whole game rather than your zone. Name is typed, not a dropdown: a dropdown would answer "who is dead?" to anyone
-// who opened it, over every corpse in Ravenheart. matchesTypedName matches the full display name or plain First
-// Last, so an honorific nobody told them about isn't a wall. The >1-match refusal means exactly that: two dead people with the same full name — the only thing standing between a mourner and freeing the wrong soul.
+// who opened it, over every corpse in Ravenheart. The rule is db/lib/verbs/bodies.js#engraveHeadstone, shared with
+// Discord's /body engrave.
 export async function engraveHeadstoneRequestImpl({
   name: rawName,
 }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  const typed = rawName?.toString().trim().slice(0, FULL_NAME_LIMIT) ?? "";
-  if (!typed) throw new UserError("Whose name?");
-
-  // No zone clause, on purpose (see above). The composed name isn't something Prisma can compare against, so the unburied dead (a short list) come back and matchesTypedName does the rest.
-  const candidates = await prisma.character.findMany({
-    where: { status: "DEAD", buriedAt: null },
+  const result = await engraveHeadstone(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    name: rawName,
+    openTurn: await getOpenTurn(),
   });
-  const matches = candidates.filter((c) => matchesTypedName(c, typed));
-  if (matches.length === 0)
-    throw new UserError("Nobody by that name is dead and unburied.");
-  if (matches.length > 1) {
-    throw new UserError(
-      "More than one dead person answers to that name. A GM will have to do it.",
-    );
-  }
-  const target = matches[0];
-
-  // The friendly refusal. The real check is the conditional debit below, which
-  // is what actually stops the balance going negative.
-  if (resourcesOf(character) < ENGRAVE_RESOURCE_COST) {
-    throw new UserError(`Engraving costs ${ENGRAVE_RESOURCE_COST} ⬢.`);
-  }
-
-  const openTurn = await getOpenTurn();
-  // BURIAL_MOVE flat, and deliberately no shovel check: a shovel digs a grave,
-  // it does not carve a stone.
-  // The fast fail; spendCraftMove below re-asks under the row lock.
-  await resolveCraftMove(character, openTurn, BURIAL_MOVE);
-  const buriedAt = new Date();
-
-  const result = await prisma.$transaction(async (tx) => {
-    // The conditional debit, which is the check that actually holds — the
-    // friendly refusal above only makes the message better.
-    await debitResources(
-      tx,
-      { kind: "character", id: character.id, name: character.name },
-      ENGRAVE_RESOURCE_COST,
-    );
-    await tx.character.update({ where: { id: target.id }, data: { buriedAt } });
-    const headstone = await mintHeadstone(tx, target);
-    await addToStack(tx, character.id, headstone.id, 1, {
-      source: "EVENT",
-      expiresTurn: null,
-      stackable: false,
-    });
-    await spendCraftMove(tx, {
-      character,
-      openTurn,
-      need: BURIAL_MOVE,
-      entry: burialLedgerEntry(
-        `Engraved a headstone for ${target.name}`,
-        BURIAL_MOVE,
-      ),
-      notes: "auto:craft auto:engrave",
-    });
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_engrave_headstone",
-      targetCharacterId: target.id,
-      details: { spent: ENGRAVE_RESOURCE_COST },
-    });
-    return { headstone };
-  });
+  if (!result.ok) throw new UserError(result.error);
 
   // Same as Bury above: the curse lifts, the seat does not. See db/lib/ghost.js.
-  await afterInventoryChange([character.id]);
-
-  // PLACEHOLDER — Bascinet's wording pending, same as Bury's above.
-  notifyCharacter(
-    target,
-    "Somebody carved your name in stone. The curse has lifted — you may make a new character. You are still watching.",
-  );
-  await speakHere(character, `A headstone was engraved for ${target.name}.`);
+  await afterInventoryChange(result.touched);
+  for (const n of result.notify) notifyCharacter(n.character, n.text, n.opts);
+  if (result.speak?.length) after(() => speakAtPlaces(prisma, result.speak).catch((err) => console.error("Scene line failed:", err)));
 
   revalidateAll();
-  return { name: target.name, headstone: result.headstone.name };
+  return { name: result.name, headstone: result.headstone };
 }
-

@@ -164,7 +164,15 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
   const offRule = stones.filter((s) => s.expected != null && s.inlay !== s.expected);
   const topWage = profitTiers.length ? Math.max(...profitTiers.map((t) => t.rate)) : 0;
   // The doc's own hazard is "buy a stone, forge it, sell it at a profit"; the shelf round trip is that.
-  const shelfLoop = { bestApprentice: bestShelfApprentice, bestSkilled: bestShelf[0], topWage };
+  // Lucky is one tag anybody may hold, and it keeps the better of two dice, so it belongs on the same round trip:
+  // a smith who holds it clears far more a Move than one who does not, off the same shelf.
+  const shelfLoop = {
+    bestApprentice: bestShelfApprentice,
+    bestSkilled: bestShelf[0],
+    bestApprenticeLucky: best("shelf", "apprentice-lucky", 1)[0],
+    bestSkilledLucky: best("shelf", "skilled-lucky", 1)[0],
+    topWage,
+  };
   // The best shelf round trip for a Smithing smith can be to slot no stone at all, so the activity rows take the
   // best set that does use one.
   const withStones = (holder) => combos.filter((c) => c.basis === "shelf" && c.stones.length > 0).sort((a, b) => b[holder] - a[holder])[0];

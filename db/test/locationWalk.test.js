@@ -38,7 +38,7 @@ function fakePrisma(locations, links) {
   return {
     locationLink: { findMany: async () => links },
     location: { findMany: async ({ where }) => locations.filter((l) => l.zoneId === where.zoneId && !l.retiredAt) },
-    characterTag: { findMany: async () => [] },
+    characterTag: { findMany: async () => [], findFirst: async () => null },
   };
 }
 

@@ -11,7 +11,10 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/db/lib/questText";
 import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 import { SLOT_PROMPT } from "@lifeweb/db/lib/slotText";
-import { PHONE_TEXT } from "@lifeweb/db/lib/phoneText";
+import { PHONE_TEXT, PHONE_DIGITS, clockLeft } from "@lifeweb/db/lib/phoneText";
+import { usePhoneFrame, noteHandset, setDialling } from "@/app/components/phoneStore";
+import { playSfx } from "@/app/components/sfx";
+import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 // The machine's words AND its clock — the countdown is derived here the same
 // way the server derives it, off one implementation (docs/systemdocs/VENDING.md).
 import { VENDING_TEXT, VENDING_MAX_PRICE, secondsLeftOn, timeLeftLine } from "@lifeweb/db/lib/vendingText";
@@ -35,6 +38,8 @@ import {
   dialPhone,
   answerPhone,
   hangUpPhone,
+  walkAwayPhone,
+  insertPhoneObol,
   interactWithQuest,
   openMachine,
   readMachine,
@@ -58,7 +63,6 @@ import {
   depotCounterState,
   depotBank,
   depotDrop,
-  depotOpenAccount,
   depotTurret,
   depotTurretRead,
 } from "@/app/(app)/depot/actions";
@@ -94,6 +98,17 @@ export const TONE_CLASS = { go: "btn", danger: "btn-danger", plain: "btn-seconda
 // noticeboard cannot both be open at once.
 export function usePlaceActions(initialAffordances, onChanged) {
   const [affordances, setAffordances] = useState(initialAffordances ?? []);
+  // A fresh list from the server replaces whatever this hook was holding.
+  // useState reads its argument once, so without this a router.refresh()
+  // after travelling from the map, a move made on Discord or a key picked up
+  // left the column drawing the LAST place's room buttons — walk into the
+  // Baron's Study and there was no Phone until the page was reloaded.
+  // Adjusted during render rather than in an effect (set-state-in-effect).
+  const [fromServer, setFromServer] = useState(initialAffordances);
+  if (initialAffordances !== fromServer) {
+    setFromServer(initialAffordances);
+    setAffordances(initialAffordances ?? []);
+  }
   const [dialog, setDialog] = useState(null);
   const [notice, setNotice] = useState(null);
   const { run, pending, error, setError } = useActionRunner();
@@ -230,7 +245,11 @@ export function usePlaceActions(initialAffordances, onChanged) {
     </>
   );
 
-  return { affordances, openFixture, openConverse, say, notice, error, pending, dialogs };
+  // The phone in this character's hand, if any — drawn under the place card by
+  // both asides, so the keypad is one click away after its dialog is closed.
+  const phoneBar = <PhoneHandsetBar affordances={affordances} onOpen={openFixture} onDone={say} />;
+
+  return { affordances, openFixture, openConverse, say, notice, error, pending, dialogs, phoneBar };
 }
 
 // ------------------------------------------------------------- noticeboard
@@ -1010,51 +1029,98 @@ function useCounter() {
   return [state, reload];
 }
 
+// The infoterminal (the ATM, renamed — docs/systemdocs/RINGS.md). It reads the
+// ring on your finger, and asks for the account's PIN only when the ring is
+// somebody else's or its owner is Concussed or Amnesiac. The PIN lives in this
+// dialog's state alone and rides along with each call; the server checks it
+// every time (db/lib/depotCounter.js#terminalAccount).
 function AtmDialog({ onClose, onDone }) {
-  const [state, reload] = useCounter();
+  const [state, setState] = useState(null);
+  const [pinDraft, setPinDraft] = useState("");
+  const [pin, setPin] = useState(null);
   const [direction, setDirection] = useState("WITHDRAW");
   const [amount, setAmount] = useState(1);
   const { run, pending, error } = useActionRunner();
+  const reload = useCallback((withPin) => {
+    depotCounterState(withPin ? { pin: withPin } : undefined)
+      .then((res) => setState(res))
+      .catch(() => setState({ ok: false, error: "The terminal is dead." }));
+  }, []);
+  useEffect(() => {
+    reload(null);
+  }, [reload]);
+  const title = RING_TEXT.infoterminalTitle;
 
   if (!state) {
     return (
-      <Modal open title="The ATM" onClose={onClose}>
-        <p className="text-sm text-muted">Reading the machine…</p>
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">{RING_TEXT.infoterminalReading}</p>
       </Modal>
     );
   }
   if (!state.ok) {
     return (
-      <Modal open title="The ATM" onClose={onClose}>
+      <Modal open title={title} onClose={onClose}>
         <FormError>{state.error}</FormError>
       </Modal>
     );
   }
 
-  if (!state.account) {
+  if (!state.account && state.pinNeeded) {
     return (
-      <Modal open title="The ATM" onClose={onClose}>
-        <p className="text-sm text-muted">Opening an account costs nothing.</p>
-        <FormError>{error}</FormError>
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">{state.pinPrompt}</p>
+        <div className="field">
+          <label className="field-label" htmlFor="chat-atm-pin">
+            {RING_TEXT.infoterminalPinLabel}
+          </label>
+          <input
+            id="chat-atm-pin"
+            inputMode="numeric"
+            autoComplete="off"
+            maxLength={8}
+            value={pinDraft}
+            onChange={(e) => setPinDraft(e.target.value.replace(/[^0-9]/g, ""))}
+          />
+        </div>
+        {/* A wrong PIN comes back as the same prompt with the refusal under it. */}
+        {pin && <FormError>{state.accountProblem}</FormError>}
         <div className="modal-actions">
           <button
             type="button"
             className="btn"
-            disabled={pending}
-            onClick={() => run(depotOpenAccount, undefined, { onOk: () => reload() })}
+            disabled={!pinDraft}
+            onClick={() => {
+              setPin(pinDraft);
+              reload(pinDraft);
+            }}
           >
-            Create an account
+            Enter
           </button>
         </div>
       </Modal>
     );
   }
 
+  if (!state.account) {
+    return (
+      <Modal open title={title} onClose={onClose}>
+        <p className="text-sm text-muted">{state.accountProblem}</p>
+      </Modal>
+    );
+  }
+
   const withdrawing = direction === "WITHDRAW";
   const max = withdrawing ? state.account.balanceObols : state.heldObols;
+  // Refused, never clamped. Firefox lets a letter into a number box and then
+  // reports the whole box as "", so "12o" used to reach the old clamp as 0 and
+  // quietly move 1 ¢. A box that does not hold a whole amount in range greys
+  // the button out and leaves the typo on screen to be fixed.
+  const n = Number(amount);
+  const valid = amount !== "" && Number.isInteger(n) && n >= 1 && n <= max;
 
   return (
-    <Modal open title="The ATM" onClose={onClose}>
+    <Modal open title={title} onClose={onClose}>
       <p className="text-sm text-muted">
         {state.account.fingerprint} · {state.account.balanceObols} ¢ in the account, {state.heldObols} ¢ in your
         pocket.
@@ -1087,11 +1153,11 @@ function AtmDialog({ onClose, onDone }) {
         <button
           type="button"
           className="btn"
-          disabled={pending || !max}
+          disabled={pending || !valid}
           onClick={() =>
             run(
               depotBank,
-              { direction, amount: Math.max(1, Math.min(Number(amount) || 0, max)) },
+              { direction, amount: n, pin },
               {
                 onOk: (res) => {
                   onDone({ line: `${res.direction === "WITHDRAW" ? "Withdrew" : "Deposited"} ${res.amount} ¢.` });
@@ -1323,27 +1389,75 @@ function QuestInteractDialog({ entry, onClose, onDone }) {
 
 // ------------------------------------------------------------- the telephone
 //
-// ONE BUTTON, FOUR MEANINGS, and which one you get is read from the server on
-// open rather than guessed from anything the panel already knows
-// (docs/systemdocs/PHONES.md). A phone changes underneath you constantly —
-// somebody in another room dials yours between you opening the panel and
-// pressing anything — so the TurretDialog shape above is the right one here:
-// load on open, draw nothing until it answers, and let the action re-check.
+// A keypad, not a list (docs/systemdocs/PHONES.md §3). Pressing the Phone button
+// picks the receiver up — and answers a named phone that is ringing — so the dialog
+// is drawn off the server's answer to that, then kept live by the feed's `phones`
+// frame (phoneStore.js). Closing the dialog does NOT put the phone down: the holder
+// has to be able to type into the room, which is how you talk down a phone. The
+// handset bar under the place card (PhoneHandsetBar) is how you get back to it.
 //
-// No help text on any of it. The list of phones is the explanation, and a line
-// under each of thirteen names would be thirteen lines of it. The one
-// exception is the payphone's price, which is a thing you are about to be
-// charged and so has to be said before you are.
+// No help text beyond the phone's own number and the payphone's price, which is a
+// thing you are about to be charged and so has to be said before you are.
+
+const KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "back"];
+const STATE_LINE = {
+  idle: PHONE_TEXT.stateIdle,
+  calling: PHONE_TEXT.stateCalling,
+  connected: PHONE_TEXT.stateConnected,
+  dead: PHONE_TEXT.stateDead,
+  ringing: PHONE_TEXT.stateRinging,
+};
+
+// The button that picks up a phone ringing in your own hand. A payphone with no time
+// on it wants its coin first, and the button says so.
+function answerLabel(handset) {
+  return handset?.payphone && handset.needsCoin ? `${PHONE_TEXT.answer} (${PHONE_TEXT.insertCoin.toLowerCase()})` : PHONE_TEXT.answer;
+}
+
+// A clock that ticks once a second while `on`, for the payphone's countdown.
+function useSecondTick(on) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    if (!on) return undefined;
+    const id = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(id);
+  }, [on]);
+  return now;
+}
+
+// The handset for THIS phone, off the store — which every action answer and every
+// feed frame lands in — or null when it is not in this character's hand.
+function useHandset(roomId) {
+  const { handset } = usePhoneFrame();
+  return handset?.roomId === roomId ? handset : null;
+}
+
+function PaidTime({ handset, now }) {
+  if (!handset?.payphone) return null;
+  if (!handset.paidUntil) return <p className="text-sm text-muted">{PHONE_TEXT.insert}</p>;
+  const left = new Date(handset.paidUntil).getTime() - now;
+  return (
+    <p className={`phone-timer${handset.needsCoin ? " is-low" : ""}`}>
+      {PHONE_TEXT.timeLeft} <span className="mono">{clockLeft(left)}</span>
+      {handset.needsCoin ? <span className="phone-timer-ask"> · {PHONE_TEXT.insertAgain}</span> : null}
+    </p>
+  );
+}
+
 function PhoneDialog({ entry, onClose, onDone }) {
   const [state, setState] = useState(null);
-  const [pick, setPick] = useState("");
+  const [digits, setDigits] = useState("");
   const { run, pending, error } = useActionRunner();
 
   useEffect(() => {
     let cancelled = false;
     openPhone({ roomId: entry.roomId })
       .then((res) => {
-        if (!cancelled) setState(res);
+        if (cancelled) return;
+        setState(res);
+        if (res?.handset) noteHandset(res.handset);
+        if (res?.sfx) playSfx(res.sfx);
+        if (res?.line) onDone({ line: res.line });
       })
       .catch(() => {
         if (!cancelled) setState({ ok: false, error: "The line is dead." });
@@ -1351,18 +1465,36 @@ function PhoneDialog({ entry, onClose, onDone }) {
     return () => {
       cancelled = true;
     };
+    // onDone is the panel's notice setter; re-running the pick-up because it
+    // changed identity would pick the phone up twice.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [entry.roomId]);
 
+  const handset = useHandset(entry.roomId);
+  const now = useSecondTick(Boolean(handset?.paidUntil));
   const title = state?.phone ? `The phone — ${state.phone}` : "The phone";
-  const done = (res) => {
+
+  // Every answer lands in two places: the handset store (so the bar and the tones
+  // follow at once) and the panel's notice line.
+  const landed = (res) => {
+    setDialling(false);
+    if (res.handset) noteHandset(res.handset);
+    if (res.mode === "gone") {
+      noteHandset(null);
+      onDone(res);
+      onClose();
+      return;
+    }
+    if (res.mode === "holding" || res.mode === "answer") setState(res);
     onDone(res);
-    onClose();
   };
+  const act = (action, extra = {}) =>
+    run(action, { roomId: entry.roomId, ...extra }, { onOk: landed, onFail: () => setDialling(false) });
 
   if (!state) {
     return (
       <Modal open title={title} onClose={onClose}>
-        <p className="text-sm text-muted">Lifting the receiver…</p>
+        <p className="text-sm text-muted">…</p>
       </Modal>
     );
   }
@@ -1373,9 +1505,6 @@ function PhoneDialog({ entry, onClose, onDone }) {
       </Modal>
     );
   }
-
-  // Somebody else has the receiver. Nothing to press — which is the whole of
-  // what this mode means.
   if (state.mode === "held") {
     return (
       <Modal open title={title} onClose={onClose}>
@@ -1383,82 +1512,163 @@ function PhoneDialog({ entry, onClose, onDone }) {
       </Modal>
     );
   }
-
+  // A payphone ringing: answering it takes a coin first.
   if (state.mode === "answer") {
     return (
       <Modal open title={title} onClose={onClose}>
-        <p className="text-sm text-muted">{PHONE_TEXT.ringing}</p>
+        <p className="text-sm">{PHONE_TEXT.stateRinging}</p>
+        <p className="text-sm text-muted">{PHONE_TEXT.insert}</p>
         <FormError>{error}</FormError>
         <div className="modal-actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={pending}
-            onClick={() => run(answerPhone, { roomId: entry.roomId }, { onOk: done })}
-          >
-            Answer
+          <button type="button" className="btn" disabled={pending} onClick={() => act(answerPhone)}>
+            {PHONE_TEXT.insertCoin}
           </button>
         </div>
       </Modal>
     );
   }
 
-  // You are holding it, so the same button that dialled hangs up. Pressing the
-  // Phone button again while on a call is the ask, and this is it.
-  if (state.mode === "hangup") {
+  // Ejected by the clock, or walked away from on another tab.
+  if (!handset) {
     return (
       <Modal open title={title} onClose={onClose}>
-        <FormError>{error}</FormError>
-        <div className="modal-actions">
-          <button
-            type="button"
-            className="btn"
-            disabled={pending}
-            onClick={() => run(hangUpPhone, { roomId: entry.roomId }, { onOk: done })}
-          >
-            Hang up
-          </button>
-        </div>
+        <p className="text-sm text-muted">{PHONE_TEXT.notHolding}</p>
       </Modal>
     );
   }
 
-  if (state.phones.length === 0) {
-    return (
-      <Modal open title={title} onClose={onClose}>
-        <p className="text-sm text-muted">{PHONE_TEXT.noneToCall}</p>
-      </Modal>
-    );
-  }
+  const phase = handset.state ?? "idle";
+  const canDial = phase === "idle";
+  const press = (key) => {
+    if (!canDial) return;
+    if (key === "clear") setDigits("");
+    else if (key === "back") setDigits((d) => d.slice(0, -1));
+    else setDigits((d) => (d.length >= PHONE_DIGITS ? d : d + key));
+  };
+  const dial = () => {
+    if (!canDial || digits.length !== PHONE_DIGITS || pending) return;
+    // The long tone starts now, not when the exchange answers: a number that goes
+    // nowhere rings out for a few seconds on the server before it says so.
+    setDialling(true);
+    act(dialPhone, { digits });
+    setDigits("");
+  };
+  const onKey = (event) => {
+    if (/^[0-9]$/.test(event.key)) press(event.key);
+    else if (event.key === "Backspace") press("back");
+    else if (event.key === "Enter") dial();
+    else return;
+    event.preventDefault();
+  };
 
   return (
     <Modal open title={title} onClose={onClose}>
-      {state.payphone && !state.paid ? <p className="text-sm text-muted">{PHONE_TEXT.insert}</p> : null}
-      <div className="field">
-        <label className="field-label" htmlFor="chat-phone">
-          {PHONE_TEXT.pick}
-        </label>
-        <select id="chat-phone" value={pick} onChange={(e) => setPick(e.target.value)}>
-          <option value="">…</option>
-          {state.phones.map((phone) => (
-            <option key={phone.id} value={phone.id}>
-              {phone.name}
-            </option>
+      {/* The keypad listens for the number keys while the dialog has focus. */}
+      <div className="phone" onKeyDown={onKey} role="group" aria-label={title}>
+        {handset.number != null ? <p className="text-sm text-muted">{PHONE_TEXT.ownNumber(handset.number)}</p> : null}
+        <p className={`phone-state is-${phase}`}>{STATE_LINE[phase] ?? PHONE_TEXT.stateIdle}</p>
+        <PaidTime handset={handset} now={now} />
+        <div className="phone-readout mono" aria-live="polite">
+          {Array.from({ length: PHONE_DIGITS }, (_, i) => (
+            <span key={i} className={digits[i] ? "is-set" : ""}>
+              {digits[i] ?? "·"}
+            </span>
           ))}
-        </select>
-      </div>
-      <FormError>{error}</FormError>
-      <div className="modal-actions">
-        <button
-          type="button"
-          className="btn"
-          disabled={!pick || pending}
-          onClick={() => run(dialPhone, { roomId: entry.roomId, toRoomId: pick }, { onOk: done })}
-        >
-          Call
-        </button>
+        </div>
+        <div className="phone-keypad">
+          {KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              className="btn-secondary phone-key"
+              disabled={!canDial || pending}
+              onClick={() => press(key)}
+              aria-label={key === "back" ? "Delete" : key === "clear" ? PHONE_TEXT.clear : key}
+            >
+              {key === "back" ? "⌫" : key === "clear" ? "C" : key}
+            </button>
+          ))}
+        </div>
+        <FormError>{error}</FormError>
+        <div className="modal-actions phone-actions">
+          {phase === "ringing" ? (
+            <button type="button" className="btn" disabled={pending} onClick={() => act(answerPhone)}>
+              {answerLabel(handset)}
+            </button>
+          ) : (
+            <button type="button" className="btn" disabled={!canDial || digits.length !== PHONE_DIGITS || pending} onClick={dial}>
+              {PHONE_TEXT.dial}
+            </button>
+          )}
+          {handset.payphone && handset.needsCoin && handset.paidUntil ? (
+            <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(insertPhoneObol)}>
+              {PHONE_TEXT.insertCoin}
+            </button>
+          ) : null}
+          <button type="button" className="btn-secondary" disabled={canDial || pending} onClick={() => act(hangUpPhone)}>
+            {PHONE_TEXT.hangUp}
+          </button>
+          <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(walkAwayPhone)}>
+            {PHONE_TEXT.walkAway}
+          </button>
+        </div>
       </div>
     </Modal>
+  );
+}
+
+/**
+ * The phone in your hand, under the place card, for as long as you hold it: what the
+ * line is doing, the payphone's clock, and the way back to the keypad. Drawn off the
+ * feed's `phones` frame, so it appears on whichever tab or face picked the phone up.
+ */
+export function PhoneHandsetBar({ affordances, onOpen, onDone }) {
+  const { handset } = usePhoneFrame();
+  const now = useSecondTick(Boolean(handset?.paidUntil));
+  const { run, pending, error } = useActionRunner();
+  if (!handset) return null;
+
+  const entry = affordances.find((e) => e.id === "phone" && e.roomId === handset.roomId) ?? {
+    id: "phone",
+    kind: "room",
+    roomId: handset.roomId,
+  };
+  const landed = (res) => {
+    noteHandset(res.mode === "gone" ? null : (res.handset ?? null));
+    onDone(res);
+  };
+  const act = (action) => run(action, { roomId: handset.roomId }, { onOk: landed });
+
+  return (
+    <div className="phone-bar">
+      <p className="phone-bar-line">
+        <span className="phone-bar-name">{handset.name ?? "The phone"}</span>
+        <span className={`phone-state is-${handset.state}`}>{STATE_LINE[handset.state] ?? ""}</span>
+      </p>
+      <PaidTime handset={handset} now={now} />
+      <FormError>{error}</FormError>
+      <div className="phone-bar-actions">
+        {handset.state === "ringing" ? (
+          <button type="button" className="btn" disabled={pending} onClick={() => act(answerPhone)}>
+            {answerLabel(handset)}
+          </button>
+        ) : null}
+        <button type="button" className="btn-secondary" disabled={pending} onClick={() => onOpen(entry)}>
+          Keypad
+        </button>
+        <button
+          type="button"
+          className="btn-secondary"
+          disabled={handset.state === "idle" || pending}
+          onClick={() => act(hangUpPhone)}
+        >
+          {PHONE_TEXT.hangUp}
+        </button>
+        <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(walkAwayPhone)}>
+          {PHONE_TEXT.walkAway}
+        </button>
+      </div>
+    </div>
   );
 }
 

@@ -29,6 +29,7 @@ const { sceneLineAt } = require("./scene");
 const { placeKeyForRoom } = require("./placeKey");
 const { isTradeable } = require("./tradeable");
 const { carryAdmits } = require("./carry");
+const { holdLimitRefusal } = require("./mounts");
 const { rowWeight } = require("./tagWeight");
 const { MERCHANT_LICENSE_SLUG } = require("./depot");
 const { OBOL_SLUG } = require("./depotState");
@@ -355,6 +356,7 @@ async function releaseMachine(prisma, discordUserId, { roomId, turn = null } = {
   await sayInRoom(prisma, room, text);
   return {
     ok: true,
+    amount: taken,
     line: taken > 0 ? T.youLeft : T.youLeftEmpty,
     text,
     sfx: taken > 0 ? SFX.COIN : null,
@@ -428,7 +430,7 @@ async function insertCoins(prisma, discordUserId, { roomId, amount, turn = null 
 
   // No room line. A coin-by-coin announcement is noise at 100+ players, and
   // roomOpened already told the room somebody is at the machine.
-  return { ok: true, line: T.youInserted(n, total), sfx: SFX.COIN_INSERT };
+  return { ok: true, amount: n, line: T.youInserted(n, total), sfx: SFX.COIN_INSERT };
 }
 
 /** Everything loose in the slot, back into a hand. */
@@ -527,6 +529,9 @@ async function buySlot(prisma, discordUserId, { roomId, tagId, turn = null } = {
   });
   const verdict = carryAdmits(character, config, { weightLbs: rowWeight({ tag, quantity: 1 }) });
   if (!verdict.ok) return fail(T.noRoom(verdict.reason));
+  // One mount, up to 3 unruly or young arelitz (db/lib/mounts.js).
+  const tooMany = holdLimitRefusal(character.tags, [{ slug: tag?.slug, quantity: 1 }]);
+  if (tooMany) return fail(tooMany);
 
   const me = characterParty(character);
   const box = machineParty({ id: machine.id, zoneId: room.location?.zoneId ?? null });
@@ -732,7 +737,7 @@ async function collectTill(prisma, discordUserId, { roomId, turn = null } = {}) 
   const who = await presentedName(prisma, character.id);
   const text = T.roomTill(who);
   await sayInRoom(prisma, room, text);
-  return { ok: true, line: T.youCollected(taken), text, sfx: SFX.COIN };
+  return { ok: true, amount: taken, line: T.youCollected(taken), text, sfx: SFX.COIN };
 }
 
 /** A stack out of a hand and onto the shelf. */
@@ -862,6 +867,8 @@ async function unstockMachine(prisma, discordUserId, { roomId, tagId, quantity, 
   });
   const verdict = carryAdmits(character, config, { weightLbs: rowWeight({ tag, quantity: take }) });
   if (!verdict.ok) return fail(T.noRoom(verdict.reason));
+  const tooMany = holdLimitRefusal(character.tags, [{ slug: tag?.slug, quantity: take }]);
+  if (tooMany) return fail(tooMany);
 
   const me = characterParty(character);
   const box = machineParty({ id: machine.id, zoneId: room.location?.zoneId ?? null });

@@ -123,7 +123,7 @@ What your tags decide is the **shelf**, and one seat's paperwork:
 
 | Holder | Can |
 |---|---|
-| **Anyone, standing there** | Open the page. Order off the general manifest, use the ATM at the counter, put things in the drop box beside it, open an account. The ATM also stands in the Den's bar (§0g). |
+| **Anyone, standing there** | Open the page. Order off the general manifest, use the infoterminal at the counter (it reads the ring on your finger, `RINGS.md` §5), put things in the drop box beside it. Infoterminals also stand in the Inn's and the Den's bars (§0l). |
 | **Silver Chip** | …plus the black market: drink, smoke and worse — and the page itself, read-only, from anywhere. |
 | **Depot Keycard** | Open a sealed crate (a Silver Chip also opens one whose sealed goods are all Black Market). Sell into the Merchant's account rather than their own. Spends nothing of its own, and no longer opens any door — the Railyard is public. |
 | **Merchant's Licence** | …plus the page from anywhere, read-only, and the whole manifest, sealed goods included, the Company's credit line, the gun on the office wall, and the sight of everybody's staged selling. |
@@ -178,13 +178,6 @@ the odd turn after, so it stands at the platform for the length of an odd turn �
 turn 1 excepted, since nothing has arrived yet. Reading presence off
 `isArrivalTurn()` instead tells everybody the train is in on the one turn it
 demonstrably is not; `db/test/train.test.js` pins that.
-
-**`trainHere()` decides more than deliveries now.** The two rail tunnels out of
-the Depot (`MAP.md` §2, `db/lib/railroad.js`) read the same predicate to answer
-whether walking into one is survivable this turn: at the platform the tunnel is
-empty, out on the line it gibs whoever enters. So the parity above is
-load-bearing twice over — change what "at the platform" means and you change who
-walks out of a tunnel alive.
 
 The cycle:
 
@@ -363,7 +356,10 @@ above zero.
   a quiet inconvenience — it is forty characters holding a balance the ATM will
   refuse to pay. The purses come to about 310 ¢ at 100 players and 395 at 150,
   which is where 480 comes from.
-- **The ATM** moves obols between an account and physical `obol` tags. For a
+- **The ATM — an infoterminal now** (`RINGS.md` §5) moves obols between an
+  account and physical `obol` tags. It reads the signet ring on your finger:
+  no registered ring, no account, and somebody else's ring (or your own while
+  Concussed or Amnesiac) wants the account's PIN first. For a
   TREASURY account the coin comes physically out of the Vault, and a withdrawal
   the Vault cannot cover is **refused, never clamped** — a clamp would hand
   somebody less than they asked for and say nothing.
@@ -377,7 +373,8 @@ above zero.
   the Company is not code.
 
 **Send pays another account, or hands the claim back.** A third ATM button,
-same standing gate as the other two. The picker names **holders, not
+same standing gate as the other two, and the same ring and PIN: it sends from
+the account the worn ring reaches. The picker names **holders, not
 fingerprints** — a fingerprint half-tells you whose an account is, and a
 dropdown of them would undo every anonymous order anybody has ever placed. It
 lists the living only.
@@ -418,10 +415,15 @@ deposit and a withdrawal that took them the other way round would deadlock.
 **Debtor** is a separate faucet, off the drawback catalog rather than
 `docs/roles.yaml`: taking the tag grants 20 obols in the creation transaction
 (`DEBTOR_STARTING_OBOLS`, `db/lib/wantedPoster.js`), and the character owes
-40 back. That debt is only ever paper — three notices go up ("DEBTOR:
-{name}. Owes: 40 obols. Send the dockers."), a loose sheet each in the
-Merchant's Office and the Storefront, and one pinned to the Depot
-noticeboard. Nothing collects it automatically.
+40 back. The debt is owed to either the Merchant or the Exactor — two tags,
+**Debtor (Merchant)** (`debtor`) and **Debtor (Exactor)** (`debtor-exactor`),
+which conflict, and neither seat may take its own. That debt is only ever
+paper. Owed to the Merchant, three notices go up ("DEBTOR: {name}. Owes: 40
+obols. Send the dockers."), a loose sheet each in the Merchant's Office and
+the Storefront, and one pinned to the Depot noticeboard. Owed to the Exactor,
+two go up ("{name}. Owes the house: 40 obols."), in the Exactor's Office and
+the Den's Bar, and nothing is pinned — the Den has no board, and his debts are
+not announced at the Depot. Nothing collects either automatically.
 
 ## 0h. The Meister's terminal
 
@@ -673,7 +675,7 @@ whether anything you are about to do works, whichever tab you are on.
 
 | Tab | What it is |
 |---|---|
-| **ATMs** | Your account, its class, the Vault's coin if it backs you, Withdraw / Deposit, the credit line if you hold the licence, and your own transactions. **Create an account** if you have none. |
+| **Infoterminals** | The account your worn ring reaches, its class, Withdraw / Deposit / Send — after a PIN when the ring isn't yours or you're Concussed or Amnesiac (`RINGS.md` §5) — the credit line if you hold the licence, and your own transactions. No ring, no account: the tab says why. |
 | **Selling** | Your staged and settled sales, a destination dropdown per staged row, a **Default destination** that seeds the next drop, the drop box itself, and — with a licence — everybody's staged selling. |
 | **Buying** | One section per manifest your tags open, a cart, an **Order anonymously** tick, and when the crates land. |
 | **Price list** | The reference book, cut to what you are entitled to read: the shelves your tags open, plus a buy-back row for anything in your own hands. |
@@ -695,20 +697,22 @@ carries the tab you compare numbers on. The rules behind all three live once in
 deliberately thinner, because it is for the moment you are standing at the
 machine with your phone out.
 
-## 0l. There are three ATMs
+## 0l. There are four infoterminals
 
-The counter's own machine is on the Storefront. The other two are in **the
+Players read "infoterminal" everywhere; the code still says ATM. There is one on
+the Railway and one on the Merchant's Storefront. The other two are in **the
 Inn's bar** (`town-7-2`) and **the Den's bar** (`undertown-8-1`), and each is
 the machine alone: no counter behind it, no ordering, no drop box, no sell
 window, no credit line. A player drinking in town or in the Den can check a
-balance, take coin out, put coin in and open an account, and that is the whole
-of it.
+balance, take coin out and put coin in, and that is the whole of it. Nobody
+opens an account at one any more: a seat's opens at creation, and the Meister
+opens the rest when he registers a ring (`RINGS.md` §6).
 
 Both are named once, in `db/lib/depot.js` — `ATM_ROOM_SLUGS` for where the
 button draws (`db/lib/placeAffordances.js`) and `ATM_LOCATION_SLUGS` for where
 the machine answers. `counterActor` in `db/lib/depotCounter.js` takes a place
-rather than assuming the Depot, and exactly three functions pass the wider one:
-`counterState`, `openCounterAccount` and `bankMove`. Everything else —
+rather than assuming the Depot, and exactly two functions pass the wider one:
+`counterState` and `bankMove`. Everything else —
 `bankSend`, the drop box, the sell path, the gun — keeps the bare Depot gate,
 which is what stops the Inn quietly becoming a second counter.
 
@@ -902,7 +906,6 @@ buying one mid-game is still a real decision.
 | `sugar-candy` | 3 | 2 | Food: 6 hunger raw |
 | `alcohol` | 4 | — | He stocks the local brew too |
 | `kzozel-yantar` | 4 | — | Black Market. Consumes into `tipsy` |
-| `collar-key` | 4 | — | Black Market. Turns a shut collar back into a loose one, into the UNLOCKER's hands (`COLLAR.md`) |
 | `cigarette` | 4 | — | A Mudghara import, and the pricier vice — it costs more than a `tea` or a `coffee`. |
 | `coffee` | 5 | 3 | Consumes into `caffeinated` (2t) |
 | `rat-mask` | 5 | 3 | Force conceal (`PROXYING.md` §5). Not craftable — the Merchant is the only source, and it is priced below real gear on purpose: a paper-thin disguise shouldn't compete with it. |
@@ -919,10 +922,10 @@ buying one mid-game is still a real decision.
 | `silver` | 19 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
 | `jewelry` | 14 | 8 | Also a 2-pt creation pick |
 | `mining-helmet` | 15 | 9 | Caving loot he also imports. A Simple Helm's plates plus a lamp, so it prices level with one — the lamp is station work, not forge work |
-| `bomb-collar` | 15 | — | Black Market. The loose collar; Apply Collar spends one to write `bomb-collar-locked` (`COLLAR.md`) |
+| `bomb-collar` | 15 | — | Black Market. The loose collar, blank; Apply Collar spends one and marks it with a glyph on the way round the neck (`COLLAR.md`) |
 | `buffout` | 20 | — | Black Market. Also a Skilled brew (0.25t, `changa` + `cave-fungus`). +1.5 melee, none of Changa's risk |
 | `poison-snooper` | 22 | 13 | **The exception:** also buyable at creation, 9 pt |
-| `remote-detonator` | 23 | — | Black Market. Kills whoever wears a shut collar, and leaves no body |
+| `remote-detonator` | 23 | — | Black Market. Answers to whoever wears the Exactor's ring: sets off any shut collar in any zone, by its glyph. The body stays where it fell (`COLLAR.md` §5) |
 | `sword-cane` | 24 | 14 | Also a 7-pt creation pick |
 | `instant-camera` | 27 | 16 | Also a 2-pt creation pick |
 | `microscope` | 31 | 19 | |

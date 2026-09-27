@@ -18,7 +18,7 @@ import {
   heldSlugsOf,
   resistSlugsOf,
 } from "@/lib/consumeGrants";
-import { canDetectPoison } from "@lifeweb/db/lib/poison";
+import { poisonHeldItem } from "@lifeweb/db/lib/verbs/self";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import {
@@ -38,86 +38,16 @@ import {
 // its own deliberate door, not a loosening of the M1 medicine-administer gate.
 export async function poisonItemRequestImpl({ poisonTagId, targetTagId }) {
   const { session, character } = await requireCharacter({ needs: ACT });
-
-  const heldPoison = character.tags.find((ct) => ct.tagId === poisonTagId);
-  if (!heldPoison) throw new UserError("You don't have that.");
-  if (!heldPoison.tag.poison) throw new UserError("That isn't a poison.");
-
-  const heldFood = character.tags.find((ct) => ct.tagId === targetTagId);
-  if (!heldFood) throw new UserError("You don't have that.");
-  if (!heldFood.tag.consumable || heldFood.tag.poison) {
-    throw new UserError("That isn't something you can lace.");
-  }
-  // A food or drink only (items-food/items-drink) — not gear, the bottle itself, a skill, or a status.
-  const foodGroup = heldFood.tag.group?.slug;
-  if (foodGroup !== "items-food" && foodGroup !== "items-drink") {
-    throw new UserError("That isn't something you can lace.");
-  }
-
-  const openTurn = await getOpenTurn();
-  // THE ORACLE (fix round, M4): the refusals below used to fire for anyone,
-  // making lacing a stack a free, repeatable poison detector. Gated on
-  // canDetectPoison now: a detector keeps the refusal and the vial; anyone
-  // else's dose is silently accepted and lost. Computed off the
-  // pre-transaction snapshot like every other gate here.
-  const canDetect = canDetectPoison(character.tags);
-
-  await prisma.$transaction(async (tx) => {
-    await lockCharacter(tx, character.id);
-    // Double-fire (fix round, M4): re-verify the vial is still held under
-    // the lock — dropCharacterTag is a silent no-op on a gone row.
-    const freshPoison = await tx.characterTag.findUnique({
-      where: { characterId_tagId: { characterId: character.id, tagId: poisonTagId } },
-    });
-    if (!freshPoison || freshPoison.quantity < 1) throw new UserError("You don't have that any more.");
-    // Re-read the food row fresh under the lock — same patient-side race consumeTagRequestImpl already guards.
-    const freshFood = await tx.characterTag.findUnique({
-      where: { characterId_tagId: { characterId: character.id, tagId: targetTagId } },
-    });
-    if (!freshFood) throw new UserError("You don't have that any more.");
-    // Poisoner-side only: learning your OWN stack is already tainted is
-    // acceptable, never disclosed to whoever eats it.
-    const taintedDifferently = Boolean(
-      freshFood.poisonPayload && freshFood.poisonPayload !== poisonTagId,
-    );
-    if (taintedDifferently && canDetect) {
-      throw new UserError("That's already tainted with something else.");
-    }
-    // Over-lacing (fix round, M4): same gate as the oracle above — a
-    // detector is told outright and keeps the vial, anyone else wastes it.
-    const stackFull = freshFood.poisonedCount > 0 && freshFood.poisonedCount >= freshFood.quantity;
-    if (stackFull && !taintedDifferently && canDetect) {
-      throw new UserError("It can't hold any more poison than that.");
-    }
-    const wasted = taintedDifferently || (stackFull && !taintedDifferently);
-    const poisonedCount = wasted
-      ? freshFood.poisonedCount
-      : Math.min(freshFood.poisonedCount + 1, freshFood.quantity);
-    if (!wasted) {
-      await tx.characterTag.update({
-        where: { id: freshFood.id },
-        data: { poisonedCount, poisonPayload: poisonTagId },
-      });
-    }
-    await dropCharacterTag(tx, character.id, poisonTagId, 1);
-    await logAudit(tx, {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_poison_item",
-      targetCharacterId: character.id,
-      turnId: openTurn?.id ?? null,
-      details: {
-        poisonTagId,
-        poisonName: heldPoison.tag.name,
-        foodTagId: targetTagId,
-        foodName: heldFood.tag.name,
-        poisonedCount,
-        quantity: freshFood.quantity,
-        wasted: wasted || undefined, // GM-only detail, never surfaced to the actor
-      },
-    });
+  // The rule is db/lib/verbs/self.js#poisonHeldItem, shared with Discord's /item poison.
+  const result = await poisonHeldItem(prisma, {
+    character,
+    discordUserId: session.discordUserId,
+    poisonTagId,
+    targetTagId,
+    openTurn: await getOpenTurn(),
   });
-
-  await afterInventoryChange(character.id);
+  if (!result.ok) throw new UserError(result.error);
+  await afterInventoryChange(result.touched);
   revalidateAll();
   return {};
 }
