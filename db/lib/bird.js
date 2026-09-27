@@ -62,20 +62,37 @@ function birdRestingToday(acquiredAt, dayStartedAt) {
   return new Date(acquiredAt).getTime() >= new Date(dayStartedAt).getTime();
 }
 
-// The letter as the recipient sees it. The DM no longer holds the words — the PAPER does, now in their hands — so an illiterate recipient can walk the object to someone who can read instead of being handed runes and a footnote. Deliberately does NOT say whether it's sealed or what's on it — both are facts about the object, on their sheet. The `»` prefix is added by sendDm itself; the sender's line is written bare here.
-function deliveryDm({ senderName, letterName }) {
+// The letter as the recipient sees it. The DM no longer holds the words — the PAPER does, now in their hands — so an illiterate recipient can walk the object to someone who can read instead of being handed runes and a footnote. Deliberately does NOT say whether it's sealed or what's on it — both are facts about the object, on their sheet. And deliberately does NOT say who sent it (BIRD.md §8): a bird carries paper, not a name, so whatever the letter says about its writer is all the reader gets. The `»` prefix is added by sendDm itself; the sender's line is written bare here.
+function deliveryDm({ letterName }) {
   return (
-    `A bird finds you, and there is a letter tied to its leg. It is from **${senderName}**.\n\n` +
+    `A bird finds you, and there is a letter tied to its leg.\n\n` +
     `You take it: **${letterName}**. It is on your sheet.`
   );
 }
 
-// The reply, as the original sender sees it. Same shape as delivery: an object arrived, on their sheet.
-function replyDm({ replierName, letterName }) {
+// The reply, as the original sender sees it. Same shape as delivery: an object arrived, on their sheet, unsigned like any other letter.
+function replyDm({ letterName }) {
   return (
-    `Your bird's returned, and it is carrying an answer from **${replierName}**.\n\n` +
+    `Your bird's returned, and it is carrying an answer.\n\n` +
     `You take it: **${letterName}**. It is on your sheet.`
   );
+}
+
+// A letter still waiting on an answer, as the person who has to answer it sees it: the paper that came and the turn it came in, never who sent it. The one shape every reply picker draws from (web Reply dialog, Chat's waiting row, Discord's /paper reply), so none of them can name the sender. `message` needs tagName and replyDeadlineTurn, which is the arrival turn plus one.
+function waitingLetter(message) {
+  return {
+    id: message.id,
+    letterName: message.tagName || "A letter",
+    arrivedTurn: message.replyDeadlineTurn == null ? null : message.replyDeadlineTurn - 1,
+  };
+}
+
+// A DM row's meta as a PLAYER may have it. A GM letter's meta carries the name the GM signed it under (web/app/(app)/gm/dev/actions.js), which is the desk's label and never the player's: web/lib/dmThread.js#playerDmRow runs every row a player's browser gets through this, so rows written before letters went unsigned lose it too.
+function withoutDeskSender(meta) {
+  if (!meta || typeof meta !== "object" || !("senderName" in meta)) return meta ?? null;
+  const rest = { ...meta };
+  delete rest.senderName;
+  return rest;
 }
 
 // The sender's own record, sent whether or not the letter landed, worded to give away nothing about which happened. It cannot say whether it left their hands — true only if the guess was right — since saying so would turn the receipt into the instant answer the delayed failure notice exists to withhold; the player learns from their own sheet a turn later, same as everyone else.
@@ -114,6 +131,8 @@ module.exports = {
   birdRestingToday,
   deliveryDm,
   replyDm,
+  waitingLetter,
+  withoutDeskSender,
   sentReceiptDm,
   replyButtonRow,
 };

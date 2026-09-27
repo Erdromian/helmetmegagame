@@ -29,8 +29,6 @@ export default function BirdReplyDialog({ onDone, onClose }) {
   const [tagId, setTagId] = useState(letters.length === 1 ? letters[0].tagId : "");
   const { submit, busy, error } = useSubmit();
 
-  const answering = waiting.find((w) => w.id === birdMessageId) ?? null;
-
   return (
     <ActionDialog
       title="Answer a letter"
@@ -56,7 +54,12 @@ export default function BirdReplyDialog({ onDone, onClose }) {
       {waiting.length > 1 && (
         <ChipPicker
           label="Which bird?"
-          options={waiting.map((w) => ({ id: w.id, label: w.senderName }))}
+          // Named by the letter it brought, never by who sent it (BIRD.md §8).
+          options={waiting.map((w) => ({
+            id: w.id,
+            label: w.letterName,
+            note: w.arrivedTurn == null ? null : `Arrived turn ${w.arrivedTurn}`,
+          }))}
           value={birdMessageId}
           onChange={setBirdMessageId}
         />
@@ -67,11 +70,7 @@ export default function BirdReplyDialog({ onDone, onClose }) {
         value={tagId}
         onChange={setTagId}
       />
-      <p className="text-xs text-muted">
-        {answering
-          ? `The bird takes it to ${answering.senderName}, out of your hands. It will not wait past next turn.`
-          : "The bird takes it out of your hands. It will not wait past next turn."}
-      </p>
+      <p className="text-xs text-muted">The bird takes it out of your hands. It will not wait past next turn.</p>
     </ActionDialog>
   );
 }

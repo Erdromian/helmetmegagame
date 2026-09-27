@@ -68,6 +68,7 @@ import { structuresAt } from "@lifeweb/db/lib/structures";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { heldReasonFor, seenBy, seenById, seenByPlace, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
+import { waitingLetter } from "@lifeweb/db/lib/bird";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
   performLocationMove,
@@ -2335,7 +2336,8 @@ export async function waitingOnYou() {
           : { replyDeadlineTurn: { not: null } }),
       },
       orderBy: { createdAt: "asc" },
-      select: { id: true, senderName: true, replyDeadlineTurn: true },
+      // Never senderName: a bird letter is unsigned (BIRD.md §8).
+      select: { id: true, tagName: true, replyDeadlineTurn: true },
     }),
     prisma.lobbyEntry.findFirst({
       where: { discordUserId: me.discordUserId, status: "ASSIGNED" },
@@ -2394,7 +2396,7 @@ export async function waitingOnYou() {
       // is standing (the sheet's dialogs are mounted on Chat too) — it used to
       // be a bare link to /character, which landed the player on the sheet
       // with the Send Bird dialog and no reply in sight.
-      label: `The bird still waits on an answer to ${l.senderName}.`,
+      label: `The bird that brought ${waitingLetter(l).letterName} still waits on an answer.`,
       accept: false,
       decline: false,
       mode: "birdReply",

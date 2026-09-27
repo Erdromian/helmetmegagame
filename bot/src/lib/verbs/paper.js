@@ -6,6 +6,7 @@ const { ModalBuilder, LabelBuilder, TextInputBuilder, TextInputStyle } = require
 const { writableTags, sealableTags, writePaper, sealLetter, readHeldPaper } = require("@lifeweb/db/lib/verbs/paper");
 const { isPaper, WRITE_MAX, BOOK_MAX, TITLE_MAX, BLANK_BOOK_SLUG, PAPER_SLUG } = require("@lifeweb/db/lib/paper");
 const { handleBirdReplyOpen } = require("../birdReply");
+const { waitingLetter } = require("@lifeweb/db/lib/bird");
 const { ack, respond } = require("../respond");
 const { RING_TEXT } = require("@lifeweb/db/lib/ringText");
 const { prisma, done, pickFrom, ackStep, picked, actorOrRefuse, loadActor, finish, modalId } = require("./context");
@@ -147,12 +148,17 @@ const birdReply = {
         ...(openTurn ? { replyDeadlineTurn: { gte: openTurn.number } } : { replyDeadlineTurn: { not: null } }),
       },
       orderBy: { createdAt: "asc" },
-      select: { id: true, senderName: true },
+      // Never senderName: a bird letter is unsigned (BIRD.md §8).
+      select: { id: true, tagName: true, replyDeadlineTurn: true },
     });
     if (waiting.length === 1) return handleBirdReplyOpen(interaction, waiting[0].id);
     return pickFrom(interaction, "birdReply", "pick", {
       prompt: "Which letter do you answer?",
-      options: waiting.map((m) => ({ label: `From ${m.senderName}`, value: m.id })),
+      options: waiting.map(waitingLetter).map((w) => ({
+        label: w.letterName,
+        value: w.id,
+        description: w.arrivedTurn == null ? undefined : `Arrived turn ${w.arrivedTurn}`,
+      })),
       empty: "No bird is waiting on you.",
     });
   },

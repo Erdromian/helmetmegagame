@@ -1461,8 +1461,10 @@ export async function sendGmLetters(input) {
     // §5). One row on the recipient's thread — the desk keys a conversation on
     // the PLAYER's id, so that is where a GM reads the exchange back. `content`
     // stays what the player actually received; the letter itself rides in meta,
-    // and DmThread.js renders the card from that.
-    notifyCharacter(recipient, deliveryDm({ senderName, letterName: letter.name }), {
+    // and DmThread.js renders the card from that. `senderName` is the desk's
+    // label only: a bird letter arrives unsigned (BIRD.md §8), so the player's
+    // copy of the row never carries it (db/lib/bird.js#withoutDeskSender).
+    notifyCharacter(recipient, deliveryDm({ letterName: letter.name }), {
       authorDiscordUserId: session.discordUserId,
       components: canReply ? replyButtonRow(birdMessageId) : undefined,
       source: GM_LETTER_SOURCE,

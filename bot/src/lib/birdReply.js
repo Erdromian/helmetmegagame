@@ -1,6 +1,6 @@
 const { prisma } = require("@lifeweb/db");
 const { sendDm } = require("@lifeweb/db/lib/dm");
-const { BIRD_REPLY_PICK_PREFIX } = require("@lifeweb/db/lib/bird");
+const { BIRD_REPLY_PICK_PREFIX, waitingLetter } = require("@lifeweb/db/lib/bird");
 const { birdReplyWindow, sendableLetters, sendBirdReply } = require("@lifeweb/db/lib/birdReply");
 const { logAudit } = require("@lifeweb/db/lib/auditLog");
 const { afterInventoryChangeDb } = require("@lifeweb/db/lib/inventoryTail");
@@ -39,7 +39,8 @@ async function handleBirdReplyOpen(interaction, birdMessageId) {
   }
 
   return respond(interaction, {
-    content: `The bird waits for something to carry back to **${state.message.senderName}**. It will not wait past next turn.`,
+    // Named by the letter it brought, never by who sent it (BIRD.md §8).
+    content: `The bird that brought **${waitingLetter(state.message).letterName}** waits for something to carry back. It will not wait past next turn.`,
     components: [
       {
         type: 1,

@@ -18,7 +18,7 @@ only crossings are travel and a GM. The Bird adds one more, and prices it:
    (`PAPERWORK.md`). There is no text box; you write with the Write button.
 3. If the guess is right and the recipient is alive, the paper **leaves the
    sender's sheet and lands on theirs**, immediately, with a DM saying so and a
-   Reply button.
+   Reply button. The DM names the letter, never who sent it (§8).
 4. If the guess is wrong, or the recipient is dead, nothing happens — the
    letter stays in the sender's hands — and they are told **at the next turn
    close**: *"The message wasn't delivered."*
@@ -208,11 +208,23 @@ can undo is that they read it.
 
 ## 8. Anything else worth knowing
 
-- **The letter is signed.** Every other DM fired by `notifyCharacter` is
-  deliberately unattributed (`REQUESTS.md` §3), because those describe things
-  done *to* a helpless person and the identity is what's being withheld. A
-  letter nobody can attribute is not a letter — choosing to tell someone who
-  you are is the whole act.
+- **The letter is unsigned.** A bird carries paper, not a name. The delivery
+  DM says a letter came and what it is called, and nothing about who sent it;
+  whatever the letter says about its writer is all the reader gets. Signing it
+  is the writer's choice, made in the letter itself.
+
+  It used to be signed, with the sender's real name. That named a hood, which
+  nothing else in the game does (`STRANGERS.md`), and it named somebody the
+  reader had never met. The paper already records the name its writer
+  presented (`paperMint.js#writeNewPaper`), but that is desk data only, never shown.
+
+  The same goes everywhere a waiting letter is named to the person answering it:
+  Chat's "waiting on you" row, the web Reply dialog, and Discord's Reply prompt
+  and `/paper reply` picker. Each one names the letter and the turn it arrived,
+  through `db/lib/bird.js#waitingLetter`, and never selects `senderName` at all.
+  The **reply** comes back unsigned too ("Your bird's returned, and it is
+  carrying an answer."). The sender's own receipt still names who they wrote
+  to, because they chose that person themselves.
 - **A player with DMs closed silently loses the NOTICE, not the letter.**
   `notifyCharacter` swallows send failures by design, so the sender's day is
   burnt and nobody is told — but since the rework the paper is on the
@@ -232,6 +244,13 @@ can undo is that they read it.
 character or fifty, writes, and optionally seals it with a mark they invent on
 the spot. The letter arrives exactly like a bird's, and the answer comes back
 on that player's conversation at `/gm/players`.
+
+**The typed name is the desk's label, not a signature.** It arrives unsigned
+like any other bird letter (§8). The desk's letter card shows "from {name}"; the
+player's does not (`DmThread.js#LetterBody` checks `perspective`), and
+`db/lib/bird.js#withoutDeskSender` (run by `web/lib/dmThread.js#playerDmRow`) takes `senderName` out of the player's copy
+of the row, so it never reaches their browser. A GM who wants the letter signed
+writes the signature into it.
 
 **Many recipients is one sender, one seal, one body and N sheets** — a
 proclamation nailed to N windows, not a shared letter. Nothing here is
