@@ -191,6 +191,7 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     id: e.id,
     moveId: e.moveId,
     cavingRollId: e.cavingRollId,
+    combatId: e.combatId ?? null,
     batchId: e.batchId,
     // Nullable: an old, pre-removal room-to-room transfer has no character end.
     targetCharacterId: e.targetCharacterId,
@@ -230,6 +231,7 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
     id: m.id,
     moveId: m.moveId,
     cavingRollId: m.cavingRollId,
+    combatId: m.combatId ?? null,
     kind: m.kind,
     content: m.content,
     zoneId: m.zoneId,
@@ -425,6 +427,93 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     resolvedAtLabel: c.resolvedAt ? c.resolvedAt.toISOString().slice(0, 16).replace("T", " ") : null,
     gmNotes: c.gmNotes ?? "",
     createdAtMs: c.createdAt.getTime(),
+  };
+}
+
+// The Combat lens (docs/systemdocs/ATTACK.md §8). One row per fight, everybody in it riding along with what
+// the GM adjudicates from: side, role, whether they were on guard, the roll, where an intervener came from,
+// and what they wrote. Real names throughout — this is the GM's desk, and the presented-face rule is about
+// players. The snapshots themselves are loaded on demand (actions.js#getCombatSnapshots), not shipped here.
+export const COMBAT_INCLUDE = {
+  // The zone by NAME, which is what GmZoneView narrows every lens on (web/lib/zones.js#inVisibleZones).
+  location: { select: { name: true, zone: { select: { name: true } } } },
+  participants: {
+    orderBy: { joinedAt: "asc" },
+    include: {
+      character: { select: { id: true, name: true, discordUserId: true, updatedAt: true, roleTitle: true, status: true } },
+    },
+  },
+};
+
+const COMBAT_END_LABELS = {
+  CALLED_OFF: "Called off",
+  TURN_ENDED: "Ended at the push",
+  SIDE_EMPTY: "One side gone",
+  GM: "Ended by a GM",
+};
+
+function signed(n) {
+  return n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "0";
+}
+
+export function combatRow(c, { usernameById }) {
+  const people = c.participants.map((p) => {
+    const mods = Array.isArray(p.modifiers) ? p.modifiers : [];
+    return {
+      id: p.id,
+      characterId: p.characterId,
+      name: p.character?.name ?? "(deleted)",
+      avatarVersion: p.character?.updatedAt ? p.character.updatedAt.getTime() : null,
+      roleTitle: p.character?.roleTitle ?? "",
+      discordUsername: p.character?.discordUserId
+        ? (usernameById.get(p.character.discordUserId) ?? p.character.discordUserId)
+        : null,
+      side: p.side,
+      role: p.role,
+      status: p.status,
+      alert: p.alert,
+      die: p.die,
+      rolls: p.rolls ?? [],
+      advantageSource: p.advantageSource ?? null,
+      modifiers: mods,
+      total: p.total,
+      // "4 −3 Surprised → 1", the desk's one-line read of the roll.
+      rollLine: [`${p.die}`, ...mods.map((m) => `${signed(m.value)} ${m.label}`), `→ ${p.total}`].join(" "),
+      distance: p.distance,
+      fromLocationName: p.fromLocationName ?? null,
+      description: p.description ?? "",
+      calledOff: Boolean(p.callOffAt),
+      leftReason: p.leftReason ?? null,
+      joinedAtMs: p.joinedAt.getTime(),
+    };
+  });
+  const names = people.map((p) => p.name);
+  const attackers = people.filter((p) => p.side === "ATTACKER" && p.status === "JOINED" && p.role !== "INTERVENER");
+  const defenders = people.filter((p) => p.side === "DEFENDER" && p.status === "JOINED" && p.role !== "INTERVENER");
+  const title = `${attackers.map((p) => p.name).join(", ") || "Nobody"} vs ${defenders.map((p) => p.name).join(", ") || "nobody"}`;
+  return {
+    id: c.id,
+    turnId: c.turnId,
+    title,
+    locationId: c.locationId,
+    locationName: c.locationName ?? "",
+    zoneId: c.zoneId ?? null,
+    zoneName: c.location?.zone?.name ?? "",
+    fromAmbush: c.fromAmbush,
+    openingMessage: c.openingMessage ?? null,
+    live: !c.endedAt,
+    endReason: c.endReason ?? null,
+    endLabel: c.endReason ? (COMBAT_END_LABELS[c.endReason] ?? c.endReason) : null,
+    statusLabel: c.resolvedAt ? "Solved" : c.endedAt ? (COMBAT_END_LABELS[c.endReason] ?? "Ended") : "Live",
+    resultMessage: c.resultMessage ?? "",
+    resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
+    resolvedByUsername: c.resolvedByDiscordUserId
+      ? (usernameById.get(c.resolvedByDiscordUserId) ?? c.resolvedByDiscordUserId)
+      : null,
+    people,
+    searchText: `${names.join(" ")} ${c.locationName ?? ""}`,
+    startedAtMs: c.startedAt.getTime(),
+    createdAtMs: c.startedAt.getTime(),
   };
 }
 

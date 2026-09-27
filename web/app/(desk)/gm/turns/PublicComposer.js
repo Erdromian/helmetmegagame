@@ -19,6 +19,7 @@ import { chunkMessage } from "@lifeweb/db/lib/chunkText";
 export default function PublicComposer({
   moveId = null,
   cavingRollId = null,
+  combatId = null,
   existing = null,
   defaultZoneId = null,
   zones,
@@ -54,7 +55,7 @@ export default function PublicComposer({
       try {
         const res = existing
           ? await updateStagedMessage({ stagedMessageId: existing.id, content, zoneId })
-          : await createStagedMessage({ kind: "PUBLIC", content, zoneId, moveId, cavingRollId });
+          : await createStagedMessage({ kind: "PUBLIC", content, zoneId, moveId, cavingRollId, combatId });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         onDone(res.patch);

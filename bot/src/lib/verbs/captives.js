@@ -2,16 +2,17 @@
 // Discord: Free, Crucify, Shackle, Brand, Bury, Engrave, Perform Miracle, and
 // setting or calling off an Intercept. Each rule is a db/lib/verbs/ function
 // the web's action calls too; this file draws the pickers and modals.
-const { ModalBuilder, LabelBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder } = require("discord.js");
+const { ModalBuilder, LabelBuilder, TextInputBuilder, TextInputStyle, StringSelectMenuBuilder, ActionRowBuilder } = require("discord.js");
 const { freeCharacter, crucifyCharacter, shackleCharacter, brandCharacter, BRAND_DESCRIPTION_MAX } = require("@lifeweb/db/lib/verbs/captives");
 const { buriableBodies, buryCorpse, engraveHeadstone } = require("@lifeweb/db/lib/verbs/bodies");
 const { miracleableWounds, performMiracle } = require("@lifeweb/db/lib/verbs/medic");
-const { setWatch, stopWatch } = require("@lifeweb/db/lib/verbs/watch");
+const { setWatch, stopWatch, setWatchCollaborators } = require("@lifeweb/db/lib/verbs/watch");
+const { pickerRows } = require("@lifeweb/db/lib/peopleHere");
 const { MAX_NAMES, MESSAGE_LIMIT } = require("@lifeweb/db/lib/intercept");
 const { FULL_NAME_LIMIT } = require("@lifeweb/db/lib/characterName");
 const { ENGRAVE_RESOURCE_COST } = require("@lifeweb/db/lib/constants");
 const { announceInRoom } = require("@lifeweb/db/lib/roomAnnounce");
-const { ack } = require("../respond");
+const { ack, respond } = require("../respond");
 const {
   prisma,
   openTurn,
@@ -24,6 +25,7 @@ const {
   actorOrRefuse,
   finish,
   modalId,
+  verbId,
 } = require("./context");
 
 // A verb that picks someone here and then does one thing to them, with an
@@ -232,7 +234,9 @@ const FIELD = {
 };
 
 // The web dialog, as one modal: Safe or Ambush, who you watch for (names, any
-// hood, or anyone), the two narrowings, and what you say when they arrive.
+// hood, anyone you can't identify, or anyone), the two narrowings, and what you
+// say when they arrive. The modal is full (five components), so an Ambush asks
+// for its collaborators in a second step once it is saved.
 const intercept = {
   modalFirst: true,
   start(interaction) {
@@ -248,15 +252,16 @@ const intercept = {
             .setStringSelectMenuComponent(
               select(FIELD.mode, [
                 { label: "Safe — stop them and talk", value: "SAFE", default: true },
-                { label: "Ambush — hold them here until the turn ends", value: "AMBUSH" },
+                { label: "Ambush — start a fight with them (needs combat mode)", value: "AMBUSH" },
               ]),
             ),
           new LabelBuilder()
             .setLabel("Who")
             .setStringSelectMenuComponent(
               select(FIELD.who, [
-                { label: "Only the names I write below", value: "NAMES", default: true },
+                { label: "Only the names I write below, if I know them", value: "NAMES", default: true },
                 { label: "Anyone whose face is hidden", value: "CONCEALED" },
+                { label: "Anyone I can't identify", value: "UNIDENTIFIED" },
                 { label: "Anyone at all", value: "ANYONE" },
               ]),
             ),
@@ -310,13 +315,42 @@ const intercept = {
         message: fields.getTextInputValue(FIELD.message) ?? "",
         names,
         anyConcealed: who === "CONCEALED",
+        anyUnidentified: who === "UNIDENTIFIED",
         anyPerson: who === "ANYONE",
         outsideZoneOnly: extras.has("outsideZoneOnly"),
         autoSearch: extras.has("autoSearch"),
       },
       openTurn: await openTurn(),
     });
-    return finish(interaction, result);
+    if (!result.ok || mode !== "AMBUSH") return finish(interaction, result);
+    // Who lies in wait with you (optional). Everybody here, both halves, by picker key.
+    const rows = (await pickerRows(prisma, character)).slice(0, 25);
+    if (rows.length === 0) return finish(interaction, result);
+    const menu = new StringSelectMenuBuilder()
+      .setCustomId(verbId("intercept", "helpers"))
+      .setPlaceholder("Who lies in wait with you? (optional)")
+      .setMinValues(0)
+      .setMaxValues(rows.length)
+      .addOptions(rows.map((row) => ({ label: row.label.slice(0, 100), value: row.key })));
+    // Not fleeting, the pickSomeone reason: this message IS the next step, and a self-delete timer would take it.
+    return respond(interaction, {
+      content: `${result.line}\nAnyone you pick below is asked to join you when it springs, if they're still here.`,
+      components: [new ActionRowBuilder().addComponents(menu)],
+    }, { fleeting: false });
+  },
+  steps: {
+    async helpers(interaction) {
+      await ackStep(interaction);
+      const character = await actorOrRefuse(interaction);
+      if (!character) return;
+      const result = await setWatchCollaborators(prisma, {
+        character,
+        discordUserId: character.discordUserId,
+        keys: interaction.values ?? [],
+        openTurn: await openTurn(),
+      });
+      return finish(interaction, result);
+    },
   },
 };
 

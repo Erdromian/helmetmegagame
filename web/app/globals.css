@@ -4521,6 +4521,26 @@ body:has(.map-shell) {
 
 /* The desk card is a .panel-shaped surface without adopting .panel's role as
    a page-flow card — it fills the column. */
+/* A fight (docs/systemdocs/ATTACK.md). The player's panel in the Attack dialog, and one person's card on
+   the GM's Combat desk — somebody out of the fight (declined, left) is dimmed, not removed, since a GM
+   still reads them. */
+.fight-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.desk-fighter {
+  display: flex;
+  flex-direction: column;
+  gap: 0.375rem;
+  padding: 0.5rem 0.625rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.desk-fighter[data-out] {
+  opacity: 0.6;
+}
+
 .desk-card {
   background: var(--sunk-wash-deep);
   border: 1px solid var(--border);

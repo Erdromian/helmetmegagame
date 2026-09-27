@@ -312,7 +312,11 @@ the game is meant to say.
   - phone carries
   - "X was let in."
 - **Place lines about a bare face** — the cross, a collar going off, a prayer
-  — name them, the same as arrivals. Only a hood is kept out of them.
+  — name them, the same as arrivals. Only a hood is kept out of them. A fight's
+  announcement is the exception, and the way to close the rest: it stores a
+  template and its people on `ArchiveEntry.subjects`, which the lens renders
+  per reader (`db/lib/peopleLine.js`), and on Discord it is relayed as a DM to
+  each player there instead of posted (`ATTACK.md` §1).
 - **Names a place is called by.** A party is "Ada's Party" and a conversation
   Xom opens is "Ada & Bo", on the Discord thread and on the web alike. A hood
   is its alias in both; a bare face is named.

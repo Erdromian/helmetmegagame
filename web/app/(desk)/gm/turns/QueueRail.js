@@ -117,6 +117,49 @@ const cavingSearchMap = (r) => ({
 });
 const CAVING_TONES = { "Needs attention": "bad", Resolved: "neutral" };
 
+// The Combat lens (docs/systemdocs/ATTACK.md §8): one row per fight on the turn. Unsolved first, live
+// fights before finished ones, then newest.
+const COMBAT_FILTER_DEFS = [
+  { key: "zone", label: "Zone", value: (r) => r.zoneName },
+  { key: "status", label: "Status", value: (r) => r.statusLabel },
+];
+const combatSearchMap = (r) => ({ name: r.searchText, zone: r.zoneName, where: r.locationName, status: r.statusLabel });
+const COMBAT_TONES = { Live: "bad", Solved: "neutral" };
+function combatRank(r) {
+  if (r.resolvedAt) return 3;
+  return r.live ? 0 : 1;
+}
+
+function CombatRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
+  return rows.map((row) => (
+    <button
+      key={row.id}
+      type="button"
+      className="desk-queue-row"
+      data-active={selected?.type === "combat" && selected.id === row.id}
+      data-urgent={!row.resolvedAt || undefined}
+      data-kbd={kbdLens === "combat" && kbdId === row.id ? "" : undefined}
+      data-row-key={row.id}
+      onClick={() => onSelect({ type: "combat", id: row.id })}
+    >
+      <span className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 truncate font-medium">
+          <span className="truncate">{row.title}</span>
+          <MatchHint match={matchFor(row)} />
+        </span>
+        <span className="flex shrink-0 items-center gap-1">
+          {row.fromAmbush && <StatusPill tone="neutral">Ambush</StatusPill>}
+          <StatusPill tone={COMBAT_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
+        </span>
+      </span>
+      <span className="block truncate text-xs text-muted">
+        {row.locationName}
+        {row.zoneName ? <> · {row.zoneName}</> : null} · {row.people.length} involved
+      </span>
+    </button>
+  ));
+}
+
 // The Desires lens — fulfilled, catalog-backed claims waiting on a GM
 // (docs/systemdocs/DESIRES.md §6). Unreviewed sorts first; a reviewed row
 // stays in the list, dimmed, rather than dropping out.
@@ -183,10 +226,11 @@ const oocSearchMap = (r) => ({
 
 // The keyboard lens flips, and what ⏎ selects in each lens. The History
 // lens over the OPEN turn selects a live "move" — see historyIsOpenTurn.
-const LENS_FOR_KEY = { m: "moves", c: "caving", o: "other", h: "history", d: "desires" };
+const LENS_FOR_KEY = { m: "moves", c: "caving", f: "combat", o: "other", h: "history", d: "desires" };
 const SELECTION_TYPE_FOR_LENS = {
   moves: "move",
   caving: "caving",
+  combat: "combat",
   history: "history",
   desires: "desire",
   ooc: "ooc",
@@ -718,6 +762,7 @@ function OtherRows({ rows, matchFor, onInspect, onOpenMove, kbdId, kbdLens, open
 export default function QueueRail({
   moves,
   cavingRolls,
+  combats = [],
   otherRows,
   desireRows,
   oocRows,
@@ -745,6 +790,7 @@ export default function QueueRail({
 }) {
   const moveFilterDefs = useMemo(() => MOVE_FILTER_DEFS, []);
   const cavingFilterDefs = useMemo(() => CAVING_FILTER_DEFS, []);
+  const combatFilterDefs = useMemo(() => COMBAT_FILTER_DEFS, []);
   const otherFilterDefs = useMemo(() => OTHER_FILTER_DEFS, []);
   const desireFilterDefs = useMemo(() => DESIRE_FILTER_DEFS, []);
   const oocFilterDefs = useMemo(() => OOC_FILTER_DEFS, []);
@@ -807,6 +853,11 @@ export default function QueueRail({
     [foldedCaving, inView],
   );
 
+  const rankedCombats = useMemo(
+    () => inView(combats).map((r) => ({ ...r, queueOrder: combatRank(r) * 1e15 - r.createdAtMs })),
+    [combats, inView],
+  );
+
   const rankedOtherRows = useMemo(
     () =>
       inView(otherRows).map((r) => ({
@@ -844,6 +895,15 @@ export default function QueueRail({
     initialSort: { key: "queueOrder", dir: "asc" },
     pageSize: 1000,
     ...makeFiltersProps("caving"),
+  });
+  const combatTable = useTableState({
+    rows: rankedCombats,
+    filterDefs: combatFilterDefs,
+    searchMap: combatSearchMap,
+    rankBySearch: true,
+    initialSort: { key: "queueOrder", dir: "asc" },
+    pageSize: 1000,
+    ...makeFiltersProps("combat"),
   });
   const otherTable = useTableState({
     rows: rankedOtherRows,
@@ -981,6 +1041,7 @@ export default function QueueRail({
     () => ({
       moves: movesShown,
       caving: cavingTable.visible,
+      combat: combatTable.visible,
       other: otherTable.visible,
       desires: desireTable.visible,
       ooc: oocTable.visible,
@@ -989,6 +1050,7 @@ export default function QueueRail({
     [
       movesShown,
       cavingTable.visible,
+      combatTable.visible,
       otherTable.visible,
       desireTable.visible,
       oocTable.visible,
@@ -1080,7 +1142,7 @@ export default function QueueRail({
     function onKey(e) {
       const key = e.key;
       const isNav = key === "ArrowDown" || key === "ArrowUp" || key === "j" || key === "k" || key === "Enter";
-      const isLensKey = key === "m" || key === "r" || key === "c" || key === "o" || key === "h" || key === "d";
+      const isLensKey = key === "m" || key === "r" || key === "c" || key === "f" || key === "o" || key === "h" || key === "d";
       if (!isNav && !isLensKey) return;
       if (hasModifier(e)) return;
       if (dialogHoldsKeyboard()) return;
@@ -1137,6 +1199,9 @@ export default function QueueRail({
         </button>
         <button type="button" aria-pressed={lens === "caving"} onClick={() => onLens?.("caving")}>
           Caving
+        </button>
+        <button type="button" aria-pressed={lens === "combat"} onClick={() => onLens?.("combat")}>
+          Combat{combats.filter((c) => !c.resolvedAt).length > 0 ? ` (${combats.filter((c) => !c.resolvedAt).length})` : ""}
         </button>
         <button type="button" aria-pressed={lens === "other"} onClick={() => onLens?.("other")}>
           Other
@@ -1343,6 +1408,21 @@ export default function QueueRail({
             )}
           </div>
         </>
+      ) : lens === "combat" ? (
+        <>
+          <RailFilters table={combatTable} filterDefs={combatFilterDefs} searchPlaceholder="name, place…" />
+          <div className="desk-queue" ref={queueRef} onScroll={onQueueScroll}>
+            <CombatRows
+              rows={combatTable.visible}
+              matchFor={combatTable.matchFor}
+              selected={selected}
+              onSelect={onSelect}
+              kbdId={kbdId}
+              kbdLens={lens}
+            />
+            {combatTable.total === 0 && <p className="p-3 text-sm text-muted">No fights this turn.</p>}
+          </div>
+        </>
       ) : lens === "caving" ? (
         <>
           <RailFilters
@@ -1401,7 +1481,7 @@ export default function QueueRail({
           </div>
         </>
       )}
-      <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r/c/d/h lens · esc close</p>
+      <p className="desk-rail-hint text-xs text-muted">↑↓ / j k navigate · ⏎ open · m/r/c/f/d/h lens · esc close</p>
     </DeskRail>
   );
 }

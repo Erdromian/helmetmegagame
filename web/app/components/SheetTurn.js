@@ -6,6 +6,7 @@ import MoveDialog from "@/app/(app)/chat/MoveDialog";
 import useMyMove from "@/app/(app)/chat/useMyMove";
 import { useRefresh } from "./useRefresh";
 import CombatModeButton from "./CombatModeButton";
+import FightLine from "./FightLine";
 
 // The turn card the Chat's YOU column carries, on the sheet's band: when it
 // is, whether Moves have locked, and the Move you filed — with the same File
@@ -61,7 +62,7 @@ function offerLine(o) {
 }
 
 export default function SheetTurn({ moveState, pendingOffers = [] }) {
-  const state = useMyMove(moveState ?? { turn: null, move: null, combatMode: null, characterId: null });
+  const state = useMyMove(moveState ?? { turn: null, move: null, combatMode: null, fight: null, characterId: null });
   const [dialog, setDialog] = useState(null);
   const [refresh] = useRefresh();
 
@@ -93,6 +94,7 @@ export default function SheetTurn({ moveState, pendingOffers = [] }) {
           />
         )}
       </CombatModeButton>
+      <FightLine fight={state.fight} />
       {waiting}
       {dialog === "move" && (
         <MoveDialog

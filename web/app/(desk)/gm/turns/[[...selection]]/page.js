@@ -20,6 +20,7 @@ import {
   STAGED_EFFECT_INCLUDE,
   STAGED_MESSAGE_INCLUDE,
   CAVING_ROLL_INCLUDE,
+  COMBAT_INCLUDE,
   AVATAR_REVIEW_SELECT,
   DESIRE_CLAIM_INCLUDE,
   OOC_INCLUDE,
@@ -27,6 +28,7 @@ import {
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
+  combatRow,
   avatarReviewRow,
   desireClaimRow,
   oocRow,
@@ -76,7 +78,7 @@ function parseSelection(sel) {
   // "desire" and "ooc" open a desk in Workspace.js the same way the first
   // three do; "desire" was simply missed when its lens landed, so a
   // ?sel=desire/<id> link resolved to nothing.
-  if (!["move", "caving", "history", "desire", "ooc"].includes(type)) return null;
+  if (!["move", "caving", "combat", "history", "desire", "ooc"].includes(type)) return null;
   return { type, id };
 }
 
@@ -118,6 +120,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   const [
     actions,
     cavingRolls,
+    combats,
     attacks,
     interceptHits,
     caughtSteals,
@@ -150,6 +153,14 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           where: { turnId: openTurn.id },
           orderBy: { createdAt: "desc" },
           include: CAVING_ROLL_INCLUDE,
+        })
+      : [],
+    // The Combat lens — every fight on the open turn, live or over (docs/systemdocs/ATTACK.md §8).
+    openTurn
+      ? prisma.combat.findMany({
+          where: { turnId: openTurn.id },
+          orderBy: { startedAt: "desc" },
+          include: COMBAT_INCLUDE,
         })
       : [],
     // The Other lens — everything holding somebody in place this turn
@@ -324,7 +335,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     movesByCharacterId.set(m.characterId, list);
   }
 
-  // The Other lens's one merged list — an Ambush is already an Attack row, so the two halves never name the same event twice.
+  // The Other lens's one merged list. Fights live on the Combat lens now (ATTACK.md §8); the Attack rows here are only pre-overhaul ones (§12).
   const otherCtx = { usernameById, catatonicIds, movesByCharacterId, now, caughtHoldMs: CAUGHT_HOLD_MS };
   const otherRows = [
     ...otherHoldRows(attacks, interceptHits, otherCtx, caughtSteals),
@@ -474,6 +485,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         stagingRooms: stagingRooms,
         moves: moves,
         cavingRolls: cavingRows,
+        combats: combats.map((c) => combatRow(c, { usernameById })),
         otherRows: otherRows,
         desireRows: desireRows,
         oocRows: oocRows,

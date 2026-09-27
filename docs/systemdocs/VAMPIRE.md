@@ -174,12 +174,13 @@ Every turn a character holds either tag, `db/lib/vampireCompulsion.js`:
    like a player-written one** — §2b's manual-restore-blood rule applies
    here too, with no automatic effect just because the game filed it.
 2. Independently picks a (possibly different) random other ALIVE character
-   at the same Location and files a real `Attack` (`db/lib/attack.js`) —
-   pinning both parties for the rest of the turn, same as a player pressing
-   the button. Deliberately **not** gated by the normal band-gap or
-   already-acted checks (`attackRefusal`/`attackMoveBlock`): this is an
-   involuntary compulsion, not a fight the character chose, so "too strong
-   to attack" and "already used your Move" don't apply.
+   at the same Location and starts a real fight against them
+   (`db/lib/combat.js#startCombat`, `ATTACK.md`) — holding both until it is
+   over, same as a player pressing the button. Deliberately **not** gated
+   (`combatGate.js#combatBlock`): this is an involuntary compulsion, not a fight
+   the character chose, so neither combat mode nor the turn lock applies. The
+   victim is DMed like anybody attacked, and asked to write what they do, and
+   the room is told.
 
 If nobody else is at the vampire's Location, both are skipped for that turn
 (logged, not an error) — there's nobody to prey on. If the vampire somehow

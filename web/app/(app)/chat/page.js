@@ -438,6 +438,8 @@ async function FreshChat({ userId }) {
           moveCharacterId: mine.ok ? mine.characterId : null,
           // The combat mode button under the Turn block (COMBAT-MODE.md §2), off the same poll.
           combatMode: mine.ok ? (mine.combatMode ?? null) : null,
+          // The fight they are in, for the line under the card (docs/systemdocs/ATTACK.md §4).
+          fight: mine.ok ? (mine.fight ?? null) : null,
           desires,
           letters,
           // What is in this character's pockets, for the Things drawer under

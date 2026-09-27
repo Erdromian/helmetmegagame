@@ -127,6 +127,23 @@ function LetterReply({ message }) {
   );
 }
 
+// A fight's own DM (docs/systemdocs/ATTACK.md): its buttons are "Write your attack" and "Call off" on
+// Discord, and both live in the Attack dialog on the web — which is where this opens, the way a letter's
+// Reply opens the Send Bird dialog. COMBAT has no labels (db/lib/dmActions.js) because what the row can do
+// depends on the reader, so it draws its own. Only where a sheet is mounted to open it from.
+function FightOpen({ message }) {
+  const actions = useRequestActions();
+  const action = message.actionable ? dmActionOf(message) : null;
+  if (!actions?.open || action?.kind !== DM_ACTION.COMBAT) return null;
+  return (
+    <div className="dm-action-row">
+      <button type="button" className="btn" onClick={() => actions.open("attack")}>
+        Open the fight
+      </button>
+    </div>
+  );
+}
+
 // A bird letter arrives unsigned (BIRD.md §8): the name a GM signed it under is the desk's label,
 // never the player's. db/lib/bird.js#withoutDeskSender strips it from the player's copy as well.
 function LetterBody({ message, perspective }) {
@@ -448,6 +465,7 @@ function Row({ item, gmProfileById, character, compact, now, perspective, onRetr
       {images.length > 0 && <AttachedImages images={images} />}
       {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
       {perspective === "player" && <ConversionPick message={message} />}
+      {perspective === "player" && <FightOpen message={message} />}
     </TranscriptLine>
   );
 }

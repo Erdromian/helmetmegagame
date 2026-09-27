@@ -8,7 +8,7 @@ const { autoMovesOpen } = require("../turnGate");
 const { blockerFor, ACT } = require("../incapacitation");
 const { logAudit } = require("../auditLog");
 const { refuse, asResult } = require("./common");
-const { TOO_EXHAUSTED, LOCKED_ON, holdsExhausted } = require("../combatMode");
+const { TOO_EXHAUSTED, LOCKED_ON, ALERT_TOO_LATE, holdsExhausted } = require("../combatMode");
 
 // `character` needs { id } — the column and the tags are read here, so neither face's select has
 // to carry them. `on` is the wanted state.
@@ -43,7 +43,7 @@ function setCombatMode(prisma, { character, discordUserId, on }) {
       if (won.count === 0) return { line: "You're already in combat mode.", on: true, changed: false };
     } else {
       if (since == null) return { line: "You're not in combat mode.", on: false, changed: false };
-      // Never gated on ACT: coming out of it is the way down, the Break off and Stop watching rule.
+      // Never gated on ACT: coming out of it is the way down, the Call off and Stop watching rule.
       if (since === turn.number) refuse(LOCKED_ON);
       const won = await prisma.character.updateMany({
         where: { id: character.id, combatModeSinceTurn: { not: null, notIn: [turn.number] } },
@@ -59,8 +59,20 @@ function setCombatMode(prisma, { character, discordUserId, on }) {
       details: { on: Boolean(on), turnNumber: turn.number },
     }).catch((err) => console.error("Combat mode audit log failed:", err));
 
+    // Turning it on in the middle of a fight you were caught out by changes nothing about THAT fight — the
+    // snapshot was taken when it reached you (Combat Overhaul.docx) — so say so, rather than let them think
+    // they can now write their attack.
+    let tooLate = false;
+    if (on && typeof prisma.combatParticipant?.findFirst === "function") {
+      const fight = await prisma.combatParticipant.findFirst({
+        where: { characterId: character.id, activeTurnId: turn.id, alert: false },
+        select: { id: true },
+      });
+      tooLate = Boolean(fight);
+    }
+
     return {
-      line: on ? "You feel alert." : "You give yourself a chance to relax.",
+      line: on ? (tooLate ? `You feel alert. ${ALERT_TOO_LATE}` : "You feel alert.") : "You give yourself a chance to relax.",
       on: Boolean(on),
       changed: true,
     };

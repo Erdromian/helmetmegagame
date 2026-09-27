@@ -38,6 +38,7 @@ import useEscapeLayer from "./escapeLayers";
 export default function RoomEffectComposer({
   moveId = null,
   cavingRollId = null,
+  combatId = null,
   existing = null,
   tagCatalog,
   stagingRooms = [],
@@ -235,7 +236,7 @@ export default function RoomEffectComposer({
         }
         const res = existing
           ? await updateStagedRoomEffect({ stagedEffectId: existing.id, roomResources: resources, tagOps })
-          : await createStagedRoomEffect({ roomId, moveId, cavingRollId, roomResources: resources, tagOps });
+          : await createStagedRoomEffect({ roomId, moveId, cavingRollId, combatId, roomResources: resources, tagOps });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         onDone(res.patch);

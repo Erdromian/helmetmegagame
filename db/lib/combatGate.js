@@ -1,45 +1,76 @@
-// THE GATES ON ATTACK (docs/systemdocs/ATTACK.md §5a) AND INTERCEPT. Attack is free, so it's a lever: with your Move
-// already filed, pressing it only pins somebody for the rest of the day.
+// THE GATES ON ATTACK AND INTERCEPT (docs/systemdocs/ATTACK.md §1, INTERCEPT.md §1). Each answers a
+// sentence or null — the heldReasonFor shape (db/lib/intercept.js) — so a greyed button, the server
+// action and the Discord verb can never disagree about why.
+//
+// A fight no longer costs the Move (Bascinet, 2026-09-27): the attack description IS the fight's
+// declaration, so the old "you've already used your Move" refusal is gone. What stops a fight now is
+// the turn lock, combat mode, and the fight rules themselves.
 
-const { inCombatMode, NEEDS_COMBAT_MODE_ATTACK, NEEDS_COMBAT_MODE_INTERCEPT } = require("./combatMode");
+const { movesOpen } = require("./turnGate");
+const {
+  inCombatMode,
+  NEEDS_COMBAT_MODE_ATTACK,
+  NEEDS_COMBAT_MODE_INTERCEPT,
+  ATTACK_LOCKED,
+  INTERCEPT_LOCKED,
+  ALREADY_FIGHTING,
+  WITHDRAWING_BLOCK,
+  DECLINED_HERE,
+} = require("./combatMode");
 
-// A Move already filed spends the turn — unless it's a GAMBIT. NO moveKind counts as spent, not as
-// nothing filed — db/lib/locationTravel.js files a paid zone crossing with the column left null, and
-// that crossing cost the turn. Kept as the row test, not the kind, so a writer that forgets the column fails closed.
-function spentBy(action) {
-  return Boolean(action) && action.moveKind !== "GAMBIT";
+// Held for withdrawing — the one hold reason this file reads, spelled out rather than required from
+// intercept.js so this module stays out of that one's require graph.
+const WITHDRAWING = "withdrawing";
+
+// The turn lock (the Move cutoff) shuts starting, joining and laying in wait (Combat Overhaul.docx).
+// The other refusals — no turn, not in session — keep the gate's own sentence.
+async function lockBlock(db, turn, sentence) {
+  const gate = await movesOpen(db, { turn });
+  if (gate.ok) return null;
+  return gate.reason === "LOCKED" ? sentence : gate.message;
 }
 
-// Bascinet's words, verbatim.
-const ATTACK_MOVE_SPENT =
-  "You've already used your Move this turn. You should only Attack if you plan to use your Gambit to actually declare your combat.";
-
-// `db` is a parameter for the db/lib/dm.js reason: requiring the barrel back
-// from inside db/lib/ resolves to a partial exports object.
-async function moveSpent(db, characterId, turnId) {
-  if (!turnId) return false;
-  return spentBy(
-    await db.action.findFirst({ where: { characterId, turnId }, select: { moveKind: true } }),
-  );
+// May this character start a fight here, or join one? In this order:
+//   1. the turn lock — nothing a player can fix today, so it is said first
+//   2. combat mode — required to attack (Combat Mode.docx)
+//   3. already in a fight — one at a time
+//   4. withdrawing — they called one off, and wait thirty minutes (Bascinet, 2026-09-27)
+//   5. they were asked to join a fight HERE this turn and declined (the doc)
+// `character` needs id, combatModeSinceTurn, heldUntil and heldReason; `locationId` is where they stand.
+async function combatBlock(db, { character, turn, locationId = character?.locationId ?? null, now = new Date() }) {
+  if (!turn) return "No turn is open.";
+  const locked = await lockBlock(db, turn, ATTACK_LOCKED);
+  if (locked) return locked;
+  if (!inCombatMode(character)) return NEEDS_COMBAT_MODE_ATTACK;
+  const busy = await db.combatParticipant.findFirst({
+    where: { characterId: character.id, activeTurnId: turn.id },
+    select: { id: true },
+  });
+  if (busy) return ALREADY_FIGHTING;
+  if (character.heldReason === WITHDRAWING && character.heldUntil && new Date(character.heldUntil) > now) {
+    return WITHDRAWING_BLOCK;
+  }
+  if (locationId) {
+    const declined = await db.combatParticipant.findFirst({
+      where: { characterId: character.id, status: "DECLINED", combat: { turnId: turn.id, locationId } },
+      select: { id: true },
+    });
+    if (declined) return DECLINED_HERE;
+  }
+  return null;
 }
 
-// The heldReasonFor shape (db/lib/intercept.js): sentence or null, so the button greying and the
-// server action refusal never disagree about why.
-async function attackMoveBlock(db, characterId, turnId) {
-  return (await moveSpent(db, characterId, turnId)) ? ATTACK_MOVE_SPENT : null;
-}
-
-// Combat mode is required to Attack (Combat Mode.docx; COMBAT-MODE.md §3). A sentence or null, the
-// shape above. Checked AFTER the spent Move: that one can't be fixed this turn, and naming combat mode
-// first would have a player turn it on, which can't be undone until tomorrow, only to be refused anyway.
-async function attackBlock(db, characterId, turnId) {
-  const spent = await attackMoveBlock(db, characterId, turnId);
-  if (spent) return spent;
-  return (await combatModeOn(db, characterId)) ? null : NEEDS_COMBAT_MODE_ATTACK;
-}
-
-// Setting an Intercept watch needs it too. Stopping one never does (db/lib/verbs/watch.js#stopWatch).
-async function interceptBlock(db, characterId) {
+// Setting an Intercept watch. Only an AMBUSH needs combat mode now (Combat Overhaul.docx); a Safe watch
+// is a word on the road, not a fight. Both are shut by the lock. Stopping one never asks
+// (db/lib/verbs/watch.js#stopWatch).
+async function interceptBlock(db, characterId, { mode = "SAFE", turn = null } = {}) {
+  const openTurn =
+    turn ?? (typeof db.turn?.findFirst === "function" ? await db.turn.findFirst({ where: { status: "OPEN" } }) : null);
+  if (openTurn) {
+    const locked = await lockBlock(db, openTurn, INTERCEPT_LOCKED);
+    if (locked) return locked;
+  }
+  if (mode !== "AMBUSH") return null;
   return (await combatModeOn(db, characterId)) ? null : NEEDS_COMBAT_MODE_INTERCEPT;
 }
 
@@ -48,8 +79,6 @@ async function combatModeOn(db, characterId) {
 }
 
 module.exports = {
-  spentBy,
-  attackMoveBlock,
-  attackBlock,
+  combatBlock,
   interceptBlock,
 };

@@ -9,6 +9,7 @@ import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
 import CavingDesk from "./CavingDesk";
+import CombatDesk from "./CombatDesk";
 import { foldCavingRolls } from "@/lib/cavingLabels";
 import DesireDesk from "./DesireDesk";
 import OocDesk from "./OocDesk";
@@ -191,6 +192,7 @@ export default function Workspace({
   stagingRooms,
   moves: moveRows,
   cavingRolls: cavingRollRows,
+  combats: combatRowsProp = [],
   otherRows,
   desireRows,
   oocRows,
@@ -219,15 +221,17 @@ export default function Workspace({
       turnId,
       moves: moveRows,
       cavingRolls: cavingRollRows,
+      combats: combatRowsProp,
       stagedEffects: stagedEffectRows,
       stagedMessages: stagedMessageRows,
     });
-  }, [asOfMs, turnId, moveRows, cavingRollRows, stagedEffectRows, stagedMessageRows]);
+  }, [asOfMs, turnId, moveRows, cavingRollRows, combatRowsProp, stagedEffectRows, stagedMessageRows]);
 
   // Until the first seed lands (one tick after mount) the props ARE the rows.
   const deskRows = useDeskRows();
   const moves = deskRows.seeded ? deskRows.moves : moveRows;
   const cavingRolls = deskRows.seeded ? deskRows.cavingRolls : cavingRollRows;
+  const combats = deskRows.seeded ? deskRows.combats : combatRowsProp;
   const stagedEffects = deskRows.seeded ? deskRows.stagedEffects : stagedEffectRows;
   const stagedMessages = deskRows.seeded ? deskRows.stagedMessages : stagedMessageRows;
 
@@ -265,9 +269,15 @@ export default function Workspace({
       setDesk((d) => ({ ...d, historyTurnId: initialCaving.turnId }));
     }
   }
+  // A link straight to a fight (?sel=combat/<id>) swings the rail onto the Combat lens, so the row it
+  // opened is the one lit in the queue.
+  if (typeof window !== "undefined" && initialSelection?.type === "combat" && seenDeepLinkId !== initialSelection.id) {
+    setSeenDeepLinkId(initialSelection.id);
+    if (rail.lens !== "combat") setRail((r) => ({ ...r, lens: "combat" }));
+  }
   // A tab open across the deploy can still hold the deleted "requests" lens
   // in sessionStorage, which would render an empty rail until it was clicked.
-  const LENSES = ["moves", "caving", "other", "desires", "ooc", "history"];
+  const LENSES = ["moves", "caving", "combat", "other", "desires", "ooc", "history"];
   const lens = LENSES.includes(rail.lens) ? rail.lens : "moves";
   const setLens = useCallback((l) => setRail((r) => ({ ...r, lens: l })), [setRail]);
   const historyKind = rail.historyKind ?? "moves";
@@ -587,6 +597,25 @@ export default function Workspace({
     return map;
   }, [stagedEffects, stagedMessages]);
 
+  // Same shape again, keyed by combatId (CombatDesk.js).
+  const stagedByCombat = useMemo(() => {
+    const map = new Map();
+    for (const e of stagedEffects) {
+      if (!e.combatId) continue;
+      const entry = map.get(e.combatId) ?? { effects: [], messages: [] };
+      entry.effects.push(e);
+      map.set(e.combatId, entry);
+    }
+    for (const m of stagedMessages) {
+      if (!m.combatId) continue;
+      const entry = map.get(m.combatId) ?? { effects: [], messages: [] };
+      entry.messages.push(m);
+      map.set(m.combatId, entry);
+    }
+    return map;
+  }, [stagedEffects, stagedMessages]);
+  const selectedCombat = selected?.type === "combat" ? (combats.find((c) => c.id === selected.id) ?? null) : null;
+
   const solvedCount = moves.filter((m) => m.reviewStatus === "SOLVED").length;
 
   // Where the turn stands, for the inspector column with nobody picked.
@@ -598,6 +627,7 @@ export default function Workspace({
     const open = moves.length - solvedCount;
     // Results, not rolls: a caver with three 1s is one thing to answer.
     const cavingOpen = foldedCaving.rows.filter((c) => c.statusLabel === "Needs attention").length;
+    const fightsOpen = combats.filter((c) => !c.resolvedAt).length;
     const staged =
       stagedEffects.filter((e) => !e.applied).length +
       stagedMessages.filter((m) => !m.sent).length;
@@ -609,10 +639,11 @@ export default function Workspace({
       ...(cavingOpen
         ? [{ label: "Caving to answer", value: cavingOpen, tone: "warn" }]
         : []),
+      ...(fightsOpen ? [{ label: "Fights to rule on", value: fightsOpen, tone: "warn" }] : []),
       { label: "Staged for the push", value: staged },
       { label: "Yet to act", value: yetToAct },
     ];
-  }, [moves, foldedCaving, stagedEffects, stagedMessages, roster, solvedCount]);
+  }, [moves, foldedCaving, combats, stagedEffects, stagedMessages, roster, solvedCount]);
 
   // Defaults to STAGING: a tag invented while chasing a Move belongs in the
   // tray, not live.
@@ -711,6 +742,7 @@ export default function Workspace({
         <QueueRail
           moves={moves}
           cavingRolls={cavingRolls}
+          combats={combats}
           otherRows={otherRows}
           desireRows={desireRows}
           oocRows={oocRows}
@@ -805,6 +837,21 @@ export default function Workspace({
               onOpenDev={onOpenDev}
               gmProfiles={gmProfiles}
             />
+          ) : selectedCombat ? (
+            <CombatDesk
+              key={selectedCombat.id}
+              combat={selectedCombat}
+              staged={stagedByCombat.get(selectedCombat.id) ?? { effects: [], messages: [] }}
+              tagCatalog={tagCatalog}
+              roster={roster}
+              presenceZones={presenceZones}
+              stagingLocations={stagingLocations}
+              stagingRooms={stagingRooms}
+              onInspect={inspect}
+              onClose={deselect}
+              registerEscape={registerEscape}
+              gmProfiles={gmProfiles}
+            />
           ) : selectedOoc ? (
             <OocDesk
               key={selectedOoc.id}
@@ -831,7 +878,7 @@ export default function Workspace({
                   the rail.
                 </p>
               ) : (
-                <p className="text-sm text-muted">Pick a Move, a Caving roll, a Desire claim or an OOC line from the queue.</p>
+                <p className="text-sm text-muted">Pick a Move, a Caving roll, a fight, a Desire claim or an OOC line from the queue.</p>
               )}
             </div>
           )}

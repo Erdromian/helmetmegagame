@@ -57,6 +57,7 @@ import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
 import { clockStatus } from "@lifeweb/db/lib/gameState";
 import { combatModeState } from "@lifeweb/db/lib/combatMode";
+import { combatViewFor } from "@lifeweb/db/lib/combat";
 import { setCombatMode as setCombatModeInDb } from "@lifeweb/db/lib/verbs/combatMode";
 import { sessionGate } from "@lifeweb/db/lib/betweenSessions";
 import { loadDesireView } from "@/lib/selfPools";
@@ -2156,9 +2157,9 @@ export async function myMove() {
     where: { status: "OPEN" },
     select: { id: true, number: true, dayNumber: true, turnLengthHours: true, endsAt: true, startedAt: true },
   });
-  if (!openTurn) return { ok: true, turn: null, move: null, combatMode: null, characterId: me.character.id };
+  if (!openTurn) return { ok: true, turn: null, move: null, combatMode: null, fight: null, characterId: me.character.id };
 
-  const [clock, action] = await Promise.all([
+  const [clock, action, fight] = await Promise.all([
     clockStatus(prisma),
     prisma.action.findFirst({
       where: { characterId: me.character.id, turnId: openTurn.id },
@@ -2177,6 +2178,8 @@ export async function myMove() {
         diceModifier: true,
       },
     }),
+    // The fight they are in, for the line under the card (docs/systemdocs/ATTACK.md §4). Never a roll.
+    combatViewFor(prisma, me.character.id, openTurn),
   ]);
   const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: clock.frozen });
   const { editable } = moveIsEditable(action, openTurn, { clockFrozen: clock.frozen, inSession: clock.inSession });
@@ -2200,6 +2203,13 @@ export async function myMove() {
       ? { id: action.id, kind: action.moveKind, description: action.description, editable }
       : null,
     combatMode: combatModeState(me.character, openTurn, me.character.tags),
+    fight: fight
+      ? {
+          locationName: fight.locationName,
+          status: fight.status,
+          needsWriting: fight.canDescribe && !fight.description,
+        }
+      : null,
     // The dialog keys its unfiled draft on it, so two characters don't inherit each other's day.
     characterId: me.character.id,
   };

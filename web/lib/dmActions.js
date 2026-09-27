@@ -96,7 +96,21 @@ async function liveConversionPicks(ids, viewer) {
     .map((r) => r.id);
 }
 
+// A fight's two DMs (docs/systemdocs/ATTACK.md). Live while the fight still holds this viewer's own
+// participant row — INVITED for the Join / Decline pair, JOINED for the fight's own button. The ids are
+// participant rows, and matching them to the viewer here is what keeps somebody else's from lighting up.
+async function liveCombatRows(ids, viewer, status) {
+  if (!viewer.characterId) return [];
+  const rows = await prisma.combatParticipant.findMany({
+    where: { id: { in: ids }, characterId: viewer.characterId, status, activeTurnId: { not: null } },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
 const RESOLVERS = {
+  [DM_ACTION.COMBAT_INVITE]: (ids, viewer) => liveCombatRows(ids, viewer, "INVITED"),
+  [DM_ACTION.COMBAT]: (ids, viewer) => liveCombatRows(ids, viewer, "JOINED"),
   [DM_ACTION.OFFER]: liveOffers,
   [DM_ACTION.THREAT_SPAWN]: liveThreatSpawns,
   [DM_ACTION.LOBBY_SEAT]: liveLobbySeats,

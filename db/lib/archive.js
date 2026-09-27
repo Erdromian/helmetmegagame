@@ -8,7 +8,7 @@ const { hoodToken } = require("./whosHere");
 const { loadPresentedState } = require("./examineSnapshot");
 const { roleGroupHue } = require("./roleGroups");
 const { isSfx } = require("./sfx");
-const { attachSpeaker, attachAudience } = require("./strangers");
+const { attachSpeaker, attachAudience, attachSubjects } = require("./strangers");
 
 // The columns the live feed needs off a row, and nothing else — kept beside feedRowShape below so the two never drift.
 const FEED_ROW_SELECT = {
@@ -38,6 +38,10 @@ const FEED_ROW_SELECT = {
   // above is. Deliberately absent from ARCHIVE_ROW_SELECT below: the transcript is a
   // written record, and a sound is not something you read back.
   sfx: true,
+  // A line that names people, told to each reader in the names they know (a fight's
+  // announcement, ATTACK.md §1). Selected so feedRowShape can hide it on a symbol for the
+  // lens; it is NEVER shaped onto the wire, where it would carry every real name in it.
+  subjects: true,
   // Who may read the row, when not the whole place (a telephone's two voices, PHONES.md
   // §6). Selected so feedRowShape can hide them on a symbol for the lens; they are NEVER
   // shaped onto the wire, where an id on a room row would say who holds the phone.
@@ -60,7 +64,7 @@ function feedRowShape(row, extra = {}) {
   // never serialised: JSON and a spread both leave it behind. The row's audience
   // (onlyCharacterId / exceptCharacterId) rides the same way, for the lens to
   // decide who reads the row at all.
-  return attachAudience(attachSpeaker({
+  return attachSubjects(attachAudience(attachSpeaker({
     seq: String(row.seq),
     placeKey: row.placeKey ?? null,
     characterId: hooded ? null : (row.characterId ?? null),
@@ -86,7 +90,7 @@ function feedRowShape(row, extra = {}) {
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
     ...rest,
-  }, row.characterId ?? null), { only: row.onlyCharacterId ?? null, except: row.exceptCharacterId ?? null });
+  }, row.characterId ?? null), { only: row.onlyCharacterId ?? null, except: row.exceptCharacterId ?? null }), row.subjects ?? null);
 }
 
 // A batch of rows shaped with ONE `?v=` per character — feedRowShape falls back to
@@ -246,6 +250,9 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
         // both is the whole place, which is every row that is not a telephone's.
         onlyCharacterId: entry.onlyCharacterId ?? null,
         exceptCharacterId: entry.exceptCharacterId ?? null,
+        // A line that names people per reader (./peopleLine.js). Left out entirely when there are
+        // none, so every other row keeps the column's SQL NULL.
+        ...(entry.subjects ? { subjects: entry.subjects } : {}),
         threadName: entry.threadName ?? null,
         discordChannelId: entry.discordChannelId ?? null,
         placeKey: entry.placeKey ?? null,
