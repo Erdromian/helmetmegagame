@@ -18,8 +18,8 @@ const BLACK_MARKET_TEXT = Object.freeze({
   noTerminal: "There's no terminal here.",
   notHere: "You're not standing in the Exactor's Office.",
   noDoor: "You can't get in there.",
-  cantAct: (what) => `You can't act — you're ${what}.`,
-  notYourRing: "The terminal doesn't answer to your ring.",
+  cantAct: (what) => `You can't do that now — you're ${what}.`,
+  notYourRing: "Access denied.",
   noCoin: "The obol isn't in the catalog yet. A GM needs to run the tag sync.",
   jammed: "The terminal jammed. Try again.",
 
@@ -28,10 +28,10 @@ const BLACK_MARKET_TEXT = Object.freeze({
   insertLabel: "Insert obols",
   insertButton: "Insert",
   noCoins: "You don't have any obols to put in.",
-  insertAmount: (carried) => `Put in between 1 and ${carried} ¢.`,
+  insertAmount: (carried) => `Input between 1 and ${carried} ¢.`,
   // The one thing a player must know before feeding it, and the doc's rule:
-  // nothing comes back out.
-  noWithdraw: "It takes obols. It doesn't give them back.",
+  // nothing comes back out. Bascinet's words.
+  noWithdraw: "Insert your obols and your desires will wash away.",
   youInserted: (n, total) => `You feed ${n} ¢ into the slot. The terminal holds ${total} ¢.`,
 
   buyButton: "Buy",
@@ -45,10 +45,11 @@ const BLACK_MARKET_TEXT = Object.freeze({
   notAQuantity: "That isn't a quantity.",
   notStocked: "The terminal doesn't list that.",
   onlyOne: (name) => `The terminal won't sell more than one ${name}.`,
-  alreadyHave: (name) => `You already have ${name}.`,
-  notEnough: (total, credit) => `That order is ${total} ¢ and the terminal holds ${credit} ¢.`,
+  alreadyHave: (name) => `You already have ${name} and cannot hold another.`,
+  // Bascinet's call: the terminal does not say how short you are.
+  notEnough: () => "Insufficient funds.",
   noRoom: (reason) => reason,
-  youBought: (summary, total, left) => `${summary} — ${total} ¢. It's in your hands. The terminal holds ${left} ¢.`,
+  youBought: (summary, total, left) => `${summary} — ${total} ¢. The market terminal spits out your order; ${left} ¢ remain.`,
 });
 
 module.exports = { BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT };
