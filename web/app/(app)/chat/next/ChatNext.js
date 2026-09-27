@@ -32,6 +32,7 @@ import { useRefresh } from "@/app/components/useRefresh";
 import useFeedStream from "../useFeedStream";
 import { useNotified, clearNotified, clearAllNotified } from "../notifiedStore";
 import { useOpenPlace, setOpenPlace } from "../openPlace";
+import { useReportHeardPlace } from "@/app/components/heardPlace";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import Modal from "@/app/components/Modal";
@@ -221,7 +222,8 @@ export default function ChatNext(props) {
   const selectedKey =
     (wanted && byKey.has(wanted) ? wanted : null) ?? initialPlace ?? places[0]?.placeKey ?? null;
   const selected = selectedKey ? (byKey.get(selectedKey) ?? null) : null;
-
+  // The room on screen is the room the soundtrack plays (placeAmbience.js#BY_ROOM).
+  useReportHeardPlace(selectedKey);
 
   const onSelect = useCallback((placeKey) => setOpenPlace(placeKey), []);
 
