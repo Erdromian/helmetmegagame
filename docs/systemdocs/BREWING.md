@@ -142,12 +142,12 @@ instead.
 | `cybernetic-arm` | 1 | 3 (project) | `cybernetic-core` (secret) | missing-arm |
 | `cybernetic-leg` | 1 | 3 (project) | `cybernetic-core` (secret) | missing-leg |
 
-## 3b. The Silver Chip shelf
+## 3b. The Black Market's drugs
 
-Three of the nine drugs the Depot imports can be brewed instead of bought
-(`DEPOT.md` §3). They are ordinary brews in every respect but one: **none of
-them can be sold back to the Depot at any price**, because the whole black
-market is buy-only. A brewer's market for these is other players, which is
+Three of the nine drugs the Black Market terminal sells can be brewed instead
+of bought (`DEPOT.md` §3, §0n). They are ordinary brews in every respect but
+one: **none of them can be sold back to the Depot at any price**, because the
+whole Black Market is buy-only. A brewer's market for these is other players, which is
 the point of the Pusher's seat.
 
 | Brew | ⬢ | Turns | Ingredient | Consumes into |
@@ -157,8 +157,8 @@ the point of the Pusher's seat.
 | `ambrosia` | 0 | 1 | five `cave-fungus` | — (**+4 tag points**) |
 
 `buffout` is the one recipe in the file that spends an imported drug rather
-than a forageable, so a brewer without a Silver Chip cannot start the chain at
-all. `ambrosia` is the only thing in the game that grants tag points outside a
+than a forageable, so a brewer who cannot get at the Exactor's terminal — his
+ring or the Pusher's — cannot start the chain at all. `ambrosia` is the only thing in the game that grants tag points outside a
 fulfilled Desire — five Cave Fungus and a day for what costs a courtier 80 ¢.
 
 The two cybernetics are `catalog: secret` and hidden by

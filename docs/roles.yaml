@@ -1153,7 +1153,7 @@ groups:
         - >-
           You have a few tools: the Pusher, a brewer and drug seller; the Slaves, miners with bomb collars you can detonate; and the Courtesans, who do not work for you but will pay some of their cut for your protection.
         - >-
-          Your ring allows you to obtain items from the Black Market manifest at the depot.
+          Your ring works the Black Market terminal in your office.
         - >-
           Your only job is to make as much money as possible. The slaves and the Pusher will make you money by default, but you should plan big business moves. One lucrative enterprise is selling your slaves or getting new ones. The Incarn might sell you prisoners if you can cut a deal.
       difficulty: normal
@@ -1167,7 +1167,8 @@ groups:
       ring:
         spawns: true
         # collar-key: his ring unlocks collars; there is no Collar Key item.
-        opens: [silver-chip, den-key, exactors-key, collar-key]
+        # black-market-key: the Black Market terminal in his office (DEPOT.md §0n).
+        opens: [den-key, exactors-key, collar-key, black-market-key]
       starting_tags:
         - Bore Pistol
         - Machete
@@ -1383,7 +1384,7 @@ groups:
         - >-
           You should give the Exactor some of your cut so that he continues to protect you.
         - >-
-          Your ring allows you to buy drugs from the Depot.
+          Your ring works the Black Market terminal in the Exactor's Office.
       difficulty: normal
       bank_account: treasury
       starting_account: 14
@@ -1394,7 +1395,9 @@ groups:
       ring:
         spawns: true
         # collar-key: the Pusher's ring unlocks collars, the Exactor's other hand.
-        opens: [den-key, silver-chip, collar-key]
+        # black-market-key: the Black Market terminal, and the Exactor's Office
+        # door it stands behind. Not exactors-key, which fires the collar remote.
+        opens: [den-key, collar-key, black-market-key]
       starting_tags:
         - Ravenhearter
         - Brewing II

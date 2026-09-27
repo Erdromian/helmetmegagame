@@ -20,6 +20,7 @@ const {
 } = require("./train");
 const { ATM_ROOM_SLUGS, MEISTERS_OFFICE_ROOM_SLUG } = require("./depot");
 const { RING_TEXT } = require("./ringText");
+const { BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT } = require("./blackMarketText");
 const { ACTIONS_OPEN_ID } = require("./turnsConsoleRow");
 const { ACTION_START_PREFIX } = require("./actionCatalog");
 const { BELL_ROOM_SLUG } = require("./bell");
@@ -89,6 +90,7 @@ const ROOM_VENDING_PREFIX = "room:vending:";
 // The bomb (docs/systemdocs/NUKE.md). Its keypad's own ids all start
 // "room:nuke:" too (db/lib/nukeKeypad.js), so the bot tests those first.
 const ROOM_NUKE_PREFIX = "room:nuke:";
+const ROOM_BLACK_MARKET_PREFIX = "room:blackmarket:";
 // The Charon (docs/systemdocs/CHARON.md). Three room buttons and one on the
 // Location: the Panic Room's way in, the Cockpit's terminal, the Habitation's
 // last one, and Leave on the ship itself.
@@ -235,6 +237,16 @@ const ROOM_AFFORDANCES = [
     tone: PLAIN,
     prefix: ROOM_SLOTS_PREFIX,
     when: (room) => room?.slug === CASINO_ROOM_SLUG,
+  },
+  // The Black Market terminal in the Exactor's Office (db/lib/blackMarket.js).
+  // Drawn for anybody who can get into the room; the ring on the finger is
+  // checked when it is pressed, so somebody let in is told no in words.
+  {
+    id: "blackMarket",
+    label: BLACK_MARKET_TEXT.button,
+    tone: PLAIN,
+    prefix: ROOM_BLACK_MARKET_PREFIX,
+    when: (room) => room?.slug === BLACK_MARKET_ROOM_SLUG,
   },
   // The Merchant's vending machine (docs/systemdocs/VENDING.md). Resolved off a
   // COLUMN rather than a slug, the way the phone above is: there is one today,
@@ -506,6 +518,7 @@ module.exports = {
   ROOM_PHONE_PREFIX,
   ROOM_VENDING_PREFIX,
   ROOM_NUKE_PREFIX,
+  ROOM_BLACK_MARKET_PREFIX,
   ROOM_CHARON_ENTER_PREFIX,
   ROOM_CHARON_LAUNCH_PREFIX,
   ROOM_CHARON_SLEEP_PREFIX,

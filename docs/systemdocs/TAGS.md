@@ -1009,9 +1009,10 @@ has since been deleted outright along with the channel it opened.
   `syncTags.js` only checks it is positive, and warns without throwing if it
   is at or under the same tag's `sellablePrice`, since buying and selling one
   thing in a loop would print ⬢.
-- `manifest` — which Depot shelf a priced ware sits on: `general` (open to
-  anyone standing there), `black-market` (needs the **Silver Chip**) or
-  `merchant` (needs the Merchant's Licence). Absent means `merchant` — the
+- `manifest` — which shelf a priced ware sits on: `general` (open to
+  anyone standing at the Depot), `merchant` (needs the Merchant's Licence), or
+  `black-market` (not the Depot at all: the Exactor's terminal, worked by his
+  and the Pusher's rings, `DEPOT.md` §0n). Absent means `merchant` — the
   strictest default, so a newly priced ware is his to stock until the catalog
   says wider. `syncTags.js` refuses a manifest id the catalog
   (`db/lib/depotManifests.js`) doesn't know, and refuses one on a tag with no

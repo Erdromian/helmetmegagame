@@ -80,7 +80,7 @@ on a Leader's sheet. Four things went, and each for its own reason:
   advertised a market most of them had no business reading, from wherever they
   happened to be standing. The door is place-or-key now — wide enough that
   anybody who walks to the counter is served, narrow enough that reading it
-  from a cell across town takes a licence or a chip.
+  from a cell across town takes a licence.
 - **The tax button.** It filed a levy per person per turn, DM'd each target, and
   could be refused or part-paid. The sell tax is quieter and far harder to
   dodge: a percentage off every sale at the counter, before anybody is paid.
@@ -104,7 +104,7 @@ on a Leader's sheet. Four things went, and each for its own reason:
 ## 0b. Who may do what
 
 **`/depot` is PLACE OR KEY.** It opens for somebody standing in the Depot, and
-for somebody carrying a manifest key — the Merchant's Licence or a Silver Chip —
+for somebody carrying a manifest key — the Merchant's Licence —
 who reads it from anywhere. Everybody else gets no rail item and is redirected
 off the page. Standing there is what makes the counter usable: a key alone opens
 it read-only, and the page says so.
@@ -124,8 +124,8 @@ What your tags decide is the **shelf**, and one seat's paperwork:
 | Holder | Can |
 |---|---|
 | **Anyone, standing there** | Open the page. Order off the general manifest, use the infoterminal at the counter (it reads the ring on your finger, `RINGS.md` §5), put things in the drop box beside it. Infoterminals also stand in the Inn's and the Den's bars (§0l). |
-| **Silver Chip** | …plus the black market: drink, smoke and worse — and the page itself, read-only, from anywhere. |
-| **Depot Keycard** | Open a sealed crate (a Silver Chip also opens one whose sealed goods are all Black Market). Sell into the Merchant's account rather than their own. Spends nothing of its own, and no longer opens any door — the Railyard is public. |
+| **The Exactor's or the Pusher's ring** | Nothing extra here. The Black Market is not sold at the counter any more: it is the terminal in the Exactor's Office (§0n). |
+| **Depot Keycard** | Open a sealed crate. Sell into the Merchant's account rather than their own. Spends nothing of its own, and no longer opens any door — the Railyard is public. |
 | **Merchant's Licence** | …plus the page from anywhere, read-only, and the whole manifest, sealed goods included, the Company's credit line, the gun on the office wall, and the sight of everybody's staged selling. |
 | **A key to the Meister's office**, standing in the Keep | `/treasury`: every account, the Vault's backing, and the sell tax rate (§0h). |
 
@@ -258,8 +258,7 @@ Unless something in it ships sealed, in which case the whole crate reads:
 [SHIPMENT ID RV-4471-K] · ADA VOSS · AV-2017: SEALED
 ```
 
-...and only a Depot Keycard opens it — or a Silver Chip, when every sealed thing
-inside came off the Black Market. **One sealed line item seals the crate it
+...and only a Depot Keycard opens it. **One sealed line item seals the crate it
 lands in**, so nobody knows *which* crate the dangerous thing is in. The seal
 hides *what* is in the box; whose box it is stays printed, because those are two
 different secrets.
@@ -273,8 +272,10 @@ says so. With no public room there, the crate refuses to open.
 
 A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
 sync refuses it on a tag with no `depotPrice`, since the station cannot ship
-what it does not stock. Currently sealed: the two firearms, the flamethrower,
-Light Infantry Armour, Soporific, Phrygian Tears, the Homunculus.
+what it does not stock. Currently sealed: the ML-23, the Neoclassic R&W10, the
+CTT4&3 Rifle, the Kpfw-6 Avtomat, the Flamethrower, Heavy Infantry Armor, the
+Adamantium Sword and the Homunculus. A Black Market ware never is: the
+terminal hands it over on the spot (§0n), and the sync refuses a seal on one.
 
 ## 0e. The manifests
 
@@ -285,7 +286,7 @@ one buyer.
 | Manifest | Opened by | Holds |
 |---|---|---|
 | `general` | nothing — anyone standing at the counter | ⬢ and Ration Boxes |
-| `black-market` | **Silver Chip** | the drink and drug shelf, the machete and the collar kit. **Buy-only, all of it** |
+| `black-market` | **nothing at the counter** | the drink and drug shelf, the machete and the collar kit — sold only by the Black Market terminal (§0n). **Buy-only, all of it** |
 | `merchant` | **Merchant's Licence** | everything priced, sealed goods included |
 
 The catalog is `db/lib/depotManifests.js` — zero requires, like `dmKinds.js`,
@@ -299,9 +300,13 @@ nothing on it says nothing and reads as a rule.
 Adding a manifest is one entry in that file plus a `manifest:` line per ware.
 Nothing else has to change.
 
-**The Silver Chip** (`silver-chip`) is a metallic poker chip, weightless,
-tradeable, and does nothing whatsoever except open that shelf. Not craftable:
-a forge that could mint them would mint the market open for everybody.
+`black-market` is still a manifest id, so a ware can name it, but it is no
+shelf here: `manifestsFor` and `canOrder` never offer it, whatever the
+customer holds, and the order action says so in words.
+
+**The Silver Chip is gone.** It opened the Black Market shelf and did nothing
+else, and the shelf left the counter for the Exactor's terminal (§0n), so there
+was nothing left for it to open.
 
 ## 0f. The drop box, and the sell tax
 
@@ -666,7 +671,7 @@ where the train is — over five tabs: **ATMs**, **Selling**, **Buying**,
 **Price list**, **Ledger**.
 
 There is no Manifests tab, and there should not be one. A tab listing every
-shelf and what opens it tells a man with no chip and no licence exactly what he
+shelf and what opens it tells a man with no licence exactly what he
 is missing and what is on the other side of it — which is the whole secret the
 manifests exist to keep.
 
@@ -765,6 +770,71 @@ Three consequences worth knowing:
   same as anywhere else — and it goes out on both faces at once, with the same
   sound (`db/lib/sfx.js`'s four `slot-*` tokens).
 
+## 0n. The Black Market terminal, in the Exactor's Office
+
+Not the Depot's, and in this file because it sells the wares the Depot's
+counter used to. Built from Bascinet's own design document,
+`E:\Bascinet\V3\Den\Black Market.docx`:
+
+> Located inside the Exactor's Office is a terminal called "Black Market". It is
+> an action that is gated behind the Exactor and Pusher's ring. The Silver Chip
+> is to be removed, as it no longer serves a purpose.
+>
+> Ordering goods through the black market can only be done through the black
+> market, and the ability to do so through the Depot is removed. Things ordered
+> through the black market are instantly given to the character ordering them,
+> with no delay. The terminal allows the user to insert obols but not withdraw
+> them. The obols inserted are then exchanged when ordering goods.
+
+How the game does it. The rules are `db/lib/blackMarket.js`, its words
+`db/lib/blackMarketText.js` (zero requires, so Chat's dialog can read them);
+the faces are `BlackMarketDialog` in `web/app/(app)/chat/PlacePanel.js` and
+`bot/src/events/interactions/blackMarket.js`.
+
+- **Where.** A **Black Market** button on the Exactor's Office
+  (`undertown-9-3`): on its starter post on Discord, and in Chat's place panel
+  for anybody who can get into the room.
+- **Who.** A worn, registered ring whose tokens include `black-market-key`. The
+  Exactor's and the Pusher's rings carry it (`ring.opens` in
+  `docs/roles.yaml`). It is keyed like a door, the collar remote's bargain
+  (`COLLAR.md`): a stolen ring works it, and somebody let into the office
+  without one is told no. A held tag of the same slug does not count.
+- **The door.** The office's `access:` is `[exactors-key, black-market-key]`,
+  so the Pusher's ring opens the door the terminal stands behind. The Pusher is
+  not given `exactors-key`, because that token is also what fires the collar
+  remote.
+- **The credit.** Insert takes physical obols out of your hand and adds them to
+  `Room.blackMarketObols`. It is **one number, shared** by everybody whose ring
+  works the machine. The coin leaves Ravenheart as it goes in (the ledger books
+  it to the Company, `BLACK_MARKET_INSERT`), so there is nothing in the office
+  to rob, and **nothing comes back out**: there is no Withdraw, on either face.
+- **An order.** Every priced ware with `manifest: black-market`, at its
+  `depotPrice`, read server-side. The whole order is refused if it costs more
+  than the credit, would take you past what you can carry (`carryAdmits`) or
+  past a hold limit, or asks for a second non-stackable ware. Otherwise the
+  credit falls and the goods are **in your hands at once**: no crate, no train,
+  no bank account. The goods leg books from the Company (`BLACK_MARKET_ORDER`),
+  and each order writes one `black_market_order` audit row with its `turnId`.
+- **Between sittings** the terminal can be read, and both writes are shut, the
+  counter's rule (§0b).
+- **The room is not told.** The office is soundproof, and what somebody buys
+  from the Black Market is nobody else's business.
+
+What went with it: the Black Market shelf at the Depot's counter, the Silver
+Chip, the chip's right to open a Black Market crate, and `sealedShipping` on
+every Black Market ware (`db/lib/syncTags.js` now refuses one).
+
+**Moving a running game over.** The migration `20261107000000_black_market_terminal`
+adds the credit column and the new token to the office's door, since
+`db:import-zones` never updates a room that exists. Then `db:sync-tags` (the
+token's tag row), `db:sync-roles` (which refreshes the rings already worn),
+`db:mirror` (the office's starter post gets its button), and
+`db:prune-tags -- --apply`, which deletes the Silver Chip's row and any chips in
+room stashes. It keeps the row while somebody is holding one; such a chip opens
+nothing now, and a GM can take it off the sheet from `/gm/dev`.
+An order already placed at the counter still rides the next train; if it
+carried a sealed Black Market ware, only a Depot Keycard opens its crate now.
+
 ## 1. What it is
 
 A railway terminus in the Caves, tethered to an orbital station the Merchant's
@@ -782,14 +852,14 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | Page | `/depot` (`web/app/(app)/depot/page.js`) — place or key (§0b): standing there, or carrying a manifest key, which reads it from anywhere. Read-only unless you are standing there |
 | Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
 | Rooms | `undertown-5-1`, the Railway — the train, the crates, the drop box and an ATM, and the Depot's only room. The Merchant's own three are next door at `undertown-6`: `undertown-6-1` Storefront (the second ATM), `undertown-6-2` Merchant's Office (the gun), `undertown-6-3` Cargo Bay (behind a keycard). The Inn's and the Den's bars carry ATMs of their own (§0l) |
-| Gates | the page itself, `depotAccessFor` (§0b), then the manifests (§0e), plus `depot-keycard` for a sealed crate (or `silver-chip` when its sealed goods are all Black Market). `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
+| Gates | the page itself, `depotAccessFor` (§0b), then the manifests (§0e), plus `depot-keycard` for a sealed crate. The Black Market terminal gates on the `black-market-key` ring token (§0n). `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
 | Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |
 
 ## 2. The Licence
 
-`merchants-license` is **a** door to the page rather than *the* door: a Silver
-Chip opens it too, and so does simply walking to the counter (§0b). What the
+`merchants-license` is **a** door to the page rather than *the* door: simply
+walking to the counter opens it too (§0b). What the
 licence is is the **widest shelf** plus the business: the whole manifest including
 sealed goods, the Company's credit line, the gun on the office wall, and the
 sight of everybody's staged selling. It is re-checked inside every server action
@@ -813,8 +883,8 @@ What the station charges, per unit. Almost every ware is `purchasable: false` �
 not buyable at character creation — and almost every ware sits on the
 **merchant** manifest, so for those the Licence really is the only way to get
 one made offworld. That is the point of the seat; what changed is that ⬢ and
-Ration Boxes are on the general shelf, and the drink and drug shelf is one chip
-away (§0e).
+Ration Boxes are on the general shelf, and the drink and drug shelf is the
+Exactor's terminal now (§0n).
 
 **⬢ themselves are a ware, at 3 ¢ each in and 1 ¢ each out.** They are the
 one line on either table the order path handles by hand — `RESOURCE_WARE_ID` is
@@ -869,7 +939,7 @@ rung and check this list before shipping, since a wage floor can never drop.
 **Three wares left that list by losing their sell-back entirely**, and it is
 worth saying so rather than quietly shortening the list. `alcohol` and
 `phrygian-tears` are on the Black Market, and the whole of that shelf is
-buy-only now (§0e) — a brewer can still make either and still sell either to
+buy-only now (§0n) — a brewer can still make either and still sell either to
 another player, but the Depot will not take one back at any price.
 `distilled-coca` is simply gone from the game, along with the coca chain
 behind it.

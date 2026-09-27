@@ -120,7 +120,7 @@ async function counterActor(prisma, discordUserId, where = AT_THE_DEPOT) {
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) return fail(`You can't act — you're ${blocker.name}.`);
 
-  // A worn ring carries the Depot keycard and the Silver Chip for its seat (docs/systemdocs/RINGS.md).
+  // A worn ring carries the Depot keycard for its seat (docs/systemdocs/RINGS.md).
   const held = accessSlugsOf(character.tags);
   return {
     ok: true,
@@ -595,8 +595,8 @@ async function canReadTreasury(prisma, discordUserId) {
   return { ok: true, character };
 }
 
-// The keys that open the Depot from anywhere: the Merchant's Licence and the
-// Silver Chip. Derived from MANIFESTS rather than named here, so adding a shelf
+// The keys that open the Depot from anywhere: the Merchant's Licence, today.
+// Derived from MANIFESTS rather than named here, so adding a shelf
 // in db/lib/depotManifests.js moves this gate with it. The Depot Keycard is
 // deliberately NOT one — it opens a sealed crate, not the window.
 const MANIFEST_KEY_SLUGS = MANIFESTS.map((m) => m.requiredTagSlug).filter(Boolean);

@@ -1397,14 +1397,15 @@ zones:
           undertown-9-3:
             name: Exactor's Office
             phone: "Exactor"
-            access: [exactors-key]
+            # The Black Market terminal stands here (DEPOT.md §0n). Its token
+            # opens the door too, so the Pusher's ring gets to it.
+            access: [exactors-key, black-market-key]
             soundproof: true
             description: >-
               A desk, a ledger, and a winch for the shutters over the stairs.
             stash:
               resources: 4
               items:
-                silver-chip: 1
                 obol: 39
                 mulligan-potion: 2
                 mace: 1

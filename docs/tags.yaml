@@ -4441,7 +4441,7 @@ tags:
     durationTurns: 3
 
   # The drug highs (docs/systemdocs/BREWING.md). Each one is the STATE half of
-  # an item on the Silver Chip shelf, the same split every consumable in this
+  # an item on the Black Market, the same split every consumable in this
   # file uses — you swallow the tablet, you hold the high.
   #
   # None of them carries its mood here, and that is not an oversight: a drug
@@ -8595,7 +8595,6 @@ tags:
     description: "A sealed canister. Can be thrown to obscure vision, cause choking, and irritate people's skin."
     manifest: black-market
     depotPrice: 25
-    sealedShipping: true
     pointCost: 0
     weight: 1.5
     stackable: true
@@ -9556,7 +9555,6 @@ tags:
     fighting: { tiers: 0.7, weaponClass: firearm }
     manifest: black-market
     depotPrice: 90
-    sealedShipping: true
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -10679,7 +10677,6 @@ tags:
     fighting: { tiers: 0.3, weaponClass: firearm }
     manifest: black-market
     depotPrice: 60
-    sealedShipping: true
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -11798,7 +11795,6 @@ tags:
     fighting: { tiers: 0.8, weaponClass: firearm }
     manifest: black-market
     depotPrice: 120
-    sealedShipping: true
     pointCost: 0
     equippable: true
     equipSlot: WEAPON
@@ -11963,18 +11959,18 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # The introduction to the black market, and the whole of it. It opens the
-  # BLACK_MARKET manifest at the Depot's counter (db/lib/depotManifests.js) and
-  # does nothing else whatsoever — no skill, no gate, no effect on a sheet.
-  # Tradeable and weightless on purpose: the point of a chip is that it changes
-  # hands across a table without anybody saying a word. Not craftable, because
-  # a forge that could mint these would mint the market open for everybody.
-  silver-chip:
+  # Never an item: the token the Exactor's and the Pusher's rings carry, the way
+  # the retired seat keys are (RINGS.md §3). It works the Black Market terminal
+  # in the Exactor's Office (db/lib/blackMarket.js) and opens that office's
+  # door, which is how the Pusher gets to the terminal without the Exactor's
+  # own token — that one also fires the collar remote (db/lib/collar.js).
+  # The Silver Chip it replaced is gone (DEPOT.md §0n).
+  black-market-key:
     catalog: gm
-    name: Silver Chip
+    name: Black Market Key
     category: items
     group: items-keys
-    description: "A metallic poker chip."
+    description: "It works the Black Market terminal."
     pointCost: 0
     weight: 0
     stackable: true
@@ -12195,7 +12191,7 @@ tags:
     consumesInto: []
 
   # The collar kit (docs/systemdocs/COLLAR.md). The collar and the trigger
-  # that sets it off are Black Market wares — the Silver Chip is the whole gate,
+  # that sets it off are Black Market wares — the Exactor's and the Pusher's rings are the whole gate,
   # and the Exactor is the one seat that starts holding both. What takes a
   # collar off is no longer a ware: the Exactor's and the Pusher's rings carry
   # the retired Collar Key's token (below).
@@ -13450,7 +13446,6 @@ tags:
     manifest: black-market
     pointCost: 0
     depotPrice: 37
-    sealedShipping: true
     sellable: true
     sellablePrice: 22
     weight: 12
@@ -13508,7 +13503,6 @@ tags:
     manifest: black-market
     pointCost: 0
     depotPrice: 41
-    sealedShipping: true
     weight: 0.5
     stackable: true
     visible: false
@@ -13814,12 +13808,12 @@ tags:
     sellablePrice: 8
 
   # ---------------------------------------------------------------------
-  # The Silver Chip shelf (docs/systemdocs/DEPOT.md §0e).
+  # The Black Market's drugs (docs/systemdocs/DEPOT.md §0n).
   #
-  # Nine wares the Depot imports and the Pusher resells. Every one of them is
+  # Nine wares the Black Market terminal imports and the Pusher resells. Every one of them is
   # BUY-ONLY: a depotPrice and no sellablePrice at all, the shape bar-soap
   # already uses. That is deliberate and it now covers the whole black-market
-  # shelf, brews included — you can buy a drug at the counter and you can
+  # shelf, brews included — you can buy a drug at the terminal and you can
   # never sell one back, so the market for them is other players.
   #
   # None of them authors its mood. A drug restores no hunger, so the consume
@@ -14281,7 +14275,6 @@ tags:
       # the recipe stays in the book.
       items: [cave-fungus]
     depotPrice: 32
-    sealedShipping: true
 
   graga-sweat:
     catalog: gm

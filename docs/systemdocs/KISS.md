@@ -53,9 +53,10 @@ the code takes the **max** of the two rather than trusting that. A GM grant
 walks past the tier rule, and a hand-granted pair would otherwise pay twice.
 `alluring-scent` (Perfume's 2-turn buff, `docs/tags.yaml`) stacks on top of all
 of it — a scent isn't a face, so there's no tier to collide with. It is also
-the only rung of this table anybody can **buy**: Perfume is 2 ¢ off the black
-market and consumes into the tag, so a quarter of the Courtesan's own advantage
-is available to anyone with a Silver Chip and two obols. The tag's own
+the only rung of this table anybody can **buy**: Perfume is 2 ¢ off the Black
+Market and consumes into the tag, so a quarter of the Courtesan's own advantage
+is available to anyone who can get the Exactor or the Pusher to buy it for them
+(`DEPOT.md` §0n). The tag's own
 description says so now, because a buff nobody knows the price of is not really
 for sale.
 

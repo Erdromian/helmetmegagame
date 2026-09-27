@@ -45,6 +45,7 @@ const {
   ROOM_PHONE_PREFIX,
   ROOM_VENDING_PREFIX,
   ROOM_NUKE_PREFIX,
+  ROOM_BLACK_MARKET_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
@@ -199,6 +200,17 @@ const {
   handleVendingPricePicked,
   handleVendingPriceSubmit,
 } = require("./interactions/vending");
+const {
+  BM_INSERT_PREFIX,
+  BM_INSERT_MODAL,
+  BM_PICK_PREFIX,
+  BM_QTY_MODAL,
+  handleBlackMarketOpen,
+  handleBlackMarketInsert,
+  handleBlackMarketInsertSubmit,
+  handleBlackMarketPick,
+  handleBlackMarketQtySubmit,
+} = require("./interactions/blackMarket");
 const {
   ATM_OUT_PREFIX,
   ATM_IN_PREFIX,
@@ -553,6 +565,14 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_VENDING_PREFIX)) {
           return void (await handleVendingOpen(interaction, interaction.customId.slice(ROOM_VENDING_PREFIX.length)));
         }
+        // The Black Market terminal (db/lib/blackMarket.js). Insert opens a
+        // modal, so it must NOT be acked first.
+        if (interaction.customId === BM_INSERT_PREFIX) {
+          return void (await handleBlackMarketInsert(interaction));
+        }
+        if (interaction.customId.startsWith(ROOM_BLACK_MARKET_PREFIX)) {
+          return void (await handleBlackMarketOpen(interaction));
+        }
         if (interaction.customId.startsWith(ROOM_BELL_PREFIX)) {
           return void (await handleBellOpen(interaction, interaction.customId.slice(ROOM_BELL_PREFIX.length)));
         }
@@ -677,6 +697,10 @@ module.exports = {
         if (interaction.customId.startsWith(VENDING_BUY_PREFIX)) {
           return void (await handleVendingBuy(interaction, interaction.customId.slice(VENDING_BUY_PREFIX.length)));
         }
+        // A Black Market ware picked: opens the quantity modal, so no ack.
+        if (interaction.customId.startsWith(BM_PICK_PREFIX)) {
+          return void (await handleBlackMarketPick(interaction));
+        }
         // Opens a modal, so it must NOT be acked first.
         if (interaction.customId.startsWith(VENDING_IN_MODAL)) {
           return void (await handleVendingStockInPicked(
@@ -751,6 +775,12 @@ module.exports = {
         // The vending machine's three modals. The put-in and price ones carry
         // "<roomId>:<tagId>" rather than a bare room id, since the select that
         // opened them is gone by the time the modal comes back.
+        if (interaction.customId === BM_INSERT_MODAL) {
+          return void (await handleBlackMarketInsertSubmit(interaction));
+        }
+        if (interaction.customId.startsWith(BM_QTY_MODAL)) {
+          return void (await handleBlackMarketQtySubmit(interaction, interaction.customId.slice(BM_QTY_MODAL.length)));
+        }
         if (interaction.customId.startsWith(VENDING_INSERT_MODAL)) {
           return void (await handleVendingInsertSubmit(
             interaction,

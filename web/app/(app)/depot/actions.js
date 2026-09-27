@@ -18,6 +18,7 @@ import {
   manifestOf,
   MANIFEST_GENERAL,
 } from "@lifeweb/db";
+import { isBlackMarketWare } from "@lifeweb/db/lib/depotManifests";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
 import { TURNS_PATH } from "@/lib/routes";
@@ -109,7 +110,7 @@ async function requireAccount() {
   return { ...gate, account: gate.character.bankAccount };
 }
 
-// Plus the worn ring's keycard or Silver Chip (docs/systemdocs/RINGS.md).
+// Plus the worn ring's keycard (docs/systemdocs/RINGS.md).
 function heldSlugSet(character) {
   return accessSlugsOf(character.tags);
 }
@@ -199,6 +200,9 @@ async function depotOrderImpl({ items: rawItems, anonymous: rawAnonymous, label:
     // The manifest gate, re-checked here and never taken from the client — the
     // section a ware was carted from is a hint, the tag is the rule.
     if (!canOrder(tag, held)) {
+      // The Black Market's wares are the Exactor's terminal's, never the
+      // counter's (db/lib/blackMarket.js), whatever the buyer holds.
+      if (isBlackMarketWare(tag)) throw new UserError(`${tag.name} isn't sold at the Depot.`);
       throw new UserError(`The counter doesn't offer you ${tag.name}.`);
     }
     manifestId = manifestOf(tag);

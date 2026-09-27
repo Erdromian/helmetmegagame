@@ -37,6 +37,12 @@ import {
   setSlotPrice,
 } from "@lifeweb/db/lib/vending";
 import { VENDING_TEXT } from "@lifeweb/db/lib/vendingText";
+import {
+  blackMarketState as blackMarketStateInDb,
+  insertObols as insertBlackMarketObols,
+  blackMarketOrder as blackMarketOrderInDb,
+} from "@lifeweb/db/lib/blackMarket";
+import { BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT } from "@lifeweb/db/lib/blackMarketText";
 import { isTradeable } from "@lifeweb/db/lib/tradeable";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
@@ -1832,6 +1838,49 @@ export async function vendStockOut({ roomId, tagId, quantity } = {}) {
 
 export async function vendSetPrice({ roomId, tagId, priceObols } = {}) {
   return vendingVerb(roomId, setSlotPrice, { tagId, priceObols });
+}
+
+// ------------------------------------------------- the Black Market terminal
+//
+// The Exactor's Office terminal (docs/systemdocs/DEPOT.md §0n). Every rule —
+// the ring, the credit, the shelf, handing the goods over — is in
+// db/lib/blackMarket.js, so this face and Discord's cannot drift. Each action
+// finds the session, re-checks the room, and hands over.
+
+// The read: the credit, the coin in hand, the shelf. Open between sittings,
+// like every other reader here.
+export async function blackMarketView({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT.noTerminal);
+  if (found.error) return { ok: false, error: found.error };
+  return blackMarketStateInDb(prisma, me.discordUserId);
+}
+
+// The two writes, shut between sittings. Both end the same way.
+async function blackMarketVerb(roomId, fn, args) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT.noTerminal);
+  if (found.error) return { ok: false, error: found.error };
+
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const result = await fn(prisma, me.discordUserId, { turn, ...args });
+  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
+  // Coin left a purse, or goods landed in one: settle the carry
+  // (docs/systemdocs/CARRY.md) and redraw the purse.
+  await afterInventoryChange([me.character.id]).catch(() => {});
+  refresh();
+  return { ok: true, line: result.line, sfx: result.sfx };
+}
+
+export async function blackMarketInsert({ roomId, amount } = {}) {
+  return blackMarketVerb(roomId, insertBlackMarketObols, { amount });
+}
+
+// `items` is [{ tagId, quantity }]; the terminal re-prices every line.
+export async function blackMarketBuy({ roomId, items } = {}) {
+  return blackMarketVerb(roomId, blackMarketOrderInDb, { items });
 }
 
 // What the merchant may put in: whatever they are carrying that is cargo and

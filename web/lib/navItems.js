@@ -53,7 +53,7 @@ const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", 
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "gm" };
 // PLACE OR KEY, the same predicate the page gates on (db/lib/depotCounter.js),
 // so the rail can never offer an item that redirects. You get it standing in the
-// Depot, or carrying a manifest key — the Merchant's Licence or a Silver Chip —
+// Depot, or carrying a manifest key — the Merchant's Licence —
 // which reads the shelf from anywhere. Every GM keeps it, wherever they stand.
 // See docs/systemdocs/DEPOT.md §0b.
 const DEPOT_NAV_ITEM = { href: "/depot", label: "Depot", icon: "store", section: "player" };
