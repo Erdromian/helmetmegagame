@@ -580,7 +580,7 @@ function sectionInvestments() {
   // A caveat most rows share (the fighting tags' band mix) is said once above the table, not once a row.
   const noteCount = new Map();
   for (const r of all) if (r.note) noteCount.set(r.note, (noteCount.get(r.note) ?? 0) + 1);
-  const sharedNotes = [...noteCount].filter(([, n]) => n >= 10).map(([note, n]) => ({ note, n }));
+  const sharedNotes = [...noteCount].filter(([, n]) => n >= 10).map(([note, n]) => ({ note, n, fighting: all.every((r) => r.note !== note || r.group === "Fighting") }));
   const shared = new Set(sharedNotes.map((x) => x.note));
   const cols = [
     { h: "Investment", get: (r) => r.name },
@@ -629,7 +629,12 @@ ${barChart({ rows: pointBars, unit: " ¢/turn", fmtVal: (v) => fmt(v, 2), labelW
 <h4>Production only: no risk beyond fatigue</h4>
 ${barChart({ rows: productionBars, unit: " ¢/turn", fmtVal: (v) => fmt(v, 2), labelW: 210, scale: "linear" })}
 <h3>All of it</h3>
-${sharedNotes.map((x) => `<p class="lede">For the ${x.n} rows with no caveat of their own: ${esc(x.note)}</p>`).join("")}
+<p class="lede"><b>Reading the table.</b> <b>Pays through</b> is one word: <i>production</i> has no risk beyond fatigue; <i>caving</i> is a caver's ¢ and carries the Caving Die's risk; <i>trade</i> pays in points or a shelf opened, not output; <i>mood</i> marks a perk whose gain is mood saved, priced at ${fmt(params.moodPointPrice, 1)} ¢ a mood point. ${(() => {
+    const n = all.filter((r) => r.group === "Fighting").length;
+    const note = sharedNotes.find((x) => x.fighting)?.note;
+    return n ? `The ${n} <b>Fighting</b> rows all work the same way. <b>What it does</b> is the band the tag lifts an untrained character to on that tree, in the sheet's own words, from ${esc(model.combat.base.melee)}. Its gain is what that step is worth to a Depths caver who stops at a ${model.combat.budget}-trouble budget, one expedition a turn, on the better of the two trees, under Bascinet's assumed band → trouble mix. A skill or weapon is averaged over three starting points (untrained, I and II, each shown), and a rung is its own step over the rung below.${note ? ` ${esc(note)}` : ""}` : "";
+  })()}</p>
+${sharedNotes.filter((x) => !x.fighting).map((x) => `<p class="lede">For the ${x.n} rows with no caveat of their own: ${esc(x.note)}</p>`).join("")}
 ${table({ cols, rows: all, filters: [{ label: "Group", get: (r) => r.group }, { label: "Kind", get: (r) => r.kind }, { label: "Lasts", get: (r) => r.lastsText }, { label: "Pays through", get: (r) => r.paysThrough }] })}
 <h3>Buildings that raise nothing</h3>
 <p class="lede">Every other structure type in the catalog, scanned for anything that changes what somebody makes. None does. Their cost is the price of what they are for.</p>
