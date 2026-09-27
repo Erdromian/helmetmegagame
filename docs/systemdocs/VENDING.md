@@ -1,6 +1,6 @@
 # The vending machine
 
-A machine bolted to the wall of the Merchant's Storefront, stocked with goods
+A machine bolted to the wall of the Merchant's Counter (in the Storefront), stocked with goods
 behind glass at prices he set. You feed coins into the slot and take what you
 can pay for. The coins you spend drop into a locked till he empties later.
 
@@ -19,7 +19,7 @@ station's imports on the Company's account.
 | | |
 |---|---|
 | Where a machine lives | `Room.vendingMachine`, a flag, authored in `docs/zones.yaml` |
-| How many there are | one, on the Storefront (`undertown-6-1`) |
+| How many there are | one, on the Merchant's Counter (`undertown-6-1`), on the Storefront's side of it (`MAP.md` §2d) |
 | Who may use it | anybody who can get into the room |
 | How many at once | **one**, and the VIEW is what is exclusive |
 | How long you get | 5 minutes, derived from `VendingMachine.holderSince` |

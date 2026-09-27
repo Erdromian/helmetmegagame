@@ -100,6 +100,9 @@ const EVENTS = Object.freeze({
   HUNGRY_ONSET: -30,
   STARVING_ONSET: -30,
   ROBBED: -10,
+  // Picking up a crate (Depot Overhaul.docx, CARRY.md §10), each one, unless
+  // a Pack Mule or Strong (db/lib/crates.js#hauls).
+  CRATE_HAULED: -20,
   CONFESSION: 17,
   KISS: 17,
   MUSIC: 12,

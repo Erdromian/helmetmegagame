@@ -1,6 +1,6 @@
 // The Discord buttons this change put on places (db/lib/placeAffordances.js):
-// Actions on every Location anchor, Send money and Merchant credit on the
-// Depot's Railway, Sell tax in the Meister's Study. They are Discord's own —
+// Actions on every Location anchor, Send money on the Depot's Railway, Sell
+// tax in the Meister's Study. (Merchant credit went with the Depot Overhaul.) They are Discord's own —
 // the web has the same verbs elsewhere — so the web's place panel must not
 // draw them. And a starter post splits into rows of five, or Discord rejects
 // the whole message.
@@ -23,15 +23,15 @@ test("every anchor has Actions, straight after Travel — on Discord only", () =
   assert.ok(!web.some((a) => a.id === "actions"));
 });
 
-test("the Railway carries Send money and Merchant credit, and splits into rows of five", () => {
+test("the Railway carries Send money and no credit line, and splits into rows of five", () => {
   const ids = roomAffordances(RAILWAY).map((a) => a.id);
-  assert.ok(ids.includes("sendMoney") && ids.includes("merchantCredit"), ids.join(", "));
+  assert.ok(ids.includes("sendMoney"), ids.join(", "));
+  assert.ok(!ids.includes("merchantCredit"), "the credit line is gone");
   const rows = roomStarterRows(RAILWAY);
-  assert.ok(rows.length >= 2, "seven buttons need two rows");
   for (const row of rows) assert.ok(row.components.length <= ROW_BUTTON_LIMIT);
   const customIds = rows.flatMap((r) => r.components.map((c) => c.custom_id));
   assert.ok(customIds.includes(`${ACTION_START_PREFIX}sendmoney`));
-  assert.ok(customIds.includes(`${ACTION_START_PREFIX}credit`));
+  assert.ok(!customIds.includes(`${ACTION_START_PREFIX}credit`));
   // Each starts a verb the catalog knows.
   for (const id of customIds.filter((c) => c.startsWith(ACTION_START_PREFIX))) {
     assert.ok(actionFor(id.slice(ACTION_START_PREFIX.length)), id);

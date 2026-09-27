@@ -924,14 +924,15 @@ db:collapse-games`, off a command line and behind a dry run.
 `/gm/dev?s=depot`. The station is a public market now (`DEPOT.md`), so there
 is far less here than there used to be: no account, no fuel, no shuttle
 clock — the generator and the shuttle are both gone entirely, and there is
-no station float to hold a balance on. `updateDepot` writes four fields:
-`Depot.debtObols` (the Company's drawn-down credit line), its cap
-`Depot.creditCapObols` (75), `Depot.sellTaxRate` (a percentage, clamped
-rather than refused) and `Depot.turretArmed`. There is no ⬢-per-obol field
+no station float to hold a balance on. `updateDepot` writes three fields:
+`Depot.terminalObols` (the coin in the Merchant's Terminal, `DEPOT.md` §0c — a
+correction that books no ledger row), `Depot.sellTaxRate` (the Meister's tax, a
+percentage, clamped rather than refused) and `Depot.turretArmed`. The credit
+line's two fields went with it in the Depot Overhaul. There is no ⬢-per-obol field
 either: an obol is one ⬢ and the rate never existed as a knob.
 
 The last two duplicate a player-facing surface rather than being the only
-door: the sell tax rate is really the Meister's own dial, set day to day
+door: the tax rate is really the Meister's own dial, set day to day
 from `/treasury`, which gates on standing in the Keep with a key to his office
 (`DEPOT.md` §0h), and
 the turret's switch is really a red button on the Merchant's Office starter

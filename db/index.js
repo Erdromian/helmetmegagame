@@ -993,15 +993,20 @@ async function resolveNeeds(turn, config) {
   // close and exactly one of them does anything.
   const trainOut = await runPass("trainDeparture", "Train departure", () => runTrainDeparturePass(prisma, turn));
   const trainIn = await runPass("trainArrival", "Train arrival", () => runTrainArrivalPass(prisma, turn));
-  if (trainOut?.settled || trainIn?.delivered) {
+  if (trainOut?.settled || trainOut?.shipped || trainIn?.delivered) {
     await audit(
       "train_ran",
       {
         settled: trainOut?.settled ?? 0,
+        shipped: trainOut?.shipped ?? 0,
+        exportValue: trainOut?.exportValue ?? 0,
         paid: trainOut?.paid ?? 0,
-        taxed: trainOut?.taxed ?? 0,
+        taxed: (trainOut?.taxed ?? 0) + (trainIn?.taxed ?? 0),
         delivered: trainIn?.delivered ?? 0,
         crates: trainIn?.crates ?? 0,
+        loose: trainIn?.loose ?? 0,
+        imported: trainIn?.paid ?? 0,
+        waiting: trainIn?.waiting ?? 0,
       },
       "Train",
     );

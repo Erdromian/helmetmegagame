@@ -37,10 +37,6 @@ export default function PlaceCard({
   fixtures = [],
   onFixture,
   onConverse = null,
-  // The Depot terminal, when this character is standing at it. A fixture in a
-  // room, so it is drawn where the room is; a licence or a chip reads /depot
-  // from elsewhere but puts no counter here.
-  depotHref = null,
   // The Godard Factory (docs/systemdocs/FACTORY.md). Drawn where the ground is
   // godflesh; the dialog itself says what is missing when there is no tool in
   // hand, and extractGodfleshRequest re-checks both.
@@ -93,7 +89,6 @@ export default function PlaceCard({
 
       {(fixtures.length > 0 ||
         onConverse ||
-        depotHref ||
         onFactory ||
         onOpenMap) && (
         <div className="chat-buttons">
@@ -108,11 +103,6 @@ export default function PlaceCard({
               {entry.label}
             </button>
           ))}
-          {depotHref && (
-            <Link className="btn-secondary" href={depotHref}>
-              Depot ›
-            </Link>
-          )}
           {onFactory && (
             <button type="button" className="btn-secondary" disabled={pending} onClick={onFactory}>
               Factory

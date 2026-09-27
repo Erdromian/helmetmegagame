@@ -2,6 +2,7 @@
 
 const { DEPOT_KEYCARD_SLUG } = require("./depotState");
 const { PACKAGE_MAX_LBS, PACKAGE_MAX_UNITS, TAG_CATEGORY } = require("./constants");
+const { crateValue, crateSaleFields } = require("./crates");
 
 // A crated ⬢ weighs a pound, so ⬢ pack against the same weight rule as everything else and ride in a crate with other goods. This used to be the ONE place a ⬢ had a weight, since loose on a sheet they weighed nothing and counted against a cap of their own. That cap is gone: a loose ⬢ weighs this same pound off its Tag row now (docs/systemdocs/CARRY.md), and this constant is only here because a Depot manifest line for ⬢ carries no tagId to look one up with.
 const RESOURCE_UNIT_LBS = 1;
@@ -123,7 +124,8 @@ function crateName(shipment, index) {
 }
 
 // The Tag rows for one shipment. `contents` is stashed on the tag itself so opening it needs no shipment lookup — the crate is self-describing, which is also what lets one be carried off, traded, and opened elsewhere. groupId is the caller's, since db/lib/ must not read the catalog.
-function crateTagData(shipment, crates, { groupId = null, weightByTagId = new Map() } = {}) {
+// A crate is worth the sum of what is in it (Depot Overhaul.docx): `sellPriceByTagId` prices the contents, and what the Depot won't buy adds nothing.
+function crateTagData(shipment, crates, { groupId = null, weightByTagId = new Map(), sellPriceByTagId = new Map() } = {}) {
   return crates.map((crate, index) => ({
     slug: crateSlug(shipment, index),
     name: crateName(shipment, index),
@@ -143,6 +145,7 @@ function crateTagData(shipment, crates, { groupId = null, weightByTagId = new Ma
     consumable: true,
     consumesIntoResources: crate.resources > 0 ? crate.resources : null,
     crateContents: crate.contents,
+    ...crateSaleFields(crateValue(crate.contents, sellPriceByTagId)),
   }));
 }
 

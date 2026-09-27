@@ -168,8 +168,15 @@ collect the wrong thing either way.
 ## 5. Package
 
 `packageItemsRequest`, gated on Packaging Equipment in reach. There are two in
-the world — the Logistics Room floor and the Merchant's Cargo Bay — and it is
-not craftable.
+the world — the Logistics Room floor and the Merchant's Cargo Bay (at the Depot
+since the Depot Overhaul) — and it is not craftable. Equipment on the Depot's
+Railway would not count: crates are never packed there (`DEPOT.md` §0e).
+
+**A crate is worth the sum of what went in** (Depot Overhaul.docx): its
+`sellablePrice` is the contents' sell prices added up, set at packing, and it
+is what the train pays for the crate when it leaves the Railway (`DEPOT.md`
+§0d). What may go in is one list, `db/lib/crates.js#packRefusal`, shared with
+the picker and the train. Carrying crates is `CARRY.md` §10.
 
 Up to **150 lb** of held goods, plus a line the packer types, become one runtime
 `Tag`: `custom: true` and a `custom-` slug, exactly the shape
@@ -196,10 +203,9 @@ would nest a `consumesInto` chain arbitrarily deep. Refused on both faces.
 carry no weight at all — you ride them, you do not carry them — so the floor of
 1 put a flat-bottomed boat in a one-pound box, and a hand-cart could be walked
 indoors or past a Cerberus as anonymous cargo. Refused on both faces, by
-`equipSlot: MOUNT` (`isMount` in `web/lib/tagRequests.js`). **The Depot is the
-deliberate exception**: Horse and Motorcycle are wares with a `depotPrice`, and
-every shipment arrives crated (`DEPOT.md` §0e), so `db/lib/depotCrates.js` packs
-them as before. This refusal is the hand-packed button only.
+`equipSlot: MOUNT` (`db/lib/crates.js#packRefusal`). The train agrees since the
+Depot Overhaul: a mount off the Merchant's Terminal arrives loose beside the
+crates, and ships loose (`DEPOT.md` §0d).
 
 **The line on the side is not checked.** `[CONTAINS]: whatever they typed`. That
 is the feature — it is how you smuggle something past a Cerberus, and the GM

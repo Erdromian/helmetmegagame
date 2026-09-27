@@ -472,17 +472,23 @@ documents:
     public: false
     tags: []
     description: |-
-      The Depot is open to anyone now. Your License still opens the whole manifest, sealed goods included; everyone else gets the general shelf, which needs nothing.
+      Your terminal is at the Depot. Anyone standing there can press it, but only your License, or your ring on your finger, unlocks it. Once it's open you see every ware the Company ships, grouped, each with its price with the Meister's tax on it, and you order as many as the terminal can pay for.
 
-      Goods don't move the moment somebody pays. A cargo train runs every other day on its own. An order placed today lands as crates in the Railyard at the end of today or tomorrow, depending on where the train is — a Docker's job, or yours, to unload and haul on to the name stamped on the box. The Railyard is open to anyone, so a crate left there can walk.
+      The terminal keeps its own obols, apart from any account. Feed it coin from your pocket, and take coin back out whenever you like, except what's promised to orders still waiting on the train.
 
-      Whoever's selling drops the thing in the dropbox, and it's gone — the money lands when the train next leaves, into their own account or, with your License or a Depot Keycard, into yours. The Meister takes a cut off every sale before it settles, into the treasury.
+      Nothing is paid when you order. The cargo train runs every other day on its own; when it comes in, it takes the cost of everything on order out of the terminal in one go, with the Meister's tax on top, and sets the goods down on the Railway in crates. A mount comes loose. Until the train comes, any order can be changed or cancelled from the Pending orders tab.
 
-      Prices hold to bands: a brew sells for close to what it cost to make plus a margin, smithed gear pays better the more skill and turns went into it, cave loot and bulk goods hold their price, and body parts stay cheap on purpose. The full table lives on the price list at the counter.
+      Selling is loading the train. When it leaves it takes every crate on the Railway, and any mount or ⬢ lying there, and pays the terminal what it was all worth, less the Meister's tax. A crate is worth everything packed in it. Anything else left loose on the platform stays where it is, so pack it first; the packing bench is in your Cargo Bay.
 
-      There's a vendor on your Storefront, and it sells while you're asleep. Your License is what opens it: unlock the front, put things on the shelf, set a price on each, and lock it again. After that anybody who walks in can feed it coins and take what they can pay for, and what they spend waits inside for you to withdraw.
+      Prices hold to bands: a brew sells for close to what it cost to make plus a margin, smithed gear pays better the more skill and turns went into it, cave loot and bulk goods hold their price, and body parts stay cheap on purpose.
 
-      Three things to know before you stock it. Only one customer can be at the vendor at a time, and they get five minutes — that's what stops somebody standing there pocketing the coins the last person fed in. Coins left in the slot when that time runs out stay in the slot: they don't come to you, and the next customer can spend them or walk off with them, so tell your regulars to take their change. And the room sees what comes out of it, so anybody standing in the Storefront knows what your customers are buying.
+      Crates are heavy. Nobody carries more than one at a time, or three with a Cart on, and hauling them wears people out unless they're built for it. Your Dockers are. You aren't.
+
+      Customers don't come into the Depot: the way from the Storefront is locked to you and your Dockers. They deal with you across the Merchant's Counter, which opens onto both, and you can hand things to each other across it.
+
+      There's a vendor on your Counter, on the Storefront side, and it sells while you're asleep. Your License is what opens it: unlock the front, put things on the shelf, set a price on each, and lock it again. After that anybody who walks in can feed it coins and take what they can pay for, and what they spend waits inside for you to withdraw.
+
+      Three things to know before you stock it. Only one customer can be at the vendor at a time, and they get five minutes — that's what stops somebody standing there pocketing the coins the last person fed in. Coins left in the slot when that time runs out stay in the slot: they don't come to you, and the next customer can spend them or walk off with them, so tell your regulars to take their change. And the room sees what comes out of it, so anybody standing at the Counter knows what your customers are buying.
 
   charon:
     name: Charon

@@ -34,7 +34,6 @@ import { itemPools } from "@/lib/itemPools";
 import { hasAttribute, GODFLESH_ATTRIBUTE } from "@lifeweb/db/lib/locationAttributes";
 import { extractToolFor, extractedThisTurn } from "@lifeweb/db/lib/godflesh";
 import { isDayLongTurn } from "@lifeweb/db/lib/turnClock";
-import { depotAccessFor } from "@lifeweb/db/lib/depotCounter";
 import { cookedTasteOnly, DESIRE_UNLOCK_SELECT } from "@/lib/referenceData";
 import { descriptorsFor } from "@/lib/descriptors";
 import { chipContextFor, composeChipTag } from "@/lib/tagChipRows";
@@ -452,7 +451,6 @@ async function FreshChat({ userId }) {
           // the old licence-or-keycard test would hide the fixture from the
           // very people standing in front of it.
           items,
-          depotHref: depotAccessFor(boardLocation?.slug, heldSlugs).atDepot ? "/depot" : null,
           // The Godard Factory's Extract, opened as the sheet's own dialog
           // (docs/systemdocs/FACTORY.md). Shown where the ground is godflesh;
           // whether there is a tool in hand is the dialog's sentence, not a

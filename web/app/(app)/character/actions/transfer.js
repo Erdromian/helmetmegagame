@@ -43,6 +43,9 @@ import {
 } from "@lifeweb/db/lib/carry";
 import { formatManifest } from "@lifeweb/db/lib/roomStash";
 import { holdLimitRefusal } from "@lifeweb/db/lib/mounts";
+import { isCrateTag } from "@lifeweb/db/lib/crates";
+import { chargeCrateHaul } from "@lifeweb/db/lib/crateHaul";
+import { resolveAcrossRecipient } from "@lifeweb/db/lib/whosHere";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import {
   INCAPACITATING_SLUGS,
@@ -57,10 +60,24 @@ import {
 import { lootCharacterRequestImpl } from "./misc.js";
 import { SFX } from "@lifeweb/db/lib/sfx";
 
-// A key naming a person — "character:<id>" or "hood:<token>" — rather than a room.
+// A key naming a person — "character:<id>", "hood:<token>" or, across a
+// counter, "across:<ref>" — rather than a room.
 function isPersonKey(key) {
   const raw = String(key ?? "");
-  return raw.startsWith("character:") || raw.startsWith("hood:");
+  return raw.startsWith("character:") || raw.startsWith("hood:") || raw.startsWith("across:");
+}
+
+// Somebody on the far side of a room that opens onto two Locations — the
+// Merchant's Counter (Depot Overhaul.docx: "items can be transferred to
+// characters on either side"). Transfer is the only verb that reaches across;
+// db/lib/whosHere.js#resolveAcrossRecipient re-checks that they are still
+// there and still at the counter. Resolved with no actor, because the actor's
+// own Location is exactly what they are not standing in.
+async function resolveAcross(actor, key) {
+  const hit = await resolveAcrossRecipient(prisma, actor, String(key ?? "").slice("across:".length));
+  if (!hit) return null;
+  const party = await resolveParty(`character:${hit.id}`);
+  return party ? { ...party, acrossRoomId: hit.roomId } : null;
 }
 
 // --- Transfer (the merged dialog) -------------------------------------
@@ -123,9 +140,10 @@ export async function transferRequestImpl(
   // `allowDead` on the SOURCE only: taking things off a corpse is the whole
   // point of a loot-shaped transfer, while handing something TO a body is not
   // a thing. Loot resolves its target the same way.
+  const across = String(toKey ?? "").startsWith("across:");
   const [from, to] = await Promise.all([
     resolveParty(fromKey, { actor: character, allowDead: true }),
-    resolveParty(toKey, { actor: character }),
+    across ? resolveAcross(character, toKey) : resolveParty(toKey, { actor: character }),
   ]);
   // A person key that resolves to nobody gets outOfReachMessage's sentence, so a
   // hood reached by plain id (refused in resolveParty) reads like anybody absent.
@@ -161,6 +179,9 @@ export async function transferRequestImpl(
   // faction silo was the one, and it went with the silos.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   for (const party of [from, to]) {
+    // Across the counter, resolveAcross has already asked the one question
+    // that applies: they are at its far side, and inside it.
+    if (party === to && across) continue;
     if (!(await canReachParty(character, party, { heldSlugs, allowConcealed: true }))) {
       throw new UserError(outOfReachMessage(party));
     }
@@ -279,7 +300,7 @@ export async function transferRequestImpl(
     // down again by the settle.
     const tooMany = holdLimitRefusal(
       recipient.tags,
-      moves.map((m) => ({ slug: m.held.tag?.slug, quantity: m.quantity })),
+      moves.map((m) => ({ slug: m.held.tag?.slug, tag: m.held.tag, quantity: m.quantity })),
     );
     if (tooMany) {
       throw new UserError(
@@ -327,6 +348,11 @@ export async function transferRequestImpl(
   const destroyed = to.destroysContents === true && moves.length > 0;
   const fromCharacterId = from.kind === "character" ? from.id : null;
   const toCharacterId = to.kind === "character" ? to.id : null;
+  // Hauling a crate (db/lib/crateHaul.js): the mover climbs the Tired ladder
+  // on the first of the turn, and every crate that lands in their own hands
+  // costs them mood — unless they are a Pack Mule or Strong.
+  const cratesMoved = moves.reduce((n, m) => n + (isCrateTag(m.held.tag) ? m.quantity : 0), 0);
+  const cratesPickedUp = toCharacterId === character.id ? cratesMoved : 0;
 
   await prisma.$transaction(async (tx) => {
     // A room-to-room move (two public rooms at one Location — the Keep alone
@@ -381,9 +407,12 @@ export async function transferRequestImpl(
           moveId,
           direction: "SEND",
           restore,
+          ...(across ? { acrossRoomId: to.acrossRoomId } : {}),
         },
       });
     }
+
+    await chargeCrateHaul(tx, character, { moved: cratesMoved, pickedUp: cratesPickedUp, turn: openTurn });
 
     if (amount > 0) {
       try {

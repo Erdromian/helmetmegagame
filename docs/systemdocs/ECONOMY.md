@@ -14,8 +14,8 @@ in, and forms are what `EconomyEntry.form` names:
 | `BALANCE` | `resources` tag stacks, on a character or a Room | Raw material. A pound a unit, so a fortune is freight. The common case |
 | `COIN` | physical `obol` tags, **and a vending machine's two pools** (`VendingMachine.floatObols` / `tillObols`) | Weightless, can be looted. Also what is actually in the Keep's Vault |
 | `ACCOUNT` | `BankAccount.balanceObols` | A claim. Most are claims on the Vault's coin; the Merchant's is offshore |
-| `DEBT` | `Depot.debtObols` | Negative money, capped at `creditCapObols` (75) |
-| `MANIFEST` | undelivered `DepotOrder` + unsettled `DepotSale` | Paid for or sold, still on the rails. Real money, in transit |
+| `DEBT` | retired with the credit line (the Depot Overhaul) | Old rows only |
+| `MANIFEST` | undelivered `DepotOrder` + unsettled `DepotSale`, from before the overhaul | Paid for or sold, still on the rails. A `MerchantOrder` is not money until the train pays for it |
 | `GOODS` | any tag with `sellablePrice` or `depotPrice` | Valued at its catalog price. A tag with no price is not money |
 
 **`BALANCE` stopped being abstract in 9/2026.** It named two Int columns,
@@ -68,7 +68,13 @@ Every entry has two ends, and each is one of:
   are two trays in one box: a purchase moving coin between them has not changed
   hands, so it books nothing. Its live balance is `floatObols + tillObols`, and
   anybody who ever writes a `COIN` reconcile must read both
-- `depot:debt`; `depot:account` is retired but still named by old rows
+- `machine:merchant-terminal` — the Merchant's Terminal's coin, `Depot.terminalObols`
+  (`DEPOT.md` §0c). One box, the same posture as a vending machine's: obols go
+  in and out of a hand (`TERMINAL_INSERT` / `TERMINAL_WITHDRAW`), the train pays
+  for imports out of it (`TRAIN_IMPORT`, to the Company) and pays exports into
+  it (`TRAIN_EXPORT`, from the Company), and the Meister's cut on either goes to
+  the Vault (`IMPORT_TAX` / `EXPORT_TAX`)
+- `depot:debt` and `depot:account` are retired but still named by old rows
 - `offworld:company` — the shuttle. The only door off-world
 - `world:mint` and `world:burn`
 

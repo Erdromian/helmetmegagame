@@ -43,6 +43,14 @@ import {
   blackMarketOrder as blackMarketOrderInDb,
 } from "@lifeweb/db/lib/blackMarket";
 import { BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT } from "@lifeweb/db/lib/blackMarketText";
+import {
+  terminalState as merchantTerminalStateInDb,
+  insertObols as insertTerminalObols,
+  withdrawObols as withdrawTerminalObols,
+  placeOrder as placeTerminalOrder,
+  editOrder as editTerminalOrder,
+  removeOrder as removeTerminalOrder,
+} from "@lifeweb/db/lib/merchantTerminal";
 import { isTradeable } from "@lifeweb/db/lib/tradeable";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
@@ -1882,6 +1890,57 @@ export async function blackMarketInsert({ roomId, amount } = {}) {
 // `items` is [{ tagId, quantity }]; the terminal re-prices every line.
 export async function blackMarketBuy({ roomId, items } = {}) {
   return blackMarketVerb(roomId, blackMarketOrderInDb, { items });
+}
+
+// ------------------------------------------------- the Merchant's Terminal
+//
+// At the Depot (Depot Overhaul.docx, docs/systemdocs/DEPOT.md §0c). A Location
+// fixture rather than a room's, so there is no room to re-check: every rule —
+// standing at the Depot, the License or the Merchant's ring, the terminal's
+// coin, the pending list — is in db/lib/merchantTerminal.js, and Discord's
+// panel calls the same functions.
+
+// The read. `unlock` is the Unlock button: without it the screen is locked
+// for everybody, which is the doc's "reveals a UI requesting it be unlocked".
+export async function merchantTerminalView({ unlock = false } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  return merchantTerminalStateInDb(prisma, me.discordUserId, { unlock: Boolean(unlock) });
+}
+
+// Every write, shut between sittings.
+async function merchantTerminalVerb(fn, args) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const result = await fn(prisma, me.discordUserId, { turn, ...args });
+  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
+  // Coin left a purse or came into one: settle the carry and redraw the purse.
+  await afterInventoryChange([me.character.id]).catch(() => {});
+  refresh();
+  return { ok: true, line: result.line, sfx: result.sfx };
+}
+
+export async function merchantTerminalInsert({ amount } = {}) {
+  return merchantTerminalVerb(insertTerminalObols, { amount });
+}
+
+export async function merchantTerminalWithdraw({ amount } = {}) {
+  return merchantTerminalVerb(withdrawTerminalObols, { amount });
+}
+
+// `items` is [{ tagId, quantity }]; the terminal re-prices every line.
+export async function merchantTerminalOrder({ items } = {}) {
+  return merchantTerminalVerb(placeTerminalOrder, { items });
+}
+
+// The whole new cart for one pending order; a line at 0 comes out.
+export async function merchantTerminalEditOrder({ orderId, items } = {}) {
+  return merchantTerminalVerb(editTerminalOrder, { orderId, items });
+}
+
+export async function merchantTerminalRemoveOrder({ orderId } = {}) {
+  return merchantTerminalVerb(removeTerminalOrder, { orderId });
 }
 
 // What the merchant may put in: whatever they are carrying that is cargo and

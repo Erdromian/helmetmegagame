@@ -583,18 +583,18 @@ Move.
 
 **The place buttons** come from `db/lib/placeAffordances.js`. Entries marked
 `discordOnly` are dropped from the web's place panels, since the web already has
-`/depot` and `/treasury`.
+the infoterminal's dialog and `/treasury`.
 
 | Button | Where | Starts |
 |---|---|---|
 | Actions | every Location anchor, after Travel | the Actions menu |
 | Send money | the Depot's Railway post | `/money send` |
-| Merchant credit | the Depot's Railway post | `/money credit` |
 | Sell tax | the Meister's Study | `/selltax` |
 
 Each place button refuses anybody who isn't standing there. The rule itself
-decides that, not the button. The Railway post now has seven buttons, so
-`db/lib/roomStarterRow.js#roomStarterRows` splits a post into rows of five.
+decides that, not the button. A post with more than five buttons is split by
+`db/lib/roomStarterRow.js#roomStarterRows` into rows of five. (Merchant credit
+and `/money credit` went with the credit line in the Depot Overhaul.)
 
 **The player's own buttons**, which are not a character's:
 

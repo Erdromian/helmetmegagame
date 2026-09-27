@@ -32,7 +32,7 @@ const DEFAULT_ROUTES = [
   { path: "/notes", as: "player", expect: "/memories" }, // the old Notes page, forwarded (MEMORIES.md)
 
   { path: "/store", as: "player", expect: "/character" }, // deliberate redirect stub for old links
-  { path: "/depot", as: "player", expect: "/character" }, // gated on a licence, not on being a player
+  { path: "/depot", as: "player", expect: "/chat" }, // redirect stub: the page went with the Depot Overhaul
   { path: "/gm", as: "gm", expect: "/gm/players" },
 
   { path: "/archive", as: "gm" }, // conditional on game state; checked as GM to keep the run stable

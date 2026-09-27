@@ -13,7 +13,6 @@ const {
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
   ROOM_ATM_PREFIX,
-  ROOM_DROPBOX_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,
@@ -42,8 +41,8 @@ const ROW_BUTTON_LIMIT = 5;
 // optional — only the Charon's two read it (db/lib/placeAffordances.js), and
 // omitting it drops those rather than breaking the row.
 //
-// ROWS, five buttons to a row: the Railway at the Depot carries seven (Storage,
-// Search, the ATM, the Dropbox, the Phone, Send money, Merchant credit). A room
+// ROWS, five buttons to a row: the Railway at the Depot carries five (Storage,
+// Search, the ATM, the Phone, Send money). A room
 // with five or fewer is one row, exactly as before, so its Room.postHash does
 // not move.
 function roomStarterRows(room, location = null) {
@@ -69,7 +68,6 @@ module.exports = {
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
   ROOM_ATM_PREFIX,
-  ROOM_DROPBOX_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,

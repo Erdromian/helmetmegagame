@@ -1,9 +1,9 @@
-// The Merchant's Depot: shared constants and pure helpers behind /depot and the three DEPOT_* request
-// kinds (docs/systemdocs/DEPOT.md). Lives in db/lib because the numbers are game balance, not page
+// The Merchant's Depot: shared constants and pure helpers behind the Merchant's Terminal, the
+// infoterminals and the train (docs/systemdocs/DEPOT.md). Lives in db/lib because the numbers are game balance, not page
 // logic. Touches no Prisma/network, so it's safe on the barrel and safe from either face.
 
-// The tag that opens the counter — the /depot route gate, the server-action re-check, and the reason
-// the Depot's turret doesn't shoot you. Tradeable, so handing it away hands away the Depot.
+// The Merchant's License: one of the two keys to the Merchant's Terminal (db/lib/merchantTerminal.js),
+// the gun on his office wall, and his office door. Tradeable, so handing it away hands away the business.
 const MERCHANT_LICENSE_SLUG = "merchants-license";
 
 // The Merchant's ROLE (a seat, not the tradeable licence above). A slug predicate, same shape as
@@ -29,10 +29,9 @@ const TOWER_LOCATION_SLUG = "fortress-5";
 const DEPOT_LOCATION_SLUG = "undertown-5";
 
 // Where a cash machine is bolted to a wall. There are FOUR, and two of them
-// are at the station: the counter's own on the Depot's Railway, and the
-// Merchant's on his Storefront next door (db/lib/train.js#STOREFRONT_ROOM_SLUG)
-// — the shop and the platform were one Location until they were split, and
-// each kept a machine. The other two have no counter behind them — the Inn's
+// are at the station: the Depot's own on its Railway, and the Merchant's on
+// his Counter in the Storefront next door (db/lib/train.js#STOREFRONT_ROOM_SLUG)
+// — on the Storefront's side of the Counter, the fixture side (MAP.md §2d). The other two have no counter behind them — the Inn's
 // bar and the Den's — and are an ATM and nothing else, no ordering, no drop
 // box, no sell window. Named here rather than imported from train.js, which
 // would be a cycle for two strings.
@@ -54,26 +53,6 @@ const ATM_LOCATION_SLUGS = new Set([
   INN_LOCATION_SLUG,
   DEN_LOCATION_SLUG,
 ]);
-
-// The station imports ⬢ at RESOURCE_IMPORT_PRICE and pays RESOURCE_EXPORT_PRICE for them back, so the
-// round trip always loses money — the spread can never be run in a loop to print obols (db/lib/syncTags.js
-// enforces the same invariant for every priced tag).
-//
-// THESE TWO ARE THE REAL PRICES. The `resources` tag carries a matching depotPrice/sellablePrice, but
-// the depot page and its order action both hand-build the ⬢ row off these constants rather than off the
-// tag (the tag query excludes RESOURCE_WARE_ID outright), so the tag's copy is decorative for this
-// surface and read only by things pricing AGAINST ⬢. Change both together or they drift apart silently.
-//
-// Import went 2 -> 3 on 2026-09-20 with the mining rework (MINING.md, DEPOT.md §3). At 2 the station was
-// an unlimited ⬢ faucet, so a crafter never had to find a prospector. Export is deliberately unchanged:
-// a mining day pays more now, and its ⬢ plus its stones already sit level with a smith's turn.
-const RESOURCE_IMPORT_PRICE = 3;
-const RESOURCE_EXPORT_PRICE = 1;
-
-// The id the ⬢ row carries on the Order and Price List tables. It was a sentinel when Resources weren't
-// a Tag; they are one now, and this is that tag's slug — still not a cuid, so it never collides with a
-// real ware's id, and a caller holding it has the slug it needs to find the stack.
-const RESOURCE_WARE_ID = "resources";
 
 // Sanity bound on a single line item — a fat-fingered quantity can't file for ten thousand vials.
 const DEPOT_MAX_QUANTITY = 99;
@@ -98,8 +77,5 @@ module.exports = {
   ATM_ROOM_SLUGS,
   ATM_LOCATION_SLUGS,
   DEPOT_MAX_QUANTITY,
-  RESOURCE_IMPORT_PRICE,
-  RESOURCE_EXPORT_PRICE,
-  RESOURCE_WARE_ID,
   normalizeQuantity,
 };

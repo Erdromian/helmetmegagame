@@ -1,25 +1,20 @@
-// The Depot's counter, on Discord: the infoterminal (the ATM, renamed) on the Storefront (and on the
-// Inn's bar, db/lib/depot.js#ATM_ROOM_SLUGS), the drop box
-// beside it, and the Merchant's gun on his office wall. Each is a button on a
-// Room's starter post (db/lib/placeAffordances.js), and the rules behind all
-// three live in db/lib/depotCounter.js so this face and the web's place panel
-// answer the same way.
-//
-// Every one of these is deliberately thinner than its web twin. The Depot's
-// page is where you compare prices and re-point a sale; these are for the
-// moment you are standing at the machine with your phone out.
-const { ActionRowBuilder, StringSelectMenuBuilder, ButtonBuilder, ButtonStyle, LabelBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
+// The Depot's fixtures, on Discord: the infoterminal (the ATM, renamed —
+// db/lib/depot.js#ATM_ROOM_SLUGS says where they stand) and the Merchant's gun
+// on his office wall. Each is a button on a Room's starter post
+// (db/lib/placeAffordances.js), and the rules behind both live in
+// db/lib/depotCounter.js so this face and the web's place panel answer the
+// same way. The drop box that stood beside them went with the Depot Overhaul;
+// the Merchant's Terminal is interactions/merchantTerminal.js.
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, LabelBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const { prisma } = require("@lifeweb/db");
 const {
   counterState,
   bankMove,
-  dropIntoBox,
   depotTurretPanel,
   toggleDepotTurret,
 } = require("@lifeweb/db/lib/depotCounter");
 const { buildAmountModal } = require("../../lib/depotModals");
 const { buildTurretModal, TURRET_WORD_FIELD } = require("../../lib/turretModal");
-const { DROPBOX_HELP, DROPBOX_EMPTY } = require("@lifeweb/db/lib/placeAffordances");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ack, respond } = require("../../lib/respond");
@@ -35,15 +30,7 @@ const ATM_PIN_FIELD = "depotatm:pin";
 const ATM_MODAL_PREFIX = "depotatm:m:";
 const ATM_AMOUNT_FIELD = "depotatm:amount";
 
-const DROP_PICK_PREFIX = "depotdrop:pick";
-const DROP_MODAL_PREFIX = "depotdrop:m:";
-const DROP_AMOUNT_FIELD = "depotdrop:amount";
-
 const DEPOT_TURRET_MODAL_PREFIX = "depotturret:toggle:";
-
-// Discord's select menus cap at 25 options, and a pocket with more than 25
-// kinds of sellable thing in it is a job for the web page.
-const DROP_OPTION_CAP = 25;
 
 async function openTurn() {
   return prisma.turn.findFirst({ where: { closedAt: null }, orderBy: { number: "desc" } });
@@ -126,75 +113,6 @@ async function handleAtmSubmit(interaction, which) {
   await respond(interaction, result.ok ? result.line : result.error);
 }
 
-// -------------------------------------------------------------- the drop box
-
-async function handleDropBoxOpen(interaction) {
-  await ack(interaction);
-  const state = await counterState(prisma, interaction.user.id);
-  if (!state.ok) {
-    await respond(interaction, state.error);
-    return;
-  }
-  if (!state.ownAccount) {
-    await respond(interaction, "You don't have an account yet.");
-    return;
-  }
-  if (!state.sellable.length) {
-    await respond(interaction, DROPBOX_EMPTY);
-    return;
-  }
-
-  await respond(interaction, {
-    content: `» *${DROPBOX_HELP}*`,
-    components: [
-      new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId(DROP_PICK_PREFIX)
-          .setPlaceholder("What goes in?")
-          .addOptions(
-            state.sellable.slice(0, DROP_OPTION_CAP).map((item) => ({
-              label: item.name.slice(0, 100),
-              description: `${item.unitPrice} ¢ each · ${item.quantity} held`.slice(0, 100),
-              value: item.tagId,
-            })),
-          ),
-      ),
-    ],
-  });
-}
-
-// Opens a modal, so it must NOT be acked first.
-async function handleDropBoxPick(interaction) {
-  const tagId = interaction.values?.[0] ?? "";
-  await interaction.showModal(
-    buildAmountModal({
-      customId: `${DROP_MODAL_PREFIX}${tagId}`,
-      field: DROP_AMOUNT_FIELD,
-      title: "Dropbox",
-      label: "How many",
-    }),
-  );
-}
-
-async function handleDropBoxSubmit(interaction, tagId) {
-  await ack(interaction);
-  const turn = await openTurn();
-  // The destination is re-derived server-side from the presser's own papers;
-  // Discord never offers the choice, so there is nothing here to trust.
-  const state = await counterState(prisma, interaction.user.id);
-  if (!state.ok) {
-    await respond(interaction, state.error);
-    return;
-  }
-  const result = await dropIntoBox(prisma, interaction.user.id, {
-    tagId,
-    quantity: Number(interaction.fields.getTextInputValue(DROP_AMOUNT_FIELD)),
-    destination: state.defaultDestination,
-    turn,
-  });
-  await respond(interaction, result.ok ? result.line : result.error);
-}
-
 // ---------------------------------------------------------------- the gun
 
 // Opening the modal isn't the act — the typed word is — so this only checks
@@ -239,15 +157,10 @@ module.exports = {
   ATM_IN_PREFIX,
   ATM_PIN_SUFFIX,
   ATM_MODAL_PREFIX,
-  DROP_PICK_PREFIX,
-  DROP_MODAL_PREFIX,
   DEPOT_TURRET_MODAL_PREFIX,
   handleAtmOpen,
   handleAtmAmountOpen,
   handleAtmSubmit,
-  handleDropBoxOpen,
-  handleDropBoxPick,
-  handleDropBoxSubmit,
   handleDepotTurretOpen,
   handleDepotTurretSubmit,
 };

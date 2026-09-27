@@ -2501,6 +2501,64 @@
   font-size: var(--fs-sm);
 }
 
+/* The Merchant's Terminal (PlacePanel.js#MerchantTerminalDialog, DEPOT.md §0c).
+   The shelf scrolls inside the dialog so the tabs above it and the total
+   under it stay put; each category is a <details> the player can fold. */
+.terminal-locked {
+  font-size: var(--fs-lg);
+  letter-spacing: 0.2em;
+  color: var(--muted);
+}
+
+.terminal-shelf {
+  max-height: 50vh;
+  overflow-y: auto;
+  margin-top: var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.terminal-group > summary {
+  cursor: pointer;
+  list-style: none;
+  font-weight: 600;
+  padding: var(--sp-1) 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.terminal-group > summary::-webkit-details-marker {
+  display: none;
+}
+
+.terminal-group > summary::before {
+  content: "▸ ";
+}
+
+.terminal-group[open] > summary::before {
+  content: "▾ ";
+}
+
+.terminal-ware {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 3px 0;
+  font-size: var(--fs-sm);
+}
+
+.terminal-ware-text {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+}
+
+.terminal-order {
+  padding: var(--sp-2) 0;
+  border-bottom: 1px solid var(--border);
+}
+
 /* One offer, in Waiting on you: its own sentence (`.quote`), then Accept/
    Decline/Answer/Open right under it (`.chat-buttons`). Stacked, not a row —
    the sentence is often longer than the block is wide. */

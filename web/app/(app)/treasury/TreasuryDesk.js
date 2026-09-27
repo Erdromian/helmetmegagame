@@ -98,11 +98,11 @@ export default function TreasuryDesk({
             <dd className="mono">{claims} ¢</dd>
           </div>
           <div>
-            <dt>Staged to sell</dt>
+            <dt>On order</dt>
             <dd className="mono">{stagedValue} ¢</dd>
           </div>
           <div>
-            <dt>Sell tax</dt>
+            <dt>Tax</dt>
             <dd className="mono">{rate}%</dd>
           </div>
         </dl>
@@ -117,8 +117,8 @@ export default function TreasuryDesk({
 
       <section className="panel p-5">
         <h2 className="panel-header">
-          Sell tax{" "}
-          <InfoIcon text="The sell tax applies on every item sold to the Depot. It deposits in the treasury." />
+          Tax{" "}
+          <InfoIcon text="The tax is taken on everything the train brings in and everything it takes away, once per train on the whole load. It deposits in the treasury." />
         </h2>
         <div className="mt-4 flex items-end gap-2">
           <label className="field">

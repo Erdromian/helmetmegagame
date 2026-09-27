@@ -1161,18 +1161,13 @@ export default async function DevPanelPage({ searchParams }) {
               <form action={updateDepot} className="flex flex-col gap-4">
                 <div className="ops-grid">
                   <DepotField
-                    name="debtObols"
-                    label="Drawn on the line (¢)"
-                    value={depot.debtObols}
-                  />
-                  <DepotField
-                    name="creditCapObols"
-                    label="Credit cap (¢)"
-                    value={depot.creditCapObols}
+                    name="terminalObols"
+                    label="In the Merchant's Terminal (¢)"
+                    value={depot.terminalObols}
                   />
                   <DepotField
                     name="sellTaxRate"
-                    label="Sell tax (%)"
+                    label="Meister's tax (%)"
                     value={depot.sellTaxRate}
                   />
                 </div>

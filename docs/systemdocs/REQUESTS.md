@@ -52,8 +52,7 @@ honours a recipe's own `perTurn` now.
 All three read `AuditLog.turnId`, which exists for exactly this and is indexed
 with `targetCharacterId` and `actionType`. **An action that a ration counts
 must set `turnId`**, or the ration silently reads zero and stops being
-enforceable. The `/depot` ledger reads the audit log too, though only to
-display.
+enforceable.
 
 ## 2. What the `details` blob carries
 
@@ -93,8 +92,9 @@ Deliberately uncounted — a stale number outlived three counts here already;
 the table below and the `RequestType` enum are the record. Most live in
 `web/app/(app)/character/requestActions.js`, the two Lifeweb types in
 `web/app/(app)/lifeweb/requestActions.js`, `BUY_TAGS`
-in `web/app/(app)/store/actions.js`, the Depot family in
-`web/app/(app)/depot/`, and `CAVING_LOOT` is filed by the turn
+in `web/app/(app)/store/actions.js`, the Depot's fixtures in
+`web/app/(app)/chat/counterActions.js` and the Merchant's Terminal in
+`db/lib/merchantTerminal.js`, and `CAVING_LOOT` is filed by the turn
 engine rather than by anybody. Each one
 authenticates, **re-validates everything the client sent** (a server action is
 a public endpoint, and the client's filtered menus are only advisory), applies
@@ -131,9 +131,9 @@ reason.
 | `EXTRACT_GODFLESH` | The **Harvest Godflesh** button: cuts Godflesh out of a marsh tile. Costs no Move — once per turn, claimed on `Character.extractTurnKey`. Needs a blade equipped, rolls a d6 — a 6 pays an extra, a 1 rolls an injury table that Armored Gloves dominate (`FACTORY.md` §3) | — | Takes the Godflesh back and heals what it cost; the turn stays claimed |
 | `PACKAGE_ITEMS` | Packs up to 150 lb of held goods into one crate weighing half that, with a line the packer types. Needs Packaging Equipment in reach; costs no Move (`FACTORY.md` §5) | — | Prises the crate open, returns the contents, deletes the runtime Tag |
 | `BIRD_MESSAGE` | Sends one written letter to a named person in a **guessed** zone. Once a day, gated on `bird` + `literacy`. A wrong guess or a dead recipient means it never arrives, and the sender is told a turn later (`BIRD.md`) | — | Hands the day back and closes the reply window; **cannot unsend a letter that landed** |
-| `DEPOT_BUY` | Orders an import off the orbital station at its `depotPrice`. Standing at the Depot, plus whichever manifest the ware sits on — general shelf needs nothing, everything else needs the Merchant's Licence (`DEPOT.md` §0e). The Black Market is not sold here: it is the Exactor's terminal, which hands its goods over at once (`DEPOT.md` §0n). Delivered as crates at the next train arrival, not on the spot | — | Returns the goods, refunds the ⬢ |
-| `DEPOT_SELL` | Drops a `sellable` tag in the dropbox at the Depot; it settles at its `sellablePrice`, minus the sell tax, at the next departure (`DEPOT.md` §0f) | — | Buys it back with its original expiry, takes the ⬢ |
-| `DEPOT_CREDIT` | Draws on or repays the Company's 75-obol credit line, crediting or debiting the Merchant's own account (`DEPOT.md` §0g) | — | Reverses the obols and the tab together |
+| `DEPOT_BUY` | **Retired** with the Depot Overhaul — ordering is the Merchant's Terminal (`DEPOT.md` §0c). Was: orders an import off the orbital station at its `depotPrice`. Standing at the Depot, plus whichever manifest the ware sits on — general shelf needs nothing, everything else needs the Merchant's Licence (`DEPOT.md` §0e). The Black Market is not sold here: it is the Exactor's terminal, which hands its goods over at once (`DEPOT.md` §0n). Delivered as crates at the next train arrival, not on the spot | — | Returns the goods, refunds the ⬢ |
+| `DEPOT_SELL` | **Retired** with the drop box — selling is a crate on the Railway at departure (`DEPOT.md` §0d). Was: drops a `sellable` tag in the dropbox at the Depot; it settles at its `sellablePrice`, minus the sell tax, at the next departure (`DEPOT.md` §0f) | — | Buys it back with its original expiry, takes the ⬢ |
+| `DEPOT_CREDIT` | **Retired** with the credit line (`DEPOT.md` §5). Was: draws on or repays the Company's 75-obol credit line, crediting or debiting the Merchant's own account (`DEPOT.md` §0g) | — | Reverses the obols and the tab together |
 | `INTERCEPT` | Lays in wait where they stand: names who they are watching for (or "anyone", or "anyone concealed"), writes a line to hand them, and picks Safe or Ambush. Costs no Move and no ⬢. When one of them walks in, they are stopped — two minutes, or until the turn ends. **A typed name never catches a hooded face**; that is what "anyone concealed" is for (`INTERCEPT.md`) | — | Nothing to undo: the hold lapses on its own, and the holder can Release early |
 | `BUILD_STRUCTURE` | Filed by whoever's crew-turn FINISHES a build site — the one Request a structure ever files, carrying type, ground, cost, payer and every contributor (docs/systemdocs/ADJUDICATION.md §6) | — | Tears the structure down, refunds the payer, and restores any edge it flipped (conditionally — see the Discord note below); the crew's spent Moves stay spent |
 
@@ -1035,12 +1035,10 @@ over the URL, so a filtered view stays linkable.
 
 All obol- or ⬢-denominated, all moving a `BankAccount` rather than a station
 float — `Depot.accountObols` is gone (`DEPOT.md` §0g). The audit `actionType`s
-are `request_depot_order`, `request_depot_drop`, `request_depot_atm`,
-`request_depot_credit`, `request_depot_account_open`,
-`request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set` and
-`train_ran` (`DEPOT.md` §1), and the Depot's own visible Ledger on `/depot`
-reads exactly that set back out of `AuditLog` — the one list a new depot verb
-has to be added to, or it moves money invisibly.
+are listed in `DEPOT.md` §1 — the Merchant's Terminal's five, `train_import`,
+`train_export`, `train_ran`, the infoterminal's, the crate's and the gun's —
+and a new Depot verb goes on that list. (The Ledger tab on `/depot` that read
+them back went with the page.)
 
 **`request_depot_crate_open` has no undo handler, deliberately.** It is
 irreversible the way a sent Bird letter is: an opened crate has scattered its

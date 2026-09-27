@@ -1085,8 +1085,44 @@ model DepotSale {
   @@index([accountId])
 }
 
+/// An order placed at the Merchant's Terminal (Depot Overhaul.docx).
+///
+/// Unlike a DepotOrder it is NOT paid when it is placed. It is a line on the
+/// terminal's pending list — editable and removable until the train comes in —
+/// and the arrival pass pays for every pending order at once out of
+/// Depot.terminalObols, with the Meister's tax levied on the sum. Placing or
+/// editing one is refused when the pending total, tax included, would come to
+/// more than the terminal holds.
+model MerchantOrder {
+  id String @id @default(cuid())
+
+  // `[{ tagId, slug, name, quantity, unitPrice, sealed }]`. `unitPrice` is
+  // re-read from the catalog whenever the order is placed or edited, and
+  // frozen when the train delivers it.
+  lines      Json
+  totalObols Int
+
+  // Who pressed Order, snapshotted (the log-table convention). The terminal is
+  // the Merchant's business, so a crate is not stamped with it.
+  placedByCharacterId String?
+  placedByName        String
+  placedTurn          Int
+
+  // The arrival pass's claim, as DepotOrder's: the claim IS the check.
+  deliveredAt   DateTime?
+  deliveredTurn Int?
+  // What the arrival actually charged, frozen: this order's share of the
+  // aggregate tax is not stored, only the aggregate on the audit row.
+  paidObols Int?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([deliveredAt])
+}
+
 /// The Merchant's Depot as a machine rather than a shop: one turret, one
-/// credit line, one tax rate. A singleton on id = 1, reached the same way
+/// terminal's coin, one tax rate. A singleton on id = 1, reached the same way
 /// GameConfig is (`upsert({ where: { id: 1 } })`).
 ///
 /// It used to carry a generator, a shuttle and the station's own bank balance.
@@ -1103,11 +1139,16 @@ model Depot {
 
   // ─── Live state ───
 
-  // Drawn against the Company's line, in obols. Repaying frees the room back
-  // up immediately. Drawing credits the Merchant's own account; the line is on
-  // the station rather than on him because the licence is tradeable, so the
-  // debt travels with the business.
-  debtObols Int @default(0)
+  // The Merchant's Terminal's own coin (Depot Overhaul.docx, DEPOT.md §0c).
+  // Separate from the treasury and from every bank account: it is filled only
+  // by physical obols put into the slot and by what the train pays for the
+  // Railway's exports, and drawn only by the train's imports and by a
+  // withdrawal. Orders are placed against it but paid at the arrival, so what
+  // is committed to pending MerchantOrders cannot be withdrawn
+  // (db/lib/merchantTerminal.js). The Company's credit line that used to sit
+  // here (debtObols, creditCapObols) is gone: the Merchant takes no credit
+  // through his terminal any more.
+  terminalObols Int @default(0)
 
   // The indoor turret. It shoots everyone whose PRESENTED name is not
   // merchantFace — so a concealed Merchant is shot by his own gun, and anyone
@@ -1126,11 +1167,12 @@ model Depot {
 
   // ─── Tunables ───
 
-  creditCapObols Int @default(75)
-
-  // The Meister's cut of every settled sale, in whole percent, 0-100, set from
-  // his terminal. It is paid in coin into the Keep's Vault and never into an
-  // account, so the Vault grows by exactly what the sellers were docked.
+  // The Meister's tax, in whole percent, 0-100, set from his terminal. The
+  // column kept its old name, but since the Depot Overhaul it is levied on
+  // the train's IMPORTS as well as its exports: once per arrival on the sum of
+  // everything delivered, once per departure on the sum of everything
+  // exported, rounded to a whole obol. It is paid in coin into the Keep's
+  // Vault and never into an account.
   sellTaxRate Int @default(0)
 
   updatedAt DateTime @updatedAt
@@ -2337,6 +2379,12 @@ model Character {
   // Only the pounds now: the ⬢ watermark beside it went when ⬢ became a
   // weighed item and started counting in carryWeightSeen like everything else.
   carryWeightSeen Float @default(0)
+
+  // The turn this character last hauled a crate (Depot Overhaul.docx,
+  // CARRY.md §10). The first crate they pick up or hand over in a turn climbs
+  // the Tired ladder, unless they are a Pack Mule or Strong; this is what
+  // makes it the FIRST. Null: never.
+  crateHauledTurn Int?
 
   // The free TRAVEL this character has already spent, and the turn it was
   // spent in (docs/systemdocs/CARRY.md §2). Everyone gets

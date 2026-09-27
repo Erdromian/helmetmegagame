@@ -970,6 +970,9 @@ tags:
     purchasable: true
     purchasableAfterStart: true
     carryBonus: 0.5
+    # The Merchant does not haul (Depot Overhaul.docx): his seat starts with
+    # Soft Hands and may buy neither this nor Strong. Dockers start with it.
+    excludedRoles: [merchant]
 
   # The mirror of Pack Mule above, and priced as its mirror: -4 for -0.5.
   pack-mouse:
@@ -1366,6 +1369,8 @@ tags:
     # Mule's carry plus being strong at everything else, for one more point.
     carryBonus: 0.5
     conflictsWith: [pack-mule]
+    # Not for the Merchant, the Pack Mule rule (Depot Overhaul.docx).
+    excludedRoles: [merchant]
     purchasable: true
     purchasableAfterStart: true
 
@@ -11978,6 +11983,24 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Never an item: the token the Merchant's ring carries, and nobody else's
+  # (Depot Overhaul.docx, DEPOT.md §0c). It unlocks the Merchant's Terminal
+  # at the Depot, the one other key to it being the Merchant's License in
+  # hand. The Dockers' rings carry depot-keycard and not this: they may haul
+  # for the business, and not order for it.
+  merchants-terminal-key:
+    catalog: gm
+    name: Merchant's Terminal Key
+    category: items
+    group: items-keys
+    description: "It unlocks the Merchant's Terminal."
+    pointCost: 0
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   incarns-key:
     catalog: gm
     name: Incarn's Key
@@ -13300,9 +13323,9 @@ tags:
     sprite: boombox0
     description: "A black box that can serve as a portable speaker."
     pointCost: 0
-    depotPrice: 12
+    depotPrice: 88
     sellable: true
-    sellablePrice: 8
+    sellablePrice: 46
     weight: 6
     equippable: true
     equipSlot: WEAPON

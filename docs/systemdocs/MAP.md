@@ -493,6 +493,15 @@ on purpose. Nobody on the far side is ever in `hoodIds` or a picker. That is
 the doc's "cannot target characters on the other location", and it is the rule
 that must not be widened.
 
+**One exception, by a later doc: Transfer to a person across the Merchant's
+Counter** (Depot Overhaul.docx: "items can be transferred to characters on
+either side"). Transfer's picker alone lists the far side's people, under an
+`across:<ref>` key the action re-resolves at submit
+(`db/lib/whosHere.js#acrossRecipients` / `resolveAcrossRecipient`); `hoodIds`
+and every other verb are untouched. The counter is the first room to carry a
+side on the live map: `undertown-6-1`, home in the Storefront, open onto the
+Depot (`DEPOT.md` §0b).
+
 Neither do the room's **fixtures**. A side offers Storage and nothing else
 (`placeAffordances.js#roomAffordances`): the bell, the phone, the vending
 machine, the intercom, room Search, a watchtower's winch, the rites and

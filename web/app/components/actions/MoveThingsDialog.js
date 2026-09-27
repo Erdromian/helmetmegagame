@@ -92,7 +92,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
       ? (lootable.find((c) => c.id === fromKey) ?? null)
       : null;
   const toSelf = toKey === selfKey;
-  const toIsCharacter = toKey.startsWith("character:") || toKey.startsWith("hood:");
+  const toIsCharacter = toKey.startsWith("character:") || toKey.startsWith("hood:") || toKey.startsWith("across:");
 
   // Sources: you, the rooms you can get into, and anybody who can't stop
   // you. Loot opens with you left out — the point is what you are taking.
@@ -119,7 +119,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
         ...(fromSelf ? [] : [{ id: selfKey, label: "You" }]),
         ...people
           .filter((c) => c.id !== selfId)
-          .map((c) => ({ id: `${c.kind ?? "character"}:${c.id}`, label: c.name, note: c.kind === "hood" ? "hooded" : null })),
+          .map((c) => ({ id: `${c.kind ?? "character"}:${c.id}`, label: c.name, note: c.note ?? (c.kind === "hood" ? "hooded" : null) })),
         ...rooms.filter((r) => `room:${r.id}` !== fromKey).map((r) => ({ id: `room:${r.id}`, label: r.name, note: "room" })),
       ];
 

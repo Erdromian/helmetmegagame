@@ -76,7 +76,6 @@ import {
 import {
   isTradeable,
   isCrate,
-  isMount,
 } from "@/lib/tagRequests";
 import {
   addToStack,
@@ -150,7 +149,10 @@ import {
   tortureReadout,
 } from "@lifeweb/db/lib/examine";
 import { crateWeight } from "@lifeweb/db/lib/depotCrates";
+import { packRefusal, crateValue, crateSaleFields, isCrateTag } from "@lifeweb/db/lib/crates";
+import { chargeCrateHaul } from "@lifeweb/db/lib/crateHaul";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
+import { RAILYARD_ROOM_SLUG } from "@lifeweb/db/lib/train";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import {
   gambitModifierTotal,
@@ -1407,6 +1409,7 @@ export async function lootCharacterRequestImpl({
     takenTags.push({
       tagId: held.tagId,
       tagName: held.tag.name,
+      crate: isCrateTag(held.tag),
       quantity,
       source: held.source,
       expiresTurn: held.expiresTurn,
@@ -1494,6 +1497,9 @@ export async function lootCharacterRequestImpl({
     };
     // Waking up robbed is frightening; a corpse minds nothing (MOOD.md).
     if (target.status === "ALIVE") await applyMood(tx, target.id, { kind: "ROBBED" });
+    // Hauling a crate off somebody is picking it up (db/lib/crateHaul.js).
+    const crates = takenTags.reduce((n, t) => n + (t.crate ? t.quantity : 0), 0);
+    await chargeCrateHaul(tx, character, { moved: crates, pickedUp: crates, turn: openTurn });
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
       actionType: "request_loot_character",
@@ -2518,8 +2524,12 @@ export async function packageItemsRequestImpl({
     .filter((l) => l.tagId);
   if (lines.length === 0) throw new UserError("Nothing selected.");
 
+  // Not on the Railway's floor (Depot Overhaul.docx): a crate is packed
+  // somewhere else and carried to the train.
   if (
-    !(await hasEquipmentInReach(prisma, character, PACKAGING_EQUIPMENT_SLUG))
+    !(await hasEquipmentInReach(prisma, character, PACKAGING_EQUIPMENT_SLUG, {
+      excludeRoomSlugs: [RAILYARD_ROOM_SLUG],
+    }))
   ) {
     throw new UserError("There's no packaging equipment here.");
   }
@@ -2531,25 +2541,11 @@ export async function packageItemsRequestImpl({
   const contents = lines.map((line) => {
     const row = held.find((ct) => ct.tagId === line.tagId);
     if (!row) throw new UserError("You aren't carrying that.");
-    if (!isTradeable(row.tag))
-      throw new UserError("That isn't something that can be packed.");
-    // A crate of crates would nest a consumesInto chain arbitrarily deep, and
-    // halving twice is a free carry exploit besides.
-    if (isCrate(row.tag)) throw new UserError("You can't crate a crate.");
-    // ⬢ are tradeable, so they pass the check above — and a crate weighs HALF
-    // its contents (db/lib/depotCrates.js), which would make a hand-packed
-    // crate a flat 2× carry multiplier on bulk wealth and undo the whole point
-    // of ⬢ having a weight. The picker already leaves them out
-    // (web/lib/tagRequests.js#packableTags); this is the lock behind that hint.
-    // The DEPOT still crates ⬢ as freight on the train — that is
-    // splitIntoCrates, a different path, and it is not affected.
-    if (isResourcesRow(row)) throw new UserError("⬢ are already bulk — they don't go in a crate.");
-    // A mount is not cargo, and the MOUNT slot is weightless on purpose, so a
-    // crate of one came out at crateWeight's floor of 1 lb. The Depot still
-    // ships a horse crated (DEPOT.md §0e) — this refusal is the hand-packed
-    // button only.
-    if (isMount(row.tag))
-      throw new UserError("That doesn't fit.");
+    // Untradeable, a crate, ⬢ or a mount: the one list, db/lib/crates.js,
+    // shared with the picker (web/lib/tagRequests.js#packableTags) and with the
+    // train, which ships what can't be crated loose.
+    const refusal = packRefusal(row.tag);
+    if (refusal) throw new UserError(refusal);
     const quantity = Math.min(line.quantity, row.quantity);
     return {
       tagId: row.tagId,
@@ -2557,6 +2553,7 @@ export async function packageItemsRequestImpl({
       name: row.tag.name,
       quantity,
       weightLbs: row.tag.weightLbs ?? 0,
+      sellablePrice: row.tag.sellable ? (row.tag.sellablePrice ?? 0) : 0,
     };
   });
 
@@ -2581,7 +2578,14 @@ export async function packageItemsRequestImpl({
     );
   }
 
+  // One crate on your back, three with a Cart on (db/lib/mounts.js): the
+  // new crate lands in your hands.
+  const tooMany = holdLimitRefusal(character.tags, [{ slug: "custom-crate-new", quantity: 1 }]);
+  if (tooMany) throw new UserError(tooMany);
+
   const weightByTagId = new Map(contents.map((c) => [c.tagId, c.weightLbs]));
+  // Worth what is in it (Depot Overhaul.docx): what the train pays for it.
+  const value = crateValue(contents, new Map(contents.map((c) => [c.tagId, c.sellablePrice])));
   const group = await prisma.tagGroup.findUnique({
     where: { slug: "items-gear" },
   });
@@ -2643,6 +2647,7 @@ export async function packageItemsRequestImpl({
         // culprit. A crate is a box somebody is visibly hauling.
         inspectVisibility: "ALWAYS",
         weightLbs: crateWeight(contents, weightByTagId),
+        ...crateSaleFields(value),
         // An item like any other, so it gets the Destroy button the category
         // rule gives the rest of them (db/lib/syncTags.js).
         removable: true,

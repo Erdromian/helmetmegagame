@@ -1,9 +1,9 @@
 # The Depot
 
-The station at the bottom of the caves: a counter anybody may walk up to, a
-railway that brings goods down every other turn, a bank the whole town keeps its
-money in, and a turret in the ceiling. This file is the source of truth for all
-of it.
+The station at the bottom of the caves: a railway that brings goods down every
+other turn and takes them away the turn after, the Merchant's Terminal that
+orders them, a bank the whole town keeps its money in, and a turret in the
+ceiling. This file is the source of truth for all of it.
 
 Everything the Depot buys and sells has a real price. Price a new ware off the
 tables below, not by feel. If you change a number here, change the tag's
@@ -18,326 +18,316 @@ are the ladder — there is nothing above them to derive a price from.
 
 Unlike a brewing recipe, these numbers **are** enforced. `depotPrice` and
 `sellablePrice` are read off the catalog row server-side by
-`web/app/(app)/depot/actions.js` and `db/lib/depotCounter.js` — never taken from
-the client — and a GM does not adjudicate a purchase. The price is then
-snapshotted onto the `DepotOrder` or `DepotSale` row, so re-tuning a number here
-never changes what an older trade says it was worth.
+`db/lib/merchantTerminal.js` and the two train passes — never taken from the
+client — and a GM does not adjudicate a trade. The price is snapshotted onto
+the `MerchantOrder` when it is placed or changed, and frozen when the train
+delivers it.
 
 ## 0. The system
 
+Since the **Depot Overhaul** (Bascinet's `E:\Bascinet\V3\Merchant\Depot
+Overhaul.docx`) the Depot is the Merchant's business again, done in bulk:
+
+- **The Merchant's Terminal orders.** A fixture on the Depot itself, open to
+  anybody standing there and locked to everybody but the Merchant: the
+  Merchant's License in hand, or the Merchant's ring on the finger, unlocks it
+  (§0c).
+- **The terminal keeps its own coin.** `Depot.terminalObols`, separate from the
+  treasury and from every bank account. Physical obols go in and come out; a
+  balance never does.
+- **The train pays and is paid in bulk.** An order is a line on the terminal's
+  pending list, paid when the train comes in, in one sum, with the Meister's tax
+  on that sum. When the train leaves it takes every crate on the Railway, and
+  anything that cannot be crated but sells, and pays what it was all worth into
+  the terminal, less the Meister's tax on that sum (§0d).
+- **Selling is loading the train.** There is no drop box. To sell to the
+  station, pack it, carry the crate to the Railway and leave it there.
 - **The money is obols (¢). The catalog prices in ¢.** `depotPrice` and
   `sellablePrice` are coin, and every surface that shows one shows the ¢ glyph.
-  One obol is one ⬢, so nothing converts and nothing rounds — but parity is not
-  a reason to print the wrong glyph, and the two are not the same kind of thing
-  any more.
-- **⬢ have exactly one job left: `resourceCost`.** What a recipe charges to
-  make something, and what a cure charges to treat somebody. That is the whole
-  of it. They used to be the unit everything was denominated in — the wage, the
-  price, the sell-back, the tax — and that made them a currency that happened to
-  weigh a pound each. They are a **material** now: you earn them by working, and
-  you either spend them on a recipe or carry them to the counter and sell them
-  for coin. An obol makes value portable — weightless, where a ⬢ is a pound — so
-  a fortune in coin fits in a pocket and the same fortune in material is a
-  cart's worth of work.
+  One obol is one ⬢, but they are not the same kind of thing: **⬢ have exactly
+  one job, `resourceCost`** — what a recipe charges to make something, and what
+  a cure charges to treat somebody. They are a material: you earn them by
+  working, and you spend them on a recipe or ship them.
+- **Taxes are whole obols.** The Meister's rate on a sum, rounded to the
+  nearest (`db/lib/merchantTerminalText.js#taxOn`). Fractional obols cannot
+  exist.
 - **Everybody has an account, and most of them are claims on the Keep.** A
-  `BankAccount` is fingerprinted to one character. A TREASURY account — nearly
-  everyone's — is backed by real `obol` tags in the Vault under the Keep, and a
-  withdrawal the Vault cannot cover is refused. An OFFSHORE account, the
-  Merchant's and his Dockers', is money the Company holds off-world and has no
-  vault behind it at all.
-- **Goods arrive physically, on a train nobody calls.** An order is paid for now
-  and delivered at the next arrival, as crates in the Railyard, stamped with the
-  buyer's name unless they paid to keep it off.
-- **Selling is a box, not a negotiation.** Drop a thing in the box on the
-  counter and it is gone; the money lands when the train next leaves, minus the
-  Meister's cut.
-- **The room can kill you.** A turret, off by default, that reads faces. It
-  fires on **arrival**, so walking *through* the Depot on the way somewhere else
-  is an arrival like any other — a multi-hop walk across the zone (`MAP.md` §3c)
-  is the single-hop move repeated, and the gun does not care that you were only
-  passing. A walk the turret kills stops there rather than delivering a body to
-  the destination.
+  `BankAccount` is fingerprinted to one character (§0g). That is the bank, and
+  it is untouched by the overhaul, except that nothing pays into an account from
+  the station any more: the terminal's coin is the station's side.
+- **The room can kill you.** A turret, off by default, that reads faces (§0i).
 
 ### What this replaced, and why none of it comes back
 
-The Depot used to be one man's console. `/depot` opened for the Merchant's
-Licence and bounced everybody else; goods came down on a shuttle he called by
-hand; the money was `Depot.accountObols`, a single float; taxation was a button
-on a Leader's sheet. Four things went, and each for its own reason:
+The Depot used to be a public market with a counter page, `/depot`: anybody
+standing there ordered off whichever shelf their tags opened, paid from their
+own bank account at the moment of ordering, and sold by dropping things into a
+box that paid each sale out at the next departure, taxed sale by sale. The
+Merchant had a credit line with the Company on top.
 
-- **The shuttle.** It was a button, so goods sat paid-for and undelivered until
-  the Merchant woke up. One turn is one real day, so "he will do it later" was a
-  day of nothing moving. A train on a fixed cycle cannot be forgotten.
-- **The generator.** Fuel ran out and took ordering, the bank, the shuttle and
-  the gun down with it. That was survivable when the Depot was a shop. It is a
-  market now, and one person's empty tank should not be able to close it.
-- **The station's float.** It was a second pot to explain, sitting beside the
-  Merchant's own purse with the ATM between them. His OFFSHORE account is that
-  pot now, and there is one kind of account in the game rather than two.
-- **The open door.** For a while after that, `/depot` opened for *everyone*,
-  always, on the argument that a shop window costs nothing to look through. It
-  cost the price book and the shelf list: a rail item on every player's rail
-  advertised a market most of them had no business reading, from wherever they
-  happened to be standing. The door is place-or-key now — wide enough that
-  anybody who walks to the counter is served, narrow enough that reading it
-  from a cell across town takes a licence.
-- **The tax button.** It filed a levy per person per turn, DM'd each target, and
-  could be refused or part-paid. The sell tax is quieter and far harder to
-  dodge: a percentage off every sale at the counter, before anybody is paid.
+All of that went with the overhaul, by Bascinet's own document:
+
+- **The `/depot` page** ("the depot action is to be removed"). It is a redirect
+  to `/chat` now, for old links. Its tabs are gone; the infoterminal, the gun
+  and Send money were fixtures already and stay (§0k).
+- **The drop box** ("the dropbox action is to be removed"). Selling is a crate
+  on the Railway at departure (§0d).
+- **The counter's shelves.** The `general` and `merchant` manifests no longer
+  decide who may order what: the terminal lists every ware that is not the
+  Black Market's, and only the Merchant unlocks it (§0e).
+- **The credit line** ("the merchant can no longer take credit or loans
+  through their terminal"). `Depot.debtObols` and `creditCapObols` were
+  dropped; a balance standing on the line was forgiven with them.
+- **Paying at the counter.** An order is paid when the train brings it, out of
+  the terminal, never out of a bank account.
+- **Tax sale by sale.** The Meister's cut comes off the train's whole load now,
+  once each way (§0f).
+
+Older history (the shuttle, the generator, the station's float, the tax
+button) is in git; none of it comes back either.
 
 ## 0a. The moving parts
 
 | Piece | Where it lives | Notes |
 |---|---|---|
-| Station state and tuning | `Depot` singleton, `id = 1` | `db/lib/depotState.js` — every mover is a locked clamp, per `lifeweb.js#bumpBlood` |
+| Station state and tuning | `Depot` singleton, `id = 1` | `terminalObols`, the turret, `sellTaxRate` (the Meister's tax, imports and exports alike). `db/lib/depotState.js` |
+| The Merchant's Terminal | `db/lib/merchantTerminal.js`, its words in `db/lib/merchantTerminalText.js` | Chat's `MerchantTerminalDialog` (`web/app/(app)/chat/PlacePanel.js`) and `bot/src/events/interactions/merchantTerminal.js` |
+| Pending orders | `MerchantOrder` | Editable and removable until the train claims them |
+| The train | `db/lib/train.js` + the two passes | `trainArrivalPass.js` (imports), `trainDeparturePass.js` (exports) |
+| Crates | `db/lib/crates.js` (the rules), `db/lib/depotCrates.js` (the packing) | Runtime `Tag` rows with `custom: true`; the hauling cost is `db/lib/crateHaul.js` (`CARRY.md` §10) |
 | Accounts and the Vault | `db/lib/bankAccounts.js` | `BankAccount`, `bumpBankAccount`, the hard backing |
-| The counter's three fixtures | `db/lib/depotCounter.js` | The ATM, the drop box and the gun — shared by both faces. The ATM is the one of the three that also stands away from the Depot (§0l) |
-| The manifests | `db/lib/depotManifests.js` | Which shelf a ware is on, and what opens it |
-| The train | `db/lib/train.js` + the two passes | `trainArrivalPass.js`, `trainDeparturePass.js` |
+| The fixtures | `db/lib/depotCounter.js` | The infoterminal (and its Send), and the gun. Web: `web/app/(app)/chat/counterActions.js` |
 | The turret | `db/lib/depotTurret.js` | Weighted severity table, bent by the target's `Tag.ballisticArmor` |
-| Crates | `db/lib/depotCrates.js` | Runtime `Tag` rows with `custom: true` |
-| Per-turn upkeep | `db/lib/depotPass.js` | The turret sweep, and nothing else any more |
-| The counter | `web/app/(app)/depot/`, `web/app/components/Depot*.js` | Status strip + six tabs |
+| Per-turn upkeep | `db/lib/depotPass.js` | The turret sweep, and nothing else |
 | The Meister's terminal | `web/app/(app)/treasury/` | Every account, the backing, the tax rate |
-| GM tuning | `/gm/dev?s=depot` | `updateDepot` in `web/app/(app)/gm/dev/actions.js` |
+| GM tuning | `/gm/dev?s=depot` | `updateDepot` in `web/app/(app)/gm/dev/actions.js`: the terminal's coin, the turret, the tax |
 
-## 0b. Who may do what
+## 0b. The place
 
-**`/depot` is PLACE OR KEY.** It opens for somebody standing in the Depot, and
-for somebody carrying a manifest key — the Merchant's Licence —
-who reads it from anywhere. Everybody else gets no rail item and is redirected
-off the page. Standing there is what makes the counter usable: a key alone opens
-it read-only, and the page says so.
+Three Locations make the station, since the overhaul moved rooms about:
 
-The keys are the two `requiredTagSlug` entries in `db/lib/depotManifests.js`, so
-adding a shelf moves the gate with it. A Depot Keycard is not one — it opens a
-crate, not the window. Every GM keeps the page wherever they stand, and it is
-read-only for them too.
+| Location | Rooms | Notes |
+|---|---|---|
+| `undertown-5`, the **Depot** | `undertown-5-1` Railway (the train, an infoterminal, a payphone), `undertown-6-2` Merchant's Office (the gun, behind the License), `undertown-6-3` Cargo Bay (packaging equipment, behind `depot-keycard`) | The Merchant's Terminal is a Location fixture here. The office and the bay moved in from the Storefront and kept their slugs |
+| `undertown-6`, the **Storefront** | `undertown-6-1` Merchant's Counter (the vending machine, an infoterminal) | Called "Merchant" until the overhaul |
+| — | The **Merchant's Counter** also opens onto the Depot | A multi-locational room (`MAP.md` §2d) |
 
-One predicate answers it everywhere: `depotAccessFor` in
-`db/lib/depotCounter.js`, the twin of `canReadTreasury` beside it, asked by the
-page, by the nav rail (`web/lib/navItems.js`) and by the Depot link on Chat's
-place card. A rail item that redirects is worse than no rail item.
+**The way between the Storefront and the Depot is locked to the Merchant's and
+the Dockers' rings.** Both rings carry the `depot-keycard` token
+(`docs/roles.yaml`), and the link's `requiredTagSlug` is that token. Everybody
+else deals with the Depot across the Merchant's Counter: it is public from both
+sides, a line said at it is heard on both sides, its floor is one stash, and
+**Transfer reaches a person on the other side of it** — the one verb that does
+(`CARRY.md` §6). Its fixtures are the Storefront's: the vending machine and the
+infoterminal are on that side's wall only.
 
-What your tags decide is the **shelf**, and one seat's paperwork:
+The Depot keeps its old edges — to Customs, and the hidden caving way into the
+Mushroom Forest, which now really does lead into the room with the cargo bay in
+it.
 
-| Holder | Can |
-|---|---|
-| **Anyone, standing there** | Open the page. Order off the general manifest, use the infoterminal at the counter (it reads the ring on your finger, `RINGS.md` §5), put things in the drop box beside it. Infoterminals also stand in the Inn's and the Den's bars (§0l). |
-| **The Exactor's or the Pusher's ring** | Nothing extra here. The Black Market is not sold at the counter any more: it is the terminal in the Exactor's Office (§0n). |
-| **Depot Keycard** | Open a sealed crate. Sell into the Merchant's account rather than their own. Spends nothing of its own, and no longer opens any door — the Railyard is public. |
-| **Merchant's Licence** | …plus the page from anywhere, read-only, and the whole manifest, sealed goods included, the Company's credit line, the gun on the office wall, and the sight of everybody's staged selling. |
-| **A key to the Meister's office**, standing in the Keep | `/treasury`: every account, the Vault's backing, and the sell tax rate (§0h). |
+**Moving a running game over** is the migration
+`20261111000000_depot_overhaul`, since `db:import-zones` never moves a room or
+renames a place that exists: it renames the Location and the room, moves the
+office and the bay (clearing their Discord threads so the next `db:mirror`
+opens fresh ones under the Depot's channel — archive the old two by hand),
+adds the counter's side, and locks the link. Then `db:sync-tags` (prices, the
+terminal's token, the role exclusions) and `db:sync-roles` (the Merchant's ring
+picks the token up, the Merchant's Soft Hands, the Dockers' Pack Mule — for
+characters created after it), and `db:mirror -- --apply`.
 
-The licence is checked, never the Merchant **role** — the licence is tradeable
-and a role check would quietly break that. The keycard and the terminal are
-checked the same way and for the same reason.
+## 0c. The Merchant's Terminal
 
-**The split is between a shelf and a job.** A keycard does the work — the
-Railyard, the crates, selling into his books — and buys nothing extra and
-spends nothing. The licence is the business.
+From Bascinet's document:
 
-The gates live in `web/app/(app)/depot/actions.js` and `db/lib/depotCounter.js`:
-`requireDepotStanding` does the standing and the ACT check, `counterActor` is
-its twin for the fixtures, and `requireLicensedMerchant` / `requireAccount` sit
-on top.
+> A new Merchant's Terminal action will be available to anyone in the depot,
+> opening it reveals a UI requesting it be unlocked. It can be unlocked by
+> either the merchant license or the merchant key, if either are in the
+> characters possession. Once unlocked, it contains a scrollable list of all
+> orderable items, their cost (accounting for tax) and their descriptions,
+> categorized by their group. Categories can be collapsed in the UI.
+>
+> Quantities of items can be selected, and an Order button confirms the order.
+> A separate tab within the UI can be switched over to see all pending orders
+> and edit or remove them. When placing an order, it must not cause the total
+> order cost to exceed the obols contained within the terminal.
+>
+> The Merchant's Terminal has its own internal obol storage, separate from the
+> treasury. […] Obols can be manually inserted and withdrawn from the
+> terminal, but inserting them requires physical obol items, not treasury
+> balance.
 
-**Between sittings the counter is shut**, the whole of it — ordering, the ATM,
-the drop box, banking, sending, the credit line, the turret. A session boundary
-shuts the game and money is the game (`SESSIONS.md` §5). Reading the shop window
-is not: `depotCounterState` and `depotTurretRead` stay on `guarded()` while
-every verb beside them is `acting()`, which is the whole of how it is enforced.
+How the game does it:
 
-## 0c. The Railyard, and the train
+- **Where.** A **Merchant's Terminal** button on the Depot's Location: its
+  anchor on Discord, its place card in Chat. Anybody standing at the Depot may
+  press it (`hasAttribute(location, "depot")`).
+- **The lock.** It always opens on a locked screen. **Unlock** asks the server,
+  which answers for the Merchant's License held, or a worn, registered ring
+  carrying `merchants-terminal-key`. Only the Merchant's ring carries that token
+  (`ring.opens` in `docs/roles.yaml`); the Dockers' rings carry `depot-keycard`
+  and not this — they haul for the business and do not order for it. Every
+  write re-checks the lock, so a dialog left open after the License changed
+  hands orders nothing. `unlocksTerminal` is the one predicate.
+- **The shelf.** Every priced ware that is not on the `black-market` manifest,
+  grouped by its `TagGroup` and foldable, each with its description and its
+  price with the Meister's tax on it, to the nearest obol. ⬢ are a ware like any
+  other, at the `resources` tag's own `depotPrice`.
+- **The coin.** `Depot.terminalObols`. **Insert** takes physical obols out of
+  your hand; **Withdraw** puts them back into it, up to whatever no pending
+  order is waiting on. Both are ledgered to one party, `machine:merchant-terminal`
+  (`ECONOMY.md` §2).
+- **An order.** A cart off the shelf becomes one `MerchantOrder` on the pending
+  list, priced off the catalog there and then. **Nothing is charged.** It is
+  refused if the pending list, this order included, would cost more with the
+  Meister's tax than the terminal holds — the doc's rule, and what makes the
+  train sure to be paid. A non-stackable ware is one to an order, and a mount is
+  one to an order (`db/lib/mounts.js`).
+- **The pending tab.** Every pending order, whoever placed it, with its lines.
+  A line can be changed or set to 0 (which takes it out), an order can be
+  removed, and a change re-prices the order and re-checks the terminal. The
+  claim is `deliveredAt: null`, so a train that came in between the click and
+  the write wins, and the edit is refused.
+- **Between sittings** the terminal can be read, and every write is shut, the
+  rule for money everywhere (`SESSIONS.md` §5).
+- **On Discord** the panel is thinner: Unlock, Insert, Withdraw, a ware at a
+  time off the shelf's selects, and Remove on a pending order. Changing an
+  order line by line is the web's; a Discord modal holds five fields and an
+  order can hold forty lines.
 
-The Railway is a **real room** — a thread under the Depot channel, authored in
-`docs/zones.yaml` as `undertown-5-1`, and **public**. It replaced the Landing
-Pad, which was behind a Depot Keycard. Since the Depot and the Merchant were
-split it is the Depot's *only* room, so the counter, the drop box and a cash
-machine all hang off it.
+Audit kinds: `merchant_terminal_insert`, `merchant_terminal_withdraw`,
+`merchant_terminal_order`, `merchant_terminal_order_edit`,
+`merchant_terminal_order_remove`.
 
-**Anybody can walk in, and crates land here.** That is a known hole and it is
-open deliberately: the alternative is a cargo room only Dockers can reach, which
-defeats opening the counter up at all. Bascinet's call, eyes open — "people can
-just take whatever… we'll figure out the rest later." Whatever closes it later
-is not a lock on this door; a lock on this door is the thing that was tried. Its starter message says whether the train is at the platform —
-`live: train` in `docs/zones.yaml`, rendered by `db/lib/roomLive.js` and
-repainted by `refreshLiveRooms` every close.
+## 0d. The Railway, and the train
 
-**The train runs on turn parity and nothing else.** The parity is about what
-happens at a turn's CLOSE, not about where the train is standing while the turn
-is open: closing an even turn rolls it in and unloads, closing an odd turn loads
-it and pulls it out (`db/lib/train.js`). So turn 1 is a departure close with an
-empty drop box and nothing to load, and turn 2's close is the first arrival —
-which brings down whatever was ordered on turn 1, exactly as Bascinet asked,
-with no first-turn special case in either pass.
+The Railway is a **real room** — a thread under the Depot's channel, authored in
+`docs/zones.yaml` as `undertown-5-1`, and **public**. Crates land there and
+leave from there. Its starter message says whether the train is at the platform
+— `live: train` in `docs/zones.yaml`, rendered by `db/lib/roomLive.js`.
 
-**Where the train IS is a different question, and `trainHere()` is the one that
-answers it.** It lands at the close of an even turn and leaves at the close of
-the odd turn after, so it stands at the platform for the length of an odd turn —
-turn 1 excepted, since nothing has arrived yet. Reading presence off
-`isArrivalTurn()` instead tells everybody the train is in on the one turn it
-demonstrably is not; `db/test/train.test.js` pins that.
+**The train runs on turn parity and nothing else.** Closing an even turn rolls
+it in and unloads; closing an odd turn loads it and pulls it out
+(`db/lib/train.js`). So turn 1 is a departure close with nothing to load, and
+turn 2's close is the first arrival. **Where the train IS** is `trainHere()`:
+at the platform for the length of an odd turn, turn 1 excepted.
+`db/test/train.test.js` pins both.
 
-The cycle:
+**It arrives** (`db/lib/trainArrivalPass.js`). Every pending `MerchantOrder` the
+terminal can afford, oldest first, stopping at the first it cannot, so a later
+order never jumps the queue. The whole load is charged in ONE sum out of
+`Depot.terminalObols`: the goods' price to the Company (`TRAIN_IMPORT`), and the
+Meister's tax on the sum, rounded, into the Keep's Vault as coin
+(`IMPORT_TAX`). Then each order is set down on the Railway: what can be crated
+packed into crates, one stack of crates per order, and what cannot — a mount,
+⬢ — set down loose beside them. An order the terminal cannot cover (the tax rate
+went up, say) waits for the next train rather than half-arriving; the terminal
+refuses an order it cannot cover when it is placed, so this is the edge. One
+`train_import` audit row carries the orders, the sum, the tax and what is still
+waiting.
 
-1. **Order** off a manifest. Obols leave your account now; the goods do not
-   exist yet. That gap is the risk of buying.
-2. **It arrives.** Every undelivered `DepotOrder` becomes crates in the
-   Railyard, one stack of crates per order.
-3. **It leaves.** Every unsettled `DepotSale` settles at the price frozen when
-   it was dropped, the Meister's cut goes to the Vault as coin, and the net
-   credits whichever account the row named.
+Orders placed at the old counter before the overhaul (`DepotOrder`) were paid
+when they were placed; they still land at the next arrival, stamped with whose
+they were, as they always did.
+
+**It leaves** (`db/lib/trainDeparturePass.js`). Everything on the Railway's
+floor that ships goes: every crate, whatever is in it, and every loose thing
+that **cannot be crated but has a sell value** — a mount, a pile of ⬢ (the doc:
+"items which cannot be packaged as crates but have sell values do not need to
+be packaged to be exported"). A crate's contents go with it. What it was all
+worth is summed — a crate is worth what it carries (§0e) — and paid in ONE sum
+into the terminal (`TRAIN_EXPORT`), less the Meister's tax on the sum, rounded,
+into the Vault (`EXPORT_TAX`). One `train_export` audit row lists the manifest.
+
+What stays: an ordinary loose item, which has to be crated to ship, and
+anything under the floor (though nothing on the Railway sinks any more — §0e).
+The whole export is one transaction, so a failure ships nothing and the cargo
+waits for the next train.
+
+Drops into the old box before the overhaul (`DepotSale`) settle at this
+departure the old way, each into the account it named.
 
 **Parity decides which half RUNS; rows decide what MOVES.** Each pass opens with
-a parity check and then works entirely off `deliveredAt: null` / `settledAt:
-null`, claiming each row with a conditional `updateMany` before touching it. A
-doubled or resumed turn advance therefore costs a turn of flavour and never a
-shipment. `db/test/train.test.js` holds the parity half of that.
+a parity check and then works off `deliveredAt: null` (or the platform itself),
+claiming inside its transaction. A doubled or resumed turn advance costs a turn
+of flavour and never a shipment. `db/index.js` writes one `train_ran` audit row
+per close that moved anything.
 
-## 0d. Crates
+## 0e. Crates
 
 A shipment does not arrive as a tidy pile of tags. It arrives packed, in
-crates, and somebody has to open them. That makes unloading a job worth paying
-a Docker for, puts a delay between buying a pistol and holding one, and means a
-crate left in the Railyard can be stolen.
+crates, and somebody has to carry them off the platform and open them. The
+rules for what a crate is live in `db/lib/crates.js`; hauling one is
+`CARRY.md` §10.
 
 **A crate is packed by weight.** It fills to `PACKAGE_MAX_LBS` — 150 lb of
-contents — and then a new one opens. That is the same constant the player-facing
-Package button enforces (`FACTORY.md` §5), so a Depot shipment and a
-hand-packed crate agree on the ceiling as well as on the halving. What comes out
-is a box with a volume rather than a counter: 99 tea in one crate, an anvil most
-of the way through another.
+contents — and then a new one opens, the same constant the Package button
+enforces (`FACTORY.md` §5). A second cap, on count, `PACKAGE_MAX_UNITS` (200),
+bounds the weightless. `MAX_CRATES` (12) caps one order's crates.
 
-Units are mixed before they are packed, so a crate holds a random handful
-rather than one tidy line item. `MAX_CRATES` (12) caps the count, past which a
-huge order simply means fuller crates rather than a Railyard buried in tag rows.
+**What goes in a crate** is one list, `packRefusal`: not the untradeable, not a
+crate, not ⬢ (a crate weighs half its contents, which would be a free carry
+multiplier on bulk material), not a mount. The Package button refuses those,
+the train lands them loose, and the train ships them loose when they sell.
 
-There is a second cap, on **count** rather than weight: `PACKAGE_MAX_UNITS`
-(200). The weight cap does not bound the weightless, and seven Depot wares
-weigh 0 lb — `cigarette`, `jewelry`, `spectacles` and the four animals — so
-without it a weightless order packs into one crate however large it is.
+**A crate is worth the sum of what is in it** (the doc: "crate tags when
+packaged have the sum value of all their contents"). Its `sellablePrice` is set
+when it is packed or lands off the train, from its contents' own sell prices;
+a crate of nothing the station buys is not sellable. A crate packed before
+crates carried a price is valued off its manifest at departure.
 
-**A crate is a `Tag` row created at runtime** with `custom: true`, so
-`db:prune-tags` skips it (`db/lib/pruneTags.js`). Being a tag means crates get
-carry weight (half what went in, §5 of `FACTORY.md`), transfers, room stashes
-and theft for free. The row is deleted once nothing references it.
+**A crate is a `Tag` row created at runtime** with `custom: true` and a
+`custom-crate-…` slug, so `db:prune-tags` skips it. Being a tag gives crates
+carry weight (half what went in), transfers, room stashes and theft for free.
+The row is deleted once nothing references it, and when the train takes it.
+The catalog's three crate props — `cargo-crate`, `crate-rv-6207-m`,
+`flooded-crate` — count as crates for every rule here; Starting Wares, a
+creation bundle, does not.
 
-**A crate is opened by consuming it**, from `/character` or the Things drawer,
-wherever the crate happens to be — not from a button on `/depot`, since a crate
-can walk out of the Railyard in somebody's arms. `crateTagData` sets
-`consumable: true`, and `consumeTagRequestImpl` takes a third road out to
-`openCrateRequestImpl` — beside the two that already existed for a sealed letter
-and the Instant Camera, and for the same reason: what falls out of a crate is a
-list of runtime tag IDs, which no catalog slug in `consumesInto` can name. The
-keycard gate (`canOpenCrate`) is re-checked in there.
+**A crate is opened by consuming it** from your own hands (`/character` or the
+Things drawer), through `openCrateRequestImpl`. A sealed crate wants the Depot
+Keycard. Consuming only ever happens in your hands, never on a floor, so a crate
+on the Railway has to be picked up and carried before it can be opened — the
+doc's "crates cannot be unpacked/packed in the railyard; they must be
+transferred to or from elsewhere first". The Package button refuses packaging
+equipment on the Railway for the same reason (`hasEquipmentInReach`'s
+`excludeRoomSlugs`); the Cargo Bay's bench is next door.
 
-**A crate can hold ⬢.** They ride the order as a line with no `tagId` and land
-on the crate row as `consumesIntoResources` — the field the ordinary consume
-path already grants — so the Resources half of a shipment needs no special case
-at all past the packing.
+**Nothing sinks on the Railway or in the Cargo Bay, and a crate never sinks
+anywhere** (`db/lib/floorSettle.js#NEVER_SINKS_ROOM_SLUGS`, `canSink`;
+`CARRY.md` §6a).
 
-**A crated ⬢ weighs a pound** (`RESOURCE_UNIT_LBS`), so ⬢ pack against the
-same 150 lb rule as everything else: 150 ⬢ fill one crate and it weighs 75 lb.
+**One sealed line item seals the crate it lands in**, so nobody knows which
+crate the dangerous thing is in: `sealedShipping: true` in `docs/tags.yaml`.
+Currently sealed: the ML-23, the Neoclassic R&W10, the CTT4&3 Rifle, the
+Kpfw-6 Avtomat, the Flamethrower, Heavy Infantry Armor, the Adamantium Sword and
+the Homunculus. A Black Market ware never is (§0n).
 
-**A crate says whose it is.** The manifest is printed on the side with the
-buyer's stamp in front of it:
+A terminal order's crates carry no stamp — everything on the terminal is the
+Merchant's business — and read `[SHIPMENT ID RV-4471-K]: Tea x 5`, or
+`[SHIPMENT ID RV-4471-K]: SEALED`.
 
-```
-[SHIPMENT ID RV-4471-K] · ADA VOSS · AV-2017: Coal x 4 | Bandage x 6 | ML-23
-```
+### What is left of the manifests
 
-The **crate label** is picked at the counter: the buyer's name (the stamp
-above), **No label** (the stamp reads `ANONYMOUS`), or **Custom**, up to 20
-characters in `DepotOrder.label`, printed alone with no fingerprint. Either way
-only the `DepotOrder` row then remembers whose it was.
+A tag's `manifest:` line survives, and decides one thing that matters: a
+`black-market` ware is the Black Market terminal's (§0n) and never the
+Merchant's. `general` and `merchant` are labels now; the per-person shelves
+they used to open (`manifestsFor`, `canOrder`) went with the counter.
+`db/lib/depotManifests.js` still lists the ids, and `db/lib/syncTags.js` still
+refuses one it does not know.
 
-Unless something in it ships sealed, in which case the whole crate reads:
+## 0f. The Meister's tax
 
-```
-[SHIPMENT ID RV-4471-K] · ADA VOSS · AV-2017: SEALED
-```
+`Depot.sellTaxRate`, a whole percent set from the Meister's terminal (§0h). The
+column kept its old name; since the overhaul it is one rate on the train's
+**imports and exports alike**, levied **once per train on the whole load**,
+rounded to the nearest obol, and paid into the Keep's Vault as coin. The doc:
+"import and export prices will now be processed in bulk with the
+arrival/departure of the train, and taxes will be exacted on the aggregate sum
+of either, rather than on individual transactions".
 
-...and only a Depot Keycard opens it. **One sealed line item seals the crate it
-lands in**, so nobody knows *which* crate the dangerous thing is in. The seal
-hides *what* is in the box; whose box it is stays printed, because those are two
-different secrets.
-
-**A non-stackable ware can only be ordered one at a time.** `CharacterTag` is
-unique on character+tag, so a crate reading `ML-23 x 2` could only ever hand
-over one pistol; the order is refused rather than silently clamped. Opening a
-crate never loses a non-stackable ware you already hold: the spare is set down
-in a public room of your Location, where Transfer can pick it up, and the notice
-says so. With no public room there, the crate refuses to open.
-
-A ware ships sealed by setting `sealedShipping: true` in `docs/tags.yaml`. The
-sync refuses it on a tag with no `depotPrice`, since the station cannot ship
-what it does not stock. Currently sealed: the ML-23, the Neoclassic R&W10, the
-CTT4&3 Rifle, the Kpfw-6 Avtomat, the Flamethrower, Heavy Infantry Armor, the
-Adamantium Sword and the Homunculus. A Black Market ware never is: the
-terminal hands it over on the spot (§0n), and the sync refuses a seal on one.
-
-## 0e. The manifests
-
-A manifest is a **shelf**, and the thing that opens it. It is the answer to
-"what may THIS person order", which used to have one answer because there was
-one buyer.
-
-| Manifest | Opened by | Holds |
-|---|---|---|
-| `general` | nothing — anyone standing at the counter | ⬢ and Ration Boxes |
-| `black-market` | **nothing at the counter** | the drink and drug shelf, the machete and the collar kit — sold only by the Black Market terminal (§0n). **Buy-only, all of it** |
-| `merchant` | **Merchant's Licence** | everything priced, sealed goods included |
-
-The catalog is `db/lib/depotManifests.js` — zero requires, like `dmKinds.js`,
-because the Buying tab is a client component. A ware names its shelf with
-`manifest:` in `docs/tags.yaml`; **absent means `merchant`**, which is the
-strictest default on purpose: a newly priced ware is his to stock until the
-catalog says wider. `db/lib/syncTags.js` refuses a manifest id that is not in
-the catalog, and refuses one on a ware with no `depotPrice` — a shelf with
-nothing on it says nothing and reads as a rule.
-
-Adding a manifest is one entry in that file plus a `manifest:` line per ware.
-Nothing else has to change.
-
-`black-market` is still a manifest id, so a ware can name it, but it is no
-shelf here: `manifestsFor` and `canOrder` never offer it, whatever the
-customer holds, and the order action says so in words.
-
-**The Silver Chip is gone.** It opened the Black Market shelf and did nothing
-else, and the shelf left the counter for the Exactor's terminal (§0n), so there
-was nothing left for it to open.
-
-## 0f. The drop box, and the sell tax
-
-Selling used to be the Merchant sending a shuttle up with whatever was standing
-on the pad, paid into the station's float. It is a box anybody can drop something
-into now.
-
-**It is on the LOCATION, not one room** (`db/lib/placeAffordances.js`), so it is
-reachable from wherever at the Depot somebody happens to be standing — and again
-on the Railyard's own post, because that is where somebody meeting the train
-already is. Two buttons, one dialog.
-
-- **What goes in is deleted at once.** That is what makes it a one-way door:
-  nothing sits in a stash waiting to be stolen back out, and the seller has
-  committed. What is left is a `DepotSale` row.
-- **The price is frozen at the drop**, so re-tuning `docs/tags.yaml` between the
-  drop and the departure cannot restate what was sold.
-- **It is fingerprinted.** The row carries the account, the fingerprint and the
-  holder's name as a snapshot.
-- **The destination is per-row**, one of SELF / TREASURY / MERCHANT, and can be
-  re-pointed from the Selling tab until the train takes it. MERCHANT needs the
-  Licence or a Depot Keycard — that is the Docker's seat: selling into his books
-  instead of their own. It is their default; everyone else's is SELF.
-- **A licence sees everybody's staged selling.** Settled rows stay each seller's
-  own business.
-
-**The sell tax** is `Depot.sellTaxRate`, whole percent, set from the Meister's
-terminal (§0h). It comes off every settled sale before the seller is paid and
-lands in the Vault **as coin** — so the Keep's stash grows by exactly what the
-sellers were docked, which is what keeps the backing honest while the rate is
-above zero.
+So a round trip — order a ware, crate it, ship it back — loses the tax twice,
+which is why a sell price equal to the buy price prints nothing
+(`db/lib/syncTags.js` warns only on a sell price above the buy price).
 
 ## 0g. The bank
 
@@ -372,10 +362,9 @@ above zero.
   machine, same accounts, same Vault behind them; §0l has the list and what
   did not follow it out of the Depot.
 - An **OFFSHORE** account skips all of that. There is no pile behind it.
-- **The Company's line** (`Depot.debtObols`, capped at `creditCapObols`, 75) is
-  drawn and repaid in obols, and credits the Merchant's own account. The cap is
-  **refused** rather than clamped. Nothing in code punishes a standing balance —
-  the Company is not code.
+- **The Company's line is gone** (the Depot Overhaul): the Merchant takes no
+  credit through his terminal, and `Depot.debtObols` / `creditCapObols` were
+  dropped. Old `request_depot_credit` rows still read in the ledger.
 
 **Send pays another account, or hands the claim back.** A third ATM button,
 same standing gate as the other two, and the same ring and PIN: it sends from
@@ -446,7 +435,7 @@ keys are read off the Room's own `accessTagSlugs` (`meisters-key` or
 
 **It comes and goes as its holder walks in and out of the Keep**, which is the
 cost of that decision and the one thing nothing else in this app does —
-`/lifeweb` and `/depot` gate on a tag and check standing inside their actions
+`/lifeweb` gates on a tag and checks standing inside its actions
 instead. A superadmin reads it (host access, not game permission) but does not
 get the dial; `web/app/(app)/treasury/actions.js` re-checks the real gate.
 
@@ -664,51 +653,35 @@ as its own `gatehouseTurret` pass. Separate from `depot` in `TURN_PASSES` so a
 failed Depot pass cannot swallow it and a resume re-runs only the one that did
 not finish.
 
-## 0k. The counter
+## 0k. The fixtures, and the page that went
 
-`/depot`. A status strip that never scrolls away — greeting, your balance, and
-where the train is — over five tabs: **ATMs**, **Selling**, **Buying**,
-**Price list**, **Ledger**.
+`/depot` is gone (the Depot Overhaul: "the depot action is to be removed"); the
+route is a redirect to `/chat` so an old link lands somewhere. Its tabs went
+with it — the shelves and the cart are the Merchant's Terminal now (§0c), the
+Selling tab went with the drop box, and the Ledger with the page.
 
-There is no Manifests tab, and there should not be one. A tab listing every
-shelf and what opens it tells a man with no licence exactly what he
-is missing and what is on the other side of it — which is the whole secret the
-manifests exist to keep.
+**The fixtures stay, because they were never the page's.** The infoterminal and
+the gun are things on walls — `db/lib/placeAffordances.js`, and the
+infoterminal's walls are listed in `db/lib/depot.js#ATM_ROOM_SLUGS` — so each
+is a button on a Room's starter post on Discord and a dialog in Chat's place
+panel on the web. The rules behind both live once in `db/lib/depotCounter.js`,
+and the web's half is `web/app/(app)/chat/counterActions.js`.
 
-The strip is down to two things because those are the two facts that decide
-whether anything you are about to do works, whichever tab you are on.
+**Send money moved into Chat's infoterminal dialog.** It was on `/depot`'s ATM
+tab and on the Railway's Discord button; the web had no other place for it. The
+dialog offers **Send to an account** only standing at the Depot, because
+`bankSend` keeps the bare Depot gate (§0l) — `counterState` hands the dialog
+the recipient list (`sendTo`) there and nowhere else. The Vault is one of the
+choices, and sending to it surrenders the claim (§0g).
 
-| Tab | What it is |
-|---|---|
-| **Infoterminals** | The account your worn ring reaches, its class, Withdraw / Deposit / Send — after a PIN when the ring isn't yours or you're Concussed or Amnesiac (`RINGS.md` §5) — the credit line if you hold the licence, and your own transactions. No ring, no account: the tab says why. |
-| **Selling** | Your staged and settled sales, a destination dropdown per staged row, a **Default destination** that seeds the next drop, the drop box itself, and — with a licence — everybody's staged selling. |
-| **Buying** | One section per manifest your tags open, a cart, an **Order anonymously** tick, and when the crates land. |
-| **Price list** | The reference book, cut to what you are entitled to read: the shelves your tags open, plus a buy-back row for anything in your own hands. |
-| **Ledger** | Your own `DEPOT_*` audit rows. |
-
-No paragraph of explanation, no tooltips: a control whose name does not say what
-it does is the bug, not the missing tooltip.
-
-Prices print in ¢ throughout, whole, with no decimals anywhere. There is no
-⬢/¢ toggle and there should not be one: a price is coin now (§0), and parity is
-not a reason to offer the other glyph.
-
-**The ATM, the drop box and the gun are not on this page.** They are fixtures on
-walls — `db/lib/placeAffordances.js`, and the ATM's walls are listed in
-`db/lib/depot.js#ATM_ROOM_SLUGS` — so each is a button on a Room's starter
-post on Discord and a dialog in Chat's place panel on the web, and `/depot`
-carries the tab you compare numbers on. The rules behind all three live once in
-`db/lib/depotCounter.js` so both faces answer the same way; the Discord half is
-deliberately thinner, because it is for the moment you are standing at the
-machine with your phone out.
+Prices print in ¢ throughout, whole, with no decimals anywhere.
 
 ## 0l. There are four infoterminals
 
 Players read "infoterminal" everywhere; the code still says ATM. There is one on
-the Railway and one on the Merchant's Storefront. The other two are in **the
-Inn's bar** (`town-7-2`) and **the Den's bar** (`undertown-8-1`), and each is
-the machine alone: no counter behind it, no ordering, no drop box, no sell
-window, no credit line. A player drinking in town or in the Den can check a
+the Railway and one on the Merchant's Counter, on the Storefront's side. The
+other two are in **the Inn's bar** (`town-7-2`) and **the Den's bar**
+(`undertown-8-1`), and each is the machine alone. A player drinking in town or in the Den can check a
 balance, take coin out and put coin in, and that is the whole of it. Nobody
 opens an account at one any more: a seat's opens at creation, and the Meister
 opens the rest when he registers a ring (`RINGS.md` §6).
@@ -718,12 +691,12 @@ button draws (`db/lib/placeAffordances.js`) and `ATM_LOCATION_SLUGS` for where
 the machine answers. `counterActor` in `db/lib/depotCounter.js` takes a place
 rather than assuming the Depot, and exactly two functions pass the wider one:
 `counterState` and `bankMove`. Everything else —
-`bankSend`, the drop box, the sell path, the gun — keeps the bare Depot gate,
+`bankSend` and the gun — keeps the bare Depot gate,
 which is what stops the Inn quietly becoming a second counter.
 
 **A machine away from the Vault is still backed by it.** A TREASURY account
 withdrawing at the Inn takes real coin out of the Keep's Vault and is refused
-when the Vault is short, exactly as at the Storefront. Where a claim window
+when the Vault is short, exactly as at the Depot. Where a claim window
 stands has never decided what is behind it.
 
 To put a third machine somewhere, add its room and its location to those two
@@ -839,64 +812,71 @@ carried a sealed Black Market ware, only a Depot Keycard opens its crate now.
 
 A railway terminus in the Caves, tethered to an orbital station the Merchant's
 sponsors own. It is the only route in or out of Ravenheart for anything
-manufactured, and since the rework it is **a public market**: anybody standing
-there trades with it, off whatever shelf their tags open. The Merchant's seat is
-still the best one — the whole manifest, the credit line, the gun — but it is a
-seat at a counter other people also use.
+manufactured, and since the Depot Overhaul it is **the Merchant's business**:
+his terminal orders, his coin pays, and the train carries the lot in bulk.
+Everybody else trades with him across his counter.
 
 Stock is infinite. Price is the only limiter, and it is meant to be
 prohibitive — a working person saves for a Boombox and never sees a pistol.
 
 | | |
 |---|---|
-| Page | `/depot` (`web/app/(app)/depot/page.js`) — place or key (§0b): standing there, or carrying a manifest key, which reads it from anywhere. Read-only unless you are standing there |
-| Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it. Reading works anywhere; trading needs you standing there. |
-| Rooms | `undertown-5-1`, the Railway — the train, the crates, the drop box and an ATM, and the Depot's only room. The Merchant's own three are next door at `undertown-6`: `undertown-6-1` Storefront (the second ATM), `undertown-6-2` Merchant's Office (the gun), `undertown-6-3` Cargo Bay (behind a keycard). The Inn's and the Den's bars carry ATMs of their own (§0l) |
-| Gates | the page itself, `depotAccessFor` (§0b), then the manifests (§0e), plus `depot-keycard` for a sealed crate. The Black Market terminal gates on the `black-market-key` ring token (§0n). `/treasury` gates on standing in the Keep with a key to the Meister's office (§0h) |
-| Audit kinds | `request_depot_order`, `request_depot_drop`, `request_depot_atm`, `request_depot_credit`, `request_depot_account_open`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`, `train_ran` |
-| Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/depotManifests.js` |
+| Page | none — `/depot` redirects to `/chat` (§0k). The Merchant's Terminal is a fixture on the Depot (§0c) |
+| Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs and a ring-locked one to the Storefront. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it |
+| Rooms | the Railway, the Merchant's Office and the Cargo Bay, and the Merchant's Counter opens onto it from the Storefront (§0b). The Inn's and the Den's bars carry infoterminals of their own (§0l) |
+| Gates | the Merchant's License or the Merchant's ring (`merchants-terminal-key`) for the terminal (§0c); `depot-keycard` for the way through, the Cargo Bay and a sealed crate. The Black Market terminal gates on the `black-market-key` ring token (§0n). `/treasury` gates on standing in the Tower with a key to the Meister's office (§0h) |
+| Audit kinds | `merchant_terminal_insert`, `merchant_terminal_withdraw`, `merchant_terminal_order`, `merchant_terminal_order_edit`, `merchant_terminal_order_remove`, `train_import`, `train_export`, `train_ran`, `request_depot_atm`, `request_depot_send`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`. Retired, still in old rows: `request_depot_order`, `request_depot_drop`, `request_depot_credit`, `request_depot_account_open` |
+| Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/crates.js`, `db/lib/merchantTerminalText.js` |
 
 ## 2. The Licence
 
-`merchants-license` is **a** door to the page rather than *the* door: simply
-walking to the counter opens it too (§0b). What the
-licence is is the **widest shelf** plus the business: the whole manifest including
-sealed goods, the Company's credit line, the gun on the office wall, and the
-sight of everybody's staged selling. It is re-checked inside every server action
-that depends on it. The Merchant starts with it.
+`merchants-license` is one of the two keys to the Merchant's Terminal (§0c) —
+the other is the Merchant's own ring — and it is the gun on the office wall and
+the office's door. It is re-checked inside every server action that depends on
+it. The Merchant starts with it.
 
 It is `tradeable: true` on purpose. Handing it over really does hand over the
 business — and, per its own text, the turret's goodwill. That is a decision
 worth being able to make, and it is why the gate is the tag and never the role:
-a role check would quietly break the trade.
+a role check would quietly break the trade. The ring is the other half of that:
+a stolen Merchant's ring on somebody else's finger unlocks the terminal too.
 
-There is no GM half to this page, and it needs none: a GM keeps `/depot`
-wherever they stand — reading a market is adjudication, not play — and it is
-read-only for them the same as for anybody away from the counter. `/gm/dev`
-already does everything a GM would want beyond that. A superadmin reads `/treasury` without walking to the Keep —
-host access rather than game permission, the way `/lifeweb` works — but does not
-get the tax dial.
+A GM reads the terminal's coin and can correct it from `/gm/dev?s=depot`. A
+superadmin reads `/treasury` without walking to the Tower — host access
+rather than game permission, the way `/lifeweb` works — but does not get the
+tax dial.
 
 ## 3. Buying
 
-What the station charges, per unit. Almost every ware is `purchasable: false` —
-not buyable at character creation — and almost every ware sits on the
-**merchant** manifest, so for those the Licence really is the only way to get
-one made offworld. That is the point of the seat; what changed is that ⬢ and
-Ration Boxes are on the general shelf, and the drink and drug shelf is the
-Exactor's terminal now (§0n).
+What the station charges, per unit, before the Meister's tax. Almost every ware
+is `purchasable: false` — not buyable at character creation — and since the
+Depot Overhaul every one of them is ordered through the Merchant's Terminal
+(§0c), so the Merchant really is the only way to get one made offworld. The
+drink and drug shelf is the Exactor's terminal (§0n).
 
-**⬢ themselves are a ware, at 3 ¢ each in and 1 ¢ each out.** They are the
-one line on either table the order path handles by hand — `RESOURCE_WARE_ID` is
-the `resources` tag's own slug rather than a cuid, so it can never collide with
-a real ware's id, and `depotOrderImpl` splits it out before anything reaches a
-`Tag` lookup. It is on the general manifest, so anybody may order it. The 3:1 spread is doing real work. It means
+**Bascinet set the terminal's prices by hand.** The doc asked for every ware
+the terminal sells to be bought back at its own price ("their sell price
+increased to be equivalent to their purchase price") and for a sheet to adjust
+them on; on that sheet, made for the overhaul with the old figures beside the
+new, Bascinet kept every sell-back price as it was and moved one ware, the
+Boombox, to 88 ¢ in and 46 ¢ out. `docs/tags.yaml` holds the figures and the
+table below is the catalog. Nothing prints money: every sell price is at or
+under its buy price, the train taxes the import and the export both, and
+`db/lib/syncTags.js` warns on a sell price above the buy price. The rules that
+follow in this section — the 60% sell-back, the wage floors — are the pricing
+from before the overhaul, and the catalog still follows them.
+
+**⬢ are a ware like any other**, at the `resources` tag's own `depotPrice`
+and `sellablePrice`. They used to be priced by two constants the counter
+page hand-built its ⬢ row from; the constants went with the page. A crated ⬢
+is refused (a crate weighs half its contents), so ⬢ land loose off the train
+and ship loose from the Railway.
+
+**⬢ are 3 ¢ in and 1 ¢ out.** The 3:1 spread does real work. It means
 importing food is a losing trade, which is the whole reason it exists: the
 Merchant should be shipping things Ravenheart cannot make, not undercutting its
 farmers with cheaper grain. And because the buy price is strictly above the
-sell price, no amount of round-tripping prints an obol — the same invariant
-`db/lib/syncTags.js` enforces for every priced tag, just held by hand here
-since there is no row to check.
+sell price, no amount of round-tripping prints an obol.
 
 **It was 2:1 until 2026-09-20, and the buy side is what moved.** At 2 ¢ the
 station was an unlimited ⬢ faucet with no scarcity behind it, so a crafter never
@@ -924,9 +904,10 @@ and the ream is the same paper at a fifth the price. It is also the only ware
 with no sell-back price at all: a resale market in blank paper is not a thing
 anybody needs.
 
-**Sell-back is 60% of the buy price**, rounded, with a floor of 1 ¢. The
-station still takes 40%, which is margin enough that round-tripping a rifle
-for its own sake is a slow way to lose money.
+**Sell-back is 60% of the buy price**, rounded, with a floor of 1 ¢, so the
+station takes 40%, which is margin enough that round-tripping a rifle for its
+own sake is a slow way to lose money. The Boombox (88 ¢ in, 46 ¢ out) is
+Bascinet's own figure from the overhaul's price sheet.
 
 Two wares carry a **wage floor** instead: `trapping-gear` and
 `gladiator-helmet`, plus `workshop-equipment`. Each is craftable, so its
@@ -985,8 +966,7 @@ buying one mid-game is still a real decision.
 | `sake` | 9 | — | Consumes into `tipsy`. Under `ravenheart-red`'s 14 — its only price, since it has no `depotPrice` of its own |
 | `whip` | 10 | 7 | Equippable |
 | `machete` | 11 | — | Black Market. Equippable, 0.3 tiers as a `sword` |
-| `boombox` | 12 | 8 | An instrument (`SOUND.md`, "Performances"): one hand, WEAPON slot. The Makeshift Stage still wants one on the floor |
-| `lute` | 12 | 8 | An instrument, as the boombox |
+| `lute` | 12 | 8 | An instrument, as the boombox (which is dearer since the overhaul) |
 | `accordion` | 12 | 8 | An instrument, as the boombox |
 | `iron` | 13 | 8 | Craftable (`smithing`, spends `hematite` — `SMITHING.md`) — the fourth exception to "almost nothing here is craftable," below. It took `steel`'s numbers and its slot when steel and coal left the game on 2026-09-18. |
 | `silver` | 19 | 10 | What `silver-knife`/`silver-spear` spend (`SMITHING.md`). Prospecting's to source (`MINING.md` §3b); this is the fallback. Repriced up from 8/5 on 2026-09-18 so an uncommon find is not worth less than an ingot smelted from ultracommon rock. |
@@ -1008,6 +988,7 @@ buying one mid-game is still a real decision.
 | `ambrosia` | 80 | — | Black Market. Also an Expert brew (1t, five `cave-fungus`). **+4 tag points**, the only item in the game that grants any |
 | `silencer` | 83 | 50 | Equippable. The Merchant starts holding one |
 | `homunculus` | 84 | 50 | |
+| `boombox` | 88 | 46 | An instrument (`SOUND.md`, "Performances"): one hand, WEAPON slot. The Makeshift Stage still wants one on the floor. Bascinet repriced it from 12/8 on the Depot Overhaul's price sheet |
 | `antibiotics` | 92 | 55 | Cures every stage of infection |
 | `horse` | 100 | 60 | **The dearest thing that is not a weapon or armour.** Also a 9-pt creation pick, and `purchasableAfterStart: false` — so mid-game the Merchant is the only horse in Ravenheart |
 | `silver-sword` | 138 | 83 | |
@@ -1145,7 +1126,7 @@ players make things, he buys them for whatever he can talk them down to, and
 the difference between that and the column below is his margin. Nothing in code
 sets what he pays a player; that is his negotiation.
 
-**⬢ sell back at 1 ¢ each**, through the drop box like any other ware. This is
+**⬢ sell back at the `resources` tag's `sellablePrice`**, loose on the Railway at departure. This is
 the only way material becomes money, and it costs two thirds of its face value,
 since the station charges 3 ¢ for the same ⬢ coming down (§3). Anybody may do it
 now, which is the point: a labourer with a cart of material and no buyer has a
@@ -1172,7 +1153,7 @@ class carries a `sellablePrice` (1 Basic, 2 Skilled, 4 Lavish), and
 will take.
 
 The number is low **so that the counter is a floor and not a market**. A cook
-who dumps a meal at the drop box gets 2 ¢; the Innkeeper can offer 5 and still
+who crates a meal for the train gets 2 ¢; the Innkeeper can offer 5 and still
 resell at whatever a hungry player will bear. That spread is the Inn's whole
 business, and it only exists while the Depot's own price is bad. Raise it and
 the Inn stops being worth walking to. There is no coded Innkeeper mechanism
@@ -1180,7 +1161,7 @@ and there should not be one — the role is narrative (`docs/roles.yaml`), and
 §0h's rule that the Inn must not quietly become a second counter still holds.
 
 **Foodstuffs sell for nothing at all.** `foodstuffs`, the one thing the Farm
-button grows, is not `sellable`, so the drop box refuses it outright. Farming
+button grows, is not `sellable`, so a crate of it is worth nothing to the train. Farming
 pays in food, and since the Soilery Rework there is no cash crop. See
 `SOILERY.md`. The five Ration Box draws are
 likewise unpriced, so the box cannot be bought at 3 ¢ and flipped.
@@ -1379,46 +1360,42 @@ file is a re-export wrapper and never held the logic — it lived in
 
 ## 5. The credit line
 
-**Superseded by §0g.** The line is denominated in obols, lives on
-`Depot.debtObols`, is capped by `Depot.creditCapObols`, and now credits the
-Merchant's own account rather than a station float. `Character.depotDebt` was
-dropped long ago — the licence is tradeable, so the debt travels with the
-business rather than with whoever is holding the card.
-
-Everything else is unchanged: draw puts money in the account, repay takes it
-back out, the cap is refused rather than clamped, and nothing in code punishes a
-standing balance. It is visible to GMs, and that is the enforcement.
+**Gone** (the Depot Overhaul: "the merchant can no longer take credit or loans
+through their terminal"). It was the Company's 75 ¢ advance against the
+business, drawn into and repaid from the Merchant's own account; the columns
+behind it were dropped by `20261111000000_depot_overhaul`, and a balance
+standing on the line was forgiven with them. The role text that promised it is
+gone from `docs/roles.yaml`. The Merchant may still lend to players — that was
+always paper, never code.
 
 ## 6. Retail
 
-Selling to another **player** is still not on this page. It is the existing
-`TRANSFER_TAG` and `TRANSFER_RESOURCES` pair on `/character`, which requires
-both parties standing together (`CARRY.md`).
+Selling to another **player** is the Transfer verb, which wants both parties
+standing together (`CARRY.md`) — **or at the Merchant's Counter, one on each
+side of it**. That is the counter's point (the doc: "items can be transferred to
+characters on either side"): the Merchant, or a Docker, behind it in the Depot;
+the customer in front of it in the Storefront, who cannot walk through. Transfer
+is the only verb that reaches across; everything else on a person stays
+Location-grain (`MAP.md` §2d).
 
-What changed is that selling to the **station** is no longer the Merchant's
-alone: the drop box (§0f) takes anything from anybody. That does not make him
-redundant, it moves what he sells — he is the only shelf with the good things on
-it, and the trip down to the Caves is still a trip. The Docker seat is if
-anything sharper for it: a keycard sells into his books rather than its own,
-which is a job you can hire somebody for.
+Selling to the **station** is the Merchant's alone again: it is crates on the
+Railway, paid into his terminal (§0d). The Docker seat is sharper for it —
+hauling crates on and off the platform is the job, and a Docker starts as a Pack
+Mule who feels none of it (`CARRY.md` §10).
 
-**The one exception is the vending machine on his Storefront**
-(`docs/systemdocs/VENDING.md`). It is the Merchant selling to a player with
-neither of them present: he stocks it and sets the prices, a customer feeds it
-coins and takes what they can pay for, and the money waits in a locked till for
-him to collect. That is the whole point of it — one turn is one real day, so he
-cannot stand behind a counter for all of it. Everything else about retail is
-still the Transfer verb and still needs both parties in the room.
+**The vending machine on his Counter** (`docs/systemdocs/VENDING.md`) is the
+Merchant selling to a player with neither of them present: he stocks it and
+sets the prices, a customer feeds it coins and takes what they can pay for, and
+the money waits in a locked till for him to collect. It is on the Storefront's
+side of the counter.
 
 ## 7. Where a player reads this
 
-The **Merchant** document (`docs/documents.yaml`, key `merchant`) carries the
-price bands and how the counter works, and goes to the Merchant and his Dockers.
-The role charter in `docs/roles.yaml` carries the pitch. What a ware *does*
-lives in the tag's own description and shows on hover, the same way a brew's
-effect does — don't restate it in the document, it is already two places.
+The **Merchant** document (`docs/documents.yaml`, key `merchant`) carries how
+the terminal, the train and the counter work, and goes to the Merchant and his
+Dockers. The role charter in `docs/roles.yaml` carries the pitch. What a ware
+*does* lives in the tag's own description and shows on hover.
 
-Since the counter opened to everybody, the parts that are no longer his alone —
-that there is an account with your name on it, that the box in the Railyard buys
-things, that the train runs every other day — belong in the **handbook**
-(`docs/handbook.md`) rather than in a document only two people are handed.
+What everybody needs to know — that there is an account with your name on it,
+that the Merchant's Counter is where you trade with the Depot, that the train
+runs every other day — is in the **handbook** (`docs/handbook.md`).

@@ -457,15 +457,13 @@ A destroyed structure leaves a ruin standing until somebody clears it away.
 
 ## The Depot
 
-The [Depot](https://ravenheart.quest/depot) page is a public market, open to anyone. Reading it needs nothing; buying or selling needs you standing at the Depot, in the Caves.
+The Depot, down in the Caves, is where the cargo train stops, every other turn. It's the Merchant's business: he orders goods on the Merchant's Terminal there, and the train brings them. The way through from the Storefront to the Depot is locked to the Merchant and his Dockers, so everybody else deals with them across the **Merchant's Counter** — you stand in the Storefront, they stand in the Depot, and you can talk, and hand things across, over the counter.
 
-You have an account there, opened for you when you were made. Most accounts are a claim on real coin in the treasury — if the treasury runs dry, withdrawing is refused rather than shorted.
+You have an account, opened for you when you were made. Most accounts are a claim on real coin in the treasury — if the treasury runs dry, withdrawing is refused rather than shorted. An infoterminal reads the ring on your finger; there's one at the Depot, one on the Merchant's Counter, and one each in the Inn and the Den.
 
-Goods don't arrive the moment you pay for them. A cargo train runs every other turn, so an order you place today is crates waiting for you in the Railyard either at the end of today or at the end of tomorrow, depending on where the train is. The Depot page tells you which.
+**Crates are heavy.** Nobody carries more than one crate at a time, or three with a Cart on — take the Cart off and two of them fall to the floor. Picking one up costs you mood, and the first one you haul in a turn tires you out, unless you're a Pack Mule or Strong.
 
-What you're allowed to buy depends on your tags: everyone can buy Resources and a Ration Box, some things need you holding the right chit, and the good stuff is the Merchant's own shelf. Selling works the other way — drop what you're selling in the dropbox at the Depot, and you're paid out when the train next leaves, minus a cut the Meister takes off the top. Whatever goes in the box is gone the moment you drop it.
-
-The Merchant's Storefront also has a vendor, and that one works whether or not he's awake. Press Vendor, feed obols into the slot, and click whatever you can afford. Only one person can be at it at a time and you get five minutes, so nobody can stand behind you and pocket what you put in. Everyone in the room sees what you buy.
+The Merchant's Counter also has a vendor, on the Storefront side, and that one works whether or not he's awake. Press Vendor, feed obols into the slot, and click whatever you can afford. Only one person can be at it at a time and you get five minutes, so nobody can stand behind you and pocket what you put in. Everyone in the room sees what you buy.
 
 **Take your change.** Press Take your change, or Step away, before your time runs out. Coins left in the slot stay in the vendor, and the next person to open it can spend them or keep them.
 

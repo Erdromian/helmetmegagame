@@ -14,7 +14,8 @@ import { UserError, acting } from "@/lib/actionResult";
 // is re-checked here and never taken from the page — a superadmin reads the desk
 // but does not get the dial, since that is game permission rather than host
 // access. The rule is db/lib/verbs/place.js#setSellTax, shared with the Sell tax
-// button on the Meister's Study post on Discord.
+// button on the Meister's Study post on Discord. One rate, on the train's
+// imports and exports alike (Depot Overhaul.docx).
 async function setSellTaxRateImpl({ rate }) {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
@@ -25,7 +26,6 @@ async function setSellTaxRateImpl({ rate }) {
   });
   if (!result.ok) throw new UserError(result.error);
   revalidatePath("/treasury");
-  revalidatePath("/depot");
   revalidatePath("/gm/audit");
   return { rate: result.rate };
 }

@@ -1,7 +1,7 @@
 // The slot machine's numbers and the words on its front, on both the Discord
 // button and the Chat dialog.
 //
-// Zero requires, on purpose, like db/lib/dropboxText.js and db/lib/dmKinds.js:
+// Zero requires, on purpose, like db/lib/dmKinds.js:
 // web/app/(app)/chat/PlacePanel.js is a client component, and db/lib/slotMachine.js
 // requires the ledger, which requires Prisma — importing the machine from the
 // browser would drag PrismaClient into the bundle and crash /chat on open.

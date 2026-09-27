@@ -968,8 +968,6 @@ groups:
         - >-
           You have a turret. It's keyed to your face, so it will shoot anyone except you.
         - >-
-          The Company will advance you up to 75 ¢ against the business. Your license will be revoked if you fail to pay it.
-        - >-
           You may issue loans, lending at high rates and calling on your Dockers to collect.
         - >-
           Unlike other people's accounts, your account's obols are backed off-world, so if the Keep's treasury is drained during a bank run you'll still be able to withdraw obols.
@@ -983,7 +981,9 @@ groups:
       whitelist: true
       ring:
         spawns: true
-        opens: [depot-keycard]
+        # depot-keycard: the Storefront's way through to the Depot, and the Cargo
+        # Bay. merchants-terminal-key: the Merchant's Terminal (DEPOT.md §0c).
+        opens: [depot-keycard, merchants-terminal-key]
         authorised_by: merchants-license
         seal_office: Merchant
         seal_mark: "The initials {initials} emblazoned on a shield, the seal of the Merchant."
@@ -999,6 +999,9 @@ groups:
         - Nobility
         - Appraisal
         - Foodstuffs x4
+        # The Merchant doesn't haul (Depot Overhaul.docx): Pack Mule and Strong
+        # are closed to this seat (excludedRoles in docs/tags.yaml).
+        - Soft Hands
       doc_elements:
         - godking
         - squeeze
@@ -1024,6 +1027,8 @@ groups:
       starting_tags:
         - Appraisal
         - Ration Box
+        # Hauling crates is the job (Depot Overhaul.docx, CARRY.md §10).
+        - Pack Mule
       doc_elements:
         - merchant
     banneret:
@@ -1293,7 +1298,7 @@ groups:
         - >-
           You can farm, but you must be in the Soilery, a set of plots and sheds in the town's east. The Farm button there plants 100 crops, and whatever doesn't wither comes in as Foodstuffs when the turn is pushed. A day in the fields leaves you Exhausted, so you farm one turn in three.
         - >-
-          Food fetches nothing at the Depot's counter, so cut a deal with the Inn or other organizations instead. A hungry town will pay for it.
+          Food fetches nothing at the Depot, so cut a deal with the Inn or other organizations instead. A hungry town will pay for it.
         - >-
           Your ring opens the Silo, where the harvest is kept, and the Stable beside it.
         - >-

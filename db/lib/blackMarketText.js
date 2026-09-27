@@ -1,7 +1,7 @@
 // The Black Market terminal's words, on both the Discord panel and the Chat
 // dialog (docs/systemdocs/DEPOT.md §0n).
 //
-// Zero requires, on purpose, like db/lib/slotText.js and db/lib/dropboxText.js:
+// Zero requires, on purpose, like db/lib/slotText.js:
 // web/app/(app)/chat/PlacePanel.js is a client component, and
 // db/lib/blackMarket.js requires the ledger, which requires Prisma — importing
 // the terminal from the browser would drag PrismaClient into the bundle.

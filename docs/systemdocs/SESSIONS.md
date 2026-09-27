@@ -213,7 +213,7 @@ Four hooks carry the policy, and three more sit under them as a floor:
 
 | Where | What it covers |
 |---|---|
-| `web/lib/actionResult.js#acting()` | Every verb on `/character`, `/depot`, `/store`, `/treasury` and `/lifeweb`. It is `guarded()` plus the gate, so a verb is `acting(…)` and a read stays `guarded(…)`. **A new player surface written as `guarded(…)` is not gated** — that is the one thing to remember when adding one. |
+| `web/lib/actionResult.js#acting()` | Every verb on `/character`, `/store`, `/treasury` and `/lifeweb`, and Chat's money fixtures (`chat/counterActions.js`). It is `guarded()` plus the gate, so a verb is `acting(…)` and a read stays `guarded(…)`. **A new player surface written as `guarded(…)` is not gated** — that is the one thing to remember when adding one. |
 | `web/app/(app)/chat/actions.js#actor(select, { acting })` | The chat surface. Per action rather than in the hub, because the talking lives in that file too. |
 | `db/lib/say.js#prepareSpeech` | Speech, both faces — the web composer, the Discord proxy, and the catch-up pass. The one place the knob is read. |
 | `bot/src/events/interactionCreate.js` | Every Discord command, button, select and modal, as an **allowlist**. A new surface is shut by default, so a new read-only or speech button must be added to `OPEN_PREFIXES` or it will refuse out of session. |

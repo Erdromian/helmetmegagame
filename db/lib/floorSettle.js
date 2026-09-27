@@ -22,6 +22,7 @@
 const { turnDay } = require("./turnFormat");
 const { RESOURCES_SLUG } = require("./resourceStack");
 const { TAG_CATEGORY } = require("./constants");
+const { isCrateTag } = require("./crates");
 
 const FLOOR_SETTLE_AUDIT_ACTION = "floor_settled";
 
@@ -75,9 +76,16 @@ async function stampLeftOnFloor(db, roomId, tagIds, { day, resources = false } =
 const SINKABLE_CATEGORY = TAG_CATEGORY.ITEMS.toLowerCase();
 const HEAVY_LBS = 40;
 
+// Where nothing ever sinks, whatever lies there (Depot Overhaul.docx): the
+// Railway, where crates wait for the train, and the Cargo Bay they are packed
+// in. Slugs rather than a column: two rooms, named by the one doc.
+const NEVER_SINKS_ROOM_SLUGS = new Set(["undertown-5-1", "undertown-6-3"]);
+
 function canSink(tag) {
   if (!tag || String(tag.category ?? "").toLowerCase() !== SINKABLE_CATEGORY) return false;
   if (tag.corpseKind || tag.corpseOfCharacterId) return false;
+  // A crate is a box somebody hauled there, and the doc keeps it in sight.
+  if (isCrateTag(tag)) return false;
   if (tag.placement != null) return false;
   if ((tag.weightLbs ?? 0) >= HEAVY_LBS) return false;
   return true;
@@ -91,6 +99,7 @@ function canSink(tag) {
 // - Not a keyed room (non-empty accessTagSlugs): that is a stash.
 // - Not the Spillway (destroysContents), which holds nothing to sink.
 // - Not a Stable: db/lib/stablePass.js counts the herd on the floor.
+// - Not the Railway or the Cargo Bay (NEVER_SINKS_ROOM_SLUGS).
 // - Not a stack on an expiry clock: it rots in plain sight instead, so a
 //   hidden stack never carries a clock (the expiry sweep relies on that).
 // - Only a thing canSink allows.
@@ -101,6 +110,7 @@ function settles(row, room, tag, nextDay) {
   if (row.expiresTurn != null) return false;
   if ((room?.accessTagSlugs ?? []).length > 0) return false;
   if (room?.destroysContents || room?.stable) return false;
+  if (NEVER_SINKS_ROOM_SLUGS.has(room?.slug)) return false;
   return canSink(tag);
 }
 
@@ -150,8 +160,19 @@ async function settleFloors(db, { nextDay }) {
       quantity: true,
       floorDay: true,
       expiresTurn: true,
-      room: { select: { accessTagSlugs: true, destroysContents: true, stable: true } },
-      tag: { select: { category: true, corpseKind: true, corpseOfCharacterId: true, placement: true, weightLbs: true } },
+      room: { select: { slug: true, accessTagSlugs: true, destroysContents: true, stable: true } },
+      tag: {
+        select: {
+          slug: true,
+          custom: true,
+          crateContents: true,
+          category: true,
+          corpseKind: true,
+          corpseOfCharacterId: true,
+          placement: true,
+          weightLbs: true,
+        },
+      },
     },
   });
   const byRoom = new Map();
@@ -195,6 +216,7 @@ module.exports = {
   SETTLE_AFTER_DAYS,
   MIN_VISIBLE_TO_SINK,
   HEAVY_LBS,
+  NEVER_SINKS_ROOM_SLUGS,
   canSink,
   planSettle,
   floorDayNow,

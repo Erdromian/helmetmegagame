@@ -31,7 +31,6 @@ const {
   ROOM_STORAGE_PREFIX,
   ROOM_SEARCH_PREFIX,
   ROOM_ATM_PREFIX,
-  ROOM_DROPBOX_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
@@ -211,20 +210,32 @@ const {
   handleBlackMarketPick,
   handleBlackMarketQtySubmit,
 } = require("./interactions/blackMarket");
+const { MERCHANT_TERMINAL_PREFIX } = require("@lifeweb/db/lib/placeAffordances");
+const {
+  MT_UNLOCK,
+  MT_INSERT,
+  MT_WITHDRAW,
+  MT_COIN_MODAL,
+  MT_PICK_PREFIX,
+  MT_QTY_MODAL,
+  MT_REMOVE_PICK,
+  handleMerchantTerminalOpen,
+  handleMerchantTerminalUnlock,
+  handleMerchantTerminalCoin,
+  handleMerchantTerminalCoinSubmit,
+  handleMerchantTerminalPick,
+  handleMerchantTerminalQtySubmit,
+  handleMerchantTerminalRemove,
+} = require("./interactions/merchantTerminal");
 const {
   ATM_OUT_PREFIX,
   ATM_IN_PREFIX,
   ATM_PIN_SUFFIX,
   ATM_MODAL_PREFIX,
-  DROP_PICK_PREFIX,
-  DROP_MODAL_PREFIX,
   DEPOT_TURRET_MODAL_PREFIX,
   handleAtmOpen,
   handleAtmAmountOpen,
   handleAtmSubmit,
-  handleDropBoxOpen,
-  handleDropBoxPick,
-  handleDropBoxSubmit,
   handleDepotTurretOpen,
   handleDepotTurretSubmit,
 } = require("./interactions/depotCounter");
@@ -428,8 +439,16 @@ module.exports = {
         if (interaction.customId === ATM_IN_PREFIX || interaction.customId === ATM_IN_PREFIX + ATM_PIN_SUFFIX) {
           return void (await handleAtmAmountOpen(interaction, false, interaction.customId.endsWith(ATM_PIN_SUFFIX)));
         }
-        if (interaction.customId.startsWith(ROOM_DROPBOX_PREFIX)) {
-          return void (await handleDropBoxOpen(interaction));
+        // The Merchant's Terminal (db/lib/merchantTerminal.js), on the Depot's
+        // anchor. Insert and Withdraw open a modal, so they must NOT be acked first.
+        if (interaction.customId.startsWith(MERCHANT_TERMINAL_PREFIX)) {
+          return void (await handleMerchantTerminalOpen(interaction));
+        }
+        if (interaction.customId === MT_UNLOCK) {
+          return void (await handleMerchantTerminalUnlock(interaction));
+        }
+        if (interaction.customId === MT_INSERT || interaction.customId === MT_WITHDRAW) {
+          return void (await handleMerchantTerminalCoin(interaction, interaction.customId === MT_WITHDRAW));
         }
         // Opens a modal, so it must NOT be ack()'d first — see handleQuestOpen.
         if (interaction.customId.startsWith(ROOM_DEPOT_TURRET_PREFIX)) {
@@ -675,9 +694,12 @@ module.exports = {
         if (interaction.customId.startsWith(CONVERSE_ROOM_PREFIX)) {
           return void (await handleConverseRoomPick(interaction));
         }
-        // Opens a modal, so it must NOT be acked first.
-        if (interaction.customId === DROP_PICK_PREFIX) {
-          return void (await handleDropBoxPick(interaction));
+        // A terminal ware picked: opens the quantity modal, so no ack.
+        if (interaction.customId.startsWith(MT_PICK_PREFIX)) {
+          return void (await handleMerchantTerminalPick(interaction));
+        }
+        if (interaction.customId === MT_REMOVE_PICK) {
+          return void (await handleMerchantTerminalRemove(interaction));
         }
         // The vending machine's three selects. The two "pick:" ones are checked
         // first because they share their parent's prefix, and the two that open
@@ -802,8 +824,11 @@ module.exports = {
         if (interaction.customId.startsWith(ATM_MODAL_PREFIX)) {
           return void (await handleAtmSubmit(interaction, interaction.customId.slice(ATM_MODAL_PREFIX.length)));
         }
-        if (interaction.customId.startsWith(DROP_MODAL_PREFIX)) {
-          return void (await handleDropBoxSubmit(interaction, interaction.customId.slice(DROP_MODAL_PREFIX.length)));
+        if (interaction.customId.startsWith(MT_COIN_MODAL)) {
+          return void (await handleMerchantTerminalCoinSubmit(interaction, interaction.customId.slice(MT_COIN_MODAL.length)));
+        }
+        if (interaction.customId.startsWith(MT_QTY_MODAL)) {
+          return void (await handleMerchantTerminalQtySubmit(interaction, interaction.customId.slice(MT_QTY_MODAL.length)));
         }
         if (interaction.customId.startsWith(DEPOT_TURRET_MODAL_PREFIX)) {
           return void (await handleDepotTurretSubmit(interaction));

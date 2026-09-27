@@ -262,6 +262,52 @@ async function resolveCrossRoomRef(prisma, viewer, token, { sightings = null } =
   return null;
 }
 
+// TRANSFER ACROSS A COUNTER (Depot Overhaul.docx: the Merchant's Counter —
+// "items can be transferred to characters on either side"). The one verb that
+// reaches the far side of a room that opens onto two Locations; every other
+// verb on a person stays Location-grain (MAP.md §2d), and nothing else reads
+// these two.
+//
+// The key is `across:<ref>`: a named row's character id, or a hooded one's
+// token — which is minted exactly as the counter's lookRef is, so the picker
+// never learns who is under a hood. `withAcross` rows are listed for anybody
+// in the room, so a row here is somebody standing at the far side's Location
+// who passes that side's gate.
+async function acrossRecipients(prisma, viewer, { sightings = null } = {}) {
+  if (!viewer?.locationId) return [];
+  const seen = sightings ?? (await lastSightings(prisma, viewer));
+  const out = [];
+  for (const group of await crossRoomGroups(prisma, viewer, { locationId: viewer.locationId, sightings: seen })) {
+    const alive = group.rows.filter((c) => c.status == null || c.status === "ALIVE");
+    for (const row of namedRows(alive, viewer)) {
+      out.push({ id: row.characterId, name: row.name, kind: "across", note: group.roomName });
+    }
+    for (const row of concealedRows(alive, { withTokens: false, lookRefs: true })) {
+      if (row.lookRef) out.push({ id: row.lookRef, name: row.alias, kind: "across", note: group.roomName });
+    }
+  }
+  return out;
+}
+
+// Who `ref` (the part after `across:`) names on the far side of a counter this
+// viewer is at, or null. Resolved against the same rows the picker was built
+// from, so a ref for somebody who has since walked off names nobody.
+async function resolveAcrossRecipient(prisma, viewer, ref, { sightings = null } = {}) {
+  if (!ref || !viewer?.locationId) return null;
+  const seen = sightings ?? (await lastSightings(prisma, viewer));
+  for (const group of await crossRoomGroups(prisma, viewer, { locationId: viewer.locationId, sightings: seen })) {
+    for (const c of group.rows) {
+      if (c.status != null && c.status !== "ALIVE") continue;
+      const hooded = c.hidden && !c.forced;
+      const match = hooded
+        ? Boolean(process.env.AUTH_SECRET) && hoodToken(c.id, c.presenceNonce) === ref
+        : c.id === ref;
+      if (match) return { id: c.id, roomId: group.roomId, roomName: group.roomName };
+    }
+  }
+  return null;
+}
+
 // Locations across a modular gate, read straight off the links (avoids a require cycle with locationGraph.js).
 async function gateNeighbours(prisma, locationId) {
   if (!locationId) return [];
@@ -441,6 +487,8 @@ module.exports = {
   resolveHoodToken,
   resolveCrossRoomRef,
   crossRoomGroups,
+  acrossRecipients,
+  resolveAcrossRecipient,
   hiddenFrom,
   hoodToken,
   presentRows,
