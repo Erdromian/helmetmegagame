@@ -450,12 +450,15 @@ the Location.
 It is not `chat/openPlace.js` read from the root layout: that store adopts
 whatever is in the URL hash, and on any other page the hash is not a place.
 
-`BY_ROOM` holds only rooms that sound different from their Location. Today that
-is the fire, which goes where one is written into the room's description: the
-Inn's **Bar** (the braziers), the Court's **Throne Room** (the hearth) and the
-Slums' **Firepit**. It used to sit on the whole Inn and the whole Keep, so the
-Inn's Street and Balcony crackled and the Keep, which has no fire, crackled
-everywhere.
+`BY_ROOM` holds only rooms that sound different from their Location, and today
+it is empty. It was built for the fire in the Inn's **Bar**, the Court's
+**Throne Room** and the Slums' **Firepit**.
+
+**The fire is not ambience.** `newfireloop.ogg` used to be a bed on the whole
+Inn and the whole Keep, and it is far too intense for a hearth or a brazier.
+It is only for a fire that is out of control, and `docs/sounds.yaml` records
+that as the file's `needs`. Nothing in the game can tell that a fire is out of
+control yet, so nothing plays it.
 
 Every entry in the table is built once at module load, so two neighbouring
 caves resolve to the very same object.

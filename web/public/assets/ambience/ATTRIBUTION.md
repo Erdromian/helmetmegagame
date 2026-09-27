@@ -43,7 +43,7 @@ the document calls all four Lobby Music.
 | `ambispace.ogg` | 3:15 | `sound/ambience/ambispace.ogg` | Space |
 | `ambieng1.ogg` | 0:38 | `sound/ambience/ambieng1.ogg` | the Godard Factory |
 | `shore.ogg` | 0:30 | `sound/ambience/shore.ogg` | the Lake |
-| `newfireloop.ogg` | 0:03 | `sound/effects/newfireloop.ogg` | the Keep; the Inn |
+| `newfireloop.ogg` | 0:03 | `sound/effects/newfireloop.ogg` | nowhere yet: only for a fire out of control (`docs/sounds.yaml`) |
 | `pathologic.ogg` | 2:45 | `sound/music/pathologic.ogg` | the Sanctuary |
 | `train_loop.ogg` | 0:21 | `sound/lfwbsounds/train_loop.ogg` | the Depot, while the train is in |
 | `ambicha1.ogg` | 0:22 | `sound/ambience/ambicha1.ogg` | a spot over the Cathedral and the Order Chambers |

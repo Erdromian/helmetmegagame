@@ -232,6 +232,7 @@ sounds:
     use: Ambience in proximity to fire
     class: ambience
     served: ambience/newfireloop.ogg
+    needs: a fire that is out of control. Far too intense for a hearth, brazier or campfire
   ambience/seag1.ogg:
     use: Played atop ambience in proximity to open ocean
     class: atop

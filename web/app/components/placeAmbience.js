@@ -62,9 +62,8 @@ function place(id, beds, spots = []) {
 // stone, it is not the stone.
 const CHAPEL_SPOTS = ["ambicha2.ogg", "ambicha3.ogg", "ambicha4.ogg", "ambicha1.ogg"].map((f) => once(f));
 
-// "Ambience in proximity to fire." Only where a fire is actually written into the room's
-// description, which makes it a ROOM sound — see BY_ROOM below.
-const FIRE = loop("newfireloop.ogg", { spanMs: [120_000, 240_000] });
+// There is no fire here on purpose. `newfireloop.ogg` is far too intense for a hearth or a
+// brazier, so it is kept for a fire that is out of control (docs/sounds.yaml, `needs`).
 
 // "Played atop ambience, quiet wind" through to "moderately loud but high pitch wind".
 // Served out of /assets/music/ because the closed-door tape has always named them there.
@@ -83,13 +82,10 @@ const WIND_SPOTS = [
 // a Zone over a bare `indoors`. Add a place by adding a line; nothing below is a special case
 // in code.
 
-const INN_SONG = once(`${M}song_game.ogg`);
-
 const BY_LOCATION = {
   // "Ambience within the inn". `song_game` used to be the lobby's song and was the lute's
   // as well; it is the inn's now, which is the only thing the document ever says about it.
-  // The fire is the Bar's alone (BY_ROOM), not the Street's or the Balcony's.
-  "town-7": place("inn", [INN_SONG]),
+  "town-7": place("inn", [once(`${M}song_game.ogg`)]),
   "fortress-4": place("keep", [loop("loop_airy1.ogg", { spanMs: [120_000, 240_000] })]),
 
   // "Ambience within the cathedral". The Order Chambers are the same stone and the same
@@ -147,17 +143,9 @@ const BY_ZONE = {
 // that replaces its Location's while you are reading it, and every other room at the
 // Location keeps the Location's. Only rooms that sound different belong in this table.
 //
-// The fire is a BED and not a spot: "Ambience in proximity to fire", so it is one of the
-// things the room sounds like rather than something that happens over the top of it. Each
-// room below has one written into its description.
-const BY_ROOM = {
-  // "A pair of braziers opposite from the entrance."
-  "town-7-2": place("inn-bar", [INN_SONG, FIRE]),
-  // "A hearth to the right." The Court's own bed, with the fire beside it.
-  "fortress-3-1": place("throne-room", [...BY_ZONE.fortress.pieces, FIRE], BY_ZONE.fortress.spots),
-  // "A smouldering hole in the ground." The fire is the whole room, so it is the only bed.
-  "undertown-a-1": place("firepit", [FIRE]),
-};
+// Empty for now. It was built for the fire in the Inn's Bar, the Throne Room and the Firepit,
+// and the fire came out of the ambience altogether (see above).
+const BY_ROOM = {};
 
 // Ordered, not an object: a Location may carry several attributes and the order is the
 // answer. Keys are from db/lib/locationAttributes.js.
