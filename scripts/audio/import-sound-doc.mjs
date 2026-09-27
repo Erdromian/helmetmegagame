@@ -1,15 +1,20 @@
 #!/usr/bin/env node
-// Bascinet's "Music and Sounds" design document -> docs/sounds.yaml.
+// Bascinet's two "Music and Sounds" design documents -> docs/sounds.yaml.
 //
-// The document is the source of truth and it is hand-written. This script only ever
-// projects it into the repo: `use` and `class` are rewritten from the .docx on every run,
-// so the registry can never quietly disagree with the document it claims to describe.
+// The documents are the source of truth and they are hand-written. This script only ever
+// projects them into the repo: `use` and `class` are rewritten from the .docx files on every
+// run, so the registry can never quietly disagree with the documents it claims to describe.
 // The two fields the repo owns — `served` and `needs` — are carried forward, the way
 // scripts/copy/extract.js carries a `new:` field forward.
 //
+// TWO DOCUMENTS. The first, now "Music and Sounds(OLD).docx", describes the OpenSourceWeb
+// library a row per file. The second, "New Music and Sounds.docx", describes the tracks
+// Bascinet picked (scripts/audio/import-bascinet-sounds.mjs) and sets placement rules for
+// every file, old and new. Where both describe one file, the NEW document wins.
+//
 // DRY RUN unless given --apply, same as db:import-zones.
 //
-//   node scripts/audio/import-sound-doc.mjs [--apply] [--doc "<path to .docx>"]
+//   node scripts/audio/import-sound-doc.mjs [--apply] [--doc "<old .docx>"] [--new-doc "<new .docx>"]
 //
 // It never repairs one of Bascinet's filenames on its own. A row naming a file that is
 // not in assets/osw-sounds/ is reported with its closest match and left out, because a
@@ -26,12 +31,16 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
 const LIBRARY = path.join(ROOT, "assets", "osw-sounds");
 const OUT = path.join(ROOT, "docs", "sounds.yaml");
-const DEFAULT_DOC = "E:\\Bascinet\\V3\\Music and Sounds.docx";
+const SOURCES = path.join(LIBRARY, "bascinet-sources.json");
+const DEFAULT_DOC = "E:\\Bascinet\\V3\\Sounds\\Music and Sounds(OLD).docx";
+const DEFAULT_NEW_DOC = "E:\\Bascinet\\V3\\Sounds\\New Music and Sounds.docx";
 
 const argv = process.argv.slice(2);
 const APPLY = argv.includes("--apply");
 const docArg = argv.indexOf("--doc");
 const DOC = docArg === -1 ? DEFAULT_DOC : argv[docArg + 1];
+const newDocArg = argv.indexOf("--new-doc");
+const NEW_DOC = newDocArg === -1 ? DEFAULT_NEW_DOC : argv[newDocArg + 1];
 
 // --------------------------------------------------------------------------- the zip
 
@@ -266,6 +275,44 @@ function readDoc(xml) {
   return { rules, groups, rows };
 }
 
+// The new document names its folders by where they sit on Bascinet's own disk, and its files
+// by the names the downloader gave them. Neither is a library path, so a row is matched on
+// the YouTube id in its filename through assets/osw-sounds/bascinet-sources.json.
+const NEW_FOLDER = /^E:\\Bascinet\\V3\\Sounds\\([^\\]+)$/i;
+const YOUTUBE_ID = /\[([A-Za-z0-9_-]{11})\]/;
+
+/**
+ * Read the new document into `{ placement, rows }`. Every paragraph that is not a folder
+ * heading is a placement rule — the document has no other kind of prose — and every
+ * two-cell row is a file and its use.
+ */
+function readNewDoc(xml) {
+  const placement = [];
+  const rows = [];
+  let folder = null;
+  for (const block of blocksOf(xml)) {
+    if (block.paragraph !== undefined) {
+      const heading = NEW_FOLDER.exec(block.paragraph);
+      if (heading) folder = heading[1];
+      else placement.push(block.paragraph);
+      continue;
+    }
+    for (const row of block.rows) {
+      const cells = row.map((c) => c.join(" ").replace(/\s+/g, " ").trim()).filter(Boolean);
+      if (cells.length === 1) {
+        const heading = NEW_FOLDER.exec(cells[0]);
+        if (heading) folder = heading[1];
+        continue;
+      }
+      if (cells.length < 2) continue;
+      const [file, use] = cells;
+      if (/^file name$/i.test(file)) continue;
+      rows.push({ folder, file, use, youtube: YOUTUBE_ID.exec(file)?.[1] ?? null });
+    }
+  }
+  return { placement, rows };
+}
+
 // --------------------------------------------------------------------------- the library
 
 /** Every audio file actually in assets/osw-sounds/, as `group/basename`. */
@@ -335,12 +382,18 @@ function servedByBuildScript() {
 
 // --------------------------------------------------------------------------- classifying
 
-// The document's own six words for what a track is, in the order it introduces them.
+// The documents' own eight words for what a track is — six from the old one, two from the new.
 // A class is DERIVED from the sentence rather than stored beside it, so that the .docx
 // stays the only place the answer lives.
 function classOf(group, use, previous) {
   if (/^unused\.?$/i.test(use)) return "unused";
   if (group.startsWith("instruments/")) return "instrument";
+  // The new document's two words. "Den music is played from the jukebox located in the den",
+  // and every row in den/ is one of its songs, whether it says "Song 3" or "Den music, Song 10".
+  if (group === "den") return "jukebox";
+  // "Ambience interrupting sfx which plays after…", "…interrupting combat music…". It cuts
+  // the bed rather than sitting under it or over it, which is neither ambience nor a cue.
+  if (/\bambience interrupting\b/i.test(use)) return "interrupt";
   // "Same as above", "More intense version of badmood2.ogg" — the document leans on the row
   // before rather than repeating itself, so the class does too.
   if (/^(same as above|more (intense|quiet) )/i.test(use) && previous) return previous;
@@ -393,10 +446,13 @@ function wrap(text, indent) {
 
 const HEADER = `# What every sound in the library is FOR.
 #
-# Bascinet's "Music and Sounds" document, projected into the repo. That document is the
-# source of truth and it is hand-written: every use case below is Bascinet's own sentence
-# about that file, carried across verbatim and deliberately not re-punctuated. A registry
-# that has quietly improved its source cannot be checked against it.
+# Bascinet's two "Music and Sounds" documents, projected into the repo — the old one for the
+# OpenSourceWeb library, the new one for Bascinet's own picks and for the placement rules
+# that apply to all of it. They are the source of truth and they are hand-written: every
+# use case below is Bascinet's own sentence about that file, carried across verbatim and
+# deliberately not re-punctuated. A registry that has quietly improved its source cannot be
+# checked against it. Where both describe one file, the new document's sentence is the one
+# kept.
 #
 # THIS FILE IS GENERATED. Run:
 #
@@ -410,7 +466,7 @@ const HEADER = `# What every sound in the library is FOR.
 # not a table. See docs/systemdocs/SOUND.md §7.
 #
 #   use     — Bascinet's sentence, verbatim.
-#   class   — one of the six classes in \`rules\` below, derived from that sentence.
+#   class   — one of the eight classes in \`rules\` below, derived from that sentence.
 #   doc     — present only where the document spells the filename differently from the
 #             file itself. The key is always the real file; this records what was read,
 #             so every correction the importer made is visible and can be argued with.
@@ -424,12 +480,20 @@ const HEADER = `# What every sound in the library is FOR.
 # db/lib/instrumentSongs.js. Neither is duplicated here.
 `;
 
-function emit({ rules, groups, entries }) {
+function emit({ rules, placement, groups, entries }) {
   const out = [HEADER];
 
-  out.push("\n# The document's own rules for each class of track, verbatim.\nrules:");
+  out.push("\n# The documents' own rules for each class of track, verbatim.\nrules:");
   for (const [name, text] of rules) {
     out.push(`  ${name}: >-\n${wrap(text, 4)}`);
+  }
+
+  out.push(
+    "\n# Where a track may play. The new document's opening, verbatim; it applies to every file" +
+      "\n# here, old and new. web/app/components/placeAmbience.js is these rules in code.\nplacement:",
+  );
+  for (const text of placement) {
+    out.push(`  - >-\n${wrap(text, 4)}`);
   }
 
   out.push("\n# A rule that applies to a whole folder rather than to one file.\ngroups:");
@@ -521,9 +585,20 @@ function main() {
     console.error(`No document at ${DOC}\nPass --doc "<path>" if it has moved.`);
     process.exit(1);
   }
+  if (!fs.existsSync(NEW_DOC)) {
+    console.error(`No document at ${NEW_DOC}\nPass --new-doc "<path>" if it has moved.`);
+    process.exit(1);
+  }
 
   const xml = readZipEntry(DOC, "word/document.xml").toString("utf8");
   const { rules: rulePara, groups: docGroups, rows } = readDoc(xml);
+  const newDoc = readNewDoc(readZipEntry(NEW_DOC, "word/document.xml").toString("utf8"));
+  // YouTube id -> library path, for the new document's rows.
+  const byYoutube = new Map(
+    Object.entries(fs.existsSync(SOURCES) ? JSON.parse(fs.readFileSync(SOURCES, "utf8")) : {}).map(
+      ([rel, s]) => [s.youtube, rel],
+    ),
+  );
   const library = libraryFiles();
   const served = servedFiles();
   const keep = carriedForward();
@@ -542,6 +617,15 @@ function main() {
     const hit = rulePara.find((p) => re.test(p));
     if (hit) rules.set(name, hit);
   }
+  // The new document's two classes. Neither has a paragraph of its own the way the old six
+  // do; these are the sentences that say what each one does.
+  for (const [name, re] of [
+    ["interrupt", /interrupted by an ambience interrupting sfx/i],
+    ["jukebox", /^den music is played from the jukebox/i],
+  ]) {
+    const hit = newDoc.placement.find((p) => re.test(p));
+    if (hit) rules.set(name, hit);
+  }
 
   const entries = [];
   const seen = new Map();
@@ -550,6 +634,16 @@ function main() {
   const groups = new Map();
 
   const buildMap = servedByBuildScript();
+  // build-assets.sh first, since it holds the renames and the cross-folder moves. The sfx/
+  // library is copied in by hand with no script behind it, so that one falls back to
+  // matching on the name.
+  const servedFor = (id) => {
+    const base = id.slice(id.lastIndexOf("/") + 1);
+    const guess =
+      buildMap.get(id.toLowerCase()) ??
+      [...served.values()].find((s) => s.slice(s.lastIndexOf("/") + 1) === base);
+    return guess && served.has(guess.toLowerCase()) ? guess : undefined;
+  };
   const readAs = [];
   // Rows are walked in document order, so a row that says "same as above" can be told what
   // above was.
@@ -592,25 +686,44 @@ function main() {
     }
     seen.set(id, row.use);
 
-    const lower = id.toLowerCase();
-    const cls = CLASS_OVERRIDE.get(lower) ?? classOf(row.group, row.use, previousClass);
+    const cls = CLASS_OVERRIDE.get(id.toLowerCase()) ?? classOf(row.group, row.use, previousClass);
     previousClass = cls;
-    const base = id.slice(id.lastIndexOf("/") + 1);
-    // build-assets.sh first, since it holds the renames and the cross-folder moves. The
-    // sfx/ library is copied in by hand with no script behind it, so that one falls back
-    // to matching on the name.
-    const built = buildMap.get(lower);
-    const guess =
-      built ?? [...served.values()].find((s) => s.slice(s.lastIndexOf("/") + 1) === base);
-
     entries.push({
       id,
       doc: stem(bare) === stem(id) ? undefined : bare,
       use: row.use,
       class: cls,
-      served: guess && served.has(guess.toLowerCase()) ? guess : undefined,
+      served: servedFor(id),
       needs: keep.get(`${id}\u0000needs`),
     });
+  }
+
+  // The new document. Its rows are matched on the YouTube id, never on a spelling, and where
+  // one describes a file the old document also described, it replaces that entry: it is the
+  // later of the two, and Bascinet wrote it knowing the old one was there.
+  const replaced = [];
+  const newUnmatched = [];
+  for (const row of newDoc.rows) {
+    const id = row.youtube ? byYoutube.get(row.youtube) : null;
+    if (!id) {
+      newUnmatched.push(row);
+      continue;
+    }
+    const group = id.slice(0, id.lastIndexOf("/"));
+    const entry = {
+      id,
+      doc: row.file,
+      use: row.use,
+      class: classOf(group, row.use, null),
+      served: servedFor(id),
+      needs: keep.get(`${id}\u0000needs`),
+    };
+    const at = entries.findIndex((e) => e.id === id);
+    if (at === -1) entries.push(entry);
+    else {
+      replaced.push({ id, was: entries[at].use, now: row.use });
+      entries[at] = entry;
+    }
   }
 
   for (const [group, { notes }] of docGroups) {
@@ -626,6 +739,8 @@ function main() {
 
   console.log(`document   ${DOC}`);
   console.log(`rows       ${rows.length} in ${docGroups.size} sections`);
+  console.log(`new doc    ${NEW_DOC}`);
+  console.log(`rows       ${newDoc.rows.length}, and ${newDoc.placement.length} placement paragraphs`);
   console.log(`rules      ${[...rules.keys()].join(", ")}`);
   console.log(`library    ${library.size} audio files in assets/osw-sounds/`);
   console.log(`entries    ${entries.length}`);
@@ -637,6 +752,16 @@ function main() {
   );
   console.log(`served     ${entries.filter((e) => e.served).length} promoted into web/public/assets/`);
   if (keep.size) console.log(`carried    ${keep.size} needs field(s) from the existing file`);
+
+  if (replaced.length) {
+    console.log(`\n${replaced.length} file(s) the new document re-describes — its sentence is kept:`);
+    for (const r of replaced) console.log(`  ${r.id}\n    was: ${r.was}\n    now: ${r.now}`);
+  }
+
+  if (newUnmatched.length) {
+    console.log(`\n${newUnmatched.length} new-document row(s) with no file — run import-bascinet-sounds.mjs:`);
+    for (const r of newUnmatched) console.log(`  [${r.folder}] ${r.file}`);
+  }
 
   if (readAs.length) {
     console.log(`\n${readAs.length} row(s) read as a near-identical real file:`);
@@ -700,7 +825,7 @@ function main() {
     console.log("  Nothing above was applied. Correct the document and re-run.");
   }
 
-  const text = emit({ rules, groups, entries });
+  const text = emit({ rules, placement: newDoc.placement, groups, entries });
 
   if (!APPLY) {
     console.log(`\nDRY RUN. ${text.split("\n").length} lines would be written to docs/sounds.yaml`);

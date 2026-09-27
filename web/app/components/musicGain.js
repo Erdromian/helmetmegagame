@@ -57,9 +57,50 @@ export const MUSIC_GAIN = {
   "spookymaint1.ogg": 0.750,          //  -31.5 LUFS, 0:41
   "spookyspace1.ogg": 1.000,          //  -34.9 LUFS, 1:40
   "spookyspace2.ogg": 1.000,          //  -34.8 LUFS, 1:41
-  "surfacing.ogg": 0.160,             //  -18.1 LUFS, 2:45
   "to_hell.ogg": 0.108,               //  -14.7 LUFS, 4:18
   "train_loop.ogg": 0.119,            //  -15.5 LUFS, 0:21
+  // Bascinet's own picks from the new document: the general, fortress, keep, underfort,
+  // caves/depths and space beds, the inn's second track, and what a listener hears
+  // hallucinating, robed or dead. Geist is also the "becoming a ghost" interrupter; it is
+  // keyed here, at the tier it spends most of its time at.
+  "a-curved-blade.ogg": 0.097,        //  -13.7 LUFS, 6:05
+  "abyssus-abyssum-invocat.ogg": 0.086,//  -12.7 LUFS, 1:46
+  "after-the-party.ogg": 0.100,       //  -14.0 LUFS, 3:21
+  "ager-sonus-lost.ogg": 0.195,       //  -19.8 LUFS, 14:50
+  "an-atrementous-city.ogg": 0.184,   //  -19.3 LUFS, 4:39
+  "auldale.ogg": 0.186,               //  -19.4 LUFS, 1:38
+  "consciousness-dissolves.ogg": 0.204,//  -20.2 LUFS, 9:01
+  "contaminated.ogg": 0.313,          //  -23.9 LUFS, 5:04
+  "darkwood-untitled-2.ogg": 0.091,   //  -13.2 LUFS, 2:21
+  "departure.ogg": 0.130,             //  -16.3 LUFS, 6:16
+  "derelict-approach.ogg": 0.269,     //  -22.6 LUFS, 2:35
+  "dust-are-all-her-beauties.ogg": 0.186,//  -19.4 LUFS, 5:40
+  "fear-insertion.ogg": 0.178,        //  -19.0 LUFS, 2:07
+  "fear2-city-ambience.ogg": 0.452,   //  -27.1 LUFS, 1:12
+  "feast-of-the-night.ogg": 0.123,    //  -15.8 LUFS, 2:25
+  "floor-6-please.ogg": 0.209,        //  -20.4 LUFS, 2:59
+  "fools-village.ogg": 0.158,         //  -18.0 LUFS, 1:01
+  "from-chasms-reborn.ogg": 0.219,    //  -20.8 LUFS, 4:16
+  "garden-music.ogg": 0.135,          //  -16.6 LUFS, 1:36
+  "geist.ogg": 0.412,                 //  -26.3 LUFS, 5:00
+  "heliopolis.ogg": 0.070,            //  -10.9 LUFS, 4:41
+  "horns-of-eden.ogg": 0.347,         //  -24.8 LUFS, 4:57
+  "industrial-district.ogg": 0.305,   //  -23.7 LUFS, 4:35
+  "introspectre.ogg": 0.151,          //  -17.6 LUFS, 1:43
+  "laudanum.ogg": 0.216,              //  -20.7 LUFS, 4:29
+  "parhelic-triangle.ogg": 0.063,     //  -10.0 LUFS, 6:10
+  "restless-dreams.ogg": 0.172,       //  -18.7 LUFS, 4:57
+  "rivers-of-glass.ogg": 0.245,       //  -21.8 LUFS, 3:59
+  "shes-afraid-of-you.ogg": 0.197,    //  -19.9 LUFS, 2:13
+  "slower.ogg": 0.138,                //  -16.8 LUFS, 5:30
+  "sorry-sir-wrong-room.ogg": 0.240,  //  -21.6 LUFS, 2:40
+  "subway-suspense.ogg": 0.324,       //  -24.2 LUFS, 0:36
+  "the-dark-mother.ogg": 0.234,       //  -21.4 LUFS, 4:40
+  "the-great-order-of-things.ogg": 0.221,//  -20.9 LUFS, 4:48
+  "the-hierophant.ogg": 0.095,        //  -13.6 LUFS, 7:22
+  "there-will-be-lies.ogg": 0.309,    //  -23.8 LUFS, 3:27
+  "underground-troubles.ogg": 0.363,  //  -25.2 LUFS, 3:56
+  "we-fear-no-evil.ogg": 0.060,       //   -9.5 LUFS, 4:53
 
   // -30 LUFS — a spot, laid OVER a bed on the `spot` layer. Four decibels up on the bed is
   // the whole of what makes one audible without ducking the bed under it (music.js's third
@@ -89,7 +130,7 @@ export const MUSIC_GAIN = {
   // outpost carries a +4.8 dB lift baked in by build-assets.sh, for pathologic's reason: it
   // mastered at -30.8 LUFS, quieter than this tier, and amplifying a quiet file in the
   // browser amplifies its noise floor with it.
-  "a-thousand-empty-rooms.ogg": 0.700,//  -22.9 LUFS, 6:20
+  "a-thousand-empty-rooms.ogg": 0.668,//  -22.5 LUFS, 6:20
   "beyondretrieval.ogg": 0.282,       //  -15.0 LUFS, 8:33
   "haruspex.ogg": 1.000,              //  -28.9 LUFS, 7:22
   "holywarlobby.ogg": 0.750,          //  -23.5 LUFS, 4:16
@@ -99,6 +140,15 @@ export const MUSIC_GAIN = {
   "track13.ogg": 0.462,               //  -19.3 LUFS, 7:20
   "track3.ogg": 0.275,                //  -14.8 LUFS, 7:44
   "white_waking.ogg": 0.359,          //  -17.1 LUFS, 6:41
+  // The new document's lobby music.
+  "conflict-and-climax.ogg": 0.182,   //  -11.2 LUFS, 2:39
+  "friction.ogg": 0.372,              //  -17.4 LUFS, 5:08
+  "manunkind.ogg": 0.309,             //  -15.8 LUFS, 1:23
+  "red-calx.ogg": 0.347,              //  -16.8 LUFS, 8:57
+  "stone-in-focus.ogg": 0.151,        //   -9.6 LUFS, 11:03
+  // "Sound and ambience that plays immediately after the charon has taken off" — an
+  // interrupter, so it arrives at the music tier rather than creeping in under it.
+  "locus-meropis.ogg": 0.216,         //  -12.7 LUFS, 8:40
 
   // -26 LUFS — instruments (the `player`/`room` layers, SOUND.md §3). See
   // db/lib/instrumentSongs.js for what these are named to a player.

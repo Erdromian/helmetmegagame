@@ -1,6 +1,6 @@
 // docs/sounds.yaml against the files on disk and the files the app actually names.
 //
-// The registry is a projection of Bascinet's "Music and Sounds" document, and the point of
+// The registry is a projection of Bascinet's two "Music and Sounds" documents, and the point of
 // it is that a sound gets wired for the reason the document gives. That only holds if the
 // two agree, so this is what notices when they stop.
 //
@@ -23,7 +23,9 @@ const ROOT = path.join(__dirname, "..", "..");
 const REGISTRY = yaml.load(fs.readFileSync(path.join(ROOT, "docs", "sounds.yaml"), "utf8"));
 const SOUNDS = REGISTRY.sounds;
 
-const CLASSES = ["ambience", "atop", "cue", "lobby", "instrument", "unused"];
+// Six from the old document, and the new document's two: an ambience-interrupting sound, and
+// a song for the Den's jukebox.
+const CLASSES = ["ambience", "atop", "cue", "lobby", "instrument", "unused", "interrupt", "jukebox"];
 
 /** Every audio file under a directory, as `subfolder/basename`, lowercased. */
 function audioUnder(dir) {
@@ -67,7 +69,7 @@ for (const [id, entry] of Object.entries(SOUNDS)) {
 
 // --------------------------------------------------------------------------- the registry
 
-test("every entry has a use case and one of the document's six classes", () => {
+test("every entry has a use case and one of the documents' eight classes", () => {
   assert.ok(Object.keys(SOUNDS).length > 700, "the registry looks truncated");
   for (const [id, entry] of Object.entries(SOUNDS)) {
     assert.ok(entry.use, `${id} has no use case`);
@@ -77,6 +79,27 @@ test("every entry has a use case and one of the document's six classes", () => {
 
 test("the document's rules are all carried across", () => {
   for (const c of CLASSES) assert.ok(REGISTRY.rules[c], `no rule recorded for ${c}`);
+});
+
+test("the new document's placement rules are carried across", () => {
+  assert.ok(Array.isArray(REGISTRY.placement) && REGISTRY.placement.length > 0, "no placement rules");
+  assert.ok(
+    REGISTRY.placement.some((p) => /ONLY ambience tracks referring to space/.test(p)),
+    "the space rule is missing",
+  );
+});
+
+test("every Bascinet-sourced track is in the library and described", () => {
+  const sources = JSON.parse(read("assets", "osw-sounds", "bascinet-sources.json"));
+  const bad = [];
+  const ids = new Set();
+  for (const [rel, s] of Object.entries(sources)) {
+    if (!LIBRARY.has(rel.toLowerCase())) bad.push(`${rel} is not in the library`);
+    if (!SOUNDS[rel]) bad.push(`${rel} has no registry entry`);
+    if (ids.has(s.youtube)) bad.push(`${rel} repeats the id ${s.youtube}`);
+    ids.add(s.youtube);
+  }
+  assert.deepEqual(bad, [], "bascinet-sources.json disagrees with the library or the registry");
 });
 
 test("every entry names a file in assets/osw-sounds/", () => {

@@ -1,12 +1,18 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { setMasterVolume, setMusicMuted } from "./music";
-import { resolveAmbience } from "./placeAmbience";
-import { useHeardPlace } from "./heardPlace";
+import { GHOST, INTERRUPTS, resolveAmbience } from "./placeAmbience";
+import { useHeardPlace, useLastHeardPlace } from "./heardPlace";
+import { standingForKey, useGmPlaces } from "./gmPlaces";
 import { resolveProgram, runProgram } from "./musicProgram";
-import { setPlace, start as startConductor, stop as stopConductor } from "./musicConductor";
+import {
+  interrupt,
+  setPlace,
+  start as startConductor,
+  stop as stopConductor,
+} from "./musicConductor";
 import { usePhase, useStanding } from "./PhaseProvider";
 import { musicIsAudible, useSound } from "./soundStore";
 
@@ -17,17 +23,22 @@ import { musicIsAudible, useSound } from "./soundStore";
 //
 //   A phase tape — the closed door, the lobby, rolling a character. These own the whole
 //   bus while they run, because each is about the game itself rather than about anywhere
-//   a person is standing.
+//   a person is standing. "Only lobby music tracks can play during lobby."
 //
-//   The conductor — an ordinary living character in a running game. One timeline of
-//   whatever the place sounds like, spots over the top of it, and mostly silence
-//   between (musicConductor.js).
+//   The conductor — ambience, "universal across all pages, including GM ones". One
+//   timeline of whatever the place sounds like, spots over the top of it, and mostly
+//   silence between (musicConductor.js). Three kinds of listener get it:
 //
-//   Nothing, on a GM desk.
+//     a living character — the place they stand in, on every page, a GM desk included;
+//     a GHOST in a running game — the dead's own ambience, wherever they are looking;
+//     a GM with no character in a running game — the place they are looking at in Chat,
+//       or the last one they looked at, and a track of theirs is never cut short.
 //
-// It does NOT re-run on a route change — `pathname` is read only to keep the GM desks
-// quiet (musicProgram.js#resolveProgram), and the effect's dependency is the ANSWER to
-// that question, not the path, so walking between ordinary pages never restarts a track.
+//   Nothing, otherwise: a GM desk outside a running game.
+//
+// It does NOT re-run on a route change — `pathname` is read only to keep the phase tapes off
+// the GM desks (musicProgram.js#resolveProgram), and the effect's dependency is the ANSWER
+// to that question, not the path, so walking between ordinary pages never restarts a track.
 //
 // Nor on the mute switch, and that is the other half of the same rule. The program keeps
 // running while muted; muting only silences the bus (music.js#setMusicMuted), so unmuting
@@ -37,10 +48,17 @@ export default function MusicDirector() {
   const phase = usePhase();
   const standing = useStanding();
   const heardKey = useHeardPlace();
+  const lastKey = useLastHeardPlace();
   const setting = useSound();
   const audible = musicIsAudible(setting);
   const pathname = usePathname();
   const onDesk = pathname.startsWith("/gm/");
+
+  const running = phase?.phase === "RUNNING";
+  const living = Boolean(phase?.hasCharacter) && phase?.phase !== "CLOSED";
+  const gmMode = !living && running && Boolean(phase?.gm);
+  const ghostMode = !living && running && !gmMode && Boolean(phase?.ghost);
+  const gmPlaces = useGmPlaces(gmMode);
 
   useEffect(() => {
     setMusicMuted(!audible);
@@ -53,9 +71,11 @@ export default function MusicDirector() {
   const program = phase ? resolveProgram(phase, onDesk ? "/gm/" : "/") : null;
   // A place is only heard when no phase tape is talking over it. The `closed` tape owns
   // the ambient layer — that is the wind behind the shut door.
-  const inGame = !program && !onDesk && Boolean(phase?.hasCharacter);
-  // The room Chat has open can outrank the Location (placeAmbience.js#BY_ROOM).
-  const here = inGame ? resolveAmbience(standing, heardKey) : null;
+  const inGame = !program && (living || gmMode || ghostMode);
+  let here = null;
+  if (inGame && living) here = resolveAmbience(standing, heardKey);
+  else if (inGame && ghostMode) here = GHOST;
+  else if (inGame && gmMode) here = resolveAmbience(standingForKey(gmPlaces, lastKey), lastKey);
 
   // Nothing is stopped by hand here. runProgram's own cancel stops the layer it was
   // using, so a tape that stops being wanted is taken off by its effect's cleanup.
@@ -65,10 +85,12 @@ export default function MusicDirector() {
   }, [program]);
 
   // Declared before start(), so the conductor knows where you are before its first pick.
-  // A new place never cuts what is playing; it only changes what plays NEXT.
+  // A GM looking at a DM or a net names no place; their last place stands until they look
+  // at one again.
   useEffect(() => {
-    setPlace(here);
-  }, [here]);
+    if (gmMode && !here) return;
+    setPlace(here, { keep: gmMode });
+  }, [here, gmMode]);
 
   useEffect(() => {
     if (!inGame) return undefined;
@@ -76,5 +98,40 @@ export default function MusicDirector() {
     return stopConductor;
   }, [inGame]);
 
+  // "Ambience interrupting sound effect of becoming a ghost". Only a change this page SAW:
+  // a ghost loading the page has been one for a while, and hears the ghost ambience plainly.
+  const wasGhost = useRef(null);
+  useEffect(() => {
+    if (!phase) return;
+    const before = wasGhost.current;
+    wasGhost.current = ghostMode;
+    if (ghostMode && before === false) interrupt(INTERRUPTS.ghost);
+  }, [phase, ghostMode]);
+
+  // "Sound and ambience that plays immediately after the charon has taken off" — once per
+  // launch, for the people it lifted. The stamp outlives a reload inside the window
+  // gamePhase.js reports it for.
+  const launchedAt = living ? (standing?.charonLaunchedAt ?? null) : null;
+  useEffect(() => {
+    if (!launchedAt || heardLaunch(launchedAt)) return;
+    interrupt(INTERRUPTS.charonLaunch);
+  }, [launchedAt]);
+
   return null;
+}
+
+const LAUNCH_KEY = "bascinet:music:charon";
+let launchHeard = null;
+
+/** Whether this browser has already heard this launch; marks it heard if not. */
+function heardLaunch(at) {
+  if (launchHeard === at) return true;
+  launchHeard = at;
+  try {
+    if (window.localStorage.getItem(LAUNCH_KEY) === String(at)) return true;
+    window.localStorage.setItem(LAUNCH_KEY, String(at));
+  } catch {
+    // Storage blocked: once per page load, which the module variable already is.
+  }
+  return false;
 }
