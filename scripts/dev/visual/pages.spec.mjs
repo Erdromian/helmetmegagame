@@ -12,6 +12,10 @@
 //   - Date is frozen at FROZEN_NOW in every page before it loads, so the top
 //     bar's clock, the lock countdown and every "3 minutes ago" hold still.
 //   - The world is the fixed one seed.mjs writes; nothing in it is random.
+//   - The speaker is switched on in every page before it loads. With nothing
+//     saved, soundStore.js starts it OFF under `next dev` (which is what
+//     serves these shots) and ON everywhere else; the goldens show what a
+//     player sees, so they pin the saved setting rather than the default.
 //   - Fonts are awaited before the shot; motion is off in the config.
 //   - toHaveScreenshot itself takes two shots and waits for them to match,
 //     which is what absorbs hydration landing a beat after load.
@@ -86,6 +90,8 @@ async function open(browser, screen) {
     const [name, ...rest] = cookies[screen.as].split("=");
     await context.addCookies([{ name, value: rest.join("="), domain: "localhost", path: "/" }]);
   }
+  // `sfx|music|volume`, the shape soundStore.js reads: speaker on, music on, full.
+  await context.addInitScript(() => window.localStorage.setItem("bascinet:sound", "1|1|1"));
   const page = await context.newPage();
   await page.clock.setFixedTime(FROZEN_NOW);
   return { context, page };
