@@ -20,7 +20,9 @@ const BASE = process.env.DEV_CHECK_BASE ?? "http://localhost:3000";
 // answer (`expect`; its absence means "must render"). The negative cases at
 // the bottom matter as much as the positive ones: they fail if a gate loosens.
 const DEFAULT_ROUTES = [
-  { path: "/handbook", as: "public" }, // the one public route; doubles as "is the server up"
+  // The front door, signed out; doubles as "is the server up". Not /handbook:
+  // that one is switched off in web/lib/handbook.js and answers 404.
+  { path: "/", as: "public" },
 
   { path: "/character", as: "player" },
   { path: "/chat", as: "player" },

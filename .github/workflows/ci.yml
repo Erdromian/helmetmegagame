@@ -1,6 +1,9 @@
 # The same gate as `npm run check`, one step at a time so a red run names what
-# broke. Touches nothing live: no secrets, no Railway, no Discord. The only
-# database is the throwaway Postgres below, which dies with the job.
+# broke, plus what that script can't do on a laptop without setup: migrations
+# applied from scratch, the database-backed db tests against a seeded world,
+# and dev:check against the built app. Touches nothing live: no secrets, no
+# Railway, no Discord (LOCAL_MODE). The only databases are in the throwaway
+# Postgres below, which dies with the job.
 name: CI
 
 on:
@@ -14,16 +17,19 @@ permissions:
 
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  # A newer push to a PR supersedes its old run; a master run always finishes,
+  # or two quick merges would leave the first one unchecked.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   check:
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       postgres:
-        image: postgres:16
+        # The major version Railway runs (docs/systemdocs/BACKUPS.md).
+        image: postgres:18
         env:
           POSTGRES_USER: postgres
           POSTGRES_PASSWORD: postgres
@@ -39,6 +45,14 @@ jobs:
       # localhost on purpose: db/lib/localDatabase.js only lets the
       # database-backed tests run against a local host.
       DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bascinet
+      # The visual world's builder (scripts/dev/visual/setup.mjs) seeds this
+      # one database, so the db tests and dev:check find a Turn, a cave zone
+      # and live characters in it.
+      VISUAL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bascinet
+      # The archive round-trip imports a whole game, so it gets its own.
+      ARCHIVE_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bascinet_archive
+      PGPASSWORD: postgres
+      LOCAL_MODE: "true"
       NEXT_TELEMETRY_DISABLED: "1"
 
     steps:
@@ -46,7 +60,7 @@ jobs:
 
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version-file: .nvmrc
           cache: npm
 
       - name: Install
@@ -58,6 +72,21 @@ jobs:
       - name: Migrations apply cleanly
         run: npm run db:migrate:deploy
 
+      # A fresh AUTH_SECRET each run: it only signs the session cookies
+      # dev:check mints for this job's own server.
+      - name: Build the local world
+        run: |
+          secret=$(openssl rand -hex 32)
+          echo "::add-mask::$secret"
+          echo "AUTH_SECRET=$secret" > .env
+          echo "AUTH_SECRET=$secret" >> "$GITHUB_ENV"
+          npm run dev:visual:setup
+
+      - name: Archive test database
+        run: |
+          createdb -h localhost -U postgres bascinet_archive
+          DATABASE_URL="$ARCHIVE_TEST_DATABASE_URL" npm run db:migrate:deploy
+
       - name: GameConfig registry matches the schema
         run: npm run db:check-config
 
@@ -67,6 +96,9 @@ jobs:
       - name: Test web
         run: npm test --workspace=web
 
+      - name: Test bot
+        run: npm test --workspace=bot
+
       - name: Test db
         run: npm test --workspace=db
 
@@ -75,3 +107,12 @@ jobs:
 
       - name: Build web
         run: npm run build --workspace=web
+
+      - name: Pages render (dev:check)
+        run: |
+          npm run start --workspace=web -- --port 3000 > next-start.log 2>&1 &
+          for i in $(seq 60); do
+            curl -s -o /dev/null http://localhost:3000/ && break
+            sleep 1
+          done
+          npm run dev:check || { echo "--- next start log"; tail -n 80 next-start.log; exit 1; }
