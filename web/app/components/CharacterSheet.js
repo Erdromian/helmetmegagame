@@ -60,7 +60,7 @@ export default function CharacterSheet({
   examineBlocked = null,
   // Eight flags the page computes off your own sheet and the provider gates
   // buttons on. They were passed here and dropped for a while, which is why
-  // the Nuclear Datacard never showed its buttons: the provider's default
+  // some of them never showed their buttons: the provider's default
   // `false` won, silently. Torture and Mutilate were dropped the same way,
   // and had never once rendered until they were added to this list.
   canCrucify = false,
@@ -74,11 +74,9 @@ export default function CharacterSheet({
   canUnlockCollar = false,
   canDetonateCollar = false,
   canBreakRestraints = false,
-  hasDatacard = false,
   hasPointerDevice = false,
   hasStepstone = false,
   stepstoneTargets = [],
-  hasDevice = false,
   // The THANATI section (docs/systemdocs/THANATI.md), resolved in
   // character/page.js and handed straight through to the dialogs.
   isThanati = false,
@@ -95,9 +93,7 @@ export default function CharacterSheet({
   thanatiWares = [],
   // Same fate: BioForm's conceal toggle reads it, and it never arrived.
   concealGear = null,
-  // World state the sheet shows: the bomb's countdown on its chip, and the
-  // build this render came from, for the self-refresh poll.
-  nukeArmedTurn = null,
+  // The build this render came from, for the self-refresh poll.
   deployVersion = null,
   hasWorkshop = false,
   atKitchen = false,
@@ -347,11 +343,9 @@ export default function CharacterSheet({
         canUnlockCollar={canUnlockCollar}
         canDetonateCollar={canDetonateCollar}
         canBreakRestraints={canBreakRestraints}
-        hasDatacard={hasDatacard}
         hasPointerDevice={hasPointerDevice}
         hasStepstone={hasStepstone}
         stepstoneTargets={stepstoneTargets}
-        hasDevice={hasDevice}
         isThanati={isThanati}
         isThanatiLeader={isThanatiLeader}
         isCerberon={isCerberon}
@@ -405,7 +399,6 @@ export default function CharacterSheet({
               storeHeldTags={storeHeldTags}
               storeRoleSlug={storeRoleSlug}
               vampireBlood={vampireBlood}
-              nukeArmedTurn={nukeArmedTurn}
             />
 
             {isSelf ? (

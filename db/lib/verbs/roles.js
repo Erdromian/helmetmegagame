@@ -1,8 +1,8 @@
-// The verbs a role or a rare item gives, both faces: the nuke's datacard, the
+// The verbs a role or a rare item gives, both faces: the
 // Thanati's Recall / Recover / Set hideout, the Cerberon's warrants, the
 // Bishop's excommunications, the Bastard's reinforcements, and sounding the
 // trumpet or the Deep Beast Horn. Each was a web server action beside
-// web/app/(app)/character/ (nukeActions.js, thanatiActions.js,
+// web/app/(app)/character/ (thanatiActions.js,
 // cerberonActions.js, bishopActions.js, bastardActions.js, trumpetActions.js)
 // and still is — that action calls the function here, and so does the Discord
 // bot (bot/src/lib/verbs/roles.js). See ./common.js for the result shape.
@@ -10,7 +10,6 @@
 // Each re-checks the tag the button's `show` already read: a hidden button is
 // a hint, not a lock. `character` needs id, name, locationId, discordUserId and
 // tags[].tag.slug.
-const { DEVICE_SLUG, DATACARD_SLUG, NUKE_FUSE_TURNS, pointerReading, pointerLine } = require("../nuke");
 const { THANATI_SLUG, THANATI_LEADER_SLUG, RECOVERABLE_SLUGS, listComrades } = require("../thanati");
 const { accessibleRooms, roomAccessKeys } = require("../roomAccess");
 const { accessSlugsOf } = require("../rings");
@@ -46,77 +45,6 @@ const { refuse, asResult, requireFreeMove, fileAutoRoutine } = require("./common
 // ring is his warrant badge.
 function slugsOf(character) {
   return accessSlugsOf(character.tags);
-}
-
-// --- The datacard (web: nukeActions.js) ----------------------------------------
-
-// Use Pointer moves nothing and files nothing. The answer is DM'd, so reading
-// the card in a room full of people gives nothing away (`dm` says so).
-function readDatacard(prisma, { character }) {
-  return asResult(async () => {
-    if (!slugsOf(character).has(DATACARD_SLUG)) refuse("You aren't carrying the datacard.");
-    const reading = await pointerReading(prisma, character.locationId);
-    const line = pointerLine(reading);
-    return { line, here: Boolean(reading.here), dm: { discordUserId: character.discordUserId, content: line } };
-  });
-}
-
-function requireBoth(character) {
-  const slugs = slugsOf(character);
-  if (!slugs.has(DATACARD_SLUG)) refuse("You aren't carrying the datacard.");
-  if (!slugs.has(DEVICE_SLUG)) refuse("The device isn't here in your hands.");
-}
-
-// Arm and Disarm DO file a row: they change the world and a GM must be able to
-// see and reverse them. The detonation stamp comes off the current Game.
-function armNuke(prisma, { character, discordUserId, openTurn }) {
-  return asResult(async () => {
-    requireBoth(character);
-    if (!openTurn) refuse("No turn is open.");
-    const state = await prisma.gameState.findUnique({
-      where: { id: 1 },
-      include: { game: { select: { nukeDetonatedTurn: true } } },
-    });
-    if (state?.game?.nukeDetonatedTurn != null) refuse("It's already gone off.");
-    if (state?.nukeArmedTurn != null) refuse("It's already counting down.");
-    // Armed while turn T is open, it goes at the close of T+1.
-    const firesOn = openTurn.number + NUKE_FUSE_TURNS - 1;
-    const effect = { firesOn, armedOnTurn: openTurn.number, gameId: state?.gameId ?? null, locationId: character.locationId };
-    await prisma.$transaction(async (tx) => {
-      await tx.gameState.update({ where: { id: 1 }, data: { nukeArmedTurn: firesOn } });
-      await logAudit(tx, {
-        actorDiscordUserId: discordUserId,
-        actionType: "request_arm_nuke",
-        targetCharacterId: character.id,
-        details: effect,
-      });
-    });
-    return { firesOn, line: `The card is in and the count has begun. It goes off at the close of turn ${firesOn}.` };
-  });
-}
-
-function disarmNuke(prisma, { character, discordUserId, openTurn }) {
-  return asResult(async () => {
-    requireBoth(character);
-    if (!openTurn) refuse("No turn is open.");
-    const state = await prisma.gameState.findUnique({
-      where: { id: 1 },
-      include: { game: { select: { nukeDetonatedTurn: true } } },
-    });
-    if (state?.game?.nukeDetonatedTurn != null) refuse("It's already gone off.");
-    if (state?.nukeArmedTurn == null) refuse("It isn't armed.");
-    const effect = { wasFiringOn: state.nukeArmedTurn, disarmedOnTurn: openTurn.number, gameId: state?.gameId ?? null };
-    await prisma.$transaction(async (tx) => {
-      await tx.gameState.update({ where: { id: 1 }, data: { nukeArmedTurn: null } });
-      await logAudit(tx, {
-        actorDiscordUserId: discordUserId,
-        actionType: "request_disarm_nuke",
-        targetCharacterId: character.id,
-        details: effect,
-      });
-    });
-    return { disarmed: true, line: "The card is out. The count is stopped." };
-  });
 }
 
 // --- The Thanati (web: thanatiActions.js) ---------------------------------------
@@ -572,9 +500,6 @@ function soundHorn(prisma, { character, discordUserId }) {
 }
 
 module.exports = {
-  readDatacard,
-  armNuke,
-  disarmNuke,
   recallComrades,
   recoverEquipment,
   hideoutChoices,

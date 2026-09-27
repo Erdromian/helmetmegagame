@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { after } from "next/server";
 import { prisma } from "@lifeweb/db";
 import { getGameState } from "@lifeweb/db/lib/gameState";
+import { queueBombPosts } from "@lifeweb/db/lib/nukeBriefing";
 import { DM_ACTION, dmAction } from "@lifeweb/db/lib/dmActions";
 import {
   buildDraft,
@@ -160,6 +161,13 @@ export async function startGame() {
     if (err.message === "NOT_LOBBY") return { ok: false, error: "Start Game needs a lobby, open or frozen." };
     throw err;
   }
+
+  // Start Game rolled a new bomb (db/lib/nuke.js#rollNuke): its button moves
+  // from last game's room post, if there was one, to this game's.
+  const bomb = await prisma.gameState.findUnique({ where: { id: 1 }, select: { nukeRoomId: true } });
+  await queueBombPosts(prisma, [state.nukeRoomId, bomb?.nukeRoomId], "a new game placed the bomb").catch((err) =>
+    console.error("Bomb post redraw failed:", err),
+  );
 
   refresh();
   sweepSpectators();

@@ -444,8 +444,6 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
     // The remote in hand AND the Exactor's ring worn — never a held token.
     canDetonateCollar: canWorkRemote(heldSlugs, wornRingAccess(tags)),
     canButcher: has(BUTCHER_SLUG),
-    hasDatacard: has("nuclear-datacard"),
-    hasDevice: has("nuclear-device"),
     hasPointerDevice: [...heldSlugs].some(isPointerDeviceSlug),
     isThanati,
     isThanatiLeader: has(THANATI_LEADER_SLUG),

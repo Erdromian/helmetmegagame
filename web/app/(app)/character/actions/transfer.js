@@ -10,7 +10,6 @@ import {
   InsufficientResourcesError,
 } from "@lifeweb/db/lib/resourceTransfer";
 import { getOpenTurn } from "@/lib/turn";
-import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
 import { isResourcesRow } from "@lifeweb/db/lib/resourceStack";
 import {
   presentedIdentity,
@@ -325,13 +324,7 @@ export async function transferRequestImpl(
   // The Spillway (Room.destroysContents). Nothing is written on the receiving
   // end — giveTagTo and moveParty both refuse — so the effect has to say so,
   // or a GM repairing this by hand goes looking for goods never stored.
-  // ...but not everything the trough is handed goes over the edge. The nuclear
-  // device and its datacard settle at the bottom intact (db/lib/nuke.js), so a
-  // transfer of nothing but those is NOT a destruction, and neither the audit
-  // row nor the line the room hears may claim it was.
-  const survives = moves.filter((m) => INDESTRUCTIBLE_SLUGS.has(m.held?.tag?.slug));
-  const destroyed = to.destroysContents === true && survives.length < moves.length;
-  const nothingDestroyed = to.destroysContents === true && survives.length === moves.length;
+  const destroyed = to.destroysContents === true && moves.length > 0;
   const fromCharacterId = from.kind === "character" ? from.id : null;
   const toCharacterId = to.kind === "character" ? to.id : null;
 
@@ -457,11 +450,7 @@ export async function transferRequestImpl(
       announceInRoom(
         to,
         character,
-        destroyed
-          ? `tips ${goods} into the trough. It is gone.`
-          : nothingDestroyed
-            ? `tips ${goods} into the trough. It settles at the bottom, intact.`
-            : `leaves ${goods} here.`,
+        destroyed ? `tips ${goods} into the trough. It is gone.` : `leaves ${goods} here.`,
       ),
     );
   }

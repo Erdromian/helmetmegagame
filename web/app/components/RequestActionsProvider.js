@@ -252,11 +252,8 @@ export default function RequestActionsProvider({
   // Break Restraints: you hold `bound`. Your own sheet, the same HIDDEN rule
   // as Extract — the action re-checks the tag and the Move itself.
   canBreakRestraints = false,
-  // The datacard, and the device itself. Both facts about your own sheet.
-  hasDatacard = false,
   // The Pointer Device Kit's pair (db/lib/pointerMint.js) — web/lib/itemPools.js.
   hasPointerDevice = false,
-  hasDevice = false,
   // The Stepstone. Whether you carry one is your own sheet; where you may step
   // is the fog behind /map, resolved server-side in character/page.js and
   // re-checked by stepstoneRequest.
@@ -604,9 +601,7 @@ export default function RequestActionsProvider({
       canUnlockCollar,
       canDetonateCollar,
       canBreakRestraints,
-      hasDatacard,
       hasPointerDevice,
-      hasDevice,
       isThanati,
       isThanatiLeader,
       isCerberon,
@@ -677,9 +672,7 @@ export default function RequestActionsProvider({
       canUnlockCollar,
       canDetonateCollar,
       canBreakRestraints,
-      hasDatacard,
       hasPointerDevice,
-      hasDevice,
       isThanati,
       isThanatiLeader,
       isCerberon,

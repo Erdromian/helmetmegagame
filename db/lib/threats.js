@@ -165,7 +165,6 @@ const THREATS = [
         "ordinator-insignia",
         "cataphract-armor",
         "tribunal-ordinator-helmet",
-        "nuclear-datacard",
         "elevator-key",
         "fragmentation-grenade",
         "motorcycle",

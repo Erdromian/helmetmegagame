@@ -1613,9 +1613,9 @@ groups:
         - >-
           You're the Tribunal Ordinator, one of the God King's elite special forces soldiers. Your job is to organize your men into Ravenheart and represent His Majesty's supremacy.
         - >-
-          If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
+          If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear bomb and arm it, exploding Ravenheart.
         - >-
-          The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you 2 turns to get to the caves.
+          You know where the bomb is, and you carry a note with the 8-digit sequence that arms it. Key the sequence into the bomb's keypad and press the button beneath it when it turns green, giving you 2 turns to get to the caves. Three wrong sequences in a row and the keypad will no longer answer you.
         - >-
           You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
       difficulty: hard
@@ -1636,7 +1636,6 @@ groups:
         - Dagger
         - Heavy Infantry Armor
         - Ordinator Insignia
-        - Nuclear Datacard
         - Fragmentation Grenade
         - Motorcycle
         - Supply Kit
@@ -1664,9 +1663,9 @@ groups:
         - >-
           You are a member of the Tribune, the God King's elite special force division. Your job is to represent His Majesty's supremacy.
         - >-
-          If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear device and arm it, exploding Ravenheart.
+          If the Barony paid the tithe successfully, participate in the customary celebratory feast. If he did not, make your way to the nuclear bomb and arm it, exploding Ravenheart.
         - >-
-          The Tribunal Ordinator has a {tag:nuclear-datacard} which points to Ravenheart's nuclear device (typically found in the Undercroft's vault). Once near the device, you can plug it in to arm the nuke, giving you 2 turns to get to the caves.
+          You know where the bomb is. The Tribunal Ordinator carries the 8-digit sequence that arms it: key it into the bomb's keypad and press the button beneath it when it turns green, giving you 2 turns to get to the caves.
         - >-
           You are formidable foes in battle, but if you are swarmed and attacked in melee, you may still die.
       difficulty: hard

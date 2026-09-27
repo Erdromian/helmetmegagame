@@ -1844,7 +1844,7 @@ a 48px head and a one-line composer:
      `thingRows.js#thingVerbs` (`row.itemVerbs`), and each mode is drawn off
      `actionRegistry.js` the way `HereList.js`'s person menu is: `show` hides,
      `gate` greys with the registry's reason. The held-item flags those read
-     (`canTorture`, the collar three, `hasDatacard`, `hasStepstone`…) come from
+     (`canTorture`, the collar three, `hasPointerDevice`, `hasStepstone`…) come from
      `web/lib/itemPools.js`, the same helper the sheet calls, so an item's verb
      is lit on the same facts in both places. The Trumpet and the Deep Beast
      Horn are not registry modes; they sound through

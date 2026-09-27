@@ -32,7 +32,6 @@ export default function ItemsTable({
   onToggle,
   currentTurn = null,
   totalWeight = null,
-  nukeArmedTurn = null,
 }) {
   const coarse = useIsCoarsePointer();
   if (rows.length === 0) return null;
@@ -96,7 +95,6 @@ export default function ItemsTable({
                         quantity={quantity}
                         expiresTurn={ct.expiresTurn}
                         currentTurn={currentTurn}
-                        armedTurn={tag.slug === "nuclear-device" ? nukeArmedTurn : null}
                         showName={false}
                         inTooltip
                         poisonMarker={Boolean(ct.poisonMarker)}

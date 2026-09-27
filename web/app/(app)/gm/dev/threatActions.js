@@ -17,6 +17,7 @@ import { resolveAssignTags, spawnOfferComponents } from "@lifeweb/db/lib/threatS
 import { resolveSeatConflicts, describeSeatConflicts } from "@lifeweb/db/lib/seatConflicts";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { isSpawnOnly } from "@lifeweb/db/lib/fateCapacity";
+import { seedNukeBriefing } from "@lifeweb/db/lib/nukeBriefing";
 import { requireDev } from "@/lib/devAccess";
 import { sendDm } from "@/lib/discordGuild";
 
@@ -186,6 +187,11 @@ export async function assignThreat({ characterId, threatSlug }) {
     console.error("Threat assign DM failed:", err);
     return null;
   });
+
+  // A Tribunal seat comes with its note about the bomb, and the Ordinator's
+  // with the paper holding its code (docs/systemdocs/NUKE.md §4). The seat tag
+  // is what marks them, since Assign leaves the character's role alone.
+  await seedNukeBriefing(prisma, character.id).catch((err) => console.error("Assign bomb briefing failed:", err));
 
   repaint();
   return {

@@ -54,10 +54,6 @@ test("the Accordion plays, and a plain item has no verb of its own", () => {
   assert.deepEqual(verbsForTag({ slug: "rope", ...TAGS.rope }), []);
 });
 
-test("the datacard opens its three, each once", () => {
-  assert.deepEqual(verbsForTag({ slug: "nuclear-datacard" }), ["pointer", "arm", "disarm"]);
-});
-
 test("a wax stamp seals and a sealed letter does not", () => {
   assert.deepEqual(verbsForTag({ slug: "x", sealMark: "an ox" }), ["seal"]);
   assert.deepEqual(verbsForTag({ slug: "x", sealMark: "an ox", paperKind: "SEALED" }), []);

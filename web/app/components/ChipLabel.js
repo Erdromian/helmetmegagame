@@ -73,7 +73,7 @@ export default function ChipLabel({
           one caller's markers. */}
       {children}
       {duration && (
-        <span className={duration.armed ? "text-accent" : "text-muted"} aria-hidden="true">
+        <span className="text-muted" aria-hidden="true">
           {" "}&middot; {duration.badge}
         </span>
       )}

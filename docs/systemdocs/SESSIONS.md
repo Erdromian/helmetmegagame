@@ -158,7 +158,7 @@ the world.
 - **Reading.** The sheet, the map, Examine, Who's here?, a notice on a board,
   a room's Storage (the button and `/storage`), the roster. On Discord that
   also means the Actions menu itself and the verbs that only read — `/look`,
-  `/mymove`, `/nuke pointer|device`, `/warrant list`, `/paper read` — which
+  `/mymove`, `/item pointer`, `/warrant list`, `/paper read` — which
   `db/lib/actionCatalog.js` marks `open` (`COMMANDS.md` §2g). Reading is never
   an act.
 - **Equipping and unequipping.** It costs no Move even in session, and what is

@@ -92,7 +92,7 @@
 #                     menu and nothing else ever does. Write `removable: false`
 #                     on the handful an item is not allowed to be binned from
 #                     — the three corpses (Butcher and Bury are the two ways a
-#                     body leaves), the nuke halves — and say why in a comment
+#                     body leaves) — and say why in a comment
 #                     beside it. The sync THROWS on `removable: true` anywhere,
 #                     and on `removable: false` outside those two categories,
 #                     where it would do nothing. A cure is `healable`, not
@@ -169,7 +169,7 @@
 #                       8–12    Heavy        crossbow, rifle, shield, trap, padded armor
 #                       20–30   Very Heavy   mail shirt, breastplate, pavise, Godflesh
 #                       40–75   Massive      plate armor, flamethrower, a corpse
-#                       100     Immense      workshop equipment, a nuclear device
+#                       100     Immense      workshop equipment
 #                     A thing with an obvious real weight gets that weight
 #                     (a longsword is 3 lb, a halberd 6); the band is for
 #                     what has none. Never price by feel.
@@ -11725,41 +11725,6 @@ tags:
   # boat, and turns a Motion Sick rider's stomach — all of that falls out of
   # the one set membership. It seats 2 like a horse and is checked BEFORE the
   # horse in fastTravelCapacity, so the Cart's upgrade to 6 can never reach it.
-  # THE BOMB. Two halves that must be found separately: the device is inert on
-  # its own ("there's no way to activate it"), and the datacard is what points
-  # at it and starts the clock. Neither is `removable` — you cannot bin a
-  # nuclear weapon from the Destroy menu.
-  #
-  # The device is Immense (100 lb, CARRY.md's top band, same as the
-  # motorcycle below), so moving it is a project rather than a pocket.
-  nuclear-device:
-    catalog: gm
-    name: Nuclear Device
-    category: items
-    group: items-special
-    sprite: nuke
-    description: "A large capsule of a fissile explosive. A gift from God King Enoch II. There's no way to activate it."
-    pointCost: 0
-    weight: 100
-    visible: true
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
-
-  nuclear-datacard:
-    catalog: gm
-    name: Nuclear Datacard
-    category: items
-    group: items-special
-    sprite: nucleardisk
-    description: "It can be inserted into the {tag:nuclear-device} to start a ten minute countdown. It also points to where the device is at all times."
-    pointCost: 0
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-    removable: false
-
   motorcycle:
     catalog: gm
     name: Motorcycle

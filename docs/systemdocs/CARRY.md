@@ -118,7 +118,7 @@ scale gets in [`TAGS.md`](TAGS.md) §4a. `db/lib/syncTags.js` throws if an
 | Heavy | 8–12 | crossbow, rifle, shield, bear trap, padded armor |
 | Very Heavy | 20–30 | mail shirt, breastplate, pavise, Godflesh |
 | Massive | 40–75 | plate armor, flamethrower, a corpse (a person's or a creature's) |
-| Immense | 100 | workshop equipment, a nuclear device |
+| Immense | 100 | workshop equipment |
 
 **A thing with an obvious real weight gets that weight**, and the band is for
 what has none. A longsword is 3 lb, not 5; a halberd is 6, not 12; a war
@@ -545,8 +545,7 @@ and from then on only a Search (`SEARCH.md` §9) brings it back up.
   gallows). Never a **corpse** of either kind (`corpseKind`): burial, rot,
   butchering and the death smell look for it on the floor. And never
   anything of **40 lb or more**, too big to lose: the Workshop and Packaging
-  Equipment, plate and cataphract armour, the flamethrower, the spacesuit,
-  the device.
+  Equipment, plate and cataphract armour, the flamethrower, the spacesuit.
 - **Where nothing sinks**, even stamped: a keyed room, the Spillway, a Stable
   (the arelitz pass counts the herd on the floor). Nor does a stack on an
   expiry clock, which rots in plain sight instead — so hidden stock never

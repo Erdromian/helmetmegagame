@@ -1,13 +1,10 @@
-// The verbs a role or a rare item gives, on Discord: the datacard and the
+// The verbs a role or a rare item gives, on Discord: the
 // pointer device, the Thanati's Recall / Recover / Set hideout, the Cerberon's
 // warrant book, the Bishop's excommunications and the Bastard's reinforcements.
 // Every rule is db/lib/verbs/roles.js's (or self.js's, for the pointer device),
 // shared with the web's buttons.
 const { ModalBuilder, LabelBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const {
-  readDatacard,
-  armNuke,
-  disarmNuke,
   recallComrades,
   recoverEquipment,
   hideoutChoices,
@@ -23,25 +20,10 @@ const { readPointerDevice } = require("@lifeweb/db/lib/verbs/self");
 const { listExcommunications } = require("@lifeweb/db/lib/excommunication");
 const { REINFORCEMENTS, MAX_REINFORCEMENTS_PER_CALL } = require("@lifeweb/db/lib/lateJoin");
 const { FULL_NAME_LIMIT } = require("@lifeweb/db/lib/characterName");
-const { sendDm } = require("@lifeweb/db/lib/dm");
 const { ack } = require("../respond");
 const { prisma, openTurn, done, pickFrom, confirm, ackStep, picked, actorOrRefuse, finish, modalId } = require("./context");
 
-// --- The datacard and the pointer device ---------------------------------------------
-
-// Reading an instrument is not an act: no gate, and the answer is also DM'd, so
-// reading the card in a room full of people gives nothing away.
-const pointer = {
-  needs: null,
-  async start(interaction, { character }) {
-    const result = await readDatacard(prisma, { character });
-    if (!result.ok) return done(interaction, result.error);
-    if (result.dm?.discordUserId) {
-      await sendDm(prisma, result.dm.discordUserId, result.dm.content, { source: "player_event" }).catch(() => {});
-    }
-    return done(interaction, result.line);
-  },
-};
+// --- The pointer device ------------------------------------------------------------------
 
 const pointerdevice = {
   needs: null,
@@ -49,29 +31,6 @@ const pointerdevice = {
     return finish(interaction, await readPointerDevice(prisma, { character }));
   },
 };
-
-function nukeSwitch(mode, verb, sure) {
-  return {
-    start: (interaction) => confirm(interaction, mode, null, { ...sure, danger: true }),
-    steps: {
-      async go(interaction) {
-        await ackStep(interaction);
-        const character = await actorOrRefuse(interaction);
-        if (!character) return;
-        return finish(
-          interaction,
-          await verb(prisma, { character, discordUserId: character.discordUserId, openTurn: await openTurn() }),
-        );
-      },
-    },
-  };
-}
-
-const arm = nukeSwitch("arm", armNuke, {
-  prompt: "Put the card in and start the count? It goes off at the close of the turn after next, and kills everyone who isn't underground.",
-  label: "Arm",
-});
-const disarm = nukeSwitch("disarm", disarmNuke, { prompt: "Take the card out and stop the count?", label: "Disarm" });
 
 // --- The Thanati -------------------------------------------------------------------------
 
@@ -245,10 +204,7 @@ const reinforce = {
 };
 
 module.exports = {
-  pointer,
   pointerdevice,
-  arm,
-  disarm,
   recall,
   recover,
   hideout,

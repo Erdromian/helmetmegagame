@@ -30,7 +30,6 @@ const GROUP_DESCRIPTIONS = {
   medic: "Heal somebody.",
   collar: "The bomb collar.",
   body: "Deal with the dead.",
-  nuke: "The nuclear datacard and the pointer devices.",
   thanati: "The cult's own.",
   warrant: "The Cerberon's warrant book.",
   bishop: "The Bishop's excommunications.",
@@ -210,7 +209,7 @@ const commandDefinitions = [
 // Every player verb's typed twin (docs/systemdocs/COMMANDS.md §2g), built from
 // db/lib/actionCatalog.js so a verb added there gets its command here without
 // a second list to keep in step. A family is one command and each verb its
-// subcommand — /collar apply, /nuke arm — which keeps the bot well under
+// subcommand — /collar apply, /body bury — which keeps the bot well under
 // Discord's 100-command cap. None takes options: each opens the verb's own
 // picker or modal, the same flow the Actions menu starts.
 function verbCommands() {

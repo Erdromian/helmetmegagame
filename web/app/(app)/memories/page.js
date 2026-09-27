@@ -88,7 +88,13 @@ async function FreshMemories() {
       orderBy: { sentAt: "desc" },
       include: { zone: { select: { name: true } }, character: { select: { name: true } } },
     }),
-    prisma.journalEntry.findMany({ where: { discordUserId }, orderBy: { updatedAt: "desc" } }),
+    // The player's own notes, plus any the game wrote into THIS character's
+    // memory (JournalEntry.characterId — the bomb's note, docs/systemdocs/NUKE.md).
+    // A note an earlier character started with stays with that character.
+    prisma.journalEntry.findMany({
+      where: { discordUserId, OR: [{ characterId: null }, ...(character ? [{ characterId: character.id }] : [])] },
+      orderBy: { updatedAt: "desc" },
+    }),
     // The Journal's two rosters — what the composer may OFFER, and what a
     // saved {char:…} draws its face against. The whole argument for keeping
     // them apart is in web/lib/mentionDirectory.js.

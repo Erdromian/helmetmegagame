@@ -11,6 +11,7 @@ import { refresh } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
+import { markNukeRoom, nukeView, nukeCheck, nukePress } from "@lifeweb/db/lib/nuke";
 import {
   phoneView,
   answerPhone as answerPayphone,
@@ -1401,6 +1402,10 @@ export async function gmPlaceView(placeKey) {
     .sort((a, b) => a.farName.localeCompare(b.farName));
 
   const openRoom = roomId ? rooms.find((room) => room.id === roomId) ?? null : null;
+  // Where the bomb is lives on GameState, not the room (docs/systemdocs/NUKE.md).
+  const nukeRoomId = openRoom
+    ? (await prisma.gameState.findUnique({ where: { id: 1 }, select: { nukeRoomId: true } }))?.nukeRoomId ?? null
+    : null;
 
   return {
     ok: true,
@@ -1438,7 +1443,7 @@ export async function gmPlaceView(placeKey) {
           keys: openRoom.accessTagSlugs ?? [],
           resources: resourcesOf(openRoom),
           things: withoutResources(openRoom.tags).map((t) => toChipRow(t, GM_CHIP_CTX)),
-          fixtures: roomAffordances(openRoom, null, { web: true }).map((entry) => ({
+          fixtures: roomAffordances(markNukeRoom([openRoom], nukeRoomId)[0], null, { web: true }).map((entry) => ({
             id: entry.id,
             label: entry.label,
             tone: entry.tone,
@@ -1985,6 +1990,58 @@ export async function walkAwayPhone({ roomId } = {}) {
   const view = await walkAway(prisma, me.discordUserId, roomId);
   if (!view.ok) return { ok: false, error: view.error, sfx: SFX.REFUSE };
   return phoneAnswer(view);
+}
+
+// ------------------------------------------------------------- the bomb
+//
+// A keypad and one button (docs/systemdocs/NUKE.md). The digits live in the
+// dialog until the eighth goes in; then nukeCheckCode says whether they are
+// the sequence — counting a wrong one against this character, three in a row
+// and they are locked out — and nukePressButton arms or disarms, checking the
+// sequence again. The code itself never crosses back.
+function nukeAnswer(view) {
+  return {
+    ok: true,
+    armed: Boolean(view.armed),
+    firesOn: view.firesOn ?? null,
+    gone: Boolean(view.gone),
+    lockedOut: Boolean(view.lockedOut),
+    triesLeft: view.triesLeft ?? null,
+    correct: Boolean(view.correct),
+    line: view.line ?? null,
+    sfx: view.sfx ?? null,
+  };
+}
+
+function nukeRefusal(view) {
+  return {
+    ok: false,
+    error: view.error,
+    lockedOut: Boolean(view.lockedOut),
+    triesLeft: view.triesLeft ?? null,
+    sfx: view.sfx ?? SFX.REFUSE,
+  };
+}
+
+export async function nukeState({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const view = await nukeView(prisma, me.discordUserId, roomId);
+  return view.ok ? nukeAnswer(view) : nukeRefusal(view);
+}
+
+export async function nukeCheckCode({ roomId, digits } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const view = await nukeCheck(prisma, me.discordUserId, roomId, digits);
+  return view.ok ? nukeAnswer(view) : nukeRefusal(view);
+}
+
+export async function nukePressButton({ roomId, digits } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const view = await nukePress(prisma, me.discordUserId, roomId, digits, { turn: await openTurn() });
+  return view.ok ? nukeAnswer(view) : nukeRefusal(view);
 }
 
 export async function speakOnIntercom({ roomId, body } = {}) {

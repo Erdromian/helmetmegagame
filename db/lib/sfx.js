@@ -54,7 +54,10 @@ const SFX = {
   CRATE: "crate",
   DIG: "dig",
   PHOTO: "photo",
+  // The bomb's keypad (docs/systemdocs/NUKE.md §3). NUKE_PING is the green light;
+  // the key presses themselves are played by the dialog, never sent by the server.
   NUKE_ARM: "nuke-arm",
+  NUKE_DISARM: "nuke-disarm",
   NUKE_PING: "nuke-ping",
 
   EAT: "eat",

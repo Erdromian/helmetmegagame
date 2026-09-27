@@ -22,6 +22,7 @@ import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { seedMemories } from "@lifeweb/db/lib/locationVisits";
 import { seedAcquaintances } from "@lifeweb/db/lib/acquaintances";
+import { seedNukeBriefing } from "@lifeweb/db/lib/nukeBriefing";
 import { issueSlaveContract } from "@lifeweb/db/lib/slaveContract";
 import { stampBlankCollars, COLLAR_LOCKED_SLUG } from "@lifeweb/db/lib/collar";
 import { startingMemorySlugs } from "@lifeweb/db/lib/startingMemories";
@@ -463,6 +464,8 @@ export async function createCharacter(formData) {
   // The people this seat already knows, and everyone who already knows this
   // seat (db/lib/acquaintances.js), plus the ATM PIN.
   await seedAcquaintances(prisma, created.id).catch((err) => console.error("seedAcquaintances failed:", err));
+  // A leader's note about where the bomb is (docs/systemdocs/NUKE.md §4). Best-effort, like the line above.
+  await seedNukeBriefing(prisma, created.id).catch((err) => console.error("seedNukeBriefing failed:", err));
 
   // Somebody who arrives already Wanted has three posters go up in the same breath (db/lib/wantedPoster.js). Best-effort.
   if (isWanted(heldSlugs)) {

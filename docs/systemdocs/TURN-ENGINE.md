@@ -177,8 +177,8 @@ each arrived at by getting them wrong first.
    `GameState.nukeArmedTurn` has come due, every ALIVE character whose zone is
    not a `CAVE_LEVEL` dies: the Caves and the Depths are the whole escape.
    Sits beside 4b for the same reason — **after** the staged push and pass 4,
-   so a Disarm filed this close (or a GM defusing it from `/gm/dev`) beats the
-   clock. It reads GameConfig rather than a tag, so unlike 4b the sweep at 5
+   so a Disarm at the keypad this close (or a GM defusing it from `/gm/dev`)
+   beats the clock. Arming and disarming are `NUKE.md`'s. It reads GameConfig rather than a tag, so unlike 4b the sweep at 5
    cannot eat its trigger; it is placed here for the ordering that matters and
    not the one that doesn't.
 
@@ -617,7 +617,7 @@ fresh by the wipe, so it cannot carry anything over. The `GameState` columns
 are still written as a forensic record and read by nothing — the readers are
 `turnBannerPath`, `turnAnnouncement.js`, `bot/src/lib/turnsConsole.js`,
 `objectives.js` (the Tribunal), `riteIngredients.js` (the Ascension's
-"already running" gate), the two nuke buttons and `/gm/dev`, and every one of
+"already running" gate), the bomb's keypad and `/gm/dev`, and every one of
 them selects `{ game: { select: … } }`.
 
 **Resume withdraws the ending.** `resumeGameInDb` clears the Game row's
@@ -1060,7 +1060,7 @@ markers for the desk's labels.
 | `db/lib/dyingDeathPass.js` | The Dying death pass (§2 4b) |
 | `db/lib/nukeExplosionPass.js` | The nuke explosion pass (§2 4c) |
 | `db/lib/ascensionPass.js` | The Rite of Ascension's pass (§2 4d) |
-| `db/lib/nuke.js` | Where the device is, and what the datacard's pointer says |
+| `db/lib/nuke.js` | The bomb's room, code and keypad (`NUKE.md`) |
 | `db/lib/worldBroadcast.js` | The two whole-map fan-outs (every `#summary`, every Location) |
 | `db/lib/characterDeath.js` | The shared DB half of death (`applyDeathToRow`) |
 | `db/lib/playerDeparture.js` | Guild-leave marking, shared by the live handler and the startup reconcile |

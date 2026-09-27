@@ -224,8 +224,8 @@ async function travelOptions(prisma, character, locationId, opts) {
 // How far a shout carries, in hops. Everything past this hears nothing. Three (Bascinet's call — the far ring carried too much and said too little).
 const SOUND_HOPS = 3;
 
-// Who can hear a noise made at `originLocationId`, and which way it came from — the only multi-hop question in this file, allowed here because nothing outside this module may read LocationLink. EVERY EDGE COUNTS: locked, hidden, shut, on-foot — sound doesn't care, because none of those are about sound; deliberately the one traversal that never calls crossingCheck. Returns [{ locationId, name, discordChannelId, distance, viaName }], sorted nearest first, origin included at distance 0. `viaName` is the HEARER's own neighbour on the shortest path back (the next step toward the noise, never the noise itself) — the whole privacy rule: a shout tells you which way to run, not who or how far. `throughHidden` is the one exception, used only by the Nuclear Datacard's pointer (db/lib/nuke.js) tracking its own warhead, not ears — left off by default so nothing else picks it up by accident.
-async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS, { throughHidden = false } = {}) {
+// Who can hear a noise made at `originLocationId`, and which way it came from — the only multi-hop question in this file, allowed here because nothing outside this module may read LocationLink. EVERY EDGE COUNTS: locked, hidden, shut, on-foot — sound doesn't care, because none of those are about sound; deliberately the one traversal that never calls crossingCheck. Returns [{ locationId, name, discordChannelId, distance, viaName }], sorted nearest first, origin included at distance 0. `viaName` is the HEARER's own neighbour on the shortest path back (the next step toward the noise, never the noise itself) — the whole privacy rule: a shout tells you which way to run, not who or how far.
+async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS) {
   if (!originLocationId) return [];
 
   // One query for the whole graph — ~56 Locations and a few dozen edges, so paying per-hop for linksFor() would be more round trips than rows.
@@ -266,7 +266,7 @@ async function soundRange(prisma, originLocationId, maxHops = SOUND_HOPS, { thro
           distance,
           // NULL when the step back runs through a HIDDEN edge. Sound still carries (the row stays), but the DIRECTION is withheld, since naming it would reveal a way exists where none was said to — a hidden edge is absent from every travel list for exactly that reason (crossingCheck below), and a shout must not be the hole in it.
           viaName:
-            node.viaHidden && !throughHidden
+            node.viaHidden
               ? null
               : node.via
                 ? (byId.get(node.via)?.name ?? null)

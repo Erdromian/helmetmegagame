@@ -82,8 +82,8 @@ async function attachPointerPair(tx, ownerId, pair) {
   return pair;
 }
 
-// Where the OTHER half of a pair physically is, as a locationId, or null — same three-home shape as db/lib/nuke.js's deviceLocationId (a character's
-// sheet, a room stash, or inside a crate's JSON contents), written fresh here to stay separate from that secret plot's own code.
+// Where the OTHER half of a pair physically is, as a locationId, or null — three homes (a character's
+// sheet, a room stash, or inside a crate's JSON contents).
 async function locatePointerPartner(prisma, slug) {
   const tag = await prisma.tag.findUnique({ where: { slug }, select: { id: true } });
   if (!tag) return null;

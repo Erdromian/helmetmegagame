@@ -53,6 +53,12 @@ for the Charon (`docs/systemdocs/CHARON.md`), and are the library's own
 against a clone produces them rather than leaving two files here with nothing
 naming them.
 
+`keyhit_02.ogg` to `keyhit_06.ogg`, `beep5.ogg` and `countdown.ogg` came in for
+the bomb's keypad (`docs/systemdocs/NUKE.md`): the library's own `lifeweb/`,
+`ui/` and `notify/` bytes, untouched like everything else. `confirm1.ogg`
+left at the same time, since the keypad's green light was the only thing that
+played it.
+
 ## One file that is not from OpenSourceWeb
 
 `cathedral-bell.ogg` is **not** from the library above. It is

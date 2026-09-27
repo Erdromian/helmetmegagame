@@ -10,6 +10,7 @@ const { getGameConfig } = require("./gameState");
 const { normalizeTurnLength, nextBoundaryAfter } = require("./turnClock");
 const { seedAuthoredWorld } = require("./worldSeed");
 const { resetExchange, rollPhoneNumbers } = require("./phoneNumbers");
+const { rollNuke } = require("./nuke");
 
 // Button customId prefix for the assignment DM's Decline (web builds it, bot routes the click).
 const LOBBY_DECLINE_PREFIX = "lobby-decline:";
@@ -184,6 +185,9 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
     // is reprinted with them. Every receiver goes back on its hook first.
     await resetExchange(tx);
     await rollPhoneNumbers(tx);
+    // And a new bomb: a new room and a new eight-digit code (docs/systemdocs/NUKE.md).
+    // Same reason as the numbers — a code or a room known last game is worth nothing.
+    await rollNuke(tx);
 
     await tx.gameState.update({
       where: { id: 1 },

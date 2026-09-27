@@ -17,16 +17,8 @@ import TagName from "./TagName";
 // HoverCard, TagRow.js renders it inline, so the two can never disagree about what a tag is.
 // No hooks and no "use client", so TagChip keeps rendering on the server.
 
-// The countdown a held tag shows, or the catalog wording for a bare one, or the bomb's own
-// clock. Exported because the chip's face and this block both read it and must agree.
-export function tagDurationFor({ tag, expiresTurn = null, currentTurn = null, armedTurn = null }) {
-  if (armedTurn != null) {
-    return {
-      label: `Armed. It fires as turn ${armedTurn} closes.`,
-      badge: `armed · ${turnsLeft(armedTurn, currentTurn) ?? "?"}t`,
-      armed: true,
-    };
-  }
+// The countdown a held tag shows, or the catalog wording for a bare one. Exported because the chip's face and this block both read it and must agree.
+export function tagDurationFor({ tag, expiresTurn = null, currentTurn = null }) {
   // The CharacterTag's expiresTurn, not the Tag's defaultDurationTurns — the clock started
   // when it was granted. Null for a bare catalog reference falls back to the catalog wording.
   return tagDuration(turnsLeft(expiresTurn, currentTurn), tag?.defaultDurationTurns);
@@ -61,7 +53,6 @@ export default function TagDetails({
   quantity = 1,
   expiresTurn = null,
   currentTurn = null,
-  armedTurn = null,
   // Whether {tag:…} tokens inside may become real, hoverable chips.
   inTooltip = true,
   // Slot for a control that acts on the holding — TagChip's Consume button and its error line.
@@ -77,7 +68,7 @@ export default function TagDetails({
   const armor = formatTagArmor(tag);
   const fighting = formatTagFighting(tag);
   const weight = formatTagWeight(tag, quantity);
-  const duration = tagDurationFor({ tag, expiresTurn, currentTurn, armedTurn });
+  const duration = tagDurationFor({ tag, expiresTurn, currentTurn });
   const fit = describeEquipFit(tag);
   const becomes = chainTokens(tag.expiresInto);
   const treated = chainTokens(tag.removesInto);
@@ -123,7 +114,7 @@ export default function TagDetails({
       {uncomposedPaper && <p className="text-muted text-xs">Nothing loaded about this one.</p>}
       {children}
       <dl className="tag-meta">
-        {duration && <Meta label={duration.armed ? "Armed" : "Expires"}>{duration.label}</Meta>}
+        {duration && <Meta label="Expires">{duration.label}</Meta>}
         {becomes && (
           <Meta label="Becomes">
             <ChipText text={becomes} inTooltip={inTooltip} />

@@ -18,6 +18,7 @@ const {
 const { locationAnchorRows, locationGateRow } = require("../locationAnchorRow");
 const { roomStarterRows, WATCHTOWER_ROOM_SLUGS, gateControlIn } = require("../roomStarterRow");
 const { linksFor, endpoints, gateOperable } = require("../locationGraph");
+const { markNukeRoom } = require("../nuke");
 const { hashBody } = require("./shared");
 const { buildRoomBody, buildAnchorBody } = require("./bodies");
 const { otherSides, persistThread } = require("../roomSides");
@@ -177,7 +178,12 @@ async function roomComponents(prisma, room, locationId) {
   const location = locationId
     ? await prisma.location.findUnique({ where: { id: locationId }, select: { id: true, slug: true, attributes: true } })
     : null;
-  const rows = roomStarterRows(room, location);
+  // The bomb lives on GameState, not on the room (docs/systemdocs/NUKE.md), so
+  // mark this room before the row is built — and the hash with it, so the post
+  // is redrawn when a new game moves the bomb.
+  const bomb = await prisma.gameState.findUnique({ where: { id: 1 }, select: { nukeRoomId: true } }).catch(() => null);
+  const [marked] = markNukeRoom([room], bomb?.nukeRoomId ?? null);
+  const rows = roomStarterRows(marked, location);
   // The winch is on the tower's own wall: never on a side's copy of the thread.
   if (!room.sideId && WATCHTOWER_ROOM_SLUGS.has(room.slug)) {
     rows.push(locationGateRow(await gatesFor(prisma, locationId, gateControlIn(room.slug))));

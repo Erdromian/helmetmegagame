@@ -355,7 +355,7 @@ in `evaluateObjectives`, all read on demand — nothing runs at turn close:
 |---|---|---|
 | Kill [Character] | `characterDead` | the target's `status === "DEAD"`, exactly — `CURSED` is a dead enum value, not a state; a GM Revive un-scores this |
 | Cause [N] deaths in a single day | `deathsInOneDay` | the game's DEATH `ArchiveEntry` rows grouped by `turnDay()` (two turns to a day); done if any day reached N. Whoever caused them — the cult need not have. The one exception is the bomb's turn (`nukeDetonatedTurn`), which is left out entirely: the blast is the Tribunal's objective, not a bloodbath |
-| Detonate the nuclear device | `nukeDetonated` | `GameState.nukeDetonatedTurn` |
+| Detonate the bomb (`NUKE.md`) | `nukeDetonated` | `Game.nukeDetonatedTurn` |
 
 Everything else — Deface, Blow up, the conversion and sacrifice rites, Celebrate,
 `custom` — is **manual**: the GM says whether it happened. The rite kinds are

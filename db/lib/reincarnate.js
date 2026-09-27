@@ -23,6 +23,7 @@ const { parseStartingTag } = require("./startingTags");
 const { expiryForGrant } = require("./grantExpiry");
 const { seedMemories } = require("./locationVisits");
 const { seedAcquaintances } = require("./acquaintances");
+const { seedNukeBriefing } = require("./nukeBriefing");
 const { mintSpawnRing } = require("./ringMint");
 const { syncCharacterRoomAccess } = require("./roomAccess");
 const { startingMemorySlugs } = require("./startingMemories");
@@ -371,6 +372,10 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
   // (db/lib/acquaintances.js). Nothing of the old life carries over.
   await seedAcquaintances(prisma, created.id).catch((err) =>
     console.error(`Reincarnation acquaintances failed for ${created.id}:`, err.message ?? err),
+  );
+  // A leader's or the Tribunal's note about the bomb (docs/systemdocs/NUKE.md §4).
+  await seedNukeBriefing(prisma, created.id).catch((err) =>
+    console.error(`Reincarnation bomb briefing failed for ${created.id}:`, err.message ?? err),
   );
   // The seat's signet ring (docs/systemdocs/RINGS.md), as createCharacter gives one.
   await mintSpawnRing(prisma, created, role)

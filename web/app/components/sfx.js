@@ -67,8 +67,14 @@ const CUES = {
   crate: "wood_open",
   dig: "dig_shovel",
   photo: "polaroid1",
-  "nuke-arm": "nuke_activator",
-  "nuke-ping": "confirm1",
+  // The bomb's keypad (docs/systemdocs/NUKE.md §3): a button pressed for every key,
+  // the machine's tones when the sequence is right, a countdown for arming, and the
+  // old arming clunk — "something mechanical unsealing" — for taking it back.
+  // A wrong sequence is the terminal's warble, `console-refuse`.
+  "nuke-key": ["keyhit_02", "keyhit_03", "keyhit_04", "keyhit_05", "keyhit_06"],
+  "nuke-ping": "beep5",
+  "nuke-arm": "countdown",
+  "nuke-disarm": "nuke_activator",
 
   // At the table.
   eat: "eatfood",
@@ -192,7 +198,11 @@ const GAIN = {
   tear: 0.3,
   refuse: 0.4,
   "refuse-money": 0.12,
-  "nuke-ping": 0.31,
+  // The bomb's keypad. Each key is the refusal's own family of file (keyhit_01),
+  // but pressed eight times running, so it sits down with the boots at -29 off the
+  // pool's average (-15.98); the green light is furniture at -23, off -3.91.
+  "nuke-key": 0.22,
+  "nuke-ping": 0.11,
   "radio-send": 0.17,
   "radio-hear": 0.23,
 
@@ -225,7 +235,10 @@ const GAIN = {
   eat: 0.56,
   drink: 1,
   crate: 0.25,
-  "nuke-arm": 0.27,
+  // Arming is -20 off -6.45, the level the old arming clunk played at; that clunk
+  // now disarms, at the gain it already had.
+  "nuke-arm": 0.21,
+  "nuke-disarm": 0.27,
 
   // The world, heard by the room. `crate` and `gate-open` are the same file at two levels,
   // and so are `write`/`pin` against `seal-break`/`tear` — a box in your hands is not a
@@ -295,6 +308,11 @@ const GAIN = {
 // fire drill.
 const FLOOR_MS = 120;
 const BURST = { max: 4, window: 500 };
+// Keys under a finger: each one still keeps the per-name floor, but none of them counts
+// toward the burst or is stopped by it. Eight digits pressed out at speed are four in
+// every half second, and the machine's answer to the eighth — its green-light tones, or
+// its warble — would be the fifth, and silently dropped (docs/systemdocs/NUKE.md §3).
+const OUTSIDE_THE_BURST = new Set(["nuke-key"]);
 const lastPlayed = new Map();
 let recent = [];
 
@@ -385,10 +403,11 @@ export function playSfx(name) {
 
   const now = Date.now();
   if (now - (lastPlayed.get(name) ?? 0) < FLOOR_MS) return;
+  const bursty = !OUTSIDE_THE_BURST.has(name);
   recent = recent.filter((at) => now - at < BURST.window);
-  if (recent.length >= BURST.max) return;
+  if (bursty && recent.length >= BURST.max) return;
   lastPlayed.set(name, now);
-  recent.push(now);
+  if (bursty) recent.push(now);
 
   try {
     const list = pool(file);

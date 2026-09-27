@@ -943,18 +943,23 @@ sounds:
   lifeweb/keyhit_02.ogg:
     use: A button being pressed
     class: cue
+    served: sfx/keyhit_02.ogg
   lifeweb/keyhit_03.ogg:
     use: A button being pressed
     class: cue
+    served: sfx/keyhit_03.ogg
   lifeweb/keyhit_04.ogg:
     use: A button being pressed
     class: cue
+    served: sfx/keyhit_04.ogg
   lifeweb/keyhit_05.ogg:
     use: A button being pressed
     class: cue
+    served: sfx/keyhit_05.ogg
   lifeweb/keyhit_06.ogg:
     use: A button being pressed
     class: cue
+    served: sfx/keyhit_06.ogg
   lifeweb/lifeweb2b.ogg:
     use: Ambience in proximity to the lifeweb as it feeds
     class: ambience
@@ -1253,6 +1258,7 @@ sounds:
   notify/countdown.ogg:
     use: A beeping quickly increasing in speed
     class: cue
+    served: sfx/countdown.ogg
   notify/crisis.ogg:
     use: The sound of a great war horn
     class: cue
@@ -1379,6 +1385,7 @@ sounds:
   ui/beep5.ogg:
     use: A brief set of digital tones registering some interaction with a futuristic piece of technology
     class: cue
+    served: sfx/beep5.ogg
   ui/buzz-sigh.ogg:
     use: An electronic buzz indicating some failure
     class: cue
@@ -1405,7 +1412,6 @@ sounds:
   ui/confirm1.ogg:
     use: A soft digital beep
     class: cue
-    served: sfx/confirm1.ogg
   ui/console_error.ogg:
     use: A warbled error sound
     class: cue
