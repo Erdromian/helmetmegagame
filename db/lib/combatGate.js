@@ -1,5 +1,7 @@
-// THE GATE ON ATTACK (docs/systemdocs/ATTACK.md §5a). Attack is free, so it's a lever: with your Move
+// THE GATES ON ATTACK (docs/systemdocs/ATTACK.md §5a) AND INTERCEPT. Attack is free, so it's a lever: with your Move
 // already filed, pressing it only pins somebody for the rest of the day.
+
+const { inCombatMode, NEEDS_COMBAT_MODE_ATTACK, NEEDS_COMBAT_MODE_INTERCEPT } = require("./combatMode");
 
 // A Move already filed spends the turn — unless it's a GAMBIT. NO moveKind counts as spent, not as
 // nothing filed — db/lib/locationTravel.js files a paid zone crossing with the column left null, and
@@ -27,7 +29,27 @@ async function attackMoveBlock(db, characterId, turnId) {
   return (await moveSpent(db, characterId, turnId)) ? ATTACK_MOVE_SPENT : null;
 }
 
+// Combat mode is required to Attack (Combat Mode.docx; COMBAT-MODE.md §3). A sentence or null, the
+// shape above. Checked AFTER the spent Move: that one can't be fixed this turn, and naming combat mode
+// first would have a player turn it on, which can't be undone until tomorrow, only to be refused anyway.
+async function attackBlock(db, characterId, turnId) {
+  const spent = await attackMoveBlock(db, characterId, turnId);
+  if (spent) return spent;
+  return (await combatModeOn(db, characterId)) ? null : NEEDS_COMBAT_MODE_ATTACK;
+}
+
+// Setting an Intercept watch needs it too. Stopping one never does (db/lib/verbs/watch.js#stopWatch).
+async function interceptBlock(db, characterId) {
+  return (await combatModeOn(db, characterId)) ? null : NEEDS_COMBAT_MODE_INTERCEPT;
+}
+
+async function combatModeOn(db, characterId) {
+  return inCombatMode(await db.character.findUnique({ where: { id: characterId }, select: { combatModeSinceTurn: true } }));
+}
+
 module.exports = {
   spentBy,
   attackMoveBlock,
+  attackBlock,
+  interceptBlock,
 };

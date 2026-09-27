@@ -18,6 +18,7 @@ import Things from "./ThingsDrawer";
 import DesiresBlock from "./DesiresBlock";
 import TravelNodes from "./TravelNodes";
 import TurnCard from "./TurnCard";
+import CombatModeButton from "@/app/components/CombatModeButton";
 import { usePlaceActions } from "./PlacePanel";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { waitingOnYou, answerWaiting } from "./actions";
@@ -112,6 +113,7 @@ export default function ChatAside({
   roleTitle,
   turn,
   moveCharacterId,
+  combatMode = null,
   move,
   sheet,
   carry,
@@ -155,7 +157,7 @@ export default function ChatAside({
   );
 
   // The Move half of the poll, shared with the sheet's own band (SheetTurn.js).
-  const moveState = useMyMove({ turn, move, characterId: moveCharacterId });
+  const moveState = useMyMove({ turn, move, combatMode, characterId: moveCharacterId });
   const [dialog, setDialog] = useState(null);
   const [waiting, setWaiting] = useState(initialWaiting);
 
@@ -234,12 +236,17 @@ export default function ChatAside({
       <div className="block">
         <h3 className="bar">Turn</h3>
         <div className="body">
-          <TurnCard
-            turn={moveState.turn}
-            move={moveState.move}
-            onFile={() => setDialog("move")}
-            onEdit={() => setDialog("move")}
-          />
+          <CombatModeButton state={moveState.combatMode} onChanged={moveState.refresh}>
+            {(combat) => (
+              <TurnCard
+                turn={moveState.turn}
+                move={moveState.move}
+                onFile={() => setDialog("move")}
+                onEdit={() => setDialog("move")}
+                extra={combat}
+              />
+            )}
+          </CombatModeButton>
         </div>
       </div>
 

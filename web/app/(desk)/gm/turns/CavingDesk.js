@@ -14,9 +14,10 @@ import StagedItems from "./StagedItems";
 import StagingStrip from "./StagingStrip";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import StatusPill from "@/app/components/StatusPill";
-import { CAVING_KIND_LABELS, tallyLabel } from "@/lib/cavingLabels";
+import CombatTile from "@/app/components/CombatReadout";
+import { CAVING_KIND_LABELS, foldCountLabel } from "@/lib/cavingLabels";
 import { RESULT_BOX_MAX_LENGTH } from "@/lib/constants";
-import { resolveCavingRoll, undoCavingFind } from "./actions";
+import { resolveCavingRoll, undoCavingFind, getCavingSnapshot } from "./actions";
 import { applyDeskPatch } from "./deskStore";
 import { clearDeskDraft, deskDraftFresh, useDeskDraft, writeDeskDraft } from "./deskDraft";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
@@ -35,12 +36,63 @@ import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDes
 // Requests lens; Undo here just saves the GM the trip, and goes through the
 // very same undo the Caving lens runs (undoCavingFind in ./actions.js)
 // so there is exactly one way the tag ever comes back off.
+//
+// A TROUBLE row is FOLDED: every 1 the caver rolled in this zone this turn, as one result
+// (web/lib/cavingLabels.js#foldCavingRolls, CAVING.md §5). `roll.id` is the oldest of them — the
+// Result box and everything staged here hang off it — and the snapshot panel reads the newest.
+
+// The caver as they stood at their newest 1, loaded when it changes. Combat mode, the band and
+// what they had on — the three things a GM wants for a fight in the dark.
+function LastFailSnapshot({ rollId, latestId }) {
+  const [state, setState] = useState({ key: null, snapshot: null, error: null });
+  const [combatOpen, setCombatOpen] = useState(false);
+  useEffect(() => {
+    let live = true;
+    getCavingSnapshot({ cavingRollId: rollId })
+      .then((res) => {
+        if (!live) return;
+        setState({ key: latestId, snapshot: res?.ok ? (res.snapshot ?? null) : null, error: res?.ok ? null : (res?.error ?? null) });
+      })
+      .catch(() => live && setState({ key: latestId, snapshot: null, error: "Couldn't load the snapshot." }));
+    return () => {
+      live = false;
+    };
+  }, [rollId, latestId]);
+
+  if (state.key !== latestId) return <p className="text-xs text-muted">Loading the snapshot…</p>;
+  if (state.error) return <FormError>{state.error}</FormError>;
+  const snap = state.snapshot;
+  if (!snap) return <p className="text-xs text-muted">No snapshot for this roll.</p>;
+  const worn = snap.tags.filter((t) => t.equipped && t.tag.equippable).map((t) => t.tag.name);
+  const health = snap.tags.filter((t) => t.tag.category === "Health").map((t) => t.tag.name);
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="flex flex-wrap items-center gap-2 text-sm">
+        <StatusPill tone={snap.combatMode ? "bad" : "neutral"}>{snap.combatMode ? "Combat mode on" : "Combat mode off"}</StatusPill>
+        <span className="text-xs text-muted">
+          {snap.locationName ? <>{snap.locationName} · </> : null}
+          <span className="mono">{snap.atLabel}</span>
+        </span>
+      </p>
+      <div className="flex">
+        <CombatTile tags={snap.tags} showArmorPieces open={combatOpen} onOpen={setCombatOpen} />
+      </div>
+      <p className="text-xs">
+        <span className="text-muted">Wearing: </span>
+        {worn.length ? worn.join(", ") : "nothing"}
+      </p>
+      {health.length > 0 && (
+        <p className="text-xs">
+          <span className="text-muted">Health: </span>
+          {health.join(", ")}
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function CavingDesk({
   roll,
-  // Which 1 of the turn this is — { nth, total, stuck } from troubleTallies,
-  // or null for a QUIET/FIND (CAVING.md §2e).
-  tally = null,
   staged,
   tagCatalog,
   roster,
@@ -152,15 +204,23 @@ export default function CavingDesk({
             {roll.roleTitle && <>{roll.roleTitle} · </>}
             {roll.locationName ? <>{roll.locationName} · </> : null}
             {roll.zoneName} · ⚀ {roll.die} · {roll.kindLabel ?? CAVING_KIND_LABELS[roll.kind] ?? roll.kind}
-            {tallyLabel(tally) ? <> · {tallyLabel(tally)}</> : null}
+            {foldCountLabel(roll) ? <> · {foldCountLabel(roll)}</> : null}
             {readOnly && turnLabel ? <> · {turnLabel}</> : null}
           </p>
           {/* Not on a History pick: the push has already let them go. */}
-          {tally?.stuck && !readOnly && (
+          {roll.stuck && !readOnly && (
             <p className="mt-1 flex items-center gap-2 text-sm">
               <StatusPill tone="bad">Stuck</StatusPill>
               {/* Bascinet's words, verbatim. */}
               <span>{roll.characterName} has rolled ten 1s this turn and can&apos;t move until move resolution.</span>
+            </p>
+          )}
+          {/* A fresh failure after a GM resolved the group reopens it. */}
+          {roll.newSinceResolved > 0 && (
+            <p className="mt-1 text-sm">
+              {roll.newSinceResolved === 1
+                ? "1 new failed roll since this was resolved."
+                : `${roll.newSinceResolved} new failed rolls since this was resolved.`}
             </p>
           )}
         </div>
@@ -191,6 +251,13 @@ export default function CavingDesk({
               {pending ? "Working…" : "Undo this find"}
             </button>
           )}
+        </div>
+      )}
+
+      {roll.kind === "TROUBLE" && (
+        <div className="mt-4 flex flex-col gap-2 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+          <h3 className="field-label">At their last failed roll</h3>
+          <LastFailSnapshot rollId={roll.id} latestId={roll.latestId ?? roll.id} />
         </div>
       )}
 

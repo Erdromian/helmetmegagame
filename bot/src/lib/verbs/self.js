@@ -39,6 +39,8 @@ const { DISGUISE_TURNS } = require("@lifeweb/db/lib/disguiseMint");
 const { moveIsEditable, editMove, withdrawMove } = require("@lifeweb/db/lib/moves");
 const { clockStatus } = require("@lifeweb/db/lib/gameState");
 const { sendDm } = require("@lifeweb/db/lib/dm");
+const { setCombatMode } = require("@lifeweb/db/lib/verbs/combatMode");
+const { inCombatMode } = require("@lifeweb/db/lib/combatMode");
 const { resolveActingMember } = require("../interactionGuild");
 const { ack, respond } = require("../respond");
 const {
@@ -500,7 +502,38 @@ const mymove = {
   },
 };
 
+// --- Combat mode ---------------------------------------------------------------
+
+// The web's square button, on Discord (docs/systemdocs/COMBAT-MODE.md §2). Off comes off at once —
+// the rule refuses it on the turn it went on. On asks first, the web's confirm, because it can't be
+// undone until tomorrow. `needs: null`: the rule asks ACT itself, and only for turning it on, since
+// coming out of it is never gated.
+const combat = {
+  needs: null,
+  async start(interaction, { character }) {
+    if (inCombatMode(character)) {
+      const result = await setCombatMode(prisma, { character, discordUserId: character.discordUserId, on: false });
+      return done(interaction, result.ok ? result.line : result.error);
+    }
+    return confirm(interaction, "combat", null, {
+      prompt: "Enter combat mode? You can't turn it off until next turn and it will tire you out at turn pass. It is required to attack/intercept and allows you to properly defend yourself. Effects only apply for combat joined/initiated AFTER you have enabled it.",
+      label: "Peace was never an option",
+      danger: true,
+    });
+  },
+  steps: {
+    async go(interaction) {
+      await ackStep(interaction);
+      const character = await actorOrRefuse(interaction, { needs: null });
+      if (!character) return;
+      const result = await setCombatMode(prisma, { character, discordUserId: character.discordUserId, on: true });
+      return done(interaction, result.ok ? result.line : result.error);
+    },
+  },
+};
+
 module.exports = {
+  combat,
   destroy,
   poison,
   equip,

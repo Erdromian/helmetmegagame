@@ -31,7 +31,7 @@ const {
 } = require("@lifeweb/db/lib/collar");
 const { isLockedCollarSlug } = require("@lifeweb/db/lib/collarGlyphs");
 const { ATTACK_TAG_SELECT, attackRefusal, fileAttack } = require("@lifeweb/db/lib/attack");
-const { attackMoveBlock } = require("@lifeweb/db/lib/combatGate");
+const { attackBlock } = require("@lifeweb/db/lib/combatGate");
 const { IDENTITY_SELECT, seenBy, seenById } = require("@lifeweb/db/lib/intercept");
 const { HERE_FIELDS } = require("@lifeweb/db/lib/presence");
 const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
@@ -257,8 +257,13 @@ const ATTACK_SELECT = {
 };
 
 const attack = {
-  start: (interaction, { character }) =>
-    pickSomeone(interaction, character, "attack", { prompt: "Who do you want to attack?" }),
+  // Asked before the picker as well as in `go`, so nobody picks a target only to be told they
+  // couldn't attack anyone. `go` is still the check that counts.
+  async start(interaction, { character, openTurn: turn }) {
+    const why = turn ? await attackBlock(prisma, character.id, turn.id) : null;
+    if (why) return done(interaction, why);
+    return pickSomeone(interaction, character, "attack", { prompt: "Who do you want to attack?" });
+  },
   steps: {
     async pick(interaction) {
       await ackStep(interaction);
@@ -279,7 +284,7 @@ const attack = {
       // Ahead of the band gate on purpose: somebody who cannot attack at all
       // this turn must not learn, as a consolation prize, that the person they
       // picked was out of their league (COMBAT.md §5).
-      const spent = await attackMoveBlock(prisma, character.id, turn.id);
+      const spent = await attackBlock(prisma, character.id, turn.id);
       if (spent) return done(interaction, spent);
       const { target, error } = await hereTarget(character, key, { select: ATTACK_SELECT });
       if (error) return done(interaction, error);

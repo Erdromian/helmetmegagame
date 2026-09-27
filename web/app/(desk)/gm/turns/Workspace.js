@@ -9,7 +9,7 @@ import QueueRail, { RAIL_STORAGE_KEY, RAIL_STORAGE_DEFAULT } from "./QueueRail";
 import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
 import CavingDesk from "./CavingDesk";
-import { troubleTallies } from "@/lib/cavingLabels";
+import { foldCavingRolls } from "@/lib/cavingLabels";
 import DesireDesk from "./DesireDesk";
 import OocDesk from "./OocDesk";
 import { getMoveHistory } from "./actions";
@@ -102,19 +102,37 @@ function findHistoryMove(historyByTurn, moveId, preloaded) {
   return preloaded?.move?.id === moveId ? preloaded : null;
 }
 
-// The Caving twin of findHistoryMove.
+// The Caving twin of findHistoryMove, answering with the FOLDED row a roll is shown under
+// (web/lib/cavingLabels.js#foldCavingRolls) and the staged rows of every roll in it.
 function findHistoryCaving(historyByTurn, rollId, preloaded) {
   for (const [turnId, entry] of historyByTurn) {
-    const roll = (entry.cavingRolls ?? []).find((c) => c.id === rollId);
+    const { rows, groupOf } = foldCavingRolls(entry.cavingRolls ?? []);
+    const groupId = groupOf.get(rollId) ?? rollId;
+    const roll = rows.find((c) => c.id === groupId);
     if (!roll) continue;
+    const ids = new Set(roll.memberIds ?? [roll.id]);
     return {
       turnId,
       roll,
-      effects: entry.effects.filter((e) => e.cavingRollId === rollId),
-      messages: entry.messages.filter((m) => m.cavingRollId === rollId),
+      effects: entry.effects.filter((e) => ids.has(e.cavingRollId)),
+      messages: entry.messages.filter((m) => ids.has(m.cavingRollId)),
     };
   }
-  return preloaded?.roll?.id === rollId ? preloaded : null;
+  const pre = preloaded?.roll;
+  return pre && (pre.id === rollId || pre.memberIds?.includes(rollId)) ? preloaded : null;
+}
+
+// A folded Caving row's staged rows: everything staged on any of its rolls. New ones attach to
+// the row's own id (the oldest roll); a group from before the fold may carry some on a later one.
+function stagedForCaving(stagedByCaving, row) {
+  const out = { effects: [], messages: [] };
+  for (const id of row.memberIds ?? [row.id]) {
+    const entry = stagedByCaving.get(id);
+    if (!entry) continue;
+    out.effects.push(...entry.effects);
+    out.messages.push(...entry.messages);
+  }
+  return out;
 }
 
 // The history entry's staged rows keyed by Move. A plain function, not a
@@ -494,8 +512,12 @@ export default function Workspace({
   const selectedMove = selected?.type === "move" ? moves.find((m) => m.id === selected.id) : null;
   // Resolves against live open-turn rolls first; otherwise a History-lens
   // pick found across every loaded turn.
+  // Folded: one row per caver per zone (CAVING.md §5), found by any of its rolls' ids.
+  const foldedCaving = useMemo(() => foldCavingRolls(cavingRolls), [cavingRolls]);
   const liveCaving =
-    selected?.type === "caving" ? (cavingRolls ?? []).find((c) => c.id === selected.id) : null;
+    selected?.type === "caving"
+      ? (foldedCaving.rows.find((c) => c.id === (foldedCaving.groupOf.get(selected.id) ?? selected.id)) ?? null)
+      : null;
   const historyCaving =
     selected?.type === "caving" && !liveCaving
       ? findHistoryCaving(historyCache, selected.id, initialCaving)
@@ -504,15 +526,6 @@ export default function Workspace({
   const selectedCavingIsLive = Boolean(liveCaving);
   const selectedCavingTurnLabel = historyCaving
     ? (resolvedTurns?.find((t) => t.id === historyCaving.turnId)?.label ?? null)
-    : null;
-  // Which 1 of its turn the open roll is, against that turn's whole list —
-  // the live rows for an open-turn roll, the cached turn's rows for a History
-  // pick (CAVING.md §2e). A plain lookup, not a memo: it is one Map build per
-  // render with a desk open, over one turn's rolls.
-  const selectedCavingTally = selectedCaving
-    ? (troubleTallies(
-        selectedCavingIsLive ? cavingRolls : (historyCache.get(historyCaving?.turnId)?.cavingRolls ?? []),
-      ).get(selectedCaving.id) ?? null)
     : null;
   // A Desire claim, unlike a Move or Caving roll, is not turn-scoped — it has
   // no live/history split, so this looks straight at the page's own rows
@@ -555,7 +568,8 @@ export default function Workspace({
     return map;
   }, [stagedEffects, stagedMessages]);
 
-  // Same shape as stagedByMove, keyed by cavingRollId (CavingDesk.js).
+  // Same shape as stagedByMove, keyed by cavingRollId (CavingDesk.js). A folded row reads the
+  // union over its members, via stagedForCaving below.
   const stagedByCaving = useMemo(() => {
     const map = new Map();
     for (const e of stagedEffects) {
@@ -582,7 +596,8 @@ export default function Workspace({
     // confirm" and half a dozen other words, so counting "Open" strings read
     // zero on a desk with ten unsolved Moves on it.
     const open = moves.length - solvedCount;
-    const cavingOpen = (cavingRolls ?? []).filter((c) => !c.resolvedAt).length;
+    // Results, not rolls: a caver with three 1s is one thing to answer.
+    const cavingOpen = foldedCaving.rows.filter((c) => c.statusLabel === "Needs attention").length;
     const staged =
       stagedEffects.filter((e) => !e.applied).length +
       stagedMessages.filter((m) => !m.sent).length;
@@ -597,7 +612,7 @@ export default function Workspace({
       { label: "Staged for the push", value: staged },
       { label: "Yet to act", value: yetToAct },
     ];
-  }, [moves, cavingRolls, stagedEffects, stagedMessages, roster, solvedCount]);
+  }, [moves, foldedCaving, stagedEffects, stagedMessages, roster, solvedCount]);
 
   // Defaults to STAGING: a tag invented while chasing a Move belongs in the
   // tray, not live.
@@ -770,12 +785,11 @@ export default function Workspace({
             <CavingDesk
               key={selectedCaving.id}
               roll={selectedCaving}
-              tally={selectedCavingTally}
               readOnly={!selectedCavingIsLive}
               turnLabel={selectedCavingTurnLabel}
               staged={
                 selectedCavingIsLive
-                  ? (stagedByCaving.get(selectedCaving.id) ?? { effects: [], messages: [] })
+                  ? stagedForCaving(stagedByCaving, selectedCaving)
                   : { effects: historyCaving?.effects ?? [], messages: historyCaving?.messages ?? [] }
               }
               tagsById={tagsById}

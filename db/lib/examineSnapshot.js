@@ -3,7 +3,8 @@
 // (appearance, name, held/worn tags, ⬢); catalog-side live (a tag's name/armour/
 // requirement/visibility, read off Tag at look time — db/lib/examine.js#EXAMINE_TAG_SELECT — so a
 // rebalance reaches old lines); viewer-side live (the looker's own faculties, never frozen). Payload
-// is compact — rides on every message row: `{ v, n, a, s, c, t: [[tagId, 0|1, expiresTurn]] }`. A
+// is compact — rides on every message row: `{ v, n, a, s, c, t: [[tagId, 0|1, expiresTurn]] }`, plus
+// `m: 1` only while they were in combat mode (COMBAT-MODE.md §5), so everybody else's payload is unchanged. A
 // row written before factions were removed also carries `r` and `f`, and one written before the
 // Memories page carries `rt` and `rg` (a role title and its estate); all four are ignored on the way
 // back out. A role is not something the room can SEE: a look reads it from the looker's own memory
@@ -21,6 +22,7 @@ const PRESENTED_STATE_SELECT = {
   name: true,
   appearance: true,
   concealed: true,
+  combatModeSinceTurn: true,
   tags: {
     select: {
       tagId: true,
@@ -43,6 +45,7 @@ function presentedStateFrom(character) {
     a: character.appearance ?? null,
     s: resourcesOf(character),
     c: Boolean(character.concealed),
+    ...(character.combatModeSinceTurn != null ? { m: 1 } : {}),
     t: (character.tags ?? [])
       .filter((ct) => ct?.tagId)
       .map((ct) => [ct.tagId, ct.equipped ? 1 : 0, ct.expiresTurn ?? null]),
@@ -71,6 +74,8 @@ function readPresentedState(value) {
     appearance: typeof value.a === "string" ? value.a : null,
     resources: Number.isFinite(value.s) ? value.s : null,
     concealed: Boolean(value.c),
+    // Missing on every line said out of combat mode, and on every line older than it.
+    alert: value.m === 1,
     tags,
   };
 }
@@ -86,6 +91,8 @@ function rehydrateSubject({ live, state, tags = [] }) {
     name: state.name ?? live?.name ?? null,
     appearance: state.appearance,
     concealed: state.concealed,
+    // Set outright, so the live column `live` may carry never answers for the moment of the line.
+    alert: Boolean(state.alert),
     tags: state.tags
       .map((row) => {
         const tag = byId.get(row.tagId);

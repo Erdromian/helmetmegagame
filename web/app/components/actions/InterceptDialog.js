@@ -50,6 +50,9 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
   const [holding, setHolding] = useState([]);
   const [place, setPlace] = useState(null);
   const [limits, setLimits] = useState({ names: 12, message: 300 });
+  // Combat mode (COMBAT-MODE.md §3): why Save is dead, and whether a standing watch has gone dormant.
+  const [blocked, setBlocked] = useState(null);
+  const [dormant, setDormant] = useState(null);
   // Whether a watch actually EXISTS server-side, as opposed to whether this
   // form currently describes one. Stop watching hangs off this: clearing the
   // name chips must not take away the only way out of a live watch.
@@ -63,6 +66,8 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
         if (!live || !res?.ok) return;
         setLimits(res.limits ?? { names: 12, message: 300 });
         setHolding(res.holding ?? []);
+        setBlocked(res.blocked ?? null);
+        setDormant(res.dormant ?? null);
         setHasWatch(Boolean(res.watch));
         if (res.watch) {
           setMode(res.watch.mode);
@@ -90,7 +95,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       busy={busy}
       error={error}
       loading={loading}
-      canSubmit={watching}
+      canSubmit={watching && !blocked}
       onClose={onClose}
       onSubmit={() =>
         submit(
@@ -100,6 +105,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
       }
     >
       {place ? <p className="text-sm text-muted">{`You are lying in wait at ${place}.`}</p> : null}
+      {dormant ? <p className="text-sm text-muted">{dormant}</p> : blocked ? <p className="text-xs text-muted">{blocked}</p> : null}
 
       {/* The two standing rules sit ABOVE the typed names rather than mixed in
           with them: ✕ has to mean exactly one thing in a chip row, and "anyone

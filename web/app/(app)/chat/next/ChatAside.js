@@ -13,6 +13,7 @@ import PlaceCard from "../PlaceCard";
 import RoomPanel from "../RoomPanel";
 import Things from "../ThingsDrawer";
 import TurnCard from "../TurnCard";
+import CombatModeButton from "@/app/components/CombatModeButton";
 import { usePlaceActions } from "../PlacePanel";
 import { waitingOnYou, answerWaiting } from "../actions";
 import useVisiblePoll from "../useVisiblePoll";
@@ -119,6 +120,7 @@ export default function ChatAside({
   selfId,
   turn,
   moveCharacterId,
+  combatMode = null,
   move,
   things,
   depotHref = null,
@@ -147,7 +149,7 @@ export default function ChatAside({
       entry.kind === "keyed",
   );
 
-  const moveState = useMyMove({ turn, move, characterId: moveCharacterId });
+  const moveState = useMyMove({ turn, move, combatMode, characterId: moveCharacterId });
   const [dialog, setDialog] = useState(null);
   const [waiting, setWaiting] = useState(initialWaiting);
 
@@ -202,12 +204,18 @@ export default function ChatAside({
       </Block>
 
       <Block head="Turn" fold="turn" folds={folds}>
-        <TurnCard
-          turn={moveState.turn}
-          move={moveState.move}
-          onFile={() => setDialog("move")}
-          onEdit={() => setDialog("move")}
-        />
+        {/* Combat mode sits beside Move…, per Combat Mode.docx (COMBAT-MODE.md §2). */}
+        <CombatModeButton state={moveState.combatMode} onChanged={moveState.refresh}>
+          {(combat) => (
+            <TurnCard
+              turn={moveState.turn}
+              move={moveState.move}
+              onFile={() => setDialog("move")}
+              onEdit={() => setDialog("move")}
+              extra={combat}
+            />
+          )}
+        </CombatModeButton>
       </Block>
 
       {/* No card at all when nothing is waiting — an empty box saying it is

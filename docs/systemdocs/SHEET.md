@@ -172,7 +172,7 @@ Who this is, where they stand, and:
 - **This turn** — Chat's `TurnCard` + `MoveDialog`, wrapped in
   `SheetTurn.js`, over the same `play/actions.js#myMove` and the same minute
   poll (`play/useMyMove.js`, which `ChatAside.js` shares). File the Move from
-  here. A **Gambit** that has not locked yet carries a quiet **Change…** under
+  here. The **Combat** button sits right of Move…, the same size (`COMBAT-MODE.md` §2). A **Gambit** that has not locked yet carries a quiet **Change…** under
   its words, which reopens the same dialog on it to rewrite or **Cancel Gambit**;
   anything the game filed has already happened and carries nothing
   (TURN-ENGINE.md §6a-i). A pending lesson or binding reads under that. The turn chip and the **Move…**

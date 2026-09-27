@@ -1014,6 +1014,93 @@ input[type="radio"]:focus-visible,
   border-bottom-color: color-mix(in srgb, var(--danger) 45%, var(--surface));
 }
 
+/* Combat mode (COMBAT-MODE.md §2): the "Combat" button beside Move…, glowing
+   red while on (Combat Mode.docx). The same box as .btn — its borders,
+   padding, font size and line height — so the two are the same height, and
+   .chat-buttons--even makes them the same width. Off it is the everyday grey
+   bevel; on it takes the .btn-danger face plus a --danger glow, since being
+   on guard is an alarm state. A pressed button, not a Switch: it can't come
+   off on the turn it went on (DESIGN-SYSTEM.md §5a). */
+.chat-buttons.chat-buttons--even {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
+}
+
+.combat-mode-note {
+  margin: var(--sp-1) 0 0;
+}
+
+.btn-combat {
+  all: unset;
+  cursor: pointer;
+  box-sizing: border-box;
+  border-top: 2px solid var(--border-hi);
+  border-left: 2px solid var(--border-hi);
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
+  background: var(--surface-raised);
+  color: var(--text);
+  padding: 3px 8px;
+  border-radius: var(--r);
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
+  font-weight: 700;
+  white-space: nowrap;
+  text-align: center;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.btn-combat:hover:not(:disabled, [aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--text) 8%, var(--surface-raised));
+  color: var(--text-hi);
+}
+
+.btn-combat:active:not(:disabled, [aria-disabled="true"]) {
+  border-top-color: var(--border-lo);
+  border-left-color: var(--border-lo);
+  border-right-color: var(--border-hi);
+  border-bottom-color: var(--border-hi);
+}
+
+.btn-combat:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.btn-combat[aria-pressed="true"] {
+  border-top-color: color-mix(in srgb, var(--danger) 70%, var(--surface));
+  border-left-color: color-mix(in srgb, var(--danger) 70%, var(--surface));
+  border-right-color: color-mix(in srgb, var(--danger) 35%, var(--border-lo));
+  border-bottom-color: color-mix(in srgb, var(--danger) 35%, var(--border-lo));
+  background: color-mix(in srgb, var(--danger) 18%, var(--surface));
+  color: var(--danger);
+  box-shadow:
+    0 0 10px color-mix(in srgb, var(--danger) 55%, transparent),
+    0 0 2px var(--danger);
+}
+
+.btn-combat[aria-pressed="true"]:hover:not(:disabled, [aria-disabled="true"]) {
+  background: color-mix(in srgb, var(--danger) 26%, var(--surface));
+  color: var(--danger);
+}
+
+/* Locked on, or Exhausted: pressing it only prints why. It keeps its colour,
+   so a locked-on button still glows; an Exhausted one takes the gated-verb
+   well, as .btn-secondary does. */
+.btn-combat[aria-disabled="true"],
+.btn-combat:disabled {
+  cursor: default;
+}
+
+.btn-combat[aria-pressed="false"][aria-disabled="true"] {
+  border: 2px dashed var(--well-border);
+  background: var(--well-bg);
+  color: var(--well-text);
+}
+
 .btn-quiet {
   all: unset;
   cursor: pointer;

@@ -33,6 +33,7 @@ const { runVampireCompulsion } = require("./lib/vampireCompulsion");
 const { runCarryPass } = require("./lib/carryPass");
 const { runMoodPass } = require("./lib/moodPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
+const { runCombatModeFatiguePass } = require("./lib/combatModePass");
 const { runXomPass } = require("./lib/xomPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runTrainArrivalPass } = require("./lib/trainArrivalPass");
@@ -261,6 +262,12 @@ const TURN_PASSES = [
   "healGambit",
   "trinket",
   "stagedPush",
+  // Combat mode tires whoever is still in it (db/lib/combatModePass.js). BEFORE
+  // tagExpiry, and that is load-bearing: the Tired it granted last push
+  // expires at this push, so after the sweep nobody would ever step up to
+  // Exhausted. After the staged push, so a Tired a GM staged, or a day's
+  // mining, already counts.
+  "combatModeFatigue",
   "tagExpiry",
   // Counts Damaged Vision stacks and turns 5 of them into Blind. After
   // tagExpiry so a stack that grew this turn is counted, before the sweep so
@@ -554,6 +561,14 @@ async function resolveNeeds(turn, config) {
   // turn on its own and does not wait for this.
   await runPass("cavingRelease", "Caving release", () => releaseUnresolvedCavingRolls(prisma, turn));
 
+  // Combat mode: Tired, or Exhausted and turned off. Before tagExpiry — see
+  // TURN_PASSES. Its DMs join tagExpiryDms once that list exists, below.
+  const combatMode = await runPass("combatModeFatigue", "Combat mode fatigue", () => runCombatModeFatiguePass(prisma, turn));
+  const { notices: combatModeNotices = [], ...combatModeSummary } = combatMode ?? {};
+  if (combatMode && (combatModeSummary.tired || combatModeSummary.exhausted || combatModeSummary.switchedOff)) {
+    await audit("combat_mode_fatigue_resolved", combatModeSummary, "Combat mode fatigue");
+  }
+
   // Sweeps turn-scoped tag expiry. Progression runs first (grants what an
   // expiring tag turns into), then the sweep deletes exactly what it read.
   // See db/lib/tagExpiryPass.js.
@@ -562,8 +577,9 @@ async function resolveNeeds(turn, config) {
   // Every "a tag on your sheet changed" notice the passes below produce rides
   // this one list — vision decay, hunger's mood band, the Vampire's band, the
   // dawn afflictions, Xom, the mood dial — rather than each threading a
-  // variable of its own through runSideEffects/advanceTurn.
-  const tagExpiryDms = [...tagExpiryDmsFromProgression];
+  // variable of its own through runSideEffects/advanceTurn. Combat mode's
+  // notices ran before this list existed, so they lead it.
+  const tagExpiryDms = [...combatModeNotices, ...tagExpiryDmsFromProgression];
   if (progressed) await audit("tag_expiry_resolved", tagExpirySummary, "Tag expiry");
 
   // Moonshine's slow bill.

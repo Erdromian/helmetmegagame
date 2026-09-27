@@ -3,10 +3,12 @@
 // setInterceptImpl / stopInterceptImpl and still are — those call the functions
 // here, and so does the Discord bot (bot/src/lib/verbs/captives.js). Nothing
 // here costs a Move, ⬢ or a ration: a watch is a fact about nobody until
-// somebody walks in. See ./common.js for the result shape.
+// somebody walks in. Setting one needs combat mode (db/lib/combatGate.js#interceptBlock); stopping
+// one never does. See ./common.js for the result shape.
 const { cleanMessage, cleanNames } = require("../intercept");
 const { logAudit } = require("../auditLog");
 const { refuse, asResult } = require("./common");
+const { interceptBlock } = require("../combatGate");
 
 // `input` is what the dialog sends: mode ("SAFE" | "AMBUSH"), message, names
 // (an array — the Discord modal splits its one box by line and comma first),
@@ -14,6 +16,9 @@ const { refuse, asResult } = require("./common");
 // the client sent (REQUESTS.md §2).
 function setWatch(prisma, { character, discordUserId, input, openTurn }) {
   return asResult(async () => {
+    // Combat mode is required to lie in wait (COMBAT-MODE.md §3). Setting only: stopWatch below never asks.
+    const notAlert = await interceptBlock(prisma, character.id);
+    if (notAlert) refuse(notAlert);
     const wantAmbush = input.mode === "AMBUSH";
     const anyone = Boolean(input.anyPerson);
     // "Any person" subsumes "any concealed person", so it is stored as the only one.
