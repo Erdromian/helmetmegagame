@@ -6778,46 +6778,123 @@ button.chip[data-off="true"]:not([data-active]) {
 
 /* ------------------------------------------------------------ /map · ways */
 
-/* A way, cell centre to cell centre. Thin and quiet — the drawing is the
-   map, and a line over it is a pencil note on a print, not a subway diagram.
-   The widths are in plate pixels and a cell is 16 of them. */
-.map-edge {
-  stroke: var(--border);
-  stroke-width: 1;
-  stroke-linecap: round;
-  opacity: 0.3;
+/* A way, cell centre to cell centre: a clear, near-opaque white line with a
+   black outline (Map.docx). It used to be a faint pencil line at a third
+   opacity, and players could not follow it across the lit art. Two lines per
+   way — .map-edge-rim under .map-edge — because a <line> has no fill for
+   paint-order to put a stroke behind.
+
+   non-scaling-stroke keeps both widths in SCREEN pixels, so a way stays one
+   crisp line from the floor of the zoom to 16×, rather than thickening into a
+   bar as the plate is magnified. */
+.map-edge,
+.map-edge-rim {
   fill: none;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.map-edge-rim {
+  stroke: var(--map-halo);
+  stroke-width: 4.5;
+  stroke-opacity: 0.9;
+}
+
+.map-edge {
+  stroke: var(--on-accent);
+  stroke-width: 2;
+  stroke-opacity: 0.92;
 }
 
 /* A way you can see and cannot use. Dashed rather than hidden on purpose:
    knowing the door is there and shut is what sends you to find the winch or
    the key. A way you may NOT see never reaches the browser at all — loadMap
-   drops it server-side (MAP.md §2a). */
-.map-edge[data-gate] {
-  stroke: var(--warning);
-  stroke-dasharray: 2 3;
-}
-
-.map-edge[data-gate="closed"] {
-  stroke: var(--muted);
-}
-
-/* A road only your own trait opens. Solid and accented, never dashed — dashed
-   already means "you can see this and cannot use it", and this is the opposite
-   of that. */
-.map-edge[data-opened] {
-  stroke: var(--accent);
+   drops it server-side (MAP.md §2a). The dash is in the white core only, so
+   the black rim shows through the gaps and it still reads as one outlined
+   line. */
+.map-way[data-gate] .map-edge {
+  stroke-dasharray: 5 4;
+  stroke-linecap: butt;
 }
 
 /* A tight squeeze (MAP.md §2a): a hole no Giant fits through. Drawn for
    everybody, so a party can see where its Giant cannot follow. Dotted — a
    pinched line — rather than dashed, because dashed is "shut to you" and this
-   way is open to whoever is looking at it. Below [data-gate] on purpose: the
-   Giant it refuses still sees it in the gate's colour, since for them it IS
-   shut. */
-.map-edge[data-squeeze]:not([data-gate]) {
-  stroke: var(--text);
-  stroke-dasharray: 0.6 2.4;
+   way is open to whoever is looking at it. The Giant it refuses still sees it
+   dashed, since for them it IS shut. */
+.map-way[data-squeeze]:not([data-gate]) .map-edge {
+  stroke-dasharray: 0.5 4;
+}
+
+/* A hidden way on a GM's Show all. Quieter, so a secret crawl and a locked
+   door no longer look the same on the one board that draws both. */
+.map-way[data-hidden] .map-edge,
+.map-way[data-hidden] .map-edge-rim {
+  stroke-opacity: 0.45;
+}
+
+/* The hover target on a gated way: invisible, and wide enough to find with a
+   mouse or a finger. stroke: transparent, not none, or it is not hit-tested. */
+.map-edge-hit {
+  stroke: transparent;
+  stroke-width: 14;
+  vector-effect: non-scaling-stroke;
+  pointer-events: stroke;
+  cursor: help;
+}
+
+/* ------------------------------------------------------ /map · staircases */
+
+/* A red stair beside a place with a way to the other plate (Map.docx). The
+   charset's own staircase glyph, one path per lit pixel like the crosshairs,
+   so it is the same 1-bit drawing as the art under it. */
+.map-stair {
+  cursor: help;
+}
+
+.map-stair-hit {
+  fill: transparent;
+  pointer-events: fill;
+}
+
+.map-stair-glyph {
+  fill: var(--danger);
+  stroke: var(--map-halo);
+  stroke-width: 0.75;
+  paint-order: stroke;
+  pointer-events: none;
+}
+
+.map-stair-halo {
+  fill: var(--map-halo);
+  fill-opacity: 0.85;
+  pointer-events: none;
+}
+
+/* The hover card for a staircase or a gated way. Opaque, for the reason the
+   HUD boxes give: it floats over the art. Offset from the pointer so the thing
+   it describes stays in view. */
+.map-tip {
+  position: absolute;
+  z-index: 2;
+  transform: translate(12px, 12px);
+  max-width: 16rem;
+  padding: var(--sp-1) var(--sp-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  box-shadow: var(--e-2);
+  font-size: var(--fs-xs);
+  color: var(--text);
+  pointer-events: none;
+}
+
+.map-tip p {
+  margin: 0;
+}
+
+.map-tip-head {
+  color: var(--muted);
 }
 
 /* ----------------------------------------------------------- /map · nodes */
@@ -6954,6 +7031,14 @@ button.chip[data-off="true"]:not([data-active]) {
 .map-node[data-reach]:hover .map-cross-halo {
   fill-opacity: 1;
   stroke-opacity: 1;
+}
+
+/* A name the character's memory has scrambled (Concussed, Amnesiac —
+   MEMORIES.md §6): drawn in a fainter, slanted hand, so it reads as a memory
+   slipping rather than as a place really called that. */
+.map-node-label[data-scrambled] {
+  fill: var(--muted);
+  font-style: italic;
 }
 
 .map-node-label {
@@ -7225,12 +7310,29 @@ button.chip[data-off="true"]:not([data-active]) {
     inset: auto 0 0 0;
     z-index: 1;
     width: auto;
+    /* OPAQUE. The card is a .panel, and a panel is a translucent wash cut into
+       the ground (--sunk-wash-deep); beside the board that is harmless, but
+       over it the plate showed through the sheet, which players on phones
+       reported as the whole map looking see-through (Map.docx). Same ground as
+       the HUD boxes, for the same reason. */
+    background: var(--surface);
     /* Shut: the caption bar and nothing else. `fit-content` rather than a
        number, because the bar is one line of text and pinning a dvh figure to
        it would only be a guess at the font. */
     max-height: fit-content;
     padding: var(--sp-2);
     border-radius: var(--r-md) var(--r-md) 0 0;
+  }
+
+  /* The /chat overlay, if it is open when the window narrows. The modal's
+     phone rule turns every panel into a 92dvh sheet over the 0.55 dim, which
+     left the chat showing through a band across the top of the map. The map
+     keeps the whole screen instead. */
+  .modal-overlay:not([data-modeless="true"]) .modal-panel.map-panel {
+    max-height: none;
+    height: 100dvh;
+    border-radius: 0;
+    animation: none;
   }
 
   .map-card[data-open],

@@ -20,12 +20,11 @@ import { readGameState, effectivePlayerCount } from "@lifeweb/db/lib/gameState";
 import { mintSpawnRing } from "@lifeweb/db/lib/ringMint";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import { seedMemories } from "@lifeweb/db/lib/locationVisits";
+import { seedStartingMap } from "@lifeweb/db/lib/mapMemory";
 import { seedAcquaintances } from "@lifeweb/db/lib/acquaintances";
 import { seedNukeBriefing } from "@lifeweb/db/lib/nukeBriefing";
 import { issueSlaveContract } from "@lifeweb/db/lib/slaveContract";
 import { stampBlankCollars, COLLAR_LOCKED_SLUG } from "@lifeweb/db/lib/collar";
-import { startingMemorySlugs } from "@lifeweb/db/lib/startingMemories";
 import {
   isWanted,
   postWantedPosters,
@@ -454,13 +453,9 @@ export async function createCharacter(formData) {
       toLocationId: created.locationId,
     }).catch(() => {});
   }
-  // The map this seat wakes up with (db/lib/startingMemories.js). After the
+  // The map this seat wakes up with (db/lib/mapMemory.js). After the
   // transaction, so travelOptions reads the tags just granted, and after placement.
-  await seedMemories(
-    prisma,
-    { ...created, tags: heldTagRows },
-    startingMemorySlugs(role.slug, heldSlugs),
-  ).catch(() => {});
+  await seedStartingMap(prisma, { ...created, tags: heldTagRows }, role.slug, heldSlugs).catch(() => {});
   // The people this seat already knows, and everyone who already knows this
   // seat (db/lib/acquaintances.js), plus the ATM PIN.
   await seedAcquaintances(prisma, created.id).catch((err) => console.error("seedAcquaintances failed:", err));

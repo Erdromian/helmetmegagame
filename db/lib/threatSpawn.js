@@ -14,12 +14,11 @@ const { createGuildRole } = require("./discordRest");
 const { closeDeadchatTo } = require("./deadchat");
 const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { applyLocationMoveSideEffects } = require("./locationMove");
-const { seedMemories } = require("./locationVisits");
+const { seedStartingMap } = require("./mapMemory");
 const { seedAcquaintances } = require("./acquaintances");
 const { seedNukeBriefing } = require("./nukeBriefing");
 const { mintSpawnRing } = require("./ringMint");
 const { syncCharacterRoomAccess } = require("./roomAccess");
-const { startingMemorySlugs } = require("./startingMemories");
 const {
   threatBySlug,
   rollSpawnIdentity,
@@ -284,7 +283,7 @@ async function applySpawnSideEffects(prisma, sideEffects) {
       });
       if (character) {
         const heldSlugs = character.tags.map((t) => t.tag.slug);
-        await seedMemories(prisma, character, startingMemorySlugs(roleSlug, heldSlugs));
+        await seedStartingMap(prisma, character, roleSlug, heldSlugs);
       }
     } catch (err) {
       console.error("Spawn memory seeding failed:", err);

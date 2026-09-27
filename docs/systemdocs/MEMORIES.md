@@ -263,6 +263,29 @@ The page scrambles on the **server**, so the real words never reach the
 browser. A scrambled item cannot be edited or starred, and loses its face and
 its group colour, which would otherwise give it away.
 
+### 6a. The map is a memory too
+
+Map.docx: "knowledge of the map layout is stored as information in the
+memories page, but this information is not visible to the player." It is kept
+in `LocationVisit` (`db/lib/locationVisits.js`), the fog behind `/map`, and it
+is deliberately **not** drawn on this page, nor put in its payload. That
+payload is snapshotted into the browser (`SnapshotFresh`), so anything in it
+is shipped to the player whether it is drawn or not.
+
+What makes it a memory is that the same scramble reaches it. `/map`'s loader
+asks `scrambleState` for the character, then:
+
+- **A place** rolls once on `place:<locationId>`, and its name and description
+  are garbled together. The board draws the garbled name in a faint italic, and
+  the card, Ways out and a walk's stops all read the garbled one. The real name
+  is never sent.
+- **A way** rolls once on `way:<linkId>`. A scrambled way comes off the board,
+  **unless one end is where the character stands**, because what is next door
+  is in front of them rather than remembered. Only the drawing changes: Ways
+  out, walking and every travel check are untouched.
+
+What a character starts knowing is `MAP.md` §6a.
+
 ## 7. Inspecting
 
 A look reads the role, and anything else you cannot see, from **the looker's
@@ -287,6 +310,7 @@ unchanged.
 | Who is present, the day log, learning | `db/lib/memoryHearing.js` |
 | What a line teaches (pure) | `db/lib/memoryLessons.js` |
 | Scrambling (pure) | `db/lib/memoryScramble.js` |
+| The map as a memory (§6a) | `db/lib/mapMemory.js`, `web/app/(app)/map/actions.js` |
 | Inspect | `db/lib/examineRow.js`, `db/lib/examine.js` |
 | Page and actions | `web/app/(app)/memories/`, `web/lib/memories.js` |
 | Tests | `db/test/memoryLessons.test.js`, `memoryScramble.test.js`, `roleKnows.test.js`, `examineRoleTitle.test.js` |
