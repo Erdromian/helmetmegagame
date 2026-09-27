@@ -21,12 +21,11 @@ const { heldSeatsByFate } = require("./seatCount");
 const { effectivePlayerCount } = require("./gameState");
 const { parseStartingTag } = require("./startingTags");
 const { expiryForGrant } = require("./grantExpiry");
-const { seedMemories } = require("./locationVisits");
+const { seedStartingMap } = require("./mapMemory");
 const { seedAcquaintances } = require("./acquaintances");
 const { seedNukeBriefing } = require("./nukeBriefing");
 const { mintSpawnRing } = require("./ringMint");
 const { syncCharacterRoomAccess } = require("./roomAccess");
-const { startingMemorySlugs } = require("./startingMemories");
 const { formatCharacterName, AGE_MIN } = require("./characterName");
 const { closeDeadchatTo } = require("./deadchat");
 const { randomCharacterName } = require("./nameCorpus");
@@ -360,13 +359,14 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
     }).catch((err) => console.error(`Reincarnation placement failed for ${created.id}:`, err.message ?? err));
   }
 
-  // The map this seat wakes with (db/lib/startingMemories.js). After the
+  // The map this seat wakes with (db/lib/mapMemory.js). After the
   // transaction (reads the tags just granted) and after placement, or the
   // character wakes with a fogged map of the town under their feet.
-  await seedMemories(
+  await seedStartingMap(
     prisma,
     created,
-    startingMemorySlugs(role.slug, new Set(startingTags.map((t) => t.slug))),
+    role.slug,
+    startingTags.map((t) => t.slug),
   ).catch((err) => console.error(`Reincarnation memories failed for ${created.id}:`, err.message ?? err));
   // A stranger in a new seat: whoever that seat knows, and whoever knows it
   // (db/lib/acquaintances.js). Nothing of the old life carries over.

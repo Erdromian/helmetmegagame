@@ -42,6 +42,9 @@ stoneBlock: 168
 uiGlyphs:
   faint: 476    # four corner ticks, hollow
   locked: 475   # corner brackets, centre ticks, open middle
+  # A staircase (row 6), drawn red beside a place with a way to the other
+  # plate — Barony to Undertown or back (Map.docx, MAP.md §6g).
+  stairs: 194
 
 maps:
   barony1:

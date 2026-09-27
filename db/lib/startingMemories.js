@@ -1,8 +1,14 @@
-// What a character already knows of the map on the day they are made. Each
+// The places a character has already STOOD in on the day they are made. Each
 // seat gets the places its life would have taught it: the home cluster plus
 // the specific road that seat's work actually walks. A slug here is a Location
 // slug — globally unique (schema.prisma), no zone/location parsing. These are
 // `stood` memories.
+//
+// This is the layer ON TOP now. Underneath it, db/lib/mapMemory.js hands every
+// seat but the outsiders a sighting of every place outside the Caves and the
+// Depths (Map.docx) — so what this table still decides is where a seat has
+// been, which is what shows a place's description and rooms, and what an
+// outsider knows at all.
 //
 // A TABLE ENTRY CANNOT WITHHOLD A PLACE, only decline to hand it over
 // directly: `recordArrival` paints every *listed* neighbour of a seeded
