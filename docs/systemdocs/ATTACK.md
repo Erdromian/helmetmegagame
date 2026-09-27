@@ -319,7 +319,8 @@ At the Move cutoff (`turnClock.js#moveWindow`), and until the push:
   turn lock henceforth" (`turnGate.js#travelLockReason`, checked by
   `locationTravel.js#performLocationMove` and drawn on every way by
   `resolveNeighbors` and `routesWithinZone`). A first placement is not a walk.
-  A GM's relocation never comes this way.
+  A GM's relocation never comes this way. A way into the caves is refused in
+  Caving.docx's own sentence instead (`CAVING.md` §2f).
 
 Two exceptions, neither a player's choice: a Vampire's compulsion, which opens
 its fight at turn open (`vampireCompulsion.js`), and an ambush springing, which

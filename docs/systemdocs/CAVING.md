@@ -1,6 +1,9 @@
 # The Caves: the Caving Die and its loot
 
-The Depths' one piece of automatic mechanics. Companion to `MAP.md` (zones
+The Depths' one piece of automatic mechanics. **Bascinet's `Caving.docx` is the
+design** for when the die rolls, what a failed roll holds you to, the turn lock
+into the caves, and how the Caving tab shows results (§2, §5); where this doc
+and that one ever disagree, the design doc wins. Companion to `MAP.md` (zones
 and travel), `TURN-ENGINE.md` (where this hooks into a turn advance),
 `REQUESTS.md` (the apply-first-review-after pattern a loot find reuses),
 `ADJUDICATION.md` (the `/gm/turns` desk this adds a third lens to) and
@@ -55,7 +58,10 @@ key, the other is what the dark does to you regardless.
 a Location in a `CAVE_LEVEL` zone, and at no other moment — a flat `1d6`, no
 Gambit modifier, rolled by `db/lib/cavingPass.js#rollCaving(prisma, character,
 turn, location, trigger)` and written to a `CavingRoll` row. Going deeper rolls.
-Retreating rolls. Standing still does nothing at all.
+Retreating rolls. Standing still does nothing at all. Caving.docx puts it the
+same way: rolls happen "only ... when moving into a caves/depths location",
+never at the start of a turn and never on the way from a cave up to the
+surface — that arrival is on the surface, so the gate below never fires.
 
 There used to be a second trigger — `runCavingPass`, a turn-start sweep over
 every `ALIVE` character already underground — and it is **gone**. It punished
@@ -147,7 +153,7 @@ wait between two walks inside one zone, **30 seconds** by default (it was 3
 until 2026-09-24). So a player standing between two adjacent cave rooms can
 roll twice a minute: a loot faucet, a `CAVE_TROUBLE` mood drain (`MOOD.md`),
 and a supply of unresolved `TROUBLE` rows on the Caving lens. What bounds all three is §2e — the tenth 1
-of the turn stops them walking at all, and nothing rolls for somebody who is
+of the turn (severity 10) stops them walking at all, and nothing rolls for somebody who is
 not walking. Between the two, the cooldown is still the lever a GM has on
 `/gm/dev`: a cave step can be priced at a minute without anybody touching
 code.
@@ -161,12 +167,25 @@ an encounter", and "hunkering down in a single location reduces your chances"
 Die became arrival-only have none; every new row sets it. It gates nothing —
 it is what lets the lens say *where*.
 
-### 2c. A 1 pins you in the zone
+### 2c. A 1 keeps you underground
 
-**A `TROUBLE` row stops the caver leaving the zone it happened in for the
-rest of the turn.** Until this existed the row waited for a GM and the caver
-did not wait with it — they walked out of the Depths, and a GM ended up
+Caving.docx: *"Having failed caving rolls awaiting the turn push prevent a
+character from moving from a cave/depths location to an aboveground
+location."*
+
+**Any `TROUBLE` row on the open turn stops the caver going up to the surface
+until the push.** Until this existed the row waited for a GM and the caver did
+not wait with it — they walked out of the Depths, and a GM ended up
 adjudicating a monster in the dark for somebody standing in Town.
+
+**It takes the way UP and nothing else.** The Caves and the Depths stay open to
+each other, and so does every room on a level, so a party can regroup, camp or
+push deeper while they wait. An intercept is a hand on your shoulder; this is a
+locked door at the top of the stairs. It used to shut every way out of the
+*zone* the 1 was rolled in — which also shut the stairs between the Caves and
+the Depths, and let a 1 rolled in the Caves be walked away from by stepping
+down a level. Neither was the design. The zone is gone from the rule both ways:
+a 1 anywhere underground counts wherever underground the caver now stands.
 
 The hold ends with the **turn**, not with the roll being resolved. A GM's
 **Mark resolved** says the encounter has been decided; what was decided — the
@@ -177,30 +196,28 @@ consequences of a 1 in the Caves arrived on somebody standing in the Forest.
 The push closes the turn, so the hold can never outlive it either: a 1 nobody
 adjudicates lifts on its own at the push, with nothing to sweep.
 
-`cavingHoldFor(prisma, characterId, zoneId)` (`db/lib/cavingPass.js`) is the
-one predicate. It is the Caving twin of `heldReasonFor` (`INTERCEPT.md`) and
-deliberately not the same thing:
+`cavingRestrictionsFor(prisma, characterId, standingZoneKind)`
+(`db/lib/cavingPass.js`) is the one predicate, and `cavingRefusalFor(restrictions,
+intoZoneKind)` turns its answer into a refusal for one move. It is the Caving
+twin of `heldReasonFor` (`INTERCEPT.md`) and deliberately not the same thing:
 
 - **It is a query, not a comparison.** The answer lives in `CavingRoll`
-  (`kind: TROUBLE`, on the turn that is still `OPEN`) and nowhere on
-  `Character`, so unlike a hold it costs a lookup — which is why the picker
-  asks only when there is a zone crossing on offer to shut.
-- **It takes the way OUT and nothing else.** Walking the level is still free,
-  so a party can regroup, camp or push deeper while they wait. An intercept is
-  a hand on your shoulder; this is a locked door at the top of the stairs.
-- **It is scoped to the roll's own `zoneId` snapshot.** A GM who relocates
-  somebody out of the caves has therefore not also stranded them wherever
-  they land.
+  (`kind: TROUBLE`, on the turn that is still `OPEN`, any zone) and nowhere on
+  `Character`, so unlike a hold it costs a lookup.
+- **It is only asked of somebody standing underground.** On the surface it
+  answers nothing without a query. So a GM who relocates somebody out of the
+  caves has not also stranded them wherever they land — the rule is about
+  leaving the caves, and they have left.
 
 Five gates read it, and all five are player paths:
 
 | Where | What it does |
 |---|---|
-| `db/lib/locationTravel.js#performLocationMove` | The authoritative refusal, inside the `crossedZone` branch |
+| `db/lib/locationTravel.js#performLocationMove` | The authoritative refusal, for a hop from a cave level to anywhere that is not one |
 | the same function's escort loop | A held follower is detached and left standing, `leftBehind` reason `caving` |
-| `db/lib/locationGraph.js#resolveNeighbors` | Draws every zone crossing **shut** with the same sentence, so no picker offers a hop the mover will refuse |
-| the Stepstone (`web/app/(app)/character/requestActions.js`) | The stone only lands on the SURFACE, so from underground it is exactly this crossing |
-| Bat Form (`web/app/(app)/character/actions/bloodAbility.js`) | Flight crosses no link, so it is refused outright while held — even a flight inside the zone, since it never rolls the Die |
+| `db/lib/locationGraph.js#resolveNeighbors` | Draws every way up to the surface **shut** with the same sentence, so no picker offers a hop the mover will refuse |
+| the Stepstone (`db/lib/verbs/self.js#stepstone`) | The stone only lands on the SURFACE, so from underground it is exactly this way up |
+| Bat Form (`web/app/(app)/character/actions/bloodAbility.js`) | Flight crosses no link, so it is refused outright while held — even a flight inside the caves, since it never rolls the Die |
 
 Every GM path is untouched on purpose — the Dev Panel's Teleport and Bulk
 Move and the staged **Relocate to** never call `performLocationMove`, and a GM
@@ -210,90 +227,28 @@ already ignores `heldUntil`: it is somebody else's act on the character, not a
 walk.
 
 **Mark resolved does not free anyone.** It is the desk's word for "decided",
-and the Caving lens' default "Needs attention" filter is the list of rolls a GM
-has not decided yet — not the list of people who cannot leave, which is
-everybody with a 1 on the open turn. A GM who does want somebody out early
-has the Dev Panel's Teleport, which ignores the hold by design.
-
-### 2e. Ten 1s and you go nowhere
-
-**The tenth `TROUBLE` row in a zone on one turn stops the caver moving at
-all** — not the next room, not the surface, not a Stepstone — until the push.
-The hold in §2c keeps a monster's victim where the monster is; this keeps a
-loot farmer from being one. Every arrival rolls and the walk cooldown is the
-only brake on the rolling, so before this a caver could pace two rooms all
-turn, banking 6s and leaving a queue of unadjudicated 1s behind them for a GM
-to invent monsters for. Ten of those is a dead character whatever they are
-carrying, and the walking is what the farm needs, so the walking is what the
-stop takes.
-
-It is the same query as the hold read at a higher number.
-`cavingRestrictionsFor(prisma, characterId, zoneId)` (`db/lib/cavingPass.js`)
-counts the `TROUBLE` rows for this character, this zone, on the `OPEN` turn,
-and answers `{ hold, stuck }`: one row is the hold, `CAVING_TROUBLE_CAP` (10)
-is the stop. A stuck caver is always also held, so a caller that only asks
-about crossings can read `hold` and be right. `cavingHoldFor` is now that
-function's `hold` half, kept for its callers. Three things follow from it
-being the same rows:
-
-- **It ends with the turn**, the way the hold does, and for the same reason —
-  the push closes the turn and nothing has to sweep it. Mark resolved does not
-  lift it either.
-- **It is scoped to the zone the 1s were rolled in.** A GM who teleports a
-  stuck caver to Town has adjudicated, not stranded them: in Town the count is
-  zero. Since §2c already pins anyone with a 1 in the zone they rolled it in,
-  a player can never spread ten 1s over two zones on their own, so scoping
-  costs nothing.
-- **It is only ever asked underground.** A `TROUBLE` row carries a
-  `CAVE_LEVEL` zone and nothing else, so every reader checks the standing
-  zone's kind first and a surface picker pays no query.
-
-The DM for the tenth 1 says so in the same breath as the roll — *"Caving Die:
-1 — Something is wrong down here. A GM has been notified. That's 10 this turn.
-Whatever is down here has you now — you can't go anywhere until the turn
-ends."* — counted inside the roll's own transaction, so the DM that says ten
-is written by the roll that made it ten.
-
-Five gates read it, one more than the hold, because a walk inside the zone
-is now something the Die can refuse:
-
-| Where | What it does |
-|---|---|
-| `db/lib/locationTravel.js#performLocationMove` | The authoritative refusal, **outside** the `crossedZone` branch — every hop, the next room included |
-| the same function's escort loop | A stuck follower is detached and left standing, the same `leftBehind` reason `caving` a held one gets |
-| `db/lib/locationGraph.js#resolveNeighbors` | Draws **every** way shut with the stop's sentence, where the hold shuts only the crossings |
-| `db/lib/locationGraph.js#routesWithinZone` | No walk at all — asked once, up front, the way a hold is; the hold itself is still not asked here, since a walk never crosses a zone |
-| the Stepstone (`web/app/(app)/character/requestActions.js`) | Refused in the stop's words before the hold's |
-
-The GM paths stay untouched, exactly as in §2c: Teleport, Bulk Move and the
-staged **Relocate to** are the adjudication, and a GM moving a stuck caver is
-the one way they move before the push. There is no switch for the number;
-ten is `CAVING_TROUBLE_CAP` in `db/lib/cavingPass.js`.
-
-### What each face means
-
-| Die | Kind | What happens |
-|---|---|---|
-| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes −10 mood, tripled by Teratophobia (`MOOD.md`), **and cannot leave the zone until the turn ends** (§2c). |
-| 2–5 | `QUIET` | Stamped resolved at creation. No GM attention — the row exists as a record (so the lens' default filter, and a GM skimming the log, both read the truth). The player still gets one line: *"Caving Die: 3 — Nothing happens."* |
-| 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. |
-
-Every DM leads with the face — *"Caving Die: 6 — You found something: Padded
-Armor."* — so a player reads their own roll and not just its outcome. A
-`QUIET` used to send nothing, but players could not tell a quiet roll from
-a die that never rolled, so it now says so in one line.
+and the Caving lens' "Needs attention" status is the list of results a GM has
+not decided yet — not the list of people who cannot leave, which is everybody
+with a 1 on the open turn. A GM who does want somebody out early has the Dev
+Panel's Teleport, which ignores the hold by design.
 
 ### 2d. The push lets go of what nobody adjudicated
 
-**A `TROUBLE` roll still unresolved when the turn is pushed is resolved by the
-push** (`db/lib/cavingPass.js#releaseUnresolvedCavingRolls`, run from
-`db/index.js` directly after the staged push).
+Caving.docx: *"Unresolved caving outcomes are resolved automatically at the
+turn push, with whatever was staged in them being pushed."*
 
-This is the desk's bookkeeping, not the hold's: §2c's hold ends with the turn
-whether or not anyone resolved the roll. But the Caving lens goes
-**read-only** on a past turn (`ADJUDICATION.md` §3), so a roll nobody reached
-would otherwise sit under "Needs attention" forever with nobody able to reach
-it. History caving stays read-only; this is the release valve instead.
+**The staged half needs nothing of its own.** The staged push
+(`db/lib/stagedPush.js`) delivers every staged effect and message on the turn,
+wired to a caving result or not, resolved or not — a GM who staged a bite and
+never pressed Mark resolved still lands the bite.
+
+**A `TROUBLE` roll still unresolved after that is resolved by the push**
+(`db/lib/cavingPass.js#releaseUnresolvedCavingRolls`, run from `db/index.js`
+after the staged push). This is the desk's bookkeeping, not the hold's: §2c's
+hold ends with the turn whether or not anyone resolved the roll. But the Caving
+lens goes **read-only** on a past turn (`ADJUDICATION.md` §3), so a roll nobody
+reached would otherwise sit under "Needs attention" forever with nobody able to
+reach it. History caving stays read-only; this is the release valve instead.
 
 What it writes: `resolvedAt`, and nothing else. **`resolvedByDiscordUserId`
 stays null, and that null is the marker** — a `TROUBLE` row is created
@@ -312,6 +267,91 @@ id and never shows up as the push's doing.
 One `caving_auto_resolved` audit row per push names every roll and caver it let
 go — "who can suddenly walk out of the Caves" being the question that row is
 there to answer.
+
+### 2e. Severity 10 and you go nowhere
+
+Caving.docx: *"Having a pending cave result of a severity of 10 inhibits all
+movement between locations."* The refusal is the doc's own sentence:
+*"You are too worn out to keep going, best to hunker down and prepare for
+whatever evil awaits."*
+
+**A caver's tenth 1 of the turn stops them moving at all** — not the next room,
+not the surface, not a Stepstone — until the push. Every 1 is a point of
+severity on their one result (§5a), wherever underground they rolled it. The
+hold in §2c keeps a monster's victim where the monster is; this keeps a loot
+farmer from being one. Every arrival rolls and the walk cooldown is the only
+brake on the rolling, so before this a caver could pace two rooms all turn,
+banking 6s and leaving a queue of unadjudicated 1s behind them for a GM to
+invent monsters for.
+
+It is the same query as the hold read at a higher number:
+`cavingRestrictionsFor` answers `{ hold, stuck }`, one row is the hold and
+`CAVING_TROUBLE_CAP` (10) is the stop. A stuck caver is always also held.
+Three things follow from it being the same rows:
+
+- **It ends with the turn**, the way the hold does, and for the same reason —
+  the push closes the turn and nothing has to sweep it. Mark resolved does not
+  lift it either.
+- **It counts every 1 on the turn**, the Caves and the Depths together, since
+  the design counts the result's severity and not a zone's.
+- **It only binds somebody standing underground** (Bascinet, 2026-09-27). A GM
+  who teleports a stuck caver up to Town has made the ruling, and they are free
+  to move there. On the surface nothing is asked at all.
+
+The DM for the tenth 1 says so in the same breath as the roll — *"Caving Die:
+1 — Something is wrong down here. A GM has been notified. You are too worn out
+to keep going, best to hunker down and prepare for whatever evil awaits."* —
+counted inside the roll's own transaction, so the DM that says it is written by
+the roll that made it ten.
+
+Five gates read it, one more than the hold, because a walk inside a level is
+something the stop refuses:
+
+| Where | What it does |
+|---|---|
+| `db/lib/locationTravel.js#performLocationMove` | The authoritative refusal — every hop, the next room included |
+| the same function's escort loop | A stuck follower is detached and left standing, the same `leftBehind` reason `caving` a held one gets |
+| `db/lib/locationGraph.js#resolveNeighbors` | Draws **every** way shut with the stop's sentence, where the hold shuts only the ways up |
+| `db/lib/locationGraph.js#routesWithinZone` | No walk at all — asked once, up front, the way a hold is; the hold itself is not asked here, since a walk never leaves its level |
+| the Stepstone and Bat Form | Refused in the stop's words before the hold's |
+
+The GM paths stay untouched, exactly as in §2c: Teleport, Bulk Move and the
+staged **Relocate to** are the adjudication, and a GM moving a stuck caver is
+the one way they move before the push. There is no switch for the number;
+ten is `CAVING_TROUBLE_CAP` in `db/lib/cavingPass.js`.
+
+### 2f. No walking into the caves in the turn lock
+
+Caving.docx: *"Characters are not allowed to move into caves/depths locations
+when the turn is locked to give the GMs time to adjudicate all failed rolls."*
+The refusal is the doc's own sentence: *"It is too close to the turn push, wait
+till next turn to move in the caves."*
+
+The lock already shuts **all** travel (Combat Overhaul.docx,
+`db/lib/turnGate.js#travelLockReason`, `ATTACK.md`), so the caves are closed in
+the lock with or without this rule. What this adds is the sentence: a way whose
+far end is a `CAVE_LEVEL` Location is refused with the caving line, and every
+other way keeps the plain *"Moves are locked for this turn…"*.
+`travelLockReason(db, { intoZoneKind })` picks it for the mover, and
+`lockedTravelSentence(kind)` for a picker drawing many ways off one answer.
+
+The refusal is said where the move is refused — the way drawn shut in the web
+picker and on the map, the server's refusal, and the bot's ephemeral reply —
+and never as a separate DM (Bascinet, 2026-09-27), the way every other travel
+refusal already works.
+
+### What each face means
+
+| Die | Kind | What happens |
+|---|---|---|
+| 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes −10 mood, tripled by Teratophobia (`MOOD.md`), **and cannot go up to the surface until the turn ends** (§2c). Each 1 adds one to the severity of the caver's one result for the turn (§5a). |
+| 2–5 | `QUIET` | Stamped resolved at creation. No GM attention — the row exists as a record, hidden from the Caving lens until a GM ticks **Show other rolls** (§5). The player still gets one line: *"Caving Die: 3 — Nothing happens."* |
+| 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. |
+
+Every DM leads with the face — *"Caving Die: 6 — You found something: Padded
+Armor."* — so a player reads their own roll and not just its outcome. A
+`QUIET` used to send nothing, but players could not tell a quiet roll from
+a die that never rolled, so it now says so in one line.
 
 ## 3. The loot table
 
@@ -416,19 +456,26 @@ shared undo handler, until player actions stopped filing Requests at all
 ## 5. The Caving lens
 
 A third lens on `/gm/turns`, next to Moves and Requests
-(`web/app/(desk)/gm/turns/QueueRail.js`), keyed `c` alongside `m`/`r`. Rows
-show the die face, the character, the zone, and — for a `FIND` — the tier
-and what was found. Default filter is **"Needs attention"**, which in
-practice only ever matches an unresolved `TROUBLE` row — a hundred players
-in the Depths would otherwise put a hundred quiet 2–5s in front of a GM every
-day. Flip the filter to see the full log.
+(`web/app/(desk)/gm/turns/QueueRail.js`), keyed `c` alongside `m`/`r`.
+
+**Only failures show by default** (Caving.docx: *"Caving results which were not
+failures are hidden from the caving adjudication tab for GMs by default but can
+be seen again with a toggle."*). The 2–5s and the finds are behind a **Show N
+other rolls** box beside the search, the same shape as the Moves lens' "Show N
+travel" — a hundred players in the Depths would otherwise put a hundred quiet
+rolls in front of a GM every day. One switch covers the open turn and History,
+remembered with the rest of the rail's view (`showCavingOthers`, session
+storage). Unresolved results rank first, and the Status filter still narrows to
+"Needs attention" or "Resolved". When everything matching is hidden, the empty
+line says how many other rolls the box would bring back.
 
 Rows show the die face, the kind, the character, the zone, and — for a `FIND`
-— the tier and what was found. A caver's `TROUBLE` rows in one zone are ONE
-row (§5a), which says how many there were — *"3 failed rolls this turn"* — and
-at ten (§2e) wears a **Stuck** pill, with the desk header saying so in a
-sentence. The pill and the sentence are for the open turn only: History keeps
-the count but drops both, since that turn's push already let the caver go. The
+— the tier and what was found. A caver's `TROUBLE` rows on the turn are ONE
+row (§5a), which says its severity — *"Severity 3"*, and *"Severity 1"* for a
+lone 1 — and at 10 (§2e) wears a **Stuck** pill, with the desk header saying so
+in a sentence. The pill and the sentence are for the open turn only: History
+keeps the severity but drops both, since that turn's push already let the caver
+go. The
 fold is `foldCavingRolls` in `web/lib/cavingLabels.js`, recomputed from the rows the desk already holds
 rather than fetched, so the live stream keeps it current; that module carries
 its own copy of `CAVING_TROUBLE_CAP`, since `cavingPass.js` cannot reach a
@@ -440,22 +487,28 @@ the only copy, the rail printed every row's kind as "undefined" for months.
 
 ### 5a. A caver's failed rolls are one result
 
-Combat Mode.docx: failed cave rolls are aggregated into a single result, and
-the snapshot a GM adjudicates it from is the one taken at the **most recent**
-failed roll.
+Caving.docx: *"A character's failed caving rolls should be aggregated into a
+singular outcome for GMs to resolve. Each time a character fails a roll, it
+contributes +1 to the severity of the caving result, this number is displayed
+on each characters caving result in the caving tab of the adjudication page."*
+Combat Mode.docx adds that the snapshot a GM adjudicates it from is the one
+taken at the **most recent** failed roll.
 
 **The rows stay as they are.** Every 1 is still its own `CavingRoll`, because
-the hold, the ten-1 stop and the push's release all count rows (§2c–§2e). The
-folding happens on the desk: `web/lib/cavingLabels.js#foldCavingRolls` turns
-every `TROUBLE` row one character rolled in one zone on one turn into **one row
-on the rail and one desk**, and it replaced the old "3rd 1 this turn" tally.
+the hold, the severity-10 stop and the push's release all count rows
+(§2c–§2e). The folding happens on the desk:
+`web/lib/cavingLabels.js#foldCavingRolls` turns every `TROUBLE` row one
+character rolled on one turn — in the Caves, the Depths or both — into **one
+row on the rail and one desk**, whose severity is how many there were
+(`severityLabel`). It used to fold per zone, which split a caver who rolled 1s
+on both levels into two results; the design says one.
 
 - **Keyed by the oldest roll.** The id never changes while the caver keeps
   failing, so a GM's selection and keyboard cursor hold. The Result box and
   everything staged on the desk hang off that one id. A link to any later roll
   opens its group (`groupOf`).
-- **Shows the newest roll** — its die, its room, its time — and says how many
-  there were ("3 failed rolls this turn").
+- **Shows the newest roll** — its die, its room, its zone, its time — and its
+  severity ("Severity 3").
 - **Needs attention while any 1 in it does.** A fresh failure after a GM marked
   the group resolved reopens it, and the rail and desk say how many are new.
 - **Save and Mark resolved act on the group**, worked out on the server from
@@ -586,10 +639,11 @@ now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
 | The die | `db/lib/cavingPass.js` |
 | The loot table | `db/lib/cavingLoot.js` |
 | The one trigger | `db/lib/cavingPass.js#rollCavingOnArrival` |
-| The zone hold a 1 puts on you, and the stop ten put on you | `db/lib/cavingPass.js#cavingRestrictionsFor` (§2c, §2e) |
-| Its callers | `db/lib/locationTravel.js#performLocationMove` (mover + dragged), the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#applyBulkAction` (its Move verb) |
+| The hold a 1 puts on the way up, and the stop at severity 10 | `db/lib/cavingPass.js#cavingRestrictionsFor`, `#cavingRefusalFor` (§2c, §2e) |
+| The turn lock's sentence for a way into the caves | `db/lib/turnGate.js#travelLockReason`, `#lockedTravelSentence` (§2f) |
+| The trigger's callers | `db/lib/locationTravel.js#performLocationMove` (mover + dragged), the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#applyBulkAction` (its Move verb) |
 | Arrival DM senders | whichever face's location-move caller runs `performLocationMove` sends `moved[].cavingDm`; the two GM paths send their own |
-| Kind labels | `web/lib/cavingLabels.js` |
+| Kind labels, the fold, the severity label, the failures-only filter | `web/lib/cavingLabels.js` |
 | Loot grant, and taking it back | `db/lib/cavingPass.js`, `web/app/(desk)/gm/turns/actions.js#undoCavingFind` |
 | Consume mechanics | `web/lib/consumeGrants.js`, `db/lib/syncTags.js` |
 | The Caving lens | `web/app/(desk)/gm/turns/QueueRail.js`, `CavingDesk.js` |

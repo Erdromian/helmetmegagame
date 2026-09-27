@@ -405,8 +405,8 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     catatonic: catatonicIds?.has(c.characterId) ?? false,
     discordUsername: nameFor,
     roleTitle: c.character.roleTitle ?? "",
-    // Where the die actually rolled. zoneId is what foldCavingRolls
-    // (web/lib/cavingLabels.js) groups on — the stop's own scope.
+    // Where the die actually rolled. A folded result shows its newest roll's
+    // (web/lib/cavingLabels.js#foldCavingRolls).
     zoneId: c.zoneId ?? c.zone?.id ?? null,
     zoneName: c.zone?.name ?? "",
     locationName: c.location?.name ?? null,

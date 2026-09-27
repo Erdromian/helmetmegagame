@@ -5,7 +5,7 @@ const { recordArchiveEvent } = require("./archive");
 const { sessionGate } = require("./betweenSessions");
 const { travelLockReason } = require("./turnGate");
 const { seatZoneIdFor } = require("./seatZone");
-const { rollCavingOnArrival, cavingRestrictionsFor, cavingPartyRestrictions } = require("./cavingPass");
+const { rollCavingOnArrival, cavingRestrictionsFor, cavingRefusalFor, cavingPartyRestrictions } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
 const { OVERBURDENED_SLUG, TIRED_SLUG, EXHAUSTED_SLUG, LUCKY_SLUG } = require("./constants");
 const {
@@ -431,10 +431,10 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   const session = await sessionGate(prisma);
   if (!session.ok) return { ok: false, reason: session.message };
 
-  // Nobody walks once Moves lock (Combat Overhaul.docx; turnGate.js#travelLockReason). A first placement
-  // is not a walk, so it is let through.
+  // Nobody walks once Moves lock (Combat Overhaul.docx; turnGate.js#travelLockReason), and a walk into
+  // the caves says so in Caving.docx's words. A first placement is not a walk, so it is let through.
   if (character.locationId) {
-    const locked = await travelLockReason(prisma);
+    const locked = await travelLockReason(prisma, { intoZoneKind: targetLocation.zone.kind });
     if (locked) return { ok: false, reason: locked };
   }
 
@@ -482,29 +482,18 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     return { ok: false, reason: "You can't walk into another zone." };
   }
 
-  // The Caving Die's two refusals, off one query, and only asked underground —
-  // a TROUBLE row only ever carries a CAVE_LEVEL zone, so on the surface the
-  // answer is always nothing and the query would be a wasted round trip.
+  // The Caving Die's two refusals, off one query, and only asked underground
+  // (docs/systemdocs/CAVING.md §2c, §2e). A result of severity 10 stops every
+  // hop, the next room included; any 1 this turn stops only the way up to the
+  // surface — the Caves and the Depths stay open to each other, resolved or
+  // not, until the push.
   const underground = currentLocation?.zone?.kind === "CAVE_LEVEL";
-  const caving = underground
-    ? await cavingRestrictionsFor(prisma, character.id, currentLocation.zoneId)
-    : { hold: null, stuck: null };
-  // Ten 1s this turn and they go nowhere at all (docs/systemdocs/CAVING.md
-  // §2e) — every hop, the next room included, which is why this sits OUTSIDE
-  // the crossing branch below where the plain hold lives. Ten unadjudicated
-  // encounters is a dead character whatever they are carrying; the walking is
-  // what farming the loot table needs, and the walking is what this takes.
-  if (caving.stuck) return { ok: false, reason: caving.stuck };
+  const caving = await cavingRestrictionsFor(prisma, character.id, currentLocation?.zone?.kind);
+  const cavingRefusal = cavingRefusalFor(caving, targetLocation.zone.kind);
+  if (cavingRefusal) return { ok: false, reason: cavingRefusal };
 
   let openTurn = null;
   if (crossedZone) {
-    // A 1 on the Caving Die pins them where it happened until the turn ends —
-    // resolved or not (docs/systemdocs/CAVING.md §2c). Inside this branch
-    // and not beside the heldReasonFor gate above, because this one takes the
-    // way OUT of the zone and nothing else — walking the level is still free,
-    // which is also what lets a party regroup while they wait.
-    if (caving.hold) return { ok: false, reason: caving.hold };
-
     openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
     if (!openTurn) return { ok: false, reason: "No turn is currently open." };
   }
@@ -555,11 +544,9 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
       const party = await partyOf(prisma, character.id, { tx });
       if (party.length > 0) {
         const mover = await tx.character.findUnique({ where: { id: character.id }, select: ESCORT_SELECT });
-        // Which of them the Caving Die has hold of, and which it has stopped outright — one query for the whole party rather than one per follower, and only underground, since a surface follower can have neither. The hold only matters on a crossing; the stop matters on every hop.
-        const cavingParty = underground
-          ? await cavingPartyRestrictions(tx, party.map((row) => row.id), currentLocation.zoneId)
-          : { held: new Set(), stuck: new Set() };
-        const cavingHeld = crossedZone ? cavingParty.held : cavingParty.stuck;
+        // Which of them the Caving Die has hold of, and which it has stopped outright — one query for the whole party rather than one per follower, and only underground, since a surface follower can have neither. The hold only matters on the way up to the surface; the stop matters on every hop.
+        const cavingParty = await cavingPartyRestrictions(tx, party.map((row) => row.id), currentLocation?.zone?.kind);
+        const cavingHeld = underground && targetLocation.zone.kind !== "CAVE_LEVEL" ? cavingParty.held : cavingParty.stuck;
         const coming = [];
         for (const row of party) {
           // Held where they stand — a follower is walked by an updateMany and never comes

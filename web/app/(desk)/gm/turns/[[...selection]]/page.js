@@ -409,7 +409,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       include: CAVING_ROLL_INCLUDE,
     });
     if (roll) {
-      // A 1 is shown folded with the caver's other 1s in that zone that turn (CAVING.md §5), so the
+      // A 1 is shown folded with the caver's other 1s that turn (CAVING.md §5), so the
       // link loads the whole group and its staged rows, not only the roll it names.
       const members =
         roll.kind === "TROUBLE"
