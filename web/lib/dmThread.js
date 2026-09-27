@@ -1,6 +1,7 @@
 import { Prisma } from "@lifeweb/db";
 import { DM_KIND, MENTION_SOURCE } from "@lifeweb/db/lib/dmKinds";
 import { isSfx } from "@lifeweb/db/lib/sfx";
+import { withoutDeskSender } from "@lifeweb/db/lib/bird";
 
 // "Is this row conversation?" decides the RAIL; "is this row drawable?" decides a THREAD. Both key on `DirectMessage.kind` alone.
 const IS_DRAWABLE = { kind: { not: DM_KIND.QUIET } };
@@ -91,7 +92,8 @@ export function playerDmRow(row) {
     content: row.content,
     source: row.source ?? null,
     kind: row.kind,
-    meta: row.meta ?? null,
+    // A GM letter's sender name is the desk's label; a bird letter arrives unsigned (BIRD.md §8).
+    meta: withoutDeskSender(row.meta),
     clientNonce: row.clientNonce ?? null,
     createdAt: row.createdAt.toISOString(),
     // The one validation door for the DM carrier, mirroring db/lib/archive.js#feedRowShape

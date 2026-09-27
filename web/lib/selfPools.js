@@ -21,6 +21,7 @@ import {
   birdZones as birdZonesOf,
   BIRD_SLUG,
   birdRestingToday,
+  waitingLetter,
 } from "@lifeweb/db/lib/bird";
 import {
   BASE_BIRD_SENDS_PER_DAY,
@@ -262,13 +263,10 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
                 : { replyDeadlineTurn: { not: null } }),
             },
             orderBy: { createdAt: "asc" },
-            select: { id: true, senderName: true, gmSenderDiscordUserId: true },
+            // Never senderName: a bird letter is unsigned (BIRD.md §8), and what reaches the browser is what could be drawn.
+            select: { id: true, tagName: true, replyDeadlineTurn: true },
           })
-        ).map((m) => ({
-          id: m.id,
-          // A GM letter is signed with whatever name the GM wrote it under (BIRD.md §9).
-          senderName: m.senderName,
-        }))
+        ).map(waitingLetter)
       : [];
 
   return {

@@ -2909,7 +2909,7 @@ export async function birdMessageRequestImpl({
   if (delivered) {
     notifyCharacter(
       recipient,
-      deliveryDm({ senderName: character.name, letterName: held.tag.name }),
+      deliveryDm({ letterName: held.tag.name }),
       {
         // No Reply button for someone who can't write one — birdReply.js
         // re-checks, since a GM can strip the tag inside the window.

@@ -127,14 +127,18 @@ function LetterReply({ message }) {
   );
 }
 
-function LetterBody({ message }) {
+// A bird letter arrives unsigned (BIRD.md §8): the name a GM signed it under is the desk's label,
+// never the player's. db/lib/bird.js#withoutDeskSender strips it from the player's copy as well.
+function LetterBody({ message, perspective }) {
   const meta = message.meta ?? {};
   const text = (meta.letterBody ?? message.content ?? "").trim();
   return (
     <div className="dm-letter">
       <div className="dm-letter-head">
         <span className="dm-letter-name">{meta.letterName ?? "A letter"}</span>
-        {meta.senderName && <span className="dm-letter-from">from {meta.senderName}</span>}
+        {perspective !== "player" && meta.senderName && (
+          <span className="dm-letter-from">from {meta.senderName}</span>
+        )}
         {meta.replierName && <span className="dm-letter-from">from {meta.replierName}</span>}
       </div>
       {meta.sealed && meta.sealMark && <p className="dm-letter-seal">Sealed. {meta.sealMark}</p>}
@@ -435,7 +439,7 @@ function Row({ item, gmProfileById, character, compact, now, perspective, onRetr
       {mention ? (
           <MentionBody message={message} />
         ) : letter ? (
-          <LetterBody message={message} />
+          <LetterBody message={message} perspective={perspective} />
         ) : embed ? (
           <EmbedBody message={message} />
         ) : (

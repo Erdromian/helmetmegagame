@@ -5784,7 +5784,8 @@ model BirdMessage {
 
   // Null when a GM sent the letter rather than a character — see
   // gmSenderDiscordUserId below. senderName is never null: a GM types the name
-  // the letter arrives under, which is the whole point of the feature.
+  // the desk files the letter under. It is the desk's record only; the letter
+  // arrives unsigned, and no player surface reads it (BIRD.md §8).
   senderId               String?
   senderName             String
   senderDiscordUserId    String?

@@ -147,7 +147,7 @@ async function sendBirdReply(prisma, birdMessageId, tagId, { actingCharacterId =
     characterIds: [replier.id, message.senderId],
     dm: {
       discordUserId: message.senderDiscordUserId,
-      content: replyDm({ replierName: message.recipientName, letterName: held.tag.name }),
+      content: replyDm({ letterName: held.tag.name }),
       opts: {
         source: "bird",
         meta: { kind: "bird_reply", birdMessageId: message.id, letterName: held.tag.name },
