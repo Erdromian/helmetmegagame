@@ -2250,6 +2250,13 @@ model Character {
   roleId    String?
   role      Role?   @relation(fields: [roleId], references: [id])
 
+  // The late party this character was made in, if any (db/lib/lateParty.js).
+  // It is what a party's slots are counted off -- the characters it made, dead
+  // or alive -- so an existing fate the party reopens is counted apart from the
+  // seats that fate already had.
+  latePartyId String?
+  lateParty   LateParty? @relation(fields: [latePartyId], references: [id], onDelete: SetNull)
+
   // AUTHORITATIVE "where is this character" since Bascinet 2. Drives the
   // "Location: {Name}" Discord role (swapped by
   // db/lib/locationMove.js#applyLocationMoveSideEffects) and therefore the
@@ -2834,6 +2841,8 @@ model Character {
   @@index([escortedById])
   // The one query a release ever runs: everyone this character is holding.
   @@index([heldById])
+  // A late party's slot count: the characters it made (db/lib/lateParty.js).
+  @@index([latePartyId, roleId])
 }
 
 // Fresh or rotten. A player's corpse is written FRESH and turns ROTTEN three
@@ -7033,6 +7042,41 @@ model LateJoinRole {
 
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+}
+
+// A LATE PARTY (db/lib/lateParty.js, docs/systemdocs/LATE-PARTIES.md): a
+// superadmin opens it, and while it is live character creation offers ONLY its
+// fates, and anybody without a living character may take one at once, buried
+// or not.
+//
+// There is no "filled" column. A party is live while `endedAt` is null AND one
+// of its fates still has room, and room is counted off the Character rows that
+// carry this party's id -- the one source of truth, and the reason an abandoned
+// wizard hold hands its chair back on its own.
+model LateParty {
+  id        String    @id @default(cuid())
+  startedAt DateTime  @default(now())
+  startedBy String
+  endedAt   DateTime?
+  endedBy   String?
+
+  fates      LatePartyFate[]
+  characters Character[]
+
+  @@index([endedAt])
+}
+
+// One fate a late party opens. Keyed by slug with no Role relation, for the
+// reason LateJoinRole gives. `slots` null is UNLIMITED: a party holding one
+// never fills, and runs until a superadmin ends it.
+model LatePartyFate {
+  partyId  String
+  roleSlug String
+  slots    Int?
+
+  party LateParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@id([partyId, roleSlug])
 }
 
 // One note somebody wrote in the Feedback composer (the top bar's button, and

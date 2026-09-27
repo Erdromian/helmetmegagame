@@ -172,6 +172,10 @@ export default function CreateCharacterWizard({
   // page.js). The buckets are hidden outright rather than greyed: every one of
   // them is a seat the curse actually refuses.
   cursedToSpecial = false,
+  // A late party is live (db/lib/lateParty.js): `specialGroup` holds its
+  // fates, and page.js has already emptied `groups` -- the party locks every
+  // other fate. Only the line under the heading is drawn from this.
+  lateParty = false,
 }) {
 
   // An assigned seat skips the Role step, so Tags is where it starts and where
@@ -555,6 +559,12 @@ export default function CreateCharacterWizard({
                 <p className="text-sm text-muted">
                   Your body is still in the ground, so Ravenheart is closed to you. These seats
                   are not Ravenheart&apos;s.
+                </p>
+              )}
+              {lateParty && (
+                <p className="text-sm text-muted">
+                  A late party is mustering. These are the only fates open right now, and anyone
+                  may take one, buried or not.
                 </p>
               )}
               <div className="grid gap-2 sm:grid-cols-2">

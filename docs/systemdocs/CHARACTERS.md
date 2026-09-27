@@ -858,6 +858,13 @@ Migrant, since those are the only two that reopen (§"Who occupies a seat"),
 but a role nobody ever took is fair game. That, rather than the +4 points it
 also carries, is what the tag buys.
 
+**A late party lifts it for everybody while it runs**
+([`LATE-PARTIES.md`](LATE-PARTIES.md)). A superadmin opens one, creation
+offers only its fates, and any player without a living character may take one
+at once, buried or not — a GM-forced curse included. The rule in `curse.js`
+does not change; the creation gates skip it for a party fate, as they do for a
+late join.
+
 **Players lift it themselves, by burying the body — or, failing that, by
 carving a stone.** Two requests do it (`REQUESTS.md` §5d,
 [`CORPSES.md`](CORPSES.md)). `BURY_CHARACTER` needs the dead character's actual

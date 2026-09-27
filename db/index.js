@@ -1618,6 +1618,7 @@ module.exports = {
   ...require("./lib/threats"),
   ...require("./lib/fateCapacity"),
   ...require("./lib/lateJoin"),
+  ...require("./lib/lateParty"),
   ...require("./lib/gameState"),
   ...require("./lib/gameConfigFields"),
   ...require("./lib/depot"),
