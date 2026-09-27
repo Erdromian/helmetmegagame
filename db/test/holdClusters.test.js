@@ -1,4 +1,4 @@
-// The Other lens's clustering (ATTACK.md §7): a GM reads this to find out who
+// The Other lens's clustering (ADJUDICATION.md, the Other lens): a GM reads this to find out who
 // cannot leave. Too WIDE and unrelated scraps merge into one row; too NARROW
 // and a group ambush is back to being twelve unrelated-looking rows. The id
 // comes off the OLDEST edge on purpose — one derived from the member set

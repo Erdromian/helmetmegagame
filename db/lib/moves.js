@@ -8,7 +8,6 @@ const { movesOpen } = require("./turnGate");
 const { blockerFor, gambitBlockerFor, ACT } = require("./incapacitation");
 const { touchCharacterActivity } = require("./characterActivity");
 const { deleteActionRestoringTurn, lockIsLive, syncQuestIntention } = require("./moveEconomy");
-const { attacksBy } = require("./attack");
 
 // What the modal and the Move dialog may submit. There is one: a Move IS a Gambit. The column's other
 // value, ROUTINE, is written by every button that spends a Move (Mine, Refine, Farm) and by a GM
@@ -191,21 +190,9 @@ async function withdrawMove(prisma, { character, actorDiscordUserId, actionId })
   if (!loaded.ok) return loaded;
   const { action, openTurn } = loaded;
 
-  // Attack is free and pins BOTH sides for the day, and its gate (db/lib/combatGate.js) lets
-  // you press it only because a Gambit is still an unspent turn — "you should only Attack if
-  // you plan to use your Gambit to actually declare your combat". That gate is checked once,
-  // when the fight is declared. Withdrawing the Gambit afterwards would walk straight out
-  // from under it: file a Gambit, pin somebody all day, take it back, press Mine, and
-  // collect a paid day's work on top of a held opponent.
-  // Break off is never gated (ATTACK.md §5a), so this refusal always has a way out.
-  const fights = await attacksBy(prisma, character.id, openTurn.id);
-  if (fights.length > 0) {
-    const names = fights.map((f) => f.name).join(", ");
-    return {
-      ok: false,
-      error: `You're still fighting ${names}. Break off first, then you can take this back.`,
-    };
-  }
+  // No fight check here any more. A fight never cost the Move (docs/systemdocs/ATTACK.md §1): what
+  // somebody does in one is their attack description, not their Gambit, so taking a Gambit back walks
+  // out from under nothing.
 
   let dms = [];
   await prisma.$transaction(async (tx) => {

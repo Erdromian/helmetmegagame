@@ -5,6 +5,7 @@ const { blocksOnFoot, equippedSlugs } = require("./mounts");
 const { heldReasonFor } = require("./intercept");
 const { cavingRestrictionsFor } = require("./cavingPass");
 const { crossingCost } = require("./crossingCost");
+const { travelLockReason } = require("./turnGate");
 
 // The two endpoints of a link, oriented so `near` is the side you're standing on. Callers only ever want `far`.
 function endpoints(link, locationId) {
@@ -166,7 +167,9 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
   const now = new Date();
 
   // Somebody has hold of them (docs/systemdocs/INTERCEPT.md). Pure — one comparison against Character.heldUntil, no query — so every picker draws the refusal the mover is about to give, instead of the server refusing after a click.
-  const heldReason = heldReasonFor(character, now);
+  // …and so is everybody once Moves lock (turnGate.js#travelLockReason), the same way: every way drawn
+  // shut, with the sentence the mover is about to refuse with.
+  const heldReason = heldReasonFor(character, now) ?? (await travelLockReason(prisma, { now }));
 
   const rows = links
     .map((link) => {
@@ -338,6 +341,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
   const zoneId = character?.zoneId ?? null;
   if (!from || !zoneId) return [];
   if (heldReasonFor(character)) return [];
+  if (await travelLockReason(prisma)) return [];
 
   const knownIds = known instanceof Set ? known : new Set(known ?? []);
 
@@ -515,9 +519,75 @@ async function pathWithinZone(prisma, character, targetLocationId, { known } = {
 // How long a propped door stays propped. Real hours, not turns: a physical door somebody wedged, and the point is that people can follow within the day.
 const KEYED_OPEN_MS = 24 * 60 * 60 * 1000;
 
+// How far every traveller is from `originLocationId`, in Locations, counting only the ways EACH of them
+// could walk (docs/systemdocs/ATTACK.md, Combat Overhaul.docx — "accounting for locked connections some
+// characters have access through"). The gated twin of soundRange, and pure over loadGraph()'s result:
+// every edge goes through crossingCheck exactly as the mover would judge it, so a locked door, a hidden
+// way, a shut gate and a squeeze a Giant cannot fit through all cost what they cost on foot.
+//
+// `travellers` is [{ id, locationId, accessSlugs }], accessSlugs a Set from rings.js#accessSlugsOf (held
+// slugs plus the worn ring's doors). Returns Map(id -> { hops, fromLocationId }), hops capped at
+// `maxHops` — which means "that far or further, or no way at all".
+//
+// One BFS per ACCESS SIGNATURE, not per traveller: the only slugs that can change an edge's verdict are
+// the ones some edge requires, plus `giant`, so everybody holding the same subset of those walks the same
+// map. With a hundred characters that is a handful of searches. The edge rules are symmetric (a link is one
+// undirected row), so searching outward from the fight is the same as each traveller searching toward it.
+function distancesFrom(graph, originLocationId, travellers, { maxHops = 4, now = new Date() } = {}) {
+  const out = new Map();
+  const list = Array.isArray(travellers) ? travellers : [];
+  if (!graph || !originLocationId) {
+    for (const t of list) out.set(t.id, { hops: maxHops, fromLocationId: t.locationId ?? null });
+    return out;
+  }
+
+  const adjacency = new Map();
+  const edge = (from, to, link) => {
+    if (!adjacency.has(from)) adjacency.set(from, []);
+    adjacency.get(from).push({ to, link });
+  };
+  const deciding = new Set([GIANT_TAG_SLUG]);
+  for (const link of graph.links ?? []) {
+    edge(link.aId, link.bId, link);
+    edge(link.bId, link.aId, link);
+    if (link.requiredTagSlug) deciding.add(link.requiredTagSlug);
+  }
+
+  const bfs = (slugs) => {
+    const dist = new Map([[originLocationId, 0]]);
+    let frontier = [originLocationId];
+    for (let hops = 1; hops < maxHops && frontier.length > 0; hops += 1) {
+      const next = [];
+      for (const at of frontier) {
+        for (const { to, link } of adjacency.get(at) ?? []) {
+          if (dist.has(to)) continue;
+          if (!crossingCheck(link, { tagSlugs: slugs, now }).passable) continue;
+          dist.set(to, hops);
+          next.push(to);
+        }
+      }
+      frontier = next;
+    }
+    return dist;
+  };
+
+  const bySignature = new Map();
+  for (const t of list) {
+    const held = t.accessSlugs instanceof Set ? t.accessSlugs : new Set(t.accessSlugs ?? []);
+    const subset = [...deciding].filter((slug) => held.has(slug)).sort();
+    const key = subset.join("|");
+    if (!bySignature.has(key)) bySignature.set(key, bfs(new Set(subset)));
+    const hops = t.locationId ? bySignature.get(key).get(t.locationId) : undefined;
+    out.set(t.id, { hops: hops == null ? maxHops : Math.min(hops, maxHops), fromLocationId: t.locationId ?? null });
+  }
+  return out;
+}
+
 module.exports = {
   LINK_INCLUDE,
   KEYED_OPEN_MS,
+  distancesFrom,
+  GIANT_TAG_SLUG,
   WALK_HOPS,
   NO_WALK,
   ALREADY_THERE,

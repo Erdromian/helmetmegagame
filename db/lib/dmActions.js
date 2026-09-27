@@ -30,6 +30,14 @@ const DM_ACTION = Object.freeze({
   // and not an Accept (THANATI.md §4a). Its id is a RiteAttempt, not an Offer —
   // the Offer only exists once somebody has picked.
   RITE_TARGET: "RITE_TARGET",
+  // A collaborator asked to join a fight (docs/systemdocs/ATTACK.md). An ordinary Join / Decline pair,
+  // except that the id is a CombatParticipant, never a character — the whole button family does that, so
+  // a custom_id cannot unmask a hooded opponent.
+  COMBAT_INVITE: "COMBAT_INVITE",
+  // Somebody's own fight: "Write your attack" and, on the attacking side, "Call off". Draws NO generic
+  // row, the BIRD_REPLY shape — writing is a dialog, not an Accept, and which of the two buttons shows
+  // depends on the person — so DmThread.js draws its own. The id is their CombatParticipant.
+  COMBAT: "COMBAT",
 });
 
 // Every family reads as one of these even where Discord labels differ (escort "Cancel", keyed way "No").
@@ -55,6 +63,7 @@ const DM_ACTION_LABELS = Object.freeze({
   // One button, and it is the accept — the LOBBY_SEAT shape, the other way up.
   [DM_ACTION.INTERCEPT_HOLD]: { accept: "Release", decline: null },
   [DM_ACTION.ATTACK_HOLD]: { accept: "Cancel attack", decline: null },
+  [DM_ACTION.COMBAT_INVITE]: { accept: "Join", decline: "Decline" },
   // No entry for BIRD_REPLY or RITE_TARGET, and that is deliberate — see the
   // kinds above. Both are pickers, and a picker has no pair to draw.
 });

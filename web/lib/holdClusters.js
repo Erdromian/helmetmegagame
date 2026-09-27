@@ -1,5 +1,6 @@
 // The Other lens's fight half (IMPORT-FREE, pure). Everything that pins somebody in place this turn: a
 // fight (ATTACK.md), a Safe intercept that fired (INTERCEPT.md), a thief the room caught (THEFT.md §1e). An Ambush shows up here as an Attack.
+// LEGACY since the Combat Overhaul: only pre-overhaul Attack rows reach this (docs/systemdocs/ATTACK.md §12).
 // A row is ONE FIGHT, not one pairing — twelve Attack rows from one brawl cluster into one row.
 export const ATTACK_INCLUDE = {
   attacker: { select: { id: true, name: true, discordUserId: true, updatedAt: true, roleTitle: true, zone: { select: { name: true } } } },

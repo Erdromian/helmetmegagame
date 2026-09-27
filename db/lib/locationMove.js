@@ -27,6 +27,7 @@ const { stopPerformances } = require("./performance");
 const { cancelWatchOnMove, releaseHeldBy, INTERCEPT_CANCELLED_DM } = require("./intercept");
 const { cancelSearchOffersOnMove } = require("./search");
 const { closeFightsFor } = require("./attack");
+const { leaveCombatsFor, sendCombatDms } = require("./combat");
 const { reconcileCorpses } = require("./corpseFollow");
 const { LOCATION_MEMBER_ALLOW, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY } = require("./zoneChannelSpec");
 const { lightVantage, pruneVantages, vantagesFor } = require("./vantages");
@@ -256,7 +257,11 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     await releaseHeldBy(prisma, characterId).catch((err) =>
       console.error(`Move: releasing holds failed for ${characterId}:`, err.message ?? err),
     );
-    // The same clear for a FIGHT (docs/systemdocs/ATTACK.md). releaseHeldBy deliberately won't touch one — both sides are held, and only the row knows whether either is still in another — so the row is what gets ended here, unpicking both holds on its way out.
+    // The same clear for a FIGHT (docs/systemdocs/ATTACK.md §7). releaseHeldBy deliberately won't touch one — everybody in it is held, and only the participant rows know who is still fighting — so they are what gets ended here: this person is out of it, and if their side is left with nobody the fight is over and the rest go free.
+    await leaveCombatsFor(prisma, characterId, "moved")
+      .then((out) => sendCombatDms(prisma, out.dms))
+      .catch((err) => console.error(`Move: leaving the fight failed for ${characterId}:`, err.message ?? err));
+    // An old one-on-one Attack still live from the turn the overhaul deployed (db/lib/attack.js, legacy).
     await closeFightsFor(prisma, characterId).catch((err) =>
       console.error(`Move: closing fights failed for ${characterId}:`, err.message ?? err),
     );

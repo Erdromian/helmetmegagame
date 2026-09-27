@@ -13,9 +13,11 @@ const {
   TOO_EXHAUSTED,
   NEEDS_COMBAT_MODE_ATTACK,
   NEEDS_COMBAT_MODE_INTERCEPT,
+  ALREADY_FIGHTING,
+  ALERT_TOO_LATE,
 } = require("../lib/combatMode");
 const { setCombatMode } = require("../lib/verbs/combatMode");
-const { attackBlock, interceptBlock } = require("../lib/combatGate");
+const { combatBlock, interceptBlock } = require("../lib/combatGate");
 
 const turn = (number) => ({
   id: `turn-${number}`,
@@ -27,7 +29,7 @@ const turn = (number) => ({
 });
 
 // One character, one open turn, and the handful of calls the verb and the gates make.
-function fakeDb({ since = null, slugs = [], openTurn = turn(5), action = null, phase = "RUNNING" } = {}) {
+function fakeDb({ since = null, slugs = [], openTurn = turn(5), action = null, phase = "RUNNING", fight = null } = {}) {
   const row = { id: "ada", combatModeSinceTurn: since };
   const audits = [];
   const db = {
@@ -37,6 +39,7 @@ function fakeDb({ since = null, slugs = [], openTurn = turn(5), action = null, p
     gameConfig: { findUnique: async () => ({ gameMode: "PERSISTENT", autoTurnAdvanceDisabled: false }) },
     gameState: { findUnique: async () => ({ phase, sessionOpenedAt: null }) },
     action: { findFirst: async () => action },
+    combatParticipant: { findFirst: async () => fight },
     auditLog: { create: async ({ data }) => audits.push(data) },
     character: {
       findUnique: async () => ({
@@ -139,18 +142,29 @@ test("pressing the state it is already in changes nothing and audits nothing", a
   assert.equal(db.audits.length, 0);
 });
 
-test("Attack needs combat mode, and a spent Move is named first", async () => {
-  assert.equal(await attackBlock(fakeDb(), "ada", "turn-5"), NEEDS_COMBAT_MODE_ATTACK);
-  assert.equal(await attackBlock(fakeDb({ since: 5 }), "ada", "turn-5"), null);
-  // Out of combat mode AND a Routine filed: the Move is the one to hear about, since turning combat
-  // mode on would not help and could not be undone.
-  const spent = await attackBlock(fakeDb({ action: { moveKind: "ROUTINE" } }), "ada", "turn-5");
-  assert.match(spent, /already used your Move/);
-  // A Gambit is still the exception, and then combat mode is what refuses.
-  assert.equal(await attackBlock(fakeDb({ action: { moveKind: "GAMBIT" } }), "ada", "turn-5"), NEEDS_COMBAT_MODE_ATTACK);
+test("Attack needs combat mode, and no longer cares about the Move", async () => {
+  const ada = (since) => ({ id: "ada", combatModeSinceTurn: since, locationId: null });
+  assert.equal(await combatBlock(fakeDb(), { character: ada(null), turn: turn(5) }), NEEDS_COMBAT_MODE_ATTACK);
+  assert.equal(await combatBlock(fakeDb(), { character: ada(5), turn: turn(5) }), null);
+  // A Routine already filed spends nothing a fight needs (Bascinet, 2026-09-27).
+  const filed = fakeDb({ action: { moveKind: "ROUTINE" } });
+  assert.equal(await combatBlock(filed, { character: ada(5), turn: turn(5) }), null);
+  // One fight at a time.
+  const busy = fakeDb({ fight: { id: "p1" } });
+  assert.equal(await combatBlock(busy, { character: ada(5), turn: turn(5) }), ALREADY_FIGHTING);
 });
 
-test("Intercept needs combat mode", async () => {
-  assert.equal(await interceptBlock(fakeDb(), "ada"), NEEDS_COMBAT_MODE_INTERCEPT);
-  assert.equal(await interceptBlock(fakeDb({ since: 2 }), "ada"), null);
+test("Only an Ambush needs combat mode to lie in wait", async () => {
+  assert.equal(await interceptBlock(fakeDb(), "ada", { mode: "SAFE" }), null);
+  assert.equal(await interceptBlock(fakeDb(), "ada", { mode: "AMBUSH" }), NEEDS_COMBAT_MODE_INTERCEPT);
+  assert.equal(await interceptBlock(fakeDb({ since: 2 }), "ada", { mode: "AMBUSH" }), null);
+});
+
+test("turning it on mid-fight says it is too late for that fight", async () => {
+  const db = fakeDb({ fight: { id: "p1" } });
+  const res = await setCombatMode(db, { character: { id: "ada" }, on: true });
+  assert.equal(res.ok, true);
+  assert.ok(res.line.includes(ALERT_TOO_LATE));
+  const calm = await setCombatMode(fakeDb(), { character: { id: "ada" }, on: true });
+  assert.equal(calm.line, "You feel alert.");
 });

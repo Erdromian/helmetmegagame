@@ -54,6 +54,7 @@ import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 // Required by path, not off the @lifeweb/db barrel: db/lib/attack.js is
 // deliberately not on it (the db/lib/dm.js convention).
 import { cancelAttack } from "@lifeweb/db/lib/attack";
+import { endCombatAsGm } from "@lifeweb/db/lib/combat";
 
 // EVERY MUTATION HERE HANDS BACK THE ROWS IT CHANGED, as `patch` — the shape
 // web/lib/deskRows.js#deskPatchFor builds and the client's desk store folds in
@@ -111,7 +112,16 @@ async function normalizeRecipients(recipientCharacterIds) {
   return ids;
 }
 
-async function createStagedMessageImpl({ kind, content, recipientCharacterIds, moveId, cavingRollId, zoneId }) {
+// A staged row may hang off a fight (docs/systemdocs/ATTACK.md §8). The id is the GM client's, so it is
+// checked like any other posted id rather than left to the foreign key to reject.
+async function requireCombatAnchor(combatId) {
+  if (!combatId) return;
+  const found = await prisma.combat.findUnique({ where: { id: String(combatId) }, select: { id: true } });
+  if (!found) throw new UserError("That fight is gone.");
+}
+
+async function createStagedMessageImpl({ kind, content, recipientCharacterIds, moveId, cavingRollId, combatId, zoneId }) {
+  await requireCombatAnchor(combatId);
   const session = await requireGm();
   if (!["PRIVATE", "PUBLIC"].includes(kind)) throw new UserError("Unknown message kind.");
   const text = normalizeMessageContent(content);
@@ -125,6 +135,7 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
       turnId: openTurn.id,
       moveId: moveId || null,
       cavingRollId: cavingRollId || null,
+      combatId: combatId || null,
       kind,
       content: text,
       zoneId: (kind === "PUBLIC" && zoneId) || null,
@@ -143,6 +154,7 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
         kind,
         moveId: moveId || null,
         cavingRollId: cavingRollId || null,
+        combatId: combatId || null,
         recipients: recipients.length,
       },
     },
@@ -464,7 +476,8 @@ function normalizeStagedRoomOps(tagOps) {
   });
 }
 
-async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, resources, tagPoints, tagOps, locationId }) {
+async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, combatId, resources, tagPoints, tagOps, locationId }) {
+  await requireCombatAnchor(combatId);
   const session = await requireGm();
   const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
   if (!targets.length) throw new UserError("Pick at least one target.");
@@ -507,6 +520,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
           turnId: openTurn.id,
           moveId: moveId || null,
           cavingRollId: cavingRollId || null,
+          combatId: combatId || null,
           targetCharacterId,
           createdByDiscordUserId: session.discordUserId,
           batchId,
@@ -551,7 +565,8 @@ function normalizeStagedDeathReason(raw) {
 // resources/tagPoints/tagOps/locationId key ever rides alongside `death` —
 // the character has no further sheet to write to, and the push
 // short-circuits on it before considering any other key.
-async function createStagedDeathsImpl({ targetCharacterIds, moveId, cavingRollId, reason, gib }) {
+async function createStagedDeathsImpl({ targetCharacterIds, moveId, cavingRollId, combatId, reason, gib }) {
+  await requireCombatAnchor(combatId);
   const session = await requireGm();
   const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
   if (!targets.length) throw new UserError("Pick at least one character.");
@@ -573,6 +588,7 @@ async function createStagedDeathsImpl({ targetCharacterIds, moveId, cavingRollId
           turnId: openTurn.id,
           moveId: moveId || null,
           cavingRollId: cavingRollId || null,
+          combatId: combatId || null,
           targetCharacterId,
           createdByDiscordUserId: session.discordUserId,
           batchId,
@@ -608,7 +624,9 @@ async function createStagedTransferImpl({
   amount: rawAmount,
   moveId,
   cavingRollId,
+  combatId,
 }) {
+  await requireCombatAnchor(combatId);
   const session = await requireGm();
   const amount = Number.parseInt(rawAmount, 10);
   if (!Number.isInteger(amount) || amount < 1) throw new UserError("Amount must be a positive whole number.");
@@ -638,6 +656,7 @@ async function createStagedTransferImpl({
       turnId: openTurn.id,
       moveId: moveId || null,
       cavingRollId: cavingRollId || null,
+      combatId: combatId || null,
       targetCharacterId,
       createdByDiscordUserId: session.discordUserId,
       payload,
@@ -689,7 +708,8 @@ async function requireStagedRoom(roomId, session, { writingIn = false } = {}) {
 // character existence check — and a room row is one room, like a transfer.
 // It carries NO character keys and leaves targetCharacterId null, so it falls
 // straight through every branch of the push before its own.
-async function createStagedRoomEffectImpl({ roomId, moveId, cavingRollId, roomResources, tagOps }) {
+async function createStagedRoomEffectImpl({ roomId, moveId, cavingRollId, combatId, roomResources, tagOps }) {
+  await requireCombatAnchor(combatId);
   const session = await requireGm();
 
   const delta = normalizeStagedResources(roomResources);
@@ -726,6 +746,7 @@ async function createStagedRoomEffectImpl({ roomId, moveId, cavingRollId, roomRe
       turnId: openTurn.id,
       moveId: moveId || null,
       cavingRollId: cavingRollId || null,
+      combatId: combatId || null,
       targetCharacterId: null,
       createdByDiscordUserId: session.discordUserId,
       payload,
@@ -1235,6 +1256,86 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "
     return { status: members.every((m) => m.resolvedAt) ? "RESOLVED" : "OPEN", note: "Saved.", patch };
   }
   return { status: "RESOLVED", patch };
+}
+
+// ─── The Combat lens (docs/systemdocs/ATTACK.md §8) ─────────────────────────
+
+// Save or Solve a fight's canon result — the Move desk's bookkeeping, for a fight. Nothing here reaches a
+// player: "Stage as message" is how they hear it, and the push delivers that. Unsolve takes the stamp back.
+async function resolveCombatImpl({ combatId, resultMessage: raw, mode = "save" }) {
+  const session = await requireGm();
+  if (!["save", "solve", "unsolve"].includes(mode)) throw new UserError("Unknown mode.");
+  const combat = await prisma.combat.findUnique({ where: { id: combatId ?? "" }, select: { id: true, resolvedAt: true } });
+  if (!combat) throw new UserError("That fight is gone.");
+  const resultMessage = raw?.toString().trim() || null;
+  await prisma.combat.update({
+    where: { id: combat.id },
+    data: {
+      resultMessage,
+      ...(mode === "solve" && !combat.resolvedAt ? { resolvedAt: new Date(), resolvedByDiscordUserId: session.discordUserId } : {}),
+      ...(mode === "unsolve" ? { resolvedAt: null, resolvedByDiscordUserId: null } : {}),
+    },
+  });
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: mode === "save" ? "combat_saved" : mode === "solve" ? "combat_solved" : "combat_unsolved",
+      details: { combatId: combat.id },
+    },
+  });
+  return { patch: await deskPatchFor({ combatIds: [combat.id] }) };
+}
+
+// Everybody's snapshot, read against the LIVE catalog (the getCavingSnapshotImpl rule): the kit and the
+// wounds as they were when each came into the fight, today's rules on what they add up to.
+async function getCombatSnapshotsImpl({ combatId }) {
+  await requireGm();
+  const rows = await prisma.combatParticipant.findMany({
+    where: { combatId: combatId ?? "" },
+    select: { id: true, snapshot: true, snapshotAt: true, alert: true },
+  });
+  const states = rows.map((r) => ({ row: r, state: readPresentedState(r.snapshot) }));
+  const tagIds = [...new Set(states.flatMap(({ state }) => (state?.tags ?? []).map((t) => t.tagId)))];
+  const catalog = tagIds.length
+    ? await prisma.tag.findMany({ where: { id: { in: tagIds } }, select: { id: true, ...chipSelect({ equippable: true, stackable: true }) } })
+    : [];
+  const byId = new Map(catalog.map((tag) => [tag.id, tag]));
+  const snapshots = {};
+  for (const { row, state } of states) {
+    if (!state) continue;
+    snapshots[row.id] = {
+      combatMode: row.alert,
+      mood: Number(row.snapshot?.mood ?? 0),
+      atLabel: row.snapshotAt.toISOString().slice(0, 16).replace("T", " "),
+      tags: state.tags
+        .map((t) => {
+          const tag = byId.get(t.tagId);
+          if (!tag) return null;
+          return { tagId: t.tagId, equipped: t.equipped, expiresTurn: t.expiresTurn, quantity: 1, tag: composeChipTag(tag, GM_CHIP_CTX) };
+        })
+        .filter(Boolean),
+    };
+  }
+  return { snapshots };
+}
+
+// End a live fight from the desk: everybody goes free at once, no thirty minutes (Bascinet, 2026-09-27),
+// and everybody is told. Replaces the Other lens's per-pairing ✕.
+async function endCombatAsGmImpl({ combatId }) {
+  const session = await requireGm();
+  const turn = await requireOpenTurn();
+  const out = await endCombatAsGm(prisma, { combatId: String(combatId ?? ""), turn });
+  if (!out.ok) throw new UserError(out.error);
+  await prisma.auditLog.create({
+    data: { actorDiscordUserId: session.discordUserId, actionType: "gm_combat_ended", turnId: turn.id, details: { combatId } },
+  });
+  after(async () => {
+    for (const dm of out.dms) {
+      await sendDm(dm.discordUserId, dm.content, { kind: dm.kind, allowedMentions: { parse: [] } }).catch(() => {});
+    }
+  });
+  revalidatePath("/character");
+  return { patch: await deskPatchFor({ combatIds: [String(combatId)] }) };
 }
 
 // The caver as they stood at their newest 1 (CAVING.md §5, Combat Mode.docx: "the snapshot a GM
@@ -2003,7 +2104,8 @@ async function getCharacterAuditSliceImpl({ characterId, query }) {
   };
 }
 
-// CALLING A FIGHT OFF FROM THE DESK (docs/systemdocs/ATTACK.md §7).
+// CALLING A LEGACY FIGHT OFF FROM THE DESK (docs/systemdocs/ATTACK.md §12). A pre-overhaul Attack
+// row only — a fight now ends from the Combat lens (endCombatAsGmImpl above).
 //
 // Only the attacker can break off, which leaves a GM reading the Other lens
 // with nothing to press when a fight needs ending. This is that button, and
@@ -2030,12 +2132,12 @@ async function cancelHoldAsGmImpl({ attackId }) {
   if (!attack) throw new UserError("That fight is gone.");
   if (attack.cancelledAt) throw new UserError("That fight is already off.");
   // A fight on a turn the push already swept is nobody's to end: the turn
-  // advance freed both of them for free (ATTACK.md §1).
+  // advance freed both of them for free.
   if (attack.turnId !== openTurn.id) throw new UserError("That fight was on an earlier turn.");
 
   // Never stamp cancelledAt by hand. cancelAttack also settles BOTH sides,
   // which RE-POINTS heldById rather than blindly clearing it — a blind clear
-  // frees somebody out of a fight that is still going (ATTACK.md §2).
+  // frees somebody out of a fight that is still going.
   const done = await cancelAttack(prisma, {
     attackerId: attack.attacker.id,
     targetCharacterId: attack.targetCharacter.id,
@@ -2080,6 +2182,15 @@ export async function resolveCavingRoll(input) {
   return guarded(() => resolveCavingRollImpl(input));
 }
 
+export async function resolveCombat(input) {
+  return guarded(() => resolveCombatImpl(input));
+}
+export async function getCombatSnapshots(input) {
+  return guarded(() => getCombatSnapshotsImpl(input));
+}
+export async function endCombatAsGmAction(input) {
+  return guarded(() => endCombatAsGmImpl(input));
+}
 export async function getCavingSnapshot(input) {
   return guarded(() => getCavingSnapshotImpl(input));
 }

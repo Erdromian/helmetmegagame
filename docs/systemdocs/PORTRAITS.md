@@ -105,7 +105,7 @@ top of `web/scripts/generate-letters.js`.
 
 The queue lives on `/gm/turns`, as a fourth kind on the **Other** lens —
 the lens named for its shape rather than its contents, "where the next thing
-that is neither a Move nor a die goes" (`ATTACK.md` §7). The row shows the
+that is neither a Move nor a die goes" (`ATTACK.md` §8). The row shows the
 picture at 40px, the character's name, and two buttons.
 
 **Uploads only.** The portrait maker cannot produce anything to review: the

@@ -150,7 +150,7 @@ Four things follow from reusing the hold rather than inventing one:
 The goods have already moved by the time the hold is written, so a failed
 write is logged rather than thrown — the room still hears the line.
 
-**GMs see it on the Other lens** of `/gm/turns` (`ATTACK.md` §7), as a
+**GMs see it on the Other lens** of `/gm/turns` (`ATTACK.md` §8), as a
 *Caught stealing* row read off the `steal` audit row. That row carries
 `held`, whether the hold actually landed, beside `unseen`.
 

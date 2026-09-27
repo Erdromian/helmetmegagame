@@ -486,11 +486,9 @@ helmet. The same rule covers the private-room door (`roomGuests.js`'s
 `byToken`, since the bot's `/add` names a character off their role), `/look`
 (a plain id whose last line was hooded answers like no line at all),
 Pickpocket, Enthral/Nourish, a Converse invite, and a payer or Transfer party.
-Your own id always resolves; a GM works the door by id. **Break off** is the one
-verb that does not ask the room, since you may call off a fight with somebody
-who has walked away: `attack.js#resolveAttackKey` resolves the key inside your
-own fight list, the list that minted it, so a hood's token works wherever they
-have gone and a plain id works only for somebody that list names openly.
+Your own id always resolves; a GM works the door by id. A fight's own buttons
+(Join, Write, Call off) take no key at all: each names the clicker's own
+participant row (`ATTACK.md` §11), so nothing about an opponent is posted.
 
 For that to hold, **a refusal for somebody absent must read exactly like one
 for nobody**, so every "not here" sentence names nobody now:

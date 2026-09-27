@@ -8,6 +8,7 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 import { createStagedDeaths, updateStagedDeath } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import useEscapeLayer from "./escapeLayers";
+import QuickPicks from "./QuickPicks";
 
 // Stage an INSTANTANEOUS death: fires at the push, through the same
 // db/lib/characterDeath.js#applyDeathToRow every other death path in the
@@ -29,6 +30,8 @@ const SEARCH_LIMIT = 12;
 export default function DeathComposer({
   moveId = null,
   cavingRollId = null,
+  combatId = null,
+  quickPicks = null,
   existing = null,
   defaultTarget = null,
   roster,
@@ -81,6 +84,7 @@ export default function DeathComposer({
               targetCharacterIds: targets.map((t) => t.id),
               moveId,
               cavingRollId,
+              combatId,
               reason,
               gib,
             });
@@ -122,6 +126,16 @@ export default function DeathComposer({
             ))}
             {!targets.length && <span className="text-sm text-muted">nobody yet</span>}
           </div>
+          {!existing && (
+            <QuickPicks
+              picks={quickPicks}
+              chosen={new Set(targets.map((t) => t.id))}
+              onAdd={(list) => {
+                setTargets((prev) => [...prev, ...list.map((p) => ({ id: p.id, name: p.name }))]);
+                markDirty();
+              }}
+            />
+          )}
           {!existing && (
             <label className="field">
               <span className="field-label">Add a target</span>

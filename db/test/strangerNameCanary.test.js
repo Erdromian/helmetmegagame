@@ -184,14 +184,64 @@ test("a lesson a GM calls off names the teacher as the learner knows them", asyn
   ]);
 });
 
-test("the reader's fight list names him by what he looks like", async () => {
-  const { attacksBy } = require("../lib/attack");
+test("the reader's fight card names him by what he looks like", async () => {
+  const { combatViewFor } = require("../lib/combat");
   const db = fakeDb({
-    answers: { attack: { findMany: async () => [{ id: "a1", targetCharacter: zzyzx() }] } },
+    answers: {
+      combatParticipant: {
+        findFirst: async () => ({
+          id: "p1",
+          side: "ATTACKER",
+          role: "INITIATOR",
+          status: "JOINED",
+          alert: true,
+          description: null,
+          callOffAt: null,
+          combat: {
+            id: "c1",
+            locationName: "Square",
+            startedAt: new Date(0),
+            fromAmbush: false,
+            participants: [
+              { id: "p1", characterId: "R", side: "ATTACKER", role: "INITIATOR", status: "JOINED", character: reader() },
+              { id: "p2", characterId: "Z", side: "DEFENDER", role: "TARGET", status: "JOINED", character: zzyzx() },
+            ],
+          },
+        }),
+      },
+    },
   });
-  const fights = await attacksBy(db, "R", TURN.id);
-  assert.equal(fights[0].name, "a young man");
-  assertUnnamed(fights, "attacksBy");
+  const view = await combatViewFor(db, "R", TURN);
+  assert.equal(view.defenders[0].name, "a young man");
+  assertUnnamed(view, "combatViewFor");
+});
+
+test("a fight's opening DMs name him by what he looks like", async () => {
+  const { startCombat } = require("../lib/combat");
+  const db = fakeDb({
+    rows: { Z: zzyzx(), R: reader() },
+    answers: {
+      combat: { create: async ({ data }) => ({ id: "c1", ...data }) },
+      combatParticipant: {
+        createMany: async ({ data }) => ({ count: data.length }),
+        findMany: async ({ where }) =>
+          where?.combatId
+            ? [
+                { id: "p1", characterId: "R", side: "ATTACKER", role: "INITIATOR", status: "JOINED", alert: true },
+                { id: "p2", characterId: "Z", side: "DEFENDER", role: "TARGET", status: "JOINED", alert: false },
+              ]
+            : [],
+      },
+      location: { findUnique: async () => ({ id: HERE, name: "Square", zoneId: "zone-1" }), findMany: async () => [] },
+      locationLink: { findMany: async () => [] },
+    },
+  });
+  const out = await startCombat(db, { initiatorId: "R", targetIds: ["Z"], turn: TURN, locationId: HERE });
+  assert.equal(out.ok, true, out.error);
+  const mine = out.dms.filter((dm) => dm.discordUserId === "u-R");
+  assert.equal(mine.length, 1);
+  assert.match(mine[0].content, /You attack a young man\./);
+  assertUnnamed(mine, "startCombat");
 });
 
 // A Move description is stored on the Action row and shown to the vampire on

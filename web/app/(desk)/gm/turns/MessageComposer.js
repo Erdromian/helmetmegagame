@@ -8,6 +8,7 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 import { createStagedMessage, updateStagedMessage } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import useEscapeLayer from "./escapeLayers";
+import QuickPicks from "./QuickPicks";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { chunkMessage } from "@lifeweb/db/lib/chunkText";
 
@@ -21,6 +22,8 @@ const SEARCH_LIMIT = 12;
 export default function MessageComposer({
   moveId = null,
   cavingRollId = null,
+  combatId = null,
+  quickPicks = null,
   existing = null,
   defaultRecipients = [],
   initialContent = undefined,
@@ -78,7 +81,7 @@ export default function MessageComposer({
         const recipientCharacterIds = recipients.map((r) => r.characterId);
         const res = existing
           ? await updateStagedMessage({ stagedMessageId: existing.id, content, recipientCharacterIds })
-          : await createStagedMessage({ kind: "PRIVATE", content, recipientCharacterIds, moveId, cavingRollId });
+          : await createStagedMessage({ kind: "PRIVATE", content, recipientCharacterIds, moveId, cavingRollId, combatId });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         onDone(res.patch);
@@ -119,6 +122,16 @@ export default function MessageComposer({
             ))}
             {!recipients.length && <span className="text-sm text-muted">nobody yet</span>}
           </div>
+          {!existing && (
+            <QuickPicks
+              picks={quickPicks}
+              chosen={new Set(recipients.map((r) => r.characterId))}
+              onAdd={(list) => {
+                setRecipients((prev) => [...prev, ...list.map((p) => ({ characterId: p.id, name: p.name }))]);
+                markDirty();
+              }}
+            />
+          )}
           <label className="field">
             <span className="field-label">Add a recipient</span>
             <input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="name, role, zone…" />

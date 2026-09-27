@@ -22,6 +22,7 @@
 const crypto = require("node:crypto");
 const { concealedAlias, isConcealedAlias } = require("./concealedIdentity");
 const { sceneSpeakerKey } = require("./hoodToken");
+const { renderPeopleLine, peopleIds } = require("./peopleLine");
 
 // Bascinet's list, lower-cased to sit mid-sentence: "a young man, hunched".
 // "Infront" in the doc is "in front".
@@ -203,6 +204,18 @@ function readsRow(row, { characterId = null, gm = false } = {}) {
   return true;
 }
 
+// A line that names people per reader (./peopleLine.js), on the same kind of hidden symbol and for the
+// same reason: the template carries every real name in it, and must never reach a browser. The lens
+// renders it into `content` for each reader. From the global registry for the reason SPEAKER gives.
+const SUBJECTS = Symbol.for("bascinet.feed.subjects");
+
+function attachSubjects(shaped, subjects) {
+  if (shaped && subjects && typeof subjects === "object") {
+    Object.defineProperty(shaped, SUBJECTS, { value: subjects, enumerable: false });
+  }
+  return shaped;
+}
+
 // The row's own characterId is the fallback. A bare-faced row carries it anyway,
 // so a row that somehow lost its symbol is still judged rather than waved
 // through under a name the reader may not know. A hooded row has none, and
@@ -223,7 +236,9 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
   // every time, since a line may have just taught a name or a voice.
   async function prepare(rows) {
     if (gm || !characterId) return;
-    const ids = [...new Set((rows ?? []).map(speakerOf).filter((id) => id && id !== characterId))];
+    // The speakers, and everybody a line names (a fight's announcement): the lens asks about both.
+    const named = (rows ?? []).flatMap((row) => peopleIds(row?.[SUBJECTS]));
+    const ids = [...new Set([...(rows ?? []).map(speakerOf), ...named].filter((id) => id && id !== characterId))];
     if (ids.length === 0) return;
     const [anonymizing, known, voices, people] = await Promise.all([
       anonymizingStrangers(prisma),
@@ -266,6 +281,16 @@ function lensRow(row, lens) {
   if (!row) return row;
   const id = speakerOf(row);
   const out = { ...row };
+  // A line that names people is told in the names this reader knows them by. A GM and a reader with no
+  // character read every face by name — the rule the speaker half below follows for them too.
+  const subjects = row[SUBJECTS];
+  if (subjects) {
+    out.content = renderPeopleLine(subjects, {
+      viewerId: lens.characterId ?? null,
+      everyone: Boolean(lens.gm) || !lens.characterId,
+      knows: (subjectId) => Boolean(lens.facts?.get(subjectId)?.known),
+    });
+  }
   if (!id || lens.gm) return out;
   // Your own lines keep the key your page compares against (self.speakerKey).
   if (id === lens.characterId) return out;
@@ -344,6 +369,8 @@ module.exports = {
   speakerOf,
   AUDIENCE,
   attachAudience,
+  SUBJECTS,
+  attachSubjects,
   readsRow,
   createLens,
   lensRow,

@@ -593,9 +593,12 @@ it once they have.
 The two columns stay in the schema, unwritten, beside `missedMealStreak` and
 `mindlinkChannelId`.
 
-**Being HELD is the one thing that stops a move outright.** Somebody laid in
-wait where you walked in and stopped you — see
-[`INTERCEPT.md`](INTERCEPT.md). `performLocationMove` refuses with the hold's
+**Being HELD, or the turn being LOCKED, stops a move outright.** Somebody laid
+in wait where you walked in and stopped you, or you are in a fight — see
+[`INTERCEPT.md`](INTERCEPT.md) and [`ATTACK.md`](ATTACK.md). And once Moves lock
+nobody walks anywhere until the push (`turnGate.js#travelLockReason`, Combat
+Overhaul.docx), checked after the session gate and drawn on every way by
+`resolveNeighbors` and `routesWithinZone`; a first placement is not a walk. `performLocationMove` refuses with the hold's
 own sentence, beside its incapacitation gate, and `travelOptions` draws every
 way shut and says why. A held follower is left behind rather than carried out
 (§3a).
