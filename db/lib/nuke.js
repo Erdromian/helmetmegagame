@@ -20,6 +20,7 @@
 
 const { randomInt } = require("node:crypto");
 const { blockerFor, ACT } = require("./incapacitation");
+const { inFight } = require("./intercept");
 const { roomAccessKeys, accessibleRooms } = require("./roomAccess");
 const { hasAttribute } = require("./locationAttributes");
 const { logAudit } = require("./auditLog");
@@ -138,10 +139,22 @@ const STATE_SELECT = {
 // Alive, able to act, standing in the bomb's Location, and able to get into
 // its room — the gate stack db/lib/phone.js#phoneActor uses, re-run on every
 // press because a dialog and a Discord keypad both outlive somebody walking off.
+// And NOT IN A FIGHT (Bascinet, 2026-09-27): somebody who attacked or was
+// attacked this turn cannot touch the keypad — the same running-fight hold
+// Pickpocket reads (db/lib/intercept.js#inFight). Being on guard in combat mode
+// is not a fight, and does not stop anybody.
 async function keypadActor(prisma, discordUserId, roomId) {
   const character = await prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
-    select: { id: true, name: true, locationId: true, discordUserId: true, tags: { include: { tag: true } } },
+    select: {
+      id: true,
+      name: true,
+      locationId: true,
+      discordUserId: true,
+      heldUntil: true,
+      heldReason: true,
+      tags: { include: { tag: true } },
+    },
   });
   if (!character) return fail("You don't have a living character.");
 
@@ -157,6 +170,7 @@ async function keypadActor(prisma, discordUserId, roomId) {
 
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) return fail(`You can't act — you're ${blocker.name}.`);
+  if (inFight(character)) return fail(NUKE_TEXT.inFight, { inFight: true });
 
   const keys = await roomAccessKeys(prisma, character.id);
   if (accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) {
@@ -209,7 +223,13 @@ function wrongAnswer(actor, row) {
   const lockedOut = Boolean(row.lockedAt);
   const left = Math.max(0, NUKE_MAX_STRIKES - row.streak);
   const error = lockedOut ? `${NUKE_TEXT.wrong} ${NUKE_TEXT.lockedOut}` : `${NUKE_TEXT.wrong} ${NUKE_TEXT.triesLeft(left)}`;
-  return fail(error, { ...viewOf(actor, { lockedOut, triesLeft: lockedOut ? 0 : left }), ok: false, correct: false, sfx: SFX.REFUSE });
+  return fail(error, {
+    ...viewOf(actor, { lockedOut, triesLeft: lockedOut ? 0 : left }),
+    ok: false,
+    correct: false,
+    // The terminal's warble, not the ordinary refusal: the machine is answering.
+    sfx: SFX.CONSOLE_REFUSE,
+  });
 }
 
 /**
@@ -279,7 +299,7 @@ async function nukePress(prisma, discordUserId, roomId, digits, { turn = null } 
     {
       correct: true,
       line: outcome.arming ? NUKE_TEXT.armed(outcome.firesOn) : NUKE_TEXT.disarmed,
-      sfx: outcome.arming ? SFX.NUKE_ARM : SFX.OK_QUIET,
+      sfx: outcome.arming ? SFX.NUKE_ARM : SFX.NUKE_DISARM,
     },
   );
 }

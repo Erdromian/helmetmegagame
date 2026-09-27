@@ -167,3 +167,19 @@ test("a GM's Assign counts by the seat tag, since it leaves the role alone", () 
   assert.deepEqual(who("bum", ["ordinator-insignia"]), { note: true, paper: true });
   assert.deepEqual(who("bum", ["tribunal-helmet"]), { note: true, paper: false });
 });
+
+// --- what it sounds like -----------------------------------------------------
+
+test("every sound the keypad makes is a cue with a measured gain", () => {
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const { SFX } = require("../lib/sfx");
+  const src = fs.readFileSync(path.join(__dirname, "..", "..", "web", "app", "components", "sfx.js"), "utf8");
+  const table = (name) => new RegExp(`const ${name} = \\{([\\s\\S]*?)\\r?\\n\\};`).exec(src)[1];
+  const cues = table("CUES");
+  const gains = table("GAIN");
+  for (const cue of ["nuke-key", SFX.NUKE_PING, SFX.NUKE_ARM, SFX.NUKE_DISARM, SFX.CONSOLE_REFUSE]) {
+    assert.match(cues, new RegExp(`"${cue}":`), `${cue} has no file in CUES`);
+    assert.match(gains, new RegExp(`"${cue}":`), `${cue} has no measured GAIN`);
+  }
+});

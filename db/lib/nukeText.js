@@ -30,6 +30,7 @@ const NUKE_TEXT = {
   notDigits: `Enter all ${NUKE_CODE_DIGITS} digits.`,
   noBomb: "There's no bomb here.",
   notHere: "You aren't standing at the bomb.",
+  inFight: "You're in a fight.",
   gone: "It's already gone off.",
   noTurn: "No turn is open.",
   armed: (turn) => `Armed. It goes off at the close of turn ${turn}.`,

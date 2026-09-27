@@ -1689,6 +1689,9 @@ function NukeDialog({ entry, onClose, onDone }) {
   const press = (key) => {
     if (closed || pending) return;
     setError(null);
+    // A physical button under a finger, every press — played here rather than
+    // sent by the server, since nothing is asked of it until the eighth digit.
+    playSfx("nuke-key");
     if (key === "clear") {
       setDigits("");
       setGreen(false);

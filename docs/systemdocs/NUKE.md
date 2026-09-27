@@ -94,6 +94,30 @@ The gate on every read and press is `keypadActor`, the same stack as the
 phone's: alive, not incapacitated, standing in the bomb's Location, able to get
 into its room, and not locked out.
 
+**Not in a fight** (Bascinet, 2026-09-27): somebody who attacked or was attacked
+this turn gets "You're in a fight." instead of the keypad — the running fight
+hold Pickpocket already reads (`db/lib/intercept.js#inFight`, `ATTACK.md`).
+Only a fight counts. Being on guard in combat mode (`COMBAT-MODE.md`) does not
+stop anybody, and neither does a thief's caught hold. A refusal here is not a
+strike.
+
+### What it sounds like
+
+Every sound is one Bascinet's sound document already describes (`SOUND.md` §7):
+
+| Moment | Cue | File | The document's words |
+|---|---|---|---|
+| Each key | `nuke-key` | `keyhit_02`–`06`, one at random | "A button being pressed" |
+| The right sequence | `nuke-ping` | `beep5` | "A brief set of digital tones registering some interaction with a futuristic piece of technology" |
+| A wrong sequence | `console-refuse` | `console_error` | "A warbled error sound" |
+| Arm | `nuke-arm` | `countdown` | "A beeping quickly increasing in speed" |
+| Disarm | `nuke-disarm` | `nuke_activator` | "The sound of something mechanical unsealing" |
+
+The key press is played by the web dialog itself, since the server is not asked
+anything until the eighth digit. It sits outside `sfx.js`'s burst limit, or
+eight quick presses would crowd out the answer to the last one. Discord plays no
+sound. Gains are measured the way `sfx.js`'s `GAIN` header says.
+
 **On Discord** the Bomb button on the room's post opens the same keypad as an
 ephemeral message that redraws in place. The digits pressed so far ride in each
 button's custom id (`room:nuke:key:<roomId>:<digits>`), the phone keypad's
