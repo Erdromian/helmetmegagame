@@ -54,8 +54,10 @@ const RULES = {
   // Mirrors web/lib/tagRequests.js#needsWorkshop.
   workshopPrefixes: ["smithing", "builder"],
   workshopSlug: "workshop-equipment",
-  // What opens each Depot shelf (DEPOT.md §0e).
-  shelfGate: { general: null, "black-market": "silver-chip", merchant: "merchants-license" },
+  // What opens each shelf (DEPOT.md §0e). The Black Market is not a Depot
+  // shelf any more: it is the Exactor's terminal, worked by the ring token his
+  // and the Pusher's rings carry (§0n).
+  shelfGate: { general: null, "black-market": "black-market-key", merchant: "merchants-license" },
 };
 
 function readYaml(rel) {
@@ -230,7 +232,10 @@ function buildSources({ list, bySlug, players }) {
       const gateRank = gate ? Math.max(3, sub(gate) === 5 ? 5 : 3) : 1;
       routes.push({
         kind: "depot",
-        label: `Depot, ${shelf} shelf, ${t.depotPrice} ¢${gate ? ` (needs ${get(gate)?.name ?? gate})` : ""}`,
+        label:
+          shelf === "black-market"
+            ? `Black Market terminal, ${t.depotPrice} ¢ (needs the Exactor's or the Pusher's ring)`
+            : `Depot, ${shelf} shelf, ${t.depotPrice} ¢${gate ? ` (needs ${get(gate)?.name ?? gate})` : ""}`,
         rank: gateRank,
         cost: t.depotPrice,
       });

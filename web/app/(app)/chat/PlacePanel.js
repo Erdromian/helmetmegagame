@@ -18,6 +18,7 @@ import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 // The machine's words AND its clock — the countdown is derived here the same
 // way the server derives it, off one implementation (docs/systemdocs/VENDING.md).
 import { VENDING_TEXT, VENDING_MAX_PRICE, secondsLeftOn, timeLeftLine } from "@lifeweb/db/lib/vendingText";
+import { BLACK_MARKET_TEXT } from "@lifeweb/db/lib/blackMarketText";
 import {
   loadAffordances,
   flipGate,
@@ -54,6 +55,9 @@ import {
   vendStockOut,
   vendSetPrice,
   vendStockables,
+  blackMarketView,
+  blackMarketInsert,
+  blackMarketBuy,
   enterTheCharon,
   leaveTheCharon,
   launchTheCharon,
@@ -233,6 +237,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "pray" && <PrayDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "slots" && <SlotDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "vending" && <VendingDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "blackMarket" && <BlackMarketDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "atm" && <AtmDialog onClose={close} onDone={say} />}
       {dialog?.kind === "dropbox" && <DropBoxDialog onClose={close} onDone={say} />}
@@ -582,6 +587,151 @@ function SlotDialog({ entry, onClose, onDone }) {
           }
         >
           Enter coins
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// The Black Market terminal in the Exactor's Office (docs/systemdocs/DEPOT.md
+// §0n). Feed it obols, then order off its shelf; the goods are in your hands at
+// once. It takes coin and never gives it back, so there is no Withdraw — the
+// credit is shared by everybody whose ring works it. Every rule is in
+// db/lib/blackMarket.js; this is the shape of the page.
+function BlackMarketDialog({ entry, onClose, onDone }) {
+  const T = BLACK_MARKET_TEXT;
+  const [state, setState] = useState(null);
+  const [amount, setAmount] = useState(1);
+  // tagId -> the quantity typed on its row. Empty means not in the cart.
+  const [cart, setCart] = useState({});
+  const { run, pending, error } = useActionRunner();
+  const roomId = entry.roomId;
+
+  useEffect(() => {
+    let cancelled = false;
+    blackMarketView({ roomId })
+      .then((res) => {
+        if (!cancelled) setState(res);
+      })
+      .catch(() => {
+        if (!cancelled) setState({ ok: false, error: BLACK_MARKET_TEXT.noTerminal });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [roomId]);
+
+  if (!state) {
+    return (
+      <Modal open title={T.title} onClose={onClose}>
+        <p className="text-sm text-muted">The screen flickers on…</p>
+      </Modal>
+    );
+  }
+  if (!state.ok) {
+    return (
+      <Modal open title={T.title} onClose={onClose}>
+        <FormError>{state.error}</FormError>
+      </Modal>
+    );
+  }
+
+  const wares = state.wares ?? [];
+  const items = wares
+    .map((w) => ({ ware: w, quantity: Math.trunc(Number(cart[w.id]) || 0) }))
+    .filter((line) => line.quantity > 0);
+  const total = items.reduce((sum, line) => sum + line.ware.price * line.quantity, 0);
+
+  // Every verb re-reads the terminal: the credit is shared, and somebody else
+  // may have spent it since this opened.
+  const act = (fn, args, after) =>
+    run(fn, { roomId, ...args }, {
+      onOk: (res) => {
+        onDone(res);
+        after?.();
+        blackMarketView({ roomId })
+          .then((next) => setState(next?.ok ? next : { ok: false, error: next?.error ?? T.noTerminal }))
+          .catch(() => {});
+      },
+    });
+
+  return (
+    <Modal open title={T.title} onClose={onClose}>
+      <p className="text-sm text-muted">
+        <span className="mono">{T.credit(state.credit)}</span> · {T.carrying(state.carrying)}
+      </p>
+
+      {/* Coin first, the way the machine is used: feed it, then order. */}
+      <div className="field">
+        <label className="field-label" htmlFor="chat-black-market-amount">
+          {T.insertLabel}
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            id="chat-black-market-amount"
+            type="number"
+            className="w-24"
+            min={1}
+            max={Math.max(1, state.carrying)}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={pending || state.carrying <= 0}
+            onClick={() => act(blackMarketInsert, { amount: Math.max(1, Number(amount) || 0) })}
+          >
+            {T.insertButton}
+          </button>
+        </div>
+        <p className="text-sm text-muted">{T.noWithdraw}</p>
+      </div>
+
+      {wares.length === 0 && <EmptyState>{T.emptyShelf}</EmptyState>}
+      {wares.map((ware) => (
+        <div key={ware.id} className="chat-notice-row">
+          <span className="chat-person-name" title={ware.description}>
+            {ware.name}
+          </span>
+          <span className="mono text-sm text-muted">{ware.price} ¢</span>
+          {ware.owned ? (
+            <span className="text-sm text-muted">{T.owned}</span>
+          ) : (
+            // `control` because this input lives OUTSIDE a .field — without it
+            // the box, border and background never apply.
+            <input
+              type="number"
+              className="control w-16"
+              min={0}
+              max={ware.stackable ? 99 : 1}
+              aria-label={`${T.quantityLabel} — ${ware.name}`}
+              value={cart[ware.id] ?? ""}
+              placeholder="0"
+              onChange={(e) => setCart((c) => ({ ...c, [ware.id]: e.target.value }))}
+            />
+          )}
+        </div>
+      ))}
+
+      <FormError>{error}</FormError>
+      {/* Sticky: twenty-nine wares scroll the panel, and the total and Buy
+          have to stay in sight while a cart is being filled. */}
+      <div className="modal-actions modal-actions--sticky">
+        <span className="mono text-sm mr-auto">{T.total(total)}</span>
+        <button
+          type="button"
+          className="btn"
+          disabled={pending || items.length === 0 || total > state.credit}
+          onClick={() =>
+            act(
+              blackMarketBuy,
+              { items: items.map((line) => ({ tagId: line.ware.id, quantity: line.quantity })) },
+              () => setCart({}),
+            )
+          }
+        >
+          {T.buyButton}
         </button>
       </div>
     </Modal>

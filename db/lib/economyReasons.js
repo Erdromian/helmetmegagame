@@ -87,6 +87,11 @@ const REASONS = {
   VENDING_SALE: { flow: FLOW.TRANSFER, label: "Vending machine" },
   VENDING_STOCK: { flow: FLOW.TRANSFER, label: "Machine restocked" },
   VENDING_TILL: { flow: FLOW.TRANSFER, label: "Till emptied" },
+  // The Black Market terminal in the Exactor's Office (db/lib/blackMarket.js).
+  // TRANSFER to and from the Company, the DEPOT_ORDER posture: coin fed into
+  // the slot goes off-world as credit, and an order's goods come back from it.
+  BLACK_MARKET_INSERT: { flow: FLOW.TRANSFER, label: "Black Market credit" },
+  BLACK_MARKET_ORDER: { flow: FLOW.TRANSFER, label: "Black Market order" },
   // Kept, unwritten: the generator is gone, but a reason is a plain string and
   // deleting one blanks the old rows that name it.
   DEPOT_REFUEL: { flow: FLOW.TRANSFER, label: "Refuelled" },

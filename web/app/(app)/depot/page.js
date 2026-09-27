@@ -35,14 +35,15 @@ import { getOpenTurn } from "@/lib/turn";
 // The Depot's counter. See docs/systemdocs/DEPOT.md.
 //
 // PLACE OR KEY: it opens for somebody standing in it, and for somebody carrying
-// a manifest key — the Merchant's Licence or a Silver Chip — who reads it from
+// a manifest key — the Merchant's Licence — who reads it from
 // anywhere, read-only. Everybody else is bounced. The station used to be one
 // man's console behind a licence check; it is a market with a shelf per
 // customer, but the shelf is still only for people the station knows.
 //
 // What your tags still decide is the SHELF. The general manifest is open to
-// anybody; a Silver Chip opens the black market; the Merchant's Licence opens
-// everything, sealed goods included (db/lib/depotManifests.js). A Depot Keycard
+// anybody; the Merchant's Licence opens everything else, sealed goods included
+// (db/lib/depotManifests.js). The Black Market is not sold here at all — it is
+// the terminal in the Exactor's Office (db/lib/blackMarket.js). A Depot Keycard
 // is not a shelf at all — it opens the Railyard and cracks a sealed crate, and
 // so is not a key to this page either.
 const TAG_SELECT = { include: { group: { select: { name: true } } } };
@@ -142,7 +143,7 @@ async function FreshDepot() {
     },
   });
 
-  // Plus the worn ring's keycard or Silver Chip (docs/systemdocs/RINGS.md).
+  // Plus the worn ring's keycard (docs/systemdocs/RINGS.md).
   const heldSlugs = await withRingTokens(prisma, character?.id, character?.tags);
   const licensed = heldSlugs.has(MERCHANT_LICENSE_SLUG);
   const keycard = heldSlugs.has(DEPOT_KEYCARD_SLUG);

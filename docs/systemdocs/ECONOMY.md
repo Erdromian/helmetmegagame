@@ -184,6 +184,13 @@ and the Exactor, and neither mints nor burns a coin. The machine is backed by a
 person's account rather than by nothing, which is the whole reason it can be
 robbed and the whole reason it is not a faucet.
 
+**`BLACK_MARKET_INSERT` and `BLACK_MARKET_ORDER` arrived with the Exactor's
+terminal** (`DEPOT.md` §0n). Both `TRANSFER`, against the Company, the posture
+`DEPOT_ORDER` already takes: coin fed into the slot goes off-world as credit,
+and an order's goods come back from it. The credit itself
+(`Room.blackMarketObols`) is off-world money, so it books nothing as it rises
+and falls — the coin was counted leaving, and the goods are counted arriving.
+
 **`UNATTRIBUTED` is a feature.** A write that reaches a hook with no context is
 recorded under that reason rather than dropped, so an un-hooked call site shows
 up on the panel as its own bar instead of quietly missing. `applyTransfer` used

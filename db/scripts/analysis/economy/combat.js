@@ -15,7 +15,7 @@ const { normalizeFighting } = require("../../../lib/tagShapes");
 const { armorWord, combineArmor, ARMOR_CAP } = require("../../../lib/armorValue");
 const threats = require("../../../lib/threats");
 const { REINFORCEMENTS } = require("../../../lib/lateJoin");
-const { MANIFESTS, manifestOf } = require("../../../lib/depotManifests");
+const { MANIFESTS, manifestOf, isBlackMarketWare } = require("../../../lib/depotManifests");
 const mounts = require("../../../lib/mounts");
 
 // `starting` is the starting-roles model (who begins with which tags), for the armour split.
@@ -139,7 +139,8 @@ function buildCombat({ list, get, caving, params, starting = null, sources = nul
   // player role starts with is kit-only; the rest are set aside for their catalogue or for having no route at all.
   const antagonistRoles = new Set([...threats.THREATS.map((t) => t.spawn?.roleSlug).filter(Boolean), ...threats.SHUTTLE_ARRIVAL_SLUGS, ...REINFORCEMENTS.map((r) => r.roleSlug)]);
   const heldBy = (slug, antagonist) => (starting?.roles ?? []).filter((r) => r.tagSlugs.includes(slug) && antagonistRoles.has(r.slug) === antagonist).map((r) => r.name);
-  const reachableShelf = (t) => t.depotPrice != null && MANIFESTS.some((m) => m.id === manifestOf(t));
+  // The Black Market terminal counts: it is off the Depot's counter now (DEPOT.md §0n) but still a shelf a player reaches.
+  const reachableShelf = (t) => t.depotPrice != null && (MANIFESTS.some((m) => m.id === manifestOf(t)) || isBlackMarketWare(t));
   // A route IN: the counter buying a piece (sellablePrice) is not one, and neither is a recipe a player cannot
   // see — the Censor's Helmet is craftable, but its recipe sits in the GM catalogue (sources.js marks such a
   // recipe secret) so no ordinary smith ever finds it; a recipe hidden until the thing is held is the same. The

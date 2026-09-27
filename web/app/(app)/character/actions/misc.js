@@ -10,7 +10,6 @@ import {
   isDynastyHead,
   isDynastyMember,
   canOpenCrate,
-  isBlackMarketSeal,
 } from "@lifeweb/db";
 import {
   COLLAR_SELECT,
@@ -363,12 +362,8 @@ async function openCrateRequestImpl({ session, character, held }) {
   if (!contents) throw new UserError("That isn't a crate.");
 
   const inner = await prisma.tag.findMany({ where: { id: { in: contents.map((c) => c.tagId).filter(Boolean) } } });
-  if (!canOpenCrate(crate, heldSlugsOf(character.tags), inner)) {
-    throw new UserError(
-      isBlackMarketSeal(inner)
-        ? "It's sealed, and the lock wants a Silver Chip or a Depot Keycard."
-        : "It's sealed, and the lock wants a Depot Keycard.",
-    );
+  if (!canOpenCrate(crate, heldSlugsOf(character.tags))) {
+    throw new UserError("It's sealed, and the lock wants a Depot Keycard.");
   }
 
   const openTurn = await getOpenTurn();

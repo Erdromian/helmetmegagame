@@ -112,15 +112,19 @@ opens nothing.
   travel note reads "Your ring grants you access." rather than naming a key
   nobody holds (`web/lib/travelCost.js#openedByLabel`).
 - Things that check for an item: the Censor's warrant badge
-  (`WARRANT_BADGE_SLUGS`, `censors-key`), the Depot keycard and the Silver Chip
-  on the manifests and crates, the refinery's rooms.
+  (`WARRANT_BADGE_SLUGS`, `censors-key`), the Depot keycard on the manifests
+  and crates, the refinery's rooms.
+- Things only a ring opens, where a held tag of the same slug does not count:
+  the collar remote and Unlock Collar (`COLLAR.md`), and the Black Market
+  terminal in the Exactor's Office (`black-market-key`, `DEPOT.md` §0n).
 
 Putting a ring on or taking it off re-runs `syncCharacterRoomAccess` through the
 ordinary equip tail, so the private threads follow.
 
 Physical keys that other people can find or buy stay as they were: the Elevator
-key, the Depot keycard and the Silver Chip are still loot and shop items, and
-also in the rings of the seats that used to start with them.
+key and the Depot keycard are still loot and shop items, and also in the rings
+of the seats that used to start with them. The Silver Chip was one of these
+until the Black Market left the Depot for the Exactor's terminal; it is gone.
 
 Two doors opened by this that no seat could open before: the Bishop's ring
 carries `bishops-key` (the Order Chambers) and the Servant's `servant-key` (the
