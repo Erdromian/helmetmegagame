@@ -833,20 +833,28 @@ model GameState {
   sessionOpenedAt         DateTime?
   sessionClosedAt         DateTime?
 
-  // THE BOMB. Two nullable turn numbers, and nothing else in the schema knows
-  // about it.
+  // THE BOMB (docs/systemdocs/NUKE.md). A fixture in one public room, worked
+  // only from its keypad.
   //
-  // `nukeArmedTurn` is the absolute turn the device goes off on — stamped by
-  // the Arm button as `openTurn + 2`, nulled by Disarm or by a GM defusing it
-  // from /gm/dev. Null means unarmed, and arming/disarming may repeat forever.
+  // `nukeRoomId` and `nukeCode` are rolled afresh every game — at Start Game,
+  // or by the first reader of a game already running (db/lib/nuke.js#ensureNuke).
+  // Plain columns, not a relation: this row is recreated by Restart Game, and
+  // that is exactly when both should be forgotten. The code is eight digits
+  // kept as a string, so a leading zero survives.
+  nukeRoomId String?
+  nukeCode   String?
+
+  // `nukeArmedTurn` is the absolute turn the bomb goes off on — stamped by the
+  // keypad's green button as `openTurn + NUKE_FUSE_TURNS - 1`, nulled by the
+  // same button pressed again or by a GM defusing it from /gm/dev. Null means
+  // unarmed, and arming/disarming may repeat until it goes off.
   //
   // This lives here rather than on a tag with `expiresTurn`, which was the
   // first design: a tag carries a holder, and a holder can DIE inside the
   // two-turn window, which would quietly cancel the explosion. The blast is
   // global — everyone above ground, wherever they stand — so it needs no
   // location, and the one thing it must survive is the death of whoever armed
-  // it. Where the device physically SITS is still read off the tag rows, by
-  // the datacard's pointer, which is a different question.
+  // it.
   nukeArmedTurn Int?
 
   // Set once, on detonation, and never cleared: the turn the world ended. It
@@ -2650,6 +2658,10 @@ model Character {
   pocketsPicked    PickpocketAttempt[] @relation("PickpocketThief")
   pocketsOfTheirs  PickpocketAttempt[] @relation("PickpocketTarget")
   roomsSearched    RoomSearchAttempt[]
+  // The bomb's keypad (docs/systemdocs/NUKE.md): wrong codes, and the lockout.
+  nukeLockout      NukeLockout?
+  // Notes this character started the game knowing (JournalEntry.characterId).
+  seededNotes      JournalEntry[]
 
   // One thrown d6 per turn, whatever this character does with their Move
   // (docs/systemdocs/ADJUDICATION.md). See GambitDie below.
@@ -4785,6 +4797,13 @@ model Note {
 // mention to a letter-plaque / raw token, the token pipeline's existing
 // behaviour for an unresolvable reference, rather than cascading a delete
 // into someone's private writing.
+//
+// The one exception is `characterId`, which only the GAME writes: a note a
+// character starts the game already knowing ("The bomb is in …",
+// db/lib/nukeBriefing.js). That note is the character's memory, not the
+// player's writing, so it cascades with the character and /memories shows it
+// only while that character is the one being played. Everything a player
+// writes leaves it null.
 model JournalEntry {
   id            String   @id @default(cuid())
   discordUserId String
@@ -4793,10 +4812,26 @@ model JournalEntry {
   pinned        Boolean  @default(false)
   turnNumber    Int?
   labels        String[] @default([])
+  characterId   String?
+  character     Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
   @@index([discordUserId])
+  @@index([characterId])
+}
+
+// A character's run at the bomb's keypad (docs/systemdocs/NUKE.md): wrong
+// codes in a row, and whether the third one has locked them out for good.
+// One row per character who has ever got it wrong, wiped with the character,
+// so a new game starts everybody clean. A right code sets `streak` back to 0;
+// nothing ever clears `lockedAt`.
+model NukeLockout {
+  characterId String    @id
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  streak      Int       @default(0)
+  lockedAt    DateTime?
+  updatedAt   DateTime  @updatedAt
 }
 
 // How a Friends entry came to exist (docs/systemdocs/MEMORIES.md §2).

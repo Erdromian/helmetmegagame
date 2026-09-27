@@ -8,6 +8,7 @@ import { closeDeadchatTo, deadchatSeatHolders, ensureDeadchatChannel } from "@li
 import { after } from "next/server";
 import { parseConfigForm } from "@lifeweb/db/lib/gameConfigFields";
 import { getGameConfig, getGameState, GAME_STATE_CREATE } from "@lifeweb/db/lib/gameState";
+import { queueBombPosts } from "@lifeweb/db/lib/nukeBriefing";
 import { getOpenTurn } from "@/lib/turn";
 import { buildEpilogue } from "@lifeweb/db/lib/epilogue";
 import { forgetGameId } from "@lifeweb/db/lib/archive";
@@ -568,6 +569,11 @@ export async function wipeGameData(formData) {
       data: { kind: "WIPE", actorDiscordUserId: session.discordUserId },
     });
 
+    // The old game's bomb comes off its room's Discord post (docs/systemdocs/NUKE.md).
+    await queueBombPosts(prisma, [state?.nukeRoomId], "the game was wiped").catch((err) =>
+      console.error("Bomb post redraw failed:", err),
+    );
+
     revalidatePath("/gm/dev");
     revalidatePath("/", "layout");
 
@@ -715,16 +721,16 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
 
 // --- The bomb ---------------------------------------------------------
 
-// A GM's hand on the countdown, and the only safeguard the feature has: anyone
-// holding the datacard and the device can start it, and this is what can stop
-// it inside the two-turn window. Superadmin-gated like everything else on this
-// panel.
+// A GM's hand on the countdown: anyone with the code can start it at the
+// keypad (docs/systemdocs/NUKE.md), and this is what can stop it inside the
+// two-turn window without anybody walking there. GM-gated, like the Reports
+// section the button sits in.
 //
-// Defusing is deliberately not the same as a player's Disarm: it files no
-// Request (there is nobody to review a GM) and it works whoever is holding
-// what, including when the armer is dead or gone.
+// Defusing is deliberately not the same as a player's Disarm: nobody has to
+// be standing at the bomb or know its code, and it works when the armer is
+// dead or gone.
 export async function defuseNukeAction() {
-  const session = await requireDev();
+  const session = await requireDev("gm");
 
   // The fired stamp lives on the Game row, not GameState — otherwise Defuse
   // stayed refused for every game after the one that detonated.

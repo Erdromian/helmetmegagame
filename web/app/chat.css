@@ -3613,3 +3613,109 @@
   flex-wrap: wrap;
   gap: var(--sp-1);
 }
+
+/* The bomb's keypad (PlacePanel.js#NukeDialog, docs/systemdocs/NUKE.md). The phone's
+   readout and pad, eight wells wide, and one physical button under it: a dead
+   bevelled key until the sequence is right, then lit green. No text field
+   anywhere — the design document wants the code pressed out on the pad. */
+.nuke {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.nuke-state {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin: 0;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.nuke-state.is-armed {
+  color: var(--danger);
+}
+
+.nuke-lamp {
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 50%;
+  border: 1px solid var(--border-lo);
+  background: var(--well-bg);
+}
+
+.nuke-state.is-armed .nuke-lamp {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.nuke-readout {
+  gap: var(--sp-1);
+}
+
+.nuke-readout span {
+  width: 1.2em;
+}
+
+.nuke-readout.is-wrong {
+  animation: nuke-wrong 0.3s ease-in-out;
+}
+
+@keyframes nuke-wrong {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-4px); }
+  75% { transform: translateX(4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nuke-readout.is-wrong {
+    animation: none;
+  }
+}
+
+.nuke-button {
+  all: unset;
+  box-sizing: border-box;
+  align-self: center;
+  width: 100%;
+  max-width: 16rem;
+  min-height: 2.75rem;
+  text-align: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-lg);
+  font-weight: 700;
+  letter-spacing: var(--ls-wide);
+  text-transform: uppercase;
+  border-top: 2px solid var(--border-hi);
+  border-left: 2px solid var(--border-hi);
+  border-right: 2px solid var(--border-lo);
+  border-bottom: 2px solid var(--border-lo);
+  border-radius: var(--r);
+  background: var(--surface-raised);
+  color: var(--muted);
+  cursor: not-allowed;
+}
+
+.nuke-button.is-green {
+  background: var(--positive);
+  color: var(--bg);
+  cursor: pointer;
+}
+
+.nuke-button.is-green:active {
+  border-top-color: var(--border-lo);
+  border-left-color: var(--border-lo);
+  border-right-color: var(--border-hi);
+  border-bottom-color: var(--border-hi);
+}
+
+.nuke-button:focus-visible {
+  outline: 2px solid var(--accent-text);
+  outline-offset: 2px;
+}
+
+.nuke-locked {
+  margin: 0;
+  text-align: center;
+}

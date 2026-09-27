@@ -44,6 +44,7 @@ const {
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,
   ROOM_VENDING_PREFIX,
+  ROOM_NUKE_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
@@ -131,6 +132,11 @@ const {
 const {
   PRAY_CONFIRM_PREFIX,
   SLOTS_CONFIRM_PREFIX,
+  NUKE_KEY_PREFIX,
+  NUKE_PRESS_PREFIX,
+  handleNukeOpen,
+  handleNukeKey,
+  handleNukePress,
   PHONE_KEY_PREFIX,
   PHONE_CALL_PREFIX,
   PHONE_ANSWER_PREFIX,
@@ -461,6 +467,17 @@ module.exports = {
         }
         if (interaction.customId.startsWith(PHONE_COIN_PREFIX)) {
           return void (await handlePhoneCoin(interaction));
+        }
+        // The bomb's keypad (docs/systemdocs/NUKE.md): its key and press ids
+        // start with the open prefix "room:nuke:", so they go first.
+        if (interaction.customId.startsWith(NUKE_KEY_PREFIX)) {
+          return void (await handleNukeKey(interaction));
+        }
+        if (interaction.customId.startsWith(NUKE_PRESS_PREFIX)) {
+          return void (await handleNukePress(interaction));
+        }
+        if (interaction.customId.startsWith(ROOM_NUKE_PREFIX)) {
+          return void (await handleNukeOpen(interaction, interaction.customId.slice(ROOM_NUKE_PREFIX.length)));
         }
         if (interaction.customId.startsWith(ROOM_PHONE_PREFIX)) {
           return void (await handlePhoneOpen(interaction, interaction.customId.slice(ROOM_PHONE_PREFIX.length)));

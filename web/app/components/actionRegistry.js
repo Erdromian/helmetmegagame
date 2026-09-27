@@ -128,13 +128,7 @@ export const ACTION_HELP = {
     "Break the stone and stand somewhere else. Anywhere you have been, or seen from a doorway. It costs you nothing and takes no time.",
   disguise:
     "Put on a false name and face for 3 turns. Nobody sees who you are — not your name, not your portrait — and you cannot conceal yourself on top of it. The kit is not used up.",
-  pointer:
-    "Read the datacard. It names the next place on the way to the nuclear device, or tells you the device is already here. Costs nothing, takes no time, and nobody is told you looked.",
   pointerdevice: "Check your pointer device. It names where the other one in the pair is right now.",
-  arm:
-    "Put the datacard into the device and start the countdown. It detonates at the close of the turn after next, and it will kill everyone who is not underground. You can still disarm it before then.",
-  disarm:
-    "Take the datacard out and stop the countdown. Safe again, and you can arm it as many times as you like.",
   extract:
     "Harvest Godflesh, up to once a turn. It costs you no Move. You need a hatchet, a battle-axe or a chainsaw in your hands. It rolls 1d6: a 6 gives you an extra, and a 1 means it got hold of you first. Wear your Armored Gloves.",
   refine:
@@ -339,45 +333,9 @@ export const ACTION_SECTIONS = [
       // Whether you are carrying one is your own sheet's fact, so hiding it
       // leaks nothing.
       { mode: "stepstone", icon: MapIcon, label: "Stepstone", show: "hasStepstone" },
-    ],
-  },
-  // The bomb. Its own section rather than three more rows under "You",
-  // because the datacard is the rarest thing in the game and burying it in a
-  // grid of nine everyday verbs would make it read as one of them.
-  //
-  // All three HIDE rather than grey when you have no datacard — the Extract
-  // rule: whether YOU are carrying it is a fact about your own sheet, and a
-  // dead row on everybody else's would only teach them the bomb exists.
-  // Arm and Disarm then additionally GREY when the device itself is not in
-  // your hands, which is the one thing a card-holder needs told.
-  {
-    key: "device",
-    label: "The device",
-    actions: [
-      { mode: "pointer", icon: EyeIcon, label: "Use pointer", show: "hasDatacard", instant: true },
-      // A different device entirely — the Pointer Device Kit's own pair
-      // (db/lib/pointerMint.js), gated on holding a `custom-pointer-*` tag
-      // rather than the secret datacard above. Deliberately its own mode,
-      // its own gate, its own server action — never touches nuke.js.
+      // The Pointer Device Kit's own pair (db/lib/pointerMint.js), gated on
+      // holding a `custom-pointer-*` tag. Hidden for the same reason as above.
       { mode: "pointerdevice", icon: EyeIcon, label: "Use pointer device", show: "hasPointerDevice", instant: true },
-      {
-        mode: "arm",
-        icon: WoundIcon,
-        label: "Arm nuke",
-        show: "hasDatacard",
-        gate: "hasDevice",
-        gateReason: "You have the card, but not the device.",
-        instant: true,
-      },
-      {
-        mode: "disarm",
-        icon: KeyIcon,
-        label: "Disarm nuke",
-        show: "hasDatacard",
-        gate: "hasDevice",
-        gateReason: "You have the card, but not the device.",
-        instant: true,
-      },
     ],
   },
   // THE THANATI (docs/systemdocs/THANATI.md). Every row HIDES rather than

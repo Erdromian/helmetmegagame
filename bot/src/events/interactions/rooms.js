@@ -72,6 +72,15 @@ const {
   keypadRows,
 } = require("@lifeweb/db/lib/phoneKeypad");
 const { PHONE_TEXT } = require("@lifeweb/db/lib/phoneText");
+const { nukeView, nukeCheck, nukePress } = require("@lifeweb/db/lib/nuke");
+const {
+  NUKE_KEY_PREFIX,
+  NUKE_PRESS_PREFIX,
+  parseKeyId: parseNukeKeyId,
+  panelText: nukePanelText,
+  keypadRows: nukeKeypadRows,
+} = require("@lifeweb/db/lib/nukeKeypad");
+const { NUKE_CODE_DIGITS } = require("@lifeweb/db/lib/nukeText");
 const { SFX } = require("@lifeweb/db/lib/sfx");
 const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 const {
@@ -617,6 +626,82 @@ async function handlePhoneCoin(interaction) {
   )(interaction);
 }
 
+// ---------------------------------------------------------------- the bomb
+
+// The bomb's keypad (docs/systemdocs/NUKE.md §3): the web dialog's twin, one
+// ephemeral message redrawn in place on every press, the digits riding in the
+// custom ids (db/lib/nukeKeypad.js). Both faces call db/lib/nuke.js, so the
+// eighth digit is checked — and a wrong one counted — the same way on each.
+
+const NUKE_BUTTON_STYLE = {
+  secondary: ButtonStyle.Secondary,
+  success: ButtonStyle.Success,
+  danger: ButtonStyle.Danger,
+};
+
+function nukeComponents(roomId, view, digits, green) {
+  return nukeKeypadRows(roomId, view, digits, green).map((row) =>
+    new ActionRowBuilder().addComponents(
+      row.map((b) =>
+        new ButtonBuilder()
+          .setCustomId(b.id)
+          .setLabel(b.label)
+          .setStyle(NUKE_BUTTON_STYLE[b.style] ?? ButtonStyle.Secondary)
+          .setDisabled(Boolean(b.disabled)),
+      ),
+    ),
+  );
+}
+
+async function drawNuke(interaction, view, roomId, digits = "", { green = false, line = null } = {}) {
+  if (!view.ok) {
+    await respond(interaction, { content: view.error, components: [] }, { fleeting: false });
+    return;
+  }
+  await respond(
+    interaction,
+    { content: nukePanelText(view, digits, line), components: nukeComponents(roomId, view, digits, green) },
+    { fleeting: false },
+  );
+}
+
+async function handleNukeOpen(interaction, roomId) {
+  await ack(interaction);
+  await drawNuke(interaction, await nukeView(prisma, interaction.user.id, roomId), roomId);
+}
+
+// A digit, ⌫ or C redraws the pad. The eighth digit is the one that asks the
+// server — and a wrong one clears the pad with the refusal above it.
+async function handleNukeKey(interaction) {
+  await ack(interaction, { update: true });
+  const parsed = parseNukeKeyId(interaction.customId, NUKE_KEY_PREFIX);
+  if (!parsed) return;
+  if (parsed.digits.length === NUKE_CODE_DIGITS) {
+    const checked = await nukeCheck(prisma, interaction.user.id, parsed.roomId, parsed.digits);
+    if (checked.ok) {
+      await drawNuke(interaction, checked, parsed.roomId, parsed.digits, { green: true });
+      return;
+    }
+    const again = await nukeView(prisma, interaction.user.id, parsed.roomId);
+    await drawNuke(interaction, again, parsed.roomId, "", { line: checked.error });
+    return;
+  }
+  await drawNuke(interaction, await nukeView(prisma, interaction.user.id, parsed.roomId), parsed.roomId, parsed.digits);
+}
+
+async function handleNukePress(interaction) {
+  await ack(interaction, { update: true });
+  const parsed = parseNukeKeyId(interaction.customId, NUKE_PRESS_PREFIX);
+  if (!parsed) return;
+  const done = await nukePress(prisma, interaction.user.id, parsed.roomId, parsed.digits, { turn: await openTurn() });
+  if (done.ok) {
+    await drawNuke(interaction, done, parsed.roomId, "", { line: done.line });
+    return;
+  }
+  const again = await nukeView(prisma, interaction.user.id, parsed.roomId);
+  await drawNuke(interaction, again, parsed.roomId, "", { line: done.error });
+}
+
 // Custom IDs below: "loc:" is the travel flow, "conv:" the Conversation flow, "move:"/"say:" the Move/Speak modals.
 
 
@@ -723,6 +808,11 @@ async function handleCharonSleep(interaction, roomId) {
 module.exports = {
   PRAY_CONFIRM_PREFIX,
   SLOTS_CONFIRM_PREFIX,
+  NUKE_KEY_PREFIX,
+  NUKE_PRESS_PREFIX,
+  handleNukeOpen,
+  handleNukeKey,
+  handleNukePress,
   PHONE_KEY_PREFIX,
   PHONE_CALL_PREFIX,
   PHONE_ANSWER_PREFIX,

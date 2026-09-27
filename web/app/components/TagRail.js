@@ -55,7 +55,6 @@ export default function TagRail({
   storeTags = null,
   storeHeldTags = null,
   storeRoleSlug = null,
-  nukeArmedTurn = null,
   identity = null,
   // The Blood menu (docs/systemdocs/VAMPIRE.md §6) — same posture as
   // storeTags above: server-resolved, null on someone else's sheet or a
@@ -305,7 +304,6 @@ export default function TagRail({
               open: openId === id,
               onToggle: () => setOpenId((was) => (was === id ? null : id)),
               currentTurn,
-              armedTurn: ct.tag.slug === "nuclear-device" ? nukeArmedTurn : null,
               worn: Boolean(ct.equipped),
             };
             return (
@@ -399,7 +397,6 @@ export default function TagRail({
           onToggle={(id) => setOpenId((was) => (was === id ? null : id))}
           currentTurn={currentTurn}
           totalWeight={inventoryWeight > 0 ? inventoryWeight : null}
-          nukeArmedTurn={nukeArmedTurn}
         />
       ) : null}
     </>

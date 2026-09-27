@@ -51,8 +51,6 @@ export async function itemPools(prisma, character, heldSlugs) {
     canDetonateCollar: canWorkRemote(heldSlugs, ringTokens),
     // Shackles only give to an Escape Artist (LESSONS.md §3c).
     canBreakRestraints: has("bound") || (has("shackled") && has("escape-artist")),
-    hasDatacard: has("nuclear-datacard"),
-    hasDevice: has("nuclear-device"),
     // Every Pointer Device Kit pair mints its own `custom-pointer-*` slug.
     hasPointerDevice: [...heldSlugs].some(isPointerDeviceSlug),
     hasStepstone,

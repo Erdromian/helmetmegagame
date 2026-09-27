@@ -35,6 +35,8 @@ const {
 const CASINO_ROOM_SLUG = "undertown-8-3";
 const { linksFor, gateOperable, endpoints, isHeldOpen } = require("./locationGraph");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+const { ensureNuke, markNukeRoom } = require("./nuke");
+const { NUKE_TEXT } = require("./nukeText");
 
 // The one room with a big red button on the wall (docs/zones.yaml). Named
 // here rather than imported from gatehouseTurret.js, which pulls in the whole turret engine.
@@ -84,6 +86,9 @@ const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
 const ROOM_SLOTS_PREFIX = "room:slots:";
 const ROOM_PHONE_PREFIX = "room:phone:";
 const ROOM_VENDING_PREFIX = "room:vending:";
+// The bomb (docs/systemdocs/NUKE.md). Its keypad's own ids all start
+// "room:nuke:" too (db/lib/nukeKeypad.js), so the bot tests those first.
+const ROOM_NUKE_PREFIX = "room:nuke:";
 // The Charon (docs/systemdocs/CHARON.md). Three room buttons and one on the
 // Location: the Panic Room's way in, the Cockpit's terminal, the Habitation's
 // last one, and Leave on the ship itself.
@@ -264,6 +269,17 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_PHONE_PREFIX,
     when: (room) => Boolean(room?.phone),
   },
+  // The bomb (docs/systemdocs/NUKE.md): a fixture in one public room, rolled
+  // every game. The room carries no column for it — GameState.nukeRoomId does —
+  // so every caller marks the room first (db/lib/nuke.js#markNukeRoom), and a
+  // room nobody marked simply has no bomb in it.
+  {
+    id: "nuke",
+    label: NUKE_TEXT.label,
+    tone: DANGER,
+    prefix: ROOM_NUKE_PREFIX,
+    when: (room) => room?.nuke === true,
+  },
   // The Charon (docs/systemdocs/CHARON.md). Three buttons, and which of them a
   // room offers depends on where the ship IS — the Cockpit and the Habitation
   // travel with it when it launches, so the same two Room rows mean different
@@ -390,7 +406,7 @@ function gateLabel({ isOpen, farName, control = null }) {
 async function affordancesFor(prisma, character) {
   if (!character?.locationId) return [];
 
-  const [location, rooms, keys, links] = await Promise.all([
+  const [location, rawRooms, keys, links, bomb] = await Promise.all([
     prisma.location.findUnique({
       where: { id: character.locationId },
       select: { id: true, name: true, slug: true, attributes: true },
@@ -411,8 +427,10 @@ async function affordancesFor(prisma, character) {
     }),
     roomAccessKeys(prisma, character.id),
     linksFor(prisma, character.locationId),
+    ensureNuke(prisma),
   ]);
   if (!location) return [];
+  const rooms = markNukeRoom(rawRooms, bomb?.roomId ?? null);
 
   const out = locationAffordances(location, { web: true }).map((entry) => ({ ...entry, kind: "place" }));
 
@@ -487,6 +505,7 @@ module.exports = {
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,
   ROOM_VENDING_PREFIX,
+  ROOM_NUKE_PREFIX,
   ROOM_CHARON_ENTER_PREFIX,
   ROOM_CHARON_LAUNCH_PREFIX,
   ROOM_CHARON_SLEEP_PREFIX,

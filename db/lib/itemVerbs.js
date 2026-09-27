@@ -20,9 +20,6 @@ const ITEM_VERBS = [
   { mode: "brand", match: { slug: "branding-iron" } },
   // Equipment in reach improves the torture roll (character/actions/misc.js).
   { mode: "torture", match: { slug: "torturing-equipment" } },
-  { mode: "pointer", match: { slug: "nuclear-datacard" } },
-  { mode: "arm", match: { slug: "nuclear-datacard" } },
-  { mode: "disarm", match: { slug: "nuclear-datacard" } },
   { mode: "pointerdevice", match: { prefix: "custom-pointer-" } },
   { mode: "stepstone", match: { slug: "stepstone" } },
   { mode: "disguise", match: { slug: "disguise-kit" } },

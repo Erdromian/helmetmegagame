@@ -100,13 +100,13 @@ test("a web link only names a dialog the web can open", () => {
 });
 
 test("actionState: hidden beats greyed, and the pools' sentence beats the catalog's", () => {
-  const arm = actionFor("arm");
-  assert.equal(actionState(arm, {}).state, "hidden");
-  assert.deepEqual(actionState(arm, { hasDatacard: true }), {
+  const extract = actionFor("extract");
+  assert.equal(actionState(extract, {}).state, "hidden");
+  assert.deepEqual(actionState(extract, { canSeeExtract: true }), {
     state: "greyed",
-    reason: "You have the card, but not the device.",
+    reason: "You have nothing to cut with.",
   });
-  assert.equal(actionState(arm, { hasDatacard: true, hasDevice: true }).state, "ready");
+  assert.equal(actionState(extract, { canSeeExtract: true, canExtract: true }).state, "ready");
   const kiss = actionFor("kiss");
   assert.deepEqual(actionState(kiss, { gateReason: { kiss: "You're Bound." } }), {
     state: "greyed",

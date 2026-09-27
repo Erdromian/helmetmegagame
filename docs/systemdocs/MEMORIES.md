@@ -242,6 +242,13 @@ memories or from Discord writes one `Note` (`web/lib/starNote.js`). A
 Highlight keeps the name you saw on the line: a stranger's is kept as "Young
 Man", with no face, never under their real name (`STRANGERS.md` §6).
 
+**One kind of note belongs to a character instead.** A note the game writes
+into a character's memory — "The bomb is in …", which the leaders and the
+Tribunal start with (`NUKE.md` §4) — carries `JournalEntry.characterId` and
+cascades with that character. Notes shows the account's own notes plus the ones
+for the character being played now, so it never follows the player to their
+next character. The player can still edit or delete it.
+
 ## 6. Scrambling
 
 `db/lib/memoryScramble.js` is pure, and **nothing is stored**. A character

@@ -110,10 +110,7 @@ const ACTIONS = [
   { mode: "engrave", label: "Engrave", section: "others", command: "body", sub: "engrave", description: "Carve a name on a headstone. It lifts the player's curse.", run: "native", web: true },
 
   // --- Your role. Every row HIDES for anyone who doesn't hold the seat. --------
-  { mode: "pointer", label: "Use pointer", section: "role", show: "hasDatacard", command: "nuke", sub: "pointer", description: "Read the datacard.", run: "native", open: true },
-  { mode: "pointerdevice", label: "Use pointer device", section: "role", show: "hasPointerDevice", command: "nuke", sub: "device", description: "Check where the other pointer device is.", run: "native", open: true },
-  { mode: "arm", label: "Arm nuke", section: "role", show: "hasDatacard", gate: "hasDevice", gateReason: "You have the card, but not the device.", command: "nuke", sub: "arm", description: "Arm the nuclear device.", run: "native" },
-  { mode: "disarm", label: "Disarm nuke", section: "role", show: "hasDatacard", gate: "hasDevice", gateReason: "You have the card, but not the device.", command: "nuke", sub: "disarm", description: "Disarm the nuclear device.", run: "native" },
+  { mode: "pointerdevice", label: "Use pointer device", section: "role", show: "hasPointerDevice", command: "item", sub: "pointer", description: "Check where the other pointer device is.", run: "native", open: true },
   { mode: "recall", label: "Recall comrades", section: "role", show: "isThanati", command: "thanati", sub: "recall", description: "Remember the other Thanati cultists.", run: "native" },
   { mode: "recover", label: "Recover equipment", section: "role", show: "isThanati", gate: "canRecover", gateReason: "You have both.", command: "thanati", sub: "recover", description: "Recover your mask and robes.", run: "native" },
   { mode: "hideout", label: "Set hideout", section: "role", show: "isThanatiLeader", command: "thanati", sub: "hideout", description: "Set the room the cult buys its gear from.", run: "native", web: true },

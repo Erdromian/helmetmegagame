@@ -3030,14 +3030,13 @@ export async function stepstoneRequestImpl({ locationId }) {
   return { ok: true, locationName: result.locationName, zoneName: result.zoneName };
 }
 
-// The Pointer Device Kit's own button. Not named usePointer* — nukeActions.js
-// has an explicit note about that exact collision with React's rules of
-// hooks — and not a DM: this is a mundane toy, not a secret plot device, so
+// The Pointer Device Kit's own button. Not named usePointer* — ESLint's
+// rules-of-hooks reads any exported useX as a React hook — and not a DM: this is a mundane toy, not a secret plot device, so
 // the answer goes straight into the same bottom-right toast every other
 // instant action uses.
 export async function readPointerDeviceImpl() {
   const { character } = await requireCharacter();
-  // The rule is db/lib/verbs/self.js's, shared with Discord's /nuke device.
+  // The rule is db/lib/verbs/self.js's, shared with Discord's /item pointer.
   const result = await readPointerDevice(prisma, { character });
   if (!result.ok) throw new UserError(result.error);
   return { ok: true, line: result.line };

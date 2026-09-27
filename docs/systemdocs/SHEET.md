@@ -207,7 +207,7 @@ Who this is, where they stand, and:
   `actionRegistry.js` as **captioned groups** by what a verb is for —
   `actionRegistry.js#STRIP_GROUPS`: Things, Paper, Work, Learn & confess,
   People, Theft, Fight, Captives, The dead, with a role's own section (THANATI,
-  CERBERON, BISHOP, the device) first for whoever holds it. Each group is a
+  CERBERON, BISHOP) first for whoever holds it. Each group is a
   small box, its name over its buttons, and the groups flow in a wrapping row;
   within a group, what you can do now comes first and the greyed verbs follow.
   It was one run of about thirty same-weight buttons split only by a hairline

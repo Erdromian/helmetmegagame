@@ -606,7 +606,7 @@ decides that, not the button. The Railway post now has seven buttons, so
   (`lobbyGate`).
 
 **Out of session** (`SESSIONS.md` §5), these stay open because they only read:
-the menu, `/look`, `/mymove`, `/nuke pointer|device`, `/warrant list` and
+the menu, `/look`, `/mymove`, `/item pointer`, `/warrant list` and
 `/paper read`. Equip and Unequip stay open because they are open on the web.
 Feedback and the lobby stay open because they sit outside the game. Everything
 else meets the act gate on the step that does the thing.

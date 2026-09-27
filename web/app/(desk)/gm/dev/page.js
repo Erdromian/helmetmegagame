@@ -11,6 +11,7 @@ import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { RESOURCES_SELECT, resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { inactiveCharacters, inactiveRows } from "@lifeweb/db/lib/inactivity";
 import { mirrorQueueStatus } from "@lifeweb/db/lib/discordMirror/queue";
+import { nukePlace } from "@lifeweb/db/lib/nuke";
 import { TRIAL_GM_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import CharacterLink from "@/app/components/CharacterLink";
 import {
@@ -290,6 +291,9 @@ export default async function DevPanelPage({ searchParams }) {
   let inactiveTurn = null;
   let latestByKind = new Map();
   let mirrorQueue = null;
+  // The bomb, for the Reports section (docs/systemdocs/NUKE.md §6).
+  let bomb = null;
+  let bombLockouts = [];
   // The two threat sections. Each fetches only its own data, same as every
   // other section here.
   let assignmentRows = [];
@@ -642,13 +646,23 @@ export default async function DevPanelPage({ searchParams }) {
     case "reports": {
       // Latest report per kind — the section renders what actually happened,
       // instead of the fake success the wipe used to claim.
-      const [reports, inactive, queue] = await Promise.all([
+      const [reports, inactive, queue, place, lockouts] = await Promise.all([
         prisma.systemReport.findMany({ orderBy: { createdAt: "desc" }, take: 30 }),
         inactiveCharacters(prisma),
         // What the mirror still owes Discord, and whether it can get there.
         mirrorQueueStatus(prisma),
+        // Where the bomb is and its code — the design document's "can also be
+        // found by GMs in the dev panel". Rolled here if nobody has yet.
+        nukePlace(prisma),
+        prisma.nukeLockout.findMany({
+          where: { lockedAt: { not: null } },
+          orderBy: { lockedAt: "asc" },
+          select: { character: { select: { id: true, name: true } } },
+        }),
       ]);
       mirrorQueue = queue;
+      bomb = place;
+      bombLockouts = lockouts.map((row) => row.character);
       for (const report of reports) {
         if (!latestByKind.has(report.kind)) latestByKind.set(report.kind, report);
       }
@@ -1256,31 +1270,44 @@ export default async function DevPanelPage({ searchParams }) {
 
           {section === "reports" ? (
             <section className="ops-section">
-              {/* Only on screen when there is something to say. A permanent
-                  "no nuke armed" panel would be furniture on every other day
-                  of the game. */}
-              {(state.nukeArmedTurn != null || state.game?.nukeDetonatedTurn != null) && (
-                <div className="ops-section-head">
-                  <h2 className="section-title">The device</h2>
-                  {state.game?.nukeDetonatedTurn != null ? (
+              {/* The bomb (docs/systemdocs/NUKE.md §6): where it is this game,
+                  its code, and whether it is counting down. Always on screen,
+                  since the room and the code are what a GM comes here for. */}
+              <div className="ops-section-head">
+                <h2 className="section-title">The bomb</h2>
+                {bomb ? (
+                  <p className="ops-lede">
+                    In the <strong>{bomb.room.name}</strong>, {bomb.room.location.name}. Code{" "}
+                    <span className="mono">{bomb.code}</span>.
+                  </p>
+                ) : (
+                  <p className="ops-lede">Not placed — there is no public room in the Town or the Fortress to put it in.</p>
+                )}
+                {state.game?.nukeDetonatedTurn != null ? (
+                  <p className="ops-lede">
+                    It went off at the close of turn {state.game?.nukeDetonatedTurn}.
+                  </p>
+                ) : state.nukeArmedTurn != null ? (
+                  <>
                     <p className="ops-lede">
-                      It went off at the close of turn {state.game?.nukeDetonatedTurn}.
+                      <strong>Armed.</strong> It detonates at the close of turn{" "}
+                      {state.nukeArmedTurn}.
                     </p>
-                  ) : (
-                    <>
-                      <p className="ops-lede">
-                        <strong>Armed.</strong> It detonates at the close of turn{" "}
-                        {state.nukeArmedTurn}.
-                      </p>
-                      <form action={defuseNukeAction}>
-                        <SubmitButton className="btn-secondary" pendingLabel="Defusing…">
-                          Defuse
-                        </SubmitButton>
-                      </form>
-                    </>
-                  )}
-                </div>
-              )}
+                    <form action={defuseNukeAction}>
+                      <SubmitButton className="btn-secondary" pendingLabel="Defusing…">
+                        Defuse
+                      </SubmitButton>
+                    </form>
+                  </>
+                ) : (
+                  <p className="ops-lede">Not armed.</p>
+                )}
+                {bombLockouts.length > 0 ? (
+                  <p className="ops-lede">
+                    Locked out of the keypad: {bombLockouts.map((c) => c.name).join(", ")}.
+                  </p>
+                ) : null}
+              </div>
 
               {/* Same rule as the device: on screen only while there is
                   something to say about it. */}

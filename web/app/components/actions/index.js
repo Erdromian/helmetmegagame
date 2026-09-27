@@ -3,7 +3,6 @@
 // mode. RequestActionsProvider.js reads both.
 
 import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiActions";
-import { readPointer, armNuke, disarmNuke } from "@/app/(app)/character/nukeActions";
 import { checkWanted } from "@/app/(app)/character/cerberonActions";
 import { extractGodfleshRequest, refineRequest, mineRequest, farmRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
 import { formatMoveAmount } from "@/lib/craftBudget";
@@ -67,18 +66,7 @@ export const INSTANT = {
       };
     },
   },
-  pointer: { run: () => readPointer(), confirm: () => null },
   pointerdevice: { run: () => readPointerDevice(), confirm: () => null },
-  arm: {
-    run: () => armNuke(),
-    confirm: () => ({
-      title: "Arm the device?",
-      message:
-        "The card goes in and the count begins. It detonates at the close of the turn after next, and everyone who is not underground when it does will die — you included, unless you are. You can still take the card out before then.",
-      confirmLabel: "Arm it",
-    }),
-  },
-  disarm: { run: () => disarmNuke(), confirm: () => null },
   extract: {
     run: () => extractGodfleshRequest(),
     confirm: () => ({

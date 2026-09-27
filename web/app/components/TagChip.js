@@ -19,10 +19,6 @@ export default function TagChip({
   consumeError = null,
   expiresTurn = null,
   currentTurn = null,
-  // The Nuclear Device only: the turn it fires on, from GameState.nukeArmedTurn
-  // (db/lib/nuke.js). Armed state is world state rather than a tag, so the
-  // chip has to be told; null means not armed and the row simply isn't there.
-  armedTurn = null,
   // "· smells wrong" (the medical pass, M4) — whether THIS held stack is
   // actually poisoned, already gated server-side to poison-sense holders /
   // poison-snooper holders before it ever reaches this component (see
@@ -38,7 +34,7 @@ export default function TagChip({
   // than two — same reasoning as Tooltip.js's own IconButton precedent.
   pinnable = true,
 }) {
-  const duration = tagDurationFor({ tag, expiresTurn, currentTurn, armedTurn });
+  const duration = tagDurationFor({ tag, expiresTurn, currentTurn });
 
   const panel = (
     <TagDetails
@@ -46,7 +42,6 @@ export default function TagChip({
       quantity={quantity}
       expiresTurn={expiresTurn}
       currentTurn={currentTurn}
-      armedTurn={armedTurn}
       poisonMarker={poisonMarker}
       inTooltip
     >

@@ -1088,7 +1088,6 @@ zones:
                 # `npm run db:audit-vault-backing` measures the ratio.
                 obol: 250
                 painting: 1
-                nuclear-device: 1
                 # The Hand's old one. Anybody who can already open the Vault
                 # can have the run of the lift too — that is a short list, and
                 # it is the Baron's own door either way.

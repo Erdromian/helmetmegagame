@@ -616,10 +616,9 @@ the door to everybody rather than fail loudly.
 **Destroy is for things you own.** `Tag.removable` is not authored per tag
 any more — `db/lib/syncTags.js` DERIVES it: every tag in the **Items** or
 **Assets** category has the Destroy menu and nothing else ever does. The YAML
-key survives as an opt-out with `false` as its only legal value, on the seven
+key survives as an opt-out with `false` as its only legal value, on the five
 rows an item is not allowed to be binned from — the three monster corpses
-(Butcher and Bury are the two ways a body leaves, `CORPSES.md`), the Nuclear
-Device and its Datacard (`SECRETS.md`), the grafted Quickened Nerve Braid, and
+(Butcher and Bury are the two ways a body leaves, `CORPSES.md`), the grafted Quickened Nerve Braid, and
 the bolted-down Packaging Equipment (`FACTORY.md`). The sync throws on
 `removable: true` anywhere, and on a `false` outside those two categories where
 it would do nothing.

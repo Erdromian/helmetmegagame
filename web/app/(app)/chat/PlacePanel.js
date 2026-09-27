@@ -12,6 +12,7 @@ import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/
 import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 import { SLOT_PROMPT } from "@lifeweb/db/lib/slotText";
 import { PHONE_TEXT, PHONE_DIGITS, clockLeft } from "@lifeweb/db/lib/phoneText";
+import { NUKE_TEXT, NUKE_CODE_DIGITS } from "@lifeweb/db/lib/nukeText";
 import { usePhoneFrame, noteHandset, setDialling } from "@/app/components/phoneStore";
 import { playSfx } from "@/app/components/sfx";
 import { RING_TEXT } from "@lifeweb/db/lib/ringText";
@@ -40,6 +41,9 @@ import {
   hangUpPhone,
   walkAwayPhone,
   insertPhoneObol,
+  nukeState,
+  nukeCheckCode,
+  nukePressButton,
   interactWithQuest,
   openMachine,
   readMachine,
@@ -238,6 +242,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "dropbox" && <DropBoxDialog onClose={close} onDone={say} />}
       {dialog?.kind === "depotTurret" && <DepotTurretDialog onClose={close} onDone={say} />}
       {dialog?.kind === "phone" && <PhoneDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "nuke" && <NukeDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "intercom" && <IntercomDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "questInteract" && (
         <QuestInteractDialog entry={dialog.entry} onClose={close} onDone={say} />
@@ -1612,6 +1617,169 @@ function PhoneDialog({ entry, onClose, onDone }) {
             {PHONE_TEXT.walkAway}
           </button>
         </div>
+      </div>
+    </Modal>
+  );
+}
+
+// ------------------------------------------------------------------ the bomb
+//
+// A keypad and one button under it, and nothing to type into (docs/systemdocs/
+// NUKE.md): Bascinet's design document wants the sequence pressed out on the pad,
+// so the dialog listens to no keyboard at all. The eighth digit asks the server
+// whether it is the sequence — a wrong one counts, and the third in a row locks
+// this character out — and a right one lights the button green. Pressing it arms
+// the bomb, or disarms it if it is armed; the server checks the sequence again.
+
+const NUKE_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "back"];
+
+function NukeDialog({ entry, onClose, onDone }) {
+  const [state, setState] = useState(null);
+  const [digits, setDigits] = useState("");
+  const [green, setGreen] = useState(false);
+  const [miss, setMiss] = useState(0);
+  const { run, pending, error, setError } = useActionRunner();
+
+  useEffect(() => {
+    let cancelled = false;
+    nukeState({ roomId: entry.roomId })
+      .then((res) => {
+        if (!cancelled) setState(res);
+      })
+      .catch(() => {
+        if (!cancelled) setState({ ok: false, error: NUKE_TEXT.noBomb });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [entry.roomId]);
+
+  // After a refusal, the keypad as it now stands — the refusal itself is only
+  // words, and a third strike has to grey the pad out.
+  const reread = () => {
+    nukeState({ roomId: entry.roomId })
+      .then((res) => {
+        if (res?.ok) setState(res);
+      })
+      .catch(() => {});
+  };
+
+  const locked = Boolean(state?.lockedOut);
+  const closed = !state?.ok || locked || state?.gone;
+
+  // The eighth digit goes straight to the server; nothing is pressed after it.
+  const check = (full) => {
+    run(
+      nukeCheckCode,
+      { roomId: entry.roomId, digits: full },
+      {
+        onOk: (res) => {
+          setState((prev) => ({ ...prev, ...res }));
+          setGreen(true);
+        },
+        onFail: () => {
+          setDigits("");
+          setMiss((n) => n + 1);
+          reread();
+        },
+      },
+    );
+  };
+
+  const press = (key) => {
+    if (closed || pending) return;
+    setError(null);
+    if (key === "clear") {
+      setDigits("");
+      setGreen(false);
+      return;
+    }
+    if (key === "back") {
+      setDigits((d) => d.slice(0, -1));
+      setGreen(false);
+      return;
+    }
+    if (digits.length >= NUKE_CODE_DIGITS) return;
+    const next = digits + key;
+    setDigits(next);
+    if (next.length === NUKE_CODE_DIGITS) check(next);
+  };
+
+  const pressButton = () => {
+    if (!green || pending) return;
+    run(
+      nukePressButton,
+      { roomId: entry.roomId, digits },
+      {
+        onOk: (res) => {
+          setState((prev) => ({ ...prev, ...res }));
+          setDigits("");
+          setGreen(false);
+          if (res.line) onDone({ line: res.line });
+        },
+        onFail: () => {
+          setDigits("");
+          setGreen(false);
+          reread();
+        },
+      },
+    );
+  };
+
+  if (!state) {
+    return (
+      <Modal open title={NUKE_TEXT.title} onClose={onClose}>
+        <p className="text-sm text-muted">…</p>
+      </Modal>
+    );
+  }
+  if (!state.ok) {
+    return (
+      <Modal open title={NUKE_TEXT.title} onClose={onClose}>
+        <FormError>{state.error}</FormError>
+      </Modal>
+    );
+  }
+
+  return (
+    <Modal open title={NUKE_TEXT.title} onClose={onClose}>
+      <div className="nuke" role="group" aria-label={NUKE_TEXT.title}>
+        <p className={`nuke-state${state.armed ? " is-armed" : ""}`}>
+          <span className="nuke-lamp" aria-hidden="true" />
+          {state.gone ? NUKE_TEXT.gone : state.armed ? NUKE_TEXT.armedState : NUKE_TEXT.safeState}
+        </p>
+        {/* A shake on a wrong sequence; the key restarts the animation each time. */}
+        <div key={miss} className={`phone-readout nuke-readout mono${miss ? " is-wrong" : ""}`} aria-live="polite">
+          {Array.from({ length: NUKE_CODE_DIGITS }, (_, i) => (
+            <span key={i} className={digits[i] ? "is-set" : ""}>
+              {digits[i] ?? "·"}
+            </span>
+          ))}
+        </div>
+        <div className="phone-keypad nuke-keypad">
+          {NUKE_KEYS.map((key) => (
+            <button
+              key={key}
+              type="button"
+              className="btn-secondary phone-key"
+              disabled={closed || pending || (green && key !== "clear" && key !== "back")}
+              onClick={() => press(key)}
+              aria-label={key === "back" ? "Delete" : key === "clear" ? NUKE_TEXT.clear : key}
+            >
+              {key === "back" ? "⌫" : key === "clear" ? "C" : key}
+            </button>
+          ))}
+        </div>
+        <button
+          type="button"
+          className={`nuke-button${green ? " is-green" : ""}`}
+          disabled={!green || pending || closed}
+          onClick={pressButton}
+        >
+          {state.armed ? NUKE_TEXT.disarm : NUKE_TEXT.arm}
+        </button>
+        {locked ? <p className="text-sm text-muted nuke-locked">{NUKE_TEXT.lockedOut}</p> : null}
+        <FormError>{error}</FormError>
       </div>
     </Modal>
   );

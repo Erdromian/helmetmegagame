@@ -50,10 +50,16 @@ async function ensureGame(prisma) {
   let game = await prisma.game.findFirst({ orderBy: { createdAt: "asc" } });
   if (!game) game = await prisma.game.create({ data: { startedAt: GAME_STARTED_AT, label: "visual" } });
 
+  // The bomb is pinned, not rolled: left empty, the first page to load would
+  // roll it into a random room (db/lib/nuke.js#ensureNuke), and a Bomb button
+  // turning up on a golden one run in forty is a flaky screen. The Keep's
+  // Latrines, where no fixture stands.
+  const latrines = await prisma.room.findUnique({ where: { slug: "fortress-4-a" }, select: { id: true } });
+  const bomb = { nukeRoomId: latrines?.id ?? null, nukeCode: "12345678", nukeArmedTurn: null };
   await prisma.gameState.upsert({
     where: { id: 1 },
-    update: { phase: "RUNNING", startedAt: GAME_STARTED_AT, gameId: game.id },
-    create: { id: 1, gameId: game.id, phase: "RUNNING", startedAt: GAME_STARTED_AT },
+    update: { phase: "RUNNING", startedAt: GAME_STARTED_AT, gameId: game.id, ...bomb },
+    create: { id: 1, gameId: game.id, phase: "RUNNING", startedAt: GAME_STARTED_AT, ...bomb },
   });
 
   // One open turn, and no other. A second OPEN row would make "which turn is

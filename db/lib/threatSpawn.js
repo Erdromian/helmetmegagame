@@ -16,6 +16,7 @@ const { characterRoleAppearance } = require("./characterRoleAppearance");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { seedMemories } = require("./locationVisits");
 const { seedAcquaintances } = require("./acquaintances");
+const { seedNukeBriefing } = require("./nukeBriefing");
 const { mintSpawnRing } = require("./ringMint");
 const { syncCharacterRoomAccess } = require("./roomAccess");
 const { startingMemorySlugs } = require("./startingMemories");
@@ -293,6 +294,8 @@ async function applySpawnSideEffects(prisma, sideEffects) {
   // Tribunal and the Bastard's host know nobody by default, and their seats
   // are never given a role on anybody's entry either way.
   await seedAcquaintances(prisma, characterId).catch((err) => console.error("Spawn acquaintance seeding failed:", err));
+  // The Tribunal's note about the bomb, and the Ordinator's paper with its code (docs/systemdocs/NUKE.md §4).
+  await seedNukeBriefing(prisma, characterId).catch((err) => console.error("Spawn bomb briefing failed:", err));
   // A seat that spawns with a signet ring gets it here too (docs/systemdocs/RINGS.md).
   if (roleSlug) {
     try {

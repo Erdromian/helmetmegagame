@@ -37,7 +37,7 @@ export async function GET() {
         })
       : null,
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } }),
-    prisma.gameState.findUnique({ where: { id: 1 }, select: { phase: true, nukeArmedTurn: true } }),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { phase: true } }),
     prisma.offer.count({
       where: { status: "PENDING", OR: [{ initiatorId: me.id }, { responderId: me.id }] },
     }),
@@ -61,7 +61,6 @@ export async function GET() {
     openTurn?.id ?? "",
     openTurn?.number ?? "",
     state?.phase ?? "",
-    state?.nukeArmedTurn ?? "",
     offers,
   ].join("|");
 

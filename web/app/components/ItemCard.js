@@ -31,7 +31,6 @@ export default function ItemCard({
   open = false,
   onToggle,
   currentTurn = null,
-  armedTurn = null,
   worn = false,
 }) {
   const tag = ct.tag;
@@ -79,7 +78,6 @@ export default function ItemCard({
             quantity={ct.quantity ?? 1}
             expiresTurn={ct.expiresTurn}
             currentTurn={currentTurn}
-            armedTurn={armedTurn}
             showName={false}
             // Not inside the card's <button> — this sits in a sibling div, so
             // a nested {tag:…} reference can safely become a real hoverable

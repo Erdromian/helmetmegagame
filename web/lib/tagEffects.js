@@ -1,7 +1,6 @@
 import { bumpBlood } from "@lifeweb/db";
 import { addToStack, dropCharacterTag, grantTagSlugs, addToRoomStack, dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import { moveParty, InsufficientResourcesError } from "@lifeweb/db/lib/resourceTransfer";
-import { INDESTRUCTIBLE_SLUGS } from "@lifeweb/db/lib/nuke";
 import { UserError } from "@/lib/actionResult";
 
 // The shared write primitives every player action and GM microaction moves tags and ⬢ through. Every function below runs INSIDE a prisma transaction.
@@ -103,14 +102,8 @@ export async function takeTagFrom(tx, party, tagId, quantity) {
 export async function giveTagTo(tx, party, snapshot) {
   if (!party?.id || !snapshot?.tagId) return;
   if (party.kind === "room") {
-    // The Spillway: nothing written, nothing fished back out — except what the trough cannot eat.
-    if (party.destroysContents) {
-      const tag = await tx.tag.findUnique({
-        where: { id: snapshot.tagId },
-        select: { slug: true },
-      });
-      if (!INDESTRUCTIBLE_SLUGS.has(tag?.slug)) return;
-    }
+    // The Spillway: nothing written, nothing fished back out.
+    if (party.destroysContents) return;
     await addToRoomStack(tx, party.id, snapshot.tagId, snapshot.quantity ?? 1, {
       expiresTurn: snapshot.expiresTurn ?? null,
       poisonedCount: snapshot.poisonedCount ?? 0,

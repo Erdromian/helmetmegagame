@@ -32,7 +32,6 @@ export default function TagRow({
   open = false,
   onToggle,
   currentTurn = null,
-  armedTurn = null,
   worn = false,
 }) {
   const tag = ct.tag;
@@ -74,7 +73,6 @@ export default function TagRow({
             quantity={ct.quantity ?? 1}
             expiresTurn={ct.expiresTurn}
             currentTurn={currentTurn}
-            armedTurn={armedTurn}
             showName={false}
             // Not inside the row's <button> — this detail sits in a sibling
             // div, so a nested {tag:…} reference here can safely become a

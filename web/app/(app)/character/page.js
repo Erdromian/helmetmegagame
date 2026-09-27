@@ -430,7 +430,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     gameConfig,
     { action: currentAction },
     frozen,
-    nukeState, // the bomb's clock (TagChip.js) — world state, every sheet shows it
     mine, // same server action Chat's YOU column polls, so the two never disagree
   ] = await Promise.all([
     getOpenTurn(),
@@ -507,7 +506,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     }),
     findOpenTurnAction(prisma, character.id),
     clockStatus(prisma),
-    readGameState(prisma, { nukeArmedTurn: true }),
     // The turn card in the sheet's band paints from this, so it is read on
     // every load rather than gated on a scope.
     myMove(),
@@ -976,8 +974,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     canUnlockCollar,
     canDetonateCollar,
     canBreakRestraints,
-    hasDatacard,
-    hasDevice,
     hasPointerDevice,
     hasStepstone,
     stepstoneTargets,
@@ -1378,12 +1374,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       hideoutRooms: hideoutRooms,
       hideoutStock: hideoutStock,
       thanatiWares: thanatiWares,
-      hasDatacard: hasDatacard,
       hasPointerDevice: hasPointerDevice,
       hasStepstone: hasStepstone,
       stepstoneTargets: stepstoneTargets,
-      hasDevice: hasDevice,
-      nukeArmedTurn: nukeState?.nukeArmedTurn ?? null,
       deployVersion: deployVersion(),
       harmTargets: harmTargets,
       harmTags: harmTags,
