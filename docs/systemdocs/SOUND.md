@@ -53,6 +53,10 @@ because `useSyncExternalStore` compares by identity and a fresh object every rea
 is an infinite render loop. A two-field value is the older `on|volume` shape and
 parses in place with music defaulting on; nothing rewrites it.
 
+**With no key at all, the speaker starts on — except under `next dev`**, where it
+starts off, so a pile of test browsers on a local server stays quiet. Clicking it
+on is remembered like any other setting. Production builds are unaffected.
+
 **The speaker is the master.** It silences the cues *and* the music, because a
 speaker button that leaves a song playing is a broken speaker button. The music
 button silences only the music. So what a player hears is `sfx && music`, which
