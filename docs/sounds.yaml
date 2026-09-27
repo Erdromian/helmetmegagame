@@ -229,7 +229,7 @@ sounds:
     use: Ambience in proximity to vent and vent fans
     class: ambience
   ambience/newfireloop.ogg:
-    use: Ambience in proximity to fire
+    use: Ambience in proximity to an out of control fire
     class: ambience
     served: ambience/newfireloop.ogg
     needs: a fire that is out of control. Far too intense for a hearth, brazier or campfire
