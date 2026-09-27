@@ -2419,7 +2419,7 @@ the city sits above **0.3 ballistic**; the four things that do are all imported
 or GM-granted.
 
 **`ballistic` is live. `melee` is not, yet.** The turrets are the only thing in
-the game that rolls damage (`docs/systemdocs/DEPOT.md` §0f), and they are
+the game that rolls damage (`docs/systemdocs/DEPOT.md` §0i), and they are
 ballistic. Melee is still GM-adjudicated or a Gambit outcome, so `melee` is
 authored and displayed but read by nothing. It is there so the catalog is
 complete and consistent on the day a melee resolver lands, rather than becoming

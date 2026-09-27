@@ -1,18 +1,12 @@
 // The verbs tied to one place or to the player rather than their character,
-// both faces: the Merchant's credit line at the Depot, the Meister's sell tax
-// in his office, Feedback, and readying up in the lobby. Each was a web server
-// action (depot/actions.js, treasury/actions.js, feedbackActions.js,
+// both faces: the Meister's tax in his office, Feedback, and readying up in the
+// lobby. (The Merchant's credit line lived here until the Depot Overhaul took
+// it away.) Each was a web server action (treasury/actions.js, feedbackActions.js,
 // character/lobbyActions.js) and still is — that action calls the function
 // here, and so does the Discord bot (bot/src/lib/verbs/place.js). See
 // ./common.js for the result shape.
 const { blockerFor, ACT } = require("../incapacitation");
-const { loadDepot, creditAvailableObols } = require("../depotState");
-const { bumpBankAccount } = require("../bankAccounts");
-const { COMPANY, DEPOT_DEBT, record, turnStamp } = require("../economyLedger");
 const { canReadTreasury } = require("../depotCounter");
-const { MERCHANT_LICENSE_SLUG, DEPOT_LOCATION_SLUG } = require("../depot");
-const { RAILYARD_ROOM_SLUG } = require("../train");
-const { placeKeyForRoom } = require("../placeKey");
 const { readGameState } = require("../gameState");
 const { hasGmRole, hasPlaytestRole, hasContributorRole, PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID, SUPERADMIN_DISCORD_IDS } = require("../roleIds");
 const {
@@ -25,90 +19,6 @@ const {
 const { postFeedbackToDiscord } = require("../feedback");
 const { logAudit } = require("../auditLog");
 const { refuse, asResult } = require("./common");
-
-// --- The Merchant's credit line (web: depot/actions.js#depotCreditImpl) --------
-
-// The acting row with what the counter reads: tags, where they stand, the account.
-const DEPOT_ACTOR_INCLUDE = {
-  tags: { include: { tag: true } },
-  location: { select: { slug: true, id: true } },
-  bankAccount: true,
-};
-
-// Standing at the Depot with the Merchant's License — the web's
-// requireLicensedMerchant, as a refusal.
-function requireLicensedMerchant(character) {
-  if (character.location?.slug !== DEPOT_LOCATION_SLUG) refuse("You're not standing at the Depot.");
-  const blocker = blockerFor(character.tags, ACT);
-  if (blocker) refuse(`You can't act — you're ${blocker.name}.`);
-  if (!character.tags.some((ct) => ct.tag?.slug === MERCHANT_LICENSE_SLUG)) refuse("You don't have the Merchant's License.");
-}
-
-// Draw on the line (cash into the account, debt up) or repay it (the reverse).
-// The conditional update IS the check, so two tabs drawing the last of the
-// line can't both succeed.
-function depotCredit(prisma, { character, discordUserId, direction, amount: rawAmount, openTurn }) {
-  return asResult(async () => {
-    requireLicensedMerchant(character);
-    const account = character.bankAccount;
-    if (!account) refuse("You don't have an account yet.");
-    const depot = await loadDepot(prisma);
-    const draw = direction !== "REPAY";
-    const amount = Number(rawAmount);
-    if (!Number.isInteger(amount) || amount < 1) refuse("That isn't an amount.");
-    if (draw && amount > creditAvailableObols(depot)) refuse(`The line only has ${creditAvailableObols(depot)} ¢ left on it.`);
-    if (!draw && amount > (depot.debtObols ?? 0)) refuse(`You only owe ${depot.debtObols ?? 0} ¢.`);
-    if (!draw && amount > (account.balanceObols ?? 0)) refuse(`Your account only holds ${account.balanceObols ?? 0} ¢.`);
-    await prisma.$transaction(async (tx) => {
-      const { count } = await tx.depot.updateMany({
-        where: draw ? { id: 1, debtObols: { lte: (depot.creditCapObols ?? 0) - amount } } : { id: 1, debtObols: { gte: amount } },
-        data: { debtObols: draw ? { increment: amount } : { decrement: amount } },
-      });
-      if (count === 0) refuse("The line was edited. Try again.");
-      // Two legs: the debt (form DEBT) and the cash it puts in the account; repay is the pair backward.
-      await record(
-        tx,
-        { from: draw ? COMPANY : DEPOT_DEBT, to: draw ? DEPOT_DEBT : COMPANY, form: "DEBT", amount },
-        { reason: "DEPOT_CREDIT", ...turnStamp(openTurn) },
-      );
-      const moved = await bumpBankAccount(tx, account.id, draw ? amount : -amount, {
-        holderName: account.holderName,
-        econ: { other: COMPANY, reason: "DEPOT_CREDIT", ...turnStamp(openTurn) },
-      });
-      const room = await tx.room.findUnique({ where: { slug: RAILYARD_ROOM_SLUG }, select: { id: true } });
-      await logAudit(tx, {
-        actorDiscordUserId: discordUserId,
-        actionType: "request_depot_credit",
-        targetCharacterId: character.id,
-        place: room ? placeKeyForRoom(room.id) : null,
-        turnId: openTurn?.id ?? null,
-        details: {
-          direction: draw ? "DRAW" : "REPAY",
-          amount,
-          debtBefore: depot.debtObols ?? 0,
-          debtAfter: (depot.debtObols ?? 0) + (draw ? amount : -amount),
-          balanceAfter: moved.after,
-        },
-      });
-    });
-    return {
-      direction: draw ? "DRAW" : "REPAY",
-      amount,
-      line: draw ? `You drew ${amount} ¢ on the line.` : `You paid ${amount} ¢ back on the line.`,
-    };
-  });
-}
-
-// What the Merchant is looking at before choosing: the line's head-room, what
-// is owed, and what the account holds.
-async function creditState(prisma, character) {
-  const depot = await loadDepot(prisma);
-  return {
-    available: creditAvailableObols(depot),
-    owed: depot.debtObols ?? 0,
-    balance: character.bankAccount?.balanceObols ?? 0,
-  };
-}
 
 // --- The Meister's sell tax (web: treasury/actions.js#setSellTaxRateImpl) --------
 
@@ -247,9 +157,6 @@ function setUnready(prisma, { discordUserId, roleIds }) {
 }
 
 module.exports = {
-  DEPOT_ACTOR_INCLUDE,
-  depotCredit,
-  creditState,
   setSellTax,
   submitFeedback,
   onRoster,

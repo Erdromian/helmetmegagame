@@ -92,6 +92,18 @@ const REASONS = {
   // the slot goes off-world as credit, and an order's goods come back from it.
   BLACK_MARKET_INSERT: { flow: FLOW.TRANSFER, label: "Black Market credit" },
   BLACK_MARKET_ORDER: { flow: FLOW.TRANSFER, label: "Black Market order" },
+  // The Merchant's Terminal at the Depot (db/lib/merchantTerminal.js). Its coin
+  // is one party, machine:merchant-terminal, the vending machine's posture: the
+  // coin goes on existing inside it. The train pays for imports out of it
+  // (TRAIN_IMPORT, to the Company) and pays exports into it (TRAIN_EXPORT, from
+  // the Company); the Meister's cut on either goes to the Vault as IMPORT_TAX
+  // or EXPORT_TAX, levied once per train on the sum.
+  TERMINAL_INSERT: { flow: FLOW.TRANSFER, label: "Merchant's Terminal deposit" },
+  TERMINAL_WITHDRAW: { flow: FLOW.TRANSFER, label: "Merchant's Terminal withdrawal" },
+  TRAIN_IMPORT: { flow: FLOW.TRANSFER, label: "Train import" },
+  TRAIN_EXPORT: { flow: FLOW.TRANSFER, label: "Train export" },
+  IMPORT_TAX: { flow: FLOW.TRANSFER, label: "Import tax" },
+  EXPORT_TAX: { flow: FLOW.TRANSFER, label: "Export tax" },
   // Kept, unwritten: the generator is gone, but a reason is a plain string and
   // deleting one blanks the old rows that name it.
   DEPOT_REFUEL: { flow: FLOW.TRANSFER, label: "Refuelled" },

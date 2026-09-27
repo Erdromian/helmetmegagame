@@ -1,9 +1,13 @@
-// What a character is offered at the Depot's counter.
+// Which shelf a priced ware sits on.
 //
-// The Depot used to stock one shelf for one man. It is a public market now, and
-// a manifest is the answer to "what may THIS person order" — a shelf, and the
-// thing that opens it. Most people get the short one; a licence opens a longer
-// one.
+// Since the Depot Overhaul there is no counter and so no shelves to open: the
+// Merchant's Terminal lists every priced ware that is not the Black Market's,
+// and the License or the Merchant's ring is what unlocks it
+// (db/lib/merchantTerminal.js). What is left of a manifest is the tag's
+// `manifest:` line, which still decides one thing that matters — whether a ware
+// is the Black Market terminal's (db/lib/blackMarket.js) — and still labels
+// the rest for the economy report. The per-person gates that sat here
+// (manifestsFor, canOrder) went with the counter.
 //
 // Zero requires, ever, like db/lib/dmKinds.js and db/lib/economyReasons.js: the
 // Buying tab is a client component, and one require of @lifeweb/db here would
@@ -57,20 +61,6 @@ function isBlackMarketWare(tag) {
   return manifestOf(tag) === MANIFEST_BLACK_MARKET;
 }
 
-// Which manifests this character may see, in display order. `heldSlugs` is a
-// Set, the shape db/lib/roomAccess.js already builds.
-function manifestsFor(heldSlugs) {
-  return MANIFESTS.filter((m) => !m.requiredTagSlug || Boolean(heldSlugs?.has?.(m.requiredTagSlug)));
-}
-
-// Whether this character may order this ware at the counter at all.
-// Re-checked server-side in every order action — the tab only ever drew a hint.
-function canOrder(tag, heldSlugs) {
-  const manifest = MANIFESTS.find((m) => m.id === manifestOf(tag));
-  if (!manifest) return false;
-  return !manifest.requiredTagSlug || Boolean(heldSlugs?.has?.(manifest.requiredTagSlug));
-}
-
 module.exports = {
   MANIFEST_GENERAL,
   MANIFEST_BLACK_MARKET,
@@ -81,6 +71,4 @@ module.exports = {
   isManifestId,
   manifestOf,
   isBlackMarketWare,
-  manifestsFor,
-  canOrder,
 };

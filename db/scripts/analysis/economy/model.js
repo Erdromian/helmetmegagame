@@ -41,7 +41,7 @@ const { buildPower } = require("./power");
 const { buildLucky } = require("./lucky");
 const { makeFoodValue } = require("./foodValue");
 const { median } = require("./stats");
-const { taxOn } = require("../../../lib/trainDeparturePass");
+const { taxOn } = require("../../../lib/merchantTerminalText");
 const { buildSellTax } = require("./sellTax");
 const { buildMiningRisk } = require("./miningRisk");
 const { buildCombat, priceKits } = require("./combat");
@@ -201,15 +201,13 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const farmCycle = Math.round(1 / farmDuty);
 
   const resources = get("resources");
-  // The Depot's ⬢ prices are the CONSTANTS in db/lib/depot.js: the depot page and its order action build
-  // the ⬢ row from them and never read the `resources` tag, whose own prices are "decorative for this
-  // surface" (that file says so). So the valuations read the constants, and a claim below checks the tag's
-  // copy still agrees.
-  const rv = { sell: depotRules.RESOURCE_EXPORT_PRICE, buy: depotRules.RESOURCE_IMPORT_PRICE };
-  const resourceTagCopy = { sell: resources.sellablePrice ?? null, buy: resources.depotPrice ?? null };
-  // Every counter sale is taxed at Depot.sellTaxRate, a whole percent the Meister sets (default 0), taken off the
-  // gross of each settled sale before the seller is paid (db/lib/trainDeparturePass.js#taxOn). `--sell-tax N` tries
-  // another rate. `tax(gross)` is the game's own rounding, used on every figure that meets the counter.
+  // The Depot's ⬢ prices are the `resources` tag's own depotPrice and sellablePrice: since the Depot
+  // Overhaul the Merchant's Terminal lists ⬢ like any other ware, and the train exports a loose pile of
+  // them at the tag's sell price (DEPOT.md §0c). The constants that used to shadow the tag are gone.
+  const rv = { sell: resources.sellablePrice ?? 0, buy: resources.depotPrice ?? 0 };
+  // Every train's exports (and imports) are taxed at Depot.sellTaxRate, a whole percent the Meister sets
+  // (default 0), once on the whole load (db/lib/merchantTerminalText.js#taxOn). `--sell-tax N` tries
+  // another rate. `tax(gross)` is the game's own rounding, used on every figure that meets the train.
   const sellTaxRate = sellTax ?? schemaDefault("sellTaxRate");
   if (!Number.isInteger(sellTaxRate) || sellTaxRate < 0 || sellTaxRate > 100) throw new Error("sellTax must be a whole number from 0 to 100");
   const tax = (gross) => (gross > 0 ? taxOn(gross, sellTaxRate) : 0);
@@ -236,7 +234,6 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const params = {
     players,
     rv,
-    resourceTagCopy,
     sellTaxRate,
     sellTaxRateDefault: schemaDefault("sellTaxRate"),
     // Read by the Caving tab's roll audit, which calls out a die the description names that no longer exists.
@@ -1415,18 +1412,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   const claims = [
     {
       doc: "DEPOT.md §3",
-      claim: "The Depot imports ⬢ at 3 ¢ and buys them back at 1 ¢ (RESOURCE_IMPORT_PRICE, RESOURCE_EXPORT_PRICE)",
-      docValue: "3 in / 1 out",
+      claim: "The train never pays more for ⬢ than the terminal charges for them (the `resources` tag)",
+      docValue: "sell ≤ buy",
       model: `${rv.buy} in / ${rv.sell} out`,
-      ok: rv.buy === 3 && rv.sell === 1,
-    },
-    {
-      doc: "db/lib/depot.js",
-      claim: "The `resources` tag's own depotPrice and sellablePrice match the two constants (\"change both together or they drift\")",
-      docValue: `${rv.buy} in / ${rv.sell} out`,
-      model: `${resourceTagCopy.buy} in / ${resourceTagCopy.sell} out`,
-      ok: resourceTagCopy.buy === rv.buy && resourceTagCopy.sell === rv.sell,
-      note: "The counter prices ⬢ off the constants, so a drifted tag copy misprices anything valued AGAINST ⬢ (the sync's buy/sell check, for one).",
+      ok: rv.sell <= rv.buy,
     },
     {
       doc: "FACTORY.md §6",
@@ -1894,9 +1883,10 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     const treasurySrc = fs.readFileSync(path.join(REPO, "db/lib/verbs/place.js"), "utf8");
     const wholeZeroToHundred = /Number\.isInteger\(rate\)/.test(treasurySrc) && /rate < 0 \|\| rate > 100/.test(treasurySrc);
     const passSrc = fs.readFileSync(path.join(REPO, "db/lib/trainDeparturePass.js"), "utf8");
+    const taxSrc = fs.readFileSync(path.join(REPO, "db/lib/merchantTerminalText.js"), "utf8");
     // \r?: a Windows checkout is CRLF, and a bare \n there never matched, so the check read "changed shape".
-    const taxFn = (passSrc.match(/function taxOn[\s\S]*?\r?\n}\r?\n/) ?? [""])[0];
-    const offGross = /Math\.min\(gross,\s*Math\.round\(\(gross \* pct\) \/ 100\)\)/.test(taxFn) && /taxOn\(gross,/.test(passSrc);
+    const taxFn = (taxSrc.match(/function taxOn[\s\S]*?\r?\n}\r?\n/) ?? [""])[0];
+    const offGross = /Math\.min\(gross,\s*Math\.round\(\(gross \* pct\) \/ 100\)\)/.test(taxFn) && /taxOn\(value,/.test(passSrc);
     const libDir = path.join(REPO, "db/lib");
     const taxCallers = fs.readdirSync(libDir).filter((f) => f.endsWith(".js") && /\btaxOn\(/.test(fs.readFileSync(path.join(libDir, f), "utf8")));
     const handbookLine = (fs.readFileSync(path.join(REPO, "docs/handbook.md"), "utf8").match(/[^.\n]*[Ff]arming[^.\n]*tax[^.\n]*\./) ?? [null])[0];
@@ -1910,9 +1900,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       },
       {
         doc: "DEPOT.md §0f",
-        claim: "The tax comes off the gross of a settled sale, rounded, never more than the sale (trainDeparturePass.js#taxOn)",
+        claim: "The tax comes off the gross of a train's whole export, rounded, never more than the export (merchantTerminalText.js#taxOn)",
         docValue: "min(gross, round(gross × rate))",
-        model: offGross ? "min(gross, round(gross × rate)), on each sale's gross" : "taxOn has changed shape; read it",
+        model: offGross ? "min(gross, round(gross × rate)), on the train's gross" : "taxOn has changed shape; read it",
         ok: offGross,
       },
       {

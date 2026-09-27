@@ -107,12 +107,12 @@ export async function updateDepot(formData) {
     where: { id: 1 },
     create: { id: 1 },
     update: {
-      // Live state.
-      debtObols: Math.max(0, intOrZero(formData, "debtObols")),
+      // Live state. The terminal's coin is a correction, the way every
+      // number on this panel is: it books no ledger row.
+      terminalObols: Math.max(0, intOrZero(formData, "terminalObols")),
       turretArmed: formData.get("turretArmed") === "on",
 
       // Tuning.
-      creditCapObols: Math.max(0, intOrZero(formData, "creditCapObols")),
       // A percentage, and clamped rather than refused — a GM typing 150 here
       // meant 100, and the Meister's own terminal is where it is really set.
       sellTaxRate: Math.max(0, Math.min(100, intOrZero(formData, "sellTaxRate"))),
@@ -120,7 +120,6 @@ export async function updateDepot(formData) {
   });
 
   revalidatePath("/gm/dev");
-  revalidatePath("/depot");
 }
 
 // A raw superadmin correction to the current turn's number and day, not a

@@ -117,6 +117,7 @@ key on.
 | Freshly crossed into Starving this close | STARVING_ONSET | −30 | one-time, `hungerPass.js`; not charged to somebody the close fed to keep them Hungry (`TURN-ENGINE.md` §5a) |
 | Eat a raw Foodstuff (by hand or at the close) | DISGUST | −5 each | `consumeTagRequestImpl`, `hungerPass.js` — anything else the close eats moves the dial exactly as eating it by hand would |
 | Looted while alive | ROBBED | −10 | `lootCharacterRequestImpl` |
+| Picked up a crate, each one — not a Pack Mule or Strong | CRATE_HAULED | −20 | `db/lib/crateHaul.js` (`CARRY.md` §10) |
 
 **Place classes** come from `placeClassOf(location)`, in this precedence:
 HAVEN (the `haven` attribute: Inn, Keep, Sanctuary) > CAVE

@@ -1,5 +1,5 @@
-// The Depot singleton's live state: the credit line, the turret, the sell-tax
-// rate. Every mover clamps inside ONE locked statement, not a read-modify-write
+// The Depot singleton's live state: the Merchant's Terminal's coin, the
+// turret, the Meister's tax rate. Every mover clamps inside ONE locked statement, not a read-modify-write
 // (like db/lib/lifeweb.js#bumpBlood), so two spenders can't stomp each other.
 // Takes `tx` as a parameter rather than requiring db/index.js back (db/lib/dm.js convention).
 //
@@ -12,13 +12,6 @@ const DEPOT_KEYCARD_SLUG = "depot-keycard";
 
 // The currency.
 const OBOL_SLUG = "obol";
-
-// Clamped at BOTH ends: the upper clamp is load-bearing, or a debt driven
-// below zero by an Undo would read as more headroom than the cap allows.
-function creditAvailableObols(depot) {
-  const cap = depot?.creditCapObols ?? 0;
-  return Math.min(cap, Math.max(0, cap - (depot?.debtObols ?? 0)));
-}
 
 // Created on first touch, so a fresh database never hands back null.
 async function loadDepot(tx) {
@@ -75,7 +68,6 @@ async function bumpColumn(tx, column, amount, { max = null } = {}) {
 module.exports = {
   DEPOT_KEYCARD_SLUG,
   OBOL_SLUG,
-  creditAvailableObols,
   loadDepot,
   setMerchantFace,
   bumpColumn,

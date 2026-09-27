@@ -115,8 +115,12 @@ opens nothing.
   (`WARRANT_BADGE_SLUGS`, `censors-key`), the Depot keycard on the manifests
   and crates, the refinery's rooms.
 - Things only a ring opens, where a held tag of the same slug does not count:
-  the collar remote and Unlock Collar (`COLLAR.md`), and the Black Market
-  terminal in the Exactor's Office (`black-market-key`, `DEPOT.md` §0n).
+  the collar remote and Unlock Collar (`COLLAR.md`), the Black Market
+  terminal in the Exactor's Office (`black-market-key`, `DEPOT.md` §0n), and
+  the Merchant's Terminal at the Depot (`merchants-terminal-key`, the Merchant's
+  ring only, `DEPOT.md` §0c — the Merchant's License held opens it too).
+- `depot-keycard`, on the Merchant's and the Dockers' rings, opens the locked
+  way between the Storefront and the Depot and the Cargo Bay (`DEPOT.md` §0b).
 
 Putting a ring on or taking it off re-runs `syncCharacterRoomAccess` through the
 ordinary equip tail, so the private threads follow.
@@ -170,8 +174,8 @@ its own state only; Discord asks for it in each amount modal.
 
 **No account is opened at a terminal any more.** A seat's account opens at
 creation and its ring is linked to it; everyone else has a ring smithed and the
-Meister opens one when he registers it. The drop box, the credit line and a
-sale's destination still use the character's own account, ring or no ring.
+Meister opens one when he registers it. (The drop box and the credit line,
+which used the character's own account, went with the Depot Overhaul.)
 
 ## 6. Smithing a ring, and the Meister
 

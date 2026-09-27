@@ -1,11 +1,12 @@
-// The Depot's counter, as both faces work it.
+// The Depot's fixtures, as both faces work them.
 //
-// The ATM, the drop box and the Merchant's gun are fixtures on walls
+// The ATM (the infoterminal) and the Merchant's gun are fixtures on walls
 // (db/lib/placeAffordances.js), so each is reachable from Chat's place panel
-// AND from a button on a Discord room post. The ATM is the only one of the
-// three that stands anywhere but the Depot — there is a second machine in the
-// Inn's bar, which is why the gate below takes a place rather than assuming
-// one. That is why the money lives here
+// AND from a button on a Discord room post. The ATM stands in more places than
+// the Depot — the Inn's bar, the Den's — which is why the gate below takes a
+// place rather than assuming one. The drop box that stood beside them, and the
+// /depot page's gate, went with the Depot Overhaul; the Merchant's Terminal
+// is db/lib/merchantTerminal.js. That is why the money lives here
 // rather than in the web's server actions: two faces, one set of rules, the
 // db/lib bargain CLAUDE.md sets out.
 //
@@ -25,7 +26,6 @@ const {
   TOWER_LOCATION_SLUG,
 } = require("./depot");
 const { DEPOT_KEYCARD_SLUG, loadDepot } = require("./depotState");
-const { MANIFESTS } = require("./depotManifests");
 const { roomAccessKeys, accessibleRooms } = require("./roomAccess");
 const { MERCHANTS_OFFICE_ROOM_SLUG } = require("./train");
 const {
@@ -39,12 +39,10 @@ const { bumpBankAccount, vaultAndCoin, takeFromVault, TREASURY } = require("./ba
 const { addToStack, dropCharacterTag, addToRoomStack } = require("./tagWrites");
 const { COMPANY, characterParty, roomParty, bankParty, turnStamp } = require("./economyLedger");
 const { blockerFor, ACT } = require("./incapacitation");
-const { accessSlugsOf, RING_ACCESS_TAG_FIELDS, wornRing, isRegistered } = require("./rings");
+const { accessSlugsOf, wornRing, isRegistered } = require("./rings");
 const { RING_TEXT } = require("./ringText");
 const { SCRAMBLING_TAG_SLUGS } = require("./memoryScramble");
 const { ensurePin } = require("./acquaintances");
-
-const DESTINATIONS = new Set(["SELF", "TREASURY", "MERCHANT"]);
 
 function fail(error) {
   return { ok: false, error };
@@ -55,12 +53,10 @@ function fail(error) {
 // somebody walking out of the room, which is the whole reason nothing here
 // trusts what it was opened with.
 //
-// `where` widens that last clause for the three ATM functions, and only those
-// three: a cash machine now stands in the Inn's bar as well as on the counter
-// (db/lib/depot.js#ATM_LOCATION_SLUGS), but ordering, selling, the drop box,
-// the transfer window and the gun are all counter business and stay at the
-// Depot. Default is the Depot alone, so a function that says nothing is gated
-// exactly as it was before there were two machines.
+// `where` widens that last clause for the ATM functions, and only those: a
+// cash machine stands in the Inn's bar as well as at the Depot
+// (db/lib/depot.js#ATM_LOCATION_SLUGS), but the transfer window and the gun
+// are Depot business and stay there. Default is the Depot alone.
 const AT_THE_DEPOT = { places: null, name: "the Depot" };
 const AT_AN_ATM = { places: ATM_LOCATION_SLUGS, name: "an infoterminal" };
 
@@ -131,11 +127,7 @@ async function counterActor(prisma, discordUserId, where = AT_THE_DEPOT) {
   };
 }
 
-// Everything the three dialogs draw against, in one read, so there is a single
-// answer to "what is a counter" rather than three that can disagree. Answers at
-// an infoterminal as well as at the counter, since the infoterminal dialog
-// draws against it; the sell and drop-box fields it also carries simply go
-// undrawn at the Inn, and every write behind them keeps its own Depot gate.
+// What the infoterminal dialog draws against, in one read.
 //
 // The account is the worn ring's (terminalAccount), withheld until the PIN is
 // typed when one is needed — `pinNeeded` and `pinPrompt` say so, and
@@ -171,22 +163,18 @@ async function counterState(prisma, discordUserId, { pin = null } = {}) {
         }
       : null,
     accountProblem: access.ok ? null : access.error,
-    // The drop box pays into the seller's OWN account, ring or no ring.
-    ownAccount: Boolean(character.bankAccount),
     pinNeeded: Boolean(access.pinNeeded),
     pinPrompt: access.pinPrompt ?? null,
     heldObols,
-    sellable: character.tags
-      .filter((ct) => ct.tag.sellablePrice != null && ct.quantity > 0)
-      .map((ct) => ({ tagId: ct.tagId, name: ct.tag.name, quantity: ct.quantity, unitPrice: ct.tag.sellablePrice })),
-    sellTaxRate: depot.sellTaxRate ?? 0,
+    // Send is the Depot's own (bankSend keeps the bare Depot gate), so the
+    // picker is only filled in standing there. The Vault is the dialog's own row.
+    sendTo:
+      account && character.location?.slug === DEPOT_LOCATION_SLUG
+        ? await sendableAccounts(prisma, character.id)
+        : null,
     turretArmed: depot.turretArmed,
     licensed,
     keycard,
-    canSellToMerchant: licensed || keycard,
-    // The Merchant and his Dockers sell into his books by default; everyone
-    // else into their own. A seed for the next drop, never a stored setting.
-    defaultDestination: licensed || keycard ? "MERCHANT" : "SELF",
     held: [...held],
   };
 }
@@ -421,86 +409,6 @@ async function sendableAccounts(prisma, characterId) {
   return rows.filter((r) => r.holderName);
 }
 
-// The drop box. A one-way door: what goes in is DELETED at once — nothing sits
-// in a stash waiting to be stolen back out — and the row it leaves behind
-// settles when the train next departs, at the price frozen here.
-async function dropIntoBox(prisma, discordUserId, { tagId, quantity: rawQuantity, destination: rawDestination, turn = null } = {}) {
-  const actor = await counterActor(prisma, discordUserId);
-  if (!actor.ok) return actor;
-  const { character, held } = actor;
-  const account = character.bankAccount;
-  if (!account) return fail("You don't have an account yet.");
-
-  const quantity = Math.trunc(Number(rawQuantity));
-  if (!Number.isInteger(quantity) || quantity < 1) return fail("That isn't a quantity.");
-
-  const destination = DESTINATIONS.has(rawDestination) ? rawDestination : "SELF";
-  // Selling into the Merchant's books is a job, not a favour: it wants his
-  // papers or his keycard. That is the whole of the Docker's seat.
-  if (destination === "MERCHANT" && !held.has(MERCHANT_LICENSE_SLUG) && !held.has(DEPOT_KEYCARD_SLUG)) {
-    return fail("You don't have the Merchant's License or a Depot Keycard.");
-  }
-
-  const tag = await prisma.tag.findUnique({ where: { id: String(tagId ?? "") } });
-  if (!tag) return fail("The depot doesn't know what that is.");
-  if (tag.sellablePrice == null) return fail(`The depot doesn't buy ${tag.name}.`);
-
-  const holding = await prisma.characterTag.findUnique({
-    where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
-    select: { quantity: true },
-  });
-  if ((holding?.quantity ?? 0) < quantity) return fail(`You're only carrying ${holding?.quantity ?? 0}.`);
-
-  const stamp = turnStamp(turn);
-
-  await prisma.$transaction(async (tx) => {
-    // The drop IS the sale. dropCharacterTag's own hook books the goods leaving
-    // the world; the money arrives at the departure, not here.
-    await dropCharacterTag(tx, character.id, tag.id, quantity, {
-      econ: { from: characterParty(character), to: COMPANY, reason: "DEPOT_SALE", ...stamp },
-    });
-
-    await tx.depotSale.create({
-      data: {
-        accountId: account.id,
-        fingerprint: account.fingerprint,
-        holderName: account.holderName,
-        destination,
-        tagId: tag.id,
-        tagName: tag.name,
-        quantity,
-        unitPrice: tag.sellablePrice,
-        droppedTurn: turn?.number ?? 0,
-      },
-    });
-
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "request_depot_drop",
-        targetCharacterId: character.id,
-        turnId: turn?.id ?? null,
-        details: {
-          tagId: tag.id,
-          tagName: tag.name,
-          quantity,
-          unitPrice: tag.sellablePrice,
-          destination,
-          fingerprint: account.fingerprint,
-        },
-      },
-    });
-  });
-
-  return {
-    ok: true,
-    tagName: tag.name,
-    quantity,
-    characterId: character.id,
-    line: `${tag.name} ×${quantity} goes into the box.`,
-  };
-}
-
 // The gun's switch, on the Merchant's Office wall. The state is RE-READ at
 // submit, so two people in the office at once cannot both throw it the same
 // way, and the word they were asked to type is what says which way they meant.
@@ -595,53 +503,7 @@ async function canReadTreasury(prisma, discordUserId) {
   return { ok: true, character };
 }
 
-// The keys that open the Depot from anywhere: the Merchant's Licence, today.
-// Derived from MANIFESTS rather than named here, so adding a shelf
-// in db/lib/depotManifests.js moves this gate with it. The Depot Keycard is
-// deliberately NOT one — it opens a sealed crate, not the window.
-const MANIFEST_KEY_SLUGS = MANIFESTS.map((m) => m.requiredTagSlug).filter(Boolean);
-
-// Who may open /depot: somebody standing in it, or somebody carrying a manifest
-// key. Standing there is what makes the counter usable; a key makes the shelf
-// readable from anywhere, which is what a manifest is for.
-//
-// ONE predicate, the canReadTreasury bargain above — the page and the nav rail
-// both ask it and must not drift, because a rail item that redirects is worse
-// than no rail item. `atDepot` comes back with the answer, since it is also
-// what decides read-only, and resolving the place twice is how the two drift.
-//
-// Pure, so the page can ask it about the character it has already loaded rather
-// than paying for a second read. `canReadDepot` below is the loading twin, for
-// the rail, which has no character in hand.
-// See docs/systemdocs/DEPOT.md §0b.
-function depotAccessFor(locationSlug, heldSlugs) {
-  const atDepot = locationSlug === DEPOT_LOCATION_SLUG;
-  const keyed = MANIFEST_KEY_SLUGS.some((slug) => Boolean(heldSlugs?.has?.(slug)));
-  if (!atDepot && !keyed) return { ok: false, atDepot: false, error: "The counter is at the Depot." };
-  return { ok: true, atDepot };
-}
-
-async function canReadDepot(prisma, discordUserId) {
-  const character = await prisma.character.findFirst({
-    where: { discordUserId, status: "ALIVE" },
-    select: {
-      id: true,
-      location: { select: { slug: true } },
-      tags: { select: { equipped: true, tag: { select: RING_ACCESS_TAG_FIELDS } } },
-    },
-  });
-  if (!character) return { ok: false, atDepot: false, error: "You don't have a living character." };
-
-  const held = accessSlugsOf(character.tags);
-  const access = depotAccessFor(character.location?.slug, held);
-  return access.ok ? { ...access, character } : access;
-}
-
 module.exports = {
-  DESTINATIONS,
-  MANIFEST_KEY_SLUGS,
-  canReadDepot,
-  depotAccessFor,
   canReadTreasury,
   counterActor,
   counterState,
@@ -649,7 +511,6 @@ module.exports = {
   bankMove,
   bankSend,
   sendableAccounts,
-  dropIntoBox,
   depotTurretPanel,
   toggleDepotTurret,
 };

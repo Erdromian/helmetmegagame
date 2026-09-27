@@ -6,7 +6,7 @@
 // engine without dragging Prisma into the browser. One implementation, so the
 // countdown on screen and the refusal on the server can never disagree.
 //
-// Zero requires, on purpose, like db/lib/slotText.js and db/lib/dropboxText.js:
+// Zero requires, on purpose, like db/lib/slotText.js:
 // web/app/(app)/chat/PlacePanel.js is a client component, and db/lib/vending.js
 // requires the ledger, which requires Prisma — importing the machine from the
 // browser would drag PrismaClient into the bundle and crash /chat on open.

@@ -16,12 +16,9 @@ const { crateTagData, splitIntoCrates } = require("../lib/depotCrates");
 const {
   MANIFESTS,
   MANIFEST_IDS,
-  MANIFEST_GENERAL,
   MANIFEST_MERCHANT,
   MANIFEST_BLACK_MARKET,
   manifestOf,
-  manifestsFor,
-  canOrder,
   isManifestId,
 } = require("../lib/depotManifests");
 const { normalizeQuantity, DEPOT_MAX_QUANTITY } = require("../lib/depot");
@@ -94,39 +91,6 @@ test("a ware naming no manifest is the Merchant's, which is the strictest defaul
   assert.equal(manifestOf({ manifest: "not-a-shelf" }), MANIFEST_MERCHANT);
 });
 
-test("the counter never offers the Black Market; a licence opens the Merchant's shelf", () => {
-  const nobody = manifestsFor(new Set()).map((m) => m.id);
-  assert.deepEqual(nobody, [MANIFEST_GENERAL]);
-
-  // The Black Market's ring token works the Exactor's terminal, not the Depot.
-  const ring = manifestsFor(new Set(["black-market-key", "silver-chip"])).map((m) => m.id);
-  assert.deepEqual(ring, [MANIFEST_GENERAL]);
-
-  const merchant = manifestsFor(new Set(["merchants-license"])).map((m) => m.id);
-  assert.deepEqual(merchant, [MANIFEST_GENERAL, MANIFEST_MERCHANT]);
-
-  // A Depot Keycard is not a shelf. It opens the Railyard and cracks a sealed
-  // crate; it has never decided what anybody may order.
-  const docker = manifestsFor(new Set(["depot-keycard"])).map((m) => m.id);
-  assert.deepEqual(docker, [MANIFEST_GENERAL]);
-});
-
-test("canOrder is the per-ware gate the order action re-checks, and it agrees with manifestsFor", () => {
-  const bulk = { manifest: MANIFEST_GENERAL };
-  const booze = { manifest: MANIFEST_BLACK_MARKET };
-  const pistol = { manifest: null };
-
-  assert.equal(canOrder(bulk, new Set()), true);
-  assert.equal(canOrder(booze, new Set()), false);
-  assert.equal(canOrder(pistol, new Set()), false);
-
-  // Nothing opens the Black Market at the counter, the licence included.
-  assert.equal(canOrder(booze, new Set(["black-market-key"])), false);
-  assert.equal(canOrder(booze, new Set(["merchants-license"])), false);
-  assert.equal(canOrder(pistol, new Set(["black-market-key"])), false);
-  assert.equal(canOrder(pistol, new Set(["merchants-license"])), true);
-});
-
 test("a crate says whose it is, between the shipment id and the contents", () => {
   const order = { holderName: "Ada Voss", fingerprint: "AV-2017", anonymous: false };
   const crates = splitIntoCrates([{ tagId: "t1", name: "Coal", quantity: 4, sealed: false }]);
@@ -160,28 +124,27 @@ function labels(list) {
   return list.map((e) => e.label);
 }
 
-test("the Dropbox hangs off the Depot LOCATION, so it is reachable from any room in it", () => {
-  assert.ok(labels(locationAffordances(DEPOT_LOCATION)).includes("Dropbox"));
-  assert.equal(labels(locationAffordances(ELSEWHERE)).includes("Dropbox"), false);
+test("the Merchant's Terminal hangs off the Depot LOCATION, where the drop box used to", () => {
+  assert.ok(labels(locationAffordances(DEPOT_LOCATION)).includes("Merchant's Terminal"));
+  assert.equal(labels(locationAffordances(ELSEWHERE)).includes("Merchant's Terminal"), false);
+  // The drop box is gone (Depot Overhaul.docx), on the Location and the Railway both.
+  assert.equal(labels(locationAffordances(DEPOT_LOCATION)).includes("Dropbox"), false);
 });
 
-// The Depot is ONE room since the Merchant moved out, so the Railway carries
-// the drop box and a cash machine both. The Merchant kept the other machine.
 // Storage and Search sit on every room (CARRY.md §8, SEARCH.md §9), so they
-// lead every list here. Send money and the Merchant's credit line are Discord's
-// own buttons for what /depot does on the web (db/test/placeButtons.test.js).
-test("and again on the Railway, where somebody meeting the train already is", () => {
+// lead every list here. Send money is Discord's own button for what the web's
+// infoterminal dialog does (db/test/placeButtons.test.js); the Merchant's
+// credit line that sat beside it is gone.
+test("the Railway carries the infoterminal and Send money, and no drop box", () => {
   assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-5-1" })), [
     "Storage",
     "Search (0.33 Move)",
     "Infoterminal",
-    "Dropbox",
     "Send money",
-    "Merchant credit",
   ]);
 });
 
-test("the Merchant's Storefront has a machine of its own, and no drop box", () => {
+test("the Merchant's Counter has a machine of its own, on the Storefront's side", () => {
   assert.deepEqual(labels(roomAffordances({ id: "r", slug: "undertown-6-1" })), ["Storage", "Search (0.33 Move)", "Infoterminal"]);
 });
 
@@ -199,8 +162,8 @@ test("the Merchant's gun is on his own office wall and nowhere else", () => {
 });
 
 test("the anchor's buttons still chunk under Discord's five-per-row cap", () => {
-  // The Depot carries a noticeboard AND the Dropbox, which put it past five for
-  // the first time. locationAnchorRows chunks; this is here so a seventh button
+  // The Depot carries a noticeboard AND the Merchant's Terminal, which put it
+  // past five. locationAnchorRows chunks; this is here so a seventh button
   // does not one day silently overflow a row instead.
   const { locationAnchorRows } = require("../lib/locationAnchorRow");
   const rows = locationAnchorRows({ ...DEPOT_LOCATION, attributes: { depot: true, noticeboard: true } });
@@ -220,15 +183,4 @@ test("the per-train cap refuses rather than clamps, and a legal quantity comes b
   assert.equal(normalizeQuantity(-3), null);
   assert.equal(normalizeQuantity(2.5), null);
   assert.equal(normalizeQuantity("not a number"), null);
-});
-
-// The Dropbox says one thing on three faces, so it is defined once.
-test("the Dropbox's help line and empty state are single definitions beside its label", () => {
-  const { DROPBOX_HELP, DROPBOX_EMPTY, ROOM_AFFORDANCES } = require("../lib/placeAffordances");
-  assert.match(DROPBOX_HELP, /^The next time the train leaves,/);
-  assert.match(DROPBOX_HELP, /credited to your chosen account\.$/);
-  assert.equal(DROPBOX_EMPTY, "You don't have anything you can sell.");
-  // Straight apostrophe, never curly (CLAUDE.md).
-  assert.equal(/[\u2018\u2019]/.test(`${DROPBOX_HELP}${DROPBOX_EMPTY}`), false);
-  assert.equal(ROOM_AFFORDANCES.some((a) => a.id === "dropbox" && a.label === "Dropbox"), true);
 });

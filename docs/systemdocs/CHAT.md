@@ -1906,11 +1906,10 @@ a 48px head and a one-line composer:
   `commands.js` calls it on a successful toggle. Anything else that changes a
   server prop from a command has to do the same — the ctx callback, not a
   `revalidatePath` nobody in `actions.js` uses.
-- **The place card's two doors** (`PlaceCard.js`). A **Depot ›** link when
-  this character is standing at the Depot AND holds the merchant licence or
-  the keycard — offered only where it would open, since `/depot` bounces
-  anybody without one — and a **Factory** button on godflesh ground, opening
-  the sheet's Extract dialog. Both decided server-side in `play/page.js`; the
+- **The place card's door** (`PlaceCard.js`): a **Factory** button on godflesh
+  ground, opening the sheet's Extract dialog. (The **Depot ›** link went with
+  `/depot` in the Depot Overhaul; the Merchant's Terminal is a place fixture on
+  the card instead, `DEPOT.md` §0c.) Both decided server-side in `play/page.js`; the
   page and the action re-check their own gate.
 - **`web/lib/selfPools.js#loadLettersView`** builds the paperwork half of a
   character's own state — the four gates plus the paper, letter, seal, book,
@@ -2476,7 +2475,7 @@ when it lands. `web/lib/snapshot/`:
 Every server action re-validates from the database (CLAUDE.md), so acting on
 a stale sheet is safe; the fresh data simply replaces it.
 
-**Which pages.** Snapshotted: `/chat`, `/character`, `/documents`, `/depot`,
+**Which pages.** Snapshotted: `/chat`, `/character`, `/documents`,
 `/notes`, `/gm/players` and a player's conversation, `/gm/turns`, `/gm/audit`,
 `/gm/crafts`, `/gm/structures`, `/gm/dev/tags` and the dev panel for one
 character. Not yet, because their bodies are hand-built server JSX rather

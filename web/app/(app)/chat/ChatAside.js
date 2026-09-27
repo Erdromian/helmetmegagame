@@ -127,7 +127,6 @@ export default function ChatAside({
   things,
   // Decided server-side in page.js; the link's page and the dialog's action
   // each re-check their own gate.
-  depotHref = null,
   canSeeExtract = false,
   selected,
   // `/travel <somewhere>` from the composer; the Go button still moves anybody.
@@ -152,10 +151,12 @@ export default function ChatAside({
   // the Discord anchor.
   // Charon's Leave is a place affordance too: it is how you get OFF the ship,
   // and the ship is a Location with no edge, so Travel cannot offer it
-  // (docs/systemdocs/CHARON.md).
+  // (docs/systemdocs/CHARON.md). The Merchant's Terminal is the Depot's own
+  // fixture, on no room's wall (docs/systemdocs/DEPOT.md §0c).
   const fixtures = live.filter(
     (entry) =>
-      (entry.kind === "place" && (entry.id === "noticeboard" || entry.id === "charonLeave")) ||
+      (entry.kind === "place" &&
+        (entry.id === "noticeboard" || entry.id === "charonLeave" || entry.id === "merchantTerminal")) ||
       entry.kind === "gate" ||
       entry.kind === "keyed",
   );
@@ -313,7 +314,6 @@ export default function ChatAside({
             fixtures={fixtures}
             onFixture={openFixture}
             onConverse={openConverse}
-            depotHref={depotHref}
             onFactory={canSeeExtract && openAction ? () => openAction("extract") : null}
             onOpenMap={onOpenMap}
             pending={pending}

@@ -1205,14 +1205,12 @@ zones:
                 flooded-crate: 1
               hidden:
                 obol: 12
-      # The freight end of the station, and only that. The shop that used to
-      # share this Location is its own place next door now (undertown-6), so
-      # what is left here is the platform: the counter, the drop box, the
-      # noticeboard and the train.
-      #
-      # ONE room on purpose. The platform is the whole place, so Storage, the
-      # drop box and a cash machine all hang off it — db/lib/train.js names
-      # the room and db/lib/depot.js#ATM_ROOM_SLUGS the machine.
+      # The freight end of the station: the platform and the train, the
+      # Merchant's Terminal (a Location fixture, db/lib/placeAffordances.js),
+      # the noticeboard, and since the Depot Overhaul the Merchant's Office
+      # and the Cargo Bay. The Storefront's Merchant's Counter opens onto it
+      # as well (a multi-locational room, MAP.md §2d). db/lib/train.js names
+      # the Railway and db/lib/depot.js#ATM_ROOM_SLUGS its cash machine.
       undertown-5:
         name: Depot
         indoors: true
@@ -1233,25 +1231,14 @@ zones:
             live: train
             description: >-
               Rusted overhangs, overgrown with wilted, sunthirsted vines, occlude the cargo hub. A deep railway bisects the platforms. Every other turn, a cargo train rolls in.
-      # The merchant's berth, moved out of the Caves with the rest of the town
-      # and then out of the Depot itself. He keeps his three rooms; the
-      # platform next door keeps the counter, so he stands one free hop from
-      # his own till.
-      undertown-6:
-        name: Merchant
-        indoors: true
-        description: >-
-          Warm incandescent lights beckon travelers over a cave-river into the rusted, metal depot. It's bedecked in furs, banners, and comfortable chairs.
-        rooms:
-          undertown-6-1:
-            name: Storefront
-            vending: true
-            description: >-
-              An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A vending machine stands against one wall, its front glassed over. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
-            stash:
-              hidden:
-                tea: 1
-                sugar-candy: 1
+          # The Merchant's own two rooms moved here from the Storefront next
+          # door with the Depot Overhaul (DEPOT.md §0a): the office with the
+          # gun's red button, and the bay the crates are packed in. They keep
+          # their undertown-6-* slugs, because a slug is an id and code names
+          # both (db/lib/train.js, db/lib/wantedPoster.js).
+          #
+          # Nothing put down in the Railway or the Cargo Bay ever sinks under
+          # the floor (db/lib/floorSettle.js#NEVER_SINKS_ROOM_SLUGS).
           undertown-6-2:
             name: Merchant's Office
             access: [merchants-license]
@@ -1281,6 +1268,33 @@ zones:
                 # Untradeable, so it is a fixture here and weighs nothing —
                 # see the note on the tag in docs/tags.yaml.
                 packaging-equipment: 1
+      # The Merchant's shop front, moved out of the Caves with the rest of the
+      # town and then out of the Depot itself. Called "Merchant" until the
+      # Depot Overhaul renamed it; its office and cargo bay went back to the
+      # Depot then, and the way through is locked to the Merchant's and the
+      # Dockers' rings (connections: below). What joins the two is the
+      # counter: the Merchant's Counter opens onto both.
+      undertown-6:
+        name: Storefront
+        indoors: true
+        description: >-
+          Warm incandescent lights beckon travelers over a cave-river into the rusted, metal depot. It's bedecked in furs, banners, and comfortable chairs.
+        rooms:
+          # A multi-locational room (MAP.md §2d): anybody in the Storefront or
+          # in the Depot stands at it, and Transfer reaches a person on the
+          # other side of it (CARRY.md §6). Its fixtures — the vending machine
+          # and the infoterminal — stay on the Storefront's side.
+          undertown-6-1:
+            name: Merchant's Counter
+            vending: true
+            sides:
+              - location: undertown-5
+            description: >-
+              An unwashed rug and shelves with various goods, and also a bar for boozing up the patrons before they decide to buy. A vending machine stands against one wall, its front glassed over. A shutter can be raised and lowered to close the windows and protect the door. There's a turret on the roof. Stairs lead down to the railyard.
+            stash:
+              hidden:
+                tea: 1
+                sugar-candy: 1
       # The shelter, and the one place in the Undertown that asks nothing of
       # anybody. The key is lying in the bunks where anyone can pick it up —
       # it only opens the kitchen, and the food in there is the whole point of
@@ -2535,10 +2549,13 @@ connections:
     hidden: caving
     on_foot: true
 
-  # The merchant's berth, off the freight platform and out into the Undertown
-  # proper. Without the first of these he is an island with the counter on the
-  # wrong side of it.
-  - [undertown/undertown-5, undertown/undertown-6]
+  # The Storefront, off the freight platform and out into the Undertown
+  # proper. The way through to the platform is the Merchant's and his
+  # Dockers' alone (Depot Overhaul.docx): both their rings carry the
+  # depot-keycard token (docs/roles.yaml). Everybody else deals with the
+  # Depot across the Merchant's Counter.
+  - pair: [undertown/undertown-5, undertown/undertown-6]
+    locked: depot-keycard
   - [undertown/undertown-6, undertown/undertown-7]
   - [undertown/undertown-6, undertown/undertown-a]
 

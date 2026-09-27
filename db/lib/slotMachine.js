@@ -32,7 +32,7 @@ const { blockerFor, ACT } = require("./incapacitation");
 const { SFX } = require("./sfx");
 // The table and the prompt live in their own zero-require file, so Chat's
 // dialog can import them without dragging PrismaClient into the browser
-// (db/lib/dropboxText.js says the same about itself). Re-exported below, so a
+// (db/lib/vendingText.js says the same about itself). Re-exported below, so a
 // server caller keeps its one import.
 const { SLOT_COST, SLOT_PAYOUTS, SLOT_MAX_PAYOUT, SLOT_PROMPT } = require("./slotText");
 

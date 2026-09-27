@@ -11,6 +11,7 @@ import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { loadRoomsAt } from "@lifeweb/db/lib/roomSides";
 import { RESOURCES_SELECT, resourcesOf, isResourcesRow, withoutResources } from "@lifeweb/db/lib/resourceStack";
 import { rosterHere, pickerName, pickerKey } from "@/lib/peopleHere";
+import { acrossRecipients } from "@lifeweb/db/lib/whosHere";
 import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
 import { medicallyVisibleTags } from "@lifeweb/db/lib/medicalVision";
 import { isTradeable } from "@/lib/tagRequests";
@@ -206,10 +207,15 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // TRANSFER'S list. `kind: "hood"` makes PartySelect write "hood:<token>"
   // instead of wrapping the value in "character:". A token is null when
   // AUTH_SECRET is unset, and an untokened hood is not offerable.
+  //
+  // Plus, alone among the verbs, the people on the far side of a counter you
+  // are at (the Merchant's Counter, Depot Overhaul.docx), keyed "across:<ref>"
+  // and noted with the room (db/lib/whosHere.js#acrossRecipients).
   const transferParties = [
     selfEntry,
     ...roomNow.named.map((c) => ({ id: c.characterId, name: c.name })),
     ...roomNow.concealed.filter((c) => c.token).map((c) => ({ id: c.token, name: c.alias, kind: "hood" })),
+    ...(await acrossRecipients(prisma, character)),
   ];
 
   // SEARCH'S list (docs/systemdocs/SEARCH.md). Shaped like transferParties and

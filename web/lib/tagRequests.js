@@ -4,6 +4,7 @@
 import { holdsRequirement } from "./characterCreation";
 import { isTradeable } from "@lifeweb/db/lib/tradeable";
 import { isResourcesRow } from "@lifeweb/db/lib/resourceStack";
+import { canPack } from "@lifeweb/db/lib/crates";
 
 // Lifted into db/lib so Search can ask the same question from the other side of
 // the monorepo (SEARCH.md), and re-exported here so TAGS.md §5's "single reader"
@@ -106,9 +107,11 @@ export function isMount(tag) {
   return tag?.equipSlot === "MOUNT";
 }
 
+// The one list of what goes in a crate is db/lib/crates.js#canPack, shared with
+// the Package action and the train.
 export function packableTags(characterTags = []) {
   return characterTags
-    .filter((ct) => isTradeable(ct.tag) && !isCrate(ct.tag) && !isMount(ct.tag) && !isResourcesRow(ct))
+    .filter((ct) => canPack(ct.tag) && !isResourcesRow(ct))
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1 }));
 }
 

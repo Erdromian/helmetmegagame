@@ -681,8 +681,11 @@ async function syncTagsFromYaml(prisma) {
     if (t.depotPrice != null && !(Number.isInteger(t.depotPrice) && t.depotPrice > 0)) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" has a depotPrice that is not a positive integer`);
     }
-    // Warning only, not an error — see docs/systemdocs/DEPOT.md §3.
-    if (t.depotPrice != null && t.sellablePrice != null && t.sellablePrice >= t.depotPrice) {
+    // Warning only, not an error — see docs/systemdocs/DEPOT.md §3. Selling
+    // back AT the buy price is the Depot Overhaul's rule and prints nothing: the
+    // train taxes the import and the export both, so a round trip loses the tax
+    // twice. Only a sell price ABOVE the buy price is a loop.
+    if (t.depotPrice != null && t.sellablePrice != null && t.sellablePrice > t.depotPrice) {
       console.warn(
         `docs/tags.yaml: tag "${t.slug}" sells back for ${t.sellablePrice} ¢ but costs ${t.depotPrice} ¢ at the Depot — buying and selling it in a loop prints money`,
       );

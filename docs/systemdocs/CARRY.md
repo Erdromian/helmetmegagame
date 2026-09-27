@@ -432,6 +432,19 @@ through `roomSides.js`, and the sheet refreshes when the far side drops
 something. Workshop equipment and bodies lying in the room are still reached
 from its home side only.
 
+**At the Merchant's Counter, Transfer also reaches a person on the other
+side** (Depot Overhaul.docx: "items can be transferred to characters on either
+side"). It is the one exception to "every verb on a person stays
+Location-grain" (`MAP.md` §2d), and it is Transfer's alone — Loot, Steal, Kiss
+and every other verb still refuse across. The picker lists the far side's
+people noted with the room's name, under an `across:<ref>` key: a named
+person's id, or a hood's token, the same token the counter's Who's here? uses
+to let you look at them (`db/lib/whosHere.js#acrossRecipients`). The action
+re-resolves it against the counter at submit
+(`resolveAcrossRecipient`), so somebody who has walked off names nobody.
+Nothing about the counter is named in code: any room with a side would do the
+same.
+
 **Two rooms hold nothing at all.** `Room.destroysContents` — the Godard
 Factory's Spillway and the Servant Wing's Latrines — makes both writers into a room
 (`giveTagTo`, `moveParty`) no-ops, so what goes in is gone. Undo can still hand
@@ -515,6 +528,11 @@ and what is left in one stays on the shelf. Everywhere else, a stack somebody
 set down and walked away from goes from `quantity` into `hiddenQuantity`,
 and from then on only a Search (`SEARCH.md` §9) brings it back up.
 
+- **Where nothing sinks.** The Railway and the Cargo Bay at the Depot
+  (`floorSettle.js#NEVER_SINKS_ROOM_SLUGS`), and a crate never sinks
+  anywhere (`canSink`): the Depot Overhaul keeps both in sight, since the
+  train takes what is on the platform and a crate is a box somebody hauled
+  there. The Cargo Bay is keyed anyway; the Railway is public.
 - **The stamp.** `RoomTag.floorDay` is the in-game day (`Turn.dayNumber`) a
   character last set something down on that stack. Four paths write it, all
   through `db/lib/floorSettle.js#stampLeftOnFloor`: the Transfer dialog into
@@ -703,28 +721,58 @@ it out for a while, which made every stash in the game a one-way drop.
 | ⬢ as a stack | `db/lib/resourceStack.js`; `resources` in `docs/tags.yaml` |
 | Weight bands | `weight:` in `docs/tags.yaml`; `Tag.weightLbs` |
 
-## Crates
+## 10. Crates
 
 A crate weighs **half what is in it**, rounded up, never under 1 lb
 (`db/lib/depotCrates.js#crateWeight`). That is the whole point of packing
 something, and it is why a wagon of Squeeze reaches the Depot at all
-(`FACTORY.md` §5). It was a flat 15 lb until 9/2026, which made a crate of obols
-heavier than the obols and a crate of armour lighter than one piece of it.
+(`FACTORY.md` §5).
 
-Two things make crates now, on one arithmetic:
+Two things make crates, on one arithmetic:
 
-- **A Depot shipment** lands as several, split by `splitIntoCrates`.
-- **The Package button**, from anywhere with Packaging Equipment in reach: up to
-  150 lb of what you are carrying, plus a line you type yourself, which is
-  **not** checked against the contents.
+- **A train shipment** lands as several, split by `splitIntoCrates`
+  (`DEPOT.md` §0d).
+- **The Package button**, from anywhere with Packaging Equipment in reach but
+  the Railway: up to 150 lb of what you are carrying, plus a line you type
+  yourself, which is **not** checked against the contents.
 
-Both are runtime `Tag` rows, `custom: true`. They are ordinary cargo for every
-purpose here: they count against the cap, they can be transferred, stashed and
-stolen. Opening one replaces its weight with whatever was inside, which is
-always heavier. A player-packed crate is an ordinary `consumable`, so the
-Consume button opens it; the Depot's own sealed ones want the keycard and the
-`/depot` panel.
+What goes in one is `db/lib/crates.js#packRefusal`: nothing untradeable, no
+crate, no ⬢, no mount. **A crate is worth the sum of what is in it** — its
+`sellablePrice` is set from its contents' sell prices when it is packed or
+lands — and that is what the train pays for it (`DEPOT.md` §0e).
+
+Both kinds are runtime `Tag` rows, `custom: true`, with a `custom-crate-…`
+slug; the catalog's three crate props count as crates too (`isCrateTag`).
+They count against the cap, and can be transferred, stashed and stolen.
+Opening one (Consume, in your own hands) replaces its weight with whatever was
+inside, which is always heavier. A sealed one wants the Depot Keycard.
+
+### Carrying them (Depot Overhaul.docx)
+
+- **One crate at a time, three with a Cart on.** A hold limit beside the
+  mount's (`db/lib/mounts.js#HOLD_LIMITS`), so every deliberate way in — a
+  Transfer, a Take, a Loot, a Package — is refused past it with "You can only
+  carry one crate at a time, or three with a Cart." The Cart has to be
+  **equipped**; one stowed in a pocket does not count.
+- **Dismounting drops the extras.** Taking the Cart off leaves its holder over
+  the limit, and the carry settle (§4) sets the spare crates down in a public
+  room at their Location, the newest first — the doc's "if dismounted, two of
+  the three will fall onto the floor of a room the character is in". It is the
+  hold-limit drop every settle already runs, so a narrow way that unequips the
+  Cart does the same.
+- **Hauling tires you.** The first Transfer (or Loot) in a turn that moves a
+  crate at all — picking one up, handing one over, setting one down — climbs
+  the Tired ladder one rung (`db/lib/fatigue.js`); `Character.crateHauledTurn`
+  is what makes it the first. An Exhausted character climbs nothing further.
+- **Picking one up sours you.** Every crate that lands in your own hands by your
+  own doing costs 20 mood (`EVENTS.CRATE_HAULED`, `MOOD.md`). Somebody handed a
+  crate has not picked it up — the giver hauled it.
+- **Pack Mule and Strong feel none of it** (`crates.js#hauls`). Dockers start
+  as Pack Mules; the Merchant starts with Soft Hands and may buy neither Pack
+  Mule nor Strong (`excludedRoles` in `docs/tags.yaml`).
+
+The costs are `db/lib/crateHaul.js#chargeCrateHaul`, called inside Transfer's
+and Loot's transactions.
 
 Obols are the other end of the ladder: `weight: 0`, the Negligible band, the
-same as a key or a letter. Compressing ⬢ into something you can actually carry
-is most of the point of them. See `docs/systemdocs/DEPOT.md` §0e and §0g.
+same as a key or a letter. See `docs/systemdocs/DEPOT.md` §0e and §0g.

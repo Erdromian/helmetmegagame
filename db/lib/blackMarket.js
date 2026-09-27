@@ -19,7 +19,7 @@
 //     once. No crate, no train, no bank account.
 //
 // The Depot's counter stocks none of these wares any more
-// (db/lib/depotManifests.js#canOrder never offers the black-market manifest).
+// (db/lib/merchantTerminal.js#terminalShelf lists everything but these).
 //
 // Returns `{ ok: false, error }` rather than throwing, the db/lib/depotCounter.js
 // convention, so a refusal reads the same on both faces. Takes `prisma` as a

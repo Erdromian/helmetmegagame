@@ -9,7 +9,9 @@ const { structuresAt } = require("./structures");
 // True when the character holds the tag, a Room stash at their Location has it, or a COMPLETE
 // structure there provides it (db/lib/structures.js). `character` needs { id, locationId }. Held tags
 // are re-read, not taken from a passed row — every caller is a server action re-checking a client claim.
-async function hasEquipmentInReach(prisma, character, slug) {
+// `excludeRoomSlugs` leaves rooms out of reach for this one ask: Package never packs on the Railway
+// (Depot Overhaul.docx).
+async function hasEquipmentInReach(prisma, character, slug, { excludeRoomSlugs = [] } = {}) {
   if (!character?.id || !slug) return false;
 
   const held = await prisma.characterTag.findFirst({
@@ -23,7 +25,11 @@ async function hasEquipmentInReach(prisma, character, slug) {
 
   const [rooms, keys, structures] = await Promise.all([
     prisma.room.findMany({
-      where: { locationId: character.locationId, tags: { some: { quantity: { gt: 0 }, tag: { slug } } } },
+      where: {
+        locationId: character.locationId,
+        tags: { some: { quantity: { gt: 0 }, tag: { slug } } },
+        ...(excludeRoomSlugs.length ? { slug: { notIn: excludeRoomSlugs } } : {}),
+      },
       select: { id: true, kind: true, accessTagSlugs: true },
     }),
     roomAccessKeys(prisma, character.id),

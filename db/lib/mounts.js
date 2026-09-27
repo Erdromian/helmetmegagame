@@ -5,9 +5,10 @@
 // or out, and is unequipped only on a way too narrow for it — helpers here take ACTIVE slugs
 // (`equippedSlugs` below), never a bare held-slug set.
 //
-// ZERO REQUIRES, EVER. web/app/components/EquipBoard.js is a client component
-// and imports this file; one require of @lifeweb/db here drags PrismaClient
-// into the browser bundle. The database half (spending a ride, the nightly
+// ZERO REQUIRES, EVER — bar ./crates, which is itself a zero-require leaf.
+// web/app/components/EquipBoard.js is a client component and imports this
+// file; one require of @lifeweb/db here drags PrismaClient into the browser
+// bundle. The database half (spending a ride, the nightly
 // rest) is db/lib/mountRides.js.
 //
 // THE RIDES LIVE ON THE MOUNT (ARELITZ.md §2a). A fresh mount buys a fixed
@@ -30,6 +31,8 @@
 // Rides a FRESH mount of each kind buys a turn. Arelitz Tack is not worn by
 // the rider any more: it is fitted to one animal (the Tacked Arelitz recipe,
 // docs/tags.yaml), which is a different head with one more ride on it.
+const { isCrateTag, crateHoldLimit } = require("./crates");
+
 const MOUNT_RIDES = Object.freeze({
   arelitz: 1,
   "arelitz-tacked": 2,
@@ -77,7 +80,20 @@ const MOUNT_HOLD_LIMIT = 1;
 const YOUNG_ARELITZ_HOLD_LIMIT = 3;
 const YOUNG_ARELITZ_SLUGS = new Set(["unruly-arelitz", "arelitz-hatchling", "arelitz-youngling", "arelitz-yearling"]);
 
+// A crate is the third hold limit (Depot Overhaul.docx, CARRY.md §10): one on
+// your back, three with a Cart on. The limit moves with the Cart, so a rule may
+// give `limitFor(held)` instead of a fixed `limit`, and `matches(tag)`
+// instead of a slug set, since a crate is a runtime tag with no fixed slug.
+// Taking the Cart off leaves the holder over the limit, and carry.js#settleCarry
+// sets the spare crates down in a room — the doc's "if dismounted, two of the
+// three will fall onto the floor".
 const HOLD_LIMITS = [
+  {
+    matches: isCrateTag,
+    limitFor: crateHoldLimit,
+    refusal: "You can only carry one crate at a time, or three with a Cart.",
+    dropped: "You can only carry one crate at a time, or three with a Cart",
+  },
   {
     slugs: FAST_TRAVEL_SLUGS,
     limit: MOUNT_HOLD_LIMIT,
@@ -97,12 +113,25 @@ const HOLD_LIMITS = [
 // sentence, or null. The same "check before it lands" posture as
 // db/lib/carry.js#carryAdmits: a hand-over, a pickup or a purchase is refused
 // rather than landing and being set down again.
+// `incoming` entries may carry the whole `tag` beside its slug; the crate
+// rule needs it, the slug rules don't.
+function ruleMatches(rule, tag) {
+  return rule.matches ? rule.matches(tag) : rule.slugs.has(tag?.slug);
+}
+
+function ruleLimit(rule, held) {
+  return rule.limitFor ? rule.limitFor(held) : rule.limit;
+}
+
 function holdLimitRefusal(held = [], incoming = []) {
   for (const rule of HOLD_LIMITS) {
-    const adding = incoming.reduce((n, i) => n + (rule.slugs.has(i?.slug) ? Math.max(0, i.quantity ?? 1) : 0), 0);
+    const adding = incoming.reduce(
+      (n, i) => n + (ruleMatches(rule, i?.tag ?? { slug: i?.slug }) ? Math.max(0, i.quantity ?? 1) : 0),
+      0,
+    );
     if (adding === 0) continue;
-    const holding = (held ?? []).reduce((n, ct) => n + (rule.slugs.has(ct?.tag?.slug) ? (ct.quantity ?? 1) : 0), 0);
-    if (holding + adding > rule.limit) return rule.refusal;
+    const holding = (held ?? []).reduce((n, ct) => n + (ruleMatches(rule, ct?.tag) ? (ct.quantity ?? 1) : 0), 0);
+    if (holding + adding > ruleLimit(rule, held)) return rule.refusal;
   }
   return null;
 }
@@ -116,13 +145,13 @@ function holdLimitRefusal(held = [], incoming = []) {
 function holdLimitExcess(characterTags = []) {
   const out = [];
   for (const rule of HOLD_LIMITS) {
-    const rows = (characterTags ?? []).filter((ct) => rule.slugs.has(ct?.tag?.slug) && (ct.quantity ?? 1) > 0);
+    const rows = (characterTags ?? []).filter((ct) => ruleMatches(rule, ct?.tag) && (ct.quantity ?? 1) > 0);
     rows.sort(
       (a, b) =>
         (b.equippedQuantity ?? (b.equipped ? 1 : 0)) - (a.equippedQuantity ?? (a.equipped ? 1 : 0)) ||
         (new Date(a.acquiredAt ?? 0).getTime() - new Date(b.acquiredAt ?? 0).getTime()),
     );
-    let room = rule.limit;
+    let room = ruleLimit(rule, characterTags);
     for (const row of rows) {
       const qty = row.quantity ?? 1;
       const keep = Math.min(qty, room);

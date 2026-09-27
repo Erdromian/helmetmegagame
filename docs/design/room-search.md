@@ -264,7 +264,7 @@ change.
 | Undertown › Poorhouse › Bunks `undertown-7-1` | Poorhouse Key | — |
 | Undertown › Order Chambers › Interrogation Room `undertown-b-1` | Torturing Equipment | — |
 | Undertown › Order Chambers › Holding Cells `undertown-b-2` | — | Feces ×2, Moldy Bread |
-| Undertown › Merchant › Storefront `undertown-6-1` | Tea, Sugar Candy | — |
+| Undertown › Storefront › Merchant's Counter `undertown-6-1` | Tea, Sugar Candy | — |
 | Underground › Approach › Old Mineshaft `caves-2-2` | Black Powder, Hematite | Rock ×3 |
 | Underground › Approach › Abandoned Hut `caves-2-1` | Cheese | — |
 | Underground › Entrance › Customs `caves-1-1` | Skinned Cave Rat | — |

@@ -22,9 +22,9 @@ import { isSuperadmin } from "@/lib/superadmin";
 // get the dial; actions.js re-checks the real gate either way.
 //
 // This replaced the Tax button, which filed a levy per person per turn and was
-// answered by a DM. The sell tax is quieter and much harder to dodge: it comes
-// off every sale at the counter before anybody is paid, and it lands in the
-// Vault as coin. See docs/systemdocs/DEPOT.md §8.
+// answered by a DM. The Meister's tax is quieter and much harder to dodge:
+// since the Depot Overhaul it comes off every train's imports and exports, on
+// the whole load, and it lands in the Vault as coin. See docs/systemdocs/DEPOT.md.
 export default async function TreasuryPage({ searchParams }) {
   const { session } = await getGmSession();
   if (!session?.discordUserId) redirect("/");
@@ -87,7 +87,8 @@ export default async function TreasuryPage({ searchParams }) {
       },
     }),
     vaultObols(prisma),
-    prisma.depotSale.findMany({ where: { settledAt: null }, select: { unitPrice: true, quantity: true } }),
+    // What the next train will bring in and tax: the Merchant's Terminal's pending list.
+    prisma.merchantOrder.findMany({ where: { deliveredAt: null }, select: { totalObols: true } }),
     loadTreasuryTransactions(prisma, { accountId: selectedId }),
   ]);
 
@@ -97,7 +98,7 @@ export default async function TreasuryPage({ searchParams }) {
   const claims = accounts
     .filter((a) => a.class === TREASURY)
     .reduce((sum, a) => sum + a.balanceObols, 0);
-  const stagedValue = staged.reduce((sum, s) => sum + s.unitPrice * s.quantity, 0);
+  const stagedValue = staged.reduce((sum, o) => sum + o.totalObols, 0);
 
   return (
     <PageShell width="wide">

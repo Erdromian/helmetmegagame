@@ -1112,17 +1112,19 @@ actually moves is decided entirely by `deliveredAt: null` / `settledAt: null`,
 each row claimed with a conditional `updateMany` before it is touched. A failed
 advance that is resumed, a GM force-advance, or a game that starts on an even
 turn therefore costs a turn of flavour and never a shipment. Turn 1 needs no
-special case at all: it is a departure with an empty drop box, and turn 2's
+special case at all: it is a departure with nothing on the platform, and turn 2's
 arrival finds whatever was ordered on turn 1. `db/test/train.test.js` holds
 that.
 
-- **Departure** settles every unsettled `DepotSale` at the price frozen when it
-  was dropped, takes `Depot.sellTaxRate` off the top as coin into the Keep's
-  Vault, and credits the net to whichever account the row named. Crediting a
-  TREASURY account puts the backing coin in the Vault in the **same
-  transaction** — a claim this pass mints has to be worth something at the ATM.
-- **Arrival** turns every undelivered `DepotOrder` into crates in the Railyard,
-  stamped with the buyer's fingerprint unless they ordered anonymously.
+- **Departure** takes every crate on the Railway and everything loose there
+  that can't be crated but sells, in one transaction, and pays what it was all
+  worth into the Merchant's Terminal less the Meister's tax on the sum, rounded,
+  into the Keep's Vault as coin (`DEPOT.md` §0d). Drops into the old box from
+  before the Depot Overhaul (`DepotSale`) still settle here the old way.
+- **Arrival** charges the Merchant's Terminal for every pending `MerchantOrder`
+  it can afford, oldest first, in one sum with the Meister's tax on it, and sets
+  the goods down on the Railway — crated, and loose what cannot be crated. Old
+  counter orders (`DepotOrder`) were paid when placed and still land here.
 
 One bad row never strands the rest of the train: the claim rolls back with it
 and it rides the next run.

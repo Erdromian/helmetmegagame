@@ -55,7 +55,6 @@ const ROUTES = [
   ["/memories", "player"],
   ["/archive", "gm"],
   ["/lifeweb", "gm"],
-  ["/depot", "gm"],
   ["/gm/players", "gm"],
   ["/gm/turns", "gm"],
   ["/gm/audit", "gm"],

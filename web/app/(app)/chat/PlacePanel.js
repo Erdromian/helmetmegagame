@@ -9,7 +9,6 @@ import { NoticeText } from "./NoticeCards";
 import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/db/lib/questText";
-import { DROPBOX_HELP, DROPBOX_EMPTY } from "@lifeweb/db/lib/dropboxText";
 import { SLOT_PROMPT } from "@lifeweb/db/lib/slotText";
 import { PHONE_TEXT, PHONE_DIGITS, clockLeft } from "@lifeweb/db/lib/phoneText";
 import { NUKE_TEXT, NUKE_CODE_DIGITS } from "@lifeweb/db/lib/nukeText";
@@ -20,6 +19,7 @@ import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 // way the server derives it, off one implementation (docs/systemdocs/VENDING.md).
 import { VENDING_TEXT, VENDING_MAX_PRICE, secondsLeftOn, timeLeftLine } from "@lifeweb/db/lib/vendingText";
 import { BLACK_MARKET_TEXT } from "@lifeweb/db/lib/blackMarketText";
+import { MERCHANT_TERMINAL_TEXT, withTax } from "@lifeweb/db/lib/merchantTerminalText";
 import {
   loadAffordances,
   flipGate,
@@ -62,6 +62,12 @@ import {
   blackMarketView,
   blackMarketInsert,
   blackMarketBuy,
+  merchantTerminalView,
+  merchantTerminalInsert,
+  merchantTerminalWithdraw,
+  merchantTerminalOrder,
+  merchantTerminalEditOrder,
+  merchantTerminalRemoveOrder,
   enterTheCharon,
   leaveTheCharon,
   launchTheCharon,
@@ -70,10 +76,10 @@ import {
 import {
   depotCounterState,
   depotBank,
-  depotDrop,
+  depotSend,
   depotTurret,
   depotTurretRead,
-} from "@/app/(app)/depot/actions";
+} from "./counterActions";
 
 // THE PLACE's dialogs, and the one hook that owns them.
 //
@@ -242,9 +248,9 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "slots" && <SlotDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "vending" && <VendingDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "blackMarket" && <BlackMarketDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "merchantTerminal" && <MerchantTerminalDialog onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "atm" && <AtmDialog onClose={close} onDone={say} />}
-      {dialog?.kind === "dropbox" && <DropBoxDialog onClose={close} onDone={say} />}
       {dialog?.kind === "depotTurret" && <DepotTurretDialog onClose={close} onDone={say} />}
       {dialog?.kind === "phone" && <PhoneDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "nuke" && <NukeDialog entry={dialog.entry} onClose={close} onDone={say} />}
@@ -743,6 +749,277 @@ function BlackMarketDialog({ entry, onClose, onDone }) {
   );
 }
 
+// The Merchant's Terminal at the Depot (docs/systemdocs/DEPOT.md §0c). It opens
+// locked for everybody; Unlock asks the server, which wants the Merchant's
+// License in hand or the Merchant's ring on the finger. Two tabs: the shelf,
+// grouped and foldable, with the coin slot above it; and the pending list,
+// where an order can be changed or taken back until the train comes in. Every
+// rule is in db/lib/merchantTerminal.js; this is the shape of the page.
+function MerchantTerminalDialog({ onClose, onDone }) {
+  const T = MERCHANT_TERMINAL_TEXT;
+  const [state, setState] = useState(null);
+  const [tab, setTab] = useState("order");
+  const [amount, setAmount] = useState(1);
+  // tagId -> the quantity typed on its row. Empty means not in the cart.
+  const [cart, setCart] = useState({});
+  // orderId -> { tagId -> quantity } for a pending order being changed.
+  const [edits, setEdits] = useState({});
+  const { run, pending, error } = useActionRunner();
+
+  useEffect(() => {
+    let cancelled = false;
+    merchantTerminalView({ unlock: false })
+      .then((res) => {
+        if (!cancelled) setState(res);
+      })
+      .catch(() => {
+        if (!cancelled) setState({ ok: false, error: MERCHANT_TERMINAL_TEXT.jammed });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // Every write re-reads the terminal unlocked: its coin and its pending list
+  // are shared, and somebody else may have changed either since this opened.
+  const reread = () =>
+    merchantTerminalView({ unlock: true })
+      .then((next) => setState(next?.ok ? next : { ok: false, error: next?.error ?? T.jammed }))
+      .catch(() => {});
+  const act = (fn, args, after) =>
+    run(fn, args, {
+      onOk: (res) => {
+        onDone(res);
+        after?.();
+        reread();
+      },
+    });
+
+  if (!state) {
+    return (
+      <Modal open title={T.title} onClose={onClose}>
+        <p className="text-sm text-muted">The screen flickers on…</p>
+      </Modal>
+    );
+  }
+  if (!state.ok) {
+    return (
+      <Modal open title={T.title} onClose={onClose}>
+        <FormError>{state.error}</FormError>
+      </Modal>
+    );
+  }
+  if (!state.unlocked) {
+    return (
+      <Modal open title={T.title} onClose={onClose}>
+        <p className="mono terminal-locked">{T.locked}</p>
+        <p className="text-sm text-muted">{T.lockedPrompt}</p>
+        <FormError>{error}</FormError>
+        <div className="modal-actions">
+          <button
+            type="button"
+            className="btn"
+            disabled={pending}
+            onClick={() => run(merchantTerminalView, { unlock: true }, { onOk: setState })}
+          >
+            {T.unlockButton}
+          </button>
+        </div>
+      </Modal>
+    );
+  }
+
+  const groups = state.groups ?? [];
+  const wares = groups.flatMap((g) => g.wares);
+  const items = wares
+    .map((w) => ({ ware: w, quantity: Math.trunc(Number(cart[w.id]) || 0) }))
+    .filter((line) => line.quantity > 0);
+  const subtotal = items.reduce((sum, line) => sum + line.ware.price * line.quantity, 0);
+  const onOrder = (state.pending ?? []).reduce((sum, o) => sum + o.total, 0);
+  const cartCost = withTax(subtotal, state.taxRate);
+  const overBudget = withTax(onOrder + subtotal, state.taxRate) > state.holds;
+  const coinAmount = Math.max(1, Math.trunc(Number(amount) || 0));
+
+  return (
+    <Modal open title={T.title} onClose={onClose}>
+      <p className="text-sm text-muted">
+        <span className="mono">{T.holds(state.holds)}</span> {T.committed(state.committed)} {T.carrying(state.carrying)}
+      </p>
+      <p className="text-sm text-muted">{T.taxNote(state.taxRate)}</p>
+
+      <div className="field">
+        <label className="field-label" htmlFor="chat-terminal-amount">
+          {T.insertLabel} · {T.withdrawLabel}
+        </label>
+        <div className="flex items-center gap-3">
+          <input
+            id="chat-terminal-amount"
+            type="number"
+            className="w-24"
+            min={1}
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+          />
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={pending || state.carrying <= 0}
+            onClick={() => act(merchantTerminalInsert, { amount: coinAmount })}
+          >
+            {T.insertButton}
+          </button>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={pending || state.free <= 0}
+            onClick={() => act(merchantTerminalWithdraw, { amount: coinAmount })}
+          >
+            {T.withdrawButton}
+          </button>
+        </div>
+      </div>
+
+      <div className="tab-bar" role="tablist">
+        {[
+          ["order", T.tabOrder],
+          ["pending", `${T.tabPending} (${(state.pending ?? []).length})`],
+        ].map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={tab === key}
+            data-active={tab === key}
+            className="tab-item"
+            onClick={() => setTab(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "order" && (
+        <>
+          {groups.length === 0 && <EmptyState>{T.emptyShelf}</EmptyState>}
+          <div className="terminal-shelf">
+            {groups.map((group) => (
+              <details key={group.name} className="terminal-group" open>
+                <summary>
+                  {group.name} <span className="text-muted">({group.wares.length})</span>
+                </summary>
+                {group.wares.map((ware) => (
+                  <div key={ware.id} className="terminal-ware">
+                    <div className="terminal-ware-text">
+                      <span className="chat-person-name">{ware.name}</span>
+                      {ware.description && <span className="text-sm text-muted">{ware.description}</span>}
+                    </div>
+                    <span className="mono text-sm">{ware.priceWithTax} ¢</span>
+                    <input
+                      type="number"
+                      className="control w-16"
+                      min={0}
+                      max={ware.stackable ? 99 : 1}
+                      aria-label={`${T.quantityLabel} — ${ware.name}`}
+                      value={cart[ware.id] ?? ""}
+                      placeholder="0"
+                      onChange={(e) => setCart((c) => ({ ...c, [ware.id]: e.target.value }))}
+                    />
+                  </div>
+                ))}
+              </details>
+            ))}
+          </div>
+          <FormError>{error}</FormError>
+          <div className="modal-actions modal-actions--sticky">
+            <span className="mono text-sm mr-auto">{T.cartTotal(cartCost)}</span>
+            <button
+              type="button"
+              className="btn"
+              disabled={pending || items.length === 0 || overBudget}
+              onClick={() =>
+                act(
+                  merchantTerminalOrder,
+                  { items: items.map((line) => ({ tagId: line.ware.id, quantity: line.quantity })) },
+                  () => setCart({}),
+                )
+              }
+            >
+              {T.orderButton}
+            </button>
+          </div>
+        </>
+      )}
+
+      {tab === "pending" && (
+        <>
+          {(state.pending ?? []).length === 0 && <EmptyState>{T.noPending}</EmptyState>}
+          <div className="terminal-shelf">
+            {(state.pending ?? []).map((order) => {
+              const draft = edits[order.id] ?? {};
+              const qtyOf = (line) => draft[line.tagId] ?? String(line.quantity);
+              const changed = order.lines.some((line) => qtyOf(line) !== String(line.quantity));
+              return (
+                <div key={order.id} className="terminal-order">
+                  <p className="text-sm text-muted">{T.placedBy(order.placedByName, order.placedTurn)}</p>
+                  {order.lines.map((line) => (
+                    <div key={line.tagId} className="terminal-ware">
+                      <span className="chat-person-name">{line.name}</span>
+                      <span className="mono text-sm">{line.unitPrice} ¢</span>
+                      <input
+                        type="number"
+                        className="control w-16"
+                        min={0}
+                        max={99}
+                        aria-label={`${T.quantityLabel} — ${line.name}`}
+                        value={qtyOf(line)}
+                        onChange={(e) =>
+                          setEdits((all) => ({ ...all, [order.id]: { ...draft, [line.tagId]: e.target.value } }))
+                        }
+                      />
+                    </div>
+                  ))}
+                  <div className="flex items-center gap-3">
+                    <span className="mono text-sm mr-auto">{T.pendingTotal(order.total)}</span>
+                    <button
+                      type="button"
+                      className="btn-secondary"
+                      disabled={pending || !changed}
+                      onClick={() =>
+                        act(
+                          merchantTerminalEditOrder,
+                          {
+                            orderId: order.id,
+                            items: order.lines.map((line) => ({
+                              tagId: line.tagId,
+                              quantity: Math.max(0, Math.trunc(Number(qtyOf(line)) || 0)),
+                            })),
+                          },
+                          () => setEdits((all) => ({ ...all, [order.id]: undefined })),
+                        )
+                      }
+                    >
+                      {T.saveButton}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn-danger"
+                      disabled={pending}
+                      onClick={() => act(merchantTerminalRemoveOrder, { orderId: order.id })}
+                    >
+                      {T.removeButton}
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <FormError>{error}</FormError>
+        </>
+      )}
+    </Modal>
+  );
+}
+
 // The Merchant's vending machine (docs/systemdocs/VENDING.md).
 //
 // Opening it TAKES the machine — the view is what is exclusive, so a second
@@ -1161,28 +1438,12 @@ function TurretDialog({ entry, onClose, onDone }) {
 
 // -------------------------------------------------------------- the counter
 
-// The ATM, the drop box and the Merchant's gun are fixtures on walls
-// (db/lib/placeAffordances.js), so they open from here and from Discord rather
-// than from /depot. The drop box and the gun are the Depot's alone; the ATM is
-// wherever db/lib/depot.js#ATM_ROOM_SLUGS says there is one — the Depot's
-// counter, the Inn's bar and the Den's. Every one of them re-checks the standing, the
-// papers and the money on the server — a dialog outlives somebody walking out
-// of the room, which is the whole reason none of this is decided here.
-//
-// The state each one draws against comes from one read (depotCounterState), so
-// there is a single answer to "what is a counter" rather than three.
-function useCounter() {
-  const [state, setState] = useState(null);
-  const reload = useCallback(() => {
-    depotCounterState()
-      .then((res) => setState(res))
-      .catch(() => setState({ ok: false, error: "The counter is dead." }));
-  }, []);
-  useEffect(() => {
-    reload();
-  }, [reload]);
-  return [state, reload];
-}
+// The ATM and the Merchant's gun are fixtures on walls
+// (db/lib/placeAffordances.js), so they open from here and from Discord. The
+// gun is the Depot's alone; the ATM is wherever db/lib/depot.js#ATM_ROOM_SLUGS
+// says there is one. Every one of them re-checks the standing, the papers and
+// the money on the server — a dialog outlives somebody walking out of the
+// room, which is the whole reason none of this is decided here.
 
 // The infoterminal (the ATM, renamed — docs/systemdocs/RINGS.md). It reads the
 // ring on your finger, and asks for the account's PIN only when the ring is
@@ -1195,6 +1456,8 @@ function AtmDialog({ onClose, onDone }) {
   const [pin, setPin] = useState(null);
   const [direction, setDirection] = useState("WITHDRAW");
   const [amount, setAmount] = useState(1);
+  // Send's recipient: an account id, or VAULT for handing the claim back.
+  const [sendTo, setSendTo] = useState("");
   const { run, pending, error } = useActionRunner();
   const reload = useCallback((withPin) => {
     depotCounterState(withPin ? { pin: withPin } : undefined)
@@ -1266,13 +1529,16 @@ function AtmDialog({ onClose, onDone }) {
   }
 
   const withdrawing = direction === "WITHDRAW";
-  const max = withdrawing ? state.account.balanceObols : state.heldObols;
+  // Send (the Depot's machine only — state.sendTo is null anywhere else) pays
+  // another account, or hands the claim back to the Vault; it moves no coin.
+  const sending = direction === "SEND" && Array.isArray(state.sendTo);
+  const max = withdrawing || sending ? state.account.balanceObols : state.heldObols;
   // Refused, never clamped. Firefox lets a letter into a number box and then
   // reports the whole box as "", so "12o" used to reach the old clamp as 0 and
   // quietly move 1 ¢. A box that does not hold a whole amount in range greys
   // the button out and leaves the typo on screen to be fixed.
   const n = Number(amount);
-  const valid = amount !== "" && Number.isInteger(n) && n >= 1 && n <= max;
+  const valid = amount !== "" && Number.isInteger(n) && n >= 1 && n <= max && (!sending || sendTo !== "");
 
   return (
     <Modal open title={title} onClose={onClose}>
@@ -1288,8 +1554,25 @@ function AtmDialog({ onClose, onDone }) {
         <Select id="chat-atm-dir" value={direction} onChange={(e) => setDirection(e.target.value)}>
           <option value="WITHDRAW">Take coin out</option>
           <option value="DEPOSIT">Put coin in</option>
+          {Array.isArray(state.sendTo) && <option value="SEND">Send to an account</option>}
         </Select>
       </div>
+      {sending && (
+        <div className="field">
+          <label className="field-label" htmlFor="chat-atm-to">
+            Send to
+          </label>
+          <Select id="chat-atm-to" value={sendTo} onChange={(e) => setSendTo(e.target.value)}>
+            <option value="">Pick an account</option>
+            <option value="VAULT">The Vault</option>
+            {state.sendTo.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.holderName}
+              </option>
+            ))}
+          </Select>
+        </div>
+      )}
       <div className="field">
         <label className="field-label" htmlFor="chat-atm-amount">
           How much, up to {max} ¢
@@ -1310,119 +1593,30 @@ function AtmDialog({ onClose, onDone }) {
           className="btn"
           disabled={pending || !valid}
           onClick={() =>
-            run(
-              depotBank,
-              { direction, amount: n, pin },
-              {
-                onOk: (res) => {
-                  onDone({ line: `${res.direction === "WITHDRAW" ? "Withdrew" : "Deposited"} ${res.amount} ¢.` });
-                  onClose();
-                },
-              },
-            )
+            sending
+              ? run(
+                  depotSend,
+                  { toAccountId: sendTo === "VAULT" ? null : sendTo, toTreasury: sendTo === "VAULT", amount: n, pin },
+                  {
+                    onOk: (res) => {
+                      onDone({ line: res.line });
+                      onClose();
+                    },
+                  },
+                )
+              : run(
+                  depotBank,
+                  { direction, amount: n, pin },
+                  {
+                    onOk: (res) => {
+                      onDone({ line: `${res.direction === "WITHDRAW" ? "Withdrew" : "Deposited"} ${res.amount} ¢.` });
+                      onClose();
+                    },
+                  },
+                )
           }
         >
           Do it
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
-function DropBoxDialog({ onClose, onDone }) {
-  const [state] = useCounter();
-  const [tagId, setTagId] = useState("");
-  const [quantity, setQuantity] = useState(1);
-  const [destination, setDestination] = useState(null);
-  const { run, pending, error } = useActionRunner();
-
-  if (!state) {
-    return (
-      <Modal open title="Dropbox" onClose={onClose}>
-        <p className="text-sm text-muted">Looking in…</p>
-      </Modal>
-    );
-  }
-  if (!state.ok) {
-    return (
-      <Modal open title="Dropbox" onClose={onClose}>
-        <FormError>{state.error}</FormError>
-      </Modal>
-    );
-  }
-  if (!state.sellable.length) {
-    return (
-      <Modal open title="Dropbox" onClose={onClose}>
-        <EmptyState>{DROPBOX_EMPTY}</EmptyState>
-      </Modal>
-    );
-  }
-
-  const picked = state.sellable.find((s) => s.tagId === tagId) ?? state.sellable[0];
-  const dest = destination ?? state.defaultDestination;
-
-  return (
-    <Modal open title="Dropbox" onClose={onClose}>
-      <p className="text-sm text-muted">{DROPBOX_HELP}</p>
-      <div className="field">
-        <label className="field-label" htmlFor="chat-drop-what">
-          What
-        </label>
-        <Select id="chat-drop-what" value={picked.tagId} onChange={(e) => setTagId(e.target.value)}>
-          {state.sellable.map((item) => (
-            <option key={item.tagId} value={item.tagId}>
-              {item.name} — {item.unitPrice} ¢ each, {item.quantity} held
-            </option>
-          ))}
-        </Select>
-      </div>
-      <div className="field">
-        <label className="field-label" htmlFor="chat-drop-many">
-          How many, up to {picked.quantity}
-        </label>
-        <input
-          id="chat-drop-many"
-          type="number"
-          min={1}
-          max={picked.quantity}
-          value={quantity}
-          onChange={(e) => setQuantity(e.target.value)}
-        />
-      </div>
-      <div className="field">
-        <label className="field-label" htmlFor="chat-drop-dest">
-          Paid into
-        </label>
-        <Select id="chat-drop-dest" value={dest} onChange={(e) => setDestination(e.target.value)}>
-          <option value="SELF">My account</option>
-          <option value="TREASURY">The Treasury</option>
-          {state.canSellToMerchant && <option value="MERCHANT">The Merchant</option>}
-        </Select>
-      </div>
-      <FormError>{error}</FormError>
-      <div className="modal-actions">
-        <button
-          type="button"
-          className="btn"
-          disabled={pending}
-          onClick={() =>
-            run(
-              depotDrop,
-              {
-                tagId: picked.tagId,
-                quantity: Math.max(1, Math.min(Number(quantity) || 0, picked.quantity)),
-                destination: dest,
-              },
-              {
-                onOk: (res) => {
-                  onDone({ line: `${res.tagName} ×${res.quantity} into the box.` });
-                  onClose();
-                },
-              },
-            )
-          }
-        >
-          Drop it in
         </button>
       </div>
     </Modal>

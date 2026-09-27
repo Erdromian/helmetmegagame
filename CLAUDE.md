@@ -256,7 +256,7 @@ you pick the right doc — they are never enough to change code with.
 | [`SMITHING.md`](docs/systemdocs/SMITHING.md) | You're pricing a weapon or armor, changing the crafting ladder, or touching the Smithing / Crafting / Fighting skill families |
 | [`MEDICAL.md`](docs/systemdocs/MEDICAL.md) | You're touching curing an ailment by item instead of by medic (`cures`/`curesInto`/`administerSkill`), the medical Move economy, poisoning and resistance, or the prosthetics |
 | [`BREWING.md`](docs/systemdocs/BREWING.md) | You're pricing a brew, changing a recipe, or touching the Brewing skill family |
-| [`DEPOT.md`](docs/systemdocs/DEPOT.md) | You're pricing an imported ware, touching `/depot` or the Merchant's credit line, setting a tag's `depotPrice` / `sellablePrice`, or touching the **Black Market terminal** in the Exactor's Office (§0n, `db/lib/blackMarket.js`) |
+| [`DEPOT.md`](docs/systemdocs/DEPOT.md) | You're pricing an imported ware, touching the **Merchant's Terminal** (`db/lib/merchantTerminal.js`) or the train's bulk import and export, crates and what they are worth, the Storefront and the Depot's rooms, setting a tag's `depotPrice` / `sellablePrice`, or touching the **Black Market terminal** in the Exactor's Office (§0n, `db/lib/blackMarket.js`) |
 | [`VENDING.md`](docs/systemdocs/VENDING.md) | You're touching the Merchant's vending machine — `Room.vendingMachine`, the shelf and its prices, the two coin pools (the loose float in the slot against the locked till), the five-minute exclusive hold, or **anything that asks whether somebody is at the machine right now** (`db/lib/vending.js#heldBy`) |
 | [`ECONOMY.md`](docs/systemdocs/ECONOMY.md) | You're touching the ⬢ ledger (`db/lib/economyLedger.js`), a money hook, or **anything that asks where the money went** — the reconciliation invariant, the reason vocabulary, or the backfill |
 | [`DESIRES.md`](docs/systemdocs/DESIRES.md) | You're touching the Desire catalog, its gates/cooldowns/locks, `conflictsWith`, or the Desires GM surface on `/gm/dev` |
@@ -286,7 +286,7 @@ you pick the right doc — they are never enough to change code with.
 | [`FACTORY.md`](docs/systemdocs/FACTORY.md) | You're touching the Godard Factory — Extract, refining Godflesh into Squeeze, the Package button and crate weights, the Spillway, or what eating a cube does |
 | [`SOILERY.md`](docs/systemdocs/SOILERY.md) | You're touching Farming — the Farm button, Foodstuffs, the wither roll, the `soilery` Location attribute, Fertilizer, or moving a running game onto the Soilery Rework (`db:convert-soilery`). What eating restores and the hunger descriptors are `TURN-ENGINE.md` §5 |
 | [`ARELITZ.md`](docs/systemdocs/ARELITZ.md) | You're touching arelitz — the Stable's turn pass, `Room.stable`, breeding/hatching/maturing, breaking one in (the Gambit), butchering livestock, or mount mechanics generally (`db/lib/mounts.js`). Horses are gone; do not add one back |
-| [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog, or the Storage button |
+| [`CARRY.md`](docs/systemdocs/CARRY.md) | You're touching carry caps, Overburdened, Pack Mule / Cart, room stashes, the Transfer dialog (and Transfer across a counter), the Storage button, or **crates** — the one-crate limit, what hauling one costs (§10) |
 | [`COLLAR.md`](docs/systemdocs/COLLAR.md) | You're touching the bomb collar — the loose `bomb-collar` item against the `bomb-collar-locked` trait, Apply Collar's consent handshake, unlocking by the Exactor's or the Pusher's ring, the Remote Detonator, or **the rule that no collar picker ever says who is wearing one** |
 | [`CORPSES.md`](docs/systemdocs/CORPSES.md) | You're touching what a body is — the corpse tag, butchering, Bury or Engrave, the rot clock, the death smell, or an **enforced recipe ingredient** (`requirement.items`) |
 | [`MOOD.md`](docs/systemdocs/MOOD.md) | You're touching the mood dial — the nine bands and the Mood box on the sheet, what sinks or lifts a mood, the phobias, Brave / Rough Camper / Outsider / Spelunker, `moodIntensity`, or the nightly mood pass |
@@ -1114,7 +1114,7 @@ something, and what a cure charges to treat somebody. Labour still pays it,
 because what a day's work produces is material.
 
 **`¢` is everything else**: `depotPrice`, `sellablePrice`, a `BankAccount`
-balance, the Vault, the sell tax, the credit line, and every wage figure in
+balance, the Vault, the terminal's coin, the Meister's tax, and every wage figure in
 `DEPOT.md` §4's tables. It used to be that ⬢ was the unit everything was
 denominated in, which made it a currency that happened to weigh a pound each.
 It is not that any more.

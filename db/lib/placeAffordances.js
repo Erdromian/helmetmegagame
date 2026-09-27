@@ -83,7 +83,6 @@ const ROOM_TURRET_PREFIX = "room:turret:";
 const ROOM_BELL_PREFIX = "room:bell:";
 const ROOM_PRAY_PREFIX = "room:pray:";
 const ROOM_ATM_PREFIX = "room:atm:";
-const ROOM_DROPBOX_PREFIX = "room:dropbox:";
 const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
 const ROOM_SLOTS_PREFIX = "room:slots:";
 const ROOM_PHONE_PREFIX = "room:phone:";
@@ -99,11 +98,10 @@ const ROOM_CHARON_ENTER_PREFIX = "room:charonenter:";
 const ROOM_CHARON_LAUNCH_PREFIX = "room:charonlaunch:";
 const ROOM_CHARON_SLEEP_PREFIX = "room:charonsleep:";
 const CHARON_LEAVE_PREFIX = "loc:charonleave:";
+// The Merchant's Terminal (docs/systemdocs/DEPOT.md §0c), on the Depot itself.
+const MERCHANT_TERMINAL_PREFIX = "loc:merchantterminal:";
 
-// The Dropbox's help and empty lines live in ./dropboxText.js (zero requires,
-// so the two client components that show them can import it); re-exported
-// here so server callers keep their one import.
-const { DROPBOX_HELP, DROPBOX_EMPTY } = require("./dropboxText");
+const { MERCHANT_TERMINAL_TEXT } = require("./merchantTerminalText");
 // Same bargain: the vending machine's button label is authored once, in the
 // zero-require file, so the web panel and the Discord starter post cannot drift.
 const { VENDING_TEXT } = require("./vendingText");
@@ -127,15 +125,15 @@ const LOCATION_AFFORDANCES = [
   { id: "converse", label: "Converse", tone: PLAIN, prefix: CONVERSE_PREFIX },
   // Only where docs/zones.yaml declared one (db/lib/noticeboard.js).
   { id: "noticeboard", label: "Noticeboard", tone: PLAIN, prefix: NOTICEBOARD_PREFIX, when: hasNoticeboard },
-  // The Depot's drop box. On the LOCATION rather than one room, so it is
-  // reachable from wherever at the Depot you happen to be standing — and again
-  // on the Railyard's own post (below), which is where somebody meeting the
-  // train already is.
+  // The Merchant's Terminal (Depot Overhaul.docx): "available to anyone in
+  // the depot". On the LOCATION rather than one room, where the drop box it
+  // replaced used to be. Anybody may open it; it asks to be unlocked
+  // (db/lib/merchantTerminal.js).
   {
-    id: "dropbox",
-    label: "Dropbox",
+    id: "merchantTerminal",
+    label: MERCHANT_TERMINAL_TEXT.button,
     tone: PLAIN,
-    prefix: ROOM_DROPBOX_PREFIX,
+    prefix: MERCHANT_TERMINAL_PREFIX,
     when: (location) => hasAttribute(location, "depot"),
   },
   // The Charon's way out, on the ground only — once the ship has launched there
@@ -208,17 +206,6 @@ const ROOM_AFFORDANCES = [
     tone: PLAIN,
     prefix: ROOM_ATM_PREFIX,
     when: (room) => ATM_ROOM_SLUGS.has(room?.slug),
-  },
-  // The Depot's drop box, second copy. The first is on the Location itself
-  // (LOCATION_AFFORDANCES above) so it is reachable from anywhere at the Depot;
-  // this one is on the Railway because that is where somebody meeting the
-  // train is already standing.
-  {
-    id: "dropbox",
-    label: "Dropbox",
-    tone: PLAIN,
-    prefix: ROOM_DROPBOX_PREFIX,
-    when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
   },
   // The Merchant's gun, on the wall the Merchant's Office description has
   // called a big red button since before anything could press one. The second
@@ -332,23 +319,16 @@ const ROOM_AFFORDANCES = [
     when: (room) => room?.slug === XOM_SHRINE_ROOM_SLUG,
   },
 
-  // Money at the Depot's counter (docs/systemdocs/DEPOT.md). `discordOnly` —
-  // the web does both from its /depot page. Each starts the verb of the same
-  // name (bot/src/lib/verbs/place.js), which refuses anybody not standing
-  // here, and the credit line anybody without the Merchant's License.
+  // Send money, from the Railway's infoterminal (docs/systemdocs/DEPOT.md).
+  // `discordOnly` — the web sends from the infoterminal's own dialog. It
+  // starts the verb of the same name (bot/src/lib/verbs/place.js), which
+  // refuses anybody not standing here. The Merchant's credit button that sat
+  // beside it is gone with the credit line.
   {
     id: "sendMoney",
     label: "Send money",
     tone: PLAIN,
     customId: () => `${ACTION_START_PREFIX}sendmoney`,
-    when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
-    discordOnly: true,
-  },
-  {
-    id: "merchantCredit",
-    label: "Merchant credit",
-    tone: PLAIN,
-    customId: () => `${ACTION_START_PREFIX}credit`,
     when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
     discordOnly: true,
   },
@@ -523,7 +503,6 @@ module.exports = {
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
   ROOM_ATM_PREFIX,
-  ROOM_DROPBOX_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,
@@ -534,8 +513,7 @@ module.exports = {
   ROOM_CHARON_LAUNCH_PREFIX,
   ROOM_CHARON_SLEEP_PREFIX,
   CHARON_LEAVE_PREFIX,
-  DROPBOX_HELP,
-  DROPBOX_EMPTY,
+  MERCHANT_TERMINAL_PREFIX,
   QUEST_INTERACT_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
   CASINO_ROOM_SLUG,
