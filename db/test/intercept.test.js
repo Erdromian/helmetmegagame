@@ -12,7 +12,6 @@ const {
   cleanMessage,
   cleanNames,
   seenAs,
-  saidWord,
 } = require("../lib/intercept");
 
 const GREEBLUS = { name: "Lord Greeblus Vane", firstName: "Greeblus", lastName: "Vane" };
@@ -266,9 +265,3 @@ test("both sides of every line are named by the face the room saw", () => {
   assert.equal(seenAs(null), "somebody");
 });
 
-test("the said-word agrees with who is saying it", () => {
-  assert.equal(saidWord({ gender: "MAN" }), "He said");
-  assert.equal(saidWord({ gender: "WOMAN" }), "She said");
-  assert.equal(saidWord({ gender: "NEUTRAL" }), "They said");
-  assert.equal(saidWord({}), "They said");
-});

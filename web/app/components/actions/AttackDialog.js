@@ -110,7 +110,7 @@ export default function AttackDialog({ onDone, onClose }) {
       busy={busy}
       error={error}
       loading={loading}
-      empty={!loading && people.length === 0 && fights.length === 0 ? "There’s nobody here to attack." : null}
+      empty={!loading && people.length === 0 && fights.length === 0 ? "There's nobody here to attack." : null}
       canSubmit={targets.length > 0 && !blocked}
       onClose={onClose}
       onSubmit={onSubmit}

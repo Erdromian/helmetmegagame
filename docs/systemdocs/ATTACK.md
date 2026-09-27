@@ -111,8 +111,8 @@ always re-derived from the participant rows and never by hand:
 |---|---|---|
 | A defender | `attack` | Somebody attacked you. You can't move until the fight is over. |
 | An attacker | `attacking` | You're in a fight. You can't move until it's over. |
-| An invitee who has not answered | `invited` | You've been asked to join a fight. Answer before you go anywhere. |
-| An attacker after a call-off | `withdrawing` | You called off a fight. You can't leave for another N min. |
+| An invitee who has not answered | `invited` | You've been asked to join a fight. You must answer before you can leave. |
+| An attacker after a call-off | `withdrawing` | You called off the attack. You can't leave for another N min. |
 
 The first three are `FIGHT_REASONS`, which nothing that clears "whoever X was
 holding" may touch. `withdrawing` is held by nobody, so only its clock ends it.

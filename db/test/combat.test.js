@@ -156,7 +156,7 @@ test("the old dragnets are unchanged", () => {
 test("an invitee and a withdrawing attacker each read their own sentence", () => {
   const soon = new Date(Date.now() + 29 * 60 * 1000);
   assert.match(heldReasonFor({ heldUntil: soon, heldReason: HELD_REASON.INVITED }), /asked to join a fight/);
-  assert.match(heldReasonFor({ heldUntil: soon, heldReason: HELD_REASON.WITHDRAWING }), /called off a fight.*29 min/);
+  assert.match(heldReasonFor({ heldUntil: soon, heldReason: HELD_REASON.WITHDRAWING }), /called off the attack.*29 min/);
   // Withdrawing is not a fight: nothing that clears "a fight" must touch it, and a Release never reaches it
   // because it is held by nobody.
   assert.ok(!FIGHT_REASONS.includes(HELD_REASON.WITHDRAWING));

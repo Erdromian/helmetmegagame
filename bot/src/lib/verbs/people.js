@@ -305,7 +305,7 @@ function fightReply(interaction, view) {
   } else {
     lines.push(view.alert ? (view.description ? `» ${view.description}` : "You haven't written what you do yet.") : SURPRISED);
     if (view.canDescribe) buttons.push({ type: 2, style: 1, custom_id: `${COMBAT_WRITE_PREFIX}${view.participantId}`, label: "Write your attack" });
-    if (view.calledOff) lines.push(`-# You want to call it off. Waiting on ${view.waitingOn} more on your side.`);
+    if (view.calledOff) lines.push(`-# You wish to call off the attack. Waiting on ${view.waitingOn} more on your side to cancel the fight.`);
     if (view.canCallOff) buttons.push({ type: 2, style: 4, custom_id: `${COMBAT_CALL_OFF_PREFIX}${view.participantId}`, label: "Call off" });
   }
   return respond(interaction, { content: lines.join("\n"), components: buttons.length ? [{ type: 1, components: buttons }] : [] }, { fleeting: false });
@@ -409,7 +409,7 @@ const attack = {
       return respond(
         interaction,
         {
-          content: "Anyone you want with you? They get to choose whether to join.",
+          content: "Anyone you want on your side? They get to choose whether to join.",
           components: [new ActionRowBuilder().addComponents(menu), new ActionRowBuilder().addComponents(skip)],
         },
         { fleeting: false },

@@ -96,7 +96,7 @@ export default function FightPanel({ view, onChanged }) {
           ) : (
             <>
               <p className="text-xs text-muted">
-                A fight is only called off once everyone attacking agrees. Then you stay here another 30 minutes in case they answer it.
+                Combat may only be called off if all attackers relent. The defenders will have 30 minutes to counterattack before the attackers can leave freely.
               </p>
               <div className="chat-buttons">
                 <button type="button" className="btn-quiet" disabled={busy || !view.canCallOff} onClick={() => run(callOffFightRequest, {})}>

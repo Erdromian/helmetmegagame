@@ -377,8 +377,8 @@ async function startDms(db, { combat, parts, rowsById }) {
       dms.push(
         inviteDm(me, p, [
           combat.fromAmbush
-            ? `${cap(initiatorName)}'s ambush has caught ${await names(targets)}, and they want you with them.`
-            : `${cap(initiatorName)} is attacking ${await names(targets)} and wants you with them.`,
+            ? `${cap(initiatorName)}'s ambush has caught ${await names(targets)}, and they want you to join them on the attack.`
+            : `${cap(initiatorName)} is attacking ${await names(targets)} and wants you to join them in the attack.`,
         ]),
       );
     }
@@ -560,7 +560,7 @@ function answerInvite(db, { participantId, characterId, join, turn, now = new Da
     if (join) dms.push(fightDm(me, out, ["You join the fight."]));
     return {
       ok: true,
-      line: join ? "You join the fight." : "You stay out of it. You can go, but you can't join its attackers now.",
+      line: join ? "You join the fight." : "You decide not to get involved. You can go, but you can't help the attacker this turn.",
       dms: dms.filter(Boolean),
       speak: [],
     };
@@ -725,7 +725,7 @@ function callOff(db, { participantId, characterId, turn, now = new Date() }) {
           endedLine(
             t,
             t.side === "ATTACKER" && t.status === "JOINED"
-              ? "The fight is called off. You stay here another 30 minutes in case they answer it."
+              ? "The attack has been called off. You can leave in 30 minutes."
               : "The fight is called off. You can move again.",
           ),
         ),
@@ -735,7 +735,7 @@ function callOff(db, { participantId, characterId, turn, now = new Date() }) {
     return {
       ok: true,
       ended: true,
-      line: endedLine(mine ?? {}, "The fight is called off. You stay here another 30 minutes in case they answer it."),
+      line: endedLine(mine ?? {}, "The attack has been called off. You can leave in 30 minutes."),
       dms: dms.filter(Boolean),
       speak: [],
     };

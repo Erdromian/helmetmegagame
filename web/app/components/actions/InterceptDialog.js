@@ -32,9 +32,9 @@ const MODES = [
 // §6): springing it starts a fight — everybody in it held until it's over, each writing what they do — and
 // it no longer asks for a Gambit. Only Ambush needs combat mode now.
 const MODE_HELP = {
-  SAFE: "Freezes them for two minutes and sends them the message. Needs no combat mode.",
+  SAFE: "Halts the target for two minutes and sends them the message. Combat mode not required.",
   AMBUSH:
-    "You attack whoever enters the location, and anyone else who walks in after joins the same fight. Nobody in it can move until it's over. Needs combat mode.",
+    "You attack any target who enters the location, and any other target who walks in after joins the same fight. Nobody in it can move until it's over. Needs combat mode.",
 };
 
 export default function InterceptDialog({ mode: verb, onDone, onClose }) {
@@ -192,7 +192,7 @@ export default function InterceptDialog({ mode: verb, onDone, onClose }) {
         disabled={anyPerson}
       />
 
-      <p className="text-xs text-muted">A name only stops somebody you know by that name. A hood or a stranger&apos;s face passes it.</p>
+      <p className="text-xs text-muted">You will only stop named targets if you recognize them. A disguise or unrecognizable face will slip past you.</p>
 
       <label className="field">
         <span className="field-label">{ambush ? "What do you say when you spring it?" : "What do you want to message them?"}</span>

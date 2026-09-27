@@ -416,9 +416,10 @@ Bascinet's Ambush line does not mention the message, but a player who typed one
 and had it silently dropped would read that as a bug, so it rides along on its
 own `»` line underneath rather than being folded into the sentence.
 
-**"He said" agrees with who is saying it.** The shape is Bascinet's; the
-agreement is arithmetic, off `Character.gender`, the same column
-`concealedIdentity.js` reads. He / She / They.
+**The Safe stop reads "You were stopped on the road by a young man:"**, the
+stopper named as the victim knows them, with the message on a `»` line under
+it. It used to add "He said" / "She said" / "They said"; Bascinet's copy pass
+(2026-09-27) dropped that, and `saidWord` with it.
 
 **The typed message is untrusted**, and is cleaned at **save** time, not at
 send — `cleanMessage()` caps it at 300 characters and strips `@everyone` /
