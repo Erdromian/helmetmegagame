@@ -225,6 +225,13 @@ Name)".
 
 ## 6. Looking, and what DMs call people
 
+- **Over a counter** (`MAP.md` §2d): the people on the far side of a room that
+  opens onto several Locations are listed in Who's here under the room, by the
+  same `presentRows` rows, so a stranger there is a stranger and a hood a hood.
+  They get the eye and no menu. A hidden row carries a `lookRef`, never a
+  token: `whosHere.js#resolveCrossRoomRef` answers it for `/look` and a
+  stranger's face, and nothing a verb resolves through ever calls it.
+
 - **Looking** (`db/lib/examineRow.js`): a look at a bare-faced stranger's line
   reads their alias as the name and their face by line. A photograph does too.
   A GM and a ghost read the name.

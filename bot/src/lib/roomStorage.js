@@ -1,6 +1,7 @@
 const { prisma } = require("@lifeweb/db");
 const { formatStashLine, formatLocationStorage, countHiddenStacks } = require("@lifeweb/db/lib/roomStash");
 const { accessibleRooms, roomAccessKeys } = require("@lifeweb/db/lib/roomAccess");
+const { loadRoomsAt, roomAt, WITH_SIDES } = require("@lifeweb/db/lib/roomSides");
 const { ack, respond } = require("./respond");
 const { actingCharacter } = require("./interactionGuild");
 
@@ -8,7 +9,9 @@ const { actingCharacter } = require("./interactionGuild");
 // an ephemeral line saying what's lying in the room's stash, in Bascinet's
 // own format, and a second line saying how many things are hidden under the
 // floor (SEARCH.md §9c), so a player knows before spending a Search on it.
-// Reading is free to anyone standing in the Location; putting things down or
+// Reading is free to anyone standing at a Location the room opens onto — its
+// home, or a side (db/lib/roomSides.js), whose thread carries the same button;
+// putting things down or
 // picking them up is the web's Transfer (CARRY.md).
 async function handleRoomStorage(interaction, roomId) {
   await ack(interaction, { ephemeral: true });
@@ -17,13 +20,14 @@ async function handleRoomStorage(interaction, roomId) {
     where: { id: roomId },
     select: {
       locationId: true,
+      ...WITH_SIDES,
       // ⬢ are one of these stacks now, not a column beside them — formatStashLine
       // picks them out by slug, so the slug has to be here.
       tags: { where: { quantity: { gt: 0 } }, select: { quantity: true, tag: { select: { name: true, slug: true } } } },
     },
   });
   if (!room) return respond(interaction, { content: "That room is gone." });
-  if (!character?.locationId || character.locationId !== room.locationId) {
+  if (!character?.locationId || !roomAt(room, character.locationId)) {
     return respond(interaction, { content: "You're not here." });
   }
   const hidden = await countHiddenStacks(prisma, roomId);
@@ -44,9 +48,9 @@ async function handleStorageCommand(interaction) {
   if (!character.locationId) return respond(interaction, "You aren't anywhere yet.");
 
   const [rooms, keys] = await Promise.all([
-    prisma.room.findMany({
-      where: { locationId: character.locationId, retiredAt: null },
-      orderBy: { sortOrder: "asc" },
+    // Every room that opens onto here, and its thread on THIS side.
+    loadRoomsAt(prisma, character.locationId, {
+      where: { retiredAt: null },
       select: {
         id: true,
         name: true,

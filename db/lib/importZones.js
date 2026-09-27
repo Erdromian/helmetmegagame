@@ -195,10 +195,34 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
       stashSeed:
         entry.stash?.resources > 0 || entry.stash?.items?.length || entry.stash?.hidden?.length ? entry.stash : undefined,
     };
+    // The other Locations it opens onto (docs/systemdocs/MAP.md §2d). Only for a
+    // room made in this run: an existing room is never updated here, its sides
+    // included — those are edited at /gm/dev/zones.
+    const sides = [];
+    for (const side of entry.sides ?? []) {
+      const sideLocation = locationsBySlug.get(side.locationSlug);
+      if (!sideLocation) {
+        report.warnings.push(`room "${entry.slug}" opens onto unknown location "${side.locationSlug}" — that side skipped`);
+        continue;
+      }
+      sides.push({ side, sideLocation });
+    }
     if (apply) {
       const room = await prisma.room.create({ data });
       roomsBySlug.set(entry.slug, room);
       report.mirrorTargets.push({ targetType: "room", targetId: room.id });
+      for (const { side, sideLocation } of sides) {
+        await prisma.roomSide.create({
+          data: {
+            roomId: room.id,
+            locationId: sideLocation.id,
+            kind: side.kind,
+            accessTagSlugs: side.accessTagSlugs,
+            sortOrder: side.sortOrder,
+          },
+        });
+        report.mirrorTargets.push({ targetType: "location", targetId: sideLocation.id });
+      }
     } else {
       roomsBySlug.set(entry.slug, { ...data, id: `dry:${entry.slug}` });
     }

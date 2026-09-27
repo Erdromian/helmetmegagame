@@ -8,6 +8,8 @@
 // reference matches on, so it has to be a safe, stable identifier — lowercase
 // letters, digits and hyphens, starting with a letter, same shape a Discord
 // channel/role name tolerates without mangling.
+const { opensOntoAnyWhere } = require("./roomSides");
+
 const SLUG_RE = /^[a-z][a-z0-9-]*$/;
 
 function validateSlugShape(slug) {
@@ -54,11 +56,21 @@ function validateName(name, { label = "name" } = {}) {
 // unique globally, Location names are unique globally (they become channel
 // names, and adoption-by-name in the mirror depends on that), Room names are
 // unique per Location (they become thread names under one channel).
-async function nameIsTaken(prisma, kind, name, { locationId = null, excludeId = null } = {}) {
+//
+// A Room's "per Location" is every Location it opens onto, and every room that
+// opens onto each of them (db/lib/roomSides.js): a counter's thread sits under
+// both channels, and the mirror adopts a thread by its name under its parent,
+// so two rooms of one name there would be one thread. `locationIds` names them
+// all; `locationId` is the one-Location shorthand.
+async function nameIsTaken(prisma, kind, name, { locationId = null, locationIds = null, excludeId = null } = {}) {
   const where = { name, ...(excludeId ? { id: { not: excludeId } } : {}) };
   if (kind === "zone") return Boolean(await prisma.zone.findFirst({ where }));
   if (kind === "location") return Boolean(await prisma.location.findFirst({ where }));
-  if (kind === "room") return Boolean(await prisma.room.findFirst({ where: { ...where, locationId } }));
+  if (kind === "room") {
+    return Boolean(
+      await prisma.room.findFirst({ where: { AND: [where, opensOntoAnyWhere(locationIds ?? [locationId])] } }),
+    );
+  }
   throw new Error(`placeValidation: unknown kind "${kind}"`);
 }
 

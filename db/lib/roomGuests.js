@@ -2,11 +2,14 @@
 // the bot picks its target from a Discord ROLE and hands the id down. Who may work the door: anyone STANDING here who can get in — a key or a
 // guest row, plus their own feet — or a GM. The target has to be standing here too, since the grant is spent the moment they leave. removeRoomGuest
 // refuses a key-holder on purpose: their key would let them straight back in, so taking the key is the real removal.
+// A room that opens onto several Locations (db/lib/roomSides.js) is worked one side at a time: the door is the side the
+// actor stands at (a GM's, the target's), checked against THAT side's gate, and the pass is good on that side only.
 
 const { heldTagSlugs, recordRoomThread, roomAccessKeys } = require("./roomAccess");
 const { addThreadMember, removeThreadMember } = require("./discordRest");
 const { presentedMembers, presentedNameOf } = require("./presentedMembers");
 const { hiddenFrom } = require("./whosHere");
+const { WITH_SIDES, membershipKey, roomAt } = require("./roomSides");
 
 const ROOM_SELECT = {
   id: true,
@@ -15,7 +18,9 @@ const ROOM_SELECT = {
   accessTagSlugs: true,
   locationId: true,
   discordThreadId: true,
+  sortOrder: true,
   location: { select: { name: true } },
+  ...WITH_SIDES,
 };
 
 const GUEST_SELECT = {
@@ -38,14 +43,20 @@ const GUEST_SELECT = {
 // not here at all, or naming a suspect and watching the door open would tell
 // you who is under the mask.
 async function doorwayFor(prisma, { actor, roomId, characterId, gm = false, byToken = false }) {
-  const room = await prisma.room.findUnique({ where: { id: roomId }, select: ROOM_SELECT });
-  if (!room) return { error: "That room no longer exists." };
-  if (room.kind !== "PRIVATE") return { error: "Anyone standing here can already walk in." };
+  const row = await prisma.room.findUnique({ where: { id: roomId }, select: ROOM_SELECT });
+  if (!row) return { error: "That room no longer exists." };
+
+  const target = await prisma.character.findFirst({
+    where: { id: String(characterId ?? ""), status: "ALIVE" },
+    select: GUEST_SELECT,
+  });
+
+  // The side this door is on: where the actor stands, or for a GM where the target does.
+  const room = roomAt(row, gm ? (target?.locationId ?? row.locationId) : actor?.locationId);
+  if (!gm && (!actor?.id || !room)) return { error: "You're not in this room." };
+  if (room && room.kind !== "PRIVATE") return { error: "Anyone standing here can already walk in." };
 
   if (!gm) {
-    if (!actor?.id || !room.locationId || actor.locationId !== room.locationId) {
-      return { error: "You're not in this room." };
-    }
     // Standing at the Location is NOT being inside the room. A key or a guest row is what being inside means, the same pair accessibleRooms() tests.
     const keys = await roomAccessKeys(prisma, actor.id);
     const inside =
@@ -53,16 +64,12 @@ async function doorwayFor(prisma, { actor, roomId, characterId, gm = false, byTo
     if (!inside) return { error: "You aren't inside that room." };
   }
 
-  const target = await prisma.character.findFirst({
-    where: { id: String(characterId ?? ""), status: "ALIVE" },
-    select: GUEST_SELECT,
-  });
   if (!target) return { error: "That isn't a living character." };
   // Names nobody: the presented name here used to say "A young man isn't here
   // to be let in." for an absent id, which told the asker that character was
   // wearing a hood right now, wherever they were.
   const notHere = { error: "They aren't here to be let in." };
-  if (target.locationId !== room.locationId) return notHere;
+  if (!room || target.locationId !== room.locationId) return notHere;
   if (!gm && !byToken && (await hiddenFrom(prisma, actor, target.id))) return notHere;
   return { room, target };
 }
@@ -76,8 +83,9 @@ async function addRoomGuest(prisma, { actor = null, roomId, characterId, gm = fa
   await prisma.roomGuest
     .upsert({
       where: { roomId_characterId: { roomId: room.id, characterId: target.id } },
-      update: {},
-      create: { roomId: room.id, characterId: target.id, invitedById: actor?.id ?? null },
+      // A pass given at one side and now given at another moves with them: one row per guest per room.
+      update: { locationId: room.locationId },
+      create: { roomId: room.id, characterId: target.id, invitedById: actor?.id ?? null, locationId: room.locationId },
     })
     .catch((err) => console.error("Failed to record room guest:", err.message ?? err));
 
@@ -86,7 +94,7 @@ async function addRoomGuest(prisma, { actor = null, roomId, characterId, gm = fa
     try {
       await addThreadMember(room.discordThreadId, target.discordUserId);
       // Without this the guest is never shown out: the mover's recompute only acts where entitlement and the record DISAGREE.
-      await recordRoomThread(prisma, target.id, room.id, true);
+      await recordRoomThread(prisma, target.id, membershipKey(room), true);
     } catch (err) {
       console.error(`Failed to add ${target.discordUserId} to room ${room.id}:`, err.message ?? err);
     }
@@ -124,7 +132,7 @@ async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm =
     try {
       await removeThreadMember(room.discordThreadId, target.discordUserId);
       // The record has to follow, or syncCharacterRoomAccess sees no disagreement and this eviction un-does itself on the next sync.
-      await recordRoomThread(prisma, target.id, room.id, false);
+      await recordRoomThread(prisma, target.id, membershipKey(room), false);
     } catch (err) {
       console.error(`Failed to remove ${target.discordUserId} from room ${room.id}:`, err.message ?? err);
       return { ok: false, error: "Couldn't remove them. The bot may be missing Manage Threads." };
@@ -135,13 +143,13 @@ async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm =
   return { ok: true, room, target, line: `${shown} was shown out.` };
 }
 
-// Who is in a private room on a guest row. Key-holders are NOT in this list — a different fact the room's own accessTagSlugs already says.
+// Who is in a private room on a guest row — on one side, when `atLocationId` names it. Key-holders are NOT in this list — a different fact the room's own accessTagSlugs already says.
 // Through db/lib/presentedMembers.js, the same resolver the HERE column and a conversation's strip go through — /api/avatar/<id> is ungated, so
 // a raw id would leak a hooded guest's real portrait.
-async function roomGuests(prisma, roomId, viewer, options) {
+async function roomGuests(prisma, roomId, viewer, { atLocationId = null, ...options } = {}) {
   if (!roomId) return [];
   const rows = await prisma.roomGuest.findMany({
-    where: { roomId },
+    where: { roomId, ...(atLocationId ? { locationId: atLocationId } : {}) },
     orderBy: { createdAt: "asc" },
     select: { characterId: true },
   });

@@ -677,6 +677,39 @@ Discord-origin messages take the old path: proxy, webhook, then the row, now
 stamped with `placeKey` and `discordSyncedAt`. The web hears about them from
 the same NOTIFY.
 
+### A room with more than one thread: the relay
+
+A room that opens onto several Locations (`MAP.md` §2d) is one place key but
+one Discord thread **per side**, since a thread can only be read by somebody
+who can see its parent channel. `bot/src/lib/roomRelay.js` keeps them in step.
+Every room row reaches `syncRow` — web, Discord and the game's own scenery
+alike, because every row notifies — and after the outbox's own verb it hands
+the row to `relayRow`, which copies it into every thread of the room **but the
+one it was said in**:
+
+| Row | Said in | Copied into |
+|---|---|---|
+| `WEB` | the home thread (`pushRow` posts it there) | every side's |
+| `DISCORD` | its own `discordChannelId` | every other thread |
+| `SYSTEM` | the home thread (scenery posters write there) | every side's |
+
+Each copy is an `ArchiveRelay` row (`threadId`, `discordMessageId`,
+`syncedAt`), claimed before posting so a notification and the drain never post
+twice, and kept in step with the row's edits and its delete. A row meant for
+one reader or kept from one (`onlyCharacterId`, `exceptCharacterId`) is never
+copied: Discord cannot show one reader a different line. Two rules follow:
+
+- **Scenery posters post to the home thread only** and leave the sides to the
+  relay. One that wrote to every thread itself would be relayed on top.
+- **An edit or a delete goes to the thread the line is in**
+  (`placeKey.js#discordTargetForThread`), not to the room's home thread, so a
+  line typed at the far side of a counter is edited where it stands.
+
+A reaction on a copy acts on its row: `archive.js#archiveRowForMessage` falls
+back to `ArchiveRelay`. `drainRoomRelays` sweeps the newest 200 lines of every
+such room on `ready`, in a query of its own so a busy counter cannot crowd the
+main drain out.
+
 ## 5. The page
 
 `web/app/(app)/chat/`. Rail item **Chat**, right under Character

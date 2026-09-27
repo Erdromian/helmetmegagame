@@ -42,7 +42,9 @@ import useMyMove from "./useMyMove";
 // seeds rows into useState, so both need remounting on a new server list.
 export function hereKey(people) {
   const named = (people?.named ?? []).map((person) => person.characterId).join(",");
-  return `here:${named}|${(people?.concealed ?? []).length}`;
+  // The far side of a counter too (db/lib/roomSides.js), so somebody stepping up to it redraws the list.
+  const counter = (people?.rooms ?? []).map((g) => g.named.length + g.concealed.length).join(",");
+  return `here:${named}|${(people?.concealed ?? []).length}|${counter}`;
 }
 
 // Waiting on you: pending offers, a threat seat, a letter the bird has not

@@ -424,10 +424,52 @@ function collectLocations(zone, zoneSlug, locationEntries, roomEntries, problems
         vendingMachine: room.vending === true,
         live: collectLive(room.live, `room "${room.id}"`, problems),
         stash: parseStash(room.stash, room.id, problems),
+        sides: parseSides(room.sides, room.id, location.id, problems),
         locationSlug: location.id,
       });
     }
   }
+}
+
+// A room that opens onto more Locations than its own — a window, a counter
+// (docs/systemdocs/MAP.md §2d):
+//
+//   sides:
+//     - location: town-3      # the Location's slug
+//       access: [some-key]    # that side's gate; omitted or empty is public
+//
+// Each side is gated on its own, exactly as the room's own `access:` gates its
+// home. Returns [{ locationSlug, kind, accessTagSlugs, sortOrder }].
+function parseSides(raw, roomSlug, homeSlug, problems) {
+  if (raw == null) return [];
+  if (!Array.isArray(raw)) {
+    problems.push(`room "${roomSlug}" has a non-list sides:`);
+    return [];
+  }
+  const seen = new Set();
+  const out = [];
+  for (const [index, side] of raw.entries()) {
+    const locationSlug = typeof side?.location === "string" ? side.location.trim() : "";
+    if (!locationSlug) {
+      problems.push(`room "${roomSlug}" sides[${index}] names no location`);
+      continue;
+    }
+    if (locationSlug === homeSlug) {
+      problems.push(`room "${roomSlug}" sides[${index}] is its own Location "${homeSlug}"`);
+      continue;
+    }
+    if (seen.has(locationSlug)) {
+      problems.push(`room "${roomSlug}" opens onto "${locationSlug}" twice`);
+      continue;
+    }
+    seen.add(locationSlug);
+    if (side.access != null && !Array.isArray(side.access)) {
+      problems.push(`room "${roomSlug}" sides[${index}] has a non-list access:`);
+    }
+    const access = Array.isArray(side.access) ? side.access.map(String).filter(Boolean) : [];
+    out.push({ locationSlug, kind: access.length > 0 ? "PRIVATE" : "PUBLIC", accessTagSlugs: access, sortOrder: index });
+  }
+  return out;
 }
 
 // The overwrite targets this sync may DELETE. @everyone is deliberately NOT

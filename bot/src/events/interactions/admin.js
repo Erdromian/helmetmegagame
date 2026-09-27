@@ -12,6 +12,7 @@ const {
 const { sendDm } = require("../../lib/dm");
 const { resolveActingMember, isGmMember, findAliveCharacter } = require("../../lib/interactionGuild");
 const { presentedNameOf } = require("@lifeweb/db/lib/presentedMembers");
+const { roomForThread } = require("@lifeweb/db/lib/roomSides");
 const { addRoomGuest, removeRoomGuest } = require("@lifeweb/db/lib/roomGuests");
 const { notifyPresence } = require("@lifeweb/db/lib/presenceNotify");
 const { addThreadMember } = require("@lifeweb/db/lib/discordRest");
@@ -203,8 +204,8 @@ async function handleThreadMemberCommand(interaction, action) {
       where: { threadId: channel.id },
       include: { location: { select: { name: true } } },
     }),
-    prisma.room.findFirst({
-      where: { discordThreadId: channel.id },
+    // The home thread or a side's (db/lib/roomSides.js) — the door is the side this thread hangs off.
+    roomForThread(prisma, channel.id, {
       select: {
         id: true,
         name: true,

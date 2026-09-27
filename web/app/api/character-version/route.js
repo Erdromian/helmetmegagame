@@ -1,6 +1,7 @@
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { deployVersion } from "@/lib/deployVersion";
+import { opensOntoWhere } from "@lifeweb/db/lib/roomSides";
 
 // "Has anything on my sheet moved?" for CharacterPoller.js: a FINGERPRINT of
 // location, carry, Location stashes, open turn, your own hold, and the bomb's clock, so
@@ -30,7 +31,8 @@ export async function GET() {
     }),
     me.locationId
       ? prisma.roomTag.aggregate({
-          where: { room: { locationId: me.locationId } },
+          // Every room that opens onto here, so a drop at the far side of a counter redraws this sheet too.
+          where: { room: opensOntoWhere(me.locationId) },
           _count: { _all: true },
           _sum: { quantity: true },
           _max: { updatedAt: true },

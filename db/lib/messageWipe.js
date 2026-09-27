@@ -9,6 +9,7 @@
 // began), so it can't eat its own push's #summary post or an in-flight
 // message. Sequential, not Promise.all, to respect Discord's rate limits.
 const { SPECIAL_CHANNELS } = require("./specialChannels");
+const { WITH_SIDES, roomViews } = require("./roomSides");
 const {
   fetchAllMessages,
   bulkDeleteMessages,
@@ -132,10 +133,21 @@ async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = f
       include: { locations: { orderBy: { sortOrder: "asc" } } },
     }),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
-    prisma.room.findMany({ where: { discordThreadId: { not: null } } }),
+    // Every room thread there is, a side's included (db/lib/roomSides.js): a
+    // thread nobody has a row for is adopted as a Conversation below, and a
+    // side thread taken for one would be deleted at the next wipe.
+    prisma.room.findMany({
+      where: { OR: [{ discordThreadId: { not: null } }, { sides: { some: { discordThreadId: { not: null } } } }] },
+      include: WITH_SIDES,
+    }),
     prisma.playerThread.findMany(),
   ]);
-  const roomsByThreadId = new Map(rooms.map((r) => [r.discordThreadId, r]));
+  const roomsByThreadId = new Map(
+    rooms
+      .flatMap(roomViews)
+      .filter((view) => view.discordThreadId)
+      .map((view) => [view.discordThreadId, view]),
+  );
   const rowsByThreadId = new Map(playerThreads.map((row) => [row.threadId, row]));
 
   // Fetched ONCE for the whole wipe — the endpoint is guild-wide.

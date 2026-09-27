@@ -2,6 +2,7 @@
 // The name is frozen at send time as the PRESENTED name (db/lib/presentedIdentity.js: forced > concealed > own) — a row must never print a name the room couldn't have heard — and lives IN the token, not a sidecar column, because the text gets copied (a ⭐ into Note.content, a journal entry) with no migration needed. A token with no `|` predates this and resolves live; there is deliberately NO BACKFILL, since stamping today's names onto old rows would be the retroactive rewrite this exists to prevent.
 
 const { parsePlaceKey } = require("./placeKey");
+const { roomLocationIds } = require("./roomSides");
 const { charactersNamedIn } = require("./mentions");
 const { formatBareName } = require("./characterName");
 const { buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUGS } = require("./specialChannels");
@@ -167,9 +168,14 @@ async function earshotForPlaceKey(prisma, placeKey) {
   if (parsed.kind === "loc") return { locationId: parsed.id, zoneId: null };
   if (parsed.kind === "zone") return { locationId: null, zoneId: parsed.id };
 
+  // A room that opens onto several Locations (db/lib/roomSides.js) carries a
+  // voice to every one of them, so its earshot is each side's Location.
   if (parsed.kind === "room") {
-    const room = await prisma.room.findUnique({ where: { id: parsed.id }, select: { locationId: true } });
-    return { locationId: room?.locationId ?? null, zoneId: null };
+    const room = await prisma.room.findUnique({
+      where: { id: parsed.id },
+      select: { locationId: true, sides: { select: { locationId: true } } },
+    });
+    return { locationId: room?.locationId ?? null, locationIds: room ? roomLocationIds(room) : null, zoneId: null };
   }
 
   const conversation = await prisma.playerThread.findUnique({
@@ -182,6 +188,7 @@ async function earshotForPlaceKey(prisma, placeKey) {
 // Whether this character is close enough to be told: alive, and standing in the place's earshot. Pinging your own character DOES pass — the relay is the only proof a player has that the feature works (PROXYING.md §6).
 function inEarshot(character, earshot) {
   if (!character || character.status !== "ALIVE") return false;
+  if (earshot.locationIds?.length) return earshot.locationIds.includes(character.locationId);
   if (earshot.locationId) return character.locationId === earshot.locationId;
   if (earshot.zoneId) return character.zoneId === earshot.zoneId;
   return false;
@@ -212,7 +219,11 @@ async function charactersNamedNearby(prisma, { placeKey, content, speakerId = nu
   const candidates = await prisma.character.findMany({
     where: {
       status: "ALIVE",
-      ...(earshot.locationId ? { locationId: earshot.locationId } : { zoneId: earshot.zoneId }),
+      ...(earshot.locationIds?.length
+        ? { locationId: { in: earshot.locationIds } }
+        : earshot.locationId
+          ? { locationId: earshot.locationId }
+          : { zoneId: earshot.zoneId }),
       ...(speakerId ? { id: { not: speakerId } } : {}),
     },
     select: {

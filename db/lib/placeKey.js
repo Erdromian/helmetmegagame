@@ -83,6 +83,14 @@ async function resolveChannelKey(prisma, channelId, parentId) {
   });
   if (room) return placeKeyForRoom(room.id);
 
+  // A room's thread under a further Location it opens onto (db/lib/roomSides.js)
+  // is the same room: one place key, one feed, whichever side it was said on.
+  const side = await prisma.roomSide.findUnique({
+    where: { discordThreadId: channelId },
+    select: { roomId: true },
+  });
+  if (side) return placeKeyForRoom(side.roomId);
+
   const conversation = await prisma.playerThread.findFirst({
     where: { threadId: channelId },
     select: { id: true },
@@ -348,7 +356,57 @@ async function discordTargetForPlaceKey(prisma, placeKey) {
   return null;
 }
 
+// Every Discord thread a place key reaches. One for everything but a room
+// that opens onto several Locations (db/lib/roomSides.js), which has a thread
+// under each side's channel: home first, then the sides. Each carries the
+// Location it hangs off. The outbox posts a line to the first and relays it
+// to the rest (bot/src/lib/feedOutbox.js).
+async function discordTargetsForPlaceKey(prisma, placeKey) {
+  const parsed = parsePlaceKey(placeKey);
+  if (parsed?.kind !== "room") {
+    const one = await discordTargetForPlaceKey(prisma, placeKey);
+    return one ? [{ ...one, home: true }] : [];
+  }
+  const room = await prisma.room.findUnique({
+    where: { id: parsed.id },
+    select: {
+      locationId: true,
+      discordThreadId: true,
+      location: { select: { discordChannelId: true } },
+      sides: {
+        where: { discordThreadId: { not: null } },
+        orderBy: { createdAt: "asc" },
+        select: { locationId: true, discordThreadId: true, location: { select: { discordChannelId: true } } },
+      },
+    },
+  });
+  if (!room) return [];
+  const out = [];
+  if (room.discordThreadId && room.location?.discordChannelId) {
+    out.push({ channelId: room.location.discordChannelId, threadId: room.discordThreadId, locationId: room.locationId, home: true });
+  }
+  for (const side of room.sides) {
+    if (!side.location?.discordChannelId) continue;
+    out.push({ channelId: side.location.discordChannelId, threadId: side.discordThreadId, locationId: side.locationId, home: false });
+  }
+  return out;
+}
+
+// The target for one particular thread of a place — the one a line was said
+// in, so an edit or a delete reaches the copy that is actually there. Falls
+// back to the place's own target when the thread is not one of its.
+async function discordTargetForThread(prisma, placeKey, threadId) {
+  if (threadId) {
+    const targets = await discordTargetsForPlaceKey(prisma, placeKey);
+    const hit = targets.find((t) => t.threadId === threadId);
+    if (hit) return { channelId: hit.channelId, threadId: hit.threadId };
+  }
+  return discordTargetForPlaceKey(prisma, placeKey);
+}
+
 module.exports = {
+  discordTargetsForPlaceKey,
+  discordTargetForThread,
   placeKeyForNet,
   placeKeyForParty,
   DEADCHAT_PLACE_KEY,
