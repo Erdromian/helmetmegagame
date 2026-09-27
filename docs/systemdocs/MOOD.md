@@ -346,7 +346,7 @@ the same speed. `MOOD_DRIFT_UP` is **4** and `MOOD_DRIFT_DOWN` is **32**: a
 fright wears off slowly, a good evening is mostly gone by morning. From the
 ceiling that is three nights to Fine against the floor's twenty-five.
 
-The down figure was 40 until the Silver Chip shelf landed (`DEPOT.md` §0e). A
+The down figure was 40 until the Black Market's drugs landed (`DEPOT.md` §0n). A
 Buffout costs 20 obols and a high that is almost entirely gone by breakfast is
 not worth 20 obols, so happiness now decays about a fifth slower. The up figure
 did not move, because the asymmetry below is the design and not a side effect

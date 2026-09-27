@@ -147,7 +147,7 @@ const CONSUME_RELIEF = Object.freeze({
   // it carries its own `cooked.mood: 7` now and is priced by the new
   // raw-food rule (db/lib/hunger.js#rawFoodMoodTerms), same as Honey and
   // Fish Roe below — a row here would silently win over that.
-  // The Silver Chip shelf. These are ITEM-keyed on purpose: Bliss grants
+  // The Black Market's drugs. These are ITEM-keyed on purpose: Bliss grants
   // `euphoric` and `high`, both of which sit above at DRINK_RELIEF, and an
   // item row wins outright over its grants -- which is the whole point, since
   // a refined drug should not be worth the same as the fungus it came from.

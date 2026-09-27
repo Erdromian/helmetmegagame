@@ -88,7 +88,7 @@ const LOOT_TABLE = {
     "instrument-kit",
     "mining-helmet",
     // The Baron's lift. It came off the Hand's starting tags, so this and the
-    // black market shelf are how anybody else gets down to the Refuse Pit
+    // Black Market terminal are how anybody else gets down to the Refuse Pit
     // without asking him (docs/tags.yaml#elevator-key).
     "elevator-key",
   ],

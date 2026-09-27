@@ -71,7 +71,11 @@ test("a turn number that is missing reads as the resting state rather than throw
 });
 
 test("every manifest in the catalog has an id and a name, and carries no blurb", () => {
-  assert.equal(MANIFESTS.length, MANIFEST_IDS.length);
+  // The counter's shelves, plus the Black Market, which is a valid manifest id
+  // and no shelf at the counter (DEPOT.md §0n).
+  assert.equal(MANIFESTS.length + 1, MANIFEST_IDS.length);
+  assert.equal(isManifestId(MANIFEST_BLACK_MARKET), true);
+  assert.equal(MANIFESTS.some((m) => m.id === MANIFEST_BLACK_MARKET), false);
   for (const m of MANIFESTS) {
     assert.equal(typeof m.id, "string");
     assert.ok(m.name.length > 0, `${m.id} has no name`);
@@ -90,12 +94,13 @@ test("a ware naming no manifest is the Merchant's, which is the strictest defaul
   assert.equal(manifestOf({ manifest: "not-a-shelf" }), MANIFEST_MERCHANT);
 });
 
-test("a chip opens the black market and nothing else; a licence opens everything", () => {
+test("the counter never offers the Black Market; a licence opens the Merchant's shelf", () => {
   const nobody = manifestsFor(new Set()).map((m) => m.id);
   assert.deepEqual(nobody, [MANIFEST_GENERAL]);
 
-  const chip = manifestsFor(new Set(["silver-chip"])).map((m) => m.id);
-  assert.deepEqual(chip, [MANIFEST_GENERAL, MANIFEST_BLACK_MARKET]);
+  // The Black Market's ring token works the Exactor's terminal, not the Depot.
+  const ring = manifestsFor(new Set(["black-market-key", "silver-chip"])).map((m) => m.id);
+  assert.deepEqual(ring, [MANIFEST_GENERAL]);
 
   const merchant = manifestsFor(new Set(["merchants-license"])).map((m) => m.id);
   assert.deepEqual(merchant, [MANIFEST_GENERAL, MANIFEST_MERCHANT]);
@@ -115,8 +120,10 @@ test("canOrder is the per-ware gate the order action re-checks, and it agrees wi
   assert.equal(canOrder(booze, new Set()), false);
   assert.equal(canOrder(pistol, new Set()), false);
 
-  assert.equal(canOrder(booze, new Set(["silver-chip"])), true);
-  assert.equal(canOrder(pistol, new Set(["silver-chip"])), false);
+  // Nothing opens the Black Market at the counter, the licence included.
+  assert.equal(canOrder(booze, new Set(["black-market-key"])), false);
+  assert.equal(canOrder(booze, new Set(["merchants-license"])), false);
+  assert.equal(canOrder(pistol, new Set(["black-market-key"])), false);
   assert.equal(canOrder(pistol, new Set(["merchants-license"])), true);
 });
 

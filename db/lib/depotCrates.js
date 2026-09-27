@@ -1,7 +1,6 @@
-// Crates: what a shipment looks like when the shuttle sets it down — packed into a random number of crates that must be opened (worth paying a Docker for, delays "bought" from "holding", and leaves a crate on the landing pad crackable by whoever's there). A crate is a TAG, created at runtime with custom: true — db/lib/pruneTags.js already skips custom rows so db:prune-tags won't eat them, and being a tag gives crates carry weight, transfers, room stashes and theft for free. One Tag row per crate, swept once the last instance is gone. Manifest printed on the crate, Bascinet's format: `[SHIPMENT ID RV-4471-K]: Coal x 4 | Bandage x 6 | ML-23`, or `[SHIPMENT ID RV-4471-K]: SEALED` if anything in it ships sealed — a Depot Keycard opens a sealed crate (and a Silver Chip opens one whose sealed goods are all Black Market), and one sealed line item seals the whole crate, so nobody knows which crate the dangerous thing is in.
+// Crates: what a shipment looks like when the shuttle sets it down — packed into a random number of crates that must be opened (worth paying a Docker for, delays "bought" from "holding", and leaves a crate on the landing pad crackable by whoever's there). A crate is a TAG, created at runtime with custom: true — db/lib/pruneTags.js already skips custom rows so db:prune-tags won't eat them, and being a tag gives crates carry weight, transfers, room stashes and theft for free. One Tag row per crate, swept once the last instance is gone. Manifest printed on the crate, Bascinet's format: `[SHIPMENT ID RV-4471-K]: Coal x 4 | Bandage x 6 | ML-23`, or `[SHIPMENT ID RV-4471-K]: SEALED` if anything in it ships sealed — only a Depot Keycard opens a sealed crate, and one sealed line item seals the whole crate, so nobody knows which crate the dangerous thing is in.
 
 const { DEPOT_KEYCARD_SLUG } = require("./depotState");
-const { MANIFESTS, MANIFEST_BLACK_MARKET, manifestOf } = require("./depotManifests");
 const { PACKAGE_MAX_LBS, PACKAGE_MAX_UNITS, TAG_CATEGORY } = require("./constants");
 
 // A crated ⬢ weighs a pound, so ⬢ pack against the same weight rule as everything else and ride in a crate with other goods. This used to be the ONE place a ⬢ had a weight, since loose on a sheet they weighed nothing and counted against a cap of their own. That cap is gone: a loose ⬢ weighs this same pound off its Tag row now (docs/systemdocs/CARRY.md), and this constant is only here because a Depot manifest line for ⬢ carries no tagId to look one up with.
@@ -109,18 +108,9 @@ function crateDescription(shipment, crate) {
 }
 
 // Who may open this crate: a sealed one needs the keycard, an open one needs nothing since its manifest is printed on the side with no lock to pick. Takes held slugs as a Set, the shape roomAccess.js already builds.
-// The Silver Chip opens a sealed crate too, when everything sealed inside came off the Black Market — `innerTags` are the Tag rows its contents name.
-function canOpenCrate(crateTag, heldSlugs, innerTags = []) {
+function canOpenCrate(crateTag, heldSlugs) {
   if (!crateTag?.sealedShipping) return true;
-  if (heldSlugs?.has?.(DEPOT_KEYCARD_SLUG)) return true;
-  return isBlackMarketSeal(innerTags) && Boolean(heldSlugs?.has?.(BLACK_MARKET_SLUG));
-}
-
-const BLACK_MARKET_SLUG = MANIFESTS.find((m) => m.id === MANIFEST_BLACK_MARKET).requiredTagSlug;
-
-function isBlackMarketSeal(innerTags) {
-  const sealed = (innerTags ?? []).filter((t) => t?.sealedShipping);
-  return sealed.length > 0 && sealed.every((t) => manifestOf(t) === MANIFEST_BLACK_MARKET);
+  return Boolean(heldSlugs?.has?.(DEPOT_KEYCARD_SLUG));
 }
 
 // A crate's tag slug, server-generated with the "custom-" prefix every runtime tag uses (Tag.custom in schema.prisma), so it can never collide with a docs/tags.yaml slug and get upserted over by a sync.
@@ -163,5 +153,4 @@ module.exports = {
   crateTagData,
   crateWeight,
   canOpenCrate,
-  isBlackMarketSeal,
 };

@@ -7,7 +7,7 @@
 const { settleCarry } = require("./carry");
 const { RESOURCES_SLUG, RESOURCES_WEIGHT_LBS } = require("./resourceStack");
 const { WOUND_TAG_GROUPS } = require("./constants");
-const { isManifestId, MANIFEST_IDS } = require("./depotManifests");
+const { isManifestId, MANIFEST_IDS, MANIFEST_BLACK_MARKET } = require("./depotManifests");
 // The rungs docs/systemdocs/TAGS.md §5c actually defines, half rungs included
 // (the named exceptions the ladder documents). A typo'd 2.5 is a silent wrong
 // mood hit, so the set is closed.
@@ -658,6 +658,11 @@ async function syncTagsFromYaml(prisma) {
     // sealing something the Depot does not sell is a typo rather than a rule.
     if (t.sealedShipping && t.depotPrice == null) {
       throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sealedShipping but has no depotPrice — the Depot does not stock it, so it can never ship`);
+    }
+    // The Black Market hands its wares over on the spot (db/lib/blackMarket.js),
+    // so a seal on one would be a rule about a crate that never exists.
+    if (t.sealedShipping && t.manifest === MANIFEST_BLACK_MARKET) {
+      throw new Error(`docs/tags.yaml: tag "${t.slug}" sets sealedShipping but is on the Black Market, which never ships in a crate`);
     }
     // A manifest is a shelf, and the shelves are a closed list — a typo here
     // would quietly hide a ware from everybody rather than showing it to the

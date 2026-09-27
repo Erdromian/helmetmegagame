@@ -34,7 +34,7 @@ const yaml = require("js-yaml");
 const { rankLabel, RULES } = require("./sources");
 const { armorWord } = require("../../../lib/armorValue");
 const { median } = require("./stats");
-const { MANIFESTS, manifestOf } = require("../../../lib/depotManifests");
+const { MANIFESTS, BLACK_MARKET, manifestOf } = require("../../../lib/depotManifests");
 
 const REPO = path.resolve(__dirname, "../../../..");
 
@@ -151,7 +151,11 @@ function buildEquipment({ list, get, sources, investments, rv, moveValue, gameTu
     if (t.depotPrice != null) {
       const shelf = t.manifest ?? "merchant";
       const gate = RULES.shelfGate[shelf] ?? null;
-      options.push({ via: "depot", how: `Depot, ${shelf} shelf${gate ? ` (needs ${nameOf(gate)})` : ""}`, coin: t.depotPrice });
+      const how =
+        shelf === "black-market"
+          ? "Black Market terminal (needs the Exactor's or the Pusher's ring)"
+          : `Depot, ${shelf} shelf${gate ? ` (needs ${nameOf(gate)})` : ""}`;
+      options.push({ via: "depot", how, coin: t.depotPrice });
     }
     const c = craftOf(t);
     if (c && !c.selfRef) {
@@ -320,7 +324,11 @@ function buildEquipment({ list, get, sources, investments, rv, moveValue, gameTu
   const pointRoutes = list
     .filter((t) => t.consumesIntoTagPoints > 0 && t.depotPrice != null)
     .map((t) => {
-      const shelf = MANIFESTS.find((m) => m.id === manifestOf(t));
+      // The Black Market is no Depot shelf (DEPOT.md §0n), so it is named here
+      // with the ring token that works its terminal.
+      const shelf =
+        MANIFESTS.find((m) => m.id === manifestOf(t)) ??
+        (manifestOf(t) === BLACK_MARKET.id ? { ...BLACK_MARKET, requiredTagSlug: RULES.shelfGate[BLACK_MARKET.id] } : null);
       return { name: t.name, price: t.depotPrice, points: t.consumesIntoTagPoints, perPoint: t.depotPrice / t.consumesIntoTagPoints, shelf: shelf?.name ?? manifestOf(t), gate: shelf?.requiredTagSlug ? get(shelf.requiredTagSlug)?.name ?? shelf.requiredTagSlug : null };
     });
   // The schema's own word on the two armour columns.

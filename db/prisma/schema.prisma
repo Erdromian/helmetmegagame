@@ -1690,6 +1690,13 @@ model Room {
   vendingMachine Boolean         @default(false)
   vending        VendingMachine?
 
+  // The Black Market terminal's credit, in obols (docs/systemdocs/DEPOT.md §0n).
+  // Only the Exactor's Office carries a terminal (db/lib/blackMarket.js names
+  // the room), so this is 0 on every other row. Coin fed into the slot left
+  // Ravenheart when it went in; this is what it bought, shared by everybody
+  // whose ring works the machine, spent by ordering and never paid back out.
+  blackMarketObols Int @default(0)
+
   // A key from the registry in db/lib/roomLive.js, set from `live:` in
   // docs/zones.yaml. The room's starter message carries one extra line read
   // off live state, re-rendered whenever that state moves — the Landing Pad

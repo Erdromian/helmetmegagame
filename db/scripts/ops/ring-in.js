@@ -18,7 +18,7 @@
 //      room's stash. The rooms and ways still name those slugs; a ring opens
 //      them now. The Collar Key goes too: the Exactor's and the Pusher's rings unlock
 //      collars now. The Inn's and the Den's guest-room keys, the
-//      Elevator key, the Depot keycard and the Silver Chip are NOT touched.
+//      Elevator key and the Depot keycard are NOT touched.
 //   3. The fifteen wax stamps come out of hands and stashes the same way. A
 //      letter already sealed keeps its wax. `npm run db:prune-tags` removes the
 //      stamps' own rows afterwards, if wanted.

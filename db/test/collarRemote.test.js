@@ -18,7 +18,7 @@ const ring = (over = {}) => ({
   slug: "custom-ring-x",
   ringOfCharacterId: "c1",
   ringRegisteredAt: new Date(),
-  ringAccessSlugs: ["den-key", EXACTOR_RING_TOKEN, "silver-chip"],
+  ringAccessSlugs: ["den-key", EXACTOR_RING_TOKEN, "black-market-key"],
   ...over,
 });
 const remote = { equipped: false, tag: { slug: DETONATOR_SLUG } };
@@ -63,7 +63,7 @@ function unlockGate(tags) {
 
 test("the Exactor's and the Pusher's rings unlock collars", () => {
   assert.equal(unlockGate([{ equipped: true, tag: ring({ ringAccessSlugs: ["den-key", "exactors-key", COLLAR_KEY_TOKEN] }) }]), true);
-  assert.equal(unlockGate([{ equipped: true, tag: ring({ ringAccessSlugs: ["den-key", "silver-chip", COLLAR_KEY_TOKEN] }) }]), true);
+  assert.equal(unlockGate([{ equipped: true, tag: ring({ ringAccessSlugs: ["den-key", "black-market-key", COLLAR_KEY_TOKEN] }) }]), true);
 });
 
 test("no other ring, a pocketed ring, or a held collar-key tag unlocks", () => {

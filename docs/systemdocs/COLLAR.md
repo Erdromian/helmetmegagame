@@ -240,7 +240,7 @@ the collar is spent and nothing explodes twice.
 - **It costs no Move and no ⬢.**
 - **It is not craftable**, in either of its pieces, and there is no collar key
   to strike: only the two rings unlock. A forge that could strike collars would let anybody start a slave trade without
-  ever paying the Merchant. Import from the Black Market, or steal.
+  ever paying the Merchant. Buy from the Black Market terminal (`DEPOT.md` §0n), or steal.
 - **It does not check the Slave's contract.** The 50 obols on that paper
   (`db/lib/slaveContract.js`) is fiction a GM adjudicates against. Nothing
   counts a balance and nothing fires when one is reached.
