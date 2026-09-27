@@ -1585,7 +1585,7 @@ module.exports = {
   ...require("./lib/concealedIdentity"),
   ...require("./lib/presentedIdentity"),
   ...require("./lib/threats"),
-  ...require("./lib/roleCapacity"),
+  ...require("./lib/fateCapacity"),
   ...require("./lib/lateJoin"),
   ...require("./lib/gameState"),
   ...require("./lib/gameConfigFields"),

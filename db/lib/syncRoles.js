@@ -10,6 +10,7 @@ const { assertTitlesResolve, GENDERS } = require("./titles");
 const { entriesOf } = require("./yamlEntries");
 const { parseStartingTag, formatStartingTag } = require("./startingTags");
 const { isRoleGroupSlug } = require("./roleGroups");
+const { CONSTANT_FATE_COUNT, FATE_SHARE_TOTAL, isSpawnOnly } = require("./fateCapacity");
 
 // docsPath() is null only when docs/ cannot be found at all, which for a YAML
 // master is fatal — a sync with no master would read as "everything was
@@ -48,20 +49,38 @@ function startingAccount(role, slug) {
   return raw;
 }
 
-// `base_seats:` -- seats a weighted role has before its per-100 share is
-// counted (db/lib/roleCapacity.js). Absent is 0. Refused on a unique or
-// unlimited seat, where roleCapacity would never read it, and on anything but
-// a whole number of 0 or more.
-function baseSeats(role, slug) {
-  const raw = role.base_seats;
-  if (raw == null) return 0;
-  if (!Number.isInteger(raw) || raw < 0) {
-    throw new Error(`docs/roles.yaml: role "${slug}" base_seats must be a whole number of 0 or more`);
+// `base_seats:` is RETIRED. It was a flat head start on the old per-100
+// weight; Fate Slot Logic.docx gives every proportional fate a share of one
+// pool instead (db/lib/fateCapacity.js), with nothing added on top. Refused
+// rather than ignored, so a stale key cannot read as if it still did something.
+function refuseBaseSeats(role, slug) {
+  if (role.base_seats != null) {
+    throw new Error(`docs/roles.yaml: role "${slug}" sets base_seats, which is retired -- a fate's seats are its weight's share of the pool`);
   }
-  if (typeof role.weight !== "number") {
-    throw new Error(`docs/roles.yaml: role "${slug}" sets base_seats but has no numeric weight -- only a weighted seat counts it`);
+}
+
+// The two numbers fateCapacity() is built on must match the roster, or every
+// share is divided by the wrong pool: the lobby's constant fates (`multiple:
+// false`) number CONSTANT_FATE_COUNT, and the lobby's proportional fates'
+// `weight:` shares add up to FATE_SHARE_TOTAL. Spawn-only seats are in
+// neither — the Bastard and the Tribunal Ordinator are GM-opened, not rolled.
+// Run on the whole file by syncRolesFromYaml; exported for the tests.
+function assertFateSeats(roles) {
+  const lobby = roles.filter((r) => !isSpawnOnly(r));
+  const constants = lobby.filter((r) => r.isUnique);
+  if (constants.length !== CONSTANT_FATE_COUNT) {
+    throw new Error(
+      `docs/roles.yaml: ${constants.length} fates are "multiple: false", but the seat rules are built on ${CONSTANT_FATE_COUNT} (db/lib/fateCapacity.js#CONSTANT_FATE_COUNT)`,
+    );
   }
-  return raw;
+  const shares = lobby
+    .filter((r) => !r.isUnique && !r.unlimited && r.weight != null)
+    .reduce((sum, r) => sum + r.weight, 0);
+  if (shares !== FATE_SHARE_TOTAL) {
+    throw new Error(
+      `docs/roles.yaml: the proportional fates' weights add up to ${shares}, but the seat rules divide the pool by ${FATE_SHARE_TOTAL} (db/lib/fateCapacity.js#FATE_SHARE_TOTAL)`,
+    );
+  }
 }
 
 // `ring:` -- the seat's signet ring (docs/systemdocs/RINGS.md). Absent means a
@@ -125,12 +144,14 @@ function parseRolesYaml(doc) {
         difficulty: role.difficulty ?? null,
         groupSlug,
         sortOrder: roleOrder++,
-        // `multiple: false` means one specific named character. `weight:
-        // unlimited` means uncapped. Anything else carries a numeric weight.
+        // `multiple: false` means one specific named character — a constant
+        // fate. `weight: unlimited` means uncapped. Anything else carries a
+        // numeric weight: its share of the pool, out of FATE_SHARE_TOTAL.
         isUnique: role.multiple === false,
         unlimited: role.weight === "unlimited",
         weight: typeof role.weight === "number" ? role.weight : null,
-        baseSeats: baseSeats(role, role.slug),
+        // Retired column: refused in the YAML, written 0 so no live row keeps an old head start.
+        baseSeats: (refuseBaseSeats(role, role.slug), 0),
         extraStartingPoints: role.extra_starting_points ?? 0,
         startingZoneSlug: role.starting_zone ?? null,
         startingLocationSlug: role.starting_location ?? null,
@@ -148,7 +169,7 @@ function parseRolesYaml(doc) {
         // and gets said out loud rather than silently dropped.
         startingAccountObols: startingAccount(role, role.slug),
         // Who may claim this seat at all — a hosting decision. It also decides
-        // which seats the assignment roll fills first (db/lib/roleAssignment.js).
+        // which seats the assignment roll fills first (db/lib/fateAssignment.js).
         requiresWhitelist: role.whitelist === true,
         // Whether a look reads the title off somebody in this seat. Default
         // ON, unlike every other flag here — most seats are public offices,
@@ -215,6 +236,7 @@ function changed(row, data) {
 
 async function syncRolesFromYaml(prisma) {
   const { roles } = parseRolesYaml(loadDoc());
+  assertFateSeats(roles);
 
   const roleSlugs = new Set();
   for (const r of roles) {
@@ -411,4 +433,4 @@ async function refreshRingAccess(prisma) {
   return refreshed;
 }
 
-module.exports = { syncRolesFromYaml, parseRolesYaml, resolveKnows, parseRing };
+module.exports = { syncRolesFromYaml, parseRolesYaml, assertFateSeats, resolveKnows, parseRing };

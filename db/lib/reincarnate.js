@@ -7,7 +7,7 @@
 // cursed player makes no character at all (db/lib/curse.js). This one leaves
 // no body to bury and never waits on a mourner. The seat is whatever is
 // actually open, same as everyone else gets — in a full game Bum or Migrant,
-// since those are the only two that reopen on a death (db/lib/roleCapacity.js).
+// since those are the only two that reopen on a death (db/lib/fateCapacity.js).
 //
 // The new body is granted Metempsychosis again, so the loop never breaks on
 // its own, and one more stack of Heightened Psychosis — a pure counter, never
@@ -16,8 +16,8 @@
 // db/lib/characterDeath.js#applyDeathToRow. Takes `prisma` as a parameter and
 // stays off the @lifeweb/db barrel, the db/lib/dm.js convention; require it by path.
 const { METEMPSYCHOSIS_SLUG, HEIGHTENED_PSYCHOSIS_SLUG } = require("./constants");
-const { roleCapacity, isSpawnOnly } = require("./roleCapacity");
-const { heldSeatsByRole } = require("./seatCount");
+const { fateCapacity, isSpawnOnly } = require("./fateCapacity");
+const { heldSeatsByFate } = require("./seatCount");
 const { effectivePlayerCount } = require("./gameState");
 const { parseStartingTag } = require("./startingTags");
 const { expiryForGrant } = require("./grantExpiry");
@@ -201,9 +201,9 @@ async function openRoles(prisma, config, state) {
   // whitelisted, so without this a coin flip could seat a random dead player
   // in the ruling family with no human in the loop.
   const selectable = roles.filter((r) => !isSpawnOnly(r) && !isDynastyMember(r.slug));
-  const heldById = await heldSeatsByRole(prisma, selectable);
+  const heldById = await heldSeatsByFate(prisma, selectable);
   const playerCount = effectivePlayerCount(config, state);
-  return selectable.filter((r) => (heldById.get(r.id) ?? 0) < roleCapacity(r, playerCount));
+  return selectable.filter((r) => (heldById.get(r.id) ?? 0) < fateCapacity(r, playerCount));
 }
 
 // Returns the new Character row, or null when nothing happened — no tag, no
@@ -286,8 +286,8 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
   // Same row lock the wizard takes: two deaths in one turn pass must not both land in the last seat.
   const createInSeat = async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
-    const held = await heldSeatsByRole(tx, [role]);
-    if ((held.get(role.id) ?? 0) >= roleCapacity(role, effectivePlayerCount(config, state))) {
+    const held = await heldSeatsByFate(tx, [role]);
+    if ((held.get(role.id) ?? 0) >= fateCapacity(role, effectivePlayerCount(config, state))) {
       throw new Error("ROLE_FULL");
     }
 

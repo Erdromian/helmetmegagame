@@ -412,7 +412,7 @@ takes a flat role list and files it.
 
 **The slugs are in the YAML; the display names are in code.** `ROLE_GROUPS` in
 `db/lib/roleGroups.js` holds the order and the labels, for the same reason
-`roleCapacity.js#REOPENING_SEAT_ROLE_SLUGS` does: a typo in a label must not be
+`fateCapacity.js#OPEN_FATE_SLUGS` does: a typo in a label must not be
 able to throw `db:sync-roles` mid-pass with rows already written. A group *key*
 in the YAML that names no bucket is a different matter — `syncRoles` validates
 every one against `isRoleGroupSlug()` in its up-front pass and throws before it
@@ -461,42 +461,99 @@ read.
 It replaced the old `db/lib/factionSync.js`, which read the same file but only
 ever used a handful of its fields.
 
-### Seat caps
+### Fate seats
 
-`db/lib/roleCapacity.js#roleCapacity(role, playerCount)` is the single source
-of the cap, shared by the picker, the server action, and the GM panel:
+The rules are Bascinet's own, from `Fate Slot Logic.docx`. Internally a role
+is a **fate** (the code, this section, the seat modules); what players read
+still says "role".
+
+**How many seats a game has.** The readied count plus 10%, rounded up —
+`fateSeatsFor()`. Start Game stamps it on `GameState.playerCount` (`LOBBY.md`
+§3): 72 readied is 80 fate seats. Before Start, the `GameConfig.playerCount`
+knob on `/gm/dev` stands in, default 80; after it, the knob changes nothing
+(`effectivePlayerCount`).
+
+**How they are shared out.** `db/lib/fateCapacity.js#fateCapacity(fate,
+fateSeats)` is the single source of the cap, shared by the picker, the server
+action, the roll and the GM panel:
 
 | YAML | Column | Cap |
 |---|---|---|
-| `multiple: false` | `isUnique` | exactly 1, at any game size |
+| `multiple: false` | `isUnique` | a constant fate: exactly 1, at any game size |
 | `weight: unlimited` | `unlimited` | uncapped (`Infinity`) |
-| `weight: N` | `weight` | `max(1, round(N * playerCount / 100))` |
-| `weight: N`, `base_seats: B` | `weight`, `baseSeats` | `max(1, round(B + N * playerCount / 100))` |
+| `weight: N` | `weight` | `max(1, round(N * pool / 60))` |
 
-`weight` reads as *seats per 100 players*. `playerCount` is the number Start
-Game stamps on `GameState.playerCount` — the readied count plus 9%
-(`LOBBY.md` §3). Before Start, the `GameConfig.playerCount` knob on `/gm/dev`
-stands in; after it, the knob changes nothing (`effectivePlayerCount`).
+The **pool** is the fate seats less the 20 constant fates. So `weight` reads as
+*a share out of 60 of the pool*, and at 72 readied (80 seats, a pool of 60)
+every proportional fate has exactly its weight in seats. Rounding is to the
+nearest seat, half up, and nothing falls below 1 however small the game.
 
-`base_seats` is for a role that should be roomier in a small game without
-growing in a large one. Courtier and Cerberus are `weight: 5, base_seats: 1`:
-2 seats at 20 players, 3 at 40, 4 at 60, 6 at 100 and 9 at 150 — what a plain
-`weight: 6` gave from 60 up, with one more seat at 20 and at 40. The sync
-refuses `base_seats` on a unique or unlimited role, where nothing would read it.
-`multiple: false` is deliberately **not** "1 per 100" — the Baron stays one
-Baron in a 300-player game.
+The **20 constant fates** are the Baron, Baroness, Heir, Successor, Hand,
+Meister, Arbiter, Censor, Incarn, Sheriff, Bishop, Inquisitor, Esculap,
+Merchant, Banneret, Geschef, Exactor, Pusher, Innkeeper and Minstrel. The
+Baron stays one Baron in a 300-player game. The Bastard is `multiple: false`
+too, but spawn-only, so the lobby never counts it.
 
-**Who occupies a seat** is `roleCapacity.js#seatHolderStatuses(role)`, and
+The **19 proportional fates** and their shares:
+
+| Fate | Share | Fate | Share |
+|---|---|---|---|
+| Cerberus | 6 | Docker | 3 |
+| Soiler | 5 | Slave | 3 |
+| Servant | 4 | Inn Staff | 3 |
+| Serpent | 4 | Metalsmith | 3 |
+| Refugee | 4 | Squire | 2 |
+| Mortus | 4 | Chaplain | 2 |
+| Mercenary | 4 | Goon | 2 |
+| Courtier | 3 | Courtesan | 2 |
+| Practicus | 3 | Prospector | 2 |
+| Preacher | 1 | | |
+
+`CONSTANT_FATE_COUNT` (20) and `FATE_SHARE_TOTAL` (60) are constants in code,
+so `fateCapacity` stays a pure function of one row and one number.
+`syncRoles.js#assertFateSeats` is what keeps them honest: `db:sync-roles`
+refuses a `roles.yaml` whose lobby has a different number of `multiple: false`
+fates, or whose lobby weights do not add up to 60. Adding or removing a fate
+therefore means rebalancing the shares (or changing the constant) in the same
+edit. `base_seats`, the old per-100 head start, is retired: the sync refuses
+it, and `Role.baseSeats` is written 0 and read by nothing.
+
+**Examples.** Seats per fate at a few game sizes (`db/test/fateCapacity.test.js`
+checks these against the real YAML):
+
+| Readied players | 10 | 20 | 40 | 50 | 60 | **72** | 80 | 100 | 120 | 150 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Fate seats (+10%) | 11 | 22 | 44 | 55 | 66 | **80** | 88 | 110 | 132 | 165 |
+| Pool (− 20) | 0 | 2 | 24 | 35 | 46 | **60** | 68 | 90 | 112 | 145 |
+| Cerberus (6) | 1 | 1 | 2 | 4 | 5 | **6** | 7 | 9 | 11 | 15 |
+| Soiler (5) | 1 | 1 | 2 | 3 | 4 | **5** | 6 | 8 | 9 | 12 |
+| each share-4 fate | 1 | 1 | 2 | 2 | 3 | **4** | 5 | 6 | 7 | 10 |
+| each share-3 fate | 1 | 1 | 1 | 2 | 2 | **3** | 3 | 5 | 6 | 7 |
+| each share-2 fate | 1 | 1 | 1 | 1 | 2 | **2** | 2 | 3 | 4 | 5 |
+| Preacher (1) | 1 | 1 | 1 | 1 | 1 | **1** | 1 | 2 | 2 | 2 |
+| Capped seats in all | 39 | 39 | 46 | 55 | 67 | **80** | 87 | 114 | 133 | 166 |
+
+Bum and Migrant sit on top of these, uncapped. Below about 36 readied the
+floor of 1 leaves more capped seats than players; from about 50 up the total
+tracks the +10% within a seat or two, since each fate rounds on its own.
+
+**Bum and Migrant** are the two **open fates** (`OPEN_FATE_SLUGS`). Both are
+`weight: unlimited`, both are left off the lobby's priority list
+(`isLobbyFate`), and a player the roll cannot seat picks one of them — or the
+lobby — as their fallback (`LOBBY.md` §3). Mid-game they are in the ordinary
+picker like any other fate, and never full.
+
+**Who occupies a seat** is `fateCapacity.js#seatHolderStatuses(fate)`, and
 the answer is normally *a living or a dead one*: a seat is spent for the run
 the moment somebody takes it, and their death does not hand it back. A
 Cerberus who dies takes the Cerberus's chair with him.
 
-The exception is `REOPENING_SEAT_ROLE_SLUGS`, which is two names long — **Bum
+The exception is `OPEN_FATE_SLUGS`, which is two names long — **Bum
 and Migrant**. Those two count only their ALIVE holders, so they are the seats
 a dead player can come back into. That is the point of them: with the curse
 now stopping a new character entirely until the body is buried
 (`db/lib/curse.js`), the roster needs a floor nobody can be locked out of, and
-those two are it. Migrant is `weight: unlimited` besides, so it can never be
+those two are it. Both are `weight: unlimited` besides, so neither can ever be
 full at all.
 
 This list used to run the other way — seventeen named seats stayed shut and
@@ -521,7 +578,7 @@ both hit Confirm, the second one gets told to pick again.
 
 A five-step wizard between "pick a role" and "the seat is actually yours" is
 a long window for a capacity-1 role to vanish out from under a player mid-tag-menu.
-`RoleReservation` (`db/lib/roleReservation.js`) holds a seat for **30
+`RoleReservation` (`db/lib/fateReservation.js`) holds a seat for **30
 minutes**, refreshed on every Next after the Role step — so a careful tag
 menu never costs it, but an abandoned tab frees a unique seat the same
 session. `discordUserId` is `@unique`: a player can hold exactly one seat,
@@ -534,7 +591,7 @@ to other players and available to its holder.
 
 **No hold exists before Start Game.** In CLOSED and LOBBY the only way into
 the wizard is a GM's Skip, and seats are the roll's to hand out, so
-`reserveRoleAction` writes nothing and neither the picker nor
+`reserveFateAction` writes nothing and neither the picker nor
 `createCharacter` counts a hold (`db/lib/lobby.js#seatsAllocated`). One
 skipper's pick used to show as taken to the next. A character a skipper
 actually builds is still a seat. Start Game deletes any hold left over, so none
@@ -778,7 +835,7 @@ costing them points.
 
 **While cursed, a player makes no character at all.** `/character` shows them
 the refusal instead of the wizard, and both `createCharacter` and
-`reserveRoleAction` refuse independently — a server action is a public
+`reserveFateAction` refuse independently — a server action is a public
 endpoint. Only a superadmin is exempt.
 
 This got much sharper on 2026-09-18. It used to be a discount in reverse: a
@@ -1077,7 +1134,7 @@ never deletes. See `SYNC.md`.
 | Role sync | `db/lib/syncRoles.js`, `db/scripts/sync/sync-roles.js` |
 | Which seats a look reads | `Role.examineVisible`, frozen by `db/lib/examineSnapshot.js`, read by `db/lib/examine.js` |
 | Special channels | `db/lib/specialChannels.js`, `db/lib/syncSpecialChannels.js`, `db/scripts/sync/sync-narrowcast-channels.js` |
-| Seat math | `db/lib/roleCapacity.js` |
+| Seat math | `db/lib/fateCapacity.js` |
 | Budget/eligibility rules | `web/lib/characterCreation.js` |
 | Wizard | `web/app/(app)/character/CreateCharacterWizard.js` |
 | Point-buy menu | `web/app/components/PointBuy.js` |
@@ -1173,7 +1230,7 @@ Four things worth knowing before changing it:
   nothing.
 - **The seat is claimed under the same `FOR UPDATE` row lock the wizard
   takes** (§2). Two deaths resolving inside one turn pass must not both land
-  in the last free seat. `heldSeatsByRole` + `roleCapacity` decide "full", so
+  in the last free seat. `heldSeatsByFate` + `fateCapacity` decide "full", so
   reincarnation and the assignment roll cannot disagree about it.
   **Three** exclusions: whitelisted and spawn-only (the two the assignment roll
   makes), plus the **dynasty seats**. Baroness, Heir and Successor are not

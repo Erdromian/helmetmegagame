@@ -53,7 +53,7 @@ exceptions, all requiring by path instead:
 A module reached from a **client component** must not come through the barrel
 at all — the barrel pulls in Prisma and the YAML syncs (`node:fs`), neither of
 which bundles for the browser. `web/lib/characterCreation.js` imports
-`@lifeweb/db/lib/roleCapacity` directly for exactly this reason.
+`@lifeweb/db/lib/fateCapacity` directly for exactly this reason.
 
 **Reach for the deep path, not a copy.** The escape hatch above is a
 *re-export*, and it is what `web/lib/` shims are for: `characterName.js`,

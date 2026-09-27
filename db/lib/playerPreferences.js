@@ -2,8 +2,9 @@
 // Shape is { [roleSlug]: "LOW" | "MEDIUM" | "HIGH" }; absent is Off. Setting a role to HIGH demotes whichever role held HIGH before to MEDIUM, so there is only ever one.
 
 const LEVELS = ["LOW", "MEDIUM", "HIGH"];
-// Migrant is the one unlimited seat left.
-const JOBLESS_ROLES = ["MIGRANT", "RETURN_TO_LOBBY"];
+// What a player the roll cannot seat does instead: spawn into one of the two open,
+// uncapped fates, or go back to the lobby (LOBBY.md §3). Mirrors enum JoblessRole.
+const JOBLESS_CHOICES = ["BUM", "MIGRANT", "RETURN_TO_LOBBY"];
 
 function setPriority(priorities, slug, level) {
   const next = { ...(priorities ?? {}) };
@@ -38,7 +39,7 @@ function normalizePriorities(raw, allowed) {
 }
 
 function normalizeJoblessRole(raw) {
-  return JOBLESS_ROLES.includes(raw) ? raw : "MIGRANT";
+  return JOBLESS_CHOICES.includes(raw) ? raw : "MIGRANT";
 }
 
 // True when Start would have nothing to give this player but the fallback.
@@ -46,4 +47,4 @@ function pickedNothing(priorities) {
   return Object.keys(priorities ?? {}).length === 0;
 }
 
-module.exports = { LEVELS, setPriority, normalizePriorities, normalizeJoblessRole, pickedNothing };
+module.exports = { LEVELS, JOBLESS_CHOICES, setPriority, normalizePriorities, normalizeJoblessRole, pickedNothing };

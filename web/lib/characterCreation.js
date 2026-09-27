@@ -1,6 +1,6 @@
 // Shared rules for character creation, used by the wizard, createCharacter
 // and the GM panel, so budgets never disagree. Pure functions only.
-import { roleCapacity, SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
+import { fateCapacity, SPAWN_ONLY_FATE_SLUGS, isSpawnOnly, isLobbyFate } from "@lifeweb/db/lib/fateCapacity";
 import { chainOf, tagsById, heldHigherTiers } from "@lifeweb/db/lib/craftRecipes";
 
 // Defaults for the two drawback ceilings (GameConfig.maxDrawbackTags/
@@ -20,7 +20,8 @@ export function negativeTagPoints(tags) {
 }
 
 // Spawn-only seats are HIDDEN, unlike a whitelisted seat, which greys itself.
-export { SPAWN_ONLY_ROLE_SLUGS, isSpawnOnly };
+// isLobbyFate also hides Bum and Migrant, but from the lobby's priority list only.
+export { SPAWN_ONLY_FATE_SLUGS, isSpawnOnly, isLobbyFate };
 
 // PLACEHOLDER — Bascinet's wording pending. The one sentence a player with an
 // unburied body reads, on the creation page and from both server actions. An
@@ -144,7 +145,7 @@ export function effectiveTotalCost(tags, tagsById, heldIds = []) {
 }
 
 // The whitelist is the only thing left that greys a role out for WHO you are.
-// Whether the seat is free is asked separately, against roleCapacity.
+// Whether the seat is free is asked separately, against fateCapacity.
 export function isRoleSelectable({ role, leaderWhitelisted }) {
   return !(role.requiresWhitelist && !leaderWhitelisted);
 }
@@ -211,7 +212,7 @@ export function costColor(pointCost) {
   return "var(--muted)";
 }
 
-export { roleCapacity };
+export { fateCapacity };
 
 // Deliberately NOT a gate — callers must run this AFTER unlockedTags().
 function fold(value) {

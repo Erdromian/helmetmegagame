@@ -43,7 +43,7 @@ const FIELDS = [
   },
   {
     key: "playerCount", type: "int", group: "creation", default: 80, min: 1, max: 1000,
-    label: "Expected players (until Start)",
+    label: "Fate seats, readied + 10% (until Start)",
   },
   {
     key: "creationWindowHours", type: "int", group: "creation", default: 12, min: 1, max: 168,

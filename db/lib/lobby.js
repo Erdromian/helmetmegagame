@@ -2,9 +2,9 @@
 // input, checking a previewed draft still fits, committing it, and declining
 // a seat. The web action sends the DMs; the bot routes the Decline click.
 
-const { assignRoles, newSeed } = require("./roleAssignment");
-const { roleCapacity, isSpawnOnly } = require("./roleCapacity");
-const { heldSeatsByRole } = require("./seatCount");
+const { assignFates, newSeed } = require("./fateAssignment");
+const { fateCapacity, fateSeatsFor, isSpawnOnly } = require("./fateCapacity");
+const { heldSeatsByFate } = require("./seatCount");
 const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
 const { normalizeTurnLength, nextBoundaryAfter } = require("./turnClock");
@@ -13,9 +13,6 @@ const { resetExchange, rollPhoneNumbers } = require("./phoneNumbers");
 
 // Button customId prefix for the assignment DM's Decline (web builds it, bot routes the click).
 const LOBBY_DECLINE_PREFIX = "lobby-decline:";
-
-// Nine percent over the readied count, for late joins.
-const READY_HEADROOM = 1.09;
 
 // Phases a roll may be previewed/committed in. CLOSED with readied rows is a
 // FROZEN lobby — Close lobby, Preview, Start keeps someone readying up between
@@ -30,7 +27,7 @@ function seatsAllocated(phase) {
   return !ROLL_PHASES.has(phase);
 }
 
-// Everything assignRoles needs, read fresh. `memberRoles` maps discordUserId
+// Everything assignFates needs, read fresh. `memberRoles` maps discordUserId
 // -> Discord role ids (from listGuildMembers), the only Discord fact the roll reads.
 async function loadAssignmentInput(db, memberRoles) {
   const [config, entries, prefs, roles] = await Promise.all([
@@ -40,7 +37,7 @@ async function loadAssignmentInput(db, memberRoles) {
     db.playerPreference.findMany(),
     db.role.findMany({
       select: {
-        id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true, baseSeats: true,
+        id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true,
         requiresWhitelist: true,
       },
     }),
@@ -56,10 +53,11 @@ async function loadAssignmentInput(db, memberRoles) {
     };
   });
 
-  const heldById = await heldSeatsByRole(db, roles, { countReservations: false });
+  const heldById = await heldSeatsByFate(db, roles, { countReservations: false });
   const taken = new Map(roles.map((r) => [r.slug, heldById.get(r.id) ?? 0]));
 
-  const playerCount = players.length > 0 ? Math.ceil(players.length * READY_HEADROOM) : (config.playerCount ?? 80);
+  // Total fate seats: the readied count plus 10%, for late joins (Fate Slot Logic.docx).
+  const playerCount = players.length > 0 ? fateSeatsFor(players.length) : (config.playerCount ?? 80);
   return {
     players,
     roles: roles.map((r) => ({ ...r, spawnOnly: isSpawnOnly(r) })),
@@ -72,7 +70,7 @@ async function loadAssignmentInput(db, memberRoles) {
 // What Preview shows and Start commits. Hand-set rows carry source "GM"; a re-roll replaces the lot with a new seed.
 async function buildDraft(db, memberRoles, { seed = newSeed() } = {}) {
   const input = await loadAssignmentInput(db, memberRoles);
-  const rolled = assignRoles({ ...input, seed });
+  const rolled = assignFates({ ...input, seed });
   return {
     seed: rolled.seed,
     playerCount: input.playerCount,
@@ -88,7 +86,7 @@ async function validateDraft(db, draft) {
   if (!draft?.rows) return ["There is no preview to commit."];
   const [ready, roles] = await Promise.all([
     db.lobbyEntry.findMany({ where: { status: "READY" }, select: { discordUserId: true } }),
-    db.role.findMany({ select: { id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true, baseSeats: true } }),
+    db.role.findMany({ select: { id: true, slug: true, name: true, isUnique: true, unlimited: true, weight: true } }),
   ]);
   const readySet = new Set(ready.map((r) => r.discordUserId));
   const bySlug = new Map(roles.map((r) => [r.slug, r]));
@@ -105,10 +103,10 @@ async function validateDraft(db, draft) {
   const wanted = new Map();
   for (const row of draft.rows) if (row.roleSlug) wanted.set(row.roleSlug, (wanted.get(row.roleSlug) ?? 0) + 1);
   const wantedRoles = [...wanted.keys()].map((slug) => bySlug.get(slug)).filter(Boolean);
-  const heldById = await heldSeatsByRole(db, wantedRoles, { countReservations: false });
+  const heldById = await heldSeatsByFate(db, wantedRoles, { countReservations: false });
   for (const role of wantedRoles) {
     const count = wanted.get(role.slug);
-    if ((heldById.get(role.id) ?? 0) + count > roleCapacity(role, playerCount)) {
+    if ((heldById.get(role.id) ?? 0) + count > fateCapacity(role, playerCount)) {
       problems.push(`${role.name} no longer has room for ${count}.`);
     }
   }

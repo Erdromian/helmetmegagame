@@ -278,7 +278,7 @@ function SpawnDialog({ row, threats, roles, locations, onClose }) {
 
   const threat = threats.find((t) => t.slug === slug) ?? null;
   // The pinned lookup runs over EVERY role, the dropdown only over the ones a
-  // GM may pick. A spawn-only role (the Tribunal's two — db/lib/roleCapacity.js)
+  // GM may pick. A spawn-only role (the Tribunal's two — db/lib/fateCapacity.js)
   // is a seat of its own, and offering one as a cover role hands the recruit
   // that seat's charter, secrets and all.
   const pinnedRole = threat?.spawnRoleSlug ? roles.find((r) => r.slug === threat.spawnRoleSlug) : null;

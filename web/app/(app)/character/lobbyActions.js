@@ -6,7 +6,7 @@ import { normalizePriorities, normalizeJoblessRole } from "@lifeweb/db/lib/playe
 import { auth } from "@/lib/auth";
 import { getGuildMember } from "@/lib/discordGuild";
 import { lobbyGate as lobbyGateDb, setReady as setReadyDb, setUnready as setUnreadyDb } from "@lifeweb/db/lib/verbs/place";
-import { isSpawnOnly } from "@/lib/characterCreation";
+import { isLobbyFate } from "@/lib/characterCreation";
 
 // The lobby's three verbs (docs/systemdocs/LOBBY.md §2). Every one re-derives
 // the gate from the session and the phase — a server action is a public
@@ -33,13 +33,13 @@ async function memberRoleIds(discordUserId) {
   return member?.roles ?? [];
 }
 
-// Which role slugs this player may name at any level: every pickable seat,
-// minus the whitelisted ones when they lack the role.
+// Which role slugs this player may name at any level: every lobby fate (not
+// spawn-only, not Bum or Migrant), minus the whitelisted ones when they lack the role.
 async function allowedRoleSlugs(whitelisted) {
   const roles = await prisma.role.findMany({ select: { slug: true, requiresWhitelist: true } });
   return new Set(
     roles
-      .filter((r) => !isSpawnOnly(r))
+      .filter(isLobbyFate)
       .filter((r) => whitelisted || !r.requiresWhitelist)
       .map((r) => r.slug),
   );

@@ -11,7 +11,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { seatsAllocated, buildDraft } = require("../lib/lobby");
-const { heldSeats, heldSeatsByRole } = require("../lib/seatCount");
+const { heldSeats, heldSeatsByFate } = require("../lib/seatCount");
 
 const SHERIFF = { id: "r1", slug: "sheriff", name: "Sheriff", isUnique: true, unlimited: false, weight: null, requiresWhitelist: false };
 
@@ -51,19 +51,19 @@ test("seats are allocated only once the game has started", () => {
 test("a wizard hold counts as a seat by default", async () => {
   const db = makeDb();
   assert.equal(await heldSeats(db, SHERIFF), 1);
-  assert.equal((await heldSeatsByRole(db, [SHERIFF])).get(SHERIFF.id), 1);
+  assert.equal((await heldSeatsByFate(db, [SHERIFF])).get(SHERIFF.id), 1);
 });
 
 test("before Start, a wizard hold is not a seat", async () => {
   const db = makeDb();
   assert.equal(await heldSeats(db, SHERIFF, { countReservations: false }), 0);
-  assert.equal((await heldSeatsByRole(db, [SHERIFF], { countReservations: false })).get(SHERIFF.id), undefined);
+  assert.equal((await heldSeatsByFate(db, [SHERIFF], { countReservations: false })).get(SHERIFF.id), undefined);
 });
 
 test("before Start, a built character still is a seat", async () => {
   const db = makeDb({ seated: 1 });
   assert.equal(await heldSeats(db, SHERIFF, { countReservations: false }), 1);
-  assert.equal((await heldSeatsByRole(db, [SHERIFF], { countReservations: false })).get(SHERIFF.id), 1);
+  assert.equal((await heldSeatsByFate(db, [SHERIFF], { countReservations: false })).get(SHERIFF.id), 1);
 });
 
 test("the roll gives out a seat a skipper only picked", async () => {

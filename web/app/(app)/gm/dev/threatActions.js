@@ -16,7 +16,7 @@ import { DM_ACTION, dmAction } from "@lifeweb/db/lib/dmActions";
 import { resolveAssignTags, spawnOfferComponents } from "@lifeweb/db/lib/threatSpawn";
 import { resolveSeatConflicts, describeSeatConflicts } from "@lifeweb/db/lib/seatConflicts";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
-import { isSpawnOnly } from "@lifeweb/db/lib/roleCapacity";
+import { isSpawnOnly } from "@lifeweb/db/lib/fateCapacity";
 import { requireDev } from "@/lib/devAccess";
 import { sendDm } from "@/lib/discordGuild";
 

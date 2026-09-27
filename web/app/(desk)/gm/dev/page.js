@@ -25,7 +25,7 @@ import {
   PARTIES,
 } from "@/lib/threats";
 import { PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
-import { roleCapacity, seatHolderStatuses } from "@lifeweb/db/lib/roleCapacity";
+import { fateCapacity, seatHolderStatuses } from "@lifeweb/db/lib/fateCapacity";
 import { loadLateJoinRoles } from "@lifeweb/db/lib/lateJoin";
 import {
   updateGameConfig,
@@ -320,7 +320,7 @@ export default async function DevPanelPage({ searchParams }) {
     case "game": {
       // Everyone with a lobby row, joined to their preferences and their
       // Discord handle. The roll reads the same three tables
-      // (db/lib/roleAssignment.js), so what a GM sees here is what it sees.
+      // (db/lib/fateAssignment.js), so what a GM sees here is what it sees.
       const [entries, prefs, members, roles] = await Promise.all([
         prisma.lobbyEntry.findMany({
           orderBy: { readyAt: "asc" },
@@ -359,7 +359,7 @@ export default async function DevPanelPage({ searchParams }) {
           low: levels.filter(([, l]) => l === "LOW").length,
           optIns: antagonistNames(p?.antagonistOptIns ?? []),
           whitelisted: Boolean(m?.roles.includes(LEADER_WHITELIST_ROLE_ID)),
-          jobless: { MIGRANT: "Migrant", RETURN_TO_LOBBY: "Lobby" }[p?.joblessRole ?? "MIGRANT"],
+          jobless: { BUM: "Bum", MIGRANT: "Migrant", RETURN_TO_LOBBY: "Lobby" }[p?.joblessRole ?? "MIGRANT"],
           status: e.status,
           assigned: e.assignedRole?.name ?? null,
           expiresAt: e.expiresAt ? e.expiresAt.toISOString().slice(5, 16).replace("T", " ") : null,
@@ -687,7 +687,6 @@ export default async function DevPanelPage({ searchParams }) {
             isUnique: true,
             unlimited: true,
             weight: true,
-            baseSeats: true,
             startingLocationId: true,
           },
         }),
@@ -778,7 +777,7 @@ export default async function DevPanelPage({ searchParams }) {
         const used = taken
           .filter((t) => t.roleId === role.id && holders.includes(t.status))
           .reduce((n, t) => n + t._count._all, 0);
-        const cap = roleCapacity(role, effectivePlayerCount(config, state));
+        const cap = fateCapacity(role, effectivePlayerCount(config, state));
         return {
           id: role.id,
           slug: role.slug,
