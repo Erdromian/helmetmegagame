@@ -209,6 +209,11 @@ export async function transferRequestImpl(
           ).map((ct) => ct.tagId),
         )
       : new Set();
+  // The recipient as the giver knows them, for the one refusal below that
+  // names them: a masked recipient picked by token must not come back under
+  // their real name (web/lib/hereTarget.js#seenName). Null for yourself.
+  const recipientSeen =
+    recipientHeld.size > 0 && to.id !== character.id ? await seenName(character, to.id) : null;
   const moves = lines.map((line) => {
     const held = holdings.find((h) => h.tagId === line.tagId);
     if (!held) {
@@ -229,7 +234,7 @@ export async function transferRequestImpl(
     let max = held.quantity;
     if (!held.tag.stackable && to.kind === "character") {
       if (recipientHeld.has(line.tagId))
-        throw new UserError(`${to.name} already has ${held.tag.name}.`);
+        throw new UserError(recipientSeen ? `${recipientSeen} already has ${held.tag.name}.` : `You already have ${held.tag.name}.`);
       max = 1;
     }
     const quantity = Math.min(line.quantity, max);

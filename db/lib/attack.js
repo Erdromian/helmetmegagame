@@ -3,7 +3,7 @@
 // This module takes `db` as a parameter and is deliberately NOT on the @lifeweb/db barrel (dm.js convention); require it by path. IT SENDS NOTHING — like fireWatches, it returns DM descriptors and the caller sends them after the transaction commits (ARCHITECTURE.md §5).
 const { fightingSkill, bandRank, FIGHTING_TAG_FIELDS } = require("./fightingSkill");
 const { turnEndsAt } = require("./turnClock");
-const { SAFE_HOLD_MS, HELD_REASON, seenBy, identityOf, IDENTITY_SELECT } = require("./intercept");
+const { SAFE_HOLD_MS, HELD_REASON, seenBy, seenByMany, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { hoodToken } = require("./hoodToken"); // zero-require leaf; no cycle.
 const { DM_KIND } = require("./dmKinds");
 const { stopPerformances } = require("./performance");
@@ -187,13 +187,12 @@ async function attacksBy(db, attackerId, turnId) {
   // for a hood so nothing can accidentally reach past it.
   // Named as the attacker would name them: a stranger reads as "a young man" (STRANGERS.md).
   const rows = await attackRows(db, attackerId, turnId);
-  return Promise.all(
-    rows.map(async ({ key, token, row }) => ({
-      id: token ? null : row.targetCharacter.id,
-      key,
-      name: await seenBy(db, attackerId, row.targetCharacter),
-    })),
-  );
+  const names = await seenByMany(db, attackerId, rows.map(({ row }) => row.targetCharacter));
+  return rows.map(({ key, token, row }, i) => ({
+    id: token ? null : row.targetCharacter.id,
+    key,
+    name: names[i],
+  }));
 }
 
 async function attackRows(db, attackerId, turnId) {

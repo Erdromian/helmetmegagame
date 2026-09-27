@@ -70,7 +70,9 @@ async function moveResources(tx, party, delta, ctx) {
   } catch (err) {
     if (!(err instanceof InsufficientResourcesError)) throw err;
     if (party?.kind === "room") refuse(`${party.name ?? "That room"} no longer holds ${err.amount} ⬢.`);
-    refuse(`${party?.name ?? "That character"} no longer has ${err.amount} ⬢.`);
+    // Names nobody, the same as its web twin: a payer picked by hood token
+    // carries their real name here, and this runs too deep to know the reader.
+    refuse(`Not enough Resources left to pay ${err.amount} ⬢.`);
   }
 }
 

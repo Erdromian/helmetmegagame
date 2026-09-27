@@ -40,7 +40,9 @@ export async function starMemory(seq) {
     const row = await prisma.archiveEntry.findUnique({ where: { seq: key }, select: STAR_ROW_SELECT });
     if (!row || row.deletedAt || !row.content) throw new UserError("That line is gone.");
 
-    await saveStarredRow(row, session.discordUserId);
+    // Filed under the name this character heard it under — the same one the
+    // day's list above shows them (web/lib/starNote.js).
+    await saveStarredRow(row, session.discordUserId, character.id);
     revalidatePath("/memories");
     return { line: "Saved to your Highlights." };
   });

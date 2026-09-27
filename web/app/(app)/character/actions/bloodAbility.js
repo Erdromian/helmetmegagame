@@ -9,6 +9,7 @@
 // cooldown, nothing about a turn's Routine/Gambit.
 import { prisma } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
+import { seenName } from "@/lib/hereTarget";
 import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
@@ -142,11 +143,12 @@ async function castBloodAbilityImpl({
   // (Enthral) incapacitated or (Nourish) already a thrall. Re-checked again
   // under the row lock inside the transaction below.
   let target = null;
+  let targetSeen = null;
   if (ability.requiresIncapacitatedTarget || ability.requiresThrallTarget) {
     if (!targetCharacterId) throw new UserError("Choose someone here.");
     // Through the shared resolver, so a plain id for somebody standing here in
     // a hood resolves to nobody (db/lib/targetKey.js) — this used to take any
-    // id, and the refusals below print target.name. A hood TOKEN is refused
+    // id, and the refusals below name the target. A hood TOKEN is refused
     // too: this menu offers bare ids only (web/lib/vampireBloodView.js), so a
     // hooded victim stays out of reach exactly as that file says.
     const targetId =
@@ -160,13 +162,18 @@ async function castBloodAbilityImpl({
     if (!target || target.status !== "ALIVE" || target.locationId !== character.locationId) {
       throw new UserError("They aren't here.");
     }
+    // Named as the vampire knows them (web/lib/hereTarget.js#seenName). The
+    // menu offers the name this reader holds, and a forced name is the whole
+    // room's — a refusal printing target.name would be the one line that
+    // told them who is under "Beast".
+    targetSeen = await seenName(character, target.id);
     const targetSlugs = new Set((target.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
     if (ability.requiresIncapacitatedTarget) {
       const incapacitated = [...targetSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug));
-      if (!incapacitated) throw new UserError(`${target.name} isn't incapacitated.`);
+      if (!incapacitated) throw new UserError(`${targetSeen} isn't incapacitated.`);
     }
     if (ability.requiresThrallTarget && !targetSlugs.has(THRALL_SLUG)) {
-      throw new UserError(`${target.name} isn't your thrall.`);
+      throw new UserError(`${targetSeen} isn't your thrall.`);
     }
   }
 
@@ -253,7 +260,7 @@ async function castBloodAbilityImpl({
         freshTarget.locationId !== character.locationId ||
         ![...freshTargetSlugs].some((slug) => INCAPACITATING_SLUGS.has(slug))
       ) {
-        throw new UserError(`${target.name} isn't here and incapacitated any more.`);
+        throw new UserError(`${targetSeen} isn't here and incapacitated any more.`);
       }
       await grantTagSlugs(tx, target.id, [THRALL_SLUG, VAMPIRE_BLOOD_ADDICT_SLUG], openTurn.number);
     }

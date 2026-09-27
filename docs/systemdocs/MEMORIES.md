@@ -238,7 +238,9 @@ Discord-side `messageWipeEnabled` switch.
 Notes is the old Journal (`JournalEntry`) and Highlights the old Starred list
 (`Note`), moved over whole. Both still belong to the account, and
 `PROXYING.md` §7 keeps their history. A star from `/chat`, from the day's
-memories or from Discord writes one `Note` (`web/lib/starNote.js`).
+memories or from Discord writes one `Note` (`web/lib/starNote.js`). A
+Highlight keeps the name you saw on the line: a stranger's is kept as "Young
+Man", with no face, never under their real name (`STRANGERS.md` §6).
 
 ## 6. Scrambling
 

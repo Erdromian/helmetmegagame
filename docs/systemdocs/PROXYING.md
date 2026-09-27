@@ -889,7 +889,11 @@ of translations, and neither face ever sees the other's:
   jump link, never the text" DM this section describes, through
   `db/lib/dm.js#sendDm` rather than the gateway twin, because the outbox is a
   pg listener with no discord.js client. Same earshot rule, same ten-target
-  cap, and a **concealed** send still relays nothing at all.
+  cap, and a **concealed** send still relays nothing at all. Only a token
+  frozen under the person's OWN name goes back as the role: Discord draws a
+  role mention as the role's title, their real name, for the whole channel, so
+  a token frozen as a hood's "Young Woman" or a forced "Beast" goes out as
+  that text instead (`STRANGERS.md` §7). The relay DM goes either way.
 
 Only a role id that IS a character's name token is ever rewritten —
 `Character.discordRoleId` is `@unique`, so the lookup answers with one

@@ -283,7 +283,12 @@ async function answerConversionPick(prisma, { attemptId, discordUserId, pick }) 
     .update({ where: { id: attempt.id }, data: { result: { ...(attempt.result ?? {}), ...result } } })
     .catch(log("recording the pick"));
 
-  return { ok: true, line: "Lord Tzchernobog reaches out to them.", result };
+  // The sentence and nothing else. `result` holds the chosen person's real
+  // name and id for the GMs, and it is on the attempt row for them; handed
+  // back here it went to the chanter's browser whole, since a server action's
+  // return value is shipped whether or not the page draws it. They picked "a
+  // young woman", and that is all they learn.
+  return { ok: true, line: "Lord Tzchernobog reaches out to them." };
 }
 
 // ---- The three roads out ---------------------------------------------------

@@ -125,7 +125,7 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { computeKnownRecipeIds } from "@/lib/tagRequests";
 import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
 // For the SEARCH offers' presented faces only — see pendingOffers below.
-import { seenBy, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
+import { seenByMany, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { parseSelection } from "@/lib/portrait/catalog";
 import { Suspense } from "react";
@@ -1188,7 +1188,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       select: IDENTITY_SELECT,
     });
     // As this character would name them: a stranger is "a young man" (STRANGERS.md).
-    for (const row of faces) searchFaces.set(row.id, capitalizeFirst(await seenBy(prisma, character.id, row)));
+    const names = await seenByMany(prisma, character.id, faces);
+    faces.forEach((row, i) => searchFaces.set(row.id, capitalizeFirst(names[i])));
   }
 
   const pendingOffers = openTurn

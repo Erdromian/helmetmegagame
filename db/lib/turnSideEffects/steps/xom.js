@@ -8,6 +8,8 @@ const { applyLocationMoveSideEffects } = require("../../locationMove");
 const { rollCavingOnArrival } = require("../../cavingPass");
 const { openConversationThread } = require("../../conversationOpen");
 const { shout, deliverShout } = require("../../shout");
+const { seenByPlace } = require("../../intercept");
+const { capitalizeFirst } = require("../../concealedIdentity");
 
 // ---------------------------------------------------------------- Xom
 //
@@ -32,8 +34,11 @@ async function runXomOutcomes({ prisma, p, list, step }) {
       // is a graph link between the two places, and there almost never is one
       // here — without this the character simply materialises with nothing
       // said, at either end.
-      const gone = `${move.name} is not here any more.`;
-      const come = `${move.name} is here, and was not a moment ago.`;
+      // The face the room saw (intercept.js#seenByPlace): a hood stays a hood
+      // even when a god moves it.
+      const seen = capitalizeFirst(await seenByPlace(prisma, move.characterId));
+      const gone = `${seen} is not here any more.`;
+      const come = `${seen} is here, and was not a moment ago.`;
       for (const [locationId, text] of [
         [move.fromLocationId, gone],
         [move.toLocationId, come],

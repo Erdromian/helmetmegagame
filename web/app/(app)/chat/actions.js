@@ -66,7 +66,7 @@ import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { structuresAt } from "@lifeweb/db/lib/structures";
 import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
-import { heldReasonFor, seenBy, seenById, seenByPlace, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
+import { heldReasonFor, seenByMany, seenById, seenByIdMany, seenByPlace, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
@@ -388,7 +388,8 @@ export async function starRow(seq) {
     (await mayReadPlace(prisma, character, row.placeKey, { gm: false, discordUserId: me.discordUserId }));
   if (!allowed) return { ok: false, error: "That line is gone." };
 
-  await saveStarredRow(row, me.discordUserId);
+  // Filed under the name THIS reader saw on the line (web/lib/starNote.js).
+  await saveStarredRow(row, me.discordUserId, character.id);
 
   return { ok: true, line: "Saved to your Highlights." };
 }
@@ -826,9 +827,11 @@ export async function travelTo({ locationId, exert = false } = {}) {
   // Leader and follower each name the other as they know them
   // (intercept.js#seenBy): the escort rack offered a hood or a stranger by
   // token, so neither line may hand back the name.
-  for (const entry of result.leftBehind ?? []) {
-    // "held" is the one reason the leader IS told — it's plain to see anyway.
-    (entry.reason === "held" ? heldBack : stranded).push(await seenById(prisma, me.character.id, entry.character.id));
+  const leftBehind = result.leftBehind ?? [];
+  const leftNames = await seenByIdMany(prisma, me.character.id, leftBehind.map((entry) => entry.character.id));
+  // "held" is the one reason the leader IS told — it's plain to see anyway.
+  leftBehind.forEach((entry, i) => (entry.reason === "held" ? heldBack : stranded).push(leftNames[i]));
+  for (const entry of leftBehind) {
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     const left = entry.character.discordUserId;
     const leader = capitalizeFirst(await seenById(prisma, entry.character.id, me.character.id));
@@ -897,10 +900,9 @@ export async function travelTo({ locationId, exert = false } = {}) {
   // below names this rather than the destination they picked.
   const landed = result.arrivedAt ?? target;
 
-  const brought = [];
-  for (const entry of result.moved) {
-    if (entry.character.id === me.character.id) continue;
-    brought.push(await seenById(prisma, me.character.id, entry.character.id));
+  const passengers = result.moved.filter((entry) => entry.character.id !== me.character.id);
+  const brought = await seenByIdMany(prisma, me.character.id, passengers.map((entry) => entry.character.id));
+  for (const entry of passengers) {
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     const passenger = entry.character.discordUserId;
     const leader = capitalizeFirst(await seenById(prisma, entry.character.id, me.character.id));
@@ -2355,9 +2357,8 @@ export async function waitingOnYou() {
       })
     : [];
   // As this character would name them: a stranger is "a young man" (STRANGERS.md).
-  const nameOf = new Map(
-    await Promise.all(initiators.map(async (c) => [c.id, capitalizeFirst(await seenBy(prisma, me.character.id, c))])),
-  );
+  const initiatorNames = await seenByMany(prisma, me.character.id, initiators);
+  const nameOf = new Map(initiators.map((c, i) => [c.id, capitalizeFirst(initiatorNames[i])]));
 
   const rows = [
     ...offers.map((o) => ({
