@@ -1017,6 +1017,34 @@ ${table({ cols: proCols, rows: proRows, filters: [{ label: "Mining", get: (r) =>
 </section>`;
 }
 
+// Your own ingots: forge them or crack them (trinketPick.js#trinketIngots), on the same slider as the picker.
+function trinketIngotSection(T) {
+  const D = T.picker;
+  if (!D?.ingots?.length) return "";
+  const rate = params.sellTaxRate;
+  const smelted = D.ingots.filter((g) => g.ore);
+  const moves = smelted[0]?.smeltMoves;
+  const at0 = D.setups.map((u) => ({ u, rows: TP.trinketIngots(D, u.id, 0) }));
+  const first = at0[0];
+  const best = [...first.rows].sort((a, b) => b.gain - a.gain)[0];
+  const least = [...first.rows].sort((a, b) => a.gain - b.gain)[0];
+  const top = T.shelfLoop.topWage;
+  const cm = model.investments.rows.find((r) => r.id === "crack-metals");
+  const smelt = cm?.gain != null ? `about ${fmt(cm.gain, 1)} ¢ a turn` : null;
+  return `<h3>Your own ingots: forge or crack?</h3>
+<p class="lede">${smelted.length ? `${listAnd(smelted.map((g) => `${esc(g.ore)} smelts into ${esc(g.name)}`))}: one ore makes one ingot, ${moves != null ? `a smelt is ${fmt(moves, 2)} of a Move` : "a smelt takes part of a Move"}, with Smithing and Workshop Equipment or a Forge, and no ⬢.` : ""} ${smelt ? `The ore is the limit, not the Moves: a Prospector turns up each ore on only a fifth of presses or so, and a miner smelting their own ore on the rest turn makes ${esc(smelt)} over selling it raw.` : ""} Once you hold the ingots, <b>forging two into a Trinket beats cracking or selling them for every smith</b>. Each cell is what one Trinket, a whole Move, adds over keeping the two ingots, after the 4 ⬢ the die costs; an ingot kept is worth what it cracks for (⬢ at ${fmt(D.rv.mid, 0)} ¢, the barter midpoint) or what the counter pays, whichever is more. ${esc(best.name)} gains most (+${fmt(best.gain, 1)} ¢ a Move even for ${esc(first.u.label)}) and ${esc(least.name)} least (+${fmt(least.gain, 1)})${least.gain < top ? `, under the ${top} ¢ top of the wage table, so a Smithing I smith with a better use for the Move can crack ${esc(least.name)} instead` : ""}. Cracked ⬢ sold back at ${fmt(D.rv.sell, 0)} ¢ is worth half the midpoint, so forging wins by more than this. ${(() => {
+    const cells = (r) => D.setups.flatMap((u) => TP.trinketIngots(D, u.id, r).map((x) => ({ u, x })));
+    const rates = [...Array(101).keys()];
+    const firstR = rates.find((r) => cells(r).some((c) => c.x.gain < 0));
+    const allR = rates.find((r) => cells(r).every((c) => c.x.gain < 0));
+    if (firstR == null) return "A sell tax narrows the gap but never closes it; the table follows the slider.";
+    const firstC = cells(firstR).find((c) => c.x.gain < 0);
+    const half = rates.find((r) => cells(r).filter((c) => c.x.gain < 0).length * 2 >= cells(r).length);
+    return `<b>A sell tax closes the gap</b>, because the Trinket's sale is taxed and ⬢ you keep is not: ${esc(firstC.x.name)} for ${esc(firstC.u.label)} is the first to be better cracked, at ${firstR}%; by ${half}% half the table is, and ${allR == null ? "some ingots still pay at any rate" : `at ${allR}% all of it`}. The table follows the slider.`;
+  })()}</p>
+<div class="tablewrap"><table class="picker"><thead><tr><th>Two of…</th><th class="num">Kept, worth</th>${D.setups.map((u) => `<th class="num">${esc(u.label)}</th>`).join("")}</tr></thead><tbody id="tringot-body">${TP.trinketIngotBody(D, rate)}</tbody></table></div>`;
+}
+
 // The stone picker and Smithing II or Lucky, one tax slider for both (trinketPick.js, drawn the same way here
 // and in the browser).
 function trinketPicker(T) {
@@ -1044,7 +1072,8 @@ function trinketPicker(T) {
     const stays = flips.length ? `Lucky becomes the better buy a point from ${flips[0]}% tax.` : "Smithing II stays the better buy a point at every tax rate.";
     return `${stays} What a tax changes is where forging stops paying: ${bSk == null ? "Smithing II never stops" : `Smithing II's best set stops at ${bSk}%`}, ${bLk == null ? "Lucky's never does" : `Lucky's at ${bLk}%`}${bSk != null && bLk != null && bLk > bSk ? `, so between the two only a Lucky smith still clears anything` : ""}.`;
   })()} Lucky also helps on every other die its holder rolls, which none of this counts. The table follows the slider above.</p>
-<div class="tablewrap"><table class="picker"><thead><tr><th>Smith</th><th class="num">Points</th><th class="num">Best ¢ a Move</th><th class="num">Gain</th><th class="num">Gain per point</th><th class="num">Stops paying at</th><th>Best stones</th></tr></thead><tbody id="trinupgrade-body">${TP.trinketUpgradeBody(D, rate)}</tbody></table></div>`;
+<div class="tablewrap"><table class="picker"><thead><tr><th>Smith</th><th class="num">Points</th><th class="num">Best ¢ a Move</th><th class="num">Gain</th><th class="num">Gain per point</th><th class="num">Stops paying at</th><th>Best stones</th></tr></thead><tbody id="trinupgrade-body">${TP.trinketUpgradeBody(D, rate)}</tbody></table></div>
+${trinketIngotSection(T)}`;
 }
 
 function sectionCooking() {
@@ -2475,6 +2504,7 @@ th.sort-asc::after{content:" ▲"}th.sort-desc::after{content:" ▼"}
 .sortable th{cursor:pointer}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 code{font-size:12px}
+.mute{color:var(--mute)}
 .slider{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:10px 0 2px;font-size:14px}.slider input[type=range]{flex:1 1 220px;max-width:420px;accent-color:var(--accent)}.slider output{font-family:var(--mono);min-width:3.5em}
 table.picker td.best{font-weight:700;color:var(--good);background:color-mix(in srgb,var(--good) 15%,transparent)}table.picker td.neg{color:var(--bad)}
 .filterbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:8px 0 2px;font-size:13px}.filterbar select,.filterbar input{font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}.filterbar .count{color:var(--mute)}tr[hidden]{display:none}
@@ -2528,7 +2558,7 @@ document.querySelectorAll('table.sortable').forEach(t=>{
   if(!range)return;
   const D=JSON.parse(document.getElementById('trinpick-data').textContent);
   const out=document.getElementById('trinpick-taxout'),body=document.getElementById('trinpick-body'),sum=document.getElementById('trinpick-summary'),up=document.getElementById('trinupgrade-body');
-  const draw=()=>{const rate=+range.value;out.textContent=rate+'%';body.innerHTML=trinketMatrixBody(D,rate);sum.innerHTML=trinketMatrixSummary(D,rate);if(up)up.innerHTML=trinketUpgradeBody(D,rate);};
+  const draw=()=>{const rate=+range.value;out.textContent=rate+'%';body.innerHTML=trinketMatrixBody(D,rate);sum.innerHTML=trinketMatrixSummary(D,rate);if(up)up.innerHTML=trinketUpgradeBody(D,rate);const ing=document.getElementById('tringot-body');if(ing)ing.innerHTML=trinketIngotBody(D,rate);};
   range.addEventListener('input',draw);
 })();
 ${Object.values(TP).map((f) => f.toString()).join("\n")}

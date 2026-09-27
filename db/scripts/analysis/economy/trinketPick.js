@@ -9,6 +9,8 @@
 //   D.sets    [{ stones: [names], inlay, cost }], every 0–2 stone set off the Merchant's shelf
 //   D.points  { skilled, lucky }, what Smithing II and Lucky cost in skill points
 //   D.setups  [{ id, label }], the four smiths the matrix has a column for
+//   D.ingots  [{ name, inlay, sell, cracks, ore, smeltMoves }], the stones that also crack into ⬢
+//   D.rv      { sell, mid }, the ⬢'s sell-back and the midpoint an ingot kept back is valued at
 // The render functions below return HTML strings, so the first view (written by report.js) and every move of
 // the slider (in the browser) are drawn by the same code.
 
@@ -112,4 +114,30 @@ function trinketUpgradeBody(D, rate) {
     .join("");
 }
 
-module.exports = { trinketTaxOn, trinketPick, trinketUpgrade, trinketBreakEven, trinketFmt, trinketEsc, trinketMatrixBody, trinketMatrixSummary, trinketUpgradeBody };
+// Two of your own ingots: forge them into a Trinket, or keep them. Keeping is cracking both for ⬢ (at the
+// midpoint) or selling both at the counter (taxed), whichever is worth more; the gain is what forging adds.
+function trinketIngots(D, holderId, rate) {
+  const p = D.tierP[holderId];
+  return D.ingots.map((g) => {
+    const keep = Math.max(g.cracks * D.rv.mid, g.sell - trinketTaxOn(g.sell, rate));
+    let net = 0;
+    D.tiers.forEach((t, i) => {
+      const sale = Math.round(t.base + t.mult * 2 * g.inlay);
+      net += p[i] * (sale - trinketTaxOn(sale, rate));
+    });
+    return { name: g.name, keep, crack: g.cracks * D.rv.mid >= g.sell - trinketTaxOn(g.sell, rate), gain: net - D.dieCost - 2 * keep };
+  });
+}
+
+function trinketIngotBody(D, rate) {
+  const cols = D.setups.map((u) => trinketIngots(D, u.id, rate));
+  return D.ingots
+    .map((g, i) => {
+      const k = cols[0][i];
+      const cells = cols.map((c) => `<td class="num${c[i].gain < 0 ? " neg" : ""}">${c[i].gain >= 0 ? "+" : ""}${trinketFmt(c[i].gain)}</td>`).join("");
+      return `<tr><td>${trinketEsc(g.name)}${g.ore ? ` <span class="mute">(${trinketEsc(g.ore)})</span>` : ""}</td><td class="num">${trinketFmt(2 * k.keep)} ¢ ${k.crack ? "cracked" : "sold"}</td>${cells}</tr>`;
+    })
+    .join("");
+}
+
+module.exports = { trinketTaxOn, trinketPick, trinketUpgrade, trinketBreakEven, trinketFmt, trinketEsc, trinketMatrixBody, trinketMatrixSummary, trinketUpgradeBody, trinketIngots, trinketIngotBody };

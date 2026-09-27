@@ -197,6 +197,19 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     tierP: Object.fromEntries(holders.map((h) => [h.id, h.tierP])),
     dieCost,
     points: { skilled: pts("smithing-skilled"), lucky: pts("lucky") },
+    // The ⬢ a Trinket's die costs is bought; an ingot kept back is worth what it cracks for (⬢ at the midpoint of the
+    // Depot's two prices, what it barters for) or what the counter pays, whichever is more.
+    rv: { sell: rv.sell, mid: rv.mid },
+    // Every stone that also cracks into ⬢: the metals. Smelted ones name their ore and what a smelt takes.
+    ingots: stones
+      .filter((s) => get(s.slug)?.consumesIntoResources)
+      .map((s) => {
+        const t = get(s.slug);
+        const req = t.craftable ? t.requirement : null;
+        const ore = req?.items?.length === 1 ? get(typeof req.items[0] === "string" ? req.items[0] : req.items[0].tag) : null;
+        return { name: s.name, inlay: s.inlay, sell: s.sold, cracks: t.consumesIntoResources, ore: ore?.name ?? null, smeltMoves: ore ? req.turnsCost ?? null : null };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)),
     setups: [
       { id: "apprentice", label: "Smithing I" },
       { id: "skilled", label: "Smithing II" },
