@@ -642,11 +642,16 @@ The player and spectator role IDs are **not** env vars. They're hardcoded in
 `db/lib/roleIds.js` — see "Discord permission model" below for why.
 
 `db/` has `node --test` under `db/test/`, and `web/` has the same under
-`web/lib/__tests__/`. The bot has no test setup. Both test scripts pass
+`web/lib/__tests__/`, and `bot/` under `bot/test/`. The db and web scripts pass
 `--disable-warning=MODULE_TYPELESS_PACKAGE_JSON`: a few tests `import()` an
 ESM file out of `web/` by path, and `web/package.json` declares no `type`,
 so Node printed a "module type is not specified" warning on every run. The
 warning is about a package.json the app itself never reads.
+
+CI (`.github/workflows/ci.yml`) runs everything in `npm run check` on every
+PR and every push to master, plus `migrate deploy`, the database-backed db
+tests against a seeded throwaway Postgres, and `dev:check` against the built
+app. Its Node version comes from `.nvmrc`.
 
 The web suite is narrow on purpose: it covers the localStorage-backed stores
 (`soundStore`, `asideTabStore`, `foldStore`, `seenStore`, `notifiedStore`),

@@ -1,0 +1,123 @@
+# The same gate as `npm run check`, one step at a time so a red run names what
+# broke, plus what that script can't do on a laptop without setup: migrations
+# applied from scratch, the database-backed db tests against a seeded world,
+# and dev:check against the built app. Touches nothing live: no secrets, no
+# Railway, no Discord (LOCAL_MODE). The only databases are in the throwaway
+# Postgres below, which dies with the job.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  # A newer push to a PR supersedes its old run; a master run always finishes,
+  # or two quick merges would leave the first one unchecked.
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        # The major version Railway runs (docs/systemdocs/BACKUPS.md).
+        image: postgres:18
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: bascinet
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      # localhost on purpose: db/lib/localDatabase.js only lets the
+      # database-backed tests run against a local host.
+      DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bascinet
+      # The visual world's builder (scripts/dev/visual/setup.mjs) seeds this
+      # one database, so the db tests and dev:check find a Turn, a cave zone
+      # and live characters in it.
+      VISUAL_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bascinet
+      # The archive round-trip imports a whole game, so it gets its own.
+      ARCHIVE_TEST_DATABASE_URL: postgresql://postgres:postgres@localhost:5432/bascinet_archive
+      PGPASSWORD: postgres
+      # LOCAL_MODE answers every Discord call locally, but the guild lookups
+      # still return early unless these two are set to something
+      # (db/lib/localMode.js); without them every signed-in page bounces to /.
+      LOCAL_MODE: "true"
+      DISCORD_TOKEN: local
+      DISCORD_GUILD_ID: local
+      NEXT_TELEMETRY_DISABLED: "1"
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install
+        run: npm ci
+
+      - name: Syntax check (bot, db, scripts)
+        run: npm run check:bot
+
+      - name: Migrations apply cleanly
+        run: npm run db:migrate:deploy
+
+      # A fresh AUTH_SECRET each run: it only signs the session cookies
+      # dev:check mints for this job's own server.
+      - name: Build the local world
+        run: |
+          secret=$(openssl rand -hex 32)
+          echo "::add-mask::$secret"
+          echo "AUTH_SECRET=$secret" > .env
+          echo "AUTH_SECRET=$secret" >> "$GITHUB_ENV"
+          npm run dev:visual:setup
+
+      - name: Archive test database
+        run: |
+          createdb -h localhost -U postgres bascinet_archive
+          DATABASE_URL="$ARCHIVE_TEST_DATABASE_URL" npm run db:migrate:deploy
+
+      - name: GameConfig registry matches the schema
+        run: npm run db:check-config
+
+      - name: Lint web
+        run: npm run lint --workspace=web
+
+      - name: Test web
+        run: npm test --workspace=web
+
+      - name: Test bot
+        run: npm test --workspace=bot
+
+      - name: Test db
+        run: npm test --workspace=db
+
+      - name: Contrast audit
+        run: npm run audit:contrast --workspace=web
+
+      - name: Build web
+        run: npm run build --workspace=web
+
+      - name: Pages render (dev:check)
+        run: |
+          npm run start --workspace=web -- --port 3000 > next-start.log 2>&1 &
+          for i in $(seq 60); do
+            curl -s -o /dev/null http://localhost:3000/ && break
+            sleep 1
+          done
+          npm run dev:check || { echo "--- next start log"; tail -n 80 next-start.log; exit 1; }

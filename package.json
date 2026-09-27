@@ -78,7 +78,7 @@
     "sounds:import": "node scripts/audio/import-sound-doc.mjs",
     "sounds:report": "node scripts/audio/sound-report.mjs",
     "sounds:schedule": "node scripts/audio/sim-schedule.mjs",
-    "check": "npm run check:bot && npm run lint --workspace=web && npm test --workspace=web && npm run build --workspace=web && npm test --workspace=db && npm run db:check-config && npm run audit:contrast --workspace=web",
+    "check": "npm run check:bot && npm run lint --workspace=web && npm test --workspace=web && npm test --workspace=bot && npm run build --workspace=web && npm test --workspace=db && npm run db:check-config && npm run audit:contrast --workspace=web",
     "check:bot": "find bot/src db/lib db/scripts scripts -name '*.js' -not -path '*/node_modules/*' -exec node --check {} +",
     "dead-exports": "node scripts/dead-exports.mjs"
   },
