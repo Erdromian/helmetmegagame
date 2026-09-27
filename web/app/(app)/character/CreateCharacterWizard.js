@@ -221,15 +221,37 @@ export default function CreateCharacterWizard({
   // (app-router.js), so its popstate handler treats the pop as a same-page
   // traverse, not a navigation.
   const guardRef = useRef(false);
+  // A guard this mount found already on top rather than pushed: a reload, or
+  // a trip off the page and back. The wizard has started over beneath it, so
+  // there is no step for it to hold, and the first Back must carry on out of
+  // the page instead of being spent popping it.
+  const leftoverRef = useRef(false);
   const stepRef = useRef(step);
   useEffect(() => {
     stepRef.current = step;
   }, [step]);
+  // While Next is holding the seat or Begin is creating the character, a step
+  // back would be undone the moment the request lands (goForward runs after
+  // the await), or race the redirect.
+  const busyRef = useRef(false);
   useEffect(() => {
+    busyRef.current = reserving || pending;
+  }, [reserving, pending]);
+  useEffect(() => {
+    // Popping the guard lands on this page's own entry, and the browser
+    // restores the scroll it saved there — where the player stood on the Role
+    // step when the guard first went on — so every Back dropped them partway
+    // down the step before. The wizard's Back never moved the page, so no Back
+    // does. The mode belongs to the history entry and pushState copies it
+    // into the guard, so other pages keep their own.
+    const previousScrollRestoration = window.history.scrollRestoration;
+    window.history.scrollRestoration = "manual";
     // A reload while the guard was on top keeps the entry but starts the
     // wizard over. Adopt it, so the next Next reuses it rather than stacking
     // a second guard on top.
-    guardRef.current = window.history.state?.wizardGuard === true;
+    const adopted = window.history.state?.wizardGuard === true;
+    guardRef.current = adopted;
+    leftoverRef.current = adopted;
     function onPopState(event) {
       if (!guardRef.current) {
         // Forward, onto a guard left behind by an earlier Back. Nothing to
@@ -237,7 +259,17 @@ export default function CreateCharacterWizard({
         if (event.state?.wizardGuard) guardRef.current = true;
         return;
       }
+      if (busyRef.current) {
+        // Put the guard straight back and stay on this step.
+        window.history.pushState({ wizardGuard: true }, "");
+        return;
+      }
       guardRef.current = false;
+      if (leftoverRef.current) {
+        leftoverRef.current = false;
+        window.history.back();
+        return;
+      }
       const back = Math.max(firstStep, stepRef.current - 1);
       setStep(back);
       setError(null);
@@ -247,7 +279,10 @@ export default function CreateCharacterWizard({
       }
     }
     window.addEventListener("popstate", onPopState);
-    return () => window.removeEventListener("popstate", onPopState);
+    return () => {
+      window.removeEventListener("popstate", onPopState);
+      window.history.scrollRestoration = previousScrollRestoration;
+    };
   }, [firstStep]);
 
   function pushGuard() {
@@ -257,6 +292,8 @@ export default function CreateCharacterWizard({
 
   function goForward() {
     setStep((s) => s + 1);
+    // A leftover guard now holds a real step.
+    leftoverRef.current = false;
     if (!guardRef.current) pushGuard();
   }
 
@@ -760,7 +797,7 @@ export default function CreateCharacterWizard({
           type="button"
           className="btn-secondary"
           onClick={goBack}
-          disabled={step === firstStep || pending}
+          disabled={step === firstStep || pending || reserving}
         >
           Back
         </button>

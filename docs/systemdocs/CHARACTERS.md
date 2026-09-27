@@ -84,7 +84,12 @@ one extra history entry on top of the page; Back pops it, the wizard goes one
 step back and puts it back if there is further to go. Only one entry, never one
 per step, so Forward can't skip a Next the build hasn't earned, and a finished
 character leaves at most one spare entry behind. The on-page Back button goes
-through the same history, so the two can't drift apart.
+through the same history, so the two can't drift apart. Three details keep it
+honest. The wizard turns off the browser's scroll restoration while it is open,
+since otherwise every Back lands wherever the player stood on the Role step. A
+guard found on top after a reload holds no step, so the first Back carries on
+out of the page. And Back does nothing while Next is holding the seat or Begin
+is creating the character, since the request landing would undo it.
 
 ## 1b. Names
 
