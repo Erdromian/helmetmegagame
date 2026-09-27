@@ -28,6 +28,7 @@ const { buildModel } = require("./model");
 const { median } = require("./stats");
 const { formatTravel } = require("../../../lib/crossingCost");
 const hungerRules = require("../../../lib/hunger");
+const TP = require("./trinketPick");
 
 const args = process.argv.slice(2);
 const flag = (name, fallback) => {
@@ -979,7 +980,6 @@ function sectionTrinkets() {
     ...extra,
   ];
   const wageTop = T.shelfLoop.topWage;
-  const shelf = T.combos.bestShelf;
   const proRows = [];
   for (const [key, label] of [["caves:plain", "Caves, pick only"], ["caves:skilled", "Caves, Prospecting"], ["depths:plain", "Depths, pick only"], ["depths:skilled", "Depths, Prospecting"]])
     for (const h of [T.holders[0], T.holders[1]]) {
@@ -1009,34 +1009,42 @@ ${table({ cols: stoneCols, rows: T.stones, filters: [{ label: "Group", get: (r) 
 <p class="lede">Profit a Move, the stones counted at what they would have sold for. The Arkenstone is left out of the ranking (it drops on about one Depths press in a hundred); with a Black Diamond it makes a Trinket worth about <b>${fmt(ark?.skilled, 0)} ¢</b> a Move to Smithing II over selling both raw.</p>
 ${table({ cols: comboCols(), rows: T.combos.bestOwn })}
 <h3>Forging what you bought at the shelf</h3>
-<p class="lede">The doc says a stone that inlays for at least the shelf price could be bought, forged and sold at a profit forever, and holds each one a coin under. <b>That does not close the loop</b>: a Trinket also pays its tier's bare price and a multiplier above 1, so a round trip through the counter pays even with every stone capped. The best is <b>${fmt(T.shelfLoop.bestApprentice?.apprenticeRaw, 1)} ¢ a Move</b> raw (${fmt(T.shelfLoop.bestApprentice?.apprentice, 1)} at the run's tax) for a Smithing smith and <b>${fmt(T.shelfLoop.bestSkilled?.skilledRaw, 1)} ¢</b> raw (${fmt(T.shelfLoop.bestSkilled?.skilled, 1)} taxed) for Smithing II, against a wage table whose top rung is ${wageTop} ¢ raw. <b>Lucky lifts that further</b>: it keeps the better of two dice, so the same round trip clears ${fmt(T.shelfLoop.bestApprenticeLucky?.["apprentice-luckyRaw"], 1)} ¢ raw for a Smithing smith and <b>${fmt(T.shelfLoop.bestSkilledLucky?.["skilled-luckyRaw"], 1)} ¢</b> for Smithing II. It needs a Merchant's licence for the shelf and nothing else. The columns below are at a ${params.sellTaxRate}% sell tax.</p>
-${table({ cols: comboCols(), rows: shelf })}
-${trinketUpgrade(T)}
+<p class="lede">The doc says a stone that inlays for at least the shelf price could be bought, forged and sold at a profit forever, and holds each one a coin under. <b>That does not close the loop</b>: a Trinket also pays its tier's bare price and a multiplier above 1, so a round trip through the counter pays even with every stone capped. The best is <b>${fmt(T.shelfLoop.bestApprentice?.apprenticeRaw, 1)} ¢ a Move</b> raw (${fmt(T.shelfLoop.bestApprentice?.apprentice, 1)} at the run's tax) for a Smithing smith and <b>${fmt(T.shelfLoop.bestSkilled?.skilledRaw, 1)} ¢</b> raw (${fmt(T.shelfLoop.bestSkilled?.skilled, 1)} taxed) for Smithing II, against a wage table whose top rung is ${wageTop} ¢ raw. <b>Lucky lifts that further</b>: it keeps the better of two dice, so the same round trip clears ${fmt(T.shelfLoop.bestApprenticeLucky?.["apprentice-luckyRaw"], 1)} ¢ raw for a Smithing smith and <b>${fmt(T.shelfLoop.bestSkilledLucky?.["skilled-luckyRaw"], 1)} ¢</b> for Smithing II. It needs a Merchant's licence for the shelf and nothing else. The picker below shows what to buy at any tax.</p>
+${trinketPicker(T)}
 <h3>A prospector who forges what they dig up</h3>
 <p class="lede">Every stone that drops is forged in pairs on the rest turn a miner has anyway. The net is what the Trinkets sell for, less the ⬢ they cost and the raw sale of the stones. It is the best use of a miner's spare Move in this report: about <b>${fmt(T.prospector["caves:plain"].apprentice.net, 1)} ¢ a press</b> at the Caves with only a pick, on top of the ${fmt(model.activities.find((a) => a.id === "mine:Caves:unskilled")?.perAction, 1)} ¢ the press itself pays.</p>
 ${table({ cols: proCols, rows: proRows, filters: [{ label: "Mining", get: (r) => r.where }] })}
 </section>`;
 }
 
-// Smithing II or Lucky for a Smithing smith on the shelf loop (trinkets.js#upgrade).
-function trinketUpgrade(T) {
-  const U = T.upgrade;
-  if (!U) return "";
-  const [base, sk, lk, both] = U.rows;
-  const run = params.sellTaxRate;
-  const cols = [
-    { h: "Smith", get: (u) => u.label },
-    { h: "Points", num: true, get: (u) => (u.points ? u.points : "—") },
-    ...U.rates.map((r) => ({ h: `¢ a Move at ${r}% tax`, num: true, get: (u) => fmt(u.at[r], 1), style: (u) => (u.at[r] < 0 ? "color:var(--bad)" : r === run ? "font-weight:600" : "") })),
-    { h: "Gain per point, no tax", num: true, get: (u) => (u.perPoint ? fmt(u.perPoint[0], 2) : "—") },
-    { h: "Stones", get: (u) => u.stones.join(" + ") || "none" },
-  ];
-  const better = sk.perPoint[0] >= lk.perPoint[0] ? sk : lk;
+// The stone picker and Smithing II or Lucky, one tax slider for both (trinketPick.js, drawn the same way here
+// and in the browser).
+function trinketPicker(T) {
+  const D = T.picker;
+  if (!D) return "";
+  const rate = params.sellTaxRate;
+  const up = TP.trinketUpgrade(D, 0);
+  const [, sk, lk] = up;
+  const better = sk.perPoint >= lk.perPoint ? sk : lk;
   const worse = better === sk ? lk : sk;
-  const hi = U.rates[U.rates.length - 1];
-  return `<h3>Smithing II or Lucky?</h3>
-<p class="lede">A Metalsmith starts with Smithing I. For the shelf loop, <b>${esc(better.label.replace(/^\+ /, ""))} buys more a point</b>: ${better.points} points for +${fmt(better.gain[0], 1)} ¢ a Move, ${fmt(better.perPoint[0], 2)} a point, against ${esc(worse.label.replace(/^\+ /, ""))}'s ${worse.points} points for +${fmt(worse.gain[0], 1)}, ${fmt(worse.perPoint[0], 2)} a point. Lucky earns more in total, but costs ${fmt(lk.points / sk.points, 0)} times the points, and at ${lk.points} it does not fit the ${params.startingTagPoints}-point starting budget, so it is bought later from /store. The two overlap: Smithing II lifts the low faces and Lucky rerolls them, so the second pick adds little. Lucky on top of Smithing II is +${fmt(U.luckyAfterSkilled.gain, 1)} ¢ for ${U.luckyAfterSkilled.points} points (${fmt(U.luckyAfterSkilled.gain / U.luckyAfterSkilled.points, 2)} a point), and Smithing II on top of Lucky +${fmt(U.skilledAfterLucky.gain, 1)} for ${U.skilledAfterLucky.points} (${fmt(U.skilledAfterLucky.gain / U.skilledAfterLucky.points, 2)} a point). <b>A sell tax changes the answer.</b> The tax comes off the whole sale, and this loop's margin is thin: at ${hi}%, Smithing I clears ${fmt(base.at[hi], 1)} ¢ a Move, Smithing II ${fmt(sk.at[hi], 1)} and Lucky ${fmt(lk.at[hi], 1)}. Under a real tax, Lucky is what keeps the loop paying. Lucky also helps on every other die its holder rolls, which none of this counts.</p>
-${table({ cols, rows: U.rows, id: "trinupgrade" })}`;
+  const name = (u) => u.label.replace(/^\+ /, "");
+  const be = Object.fromEntries(D.setups.map((u) => [u.id, TP.trinketBreakEven(D, u.id)]));
+  const beText = D.setups.map((u) => `${esc(u.label)} ${be[u.id] == null ? "never" : `at ${be[u.id]}%`}`).join(", ");
+  const data = JSON.stringify(D).replace(/</g, "\\u003c");
+  return `<h3>Which shelf stones to buy</h3>
+<p class="lede">Every set of up to two stones off the Merchant's shelf, for each of the four smiths, in ¢ a Move after the ⬢ and the stones are paid for. The tax comes off the whole sale, stones included, so a thin loop turns negative quickly: move the slider to the Meister's rate. The best buy in each column is marked; red loses money. Each smith's best set stops paying: ${beText}.</p>
+<div class="slider" id="trinpick"><label for="trinpick-tax">Sell tax</label><input type="range" id="trinpick-tax" min="0" max="100" step="1" value="${rate}"><output id="trinpick-taxout" for="trinpick-tax">${rate}%</output></div>
+<script type="application/json" id="trinpick-data">${data}</script>
+<p class="lede" id="trinpick-summary">${TP.trinketMatrixSummary(D, rate)}</p>
+<div class="tablewrap"><table class="picker"><thead><tr><th>Stones</th><th class="num">Stones cost ¢</th>${D.setups.map((u) => `<th class="num">${esc(u.label)}</th>`).join("")}</tr></thead><tbody id="trinpick-body">${TP.trinketMatrixBody(D, rate)}</tbody></table></div>
+<h3>Smithing II or Lucky?</h3>
+<p class="lede">A Metalsmith starts with Smithing I. With no tax, <b>${esc(name(better))} buys more a point</b>: ${better.points} points for +${fmt(better.gain, 1)} ¢ a Move (${fmt(better.perPoint, 2)} a point), against ${esc(name(worse))}'s ${worse.points} points for +${fmt(worse.gain, 1)} (${fmt(worse.perPoint, 2)} a point). Lucky earns more in total but costs ${fmt(lk.points / sk.points, 0)} times the points, and at ${lk.points} it does not fit the ${params.startingTagPoints}-point starting budget, so it is bought later from /store. The two overlap, so the second pick adds little. ${(() => {
+    const flips = [...Array(101).keys()].filter((r) => { const u = TP.trinketUpgrade(D, r); return u[1].net > 0 && u[2].perPoint > u[1].perPoint; });
+    const bSk = be.skilled, bLk = be["apprentice-lucky"];
+    const stays = flips.length ? `Lucky becomes the better buy a point from ${flips[0]}% tax.` : "Smithing II stays the better buy a point at every tax rate.";
+    return `${stays} What a tax changes is where forging stops paying: ${bSk == null ? "Smithing II never stops" : `Smithing II's best set stops at ${bSk}%`}, ${bLk == null ? "Lucky's never does" : `Lucky's at ${bLk}%`}${bSk != null && bLk != null && bLk > bSk ? `, so between the two only a Lucky smith still clears anything` : ""}.`;
+  })()} Lucky also helps on every other die its holder rolls, which none of this counts. The table follows the slider above.</p>
+<div class="tablewrap"><table class="picker"><thead><tr><th>Smith</th><th class="num">Points</th><th class="num">Best ¢ a Move</th><th class="num">Gain</th><th class="num">Gain per point</th><th class="num">Stops paying at</th><th>Best stones</th></tr></thead><tbody id="trinupgrade-body">${TP.trinketUpgradeBody(D, rate)}</tbody></table></div>`;
 }
 
 function sectionCooking() {
@@ -2467,6 +2475,8 @@ th.sort-asc::after{content:" ▲"}th.sort-desc::after{content:" ▼"}
 .sortable th{cursor:pointer}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 code{font-size:12px}
+.slider{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:10px 0 2px;font-size:14px}.slider input[type=range]{flex:1 1 220px;max-width:420px;accent-color:var(--accent)}.slider output{font-family:var(--mono);min-width:3.5em}
+table.picker td.best{font-weight:700;color:var(--good);box-shadow:inset 3px 0 0 var(--good)}table.picker td.neg{color:var(--bad)}
 .filterbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:8px 0 2px;font-size:13px}.filterbar select,.filterbar input{font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}.filterbar .count{color:var(--mute)}tr[hidden]{display:none}
 .mono{font-family:var(--mono)}
 .rk{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:600;color:var(--bg);background:var(--r0);white-space:nowrap}
@@ -2511,6 +2521,17 @@ document.querySelectorAll('table.sortable').forEach(t=>{
     rows.forEach(r=>t.tBodies[0].appendChild(r));
   }));
 });
+(function(){
+  // The Trinket page's tax slider: re-draws the stone matrix and Smithing II or Lucky with the same functions
+  // the report drew them with (trinketPick.js, shipped below as source).
+  const range=document.getElementById('trinpick-tax');
+  if(!range)return;
+  const D=JSON.parse(document.getElementById('trinpick-data').textContent);
+  const out=document.getElementById('trinpick-taxout'),body=document.getElementById('trinpick-body'),sum=document.getElementById('trinpick-summary'),up=document.getElementById('trinupgrade-body');
+  const draw=()=>{const rate=+range.value;out.textContent=rate+'%';body.innerHTML=trinketMatrixBody(D,rate);sum.innerHTML=trinketMatrixSummary(D,rate);if(up)up.innerHTML=trinketUpgradeBody(D,rate);};
+  range.addEventListener('input',draw);
+})();
+${Object.values(TP).map((f) => f.toString()).join("\n")}
 (function(){
   // A shared tooltip for every chart shape carrying data-tip (bars, dots) — not the browser's native
   // title tooltip, which is slow to appear and did not fire reliably at all inside an iframe in some

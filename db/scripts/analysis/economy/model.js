@@ -638,7 +638,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
   // Built here so the wage list, the planner and the ladders can all see it; the top wage rung and the Move value
   // it does not need yet are filled in below.
-  const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers: [], moveValue: null, tax, taxRate: params.sellTaxRate });
+  const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers: [], moveValue: null, tax });
 
   // --- Trinkets: a whole Move, 4 ⬢, up to two stones and a d6 (TRINKETS.md) ------------------------
   // Priced at the run's sell tax like every craft. Own stones are not here: they come out of a Mine press and

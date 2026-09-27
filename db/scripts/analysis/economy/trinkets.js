@@ -13,6 +13,7 @@ const fs = require("fs");
 const path = require("path");
 const trinketPass = require("../../../lib/trinketPass");
 const { taxOn } = require("../../../lib/trainDeparturePass");
+const { trinketTaxOn } = require("./trinketPick");
 
 const REPO = path.resolve(__dirname, "../../../..");
 
@@ -33,7 +34,7 @@ function readGate() {
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);
 
 // `tax(gross)` is the model's sell tax at the run's rate: a Trinket is sold at the counter, so its price pays it.
-function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, moveValue, tax = () => 0, taxRate = 0 }) {
+function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, moveValue, tax = () => 0 }) {
   const gate = readGate();
   const TIERS = trinketPass.TIERS.slice(1);
   const dieCost = gate.resources * rv.buy; // the ¢ a Trinket's ⬢ costs at the Depot
@@ -181,39 +182,28 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
   shelfLoop.bestSkilledWithStones = withStones("skilled");
   shelfLoop.bestSkilledLuckyWithStones = withStones("skilled-lucky");
 
-  // ---- Smithing II or Lucky, for a Smithing smith on the shelf loop ------------------------------------------
-  // The Metalsmith's question: from Smithing I, which buys more ¢ a Move per point? Each holder slots the shelf
-  // set that pays it best before tax, and every figure is worked out at each rate with the game's own per-sale
-  // rounding (trainDeparturePass.js#taxOn), so a thin loop shows where a tax turns it negative.
-  const upgradeRates = [...new Set([0, taxRate, 10, 25])].sort((a, b) => a - b);
-  const expectedAt = (h, inlay, stoneCost, rate) =>
-    TIERS.reduce((sum, t, i) => {
-      const price = Math.round(t.base + t.mult * inlay);
-      return sum + h.tierP[i] * (price - dieCost - stoneCost - taxOn(price, rate));
-    }, 0);
-  const pts = (slug) => get(slug)?.pointCost ?? 0;
-  const upgradeRows = [
-    { id: "apprentice", label: "Smithing I (where a Metalsmith starts)", points: 0 },
-    { id: "skilled", label: "+ Smithing II", points: pts("smithing-skilled") },
-    { id: "apprentice-lucky", label: "+ Lucky", points: pts("lucky") },
-    { id: "skilled-lucky", label: "+ both", points: pts("smithing-skilled") + pts("lucky") },
-  ].map((u) => {
-    const set = combos.filter((c) => c.basis === "shelf").sort((a, b) => b[`${u.id}Raw`] - a[`${u.id}Raw`])[0];
-    const at = Object.fromEntries(upgradeRates.map((r) => [r, expectedAt(H[u.id], set.inlay, set.stoneCost, r)]));
-    return { ...u, stones: set.stones, at };
-  });
-  const base = upgradeRows[0];
-  for (const u of upgradeRows) {
-    u.gain = Object.fromEntries(upgradeRates.map((r) => [r, u.at[r] - base.at[r]]));
-    u.perPoint = u.points ? Object.fromEntries(upgradeRates.map((r) => [r, u.gain[r] / u.points])) : null;
+  // ---- the stone picker's data (trinketPick.js) ------------------------------------------------------------------
+  // Every 0–2 stone set off the Merchant's shelf, and what the page's slider needs to re-rank them for any smith
+  // and any sell tax. The tax rule is restated in trinketPick.js for the browser, so it is checked against the
+  // game's own here, at every rate a slider can reach, before anything is written.
+  for (let rate = 0; rate <= 100; rate++) {
+    for (let gross = 0; gross <= 600; gross++) {
+      if (trinketTaxOn(gross, rate) !== taxOn(gross, rate)) throw new Error(`trinketPick.js#trinketTaxOn disagrees with trainDeparturePass.js#taxOn at ${gross} ¢, ${rate}%.`);
+    }
   }
-  const row = (id) => upgradeRows.find((u) => u.id === id);
-  const upgrade = {
-    rates: upgradeRates,
-    rows: upgradeRows,
-    // The second pick, once the first is held.
-    luckyAfterSkilled: { points: pts("lucky"), gain: row("skilled-lucky").at[0] - row("skilled").at[0] },
-    skilledAfterLucky: { points: pts("smithing-skilled"), gain: row("skilled-lucky").at[0] - row("apprentice-lucky").at[0] },
+  const pts = (slug) => get(slug)?.pointCost ?? 0;
+  const picker = {
+    tiers: TIERS.map((t) => ({ base: t.base, mult: t.mult })),
+    tierP: Object.fromEntries(holders.map((h) => [h.id, h.tierP])),
+    dieCost,
+    points: { skilled: pts("smithing-skilled"), lucky: pts("lucky") },
+    setups: [
+      { id: "apprentice", label: "Smithing I" },
+      { id: "skilled", label: "Smithing II" },
+      { id: "apprentice-lucky", label: "Smithing I + Lucky" },
+      { id: "skilled-lucky", label: "Smithing II + Lucky" },
+    ],
+    sets: combos.filter((c) => c.basis === "shelf").map((c) => ({ stones: c.stones, inlay: c.inlay, cost: c.stoneCost })),
   };
 
   return {
@@ -225,7 +215,7 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     combos: { bestOwn, bestShelf, ark },
     prospector,
     shelfLoop,
-    upgrade,
+    picker,
     checks: { tiersMatchDoc, overShelf, offRule },
     // Expected profit of one Trinket for a smith kind, given the inlay and what the stones cost, at the run's tax by default.
     expectedProfit: (id, inlay, stoneCost = 0, net = true) => expected(H[id], inlay, stoneCost, net),
