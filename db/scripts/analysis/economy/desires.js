@@ -164,7 +164,7 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   // gambling, on the Den's slot machine
   for (const [slug, n, label] of [["win-5-gambling", 5, "a 5 ¢ payout"], ["win-10-gambling", 10, "a 10 ¢ payout"], ["win-25-gambling-one-game", 25, "a 25 ¢ payout in one spin"], ["win-50-gambling-one-game", 50, "a 50 ¢ payout in one spin"]]) {
     const c = slotCost(n);
-    if (c != null) add(slug, `Spin the slot machine until it pays ${label}`, { coin: c, how: `${round1(1 / slotPay(n))} spins of 5 ¢ at 5.6% house edge` }, { variance: true, note: "Assumes 'win' means a payout of at least that much. Undertown only, and the Exactor must be solvent. The cost is an average: it takes about 36 spins, 180 ¢ staked, to land a 50 ¢ payout." });
+    if (c != null) add(slug, `Spin the slot machine until it pays ${label}`, { coin: c, how: `about ${Math.round(1 / slotPay(n))} spins of 5 ¢ (${Math.round((1 / slotPay(n)) * 5)} ¢ staked), 5.6% house edge` }, { variance: true, note: "Any payout at least that big counts. Undertown only, while the Exactor is solvent." });
   }
 
   // ---- role- and tag-gated, still purchasable ----------------------------------------------------------------------

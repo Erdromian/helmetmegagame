@@ -580,7 +580,7 @@ function sectionInvestments() {
   // A caveat most rows share (the fighting tags' band mix) is said once above the table, not once a row.
   const noteCount = new Map();
   for (const r of all) if (r.note) noteCount.set(r.note, (noteCount.get(r.note) ?? 0) + 1);
-  const sharedNotes = [...noteCount].filter(([, n]) => n >= 10).map(([note, n]) => ({ note, n, fighting: all.every((r) => r.note !== note || r.group === "Fighting") }));
+  const sharedNotes = [...noteCount].filter(([, n]) => n >= 5).map(([note, n]) => ({ note, n, fighting: all.every((r) => r.note !== note || r.group === "Fighting") }));
   const shared = new Set(sharedNotes.map((x) => x.note));
   const cols = [
     { h: "Investment", get: (r) => r.name },
@@ -634,7 +634,7 @@ ${barChart({ rows: productionBars, unit: " ¢/turn", fmtVal: (v) => fmt(v, 2), l
     const note = sharedNotes.find((x) => x.fighting)?.note;
     return n ? `The ${n} <b>Fighting</b> rows all work the same way. <b>What it does</b> is the band the tag lifts an untrained character to on that tree, in the sheet's own words, from ${esc(model.combat.base.melee)}. Its gain is what that step is worth to a Depths caver who stops at a ${model.combat.budget}-trouble budget, one expedition a turn, on the better of the two trees, under Bascinet's assumed band → trouble mix. A skill or weapon is averaged over three starting points (untrained, I and II, each shown), and a rung is its own step over the rung below.${note ? ` ${esc(note)}` : ""}` : "";
   })()}</p>
-${sharedNotes.filter((x) => !x.fighting).map((x) => `<p class="lede">For the ${x.n} rows with no caveat of their own: ${esc(x.note)}</p>`).join("")}
+${sharedNotes.filter((x) => !x.fighting).map((x) => `<p class="lede"><b>${esc(listAnd(all.filter((r) => r.note === x.note).map((r) => r.name)))}:</b> ${esc(x.note)}</p>`).join("")}
 ${table({ cols, rows: all, filters: [{ label: "Group", get: (r) => r.group }, { label: "Kind", get: (r) => r.kind }, { label: "Lasts", get: (r) => r.lastsText }, { label: "Pays through", get: (r) => r.paysThrough }] })}
 <h3>Buildings that raise nothing</h3>
 <p class="lede">Every other structure type in the catalog, scanned for anything that changes what somebody makes. None does. Their cost is the price of what they are for.</p>
@@ -685,7 +685,7 @@ function sectionEquipment() {
   const doesOf = (r) => {
     const bits = [];
     if (r.earnsPerTurn != null) bits.push(`earns ${fmt(r.earnsPerTurn, 1)} ¢ a turn (${fmt(r.earnsOverGame, 0)} ¢ net over ${params.gameTurns} turns)`);
-    if (r.fightTiers != null) bits.push(`+${r.fightTiers} fighting tier${r.fightTiers === 1 ? "" : "s"} (${r.fightClass}), so combat alone justifies at most ${fmt(r.fightCeiling, 1)} pt`);
+    if (r.fightTiers != null) bits.push(`+${r.fightTiers} fighting tier${r.fightTiers === 1 ? "" : "s"} (${r.fightClass}), worth at most ${fmt(r.fightCeiling, 1)} pt in combat`);
     if (r.armorWords) bits.push(r.armorWords);
     if (r.carryBonus != null) bits.push(`carry ${r.carryBonus > 0 ? "+" : ""}${fmt(r.carryBonus * 100, 0)}% while in hand`);
     if (r.miningBonus != null && r.earnsPerTurn == null) bits.push(`+${r.miningBonus} ⬢ a mining press`);
@@ -1011,10 +1011,32 @@ ${table({ cols: comboCols(), rows: T.combos.bestOwn })}
 <h3>Forging what you bought at the shelf</h3>
 <p class="lede">The doc says a stone that inlays for at least the shelf price could be bought, forged and sold at a profit forever, and holds each one a coin under. <b>That does not close the loop</b>: a Trinket also pays its tier's bare price and a multiplier above 1, so a round trip through the counter pays even with every stone capped. The best is <b>${fmt(T.shelfLoop.bestApprentice?.apprenticeRaw, 1)} ¢ a Move</b> raw (${fmt(T.shelfLoop.bestApprentice?.apprentice, 1)} at the run's tax) for a Smithing smith and <b>${fmt(T.shelfLoop.bestSkilled?.skilledRaw, 1)} ¢</b> raw (${fmt(T.shelfLoop.bestSkilled?.skilled, 1)} taxed) for Smithing II, against a wage table whose top rung is ${wageTop} ¢ raw. <b>Lucky lifts that further</b>: it keeps the better of two dice, so the same round trip clears ${fmt(T.shelfLoop.bestApprenticeLucky?.["apprentice-luckyRaw"], 1)} ¢ raw for a Smithing smith and <b>${fmt(T.shelfLoop.bestSkilledLucky?.["skilled-luckyRaw"], 1)} ¢</b> for Smithing II. It needs a Merchant's licence for the shelf and nothing else. The columns below are at a ${params.sellTaxRate}% sell tax.</p>
 ${table({ cols: comboCols(), rows: shelf })}
+${trinketUpgrade(T)}
 <h3>A prospector who forges what they dig up</h3>
 <p class="lede">Every stone that drops is forged in pairs on the rest turn a miner has anyway. The net is what the Trinkets sell for, less the ⬢ they cost and the raw sale of the stones. It is the best use of a miner's spare Move in this report: about <b>${fmt(T.prospector["caves:plain"].apprentice.net, 1)} ¢ a press</b> at the Caves with only a pick, on top of the ${fmt(model.activities.find((a) => a.id === "mine:Caves:unskilled")?.perAction, 1)} ¢ the press itself pays.</p>
 ${table({ cols: proCols, rows: proRows, filters: [{ label: "Mining", get: (r) => r.where }] })}
 </section>`;
+}
+
+// Smithing II or Lucky for a Smithing smith on the shelf loop (trinkets.js#upgrade).
+function trinketUpgrade(T) {
+  const U = T.upgrade;
+  if (!U) return "";
+  const [base, sk, lk, both] = U.rows;
+  const run = params.sellTaxRate;
+  const cols = [
+    { h: "Smith", get: (u) => u.label },
+    { h: "Points", num: true, get: (u) => (u.points ? u.points : "—") },
+    ...U.rates.map((r) => ({ h: `¢ a Move at ${r}% tax`, num: true, get: (u) => fmt(u.at[r], 1), style: (u) => (u.at[r] < 0 ? "color:var(--bad)" : r === run ? "font-weight:600" : "") })),
+    { h: "Gain per point, no tax", num: true, get: (u) => (u.perPoint ? fmt(u.perPoint[0], 2) : "—") },
+    { h: "Stones", get: (u) => u.stones.join(" + ") || "none" },
+  ];
+  const better = sk.perPoint[0] >= lk.perPoint[0] ? sk : lk;
+  const worse = better === sk ? lk : sk;
+  const hi = U.rates[U.rates.length - 1];
+  return `<h3>Smithing II or Lucky?</h3>
+<p class="lede">A Metalsmith starts with Smithing I. For the shelf loop, <b>${esc(better.label.replace(/^\+ /, ""))} buys more a point</b>: ${better.points} points for +${fmt(better.gain[0], 1)} ¢ a Move, ${fmt(better.perPoint[0], 2)} a point, against ${esc(worse.label.replace(/^\+ /, ""))}'s ${worse.points} points for +${fmt(worse.gain[0], 1)}, ${fmt(worse.perPoint[0], 2)} a point. Lucky earns more in total, but costs ${fmt(lk.points / sk.points, 0)} times the points, and at ${lk.points} it does not fit the ${params.startingTagPoints}-point starting budget, so it is bought later from /store. The two overlap: Smithing II lifts the low faces and Lucky rerolls them, so the second pick adds little. Lucky on top of Smithing II is +${fmt(U.luckyAfterSkilled.gain, 1)} ¢ for ${U.luckyAfterSkilled.points} points (${fmt(U.luckyAfterSkilled.gain / U.luckyAfterSkilled.points, 2)} a point), and Smithing II on top of Lucky +${fmt(U.skilledAfterLucky.gain, 1)} for ${U.skilledAfterLucky.points} (${fmt(U.skilledAfterLucky.gain / U.skilledAfterLucky.points, 2)} a point). <b>A sell tax changes the answer.</b> The tax comes off the whole sale, and this loop's margin is thin: at ${hi}%, Smithing I clears ${fmt(base.at[hi], 1)} ¢ a Move, Smithing II ${fmt(sk.at[hi], 1)} and Lucky ${fmt(lk.at[hi], 1)}. Under a real tax, Lucky is what keeps the loop paying. Lucky also helps on every other die its holder rolls, which none of this counts.</p>
+${table({ cols, rows: U.rows, id: "trinupgrade" })}`;
 }
 
 function sectionCooking() {
@@ -1245,6 +1267,9 @@ ${table({ cols: roomCols, rows: rooms, filters: [{ label: "Locked?", get: (r) =>
 </section>`;
 }
 
+// The soft-power parts, in words (power.js#softPowerFor).
+const SOFT_LABEL = { whitelisted: "whitelisted", bankAccount: "bank account", keys: "rings and keys", rooms: "rooms", docElements: "documents", extraPoints: "extra points", scarcity: "scarcity" };
+
 function sectionPower() {
   const P = PWR;
   const w = P.weights;
@@ -1257,7 +1282,7 @@ function sectionPower() {
     { h: "Reach ¢ (keyed rooms)", num: true, get: (r) => fmt(r.reachCoin, 0), sort: (r) => r.reachCoin },
     { h: "Soft power", num: true, get: (r) => r.softPower, sort: (r) => r.softPower },
     { h: "Composite", num: true, get: (r) => r.composite, sort: (r) => r.composite ?? -1 },
-    { h: "Why (soft power)", get: (r) => Object.entries(r.softParts).filter(([, v]) => v > 0).map(([k, v]) => `${k} +${fmt(v, 0)}`).join(", ") || "nothing" },
+    { h: "Why (soft power)", get: (r) => Object.entries(r.softParts).filter(([, v]) => v > 0).map(([k, v]) => `${SOFT_LABEL[k] ?? k} +${fmt(v, 0)}`).join(", ") || "nothing" },
   ];
   const groupCols = [
     { h: "Group", get: (g) => g.group },
@@ -1291,12 +1316,16 @@ ${table({ cols: groupCols, rows: P.groups, id: "powergroups" })}
 function sectionLucky() {
   const K = model.lucky;
   const ranked = K.ranked;
+  // A note several rows share is said once above the table, not once a row.
+  const noteN = new Map();
+  for (const u of ranked) if (u.note) noteN.set(u.note, (noteN.get(u.note) ?? 0) + 1);
+  const luckyShared = new Set([...noteN].filter(([, c]) => c >= 3).map(([note]) => note));
   const cols = [
     { h: "Die", get: (u) => u.die },
     { h: "Who, and how often", get: (u) => u.who },
     { h: "Gain ¢ a turn", num: true, get: (u) => fmt(u.gain, 1), sort: (u) => u.gain },
     { h: "How", get: (u) => u.basis },
-    { h: "Note", get: (u) => u.note },
+    { h: "Note", get: (u) => (luckyShared.has(u.note) ? "" : u.note) },
   ];
   const lessonCols = [
     { h: "The teacher", get: (l) => l.label },
@@ -1316,6 +1345,7 @@ function sectionLucky() {
 <p class="lede"><b>Cave diving is where Lucky shows most, and it is measured per expedition.</b> A caver walks until they have eaten a set number of troubles and then stops (the Caving tab's trouble budget). Lucky turns a 1 from ${fmt(model.caving.faces.base.trouble * 36, 0)} in 36 into ${fmt(model.caving.faces.lucky.trouble * 36, 0)} in 36, so the same budget buys <b>${fmt(model.caving.arrivalsPerTrouble.lucky / model.caving.arrivalsPerTrouble.base, 0)} times the arrivals</b>, and the finds that come with them: at the Depths, stopping at 1 trouble, Lucky adds ${fmt(K.uses.find((u) => u.id === "caving-depths-1")?.gain, 1)} ¢ an expedition, ${fmt(K.uses.find((u) => u.id === "caving-depths-3")?.gain, 1)} at 3 and ${fmt(K.uses.find((u) => u.id === "caving-depths-10")?.gain, 1)} at 10. The troubles themselves cost the same either way; Lucky pays in loot. Forging is second and is <b>per Trinket, not per turn</b>: a Trinket is a whole Move, so a smith with good stones gets ${fmt(K.uses.find((u) => u.id === "trinket-apprentice-98")?.gain, 0)} ¢ a Move from Lucky, and one with poor stones ${fmt(K.uses.find((u) => u.id === "trinket-apprentice-20")?.gain, 0)}; but stones are what limit a forger, so a miner forging their own gets about ${fmt(K.uses.find((u) => u.id === "trinket-prospector")?.gain, 1)} ¢ a turn.</p>
 ${barChart({ rows: bars, unit: " ¢", fmtVal: (v) => fmt(v, 1), labelW: 330 })}
 <h3>Every use that has a price</h3>
+${[...luckyShared].map((note) => `<p class="lede"><b>${esc(listAnd([...new Set(ranked.filter((u) => u.note === note).map((u) => u.die))]))}:</b> ${esc(note)}</p>`).join("")}
 ${table({ cols, rows: ranked, filters: [{ label: "Die", get: (u) => u.die }] })}
 <h3>Lessons</h3>
 <p class="lede">Lucky does not change whether a skill is learnt, only how many tries it takes, and each try is a Move for the learner. The skill itself is worth its points, so a lesson is a one-off and is not in the ranking.</p>
@@ -1383,7 +1413,7 @@ function sectionCombos() {
   const whereCell = (l, key) => {
     const t = tv(l, key);
     if (!t) return "—";
-    return `works in ${t.workZones.join(", ") || "—"}; sells in ${t.sellZone}; ${t.far} hop${t.far === 1 ? "" : "s"} at most`;
+    return `works in ${t.workZones.join(", ") || "—"}; sells in ${t.sellZone}; ${formatTravel(t.far)} travel at most`;
   };
   const bestUnder = (pts, key) => c.loadouts.filter((l) => l.points <= pts).sort((x, y) => y[key].rate - x[key].rate || x.points - y.points)[0];
   const steps = (key) => {
@@ -1622,7 +1652,7 @@ function sectionActivities() {
     { h: "Notes", get: (a) => a.flags.join("; ") },
   ];
   return `<section><h2>The full table</h2>
-<p class="lede">${model.activities.length} activities, with recipes that take the same inputs and pay the same shown as one line (${collapse(allRanked, (a) => (a.kind === "craft" ? sigOfSlug(a) : null)).length} lines). Click a heading to sort. "Per action" is one press; "Presses / turn" is how often the fatigue rules let you press it, and "free" marks actions that cost no Move (Butcher, the Caving Die), which are limited by what you have to work on. "Drops" is the extra loot per press, valued at what the station pays. "Inputs" prices ⬢ at the sell figure. An ingredient that is food is priced at the counter's price, else its hunger and mood at the Ration Box's rate, never more than the Depot asks; anything else at the Depot's shelf price, else the counter's.</p>
+<p class="lede">${model.activities.length} activities, with recipes that take the same inputs and pay the same shown as one line (${collapse(allRanked, (a) => (a.kind === "craft" ? sigOfSlug(a) : null)).length} lines). Click a heading to sort. "Per action" is one press; "Presses / turn" is how often the fatigue rules let you press it, and "free" marks actions that cost no Move (Butcher, the Caving Die), which are limited by what you have to work on. "Drops" is the extra loot per press, valued at what the station pays. "Inputs" prices ⬢ at the sell figure. An ingredient that is food is priced at the counter's price, else its hunger and mood at the Ration Box's rate, never more than the Depot asks; anything else at the Depot's shelf price, else the counter's. A <i>secret recipe</i> makes something outside the main catalogue, so no ordinary player is shown it; a <i>hidden recipe</i> stays off the Craft menu until you hold a gated ingredient (the Secret recipes tab has both).</p>
 ${table({ cols, rows: collapse(allRanked, (a) => (a.kind === "craft" ? sigOfSlug(a) : null)), filters: [{ label: "Family", get: (a) => a.family }, { label: "Skill", get: (a) => a.skill }, { label: "Secret", get: (a) => (a.kind !== "craft" ? "not a craft" : secretMark(recBy.get(a.slug) ?? {}) || "shown") }] })}</section>`;
 }
 
@@ -1777,13 +1807,13 @@ function sectionSecrets() {
     { h: "Forge", get: (r) => (r.workshop ? "yes" : "no") },
     { h: "Sells for ¢", num: true, get: (r) => r.sells ?? "—", sort: (r) => r.sells ?? -1 },
     { h: "Shelf ¢", num: true, get: (r) => r.shelf ?? "—", sort: (r) => r.shelf ?? -1 },
-    { h: "Why it matters", get: (r) => r.why.join(". ") || "nothing found on the other tabs" },
+    { h: "Why it matters", get: (r) => r.why.join(". ") || "—" },
     { h: "Who can reach it today", get: (r) => r.reach },
   ];
   const top = X.rows.slice(0, 3);
   return `<section><h2>Secret recipes</h2>
 <p class="lede">A recipe can be kept from players two ways (<code>CRAFTING.md</code> §2). <b>Secret</b>: the product is not in the main catalogue (<code>catalog: gm</code> or <code>secret</code>), so holding an ingredient never shows the recipe; it reaches a character only when a GM hands them the product or the page, or a seat starts holding the product. <b>Hidden until held</b>: the recipe names an ingredient that is not in the main catalogue, so it stays off the Craft menu and the Recipes tab until the character holds one. Of ${model.sources.recipes.length} craftable recipes, <b>${c.total}</b> are one or the other: ${c.secret} secret, ${c.hidden} hidden until held, ${c.both} both. ${c.significant} are best in class or do something no main-catalogue tag does, ${c.efficient} more are efficient for what they cost, and ${c.reachable} are held or makeable by some seat from the start. ${top.length ? `The most significant: ${listAnd(top.map((r) => `<b>${esc(r.name)}</b> (${esc(r.why[r.why.length - 1] ?? "")})`))}.` : ""}</p>
-<p class="lede">"Why it matters" is read off the other tabs: the armour verdicts and efficient kits on the Combat tab, a weapon's band steps and its place among weapons of its class, a craft's wage against DEPOT.md §4's rung and the best easy craft a player is actually shown, a dish's worth on the Food tab, and any effect (a cure, what it turns into, a resistance, a mining or carry bonus, a Gambit bonus) that no main-catalogue tag carries. Sorted by that: ${TIERS.map((t, i) => `${i + 1}. ${t}`).join("; ")}.</p>
+<p class="lede">"Why it matters" is read off the other tabs: the armour verdicts and efficient kits on the Combat tab, a weapon's band steps and its place among weapons of its class, a craft's wage "vs" its DEPOT.md §4 rung's median and the "best easy" craft of its kind a player is actually shown, a dish's worth on the Food tab, and any effect (a cure, what it turns into, a resistance, a mining or carry bonus, a Gambit bonus) that no main-catalogue tag carries. Sorted by that: ${TIERS.map((t, i) => `${i + 1}. ${t}`).join("; ")}. In "Who can reach it today", <i>GM only</i> means nobody can make it at the start: a GM has to hand out the product or the page.</p>
 ${table({ cols, rows: X.rows, id: "secrets", filters: [{ label: "Shown", get: (r) => secretMark({ secretRecipe: r.secret, hiddenUntilHeld: r.hidden }) }, { label: "Significance", get: (r) => TIERS[r.tier] }, { label: "Catalogue", get: (r) => r.catalog }] })}</section>`;
 }
 
@@ -2099,7 +2129,7 @@ function sectionMedicine() {
     { h: "Health tag", get: (r) => r.name },
     { h: "Who takes it", get: (r) => r.who },
     { h: "Why this place in the queue", get: (r) => r.why },
-    { h: "A lower tier's Gambit", get: (r) => r.lowerGambit ?? "—" },
+    { h: "A lower tier's Gambit (a miss adds a complication)", get: (r) => r.lowerGambit ?? "—" },
   ];
   const reachCols = [
     { h: "Wound", get: (r) => r.name },

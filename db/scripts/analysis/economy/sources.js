@@ -351,7 +351,8 @@ function buildSources({ list, bySlug, players }) {
       const roles = startingBy.get(slug);
       routes.push({
         kind: "starting",
-        label: `starting kit: ${roles.map((r) => r.role).join(", ")}`,
+        // A long list (Foodstuffs is in nearly every kit) names a few and counts the rest.
+        label: `starting kit: ${roles.length > 5 ? `${roles.slice(0, 3).map((r) => r.role).join(", ")} and ${roles.length - 3} more roles` : roles.map((r) => r.role).join(", ")}`,
         rank: 4,
         roles: roles.map((r) => r.role),
       });

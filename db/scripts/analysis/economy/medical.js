@@ -247,7 +247,7 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
         ...r,
         who: `${tierName(who)}${r.site ? " at a site" : ""}`,
         why: band(r) === 0 ? `turns lethal in ${r.duration} turn${r.duration === 1 ? "" : "s"} untreated` : band(r) === 1 ? `${fmt1(savedPerMove(r))} ¢ saved a Move by treating now` : band(r) === 3 ? r.reason : `rung ${r.rung ?? "—"}; ${r.reason}`,
-        lowerGambit: lower ? `${tierName(who - 1)} can try: ${Math.round(lower.p * 100)}% on a d6 (needs ${lower.threshold}), and a miss adds a complication` : null,
+        lowerGambit: lower ? `${tierName(who - 1)}: ${Math.round(lower.p * 100)}% (needs ${lower.threshold} on a d6)` : null,
       };
     });
 

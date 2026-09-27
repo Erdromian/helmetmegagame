@@ -490,8 +490,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     if (ceiling) flags.push(`no counter sale: valued at the Black Market's ${t.depotPrice} ¢ shelf price, a ceiling — it sells to players, not the counter, so no sell tax either`);
     if (distilled) flags.push("Distilling: twice the stack from the same mash");
     // Who is shown the recipe at all, off the sourcing model's two flags (the Secret recipes tab).
-    if (recBySlug.get(t.slug)?.secretRecipe) flags.push("Secret: the product is not in the main catalogue, so no ordinary player is shown this recipe");
-    if (recBySlug.get(t.slug)?.hiddenUntilHeld) flags.push("Hidden: off the Craft menu until you hold a gated ingredient");
+    if (recBySlug.get(t.slug)?.secretRecipe) flags.push("secret recipe");
+    if (recBySlug.get(t.slug)?.hiddenUntilHeld) flags.push("hidden recipe");
     const yieldN = (r.yield ?? 1) * (distilled ? 2 : 1);
     const itemCost = itemsValue(r.items, flags);
     const resCost = r.resourceCost ?? 0;
@@ -638,7 +638,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   };
   // Built here so the wage list, the planner and the ladders can all see it; the top wage rung and the Move value
   // it does not need yet are filled in below.
-  const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers: [], moveValue: null, tax });
+  const trinkets = buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers: [], moveValue: null, tax, taxRate: params.sellTaxRate });
 
   // --- Trinkets: a whole Move, 4 ⬢, up to two stones and a d6 (TRINKETS.md) ------------------------
   // Priced at the run's sell tax like every craft. Own stones are not here: they come out of a Mine press and

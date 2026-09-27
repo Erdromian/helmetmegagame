@@ -162,7 +162,7 @@ function buildEquipment({ list, get, sources, investments, rv, moveValue, gameTu
       });
       flags.push(...c.flags);
       // The counter pays a maker this much for one, so it is the least a maker would take from you.
-      if (t.sellablePrice != null) options.push({ via: "maker", how: "buy one from a maker at the counter's price", coin: t.sellablePrice });
+      if (t.sellablePrice != null) options.push({ via: "maker", how: "from a maker", coin: t.sellablePrice });
     }
     // A container is worth what it opens into — but only when everything inside has a price. One
     // unpriced content (a status, a sheet of paper) would make the whole crate read as free and

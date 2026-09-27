@@ -16,6 +16,7 @@ const { armorWord, combineArmor, ARMOR_CAP } = require("../../../lib/armorValue"
 const threats = require("../../../lib/threats");
 const { REINFORCEMENTS } = require("../../../lib/lateJoin");
 const { MANIFESTS, manifestOf } = require("../../../lib/depotManifests");
+const mounts = require("../../../lib/mounts");
 
 // `starting` is the starting-roles model (who begins with which tags), for the armour split.
 function buildCombat({ list, get, caving, params, starting = null, sources = null }) {
@@ -512,13 +513,13 @@ function alsoPartsOf(t, get) {
     if (QUIET_FIELDS.has(k) || v == null || v === false) continue;
     if (k === "miningBonus") parts.push({ kind: "mining", amount: v.amount ?? 0 });
     else if (k === "carryBonus") parts.push({ kind: "carry", amount: v });
-    else if (k === "fastTravel") parts.push({ kind: "text", text: "an extra free crossing a turn" });
+    else if (k === "fastTravel") parts.push({ kind: "text", text: ((n) => (n ? `a mount: ${n} ride${n === 1 ? "" : "s"} a turn, each carrying one crossing` : "a mount"))(mounts.fastTravelRides(new Set([t.slug]))) });
     else if (k === "cures") parts.push({ kind: "text", text: `cures ${v.map(nameOf).join(", ")}` });
     else if (k === "curesInto") parts.push({ kind: "text", text: `turns ${Object.entries(v).map(([a, b]) => `${nameOf(a)} into ${nameOf(b)}`).join(", ")}` });
     else if (k === "consumesInto") v.length && parts.push({ kind: "text", text: `opens into ${v.map((x) => nameOf(typeof x === "string" ? x : x.slug ?? "?")).join(", ")}` });
     else if (k === "fighting") {
       const f = v;
-      const cond = f.situational ? "a GM's call from the fiction (situational), never on the sheet's number" : f.when ? `when ${Object.entries(f.when).map(([c, xs]) => `${c} ${[].concat(xs).map(nameOf).join(", ")}`).join(" and ")}` : "always";
+      const cond = f.situational ? "situational (a GM's call, not on the sheet)" : f.when ? `when ${Object.entries(f.when).map(([c, xs]) => `${c} ${[].concat(xs).map(nameOf).join(", ")}`).join(" and ")}` : "always";
       parts.push({ kind: "text", text: `a fighting flag${f.tiers ? `: +${f.tiers} tier${f.tiers === 1 ? "" : "s"} on ${f.tree ?? "melee"}` : ""}, ${cond}` });
     } else if (k === "forcesConceal") parts.push({ kind: "text", text: "always hides who you are" });
     else if (k === "concealsIdentity") !t.forcesConceal && parts.push({ kind: "text", text: "can hide who you are" });
