@@ -39,9 +39,9 @@ export default function CombatModeButton({ state, onChanged, children }) {
       const ok = await confirm({
         title: "Enter combat mode?",
         message:
-          "You can't turn it off until next turn. Each turn you end in combat mode makes you Tired, then Exhausted. You need it to Attack or Intercept.",
-        confirmLabel: "Enter combat mode",
-        cancelLabel: "Not yet",
+          "A prerequisite for attacking or intercepting someone and properly defending yourself. It cannot be turned off until next turn, and will tire you out when the turn passes. Effects only apply for combat joined or initiated AFTER you have enabled it.",
+        confirmLabel: "Peace was never an option",
+        cancelLabel: "Never mind",
       });
       if (!ok) return;
     }

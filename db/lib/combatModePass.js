@@ -11,8 +11,8 @@ const { nextFatigueSlug } = require("./fatigue");
 const { alivePassCharacters } = require("./aliveCharacters");
 
 const NOTICE = {
-  [TIRED_SLUG]: "You stayed on guard all turn. You're **Tired**.",
-  [EXHAUSTED_SLUG]: "You stayed on guard too long. You're **Exhausted**, and combat mode is off.",
+  [TIRED_SLUG]: "You were alert and on edge all of last turn. You're **Tired**.",
+  [EXHAUSTED_SLUG]: "Staying alert while already tired has completely worn you out. You're **Exhausted**, and combat mode is off.",
   already: "You're **Exhausted**. Combat mode is off.",
 };
 

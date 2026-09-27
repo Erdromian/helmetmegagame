@@ -74,7 +74,7 @@ const ACTIONS = [
   { mode: "breakrestraints", label: "Break restraints", section: "self", show: "canBreakRestraints", command: "captive", sub: "escape", description: "Make a Gambit to break your own restraints.", run: "native" },
   { mode: "stepstone", label: "Stepstone", section: "self", show: "hasStepstone", command: "stepstone", sub: null, description: "Break the stone and stand somewhere else.", run: "native" },
   { mode: "steal", label: "Steal", section: "self", command: "take", sub: "steal", description: "Steal from a room without it showing you did.", run: "link", web: true },
-  { mode: "combat", label: "Combat mode", section: "self", command: "combat", sub: null, description: "Turn combat mode on or off. You need it to Attack or Intercept.", run: "native" },
+  { mode: "combat", label: "Combat mode", section: "self", command: "combat", sub: null, description: "Turn combat mode on or off. Required to attack/intercept or defend yourself.", run: "native" },
   { mode: "mymove", label: "My Move", section: "self", show: "hasOpenTurn", command: "mymove", sub: null, description: "See the Move you filed this turn, and edit or withdraw it.", run: "native", open: true },
   { mode: "rename", label: "Drink the Mulligan Potion", section: "self", show: "hasMulligan", command: "mulligan", sub: null, description: "Drink the Mulligan Potion and take a new name.", run: "link" },
   { mode: "desire", label: "Claim a Desire", section: "self", command: "desire", sub: null, description: "Claim a Desire from the catalog.", run: "link" },

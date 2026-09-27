@@ -60,7 +60,7 @@ function setCombatMode(prisma, { character, discordUserId, on }) {
     }).catch((err) => console.error("Combat mode audit log failed:", err));
 
     return {
-      line: on ? "You're in combat mode." : "You're out of combat mode.",
+      line: on ? "You feel alert." : "You give yourself a chance to relax.",
       on: Boolean(on),
       changed: true,
     };

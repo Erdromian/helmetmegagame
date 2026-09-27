@@ -7,8 +7,8 @@ const EXHAUSTED = "exhausted";
 
 const NEEDS_COMBAT_MODE_ATTACK = "You need to be in combat mode to attack.";
 const NEEDS_COMBAT_MODE_INTERCEPT = "You need to be in combat mode to lie in wait.";
-const WATCH_DORMANT = "Your watch is dormant. It won't catch anyone until you're in combat mode again.";
-const TOO_EXHAUSTED = "You're too exhausted for combat mode.";
+const WATCH_DORMANT = "Your guard is down, you can't catch anyone unless you are in combat mode.";
+const TOO_EXHAUSTED = "You're too exhausted to enter combat mode.";
 const LOCKED_ON = "You can turn it off next turn.";
 // Bascinet's words, verbatim (Combat Mode.docx).
 const ALERT_LINE = "They look alert.";

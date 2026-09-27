@@ -516,8 +516,8 @@ const combat = {
       return done(interaction, result.ok ? result.line : result.error);
     }
     return confirm(interaction, "combat", null, {
-      prompt: "Enter combat mode? You can't turn it off until next turn. Each turn you end in it makes you Tired, then Exhausted.",
-      label: "Enter combat mode",
+      prompt: "Enter combat mode? You can't turn it off until next turn and it will tire you out at turn pass. It is required to attack/intercept and allows you to properly defend yourself. Effects only apply for combat joined/initiated AFTER you have enabled it.",
+      label: "Peace was never an option",
       danger: true,
     });
   },

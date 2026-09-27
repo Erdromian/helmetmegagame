@@ -101,8 +101,8 @@ faces get it). Stopping one never does.
 and does not fire (`intercept.js#fireWatches`, the `live` filter). The moment
 its owner is alert again, it works again. This is the same standing-preference
 rule a watch already follows when its owner is bound. The Intercept dialog says
-so above the form: "Your watch is dormant. It won't catch anyone until you're in
-combat mode again."
+so above the form: "Your guard is down, you can't catch anyone unless you are in
+combat mode."
 
 On the day this shipped, nobody was in combat mode, so **every existing watch
 went dormant** until its owner turned it on.
