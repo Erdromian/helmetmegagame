@@ -45,12 +45,8 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
   // band → mix table (combat.js, caving.js), or mood saved where the Caving Die rolls, and it carries that die's
   // risk. Production: mining, farming, refining, crafting, the Factory, a building, livestock — no risk beyond
   // fatigue. Trade: the gain is points or a shelf opened, not output. Mixed: more than one.
-  const PAYS = {
-    production: "production: no risk beyond fatigue",
-    caving: "caving: rests on the trouble budget and the assumed band → mix table, and carries the Caving Die's risk",
-    trade: "trade: the gain is points or a shelf, not output",
-    mixed: "mixed",
-  };
+  // The table cell is the one word; what each word means is said once, above the table (report.js).
+  const PAYS = { production: "production", caving: "caving", trade: "trade", mixed: "mixed" };
   const add = (r) => {
     const moves = r.moves ?? 0;
     const allIn = (r.coin ?? 0) + moves * moveValue;
@@ -328,7 +324,7 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       if (!t || gain == null) return;
       // Underground, where the Caving Die rolls on arrival, the mood saved is a caving gain; in the wild it is not.
       const pays = underground ? "caving" : "production";
-      const paysText = `${pays}: mood saved ${underground ? "underground, where the Caving Die rolls" : "gathering in the wild, with no Caving Die"}, priced at ${round1(params.moodPointPrice)} ¢ a mood point`;
+      const paysText = `${pays}, mood`;
       add({ id: slug, slug, group: "Mood", valuedBy: "mood", paysThrough: pays, paysText, name: t.name, kind: "perk", does: t.description ?? "", coin: 0, coinHow: "no coin", points: pointsOf(slug), gain, gainHow, note });
     };
     if (cave) {
@@ -351,13 +347,16 @@ function buildInvestments({ caving, trinkets, lucky: luckyUses, cooking: cookAna
       valuedBy: "expedition",
       name: r.name,
       kind: r.kind,
-      does: `${combat.base[r.tree]} → ${r.alone} on the ${r.tree} tree (the sheet's band words).`,
+      // The band words are the sheet's; the method behind the gain is said once above the table (report.js).
+      does: `${r.tree[0].toUpperCase()}${r.tree.slice(1)}: ${combat.base[r.tree]} → ${r.alone}`,
       coin: r.coin ?? 0,
       coinHow: r.coin != null ? `${r.coin} ¢ at the ${r.coinHow}` : "no coin",
       // A rung's gain is its own step over the rung below, so it costs its own points.
       points: r.isRung ? r.ownPoints : r.points,
       gain: r.caverGain,
-      gainHow: `${round1(r.caverGain)} ¢ an expedition for a Depths caver at a ${combat.budget}-trouble budget, ${r.isRung ? "the step from the rung below" : `averaged over three starting positions (${[r.gainFromUntrained, r.gainFromI, r.gainFromII].map((g) => (g == null ? "—" : round1(g))).join(" / ")} from untrained, I and II)`}, on the better of the two trees, taken as one a turn, under Bascinet's assumed band → trouble mix`,
+      gainHow: r.isRung
+        ? `${round1(r.caverGain)} ¢ an expedition, over the rung below`
+        : `${round1(r.caverGain)} ¢ an expedition: ${[r.gainFromUntrained, r.gainFromI, r.gainFromII].map((g) => (g == null ? "—" : round1(g))).join(" / ")} from untrained / I / II`,
       note: "The mix that turns a band into fewer bad wounds is an assumption pending a real mechanic (caving.js MIX_BY_BAND).",
     });
   }

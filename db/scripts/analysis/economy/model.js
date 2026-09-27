@@ -59,7 +59,7 @@ const readYaml = (rel) => yaml.load(fs.readFileSync(path.join(REPO, rel), "utf8"
 // What the model assumes but the repo does not state as a number.
 // ---------------------------------------------------------------------------
 // Built per run, since the ⬢ line quotes the Depot's two prices and the midpoint a mined ⬢ is valued at.
-function assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, hungerDecay }) {
+function assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, turnsPerDay, hungerDecay }) {
   return [
     {
       key: "MOVES_PER_TURN",
@@ -68,8 +68,8 @@ function assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, t
     },
     {
       key: "TURN_LENGTH",
-      value: `${turnLengthHours} hours a turn`,
-      why: `A Turn's turnLengthHours is a live per-game setting (6, 8, 12 or 24); this report has no game to read one from, so it defaults to a 24-hour turn (--turn-hours N tries another). Hunger decays a flat ${hunger.HUNGER_DECAY_PER_DAY} a day (${hunger.HUNGER_DECAY_PER_DAY_FAST} with Big Appetite), split across the turns in a day and truncated per turn (db/lib/hunger.js#perTurnDecay), so this run's turn burns ${hungerDecay}.`,
+      value: turnsPerDay >= 1 ? `${turnsPerDay} turns an in-game day` : `${turnLengthHours} hours a turn`,
+      why: `A Turn's turnLengthHours is a live per-game setting (6, 8, 12 or 24), and GameConfig.turnsPerDay can roll the in-game day every N turns instead; this report has no game to read either from, so it takes the schema defaults (a ${schemaDefault("turnLengthHours")}-hour turn, turnsPerDay ${schemaDefault("turnsPerDay")}) unless --turn-hours N or --turns-per-day N says otherwise. Hunger decays a flat ${hunger.HUNGER_DECAY_PER_DAY} a day (${hunger.HUNGER_DECAY_PER_DAY_FAST} with Big Appetite), split across the turns in a day (db/lib/hunger.js#perTurnDecay: truncated by hours, rounded up by turnsPerDay), so this run's turn burns ${hungerDecay}.`,
     },
     {
       key: "SELL_TAX",
@@ -162,7 +162,7 @@ function corpseOrgans() {
 // from the source rather than remembered, and this fails loudly if that function is reshaped.
 function obolPayableFamilies() {
   const src = fs.readFileSync(path.join(REPO, "web/app/(app)/character/actions/crafting.js"), "utf8");
-  const fn = src.match(/function resolveObolSpend[\s\S]*?\n}\n/);
+  const fn = src.match(/function resolveObolSpend[\s\S]*?\r?\n}\r?\n/);
   // No function means no obol path: nothing can be paid that way and the model says so.
   if (!fn) return [];
   const families = [...fn[0].matchAll(/craftFamily\(tag\) !== "([a-z]+)"/g)].map((m) => m[1]);
@@ -181,11 +181,14 @@ const OBOL_PAR = 1;
 // to it and the Caving Die estimates an unsellable find with it.
 const SELL_BACK_SHARE = 0.6;
 
-function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 1.5, pointValue = null, sellTax = null, turnHours = null } = {}) {
+function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceValue = "buy", minedValue = "mid", obolPath = "auto", moveValue = null, moodWeight = 1.5, pointValue = null, sellTax = null, turnHours = null, turnsPerDay = null } = {}) {
   const { list, bySlug } = loadCatalog();
-  // A Turn's turnLengthHours is a live game setting this report has no game to read, so it defaults to a
-  // full 24-hour day (the doc's per-day figure applied whole); --turn-hours tries another (6, 8 or 12).
-  const turnLengthHours = turnHours ?? 24;
+  // A Turn's turnLengthHours and GameConfig.turnsPerDay are live game settings this report has no game to
+  // read, so both default to the schema's (a 24-hour turn, and 0: the day rolls by the clock). --turn-hours
+  // tries another length (6, 8 or 12); --turns-per-day N rolls the day every N turns, which is what
+  // decides the hunger a turn burns once it is set (db/lib/hunger.js#perTurnDecay).
+  const turnLengthHours = turnHours ?? schemaDefault("turnLengthHours");
+  const turnsPerDaySetting = turnsPerDay ?? schemaDefault("turnsPerDay");
   const get = (slug) => bySlug.get(slug);
   const sources = buildSources({ list, bySlug, players });
   // How often each day-verb can be pressed, played out with the game's own gates.
@@ -236,6 +239,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     resourceTagCopy,
     sellTaxRate,
     sellTaxRateDefault: schemaDefault("sellTaxRate"),
+    // Read by the Caving tab's roll audit, which calls out a die the description names that no longer exists.
+    luckyDescription: get("lucky")?.description ?? "",
     // The most ⬢ (or any ware) one Depot order line may carry (db/lib/depot.js, the order action's clamp).
     depotMaxQuantity: depotRules.DEPOT_MAX_QUANTITY,
     rvMain,
@@ -256,12 +261,13 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       return w;
     })(),
     turnLengthHours,
+    turnsPerDay: turnsPerDaySetting,
     // The doc's rate is a day, 17 (24 with Big Appetite); a turn burns perTurnDecay(perDay, turnLengthHours),
     // truncated (db/lib/hunger.js). At the default 24-hour turn that is the day figure whole.
     hungerDecayPerDay: hunger.HUNGER_DECAY_PER_DAY,
     hungerDecayPerDayFast: hunger.HUNGER_DECAY_PER_DAY_FAST,
-    hungerDecay: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY, turnLengthHours),
-    hungerDecayFast: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY_FAST, turnLengthHours),
+    hungerDecay: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY, turnLengthHours, turnsPerDaySetting),
+    hungerDecayFast: hunger.perTurnDecay(hunger.HUNGER_DECAY_PER_DAY_FAST, turnLengthHours, turnsPerDaySetting),
     hungerMax: hunger.HUNGER_MAX,
     hungryThreshold: hunger.HUNGRY_THRESHOLD,
     starvingThreshold: hunger.STARVING_THRESHOLD,
@@ -484,8 +490,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     if (ceiling) flags.push(`no counter sale: valued at the Black Market's ${t.depotPrice} ¢ shelf price, a ceiling — it sells to players, not the counter, so no sell tax either`);
     if (distilled) flags.push("Distilling: twice the stack from the same mash");
     // Who is shown the recipe at all, off the sourcing model's two flags (the Secret recipes tab).
-    if (recBySlug.get(t.slug)?.secretRecipe) flags.push("Secret: the product is not in the main catalogue, so no ordinary player is shown this recipe");
-    if (recBySlug.get(t.slug)?.hiddenUntilHeld) flags.push("Hidden: off the Craft menu until you hold a gated ingredient");
+    if (recBySlug.get(t.slug)?.secretRecipe) flags.push("secret recipe");
+    if (recBySlug.get(t.slug)?.hiddenUntilHeld) flags.push("hidden recipe");
     const yieldN = (r.yield ?? 1) * (distilled ? 2 : 1);
     const itemCost = itemsValue(r.items, flags);
     const resCost = r.resourceCost ?? 0;
@@ -1251,16 +1257,17 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     for (const a of activities.filter((x) => x.kind === "refine")) {
       a.flags.push(`carry: ${round1(sq.lbs)} lb a shift against a ${transport.base} lb cap (${round1(sq.cratedLbs ?? sq.lbs)} crated): see Transport`);
     }
-    // The selling trip, charged to every loadout at the game's free crossings and again with an equipped arelitz's
-    // extra one (db/lib/mounts.js), whatever --free-moves set the main planner to.
+    // The selling trip, charged to every loadout at the game's free travel and again with an equipped fresh
+    // arelitz's rides (db/lib/mounts.js: each ride covers one crossing, town or far), whatever --free-moves set the
+    // main planner to.
     const freeBase = schemaDefault("freeZoneMovesPerTurn");
     const mountBonus = mounts.fastTravelBonus(new Set(["arelitz"]));
-    const plannerAt = (free) => (free === combos.free ? combos : buildCombos({ activities, fatigue, bySlug, params, gameTurns, free, seats: refinery.REFINERY_MAX_WORKERS, trinkets }));
+    const plannerAt = (free, rides = 0) => (free === combos.free && rides === (combos.rides ?? 0) ? combos : buildCombos({ activities, fatigue, bySlug, params, gameTurns, free, rides, seats: refinery.REFINERY_MAX_WORKERS, trinkets }));
     const atBase = plannerAt(freeBase);
-    const atMount = plannerAt(freeBase + mountBonus);
+    const atMount = plannerAt(freeBase, mountBonus);
     travel = {
       base: buildTravel({ combos: atBase, params, transport, free: freeBase }),
-      mount: buildTravel({ combos: atMount, params, transport, free: freeBase + mountBonus }),
+      mount: buildTravel({ combos: atMount, params, transport, free: freeBase }),
       mountBonus,
       mountName: get("arelitz")?.name ?? "arelitz",
     };
@@ -1514,7 +1521,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       docValue: "17 / 24 a day, Hungry 66, Starving 33",
       model: `${hunger.HUNGER_DECAY_PER_DAY} / ${hunger.HUNGER_DECAY_PER_DAY_FAST} a day, Hungry ${hunger.HUNGRY_THRESHOLD}, Starving ${hunger.STARVING_THRESHOLD}`,
       ok: hunger.HUNGER_DECAY_PER_DAY === 17 && hunger.HUNGER_DECAY_PER_DAY_FAST === 24 && hunger.HUNGRY_THRESHOLD === 66 && hunger.STARVING_THRESHOLD === 33,
-      note: `This run turns that into ${params.hungerDecay} a turn at ${turnLengthHours} hours a turn (perTurnDecay, truncated); --turn-hours tries another length.`,
+      note: `This run turns that into ${params.hungerDecay} a turn at ${params.turnsPerDay >= 1 ? `${params.turnsPerDay} turns a day (perTurnDecay, rounded up)` : `${turnLengthHours} hours a turn (perTurnDecay, truncated)`}; --turn-hours and --turns-per-day try others.`,
     },
     {
       doc: "tags.yaml, Ration Box",
@@ -1555,7 +1562,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "TRINKETS.md §3",
-      claim: "Forging stones bought off the shelf earns no more per Move than the top rung of the wage table, Lucky or not",
+      claim: "The depot cap stops a stone being bought, forged and sold at a profit forever. Read here as: forging shelf stones pays no more a Move than the wage table's top rung, Lucky or not (the report's reading; the doc names no figure)",
       docValue: `${trinkets.shelfLoop.topWage} ¢ a Move`,
       model: (() => {
         const L = trinkets.shelfLoop;
@@ -1571,8 +1578,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "tags.yaml, Lucky",
-      claim: "Lucky's description names only dice that exist: it says the Caving Die and the laboring die",
-      docValue: "2 dice named",
+      claim: "Lucky's description names no die the game has retired (it used to promise \"the laboring die\")",
+      docValue: "no retired die named",
       model: /laboring/i.test(get("lucky")?.description ?? "") ? "there is no laboring die: mining rolls no die (db/lib/mining.js), so it names 1 that exists" : "names only real dice",
       ok: !/laboring/i.test(get("lucky")?.description ?? ""),
       note: "Mining pays a flat range and a table draw now, and nothing in db/lib/advantage.js is called from it.",
@@ -1876,17 +1883,19 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
         docValue: Number.isFinite(vaultDoc) ? `${vaultDoc} obols` : "not stated",
         model: starting.vault ? `${starting.vault.coin} obols in docs/zones.yaml` : "no Vault room",
         ok: Boolean(starting.vault) && starting.vault.coin === vaultDoc,
-        note: "A doc bug: the Vault stash in zones.yaml has moved since the doc was written.",
+        note: "If this differs, the Vault stash in zones.yaml has moved since the doc was written.",
       },
     );
   }
 
   // The sell tax, read from the code that sets and takes it, and the one doc that describes a tax the code lacks.
   {
-    const treasurySrc = fs.readFileSync(path.join(REPO, "web/app/(app)/treasury/actions.js"), "utf8");
+    // The /treasury action hands the rate to the shared verb, which is where the check lives now.
+    const treasurySrc = fs.readFileSync(path.join(REPO, "db/lib/verbs/place.js"), "utf8");
     const wholeZeroToHundred = /Number\.isInteger\(rate\)/.test(treasurySrc) && /rate < 0 \|\| rate > 100/.test(treasurySrc);
     const passSrc = fs.readFileSync(path.join(REPO, "db/lib/trainDeparturePass.js"), "utf8");
-    const taxFn = (passSrc.match(/function taxOn[\s\S]*?\n}\n/) ?? [""])[0];
+    // \r?: a Windows checkout is CRLF, and a bare \n there never matched, so the check read "changed shape".
+    const taxFn = (passSrc.match(/function taxOn[\s\S]*?\r?\n}\r?\n/) ?? [""])[0];
     const offGross = /Math\.min\(gross,\s*Math\.round\(\(gross \* pct\) \/ 100\)\)/.test(taxFn) && /taxOn\(gross,/.test(passSrc);
     const libDir = path.join(REPO, "db/lib");
     const taxCallers = fs.readdirSync(libDir).filter((f) => f.endsWith(".js") && /\btaxOn\(/.test(fs.readFileSync(path.join(libDir, f), "utf8")));
@@ -1894,7 +1903,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     claims.push(
       {
         doc: "DEPOT.md §0f",
-        claim: "The sell tax rate is a whole percent from 0 to 100 (treasury/actions.js)",
+        claim: "The sell tax rate is a whole percent from 0 to 100 (db/lib/verbs/place.js, behind /treasury)",
         docValue: "whole, 0–100",
         model: wholeZeroToHundred ? "whole, 0–100" : "the treasury action no longer checks a whole 0–100",
         ok: wholeZeroToHundred,
@@ -1933,7 +1942,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
 
   return {
     params,
-    assumptions: assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, hungerDecay: params.hungerDecay }),
+    assumptions: assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, turnLengthHours, turnsPerDay: params.turnsPerDay, hungerDecay: params.hungerDecay }),
     activities,
     wages,
     priceLadder,

@@ -247,7 +247,7 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
         ...r,
         who: `${tierName(who)}${r.site ? " at a site" : ""}`,
         why: band(r) === 0 ? `turns lethal in ${r.duration} turn${r.duration === 1 ? "" : "s"} untreated` : band(r) === 1 ? `${fmt1(savedPerMove(r))} ¢ saved a Move by treating now` : band(r) === 3 ? r.reason : `rung ${r.rung ?? "—"}; ${r.reason}`,
-        lowerGambit: lower ? `${tierName(who - 1)} can try: ${Math.round(lower.p * 100)}% on a d6 (needs ${lower.threshold}), and a miss adds a complication` : null,
+        lowerGambit: lower ? `${tierName(who - 1)}: ${Math.round(lower.p * 100)}% (needs ${lower.threshold} on a d6)` : null,
       };
     });
 
@@ -271,6 +271,9 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
   const hops = (a, b) => combos.hops[a]?.[b] ?? null;
   const siteZones = [...new Set(sites.map((s) => s.zone))];
   const nearestSite = (zone) => Math.min(...siteZones.map((z) => hops(zone, z) ?? Infinity));
+  // The same walk in TRAVEL (½ a town crossing, 1 any other), which is what the free allowance pays for.
+  const travelTo = (a, b) => combos.travel?.[a]?.[b] ?? hops(a, b);
+  const nearestTravel = (zone) => Math.min(...siteZones.map((z) => travelTo(zone, z) ?? Infinity));
   const injuryZones = [...new Set([...params.caveLevels, combos.sites.refine, combos.sites.cut, combos.sites.depot].filter(Boolean))];
   const reach = leave
     .filter((r) => r.pDead > 0 && r.healable)
@@ -280,9 +283,10 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
       deadTurns: r.deadTurns,
       byZone: injuryZones.map((z) => {
         const h = nearestSite(z);
-        // A crossing a turn is free; more cost the Move. Hops are turns of walking at the free allowance.
-        const turnsToWalk = Number.isFinite(h) ? Math.ceil(h / Math.max(1, params.freeZoneMoves)) : Infinity;
-        return { zone: z, hops: h, inTime: !r.site || turnsToWalk < r.deadTurns };
+        const t = nearestTravel(z);
+        // The free travel a turn is spent first; past it a crossing costs the Move. Turns of walking at the free allowance.
+        const turnsToWalk = Number.isFinite(t) ? Math.ceil(t / Math.max(0.5, params.freeZoneMoves) - 1e-9) : Infinity;
+        return { zone: z, hops: h, travel: t, inTime: !r.site || turnsToWalk < r.deadTurns };
       }),
     }));
   const buyables = {
@@ -354,7 +358,8 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
     return { tier, name: tierName(tier), medicsAtOrAbove: available, movesNeeded: neededMoves, surplus: available - neededMoves };
   });
   for (const i of injuryRows) townSaved += i.perTurn * (leave.find((r) => r.slug === i.slug)?.saved ?? 0);
-  const coinPerTurn = injuryRows.reduce((n, r) => n + r.perTurn * (r.resources ?? 0), 0) * rv.buy;
+  const resourcesPerTurn = injuryRows.reduce((n, r) => n + r.perTurn * (r.resources ?? 0), 0);
+  const coinPerTurn = resourcesPerTurn * rv.buy;
 
   return {
     knobs: KNOBS,
@@ -375,12 +380,13 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
     medics,
     capacity,
     coinPerTurn,
+    resourcesPerTurn,
     townSaved,
     permanentCost: PERMANENT_COST,
     cavers,
     fights,
     cutsPerTurn,
-    payer: "any party the medic can reach pays the ⬢: the medic, the patient or the room (the Heal action's payer)",
+    payer: "any party the medic can reach: the medic, the patient or the room (the Heal action's payer)",
   };
 }
 

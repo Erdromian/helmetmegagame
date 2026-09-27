@@ -84,8 +84,8 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   const shelfItems = list.filter((t) => t.depotPrice != null);
   const cheapestShelf = [...shelfItems].sort((a, b) => a.depotPrice - b.depotPrice)[0];
   const cheapestRoundTrip = [...shelfItems.filter((t) => t.sellablePrice != null)].sort((a, b) => a.depotPrice - a.sellablePrice - (b.depotPrice - b.sellablePrice) || a.depotPrice - b.depotPrice)[0];
-  const skilledDishes = (cookingDishes ?? []).filter((d) => d.tier === "Skilled" && !d.unreachable.length).sort((a, b) => a.cost - b.cost);
-  const cheapestLavish = skilledDishes[0];
+  // The Desire verifies against a craft named "Lavish Meal" (docs/desires.yaml), so only that meal class counts.
+  const cheapestLavish = (cookingDishes ?? []).filter((d) => d.mealClass === "lavish" && !d.unreachable.length).sort((a, b) => a.cost - b.cost)[0];
   // The slot machine, worked as a cost of getting a payout of at least N in one spin.
   const slotEv = SLOT.table.reduce((s, r) => s + (r.ways / 216) * r.pays, 0);
   const slotLoss = SLOT.stake - slotEv;
@@ -152,7 +152,7 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   add("try-a-new-drug", "Take a drug you have not taken", { coin: 2.3, how: "about 2–3 ¢ a drug: heroin, changa, bliss" }, { consumable: true, maxClaims: 3, note: "One claim per drug, so about three of them." });
   const candy = unit("sugar-candy");
   add("eat-sweets", "Eat a Sugar Candy", { coin: candy.coin, how: candy.how }, { consumable: true });
-  if (cheapestLavish) add("lavish-meal", `Eat a lavish (Skilled) dish: ${cheapestLavish.name}`, { coin: cheapestLavish.cost, moves: cheapestLavish.moves, how: `${cheapestLavish.inputs.join(" + ")}` }, { consumable: true, note: "Needs Cooking II (10 points) to make, or a friend who has it." });
+  if (cheapestLavish) add("lavish-meal", `Eat a ${cheapestLavish.name}`, { coin: cheapestLavish.cost, moves: cheapestLavish.moves, how: `${cheapestLavish.inputs.join(" + ")}` }, { consumable: true, note: "Needs Cooking II (10 points) and a kitchen to make, or a friend who has both." });
 
   // ---- buying something ---------------------------------------------------------------------------------------
   add("make-a-merchant-purchase", `Buy ${cheapestShelf?.name}`, { coin: cheapestShelf?.depotPrice ?? 0, how: `${cheapestShelf?.depotPrice} ¢, the cheapest thing on the shelf`, resale: cheapestShelf?.sellablePrice ?? 0 });
@@ -164,7 +164,7 @@ function buildDesires({ get, list, rv, rvMined, moveValue, gameTurns, slots, loc
   // gambling, on the Den's slot machine
   for (const [slug, n, label] of [["win-5-gambling", 5, "a 5 ¢ payout"], ["win-10-gambling", 10, "a 10 ¢ payout"], ["win-25-gambling-one-game", 25, "a 25 ¢ payout in one spin"], ["win-50-gambling-one-game", 50, "a 50 ¢ payout in one spin"]]) {
     const c = slotCost(n);
-    if (c != null) add(slug, `Spin the slot machine until it pays ${label}`, { coin: c, how: `${round1(1 / slotPay(n))} spins of 5 ¢ at 5.6% house edge` }, { variance: true, note: "Assumes 'win' means a payout of at least that much. Undertown only, and the Exactor must be solvent. The cost is an average: it takes about 36 spins, 180 ¢ staked, to land a 50 ¢ payout." });
+    if (c != null) add(slug, `Spin the slot machine until it pays ${label}`, { coin: c, how: `about ${Math.round(1 / slotPay(n))} spins of 5 ¢ (${Math.round((1 / slotPay(n)) * 5)} ¢ staked), 5.6% house edge` }, { variance: true, note: "Any payout at least that big counts. Undertown only, while the Exactor is solvent." });
   }
 
   // ---- role- and tag-gated, still purchasable ----------------------------------------------------------------------

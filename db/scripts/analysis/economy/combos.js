@@ -12,8 +12,10 @@
 //     (Prospecting is optional, and multiplies the yield). Refine and cutting
 //     Godflesh need nothing;
 //   - PLACE: each verb has a home zone. Hops inside a zone are free, and every
-//     turn allows a few free zone crossings (GameConfig.freeZoneMovesPerTurn).
-//     One crossing past that costs the Move.
+//     turn allows some free TRAVEL (GameConfig.freeZoneMovesPerTurn). A crossing
+//     between the town zones costs ½ of it, any other crossing 1
+//     (db/lib/crossingCost.js), and an equipped mount's rides each cover one
+//     crossing of either kind. One crossing past the allowance costs the Move.
 //
 // The planner is exact: dynamic programming over (turn, zone, fatigue state),
 // with the game's own gates and grants from fatigue.js. It does not guess a
@@ -27,6 +29,7 @@ const fs = require("fs");
 const path = require("path");
 const yaml = require("js-yaml");
 const { VERBS, closeTurn } = require("./fatigue");
+const { crossingCost } = require("../../../lib/crossingCost");
 
 const REPO = path.resolve(__dirname, "../../../..");
 const FATIGUE_BY_ID = Object.fromEntries(VERBS.map((v) => [v.id, v]));
@@ -79,6 +82,37 @@ function distances(adj) {
   return dist;
 }
 
+// What getting from one zone to another costs in TRAVEL, the game's own unit: each crossing at crossingCost
+// (½ inside the town, 1 anywhere else), cheapest path, with `rides` crossings a mount carries for nothing
+// (CARRY.md §2a: a ride covers any crossing, and the rides go first). Dijkstra over (zone, rides left).
+function travelCosts(adj, rides = 0) {
+  const out = new Map();
+  for (const start of adj.keys()) {
+    const best = new Map([[`${start}|${rides}`, 0]]);
+    const queue = [[0, start, rides]];
+    while (queue.length) {
+      queue.sort((a, b) => a[0] - b[0]);
+      const [cost, zone, left] = queue.shift();
+      if (cost > best.get(`${zone}|${left}`)) continue;
+      for (const nb of adj.get(zone)) {
+        const steps = [[cost + crossingCost(zone, nb), left]];
+        if (left > 0) steps.push([cost, left - 1]);
+        for (const [c, l] of steps) {
+          const key = `${nb}|${l}`;
+          if (c < (best.get(key) ?? Infinity)) (best.set(key, c), queue.push([c, nb, l]));
+        }
+      }
+    }
+    const d = new Map();
+    for (const [key, c] of best) {
+      const zone = key.slice(0, key.lastIndexOf("|"));
+      if (c < (d.get(zone) ?? Infinity)) d.set(zone, c);
+    }
+    out.set(start, d);
+  }
+  return out;
+}
+
 // ---------------------------------------------------------------------------
 // The planner
 // ---------------------------------------------------------------------------
@@ -112,7 +146,7 @@ function makePlanner({ verbs, map, dist, free, dur, into, refineChance = 1 }) {
       };
       for (const dest of [zone, ...map.zones.filter((z) => z !== zone)]) {
         const d = dist.get(zone).get(dest) ?? Infinity;
-        if (d <= free) {
+        if (d <= free + 1e-9) {
           consider(dest, null, d ? "cross" : "rest");
           for (const v of verbs) {
             if (v.factory && !seatFree) continue;
@@ -120,8 +154,8 @@ function makePlanner({ verbs, map, dist, free, dur, into, refineChance = 1 }) {
             if (v.fatigue && refusal(held, n, v.fatigue)) continue;
             consider(dest, v, d ? "cross" : "stay");
           }
-        } else if (d === free + 1) {
-          consider(dest, null, "paid crossing"); // the Move goes on the journey
+        } else if (d <= free + 1 + 1e-9) {
+          consider(dest, null, "paid crossing"); // the Move goes on the journey: one crossing past the allowance
         }
       }
       return top;
@@ -185,9 +219,10 @@ function summarise(planFor, gameTurns, patternTurns = 15) {
 // ---------------------------------------------------------------------------
 // `seats` is how many people may refine in a turn (db/lib/refinery.js). The main tables assume
 // you can always get one; `seatSensitivity` shows what a crowd does to that.
-function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free = 1, seats = 5, trinkets = null }) {
+function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free = 1, rides = 0, seats = 5, trinkets = null }) {
   const map = loadMap();
   const dist = distances(map.adj);
+  const cost = travelCosts(map.adj, rides);
   const dur = fatigue.durations;
   const into = fatigue.into;
 
@@ -246,7 +281,7 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
     const full = `${key}|${factory}|${refineChance}`;
     if (planCache.has(full)) return planCache.get(full);
     const list = verbList.filter((v) => factory || !v.factory);
-    const planner = makePlanner({ verbs: list, map, dist, free, dur, into, refineChance });
+    const planner = makePlanner({ verbs: list, map, dist: cost, free, dur, into, refineChance });
     const out = summarise(planner, gameTurns);
     planCache.set(full, out);
     return out;
@@ -360,9 +395,10 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
       noFactory: run(entry.verbList, false, entry.key).rate,
     }));
 
-  const between = (a, b) => dist.get(a)?.get(b);
+  const between = (a, b) => cost.get(a)?.get(b);
   return {
     free,
+    rides,
     gameTurns,
     seats,
     zones: map.zones,
@@ -370,6 +406,8 @@ function buildCombos({ activities, fatigue, bySlug, params, gameTurns = 30, free
     sites: { farm: farmZone, refine: refineZone, cut: map.sites.cut[0], depot: map.sites.depot[0] ?? null, caves: "caves", depths: "depths" },
     // Zone-to-zone crossings on the map, the planner's own breadth-first distances.
     hops: Object.fromEntries([...dist].map(([a, m]) => [a, Object.fromEntries(m)])),
+    // The same in TRAVEL (½ a town crossing, 1 any other, less the mount's rides): what the planner walks by.
+    travel: Object.fromEntries([...cost].map(([a, m]) => [a, Object.fromEntries(m)])),
     crossings: {
       "Farm to Factory": between(farmZone, refineZone),
       "Factory to the Caves": between(refineZone, "caves"),

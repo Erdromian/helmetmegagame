@@ -149,10 +149,14 @@ function buildSources({ list, bySlug, players }) {
   const stashBy = new Map(); // slug -> [{room, qty}]
   (function walk(node, trail) {
     if (!node || typeof node !== "object") return;
-    if (node.stash?.items && typeof node.stash.items === "object") {
-      for (const [slug, qty] of Object.entries(node.stash.items)) {
+    // A stash's `items` lie on the floor; its `hidden` block (SEARCH.md §9) is under it, found by searching the
+    // room. Both are the same one-time seed, so both count as a route.
+    for (const [block, hidden] of [["items", false], ["hidden", true]]) {
+      const entries = node.stash?.[block];
+      if (!entries || typeof entries !== "object") continue;
+      for (const [slug, qty] of Object.entries(entries)) {
         const arr = stashBy.get(slug) ?? [];
-        arr.push({ room: trail[trail.length - 1], qty: typeof qty === "number" ? qty : 1, access: node.access ?? [] });
+        arr.push({ room: trail[trail.length - 1], qty: typeof qty === "number" ? qty : 1, access: node.access ?? [], hidden });
         stashBy.set(slug, arr);
       }
     }
@@ -347,14 +351,15 @@ function buildSources({ list, bySlug, players }) {
       const roles = startingBy.get(slug);
       routes.push({
         kind: "starting",
-        label: `starting kit: ${roles.map((r) => r.role).join(", ")}`,
+        // A long list (Foodstuffs is in nearly every kit) names a few and counts the rest.
+        label: `starting kit: ${roles.length > 5 ? `${roles.slice(0, 3).map((r) => r.role).join(", ")} and ${roles.length - 3} more roles` : roles.map((r) => r.role).join(", ")}`,
         rank: 4,
         roles: roles.map((r) => r.role),
       });
     }
     if (stashBy.has(slug)) {
       const rooms = stashBy.get(slug);
-      routes.push({ kind: "stash", label: `room stash: ${rooms.map((r) => `${r.room} ×${r.qty}`).join(", ")}`, rank: 4 });
+      routes.push({ kind: "stash", label: `room stash: ${rooms.map((r) => `${r.room} ×${r.qty}${r.hidden ? " (hidden)" : ""}`).join(", ")}`, rank: 4 });
     }
 
     // Containers

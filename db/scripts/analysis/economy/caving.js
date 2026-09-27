@@ -312,15 +312,17 @@ function buildCaving({ get, list, rv, rvMined, sources, moveValue, activities, g
 const DICE = {
   "db/lib/cavingPass.js": { die: "Caving Die", what: "a find on 6, trouble on 1" },
   "db/lib/gambitDie.js": { die: "Every Gambit", what: "the die a Move's Gambit rolls" },
-  "db/lib/locationTravel.js": { die: "Pushing on across a zone", what: "the exertion die: 1 hurts, 2-3 tires" },
+  "db/lib/locationTravel.js": { die: "Pushing on across a zone", what: "the exertion die: 1 hurts, 2–3 Exhausted, 4–5 Tired, 6 Winded" },
   "db/lib/search.js": { die: "Search", what: "the reveal die" },
   "db/lib/confession.js": { die: "Confession", what: "the penitent's die" },
   "db/lib/lessons.js": { die: "A lesson", what: "the learner's die" },
+  "db/lib/roomSearch.js": { die: "Searching a room", what: "the room-search die" },
+  "db/lib/verbs/self.js": { die: "Break Restraints", what: "the escape die" },
+  "db/lib/verbs/work.js": { die: "Breaking in an arelitz", what: "the Gambit" },
   "web/app/(app)/character/trinketActions.js": { die: "Forging a Trinket", what: "the forge's die" },
-  "web/app/(app)/character/actions/misc.js": { die: "Break Restraints and Torture", what: "the escape die and the torture die" },
+  "web/app/(app)/character/actions/misc.js": { die: "Torture", what: "the torture die" },
   "web/app/(app)/character/actions/steal.js": { die: "Steal", what: "the steal die" },
   "web/app/(app)/character/actions/pickpocket.js": { die: "Pickpocket", what: "the pickpocket die" },
-  "web/app/(app)/character/actions/arelitz.js": { die: "Breaking in an arelitz", what: "the Gambit" },
   "web/app/(app)/character/actions/medical.js": { die: "A Gambit heal", what: "the healer's die" },
 };
 
@@ -353,7 +355,7 @@ function auditRolls({ get }) {
     return t ? { slug, name: t.name, points: t.pointCost ?? 0, purchasable: !!t.purchasable, effect, dice } : null;
   };
   const tags = [
-    perk("lucky", "Rolls twice and keeps the higher (a 6 goes from 1 in 6 to 11 in 36; a 1 from 1 in 6 to 1 in 36).", "the Caving Die, every Gambit, Search, Confession, lessons, Trinket forging, Break Restraints, Torture, Steal, Pickpocket, arelitz, Gambit heals, and pushing on"),
+    perk("lucky", "Rolls twice and keeps the higher (a 6 goes from 1 in 6 to 11 in 36; a 1 from 1 in 6 to 1 in 36).", "the Caving Die, every Gambit, Search, searching a room, Confession, lessons, Trinket forging, Break Restraints, Torture, Steal, Pickpocket, arelitz, Gambit heals, and pushing on"),
     perk("misfortune", "Rolls twice and keeps the lower, but only on the Gambit.", "every Gambit"),
     perk("quick-footed", "Keeps the higher of two when pushing on.", "pushing on across a zone"),
     perk("caffeinated", "Keeps the higher of two when pushing on.", "pushing on across a zone"),

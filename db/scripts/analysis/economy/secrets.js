@@ -48,14 +48,14 @@ function buildSecrets({ list, get, sources, combat, activities, profitRows, prof
     const gated = rec.items.filter((i) => i.slugs.some((s) => !open(s)));
     const holdsGate = (r) => gated.some((i) => i.slugs.some((s) => !open(s) && r.tagSlugs.includes(s)));
     const names = (rs) => listAnd(rs.map((r) => r.name));
-    const seats = (n) => `${n} seat${n === 1 ? " starts" : "s start"} with the skill`;
+    const seats = (n) => `${n} seat${n === 1 ? " has" : "s have"} the skill`;
     // Who can make it: a secret recipe only for a seat that holds the product (and the skill); a hidden one for a
     // seat with the skill and one of the gated ingredients.
     const makers = rec.secretRecipe ? holdsProduct.filter((r) => withSkill.includes(r) && (!rec.hiddenUntilHeld || holdsGate(r))) : withSkill.filter(holdsGate);
     const parts = [];
     if (holdsProduct.length) parts.push(`${names(holdsProduct)} start${holdsProduct.length === 1 ? "s" : ""} with one`);
     if (makers.length) parts.push(`${names(makers)} can make it from the start`);
-    else if (rec.secretRecipe) parts.push(`nobody can make it at the start: only a GM hands out the product or the page${t.catalog === "secret" ? " (and the product is hidden from GMs outside /gm/dev/tags)" : ""}${withSkill.length ? `; ${seats(withSkill.length)}` : ""}`);
+    else if (rec.secretRecipe) parts.push(`GM only${t.catalog === "secret" ? " (/gm/dev/tags)" : ""}${withSkill.length ? `; ${seats(withSkill.length)}` : ""}`);
     else parts.push(`anyone with the skill once they hold ${listAnd(gated.map((i) => i.label), "or")}; ${withSkill.length ? seats(withSkill.length) : "no seat starts with the skill"}`);
     return { who: [...new Set([...holdsProduct, ...makers].map((r) => r.name))], text: parts.join("; ") };
   };
@@ -100,7 +100,7 @@ function buildSecrets({ list, get, sources, combat, activities, profitRows, prof
         const cls = combat.tags.filter((r) => r.kind === f.kind).sort((a, b) => b.steps - a.steps || a.points - b.points);
         const rank = cls.findIndex((r) => r.slug === f.slug) + 1;
         const tied = cls.filter((r) => r.steps === f.steps).length;
-        why.push(`weapon: ${f.alone} on its own, +${f.steps} band step${f.steps === 1 ? "" : "s"}, ${Math.round(f.caverGain * 10) / 10} ¢ an expedition to a caver (the combat tab's three-position average); ${f.steps === cls[0].steps ? (tied > 1 ? `ties the best of ${cls.length}` : `the best of ${cls.length}`) : `#${rank} of ${cls.length}`} ${f.kind.replace(/^weapon \((.*)\)$/, "$1")} weapons`);
+        why.push(`weapon: ${f.alone} on its own, +${f.steps} band step${f.steps === 1 ? "" : "s"}, ${Math.round(f.caverGain * 10) / 10} ¢ an expedition to a caver; ${f.steps === cls[0].steps ? (tied > 1 ? `ties the best of ${cls.length}` : `the best of ${cls.length}`) : `#${rank} of ${cls.length}`} ${f.kind.replace(/^weapon \((.*)\)$/, "$1")} weapons`);
         if (f.steps > 0 && f.steps === cls[0].steps) lift(tied > 1 ? 1 : 0);
       } else if (f && f.steps > 0) {
         why.push(`fighting: +${f.steps} band step${f.steps === 1 ? "" : "s"} (${f.alone})`);
@@ -117,7 +117,7 @@ function buildSecrets({ list, get, sources, combat, activities, profitRows, prof
         const pr = profitRows.find((r) => r.slug === rec.slug);
         const wr = workedRows.find((r) => r.slug === rec.slug);
         const onRung = pr ? (pr.onRung ? "on the DEPOT.md §4 rung" : `off the rung (it pays ${pr.rate} ¢ a Move)`) : wr ? (wr.onFormula ? "on the worked-input formula" : `off the worked-input formula (${wr.expected} ¢ expected)`) : "outside the wage table";
-        why.push(`craft: ${r1(act.netPerTurnBuy)} ¢ a turn${rung ? `, against ${r1(rung.netMedian)} at the ${rung.points}-point median` : ""}${bestEasy ? ` and ${r1(bestEasy.netPerTurnBuy)} for the best easy ${kind} craft (${bestEasy.name})` : ""}; ${onRung}`);
+        why.push(`craft: ${r1(act.netPerTurnBuy)} ¢ a turn${rung ? ` vs ${r1(rung.netMedian)} median` : ""}${bestEasy ? `, ${r1(bestEasy.netPerTurnBuy)} best easy (${bestEasy.name})` : ""}; ${onRung}`);
         if (bestEasy && act.netPerTurnBuy > bestEasy.netPerTurnBuy && (!rung || act.netPerTurnBuy > rung.netMedian)) lift(1);
       }
       // A dish: what it is worth to eat, against every other dish.

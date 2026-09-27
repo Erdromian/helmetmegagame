@@ -22,8 +22,14 @@ function buildCooking({ get, list, params, sources, foodFloor, food, players }) 
   // The one food crop now: Foodstuffs, params.stapleCrop (model.js sets it to FOODSTUFFS_SLUG).
   const CROPS = new Set([params.stapleCrop]);
   const srcItem = new Map(sources.items.map((i) => [i.slug, i]));
-  const rankOf = (slug) => (CROPS.has(slug) ? 2 : srcItem.get(slug)?.rank ?? 5);
-  const sourceOf = (slug) => (CROPS.has(slug) ? "Farm (Soilery)" : srcItem.get(slug)?.best ?? "no route found");
+  // A slot-in ingredient is no recipe's input since the meal classes replaced the named recipes, so it
+  // is not in sources.items; ask sources for its routes directly (the same ranking, any slug).
+  const bestRoute = (slug) => srcItem.get(slug) ?? (() => {
+    const r = sources.routesFor(slug)[0];
+    return r ? { rank: r.rank, best: r.label } : null;
+  })();
+  const rankOf = (slug) => (CROPS.has(slug) ? 2 : bestRoute(slug)?.rank ?? 5);
+  const sourceOf = (slug) => (CROPS.has(slug) ? "Farm (Soilery)" : bestRoute(slug)?.best ?? "no route found");
   const rawHunger = (slug) => hungerLib.foodHungerFor(get(slug));
   // What eating a thing RAW costs in mood. A meal-shaped tag (mealHunger set — Foodstuffs is the one
   // example) already carries its own eaten-raw figure as mealMood, with no separate raw-ingredient
@@ -67,6 +73,37 @@ function buildCooking({ get, list, params, sources, foodFloor, food, players }) 
     return { prims, moves };
   };
 
+  // ---- what a cook can slot in ------------------------------------------------------------------------
+  // Up to four extra ingredients ride on top of any dish — generic now, not per-recipe: any tag with a
+  // `cooked:` block can be slotted into any meal class (COOKING.md, the Soilery Rework). Each adds its own
+  // hunger and, if positive, its mood; a negative mood is disgust that no dish base can cancel.
+  const addIns = list
+    .filter((t) => t.cooked && !(t.group === "items-drink") && t.slug !== "human-flesh" && t.slug !== "flesh-of-tzchernobog")
+    .map((t) => {
+      const hunger = hungerLib.foodHungerFor(t);
+      const mood = t.cooked.mood ?? 0;
+      const estimated = food.basisOf(t) === "food";
+      return {
+        slug: t.slug,
+        name: t.name,
+        hunger,
+        mood,
+        // No market price of its own (Foodstuffs, most often): priced as food, off the Ration Box, the
+        // way the dishes above price their inputs.
+        cost: estimated ? round1(food.of(t)) : food.of(t),
+        costEstimated: estimated,
+        source: sourceOf(t.slug),
+        rank: rankOf(t.slug),
+      };
+    })
+    .filter((a) => a.mood > 0 || a.hunger > 0)
+    .sort((a, b) => b.mood - a.mood || b.hunger - a.hunger);
+
+  // A class that insists on extra ingredients (Lavish: `ingredientSlots.min`) cannot be cooked without
+  // them, so its cost, hunger and mood carry the cheapest slot-in anybody can actually get: a real
+  // route, lowest price first, then the most mood for it.
+  const cheapestFill = addIns.filter((a) => a.rank < 5).sort((a, b) => a.cost - b.cost || b.mood - a.mood || b.hunger - a.hunger)[0] ?? null;
+
   // ---- every dish (the three meal classes) -----------------------------------------------------------
   const dishes = list
     .filter((t) => t.craftable && t.mealHunger != null && (t.requirement?.skills ?? []).some((s) => /^cooking/.test(s)))
@@ -81,15 +118,20 @@ function buildCooking({ get, list, params, sources, foodFloor, food, players }) 
       // Every input goes through the one food valuation: its market price, else its hunger and mood at the
       // Ration Box's rate.
       const unitCost = (slug) => food.of(get(slug));
-      const cost = [...per].reduce((s, [slug, c]) => s + c * unitCost(slug), 0);
+      const minSlots = r.ingredientSlots?.min ?? 0;
+      const fill = minSlots > 0 && cheapestFill ? { ...cheapestFill, count: minSlots } : null;
+      const cost = [...per].reduce((s, [slug, c]) => s + c * unitCost(slug), 0) + (fill ? fill.count * fill.cost : 0);
       const movesPer = moves / y;
+      // The meal's own figures, plus what its required extra ingredients add (their hunger, and their mood if positive).
+      const mealHunger = t.mealHunger + (fill ? fill.count * fill.hunger : 0);
+      const mealMood = (t.mealMood ?? 0) + (fill ? fill.count * Math.max(0, fill.mood) : 0);
       // A dish's own worth to a buyer with coin: what the same hunger AND mood would cost from a
       // Ration Box. This used to price hunger alone, so a mood-heavy Skilled dish (the whole point of
       // which is the mood, per the report's own text) always looked like a loss no matter how cheap its
       // ingredients were — Northern Delight's 50 mood was worth nothing here even though buying that
       // much mood any other way costs real ¢.
-      const value = boxPerPoint == null ? null : food.asFood(t.mealHunger, t.mealMood ?? 0);
-      const hardest = Math.max(...[...per.keys()].map(rankOf));
+      const value = boxPerPoint == null ? null : food.asFood(mealHunger, mealMood);
+      const hardest = Math.max(...[...per.keys()].map(rankOf), fill ? fill.rank : 0);
       const unreachable = [...per.keys()].filter((s) => rankOf(s) >= 5);
       return {
         slug: t.slug,
@@ -97,32 +139,36 @@ function buildCooking({ get, list, params, sources, foodFloor, food, players }) 
         mealClass: t.mealClass ?? null,
         skill: (r.skills ?? []).join(", "),
         tier: (r.skills ?? []).some((s) => /skilled/.test(s)) ? "Skilled" : "Basic",
-        hunger: t.mealHunger,
+        hunger: mealHunger,
         sell: t.sellablePrice ?? null,
-        mood: t.mealMood ?? 0,
+        mood: mealMood,
         yield: y,
-        inputs: [...per].map(([s, c]) => `${round1(c) === 1 ? "" : `${round1(c)}× `}${get(s)?.name ?? s}`),
+        inputs: [
+          ...[...per].map(([s, c]) => `${round1(c) === 1 ? "" : `${round1(c)}× `}${get(s)?.name ?? s}`),
+          ...(fill ? [`${fill.count === 1 ? "" : `${fill.count}× `}${fill.name} (the extra it must have)`] : []),
+        ],
+        requiredFill: fill ? { name: fill.name, count: fill.count, hunger: fill.hunger, mood: fill.mood, cost: fill.cost } : null,
         primitives: [...per.keys()],
         units,
         rawHunger: raw,
         rawMood,
         rawBites: units,
-        multiplier: raw > 0 ? t.mealHunger / raw : null,
-        hungerPerUnit: units > 0 ? t.mealHunger / units : null,
+        multiplier: raw > 0 ? mealHunger / raw : null,
+        hungerPerUnit: units > 0 ? mealHunger / units : null,
         moves: movesPer,
         cost,
         value,
         margin: value == null ? null : value - cost,
         marginPerMove: value != null && movesPer > 0 ? (value - cost) / movesPer : null,
         // Cooks working a full turn (one Move) every turn, to feed the whole town on this dish alone.
-        cooksToFeedTown: t.mealHunger > 0 ? ((players * params.hungerDecay) / t.mealHunger) * movesPer : null,
-        dishesToFeedTown: t.mealHunger > 0 ? (players * params.hungerDecay) / t.mealHunger : null,
-        farmOnly: [...per.keys()].every((s) => CROPS.has(s)),
+        cooksToFeedTown: mealHunger > 0 ? ((players * params.hungerDecay) / mealHunger) * movesPer : null,
+        dishesToFeedTown: mealHunger > 0 ? (players * params.hungerDecay) / mealHunger : null,
+        farmOnly: !fill && [...per.keys()].every((s) => CROPS.has(s)),
         hardestRank: hardest,
         hardest: [...per.keys()].sort((a, b) => rankOf(b) - rankOf(a))[0],
         unreachable: unreachable.map((s) => get(s)?.name ?? s),
         mealSlots: r.ingredientSlots?.max ?? 0,
-        minSlots: r.ingredientSlots?.min ?? 0,
+        minSlots,
       };
     })
     .sort((a, b) => (b.hungerPerUnit ?? 0) - (a.hungerPerUnit ?? 0));
@@ -204,32 +250,6 @@ function buildCooking({ get, list, params, sources, foodFloor, food, players }) 
     farmPersonTurnsPerMove: rawHungerPerAction / per,
     cookPersonTurnsPerMove: cookMovesPerAction > 0 ? (cookedHungerPerAction - rawHungerPerAction) / per / cookMovesPerAction : null,
   };
-
-  // ---- what a cook can slot in ------------------------------------------------------------------------
-  // Up to four extra ingredients ride on top of any dish — generic now, not per-recipe: any tag with a
-  // `cooked:` block can be slotted into any meal class (COOKING.md, the Soilery Rework). Each adds its own
-  // hunger and, if positive, its mood; a negative mood is disgust that no dish base can cancel.
-  const addIns = list
-    .filter((t) => t.cooked && !(t.group === "items-drink") && t.slug !== "human-flesh" && t.slug !== "flesh-of-tzchernobog")
-    .map((t) => {
-      const hunger = hungerLib.foodHungerFor(t);
-      const mood = t.cooked.mood ?? 0;
-      const estimated = food.basisOf(t) === "food";
-      return {
-        slug: t.slug,
-        name: t.name,
-        hunger,
-        mood,
-        // No market price of its own (Foodstuffs, most often): priced as food, off the Ration Box, the
-        // way the dishes above price their inputs.
-        cost: estimated ? round1(food.of(t)) : food.of(t),
-        costEstimated: estimated,
-        source: sourceOf(t.slug),
-        rank: rankOf(t.slug),
-      };
-    })
-    .filter((a) => a.mood > 0 || a.hunger > 0)
-    .sort((a, b) => b.mood - a.mood || b.hunger - a.hunger);
 
   // The most one slot can add, over everything with a cooked block (the table above leaves some out on taste).
   const richestSlot = list

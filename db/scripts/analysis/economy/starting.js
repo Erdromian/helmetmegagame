@@ -20,6 +20,7 @@ const { FAST_METABOLISM_SLUG, HUNGERLESS_SLUG, FOODSTUFFS_SLUG } = require("../.
 const { ALL_GROUPS } = require("../../../lib/roleGroups");
 const { median } = require("./stats");
 const { roleCapacity } = require("../../../lib/roleCapacity");
+const { ringName } = require("../../../lib/rings");
 
 const REPO = path.resolve(__dirname, "../../../..");
 const readYaml = (rel) => yaml.load(fs.readFileSync(path.join(REPO, rel), "utf8"));
@@ -39,10 +40,10 @@ function readRooms() {
       for (const [roomId, room] of Object.entries(loc.rooms ?? {})) {
         const stash = room.stash;
         const norm = Array.isArray(stash)
-          ? { resources: 0, items: Object.fromEntries(stash.map((s) => [s, 1])) }
+          ? { resources: 0, items: Object.fromEntries(stash.map((s) => [s, 1])), hidden: {} }
           : stash
-            ? { resources: stash.resources ?? 0, items: stash.items ?? {} }
-            : { resources: 0, items: {} };
+            ? { resources: stash.resources ?? 0, items: stash.items ?? {}, hidden: stash.hidden ?? {} }
+            : { resources: 0, items: {}, hidden: {} };
         rooms.push({
           id: roomId,
           name: room.name ?? roomId,
@@ -103,9 +104,17 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
     let cracked = 0;
     const kit = [];
     const foods_ = [];
-    for (const [slug, qty] of Object.entries(stash.items ?? {})) {
+    // The floor, then the `hidden` block (SEARCH.md §9): in the same room, but found only by searching it.
+    const entries = [...Object.entries(stash.items ?? {}).map(([slug, qty]) => [slug, qty, false]), ...Object.entries(stash.hidden ?? {}).map(([slug, qty]) => [slug, qty, true])];
+    for (const [slug, rawQty, hidden] of entries) {
+      const qty = typeof rawQty === "number" ? rawQty : 1;
+      const mark = hidden ? " (hidden)" : "";
       if (slug === OBOL) {
         coin += qty;
+        continue;
+      }
+      if (slug === RESOURCES) {
+        resources += qty;
         continue;
       }
       const t = get(slug);
@@ -113,10 +122,11 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
       const h = foodHungerOf(t);
       if (h > 0) {
         food += qty * h;
-        foods_.push(`${t.name} ×${qty}`);
+        foods_.push(`${t.name} ×${qty}${mark}`);
       }
       if (t.consumesIntoResources) cracked += qty * t.consumesIntoResources;
-      if (recipeSlugs.has(slug) && !isKey(slug)) kit.push(`${t.name}${qty > 1 ? ` ×${qty}` : ""}`);
+      // A food is counted as food, not kit, though Foodstuffs is also what a meal is cooked from.
+      if (recipeSlugs.has(slug) && !isKey(slug) && !(h > 0)) kit.push(`${t.name}${qty > 1 ? ` ×${qty}` : ""}${mark}`);
     }
     return { resources, coin, food, cracked, kit, foods: foods_ };
   }
@@ -143,12 +153,25 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
       const cracked = held.reduce((n, h) => n + (h.tag.consumesIntoResources && h.tag.slug !== RESOURCES ? h.quantity * h.tag.consumesIntoResources : 0), 0);
       const foodItems = held.filter((h) => foodHungerOf(h.tag) > 0);
       const food = foodItems.reduce((n, h) => n + h.quantity * foodHungerOf(h.tag), 0);
+      // What the turn close will eat unasked (hunger.js#planAutoMeals): only plain food (autoEdible) no worse than
+      // AUTO_EAT_MOOD_FLOOR, so never a Ration Box, which has to be opened by hand. Of that, Foodstuffs to hold off
+      // Starving, and anything else only to keep the meter off 0.
+      const autoEaten = foodItems.filter((h) => hunger.autoEdible(h.tag) && hunger.foodMoodFor(h.tag) >= hunger.AUTO_EAT_MOOD_FLOOR);
+      const autoFood = autoEaten.reduce((n, h) => n + h.quantity * hunger.foodHungerFor(h.tag), 0);
+      const foodstuffs = autoEaten.filter((h) => h.tag.slug === FOODSTUFFS_SLUG).reduce((n, h) => n + h.quantity * hunger.foodHungerFor(h.tag), 0);
       // Crops in the starting kit: eaten raw they are a few hunger a crop, cooked they are the crop dish's hunger a crop.
       const crops = held.filter((h) => cropSlugs.has(h.tag.slug)).reduce((n, h) => n + h.quantity, 0);
       const cropRawHunger = held.filter((h) => cropSlugs.has(h.tag.slug)).reduce((n, h) => n + h.quantity * foodHungerOf(h.tag), 0);
       const foodCooked = food - cropRawHunger + crops * cookedPerCrop;
-      const kit = held.filter((h) => recipeSlugs.has(h.tag.slug) && !isKey(h.tag.slug) && h.tag.slug !== OBOL && h.tag.slug !== RESOURCES).map((h) => `${h.tag.name}${h.quantity > 1 ? ` ×${h.quantity}` : ""}`);
-      const keys = held.filter((h) => isKey(h.tag.slug) || h.tag.slug === "merchants-license").map((h) => h.tag.name);
+      const kit = held.filter((h) => recipeSlugs.has(h.tag.slug) && !isKey(h.tag.slug) && h.tag.slug !== OBOL && h.tag.slug !== RESOURCES && !(foodHungerOf(h.tag) > 0)).map((h) => `${h.tag.name}${h.quantity > 1 ? ` ×${h.quantity}` : ""}`);
+      // A seat's signet ring is its keys now (RINGS.md): worn, its `opens:` tokens count as held tags, and the
+      // retired seat keys' slugs are still what every room's `access:` names. Only a ring that spawns is in hand.
+      const ring = r.ring?.spawns ? r.ring : null;
+      const ringTokens = ring ? (ring.opens ?? []).map(String) : [];
+      const keys = [
+        ...(ring ? [`${ring.name ?? ringName("")} (${ringTokens.length ? ringTokens.map((t) => get(t)?.name ?? t).join(", ") : "opens nothing"})`] : []),
+        ...held.filter((h) => isKey(h.tag.slug) || h.tag.slug === "merchants-license").map((h) => h.tag.name),
+      ];
       // What the free kit would have cost at character creation, point for point — a role's own
       // starting_tags against the same pointCost the point-buy store charges everyone else
       // (db/scripts/analysis/economy/power.js §"tag value"). Obols and Resources carry no pointCost,
@@ -188,6 +211,8 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
         resources,
         cracked,
         food,
+        foodstuffs,
+        autoFood,
         crops,
         dishes: crops / (cropDish?.units || 2),
         cookMoves: crops * movesPerCrop,
@@ -195,7 +220,7 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
         foodItems: foodItems.map((h) => `${h.tag.name}${h.quantity > 1 ? ` ×${h.quantity}` : ""}`),
         kit,
         keys,
-        tagSlugs: [...slugs],
+        tagSlugs: [...new Set([...slugs, ...ringTokens])],
         decay,
         extraPoints: r.extra_starting_points ?? 0,
         tagPointValue,
@@ -205,10 +230,16 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
   }
 
   // ---- how long it lasts --------------------------------------------------------------------------------------
-  // A meter of 100 falls by `decay` each close. Somebody who eats in time never wastes a bite, so what they hold
-  // simply adds to the 100. Starving is the first close at 0; Dying is `deathTurns - 1` closes after that.
-  const startingTurn = (hungerPoints, decay) => (decay === 0 ? Infinity : Math.ceil((start + hungerPoints) / decay));
-  const hungryTurn = (hungerPoints, decay) => (decay === 0 ? Infinity : Math.ceil((start + hungerPoints - hunger.HUNGRY_THRESHOLD) / decay));
+  // A meter of 100 falls by `decay` each close. Nobody is assumed to eat by hand: this is what the close does on its own
+  // (hunger.js#planAutoMeals). It eats carried Foodstuffs to hold off Starving, so those add to the 100 for the Starving
+  // turn; a meal, dish or raw ingredient it eats only when the meter would read 0, so everything it will eat adds to
+  // the 100 for the Dying turn. A Ration Box counts for neither: the close cannot open one. Each band is the first close that leaves the meter at or under its threshold: Hungry at 66,
+  // Starving at 33, and the close that takes it to 0 grants Dying (`deathTurns - 1` closes later, which is none today).
+  // Hungry counts nothing carried, since the close eats nothing while a character is only Hungry.
+  const closeAtOrUnder = (threshold) => (hungerPoints, decay) => (decay === 0 ? Infinity : Math.ceil((start + hungerPoints - threshold) / decay));
+  const hungryTurn = closeAtOrUnder(hunger.HUNGRY_THRESHOLD);
+  const startingTurn = closeAtOrUnder(hunger.STARVING_THRESHOLD);
+  const zeroTurn = closeAtOrUnder(hunger.HUNGER_MIN);
 
   // ---- rooms a role can open ------------------------------------------------------------------------------------
   const roomView = rooms.map((room) => ({ ...room, ...contents(room.stash) }));
@@ -222,12 +253,12 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
     role.keyedCoin = role.rooms.reduce((n, room) => n + room.coin, 0);
     role.keyedFood = role.rooms.reduce((n, room) => n + room.food, 0);
     role.doors = doors.filter((d) => tags.has(d.tag)).map((d) => d.pair.map(placeName).join(" ↔ "));
-    role.keyedKit = [...new Set(role.rooms.flatMap((room) => room.kit.map((k) => k.replace(/ ×\d+$/, ""))))];
+    role.keyedKit = [...new Set(role.rooms.flatMap((room) => room.kit.map((k) => k.replace(/ ×\d+( \(hidden\))?$/, "$1"))))];
 
     const carried = role.food;
-    role.hungryTurn = hungryTurn(carried, role.decay);
-    role.starveTurn = startingTurn(carried, role.decay);
-    role.dyingTurn = role.starveTurn + deathTurns - 1;
+    role.hungryTurn = hungryTurn(0, role.decay);
+    role.starveTurn = startingTurn(role.foodstuffs, role.decay);
+    role.dyingTurn = zeroTurn(role.autoFood, role.decay) + deathTurns - 1;
     // What the coin buys off the shelf, at the price of a person-turn of ration, scaled to how fast this role burns.
     const costPerTurn = costPerPersonTurn == null ? null : costPerPersonTurn * (role.decay / decayBase);
     role.turnsFromFunds = costPerTurn ? (role.decay === 0 ? Infinity : role.funds / costPerTurn) : null;
@@ -265,9 +296,16 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
   const seated = roles.filter((r) => r.seats > 0);
   const sum = (key) => seated.reduce((n, r) => n + r[key] * r.seats, 0);
   const seatTotal = seated.reduce((n, r) => n + r.seats, 0);
+  // Seats by the close that leaves them Starving, with the soonest of those seats' Dying turns: the gap
+  // between the two is the 33 points under the Starving line, so it is no fixed number of turns.
   const starveBy = new Map();
-  for (const r of seated) starveBy.set(r.starveTurn, (starveBy.get(r.starveTurn) ?? 0) + r.seats);
-  const starveRows = [...starveBy.entries()].sort((a, b) => a[0] - b[0]).map(([turn, n]) => ({ turn, seats: n, dying: turn + deathTurns - 1 }));
+  for (const r of seated) {
+    const row = starveBy.get(r.starveTurn) ?? { turn: r.starveTurn, seats: 0, dying: Infinity };
+    row.seats += r.seats;
+    row.dying = Math.min(row.dying, r.dyingTurn);
+    starveBy.set(r.starveTurn, row);
+  }
+  const starveRows = [...starveBy.values()].sort((a, b) => a.turn - b.turn);
   const fundedRows = [
     { label: "Carry no food at all", seats: seated.filter((r) => r.food === 0).reduce((n, r) => n + r.seats, 0) },
     { label: "Have no coin in hand or bank", seats: seated.filter((r) => r.funds === 0).reduce((n, r) => n + r.seats, 0) },
@@ -316,11 +354,12 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
     decay: decayBase,
     deathTurns,
     hungryAt: hunger.HUNGRY_THRESHOLD,
+    starvingAt: hunger.STARVING_THRESHOLD,
     costPerPersonTurn,
     fastDecay: params.hungerDecayFast,
     noFoodHungry: hungryTurn(0, decayBase),
     noFoodStarve: startingTurn(0, decayBase),
-    noFoodDying: startingTurn(0, decayBase) + deathTurns - 1,
+    noFoodDying: zeroTurn(0, decayBase) + deathTurns - 1,
     roles,
     rooms: roomsOut,
     groups,
@@ -345,6 +384,16 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
         return cooks.length ? { crops: median(cooks.map((r) => r.crops)), dishes: median(cooks.map((r) => r.dishes)), moves: median(cooks.map((r) => r.cookMoves)) } : null;
       })(),
       mealHunger: median(seated.filter((r) => r.crops < 20 && r.food > 0).map((r) => r.food)),
+      // The food most non-cooking seats carry, word for word off the roles, and how many seats that is.
+      mealKit: (() => {
+        const by = new Map();
+        for (const r of seated.filter((r) => r.crops < 20 && r.food > 0)) {
+          const k = r.foodItems.join(", ");
+          by.set(k, (by.get(k) ?? 0) + r.seats);
+        }
+        const [kit, seats] = [...by.entries()].sort((a, b) => b[1] - a[1])[0] ?? [null, 0];
+        return kit ? { kit, seats } : null;
+      })(),
       needPerTurn: seatTotal * decayBase,
     },
     vault: vault ? { coin: vault.coin, resources: vault.resources } : null,

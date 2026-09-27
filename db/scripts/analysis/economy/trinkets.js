@@ -12,6 +12,8 @@
 const fs = require("fs");
 const path = require("path");
 const trinketPass = require("../../../lib/trinketPass");
+const { taxOn } = require("../../../lib/trainDeparturePass");
+const { trinketTaxOn } = require("./trinketPick");
 
 const REPO = path.resolve(__dirname, "../../../..");
 
@@ -178,6 +180,44 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
   const withStones = (holder) => combos.filter((c) => c.basis === "shelf" && c.stones.length > 0).sort((a, b) => b[holder] - a[holder])[0];
   shelfLoop.bestApprenticeWithStones = withStones("apprentice");
   shelfLoop.bestSkilledWithStones = withStones("skilled");
+  shelfLoop.bestSkilledLuckyWithStones = withStones("skilled-lucky");
+
+  // ---- the stone picker's data (trinketPick.js) ------------------------------------------------------------------
+  // Every 0–2 stone set off the Merchant's shelf, and what the page's slider needs to re-rank them for any smith
+  // and any sell tax. The tax rule is restated in trinketPick.js for the browser, so it is checked against the
+  // game's own here, at every rate a slider can reach, before anything is written.
+  for (let rate = 0; rate <= 100; rate++) {
+    for (let gross = 0; gross <= 600; gross++) {
+      if (trinketTaxOn(gross, rate) !== taxOn(gross, rate)) throw new Error(`trinketPick.js#trinketTaxOn disagrees with trainDeparturePass.js#taxOn at ${gross} ¢, ${rate}%.`);
+    }
+  }
+  const pts = (slug) => get(slug)?.pointCost ?? 0;
+  const picker = {
+    tiers: TIERS.map((t) => ({ base: t.base, mult: t.mult })),
+    tierP: Object.fromEntries(holders.map((h) => [h.id, h.tierP])),
+    dieCost,
+    points: { skilled: pts("smithing-skilled"), lucky: pts("lucky") },
+    // The ⬢ a Trinket's die costs is bought; an ingot kept back is worth what it cracks for (⬢ at the midpoint of the
+    // Depot's two prices, what it barters for) or what the counter pays, whichever is more.
+    rv: { sell: rv.sell, mid: rv.mid },
+    // Every stone that also cracks into ⬢: the metals. Smelted ones name their ore and what a smelt takes.
+    ingots: stones
+      .filter((s) => get(s.slug)?.consumesIntoResources)
+      .map((s) => {
+        const t = get(s.slug);
+        const req = t.craftable ? t.requirement : null;
+        const ore = req?.items?.length === 1 ? get(typeof req.items[0] === "string" ? req.items[0] : req.items[0].tag) : null;
+        return { name: s.name, inlay: s.inlay, sell: s.sold, cracks: t.consumesIntoResources, ore: ore?.name ?? null, smeltMoves: ore ? req.turnsCost ?? null : null };
+      })
+      .sort((a, b) => a.name.localeCompare(b.name)),
+    setups: [
+      { id: "apprentice", label: "Smithing I" },
+      { id: "skilled", label: "Smithing II" },
+      { id: "apprentice-lucky", label: "Smithing I + Lucky" },
+      { id: "skilled-lucky", label: "Smithing II + Lucky" },
+    ],
+    sets: combos.filter((c) => c.basis === "shelf").map((c) => ({ stones: c.stones, inlay: c.inlay, cost: c.stoneCost })),
+  };
 
   return {
     gate,
@@ -188,6 +228,7 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     combos: { bestOwn, bestShelf, ark },
     prospector,
     shelfLoop,
+    picker,
     checks: { tiersMatchDoc, overShelf, offRule },
     // Expected profit of one Trinket for a smith kind, given the inlay and what the stones cost, at the run's tax by default.
     expectedProfit: (id, inlay, stoneCost = 0, net = true) => expected(H[id], inlay, stoneCost, net),
