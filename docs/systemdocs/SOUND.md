@@ -737,8 +737,9 @@ in the same Location hears it in their browser.
 `instrument: true`, and the code reads that flag, never a list of slugs. They
 go in the WEAPON slot and take one hand. The Instrument Kit is what a Minstrel
 starts with, and anyone can buy one at creation for 1 point: Consume it and
-the player picks one of its `consumeChoice` list
-(`web/app/components/actions/ConsumeChoiceDialog.js`). That is the one
+the player picks one of its `consumeChoice` list, a Lute or an Accordion
+(`web/app/components/actions/ConsumeChoiceDialog.js`). The Boombox is not on
+it; it comes from the Merchant's order or a GM. That is the one
 difference from `consumesInto`'s `oneOf`, which rolls.
 
 **The songs.** `db/lib/instrumentSongs.js` holds each instrument's list as
