@@ -3,6 +3,7 @@
 // EVERY crossing lands at once, paid or free — the Move is still spent, and you are there (MAP.md §3). Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
 const { sessionGate } = require("./betweenSessions");
+const { travelLockReason } = require("./turnGate");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival, cavingRestrictionsFor, cavingPartyRestrictions } = require("./cavingPass");
 const { INCAPACITATING_SLUGS, blockerFor, ACT } = require("./incapacitation");
@@ -47,7 +48,7 @@ const CHARACTER_SELECT = {
   zoneMovesTurnId: true,
   zoneMovesUsed: true,
   zoneMovesBonusUsed: true,
-  // The hold: one timestamp, read by heldReasonFor() (INTERCEPT.md), plus WHICH thing has hold of them — a select carrying one without the other tells an attacked player they were ambushed (ATTACK.md §1).
+  // The hold: one timestamp, read by heldReasonFor() (INTERCEPT.md), plus WHICH thing has hold of them — a select carrying one without the other tells an attacked player they were ambushed (ATTACK.md §3).
   heldUntil: true,
   heldReason: true,
   // `name` rides along for stowedMounts(), which puts it in a sentence, and
@@ -430,6 +431,13 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   const session = await sessionGate(prisma);
   if (!session.ok) return { ok: false, reason: session.message };
 
+  // Nobody walks once Moves lock (Combat Overhaul.docx; turnGate.js#travelLockReason). A first placement
+  // is not a walk, so it is let through.
+  if (character.locationId) {
+    const locked = await travelLockReason(prisma);
+    if (locked) return { ok: false, reason: locked };
+  }
+
   // The MOVER's own state — escorting asks whether the TARGET is helpless, but "can this
   // character walk at all" was never asked before this gate existed, so a bound, paralyzed or unconscious character could stroll out of the room they were held in. Every crossing funnels through here (locationGraph.js), so this one gate covers the bot's picker, /location, and the staged push alike.
   const stuck = blockerFor(character.tags, ACT);
@@ -723,7 +731,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
       }
 
       // Walking off releases anybody this character was holding — a hold is a hand on a
-      // shoulder (INTERCEPT.md), you can't keep one from the next zone. One of three writers that end a hold early (the others: the holder's own Release, and their death). A FIGHT is not this clear's to end (releaseHeldBy's rule: heldById names one opponent, a brawl has several, so a blind clear would free somebody out of a fight still going) — a held character can't walk anyway, so this never meets a fight, but the guard stays so that if it ever does, it must not fire; attack.js#closeFightsFor is the writer for that, off every relocation (locationMove.js).
+      // shoulder (INTERCEPT.md), you can't keep one from the next zone. One of three writers that end a hold early (the others: the holder's own Release, and their death). A FIGHT is not this clear's to end (releaseHeldBy's rule: heldById names one opponent, a brawl has several, so a blind clear would free somebody out of a fight still going) — a held character can't walk anyway, so this never meets a fight, but the guard stays so that if it ever does, it must not fire; combat.js#leaveCombatsFor is the writer for that, off every relocation (locationMove.js).
       await tx.character.updateMany({
         where: { heldById: character.id, heldUntil: { gt: now }, ...NOT_A_FIGHT },
         data: { heldUntil: null, heldById: null, heldReason: null },

@@ -679,6 +679,10 @@ parsed by literal `startsWith` + `slice`.
 | `edit:send:{messageId}` | Modal | Rewrite a proxied message |
 | `offer:accept:{offerId}` | Button | Accept a Lesson or Bind `Offer` |
 | `offer:decline:{offerId}` | Button | Decline a Lesson or Bind `Offer` |
+| `cbt:join:{participantId}` / `cbt:decline:{participantId}` | Button | Answer an invitation to a fight (`ATTACK.md` §4) |
+| `cbt:write:{participantId}` | Button | Show the Write-your-attack modal, prefilled after an 800 ms read (`ATTACK.md` §11) |
+| `cbt:desc:{participantId}` | Modal | Save what you do in the fight |
+| `cbt:calloff:{participantId}` | Button | Call off a fight — ends it once every attacker has pressed it |
 | `act:open` | Button | The Actions menu (§2g) — on the anchors and the `#turns` console |
 | `act:menu:{section}:{n}` | Select | Start the verb picked from one section of the menu |
 | `act:start:{mode}` | Button | Start one verb — the place buttons (`act:start:sendmoney`, `…credit`, `…selltax`) |

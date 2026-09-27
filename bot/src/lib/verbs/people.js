@@ -30,10 +30,16 @@ const {
   detonateCollar,
 } = require("@lifeweb/db/lib/collar");
 const { isLockedCollarSlug } = require("@lifeweb/db/lib/collarGlyphs");
-const { ATTACK_TAG_SELECT, attackRefusal, fileAttack } = require("@lifeweb/db/lib/attack");
-const { attackBlock } = require("@lifeweb/db/lib/combatGate");
-const { IDENTITY_SELECT, seenBy, seenById } = require("@lifeweb/db/lib/intercept");
-const { HERE_FIELDS } = require("@lifeweb/db/lib/presence");
+const { loadAttack, startFight, interveneFight } = require("@lifeweb/db/lib/verbs/combat");
+const {
+  COMBAT_JOIN_PREFIX,
+  COMBAT_DECLINE_PREFIX,
+  COMBAT_WRITE_PREFIX,
+  COMBAT_CALL_OFF_PREFIX,
+} = require("@lifeweb/db/lib/combat");
+const { SURPRISED } = require("@lifeweb/db/lib/combatMode");
+const { sendCombatDms } = require("../combatButtons");
+const { seenById } = require("@lifeweb/db/lib/intercept");
 const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
 const { examineBlock } = require("@lifeweb/db/lib/examineVision");
 const { lastSightings } = require("@lifeweb/db/lib/sightings");
@@ -55,7 +61,6 @@ const {
 const { syncPartyMembership } = require("@lifeweb/db/lib/partyChat");
 const { rosterHere, pickerName } = require("@lifeweb/db/lib/peopleHere");
 const { logAudit } = require("@lifeweb/db/lib/auditLog");
-const { sendDm } = require("@lifeweb/db/lib/dm");
 const { afterInventoryChangeDb, notifyCharacterDb, sendOfferDm } = require("@lifeweb/db/lib/inventoryTail");
 const { examineEmbed } = require("../examineEmbed");
 const { respond } = require("../respond");
@@ -70,7 +75,11 @@ const {
   ackStep,
   picked,
   actorOrRefuse,
+  verbId,
+  OPTION_LIMIT,
 } = require("./context");
+const { ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require("discord.js");
+const { speakAtPlaces } = require("@lifeweb/db/lib/inventoryTail");
 
 // --- Kiss and Search: an offer, and the other side says yes (KISS.md, SEARCH.md)
 
@@ -242,82 +251,222 @@ const confess = {
 };
 
 // --- Attack (ATTACK.md) ------------------------------------------------------
+//
+// web: character/attackActions.js and components/actions/AttackDialog.js. The rules are
+// db/lib/verbs/combat.js, shared with the web. Three faces, as there: the fight you are in, a fight going
+// on here you can join, or a new attack — several targets, and anybody you want with you.
+//
+// A multi-pick cannot ride in a custom id (Discord caps one at 100 characters, and a hood key alone is
+// ~40), so the targets picked on the first select wait in memory under a short nonce until the second
+// answers. Fifteen minutes and a few hundred entries at most; a bot restart loses them, and the player is
+// told to start again rather than attacking somebody they did not mean to.
+const ATTACK_STASH_MS = 15 * 60 * 1000;
+const attackStash = new Map();
 
-// web: character/attackActions.js#attackCharacterImpl — FULL_SELECT there.
-const ATTACK_SELECT = {
-  ...IDENTITY_SELECT,
-  ...HERE_FIELDS,
-  tags: {
-    where: { quantity: { gt: 0 } },
-    select: {
-      equipped: true,
-      tag: { select: { ...IDENTITY_SELECT.tags.select.tag.select, ...ATTACK_TAG_SELECT.select.tag.select } },
-    },
-  },
-};
+function stashAttack(entry) {
+  const now = Date.now();
+  for (const [k, v] of attackStash) if (v.at + ATTACK_STASH_MS < now) attackStash.delete(k);
+  while (attackStash.size >= 500) attackStash.delete(attackStash.keys().next().value);
+  const nonce = require("crypto").randomBytes(6).toString("hex");
+  attackStash.set(nonce, { ...entry, at: now });
+  return nonce;
+}
+
+function takeStash(nonce, discordUserId) {
+  const entry = attackStash.get(nonce);
+  if (!entry || entry.discordUserId !== discordUserId || entry.at + ATTACK_STASH_MS < Date.now()) return null;
+  return entry;
+}
+
+async function sendFightResult(interaction, result) {
+  await sendCombatDms(interaction.client, result.dms);
+  await speakAtPlaces(prisma, result.speak).catch((err) => console.error("Attack: scene line failed:", err));
+}
+
+// The fight you are in, with the same buttons the fight's DMs carry (bot/src/lib/combatButtons.js).
+function fightReply(interaction, view) {
+  const names = (list) => list.map((p) => (p.me ? "you" : p.name) + (p.status === "INVITED" ? " (asked to join)" : "")).join(", ");
+  const lines = [
+    `**${view.fromAmbush ? "An ambush" : "A fight"}${view.locationName ? ` at ${view.locationName}` : ""}**`,
+    `Attacking: ${names(view.attackers)}`,
+    `Defending: ${names(view.defenders)}`,
+  ];
+  const buttons = [];
+  if (view.status === "INVITED") {
+    lines.push("You've been asked to join the attack. You can't leave until you answer.");
+    if (view.canAnswer) {
+      buttons.push({ type: 2, style: 3, custom_id: `${COMBAT_JOIN_PREFIX}${view.participantId}`, label: "Join" });
+      buttons.push({ type: 2, style: 2, custom_id: `${COMBAT_DECLINE_PREFIX}${view.participantId}`, label: "Decline" });
+    }
+  } else {
+    lines.push(view.alert ? (view.description ? `» ${view.description}` : "You haven't written what you do yet.") : SURPRISED);
+    if (view.canDescribe) buttons.push({ type: 2, style: 1, custom_id: `${COMBAT_WRITE_PREFIX}${view.participantId}`, label: "Write your attack" });
+    if (view.calledOff) lines.push(`-# You want to call it off. Waiting on ${view.waitingOn} more on your side.`);
+    if (view.canCallOff) buttons.push({ type: 2, style: 4, custom_id: `${COMBAT_CALL_OFF_PREFIX}${view.participantId}`, label: "Call off" });
+  }
+  return respond(interaction, { content: lines.join("\n"), components: buttons.length ? [{ type: 1, components: buttons }] : [] }, { fleeting: false });
+}
+
+// The first select: who you attack, several at once. Everybody already fighting is left off — the web greys
+// them; a Discord select cannot, and a pick that could only be refused is worse than none.
+async function attackTargetPicker(interaction, people) {
+  const free = people.filter((p) => !p.fighting).slice(0, OPTION_LIMIT);
+  if (free.length === 0) return done(interaction, "There's nobody here you could attack.");
+  const menu = new StringSelectMenuBuilder()
+    .setCustomId(verbId("attack", "targets"))
+    .setPlaceholder("Who are you attacking?")
+    .setMinValues(1)
+    .setMaxValues(free.length)
+    .addOptions(free.map((p) => ({ label: p.name.slice(0, 100), value: p.key })));
+  return respond(
+    interaction,
+    { content: "Who are you attacking? Pick one or more.", components: [new ActionRowBuilder().addComponents(menu)] },
+    { fleeting: false },
+  );
+}
+
+function attackConfirm(interaction, nonce, entry) {
+  const who = entry.targets.map((t) => t.name).join(", ");
+  const withLine = entry.helpers.length ? ` You'll ask ${entry.helpers.map((h) => h.name).join(", ")} to join you.` : "";
+  const row = new ActionRowBuilder().addComponents(
+    new ButtonBuilder().setCustomId(verbId("attack", "go", nonce)).setLabel("Attack").setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId(verbId("attack", "cancel")).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
+  );
+  return respond(
+    interaction,
+    { content: `Attack ${who}?${withLine} Everyone in the fight is held here until it's over.`, components: [row] },
+    { fleeting: false },
+  );
+}
 
 const attack = {
-  // Asked before the picker as well as in `go`, so nobody picks a target only to be told they
-  // couldn't attack anyone. `go` is still the check that counts.
   async start(interaction, { character, openTurn: turn }) {
-    const why = turn ? await attackBlock(prisma, character.id, turn.id) : null;
-    if (why) return done(interaction, why);
-    return pickSomeone(interaction, character, "attack", { prompt: "Who do you want to attack?" });
+    const out = await loadAttack(prisma, { characterId: character.id, turn });
+    if (!out.ok) return done(interaction, out.error);
+    if (out.view) return fightReply(interaction, out.view);
+    if (out.blocked) return done(interaction, out.blocked);
+    if (out.fights.length === 0) return attackTargetPicker(interaction, out.people);
+    // A fight going on here: join a side of it, or start another (the doc).
+    const rows = out.fights.slice(0, 4).map((f) =>
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(verbId("attack", "side", `A~${f.combatId}`)).setLabel("Join the attackers").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(verbId("attack", "side", `D~${f.combatId}`)).setLabel("Join the defenders").setStyle(ButtonStyle.Secondary),
+      ),
+    );
+    rows.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(verbId("attack", "new")).setLabel("Start a separate attack").setStyle(ButtonStyle.Danger),
+      ),
+    );
+    const lines = out.fights.slice(0, 4).map((f, i) => `${i + 1}. ${f.attackers.join(", ")} against ${f.defenders.join(", ")}`);
+    return respond(interaction, { content: ["A fight is going on here:", ...lines].join("\n"), components: rows }, { fleeting: false });
   },
   steps: {
-    async pick(interaction) {
-      await ackStep(interaction);
-      const { value, label } = picked(interaction);
-      return confirm(interaction, "attack", value, {
-        prompt: `Attack ${label ?? "them"}? You'll both be held here until the turn ends.`,
-        label: "Attack",
-        danger: true,
-      });
-    },
-    async go(interaction, key) {
+    async new(interaction) {
       await ackStep(interaction);
       const actor = await actorOrRefuse(interaction);
       if (!actor) return;
-      const character = await prisma.character.findUnique({ where: { id: actor.id }, select: ATTACK_SELECT });
+      const out = await loadAttack(prisma, { characterId: actor.id, turn: await openTurn() });
+      if (!out.ok) return done(interaction, out.error);
+      if (out.blocked) return done(interaction, out.blocked);
+      return attackTargetPicker(interaction, out.people);
+    },
+    async targets(interaction) {
+      await ackStep(interaction);
+      const actor = await actorOrRefuse(interaction);
+      if (!actor) return;
+      const labelOf = new Map((interaction.component?.options ?? []).map((o) => [o.value, o.label]));
+      const targets = (interaction.values ?? []).map((key) => ({ key, name: labelOf.get(key) ?? "somebody" }));
+      const out = await loadAttack(prisma, { characterId: actor.id, turn: await openTurn() });
+      const others = (out.people ?? []).filter((p) => !p.fighting && !targets.some((t) => t.key === p.key)).slice(0, OPTION_LIMIT);
+      const nonce = stashAttack({ discordUserId: interaction.user.id, targets, helpers: [] });
+      if (others.length === 0) return attackConfirm(interaction, nonce, takeStash(nonce, interaction.user.id));
+      const menu = new StringSelectMenuBuilder()
+        .setCustomId(verbId("attack", "with", nonce))
+        .setPlaceholder("Who do you want with you?")
+        .setMinValues(1)
+        .setMaxValues(others.length)
+        .addOptions(others.map((p) => ({ label: p.name.slice(0, 100), value: p.key })));
+      const skip = new ButtonBuilder().setCustomId(verbId("attack", "alone", nonce)).setLabel("Nobody — just me").setStyle(ButtonStyle.Secondary);
+      return respond(
+        interaction,
+        {
+          content: "Anyone you want with you? They get to choose whether to join.",
+          components: [new ActionRowBuilder().addComponents(menu), new ActionRowBuilder().addComponents(skip)],
+        },
+        { fleeting: false },
+      );
+    },
+    async with(interaction, nonce) {
+      await ackStep(interaction);
+      const entry = takeStash(nonce, interaction.user.id);
+      if (!entry) return done(interaction, "That picker expired — start again.");
+      const labelOf = new Map((interaction.component?.options ?? []).map((o) => [o.value, o.label]));
+      entry.helpers = (interaction.values ?? []).map((key) => ({ key, name: labelOf.get(key) ?? "somebody" }));
+      return attackConfirm(interaction, nonce, entry);
+    },
+    async alone(interaction, nonce) {
+      await ackStep(interaction);
+      const entry = takeStash(nonce, interaction.user.id);
+      if (!entry) return done(interaction, "That picker expired — start again.");
+      entry.helpers = [];
+      return attackConfirm(interaction, nonce, entry);
+    },
+    async go(interaction, nonce) {
+      await ackStep(interaction);
+      const entry = takeStash(nonce, interaction.user.id);
+      if (!entry) return done(interaction, "That picker expired — start again.");
+      attackStash.delete(nonce);
+      const actor = await actorOrRefuse(interaction);
+      if (!actor) return;
       const turn = await openTurn();
       if (!turn) return done(interaction, "There's no turn open right now.");
-      // Ahead of the band gate on purpose: somebody who cannot attack at all
-      // this turn must not learn, as a consolation prize, that the person they
-      // picked was out of their league (COMBAT.md §5).
-      const spent = await attackBlock(prisma, character.id, turn.id);
-      if (spent) return done(interaction, spent);
-      const { target, error } = await hereTarget(character, key, { select: ATTACK_SELECT });
-      if (error) return done(interaction, error);
-      if (target.id === character.id) return done(interaction, "You can't attack yourself.");
-      const refusal = attackRefusal(character.tags, target.tags);
-      if (refusal) return done(interaction, refusal);
-      const filed = await fileAttack(prisma, { attacker: character, target, openTurn: turn, locationId: character.locationId });
-      if (filed.already) return done(interaction, "You're already fighting them.");
-      if (filed.cooldownSecondsLeft) {
-        const minutes = Math.max(1, Math.ceil(filed.cooldownSecondsLeft / 60));
-        return done(
-          interaction,
-          `You broke that fight off. Give it about ${minutes} more minute${minutes === 1 ? "" : "s"} before going back in.`,
-        );
-      }
-      const seen = await seenBy(prisma, character.id, target);
-      await logAudit(prisma, {
-        actorDiscordUserId: actor.discordUserId,
-        actionType: "request_attack_filed",
-        targetCharacterId: target.id,
-        turnId: turn.id,
-        details: { presented: seen, locationId: character.locationId },
+      const result = await startFight(prisma, {
+        characterId: actor.id,
+        discordUserId: interaction.user.id,
+        targetKeys: entry.targets.map((t) => t.key),
+        collaboratorKeys: entry.helpers.map((h) => h.key),
+        turn,
       });
-      for (const dm of filed.dms) {
-        await sendDm(prisma, dm.discordUserId, dm.content, {
-          kind: dm.kind,
-          components: dm.components,
-          meta: dm.meta,
-          allowedMentions: { parse: [] },
-          sfx: SFX.BLADE_DRAWN,
-        }).catch(() => {});
-      }
-      return done(interaction, `You attack ${seen}.`);
+      if (!result.ok) return done(interaction, result.error);
+      await sendFightResult(interaction, result);
+      return done(interaction, result.line);
+    },
+    async side(interaction, payload) {
+      await ackStep(interaction);
+      const [code, combatId] = String(payload ?? "").split("~");
+      const side = code === "D" ? "DEFENDER" : "ATTACKER";
+      const row = new ActionRowBuilder().addComponents(
+        new ButtonBuilder().setCustomId(verbId("attack", "sidego", payload)).setLabel("Join").setStyle(ButtonStyle.Danger),
+        new ButtonBuilder().setCustomId(verbId("attack", "cancel")).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
+      );
+      if (!combatId) return done(interaction, "That fight is over.");
+      return respond(
+        interaction,
+        {
+          content: `Join the ${side === "ATTACKER" ? "attackers" : "defenders"}? You'll be held here until the fight is over. The further you came to get here, the worse your chances.`,
+          components: [row],
+        },
+        { fleeting: false },
+      );
+    },
+    async sidego(interaction, payload) {
+      await ackStep(interaction);
+      const [code, combatId] = String(payload ?? "").split("~");
+      const actor = await actorOrRefuse(interaction);
+      if (!actor) return;
+      const turn = await openTurn();
+      if (!turn) return done(interaction, "There's no turn open right now.");
+      const result = await interveneFight(prisma, {
+        characterId: actor.id,
+        discordUserId: interaction.user.id,
+        combatId,
+        side: code === "D" ? "DEFENDER" : "ATTACKER",
+        turn,
+      });
+      if (!result.ok) return done(interaction, result.error);
+      await sendFightResult(interaction, result);
+      return done(interaction, result.line);
     },
   },
 };

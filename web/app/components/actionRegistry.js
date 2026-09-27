@@ -147,9 +147,10 @@ export const ACTION_HELP = {
   hideout: "Set your hideout room, determining where you can purchase things from.",
   // Bascinet's words, verbatim.
   intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
-  // Bascinet's words, verbatim.
+  // Rewritten for the Combat Overhaul (docs/systemdocs/ATTACK.md): a fight now has sides, a call-off every
+  // attacker must agree to, and no longer lasts the whole turn by default.
   attack:
-    "Attack someone, forcing them to stay in place until the turn ends and the combat is adjudicated. Attacking is permanent for the turn — you can, however, cancel it.",
+    "Attack one or more people here, and ask others to join you. Everyone in the fight stays in place until it's over and a GM rules on it. If a fight is already going on, join a side.",
   // The Cerberon's two. The first is Bascinet's own words, verbatim.
   warrant: "Declare a man fit for arrest. They are visible as being wanted.",
   wantedlist:
@@ -476,22 +477,16 @@ export const ACTION_SECTIONS = [
       // about who is near you — the metagaming rule at the top of this file
       // has nothing to bite on.
       //
-      // Combat mode being off DOES refuse it (db/lib/combatGate.js#interceptBlock,
-      // COMBAT-MODE.md §3), and that is a fact about your own sheet, so the rule
-      // would allow greying here. The refusal sits on Save INSIDE the dialog
-      // instead, because Stop watching lives down there too and a dead icon would
-      // strand anyone whose combat mode ran out with a watch still set.
+      // Combat mode being off DOES refuse an Ambush (db/lib/combatGate.js#interceptBlock,
+      // COMBAT-MODE.md §3), and so does the turn lock, and those are facts about your own
+      // sheet, so the rule would allow greying here. The refusal sits on Save INSIDE the
+      // dialog instead, because a Safe watch needs neither and Stop watching lives down there
+      // too — a dead icon would strand anyone whose combat mode ran out with a watch still set.
       { mode: "intercept", icon: InterceptIcon, label: "Intercept" },
-      // NO gate and NO show, the Intercept reasoning taken one step further.
-      // Whether anybody standing near you is out of your league is a fact
-      // about the ROOM, and greying on it would be free scouting every time
-      // the page loaded — the metagaming rule at the top of this file. You
-      // find out by opening the dialog and pressing it (docs/systemdocs/
-      // ATTACK.md).
-      //
-      // A spent Move or combat mode being off refuses this one (combatGate.js#
-      // attackBlock), and for the same reason it greys inside the dialog rather
-      // than here: Break off is in there.
+      // NO gate and NO show. Combat mode being off, the turn lock, or already
+      // being in a fight refuses this one (combatGate.js#combatBlock), and it
+      // greys inside the dialog rather than here: the fight you are in — your
+      // attack description and Call off — lives in there (docs/systemdocs/ATTACK.md).
       { mode: "attack", icon: AttackIcon, label: "Attack" },
       // HIDDEN rather than greyed, the Extract rule: whether YOU are a
       // Fundamentalist standing at a Cross is your own fact, and a dead

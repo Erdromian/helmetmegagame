@@ -13,6 +13,23 @@ const LOCKED_ON = "You can turn it off next turn.";
 // Bascinet's words, verbatim (Combat Mode.docx).
 const ALERT_LINE = "They look alert.";
 
+// The fight's own sentences (docs/systemdocs/ATTACK.md, Combat Overhaul.docx). Here rather than in
+// db/lib/combat.js so the web's client components read the same words the server refuses with.
+const ATTACK_LOCKED = "Moves are locked for this turn, so nobody can start or join a fight.";
+const INTERCEPT_LOCKED = "Moves are locked for this turn, so you can't lie in wait.";
+const TRAVEL_LOCKED = "Moves are locked for this turn. Nobody can travel until the next turn starts.";
+const CALL_OFF_LOCKED = "Moves are locked for this turn, so the fight can't be called off now.";
+const DESCRIBE_LOCKED = "Moves are locked for this turn, so your attack can't be changed now.";
+const ALREADY_FIGHTING = "You're already in a fight.";
+const WITHDRAWING_BLOCK = "You've just called off a fight. You can't start another one yet.";
+const DECLINED_HERE = "You stayed out of the fight here. You can't attack anyone here until next turn.";
+const TOO_FAR_TO_INTERVENE = "You arrived too late to intervene.";
+const SURPRISED = "You were caught by surprise, so you can't choose how you fight this one.";
+// What one attack description may run to. Discord's modal paragraph takes 4000; a GM reads a whole fight's
+// worth of these, so this is the smaller of the two. Here, import-free, so the web's editor counts to it.
+const DESCRIPTION_LIMIT = 2000;
+const ALERT_TOO_LATE = "You're alert now, but it only counts for fights that start from here on — not the one you're already in.";
+
 // `row` is anything carrying Character.combatModeSinceTurn — a character, or a rehydrated look.
 function inCombatMode(row) {
   return row?.combatModeSinceTurn != null;
@@ -46,6 +63,18 @@ module.exports = {
   TOO_EXHAUSTED,
   LOCKED_ON,
   ALERT_LINE,
+  ATTACK_LOCKED,
+  INTERCEPT_LOCKED,
+  TRAVEL_LOCKED,
+  CALL_OFF_LOCKED,
+  DESCRIBE_LOCKED,
+  ALREADY_FIGHTING,
+  WITHDRAWING_BLOCK,
+  DECLINED_HERE,
+  TOO_FAR_TO_INTERVENE,
+  SURPRISED,
+  ALERT_TOO_LATE,
+  DESCRIPTION_LIMIT,
   inCombatMode,
   lockedOn,
   holdsExhausted,

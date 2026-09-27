@@ -453,6 +453,9 @@ export async function wipeGameData(formData) {
       prisma.playerThreadInvite.deleteMany({}),
       prisma.stagedMessage.deleteMany({}),
       prisma.stagedEffect.deleteMany({}),
+      // A fight's turnId is a claim token, not a foreign key (schema.prisma, Combat), so deleting the turns
+      // takes none of them with it. Its participants cascade off it.
+      prisma.combat.deleteMany({}),
       prisma.turn.deleteMany({}),
       prisma.directMessage.deleteMany({}),
       // The transcript is not touched HERE. It leaves after this transaction

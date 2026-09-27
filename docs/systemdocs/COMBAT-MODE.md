@@ -6,9 +6,11 @@ sleep.
 The authored design is `E:\Bascinet\V3\Combat\Combat Mode.docx`. This doc says
 how the code does what that doc asks, and where it had to choose.
 
-**Not built yet** (a separate PR): the defensive response Gambit an alert
-character may write when attacked even with their Move spent, and the prompt an
-alert caver gets on a failed Caving roll. Nothing in this doc writes either.
+**The defensive response is built now**, as the Combat Overhaul's attack
+description (`ATTACK.md` §4): anybody alert when a fight reaches them — attacker,
+defender, collaborator — writes what they do, Move spent or not; anybody who was
+not is caught by surprise, cannot write, and rolls at −3. **Still not built:** the
+prompt an alert caver gets on a failed Caving roll.
 
 ## 1. The state
 
@@ -81,23 +83,30 @@ answers at once. On asks with a red confirm button first.
 
 ## 3. What needs it
 
-**Attack.** `db/lib/combatGate.js#attackBlock` is the old spent-Move check
-(`ATTACK.md` §5a) followed by combat mode. **The spent Move is named first**:
-it can't be fixed this turn, and naming combat mode first would have a player
-turn it on — which can't be undone until tomorrow and makes them Tired — only
-to be refused anyway. Read by the Attack dialog's greyed Confirm, the server
-action, and the Discord verb (which also asks before the picker, so nobody
-picks a target to be told they couldn't attack anyone).
+**Attack.** `db/lib/combatGate.js#combatBlock` (`ATTACK.md` §1): the turn lock
+first — nothing a player can fix today — then combat mode, then the fight rules.
+The old spent-Move check is gone; a fight never costs the Move now. Read by the
+Attack dialog's greyed Confirm, the server action, and the Discord verb, which
+asks before the picker so nobody picks a target to be told they couldn't attack
+anyone. Joining a fight already going on is an Attack too, so it needs combat
+mode; answering a collaborator's invitation does not (`ATTACK.md` §4).
+
+**In a fight, combat mode is frozen.** Whether somebody was on guard is read
+once, when the fight reaches them (`CombatParticipant.alert`). Turning it on
+afterwards counts only for fights that start later, and the button says so:
+"You're alert now, but it only counts for fights that start from here on — not
+the one you're already in."
 
 The involuntary attacks stay ungated: a Vampire's compulsion
 (`vampireCompulsion.js`) is nobody's choice, and an Ambush firing is governed by
 the watch rule below.
 
-**Intercept.** Setting a watch needs combat mode
+**Intercept — an Ambush only.** Setting an Ambush needs combat mode
 (`combatGate.js#interceptBlock`, inside `db/lib/verbs/watch.js#setWatch`, so both
-faces get it). Stopping one never does.
+faces get it). A Safe watch never does (Combat Overhaul.docx). Stopping one never
+does.
 
-**A standing watch whose owner is out of combat mode is dormant.** It is kept
+**A standing Ambush whose owner is out of combat mode is dormant.** It is kept
 and does not fire (`intercept.js#fireWatches`, the `live` filter). The moment
 its owner is alert again, it works again. This is the same standing-preference
 rule a watch already follows when its owner is bound. The Intercept dialog says
@@ -168,7 +177,7 @@ The prompt an alert caver gets is the part not built yet.
 |---|---|
 | `db/lib/combatMode.js` | State, timing rule, sentences. Import-free |
 | `db/lib/verbs/combatMode.js` | `setCombatMode`, both faces |
-| `db/lib/combatGate.js` | `attackBlock`, `interceptBlock` |
+| `db/lib/combatGate.js` | `combatBlock`, `interceptBlock` |
 | `db/lib/combatModePass.js` | The push: Tired, then Exhausted and off |
 | `db/lib/intercept.js` | Dormant watches in `fireWatches` |
 | `db/lib/examineSnapshot.js`, `db/lib/examine.js` | `m` on the line, `alert` on the readout |

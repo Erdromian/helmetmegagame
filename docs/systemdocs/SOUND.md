@@ -676,7 +676,7 @@ subtext.
 | What | Where |
 |---|---|
 | The instrument leaves the rack (unequip, give, destroy, a GM's tag op) | `web/lib/afterInventoryChange.js`, `db/lib/tagOps.js` (`stopIfInstrumentGone`) |
-| An attack, both sides | `db/lib/attack.js#fileAttack` |
+| A fight, everybody in it | `db/lib/combat.js` (`startCombat`, `intervene`, `springAmbush`) |
 | An intercept hold, whoever is held | `db/lib/intercept.js#fireWatches` |
 | Being bound | `db/lib/bind.js#applyBind` |
 | Leaving the Location, however it happens | `db/lib/locationMove.js`, beside the phone hang-up |

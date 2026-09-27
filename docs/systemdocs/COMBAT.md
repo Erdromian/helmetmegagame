@@ -395,15 +395,16 @@ surface has to keep all four:
   Armour is public by design — you can see what somebody is wearing. Putting a
   number on a stranger's missing arm is a different thing.
 
-**One deliberate exception, and it is one bit.** The Attack button refuses a
-target more than two bands above you and says so — *"This opponent is too strong
-to attack."* Press it and you have learned that somebody is three or more bands
-above you, and nothing else: not their band, not their score, not which half of
-the tree it came from, and nothing at all about anybody two bands up or less.
-That is the price of the verb existing at all (`ATTACK.md` §3), and it is why
-the picker in that dialog lists the people it will refuse rather than filtering
-them out — a picker that hid them would answer the same question for free, for
-everybody in the room, on every page load.
+**There used to be one deliberate exception, and there is none now.** The old
+Attack button refused a target more than two bands above you — *"This opponent
+is too strong to attack."* — which told a player one bit about somebody else's
+band. The Combat Overhaul dropped that gate (Bascinet, 2026-09-27; `ATTACK.md`
+§1): anybody may attack anybody, and a GM rules on a hopeless fight like any
+other. So no player surface reveals anything about anybody's band.
+
+A fight's hidden roll does not either. It is a Gambit-shaped d6 and modifiers
+(`db/lib/combatRoll.js`), never shown to a player, and no fighting word enters
+it — the band is what the GM reads beside it, off each person's snapshot.
 
 `formatTagFighting` (`db/lib/formatTagFighting.js`) says what **one tag** does,
 not what a person is, and that is why it is safe on a chip: the tags carrying a

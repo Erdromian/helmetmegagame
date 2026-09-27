@@ -1,12 +1,12 @@
 // The Vampire's forced compulsion (docs/systemdocs/VAMPIRE.md): every turn a
 // character holds Bloodcrazed or Wight, the game — not the player — files a
-// feeding Gambit and a real Attack against a random other character at the
-// same Location.
+// feeding Gambit and opens a real fight (db/lib/combat.js) against a random
+// other character at the same Location.
 //
 // Deliberately NOT a TURN_PASSES entry. Both filings need to land on the
 // turn that is OPENING, not the one that just closed: db/lib/stagedPush.js
 // only ever resolves Action rows stamped with the closing turn's own id, and
-// db/lib/attack.js#fileAttack's hold length is measured against the turn
+// db/lib/combat.js's hold length is measured against the turn
 // that's still running — filing against an already-closing turn would give
 // either one a meaningless near-zero duration. So this runs once from
 // db/index.js#advanceTurn(), right after the new Turn row is created, reading
@@ -21,7 +21,7 @@
 const { BLOODCRAZED_SLUG, WIGHT_SLUG } = require("./constants");
 const { alivePassCharacters } = require("./aliveCharacters");
 const { IDENTITY_SELECT, seenBy } = require("./intercept");
-const { fileAttack } = require("./attack");
+const { startCombat, sendCombatDms } = require("./combat");
 
 function pickRandom(list) {
   return list[Math.floor(Math.random() * list.length)];
@@ -39,9 +39,8 @@ async function runVampireCompulsion(prisma, newTurn) {
     return { compelled: 0 };
   }
 
-  // Plain IDENTITY_SELECT (+ zoneId) — no override of its own `tags` shape,
-  // since fileAttack's DM builder reads identity off exactly that shape.
-  // IDENTITY_SELECT already carries every held tag's slug, which is enough
+  // Plain IDENTITY_SELECT (+ zoneId) — no override of its own `tags` shape;
+  // startCombat loads its own. IDENTITY_SELECT already carries every held tag's slug, which is enough
   // to tell Wight from Bloodcrazed below with no second query.
   const holders = await alivePassCharacters(prisma, {
     where: { tags: { some: { tagId: { in: [bloodcrazedId, wightId].filter(Boolean) } } } },
@@ -92,18 +91,28 @@ async function runVampireCompulsion(prisma, newTurn) {
         },
       });
 
-      // No gate calls (attackRefusal/attackMoveBlock) — this compulsion is
-      // involuntary, not a fair fight the character chose, and fileAttack is
-      // already gate-free by design (its own header: the strength gate is
-      // the caller's business). Its DM descriptors are discarded: nothing in
-      // the spec asks the compulsion to notify anyone, and a later pass can
-      // add flavor if wanted.
-      await fileAttack(prisma, {
-        attacker: vampire,
-        target: attackTarget,
-        openTurn: newTurn,
+      // No gate calls (combatGate.js#combatBlock) — this compulsion is
+      // involuntary, not a fight the character chose, so neither combat mode
+      // nor the turn lock applies. The victim is told like anybody attacked
+      // (docs/systemdocs/ATTACK.md), since the fight holds them and asks them
+      // to write what they do. The room is told too.
+      const fight = await startCombat(prisma, {
+        initiatorId: vampire.id,
+        targetIds: [attackTarget.id],
+        turn: newTurn,
         locationId: vampire.locationId,
       });
+      if (fight.ok) {
+        await sendCombatDms(prisma, fight.dms);
+        if (fight.speak?.length) {
+          const { speakAtPlaces } = require("./inventoryTail");
+          await speakAtPlaces(prisma, fight.speak).catch((err) =>
+            console.error(`Vampire compulsion: announcing the fight failed for ${vampire.id}:`, err.message ?? err),
+          );
+        }
+      } else {
+        console.warn(`Vampire compulsion: ${vampire.name} could not attack: ${fight.error}`);
+      }
 
       compelled += 1;
     } catch (err) {

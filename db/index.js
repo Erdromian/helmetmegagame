@@ -34,6 +34,7 @@ const { runCarryPass } = require("./lib/carryPass");
 const { runMoodPass } = require("./lib/moodPass");
 const { runDawnAfflictionPass } = require("./lib/dawnAfflictionPass");
 const { runCombatModeFatiguePass } = require("./lib/combatModePass");
+const { closeCombatsAtPush } = require("./lib/combat");
 const { runXomPass } = require("./lib/xomPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runTrainArrivalPass } = require("./lib/trainArrivalPass");
@@ -262,6 +263,10 @@ const TURN_PASSES = [
   "healGambit",
   "trinket",
   "stagedPush",
+  // Every fight still open on the closing turn ends here (db/lib/combat.js#closeCombatsAtPush), AFTER the
+  // staged push, so whatever a GM staged against a fight has already gone out. Idempotent: a resumed
+  // advance finds nothing left open.
+  "combatClose",
   // Combat mode tires whoever is still in it (db/lib/combatModePass.js). BEFORE
   // tagExpiry, and that is load-bearing: the Tired it granted last push
   // expires at this push, so after the sweep nobody would ever step up to
@@ -560,6 +565,9 @@ async function resolveNeeds(turn, config) {
   // resolved automatically here. The hold a 1 puts on the caver ends with the
   // turn on its own and does not wait for this.
   await runPass("cavingRelease", "Caving release", () => releaseUnresolvedCavingRolls(prisma, turn));
+
+  // The fights (docs/systemdocs/ATTACK.md §7). See TURN_PASSES.
+  await runPass("combatClose", "Combat close", () => closeCombatsAtPush(prisma, turn));
 
   // Combat mode: Tired, or Exhausted and turned off. Before tagExpiry — see
   // TURN_PASSES. Its DMs join tagExpiryDms once that list exists, below.

@@ -19,6 +19,8 @@ const COALESCE_MS = 250;
 const TYPES = {
   move: "moveIds",
   caving: "cavingRollIds",
+  // A fight, and every participant row announcing its parent (the combat overhaul migration's triggers).
+  combat: "combatIds",
   effect: "stagedEffectIds",
   message: "stagedMessageIds",
 };
@@ -48,7 +50,7 @@ export async function GET(request) {
       let resyncPending = false;
 
       function newPending() {
-        return { move: new Set(), caving: new Set(), effect: new Set(), message: new Set() };
+        return { move: new Set(), caving: new Set(), combat: new Set(), effect: new Set(), message: new Set() };
       }
 
       // Declared and wired BEFORE the first await, or a disconnecting consumer leaks the interval/subscription.

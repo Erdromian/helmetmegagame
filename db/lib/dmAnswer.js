@@ -22,6 +22,7 @@ const { holdKeyedOpen } = require("./gates");
 const { settleCarry } = require("./carry");
 const { releaseHeldBy, seenBy, seenById, IDENTITY_SELECT } = require("./intercept");
 const { cancelAttack, ATTACK_CALLED_OFF_DM } = require("./attack");
+const { answerInvite, callOff } = require("./combat");
 const { recordArchiveEvent } = require("./archive");
 
 const GONE = "That offer's gone.";
@@ -197,7 +198,7 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
   const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
   if (!openTurn) return { ok: false, line: GONE, ...empty() };
 
-  // By the face the room saw, never the row — the button must not become the unmasking tool the verb refuses to be (docs/systemdocs/ATTACK.md §6).
+  // By the face the room saw, never the row — the button must not become the unmasking tool the verb refuses to be (docs/systemdocs/ATTACK.md §12, legacy).
   const target = await prisma.character.findUnique({
     where: { id },
     select: { ...IDENTITY_SELECT, status: true },
@@ -215,6 +216,31 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
     dms.push({ discordUserId: target.discordUserId, content: ATTACK_CALLED_OFF_DM });
   }
   return { ok: true, line: `You break off from ${seen}.`, ...empty(), dms };
+}
+
+// (docs/systemdocs/ATTACK.md) A fight's two buttons. `id` is the clicker's own CombatParticipant, and
+// combat.js checks it is theirs against the character resolved here from the clicker — never from the
+// button. The combat functions carry their own refusals in `error`.
+async function clickerCharacter(prisma, discordUserId) {
+  return prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" }, select: { id: true } });
+}
+
+async function answerCombatInvite(prisma, { id, discordUserId, choice }) {
+  const me = await clickerCharacter(prisma, discordUserId);
+  if (!me) return { ok: false, line: NOT_YOURS, ...empty() };
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  const out = await answerInvite(prisma, { participantId: id, characterId: me.id, join: choice === DM_CHOICE.ACCEPT, turn });
+  if (!out.ok) return { ok: false, line: out.error, ...empty() };
+  return { ok: true, line: out.line, ...empty(), dms: out.dms };
+}
+
+async function answerCombatCallOff(prisma, { id, discordUserId }) {
+  const me = await clickerCharacter(prisma, discordUserId);
+  if (!me) return { ok: false, line: NOT_YOURS, ...empty() };
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
+  const out = await callOff(prisma, { participantId: id, characterId: me.id, turn });
+  if (!out.ok) return { ok: false, line: out.error, ...empty() };
+  return { ok: true, line: out.line, ...empty(), dms: out.dms };
 }
 
 // `action` is the descriptor off DirectMessage.meta (db/lib/dmActions.js#dmActionOf);
@@ -237,6 +263,12 @@ async function answerDmAction(prisma, { action, choice, discordUserId, amount })
       return answerInterceptHold(prisma, args);
     case DM_ACTION.ATTACK_HOLD:
       return answerAttackHold(prisma, args);
+    case DM_ACTION.COMBAT_INVITE:
+      return answerCombatInvite(prisma, args);
+    // The fight's own row answers one thing with a button: Call off. Writing is a dialog on the web and a
+    // modal on Discord, and never comes through here.
+    case DM_ACTION.COMBAT:
+      return choice === DM_CHOICE.ACCEPT ? answerCombatCallOff(prisma, args) : { ok: false, line: GONE, ...empty() };
     default:
       return { ok: false, line: GONE, ...empty() };
   }

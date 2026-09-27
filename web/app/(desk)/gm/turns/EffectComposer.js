@@ -13,6 +13,7 @@ import CustomTagDialog from "@/app/components/CustomTagDialog";
 import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import useEscapeLayer from "./escapeLayers";
+import QuickPicks from "./QuickPicks";
 import QuantityField from "@/app/components/QuantityField";
 
 // Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
@@ -34,6 +35,9 @@ const SEARCH_LIMIT = 12;
 export default function EffectComposer({
   moveId = null,
   cavingRollId = null,
+  combatId = null,
+  // [{ id, name }] — a fight's participants, one tap each (QuickPicks.js).
+  quickPicks = null,
   existing = null,
   defaultTarget = null,
   declaredDelta = null,
@@ -315,6 +319,7 @@ export default function EffectComposer({
               targetCharacterIds: targets.map((t) => t.id),
               moveId,
               cavingRollId,
+              combatId,
               resources,
               tagPoints,
               tagOps,
@@ -365,6 +370,16 @@ export default function EffectComposer({
             ))}
             {!targets.length && <span className="text-sm text-muted">nobody yet</span>}
           </div>
+          {!existing && (
+            <QuickPicks
+              picks={quickPicks}
+              chosen={new Set(targets.map((t) => t.id))}
+              onAdd={(list) => {
+                setTargets((prev) => [...prev, ...list.map((p) => ({ id: p.id, name: p.name }))]);
+                markDirty();
+              }}
+            />
+          )}
           {!existing && (
             <label className="field">
               <span className="field-label">Add a target</span>

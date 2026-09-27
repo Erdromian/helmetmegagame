@@ -1398,6 +1398,7 @@ model Location {
   // that goes away takes them with it.
   interceptWatches InterceptWatch[]
   attacks          Attack[]
+  combats          Combat[]
 
   @@index([zoneId])
 }
@@ -2753,6 +2754,10 @@ model Character {
   // ends are named.
   attacksMade  Attack[] @relation("AttackMade")
   attacksTaken Attack[] @relation("AttackTaken")
+
+  // Every fight this character has been in, on either side and in any role
+  // (docs/systemdocs/ATTACK.md). One row per fight.
+  combatsFought CombatParticipant[] @relation("CombatFought")
 
   // Excommunications this character laid (the Bishop's side, and what the cap
   // counts) and the one they bear. Both ends named, the Attack shape above.
@@ -4500,6 +4505,10 @@ model StagedMessage {
   cavingRollId String?
   cavingRoll   CavingRoll? @relation(fields: [cavingRollId], references: [id], onDelete: SetNull)
 
+  // Or the fight it adjudicates (the Combat lens), the same SetNull shape.
+  combatId String?
+  combat   Combat? @relation(fields: [combatId], references: [id], onDelete: SetNull)
+
   kind    StagedMessageKind
   content String
 
@@ -4526,6 +4535,7 @@ model StagedMessage {
 
   @@index([turnId])
   @@index([moveId])
+  @@index([combatId])
 }
 
 // One send, one row. The unit of delivery for a staged message: one per
@@ -4653,6 +4663,10 @@ model StagedEffect {
   cavingRollId String?
   cavingRoll   CavingRoll? @relation(fields: [cavingRollId], references: [id], onDelete: SetNull)
 
+  // Or the fight it adjudicates (the Combat lens), the same SetNull shape.
+  combatId String?
+  combat   Combat? @relation(fields: [combatId], references: [id], onDelete: SetNull)
+
   // Nullable: a Room -> Room transfer has no character end, and neither does
   // a staged change to a room's own stash. The filing rule is "the character
   // end of this row, if any" — the recipient when both ends of a transfer are
@@ -4708,6 +4722,7 @@ model StagedEffect {
 
   @@index([turnId])
   @@index([moveId])
+  @@index([combatId])
   @@index([targetCharacterId])
   @@index([batchId])
 }
@@ -5159,6 +5174,16 @@ model InterceptWatch {
   // The two dragnets. `anyPerson` subsumes `anyConcealed`.
   anyConcealed Boolean @default(false)
   anyPerson    Boolean @default(false)
+  // The third dragnet (Combat Overhaul.docx): anybody the watcher cannot name
+  // — a hood, a forced name, or a bare face they have no Friends entry for.
+  // A typed name only ever catches somebody the watcher recognises, so this is
+  // how a watch reaches the rest. `anyPerson` subsumes it.
+  anyUnidentified Boolean @default(false)
+
+  // An Ambush's collaborators, picked when it was set from people standing
+  // here. They are invited to join when it springs, if they are still here.
+  // Plain ids, resolved server-side and never shipped to a browser.
+  collaboratorIds String[] @default([])
 
   // Only catch somebody who crossed INTO this zone on the move that brought
   // them here. The gate guard's mute button: a watch at the town gate is for
@@ -5380,7 +5405,13 @@ model GambitDie {
   @@index([turnId])
 }
 
-// A fight somebody started (docs/systemdocs/ATTACK.md). One row per attacker
+// LEGACY since the Combat Overhaul (docs/systemdocs/ATTACK.md): nothing files
+// one of these any more. A fight is a Combat and its CombatParticipant rows
+// below. The table stays so a row live on the turn the overhaul deployed still
+// settles (db/lib/attack.js is kept as a shim for exactly that) and so the
+// history is not dropped. Nothing new should read or write it.
+//
+// A fight somebody started. One row per attacker
 // per target per turn, and the unique below IS the "attacking is permanent for
 // the turn" rule — the same shape as InterceptHit above, and for the same
 // reason: the insert is what claims the act, so nothing has to be counted.
@@ -5423,6 +5454,163 @@ model Attack {
   @@unique([attackerId, targetCharacterId, turnId])
   @@index([targetCharacterId])
   @@index([turnId])
+}
+
+enum CombatSide {
+  ATTACKER
+  DEFENDER
+}
+
+// How somebody came to be in the fight. An INTERVENER is somebody who pressed
+// Attack in a place with a fight already running and picked a side; they carry
+// the distance penalty. A TARGET added by an ambush after it sprang is still a
+// TARGET — the doc exempts them from the distance rule.
+enum CombatRole {
+  INITIATOR
+  COLLABORATOR
+  TARGET
+  INTERVENER
+}
+
+// INVITED is a collaborator who has not answered yet: held in place like
+// everybody else (Bascinet, 2026-09-27), snapshotted and rolled at confirm, but
+// not in the fight until they press Join. LEFT is somebody the fight lost —
+// relocated, or dead.
+enum CombatStatus {
+  INVITED
+  JOINED
+  DECLINED
+  LEFT
+}
+
+enum CombatEndReason {
+  CALLED_OFF
+  TURN_ENDED
+  SIDE_EMPTY
+  GM
+}
+
+// ONE FIGHT (docs/systemdocs/ATTACK.md, from Bascinet's Combat Overhaul.docx).
+// An Attack press or an ambush springing opens one; everybody in it is a
+// CombatParticipant. It is adjudicated on /gm/turns' Combat lens as a single
+// result — the Result box here, and staged rows anchored by combatId — and the
+// push stages it out with everything else.
+//
+// Nothing here RESOLVES a fight in code. The rolls are thrown and stored so a
+// GM can read them, never shown to a player, and never acted on by anything.
+model Combat {
+  id String @id @default(cuid())
+
+  // Not a foreign key, the InterceptHit.turnId reasoning: a claim token, and
+  // deleting a turn must never cascade into somebody's fight. Which also means
+  // Restart Game deletes these by hand.
+  turnId String
+
+  // Where it is. Nullable and SetNull, the Attack reasoning: a Location going
+  // away is a stale label, not a lost fight. The name and zone are snapshots,
+  // so the lens can still say where and GmZoneView can still narrow on it.
+  locationId   String?
+  location     Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  locationName String?
+  zoneId       String?
+
+  // An ambush that sprang rather than a button somebody pressed. The owner is
+  // a plain id: the watch they set is deleted the moment they walk away, and
+  // the fight outlives it.
+  fromAmbush     Boolean @default(false)
+  ambushOwnerId  String?
+  // The line the ambusher wrote for whoever walks in. Cleaned at save
+  // (intercept.js#cleanMessage), frozen here when it sprang.
+  openingMessage String?
+
+  // How far every placed, living character was from here when it started, in
+  // Locations, counting only the ways each of them could actually walk
+  // (locationGraph.js#distancesFrom). { [characterId]: [hops, fromLocationId] },
+  // hops capped at 4, which means "too far to intervene" (4 or more, or no way
+  // at all). Read when somebody intervenes, and by the GM.
+  distances Json
+
+  startedAt DateTime         @default(now())
+  endedAt   DateTime?
+  endReason CombatEndReason?
+
+  // The GM's side: the canon result (never sent anywhere — "Stage as message"
+  // is how players hear it, the Move and Caving shape) and who solved it.
+  resultMessage           String?
+  resolvedAt              DateTime?
+  resolvedByDiscordUserId String?
+
+  participants   CombatParticipant[]
+  stagedMessages StagedMessage[]
+  stagedEffects  StagedEffect[]
+
+  updatedAt DateTime @updatedAt
+
+  @@index([turnId])
+  @@index([locationId, turnId])
+}
+
+// One person in one fight.
+model CombatParticipant {
+  id String @id @default(cuid())
+
+  combatId    String
+  combat      Combat    @relation(fields: [combatId], references: [id], onDelete: Cascade)
+  characterId String
+  character   Character @relation("CombatFought", fields: [characterId], references: [id], onDelete: Cascade)
+
+  side   CombatSide
+  role   CombatRole
+  status CombatStatus
+
+  // THE one-live-fight claim. The open turn's id while this person is in the
+  // fight (INVITED or JOINED, fight not over); null once they are out of it.
+  // The unique below is what stops two fights pulling one person in at once:
+  // the insert is the claim (createMany skipDuplicates, never a caught P2002 —
+  // that poisons a Postgres transaction). Postgres does not collide NULLs, so
+  // any number of finished rows sit beside one live one.
+  activeTurnId String?
+
+  // Were they in combat mode when this snapshot was taken? Frozen: turning it
+  // on afterwards counts only for fights that start later (the doc). Not alert
+  // means caught by surprise — -3, and no attack description.
+  alert Boolean
+
+  // What they were when they came into it: examineSnapshot.js's payload plus
+  // hunger and mood. Rehydrated against the live catalog on the desk.
+  snapshot   Json
+  snapshotAt DateTime @default(now())
+
+  // THE ROLL — GM ONLY. Never selected by anything a player reads
+  // (db/test/combatPrivacy.test.js holds that line). Gambit rules: a d6 with
+  // Lucky/Misfortune pulling it, and gambitModifiers plus the surprise and
+  // distance penalties, all read at the snapshot.
+  die             Int
+  rolls           Int[]
+  advantageSource String?
+  modifiers       Json
+  total           Int
+
+  // An intervener's journey: how many Locations away they were when the fight
+  // started, and where. Null for everybody else.
+  distance         Int?
+  fromLocationId   String?
+  fromLocationName String?
+
+  // What they wrote. Editable until the Move cutoff; alert participants only.
+  description String?
+  describedAt DateTime?
+
+  callOffAt  DateTime?
+  answeredAt DateTime?
+  leftAt     DateTime?
+  leftReason String?
+
+  joinedAt DateTime @default(now())
+
+  @@unique([combatId, characterId])
+  @@unique([characterId, activeTurnId])
+  @@index([characterId])
 }
 
 // Who the Bishop has excommunicated, and who did it. The MARK itself is the

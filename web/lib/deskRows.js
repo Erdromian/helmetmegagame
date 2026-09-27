@@ -9,10 +9,12 @@ import {
   STAGED_EFFECT_INCLUDE,
   STAGED_MESSAGE_INCLUDE,
   CAVING_ROLL_INCLUDE,
+  COMBAT_INCLUDE,
   moveRow,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
+  combatRow,
 } from "./moveRows";
 
 // Every structure standing at a set of Locations, in ONE pair of queries (mirrors db/lib/structures.js#structuresAt).
@@ -82,6 +84,7 @@ export async function deskRowContext({ openTurn } = {}) {
 export async function deskPatchFor({
   moveIds = [],
   cavingRollIds = [],
+  combatIds = [],
   stagedEffectIds = [],
   stagedMessageIds = [],
   removed = {},
@@ -89,12 +92,15 @@ export async function deskPatchFor({
 } = {}) {
   const ctx = await deskRowContext();
 
-  const [actions, rolls, effects, messages] = await Promise.all([
+  const [actions, rolls, combats, effects, messages] = await Promise.all([
     moveIds.length
       ? prisma.action.findMany({ where: { id: { in: moveIds } }, include: MOVE_INCLUDE })
       : [],
     cavingRollIds.length
       ? prisma.cavingRoll.findMany({ where: { id: { in: cavingRollIds } }, include: CAVING_ROLL_INCLUDE })
+      : [],
+    combatIds.length
+      ? prisma.combat.findMany({ where: { id: { in: combatIds } }, include: COMBAT_INCLUDE })
       : [],
     stagedEffectIds.length
       ? prisma.stagedEffect.findMany({ where: { id: { in: stagedEffectIds } }, include: STAGED_EFFECT_INCLUDE })
@@ -110,6 +116,7 @@ export async function deskPatchFor({
   const ofOpenTurn = (r) => openTurnId != null && r.turnId === openTurnId;
   const liveActions = onDesk(actions, ofOpenTurn);
   const liveRolls = onDesk(rolls, ofOpenTurn);
+  const liveCombats = onDesk(combats, ofOpenTurn);
   const liveEffects = onDesk(effects, (e) => ofOpenTurn(e) || e.appliedAt == null);
   const liveMessages = onDesk(messages, (m) => ofOpenTurn(m) || m.sentAt == null);
 
@@ -132,11 +139,13 @@ export async function deskPatchFor({
     turnId: openTurnId,
     moves: liveActions.map((a) => moveRow(a, { ...ctx, structuresByLocationId })),
     cavingRolls: liveRolls.map((c) => cavingRollRow(c, ctx)),
+    combats: liveCombats.map((c) => combatRow(c, ctx)),
     stagedEffects: liveEffects.map((e) => stagedEffectRow(e, ctx)),
     stagedMessages: liveMessages.map((m) => stagedMessageRow(m, ctx)),
     removed: {
       moveIds: [...(removed.moveIds ?? []), ...gone(moveIds, actions)],
       cavingRollIds: [...(removed.cavingRollIds ?? []), ...gone(cavingRollIds, rolls)],
+      combatIds: [...(removed.combatIds ?? []), ...gone(combatIds, combats)],
       stagedEffectIds: [...(removed.stagedEffectIds ?? []), ...gone(stagedEffectIds, effects)],
       stagedMessageIds: [...(removed.stagedMessageIds ?? []), ...gone(stagedMessageIds, messages)],
     },

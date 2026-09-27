@@ -29,6 +29,9 @@ export default function ActionDialog({
   empty = null,
   onClose,
   onSubmit,
+  // A footer of the dialog's own, for one whose buttons are not a single Confirm (AttackDialog.js's fight
+  // panel). The empty state still wins: an answer with nothing to do is only ever a Close.
+  footer = null,
   children,
 }) {
   const closeOnly = Boolean(empty) && !loading;
@@ -50,7 +53,7 @@ export default function ActionDialog({
               Close
             </button>
           </div>
-        ) : null
+        ) : footer
       }
     >
       {loading ? (
