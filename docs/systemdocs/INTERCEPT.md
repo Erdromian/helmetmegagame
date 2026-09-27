@@ -31,7 +31,9 @@ already spent. **An Ambush needs combat mode**, though (`COMBAT-MODE.md` §3):
 none** (Combat Overhaul.docx) — it is a word on the road, not a fight. And **no
 watch can be set once Moves lock** ("Moves are locked for this turn, so you
 can't lie in wait."), the turn lock that shuts fighting and travel too
-(`ATTACK.md` §10). On Discord the watch
+(`ATTACK.md` §10). **Nor while your own ambush's fight is running** ("Your
+ambush has already sprung. You can't change it until the fight is over."), so
+only the targets it sprang with join that fight (`ATTACK.md` §9). On Discord the watch
 opens as a modal first, inside Discord's three seconds, so the refusal comes
 after the modal is sent. **Stopping** a watch and **Release** are never gated,
 and `stopInterceptImpl` and `releaseHeldImpl` carry no such check.

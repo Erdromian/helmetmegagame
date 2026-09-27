@@ -269,6 +269,12 @@ An Intercept watch in Ambush mode is a fight laid in advance
 - Every later catch is added to **that same fight** as a target, snapshotted as
   they walk in. Ambush-added targets have no distance rule; anybody else joins
   the ordinary way (§6).
+- **Only the targets it sprang with** are added (Bascinet, 2026-09-27). While
+  that fight runs, the owner can't set or change any watch
+  (`combatGate.js#interceptBlock`: "Your ambush has already sprung. You can't
+  change it until the fight is over."), so re-setting it to "Anyone"
+  mid-fight can't pull in people it was never set for. Stopping it is still
+  allowed, since that only narrows it.
 - An arrival already in a fight, or an owner busy in some other fight, is
   skipped before the ration is claimed.
 

@@ -23,7 +23,9 @@ const DESCRIBE_LOCKED = "Moves are locked for this turn, so your attack can't be
 const ALREADY_FIGHTING = "You're already in a fight.";
 const WITHDRAWING_BLOCK = "You've just called off a fight. You can't start another one yet.";
 const DECLINED_HERE = "You stayed out of the fight here. You can't attack anyone here until next turn.";
-const TOO_FAR_TO_INTERVENE = "You arrived too late to intervene.";
+// A sprung ambush keeps the targets it was set with until its fight is over (Bascinet, 2026-09-27).
+const AMBUSH_SPRUNG = "Your ambush has already sprung. You can't change it until the fight is over.";
+const TOO_FAR_TO_INTERVENE ="You arrived too late to intervene.";
 const SURPRISED = "You were caught by surprise, so you can't choose how you fight this one.";
 // Said to a collaborator asked along while out of combat mode: they are snapshotted and rolled the moment they
 // are asked, so turning it on before answering changes nothing (Bascinet, 2026-09-27).
@@ -74,6 +76,7 @@ module.exports = {
   ALREADY_FIGHTING,
   WITHDRAWING_BLOCK,
   DECLINED_HERE,
+  AMBUSH_SPRUNG,
   TOO_FAR_TO_INTERVENE,
   SURPRISED,
   INVITE_SURPRISED,

@@ -16,6 +16,7 @@ const {
   ALREADY_FIGHTING,
   WITHDRAWING_BLOCK,
   DECLINED_HERE,
+  AMBUSH_SPRUNG,
 } = require("./combatMode");
 
 // Held for withdrawing — the one hold reason this file reads, spelled out rather than required from
@@ -61,14 +62,24 @@ async function combatBlock(db, { character, turn, locationId = character?.locati
 }
 
 // Setting an Intercept watch. Only an AMBUSH needs combat mode now (Combat Overhaul.docx); a Safe watch
-// is a word on the road, not a fight. Both are shut by the lock. Stopping one never asks
-// (db/lib/verbs/watch.js#stopWatch).
+// is a word on the road, not a fight. Both are shut by the lock, and both by an ambush of theirs that has
+// sprung and is still being fought: every later catch joins that fight (combat.js#springAmbush), so a
+// watch re-set mid-fight would pull in people it was never set for. Only the targets it sprang with are
+// added (Bascinet, 2026-09-27). Stopping one never asks (db/lib/verbs/watch.js#stopWatch) — that only
+// narrows it.
 async function interceptBlock(db, characterId, { mode = "SAFE", turn = null } = {}) {
   const openTurn =
     turn ?? (typeof db.turn?.findFirst === "function" ? await db.turn.findFirst({ where: { status: "OPEN" } }) : null);
   if (openTurn) {
     const locked = await lockBlock(db, openTurn, INTERCEPT_LOCKED);
     if (locked) return locked;
+    if (typeof db.combat?.findFirst === "function") {
+      const sprung = await db.combat.findFirst({
+        where: { turnId: openTurn.id, fromAmbush: true, ambushOwnerId: characterId, endedAt: null },
+        select: { id: true },
+      });
+      if (sprung) return AMBUSH_SPRUNG;
+    }
   }
   if (mode !== "AMBUSH") return null;
   return (await combatModeOn(db, characterId)) ? null : NEEDS_COMBAT_MODE_INTERCEPT;
