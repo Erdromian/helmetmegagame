@@ -1562,7 +1562,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "TRINKETS.md §3",
-      claim: "Forging stones bought off the shelf earns no more per Move than the top rung of the wage table, Lucky or not",
+      claim: "The depot cap stops a stone being bought, forged and sold at a profit forever. Read here as: forging shelf stones pays no more a Move than the wage table's top rung, Lucky or not (the report's reading; the doc names no figure)",
       docValue: `${trinkets.shelfLoop.topWage} ¢ a Move`,
       model: (() => {
         const L = trinkets.shelfLoop;
@@ -1578,8 +1578,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     },
     {
       doc: "tags.yaml, Lucky",
-      claim: "Lucky's description names only dice that exist: it says the Caving Die and the laboring die",
-      docValue: "2 dice named",
+      claim: "Lucky's description names no die the game has retired (it used to promise \"the laboring die\")",
+      docValue: "no retired die named",
       model: /laboring/i.test(get("lucky")?.description ?? "") ? "there is no laboring die: mining rolls no die (db/lib/mining.js), so it names 1 that exists" : "names only real dice",
       ok: !/laboring/i.test(get("lucky")?.description ?? ""),
       note: "Mining pays a flat range and a table draw now, and nothing in db/lib/advantage.js is called from it.",
@@ -1883,7 +1883,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
         docValue: Number.isFinite(vaultDoc) ? `${vaultDoc} obols` : "not stated",
         model: starting.vault ? `${starting.vault.coin} obols in docs/zones.yaml` : "no Vault room",
         ok: Boolean(starting.vault) && starting.vault.coin === vaultDoc,
-        note: "A doc bug: the Vault stash in zones.yaml has moved since the doc was written.",
+        note: "If this differs, the Vault stash in zones.yaml has moved since the doc was written.",
       },
     );
   }

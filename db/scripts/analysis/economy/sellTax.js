@@ -54,9 +54,20 @@ function buildSellTax({ activities, baselines, profitRows, trinkets, params, rv 
   // Farming pays no sell tax at all now: Foodstuffs never reach the counter, so there is no farm row
   // to add here (there was, briefly, for tobacco — the one crop that ever sold — before the rework).
 
-  // Trinkets: the Trinket sold at its tier's price, the ⬢ and any shelf stones bought.
+  // Trinkets: the Trinket sold at its tier's price, the ⬢ and any shelf stones bought, one a Move. Each holder
+  // slots the shelf stones that pay it best, so Lucky may pick a different pair from a plain Smithing II smith.
+  const stonesOf = (set) => (set?.stones?.length ? set.stones.join(" + ") : "no stones");
   const tr = byId("trinket:shelf:skilled");
-  if (tr) add("Smith forging Trinkets (Smithing II, shelf stones)", { gross: tr.rawPerTurnBuy + tr.inputsBuy, inputs: tr.inputsBuy, note: "a Trinket's expected price over the die" });
+  if (tr) add("Smith forging Trinkets (Smithing II, shelf stones)", { gross: tr.rawPerTurnBuy + tr.inputsBuy, inputs: tr.inputsBuy, note: `${stonesOf(trinkets.shelfLoop.bestSkilledWithStones)}; a Trinket's expected price over the die` });
+  const lucky = trinkets.shelfLoop.bestSkilledLuckyWithStones;
+  if (lucky) {
+    const inputs = trinkets.dieCost + lucky.stoneCost;
+    add("Smith forging Trinkets (Smithing II + Lucky, shelf stones)", {
+      gross: trinkets.expectedProfit("skilled-lucky", lucky.inlay, lucky.stoneCost, false) + inputs,
+      inputs,
+      note: `${stonesOf(lucky)}; Lucky keeps the better of two dice`,
+    });
+  }
   // A miner who forges their own stones: the press's ⬢ and the drops they do not forge, sold, plus the Trinkets.
   const pick = byId("mine:Caves:unskilled");
   const forged = trinkets.prospector["caves:plain"]?.apprentice;

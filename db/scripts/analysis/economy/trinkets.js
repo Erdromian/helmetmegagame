@@ -178,6 +178,7 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
   const withStones = (holder) => combos.filter((c) => c.basis === "shelf" && c.stones.length > 0).sort((a, b) => b[holder] - a[holder])[0];
   shelfLoop.bestApprenticeWithStones = withStones("apprentice");
   shelfLoop.bestSkilledWithStones = withStones("skilled");
+  shelfLoop.bestSkilledLuckyWithStones = withStones("skilled-lucky");
 
   return {
     gate,

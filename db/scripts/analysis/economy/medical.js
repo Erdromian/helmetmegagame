@@ -358,7 +358,8 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
     return { tier, name: tierName(tier), medicsAtOrAbove: available, movesNeeded: neededMoves, surplus: available - neededMoves };
   });
   for (const i of injuryRows) townSaved += i.perTurn * (leave.find((r) => r.slug === i.slug)?.saved ?? 0);
-  const coinPerTurn = injuryRows.reduce((n, r) => n + r.perTurn * (r.resources ?? 0), 0) * rv.buy;
+  const resourcesPerTurn = injuryRows.reduce((n, r) => n + r.perTurn * (r.resources ?? 0), 0);
+  const coinPerTurn = resourcesPerTurn * rv.buy;
 
   return {
     knobs: KNOBS,
@@ -379,12 +380,13 @@ function buildMedical({ list, get, params, rv, combos, caving, starting, activit
     medics,
     capacity,
     coinPerTurn,
+    resourcesPerTurn,
     townSaved,
     permanentCost: PERMANENT_COST,
     cavers,
     fights,
     cutsPerTurn,
-    payer: "any party the medic can reach pays the ⬢: the medic, the patient or the room (the Heal action's payer)",
+    payer: "any party the medic can reach: the medic, the patient or the room (the Heal action's payer)",
   };
 }
 

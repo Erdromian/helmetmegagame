@@ -312,7 +312,7 @@ function buildCaving({ get, list, rv, rvMined, sources, moveValue, activities, g
 const DICE = {
   "db/lib/cavingPass.js": { die: "Caving Die", what: "a find on 6, trouble on 1" },
   "db/lib/gambitDie.js": { die: "Every Gambit", what: "the die a Move's Gambit rolls" },
-  "db/lib/locationTravel.js": { die: "Pushing on across a zone", what: "the exertion die: 1 hurts, 2-3 tires" },
+  "db/lib/locationTravel.js": { die: "Pushing on across a zone", what: "the exertion die: 1 hurts, 2–3 Exhausted, 4–5 Tired, 6 Winded" },
   "db/lib/search.js": { die: "Search", what: "the reveal die" },
   "db/lib/confession.js": { die: "Confession", what: "the penitent's die" },
   "db/lib/lessons.js": { die: "A lesson", what: "the learner's die" },
