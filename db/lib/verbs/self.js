@@ -16,7 +16,7 @@ const { resolveBreakRestraints, formatBreakRestraintsRoll, ESCAPE_ARTIST_SLUG } 
 const { RESTRAINT_SLUGS } = require("../bind");
 const { DISGUISE_KIT_SLUG, DISGUISE_TURNS, normalizeDisguiseName, mintDisguise, activeDisguise } = require("../disguiseMint");
 const { heldReasonFor } = require("../intercept");
-const { cavingRestrictionsFor } = require("../cavingPass");
+const { cavingRestrictionsFor, cavingRefusalFor, standingZoneKind } = require("../cavingPass");
 const { isPointerDeviceSlug, partnerSlugOf, locatePointerPartner } = require("../pointerMint");
 const { FAST_TRAVEL_SLUGS } = require("../mounts");
 const { MOTION_SICKNESS_SLUG } = require("../constants");
@@ -148,19 +148,21 @@ function disguiseSelf(prisma, { character, discordUserId, name: rawName, openTur
 
 // --- The Stepstone (web: stepstoneRequestImpl) --------------------------------
 
-// Break the stone and stand somewhere else on the SURFACE. A hold or an
-// unresolved Caving 1 stops it, as they stop a walk. The move's side effects
-// (applyLocationMoveSideEffects, the caving roll) are the face's to run after
-// this returns — `moved` carries what they need.
+// Break the stone and stand somewhere else on the SURFACE. A hold or a Caving
+// 1 this turn stops it from underground, as they stop the walk up. The move's
+// side effects (applyLocationMoveSideEffects, the caving roll) are the face's
+// to run after this returns — `moved` carries what they need.
 function stepstone(prisma, { character, discordUserId, locationId, openTurn }) {
   return asResult(async () => {
     const held = character.tags.find((ct) => ct.tag.slug === STEPSTONE_SLUG && ct.quantity > 0);
     if (!held) refuse("You aren't carrying a Stepstone.");
     const heldBy = heldReasonFor(character);
     if (heldBy) refuse(heldBy);
-    const caving = await cavingRestrictionsFor(prisma, character.id, character.zoneId);
-    if (caving.stuck) refuse(caving.stuck);
-    if (caving.hold) refuse(caving.hold);
+    // The stone only ever lands on the surface, so from underground this is
+    // exactly the way up the Die can shut.
+    const caving = await cavingRestrictionsFor(prisma, character.id, await standingZoneKind(prisma, character));
+    const cavingRefusal = cavingRefusalFor(caving, "SURFACE");
+    if (cavingRefusal) refuse(cavingRefusal);
 
     const targetId = String(locationId ?? "");
     if (!targetId) refuse("Pick somewhere.");

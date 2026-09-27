@@ -166,7 +166,7 @@ async function buildMap({ character, unfogged, canReveal }) {
   // WAVE B. All three read wave A and nothing from each other. travelOptions
   // and routesWithinZone are handed `graph`, so they make no read of Location
   // or LocationLink where they used to make three. Underground each still asks
-  // the Caving Die once (cavingRestrictionsFor — the hold and the ten-1s stop),
+  // the Caving Die once (cavingRestrictionsFor — the hold and the severity-10 stop),
   // so a caver's map costs two small counts; on the surface, none.
   // The tags that open a gated way, by name, for the hover on its line
   // (Map.docx). Only the slugs some way actually names — a dozen rows.

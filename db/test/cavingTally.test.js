@@ -15,34 +15,44 @@ test("the web's copy of the cap is the game's", async () => {
   assert.equal(web.CAVING_TROUBLE_CAP, CAVING_TROUBLE_CAP);
 });
 
-const row = (id, characterId, zoneId, createdAtMs, kind = "TROUBLE", extra = {}) => ({ id, characterId, zoneId, createdAtMs, kind, die: kind === "TROUBLE" ? 1 : 3, locationName: `room-${id}`, resolvedAt: null, gmNotes: "", ...extra });
+const row = (id, characterId, zoneId, createdAtMs, kind = "TROUBLE", extra = {}) => ({ id, characterId, zoneId, zoneName: zoneId, createdAtMs, kind, die: kind === "TROUBLE" ? 1 : 3, locationName: `room-${id}`, resolvedAt: null, gmNotes: "", ...extra });
 
-test("a caver's 1s in one zone fold into one row, keyed by the oldest and showing the newest", async () => {
-  const { foldCavingRolls, foldCountLabel } = await load();
+test("a caver's 1s fold into one result across both levels, keyed by the oldest and showing the newest", async () => {
+  const { foldCavingRolls, severityLabel } = await load();
   const { rows, groupOf } = foldCavingRolls([
-    row("b", "ada", "depths", 20),
-    row("a", "ada", "depths", 10),
-    row("q", "ada", "depths", 15, "QUIET"),
-    row("c", "ada", "caves", 30), // another zone: its own result
+    row("b", "ada", "caves", 20),
+    row("a", "ada", "caves", 10),
+    row("q", "ada", "caves", 15, "QUIET"),
+    row("c", "ada", "depths", 30), // down a level: still the same result (Caving.docx)
     row("d", "bob", "depths", 5),
   ]);
   const byId = new Map(rows.map((r) => [r.id, r]));
-  assert.equal(rows.length, 4, "the QUIET roll stays, a and b become one");
+  assert.equal(rows.length, 3, "the QUIET roll stays, a, b and c become one");
   assert.equal(byId.has("b"), false);
+  assert.equal(byId.has("c"), false);
   const ada = byId.get("a");
-  assert.deepEqual(ada.memberIds, ["a", "b"]);
-  assert.equal(ada.latestId, "b");
-  assert.equal(ada.count, 2);
-  assert.equal(ada.createdAtMs, 20, "the newest roll's time");
-  assert.equal(ada.locationName, "room-b", "and the newest roll's place");
+  assert.deepEqual(ada.memberIds, ["a", "b", "c"]);
+  assert.equal(ada.latestId, "c");
+  assert.equal(ada.count, 3);
+  assert.equal(ada.createdAtMs, 30, "the newest roll's time");
+  assert.equal(ada.locationName, "room-c", "the newest roll's place");
+  assert.equal(ada.zoneName, "depths", "and the newest roll's zone");
   assert.equal(byId.get("q").memberIds, undefined, "a QUIET roll is not folded");
-  assert.equal(groupOf.get("b"), "a");
+  assert.equal(groupOf.get("c"), "a");
   assert.equal(groupOf.get("a"), "a");
   assert.equal(groupOf.has("q"), false);
 
-  assert.equal(foldCountLabel(byId.get("c")), null, "a lone 1 is the ordinary case and gets no count");
-  assert.equal(foldCountLabel(ada), "2 failed rolls this turn");
-  assert.equal(foldCountLabel(null), null);
+  assert.equal(severityLabel(ada), "Severity 3");
+  assert.equal(severityLabel(byId.get("d")), "Severity 1", "a lone 1 shows its severity too");
+  assert.equal(severityLabel(byId.get("q")), null, "a roll that did not fail has none");
+  assert.equal(severityLabel(null), null);
+});
+
+test("only failures show by default", async () => {
+  const { isCavingFailure } = await load();
+  assert.equal(isCavingFailure(row("a", "ada", "caves", 1)), true);
+  assert.equal(isCavingFailure(row("q", "ada", "caves", 1, "QUIET")), false);
+  assert.equal(isCavingFailure(row("f", "ada", "caves", 1, "FIND")), false);
 });
 
 test("a group needs attention while any of its 1s does, and says how many are new", async () => {
@@ -74,9 +84,9 @@ test("the Result box is the oldest roll's, falling back to a later note", async 
   assert.equal(b.gmNotes, "second");
 });
 
-test("the tenth 1 marks the group stuck", async () => {
+test("severity 10 marks the result stuck, whichever levels the 1s were in", async () => {
   const { foldCavingRolls } = await load();
-  const rows = Array.from({ length: 10 }, (_, i) => row(`r${i}`, "ada", "depths", i));
+  const rows = Array.from({ length: 10 }, (_, i) => row(`r${i}`, "ada", i % 2 ? "depths" : "caves", i));
   assert.equal(foldCavingRolls(rows).rows[0].stuck, true);
   assert.equal(foldCavingRolls(rows.slice(0, 9)).rows[0].stuck, false);
 });
