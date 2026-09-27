@@ -8,6 +8,7 @@
 const { addThreadMember, removeThreadMember } = require("./discordRest");
 const { notifyPresence } = require("./presenceNotify");
 const { accessSlugsOf, RING_ACCESS_TAG_FIELDS } = require("./rings");
+const { WITH_SIDES, membershipKey, roomViews } = require("./roomSides");
 
 // Some pushes can never succeed, and the diff below cannot tell: it only
 // records a membership Discord ACCEPTED, so a refusal is retried on the next
@@ -106,12 +107,27 @@ async function withRingTokens(prisma, characterId, tags) {
   return slugs;
 }
 
+// The rooms a guest pass lets this character into from where they stand. A
+// pass is good on the side it was given (RoomGuest.locationId): a room that
+// opens onto two Locations can be strict on one side and easy on the other,
+// and a nod over the easy counter is no key to the strict one. The sweep in
+// syncCharacterRoomAccess spends a pass on leaving; this filter holds the
+// line for the moment in between.
 async function guestRoomIds(prisma, characterId) {
   const rows = await prisma.roomGuest.findMany({
     where: { characterId },
-    select: { roomId: true },
+    select: { roomId: true, locationId: true, character: { select: { locationId: true } } },
   });
-  return new Set(rows.map((r) => r.roomId));
+  return new Set(rows.filter((r) => r.locationId === r.character?.locationId).map((r) => r.roomId));
+}
+
+// Every private thread there is, one unit per side: the home thread and each
+// private side's own. A pure step so the per-side split is testable.
+function privateThreadUnits(rooms) {
+  return (rooms ?? [])
+    .flatMap(roomViews)
+    .filter((view) => view.kind === "PRIVATE" && view.discordThreadId)
+    .map((view) => ({ key: membershipKey(view), threadId: view.discordThreadId, name: view.name, view }));
 }
 
 async function roomAccessKeys(prisma, characterId) {
@@ -129,10 +145,17 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   const result = { added: 0, removed: 0 };
   if (!character?.id) return result;
 
+  // A private thread is the home one or a private side's (db/lib/roomSides.js).
   const rooms = await prisma.room.findMany({
-    where: { kind: "PRIVATE", discordThreadId: { not: null } },
-    select: { id: true, name: true, locationId: true, kind: true, accessTagSlugs: true, questId: true, phone: true, payphone: true, vendingMachine: true, discordThreadId: true },
+    where: {
+      OR: [
+        { kind: "PRIVATE", discordThreadId: { not: null } },
+        { sides: { some: { kind: "PRIVATE", discordThreadId: { not: null } } } },
+      ],
+    },
+    select: { id: true, name: true, locationId: true, kind: true, accessTagSlugs: true, sortOrder: true, discordThreadId: true, ...WITH_SIDES },
   });
+  const units = privateThreadUnits(rooms);
 
   // Spend stale guest grants before the recompute below and before the
   // DISCORD_TOKEN bail-out. The mover has its own token guard, so a tokenless
@@ -140,24 +163,34 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   const alive = character.status === "ALIVE";
   const staleGuestWhere = {
     characterId: character.id,
-    ...(alive && character.locationId ? { room: { locationId: { not: character.locationId } } } : {}),
+    ...(alive && character.locationId ? { locationId: { not: character.locationId } } : {}),
   };
   await prisma.roomGuest
     .deleteMany({ where: staleGuestWhere })
     .catch((err) => console.error(`Room guest sweep failed for ${character.id}:`, err.message ?? err));
 
-  if (rooms.length === 0) return result;
+  if (units.length === 0) return result;
   if (!process.env.DISCORD_TOKEN) return result;
   // A character with no account cannot be a thread member; the guest sweep above still ran for them.
   if (!character.discordUserId) return result;
 
-  // Entitlement, deliberately NOT filtered by location: holding the key is the whole test.
+  // Entitlement, deliberately NOT filtered by location: holding the key is the whole test,
+  // and a key-holder is in every private side's thread at once — Discord shows each only
+  // under a Location channel they can see. A guest pass is the exception: it opens the one
+  // side it was given at (RoomGuest.locationId), and the sweep above has spent the rest.
   const held = alive ? tagSlugs ?? (await heldTagSlugs(prisma, character.id)) : new Set();
   const guests = alive ? await guestRoomIds(prisma, character.id) : new Set();
   const allowed = alive ? await questAllowedRoomIds(prisma, character.id) : new Set();
-  const entitled = alive
-    ? new Set(accessibleRooms(rooms, held, guests, allowed).map((r) => r.id))
-    : new Set();
+  const entitled = new Set(
+    alive
+      ? units
+          .filter((unit) => {
+            const guestHere = unit.view.atLocationId === character.locationId ? guests : new Set();
+            return accessibleRooms([unit.view], held, guestHere, allowed).length === 1;
+          })
+          .map((unit) => unit.key)
+      : [],
+  );
 
   // What Discord has been told, so we act on the DIFFERENCE: entitlement is recomputed
   // constantly (every equip, every meal) and almost never changes, so this makes no calls at all.
@@ -169,32 +202,32 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   // not mirrored to Discord (docs/systemdocs/CHAT.md §6): cleared rather than never computed, so the diff below REMOVES whatever they still stand in.
   if (!record?.discordMirrored) entitled.clear();
 
-  const targets = rooms
-    .filter((room) => entitled.has(room.id) !== stored.has(room.id))
-    .filter((room) => !isRefused(character.id, room.id));
+  const targets = units
+    .filter((unit) => entitled.has(unit.key) !== stored.has(unit.key))
+    .filter((unit) => !isRefused(character.id, unit.key));
   if (targets.length === 0) return result;
 
   // Wake their tabs before the Discord calls, the slow part (docs CHAT.md §3).
   await notifyPresence(prisma, character.id);
 
   const next = new Set(stored);
-  for (const room of targets) {
+  for (const unit of targets) {
     try {
-      if (entitled.has(room.id)) {
-        await addThreadMember(room.discordThreadId, character.discordUserId);
-        next.add(room.id);
+      if (entitled.has(unit.key)) {
+        await addThreadMember(unit.threadId, character.discordUserId);
+        next.add(unit.key);
         result.added += 1;
       } else {
-        await removeThreadMember(room.discordThreadId, character.discordUserId);
-        next.delete(room.id);
+        await removeThreadMember(unit.threadId, character.discordUserId);
+        next.delete(unit.key);
         result.removed += 1;
       }
-      clearRefusal(character.id, room.id);
+      clearRefusal(character.id, unit.key);
     } catch (err) {
       // Left OUT of `next` on failure, so the next run retries rather than recording a membership Discord never accepted.
-      const permanent = noteFailure(character.id, room.id, err);
+      const permanent = noteFailure(character.id, unit.key, err);
       console.error(
-        `Room access sync failed for ${character.id} in "${room.name}"` +
+        `Room access sync failed for ${character.id} in "${unit.name}"` +
           `${permanent ? `, not retrying for ${REFUSAL_TTL_MS / 60_000}m` : ""}:`,
         err.message ?? err,
       );
@@ -207,7 +240,7 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   return result;
 }
 
-// Record/unrecord one room for code paths that push membership WITHOUT the
+// Record/unrecord one room thread (a membershipKey — the bare room id at home) for code paths that push membership WITHOUT the
 // recompute above: /add, /remove, the doctor's repair. They must call this or
 // the column lies — an ACCESS CONTROL FAILURE in the quiet direction, since
 // the diff only acts where `entitled` and `stored` DISAGREE, so a membership
@@ -229,6 +262,7 @@ async function recordRoomThread(prisma, characterId, roomId, present) {
 module.exports = {
   recordRoomThread,
   syncCharacterRoomAccess,
+  privateThreadUnits,
   accessibleRooms,
   heldTagSlugs,
   wornRingTokens,

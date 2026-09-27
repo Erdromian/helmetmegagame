@@ -21,6 +21,24 @@ const { linksFor, endpoints, gateOperable } = require("../locationGraph");
 const { markNukeRoom } = require("../nuke");
 const { hashBody } = require("./shared");
 const { buildRoomBody, buildAnchorBody } = require("./bodies");
+const { otherSides, persistThread } = require("../roomSides");
+
+// The names of the other Locations a room opens onto, for its starter's
+// "Also reached from" line. `nameById` is a caller's map when it has one (the
+// mirror); otherwise one small read. Empty for nearly every room.
+async function alsoReachedFrom(prisma, room, nameById = null) {
+  const ids = otherSides(room, room.atLocationId ?? room.locationId);
+  if (ids.length === 0) return [];
+  const names =
+    nameById ??
+    new Map(
+      (await prisma.location.findMany({ where: { id: { in: ids } }, select: { id: true, name: true } })).map((l) => [
+        l.id,
+        l.name,
+      ]),
+    );
+  return ids.map((id) => names.get(id)).filter(Boolean);
+}
 
 // --- Room threads ------------------------------------------------------
 
@@ -49,7 +67,9 @@ async function writeRoomStarter(threadId, chunks, components) {
 }
 
 // One thread per room, sync-owned: starter = the room body, reconciled by
-// hash. Never locked; the message wipe clears replies but never the starter.
+// hash. A room that opens onto several Locations has one thread per side, and
+// `room` is then the side's view (db/lib/roomSides.js#roomAt): its thread
+// columns are the side's, and every write goes back through persistThread. Never locked; the message wipe clears replies but never the starter.
 // Returns "created" | "updated" | "unchanged" | "skipped". Rooms carry NO
 // slowmode (the 5-minute one belongs to #summary alone); zero is asserted on
 // every pass the same way `archived: false` is, since Discord keeps a
@@ -59,7 +79,7 @@ const ROOM_SLOWMODE_SECONDS = 0;
 async function syncRoomThread(prisma, room, location, snapshot, liveState) {
   if (!location?.discordChannelId) return "skipped";
 
-  const body = buildRoomBody(room, liveState);
+  const body = buildRoomBody(room, liveState, { alsoReachedFrom: await alsoReachedFrom(prisma, room) });
   // Hashed with its button row, as the anchor is: a gate's open/shut state is
   // INSIDE that row, so the button re-renders after a flip.
   const components = await roomComponents(prisma, room, location.id);
@@ -95,10 +115,7 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
       await clearMessagesExcept(thread.id, null);
     }
     const starterMessageId = await writeRoomStarter(thread.id, chunks, components);
-    await prisma.room.update({
-      where: { id: room.id },
-      data: { discordThreadId: thread.id, starterMessageId, postHash: hash },
-    });
+    await persistThread(prisma, room, { discordThreadId: thread.id, starterMessageId, postHash: hash });
     room.discordThreadId = thread.id;
     room.starterMessageId = starterMessageId;
     room.postHash = hash;
@@ -127,10 +144,7 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
     archived: false,
     rate_limit_per_user: ROOM_SLOWMODE_SECONDS,
   });
-  await prisma.room.update({
-    where: { id: room.id },
-    data: { starterMessageId, postHash: hash },
-  });
+  await persistThread(prisma, room, { starterMessageId, postHash: hash });
   room.starterMessageId = starterMessageId;
   room.postHash = hash;
   return "updated";
@@ -170,7 +184,8 @@ async function roomComponents(prisma, room, locationId) {
   const bomb = await prisma.gameState.findUnique({ where: { id: 1 }, select: { nukeRoomId: true } }).catch(() => null);
   const [marked] = markNukeRoom([room], bomb?.nukeRoomId ?? null);
   const rows = roomStarterRows(marked, location);
-  if (WATCHTOWER_ROOM_SLUGS.has(room.slug)) {
+  // The winch is on the tower's own wall: never on a side's copy of the thread.
+  if (!room.sideId && WATCHTOWER_ROOM_SLUGS.has(room.slug)) {
     rows.push(locationGateRow(await gatesFor(prisma, locationId, gateControlIn(room.slug))));
   }
   return rows.filter(Boolean);
@@ -262,6 +277,7 @@ async function syncLocationAnchor(prisma, location, rooms) {
 }
 
 module.exports = {
+  alsoReachedFrom,
   syncRoomThread,
   gatesFor,
   roomComponents,

@@ -14,7 +14,8 @@
 // — none of which are the sync's job to own, and none of which delete or
 // create structure.
 const { buildRoomBody } = require("./bodies");
-const { roomComponents, syncLocationAnchor } = require("./roomThreads");
+const { alsoReachedFrom, roomComponents, syncLocationAnchor } = require("./roomThreads");
+const { WITH_SIDES, loadRoomsAt, persistThread, roomViews } = require("../roomSides");
 const { hashBody } = require("./shared");
 const { loadLiveStates } = require("../roomLive");
 const { WATCHTOWER_ROOM_SLUGS } = require("../roomStarterRow");
@@ -27,10 +28,8 @@ const { editMessage, chunkMessage } = require("../discordRest");
 async function refreshLocationAnchor(prisma, locationId) {
   const location = await prisma.location.findUnique({ where: { id: locationId } });
   if (!location) return "skipped";
-  const rooms = await prisma.room.findMany({
-    where: { locationId },
-    orderBy: { sortOrder: "asc" },
-  });
+  // Every room that opens onto here, a side's own thread linked from this anchor (db/lib/roomSides.js).
+  const rooms = await loadRoomsAt(prisma, locationId);
   return syncLocationAnchor(prisma, location, rooms);
 }
 
@@ -47,8 +46,11 @@ async function refreshLocationAnchor(prisma, locationId) {
 // Edits in place rather than going through syncRoomThread: a room whose thread
 // is missing is a job for the mirror or the channel doctor, not for a shuttle
 // taking off or a gate closing.
+//
+// Every thread of a room — home and each side it opens onto — is its own
+// starter, so a live line or a rename moves all of them.
 async function refreshRoomStarters(prisma, where, label) {
-  const rooms = await prisma.room.findMany({ where });
+  const rooms = (await prisma.room.findMany({ where, include: WITH_SIDES })).flatMap(roomViews);
   if (!rooms.length) return 0;
 
   const liveKeys = [...new Set(rooms.map((r) => r.live).filter(Boolean))];
@@ -57,7 +59,9 @@ async function refreshRoomStarters(prisma, where, label) {
   let edited = 0;
   for (const room of rooms) {
     if (!room.discordThreadId || !room.starterMessageId) continue;
-    const body = buildRoomBody(room, room.live ? states.get(room.live) : null);
+    const body = buildRoomBody(room, room.live ? states.get(room.live) : null, {
+      alsoReachedFrom: await alsoReachedFrom(prisma, room),
+    });
     const components = await roomComponents(prisma, room, room.locationId);
     const hash = hashBody(body + JSON.stringify(components));
     if (room.postHash === hash) continue;
@@ -67,7 +71,7 @@ async function refreshRoomStarters(prisma, where, label) {
       console.error(`${label} room refresh failed (${room.slug}):`, err.message);
       continue;
     }
-    await prisma.room.update({ where: { id: room.id }, data: { postHash: hash } });
+    await persistThread(prisma, room, { postHash: hash });
     edited += 1;
   }
   return edited;

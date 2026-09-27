@@ -28,6 +28,8 @@ const PEOPLE = {
 function fakePrisma() {
   return {
     character: { findMany: async ({ where }) => PEOPLE[where.locationId] ?? [] },
+    // No room here opens onto a second Location (db/lib/roomSides.js).
+    room: { findMany: async () => [] },
     locationLink: {
       findMany: async () => [{ aId: "gatehouse", a: { id: "gatehouse", name: "Gatehouse" }, b: { id: "road", name: "Road" } }],
     },

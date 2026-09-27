@@ -24,6 +24,7 @@ import {
   guestRoomIds as roomGuestIds,
   questAllowedRoomIds,
 } from "@lifeweb/db/lib/roomAccess";
+import { loadRoomsAt } from "@lifeweb/db/lib/roomSides";
 import { mayCustomize } from "@/lib/customCraft";
 import { corpsesInReach, livestockInReach } from "@lifeweb/db/lib/corpses";
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
@@ -580,10 +581,9 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Rooms somebody let this character into by hand — the reason this page and the Transfer gate agree.
   const guestRoomIds = await roomGuestIds(prisma, character.id);
   const questRoomIds = await questAllowedRoomIds(prisma, character.id);
+  // A room that opens onto here from next door counts, gated from this side (db/lib/roomSides.js).
   const roomRowsHere = character.locationId
-    ? await prisma.room.findMany({
-        where: { locationId: character.locationId },
-        orderBy: { sortOrder: "asc" },
+    ? await loadRoomsAt(prisma, character.locationId, {
         select: {
           id: true,
           name: true,

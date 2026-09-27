@@ -63,7 +63,7 @@ import { loadDesireView } from "@/lib/selfPools";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow } from "@/lib/dmThread";
 import { resolveDmActions } from "@/lib/dmActions";
 import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
-import { whosHere, whosHereGm, resolveHoodToken } from "@lifeweb/db/lib/whosHere";
+import { whosHere, whosHereGm, resolveHoodToken, resolveCrossRoomRef } from "@lifeweb/db/lib/whosHere";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { STAR_ROW_SELECT, saveStarredRow } from "@/lib/starNote";
@@ -111,6 +111,7 @@ import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
 import { syncPartyMembership } from "@lifeweb/db/lib/partyChat";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
+import { loadRoomsAt, roomAt, WITH_SIDES } from "@lifeweb/db/lib/roomSides";
 import { applyArrivalFacts, applyArrivalDiscord } from "@lifeweb/db/lib/locationMove";
 import { dismountedMessage } from "@lifeweb/db/lib/indoors";
 import {
@@ -439,8 +440,8 @@ export async function readStash(roomId) {
   });
   if (me.error) return { ok: false, error: me.error };
   const ctx = await chipContextFor(me.character);
-  const rooms = await prisma.room.findMany({
-    where: { locationId: me.character.locationId ?? "" },
+  // Every room that opens onto here, gated from this side (db/lib/roomSides.js).
+  const rooms = await loadRoomsAt(prisma, me.character.locationId, {
     select: {
       id: true,
       name: true,
@@ -2811,8 +2812,12 @@ export async function lookAt(personRef) {
 
   // One sightings Map for both halves: resolveHoodToken decides who counts as hooded from the same answer the readout uses.
   const seen = await lastSightings(prisma, me.character);
+  // A hood on the far side of a counter (db/lib/roomSides.js) is named by a look-only
+  // ref: the same shape, resolved second, and never by anything a verb reads.
   const targetId = HOOD_TOKEN.test(ref)
-    ? await resolveHoodToken(prisma, me.character, ref, { sightings: seen })
+    ? ((await resolveHoodToken(prisma, me.character, ref, { sightings: seen })) ??
+      (await resolveCrossRoomRef(prisma, me.character, ref, { sightings: seen }))?.id ??
+      null)
     : ref;
   if (!targetId) return { ok: false, error: "They aren't here any more." };
 
@@ -2873,13 +2878,16 @@ async function conversationHere(character, placeKey, { sightings = null } = {}) 
 async function privateRoomHere(character, placeKey) {
   const parsed = parsePlaceKey(placeKey);
   if (!parsed || parsed.kind !== "room") return { error: "That isn't a room." };
-  const room = await prisma.room.findUnique({
+  const row = await prisma.room.findUnique({
     where: { id: parsed.id },
-    select: { id: true, name: true, kind: true, locationId: true, accessTagSlugs: true },
+    select: { id: true, name: true, kind: true, locationId: true, accessTagSlugs: true, sortOrder: true, ...WITH_SIDES },
   });
-  if (!room) return { error: "That room is gone." };
+  if (!row) return { error: "That room is gone." };
+  // The room as seen from where you stand: a counter between two Locations
+  // has a door on each side, gated on its own (db/lib/roomSides.js).
+  const room = roomAt(row, character.locationId);
+  if (!room) return { error: "You're not in this room." };
   if (room.kind !== "PRIVATE") return { error: "Anyone standing here can already walk in." };
-  if (character.locationId !== room.locationId) return { error: "You're not in this room." };
   const keys = await roomAccessKeys(prisma, character.id);
   const inside =
     room.accessTagSlugs.some((slug) => keys.heldSlugs.has(slug)) || keys.guestRoomIds.has(room.id);
@@ -2921,14 +2929,15 @@ export async function placeMembers(placeKey) {
         : { ok: false, error: found.error };
     }
     room = found.room;
+    // This side's guests: a pass is good on the side it was given at.
     memberIds = (
       await prisma.roomGuest.findMany({
-        where: { roomId: room.id },
+        where: { roomId: room.id, locationId: room.locationId },
         orderBy: { createdAt: "asc" },
         select: { characterId: true },
       })
     ).map((row) => row.characterId);
-    members = await roomGuests(prisma, room.id, me.character, { sightings });
+    members = await roomGuests(prisma, room.id, me.character, { sightings, atLocationId: room.locationId });
   }
 
   // Everyone standing here who is not already in — HOODS INCLUDED, because

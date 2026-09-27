@@ -6,7 +6,9 @@ import FormError from "@/app/components/FormError";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { updateRoom } from "../../actions";
 
-export default function RoomForm({ room }) {
+// `homeName` is the room's own Location. A room may open onto others too, each gated
+// on its own (SidesPanel), so Kind and Access here are the gate from home.
+export default function RoomForm({ room, homeName = null }) {
   const { call, pending, error } = useActionRunner();
   const confirm = useConfirm();
 
@@ -48,14 +50,16 @@ export default function RoomForm({ room }) {
           <input name="name" defaultValue={room.name} required className="control" />
         </label>
         <label className="field">
-          <span className="field-label">Kind</span>
+          <span className="field-label">Kind{homeName ? ` (from ${homeName})` : ""}</span>
           <select name="kind" defaultValue={room.kind}>
             <option value="PUBLIC">PUBLIC</option>
             <option value="PRIVATE">PRIVATE</option>
           </select>
         </label>
         <label className="field">
-          <span className="field-label">Access tag slugs (PRIVATE only, comma-separated)</span>
+          <span className="field-label">
+            Access tag slugs (PRIVATE only, comma-separated){homeName ? ` — from ${homeName}` : ""}
+          </span>
           <input name="accessTagSlugs" defaultValue={room.accessTagSlugs} className="control" />
         </label>
         <label className="field">

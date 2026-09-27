@@ -6,6 +6,7 @@ import { getDevTier } from "@/lib/devAccess";
 import PageShell from "@/app/components/PageShell";
 import RoomForm from "./RoomForm";
 import StashPanel from "./StashPanel";
+import SidesPanel from "./SidesPanel";
 
 export default async function DevRoomPage({ params }) {
   const { roomId } = await params;
@@ -17,9 +18,19 @@ export default async function DevRoomPage({ params }) {
     include: {
       location: { select: { id: true, name: true, zone: { select: { name: true } } } },
       tags: { include: { tag: { select: { id: true, slug: true, name: true } } }, orderBy: { createdAt: "asc" } },
+      sides: {
+        orderBy: { createdAt: "asc" },
+        include: { location: { select: { name: true, zone: { select: { name: true } } } } },
+      },
     },
   });
   if (!room) notFound();
+  // Every Location it could be made to open onto (db/lib/roomSides.js).
+  const locations = await prisma.location.findMany({
+    where: { retiredAt: null, id: { not: room.locationId } },
+    orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
+    select: { id: true, name: true, zone: { select: { name: true } } },
+  });
 
   // ⬢ come out of the item list and go to the chip above it — they are a
   // stack row like everything else now, and a GM reading "12 ⬢" over a
@@ -38,6 +49,7 @@ export default async function DevRoomPage({ params }) {
           </Link>
         </p>
         <RoomForm
+          homeName={room.location.name}
           room={{
             id: room.id,
             slug: room.slug,
@@ -54,6 +66,20 @@ export default async function DevRoomPage({ params }) {
             accessTagSlugs: room.accessTagSlugs.join(", "),
             updatedAt: room.updatedAt.toISOString(),
           }}
+        />
+        <SidesPanel
+          roomId={room.id}
+          homeName={room.location.name}
+          sides={room.sides.map((side) => ({
+            id: side.id,
+            locationId: side.locationId,
+            locationName: `${side.location.zone.name} · ${side.location.name}`,
+            accessTagSlugs: side.accessTagSlugs.join(", "),
+            sortOrder: side.sortOrder,
+            hasThread: Boolean(side.discordThreadId),
+            updatedAt: side.updatedAt.toISOString(),
+          }))}
+          locations={locations.map((l) => ({ id: l.id, name: l.name, zoneName: l.zone.name }))}
         />
         <StashPanel
           roomId={room.id}

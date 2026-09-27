@@ -22,6 +22,7 @@ const { randomInt } = require("node:crypto");
 const { blockerFor, ACT } = require("./incapacitation");
 const { inFight } = require("./intercept");
 const { roomAccessKeys, accessibleRooms } = require("./roomAccess");
+const { WITH_SIDES, roomAt } = require("./roomSides");
 const { hasAttribute } = require("./locationAttributes");
 const { logAudit } = require("./auditLog");
 const { SFX } = require("./sfx");
@@ -161,12 +162,26 @@ async function keypadActor(prisma, discordUserId, roomId) {
   const state = await prisma.gameState.findUnique({ where: { id: 1 }, select: STATE_SELECT });
   if (!state?.nukeRoomId || !roomId || state.nukeRoomId !== roomId) return fail(NUKE_TEXT.noBomb);
 
-  const room = await prisma.room.findUnique({
+  const home = await prisma.room.findUnique({
     where: { id: roomId },
-    select: { id: true, slug: true, name: true, kind: true, locationId: true, accessTagSlugs: true, retiredAt: true },
+    select: {
+      id: true,
+      slug: true,
+      name: true,
+      kind: true,
+      locationId: true,
+      accessTagSlugs: true,
+      sortOrder: true,
+      retiredAt: true,
+      ...WITH_SIDES,
+    },
   });
-  if (!room || room.retiredAt) return fail(NUKE_TEXT.noBomb);
-  if (character.locationId !== room.locationId) return fail(NUKE_TEXT.notHere);
+  if (!home || home.retiredAt) return fail(NUKE_TEXT.noBomb);
+  // The room as seen from where the character stands: a room that opens onto
+  // more than one Location (MAP.md §2d) has its bomb reachable from each side,
+  // through that side's own door (db/lib/roomSides.js#roomAt).
+  const room = roomAt(home, character.locationId);
+  if (!room) return fail(NUKE_TEXT.notHere);
 
   const blocker = blockerFor(character.tags, ACT);
   if (blocker) return fail(`You can't act — you're ${blocker.name}.`);

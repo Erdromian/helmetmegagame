@@ -1373,6 +1373,8 @@ model Location {
   anchorHash      String?
 
   rooms            Room[]
+  // Rooms whose home is another Location but which open onto this one too.
+  roomSides        RoomSide[]
   quests           Quest[]
   characters       Character[]
   playerThreads    PlayerThread[]
@@ -1764,6 +1766,10 @@ model Room {
   auditLogs     AuditLog[]
   searches      RoomSearchAttempt[]
 
+  // The other Locations this room opens onto — a window, a counter. Empty for
+  // nearly every room. See RoomSide and docs/systemdocs/MAP.md §2d.
+  sides RoomSide[]
+
   // The phone on this wall, at both ends of a call. See PhoneCall.
   phoneCallsOut PhoneCall[] @relation("PhoneCallFrom")
   phoneCallsIn  PhoneCall[] @relation("PhoneCallTo")
@@ -2012,7 +2018,7 @@ model PlayerThreadInvite {
 /// (db/lib/roomAccess.js), and this is the one exception.
 ///
 /// The grant is SPENT WHEN THEY LEAVE. syncCharacterRoomAccess deletes every
-/// row whose Room is not where the character now stands, and it already runs
+/// row whose `locationId` is not where the character now stands, and it already runs
 /// on every arrival, so walking out of the Location is what closes the door.
 /// That is why a guest is a row rather than a thread-member add and nothing
 /// else: Discord's member list survives a move, and the rule must not.
@@ -2031,10 +2037,78 @@ model RoomGuest {
   /// inviter may be dead by the time anyone reads it.
   invitedById String?
 
+  /// The Location the guest was let in at. A room that opens onto several
+  /// Locations (RoomSide) can be gated differently on each side, so a grant is
+  /// good on the side it was given and spent on leaving that Location — being
+  /// waved in over the easy counter is not a key to the strict one.
+  locationId String
+
   createdAt DateTime @default(now())
 
   @@id([roomId, characterId])
   @@index([characterId])
+}
+
+/// One more Location a Room opens onto — a window, a counter (docs/systemdocs/
+/// MAP.md §2d). The room's HOME side is still Room.locationId, with its own
+/// kind/accessTagSlugs/thread columns; each row here is one further side,
+/// gated on its own, because the doc says a room may be gated differently
+/// depending on where you stand. People on different sides share the room's
+/// feed and stash, never a Location: every verb on a person stays
+/// Location-grain (db/lib/presence.js#isHere).
+///
+/// On Discord each side is its own thread under that side's Location channel,
+/// since a thread can only be read by somebody who can see its parent. The
+/// outbox relays every line between the threads (bot/src/lib/feedOutbox.js,
+/// ArchiveRelay). db/lib/roomSides.js is the one module that reads this table.
+model RoomSide {
+  id String @id @default(cuid())
+
+  roomId String
+  room   Room   @relation(fields: [roomId], references: [id], onDelete: Cascade)
+
+  locationId String
+  location   Location @relation(fields: [locationId], references: [id], onDelete: Cascade)
+
+  // This side's gate, the same shape as Room.kind/accessTagSlugs: PRIVATE
+  // exactly when the list is non-empty.
+  kind           RoomKind @default(PUBLIC)
+  accessTagSlugs String[] @default([])
+
+  // Place in this Location's room list and anchor index.
+  sortOrder Int @default(0)
+
+  // This side's thread, starter and body hash — the twin of Room's own.
+  discordThreadId  String? @unique
+  starterMessageId String?
+  postHash         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([roomId, locationId])
+  @@index([locationId])
+}
+
+/// One copy of an archive row posted into a thread other than the one it was
+/// said in: a line in a room that opens onto several Locations goes to every
+/// side's thread (RoomSide). The row's own discordMessageId stays the copy in
+/// the thread it came from, or the home thread for a web line; these are the
+/// rest, so an edit or a delete can reach every copy. A null discordMessageId
+/// is a claim taken and not yet posted.
+model ArchiveRelay {
+  id String @id @default(cuid())
+
+  archiveEntryId String
+  archiveEntry   ArchiveEntry @relation(fields: [archiveEntryId], references: [id], onDelete: Cascade)
+
+  threadId         String
+  discordMessageId String?   @unique
+  syncedAt         DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@unique([archiveEntryId, threadId])
 }
 
 /// The outcome of a long-running operational pass that runs in after() or a
@@ -6178,6 +6252,10 @@ model ArchiveEntry {
   // The outbox watermark: when this row was last pushed to Discord. Null on a
   // WEB row means the bot has not posted it yet.
   discordSyncedAt DateTime?
+
+  // Copies of this row in the other threads of a room that opens onto
+  // several Locations. See ArchiveRelay.
+  relays ArchiveRelay[]
 
   createdAt DateTime @default(now())
 

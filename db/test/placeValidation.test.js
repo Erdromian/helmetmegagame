@@ -12,11 +12,25 @@ const {
 
 // A stand-in with just enough of the three models' findUnique/findFirst to
 // answer slug and name lookups. `rows` is { zone: [...], location: [...], room: [...] }.
+// A room row may carry `sides: [locationId]` — the other Locations it opens onto.
 function fakePrisma(rows = { zone: [], location: [], room: [] }) {
   const table = (name) => rows[name] ?? [];
   const model = (name) => ({
     findUnique: async ({ where }) => table(name).find((r) => r.slug === where.slug) ?? null,
     findFirst: async ({ where }) => {
+      // A room's lookup arrives as AND [name/id, opensOntoAnyWhere(locationIds)].
+      if (where.AND) {
+        const [plain, onto] = where.AND;
+        const ids = onto.OR[0].locationId.in;
+        return (
+          table(name).find(
+            (r) =>
+              r.name === plain.name &&
+              !(plain.id?.not && r.id === plain.id.not) &&
+              (ids.includes(r.locationId) || (r.sides ?? []).some((l) => ids.includes(l))),
+          ) ?? null
+        );
+      }
       return (
         table(name).find((r) => {
           if (where.slug !== undefined && r.slug !== where.slug) return false;
@@ -91,4 +105,17 @@ test("room names are unique per location, not globally", async () => {
   });
   assert.notEqual(await validateUniqueName(prisma, "room", "Nave", { locationId: "cathedral" }), null);
   assert.equal(await validateUniqueName(prisma, "room", "Nave", { locationId: "undercroft" }), null);
+});
+
+// A counter's thread hangs under every Location it opens onto (db/lib/roomSides.js),
+// and the mirror finds a thread by its name under its parent.
+test("a room's name is taken at every Location it opens onto", async () => {
+  const prisma = fakePrisma({
+    zone: [],
+    location: [],
+    room: [{ id: "r1", name: "Counter", locationId: "merchant", sides: ["slums"] }],
+  });
+  assert.notEqual(await validateUniqueName(prisma, "room", "Counter", { locationId: "slums" }), null);
+  assert.notEqual(await validateUniqueName(prisma, "room", "Counter", { locationIds: ["square", "merchant"] }), null);
+  assert.equal(await validateUniqueName(prisma, "room", "Counter", { locationIds: ["merchant", "slums"], excludeId: "r1" }), null);
 });

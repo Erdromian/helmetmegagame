@@ -10,6 +10,8 @@ import { enqueueMirror } from "@lifeweb/db/lib/discordMirror/queue";
 import { ATTRIBUTES, attributesFromInput } from "@lifeweb/db/lib/locationAttributes";
 import { seedRoomStashRows } from "@lifeweb/db/lib/roomStashSeed";
 import { rehomeStandingCharacters } from "@lifeweb/db/lib/locationMove";
+import { deleteThread } from "@lifeweb/db/lib/discordRest";
+import { roomLocationIds } from "@lifeweb/db/lib/roomSides";
 
 // /gm/dev/zones — the GM place editor. Every writer here re-validates
 // everything server-side (a disabled button is a hint, not a lock), writes
@@ -383,10 +385,14 @@ export async function createRoom(locationId, input) {
 export async function updateRoom(roomId, updatedAt, input) {
   return guarded(async () => {
     const session = await requireGmSession();
-    const before = await prisma.room.findUnique({ where: { id: roomId } });
+    const before = await prisma.room.findUnique({ where: { id: roomId }, include: { sides: { select: { locationId: true } } } });
     if (!before) throw new UserError("That room no longer exists.");
     const name = trimmed(input.name);
-    const nameError = await validateUniqueName(prisma, "room", name, { locationId: before.locationId, excludeId: roomId });
+    // Unique at every Location the room opens onto, not only its home.
+    const nameError = await validateUniqueName(prisma, "room", name, {
+      locationIds: roomLocationIds(before),
+      excludeId: roomId,
+    });
     if (nameError) throw new UserError(nameError);
     const renamed = before.name !== name;
     const kind = input.kind === "PRIVATE" ? "PRIVATE" : "PUBLIC";
@@ -417,6 +423,107 @@ export async function updateRoom(roomId, updatedAt, input) {
     await audit(session, "gm_room_updated", { roomId, name, renamed, from: before.name });
     await enqueueMirror(prisma, "room", roomId, renamed ? "renamed from /gm/dev/zones" : "edited from /gm/dev/zones");
     revalidatePath(`/gm/dev/zones/rooms/${roomId}`);
+  });
+}
+
+// ------------------------------------------------------------ Room sides ----
+//
+// A room that opens onto more than one Location — a window, a counter
+// (Multi-locational rooms.docx, docs/systemdocs/MAP.md §2d). The room's own
+// form above is its HOME side; each side here is one more Location it opens
+// onto, with a gate of its own. Kind follows the access list, as it does in
+// docs/zones.yaml: any slug makes that side PRIVATE.
+
+function accessSlugs(raw) {
+  return String(raw ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+}
+
+function revalidateSide(roomId, locationIds) {
+  revalidatePath(`/gm/dev/zones/rooms/${roomId}`);
+  for (const locationId of locationIds) revalidatePath(`/gm/dev/zones/locations/${locationId}`);
+}
+
+export async function addRoomSide(roomId, input) {
+  return guarded(async () => {
+    const session = await requireGmSession();
+    const room = await prisma.room.findUnique({ where: { id: roomId }, include: { sides: { select: { locationId: true } } } });
+    if (!room) throw new UserError("That room no longer exists.");
+    const locationId = trimmed(input.locationId);
+    const location = locationId
+      ? await prisma.location.findUnique({ where: { id: locationId }, select: { id: true, name: true, retiredAt: true } })
+      : null;
+    if (!location || location.retiredAt) throw new UserError("Pick a Location for it to open onto.");
+    if (location.id === room.locationId) throw new UserError("That is the room's own Location.");
+    if (room.sides.some((s) => s.locationId === location.id)) {
+      throw new UserError(`It already opens onto ${location.name}.`);
+    }
+    // Its thread will sit under that Location's channel too, where a thread is found by its name.
+    const nameError = await validateUniqueName(prisma, "room", room.name, { locationIds: [location.id], excludeId: roomId });
+    if (nameError) throw new UserError(`${location.name} already has a room called "${room.name}".`);
+    const slugs = accessSlugs(input.accessTagSlugs);
+
+    const side = await prisma.roomSide.create({
+      data: {
+        roomId,
+        locationId: location.id,
+        kind: slugs.length > 0 ? "PRIVATE" : "PUBLIC",
+        accessTagSlugs: slugs,
+        sortOrder: optionalInt(input.sortOrder, "Sort order"),
+      },
+    });
+    await audit(session, "gm_room_side_added", { roomId, sideId: side.id, locationId: location.id, accessTagSlugs: slugs });
+    // The room job rebuilds every thread of it, the new side's included; the Location's anchor lists it.
+    await enqueueMirror(prisma, "room", roomId, `opened onto ${location.name} from /gm/dev/zones`);
+    await enqueueMirror(prisma, "location", location.id, "a room opens onto here now");
+    revalidateSide(roomId, [room.locationId, location.id]);
+  });
+}
+
+export async function updateRoomSide(sideId, updatedAt, input) {
+  return guarded(async () => {
+    const session = await requireGmSession();
+    const before = await prisma.roomSide.findUnique({ where: { id: sideId } });
+    if (!before) throw new UserError("That side no longer exists.");
+    const slugs = accessSlugs(input.accessTagSlugs);
+    await claimRow(prisma.roomSide, sideId, updatedAt, {
+      kind: slugs.length > 0 ? "PRIVATE" : "PUBLIC",
+      accessTagSlugs: slugs,
+      sortOrder: optionalInt(input.sortOrder, "Sort order"),
+    });
+    await audit(session, "gm_room_side_updated", { roomId: before.roomId, sideId, accessTagSlugs: slugs });
+    await enqueueMirror(prisma, "room", before.roomId, "a side's gate edited from /gm/dev/zones");
+    await enqueueMirror(prisma, "location", before.locationId, "a side's gate edited from /gm/dev/zones");
+    revalidateSide(before.roomId, [before.locationId]);
+  });
+}
+
+export async function removeRoomSide(sideId) {
+  return guarded(async () => {
+    const session = await requireGmSession();
+    const side = await prisma.roomSide.findUnique({ where: { id: sideId }, include: { room: { select: { locationId: true } } } });
+    if (!side) throw new UserError("That side no longer exists.");
+
+    // Passes given at this side open nothing any more, and the membership
+    // records naming its thread would point at nothing (db/lib/roomSides.js#membershipKey).
+    const key = `${side.roomId}@${side.locationId}`;
+    await prisma.$transaction([
+      prisma.roomGuest.deleteMany({ where: { roomId: side.roomId, locationId: side.locationId } }),
+      prisma.$executeRaw`UPDATE "Character" SET "roomThreadRoomIds" = array_remove("roomThreadRoomIds", ${key}) WHERE ${key} = ANY("roomThreadRoomIds")`,
+      prisma.roomSide.delete({ where: { id: sideId } }),
+    ]);
+    // Best-effort: the mirror never deletes a thread, so this is the one chance to take it down.
+    if (side.discordThreadId) {
+      await deleteThread(side.discordThreadId).catch((err) =>
+        console.error(`Room side thread delete failed (${side.discordThreadId}):`, err?.message ?? err),
+      );
+    }
+    await audit(session, "gm_room_side_removed", { roomId: side.roomId, sideId, locationId: side.locationId });
+    await enqueueMirror(prisma, "room", side.roomId, "a side closed from /gm/dev/zones");
+    await enqueueMirror(prisma, "location", side.locationId, "a room no longer opens onto here");
+    revalidateSide(side.roomId, [side.room?.locationId, side.locationId].filter(Boolean));
   });
 }
 

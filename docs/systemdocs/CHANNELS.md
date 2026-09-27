@@ -552,11 +552,31 @@ to catch and repair. Hold the Baron's Key and you're admitted to The Charon
 the moment you next arrive or the key changes hands — there is no separate
 "open the door" action.
 
+**A room that opens onto several Locations has a thread per side**
+(`MAP.md` §2d). Each side's thread hangs under that side's Location channel,
+is public or private by that side's own gate, is linked from that side's
+anchor, and carries a starter of its own with a `-# Also reached from …` line
+and a Storage button and nothing else. The mirror describes one thread target
+per side (`thread:room:<id>@<locationId>`, its id in `RoomSide.discordThreadId`)
+under one room subject, so a room job rebuilds every one of them. Private
+membership is kept per thread: `Character.roomThreadRoomIds` holds the bare
+room id for the home thread and `<roomId>@<locationId>` for a side's
+(`roomSides.js#membershipKey`). A key-holder is in every private side's thread
+at once, the same "membership does not follow the feet" rule as ever.
+Everything that deletes or adopts threads — the message wipe, Restart Game,
+`db:prune-stale-channels` — knows the side threads, or it would take one for a
+stray and delete it. Lines are relayed between the threads (`CHAT.md` §4).
+
 ### 4a. Room guests: `/add` in a private Room
 
 A key is not the only way in. Somebody already inside a private Room can
 `/add` a character standing in the same Location, which writes a **`RoomGuest`**
 row and lets them in at once — the Baron waving a visitor into his office.
+
+In a room that opens onto several Locations, the door is the side you work it
+from: the pass is written with that side's Location (`RoomGuest.locationId`),
+checked against that side's gate, and spent on leaving that Location. A GM's
+door is the side the guest is standing at.
 
 - **Who may work the door:** anyone already in the room, or a GM. Membership
   is pulled from standing there with a key or a guest row, so "in the room" is

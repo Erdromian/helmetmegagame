@@ -14,6 +14,7 @@ const { hoodToken, performerKey } = require("./hoodToken");
 const { hasEverPerformed } = require("./performance"); // leaf requires only; no cycle. // its own leaf to avoid a require cycle; re-exported below.
 const { roleGroupHue } = require("./roleGroups");
 const { knownSubjects, settlePresence, labelAliases } = require("./strangers");
+const { WITH_SIDES, opensOntoWhere, otherSides, roomAt, sidePresenceWhere } = require("./roomSides");
 
 const PRESENT_SELECT = {
   id: true,
@@ -168,6 +169,18 @@ async function whosHere(prisma, viewer, { withHoodIds = false, withAcross = fals
   const result = { named, concealed };
   if (withAcross) {
     const locationId = options.locationId ?? viewer?.locationId ?? null;
+    // Through a counter: everybody on the far side of a room this viewer is in (db/lib/roomSides.js).
+    // The same rule as the gate — listed and inspectable, never in hoodIds, so no picker can offer them.
+    result.rooms = (await crossRoomGroups(prisma, viewer, { locationId, sightings: sightings ?? new Map() })).map(
+      (group) => ({
+        roomId: group.roomId,
+        roomName: group.roomName,
+        locationId: group.locationId,
+        locationName: group.locationName,
+        named: namedRows(group.rows, viewer),
+        concealed: concealedRows(group.rows, { withTokens: false, lookRefs: true }),
+      }),
+    );
     result.across = [];
     for (const far of await gateNeighbours(prisma, locationId)) {
       const farRows = await presentRows(prisma, viewer, { locationId: far.id, sightings: sightings ?? new Map() });
@@ -188,6 +201,65 @@ async function whosHere(prisma, viewer, { withHoodIds = false, withAcross = fals
     if (c.hidden && !c.forced) hoodIds.set(hoodToken(c.id, c.presenceNonce), c.id);
   }
   return { ...result, hoodIds };
+}
+
+// The rooms that open onto more than one Location which this viewer is IN, and
+// for each, the people on every other side who are in it too — standing at that
+// side's Location and passing that side's gate (Multi-locational rooms.docx:
+// "the Who's Here should display everyone who is present in the cross-locational
+// room, from both locations"). Rows are presentRows' own, so hoods, strangers and
+// labels are decided exactly as they are for the viewer's own street. Nobody
+// from the viewer's own Location is repeated: they are in the main list, with
+// their menu. `viewer` without an id (a GM's readout) sees every such room.
+async function crossRoomGroups(prisma, viewer, { locationId, sightings = new Map() } = {}) {
+  if (!locationId) return [];
+  const rooms = await prisma.room.findMany({
+    where: { AND: [opensOntoWhere(locationId), { retiredAt: null, sides: { some: {} } }] },
+    include: { ...WITH_SIDES, location: { select: { id: true, name: true } } },
+    orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+  });
+  if (rooms.length === 0) return [];
+
+  // Lazily: roomAccess reaches Discord helpers this module has no other use for.
+  const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+  const keys = viewer?.id ? await roomAccessKeys(prisma, viewer.id) : null;
+  const rowsAt = new Map();
+  const groups = [];
+  for (const room of rooms) {
+    const mine = roomAt(room, locationId);
+    if (!mine) continue;
+    if (keys && accessibleRooms([mine], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 0) continue;
+    for (const farId of otherSides(room, locationId)) {
+      const far = roomAt(room, farId);
+      if (!far) continue;
+      if (!rowsAt.has(farId)) rowsAt.set(farId, await presentRows(prisma, viewer, { locationId: farId, sightings }));
+      let rows = rowsAt.get(farId).filter((c) => !c.self);
+      if (far.kind === "PRIVATE") {
+        const inside = await prisma.character.findMany({ where: sidePresenceWhere(far), select: { id: true } });
+        const ids = new Set(inside.map((c) => c.id));
+        rows = rows.filter((c) => ids.has(c.id));
+      }
+      const locationName =
+        farId === room.locationId ? room.location?.name : room.sides.find((s) => s.locationId === farId)?.location?.name;
+      groups.push({ roomId: room.id, roomName: room.name, locationId: farId, locationName: locationName ?? "", rows });
+    }
+  }
+  return groups;
+}
+
+// Which person on the far side of a counter this token names, or null — for
+// LOOKING only: the stranger's face (web/app/api/avatar/here) and /look. Never
+// for a verb: db/lib/targetKey.js resolves through resolveHoodToken alone, so a
+// token minted here reaches nobody an act could land on.
+async function resolveCrossRoomRef(prisma, viewer, token, { sightings = null } = {}) {
+  if (!token || !viewer?.locationId || !process.env.AUTH_SECRET) return null;
+  const seen = sightings ?? (await lastSightings(prisma, viewer));
+  for (const group of await crossRoomGroups(prisma, viewer, { locationId: viewer.locationId, sightings: seen })) {
+    for (const c of group.rows) {
+      if (c.hidden && !c.forced && hoodToken(c.id, c.presenceNonce) === token) return { id: c.id, stranger: c.stranger };
+    }
+  }
+  return null;
 }
 
 // Locations across a modular gate, read straight off the links (avoids a require cycle with locationGraph.js).
@@ -257,7 +329,10 @@ function labelledAliases(rows) {
   return new Map(rows.map((c, i) => [c.id, names[i]]));
 }
 
-function concealedRows(rows, { withTokens }) {
+// `lookRefs` is the counter's middle ground (crossRoomGroups): no token — so no
+// menu and no picker — but a `lookRef` a look may name them by, and the
+// stranger's face served under it.
+function concealedRows(rows, { withTokens, lookRefs = false }) {
   const hooded = rows.filter((c) => c.hidden && !c.forced);
   const shown = labelledAliases(hooded);
   return hoodOrder(hooded, (c) => shown.get(c.id), (c) => c.id)
@@ -269,7 +344,7 @@ function concealedRows(rows, { withTokens }) {
       // token (web/app/api/avatar/here), never by id, and only to somebody
       // standing here. Across a gate there is no token, so no face.
       const face = c.stranger
-        ? (withTokens && token ? `/api/avatar/here/${token}` : null)
+        ? ((withTokens || lookRefs) && token ? `/api/avatar/here/${token}` : null)
         : c.self
           ? presentedIdentity(c, { concealment: c.livePiece }).avatarPath
           : (c.sighting?.avatarPath ?? null);
@@ -277,6 +352,7 @@ function concealedRows(rows, { withTokens }) {
       return {
         alias: shown.get(c.id),
         token: withTokens ? token : null,
+        ...(lookRefs ? { lookRef: token } : {}),
         avatarPath: faceShown ? face : null,
         unknownFace: c.stranger ? !face : !c.seen || Boolean(c.sighting?.unknownFace),
         seen: c.seen,
@@ -336,7 +412,7 @@ async function hiddenFrom(prisma, viewer, characterId, { sightings = null, inclu
 }
 
 // The Discord button's readout, built off the same rows so the channel and the page can never disagree.
-function whosHereLines({ named, concealed, across = [] }) {
+function whosHereLines({ named, concealed, across = [], rooms = [] }) {
   const lines = [];
   if (named.length > 0) {
     lines.push(`**Here:** ${named.map((c) => c.name).join(" | ")}`);
@@ -349,6 +425,11 @@ function whosHereLines({ named, concealed, across = [] }) {
     ];
     if (people.length > 0) lines.push(`**${group.locationName}:** ${people.join(" | ")}`);
   }
+  // Over a counter: the far side of a room that opens onto here too.
+  for (const group of rooms) {
+    const people = [...group.named.map((c) => c.name), ...group.concealed.map((c) => c.alias)];
+    if (people.length > 0) lines.push(`**${group.roomName} · ${group.locationName}:** ${people.join(" | ")}`);
+  }
   return lines;
 }
 
@@ -358,6 +439,8 @@ module.exports = {
   whosHereGm,
   whosHereLines,
   resolveHoodToken,
+  resolveCrossRoomRef,
+  crossRoomGroups,
   hiddenFrom,
   hoodToken,
   presentRows,

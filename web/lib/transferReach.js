@@ -1,4 +1,4 @@
-// Both party kinds are Location-grain, using the same accessibleRooms() the thread-membership sync uses, so the gate and the door never disagree.
+// Both party kinds are Location-grain — a room's Locations are every side it opens onto (db/lib/roomSides.js) — using the same accessibleRooms() the thread-membership sync uses, so the gate and the door never disagree.
 import { prisma } from "@lifeweb/db";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { partyRoom } from "@lifeweb/db/lib/parties";
@@ -15,12 +15,14 @@ export async function canReachParty(
 ) {
   if (!party) return false;
   if (party.kind === "room") {
-    if (!actor?.locationId || party.locationId !== actor.locationId) return false;
+    // The room as seen from where the actor stands: null if it does not open onto here, and that side's own gate if it does.
+    const view = actor?.locationId ? partyRoom(party, actor.locationId) : null;
+    if (!view) return false;
     const keys =
       heldSlugs && guestRoomIds ? { heldSlugs, guestRoomIds } : await roomAccessKeys(prisma, actor.id);
     // partyRoom, never the party: its `kind` is "room", so a private room read straight off it opened for
     // anybody standing at the Location — Transfer, Steal and a room-paid craft or cure all came through here.
-    return accessibleRooms([partyRoom(party)], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 1;
+    return accessibleRooms([view], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length === 1;
   }
   if (party.kind === "character") return isHere(actor, party, { allowDead, allowConcealed });
   return false;

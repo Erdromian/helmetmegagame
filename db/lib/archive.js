@@ -303,24 +303,31 @@ async function recordArchiveEvent(prisma, entry) {
 }
 
 // The row a Discord message id belongs to — what reactions look themselves up with, in place of the in-memory recentProxies map a restart used to empty.
+const MESSAGE_ROW_SELECT = {
+  id: true,
+  seq: true,
+  placeKey: true,
+  characterId: true,
+  characterName: true,
+  concealedAlias: true,
+  presentedAvatarPath: true,
+  content: true,
+  sentAt: true,
+  deletedAt: true,
+  kind: true,
+};
+
+// A relayed copy — the same line in another thread of a room that opens onto
+// several Locations (ArchiveRelay) — answers for its row too, so a reaction on
+// the far side of a counter edits, deletes or looks at the one line.
 async function archiveRowForMessage(prisma, discordMessageId) {
   if (!discordMessageId) return null;
-  return prisma.archiveEntry.findUnique({
-    where: { discordMessageId },
-    select: {
-      id: true,
-      seq: true,
-      placeKey: true,
-      characterId: true,
-      characterName: true,
-      concealedAlias: true,
-      presentedAvatarPath: true,
-      content: true,
-      sentAt: true,
-      deletedAt: true,
-      kind: true,
-    },
-  });
+  const row = await prisma.archiveEntry.findUnique({ where: { discordMessageId }, select: MESSAGE_ROW_SELECT });
+  if (row) return row;
+  const relay = await prisma.archiveRelay
+    .findUnique({ where: { discordMessageId }, select: { archiveEntry: { select: MESSAGE_ROW_SELECT } } })
+    .catch(() => null);
+  return relay?.archiveEntry ?? null;
 }
 
 // Take a row back that nobody should have seen — the proxy's claim row when the

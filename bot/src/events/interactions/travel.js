@@ -45,6 +45,7 @@ const { sendDm } = require("../../lib/dm");
 const { escortCandidates, partyOf } = require("@lifeweb/db/lib/escort");
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
 const { arrivalLinksLine } = require("@lifeweb/db/lib/syncZones/bodies");
+const { loadRoomsAt } = require("@lifeweb/db/lib/roomSides");
 const { GATE_CHARACTER_SELECT, toggleGate, holdKeyedOpen } = require("@lifeweb/db/lib/gates");
 const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
@@ -473,8 +474,9 @@ async function arrivalLinks(characterId, locationId) {
   const [mover, location, rooms] = await Promise.all([
     prisma.character.findUnique({ where: { id: characterId }, select: { discordMirrored: true } }),
     prisma.location.findUnique({ where: { id: locationId }, select: { discordChannelId: true } }),
-    prisma.room.findMany({
-      where: { locationId, retiredAt: null },
+    // A room that opens onto here from next door links its thread on THIS side (db/lib/roomSides.js).
+    loadRoomsAt(prisma, locationId, {
+      where: { retiredAt: null },
       select: { kind: true, discordThreadId: true, sortOrder: true },
     }),
   ]).catch(() => []);
