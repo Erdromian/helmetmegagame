@@ -537,18 +537,6 @@
   min-width: 0;
 }
 
-/* The turn card fills whatever height the band row gives the box, so combat
-   mode's square (CombatModeButton.js) can use it all without growing the box. */
-.ledger-turn > .sheet-turn {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.sheet-turn > .combat-frame {
-  flex: 1;
-}
-
 /* The turn card beside the forecast; either alone takes the whole row. */
 .sheet-band-row {
   display: grid;

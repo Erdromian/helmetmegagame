@@ -17,7 +17,9 @@ import { moveKindLabel } from "./MoveDialog";
 // the plain fact they are. It is one text line now — a chip is for a value
 // that just IS (DESIGN-SYSTEM §5a), and a locked turn is a state, not a
 // value, so only that case still gets a small tone chip.
-export default function TurnCard({ turn, move, onFile, onEdit }) {
+// `extra` is a button that shares the Move… button's row and its size — combat mode
+// (web/app/components/CombatModeButton.js, COMBAT-MODE.md §2). Null draws the card as it always was.
+export default function TurnCard({ turn, move, onFile, onEdit, extra = null }) {
   const [now, setNow] = useState(() => Date.now());
   const [open, setOpen] = useState(false);
 
@@ -73,19 +75,23 @@ export default function TurnCard({ turn, move, onFile, onEdit }) {
               it disappears on its own when Moves lock. History was asked for
               and dropped (Bascinet's answer): there is no per-character Move
               log to show. */}
-          {move.editable && onEdit && (
-            <div className="chat-buttons">
-              <button type="button" className="btn" onClick={onEdit}>
-                Change…
-              </button>
+          {((move.editable && onEdit) || extra) && (
+            <div className={extra ? "chat-buttons chat-buttons--even" : "chat-buttons"}>
+              {move.editable && onEdit && (
+                <button type="button" className="btn" onClick={onEdit}>
+                  Change…
+                </button>
+              )}
+              {extra}
             </div>
           )}
         </>
       ) : (
-        <div className="chat-buttons">
+        <div className={extra ? "chat-buttons chat-buttons--even" : "chat-buttons"}>
           <button type="button" className="btn" disabled={Boolean(turn.shut) || turn.locked} onClick={onFile}>
             Move…
           </button>
+          {extra}
         </div>
       )}
     </div>

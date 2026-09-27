@@ -206,12 +206,15 @@ export default function ChatAside({
       <Block head="Turn" fold="turn" folds={folds}>
         {/* Combat mode sits beside Move…, per Combat Mode.docx (COMBAT-MODE.md §2). */}
         <CombatModeButton state={moveState.combatMode} onChanged={moveState.refresh}>
-          <TurnCard
-            turn={moveState.turn}
-            move={moveState.move}
-            onFile={() => setDialog("move")}
-            onEdit={() => setDialog("move")}
-          />
+          {(combat) => (
+            <TurnCard
+              turn={moveState.turn}
+              move={moveState.move}
+              onFile={() => setDialog("move")}
+              onEdit={() => setDialog("move")}
+              extra={combat}
+            />
+          )}
         </CombatModeButton>
       </Block>
 

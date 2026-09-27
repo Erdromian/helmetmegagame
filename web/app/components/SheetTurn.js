@@ -80,18 +80,20 @@ export default function SheetTurn({ moveState, pendingOffers = [] }) {
 
   return (
     <div className="sheet-turn">
-      {/* Combat mode beside Move…, as large as the box allows, per Combat Mode.docx
-          (COMBAT-MODE.md §2). A refresh after, since the sheet's Attack and Intercept dialogs read
-          it too. The offers stay inside its frame so it never covers them. */}
+      {/* Combat mode beside Move…, per Combat Mode.docx (COMBAT-MODE.md §2). A refresh after,
+          since the sheet's Attack and Intercept dialogs read it too. */}
       <CombatModeButton state={state.combatMode} onChanged={done}>
-        <TurnCard
-          turn={state.turn}
-          move={state.move}
-          onFile={() => setDialog("move")}
-          onEdit={() => setDialog("move")}
-        />
-        {waiting}
+        {(combat) => (
+          <TurnCard
+            turn={state.turn}
+            move={state.move}
+            onFile={() => setDialog("move")}
+            onEdit={() => setDialog("move")}
+            extra={combat}
+          />
+        )}
       </CombatModeButton>
+      {waiting}
       {dialog === "move" && (
         <MoveDialog
           turn={state.turn}

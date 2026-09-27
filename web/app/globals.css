@@ -1014,20 +1014,17 @@ input[type="radio"]:focus-visible,
   border-bottom-color: color-mix(in srgb, var(--danger) 45%, var(--surface));
 }
 
-/* Combat mode (COMBAT-MODE.md §2): a square toggle that glows red while on
-   (Combat Mode.docx), beside the Move… button. Off it is the everyday grey
-   bevel; on it takes the .btn-danger face plus a --danger glow, since being on
-   guard is an alarm state. A pressed button, not a Switch: it can't come off on
-   the turn it went on (DESIGN-SYSTEM.md §5a).
-
-   Sized by CombatModeButton.js, not here: the largest square that fits to the
-   right of the card's last button without touching a line of text, so the
-   frame never grows for it. Absolute for that reason, and hidden until that
-   first measurement lands. `container-type: size` lets what is inside scale
-   with whatever square it got — the label only shows once there is room. */
-.combat-frame {
-  position: relative;
-  min-width: 0;
+/* Combat mode (COMBAT-MODE.md §2): the "Combat" button beside Move…, glowing
+   red while on (Combat Mode.docx). The same box as .btn — its borders,
+   padding, font size and line height — so the two are the same height, and
+   .chat-buttons--even makes them the same width. Off it is the everyday grey
+   bevel; on it takes the .btn-danger face plus a --danger glow, since being
+   on guard is an alarm state. A pressed button, not a Switch: it can't come
+   off on the turn it went on (DESIGN-SYSTEM.md §5a). */
+.chat-buttons.chat-buttons--even {
+  display: inline-grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 1fr;
 }
 
 .combat-mode-note {
@@ -1036,63 +1033,24 @@ input[type="radio"]:focus-visible,
 
 .btn-combat {
   all: unset;
-  position: absolute;
-  visibility: hidden;
-  width: 44px;
-  height: 44px;
-  container-type: size;
   cursor: pointer;
   box-sizing: border-box;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  padding: 2px;
-  overflow: hidden;
   border-top: 2px solid var(--border-hi);
   border-left: 2px solid var(--border-hi);
   border-right: 2px solid var(--border-lo);
   border-bottom: 2px solid var(--border-lo);
-  border-radius: var(--r);
   background: var(--surface-raised);
   color: var(--text);
-  line-height: 1.1;
+  padding: 3px 8px;
+  border-radius: var(--r);
+  font-size: var(--fs-2xs);
+  line-height: 1.3;
+  font-weight: 700;
+  white-space: nowrap;
   text-align: center;
-}
-
-.btn-combat > svg {
-  flex: none;
-  width: 42cqh;
-  height: 42cqh;
-}
-
-.btn-combat-label {
-  display: none;
-  font-weight: 700;
-  font-size: clamp(9px, 14cqh, 14px);
-}
-
-.btn-combat-state {
-  color: var(--muted);
-  font-size: clamp(9px, 20cqh, 13px);
-  font-weight: 700;
-}
-
-/* Room for the words as well: the icon shrinks to make it. */
-@container (min-height: 64px) {
-  .btn-combat > svg {
-    width: 34cqh;
-    height: 34cqh;
-  }
-
-  .btn-combat-label {
-    display: block;
-  }
-
-  .btn-combat-state {
-    font-size: clamp(9px, 14cqh, 13px);
-  }
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .btn-combat:hover:not(:disabled, [aria-disabled="true"]) {
@@ -1122,10 +1080,6 @@ input[type="radio"]:focus-visible,
   box-shadow:
     0 0 10px color-mix(in srgb, var(--danger) 55%, transparent),
     0 0 2px var(--danger);
-}
-
-.btn-combat[aria-pressed="true"] .btn-combat-state {
-  color: var(--danger);
 }
 
 .btn-combat[aria-pressed="true"]:hover:not(:disabled, [aria-disabled="true"]) {
