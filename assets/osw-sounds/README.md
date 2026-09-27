@@ -72,3 +72,24 @@ They are built from `scripts/osw/sound-board.template.html`. **Build from the
 template, never from `sound-player.html`** — that file is a finished board with
 its cue list already substituted in, and building from it silently ships the old
 board's cues against the new board's files.
+
+## Bascinet's own picks
+
+75 more tracks sit in this library that did **not** come from OpenSourceWeb. Bascinet
+chose them and described each one in `E:\Bascinet\V3\Sounds\New Music and Sounds.docx`.
+They are in `ambience/` and `music/` beside the OSW files, and in two folders of their own:
+`den/` (songs for the Den's jukebox) and `effects/` (sounds that cut into the ambience).
+
+- `scripts/audio/import-bascinet-sounds.mjs` brings them in from Bascinet's
+  `Sounds\` folder. It gives each one a plain name, keyed on the YouTube id in the
+  original filename.
+- `bascinet-sources.json` maps each library file to that id, the artist and title,
+  and the original filename. `scripts/audio/import-sound-doc.mjs` reads it to match
+  the document's rows to these files.
+- **These are not byte-for-byte copies.** Bascinet chose to keep them re-encoded
+  (stereo Vorbis, `-q:a 2`, about 96 kbps) rather than add 290 MB of originals to the
+  history. The originals are on Bascinet's own disk.
+- `music/surfacing.ogg` and `music/a-thousand-empty-rooms.ogg` were OSW files. They
+  were replaced by the same recordings at a better rate, under the same names.
+- **The CC BY-SA grant under License, above, does not cover them.** They are published recordings by
+  the artists named in `bascinet-sources.json`, and no license is claimed for them here.

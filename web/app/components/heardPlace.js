@@ -31,6 +31,28 @@ export function useHeardPlace() {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 }
 
+// chat/openPlace.js's own key: the place Chat last had open, kept across page loads. Read
+// here, never written — Chat owns it.
+const LAST_KEY = "bascinet:play:last-place";
+
+function readLast() {
+  try {
+    return window.localStorage.getItem(LAST_KEY);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The open place key, or else the one Chat had open last time, even on a page load that
+ * never opened Chat. A GM's: "new tracks start from whatever location they are viewing or
+ * were last viewing in the chat menu" (SOUND.md §4). A string, so the snapshot compares by
+ * value and a re-read never re-renders.
+ */
+export function useLastHeardPlace() {
+  return useSyncExternalStore(subscribe, () => heard ?? readLast(), getServerSnapshot);
+}
+
 /** Called by Chat with the place it is drawing. */
 export function useReportHeardPlace(placeKey) {
   useEffect(() => {

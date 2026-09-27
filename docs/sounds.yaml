@@ -1,9 +1,12 @@
 # What every sound in the library is FOR.
 #
-# Bascinet's "Music and Sounds" document, projected into the repo. That document is the
-# source of truth and it is hand-written: every use case below is Bascinet's own sentence
-# about that file, carried across verbatim and deliberately not re-punctuated. A registry
-# that has quietly improved its source cannot be checked against it.
+# Bascinet's two "Music and Sounds" documents, projected into the repo — the old one for the
+# OpenSourceWeb library, the new one for Bascinet's own picks and for the placement rules
+# that apply to all of it. They are the source of truth and they are hand-written: every
+# use case below is Bascinet's own sentence about that file, carried across verbatim and
+# deliberately not re-punctuated. A registry that has quietly improved its source cannot be
+# checked against it. Where both describe one file, the new document's sentence is the one
+# kept.
 #
 # THIS FILE IS GENERATED. Run:
 #
@@ -17,7 +20,7 @@
 # not a table. See docs/systemdocs/SOUND.md §7.
 #
 #   use     — Bascinet's sentence, verbatim.
-#   class   — one of the six classes in `rules` below, derived from that sentence.
+#   class   — one of the eight classes in `rules` below, derived from that sentence.
 #   doc     — present only where the document spells the filename differently from the
 #             file itself. The key is always the real file; this records what was read,
 #             so every correction the importer made is visible and can be argued with.
@@ -31,7 +34,7 @@
 # db/lib/instrumentSongs.js. Neither is duplicated here.
 
 
-# The document's own rules for each class of track, verbatim.
+# The documents' own rules for each class of track, verbatim.
 rules:
   ambience: >-
     Ambience tracks are longer tracks which can be seamlessly looped, though silence
@@ -50,6 +53,54 @@ rules:
     Instrument tracks are specifically gated behind use of their associated instrument.
   unused: >-
     Unused tracks are not to be selected.
+  interrupt: >-
+    Ambience tracks continue to completion unless they are interrupted by an ambience
+    interrupting SFX, or the character leaves the specific zone in which they can play,
+    in which case they fade out. Ambience is universal across all pages, including GM
+    ones. When in GM mode, GMs do not have ambience tracks end until they have reached
+    completion, and new tracks start from whatever location they are viewing or were
+    last viewing in the chat menu.
+  jukebox: >-
+    Den music is played from the jukebox located in the den. Whichever song has been
+    picked loops for all characters in the den until it is changed or turned off. It
+    replaces any ambience while playing. Muffle the sound to imitate a low quality
+    speaker.
+
+# Where a track may play. The new document's opening, verbatim; it applies to every file
+# here, old and new. web/app/components/placeAmbience.js is these rules in code.
+placement:
+  - >-
+    New sounds catalogue. Import these into the osw sound asset folders and register
+    them according to the descriptions here. Add a note that ONLY ambience tracks
+    referring to space are to be used in space. General ambience is for use in the
+    town/undertown/keep/blackhills/caves/depths, not other zones in space or other
+    dimensions.
+  - >-
+    Tracks described as being for use in the fortress mean all locations in the keep,
+    town and undertown. Tracks described as for use in the caves/depths are also for use
+    in the black hills.
+  - >-
+    Ambience tracks can apply to multiple, or fewer zones, locations and more. For
+    example, while there are inn specific ambience tracks, general and fortress ambience
+    can also play there. The most specific ambience track to a situation will be
+    selected over more general tracks, with some variation to avoid a single track
+    looping.
+  - >-
+    Ambience tracks continue to completion unless they are interrupted by an ambience
+    interrupting SFX, or the character leaves the specific zone in which they can play,
+    in which case they fade out. Ambience is universal across all pages, including GM
+    ones. When in GM mode, GMs do not have ambience tracks end until they have reached
+    completion, and new tracks start from whatever location they are viewing or were
+    last viewing in the chat menu.
+  - >-
+    Only lobby music tracks can play during lobby.
+  - >-
+    Apply these clarifications to all existing sound assets as well as the new.
+  - >-
+    Den music is played from the jukebox located in the den. Whichever song has been
+    picked loops for all characters in the den until it is changed or turned off. It
+    replaces any ambience while playing. Muffle the sound to imitate a low quality
+    speaker.
 
 # A rule that applies to a whole folder rather than to one file.
 groups:
@@ -60,10 +111,30 @@ groups:
   instruments/lute:
     note: Instrument sounds only used for their associated instrument.
 
-# 737 files.
+# 810 files.
 sounds:
 
   # ---- ambience
+  ambience/a-curved-blade.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "Atrium Carceri - A Curved Blade [m6Qv49Aw5qk].ogg"
+    served: ambience/a-curved-blade.ogg
+  ambience/abyssus-abyssum-invocat.ogg:
+    use: Ambience while wearing thanati robes
+    class: ambience
+    doc: "Hades： Abyssus Abyssum Invocat [AijB2f-iCEg].ogg"
+    served: ambience/abyssus-abyssum-invocat.ogg
+  ambience/after-the-party.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "After The Party [OaVkQ6tIYvc].ogg"
+    served: ambience/after-the-party.ogg
+  ambience/ager-sonus-lost.ogg:
+    use: Ambience in space
+    class: ambience
+    doc: "Ager Sonus - Lost [N2Qp_n1PV-I].ogg"
+    served: ambience/ager-sonus-lost.ogg
   ambience/alarm4.ogg:
     use: Opening an airlock
     class: cue
@@ -107,6 +178,7 @@ sounds:
     use: Played atop silence in space stations
     class: atop
     served: ambience/ambigen11.ogg
+    needs: a space station. It used to play over the Depths, which its own sentence never said
   ambience/ambigen12.ogg:
     use: Played atop silence in space
     class: atop
@@ -171,6 +243,16 @@ sounds:
     use: Ambience in space
     class: ambience
     served: ambience/ambispace.ogg
+  ambience/an-atrementous-city.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "Atrium Carceri & Cities Last Broadcast - An Atrementous City [aoM7GlnA7Uw].ogg"
+    served: ambience/an-atrementous-city.ogg
+  ambience/auldale.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "Thief Deadly Shadows OST - Auldale [x9FkiNGE9MI].ogg"
+    served: ambience/auldale.ogg
   ambience/charon_loop.ogg:
     use: Ambience in proximity to charon
     class: ambience
@@ -178,22 +260,117 @@ sounds:
   ambience/clank_loop.ogg:
     use: Distant sound produced by smiths striking an anvil, or other sources of metal on metal collisions
     class: ambience
+  ambience/consciousness-dissolves.ogg:
+    use: Ambience while a ghost
+    class: ambience
+    doc: "Consciousness Dissolves into the Emptiness [Jl7x7VSdpVc].ogg"
+    served: ambience/consciousness-dissolves.ogg
+  ambience/contaminated.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "Resident Evil Remake Soundtrack ＂Contanimated＂ [sq3qnC2E7hI].ogg"
+    served: ambience/contaminated.ogg
+  ambience/darkwood-untitled-2.ogg:
+    use: Ambience while in the underfort
+    class: ambience
+    doc: "Darkwood OST - Untitled 2 - Artur Kordas [Wn9hJbqVy_A].ogg"
+    served: ambience/darkwood-untitled-2.ogg
+  ambience/departure.ogg:
+    use: Ambience in space
+    class: ambience
+    doc: "Emra Grid - Departure [8RjXB6zhJ3Q].ogg"
+    served: ambience/departure.ogg
+  ambience/derelict-approach.ogg:
+    use: Ambience in space
+    class: ambience
+    doc: "Alien： Isolation Soundtrack - 20 - ＂Derelict Approach＂ [yi2fYdXwIG8].ogg"
+    served: ambience/derelict-approach.ogg
+  ambience/dust-are-all-her-beauties.ogg:
+    use: Ambience in the fortress
+    class: ambience
+    doc: "Caul - Dust Are All Her Beauties [nr7ChveMl8Q].ogg"
+    served: ambience/dust-are-all-her-beauties.ogg
+  ambience/fear-insertion.ogg:
+    use: Ambience in the underfort
+    class: ambience
+    doc: "F.E.A.R. [OST] #03 - Insertion [WzyBsdAkFBM].ogg"
+    served: ambience/fear-insertion.ogg
+  ambience/fear2-city-ambience.ogg:
+    use: Ambience in the fortress
+    class: ambience
+    doc: "F.E.A.R. 2 Project Origin Soundtrack - 32 - City Ambience [PIns3RutZz0].ogg"
+    served: ambience/fear2-city-ambience.ogg
+  ambience/feast-of-the-night.ogg:
+    use: Ambience in the inn
+    class: ambience
+    doc: "Erang - Feast Of The Night (2014) [ODTWtjyYY48].ogg"
+    served: ambience/feast-of-the-night.ogg
   ambience/fire.ogg:
     use: Short sound of fire burning
     class: cue
+  ambience/floor-6-please.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "Atrium Carceri, Cities Last Broadcast, God Body Disconnect - Floor 6, Please [czfaKg8eon4].ogg"
+    served: ambience/floor-6-please.ogg
+  ambience/from-chasms-reborn.ogg:
+    use: Ambience in the caves
+    class: ambience
+    doc: "Atrium Carceri - From Chasms Reborn [1GVINHRiG2w].ogg"
+    served: ambience/from-chasms-reborn.ogg
+  ambience/garden-music.ogg:
+    use: Ambience in the underfort
+    class: ambience
+    doc: "System Shock 2 - Garden music [nOzuO-w1Rv8].ogg"
+    served: ambience/garden-music.ogg
+  ambience/geist.ogg:
+    use: Ambience interrupting sound effect of becoming a ghost, and also ambience while a ghost
+    class: interrupt
+    doc: "Dronny Darko - Geist [UFNAMoRUZts].ogg"
+    served: ambience/geist.ogg
   ambience/harbor.ogg:
     use: Ambience of a peer on water
     class: ambience
+  ambience/heliopolis.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "Sephiroth - Heliopolis [3WG4SNOdBY4].ogg"
+    served: ambience/heliopolis.ogg
   ambience/hiss.ogg:
     use: Sound of something deflating or releasing gas
     class: cue
+  ambience/horns-of-eden.ogg:
+    use: Ambience in the caves
+    class: ambience
+    doc: "Randal Collier-Ford - Horns of Eden [jVmJwfj4YYA].ogg"
+    served: ambience/horns-of-eden.ogg
+  ambience/industrial-district.ogg:
+    use: Ambience in space and the underfort
+    class: ambience
+    doc: "Atrium Carceri - Industrial District [aAwNyv6nyPw].ogg"
+    served: ambience/industrial-district.ogg
   ambience/interference.ogg:
     use: Sound of AI computation aboard space station
     class: cue
+  ambience/introspectre.ogg:
+    use: Ambience while in the caves/depths
+    class: ambience
+    doc: "Depeche Mode - Introspectre [sTYcT_w3DbI].ogg"
+    served: ambience/introspectre.ogg
+  ambience/laudanum.ogg:
+    use: Ambience in the fortress
+    class: ambience
+    doc: "Atrium Carceri & Cities Last Broadcast - Laudanum [kTperX-_ZrM].ogg"
+    served: ambience/laudanum.ogg
   ambience/lifeweb2b.ogg:
     use: Ambience when in proximity to lifeweb while it is feeding
     class: ambience
     served: ambience/lifeweb2b.ogg
+  ambience/locus-meropis.ogg:
+    use: Sound and ambience that plays immediately after the charon has taken off
+    class: ambience
+    doc: "Locus Meropis [nhee1IdD-m4].ogg"
+    served: ambience/locus-meropis.ogg
   ambience/loop_airy1.ogg:
     use: Ambience in the fortress
     class: ambience
@@ -228,11 +405,55 @@ sounds:
   ambience/loop_vent.ogg:
     use: Ambience in proximity to vent and vent fans
     class: ambience
+  ambience/maintenance-tunnels.ogg:
+    use: Ambience on a space station
+    class: ambience
+    doc: "Atrium Carceri - Maintenance Tunnels [2ZZv99VX-5E].ogg"
+    needs: a space station. The only place in space is the Charon in orbit, which is a ship
+  ambience/mantrap.ogg:
+    use: Ambience in fortress when combat mode is enabled and an alarm is declared
+    class: ambience
+    doc: "Mantrap (Remastered) [aZ21watnnY0].ogg"
+    needs: "an alarm that can be declared in the fortress. Combat mode exists; an alarm does not yet"
   ambience/newfireloop.ogg:
     use: Ambience in proximity to an out of control fire
     class: ambience
     served: ambience/newfireloop.ogg
-    needs: a fire that is out of control. Far too intense for a hearth, brazier or campfire
+  ambience/overture-for-castration.ogg:
+    use: "Ambience in the count’s camp"
+    class: ambience
+    doc: "Spiritual Front - Overture for Castration [U0nuEgp2SBA].ogg"
+    needs: the Count's camp, which is not a place yet
+  ambience/parhelic-triangle.ogg:
+    use: Ambience while hallucinating
+    class: ambience
+    doc: "Autechre - Parhelic Triangle [QGX1nSR5ymw].ogg"
+    served: ambience/parhelic-triangle.ogg
+  ambience/rectum.ogg:
+    use: Ambience for the dreamer, or while in a place with a Wonder
+    class: ambience
+    doc: "Thomas Bangalter - Rectum [9lMArVYkqZ8].ogg"
+    needs: the Dreamer, or a place with a Wonder. Neither is in the game yet
+  ambience/restless-dreams.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "In My Restless Dreams I See That Town Silent Hill No Vocals (Instrumental Version) [UYGIDlywyC0].ogg"
+    served: ambience/restless-dreams.ogg
+  ambience/rivers-of-glass.ogg:
+    use: Ambience in the caves/depths
+    class: ambience
+    doc: "Dronny Darko - Rivers of Glass [P7argRuSus0].ogg"
+    served: ambience/rivers-of-glass.ogg
+  ambience/sacrament-and-crucifixion.ogg:
+    use: Ambience in a place with an ancient super intelligence
+    class: ambience
+    doc: "Trepaneringsritualen - Sacrament & Crucifixion [D2ATW0Edwec].ogg"
+    needs: a place with an ancient super intelligence, which is not in the game yet
+  ambience/scraped-steel.ogg:
+    use: Ambience while in an alien location
+    class: ambience
+    doc: "Scraped Steel [7fOYSndG3tc].ogg"
+    needs: an alien location, which is not a place yet
   ambience/seag1.ogg:
     use: Played atop ambience in proximity to open ocean
     class: atop
@@ -242,6 +463,16 @@ sounds:
   ambience/seag3.ogg:
     use: Short Sound of bird crying
     class: cue
+  ambience/sentient.ogg:
+    use: Ambience when combat mode is enabled for THEY
+    class: ambience
+    doc: "Pharmakon - Sentient [SBR-175] [OEpZTp1GJwY].ogg"
+    needs: THEY, who are not in the game yet
+  ambience/shes-afraid-of-you.ogg:
+    use: Ambience in the underfort and caves/depths
+    class: ambience
+    doc: "F.E.A.R. [OST] #10 - She's Afraid Of You [tq2BPO_M4wo].ogg"
+    served: ambience/shes-afraid-of-you.ogg
   ambience/shipambience.ogg:
     use: Ambience aboard a vessel of any sort
     class: ambience
@@ -252,6 +483,16 @@ sounds:
   ambience/signal.ogg:
     use: Ambience of heart monitor beeping, in proximity to characters in critical condition in sanctuary
     class: ambience
+  ambience/slower.ogg:
+    use: Ambience in the keep
+    class: ambience
+    doc: "Slower [vJpWCT3hDgA].ogg"
+    served: ambience/slower.ogg
+  ambience/sorry-sir-wrong-room.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "Atrium Carceri, Cities Last Broadcast, God Body Disconnect - Sorry Sir, You Are In The Wrong Room [x_NeqAGR8pA].ogg"
+    served: ambience/sorry-sir-wrong-room.ogg
   ambience/spookymaint1.ogg:
     use: Ambience in treacherous locations
     class: ambience
@@ -267,9 +508,44 @@ sounds:
     use: More quiet ambience in space
     class: ambience
     served: ambience/spookyspace2.ogg
+  ambience/subway-suspense.ogg:
+    use: Ambience in the fortress
+    class: ambience
+    doc: "F.E.A.R. 2 [OST] #61 - Subway Suspense [Royup6zcPwk].ogg"
+    served: ambience/subway-suspense.ogg
+  ambience/such-is-life.ogg:
+    use: Ambience while aboard the soulbreaker ship
+    class: ambience
+    doc: "Cosey Fanni Tutti ~ Such Is Life [vKrLyAgLUbM].ogg"
+    needs: the soulbreaker ship, which is not a place yet
   ambience/TestLoop1.ogg:
     use: Techno music
     class: cue
+  ambience/the-dark-mother.ogg:
+    use: Ambience in the fortress
+    class: ambience
+    doc: "Atrium Carceri - The Dark Mother [7mONA54WFxs].ogg"
+    served: ambience/the-dark-mother.ogg
+  ambience/the-elementary-school.ogg:
+    use: Ambience in limbo
+    class: ambience
+    doc: "Postal 1 (1997) Soundtrack - The Elementary School [3ryH4b4Y5OQ].ogg"
+    needs: limbo, which is not a place yet
+  ambience/the-great-order-of-things.ogg:
+    use: Ambience in the fortress
+    class: ambience
+    doc: "Atrium Carceri & Cities Last Broadcast - The Great Order of Things [Eyiorm0F8bM].ogg"
+    served: ambience/the-great-order-of-things.ogg
+  ambience/the-hierophant.ogg:
+    use: Ambience in space
+    class: ambience
+    doc: "Kammarheit – The Hierophant [xwIBo8NTx1U].ogg"
+    served: ambience/the-hierophant.ogg
+  ambience/there-will-be-lies.ogg:
+    use: General ambience
+    class: ambience
+    doc: "Flowers for Bodysnatchers - There Will Be Lies [kkLcO87y-qI].ogg"
+    served: ambience/there-will-be-lies.ogg
   ambience/torch_big.ogg:
     use: Ambience in proximity to bonfire or large fire
     class: ambience
@@ -283,9 +559,19 @@ sounds:
   ambience/tstation.ogg:
     use: Ambience of an insidious nature
     class: ambience
+  ambience/underground-troubles.ogg:
+    use: General Ambience
+    class: ambience
+    doc: "Fallout 1 Soundtrack - Underground Troubles (Caves) [6Bz3wBuRpEQ].ogg"
+    served: ambience/underground-troubles.ogg
   ambience/vent.ogg:
     use: Sound of brittle rusted metal being struck and crumbling
     class: cue
+  ambience/we-fear-no-evil.ogg:
+    use: Ambience for ghosts
+    class: ambience
+    doc: "Protection, We Fear No Evil [kRIZyvGRUAU].ogg"
+    served: ambience/we-fear-no-evil.ogg
   ambience/wind_2_1.ogg:
     use: Played atop ambience, quiet wind
     class: atop
@@ -592,6 +878,105 @@ sounds:
   creatures/tzanzlife3.ogg:
     use: Fluttery insect chattering
     class: cue
+
+  # ---- den
+  den/blue-monday.ogg:
+    use: Song 1
+    class: jukebox
+    doc: "Blue Monday by Orgy [3e_nJRzCpBE].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/change-in-the-house-of-flies.ogg:
+    use: Song 4
+    class: jukebox
+    doc: "Change (In the House of Flies) [hzRltUL5M3k].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/hardly-wait.ogg:
+    use: Song 6
+    class: jukebox
+    doc: "Hardly Wait [IdEHGXeu4SY].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/i-love-you-mary-jane.ogg:
+    use: Song 5
+    class: jukebox
+    doc: "Cypress Hill & Sonic Youth - I Love You Mary Jane [7-ADAr9-Aqs].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/into-the-void.ogg:
+    use: Song 2
+    class: jukebox
+    doc: "Buzz Kull - Into The Void [Official] [OJm2lSxXrwY].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/it-kills.ogg:
+    use: Song 9
+    class: jukebox
+    doc: "The Soft Moon - It Kills (Official Music Video) [0gsXdT7mjoI].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/loose-ends.ogg:
+    use: Den music, Song 10
+    class: jukebox
+    doc: "RONNIE & THE RAINBOWS - LOOSE ENDS [nqQD9-1CUuU].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/lsd-truth.ogg:
+    use: Song 8
+    class: jukebox
+    doc: "Lords of Acid - LSD=Truth [ve4vd5FSIrU].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/navy-light.ogg:
+    use: Song 7
+    class: jukebox
+    doc: "Labyrinth Ear - Navy Light [a9qKkG7NDu0].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/night-creature.ogg:
+    use: Den music, Song 11
+    class: jukebox
+    doc: "The Gigolo's -- Night Creature (1960) [DIUHwSLKe24].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+  den/red-blood.ogg:
+    use: Song 3
+    class: jukebox
+    doc: "Chad VanGaalen - Red Blood [xa3aAjnBpzw].ogg"
+    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+
+  # ---- effects
+  effects/choir-of-liberty.ogg:
+    use: Ambience interrupting sfx which plays after becoming a revolutionary
+    class: interrupt
+    doc: "Freedom Fighters [Music] - Choir Of Liberty [BBcPpHDJ4yQ].ogg"
+    needs: becoming a revolutionary, which is not in the game yet
+  effects/fools-village.ogg:
+    use: Ambience while hallucinating
+    class: ambience
+    doc: "Деревня Дураков. Главная тема ⧸ Fool's Village. Main Theme OST [Wfpc_1bK8ao].ogg"
+    served: ambience/fools-village.ogg
+  effects/hishmaliin.ogg:
+    use: Ambience interrupting sfx which plays after smoking marijuana
+    class: interrupt
+    doc: "Dvar - Hishmaliin [7J5JMJ0JHx4].ogg"
+    needs: marijuana, which is not in the game yet
+  effects/hot-plates.ogg:
+    use: Ambience interrupting combat music which plays after enabling combat mode as dreamer, and at turn push if in combat as dreamer.
+    class: interrupt
+    doc: "Judge Bitch - Hot Plates [gATKeoPnlh4].ogg"
+    needs: the Dreamer, who is not in the game yet
+  effects/islamic-trance.ogg:
+    use: Ambience interrupting music which plays immediately upon spawning as a soulbreaker. Additionally serves as ambience on soulbreaker ship
+    class: interrupt
+    doc: "Muhmood - Islamic Trance - Ed Wood Jr [UDGNqgSD2Bc].ogg"
+    needs: soulbreakers and their ship, which are not in the game yet
+  effects/mature-raver.ogg:
+    use: Ambience interrupting sfx which plays after taking DOB or other hardcore drug.
+    class: interrupt
+    doc: "AFX - (mature raver) - AFx [vHt-0LjZmWM].ogg"
+    needs: DOB or another hardcore drug, which are not in the game yet
+  effects/oval-sky.ogg:
+    use: Ambience interrupting sfx when having a drug induced bad trip, VERY LOUD, lower the volume on this one before using.
+    class: interrupt
+    doc: "Oval - Sky (2010) [oxJ6NCyVsQ4].ogg"
+    needs: "a drug-induced bad trip, which is not in the game yet. Lower its level before wiring it: the document says it is very loud"
+  effects/pipe-organ-ambience.ogg:
+    use: Ambience interrupting sfx which plays when waking up as the Dreamer
+    class: interrupt
+    doc: "Fatal Frame IV OST - Pipe Organ Ambience [RxKzJu1WdVc].ogg"
+    needs: the Dreamer, who is not in the game yet
 
   # ---- instruments/accordion
   instruments/accordion/b1.ogg:
@@ -1054,6 +1439,7 @@ sounds:
   music/a-thousand-empty-rooms.ogg:
     use: Lobby Music
     class: lobby
+    doc: "Atrium Carceri, Cities Last Broadcast, God Body Disconnect - A Thousand Empty Rooms [5jfU1HN2pSQ].ogg"
     served: music/a-thousand-empty-rooms.ogg
   music/b12_combined_start.ogg:
     use: Unused
@@ -1069,6 +1455,16 @@ sounds:
   music/caught2.ogg:
     use: A sudden ambush or surprise attack
     class: cue
+  music/conflict-and-climax.ogg:
+    use: Lobby music
+    class: lobby
+    doc: "Conflict & Climax [M-uV_YKgb30].ogg"
+    served: music/conflict-and-climax.ogg
+  music/friction.ogg:
+    use: Lobby music
+    class: lobby
+    doc: "Friction [8tFuur4Jk8M].ogg"
+    served: music/friction.ogg
   music/graceperiod.ogg:
     use: Unused
     class: unused
@@ -1087,6 +1483,21 @@ sounds:
     use: Special round lobby music
     class: lobby
     served: music/holywarlobby.ogg
+  music/identity-theft.ogg:
+    use: Lobby music after the game has started and the count is in play
+    class: lobby
+    doc: "Atrium Carceri - Identity Theft [aA1AfLJxWjQ].ogg"
+    needs: the Count, who is not in the game yet
+  music/manunkind.ogg:
+    use: Lobby Music
+    class: lobby
+    doc: "Manunkind [8pE2a-z5r0k].ogg"
+    served: music/manunkind.ogg
+  music/mission-end.ogg:
+    use: Lobby music after the round starts and the gamemode is OS13
+    class: lobby
+    doc: "Fatal Frame IV： Mask Of The Lunar Eclipse OST - Mission End [rQUUh0uX_kI].ogg"
+    needs: an OS13 gamemode. GameConfig.gameMode is only PERSISTENT or SESSIONS
   music/morning.ogg:
     use: Unused
     class: unused
@@ -1106,6 +1517,11 @@ sounds:
   music/ravenheart_combat1.ogg:
     use: Ambience when the alarm is declared
     class: ambience
+  music/red-calx.ogg:
+    use: Lobby Music
+    class: lobby
+    doc: "Aphex Twin- Red Calx (medium pitch) [Oktc1HXsvKI].ogg"
+    served: music/red-calx.ogg
   music/sacred_dagger.ogg:
     use: Ambience within the cathedral
     class: ambience
@@ -1114,10 +1530,16 @@ sounds:
     use: Ambience within the inn
     class: ambience
     served: music/song_game.ogg
+  music/stone-in-focus.ogg:
+    use: Lobby music
+    class: lobby
+    doc: "Stone In Focus [JRL1fqhDV1I].ogg"
+    served: music/stone-in-focus.ogg
   music/surfacing.ogg:
-    use: Ambience on the surface
-    class: ambience
-    served: music/surfacing.ogg
+    use: Lobby music after the game has started and the count is in play
+    class: lobby
+    doc: "Atrium Carceri Surfacing [0H02Y7wpnEU].ogg"
+    needs: the Count, who is not in the game yet
   music/suspense_thanati.ogg:
     use: Dark whispers
     class: cue

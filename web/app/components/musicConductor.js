@@ -2,19 +2,30 @@
 
 import { fadeOutAtEnd, onEnded, playOn, stopLayer } from "./music";
 import { fileGain } from "./musicGain";
-import { PIECE_WATCHDOG_MS, gapAfter, pickOne, roll } from "./musicSchedule";
+import { PIECE_WATCHDOG_MS, gapAfter, pickOne, pickTiered, roll } from "./musicSchedule";
+import { placeHas } from "./placeAmbience";
 
 // The in-game soundtrack. ONE timeline, one piece at a time:
 //
 //     [piece] → [silence] → [piece] → [silence] → …
 //
-// A piece is whatever the place you are standing in sounds like (placeAmbience.js), and it
-// plays to its end. Nothing on this timeline ever ducks, replaces or cuts off anything else
-// on it, because there is only ever one thing on it. The only thing that interrupts a piece
-// is a performance — a jukebox or somebody playing — and music.js handles that on its own.
+// A piece is whatever the place you are standing in sounds like (placeAmbience.js), picked
+// off its stack of tiers so the most specific track usually wins. It plays to its end —
+// "Ambience tracks continue to completion" — with exactly two exceptions, both the
+// document's:
 //
-// Walking somewhere new does not touch what is playing. It changes what "here" means, and
-// the NEXT piece is picked from the new place.
+//   - "…unless they are interrupted by an ambience interrupting SFX". interrupt() fades the
+//     piece out and plays the interrupter in its place, to its own end.
+//   - "…or the character leaves the specific zone in which they can play, in which case
+//     they fade out." setPlace() fades the piece if the new place could never have picked
+//     it. Walking from the Town into the Undertown keeps a general or a fortress track
+//     going, because it can play in both; walking into space does not.
+//
+// A GM is the one listener the second rule does not apply to: "GMs do not have ambience
+// tracks end until they have reached completion". MusicDirector passes `{ keep: true }`.
+//
+// A performance — a jukebox or somebody playing — still covers a piece rather than ending
+// it, and music.js handles that on its own.
 //
 // Module scope, so a soft navigation (/character → /chat) never restarts it.
 // MusicDirector.js calls start() and stop() when in-game play begins and ends, and
@@ -23,6 +34,9 @@ import { PIECE_WATCHDOG_MS, gapAfter, pickOne, roll } from "./musicSchedule";
 const AMBIENT_FADE_IN_MS = 3000;
 const ONESHOT_TAIL_MS = 2000;
 const TEXTURE_TAIL_MS = 6000;
+// A piece whose place you walked out of, and a piece an interrupter cuts.
+const LEAVE_FADE_MS = 4000;
+const INTERRUPT_FADE_MS = 1500;
 // Before the first piece of a visit, and while waiting for the page to learn where you are.
 const FIRST_WAIT_MS = [5_000, 20_000];
 const NO_PLACE_RETRY_MS = 30_000;
@@ -38,15 +52,18 @@ let running = false;
 let here = null;
 let lastSrc = null;
 let lastSpot = null;
+// An interrupter asked for before start(): the first thing played once it does.
+let pending = null;
 
 let timer = null;
-let piece = null; // { layer, startedAt, drops: [] }
+let piece = null; // { layer, src, startedAt, drops: [], leaving }
 // Spots run on a SECOND, independent timeline. The document says they are "played atop
 // ambience/silence" — atop silence too — so a spot does not wait for a bed to be playing,
 // and the two never need to know about each other. music.js's third rule is what keeps them
 // from fighting: a bed under a spot is not ducked.
 let spotTimer = null;
 let spotDrops = [];
+let spotSrc = null;
 
 const debug = (...args) => {
   try {
@@ -77,6 +94,11 @@ function clearSpot() {
   spotTimer = null;
   for (const drop of spotDrops) drop();
   spotDrops = [];
+  spotSrc = null;
+}
+
+function scheduleSpot(ms) {
+  spotTimer = window.setTimeout(playNextSpot, ms);
 }
 
 /** One short sound over whatever is or is not playing, then a long wait, then another. */
@@ -84,12 +106,13 @@ function playNextSpot() {
   if (!running) return;
   const spots = here?.spots ?? [];
   if (!spots.length) {
-    spotTimer = window.setTimeout(playNextSpot, NO_PLACE_RETRY_MS);
+    scheduleSpot(NO_PLACE_RETRY_MS);
     return;
   }
 
   const item = pickOne(spots, lastSpot);
   lastSpot = item;
+  spotSrc = item.src;
   playOn("spot", {
     src: item.src,
     loop: item.loop,
@@ -100,7 +123,7 @@ function playNextSpot() {
 
   const after = () => {
     clearSpot();
-    spotTimer = window.setTimeout(playNextSpot, roll(SPOT_GAP_MS));
+    scheduleSpot(roll(SPOT_GAP_MS));
   };
 
   if (item.loop) {
@@ -120,7 +143,7 @@ function playNextSpot() {
   }
 }
 
-// The piece is over, by its own end. Silence, scaled to how long it played.
+// The piece is over, by its own end or by fading out. Silence, scaled to how long it played.
 function finish() {
   if (!piece) return;
   const played = Date.now() - piece.startedAt;
@@ -134,27 +157,24 @@ function finish() {
 
 function playNext() {
   if (!running) return;
-  if (!here) {
+  const item = here ? pickTiered(here.tiers, lastSrc) : null;
+  if (!item) {
     wait(NO_PLACE_RETRY_MS, playNext);
     return;
   }
-  if (!here.pieces.length) {
-    wait(NO_PLACE_RETRY_MS, playNext);
-    return;
-  }
+  play(item, here.id);
+}
 
+function play(item, label) {
   const layer = "ambient";
-  const item = pickOne(here.pieces, lastSrc);
-  lastSrc = item;
+  lastSrc = item.src;
 
-  // The file's measured level times the piece's own trim, and nothing else. There used to
-  // be a further ×0.85 here to leave room for a song to stand out over the bed; with no
-  // rotation there is no song to make room for, and the tier in musicGain.js is the level
-  // this was meant to be playing at all along.
+  // The file's measured level times the piece's own trim, and nothing else. The tier in
+  // musicGain.js is the level this was meant to be playing at.
   const gain = (roll(item.gain) ?? 1) * fileGain(item.src);
   playOn(layer, { src: item.src, loop: item.loop, gain, fadeInMs: AMBIENT_FADE_IN_MS });
-  piece = { layer, startedAt: Date.now(), drops: [] };
-  debug(`${here.id}: ${item.src}${item.loop ? " (texture)" : ""}`);
+  piece = { layer, src: item.src, startedAt: Date.now(), drops: [], leaving: false };
+  debug(`${label}: ${item.src}${item.loop ? " (texture)" : ""}`);
 
   if (item.loop) {
     // A texture has no end of its own; its span is the end it was always going to have.
@@ -173,20 +193,37 @@ function playNext() {
   piece.drops.push(() => window.clearTimeout(watchdog));
 }
 
+/** The piece in the air can no longer play here: fade it, then the ordinary gap. */
+function leave() {
+  if (!piece || piece.leaving) return;
+  piece.leaving = true;
+  debug(`left the place ${piece.src} plays in; fading`);
+  stopLayer(piece.layer, { fadeMs: LEAVE_FADE_MS });
+  const t = window.setTimeout(finish, LEAVE_FADE_MS);
+  piece.drops.push(() => window.clearTimeout(t));
+}
+
 /** In-game play has begun (or resumed) on this page. */
 export function start() {
   if (running || typeof window === "undefined") return;
   running = true;
-  wait(roll(FIRST_WAIT_MS), playNext);
+  if (pending) {
+    const item = pending;
+    pending = null;
+    play(item, "interrupt");
+  } else {
+    wait(roll(FIRST_WAIT_MS), playNext);
+  }
   // The spots start later than the first bed, so the first thing anybody hears in a place is
   // the place itself rather than something happening in it.
-  spotTimer = window.setTimeout(playNextSpot, roll(SPOT_GAP_MS));
+  scheduleSpot(roll(SPOT_GAP_MS));
 }
 
-/** In-game play is over on this page — the phase changed, or this is a GM desk. */
+/** In-game play is over on this page — the phase changed, or nobody is listening. */
 export function stop() {
   if (!running) return;
   running = false;
+  pending = null;
   clearTimer();
   clearSpot();
   stopLayer("spot", { fadeMs: 600 });
@@ -197,11 +234,41 @@ export function stop() {
 }
 
 /**
- * Where the listener is standing now: a placeAmbience.js pool, or null. NEVER cuts what is
- * playing — the piece in the air finishes and the next one comes from the new place. There
- * used to be an exception for a song following you into a `music: false` place; with no
- * rotation there is no song to follow you, and those places have beds of their own now.
+ * Where the listener is standing now: a placeAmbience.js stack, or null. What plays NEXT
+ * comes from here. What is playing NOW carries on if it could have been picked here too,
+ * and fades out if it could not — unless `keep`, which is a GM's: their track always runs
+ * to its end. A null place (the payload has not landed, a key that names nowhere) says
+ * nothing about where anybody went, so it never fades anything.
  */
-export function setPlace(next) {
+export function setPlace(next, { keep = false } = {}) {
   here = next;
+  if (!running || keep || !next) return;
+  if (piece && !piece.leaving && !placeHas(next, piece.src)) leave();
+  if (spotSrc && !(next.spots ?? []).some((s) => s.src === spotSrc)) {
+    clearSpot();
+    stopLayer("spot", { fadeMs: SPOT_TAIL_MS });
+    scheduleSpot(roll(SPOT_GAP_MS));
+  }
+}
+
+/**
+ * "An ambience interrupting SFX": the piece in the air fades out, and `item` (a
+ * placeAmbience.js piece) plays in its place, to its own end, followed by the ordinary gap.
+ * Asked for before start(), it is the first thing start() plays.
+ */
+export function interrupt(item) {
+  if (!item || typeof window === "undefined") return;
+  if (!running) {
+    pending = item;
+    return;
+  }
+  clearTimer();
+  if (piece) {
+    const layer = piece.layer;
+    dropPiece();
+    stopLayer(layer, { fadeMs: INTERRUPT_FADE_MS });
+    wait(INTERRUPT_FADE_MS, () => play(item, "interrupt"));
+  } else {
+    play(item, "interrupt");
+  }
 }

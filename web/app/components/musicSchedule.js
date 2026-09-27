@@ -37,6 +37,38 @@ export function pickOne(list, last, rand = Math.random) {
   return pool[Math.floor(rand() * pool.length)];
 }
 
+// "The most specific ambience track to a situation will be selected over more general
+// tracks, with some variation to avoid a single track looping." A place is a stack of tiers,
+// most specific first (placeAmbience.js), and this is how hard the top of the stack wins:
+// the first tier more than half the time, and each one under it less. Renormalised over the
+// tiers a place actually has, so a place with two tiers splits 0.55 : 0.25 as 69% : 31%.
+// Numbers, not control flow — retune by editing them. Past the fourth tier, each further
+// one gets the last weight.
+export const TIER_WEIGHTS = [0.55, 0.25, 0.12, 0.08];
+
+/**
+ * One piece off a stack of tiers (`[[piece…], …]`, most specific first), never the piece
+ * whose `src` is `lastSrc` when there is anything else. A tier holding only the last piece
+ * drops out of the roll rather than repeating it.
+ */
+export function pickTiered(tiers, lastSrc, rand = Math.random) {
+  const stack = (tiers ?? []).filter((t) => t?.length);
+  if (!stack.length) return null;
+  const live = stack
+    .map((t, i) => ({ t: t.filter((p) => p.src !== lastSrc), w: TIER_WEIGHTS[i] ?? TIER_WEIGHTS.at(-1) }))
+    .filter((x) => x.t.length);
+  // Nothing here but the piece that just played. Better it again than silence for ever.
+  if (!live.length) return stack[0][0];
+  const total = live.reduce((sum, x) => sum + x.w, 0);
+  let r = rand() * total;
+  for (const x of live) {
+    r -= x.w;
+    if (r < 0) return x.t[Math.floor(rand() * x.t.length)];
+  }
+  const tail = live.at(-1).t;
+  return tail[tail.length - 1];
+}
+
 /** A number, or a `[min, max]` range rolled once. */
 export function roll(value, rand = Math.random) {
   return Array.isArray(value) ? between(rand, value[0], value[1]) : value;

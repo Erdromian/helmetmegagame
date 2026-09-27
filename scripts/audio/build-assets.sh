@@ -23,9 +23,17 @@ command -v ffmpeg >/dev/null || { echo "no ffmpeg — apt-get install ffmpeg" >&
 # rows come to. white_waking_1 is served as white_waking.ogg because the phase tape names it
 # that.
 #
-# song_game, surfacing and the_collective are here rather than in AMBIENCE because they are
-# long tracks the document gives to a PLACE — the inn, the surface, THEY — and
-# placeAmbience.js names them at /assets/music/ the way it already does the winds.
+# song_game and the_collective are here rather than in AMBIENCE because they are long tracks
+# the document gives to a PLACE — the inn, THEY — and placeAmbience.js names them at
+# /assets/music/ the way it already does the winds.
+#
+# The five after the_collective are Bascinet's own picks (assets/osw-sounds/bascinet-sources.json),
+# "Lobby music" in the new document, and in the hourly rotation beside the six above.
+# a-thousand-empty-rooms is one of those picks too: the same recording as the OSW file it
+# replaced, at a better rate.
+#
+# GONE FROM THIS LIST: surfacing. The new document makes it lobby music for a game where the
+# Count is in play, which does not exist yet, so nothing plays it and its served copy is gone.
 #
 # GONE FROM THIS LIST: b12_combined_start, graceperiod and morning, all three marked Unused
 # in docs/sounds.yaml. Their files are still in web/public/assets/music/; nothing plays them
@@ -41,8 +49,12 @@ music/beyondretrieval.ogg
 music/haruspex.ogg
 music/holywarlobby.ogg
 music/song_game.ogg
-music/surfacing.ogg
 music/the_collective.ogg
+music/red-calx.ogg
+music/conflict-and-climax.ogg
+music/friction.ogg
+music/manunkind.ogg
+music/stone-in-focus.ogg
 "
 
 # A lute, an accordion, a boombox — the `player`/`room` layers (SOUND.md §3).
@@ -94,6 +106,12 @@ instruments/boombox/clouds.ogg
 # Beds and spots. Anything a PLACE sounds like rather than anything the game is
 # feeling — see web/app/components/placeAmbience.js for which goes where.
 #
+# Everything after train_loop is Bascinet's own picks, from the new document: the general,
+# fortress, keep, underfort, caves/depths and space beds, the inn's second track, what a
+# listener hears hallucinating, robed or dead, and Locus Meropis for the Charon's lift-off.
+# fools-village sits in the library's effects/ folder, where Bascinet filed it, and is served
+# with the other beds because a bed is what its sentence makes it.
+#
 # track3, track13, outpost and beyondretrieval have moved to MUSIC above: the document calls
 # all four Lobby Music, and they were the INDOORS bed only because a filename is all anybody
 # had to go on before it arrived.
@@ -123,6 +141,45 @@ ambience/ambicha3.ogg
 ambience/ambicha4.ogg
 ambience/lifeweb2b.ogg
 ambience/train_loop.ogg
+ambience/after-the-party.ogg
+ambience/a-curved-blade.ogg
+ambience/an-atrementous-city.ogg
+ambience/floor-6-please.ogg
+ambience/sorry-sir-wrong-room.ogg
+ambience/underground-troubles.ogg
+ambience/there-will-be-lies.ogg
+ambience/restless-dreams.ogg
+ambience/contaminated.ogg
+ambience/heliopolis.ogg
+ambience/auldale.ogg
+ambience/the-dark-mother.ogg
+ambience/laudanum.ogg
+ambience/the-great-order-of-things.ogg
+ambience/dust-are-all-her-beauties.ogg
+ambience/subway-suspense.ogg
+ambience/fear2-city-ambience.ogg
+ambience/slower.ogg
+ambience/darkwood-untitled-2.ogg
+ambience/fear-insertion.ogg
+ambience/garden-music.ogg
+ambience/industrial-district.ogg
+ambience/shes-afraid-of-you.ogg
+ambience/from-chasms-reborn.ogg
+ambience/horns-of-eden.ogg
+ambience/introspectre.ogg
+ambience/rivers-of-glass.ogg
+ambience/ager-sonus-lost.ogg
+ambience/derelict-approach.ogg
+ambience/departure.ogg
+ambience/the-hierophant.ogg
+ambience/feast-of-the-night.ogg
+ambience/parhelic-triangle.ogg
+effects/fools-village.ogg
+ambience/abyssus-abyssum-invocat.ogg
+ambience/consciousness-dissolves.ogg
+ambience/geist.ogg
+ambience/we-fear-no-evil.ogg
+ambience/locus-meropis.ogg
 "
 
 # "path/in/library.ogg", or "path:served-name.ogg", or "path:served-name.ogg:+8dB".
