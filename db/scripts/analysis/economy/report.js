@@ -2476,7 +2476,7 @@ th.sort-asc::after{content:" ▲"}th.sort-desc::after{content:" ▼"}
 td.num,th.num{text-align:right;font-variant-numeric:tabular-nums}
 code{font-size:12px}
 .slider{display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;margin:10px 0 2px;font-size:14px}.slider input[type=range]{flex:1 1 220px;max-width:420px;accent-color:var(--accent)}.slider output{font-family:var(--mono);min-width:3.5em}
-table.picker td.best{font-weight:700;color:var(--good);box-shadow:inset 3px 0 0 var(--good)}table.picker td.neg{color:var(--bad)}
+table.picker td.best{font-weight:700;color:var(--good);background:color-mix(in srgb,var(--good) 15%,transparent)}table.picker td.neg{color:var(--bad)}
 .filterbar{display:flex;flex-wrap:wrap;gap:6px 14px;align-items:center;margin:8px 0 2px;font-size:13px}.filterbar select,.filterbar input{font:inherit;padding:3px 6px;border:1px solid var(--line);border-radius:4px;background:var(--card);color:var(--fg)}.filterbar .count{color:var(--mute)}tr[hidden]{display:none}
 .mono{font-family:var(--mono)}
 .rk{display:inline-block;padding:0 7px;border-radius:9px;font-size:11px;font-weight:600;color:var(--bg);background:var(--r0);white-space:nowrap}
