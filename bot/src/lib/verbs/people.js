@@ -37,7 +37,7 @@ const {
   COMBAT_WRITE_PREFIX,
   COMBAT_CALL_OFF_PREFIX,
 } = require("@lifeweb/db/lib/combat");
-const { SURPRISED } = require("@lifeweb/db/lib/combatMode");
+const { SURPRISED, DECLINED_ATTACKERS, invitedLine, joinSideLine } = require("@lifeweb/db/lib/combatMode");
 const { sendCombatDms } = require("../combatButtons");
 const { seenById } = require("@lifeweb/db/lib/intercept");
 const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
@@ -297,7 +297,7 @@ function fightReply(interaction, view) {
   ];
   const buttons = [];
   if (view.status === "INVITED") {
-    lines.push("You've been asked to join the attack. You can't leave until you answer.");
+    lines.push(invitedLine(view.inviter));
     if (view.canAnswer) {
       buttons.push({ type: 2, style: 3, custom_id: `${COMBAT_JOIN_PREFIX}${view.participantId}`, label: "Join" });
       buttons.push({ type: 2, style: 2, custom_id: `${COMBAT_DECLINE_PREFIX}${view.participantId}`, label: "Decline" });
@@ -305,7 +305,7 @@ function fightReply(interaction, view) {
   } else {
     lines.push(view.alert ? (view.description ? `» ${view.description}` : "You haven't written what you do yet.") : SURPRISED);
     if (view.canDescribe) buttons.push({ type: 2, style: 1, custom_id: `${COMBAT_WRITE_PREFIX}${view.participantId}`, label: "Write your attack" });
-    if (view.calledOff) lines.push(`-# You want to call it off. Waiting on ${view.waitingOn} more on your side.`);
+    if (view.calledOff) lines.push(`-# You wish to call off the attack. Waiting on ${view.waitingOn} more on your side to cancel the fight.`);
     if (view.canCallOff) buttons.push({ type: 2, style: 4, custom_id: `${COMBAT_CALL_OFF_PREFIX}${view.participantId}`, label: "Call off" });
   }
   return respond(interaction, { content: lines.join("\n"), components: buttons.length ? [{ type: 1, components: buttons }] : [] }, { fleeting: false });
@@ -350,20 +350,34 @@ const attack = {
     if (out.view) return fightReply(interaction, out.view);
     if (out.blocked) return done(interaction, out.blocked);
     if (out.fights.length === 0) return attackTargetPicker(interaction, out.people);
-    // A fight going on here: join a side of it, or start another (the doc).
-    const rows = out.fights.slice(0, 4).map((f) =>
-      new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(verbId("attack", "side", `A~${f.combatId}`)).setLabel("Join the attackers").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId(verbId("attack", "side", `D~${f.combatId}`)).setLabel("Join the defenders").setStyle(ButtonStyle.Secondary),
-      ),
-    );
+    // A fight going on here: join a side of it, or start another (the doc). Each side is labelled, and with
+    // more than one fight here each row of buttons carries its fight's number.
+    const fights = out.fights.slice(0, 4);
+    const several = fights.length > 1;
+    const rows = fights.map((f, i) => {
+      const n = several ? ` (${i + 1})` : "";
+      return new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(verbId("attack", "side", `A~${f.combatId}`))
+          .setLabel(`Join the attackers${n}`)
+          .setStyle(ButtonStyle.Secondary)
+          .setDisabled(Boolean(f.declined)),
+        new ButtonBuilder().setCustomId(verbId("attack", "side", `D~${f.combatId}`)).setLabel(`Join the defenders${n}`).setStyle(ButtonStyle.Secondary),
+      );
+    });
     rows.push(
       new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(verbId("attack", "new")).setLabel("Start a separate attack").setStyle(ButtonStyle.Danger),
       ),
     );
-    const lines = out.fights.slice(0, 4).map((f, i) => `${i + 1}. ${f.attackers.join(", ")} against ${f.defenders.join(", ")}`);
-    return respond(interaction, { content: ["A fight is going on here:", ...lines].join("\n"), components: rows }, { fleeting: false });
+    const lines = fights.flatMap((f, i) => [
+      ...(several ? [`**Fight ${i + 1}**`] : []),
+      `Attacking: ${f.attackers.join(", ")}`,
+      `Defending: ${f.defenders.join(", ")}`,
+      ...(f.declined ? [`-# ${DECLINED_ATTACKERS}`] : []),
+    ]);
+    const head = several ? "Fights are going on here:" : "A fight is going on here:";
+    return respond(interaction, { content: [head, ...lines].join("\n"), components: rows }, { fleeting: false });
   },
   steps: {
     async new(interaction) {
@@ -395,7 +409,7 @@ const attack = {
       return respond(
         interaction,
         {
-          content: "Anyone you want with you? They get to choose whether to join.",
+          content: "Anyone you want on your side? They get to choose whether to join.",
           components: [new ActionRowBuilder().addComponents(menu), new ActionRowBuilder().addComponents(skip)],
         },
         { fleeting: false },
@@ -445,10 +459,18 @@ const attack = {
         new ButtonBuilder().setCustomId(verbId("attack", "cancel")).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
       );
       if (!combatId) return done(interaction, "That fight is over.");
+      // Re-read the fight so the confirm can name who they would be beside and against.
+      const actor = await actorOrRefuse(interaction);
+      if (!actor) return;
+      const turn = await openTurn();
+      if (!turn) return done(interaction, "There's no turn open right now.");
+      const out = await loadAttack(prisma, { characterId: actor.id, turn });
+      const fight = out.ok ? out.fights.find((f) => f.combatId === combatId) : null;
+      if (!fight) return done(interaction, "That fight is over.");
       return respond(
         interaction,
         {
-          content: `Join the ${side === "ATTACKER" ? "attackers" : "defenders"}? You'll be held here until the fight is over. The further you came to get here, the worse your chances.`,
+          content: `Join the ${side === "ATTACKER" ? "attackers" : "defenders"}? ${joinSideLine(fight, side)}`,
           components: [row],
         },
         { fleeting: false },

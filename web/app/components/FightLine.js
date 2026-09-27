@@ -1,6 +1,7 @@
 "use client";
 
 import { useRequestActions } from "./RequestActionsProvider";
+import { invitedShortLine } from "@lifeweb/db/lib/combatMode";
 
 // One line under the turn card, on /chat and the sheet, while you are in a fight — the doc's "prompted in
 // the webpage". It opens the Attack dialog, which is where the fight lives. `fight` is chat/actions.js#myMove's
@@ -11,7 +12,7 @@ export default function FightLine({ fight }) {
   const where = fight.locationName ? ` at ${fight.locationName}` : "";
   const line =
     fight.status === "INVITED"
-      ? "You've been asked to join a fight."
+      ? invitedShortLine(fight.inviter)
       : fight.needsWriting
         ? `You're in a fight${where}. Write what you do.`
         : `You're in a fight${where}.`;

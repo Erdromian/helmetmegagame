@@ -3,7 +3,7 @@
 import { useState } from "react";
 import FormError from "./FormError";
 import useSubmit from "./actions/useSubmit";
-import { SURPRISED, INVITE_SURPRISED, DESCRIPTION_LIMIT } from "@lifeweb/db/lib/combatMode";
+import { SURPRISED, INVITE_SURPRISED, DESCRIPTION_LIMIT, invitedLine } from "@lifeweb/db/lib/combatMode";
 import {
   answerFightInviteRequest,
   describeFightRequest,
@@ -42,7 +42,7 @@ export default function FightPanel({ view, onChanged }) {
 
       {view.status === "INVITED" ? (
         <div className="field">
-          <p className="text-sm">You&apos;ve been asked to join the attack. You can&apos;t leave until you answer.</p>
+          <p className="text-sm">{invitedLine(view.inviter)}</p>
           {view.alert ? null : <p className="text-sm text-muted">{INVITE_SURPRISED}</p>}
           <div className="chat-buttons">
             <button type="button" className="btn" disabled={busy || !view.canAnswer} onClick={() => run(answerFightInviteRequest, { join: true })}>
@@ -52,7 +52,7 @@ export default function FightPanel({ view, onChanged }) {
               Decline
             </button>
           </div>
-          <p className="text-xs text-muted">If you decline you can go, but you can&apos;t attack anyone here until next turn.</p>
+          <p className="text-xs text-muted">If you decline you can go, but you can&apos;t join this fight&apos;s attackers later.</p>
         </div>
       ) : null}
 
@@ -96,7 +96,7 @@ export default function FightPanel({ view, onChanged }) {
           ) : (
             <>
               <p className="text-xs text-muted">
-                A fight is only called off once everyone attacking agrees. Then you stay here another 30 minutes in case they answer it.
+                Combat may only be called off if all attackers relent. The defenders will have 30 minutes to counterattack before the attackers can leave freely.
               </p>
               <div className="chat-buttons">
                 <button type="button" className="btn-quiet" disabled={busy || !view.canCallOff} onClick={() => run(callOffFightRequest, {})}>

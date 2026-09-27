@@ -252,7 +252,7 @@ const intercept = {
             .setStringSelectMenuComponent(
               select(FIELD.mode, [
                 { label: "Safe — stop them and talk", value: "SAFE", default: true },
-                { label: "Ambush — start a fight with them (needs combat mode)", value: "AMBUSH" },
+                { label: "Ambush — attack your target if they come past (needs combat mode)", value: "AMBUSH" },
               ]),
             ),
           new LabelBuilder()

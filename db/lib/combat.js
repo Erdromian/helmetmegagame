@@ -49,6 +49,9 @@ const {
   DESCRIBE_LOCKED,
   ATTACK_LOCKED,
   DESCRIPTION_LIMIT,
+  DECLINED_ATTACKERS,
+  AMBUSH_ENDED,
+  listNames,
 } = require("./combatMode");
 const { blockerFor, ACT } = require("./incapacitation");
 const { DM_KIND } = require("./dmKinds");
@@ -272,13 +275,6 @@ async function fightingHere(db, locationId, turnId) {
   return new Set(rows.map((r) => r.characterId));
 }
 
-// How a list reads to one reader: "a young man", "Ada and a young man", "Ada, Bo and a young man".
-function listNames(names) {
-  const list = (names ?? []).filter(Boolean);
-  if (list.length <= 1) return list[0] ?? "nobody";
-  return `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
-}
-
 // ─── The DMs ────────────────────────────────────────────────────────────────
 
 function joinDeclineRow(participantId) {
@@ -381,8 +377,8 @@ async function startDms(db, { combat, parts, rowsById }) {
       dms.push(
         inviteDm(me, p, [
           combat.fromAmbush
-            ? `${cap(initiatorName)}'s ambush has caught ${await names(targets)}, and they want you with them.`
-            : `${cap(initiatorName)} is attacking ${await names(targets)} and wants you with them.`,
+            ? `${cap(initiatorName)}'s ambush has caught ${await names(targets)}, and they want you to join them on the attack.`
+            : `${cap(initiatorName)} is attacking ${await names(targets)} and wants you to join them in the attack.`,
         ]),
       );
     }
@@ -564,7 +560,7 @@ function answerInvite(db, { participantId, characterId, join, turn, now = new Da
     if (join) dms.push(fightDm(me, out, ["You join the fight."]));
     return {
       ok: true,
-      line: join ? "You join the fight." : "You stay out of it. You can go, but you can't attack anyone here until next turn.",
+      line: join ? "You join the fight." : "You decide not to get involved. You can go, but you can't help the attacker this turn.",
       dms: dms.filter(Boolean),
       speak: [],
     };
@@ -599,6 +595,15 @@ function intervene(db, { character, combatId, side, turn, now = new Date() }) {
     });
     if (!combat || combat.endedAt || combat.turnId !== turn.id) refuse("That fight is over.");
     if (combat.locationId !== row.locationId) refuse("That fight isn't here.");
+    // Somebody who turned an invitation to THIS fight down may not join its attackers after all, but may join
+    // its defenders (Bascinet, 2026-09-27). One row per person per fight (the unique on combatId+characterId),
+    // so joining the defenders turns the declined row into their place on that side.
+    const earlier = await db.combatParticipant.findFirst({
+      where: { combatId: combat.id, characterId: row.id },
+      select: { id: true, status: true },
+    });
+    if (earlier?.status === "DECLINED" && side === "ATTACKER") refuse(DECLINED_ATTACKERS);
+    if (earlier && earlier.status !== "DECLINED") refuse(ALREADY_FIGHTING);
     const { hops, fromLocationId } = distanceOf(combat, row.id);
     if (hops > MAX_INTERVENE_DISTANCE) refuse(TOO_FAR_TO_INTERVENE);
     const from = fromLocationId
@@ -610,7 +615,17 @@ function intervene(db, { character, combatId, side, turn, now = new Date() }) {
       await lockCombat(tx, combat.id);
       const fresh = await tx.combat.findUnique({ where: { id: combat.id }, select: { endedAt: true } });
       if (fresh?.endedAt) refuse("That fight is over.");
-      const { count } = await tx.combatParticipant.createMany({ data: [{ ...data, combatId: combat.id }], skipDuplicates: true });
+      let count = 0;
+      if (earlier) {
+        try {
+          ({ count } = await tx.combatParticipant.updateMany({ where: { id: earlier.id, status: "DECLINED" }, data }));
+        } catch (err) {
+          // The one-fight claim: pulled into another fight since the gate was asked.
+          if (err?.code !== "P2002") throw err;
+        }
+      } else {
+        ({ count } = await tx.combatParticipant.createMany({ data: [{ ...data, combatId: combat.id }], skipDuplicates: true }));
+      }
       if (count !== 1) refuse(ALREADY_FIGHTING);
       await settleHold(tx, row.id, turn, now);
       // The other side may have had nobody to be held BY until now.
@@ -707,16 +722,20 @@ function callOff(db, { participantId, characterId, turn, now = new Date() }) {
       dms.push(
         notice(
           t.character,
-          t.side === "ATTACKER" && t.status === "JOINED"
-            ? "The fight is called off. You stay here another 30 minutes in case they answer it."
-            : "The fight is called off. You can move again.",
+          endedLine(
+            t,
+            t.side === "ATTACKER" && t.status === "JOINED"
+              ? "The attack has been called off. You can leave in 30 minutes."
+              : "The fight is called off. You can move again.",
+          ),
         ),
       );
     }
+    const mine = result.touched.find((t) => t.characterId === characterId);
     return {
       ok: true,
       ended: true,
-      line: "The fight is called off. You stay here another 30 minutes in case they answer it.",
+      line: endedLine(mine ?? {}, "The attack has been called off. You can leave in 30 minutes."),
       dms: dms.filter(Boolean),
       speak: [],
     };
@@ -734,6 +753,11 @@ async function endCombatTx(tx, combatId, { reason, turn, now = new Date() }) {
     where: { combatId, activeTurnId: { not: null } },
     select: { id: true, characterId: true, side: true, status: true, character: { select: IDENTITY_SELECT } },
   });
+  // An ambush's fight ending ends the ambush too (Bascinet, 2026-09-27): its owner is told, and sets it again
+  // if they still want to lie in wait. Without this the next arrival sprang a fresh fight, straight past the
+  // gates a new attack asks.
+  const ended = await cancelAmbushes(tx, [combatId]);
+  for (const t of touched) t.ambushEnded = ended.has(t.characterId);
   await tx.combatParticipant.updateMany({
     where: { combatId, status: "INVITED" },
     data: { status: "DECLINED", answeredAt: now },
@@ -752,6 +776,29 @@ async function endCombatTx(tx, combatId, { reason, turn, now = new Date() }) {
   return touched;
 }
 
+// Cancels the Ambush watch behind each of these fights that sprang from one. Returns the owners whose watch
+// was deleted. A no-op on a client with no watches — the fakes.
+async function cancelAmbushes(db, combatIds) {
+  const cancelled = new Set();
+  if (typeof db.interceptWatch?.deleteMany !== "function" || combatIds.length === 0) return cancelled;
+  const fights = await db.combat.findMany({
+    where: { id: { in: combatIds }, fromAmbush: true, ambushOwnerId: { not: null } },
+    select: { ambushOwnerId: true, locationId: true },
+  });
+  for (const f of fights) {
+    const { count } = await db.interceptWatch.deleteMany({
+      where: { characterId: f.ambushOwnerId, mode: "AMBUSH", locationId: f.locationId },
+    });
+    if (count) cancelled.add(f.ambushOwnerId);
+  }
+  return cancelled;
+}
+
+// A line for somebody a fight just let go, with the ambush's end added for its owner.
+function endedLine(t, line) {
+  return t.ambushEnded ? `${line}\n${AMBUSH_ENDED}` : line;
+}
+
 // A GM ends a fight from the Combat lens. Everybody goes free at once — no thirty minutes (Bascinet,
 // 2026-09-27) — and is told.
 async function endCombatAsGm(db, { combatId, turn, now = new Date() }) {
@@ -761,7 +808,7 @@ async function endCombatAsGm(db, { combatId, turn, now = new Date() }) {
       return endCombatTx(tx, combatId, { reason: "GM", turn, now });
     });
     if (touched.length === 0) refuse("That fight is already over.");
-    const dms = touched.map((t) => notice(t.character, "The fight is over. You can move again.")).filter(Boolean);
+    const dms = touched.map((t) => notice(t.character, endedLine(t, "The fight is over. You can move again."))).filter(Boolean);
     return { ok: true, dms, speak: [] };
   });
 }
@@ -800,7 +847,7 @@ async function leaveCombatsFor(db, characterId, reason = "moved") {
     for (const j of joined) await settleHold(tx, j.characterId, turn, now);
     return [];
   });
-  const dms = freed.map((t) => notice(t.character, "The fight is over. You can move again.")).filter(Boolean);
+  const dms = freed.map((t) => notice(t.character, endedLine(t, "The fight is over. You can move again."))).filter(Boolean);
   return { left: 1, dms };
 }
 
@@ -817,18 +864,24 @@ async function sendCombatDms(db, dms) {
   }
 }
 
-// The push closes every fight left on the turn it ends. Nobody is told — the push itself is the news,
-// and the holds lapse on the turn's own clock. An invitation still unanswered counts as declined
+// The push closes every fight left on the turn it ends. Nobody is told the fight is over — the push itself
+// is the news, and the holds lapse on the turn's own clock — except an ambush's owner, whose ambush ends
+// with it (`notices`, sent with the push's other DMs). An invitation still unanswered counts as declined
 // (Bascinet, 2026-09-27).
 async function closeCombatsAtPush(db, turn, now = new Date()) {
-  if (!turn?.id) return { closed: 0 };
+  if (!turn?.id) return { closed: 0, notices: [] };
   const open = await db.combat.findMany({ where: { turnId: turn.id, endedAt: null }, select: { id: true } });
-  if (open.length === 0) return { closed: 0 };
+  if (open.length === 0) return { closed: 0, notices: [] };
   const ids = open.map((c) => c.id);
+  const owners = await cancelAmbushes(db, ids);
+  const ownerRows = owners.size
+    ? await db.character.findMany({ where: { id: { in: [...owners] } }, select: { discordUserId: true } })
+    : [];
+  const notices = ownerRows.filter((r) => r.discordUserId).map((r) => ({ discordUserId: r.discordUserId, content: AMBUSH_ENDED }));
   await db.combatParticipant.updateMany({ where: { combatId: { in: ids }, status: "INVITED" }, data: { status: "DECLINED", answeredAt: now } });
   await db.combatParticipant.updateMany({ where: { combatId: { in: ids }, activeTurnId: { not: null } }, data: { activeTurnId: null } });
   await db.combat.updateMany({ where: { id: { in: ids }, endedAt: null }, data: { endedAt: now, endReason: "TURN_ENDED" } });
-  return { closed: ids.length };
+  return { closed: ids.length, notices };
 }
 
 // ─── Ambush ─────────────────────────────────────────────────────────────────
@@ -946,6 +999,9 @@ async function combatViewFor(db, viewerId, turn) {
   });
   const listed = everyone.map((p, i) => ({ p, view: person(p, i) }));
   const waitingOn = everyone.filter((p) => p.side === "ATTACKER" && p.status === "JOINED" && !p.callOffAt).length;
+  // Who asked you along, for an invitation: the fight's initiator (an ambush's owner), by the face you know them
+  // by — the same name their invitation DM used (startDms).
+  const initiatorAt = everyone.findIndex((p) => p.role === "INITIATOR");
   return {
     combatId: mine.combat.id,
     participantId: mine.id,
@@ -956,6 +1012,7 @@ async function combatViewFor(db, viewerId, turn) {
     role: mine.role,
     status: mine.status,
     alert: mine.alert,
+    inviter: mine.status === "INVITED" && initiatorAt >= 0 ? names[initiatorAt] : null,
     description: mine.description ?? "",
     calledOff: Boolean(mine.callOffAt),
     locked,
@@ -985,11 +1042,23 @@ async function combatsHere(db, viewer, turn) {
     },
     orderBy: { startedAt: "asc" },
   });
+  const turnedDown = new Set(
+    fights.length
+      ? (
+          await db.combatParticipant.findMany({
+            where: { characterId: viewer.id, status: "DECLINED", combatId: { in: fights.map((f) => f.id) } },
+            select: { combatId: true },
+          })
+        ).map((r) => r.combatId)
+      : [],
+  );
   const out = [];
   for (const fight of fights) {
     const names = await seenByMany(db, viewer.id, fight.participants.map((p) => p.character));
     out.push({
       combatId: fight.id,
+      // They turned this one down: its attackers are shut to them, its defenders are not.
+      declined: turnedDown.has(fight.id),
       attackers: fight.participants.map((p, i) => (p.side === "ATTACKER" ? names[i] : null)).filter(Boolean),
       defenders: fight.participants.map((p, i) => (p.side === "DEFENDER" ? names[i] : null)).filter(Boolean),
     });

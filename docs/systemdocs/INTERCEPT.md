@@ -31,7 +31,9 @@ already spent. **An Ambush needs combat mode**, though (`COMBAT-MODE.md` §3):
 none** (Combat Overhaul.docx) — it is a word on the road, not a fight. And **no
 watch can be set once Moves lock** ("Moves are locked for this turn, so you
 can't lie in wait."), the turn lock that shuts fighting and travel too
-(`ATTACK.md` §10). On Discord the watch
+(`ATTACK.md` §10). **Nor while your own ambush's fight is running** ("Your
+ambush has already sprung. You can't change it until the fight is over."), so
+only the targets it sprang with join that fight (`ATTACK.md` §9). On Discord the watch
 opens as a modal first, inside Discord's three seconds, so the refusal comes
 after the modal is sent. **Stopping** a watch and **Release** are never gated,
 and `stopInterceptImpl` and `releaseHeldImpl` carry no such check.
@@ -414,9 +416,10 @@ Bascinet's Ambush line does not mention the message, but a player who typed one
 and had it silently dropped would read that as a bug, so it rides along on its
 own `»` line underneath rather than being folded into the sentence.
 
-**"He said" agrees with who is saying it.** The shape is Bascinet's; the
-agreement is arithmetic, off `Character.gender`, the same column
-`concealedIdentity.js` reads. He / She / They.
+**The Safe stop reads "You were stopped on the road by a young man:"**, the
+stopper named as the victim knows them, with the message on a `»` line under
+it. It used to add "He said" / "She said" / "They said"; Bascinet's copy pass
+(2026-09-27) dropped that, and `saidWord` with it.
 
 **The typed message is untrusted**, and is cleaned at **save** time, not at
 send — `cleanMessage()` caps it at 300 characters and strips `@everyone` /

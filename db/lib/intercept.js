@@ -103,12 +103,12 @@ function heldReasonFor(character, now = new Date()) {
     return "You're in a fight. You can't move until it's over.";
   }
   if (character.heldReason === HELD_REASON.INVITED) {
-    return "You've been asked to join a fight. Answer before you go anywhere.";
+    return "You've been asked to join a fight. You must answer before you can leave.";
   }
   const seconds = Math.ceil((until.getTime() - now.getTime()) / 1000);
   // Minutes, not seconds: it starts at thirty.
   if (character.heldReason === HELD_REASON.WITHDRAWING) {
-    return `You called off a fight. You can't leave for another ${Math.ceil(seconds / 60)} min.`;
+    return `You called off the attack. You can't leave for another ${Math.ceil(seconds / 60)} min.`;
   }
   // Caught stealing. No "somebody" — a Steal's hold has nobody behind it, and a pickpocket's victim they already know.
   if (character.heldReason === HELD_REASON.CAUGHT) {
@@ -307,13 +307,6 @@ async function seenByPlace(db, characterId) {
   return row ? seenAs(identityOf(row)) : "somebody";
 }
 
-// "He said" / "She said" / "They said" — Bascinet's line is "He said", wrong for half the cast; the shape is theirs, the agreement is arithmetic. Straight off Character.gender, the same column concealedIdentity.js reads.
-function saidWord(character) {
-  if (character?.gender === "MAN") return "He said";
-  if (character?.gender === "WOMAN") return "She said";
-  return "They said";
-}
-
 // Everything presentedIdentity needs, for a character loaded fresh.
 const IDENTITY_SELECT = {
   id: true,
@@ -496,7 +489,7 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
     dms.push({
       discordUserId: hit.target.discordUserId,
       content: [
-        `You were stopped on the road by ${stopper}. ${saidWord(hit.interceptor)}:`,
+        `You were stopped on the road by ${stopper}:`,
         `» ${hit.watch.message || "…"}`,
         "You can't move for two minutes.",
       ].join("\n"),
@@ -598,7 +591,6 @@ module.exports = {
   seenById,
   seenByIdMany,
   seenByPlace,
-  saidWord,
   IDENTITY_SELECT,
   identityOf,
   fireWatches,

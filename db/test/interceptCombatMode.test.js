@@ -105,3 +105,54 @@ test("the same watch wakes once its owner is alert again", async () => {
   await fireWatches(db, { arrivals: [{ id: "bob" }], locationId: "gate", openTurn: { id: "t", number: 5 } });
   assert.equal(db.calls.arrivals, 1);
 });
+
+// A sprung ambush keeps the targets it was set with until its fight is over: every later catch joins that
+// fight, so a watch re-set to "Anyone" mid-fight would pull in people it was never set for (Bascinet,
+// 2026-09-27). Stopping it is still allowed — that only narrows it.
+const { AMBUSH_SPRUNG } = require("../lib/combatMode");
+
+const OPEN_TURN = {
+  id: "t1",
+  number: 1,
+  dayNumber: 1,
+  startedAt: new Date(Date.now() - 60 * 60 * 1000),
+  endsAt: new Date(Date.now() + 20 * 60 * 60 * 1000),
+  turnLengthHours: 24,
+};
+
+function sprungDb(fight) {
+  const db = watchDb(5);
+  db.gameConfig = { findUnique: async () => ({}) };
+  db.gameState = { findUnique: async () => ({ phase: "RUNNING", sessionOpenedAt: null }) };
+  db.turn = { findFirst: async () => OPEN_TURN };
+  db.combat = {
+    findFirst: async ({ where }) => {
+      db.asked = where;
+      return fight;
+    },
+  };
+  return db;
+}
+
+test("an ambush can't be re-set while the fight it sprang is running", async () => {
+  for (const mode of ["AMBUSH", "SAFE"]) {
+    const db = sprungDb({ id: "c1" });
+    const res = await setWatch(db, { character: me, discordUserId: "u", input: { ...input, mode }, openTurn: OPEN_TURN });
+    assert.deepEqual(res, { ok: false, error: AMBUSH_SPRUNG });
+    assert.deepEqual(db.writes, []);
+    assert.deepEqual(db.asked, { turnId: "t1", fromAmbush: true, ambushOwnerId: "ada", endedAt: null });
+  }
+});
+
+test("with no running ambush fight of theirs it is set as before", async () => {
+  const db = sprungDb(null);
+  const res = await setWatch(db, { character: me, discordUserId: "u", input, openTurn: OPEN_TURN });
+  assert.equal(res.ok, true);
+  assert.equal(db.writes[0][0], "upsert");
+});
+
+test("a sprung ambush can still be stopped", async () => {
+  const db = sprungDb({ id: "c1" });
+  const res = await stopWatch(db, { character: me, discordUserId: "u", openTurn: OPEN_TURN });
+  assert.equal(res.ok, true);
+});

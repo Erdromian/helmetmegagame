@@ -22,7 +22,13 @@ const CALL_OFF_LOCKED = "Moves are locked for this turn, so the fight can't be c
 const DESCRIBE_LOCKED = "Moves are locked for this turn, so your attack can't be changed now.";
 const ALREADY_FIGHTING = "You're already in a fight.";
 const WITHDRAWING_BLOCK = "You've just called off a fight. You can't start another one yet.";
-const DECLINED_HERE = "You stayed out of the fight here. You can't attack anyone here until next turn.";
+// Turning an invitation down bars one thing: joining that same fight's attackers later. Its defenders, other
+// fights and new attacks all stay open (Bascinet, 2026-09-27).
+const DECLINED_ATTACKERS = "You turned down this fight, so you can't join its attackers.";
+// A sprung ambush keeps the targets it was set with until its fight is over (Bascinet, 2026-09-27).
+const AMBUSH_SPRUNG = "Your ambush has already sprung. You can't change it until the fight is over.";
+// An ambush ends with the fight it sprang (Bascinet, 2026-09-27); its owner is told.
+const AMBUSH_ENDED = "Your ambush is over. Set it again if you still want to lie in wait.";
 const TOO_FAR_TO_INTERVENE = "You arrived too late to intervene.";
 const SURPRISED = "You were caught by surprise, so you can't choose how you fight this one.";
 // Said to a collaborator asked along while out of combat mode: they are snapshotted and rolled the moment they
@@ -32,6 +38,37 @@ const INVITE_SURPRISED = "You aren't on guard, so if you join you'll be caught b
 // worth of these, so this is the smaller of the two. Here, import-free, so the web's editor counts to it.
 const DESCRIPTION_LIMIT = 2000;
 const ALERT_TOO_LATE = "You're alert now, but it only counts for fights that start from here on — not the one you're already in.";
+
+// An invitation, naming who asked (combat.js#combatViewFor's `inviter`, already the name the reader knows
+// them by). Both faces' fight readouts and the line under the Turn box say it the same way. `inviter` may be
+// null — the one who asked has left the fight — and then nobody is named.
+function capFirst(s) {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+function invitedLine(inviter) {
+  return inviter
+    ? `${capFirst(inviter)} has asked you to join the attack. You can't leave until you answer.`
+    : "You've been asked to join the attack. You can't leave until you answer.";
+}
+function invitedShortLine(inviter) {
+  return inviter ? `${capFirst(inviter)} has asked you to join a fight.` : "You've been asked to join a fight.";
+}
+
+// How a list reads to one reader: "a young man", "Ada and a young man", "Ada, Bo and a young man".
+function listNames(names) {
+  const list = (names ?? []).filter(Boolean);
+  if (list.length <= 1) return list[0] ?? "nobody";
+  return `${list.slice(0, -1).join(", ")} and ${list[list.length - 1]}`;
+}
+
+// Joining a side of a fight going on here (combat.js#combatsHere's shape: `attackers` and `defenders` as the
+// names the reader knows them by). The confirm names who you would be fighting beside and against, so the
+// choice never rests on reading which half of a list is which.
+function joinSideLine(fight, side) {
+  const ours = side === "ATTACKER" ? fight?.attackers : fight?.defenders;
+  const theirs = side === "ATTACKER" ? fight?.defenders : fight?.attackers;
+  return `You'll fight alongside ${listNames(ours)} against ${listNames(theirs)}. You'll be held here until the fight is over. The further you came to get here, the worse your chances.`;
+}
 
 // `row` is anything carrying Character.combatModeSinceTurn — a character, or a rehydrated look.
 function inCombatMode(row) {
@@ -73,12 +110,18 @@ module.exports = {
   DESCRIBE_LOCKED,
   ALREADY_FIGHTING,
   WITHDRAWING_BLOCK,
-  DECLINED_HERE,
+  DECLINED_ATTACKERS,
+  AMBUSH_SPRUNG,
+  AMBUSH_ENDED,
   TOO_FAR_TO_INTERVENE,
   SURPRISED,
   INVITE_SURPRISED,
   ALERT_TOO_LATE,
   DESCRIPTION_LIMIT,
+  invitedLine,
+  invitedShortLine,
+  listNames,
+  joinSideLine,
   inCombatMode,
   lockedOn,
   holdsExhausted,

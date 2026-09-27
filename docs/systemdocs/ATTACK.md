@@ -68,9 +68,12 @@ the server's own sentence):
 2. **Not in combat mode** — required to attack (Combat Mode.docx).
 3. **Already in a fight** — one at a time.
 4. **Withdrawing** — you called a fight off in the last 30 minutes (§7).
-5. **You declined a fight here this turn** — the doc: somebody who was asked
-   and said no "may not perform an attack action in the location where the
-   combat is occurring until next turn".
+
+Declining an invitation is **not** one of these gates. The doc barred a
+decliner from attacking anywhere at that Location until next turn; Bascinet
+narrowed it (2026-09-27) to one thing, joining the **attackers of the fight
+they turned down** (§4, §6). New attacks, other fights, and that same fight's
+defenders all stay open.
 
 Plus ACT: a bound or paralysed character is told why.
 
@@ -108,8 +111,8 @@ always re-derived from the participant rows and never by hand:
 |---|---|---|
 | A defender | `attack` | Somebody attacked you. You can't move until the fight is over. |
 | An attacker | `attacking` | You're in a fight. You can't move until it's over. |
-| An invitee who has not answered | `invited` | You've been asked to join a fight. Answer before you go anywhere. |
-| An attacker after a call-off | `withdrawing` | You called off a fight. You can't leave for another N min. |
+| An invitee who has not answered | `invited` | You've been asked to join a fight. You must answer before you can leave. |
+| An attacker after a call-off | `withdrawing` | You called off the attack. You can't leave for another N min. |
 
 The first three are `FIGHT_REASONS`, which nothing that clears "whoever X was
 holding" may touch. `withdrawing` is held by nobody, so only its clock ends it.
@@ -134,8 +137,14 @@ somebody leaving never interleave.
 **An invitation** (a collaborator, or somebody an ambush's owner asked along)
 is answered Join or Decline — in the fight's DM, on Discord or the web
 thread, or in the Attack dialog. Until then the invitee is held (Bascinet,
-2026-09-27). Decline, and they may go, but not attack anyone here until next
-turn (§1). An invitation still unanswered at the push counts as declined.
+2026-09-27). Decline, and they may go, and may not join that fight's attackers
+later (`DECLINED_ATTACKERS`, asked in `combat.js#intervene`). They may still
+join its defenders, start a new attack, or join any other fight, invitations to
+other fights included (Bascinet, 2026-09-27). An invitation still unanswered at the push counts as declined.
+The invitation names who asked — the fight's initiator, or the ambush's owner,
+by the name the invitee knows them by — in the DM, the fight panel, the Discord
+readout and the line under the turn card ("A young man has asked you to join
+the attack.", `combatMode.js#invitedLine`, off `combatViewFor`'s `inviter`).
 
 **Writing.** Everybody in the fight who was in combat mode when it reached
 them is asked to write what they do: the DM says so and carries **Write your
@@ -185,7 +194,16 @@ Somebody not in the fight who presses Attack where a fight is going on is
 offered **Join the attackers**, **Join the defenders**, or **Start a separate
 attack** on people not already fighting (`combat.js#intervene`). Joining is an
 Attack, so it takes the same gates (§1) — which makes an intervener always
-alert.
+alert. A fight the viewer turned down (§4) has its Join the attackers button
+greyed with the reason (`combatsHere`'s `declined`). Joining its defenders is
+allowed, and since there is one row per person per fight (the unique on
+`combatId` + `characterId`), their declined row becomes their place on the
+defending side rather than a second row. Each fight is listed as two labelled lines, **Attacking:** and
+**Defending:**, and the confirm names who they would fight beside and against
+("You'll fight alongside Bo against Ada and a young man.",
+`combatMode.js#joinSideLine`), so nobody has to guess which half of a list is
+which. On Discord, with more than one fight here, each is numbered and so are
+its buttons.
 
 How far they were **when the fight started** (§2) decides it:
 
@@ -220,6 +238,12 @@ and on which side, by the name they know them by.
 - **The push** closes every fight still open (`TURN_ENDED`), in the
   `combatClose` pass after the staged push. Nobody is told; the holds lapse on
   the turn's own clock.
+
+**An ambush ends with its fight**, however the fight ends (Bascinet,
+2026-09-27): `endCombatTx` and `closeCombatsAtPush` delete the owner's Ambush
+watch (`combat.js#cancelAmbushes`), and the owner is told "Your ambush is over.
+Set it again if you still want to lie in wait." — on the end-of-fight DM, or,
+at the push, as a notice of its own.
 
 A fight that ends stays on the desk, because the GM still rules on it.
 
@@ -269,6 +293,14 @@ An Intercept watch in Ambush mode is a fight laid in advance
 - Every later catch is added to **that same fight** as a target, snapshotted as
   they walk in. Ambush-added targets have no distance rule; anybody else joins
   the ordinary way (§6).
+- **Only the targets it sprang with** are added (Bascinet, 2026-09-27). While
+  that fight runs, the owner can't set or change any watch
+  (`combatGate.js#interceptBlock`: "Your ambush has already sprung. You can't
+  change it until the fight is over."), so re-setting it to "Anyone"
+  mid-fight can't pull in people it was never set for. Stopping it is still
+  allowed, since that only narrows it.
+- The fight ending ends the ambush (§7): nothing springs again until the owner
+  sets a new one, which takes the ordinary gates.
 - An arrival already in a fight, or an owner busy in some other fight, is
   skipped before the ration is claimed.
 

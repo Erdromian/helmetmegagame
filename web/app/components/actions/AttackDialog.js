@@ -7,6 +7,7 @@ import FightPanel from "../FightPanel";
 import { useConfirm } from "../ConfirmProvider";
 import useSubmit from "./useSubmit";
 import { loadAttacks, attackCharacterRequest, interveneRequest } from "@/app/(app)/character/attackActions";
+import { joinSideLine, DECLINED_ATTACKERS } from "@lifeweb/db/lib/combatMode";
 
 // Attacking (docs/systemdocs/ATTACK.md, from Bascinet's Combat Overhaul.docx). Three faces, one dialog:
 //
@@ -84,7 +85,7 @@ export default function AttackDialog({ onDone, onClose }) {
   async function join(fight, side) {
     const ok = await confirm({
       title: side === "ATTACKER" ? "Join the attackers?" : "Join the defenders?",
-      message: "You'll be held here until the fight is over. The further you came to get here, the worse your chances.",
+      message: joinSideLine(fight, side),
       confirmLabel: "Join",
     });
     if (!ok) return;
@@ -109,7 +110,7 @@ export default function AttackDialog({ onDone, onClose }) {
       busy={busy}
       error={error}
       loading={loading}
-      empty={!loading && people.length === 0 && fights.length === 0 ? "There’s nobody here to attack." : null}
+      empty={!loading && people.length === 0 && fights.length === 0 ? "There's nobody here to attack." : null}
       canSubmit={targets.length > 0 && !blocked}
       onClose={onClose}
       onSubmit={onSubmit}
@@ -120,16 +121,20 @@ export default function AttackDialog({ onDone, onClose }) {
         <div key={fight.combatId} className="field">
           <span className="field-label">A fight is going on here</span>
           <p className="text-sm">
-            {fight.attackers.join(", ")} against {fight.defenders.join(", ")}.
+            <span className="text-muted">Attacking:</span> {fight.attackers.join(", ")}
+          </p>
+          <p className="text-sm">
+            <span className="text-muted">Defending:</span> {fight.defenders.join(", ")}
           </p>
           <div className="chat-buttons">
-            <button type="button" className="btn-quiet" disabled={busy || Boolean(blocked)} onClick={() => join(fight, "ATTACKER")}>
+            <button type="button" className="btn-quiet" disabled={busy || Boolean(blocked) || fight.declined} onClick={() => join(fight, "ATTACKER")}>
               Join the attackers
             </button>
             <button type="button" className="btn-quiet" disabled={busy || Boolean(blocked)} onClick={() => join(fight, "DEFENDER")}>
               Join the defenders
             </button>
           </div>
+          {fight.declined ? <p className="text-xs text-muted">{DECLINED_ATTACKERS}</p> : null}
         </div>
       ))}
 
