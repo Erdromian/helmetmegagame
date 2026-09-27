@@ -162,7 +162,7 @@ function corpseOrgans() {
 // from the source rather than remembered, and this fails loudly if that function is reshaped.
 function obolPayableFamilies() {
   const src = fs.readFileSync(path.join(REPO, "web/app/(app)/character/actions/crafting.js"), "utf8");
-  const fn = src.match(/function resolveObolSpend[\s\S]*?\n}\n/);
+  const fn = src.match(/function resolveObolSpend[\s\S]*?\r?\n}\r?\n/);
   // No function means no obol path: nothing can be paid that way and the model says so.
   if (!fn) return [];
   const families = [...fn[0].matchAll(/craftFamily\(tag\) !== "([a-z]+)"/g)].map((m) => m[1]);
@@ -1894,7 +1894,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     const treasurySrc = fs.readFileSync(path.join(REPO, "db/lib/verbs/place.js"), "utf8");
     const wholeZeroToHundred = /Number\.isInteger\(rate\)/.test(treasurySrc) && /rate < 0 \|\| rate > 100/.test(treasurySrc);
     const passSrc = fs.readFileSync(path.join(REPO, "db/lib/trainDeparturePass.js"), "utf8");
-    const taxFn = (passSrc.match(/function taxOn[\s\S]*?\n}\n/) ?? [""])[0];
+    // \r?: a Windows checkout is CRLF, and a bare \n there never matched, so the check read "changed shape".
+    const taxFn = (passSrc.match(/function taxOn[\s\S]*?\r?\n}\r?\n/) ?? [""])[0];
     const offGross = /Math\.min\(gross,\s*Math\.round\(\(gross \* pct\) \/ 100\)\)/.test(taxFn) && /taxOn\(gross,/.test(passSrc);
     const libDir = path.join(REPO, "db/lib");
     const taxCallers = fs.readdirSync(libDir).filter((f) => f.endsWith(".js") && /\btaxOn\(/.test(fs.readFileSync(path.join(libDir, f), "utf8")));

@@ -56,7 +56,9 @@ function buildSellTax({ activities, baselines, profitRows, trinkets, params, rv 
 
   // Trinkets: the Trinket sold at its tier's price, the ⬢ and any shelf stones bought, one a Move. Each holder
   // slots the shelf stones that pay it best, so Lucky may pick a different pair from a plain Smithing II smith.
-  const stonesOf = (set) => (set?.stones?.length ? set.stones.join(" + ") : "no stones");
+  // The stones are the 0% pick, held at every rate. The Trinket page's picker re-picks them as the tax rises
+  // (cheaper stones, then none), so its break-even is later than this row's.
+  const stonesOf = (set) => `${set?.stones?.length ? set.stones.join(" + ") : "no stones"} at every rate (the Trinket page re-picks them as the tax rises)`;
   const tr = byId("trinket:shelf:skilled");
   if (tr) add("Smith forging Trinkets (Smithing II, shelf stones)", { gross: tr.rawPerTurnBuy + tr.inputsBuy, inputs: tr.inputsBuy, note: `${stonesOf(trinkets.shelfLoop.bestSkilledWithStones)}; a Trinket's expected price over the die` });
   const lucky = trinkets.shelfLoop.bestSkilledLuckyWithStones;
