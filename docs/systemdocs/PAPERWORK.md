@@ -446,14 +446,9 @@ per-viewer composition), `db/lib/paperMint.js` (the four writes),
 
 ## 9. What this does not do
 
-- **Forgery is HALF implemented.** The `forgery` tag is a real recipe skill:
-  its one craft is the Forged Wax Seal (§5), a wax stamp pressed from an
-  office's signet ring the forger is holding. So the way to the Baron's seal is
-  to get the Baron's ring into your hands, long enough to press it.
-
-  What is still NOT implemented is forging the **handwriting**: a letter's
-  `paperAuthor` is always the writer's presented name, and nothing lets a
-  forger set it to somebody else's. That is the remaining hook, and §5's
-  presented-name rule is where it would go.
+- **Forgery forges seals, and only seals.** The `forgery` tag is a recipe
+  skill whose one craft is the Forged Wax Seal (§5), a wax stamp pressed from
+  an office's signet ring the forger is holding. So the way to the Baron's seal
+  is to get the Baron's ring into your hands, long enough to press it.
 - **No copying.** There is no way to duplicate a letter. Transcribing one is
   Write plus retyping, which seems right.
