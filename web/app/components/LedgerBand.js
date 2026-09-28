@@ -6,14 +6,14 @@ import { useState } from "react";
 // barrel here would drag PrismaClient into the browser bundle.
 import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
-import { HUNGER_DESCRIPTOR_SLUGS } from "@lifeweb/db/lib/constants";
+import { BLOOD_URGENCY_SLUGS, HUNGER_DESCRIPTOR_SLUGS } from "@lifeweb/db/lib/constants";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
 import { obolsOf } from "@/lib/purse";
 import ActionGrid from "./ActionGrid";
 import AvatarZoom from "./AvatarZoom";
 import CombatTile from "./CombatReadout";
 import DetailTile from "./DetailTile";
-import { HungerIcon } from "./icons";
+import { BloodIcon, HungerIcon } from "./icons";
 import SheetTurn from "./SheetTurn";
 import SoundTrumpetButton from "./SoundTrumpetButton";
 import SoundHornButton from "./SoundHornButton";
@@ -57,10 +57,13 @@ export default function LedgerBand({
   hasHorn = false,
   isBastard = false,
   isSelf = true,
-  // { word, line, tone } — the character's one hunger descriptor (db/lib/hunger.js#hungerDescriptorFor),
-  // worked out on the server. Null for the Hungerless. Never the number.
-  hunger = null,
+  // { key, label, word, line, tone } — the character's one hunger descriptor
+  // (db/lib/hunger.js#hungerDescriptorFor), or a vampire's Blood in its place
+  // (db/lib/vampire.js#bloodDescriptorFor), worked out on the server
+  // (web/lib/descriptors.js#appetiteOf). Null for the Hungerless. Never the number.
+  appetite = null,
 }) {
+  const isBlood = appetite?.key === "blood";
 
   // The Combat tile below is drawn only on your OWN sheet: a fighting band is
   // one number nobody should read off somebody they might have to fight (every
@@ -143,12 +146,16 @@ export default function LedgerBand({
             </p>
             <div className="mt-2">
               {/* No ⬢ and no pounds here: the tiles to the right already carry both. What's left is what is actually worn. */}
-              {/* The hunger descriptor has its own tile to the right, so its chip
-                  is not drawn a second time here. */}
+              {/* The hunger descriptor (a vampire's blood band) has its own tile
+                  to the right, so its chip is not drawn a second time here. */}
               <StatusStrip
                 numbers={false}
                 carry={carry}
-                tags={character.tags.filter((ct) => !HUNGER_DESCRIPTOR_SLUGS.includes(ct.tag?.slug))}
+                tags={character.tags.filter(
+                  (ct) =>
+                    !HUNGER_DESCRIPTOR_SLUGS.includes(ct.tag?.slug) &&
+                    !(isBlood && BLOOD_URGENCY_SLUGS.includes(ct.tag?.slug)),
+                )}
                 onPick={(ct) => setPicked((was) => (was === (ct.tag.id ?? ct.tagId) ? null : ct.tag.id ?? ct.tagId))}
                 pickedId={picked}
               />
@@ -225,14 +232,16 @@ export default function LedgerBand({
           </DetailTile>
           {/* Hunger as ONE WORD and a prominent icon (the Soilery Rework doc),
               never the number. It took the slot of a second Mood box: the mood
-              has its own panel further down the sheet (MoodPanel.js). */}
+              has its own panel further down the sheet (MoodPanel.js). A vampire
+              never hungers, so the slot tells them their Blood instead:
+              Flush down to Bloodcrazed, again a word and never the number. */}
           <DetailTile
-            label="Hunger"
-            icon={<HungerIcon size={26} />}
-            value={hunger?.word ?? "—"}
-            tone={hunger?.tone ?? "muted"}
+            label={isBlood ? "Blood" : "Hunger"}
+            icon={isBlood ? <BloodIcon size={26} /> : <HungerIcon size={26} />}
+            value={appetite?.word ?? "—"}
+            tone={appetite?.tone ?? "muted"}
             word
-            detail={hunger?.line ?? "You don't need to eat."}
+            detail={appetite?.line ?? "You don't need to eat."}
             open={tileOpen === "hunger"}
             onOpen={(want) => setTileOpen(want ? "hunger" : null)}
           />

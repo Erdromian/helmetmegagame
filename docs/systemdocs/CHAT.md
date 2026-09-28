@@ -44,7 +44,10 @@ disagrees with this section, this section is right.
   hover title (`YouDescriptors.js`). `chat/page.js` works them out on the
   server (`web/lib/descriptors.js#descriptorsFor`) and strips `hungerValue`
   before the sheet crosses, so the number never reaches a browser. A
-  Hungerless character has no Hunger row.
+  Hungerless character has no Hunger row. A **vampire** (who is Hungerless)
+  gets a **Blood** row in its place instead — Flush, Satiated, Thirsty,
+  Famished or Bloodcrazed (`VAMPIRE.md` §2c); `vampireBloodLevel` is stripped
+  the same way.
 - **A shut zone hides every row**, unread ones included, so a GM can put a
   zone away. Its divider brightens and carries the count of lines addressed
   to you, or a dot when there are none. **A shut section** (Here, Rooms, …)

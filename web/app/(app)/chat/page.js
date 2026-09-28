@@ -278,6 +278,8 @@ async function FreshChat({ userId }) {
               // descriptor tag is held yet (web/lib/descriptors.js) — stripped
               // from `clientSheet` below, like the poison columns.
               hungerValue: true,
+              // The same, for a vampire's Blood row in its place — stripped too.
+              vampireBloodLevel: true,
               // Which in-game DAY the bird last left on, and how many of that
               // day's flights are spent — a Rookery is worth several
               // (db/lib/rookery.js). (docs/systemdocs/PAPERWORK.md §Bird.)
@@ -335,7 +337,7 @@ async function FreshChat({ userId }) {
           ...character,
           location: { indoors: viewer.character.location?.indoors ?? true },
         });
-        const { hungerValue: _hungerValue, ...sheetWithoutHunger } = sheet ?? {};
+        const { hungerValue: _hungerValue, vampireBloodLevel: _vampireBloodLevel, ...sheetWithoutHunger } = sheet ?? {};
         const clientSheet = {
           ...sheetWithoutHunger,
           // A plain number again on the client shape, same key as before the
@@ -425,6 +427,7 @@ async function FreshChat({ userId }) {
           sheet: clientSheet,
           // The bottom-left You plate's descriptors (the Soilery Rework doc):
           // words only, worked out here so the hunger number never crosses.
+          // A vampire's row is Blood instead of Hunger (web/lib/descriptors.js).
           descriptors: descriptorsFor(sheet ?? {}),
           // What this character is carrying against their cap — the Transfer
           // dialog projects a hand-over off both.

@@ -1993,6 +1993,11 @@
   color: var(--muted);
 }
 
+/* A vampire's Flush (their Blood row stands in for Hunger). */
+.kv dd[data-tone="good"] {
+  color: var(--positive);
+}
+
 .kv dd[data-tone="warn"] {
   color: var(--warning);
 }
