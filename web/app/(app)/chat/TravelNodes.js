@@ -9,7 +9,7 @@ import ChipLabel from "@/app/components/ChipLabel";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, tightSqueezeNote, affordsCrossing, formatTravel } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, travelFoot, openedByLabel, tightSqueezeNote, affordsCrossing, formatTravel } from "@/lib/travelCost";
 import SqueezeChip from "@/app/components/SqueezeChip";
 import { loadTravel, travelTo } from "./actions";
 import { nudgePhase } from "../../components/PhaseProvider";
@@ -21,6 +21,10 @@ import useNarrow from "./useNarrow";
 // (web/lib/travelCost.js, shared with /map) marks a dismount as "· on foot".
 // Nothing that refuses is hidden — a shut/locked way draws
 // dimmed with the reason, so a player can go find the winch.
+//
+// Only the ways next door. A walk of several hops across a zone is the map's
+// (MAP.md §3c): it used to be a second "Further in" list here, and the strip
+// over the scene read as a list of everywhere rather than of the doors out.
 
 // The whole of it, for the hover — the node clamps its name and prints no
 // description at all. `via` is
@@ -99,13 +103,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
     );
   }
 
-  const walks = data.walks ?? [];
-  // Picked out of either list. A walk carries no crossing and no cost, so the
-  // strip below reads its own sentence and never the crossing one.
-  const chosen = target
-    ? (data.options.find((o) => o.id === target) ?? walks.find((w) => w.id === target) ?? null)
-    : null;
-  const walking = Boolean(chosen && walks.some((w) => w.id === chosen.id));
+  const chosen = target ? (data.options.find((o) => o.id === target) ?? null) : null;
   // chosen's OWN count against chosen's own cost — a hop into the hills costs
   // twice what one across the town does (MAP.md §3).
   const nextTurn = Boolean(chosen?.crossesZone && !affordsCrossing(chosen, chosen.freeLeft));
@@ -207,45 +205,6 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
             })}
           </div>
         )}
-
-        {/* Farther in this zone — a walk of several hops (MAP.md §3c). Its own
-            heading rather than mixed into the grid above, because that grid means
-            "doors out of this room" and a three-hop walk is not one of those.
-            Clicking still only picks: the shortcut is the map's, and this panel is
-            the surface a stray tap landed on last time. */}
-        {walks.length > 0 && (
-          <>
-            <p className="group-label chat-section-title">Further in {data.zoneName ?? "this zone"}</p>
-            <div className="chat-nodes">
-              {walks.map((option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  className="chat-node"
-                  data-walk="true"
-                  data-active={target === option.id ? "true" : undefined}
-                  title={[
-                    option.description ? `${option.name} — ${option.description}` : option.name,
-                    option.tightSqueeze ? tightSqueezeNote(true) : null,
-                  ].filter(Boolean).join("\n")}
-                  disabled={pending}
-                  onClick={(e) => {
-                    e.currentTarget.focus();
-                    setTarget(option.id);
-                  }}
-                  onDoubleClick={narrow ? undefined : () => go(option)}
-                >
-                  <span className="chat-node-name">{option.name}</span>
-                  {/* The stops, where there is room for them — the same sentence
-                      the strip spells out in full once this is picked. */}
-                  <span className="chat-node-zone">{option.through.join(" · ")}</span>
-                  <SqueezeChip show={option.tightSqueeze} onWalk />
-                  <span className="chat-node-foot mono">{walkFoot(option, data.mounted)}</span>
-                </button>
-              ))}
-            </div>
-          </>
-        )}
       </div>
 
       {/* Held where they stand (INTERCEPT.md). List stays up, every way drawn shut. */}
@@ -262,7 +221,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
       {chosen && (
         <div className="chat-travel-confirm">
           <p className="text-sm">
-            {walking ? walkLine(chosen) : crossingLine(chosen, nextTurn, data.moved)}
+            {crossingLine(chosen, nextTurn, data.moved)}
           </p>
 
           {/* Who comes along is the party rack's business now — an escort persists, so only the count is owed here. */}

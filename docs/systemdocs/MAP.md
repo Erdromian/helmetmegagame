@@ -962,7 +962,7 @@ set off, which is the closest thing the item has to stealth.
 ## 3c. Walking across a zone
 
 **"Hop" is this file's word, not a player's.** Every surface that counts steps
-for somebody — `walkFoot` on /chat and /map, the Discord destination line,
+for somebody — `walkFoot` on /map, the Discord destination line,
 the travel confirmation — says **moves**: "1 move", "3 moves". Keep the code and
 the prose here on "hop" if you like, but never print it.
 
@@ -984,6 +984,11 @@ a shortcut past the game.
 **It costs nothing**, because a hop inside a zone costs nothing (§3). No travel,
 no Move, no confirm dialog. That is also exactly why it is the only thing the
 map's double-click may do (§6c).
+
+**On the web, a walk is the map's alone.** The travel strip over the chat lists
+only the ways next door; it used to carry a second "Further in <zone>" list of
+walks, and that was taken off so the strip reads as the doors out of here. The
+Discord Travel picker still offers walks.
 
 **The road is fog-limited.** `routesWithinZone` / `pathWithinZone` in
 `db/lib/locationGraph.js` are the second multi-hop question in that file, beside
