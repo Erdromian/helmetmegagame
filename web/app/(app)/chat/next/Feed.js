@@ -205,7 +205,8 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
             unknown={Boolean(row.unknownFace)}
             name={row.name}
             version={row.avatarVersion}
-            size={24}
+            // --chat-face (globals.css), which the row's gutter is built from.
+            size={48}
           />
         ) : null
       }
