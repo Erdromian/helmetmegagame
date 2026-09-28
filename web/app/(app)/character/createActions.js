@@ -32,9 +32,10 @@ import {
   postDebtorNotices,
   DEBTOR_STARTING_OBOLS,
 } from "@lifeweb/db/lib/wantedPoster";
-import { addToStack } from "@lifeweb/db/lib/tagWrites";
+import { addToStack, addToRoomStack } from "@lifeweb/db/lib/tagWrites";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
-import { openAccount, bumpBankAccount } from "@lifeweb/db/lib/bankAccounts";
+import { varyStartingPurse } from "@lifeweb/db/lib/startingVariance";
+import { openStartingAccount } from "@lifeweb/db/lib/startingAccount";
 import { turnStamp } from "@lifeweb/db/lib/economyLedger";
 import {
   ensureCharacterRole,
@@ -256,6 +257,9 @@ export async function createCharacter(formData) {
     const { slug, quantity } = parseStartingTag(entry);
     startingWanted.set(slug, (startingWanted.get(slug) ?? 0) + quantity);
   }
+  // The purse is the middle of a range: rolled within 10% once, here, for this
+  // character (db/lib/startingVariance.js).
+  varyStartingPurse(startingWanted);
   const startingTags = startingWanted.size
     ? await prisma.tag.findMany({ where: { slug: { in: [...startingWanted.keys()] } } })
     : [];
@@ -552,30 +556,23 @@ export async function createCharacter(formData) {
   //
   // It used to open EMPTY, always, on the argument that a seeded balance would
   // be a claim with nothing behind it in the Vault. That is answered by
-  // stocking the Vault to cover every purse a full game hands out
-  // (docs/zones.yaml, `undercroft-vault`) rather than by refusing — so a seat
-  // can now start with money in the bank as well as in its hand.
-  // `npm run db:audit-vault-backing` is the check that keeps the two honest.
+  // stocking the Vault as the balances are handed out: the balance is rolled
+  // within 10% of `startingAccountObols`, and puts GameConfig.vaultReservePercent
+  // of itself into the Vault as coin (25% by default, the Baron's excluded), all
+  // in one transaction — db/lib/startingAccount.js. So the Vault holds that
+  // share of what the town opened with. `npm run db:audit-vault-backing` reads
+  // the two side by side.
+  //
+  // Only the starting cast stocks it: a seat Start Game rolled, built inside
+  // its window. A late party's drawn seat, a late join, a second life or a role
+  // off the open menu opens with its balance and adds nothing to the Vault.
   //
   // Best-effort, in the side-effect block rather than the create transaction:
   // a character with no account can open one at the counter in one click, and
-  // failing a whole character creation over a bank is the wrong trade. The open
-  // and the credit share a small transaction of their own, so a failed credit
-  // takes the account with it, and the CHARACTER_START ledger row lands with
-  // the balance it records (docs/systemdocs/ECONOMY.md §3).
+  // failing a whole character creation over a bank is the wrong trade.
   if (role.bankAccountClass) {
-    await prisma
-      .$transaction(async (tx) => {
-        const account = await openAccount(tx, created, {
-          accountClass: role.bankAccountClass,
-          turnNumber: openTurn?.number ?? null,
-        });
-        if (!account || !(role.startingAccountObols > 0)) return;
-        await bumpBankAccount(tx, account.id, role.startingAccountObols, {
-          holderName: account.holderName,
-          econ: { reason: "CHARACTER_START", ...turnStamp(openTurn) },
-        });
-      })
+    const startingCast = Boolean(assignedEntry && !assignedEntry.latePartyId);
+    await openStartingAccount(prisma, { character: created, role, config, openTurn, startingCast })
       .catch((err) => console.error("Opening a bank account failed:", err));
   }
 

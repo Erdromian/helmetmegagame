@@ -18,11 +18,8 @@
 // the door but not the terminal.
 //
 // THE BARON'S ACCOUNT can't be edited, closed or paid a wage: it is the
-// treasury itself. Until the Crown account lands (a separate change, class
-// CROWN in db/lib/bankAccounts.js) that is read off the holder's seat; once it
-// does, the class says it too. The class is compared as a plain string, never
-// in a Prisma `where`, so this file reads the same before and after that enum
-// value exists.
+// treasury itself — the Crown account (class CROWN, db/lib/bankAccounts.js),
+// whose balance is whatever the Vault holds.
 //
 // Returns `{ ok: true, … }` or `{ ok: false, error }`, the db/lib/blackMarket.js
 // convention, so a refusal reads the same on the web dialog and the Discord
@@ -30,7 +27,7 @@
 
 const { MEISTERS_OFFICE_ROOM_SLUG } = require("./depot");
 const { loadDepot } = require("./depotState");
-const { bumpBankAccount, vaultObols, TREASURY } = require("./bankAccounts");
+const { bumpBankAccount, vaultObols, isCrown, TREASURY } = require("./bankAccounts");
 const { turnStamp } = require("./economyLedger");
 const { heldTagSlugs } = require("./roomAccess");
 const { blockerFor, ACT } = require("./incapacitation");
@@ -45,26 +42,18 @@ const {
   fillMeisterText,
 } = require("./meisterTerminalText");
 
-const CROWN = "CROWN";
-
 function fail(error) {
   return { ok: false, error };
 }
 
 // ─── Pure rules ───────────────────────────────────────────────────────────────
 
-/**
- * Whether the terminal leaves this account alone. `account` is
- * { class, roleSlug, status }: the Crown's own class, or the account of a
- * living Baron. A dead Baron's old account is an ordinary one.
- */
+/** Whether the terminal leaves this account alone: the Crown's, which is the Vault. */
 function isLockedAccount(account) {
-  if (!account) return false;
-  if (account.class === CROWN) return true;
-  return account.roleSlug === BARON_ROLE_SLUG && account.status === "ALIVE";
+  return isCrown(account);
 }
 
-/** What the terminal shows as an account's balance: the Vault's coin for the Baron's. */
+/** What the terminal shows as an account's balance: the Vault's coin for the Crown's. */
 function displayBalance(account, vault) {
   return isLockedAccount(account) ? vault : (account?.balanceObols ?? 0);
 }
@@ -515,7 +504,6 @@ async function connectRing(prisma, discordUserId, args = {}) {
 }
 
 module.exports = {
-  CROWN,
   isLockedAccount,
   displayBalance,
   wageFor,

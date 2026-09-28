@@ -74,6 +74,11 @@ const FIELDS = [
     label: "Notice lifespan (turns)",
   },
   {
+    key: "vaultReservePercent", type: "int", group: "economy", default: 25, min: 0, max: 500,
+    label: "Vault stock (% of starting balances)",
+    info: "Each starting character's bank balance puts this share of it into the Keep's Vault as coin, so the Vault opens holding this percentage of what the town (bar the Baron) starts with in the bank. Only seats from the Start Game roll count: anybody who arrives later adds nothing. Applies to characters created after it is changed. See DEPOT.md §0g",
+  },
+  {
     key: "farmMaxCrops", type: "int", group: "economy", default: 100, min: 1, max: 500,
     label: "Plants per farm",
     info: "How many crops one Farm action plants. Each has a 1-in-6 chance to wither; every survivor is 1 Foodstuff. See db/lib/soilery.js",

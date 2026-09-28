@@ -8,6 +8,16 @@
 // Docker's — skips all of that: their money is held off-world, so there is no
 // stash to check.
 //
+// A CROWN account — the Baron's — is not a claim at all. It IS the Vault: its
+// balance is read off the Vault's pile every time (accountBalance below), a
+// withdrawal takes coin straight out of the room with no account row to
+// debit, and a deposit is coin put back on the pile. Its stored
+// `balanceObols` is never written and never read as money; whatever it held
+// when the seat became the Crown's stays there, frozen, so the ledger's sum
+// for it still matches (ECONOMY.md §3). It is not counted among the claims
+// the Vault backs, since counting the pile as a claim on itself would say the
+// Vault is always half short. See DEPOT.md §0g.
+//
 // Every balance move goes through bumpBankAccount below, never a bare update:
 // the clamp lives inside one locked statement, the way db/lib/depotState.js
 // does the Depot's own columns, so two spenders cannot stomp each other.
@@ -29,6 +39,17 @@ const VAULT_ROOM_SLUG = "undertown-1-7";
 
 const TREASURY = "TREASURY";
 const OFFSHORE = "OFFSHORE";
+const CROWN = "CROWN";
+
+// The two classes whose coin is the Vault's: a Treasury claim draws on it, and
+// the Crown's account is it. Only an Offshore account's money is elsewhere.
+function vaultBacked(account) {
+  return account?.class === TREASURY || account?.class === CROWN;
+}
+
+function isCrown(account) {
+  return account?.class === CROWN;
+}
 
 // Something that reads like a stamped account number rather than a cuid, the
 // same reasoning db/lib/depotCrates.js#shipmentId gives. Two letters off the
@@ -72,7 +93,7 @@ async function openAccount(tx, character, { accountClass = TREASURY, turnNumber 
   return tx.bankAccount.create({
     data: {
       characterId: character.id,
-      class: accountClass === OFFSHORE ? OFFSHORE : TREASURY,
+      class: accountClass === OFFSHORE || accountClass === CROWN ? accountClass : TREASURY,
       fingerprint: await freeFingerprint(tx, character.name),
       holderName: character.name ?? "",
       openedTurn: turnNumber,
@@ -169,6 +190,15 @@ async function vaultObols(tx) {
   return row?.quantity ?? 0;
 }
 
+// What an account holds, as a person at an infoterminal reads it. The stored
+// balance, except for the Crown's, which is whatever is in the Vault this
+// moment — so it moves when anybody deposits, withdraws, robs or restocks it.
+async function accountBalance(tx, account) {
+  if (!account) return 0;
+  if (isCrown(account)) return vaultObols(tx);
+  return account.balanceObols ?? 0;
+}
+
 // Takes `amount` obols out of the Vault stash, or throws. A conditional
 // updateMany rather than a read-then-write, the db/lib/resourceStack.js shape:
 // `count === 0` is the refusal, and it rolls the caller's account debit back
@@ -191,6 +221,10 @@ module.exports = {
   VAULT_ROOM_SLUG,
   TREASURY,
   OFFSHORE,
+  CROWN,
+  vaultBacked,
+  isCrown,
+  accountBalance,
   fingerprintFor,
   freeFingerprint,
   loadAccount,

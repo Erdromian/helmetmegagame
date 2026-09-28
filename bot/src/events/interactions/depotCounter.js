@@ -69,7 +69,7 @@ async function handleAtmOpen(interaction) {
   const backing = state.account.backed ? "" : " Held off-world.";
   await respond(interaction, {
     content:
-      `» *${state.account.fingerprint} — ${state.account.balanceObols} ¢ in the account, ` +
+      `» *${state.account.fingerprint} — ${state.account.balanceObols} ¢ in ${state.account.crown ? "the Vault" : "the account"}, ` +
       `${state.heldObols} ¢ in your pocket.${backing}*`,
     components: [
       new ActionRowBuilder().addComponents(

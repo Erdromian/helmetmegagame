@@ -37,7 +37,7 @@ export default async function EconPlayersPage() {
       name: true,
       hungerValue: true,
       location: { select: { name: true, zone: { select: { name: true } } } },
-      bankAccount: { select: { balanceObols: true } },
+      bankAccount: { select: { balanceObols: true, class: true } },
       tags: {
         select: {
           quantity: true,
@@ -62,7 +62,9 @@ export default async function EconPlayersPage() {
   const rows = characters.map((c) => {
     const resources = c.tags.find((ct) => ct.tag.slug === "resources")?.quantity ?? 0;
     const obols = c.tags.find((ct) => ct.tag.slug === "obol")?.quantity ?? 0;
-    const banked = c.bankAccount?.balanceObols ?? 0;
+    // The Baron's CROWN account is the Vault, not money of their own; showing
+    // the pile here would count the whole treasury as one person's funds.
+    const banked = c.bankAccount?.class === "CROWN" ? 0 : (c.bankAccount?.balanceObols ?? 0);
     const tags = c.tags.filter((ct) => !MONEY_SLUGS.has(ct.tag.slug) && isEconomicTag(ct.tag));
     return {
       id: c.id,

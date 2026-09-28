@@ -16,19 +16,16 @@ const SKIP = !isLocalDatabase() && "point DATABASE_URL at a local Postgres";
 
 // ─── The rules ───────────────────────────────────────────────────────────
 
-test("only a living Baron's account, or the Crown's class, is locked", () => {
-  assert.equal(isLockedAccount({ class: "TREASURY", roleSlug: "baron", status: "ALIVE" }), true);
-  assert.equal(isLockedAccount({ class: "CROWN", roleSlug: "baron", status: "DEAD" }), true);
-  // A dead Baron's old account is an ordinary one the Meister may close.
-  assert.equal(isLockedAccount({ class: "TREASURY", roleSlug: "baron", status: "DEAD" }), false);
-  assert.equal(isLockedAccount({ class: "TREASURY", roleSlug: "hand", status: "ALIVE" }), false);
-  assert.equal(isLockedAccount({ class: "OFFSHORE", roleSlug: "merchant", status: "ALIVE" }), false);
+test("only the Crown's account, the Baron's, is locked", () => {
+  assert.equal(isLockedAccount({ class: "CROWN" }), true);
+  assert.equal(isLockedAccount({ class: "TREASURY" }), false);
+  assert.equal(isLockedAccount({ class: "OFFSHORE" }), false);
   assert.equal(isLockedAccount(null), false);
 });
 
-test("the Baron's account shows the Vault; everybody else's shows their balance", () => {
-  assert.equal(displayBalance({ class: "TREASURY", roleSlug: "baron", status: "ALIVE", balanceObols: 36 }, 250), 250);
-  assert.equal(displayBalance({ class: "TREASURY", roleSlug: "hand", status: "ALIVE", balanceObols: 36 }, 250), 36);
+test("the Crown's account shows the Vault; everybody else's shows their balance", () => {
+  assert.equal(displayBalance({ class: "CROWN", balanceObols: 36 }, 250), 250);
+  assert.equal(displayBalance({ class: "TREASURY", balanceObols: 36 }, 250), 36);
 });
 
 test("a character's own wage beats their fate's, and 0 exempts them", () => {
@@ -70,7 +67,7 @@ test("who is owed what: the Baron and the exempt are skipped, the order is the l
     { id: "c-b", status: "ALIVE", roleId: "r-guard", role: { slug: "cerberus" }, bankAccount: { id: "acc-2", class: "TREASURY", holderName: "B" } },
     { id: "c-a", status: "ALIVE", roleId: "r-guard", role: { slug: "cerberus" }, bankAccount: { id: "acc-1", class: "TREASURY", holderName: "A" } },
     { id: "c-x", status: "ALIVE", roleId: "r-guard", role: { slug: "cerberus" }, bankAccount: { id: "acc-3", class: "TREASURY", holderName: "X" } },
-    { id: "c-baron", status: "ALIVE", roleId: "r-baron", role: { slug: "baron" }, bankAccount: { id: "acc-0", class: "TREASURY", holderName: "Baron" } },
+    { id: "c-baron", status: "ALIVE", roleId: "r-baron", role: { slug: "baron" }, bankAccount: { id: "acc-0", class: "CROWN", holderName: "Baron" } },
     { id: "c-none", status: "ALIVE", roleId: "r-guard", role: { slug: "cerberus" }, bankAccount: null },
   ];
   const wages = [
@@ -227,7 +224,7 @@ test("balances, closing, wages and rings, end to end", { skip: SKIP }, async (t)
   const guard = await person("Guard", cerberusRole.id);
   const guardAccount = await openAccount(prisma, guard);
   const baron = await person("Baron", baronRole.id);
-  const baronAccount = await openAccount(prisma, baron);
+  const baronAccount = await openAccount(prisma, baron, { accountClass: "CROWN" });
 
   // ── Balances ──
   let out = await M.setAccountBalance(prisma, uid, { accountId: guardAccount.id, balance: 40 });

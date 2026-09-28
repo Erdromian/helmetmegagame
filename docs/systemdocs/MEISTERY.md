@@ -49,8 +49,8 @@ Bascinet's calls while it was built (2026-09-28):
   License rule, RINGS.md §6), and the GM Dev tax field, which now writes an
   audit row too.
 - **Both faces.** The whole terminal is on the web and on Discord.
-- **The Baron's account** being the treasury itself is a separate change (the
-  Crown account). This one only locks it: see §3.
+- **The Baron's account** being the treasury itself is the Crown account
+  (DEPOT.md §0g, PR #269). The terminal locks it: see §3.
 
 ## 2. The rooms and the gate
 
@@ -89,14 +89,12 @@ Every rule is in `db/lib/meisterTerminal.js`; every word a player reads is in
 | **Rings** | Connect a ring in your hands to an account (`db/lib/ringRegistry.js#connectRing`), §5. |
 | **Ledger** | `db/lib/treasuryLedger.js`, §7. |
 
-**The Baron's account is locked** (`isLockedAccount`): the account of a living
-Baron, or any account of class `CROWN`. It shows the Vault's coin as its
-balance, and cannot be edited, closed or paid a wage. The class is compared as
-a plain string, never in a Prisma `where`, so the code reads the same before
-and after the Crown account adds that enum value. Until it does, the Baron's
-infoterminal still pays out his stored balance — the terminal and the
-infoterminal disagree about his figure until then. A dead Baron's old account
-is an ordinary one.
+**The Baron's account is locked** (`isLockedAccount`): the Crown account,
+class `CROWN` (`bankAccounts.js#isCrown`), which is the Vault itself. The
+terminal shows the Vault's coin as its balance, the same figure the Baron's
+infoterminal reads, and it cannot be edited, closed or paid a wage; the Baron's
+fate cannot be given one either. It stays out of the claims the totals count,
+since it is not a claim on the Vault.
 
 **A balance set by hand moves a claim, not coin.** The difference is one ledger
 leg against the bank clearing (`MEISTER_CREDIT` / `MEISTER_DEBIT`, ECONOMY.md

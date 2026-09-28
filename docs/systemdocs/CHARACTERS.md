@@ -680,15 +680,20 @@ Picking a role decides almost everything:
 - `bank_account` — opens a `BankAccount` fingerprinted to the new character:
   `treasury` for nearly every seat (hard-backed by the real `obol` tags in
   the Keep's Vault), `offshore` for the Merchant and his Dockers (no vault
-  behind it). Absent for the Black Hills — the Tribunal
+  behind it), `crown` for the Baron (the Vault itself: its balance is every
+  obol in the Vault, `DEPOT.md` §0g). Absent for the Black Hills — the Tribunal
   arrives with no account at all — and for the Slave, the Bum and the
   Migrant. Any of them can open one later at the counter's
   **Create an account** button, the same as any spawned antagonist. The
   account opens with the role's `starting_account:` obols already in it
   (`web/app/(app)/character/createActions.js` bumps the new account by
   `Role.startingAccountObols`), on top of any physical `Obol xN` tags in
-  `starting_tags`. Those balances are claims on the Vault, which is stocked
-  deliberately short of them — see `DEPOT.md` §0g.
+  `starting_tags`. Those balances are claims on the Vault, which the starting
+  cast stocks deliberately short of them (a character who arrives after the
+  Start Game roll adds nothing to it) — see `DEPOT.md` §0g. Both the balance and the
+  `Obol xN` purse are rolled within 10% of the seat's figure for each new
+  character (`db/lib/startingVariance.js`), so they are a guide, not a
+  promise.
 
 **Everyone starts with about one meal**, in `starting_tags`, flavoured to the
 seat: moldy bread or a Ration Box for the poor, the Dockers and the soldiers of
