@@ -12,6 +12,13 @@
 // The party runs until every limited fate is full, or -- with any unlimited
 // fate in it -- until a superadmin ends it.
 //
+// Two MODES. An OPEN party is picked from in the wizard, and the character
+// spawns at once. A MUSTER party is not picked from at all: players put their
+// names down with priorities, the way they ready up in the lobby, and at the
+// end of the turn db/lib/latePartyRaffle.js draws the fates and hands each
+// winner an ordinary lobby seat (an ASSIGNED LobbyEntry carrying the party's
+// id), which the wizard then builds exactly as it builds a rolled seat.
+//
 // LIVE IS DERIVED, never stored: `endedAt` null AND some fate with room. Room
 // is counted off the Character rows carrying the party's id, dead or alive,
 // the way every seat in the game is counted off who sits in it. A party that
@@ -80,10 +87,11 @@ function openParty(db) {
 }
 
 // A party's counts. Each fate: `{ roleSlug, role, slots, seated, held, taken }`,
-// where `held` is live wizard holds on that fate by anybody but
-// `excludeDiscordUserId` -- during a party, every new hold is a party hold,
-// since nothing else can be reserved -- and `taken` is the two together. Pass
-// `roles` (with startingLocation.zone) when the caller already has them.
+// where `held` is the chairs spoken for but not sat in, by anybody but
+// `excludeDiscordUserId`: live wizard holds on that fate (during a party,
+// every new hold is a party hold, since nothing else can be reserved) and
+// seats a muster drew that are not built yet. `taken` is the lot. Pass `roles`
+// (with startingLocation.zone) when the caller already has them.
 async function loadPartyCounts(db, party, { excludeDiscordUserId = null, now = new Date(), roles = null } = {}) {
   const slugs = party.fates.map((f) => f.roleSlug);
   const roleRows =
@@ -95,7 +103,7 @@ async function loadPartyCounts(db, party, { excludeDiscordUserId = null, now = n
   const bySlug = new Map(roleRows.map((r) => [r.slug, r]));
   const roleIds = roleRows.map((r) => r.id);
   const others = excludeDiscordUserId ? { discordUserId: { not: excludeDiscordUserId } } : {};
-  const [seatedRows, heldRows] = await Promise.all([
+  const [seatedRows, heldRows, drawnRows] = await Promise.all([
     db.character.groupBy({ by: ["roleId"], where: { latePartyId: party.id }, _count: true }),
     roleIds.length === 0
       ? []
@@ -104,9 +112,15 @@ async function loadPartyCounts(db, party, { excludeDiscordUserId = null, now = n
           where: { roleId: { in: roleIds }, expiresAt: { gt: now }, ...others },
           _count: true,
         }),
+    db.lobbyEntry.groupBy({
+      by: ["assignedRoleId"],
+      where: { latePartyId: party.id, status: "ASSIGNED", expiresAt: { gt: now }, ...others },
+      _count: true,
+    }),
   ]);
   const seatedById = new Map(seatedRows.map((r) => [r.roleId, r._count]));
   const heldById = new Map(heldRows.map((r) => [r.roleId, r._count]));
+  for (const row of drawnRows) heldById.set(row.assignedRoleId, (heldById.get(row.assignedRoleId) ?? 0) + row._count);
 
   return party.fates
     .map((fate) => {
@@ -157,22 +171,29 @@ async function partySeatUnderLock(tx, partyId, role, { excludeDiscordUserId = nu
   });
   if (!fate || fate.party.endedAt) return null;
   const others = excludeDiscordUserId ? { discordUserId: { not: excludeDiscordUserId } } : {};
-  const [seated, held] = await Promise.all([
+  const [seated, held, drawn] = await Promise.all([
     tx.character.count({ where: { latePartyId: partyId, roleId: role.id } }),
     tx.roleReservation.count({ where: { roleId: role.id, expiresAt: { gt: now }, ...others } }),
+    tx.lobbyEntry.count({
+      where: { latePartyId: partyId, assignedRoleId: role.id, status: "ASSIGNED", expiresAt: { gt: now }, ...others },
+    }),
   ]);
-  return { cap: latePartyCap(fate), held: seated + held };
+  return { cap: latePartyCap(fate), held: seated + held + drawn };
 }
 
 // Opens a party. Any party still open is closed by the same hand first, under
 // the GameState row lock, so two superadmins pressing Start at once cannot
 // leave two open. `fates` must already be normalizePartyFates' output.
-async function startLateParty(tx, { fates, by }) {
+async function startLateParty(tx, { fates, by, mode = "OPEN" }) {
   await tx.$queryRaw`SELECT id FROM "GameState" WHERE id = 1 FOR UPDATE`;
   const now = new Date();
   await tx.lateParty.updateMany({ where: { endedAt: null }, data: { endedAt: now, endedBy: by } });
   return tx.lateParty.create({
-    data: { startedBy: by, fates: { create: fates.map(({ roleSlug, slots }) => ({ roleSlug, slots })) } },
+    data: {
+      mode: mode === "MUSTER" ? "MUSTER" : "OPEN",
+      startedBy: by,
+      fates: { create: fates.map(({ roleSlug, slots }) => ({ roleSlug, slots })) },
+    },
     include: { fates: true },
   });
 }
@@ -188,7 +209,10 @@ async function endLateParty(tx, { by }) {
 }
 
 // The DM a new party sends to everybody playersWithoutLivingCharacter names.
-function latePartyMessage(origin) {
+function latePartyMessage(origin, mode = "OPEN") {
+  if (mode === "MUSTER") {
+    return `A late party is mustering. Put your name down before the turn ends to be drawn for a new character, whether or not your body has been buried: ${origin}/character`;
+  }
   return `A late party is mustering. You can make a new character now, whether or not your body has been buried: ${origin}/character`;
 }
 

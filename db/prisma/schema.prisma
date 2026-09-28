@@ -4251,6 +4251,12 @@ model LobbyEntry {
   // When the assignment DM was delivered; null until it was, which is what the
   // sweep reads to send it again after a Start that died mid-loop.
   notifiedAt     DateTime?
+  // Set when a late party's muster drew this seat rather than the lobby roll
+  // (db/lib/latePartyRaffle.js). Such a seat is honoured while a party locks
+  // every other fate, and carries the party's exemptions: the curse and the
+  // spawn-only refusal do not reach it.
+  latePartyId    String?
+  lateParty      LateParty? @relation(fields: [latePartyId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -7054,16 +7060,46 @@ model LateJoinRole {
 // carry this party's id -- the one source of truth, and the reason an abandoned
 // wizard hold hands its chair back on its own.
 model LateParty {
-  id        String    @id @default(cuid())
-  startedAt DateTime  @default(now())
+  id        String         @id @default(cuid())
+  // OPEN: pick a party fate in the wizard and spawn now. MUSTER: put your name
+  // down, and the fates are drawn at the end of the turn like the lobby roll.
+  mode      LatePartyMode  @default(OPEN)
+  startedAt DateTime       @default(now())
   startedBy String
   endedAt   DateTime?
   endedBy   String?
 
   fates      LatePartyFate[]
   characters Character[]
+  // A MUSTER party's names in the hat, and the lobby seats its draws handed out.
+  entries    LatePartyEntry[]
+  seats      LobbyEntry[]
 
   @@index([endedAt])
+}
+
+enum LatePartyMode {
+  OPEN
+  MUSTER
+}
+
+// One player's name in a MUSTER party's hat (db/lib/latePartyRaffle.js). Their
+// priorities over the party's fates, in the lobby's shape ({ slug: level }).
+// `whitelisted` is read off Discord when they enter, since the draw runs in the
+// turn advance, which has no member roles to ask. A player the draw passes over
+// stays in for the next turn's; a winner's row is deleted and becomes an
+// ASSIGNED LobbyEntry carrying the party's id.
+model LatePartyEntry {
+  partyId       String
+  discordUserId String
+  priorities    Json     @default("{}")
+  whitelisted   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  party LateParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@id([partyId, discordUserId])
 }
 
 // One fate a late party opens. Keyed by slug with no Role relation, for the

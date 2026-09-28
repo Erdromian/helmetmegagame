@@ -843,6 +843,9 @@ export default async function DevPanelPage({ searchParams }) {
         const fates = live?.fates ?? (await loadPartyCounts(prisma, shown));
         latePartyView = {
           live: Boolean(live),
+          mode: shown.mode,
+          // A muster's names in the hat, waiting on the end-of-turn draw.
+          entered: shown.mode === "MUSTER" ? await prisma.latePartyEntry.count({ where: { partyId: shown.id } }) : 0,
           startedAt: shown.startedAt.toISOString(),
           endedAt: shown.endedAt?.toISOString() ?? null,
           // endedBy null on an ended party means it filled (loadLiveParty).
@@ -1528,8 +1531,9 @@ export default async function DevPanelPage({ searchParams }) {
                 <h2 className="section-title">Late party</h2>
               </div>
               <p className="text-sm text-muted">
-                While a late party is live, character creation offers only its fates, and anyone without a
-                living character may take one at once, buried or not.
+                While a late party is live, character creation offers only its fates, to anyone without a
+                living character, buried or not. An open party is picked from at once; a muster is drawn at the
+                end of each turn.
               </p>
               <LatePartyPanel party={latePartyView} groups={latePartyGroups} />
             </section>

@@ -71,8 +71,15 @@ function PartyTable({ party }) {
       <p className="text-sm">
         {party.live ? (
           <>
-            <strong>Live</strong> since <DiscordTime epoch={epochOf(party.startedAt)} format="f" />. Creation offers
-            only these fates, and anyone without a living character may take one, buried or not.
+            <strong>Live</strong> since <DiscordTime epoch={epochOf(party.startedAt)} format="f" />.{" "}
+            {party.mode === "MUSTER" ? (
+              <>
+                A muster: players put their names down, and the fates are drawn at the end of the turn.{" "}
+                <span className="chip mono">{party.entered} in the draw</span>
+              </>
+            ) : (
+              <>Creation offers only these fates, and anyone without a living character may take one, buried or not.</>
+            )}
           </>
         ) : (
           <>
@@ -127,10 +134,14 @@ function StartForm({ groups }) {
     e.preventDefault();
     const formData = new FormData(e.target);
     const picked = formData.getAll("include").length;
+    const fates = `the ${picked} fate${picked === 1 ? "" : "s"} you picked`;
+    const muster = formData.get("mode") === "MUSTER";
     run(
       {
-        title: "Start a late party?",
-        message: `Creation will offer only the ${picked} fate${picked === 1 ? "" : "s"} you picked, and everyone without a living character is sent a DM saying they can come back now.`,
+        title: muster ? "Start a muster?" : "Start a late party?",
+        message: muster
+          ? `Creation will offer nothing but a draw for ${fates}, made at the end of each turn, and everyone without a living character is sent a DM telling them to put their name down.`
+          : `Creation will offer only ${fates}, and everyone without a living character is sent a DM saying they can come back now.`,
         confirmLabel: "Start it",
       },
       () => startLatePartyAction(formData),
@@ -145,6 +156,22 @@ function StartForm({ groups }) {
         are the ones the picker never shows; a whitelist fate only a vouched player can take, so its empty
         chair keeps a party running.
       </p>
+      <fieldset className="flex flex-col gap-1">
+        <legend className="field-label">How players join</legend>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="radio" name="mode" value="OPEN" defaultChecked />
+          <span>
+            <strong>Open</strong> — anyone without a living character picks a fate and spawns at once
+          </span>
+        </label>
+        <label className="flex items-center gap-2 text-sm">
+          <input type="radio" name="mode" value="MUSTER" />
+          <span>
+            <strong>Muster</strong> — players put their names down, and the fates are drawn at the end of
+            each turn, like the lobby
+          </span>
+        </label>
+      </fieldset>
       {groups.map((group) => (
         <table key={group.slug} className="data-table table-fixed">
           <thead>

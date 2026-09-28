@@ -42,13 +42,15 @@ export async function startLatePartyAction(formData) {
   const fates = normalizePartyFates(rows, roles.map((r) => r.slug));
   if (fates.length === 0) return { error: "Pick at least one fate, with at least 1 slot or blank for unlimited." };
 
-  const party = await prisma.$transaction((tx) => startLateParty(tx, { fates, by: session.discordUserId }));
+  // OPEN is picked from in the wizard; MUSTER is drawn at the end of the turn.
+  const mode = formData.get("mode") === "MUSTER" ? "MUSTER" : "OPEN";
+  const party = await prisma.$transaction((tx) => startLateParty(tx, { fates, mode, by: session.discordUserId }));
   await prisma.auditLog
     .create({
       data: {
         actorDiscordUserId: session.discordUserId,
         actionType: "late_party_start",
-        details: { partyId: party.id, fates },
+        details: { partyId: party.id, mode, fates },
       },
     })
     .catch((err) => console.error("Late party audit log failed:", err));
@@ -59,7 +61,7 @@ export async function startLatePartyAction(formData) {
     // is a rate-limit incident.
     const recipients = await playersWithoutLivingCharacter(prisma);
     for (const discordUserId of recipients) {
-      await sendDm(discordUserId, latePartyMessage(CANONICAL_ORIGIN), {
+      await sendDm(discordUserId, latePartyMessage(CANONICAL_ORIGIN, mode), {
         authorDiscordUserId: session.discordUserId,
         source: "late_party",
       }).catch((err) => console.error(`Late party DM failed for ${discordUserId}:`, err));

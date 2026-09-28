@@ -357,7 +357,9 @@ async function declineAssignment(db, entryId, discordUserId) {
       },
     })
     .catch((err) => console.error("Lobby decline audit failed:", err));
-  return { ok: true, line: "You turned the seat down. Late join is open." };
+  // A seat a late party's muster drew goes back into that party's draw, not
+  // to late join (LATE-PARTIES.md), so it does not promise late join.
+  return { ok: true, line: entry.latePartyId ? "You turned the seat down." : "You turned the seat down. Late join is open." };
 }
 
 module.exports = {

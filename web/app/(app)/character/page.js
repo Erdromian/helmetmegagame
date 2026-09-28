@@ -221,6 +221,45 @@ async function loadLobbyData(discordUserId, { leaderWhitelisted }) {
   };
 }
 
+// A MUSTER late party's view (db/lib/latePartyRaffle.js), or null when there
+// is none to show: no live party, an OPEN one, or a player the draw has
+// already seated, who builds that seat in the wizard. Every fate the party
+// draws, with its chairs left, this player's name in the hat (with their
+// priorities) or not, and how many names are in it.
+async function loadMusterData(discordUserId, { leaderWhitelisted }) {
+  const party = await loadLiveParty(prisma);
+  if (party?.party.mode !== "MUSTER") return null;
+  const [seat, entry, entered] = await Promise.all([
+    prisma.lobbyEntry.findFirst({
+      where: { discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() }, latePartyId: { not: null } },
+      select: { id: true },
+    }),
+    prisma.latePartyEntry.findUnique({
+      where: { partyId_discordUserId: { partyId: party.party.id, discordUserId } },
+      select: { priorities: true },
+    }),
+    prisma.latePartyEntry.count({ where: { partyId: party.party.id } }),
+  ]);
+  if (seat) return null;
+  return {
+    fates: party.fates
+      .filter((fate) => fate.role)
+      .map((fate) => ({
+        id: fate.role.id,
+        slug: fate.role.slug,
+        name: fate.role.name,
+        intro: fate.role.intro,
+        startingZoneName: fate.role.startingLocation?.zone?.name ?? null,
+        requiresWhitelist: fate.role.requiresWhitelist,
+        whitelistBlocked: fate.role.requiresWhitelist && !leaderWhitelisted,
+        // Infinity doesn't serialize; unlimited crosses as null.
+        left: fate.slots === null ? null : Math.max(0, fate.slots - fate.taken),
+      })),
+    entry: entry ? { priorities: entry.priorities ?? {} } : null,
+    entered,
+  };
+}
+
 // Everything the creation wizard needs, as the flat role list groupRoles()
 // buckets into the picker's social groups. Seat counts are computed here, not
 // the client, so the numbers aren't stale-rendered from a cached page. Takes
@@ -269,8 +308,60 @@ async function loadCreationData(discordUserId, { gate, config, state, leaderWhit
   const playerCount = effectivePlayerCount(config, state);
   const roleCard = makeRoleCard({ leaderWhitelisted, takenByRole });
 
+  // A seat from the roll, still inside its window: the wizard opens on Tags
+  // with the role fixed, and createCharacter enforces the same lock. Not while
+  // a late party is live -- the party locks every fate but its own -- unless
+  // the seat is one a party's muster DREW, which is honoured always.
+  const assigned = await prisma.lobbyEntry.findFirst({
+    where: { discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() }, assignedRoleId: { not: null } },
+    select: { assignedRoleId: true, expiresAt: true, latePartyId: true },
+  });
+  const seat = assigned && (assigned.latePartyId || !party) ? assigned : null;
+
+  const specialGroup = party
+    ? {
+        slug: LATE_PARTY_GROUP.slug,
+        name: LATE_PARTY_GROUP.name,
+        roles: party.fates
+          .filter((fate) => fate.role)
+          .map((fate) => roleCard(fate.role, latePartyCap(fate), fate.taken)),
+      }
+    : {
+        slug: LATE_JOIN_GROUP.slug,
+        name: LATE_JOIN_GROUP.name,
+        roles: openLateJoinRows(lateJoin).map((row) => roleCard(row.role, row.slots)),
+      };
+  const groups = partyOnly
+    ? []
+    : groupRoles(roleRows)
+        .map((group) => ({
+          slug: group.slug,
+          name: group.name,
+          // Spawn-only seats are withheld outright, not greyed — see
+          // characterCreation.js#isSpawnOnly.
+          roles: group.roles
+            .filter((role) => !isSpawnOnly(role))
+            .map((role) => roleCard(role, fateCapacity(role, playerCount))),
+        }))
+        .filter((g) => g.roles.length > 0);
+  // A drawn seat can be a hidden fate, or a fate of a party that has since
+  // ended, and so on no card at all. The wizard finds a locked role by its
+  // card, so the seat brings its own (behind the skipped Role step, unseen).
+  const onACard = (id) => [...specialGroup.roles, ...groups.flatMap((g) => g.roles)].some((r) => r.id === id);
+  if (seat?.latePartyId && !onACard(seat.assignedRoleId)) {
+    const role = roleRows.find((r) => r.id === seat.assignedRoleId);
+    if (role) specialGroup.roles.push(roleCard(role, null, 0));
+  }
+  // A role that has left the catalog is no seat at all: the wizard would open
+  // on a blank Tags step.
+  const lockedRole =
+    seat && onACard(seat.assignedRoleId) ? { id: seat.assignedRoleId, expiresAt: seat.expiresAt.toISOString() } : null;
+
   return {
     cursed,
+    lockedRole,
+    // A drawn seat carries the party's curse exemption with it (LATE-PARTIES.md).
+    drawnSeat: Boolean(seat?.latePartyId),
     // Only when the party IS the menu: a superadmin sees the buckets too, so
     // neither the wizard's "only fates open" line nor the curse lift is theirs.
     lateParty: partyOnly,
@@ -287,35 +378,11 @@ async function loadCreationData(discordUserId, { gate, config, state, leaderWhit
     tags,
     // Seven social buckets, not five zones — each role names its own in
     // docs/roles.yaml and db/lib/roleGroups.js holds the order and the labels.
-    groups: partyOnly
-      ? []
-      : groupRoles(roleRows)
-          .map((group) => ({
-            slug: group.slug,
-            name: group.name,
-            // Spawn-only seats are withheld outright, not greyed — see
-            // characterCreation.js#isSpawnOnly.
-            roles: group.roles
-              .filter((role) => !isSpawnOnly(role))
-              .map((role) => roleCard(role, fateCapacity(role, playerCount))),
-          }))
-          .filter((g) => g.roles.length > 0),
+    groups,
     // The late-join seats a GM has opened, above the buckets -- or, while a
     // late party is live, the party's fates in their place. Empty is the
     // normal case, and the wizard draws no heading for an empty one.
-    specialGroup: party
-      ? {
-          slug: LATE_PARTY_GROUP.slug,
-          name: LATE_PARTY_GROUP.name,
-          roles: party.fates
-            .filter((fate) => fate.role)
-            .map((fate) => roleCard(fate.role, latePartyCap(fate), fate.taken)),
-        }
-      : {
-          slug: LATE_JOIN_GROUP.slug,
-          name: LATE_JOIN_GROUP.name,
-          roles: openLateJoinRows(lateJoin).map((row) => roleCard(row.role, row.slots)),
-        },
+    specialGroup,
   };
 }
 
@@ -429,6 +496,13 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     }
     if (!gate.open || !gate.approved)
       return fresh({ kind: "closed", open: gate.masked ? false : gate.open, phase: gate.phase });
+    // A MUSTER late party is not picked from: the player puts their name down
+    // and the fates are drawn at the end of the turn. A superadmin, who may
+    // make anything, gets the wizard; so does a player the draw already seated.
+    if (!gate.superadmin) {
+      const muster = await loadMusterData(session.discordUserId, gateData);
+      if (muster) return fresh({ kind: "muster", muster });
+    }
     const creation = await loadCreationData(session.discordUserId, gateData);
     // An unburied body stops creation dead (db/lib/curse.js). Shown here so a
     // player isn't handed a wizard that refuses on Confirm; createActions.js
@@ -439,25 +513,13 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     // too, narrowed to the Special section. createCharacter enforces the same
     // narrowing, since a server action is a public endpoint.
     // A LATE PARTY lifts the curse outright (db/lib/lateParty.js): its
-    // fates are already the whole menu, so there is nothing to narrow to.
-    const cursedToSpecial = creation.cursed && !gate.superadmin && !creation.lateParty;
+    // fates are already the whole menu, so there is nothing to narrow to. So
+    // does a seat a party's muster drew, which carries the exemption with it.
+    const cursedToSpecial = creation.cursed && !gate.superadmin && !creation.lateParty && !creation.drawnSeat;
     if (cursedToSpecial && creation.specialGroup.roles.length === 0) {
       return fresh({ kind: "cursed" });
     }
-    // A seat from the roll, still inside its window — wizard opens on Tags with the role fixed. createCharacter enforces the same lock.
-    // Not while a late party is live: the party locks every fate but its own.
-    const assigned = creation.lateParty
-      ? null
-      : await prisma.lobbyEntry.findFirst({
-          where: { discordUserId: session.discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() } },
-          select: { assignedRoleId: true, expiresAt: true },
-        });
-    const lockedRole =
-      assigned?.assignedRoleId &&
-      creation.groups.some((g) => g.roles.some((r) => r.id === assigned.assignedRoleId))
-        ? { id: assigned.assignedRoleId, expiresAt: assigned.expiresAt.toISOString() }
-        : null;
-    return fresh({ kind: "wizard", wizard: { ...creation, lockedRole, cursedToSpecial } });
+    return fresh({ kind: "wizard", wizard: { ...creation, cursedToSpecial } });
   }
 
   const [

@@ -91,6 +91,8 @@ function creationOpen(phase, member) {
 
 // While a late party is live, its fates are the only ones anybody may take.
 const PARTY_LOCKED_REFUSAL = "A late party is mustering. Only its fates are open right now.";
+// A MUSTER party is drawn, never picked from (db/lib/latePartyRaffle.js).
+const MUSTER_REFUSAL = "A late party is mustering. Its fates are drawn at the end of the turn.";
 // The party ended between picking a fate and confirming it. No "pick another":
 // for somebody the curse still holds, there is no other.
 const PARTY_OVER_REFUSAL = "The late party ended before you finished.";
@@ -138,12 +140,14 @@ export async function createCharacter(formData) {
   // was posted (LOBBY.md §4). The whitelist gate is skipped for it. The curse
   // is NOT — see below. An entry whose role has since left the catalog is no assignment at
   // all — treating it as one would lift the gates below for the form's role.
-  const assignedEntry = party
-    ? null
-    : await prisma.lobbyEntry.findFirst({
-        where: { discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() }, assignedRoleId: { not: null } },
-        select: { id: true, assignedRoleId: true },
-      });
+  // A seat a late party's muster DREW is honoured always, party live or not:
+  // it was handed out, and it carries the party's exemptions with it.
+  const seatEntry = await prisma.lobbyEntry.findFirst({
+    where: { discordUserId, status: "ASSIGNED", expiresAt: { gt: new Date() }, assignedRoleId: { not: null } },
+    select: { id: true, assignedRoleId: true, latePartyId: true },
+  });
+  const assignedEntry = seatEntry && (seatEntry.latePartyId || !party) ? seatEntry : null;
+  const drawnPartyId = assignedEntry?.latePartyId ?? null;
   const roleId = assignedEntry?.assignedRoleId ?? postedRoleId;
   if (!roleId) return { error: "Pick a role before confirming." };
 
@@ -185,10 +189,14 @@ export async function createCharacter(formData) {
 
   // A party fate is let past the spawn-only refusal and the curse below, and
   // its cap is the party's slots. Any other fate is shut while the party is
-  // live; only a superadmin makes one anyway, as they can everything else.
-  const partyGate = latePartyGate(party, role.slug);
+  // live; only a superadmin makes one anyway, as they can everything else. A
+  // MUSTER party is not picked from at all: the drawn seat above is the only
+  // way into it.
+  const partyGate = drawnPartyId ? "drawn" : latePartyGate(party, role.slug);
+  if (partyGate !== "drawn" && party?.party.mode === "MUSTER" && !bypass) return { error: MUSTER_REFUSAL };
   if (partyGate === "locked" && !bypass) return { error: PARTY_LOCKED_REFUSAL };
-  const partyFate = partyGate === "open";
+  const partyId = drawnPartyId ?? (partyGate === "open" ? party.party.id : null);
+  const partyFate = Boolean(partyId);
 
   // Never pickable — the picker not listing these is a hint, not a lock. A
   // late join the GM has opened is one exception, a late party's fate the other.
@@ -388,10 +396,13 @@ export async function createCharacter(formData) {
       if (partyFate) {
         // A party fate counts only the characters the party made, against
         // the party's slots -- re-read under the party's own row lock, so a
-        // superadmin ending it mid-wizard wins.
-        const seat = await partySeatUnderLock(tx, party.party.id, role, { excludeDiscordUserId: discordUserId });
-        if (!seat) throw new Error("PARTY_OVER");
-        ({ held, cap } = seat);
+        // superadmin ending it mid-wizard wins. A DRAWN seat was handed out
+        // already, so it stands even if the party has ended since: it is
+        // checked against the slots only while there is a party to check.
+        const seat = await partySeatUnderLock(tx, partyId, role, { excludeDiscordUserId: discordUserId });
+        if (!seat && !drawnPartyId) throw new Error("PARTY_OVER");
+        held = seat?.held ?? 0;
+        cap = seat?.cap ?? Infinity;
       } else {
         held = await heldSeats(tx, role, {
           excludeDiscordUserId: discordUserId,
@@ -429,7 +440,7 @@ export async function createCharacter(formData) {
           zoneId: role.startingLocation?.zoneId ?? null,
           tagPoints: budget - spent,
           antagonistOptIns,
-          latePartyId: partyFate ? party.party.id : null,
+          latePartyId: partyId,
         },
       });
 
@@ -651,7 +662,10 @@ export async function reserveFateAction(roleId) {
   }
   // The late party's lock and exceptions, exactly as createCharacter makes them.
   const party = await loadLiveParty(prisma, { excludeDiscordUserId: discordUserId });
+  // A drawn seat never gets here: the wizard opens past the Role step for it,
+  // so there is no hold to take.
   const partyGate = latePartyGate(party, role.slug);
+  if (party?.party.mode === "MUSTER" && !bypass) return { error: MUSTER_REFUSAL };
   if (partyGate === "locked" && !bypass) return { error: PARTY_LOCKED_REFUSAL };
   const partyFate = partyGate === "open";
   // Same late-join exception createCharacter makes, for the same reason: a

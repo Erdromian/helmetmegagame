@@ -40,6 +40,7 @@ const { runDepotPass } = require("./lib/depotPass");
 const { runTrainArrivalPass } = require("./lib/trainArrivalPass");
 const { runTrainDeparturePass } = require("./lib/trainDeparturePass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
+const { runLatePartyRaffle } = require("./lib/latePartyRaffle");
 const { getGameState, readGameState, inSession } = require("./lib/gameState");
 const { normalizeTurnLength, nextBoundaryAfter, nextDayNumber } = require("./lib/turnClock");
 const { settleFloors, FLOOR_SETTLE_AUDIT_ACTION } = require("./lib/floorSettle");
@@ -395,6 +396,10 @@ const TURN_PASSES = [
   // from "depot" so a failed Depot pass cannot swallow it, and so a resume
   // re-runs exactly the one that did not finish.
   "gatehouseTurret",
+  // A MUSTER late party draws its fates (db/lib/latePartyRaffle.js). Dead
+  // last, so everybody this close killed is already dead, and a name put down
+  // by somebody who came back some other way this turn is already out.
+  "lateParty",
 ];
 
 // How long a resume lease is honoured before another advance may take it
@@ -1040,6 +1045,10 @@ async function resolveNeeds(turn, config) {
       "Depot",
     );
   }
+
+  // The muster's draw. It writes lobby seats and sends nothing: the lobby
+  // sweep delivers each seat's DM, as it does any seat not yet announced.
+  await runPass("lateParty", "Late party draw", () => runLatePartyRaffle(prisma, turn));
 
   // needsResolvedAt is the sole selector for advanceTurn()'s resume query,
   // so it's only stamped once every pass in TURN_PASSES has run.

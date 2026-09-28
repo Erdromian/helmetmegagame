@@ -71,11 +71,23 @@ test("the start form is cleaned: known slugs, once each, slots 1-999 or unlimite
 
 // ---- loadLiveParty over a fake ----------------------------------------------
 
-function makeDb({ party, characters = [], holds = [] }) {
+function makeDb({ party, characters = [], holds = [], seats = [] }) {
   const now = Date.now();
   const stamped = [];
   return {
     stamped,
+    // Seats a muster drew and nobody has built yet.
+    lobbyEntry: {
+      groupBy: async ({ where }) => {
+        const counts = new Map();
+        for (const seat of seats) {
+          if (seat.latePartyId !== where.latePartyId) continue;
+          if (where.discordUserId && seat.discordUserId === where.discordUserId.not) continue;
+          counts.set(seat.assignedRoleId, (counts.get(seat.assignedRoleId) ?? 0) + 1);
+        }
+        return [...counts].map(([assignedRoleId, _count]) => ({ assignedRoleId, _count }));
+      },
+    },
     lateParty: {
       findFirst: async () => party,
       updateMany: async ({ where, data }) => (stamped.push({ where, data }), { count: 1 }),
@@ -158,6 +170,15 @@ test("others' holds count as taken, the viewer's own does not", async () => {
   assert.equal(live.fates[0].taken, 1);
 });
 
+test("a seat the muster drew counts as held, not seated", async () => {
+  const live = await loadLiveParty(
+    makeDb({ party: PARTY, seats: [{ latePartyId: "p1", assignedRoleId: "r1", discordUserId: "them" }] }),
+  );
+  assert.equal(live.fates[0].seated, 0);
+  assert.equal(live.fates[0].held, 1);
+  assert.equal(live.fates[0].taken, 1);
+});
+
 test("an unlimited fate keeps a party live however many it has made", async () => {
   const db = makeDb({
     party: { ...PARTY, fates: [{ roleSlug: "bum", slots: null }] },
@@ -165,4 +186,48 @@ test("an unlimited fate keeps a party live however many it has made", async () =
   });
   const live = await loadLiveParty(db);
   assert.equal(live.fates[0].seated, 50);
+});
+
+// ---- the muster's draw uses the lobby roll with the party's own answers -----
+
+const { assignFates } = require("../lib/fateAssignment");
+
+test("the draw can hand out a hidden fate, up to the party's slots and no further", () => {
+  const roles = [{ slug: "tribune", name: "Tribune", requiresWhitelist: false, spawnOnly: false }];
+  const players = ["a", "b", "c"].map((id) => ({
+    discordUserId: id,
+    priorities: { tribune: "HIGH" },
+    joblessRole: "RETURN_TO_LOBBY",
+    whitelisted: false,
+  }));
+  const { rows } = assignFates({
+    players,
+    roles,
+    taken: new Map([["tribune", 1]]),
+    seed: "muster",
+    pickable: () => true,
+    capacity: () => 2,
+  });
+  // Two slots, one already spoken for: one winner, and two left in the hat.
+  assert.equal(rows.filter((r) => r.roleSlug === "tribune").length, 1);
+  assert.equal(rows.filter((r) => r.roleSlug === null).length, 2);
+});
+
+test("an unlimited party fate draws everybody who asked for it", () => {
+  const roles = [{ slug: "migrant", name: "Migrant", requiresWhitelist: false, spawnOnly: false }];
+  const players = ["a", "b", "c"].map((id) => ({
+    discordUserId: id,
+    priorities: { migrant: "LOW" },
+    joblessRole: "RETURN_TO_LOBBY",
+    whitelisted: false,
+  }));
+  const { rows } = assignFates({ players, roles, seed: "x", pickable: () => true, capacity: () => Infinity });
+  assert.equal(rows.filter((r) => r.roleSlug === "migrant").length, 3);
+});
+
+test("the draw still honours the whitelist", () => {
+  const roles = [{ slug: "baron", name: "Baron", requiresWhitelist: true, spawnOnly: false }];
+  const players = [{ discordUserId: "a", priorities: { baron: "HIGH" }, joblessRole: "RETURN_TO_LOBBY", whitelisted: false }];
+  const { rows } = assignFates({ players, roles, seed: "x", pickable: () => true, capacity: () => 1 });
+  assert.equal(rows[0].roleSlug, null);
 });
