@@ -34,6 +34,7 @@ const {
 } = require("@lifeweb/db/lib/characterMentions");
 const { sendDm } = require("@lifeweb/db/lib/dm");
 const { currentGameId } = require("@lifeweb/db/lib/archive");
+const { discordTextFor, relayWordsToSkinless, isSkinless } = require("@lifeweb/db/lib/skinless");
 
 const DRAIN_WINDOW_MS = 24 * 60 * 60 * 1000; // older rows aren't worth posting into a scene long moved on
 const DRAIN_LIMIT = 200;
@@ -220,7 +221,12 @@ async function pushRow(row) {
 
   // Row stores `{char:<id>}`; Discord reads `<@&roleId>` (db/lib/characterMentions.js).
   // Rewritten here, not at write time, so /chat and /archive keep the face-neutral text.
-  const { content, characters } = await tokensToRoles(prisma, row.content);
+  const { content: said, characters } = await tokensToRoles(prisma, row.content);
+  const deadchat = parsePlaceKey(row.placeKey)?.kind === "dead";
+  // A Skinless's line goes out as grunts: Discord shows everybody one text
+  // (db/lib/skinless.js). Never in Deadchat, which is out of character.
+  const skinless = !deadchat && (await isSkinless(prisma, row.characterId));
+  const content = skinless ? await discordTextFor(prisma, { characterId: row.characterId, content: said, seq: row.seq }) : said;
 
   // Resolved here too, since the mention relay below reads `alias` (set for both a hood and a forced name).
   const identity = presentedIdentity(character, { forcedName, concealment });
@@ -228,7 +234,6 @@ async function pushRow(row) {
   // A Deadchat row carries a name composed and frozen at send time (db/lib/say.js): the character's
   // name plus the player's account handle. Re-deriving it from the live character here would drop
   // the account half and re-apply a hood the corpse is still wearing.
-  const deadchat = parsePlaceKey(row.placeKey)?.kind === "dead";
   const posted = await postAsCharacter(target.channelId, character, content, {
     forcedName,
     concealment,
@@ -258,7 +263,13 @@ async function pushRow(row) {
   // Never from Deadchat. A mention typed there would DM a living player about something said in a
   // room they cannot reach — the dead reaching into the world, which this seat must not do. Refused
   // by name rather than left to earshot returning nothing for an unknown kind.
-  if (!deadchat) {
+  // A Skinless's grunts name nobody, so they ping nobody; the other Skinless
+  // here who play on Discord get the words instead.
+  if (skinless) {
+    await relayWordsToSkinless(prisma, { seq: row.seq }).catch((err) =>
+      console.error("Skinless words relay failed:", err?.message ?? err),
+    );
+  } else if (!deadchat) {
     // And a BARE NAME is a mention too, on both faces (REDESIGN.md §2, §6): the
     // nine lines out of ten that just say "Marrow, get down" rather than picking
     // her out of the @ menu. Notify-only — see relayWebMentions — and the TEXT is
@@ -305,7 +316,12 @@ async function editRow(row) {
   if (!target) return false;
 
   const webhook = await ensureChannelWebhook(target.channelId);
-  const { content } = await tokensToRoles(prisma, fresh.content); // same rewrite pushRow does
+  const { content: said } = await tokensToRoles(prisma, fresh.content); // same rewrite pushRow does
+  // An edited Skinless line is still grunts on Discord (db/lib/skinless.js).
+  const content =
+    parsePlaceKey(row.placeKey)?.kind === "dead"
+      ? said
+      : await discordTextFor(prisma, { characterId: row.characterId, content: said, seq: row.seq });
   await editWebhookMessage(webhook, fresh.discordMessageId, content, target.threadId);
 
   await prisma.archiveEntry.update({ where: { id: row.id }, data: { discordSyncedAt: new Date() } });

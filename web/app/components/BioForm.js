@@ -49,6 +49,8 @@ export default function BioForm({
   hasCustomAvatar,
   forcedIdentity,
   concealGear,
+  // A Skinless: the face and the appearance are fixed (db/lib/skinless.js).
+  faceFixed = false,
 }) {
   const [appearanceState, appearanceAction, appearancePending] = useActionState(
     updateCharacterProfile,
@@ -73,27 +75,29 @@ export default function BioForm({
           Name, portrait and settings…
         </button>
       </h2>
-      <form action={appearanceAction} className="flex flex-col gap-3">
-        <AppearanceField defaultValue={character.appearance ?? ""} />
-        {/* The fallback trio — see the header comment. Present only while the
-            dialog holding the real checkboxes is closed, so there is never a
-            second input answering to the same name at once. */}
-        <input type="hidden" name="turnPingOptIn" value={character.turnPingOptIn ? "on" : ""} />
-        <input type="hidden" name="discordMirrored" value={character.discordMirrored ? "on" : ""} />
-        <input type="hidden" name="concealed" value={character.concealed ? "on" : ""} />
-        <FormError>{appearanceState?.error}</FormError>
-        {/* A row, not a bare button in the flex-COLUMN form above: that column's
-            default `align-items: stretch` is what was stretching the button to
-            the card's full width — `.btn`'s own `all: unset` clears any
-            `align-self` a utility class tried to set on the button itself, so
-            the fix has to change the button's parent's axis instead. The
-            mockup's own shape: an ordinary small Save at the left of a row. */}
-        <div className="flex gap-2">
-          <button type="submit" className="btn" disabled={appearancePending}>
-            {appearancePending ? "Saving…" : "Save"}
-          </button>
-        </div>
-      </form>
+      {faceFixed ? null : (
+        <form action={appearanceAction} className="flex flex-col gap-3">
+          <AppearanceField defaultValue={character.appearance ?? ""} />
+          {/* The fallback trio — see the header comment. Present only while the
+              dialog holding the real checkboxes is closed, so there is never a
+              second input answering to the same name at once. */}
+          <input type="hidden" name="turnPingOptIn" value={character.turnPingOptIn ? "on" : ""} />
+          <input type="hidden" name="discordMirrored" value={character.discordMirrored ? "on" : ""} />
+          <input type="hidden" name="concealed" value={character.concealed ? "on" : ""} />
+          <FormError>{appearanceState?.error}</FormError>
+          {/* A row, not a bare button in the flex-COLUMN form above: that column's
+              default `align-items: stretch` is what was stretching the button to
+              the card's full width — `.btn`'s own `all: unset` clears any
+              `align-self` a utility class tried to set on the button itself, so
+              the fix has to change the button's parent's axis instead. The
+              mockup's own shape: an ordinary small Save at the left of a row. */}
+          <div className="flex gap-2">
+            <button type="submit" className="btn" disabled={appearancePending}>
+              {appearancePending ? "Saving…" : "Save"}
+            </button>
+          </div>
+        </form>
+      )}
 
       <Modal
         open={settingsOpen}
@@ -114,6 +118,7 @@ export default function BioForm({
             portraitSelection={portraitSelection}
             hasCustomAvatar={hasCustomAvatar}
             forcedIdentity={forcedIdentity}
+            faceFixed={faceFixed}
             concealGear={concealGear}
             onBusyChange={setShrinking}
           />

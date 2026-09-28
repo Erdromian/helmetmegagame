@@ -32,6 +32,7 @@ const { discordTargetsForPlaceKey, parsePlaceKey } = require("@lifeweb/db/lib/pl
 const { tokensToRoles } = require("@lifeweb/db/lib/characterMentions");
 const { loadForcedName, loadConcealment } = require("@lifeweb/db/lib/presentedIdentity");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
+const { discordTextFor } = require("@lifeweb/db/lib/skinless");
 
 // A room's threads, remembered for a minute: nearly every room row is in a
 // room with one thread, and this is asked for every one of them.
@@ -89,7 +90,8 @@ function behind(stamp, syncedAt) {
 async function copyContent(row) {
   if (row.source === "SYSTEM") return row.channelKind === "intercom" ? row.content : ambientLine(row.content);
   const { content } = await tokensToRoles(prisma, row.content);
-  return content;
+  // A Skinless's line is grunts in every thread (db/lib/skinless.js).
+  return discordTextFor(prisma, { characterId: row.characterId, content, seq: row.seq });
 }
 
 async function postCopy(row, target, content) {

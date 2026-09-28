@@ -115,6 +115,9 @@ function PartyTable({ party }) {
           ))}
         </tbody>
       </table>
+      {party.skinlessSpawnName ? (
+        <p className="text-sm text-muted">Every Skinless this party makes arrives at {party.skinlessSpawnName}.</p>
+      ) : null}
       {party.live ? (
         <div>
           <button type="button" className="btn btn-danger" onClick={onEnd} disabled={pending}>
@@ -193,7 +196,11 @@ function StartForm({ groups }) {
                 <td>
                   <label className="field">
                     <span className="sr-only">Slots for {role.name}</span>
-                    <input type="number" name={`slots:${role.slug}`} min="1" max="999" placeholder="∞" className="w-20" />
+                    {role.alwaysUnlimited ? (
+                      <input type="text" value="∞" disabled title="Always unlimited" className="w-20" readOnly />
+                    ) : (
+                      <input type="number" name={`slots:${role.slug}`} min="1" max="999" placeholder="∞" className="w-20" />
+                    )}
                   </label>
                 </td>
               </tr>

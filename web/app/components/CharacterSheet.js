@@ -82,6 +82,7 @@ export default function CharacterSheet({
   isThanati = false,
   isThanatiLeader = false,
   isCerberon = false,
+  isSkinless = false,
   canWarrant = false,
   // The Bishop's Excommunicate, and the marks they have already laid.
   isBishop = false,
@@ -349,6 +350,7 @@ export default function CharacterSheet({
         isThanati={isThanati}
         isThanatiLeader={isThanatiLeader}
         isCerberon={isCerberon}
+        isSkinless={isSkinless}
         canWarrant={canWarrant}
         isBishop={isBishop}
         excommunications={excommunications}
@@ -412,6 +414,7 @@ export default function CharacterSheet({
                 hasCustomAvatar={hasCustomAvatar}
                 forcedIdentity={forcedIdentity}
                 concealGear={concealGear}
+                faceFixed={isSkinless}
               />
             ) : (
               character.appearance && (

@@ -18,6 +18,7 @@ const { muffle } = require("./muffle");
 const { loadPresentedIdentity } = require("./presentedIdentity");
 const { stampMentionNames, rolesToTokens, tokensToRoles, tokensToNames } = require("./characterMentions");
 const { aliasSubject } = require("./concealedIdentity");
+const { isSkinless, gruntify } = require("./skinless");
 
 // How much is lost at each remove. Index IS the hop count; index 0 is never reached (your own Location returns above). Past the end of the table the words are gone and only the direction survives.
 const MUFFLE_BY_DISTANCE = [0, 0, 0.4];
@@ -104,7 +105,7 @@ const SHOUT_ACTION = "shout";
 // `source` is "DISCORD" or "WEB" — it decides whether the raw body carries `<@&roleId>` character-role mentions that must be folded to `{char:id}` before the archive row keeps them, matching db/lib/say.js#prepareSpeech and db/lib/ooc.js.
 // Returns { ok: true, muffled, here: { line, scene }, heard: [{ locationId, placeKey, name, distance, viaName, line, scene, discordChannelId }] } or { ok: false, error, retryAfter? } (seconds). `here` is ALWAYS present, even when `heard` is empty (inside a soundproof room it is the only thing there is). Posting is deliverShout()'s half — every caller hands this result straight to it.
 async function shout(prisma, character, text, { placeKey = null, source = "WEB" } = {}) {
-  const body = String(text ?? "").trim();
+  let body = String(text ?? "").trim();
   if (!body) return { ok: false, error: "Say something." };
   // 300, the option's own maximum: goes into a couple dozen channels, half with most letters knocked out.
   if (body.length > 300) return { ok: false, error: "A shout can only be up to 300 characters." };
@@ -117,6 +118,8 @@ async function shout(prisma, character, text, { placeKey = null, source = "WEB" 
   if (voice.shoutBlock) {
     return { ok: false, error: `You can't get the words out — you're ${voice.shoutBlock.name}.` };
   }
+  // A Skinless's shout is grunts, near and far and to everyone (db/lib/skinless.js).
+  if (await isSkinless(prisma, character.id)) body = gruntify(body, Date.now() | 0);
 
   // A leaky bucket now, not a flat five-minute cooldown (db/lib/speechRateLimit.js) — the same limiter /ooc uses, so the two answer the shape of "too much" the same way. Three at once, then one back every five minutes: the old long-run rate, with room to yell twice while something is actually happening.
   const throat = await checkSpeechBucket(prisma, {

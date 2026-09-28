@@ -36,6 +36,7 @@ import {
   hideoutRoom,
 } from "@lifeweb/db/lib/thanati";
 import { CERBERON_SLUG, WARRANT_BADGE_SLUGS } from "@lifeweb/db/lib/wanted";
+import { SKINLESS_TAG_SLUG, SKINLESS_ROLE_SLUG } from "@lifeweb/db/lib/skinless";
 import { accessSlugsOf, isRing, RING_SLUG, FORGED_SEAL_SLUG } from "@lifeweb/db/lib/rings";
 import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 import {
@@ -225,7 +226,8 @@ async function loadLobbyData(discordUserId, { leaderWhitelisted }) {
 // is none to show: no live party, an OPEN one, or a player the draw has
 // already seated, who builds that seat in the wizard. Every fate the party
 // draws, with its chairs left, this player's name in the hat (with their
-// priorities) or not, and how many names are in it.
+// priorities) or not, and how many names are in it. The Skinless are never
+// drawn: `skinless` is where they arrive, for their own Respawn card.
 async function loadMusterData(discordUserId, { leaderWhitelisted }) {
   const party = await loadLiveParty(prisma);
   if (party?.party.mode !== "MUSTER") return null;
@@ -241,9 +243,13 @@ async function loadMusterData(discordUserId, { leaderWhitelisted }) {
     prisma.latePartyEntry.count({ where: { partyId: party.party.id } }),
   ]);
   if (seat) return null;
+  const skinless = party.fates.some((f) => f.role && f.roleSlug === SKINLESS_ROLE_SLUG)
+    ? await skinlessSpawnOf(party.party)
+    : null;
   return {
+    skinless,
     fates: party.fates
-      .filter((fate) => fate.role)
+      .filter((fate) => fate.role && fate.roleSlug !== SKINLESS_ROLE_SLUG)
       .map((fate) => ({
         id: fate.role.id,
         slug: fate.role.slug,
@@ -258,6 +264,18 @@ async function loadMusterData(discordUserId, { leaderWhitelisted }) {
     entry: entry ? { priorities: entry.priorities ?? {} } : null,
     entered,
   };
+}
+
+// Where a party's Skinless arrive (db/lib/skinless.js): its own Depths
+// Location, picked when it opened.
+async function skinlessSpawnOf(party) {
+  const location = party?.skinlessLocationId
+    ? await prisma.location.findUnique({
+        where: { id: party.skinlessLocationId },
+        select: { name: true, zone: { select: { name: true } } },
+      })
+    : null;
+  return { locationName: location?.name ?? null, zoneName: location?.zone?.name ?? null };
 }
 
 // Everything the creation wizard needs, as the flat role list groupRoles()
@@ -318,13 +336,26 @@ async function loadCreationData(discordUserId, { gate, config, state, leaderWhit
   });
   const seat = assigned && (assigned.latePartyId || !party) ? assigned : null;
 
+  // The Skinless card respawns at once rather than opening the wizard
+  // (skinlessActions.js), and names the party's own arrival point.
+  const skinlessSpawn = party?.fates.some((f) => f.role && f.roleSlug === SKINLESS_ROLE_SLUG)
+    ? await skinlessSpawnOf(party.party)
+    : null;
+  const partyCard = (fate) => {
+    const card = roleCard(fate.role, latePartyCap(fate), fate.taken);
+    if (fate.roleSlug !== SKINLESS_ROLE_SLUG) return card;
+    return {
+      ...card,
+      respawnOnly: true,
+      startingLocationName: skinlessSpawn?.locationName ?? card.startingLocationName,
+      startingZoneName: skinlessSpawn?.zoneName ?? card.startingZoneName,
+    };
+  };
   const specialGroup = party
     ? {
         slug: LATE_PARTY_GROUP.slug,
         name: LATE_PARTY_GROUP.name,
-        roles: party.fates
-          .filter((fate) => fate.role)
-          .map((fate) => roleCard(fate.role, latePartyCap(fate), fate.taken)),
+        roles: party.fates.filter((fate) => fate.role).map(partyCard),
       }
     : {
         slug: LATE_JOIN_GROUP.slug,
@@ -1083,6 +1114,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const isThanati = heldSlugs.has(THANATI_SLUG);
   const isThanatiLeader = heldSlugs.has(THANATI_LEADER_SLUG);
   const isCerberon = heldSlugs.has(CERBERON_SLUG); // cerberonActions.js re-checks both
+  const isSkinless = heldSlugs.has(SKINLESS_TAG_SLUG); // skinlessActions.js re-checks it
   // The Censor's ring is a warrant badge too (docs/systemdocs/RINGS.md).
   const canWarrant = WARRANT_BADGE_SLUGS.some((slug) => heldSlugsForRooms.has(slug));
   // THE BISHOP (docs/systemdocs/CHARACTERS.md). The office is a tag, the
@@ -1464,6 +1496,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       isThanati: isThanati,
       isThanatiLeader: isThanatiLeader,
       isCerberon: isCerberon,
+      isSkinless: isSkinless,
       canWarrant: canWarrant,
       isBishop: isBishop,
       excommunications: excommunications,

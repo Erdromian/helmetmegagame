@@ -56,8 +56,10 @@ function latePartyGate(live, roleSlug) {
 }
 
 // Pure. The GM's form, cleaned: known slugs only, each once, slots a whole
-// number from 1 to MAX_PARTY_SLOTS or null for unlimited.
-function normalizePartyFates(rows, knownSlugs) {
+// number from 1 to MAX_PARTY_SLOTS or null for unlimited. A slug in
+// `alwaysUnlimited` is unlimited whatever was typed: the Skinless
+// (db/lib/skinless.js), who never run out of room.
+function normalizePartyFates(rows, knownSlugs, { alwaysUnlimited = [] } = {}) {
   const known = new Set(knownSlugs ?? []);
   const seen = new Set();
   const out = [];
@@ -66,6 +68,10 @@ function normalizePartyFates(rows, knownSlugs) {
     if (!roleSlug || !known.has(roleSlug) || seen.has(roleSlug)) continue;
     seen.add(roleSlug);
     let slots = null;
+    if (alwaysUnlimited.includes(roleSlug)) {
+      out.push({ roleSlug, slots });
+      continue;
+    }
     if (row.slots !== null && row.slots !== undefined && row.slots !== "") {
       const n = Math.trunc(Number(row.slots));
       if (!Number.isFinite(n) || n < 1) continue;
@@ -184,7 +190,9 @@ async function partySeatUnderLock(tx, partyId, role, { excludeDiscordUserId = nu
 // Opens a party. Any party still open is closed by the same hand first, under
 // the GameState row lock, so two superadmins pressing Start at once cannot
 // leave two open. `fates` must already be normalizePartyFates' output.
-async function startLateParty(tx, { fates, by, mode = "OPEN" }) {
+// `skinlessLocationId` is where the party's Skinless arrive, picked by the
+// caller (db/lib/skinless.js#pickSkinlessSpawn) when it names them.
+async function startLateParty(tx, { fates, by, mode = "OPEN", skinlessLocationId = null }) {
   await tx.$queryRaw`SELECT id FROM "GameState" WHERE id = 1 FOR UPDATE`;
   const now = new Date();
   await tx.lateParty.updateMany({ where: { endedAt: null }, data: { endedAt: now, endedBy: by } });
@@ -192,6 +200,7 @@ async function startLateParty(tx, { fates, by, mode = "OPEN" }) {
     data: {
       mode: mode === "MUSTER" ? "MUSTER" : "OPEN",
       startedBy: by,
+      skinlessLocationId,
       fates: { create: fates.map(({ roleSlug, slots }) => ({ roleSlug, slots })) },
     },
     include: { fates: true },

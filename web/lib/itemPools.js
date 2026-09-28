@@ -4,6 +4,7 @@ import { BUTCHER_SLUG, MUTILATE_GATE_SLUGS } from "@lifeweb/db/lib/constants";
 import { isLooseCollarSlug } from "@lifeweb/db/lib/collarGlyphs";
 import { canWorkRemote, canUnlockCollar } from "@lifeweb/db/lib/collar";
 import { wornRingTokens } from "@lifeweb/db/lib/roomAccess";
+import { SKINLESS_TAG_SLUG } from "@lifeweb/db/lib/skinless";
 
 // The held-item flags — what is in YOUR pockets, and nothing about the room —
 // that decide which of the registry's rows show (actionRegistry.js). Shared by
@@ -35,7 +36,8 @@ export async function itemPools(prisma, character, heldSlugs) {
     : [];
   return {
     canButcher: has(BUTCHER_SLUG),
-    canDisguise: has("disguise-kit"),
+    // A Skinless is plainly one whatever name they give (db/lib/skinless.js).
+    canDisguise: has("disguise-kit") && !has(SKINLESS_TAG_SLUG),
     // GATE rather than SHOW: the tag is purchasable by anybody now.
     canPickpocket: has("pickpocket") || has("pickpocketing-skilled"),
     canTorture: has("torturer"),

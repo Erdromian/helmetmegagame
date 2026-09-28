@@ -17,6 +17,7 @@ import {
   latePartyMessage,
   playersWithoutLivingCharacter,
 } from "@lifeweb/db/lib/lateParty";
+import { SKINLESS_ROLE_SLUG, pickSkinlessSpawn } from "@lifeweb/db/lib/skinless";
 import { requireDev } from "@/lib/devAccess";
 import { CANONICAL_ORIGIN } from "@/lib/auth";
 import { sendDm } from "@/lib/discordGuild";
@@ -39,18 +40,23 @@ export async function startLatePartyAction(formData) {
   const rows = [...wanted].map((roleSlug) => ({ roleSlug, slots: slotsOf(roleSlug) }));
   const bad = rows.find((row) => row.slots !== "" && !/^[1-9]\d*$/.test(row.slots));
   if (bad) return { error: "Slots must be a whole number from 1, or blank for unlimited." };
-  const fates = normalizePartyFates(rows, roles.map((r) => r.slug));
+  // The Skinless never run out of room (db/lib/skinless.js), whatever was typed.
+  const fates = normalizePartyFates(rows, roles.map((r) => r.slug), { alwaysUnlimited: [SKINLESS_ROLE_SLUG] });
   if (fates.length === 0) return { error: "Pick at least one fate, with at least 1 slot or blank for unlimited." };
 
   // OPEN is picked from in the wizard; MUSTER is drawn at the end of the turn.
   const mode = formData.get("mode") === "MUSTER" ? "MUSTER" : "OPEN";
-  const party = await prisma.$transaction((tx) => startLateParty(tx, { fates, mode, by: session.discordUserId }));
+  // Every Skinless this party makes arrives at one random Depths Location.
+  const skinlessLocationId = fates.some((f) => f.roleSlug === SKINLESS_ROLE_SLUG) ? await pickSkinlessSpawn(prisma) : null;
+  const party = await prisma.$transaction((tx) =>
+    startLateParty(tx, { fates, mode, by: session.discordUserId, skinlessLocationId }),
+  );
   await prisma.auditLog
     .create({
       data: {
         actorDiscordUserId: session.discordUserId,
         actionType: "late_party_start",
-        details: { partyId: party.id, mode, fates },
+        details: { partyId: party.id, mode, fates, skinlessLocationId },
       },
     })
     .catch((err) => console.error("Late party audit log failed:", err));

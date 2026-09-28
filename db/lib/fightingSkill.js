@@ -99,6 +99,8 @@ function whenHolds(when, ctx) {
   if (when.holdsAny?.length && !when.holdsAny.some((s) => ctx.held.has(s))) return false;
   if (when.equipped?.length && !when.equipped.every((s) => ctx.equipped.has(s))) return false;
   if (when.unarmoured?.length && when.unarmoured.some((slot) => ctx.armouredSlots.has(slot))) return false;
+  // Where they stand. Unknown (null) never holds: situationals() lists it for the GM instead.
+  if (when.zoneKind?.length && !when.zoneKind.includes(ctx.zoneKind)) return false;
   // weaponClass deliberately NOT tested here — resolved per-weapon in bestArmed() below, so "+2 while using swords" attributes to the sword in use, not the character generally (else sword+mace would pay both specialisms).
   return true;
 }
@@ -194,11 +196,13 @@ function bestArmed(rows, tree, ctx) {
 }
 
 // Things no code can know (duel? rough ground? natural opponent?). NEVER summed — stops Duelist+Guerrilla+Sniper running away — shown beside the number for the adjudicator. An entry with no shift (Camouflage, Iron Constitution) belongs here too: real weight, no tier.
-function situationals(rows, tree) {
+// A `when.zoneKind` bonus joins them when the caller did not say where the holder stands (`ctx.zoneKind` null): the code would know, but this reader was not told.
+function situationals(rows, tree, ctx = null) {
   const out = [];
   for (const row of rows) {
     const block = blockOf(row);
-    if (!block?.situational) continue;
+    const whereUnknown = Boolean(block?.when?.zoneKind?.length) && ctx?.zoneKind == null;
+    if (!block?.situational && !whereUnknown) continue;
     if (!servesTree(block, tree)) continue;
     // Name and shift only — which moment it's for lives in the tag's own description, not duplicated here.
     out.push({
@@ -243,7 +247,8 @@ function capBand(rows, tree) {
 
 // ─── The answer ─────────────────────────────────────────────────────────────
 
-function contextOf(rows) {
+// `zoneKind` is where the holder is standing (the ZoneKind enum), or null when the caller does not know.
+function contextOf(rows, { zoneKind = null } = {}) {
   const held = new Set();
   const equipped = new Set();
   const armouredSlots = new Set();
@@ -266,7 +271,7 @@ function contextOf(rows) {
   }
   // Second Wind cancels what a Health tag TAKES OFF, nothing else. Lives here rather than a catalog `cancels:` list because it cancels a category (every wound/illness/maiming, present and future), not a set of slugs.
   const secondWind = held.has(SECOND_WIND_SLUG);
-  return { held, equipped, armouredSlots, cancelled, cancelledBy, secondWind };
+  return { held, equipped, armouredSlots, cancelled, cancelledBy, secondWind, zoneKind };
 }
 
 // One half of the tree, resolved: score, band, named breakdown (shape from gambitModifier.js, for the sheet hover) and situational list.
@@ -300,14 +305,15 @@ function fightingSkillFor(characterTags = [], tree = "melee", ctx = null) {
     contributors: parts.map((p) => (p.base ? p : { ...p, tiers: p.points / POINTS_PER_TIER })),
     floor: floor?.label ?? null,
     cap: cap?.label ?? null,
-    situational: situationals(rows, tree),
+    situational: situationals(rows, tree, context),
   };
 }
 
 // Both halves at once — the catalog keeps them separate, so the readout reads "Seasoned · Weak" like the armour line's "Melee: Good | Ballistic: Meager".
-function fightingSkill(characterTags = []) {
+// `zoneKind`: where they are standing, for a `when.zoneKind` bonus (Cave Eyes). Leave it out and such a bonus is listed as situational rather than added.
+function fightingSkill(characterTags = [], { zoneKind = null } = {}) {
   const rows = Array.isArray(characterTags) ? characterTags.filter(Boolean) : [];
-  const ctx = contextOf(rows);
+  const ctx = contextOf(rows, { zoneKind });
   const out = {};
   for (const tree of TREES) out[tree] = fightingSkillFor(rows, tree, ctx);
   return out;

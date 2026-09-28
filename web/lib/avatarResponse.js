@@ -2,6 +2,7 @@ import "server-only";
 import fs from "node:fs/promises";
 import path from "node:path";
 import { prisma, letterPlaqueFile } from "@lifeweb/db";
+import { SKINLESS_TAG_SLUG, SKINLESS_AVATAR_PATH } from "@lifeweb/db/lib/skinless";
 
 // A character's face as an image response: their uploaded picture, or the
 // letter plaque for their FIRST name (never the honorific or the GM-granted
@@ -15,13 +16,18 @@ import { prisma, letterPlaqueFile } from "@lifeweb/db";
 const LETTERS_DIR = path.join(process.cwd(), "public/assets/letters");
 const plateCache = new Map();
 
+// Every Skinless wears the one face (db/lib/skinless.js), whatever is stored:
+// they can't change it, and a stranger sees it too, since what they are is
+// plain to anyone who looks.
+const SKINLESS_FACE_FILE = path.join(process.cwd(), "public", SKINLESS_AVATAR_PATH);
+
 function readPlate(file) {
   if (!plateCache.has(file)) {
     // Cache the promise, not the buffer, so concurrent requests for the same
     // letter share one read.
     plateCache.set(
       file,
-      fs.readFile(path.join(LETTERS_DIR, file)).catch((err) => {
+      fs.readFile(path.isAbsolute(file) ? file : path.join(LETTERS_DIR, file)).catch((err) => {
         plateCache.delete(file);
         throw err;
       }),
@@ -41,10 +47,24 @@ export async function avatarResponse(characterId, { cacheControl, blankPlaque = 
   const character = characterId
     ? await prisma.character.findUnique({
         where: { id: characterId },
-        select: { avatarData: true, avatarMimeType: true, firstName: true },
+        select: {
+          avatarData: true,
+          avatarMimeType: true,
+          firstName: true,
+          tags: { where: { quantity: { gt: 0 }, tag: { slug: SKINLESS_TAG_SLUG } }, select: { id: true }, take: 1 },
+        },
       })
     : null;
   if (!character) return new Response("Not found", { status: 404 });
+
+  if (character.tags.length > 0) {
+    try {
+      const face = await readPlate(SKINLESS_FACE_FILE);
+      return new Response(face, { headers: { "Content-Type": "image/webp", "Cache-Control": cacheControl } });
+    } catch (err) {
+      console.error("Missing the Skinless face:", err);
+    }
+  }
 
   let data = character.avatarData;
   let contentType = character.avatarMimeType ?? "application/octet-stream";

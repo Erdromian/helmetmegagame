@@ -1920,3 +1920,38 @@ groups:
         - Rough Camper
         - Outsider
         - Ration Box
+
+    # The Skinless (E:BascinetV3SkinlessSkinless Overview.docx,
+    # docs/systemdocs/SKINLESS.md). Spawn-only: they open through a lateparty
+    # and nowhere else, and there is always room for another. A Skinless is
+    # never built -- db/lib/skinless.js rolls the name, the face and the whole
+    # kit, so `starting_tags` stays empty here -- and arrives at the party's
+    # own Depths Location, not `starting_location`, which is only the fallback.
+    # Every Skinless knows every other Skinless (`knows: [skinless]`, both ways,
+    # later arrivals included) and nobody else, and nobody else knows them. No
+    # bank account.
+    skinless:
+      name: Skinless
+      intro: >-
+        You are an aberration of the Puppeteer's mind, drive out those who have come to desecrate your caves.
+      description:
+        - >-
+          You must slay every non-skinless you find.
+        - >-
+          Skinless are not stupid, and speak their own tongue. Non-skinless are unable to discern your words.
+        - >-
+          You can't wear clothes, armour or anything else on your body. You may only equip weaponry.
+        - >-
+          Your body has no need for sustenance, and eating does nothing for you.
+        - >-
+          Smell Skin tells you how many locations away the nearest human is.
+        - >-
+          You are a creature too alien to hold religious beliefs, your only purpose is the hunting of humans.
+      difficulty: easy
+      multiple: true
+      weight: unlimited
+      examine_visible: false
+      knows: [skinless]
+      starting_zone: depths
+      starting_location: depths-7
+      starting_tags: []

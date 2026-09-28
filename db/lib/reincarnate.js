@@ -35,6 +35,7 @@ const { GENDERS } = require("./titles");
 const { isDynastyMember, DYNASTY_HEAD_SLUG } = require("./dynasty");
 const { applyLocationMoveSideEffects } = require("./locationMove");
 const { sendDm } = require("./dm");
+const { SKINLESS_ROLE_SLUG } = require("./skinless");
 
 // Half the default `startingTagPoints` of 8, not a second full budget: a
 // second life, not a better one.
@@ -197,11 +198,15 @@ async function rollDrawbackTags(prisma, { roleSlug, grantedIds, targetPoints }) 
 // it is the party's fates with room instead -- spawn-only ones included, since
 // the party opened them, but still never a whitelisted or dynasty seat -- and
 // `partyId` says so. Every other fate is locked for its length.
+// Never the Skinless: one is rolled whole by db/lib/skinless.js, never handed a
+// role's kit like this, so a soul in a Skinless-only party finds no body and
+// the player respawns as a Skinless by hand.
 async function openRoles(prisma, config, state) {
   const party = await loadLiveParty(prisma);
   if (party) {
     const roles = party.fates
-      .filter((f) => f.role && !f.role.requiresWhitelist && !isDynastyMember(f.role.slug))
+      .filter((f) => f.role && f.role.slug !== SKINLESS_ROLE_SLUG)
+      .filter((f) => !f.role.requiresWhitelist && !isDynastyMember(f.role.slug))
       .filter((f) => f.taken < latePartyCap(f))
       .map((f) => f.role);
     return { roles, partyId: party.party.id };

@@ -44,7 +44,7 @@ const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
 const { examineBlock } = require("@lifeweb/db/lib/examineVision");
 const { lastSightings } = require("@lifeweb/db/lib/sightings");
 const { knownSubjects } = require("@lifeweb/db/lib/strangers");
-const { concealedAlias, capitalizeFirst } = require("@lifeweb/db/lib/concealedIdentity");
+const { concealedAlias, capitalizeFirst, LOOK_TAGS_SELECT } = require("@lifeweb/db/lib/concealedIdentity");
 const {
   ESCORT_SELECT,
   escortAuthority,
@@ -747,7 +747,7 @@ const examine = {
     const known = await knownSubjects(prisma, me.id, [...seen.keys()]);
     const strangers = [...seen.entries()].filter(([id, s]) => !s.concealed && known && !known.has(id)).map(([id]) => id);
     const looks = strangers.length
-      ? await prisma.character.findMany({ where: { id: { in: strangers } }, select: { id: true, age: true, gender: true } })
+      ? await prisma.character.findMany({ where: { id: { in: strangers } }, select: { id: true, age: true, gender: true, tags: LOOK_TAGS_SELECT } })
       : [];
     const lookOf = new Map(looks.map((c) => [c.id, c]));
     const people = [...seen.entries()]

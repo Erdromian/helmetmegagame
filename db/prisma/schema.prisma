@@ -1469,6 +1469,8 @@ model Location {
   interceptWatches InterceptWatch[]
   attacks          Attack[]
   combats          Combat[]
+  // Latepartys whose Skinless arrive here (LateParty.skinlessLocationId).
+  skinlessParties  LateParty[]     @relation("LatePartySkinlessSpawn")
 
   @@index([zoneId])
 }
@@ -7190,6 +7192,11 @@ model LateParty {
   startedBy String
   endedAt   DateTime?
   endedBy   String?
+  // Where every Skinless this party makes arrives: a random Depths Location,
+  // picked once when a party naming the Skinless opens (db/lib/skinless.js).
+  // Null for a party without them.
+  skinlessLocationId String?
+  skinlessLocation   Location? @relation("LatePartySkinlessSpawn", fields: [skinlessLocationId], references: [id], onDelete: SetNull)
 
   fates      LatePartyFate[]
   characters Character[]

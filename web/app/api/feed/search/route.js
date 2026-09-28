@@ -72,7 +72,12 @@ export async function GET(request) {
   const nameByKey = new Map(scope.map((entry) => [entry.placeKey, entry.name]));
   // Through the reader's lens: a stranger's line is found under their alias only (STRANGERS.md).
   const shaped = await lensRows(viewer, await withAvatarVersions(prisma, rows));
+  // A Skinless's line reaches this reader as grunts (db/lib/skinless.js), so the
+  // words it was found by are not in what they read. Drop it, or searching would
+  // translate the grunts.
+  const needle = q.toLowerCase();
+  const readable = shaped.filter((row) => row && (row.content ?? "").toLowerCase().includes(needle));
   return Response.json({
-    rows: shaped.map((row) => ({ ...row, placeName: nameByKey.get(row.placeKey) ?? null })),
+    rows: readable.map((row) => ({ ...row, placeName: nameByKey.get(row.placeKey) ?? null })),
   });
 }

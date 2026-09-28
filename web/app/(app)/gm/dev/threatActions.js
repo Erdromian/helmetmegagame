@@ -18,6 +18,7 @@ import { resolveSeatConflicts, describeSeatConflicts } from "@lifeweb/db/lib/sea
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
 import { isSpawnOnly } from "@lifeweb/db/lib/fateCapacity";
 import { seedNukeBriefing } from "@lifeweb/db/lib/nukeBriefing";
+import { isSkinless, SKINLESS_GROUP_REFUSAL } from "@lifeweb/db/lib/skinless";
 import { requireDev } from "@/lib/devAccess";
 import { sendDm } from "@/lib/discordGuild";
 
@@ -85,6 +86,8 @@ export async function assignThreat({ characterId, threatSlug }) {
   if (character.status !== "ALIVE") {
     return { error: `${character.name} isn't alive. Spawn a new character instead.` };
   }
+  // No faction or antagonist group will have a Skinless (db/lib/skinless.js).
+  if (await isSkinless(prisma, character.id)) return { error: SKINLESS_GROUP_REFUSAL };
 
   // Already seated? Refuse rather than run again. The tag upsert below is
   // idempotent but the point grant is NOT — a second press would quietly hand

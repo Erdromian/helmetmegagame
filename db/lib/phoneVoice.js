@@ -38,6 +38,7 @@ const { muffle } = require("./muffle");
 const { PHONE_BACKGROUND_MUFFLE, PHONE_TEXT } = require("./phoneText");
 const { postMessage } = require("./discordRest");
 const { ambientLine } = require("./ambientLine");
+const { isSkinless, gruntify } = require("./skinless");
 
 // `{char:<id>|Name}` becomes plain `Name`, the same flattening gateEcho.js
 // does and for the same reason: the outbox must not relay a second mention DM
@@ -132,12 +133,18 @@ async function carryOverPhone(prisma, prepared, row) {
     if (!end) return null;
     const { nearRoom, farRoom } = end;
 
-    const words = plain(row.content);
+    // A Skinless's voice down the line is grunts (db/lib/skinless.js), except
+    // to a Skinless holding the far receiver. The room around it hears grunts.
+    const said = plain(row.content);
+    const skinless = await isSkinless(prisma, prepared.character.id);
+    const heard = skinless ? gruntify(said, Number(row.seq) || 0) : said;
+    const holderUnderstands = skinless && farRoom.phoneHolderId && (await isSkinless(prisma, farRoom.phoneHolderId));
+    const words = holderUnderstands ? said : heard;
     const route = routeLine({
       speakerHolds: nearRoom.phoneHolderId === prepared.character.id,
       farHolderId: farRoom.phoneHolderId ?? null,
       words,
-      garbled: muffle(words, PHONE_BACKGROUND_MUFFLE),
+      garbled: muffle(heard, PHONE_BACKGROUND_MUFFLE),
     });
 
     // The room's half, on both faces. Subtext on Discord, through ambientLine:

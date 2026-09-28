@@ -1,7 +1,7 @@
 // The verbs a role or a rare item gives, both faces: the
 // Thanati's Recall / Recover / Set hideout, the Cerberon's warrants, the
-// Bishop's excommunications, the Bastard's reinforcements, and sounding the
-// trumpet or the Deep Beast Horn. Each was a web server action beside
+// Bishop's excommunications, the Bastard's reinforcements, sounding the
+// trumpet or the Deep Beast Horn, and the Skinless's Smell Skin. Each was a web server action beside
 // web/app/(app)/character/ (thanatiActions.js,
 // cerberonActions.js, bishopActions.js, bastardActions.js, trumpetActions.js)
 // and still is — that action calls the function here, and so does the Discord
@@ -38,6 +38,7 @@ const { readCharacterResources, takeCharacterResources } = require("../resourceS
 const { blockerFor, ACT } = require("../incapacitation");
 const { FULL_NAME_LIMIT } = require("../characterName");
 const { logAudit } = require("../auditLog");
+const { isSkinless, smellSkin: nearestSkin, smellSkinLine } = require("../skinless");
 const { SFX } = require("../sfx");
 const { refuse, asResult, requireFreeMove, fileAutoRoutine } = require("./common");
 
@@ -256,6 +257,20 @@ function checkWanted(prisma, { character, discordUserId }) {
       details: { wanted: rows.map((r) => r.name) },
     });
     return { roster: rows.map((r) => ({ name: r.name })), line: rows.length ? "The warrant book." : "Nobody is wanted." };
+  });
+}
+
+// --- The Skinless (web: skinlessActions.js) ----------------------------------------
+
+// Smell Skin: how many Locations off the nearest living person with skin is
+// (db/lib/skinless.js#smellSkin). Free, unlimited, and tells nobody else.
+// Reads the tag off the database rather than `character.tags`, so a caller
+// only needs id and locationId.
+function smellSkin(prisma, { character }) {
+  return asResult(async () => {
+    if (!(await isSkinless(prisma, character?.id))) refuse("Not yours to press.");
+    const distance = await nearestSkin(prisma, character);
+    return { distance, line: smellSkinLine(distance) };
   });
 }
 
@@ -512,4 +527,5 @@ module.exports = {
   callReinforcements,
   soundTrumpet,
   soundHorn,
+  smellSkin,
 };

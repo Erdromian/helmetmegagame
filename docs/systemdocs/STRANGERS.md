@@ -105,6 +105,9 @@ Two things set a stranger apart from a hood:
   so for a stranger it wears the plaque of that name rather than their portrait,
   or the page could match the face to the name.
 - **The estate colour shows**, as it does for anyone.
+- **What they plainly are shows.** A tag in `concealedIdentity.js#LOOK_WORDS`
+  puts its word between the age and the sex: a Skinless is a "Young Skinless
+  Man" (`SKINLESS.md` §5).
 
 There is no stranger rule when there is nobody to recognise with: a GM, the
 Discord bot's own readouts, a ghost, somebody in the lobby. Those see what they

@@ -9,7 +9,7 @@ import { DESK_CHANNEL } from "@lifeweb/db/lib/deskNotify";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow, GM_DM_SELECT, gmDmRow } from "./dmThread";
 import { dmActionOf } from "@lifeweb/db/lib/dmActions";
 import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
-import { concealedAlias } from "@lifeweb/db/lib/concealedIdentity";
+import { concealedAlias, LOOK_TAGS_SELECT } from "@lifeweb/db/lib/concealedIdentity";
 import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { livePerformancesAt, MUSIC_OP } from "@lifeweb/db/lib/performance";
 import { PHONE_OP } from "@lifeweb/db/lib/phoneFrame";
@@ -142,7 +142,7 @@ async function typingFactsFor(characterId) {
 
   const character = await prisma.character.findUnique({
     where: { id: characterId },
-    select: { id: true, name: true, concealed: true, age: true, gender: true, updatedAt: true },
+    select: { id: true, name: true, concealed: true, age: true, gender: true, updatedAt: true, tags: LOOK_TAGS_SELECT },
   });
   if (!character) return null;
   const [forcedName, concealment] = await Promise.all([

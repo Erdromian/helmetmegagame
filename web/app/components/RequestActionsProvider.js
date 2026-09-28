@@ -266,6 +266,7 @@ export default function RequestActionsProvider({
   isThanati = false,
   isThanatiLeader = false,
   isCerberon = false,
+  isSkinless = false,
   canWarrant = false,
   // THE BISHOP. `isBishop` hides the button; the list and the seat count are
   // what the dialog draws its "{n}/{cap} people excommunicated" line and its
@@ -605,6 +606,7 @@ export default function RequestActionsProvider({
       isThanati,
       isThanatiLeader,
       isCerberon,
+      isSkinless,
       canWarrant,
       isBishop,
       atHideout,
@@ -676,6 +678,7 @@ export default function RequestActionsProvider({
       isThanati,
       isThanatiLeader,
       isCerberon,
+      isSkinless,
       canWarrant,
       isBishop,
       atHideout,

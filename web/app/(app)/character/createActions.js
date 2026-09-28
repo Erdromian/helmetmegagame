@@ -49,6 +49,7 @@ import {
 import { isPlayerCursed } from "@lifeweb/db/lib/curse";
 import { lateJoinOpeningFor, lateJoinCapacity } from "@lifeweb/db/lib/lateJoin";
 import { loadLiveParty, latePartyGate, partySeatUnderLock } from "@lifeweb/db/lib/lateParty";
+import { SKINLESS_ROLE_SLUG } from "@lifeweb/db/lib/skinless";
 import {
   computeBudget,
   isSpawnOnly,
@@ -97,6 +98,8 @@ const MUSTER_REFUSAL = "A lateparty is mustering. Its fates are drawn at the end
 // The party ended between picking a fate and confirming it. No "pick another":
 // for somebody the curse still holds, there is no other.
 const PARTY_OVER_REFUSAL = "The lateparty left before you finished.";
+// A Skinless is never built: skinlessActions.js#respawnAsSkinless rolls one.
+const SKINLESS_REFUSAL = "A Skinless isn't built. Press Respawn as a Skinless instead.";
 
 // Creates a character from the wizard's Confirm step. Everything posted is
 // re-derived and re-checked. The seat-cap recheck closes a real race (Prisma
@@ -169,6 +172,7 @@ export async function createCharacter(formData) {
     isPlayerCursed(prisma, discordUserId),
   ]);
   if (!role) return { error: "That role no longer exists." };
+  if (role.slug === SKINLESS_ROLE_SLUG) return { error: SKINLESS_REFUSAL };
 
   // A LATE JOIN (db/lib/lateJoin.js) is a spawn-only seat the GM has opened to
   // whoever wants it. Read once, here, and then used for three separate
@@ -649,6 +653,8 @@ export async function reserveFateAction(roleId) {
     getGuildMember(discordUserId, 0), // always fresh
   ]);
   if (!role) return { error: "That role no longer exists." };
+  // Nothing to hold: the Skinless never run out of room, and are never built.
+  if (role.slug === SKINLESS_ROLE_SLUG) return { error: SKINLESS_REFUSAL };
 
   const bypass = isSuperadmin(discordUserId);
   if (!bypass && !creationOpen(state?.phase, member)) {

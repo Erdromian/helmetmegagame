@@ -5,6 +5,7 @@ import CheckField from "@/app/components/CheckField";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { createCharacter, reserveFateAction } from "./createActions";
 import PointBuy from "../../components/PointBuy";
+import SkinlessRespawn from "./SkinlessRespawn";
 import {
   computeBudget,
   formatCost,
@@ -811,7 +812,11 @@ export default function CreateCharacterWizard({
         >
           Back
         </button>
-        {step < LAST_STEP ? (
+        {/* The Skinless card (db/lib/skinless.js) is never built: picking it
+            swaps Next for the one button that rolls the whole body. */}
+        {step === 0 && role?.respawnOnly ? (
+          <SkinlessRespawn />
+        ) : step < LAST_STEP ? (
           <button
             type="button"
             className="btn"

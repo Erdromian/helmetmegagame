@@ -232,6 +232,13 @@ const ROLE_MEMORIES = {
   "bastard-rifleman": HILLS_ALL,
   "bastard-healer": HILLS_ALL,
   "bastard-engineer": HILLS_ALL,
+
+  // The Skinless (db/lib/skinless.js) come up out of the dark: every level of
+  // the Caves and the Depths is home, and nothing above it is.
+  skinless: [
+    "caves-1", "caves-2", "caves-3", "caves-4", "caves-5",
+    "depths-1", "depths-2", "depths-3", "depths-4", "depths-5", "depths-6", "depths-7",
+  ],
 };
 
 // A tag a character starts with can add roads they have walked, on top of

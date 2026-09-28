@@ -261,6 +261,12 @@ families:
     group: blood
     color: "#b96b60"
     # Turning on your own — informing, defecting, sabotage from inside.
+  skinless:
+    name: Skinless
+    group: blood
+    color: "#d4867a"
+    # The Skinless's own three (docs/systemdocs/SKINLESS.md). Their tag locks
+    # every other family, so these are all a Skinless ever has.
   vampirism:
     name: Vampirism
     group: blood
@@ -2609,3 +2615,28 @@ desires:
     oncePerLife: true
     requires:
       anyTags: [thrall]
+
+  # --- Skinless Desires (E:BascinetV3SkinlessSkinless Overview.docx).
+  # Their tag locks every other family, so these three are all they have.
+  # The cooldowns are Bascinet's: 1 turn, which the slot lock outlasts anyway.
+  skinless-aid-kill:
+    name: Aid in the killing of a human
+    tier: 2
+    families: [skinless]
+    cooldownTurns: 1
+    requires:
+      anyTags: [skinless]
+  skinless-kill:
+    name: Personally kill a human
+    tier: 3
+    families: [skinless]
+    cooldownTurns: 1
+    requires:
+      anyTags: [skinless]
+  skinless-break-into-fortress:
+    name: Break into the fortress
+    tier: 4
+    families: [skinless]
+    oncePerLife: true
+    requires:
+      anyTags: [skinless]
