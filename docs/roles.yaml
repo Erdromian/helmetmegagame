@@ -93,8 +93,9 @@
 # `bank_account` (role-level, optional) opens a fingerprinted account at the
 # Depot for this character at creation: `treasury` for a claim on the coin in
 # the Keep's Vault, `offshore` for money the Company holds off-world (the
-# Merchant's and his Dockers'). Absent means no account — the Black Hills seats
-# arrive without one, and open one at the counter if they ever want one.
+# Merchant's and his Dockers'). Absent means no account — the Black Hills
+# seats, the Slave, the Bum and the Migrant arrive without one, and open one at
+# the counter if they ever want one.
 # See docs/systemdocs/DEPOT.md §0g.
 #
 # `starting_account` (role-level, optional, defaults 0) is how many obols are
@@ -1366,8 +1367,6 @@ groups:
         You live in a shell and sleep with the dogs.
       description: []
       difficulty: easy
-      bank_account: treasury
-      starting_account: 3
       multiple: true
       weight: unlimited
       starting_zone: undertown
@@ -1566,7 +1565,6 @@ groups:
         Make it to the fortress.
       description: []
       difficulty: easy
-      bank_account: treasury
       multiple: true
       weight: unlimited
       starting_zone: caves
