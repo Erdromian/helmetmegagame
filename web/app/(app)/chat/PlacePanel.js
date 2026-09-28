@@ -1564,8 +1564,8 @@ function AtmDialog({ onClose, onDone }) {
   return (
     <Modal open title={title} onClose={onClose}>
       <p className="text-sm text-muted">
-        {state.account.fingerprint} · {state.account.balanceObols} ¢ in the account, {state.heldObols} ¢ in your
-        pocket.
+        {state.account.fingerprint} · {state.account.balanceObols} ¢ in {state.account.crown ? "the Vault" : "the account"},{" "}
+        {state.heldObols} ¢ in your pocket.
         {state.account.backed ? "" : " Held off-world."}
       </p>
       <div className="field">
@@ -1585,7 +1585,8 @@ function AtmDialog({ onClose, onDone }) {
           </label>
           <Select id="chat-atm-to" value={sendTo} onChange={(e) => setSendTo(e.target.value)}>
             <option value="">Pick an account</option>
-            <option value="VAULT">The Vault</option>
+            {/* The Crown's money is the Vault already; sending it there moves nothing. */}
+            {!state.account.crown && <option value="VAULT">The Vault</option>}
             {state.sendTo.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.holderName}

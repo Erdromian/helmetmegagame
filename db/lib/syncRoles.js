@@ -41,6 +41,11 @@ function startingAccount(role, slug) {
   if (!Number.isInteger(raw) || raw < 0) {
     throw new Error(`docs/roles.yaml: role "${slug}" starting_account must be a whole number of 0 or more`);
   }
+  if (raw > 0 && role.bank_account === "crown") {
+    throw new Error(
+      `docs/roles.yaml: role "${slug}" sets starting_account on a crown account -- its balance is the Vault, so there is nothing to start it with`,
+    );
+  }
   if (raw > 0 && role.bank_account !== "treasury" && role.bank_account !== "offshore") {
     throw new Error(
       `docs/roles.yaml: role "${slug}" sets starting_account but has no bank_account -- there is no account to open it into`,
@@ -156,14 +161,17 @@ function parseRolesYaml(doc) {
         startingZoneSlug: role.starting_zone ?? null,
         startingLocationSlug: role.starting_location ?? null,
         startingTagNames: role.starting_tags ?? [],
-        // `bank_account: treasury | offshore`. Anything else — including
-        // absent — is no account, which is what the Black Hills seats get.
+        // `bank_account: treasury | offshore | crown`. Anything else —
+        // including absent — is no account, which is what the Black Hills
+        // seats get. `crown` is the Baron's: the Vault itself.
         bankAccountClass:
           role.bank_account === "offshore"
             ? "OFFSHORE"
             : role.bank_account === "treasury"
               ? "TREASURY"
-              : null,
+              : role.bank_account === "crown"
+                ? "CROWN"
+                : null,
         // What that account opens WITH. A seat with no account may not name
         // one -- there would be nowhere to put the money, so that is a typo
         // and gets said out loud rather than silently dropped.

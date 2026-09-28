@@ -62,7 +62,13 @@ Every entry has two ends, and each is one of:
 - `bank:<accountId>` — one player's claim. `bank:clearing` is its book
   counterparty: no live balance, exempt from reconcile, exactly like mint and
   burn. It exists so that a movement whose coin leg is already booked by the tag
-  hook can book its claim leg without double-counting the same money
+  hook can book its claim leg without double-counting the same money. The
+  Baron's CROWN account is the exception: it is not a claim but the Vault
+  itself (`DEPOT.md` §0g), so it books **no** `ACCOUNT` legs at all. Its
+  withdrawals and deposits are coin legs between the Vault room and a hand. A
+  send from it books the payee's new claim against `room:<vault>`, and a send
+  to it books the payer's surrender the same way. Its stored balance is frozen,
+  so its legs still sum to it
 - `machine:<id>` — a vending machine's coin box (`VENDING.md`). **One party for
   both of its pools**, because the loose float in the slot and the locked till
   are two trays in one box: a purchase moving coin between them has not changed

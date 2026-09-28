@@ -680,7 +680,8 @@ Picking a role decides almost everything:
 - `bank_account` — opens a `BankAccount` fingerprinted to the new character:
   `treasury` for nearly every seat (hard-backed by the real `obol` tags in
   the Keep's Vault), `offshore` for the Merchant and his Dockers (no vault
-  behind it). Absent for the Black Hills — the Tribunal
+  behind it), `crown` for the Baron (the Vault itself: its balance is every
+  obol in the Vault, `DEPOT.md` §0g). Absent for the Black Hills — the Tribunal
   arrives with no account at all — and for the Slave, the Bum and the
   Migrant. Any of them can open one later at the counter's
   **Create an account** button, the same as any spawned antagonist. The

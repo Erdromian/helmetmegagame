@@ -362,6 +362,23 @@ which is why a sell price equal to the buy price prints nothing
   machine, same accounts, same Vault behind them; §0l has the list and what
   did not follow it out of the Depot.
 - An **OFFSHORE** account skips all of that. There is no pile behind it.
+- The **CROWN** account is the Baron's, and it is the pile itself rather than
+  a claim on it (`db/lib/bankAccounts.js#accountBalance`). At any infoterminal
+  its balance reads as every obol in the Vault right now, so it rises and falls
+  with every deposit, withdrawal, robbery and restock. The Baron can **take out
+  as much as is there**, straight off the pile with no account row debited, and
+  a deposit is coin put back on it. **Send from it creates a claim**: the
+  payee's balance rises while the coin stays in the Vault until they come for
+  it, so the Crown's own balance does not fall. That is how a Baron pays wages
+  by transfer, and how a Baron who pays too many ends up with a bank run.
+  **Send to it surrenders the claim**, exactly like sending to the treasury:
+  the payer's balance falls and nothing is credited. The Crown is never counted
+  among the claims the Vault backs (the Treasury page's figure, and
+  `db:audit-vault-backing`, both read TREASURY only). Its stored `balanceObols`
+  is never written or shown; the migration that made the Baron's account CROWN
+  left whatever it held frozen there, so the ledger's sum for it still matches.
+  The ring and PIN rules are unchanged, so a stolen Baron's ring with the PIN
+  empties the Vault as easily as the Baron can.
 - **The Company's line is gone** (the Depot Overhaul): the Merchant takes no
   credit through his terminal, and `Depot.debtObols` / `creditCapObols` were
   dropped. Old `request_depot_credit` rows still read in the ledger.
@@ -398,7 +415,7 @@ physical obols in `starting_tags`, granted with a `Name xN` suffix
 
 **Who gets one at creation** is `bank_account:` in `docs/roles.yaml`:
 `treasury` for nearly every seat, `offshore` for the Merchant and his Dockers,
-and **absent for the Black Hills** — the Tribunal arrives without one — and
+`crown` for the Baron (above), and **absent for the Black Hills** — the Tribunal arrives without one — and
 for the Slave, the Bum and the Migrant, who start with nothing to their name. Anyone else (a spawned antagonist, a threat handed a body
 mid-game) opens one at the counter with a **Create an account** button: one
 click, no cost, opens empty.
