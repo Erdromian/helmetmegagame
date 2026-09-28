@@ -1,6 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { mayReadPlace } from "@lifeweb/db/lib/feedAccess";
-import { readDisguises, disguiseRead } from "@lifeweb/db/lib/disguises";
+import { readDisguises, disguiseRead, fooledFace } from "@lifeweb/db/lib/disguises";
 import { loadFeedViewer } from "@/lib/feedAccess";
 import { avatarResponse, STRANGER_FACE_CACHE } from "@/lib/avatarResponse";
 
@@ -35,8 +35,9 @@ export async function GET(_request, { params }) {
     return new Response("Not found", { status: 404 });
   }
   // A line said in disguise shows its reader the face of whoever the disguise
-  // fools them into seeing (STRANGERS.md §10), and nobody else any face at all.
-  const faceId = disguise ? await fooledBy(viewer.character, row.concealedAlias) : row.characterId;
+  // fools them into seeing, when the wearer looks like them (STRANGERS.md §10),
+  // and nobody else any face at all.
+  const faceId = disguise ? await fooledBy(viewer.character, row.concealedAlias, row.characterId) : row.characterId;
   if (!faceId) return new Response("Not found", { status: 404 });
 
   const heard = viewer.character
@@ -51,8 +52,12 @@ export async function GET(_request, { params }) {
   return avatarResponse(faceId, { cacheControl: STRANGER_FACE_CACHE, blankPlaque: !disguise });
 }
 
-async function fooledBy(character, name) {
+async function fooledBy(character, name, wearerId) {
   if (!character?.id) return null;
-  const reads = await readDisguises(prisma, character.id, [name]);
-  return disguiseRead(reads, name).fooledAs;
+  const [reads, wearer] = await Promise.all([
+    readDisguises(prisma, character.id, [name]),
+    prisma.character.findUnique({ where: { id: wearerId }, select: { age: true, gender: true } }),
+  ]);
+  const read = disguiseRead(reads, name);
+  return fooledFace(read, wearer) ? read.fooledAs : null;
 }

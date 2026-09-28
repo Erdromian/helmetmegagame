@@ -1,6 +1,7 @@
 // Disguises fool the people who know the name (docs/systemdocs/STRANGERS.md §10). Against small fakes:
 // the name parts, who each reader takes a disguise for, Who's here and its tokens, the chat lens, DMs,
-// Intercept, and learning a disguise's name by hearing it.
+// Intercept, learning a disguise's name and job by hearing them, the job's colour, and the rule that
+// age and gender stay the wearer's.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -12,13 +13,16 @@ const {
   namesCharacter,
   typedNameMatches,
   disguiseNameFrom,
+  disguiseJobFrom,
+  looksAlike,
   readDisguises,
   ownersWhoKnow,
   DISGUISE_STRANGER_FACE,
 } = require("../lib/disguises");
 const { normalizeDisguiseName } = require("../lib/disguiseMint");
 const { whosHere, whosHereLines, resolveHoodToken, hiddenFrom } = require("../lib/whosHere");
-const { attachSpeaker, attachDisguised, createLens, lensRow, lensTyping, keptSpeaker } = require("../lib/strangers");
+const { attachSpeaker, attachDisguised, createLens, lensTyping, keptSpeaker } = require("../lib/strangers");
+const { feedRowShape } = require("../lib/archive");
 const { matchesArrival, seenByMany } = require("../lib/intercept");
 const { presentedIdentity } = require("../lib/presentedIdentity");
 const { learnFromSpeech } = require("../lib/memoryHearing");
@@ -27,13 +31,14 @@ const { sceneSpeakerKey } = require("../lib/hoodToken");
 
 // ------------------------------------------------------------------ fixtures
 
-const disguiseTag = (name) => ({
+const disguiseTag = (name, job = null) => ({
   tagId: `t-${name}`,
   equipped: false,
   tag: {
     slug: `custom-disguise-abc-${name.length}`,
     name: `Disguised (${name})`,
     forcedName: name,
+    disguiseJobSlug: job,
     concealsIdentity: false,
     concealSprite: null,
     forcesConceal: false,
@@ -75,6 +80,12 @@ const wren = person("wren", "Wren", "Holt");
 const mia = person("mia", "Mia", "Dune", { gender: "WOMAN" });
 const pell = person("pell", "Pell", "Orr");
 const bob = person("bob", "Tam", "Rook", { tags: [disguiseTag("Bob Fakename")] });
+
+// The jobs a disguise may claim.
+const ROLES = [
+  { slug: "bishop", name: "Bishop", groupSlug: "clergy" },
+  { slug: "migrant", name: "Migrant", groupSlug: "outsiders" },
+];
 
 // One fake for all of it. `entries` are Acquaintance rows: { ownerId, subjectId, disguiseKey }.
 function fakeDb({ people = [], entries = [], anonymize = true, room = null } = {}) {
@@ -126,8 +137,20 @@ function fakeDb({ people = [], entries = [], anonymize = true, room = null } = {
         }
         return { count };
       },
-      updateMany: async () => ({ count: 0 }),
+      findUnique: async ({ where }) => {
+        const key = where.ownerId_disguiseKey;
+        return key ? (entries.find((e) => e.ownerId === key.ownerId && e.disguiseKey === key.disguiseKey) ?? null) : null;
+      },
+      updateMany: async ({ where, data }) => {
+        let count = 0;
+        for (const row of entries.filter((e) => matches(e, where) && !e.roleText)) {
+          Object.assign(row, data);
+          count += 1;
+        }
+        return { count };
+      },
     },
+    role: { findMany: async ({ where }) => ROLES.filter((r) => where.slug.in.includes(r.slug)) },
     character: {
       findUnique: async ({ where }) => byId.get(where.id) ?? null,
       findMany: async ({ where } = {}) => {
@@ -149,6 +172,7 @@ function fakeDb({ people = [], entries = [], anonymize = true, room = null } = {
     performance: { findMany: async () => [] },
     archiveEntry: { findMany: async () => [], groupBy: async () => [] },
     turn: { findFirst: async () => null },
+    voiceMemory: { findMany: async () => [] },
   };
 }
 
@@ -170,7 +194,7 @@ test("a disguise's name splits like a character's, and its title never decides w
 });
 
 test("the Kit takes a title, a first name and a last name, and refuses a title that is not one", () => {
-  assert.equal(normalizeDisguiseName({ honorific: "sir", firstName: " Aldric ", lastName: "Vask" }), "Sir Aldric Vask");
+  assert.equal(normalizeDisguiseName({ honorific: "sir", firstName: " Aldric ", lastName: "Vask" }, { gender: "MAN" }), "Sir Aldric Vask");
   assert.equal(normalizeDisguiseName({ honorific: "", firstName: "Bob", lastName: "" }), "Bob");
   assert.equal(normalizeDisguiseName({ honorific: "Emperor", firstName: "Bob" }), null);
   assert.equal(normalizeDisguiseName({ firstName: "  " }), null);
@@ -191,15 +215,15 @@ test("fooled, recognised, a stranger, or yourself", async () => {
   const db = fakeDb({ people: [aldric, xan, wren, mia, pell], entries: [knowsAldric, learnedBob] });
   const names = ["Sir Aldric Vask", "Bob Fakename"];
   const wrens = await readDisguises(db, "wren", names);
-  assert.deepEqual(wrens.get("Sir Aldric Vask"), { known: true, fooledAs: "aldric", fooledGroup: "clergy" });
+  assert.deepEqual(wrens.get("Sir Aldric Vask"), { known: true, fooledAs: "aldric", fooledLook: { age: 20, gender: "MAN" } });
   assert.equal(wrens.get("Bob Fakename").known, false);
   const pells = await readDisguises(db, "pell", names);
-  assert.deepEqual(pells.get("Bob Fakename"), { known: true, fooledAs: null, fooledGroup: null });
+  assert.deepEqual(pells.get("Bob Fakename"), { known: true, fooledAs: null, fooledLook: null });
   assert.equal(pells.get("Sir Aldric Vask").known, false);
   const mias = await readDisguises(db, "mia", names);
   assert.equal(mias.get("Sir Aldric Vask").known, false);
   const own = await readDisguises(db, "aldric", ["Sir Aldric Vask"]);
-  assert.deepEqual(own.get("Sir Aldric Vask"), { known: true, fooledAs: null, fooledGroup: null }, "you are never fooled by your own name");
+  assert.deepEqual(own.get("Sir Aldric Vask"), { known: true, fooledAs: null, fooledLook: null }, "you are never fooled by your own name");
   assert.equal(await readDisguises(fakeDb({ anonymize: false }), "mia", names), null, "the rule off: everybody reads it");
 
   const room = await ownersWhoKnow(db, ["wren", "mia", "pell", "aldric"], "Sir Aldric Vask");
@@ -216,7 +240,7 @@ test("a disguise is always under a token, named to who knows it and a stranger t
   const seen = fooled.concealed.find((c) => c.alias === "Sir Aldric Vask");
   assert.ok(seen, "Wren takes Xan for Aldric");
   assert.equal(seen.avatarPath, `/api/avatar/here/${seen.token}`, "Aldric's face, served per viewer");
-  assert.equal(seen.roleGroup, "clergy", "in the estate Wren knows Aldric by");
+  assert.equal(seen.roleGroup, null, "no job claimed, so no estate's colour, even to the fooled");
   assert.equal(seen.stranger, false);
   assert.equal(fooled.hoodIds.get(seen.token), "xan");
 
@@ -283,7 +307,7 @@ test("a disguised line reads by what each reader makes of its name", async () =>
   const [asWren] = await createLens(db, { characterId: "wren" }).all([line()]);
   assert.equal(asWren.name, "Sir Aldric Vask");
   assert.equal(asWren.avatarPath, "/api/avatar/line/77", "Aldric's face, by the line");
-  assert.equal(asWren.roleGroup, "clergy");
+  assert.equal(asWren.roleGroup, null, "no job claimed");
   assert.equal(asWren.speakerKey, sceneSpeakerKey("xan", "room:r1", 4));
 
   const [asMia] = await createLens(db, { characterId: "mia" }).all([line()]);
@@ -371,7 +395,7 @@ test("hearing a made-up disguise's name makes a Friends entry tied to nobody", a
   const { taught } = await learnFromSpeech(db, { row, speakerId: "bob" });
   assert.equal(taught, 1, "Mia learns it; Pell already had it");
   assert.deepEqual(db.writes, [
-    { ownerId: "mia", subjectId: null, disguiseKey: "bob fakename", name: "Bob Fakename", source: "HEARD" },
+    { ownerId: "mia", subjectId: null, disguiseKey: "bob fakename", name: "Bob Fakename", roleText: null, roleSlug: null, source: "HEARD" },
   ]);
   const reads = await readDisguises(db, "mia", ["Bob Fakename"]);
   assert.equal(reads.get("Bob Fakename").known, true, "and now recognises the disguise");
@@ -396,4 +420,105 @@ test("somebody else can only teach a disguise's name if they know it", async () 
   const db2 = fakeDb({ people: [bob, mia, pell], entries: [{ ...learnedBob }] });
   await learnFromSpeech(db2, { row: { placeKey: "conv:c1", content: '"Morning, Bob."' }, speakerId: "pell" });
   assert.deepEqual(db2.writes.map((w) => w.ownerId), ["mia"]);
+});
+
+// ------------------------------------------------------- the wearer's own body
+
+test("a title is worn in the form the wearer's own gender takes", () => {
+  assert.equal(normalizeDisguiseName({ honorific: "Sir", firstName: "Aldric", lastName: "Vask" }, { gender: "WOMAN" }), "Dame Aldric Vask");
+  assert.equal(normalizeDisguiseName({ honorific: "lady", firstName: "Ann", lastName: "Vask" }, { gender: "MAN" }), "Lord Ann Vask");
+  assert.equal(normalizeDisguiseName({ honorific: "Father", firstName: "Ann" }, { gender: "NEUTRAL" }), "Reverend Ann");
+  assert.equal(normalizeDisguiseName({ honorific: "Bishop", firstName: "Ann" }, { gender: "WOMAN" }), "Bishop Ann", "an ungendered title is itself");
+  // The title never decides who is fooled, so Dame Aldric Vask still fools Aldric's friends.
+  assert.ok(namesCharacter("Dame Aldric Vask", aldric));
+});
+
+test("looking alike is the same gender and the same age band", () => {
+  assert.ok(looksAlike({ age: 20, gender: "MAN" }, { age: 24, gender: "MAN" }), "both young men");
+  assert.ok(looksAlike({ age: 30, gender: "WOMAN" }, { age: 50, gender: "WOMAN" }), "both grown");
+  assert.ok(!looksAlike({ age: 20, gender: "MAN" }, { age: 40, gender: "MAN" }), "young is not grown");
+  assert.ok(!looksAlike({ age: 60, gender: "MAN" }, { age: 40, gender: "MAN" }), "old is not grown");
+  assert.ok(!looksAlike({ age: 20, gender: "WOMAN" }, { age: 20, gender: "MAN" }));
+  assert.ok(!looksAlike({ age: null, gender: "MAN" }, { age: 20, gender: "MAN" }), "an unknown age never passes");
+});
+
+test("the fooled see the real person's portrait only when the wearer looks like them", async () => {
+  // Ada, a young woman, and Otto, an old man, both going by Aldric's name. Wren knows Aldric.
+  const ada = person("ada", "Ada", "Venn", { gender: "WOMAN", tags: [disguiseTag("Sir Aldric Vask")] });
+  const otto = person("otto", "Otto", "Brenn", { age: 70, tags: [disguiseTag("Sir Aldric Vask")] });
+  for (const wearer of [ada, otto]) {
+    const db = fakeDb({ people: [aldric, wearer, wren], entries: [knowsAldric] });
+    const seen = (await whosHere(db, wren)).concealed[0];
+    assert.equal(seen.alias, "Sir Aldric Vask", `${wearer.id}: still taken for Aldric by name`);
+    assert.equal(seen.avatarPath, "/assets/letters/S.webp", `${wearer.id}: the name's plaque, not Aldric's face`);
+
+    const [asWren] = await createLens(db, { characterId: "wren" }).all([attachSpeaker({ ...line(), seq: "78" }, wearer.id)]);
+    assert.equal(asWren.name, "Sir Aldric Vask");
+    assert.equal(asWren.avatarPath, "/assets/letters/S.webp", `${wearer.id}: the line keeps its plaque`);
+  }
+  // Xan is a young man, as Aldric is: the portrait.
+  const db = fakeDb({ people: [aldric, xan, wren], entries: [knowsAldric] });
+  const seen = (await whosHere(db, wren, { withHoodIds: true })).concealed[0];
+  assert.equal(seen.avatarPath, `/api/avatar/here/${seen.token}`);
+});
+
+test("a stranger's alias for a disguise is the wearer's age and gender, never the named person's", async () => {
+  const ada = person("ada", "Ada", "Venn", { gender: "WOMAN", tags: [disguiseTag("Sir Aldric Vask")] });
+  const db = fakeDb({ people: [aldric, ada, mia] });
+  const row = (await whosHere(db, mia)).concealed[0];
+  assert.equal(row.alias, "a young woman");
+  assert.deepEqual(await seenByMany(db, "mia", [ada]), ["a young woman"]);
+});
+
+// -------------------------------------------------------------------- jobs
+
+test("a claimed job's estate is the colour everybody sees the disguise in", async () => {
+  const cleric = person("xan", "Xan", "Quorble", { tags: [disguiseTag("Sir Aldric Vask", "bishop")] });
+  assert.equal(disguiseJobFrom(cleric.tags), "bishop");
+  assert.equal(disguiseJobFrom([beastTag()]), null);
+
+  const db = fakeDb({ people: [aldric, cleric, wren, mia], entries: [knowsAldric] });
+  const asWren = (await whosHere(db, wren)).concealed.find((c) => c.alias === "Sir Aldric Vask");
+  assert.equal(asWren.roleGroup, "clergy", "fooled");
+  const asMia = (await whosHere(db, mia)).concealed.find((c) => c.stranger && c.avatarPath === DISGUISE_STRANGER_FACE);
+  assert.equal(asMia.roleGroup, "clergy", "a stranger sees the same colour");
+
+  // A line freezes it, and the lens keeps it for every reader.
+  const shaped = feedRowShape({
+    seq: 90n,
+    placeKey: "room:r1",
+    turnNumber: 4,
+    characterId: "xan",
+    characterName: "Xan Quorble",
+    concealedAlias: "Sir Aldric Vask",
+    disguised: true,
+    disguiseGroup: "clergy",
+    presentedAvatarPath: "/assets/letters/S.webp",
+    content: "hello",
+  }, { roleGroup: "court" });
+  assert.equal(shaped.roleGroup, "clergy", "the job's, never the wearer's own court");
+  const [lineAsMia] = await createLens(db, { characterId: "mia" }).all([shaped]);
+  assert.equal(lineAsMia.roleGroup, "clergy");
+  const [lineAsWren] = await createLens(db, { characterId: "wren" }).all([shaped]);
+  assert.equal(lineAsWren.roleGroup, "clergy");
+
+  // An uncoloured estate is no colour.
+  const drifter = person("xan", "Xan", "Quorble", { tags: [disguiseTag("Bob Fakename", "migrant")] });
+  const plain = await whosHere(fakeDb({ people: [drifter, mia] }), mia);
+  assert.equal(plain.concealed[0].roleGroup, null);
+});
+
+test("hearing a disguise's job said with its name teaches it, like any role", async () => {
+  const cleric = person("bob", "Tam", "Rook", { tags: [disguiseTag("Bob Fakename", "bishop")] });
+  const db = fakeDb({ people: [cleric, mia, pell], entries: [{ ...learnedBob }] });
+  await learnFromSpeech(db, { row: { placeKey: "conv:c1", content: '"I am Bob Fakename, the Bishop."' }, speakerId: "bob" });
+  const mias = db.entries.find((e) => e.ownerId === "mia");
+  assert.deepEqual([mias.name, mias.roleText, mias.roleSlug, mias.subjectId], ["Bob Fakename", "Bishop", "bishop", null]);
+  const pells = db.entries.find((e) => e.ownerId === "pell");
+  assert.deepEqual([pells.roleText, pells.roleSlug], ["Bishop", "bishop"], "an entry learned earlier gets the job filled in");
+
+  // The wearer's real seat is never what a disguise teaches.
+  const db2 = fakeDb({ people: [cleric, mia] });
+  await learnFromSpeech(db2, { row: { placeKey: "conv:c1", content: '"I am Bob Fakename, a Courtier."' }, speakerId: "bob" });
+  assert.equal(db2.entries.find((e) => e.ownerId === "mia").roleText, null);
 });

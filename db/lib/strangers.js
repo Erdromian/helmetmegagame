@@ -24,8 +24,7 @@ const { concealedAlias, isConcealedAlias, LOOK_TAGS_SELECT } = require("./concea
 const { sceneSpeakerKey } = require("./hoodToken");
 const { renderPeopleLine, peopleIds, disguiseNames } = require("./peopleLine");
 const { skinlessIdsAmong, gruntify } = require("./skinless");
-const { readDisguises, disguiseRead, DISGUISE_STRANGER_FACE: BLANK_PLAQUE } = require("./disguises");
-const { roleGroupHue } = require("./roleGroups");
+const { readDisguises, disguiseRead, fooledFace, DISGUISE_STRANGER_FACE: BLANK_PLAQUE } = require("./disguises");
 
 // Bascinet's list, lower-cased to sit mid-sentence: "a young man, hunched".
 // "Infront" in the doc is "in front".
@@ -378,17 +377,18 @@ function lensRow(row, lens) {
   if (forced) return { ...out, speakerKey: sceneKey() };
   // A disguise's name is read by whoever can put it to the face (§10): nobody to recognise with, the
   // rule switched off, a reader who learned the name, or one it fools. The one it fools sees the
-  // face of the person they take the wearer for, served per reader by the line's own face route.
+  // face of the person they take the wearer for — served per reader by the line's own face route —
+  // but only when the wearer looks like them: the same gender and age band (./disguises.js#looksAlike).
+  // Otherwise the name's letter plaque, which the row already carries. The colour is the claimed
+  // job's, frozen on the row (archive.js#feedRowShape), the same for every reader.
   if (disguised) {
     const read = lens.characterId ? disguiseRead(lens.disguises, row.alias) : { known: true, fooledAs: null };
     if (read.known) {
       const shown = { ...out, speakerKey: sceneKey() };
-      if (read.fooledAs && row.seq) {
+      if (row.seq && fooledFace(read, lens.facts?.get(id))) {
         shown.avatarPath = `/api/avatar/line/${row.seq}`;
         shown.avatarVersion = null;
         shown.unknownFace = false;
-        // Painted in the estate the reader knows that person by, as their own lines are.
-        shown.roleGroup = roleGroupHue(read.fooledGroup);
       }
       return shown;
     }
@@ -414,11 +414,11 @@ function lensRow(row, lens) {
     out.avatarPath = row.seq ? `/api/avatar/line/${row.seq}` : null;
     out.avatarVersion = null;
     out.unknownFace = !row.seq;
-    // A disguise is not the wearer's own face, and the room did not see their estate on it.
+    // A disguise is not the wearer's own face. Its colour stays the claimed job's (feedRowShape), never
+    // the wearer's own estate.
     if (disguised) {
       out.avatarPath = BLANK_PLAQUE;
       out.unknownFace = false;
-      out.roleGroup = null;
     }
   }
   return out;

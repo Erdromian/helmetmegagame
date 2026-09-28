@@ -102,6 +102,7 @@ module.exports = {
   concealedAlias,
   concealedLine,
   genderWord,
+  ageWord,
   withArticle,
   capitalizeFirst,
   aliasRow,

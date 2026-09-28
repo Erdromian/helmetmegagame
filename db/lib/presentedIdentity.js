@@ -25,6 +25,8 @@ const CONCEALMENT_TAG_FIELDS = {
   equipLayer: true,
   // Tells a Disguise Kit's forced name from a public one (./disguises.js#isDisguiseTag).
   slug: true,
+  // The job that disguise claims, if any (./disguises.js#disguiseJobFrom).
+  disguiseJobSlug: true,
 };
 
 // How outermost a concealing piece is, for picking the face the room sees.
@@ -149,8 +151,12 @@ function letterPlaqueFile(name) {
 // avatarPath is site-relative; the bot prefixes WEB_BASE_URL.
 // `disguised` says the forced name is a Disguise Kit's (./disguises.js#disguiseNameFrom), which only
 // some readers can put to the face (docs/systemdocs/STRANGERS.md §10). Leaving it out reads a disguise
-// as a public forced name, the way every one read before.
-function presentedIdentity(character, { forcedName = null, concealment = undefined, disguised = false } = {}) {
+// as a public forced name, the way every one read before. `disguiseGroup` is the estate of the job the
+// disguise claims (Role.groupSlug), or null, carried so a line can freeze it.
+function presentedIdentity(
+  character,
+  { forcedName = null, concealment = undefined, disguised = false, disguiseGroup = null } = {},
+) {
   if (forcedName) {
     return {
       name: forcedName,
@@ -159,6 +165,7 @@ function presentedIdentity(character, { forcedName = null, concealment = undefin
       concealed: false,
       forced: true,
       disguised: Boolean(disguised),
+      disguiseGroup: disguised ? (disguiseGroup ?? null) : null,
     };
   }
   // Fall back to the column alone — errs toward hiding, never toward exposing.

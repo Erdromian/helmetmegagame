@@ -9,12 +9,20 @@
 //   hearing it said — ./memoryHearing.js#learnFromSpeech). They read the name, on a letter plaque.
 // - A STRANGER to everyone else: "a young man", like any face they have never met.
 //
+// A disguise changes the name, and the job if the wearer claims one, never the body under it. Age and
+// gender are always the wearer's: the stranger's alias says them, a title takes the wearer's form ("Sir"
+// on a woman is "Dame"), and somebody fooled sees the portrait of the person they take the wearer for
+// only when the two look alike — the same gender and the same age band (looksAlike). Otherwise they
+// see the name's letter plaque. A claimed job's estate is the colour everybody sees the disguise in,
+// fooled or not; a disguise that claims no job wears no colour.
+//
 // The name is matched on its bare "First Last", so a title the disguise claims ("Sir") never decides
 // who is fooled. This module is the one place any of that is decided. Takes `db` (prisma or a tx),
 // the dm.js convention.
 
 const { TITLE_WORDS } = require("./titles");
 const { formatBareName, matchesTypedName } = require("./characterName");
+const { ageWord } = require("./concealedIdentity");
 
 const DISGUISE_SLUG_PREFIX = "custom-disguise-";
 
@@ -39,6 +47,43 @@ function disguiseNameFrom(tags) {
     if (typeof name === "string" && name.trim()) return isDisguiseTag(tag) ? name.trim() : null;
   }
   return null;
+}
+
+// The job the disguise that disguiseNameFrom reads claims, as a Role slug, or null. The same first
+// forced-name tag, so the name and the job always come off one disguise. Needs `disguiseJobSlug` selected.
+function disguiseJobFrom(tags) {
+  if (!Array.isArray(tags)) return null;
+  for (const entry of tags) {
+    const tag = entry?.tag ?? entry;
+    const name = tag?.forcedName;
+    if (typeof name === "string" && name.trim()) return isDisguiseTag(tag) ? (tag.disguiseJobSlug ?? null) : null;
+  }
+  return null;
+}
+
+// The jobs behind these Role slugs: Map<slug, { slug, name, groupSlug }>. A slug no Role has any more is
+// simply missing, and reads as no job.
+async function jobsBySlug(db, slugs) {
+  const list = [...new Set((slugs ?? []).filter((slug) => typeof slug === "string" && slug))];
+  if (list.length === 0 || typeof db?.role?.findMany !== "function") return new Map();
+  const roles = await db.role.findMany({ where: { slug: { in: list } }, select: { slug: true, name: true, groupSlug: true } });
+  return new Map(roles.map((role) => [role.slug, role]));
+}
+
+// PURE. Whether somebody wearing a disguise looks enough like the person it fools a reader into seeing
+// for that person's portrait to stand in for them: the same gender, and the same age band — the words a
+// stranger's alias uses (./concealedIdentity.js#ageWord), so "young", grown and "old". Either side
+// unknown (`age` or `gender` missing) never looks alike.
+function looksAlike(wearer, look) {
+  if (!wearer?.gender || !look?.gender || wearer.gender !== look.gender) return false;
+  if (typeof wearer.age !== "number" || typeof look.age !== "number") return false;
+  return ageWord(wearer.age) === ageWord(look.age);
+}
+
+// PURE. Whether this reader sees the portrait of the person the disguise fools them into seeing, rather
+// than the name's letter plaque. `read` is one disguiseRead answer; `wearer` has `age` and `gender`.
+function fooledFace(read, wearer) {
+  return Boolean(read?.fooledAs) && looksAlike(wearer, read.fooledLook);
 }
 
 // PURE. A stored disguise name ("Sir Aldric Vask") split the way a character's name is: a leading
@@ -77,9 +122,9 @@ function typedNameMatches(name, typed) {
   return matchesTypedName(disguiseParts(name), typed);
 }
 
-// What `viewerId` makes of each disguise name in `names`: Map<name, { known, fooledAs }>. `fooledAs` is
-// the id of the real character the reader takes the wearer for, and `known` is true when they can put
-// the name to the face at all (fooled, recognised, or it is their own name). Null when there is nobody
+// What `viewerId` makes of each disguise name in `names`: Map<name, { known, fooledAs, fooledLook }>. `fooledAs` is the id of the real character the reader takes the wearer for, and
+// `fooledLook` that person's `{ age, gender }` (looksAlike); `known` is true when they can put the name
+// to the face at all (fooled, recognised, or it is their own name). Null when there is nobody
 // to recognise with, or the GM has the stranger rule off — every caller reads null as "everybody can
 // name it", which is how a disguise read before this.
 //
@@ -108,7 +153,11 @@ async function readDisguises(db, viewerId, names) {
         subjectId: { not: null },
         subject: { firstName: { in: firstNames, mode: "insensitive" } },
       },
-      select: { subject: { select: { id: true, firstName: true, lastName: true, role: { select: { groupSlug: true } } } } },
+      select: {
+        subject: {
+          select: { id: true, firstName: true, lastName: true, age: true, gender: true },
+        },
+      },
     }),
     db.character.findUnique({ where: { id: viewerId }, select: { id: true, firstName: true, lastName: true } }),
   ]);
@@ -120,8 +169,8 @@ async function readDisguises(db, viewerId, names) {
     out.set(name, {
       known: own || Boolean(fooledBy) || learnedKeys.has(disguiseKey(name)),
       fooledAs: fooledBy?.id ?? null,
-      // The estate the reader knows that person by, so the name is painted in it (./roleGroups.js).
-      fooledGroup: fooledBy?.role?.groupSlug ?? null,
+      // What that person looks like, for the portrait rule (looksAlike).
+      fooledLook: fooledBy ? { age: fooledBy.age ?? null, gender: fooledBy.gender ?? null } : null,
     });
   }
   return out;
@@ -161,8 +210,8 @@ async function ownersWhoKnow(db, ownerIds, name) {
 // PURE. One disguise's reading off readDisguises' answer. A null map (nobody to recognise with, or the
 // rule off) knows every name and is fooled by none.
 function disguiseRead(reads, name) {
-  if (!reads) return { known: true, fooledAs: null, fooledGroup: null };
-  return reads.get(name) ?? { known: false, fooledAs: null, fooledGroup: null };
+  if (!reads) return { known: true, fooledAs: null, fooledLook: null };
+  return reads.get(name) ?? { known: false, fooledAs: null, fooledLook: null };
 }
 
 module.exports = {
@@ -170,6 +219,10 @@ module.exports = {
   DISGUISE_STRANGER_FACE,
   isDisguiseTag,
   disguiseNameFrom,
+  disguiseJobFrom,
+  jobsBySlug,
+  looksAlike,
+  fooledFace,
   disguiseParts,
   disguiseKey,
   namesCharacter,

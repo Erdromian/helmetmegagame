@@ -287,11 +287,15 @@ const horn = soundVerb("horn", soundHorn, () => broadcastDeepBeastHorn(prisma), 
 const DISGUISE_TITLE_FIELD = "act:disguise:title";
 const DISGUISE_NAME_FIELD = "act:disguise:name";
 const DISGUISE_LAST_FIELD = "act:disguise:last";
+const DISGUISE_JOB_FIELD = "act:disguise:job";
 
 // A modal first, so it opens inside the three seconds; the kit and every other
 // gate are asked on submit. The personal role follows the false name
-// (PROXYING.md §6) — best-effort, after the tag is on. The same three parts as
-// the web's dialog: a title, a first name and a last name (STRANGERS.md §10).
+// (PROXYING.md §6) — best-effort, after the tag is on. The same parts as the
+// web's dialog: a title, a first name, a last name and a job (STRANGERS.md §10).
+// The job is typed, since a select holds 25 and there are more seats than that;
+// the verb matches it against every job's name. A title is worn in the form the
+// wearer's own gender takes, whichever form they type.
 const disguise = {
   modalFirst: true,
   start(interaction) {
@@ -314,6 +318,10 @@ const disguise = {
             .setLabel("Last name")
             .setDescription("Somebody's full name fools the people who know them.")
             .setTextInputComponent(field(DISGUISE_LAST_FIELD, NAME_LIMITS.lastName, false)),
+          new LabelBuilder()
+            .setLabel("Job")
+            .setDescription("Optional. Any job in Ravenheart: Docker, Innkeeper, Bishop…")
+            .setTextInputComponent(field(DISGUISE_JOB_FIELD, 60, false)),
         ),
     );
   },
@@ -329,6 +337,7 @@ const disguise = {
         firstName: interaction.fields.getTextInputValue(DISGUISE_NAME_FIELD),
         lastName: interaction.fields.getTextInputValue(DISGUISE_LAST_FIELD),
       },
+      job: interaction.fields.getTextInputValue(DISGUISE_JOB_FIELD),
       openTurn: await openTurn(),
     });
     if (result.ok && character.discordRoleId) {
@@ -339,7 +348,7 @@ const disguise = {
         .edit(character.discordRoleId, { name: want.name, color: want.color })
         .catch((err) => console.error("Disguise role rename failed:", err.message ?? err));
     }
-    return finish(interaction, result, { text: result.ok ? `You go by ${result.name} now.` : null });
+    return finish(interaction, result, { text: result.ok ? `You go by ${result.name}${result.job ? ` (${result.job})` : ""} now.` : null });
   },
 };
 

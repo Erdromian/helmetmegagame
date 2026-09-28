@@ -184,6 +184,8 @@ import {
   stepstone,
   readPointerDevice,
 } from "@lifeweb/db/lib/verbs/self";
+import { disguiseJobChoices } from "@lifeweb/db/lib/disguiseMint";
+import { titleWordsFor } from "@lifeweb/db/lib/titles";
 import { freeCharacter, crucifyCharacter, shackleCharacter, brandCharacter } from "@lifeweb/db/lib/verbs/captives";
 import { extractGodflesh } from "@lifeweb/db/lib/verbs/work";
 import {
@@ -1969,8 +1971,9 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
 // both fall straight out of riding forcedName: they post under a letter plaque
 // rather than their portrait, and /conceal refuses while it is on.
 // `honorific`/`firstName`/`lastName` are the dialog's three fields; `name` is one
-// typed string from a page loaded before they existed.
-export async function disguiseSelfRequestImpl({ name: typedName, honorific, firstName, lastName } = {}) {
+// typed string from a page loaded before they existed. `job` is a Role slug, or
+// empty for none.
+export async function disguiseSelfRequestImpl({ name: typedName, honorific, firstName, lastName, job } = {}) {
   const rawName = typeof firstName === "string" ? { honorific, firstName, lastName } : typedName;
   const { session, character } = await requireCharacter({ needs: ACT });
   // The rule is db/lib/verbs/self.js's, shared with Discord's /disguise.
@@ -1978,6 +1981,7 @@ export async function disguiseSelfRequestImpl({ name: typedName, honorific, firs
     character,
     discordUserId: session.discordUserId,
     name: rawName,
+    job: typeof job === "string" ? job : null,
     openTurn: await getOpenTurn(),
   });
   if (!result.ok) throw new UserError(result.error);
@@ -1997,7 +2001,7 @@ export async function disguiseSelfRequestImpl({ name: typedName, honorific, firs
 
   await afterInventoryChange(character.id);
   revalidateAll();
-  return { name };
+  return { name, job: result.job ?? null };
 }
 
 // --- Harming someone already helpless -------------------------------------
@@ -3186,6 +3190,14 @@ export async function unlockCollarRequestImpl({ targetCharacterId }) {
 // glyph only for somebody standing in front of the Exactor, where he can read
 // the clasp for himself — and it is the name HE holds for them, so a hood
 // stays a hood (web/lib/peopleHere.js#rosterHere strips the real one).
+// What the Disguise dialog offers: the title words in the form this character's
+// own gender wears them (a disguise never changes who is under it), and every job
+// it may claim, by estate. A read, so it asks for no kit: the verb does.
+export async function loadDisguiseImpl() {
+  const { character } = await requireCharacter();
+  return { titles: titleWordsFor(character.gender), jobs: await disguiseJobChoices(prisma) };
+}
+
 export async function readRemoteRequestImpl() {
   const { session, character } = await requireRemote();
   const collars = await remoteReading(prisma, collarActor(session, character));

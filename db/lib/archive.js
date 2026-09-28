@@ -50,6 +50,8 @@ const FEED_ROW_SELECT = {
   // Whether the alias was a Disguise Kit's name (STRANGERS.md §10). Hidden on a symbol for the
   // lens, NEVER shaped onto the wire: it would tell every reader the name is false.
   disguised: true,
+  // The estate of the job the disguise claimed, which IS on the wire: the colour every reader sees.
+  disguiseGroup: true,
 };
 
 // One archived row as the wire shape /chat and /api/feed speak.
@@ -78,7 +80,10 @@ function feedRowShape(row, extra = {}) {
     // every line one person said all session. Only the six COLOURED groups ever
     // get this far — roleGroupHue answers null for an Outsider, for Elsewhere
     // and for anybody with no seat, so an uncoloured bucket never leaves here.
-    roleGroup: hooded ? null : (roleGroup ?? null),
+    //
+    // A disguise wears the estate of the job it claimed (STRANGERS.md §10), frozen on the line: that
+    // is what the room saw, whoever they took the wearer for, and it says nothing of the wearer's own.
+    roleGroup: row.disguised ? roleGroupHue(row.disguiseGroup) : hooded ? null : (roleGroup ?? null),
     name: row.concealedAlias ?? row.characterName ?? null,
     alias: row.concealedAlias ?? null,
     avatarPath: row.presentedAvatarPath ?? null,
@@ -237,6 +242,7 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
         characterName: entry.character?.name ?? null,
         concealedAlias: entry.concealedAlias ?? null,
         disguised: Boolean(entry.concealedAlias && entry.disguised),
+        disguiseGroup: entry.concealedAlias && entry.disguised ? (entry.disguiseGroup ?? null) : null,
         presentedAvatarPath: entry.presentedAvatarPath ?? null,
         // The third frozen column. DbNull, not null, is how a Json column is told to hold a SQL NULL — a bare null is the other kind of nothing on a Json field, and "not frozen" is the one meant here.
         presentedState: presentedState ?? Prisma.DbNull,

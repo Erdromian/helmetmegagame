@@ -33,7 +33,7 @@ const { lessonsFrom } = require("./memoryLessons");
 const { spokenText, hasSpeech } = require("./speech");
 const { anonymizingStrangers } = require("./strangers");
 const { skinlessIdsAmong } = require("./skinless");
-const { disguiseNameFrom, disguiseParts, disguiseKey, ownersWhoKnow } = require("./disguises");
+const { disguiseNameFrom, disguiseJobFrom, jobsBySlug, disguiseParts, disguiseKey, ownersWhoKnow } = require("./disguises");
 
 // Where a line puts somebody in the room for the day log. `net:` (a radio),
 // `dead:`, `game:` and the like are not rooms: nobody stands in them.
@@ -176,17 +176,26 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
 
   // A DISGUISE is named by the name it goes by, never the wearer's own
   // (STRANGERS.md §10). It is heard like anybody's name: said by the wearer, or
-  // by somebody who can put that name to the face. It teaches a name only; a
-  // disguise holds no seat.
+  // by somebody who can put that name to the face. Its role is the job it
+  // claims, if any, never the wearer's seat, heard the way any role is.
   const disguised = new Map();
-  for (const person of present) {
+  const wearers = present.filter((person) => disguiseNameFrom(person.tags));
+  const jobs = await jobsBySlug(prisma, wearers.map((person) => disguiseJobFrom(person.tags)));
+  for (const person of wearers) {
     const name = disguiseNameFrom(person.tags);
-    if (!name) continue;
+    const job = jobs.get(disguiseJobFrom(person.tags)) ?? null;
     const parts = disguiseParts(name);
-    disguised.set(person.id, { name, candidate: { id: person.id, ...parts, role: null, roleTitle: null } });
+    const role = job ? { slug: job.slug, name: job.name } : null;
+    disguised.set(person.id, { name, candidate: { id: person.id, ...parts, role, roleTitle: null } });
     if (person.id === speakerId) continue;
     const speakerCan = await ownersWhoKnow(prisma, [speakerId], name);
-    if (!speakerCan || speakerCan.has(speakerId)) speakerKnows.set(person.id, { name, roleSlug: null });
+    if (speakerCan && !speakerCan.has(speakerId)) continue;
+    // The speaker can name it. They can name its job too if the entry they learned for it says so.
+    const learned = await prisma.acquaintance.findUnique({
+      where: { ownerId_disguiseKey: { ownerId: speakerId, disguiseKey: disguiseKey(name) } },
+      select: { roleSlug: true },
+    });
+    speakerKnows.set(person.id, { name, roleSlug: learned?.roleSlug ?? null });
   }
   const candidates = [...faces, ...[...disguised.values()].map((d) => d.candidate)];
 
@@ -211,6 +220,16 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
     if (learners.length === 0) continue;
     const disguise = disguised.get(lesson.subjectId);
     if (disguise) {
+      const key = disguiseKey(disguise.name);
+      // Its job, onto the entries already learned for it that hold no role yet.
+      // Nobody it fools has one of those: they filed the name under somebody else.
+      if (lesson.role && lesson.entry.roleText) {
+        const { count } = await prisma.acquaintance.updateMany({
+          where: { ownerId: { in: learners }, disguiseKey: key, OR: [{ roleText: null }, { roleText: "" }] },
+          data: { roleText: lesson.entry.roleText, roleSlug: lesson.entry.roleSlug },
+        });
+        taught += count;
+      }
       // An entry for the disguise itself, tied to nobody: the face it
       // recognises is the disguise, whoever wears it. Not for anybody who can
       // already put the name to the face, the ones it fools included — they
@@ -223,8 +242,10 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
         data: learners.map((ownerId) => ({
           ownerId,
           subjectId: null,
-          disguiseKey: disguiseKey(disguise.name),
+          disguiseKey: key,
           name: lesson.entry.name,
+          roleText: lesson.entry.roleText,
+          roleSlug: lesson.entry.roleSlug,
           source: "HEARD",
         })),
         skipDuplicates: true,

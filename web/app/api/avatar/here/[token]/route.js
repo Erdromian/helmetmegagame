@@ -15,7 +15,8 @@ import { avatarResponse, STRANGER_FACE_CACHE } from "@/lib/avatarResponse";
 //
 // A DISGUISE (STRANGERS.md §10) never gets its wearer's face here. To a reader it
 // fools, the token answers with the face of the person they take the wearer for,
-// the way that person's own face reads to them. To anybody else, nothing: the list
+// the way that person's own face reads to them, but only when the wearer looks like
+// that person (the same gender and age band). To anybody else, nothing: the list
 // already gave them a plaque.
 export const dynamic = "force-dynamic";
 
@@ -34,7 +35,7 @@ export async function GET(_request, { params }) {
 
 // Whose face this row shows the reader, or null for none.
 function faceOf(row) {
-  if (row.disguise) return row.disguise.fooledAs ? { id: row.disguise.fooledAs, blankPlaque: false } : null;
+  if (row.disguise) return row.disguise.fooledFace ? { id: row.disguise.fooledAs, blankPlaque: false } : null;
   return row.stranger ? { id: row.id, blankPlaque: true } : null;
 }
 

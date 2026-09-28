@@ -3252,6 +3252,12 @@ model Tag {
   // NAME_LIMITS.firstName and refuses it beside concealsIdentity.
   forcedName String?
 
+  // The job a Disguise Kit's wearer claims (docs/systemdocs/STRANGERS.md §10),
+  // as a Role slug: its estate is the colour everybody sees the disguise in,
+  // and hearing it said teaches it like any role. Null on every other tag, and
+  // on a disguise that claims no job. Minted by db/lib/disguiseMint.js only.
+  disguiseJobSlug String?
+
   // Whether a character can hold more than one of this tag at a time —
   // meals, ammunition, anything a crafting Move produces in a batch. A
   // stack is ONE CharacterTag row carrying a count (CharacterTag.quantity),
@@ -6590,6 +6596,11 @@ model ArchiveEntry {
   // disguise after it wears off. Never sent to a browser: it would tell every
   // reader that the name on the line is false.
   disguised Boolean @default(false)
+
+  // The estate of the job that disguise claimed (Role.groupSlug), frozen with
+  // it: the colour the whole room saw the name in. Null for no job, and on
+  // every line that was not a disguise's.
+  disguiseGroup String?
 
   // What the room could SEE of the speaker, frozen at send time — the third
   // frozen column, and the same argument as the two above it: a live lookup

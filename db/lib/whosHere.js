@@ -14,7 +14,15 @@ const { hoodToken, performerKey } = require("./hoodToken");
 const { hasEverPerformed } = require("./performance"); // leaf requires only; no cycle. // its own leaf to avoid a require cycle; re-exported below.
 const { roleGroupHue } = require("./roleGroups");
 const { knownSubjects, settlePresence, labelAliases } = require("./strangers");
-const { disguiseNameFrom, readDisguises, disguiseRead, DISGUISE_STRANGER_FACE } = require("./disguises");
+const {
+  disguiseNameFrom,
+  disguiseJobFrom,
+  jobsBySlug,
+  readDisguises,
+  disguiseRead,
+  fooledFace,
+  DISGUISE_STRANGER_FACE,
+} = require("./disguises");
 const { WITH_SIDES, opensOntoWhere, otherSides, roomAt, sidePresenceWhere } = require("./roomSides");
 
 const PRESENT_SELECT = {
@@ -137,6 +145,11 @@ async function presentRows(
   // disguise reads as the public forced name it always was.
   const worn = present.filter((c) => c.id !== viewer?.id).map(disguiseOf).filter(Boolean);
   const reads = knows !== null && worn.length > 0 ? await readDisguises(prisma, viewer?.id ?? null, worn) : null;
+  // The jobs those disguises claim, whose estates are the colours they are seen in.
+  const jobs =
+    knows !== null && worn.length > 0
+      ? await jobsBySlug(prisma, present.filter((c) => disguiseOf(c)).map((c) => disguiseJobFrom(c.tags)))
+      : new Map();
 
   // Concealed the same way the proxy decides it, not straight off the column.
   return present
@@ -168,7 +181,15 @@ async function presentRows(
         return {
           ...c,
           forced: null,
-          disguise: { name: wearing, known: read.known, fooledAs: read.fooledAs, fooledGroup: read.fooledGroup },
+          disguise: {
+            name: wearing,
+            known: read.known,
+            fooledAs: read.fooledAs,
+            // Whether this viewer sees that person's portrait: only when the wearer looks like them.
+            fooledFace: fooledFace(read, c),
+            // The claimed job's estate, the colour everybody sees it in; none without a job.
+            group: jobs.get(disguiseJobFrom(c.tags))?.groupSlug ?? null,
+          },
           hidden: true,
           stranger: !read.known,
           seen: Boolean(sighting),
@@ -417,10 +438,11 @@ function hiddenAlias(c) {
 }
 
 // The face a disguise shows this viewer: the portrait of the person it fools
-// them into seeing, served per viewer by token (web/app/api/avatar/here); the
-// letter plaque of a name they learned; the blank plaque to a stranger.
+// them into seeing, served per viewer by token (web/app/api/avatar/here), when
+// the wearer looks like them; otherwise the letter plaque of the name they can
+// read; the blank plaque to a stranger.
 function disguiseFace(c, token) {
-  if (c.disguise.fooledAs) return token ? `/api/avatar/here/${token}` : null;
+  if (c.disguise.fooledFace) return token ? `/api/avatar/here/${token}` : null;
   if (c.disguise.known) return presentedIdentity(c, { forcedName: c.disguise.name }).avatarPath;
   return DISGUISE_STRANGER_FACE;
 }
@@ -467,10 +489,10 @@ function concealedRows(rows, { withTokens, lookRefs = false }) {
         seen: c.seen,
         sightingSeq: c.sighting?.seq ?? null,
         // A stranger's estate is as public as anyone's (db/lib/roleGroups.js).
-        // A hood hides it. A disguise wears the estate of whoever it fools the
-        // viewer into seeing, and none otherwise: it is not the wearer's own.
+        // A hood hides it. A disguise wears the estate of the job it claims, and
+        // none without one: never the wearer's own.
         roleGroup: c.disguise
-          ? roleGroupHue(c.disguise.fooledGroup)
+          ? roleGroupHue(c.disguise.group)
           : c.stranger
             ? roleGroupHue(c.role?.groupSlug)
             : null,

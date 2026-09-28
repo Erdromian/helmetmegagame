@@ -188,6 +188,7 @@ async function prepareSpeech(
       forcedName: loaded.forcedName,
       concealment: loaded.concealment,
       disguised: loaded.disguised,
+      disguiseGroup: loaded.disguiseGroup,
     });
   }
 
@@ -252,6 +253,8 @@ async function recordSpeech(
     concealedAlias: prepared.identity?.alias ?? null,
     // Whether that alias was a Disguise Kit's name, which the lens names per reader (STRANGERS.md §10).
     disguised: Boolean(prepared.identity?.disguised),
+    // And the estate of the job it claimed, the colour the room saw it in.
+    disguiseGroup: prepared.identity?.disguiseGroup ?? null,
     // Frozen so a live lookup never unmasks an old line. Gated on `alias`, not
     // unconditional, since the own-face path carries a cache-buster.
     presentedAvatarPath: prepared.identity?.alias ? (prepared.identity.avatarPath ?? null) : null,
@@ -380,6 +383,7 @@ const EDITABLE_SELECT = {
   characterName: true,
   concealedAlias: true,
   disguised: true,
+  disguiseGroup: true,
   presentedAvatarPath: true,
   content: true,
   sentAt: true,

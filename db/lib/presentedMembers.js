@@ -19,7 +19,15 @@ const { aliasRow, LOOK_SLUGS } = require("./concealedIdentity");
 const { hoodToken } = require("./hoodToken");
 const { knownSubjects, labelAliases } = require("./strangers");
 const { roleGroupHue } = require("./roleGroups");
-const { disguiseNameFrom, readDisguises, disguiseRead, DISGUISE_STRANGER_FACE } = require("./disguises");
+const {
+  disguiseNameFrom,
+  disguiseJobFrom,
+  jobsBySlug,
+  readDisguises,
+  disguiseRead,
+  fooledFace,
+  DISGUISE_STRANGER_FACE,
+} = require("./disguises");
 
 // Columns and tags presentedIdentity reads — whosHere's PRESENT_SELECT minus
 // the role title, since a members strip prints no Role.
@@ -82,6 +90,8 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
     knows !== null && person.id !== viewer?.id ? disguiseNameFrom(person.tags) : null;
   const worn = members.map(disguiseOf).filter(Boolean);
   const reads = worn.length > 0 ? await readDisguises(prisma, viewer?.id ?? null, worn) : null;
+  // The jobs those disguises claim, for the colour they are seen in.
+  const jobs = await jobsBySlug(prisma, members.filter(disguiseOf).map((person) => disguiseJobFrom(person.tags)));
   const isHooded = (person) =>
     !forcedNameFrom(person.tags) && Boolean(concealmentFrom(person.tags) && (concealmentFrom(person.tags).forced || person.concealed));
   const isStranger = (person) =>
@@ -126,14 +136,16 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
       const wearing = disguiseOf(person);
       if (wearing) {
         const read = disguiseRead(reads, wearing);
-        // Whose face the viewer takes it for, the plaque of a name they learned, or a stranger's blank one.
-        const face = read.fooledAs
+        // Whose face the viewer takes it for (when the wearer looks like them), the plaque of a name
+        // they can read, or a stranger's blank one.
+        const face = fooledFace(read, person)
           ? token
             ? `/api/avatar/here/${token}`
             : null
           : read.known
             ? presentedIdentity(person, { forcedName: wearing }).avatarPath
             : DISGUISE_STRANGER_FACE;
+        const job = jobs.get(disguiseJobFrom(person.tags)) ?? null;
         return {
           characterId: null,
           token,
@@ -143,7 +155,8 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
           unknownFace: !face,
           concealed: true,
           stranger: !read.known,
-          roleGroup: roleGroupHue(read.fooledGroup),
+          // The claimed job's estate, the same for everybody (STRANGERS.md §10).
+          roleGroup: roleGroupHue(job?.groupSlug),
         };
       }
       if (stranger) {

@@ -364,7 +364,7 @@ the game is meant to say.
 | Faces without ids | `web/app/api/avatar/here/`, `web/app/api/avatar/line/`, `web/lib/avatarResponse.js` |
 | The lens on the web | `web/lib/strangerLens.js`, `web/app/api/feed/route.js` |
 | Who a disguise fools (§10) | `db/lib/disguises.js` |
-| Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory`, `Acquaintance.disguiseKey`, `ArchiveEntry.disguised` |
+| Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory`, `Acquaintance.disguiseKey`, `ArchiveEntry.disguised` / `disguiseGroup`, `Tag.disguiseJobSlug` |
 | Tests | `db/test/strangers.test.js`, `presentedMembers.test.js`, `roomGuests.test.js`, `verbFaces.test.js`, `seenByMany.test.js`, `disguises.test.js`, and `strangerNameCanary.test.js` — every builder that names somebody to one reader, run against a stranger called Zzyzx Quorble, who must never be named |
 
 ## 9. Switching it off
@@ -402,13 +402,16 @@ register new disguises as friends", with three calls made on 2026-09-28: the
 fooled see the real person's portrait, a disguise must give somebody's full
 name to fool anyone (a title is its own choice and never decides it), and a
 Friends entry for a made-up name comes from hearing it, as any name does.
+Two more followed the same day: the Kit may claim a job, and a disguise
+changes the name and job but never the body under it, so its age and gender
+are always the wearer's.
 
 **Three readers.** `db/lib/disguises.js#readDisguises` decides, for one
 viewer and a list of names:
 
 | The viewer | Sees the wearer as |
 |---|---|
-| **Fooled:** has a Friends entry for the real character the name belongs to | That person: the name, that person's portrait, and the estate colour they know that person by |
+| **Fooled:** has a Friends entry for the real character the name belongs to | That person, by name. Their portrait too, when the wearer looks like them (below); otherwise the name's letter plaque |
 | **Recognises it:** learned this disguise's name (an entry with `disguiseKey`) | The name, on its letter plaque |
 | Anybody else | A stranger: "a young man", with labels and voice numbers, on the blank plaque |
 
@@ -419,6 +422,30 @@ read it, on the plaque. People who really know the wearer do not see through
 it; the face is not theirs. A GM, a ghost and a reader with nobody to
 recognise with read the name. With the rule off (§9), everybody does, as
 before.
+
+**The wearer's own body.** A disguise never changes age or gender. A
+stranger's alias, labels and voice are the wearer's ("a young woman" under
+"Sir Aldric Vask"). A title is worn in the form the wearer's gender takes:
+the Kit offers each title in that form, and a typed "Sir" on a woman becomes
+"Dame" (`disguiseMint.js#normalizeDisguiseName`, `titles.js#titleFormFor`).
+The title never decides who is fooled, so "Dame Aldric Vask" still fools
+Aldric's friends. And the fooled see the real person's portrait only when the
+wearer looks like them: the same gender and the same age band, the one a
+stranger's alias uses (young, grown, old; `disguises.js#looksAlike`). Anyone
+else they take for that person shows them the name's letter plaque instead.
+Every face route decides that for the viewer asking.
+
+**A job.** The Kit may claim any job (a `Role`, bucketed by estate the way
+the character picker is; `disguiseMint.js#disguiseJobChoices`), stored as
+`Tag.disguiseJobSlug` on the minted tag. A job claims its name and its
+estate's colour and nothing else: no seat's powers, rooms, rings or wages. The
+estate is the colour every viewer sees the disguise in, fooled, recognising or
+a stranger, the way any face's estate is public. A disguise with no job wears
+no colour, even to the people it fools, so claiming the right job is part of
+a good disguise. `ArchiveEntry.disguiseGroup` freezes the job's estate on
+each line, and `archive.js#feedRowShape` paints the row in it. The job is
+heard like any role (below), and a Look reads it off the viewer's entry for
+the disguise, never off the tag.
 
 A disguise is told from a public forced name by its tag's slug
 (`custom-disguise-*`, `disguises.js#disguiseNameFrom`). `presentedIdentity`
@@ -457,7 +484,10 @@ under the disguise's name and never their real one. A name said in quotes
 teaches it by the usual rules: said by the wearer, or by somebody who can
 already name it. The lesson writes an entry tied to nobody: `subjectId` null,
 `disguiseKey` set, `source: HEARD`. Somebody who can already name it, the
-fooled included, gets nothing. A disguise teaches no role. The entry's name
+fooled included, gets nothing. A disguise's role is the job it claims, heard by the
+usual rule (said beside its name, or by the wearer on their own), and fills
+the entry's empty role like any other; the wearer's real seat is never taught.
+With no job, it teaches no role. The entry's name
 and notes are the owner's to rewrite like any other; recognition keys on
 `disguiseKey`, so renaming it changes nothing. Anybody who later wears the same
 name is recognised by it, as a costume would be.
