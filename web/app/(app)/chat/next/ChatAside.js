@@ -15,7 +15,7 @@ import Things from "../ThingsDrawer";
 import TurnCard from "../TurnCard";
 import CombatModeButton from "@/app/components/CombatModeButton";
 import FightLine from "@/app/components/FightLine";
-import { usePlaceActions } from "../PlacePanel";
+import { locationFixtures } from "../fixtures";
 import { waitingOnYou, answerWaiting } from "../actions";
 import useVisiblePoll from "../useVisiblePoll";
 import useMyMove from "../useMyMove";
@@ -115,7 +115,6 @@ function Block({ head, fold, folds, children }) {
 
 export default function ChatAside({
   people,
-  affordances,
   place,
   zone,
   placeLines,
@@ -131,28 +130,19 @@ export default function ChatAside({
   selected,
   addPlace = null,
   onAddMember = null,
-  onPlaceChanged = null,
   onOpenMap = null,
+  // The one usePlaceActions bag (../PlacePanel.js), owned by ./ChatNext.js
+  // rather than by this column: on a phone this column is a drawer, and the
+  // fixtures, the handset bar and every dialog they open have to outlive it
+  // being shut (./FixtureStrip.js). Its dialogs are ChatNext's to draw.
+  placeActions,
 }) {
-  const { affordances: live, openFixture, openConverse, say: placeSay, notice, error, pending, dialogs, phoneBar } =
-    usePlaceActions(affordances, onPlaceChanged);
+  const { affordances: live, openFixture, openConverse, say: placeSay, notice, error, pending, phoneBar } = placeActions;
   const requestActions = useRequestActions();
   const folds = useAsideFolds();
   const openAction = requestActions?.open ?? null;
 
-  // Travel / Who's here? / Secret rooms? / Examine are answered by this column
-  // being on the page; they stay in db/lib/placeAffordances.js for Discord.
-  // Charon's Leave is a place affordance too: it is how you get OFF the ship,
-  // and the ship is a Location with no edge, so Travel cannot offer it
-  // (docs/systemdocs/CHARON.md). The Merchant's Terminal is the Depot's own
-  // fixture, on no room's wall (docs/systemdocs/DEPOT.md §0c).
-  const fixtures = live.filter(
-    (entry) =>
-      (entry.kind === "place" &&
-        (entry.id === "noticeboard" || entry.id === "charonLeave" || entry.id === "merchantTerminal")) ||
-      entry.kind === "gate" ||
-      entry.kind === "keyed",
-  );
+  const fixtures = locationFixtures(live);
 
   const moveState = useMyMove({ turn, move, combatMode, fight, characterId: moveCharacterId });
   const [dialog, setDialog] = useState(null);
@@ -281,10 +271,6 @@ export default function ChatAside({
           }}
         />
       )}
-
-      {/* Outside every block on purpose: a dialog opened from one must not
-          unmount because the reader scrolled past another. */}
-      {dialogs}
     </div>
   );
 }

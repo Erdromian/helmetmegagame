@@ -36,7 +36,7 @@ by how much it wants to stand out.
 | **PLATE** | a stretched sprite | `HARD` | An ornamented frame around a well. Only `you-frame` |
 | **RAIL** | `bg.png`, 8px wide | `HARD` left, `RULE` right | A structural member between two columns. Holds nothing |
 | **STICKY BAR** | opaque, **matching the ground it is pinned over** | `RULE` on the side it scrolls away from | A bar pinned inside a scrolling surface |
-| **STRIP** | none — the ground it heads | `RULE` under | A run of CARDs under a girder, above the scene: the travel strip. It wraps; on a phone it is one line that scrolls sideways inside itself, the one sideways scroller in chat, so the column itself stays locked |
+| **STRIP** | none — the ground it heads | `RULE` under | A run of CARDs under a girder, above the scene: the travel strip, and under it the fixture strip (the open place's fixtures and the handset bar, only while the aside is folded into its drawer). Each wraps; on a phone each is one line that scrolls sideways inside itself — the only sideways scrollers in chat — so the column itself stays locked |
 | **FLOAT** | `--surface-raised`, opaque, elevation shadow | `RULE` | Modal, popover, tooltip, menu |
 | **NONE** | — | — | A layout wrapper with no surface of its own |
 

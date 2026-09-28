@@ -255,7 +255,13 @@ four-digit readout, the 3×4 pad (the number keys work too), Dial, Hang up, Walk
 away and Insert obol. Closing the dialog **does not** put the phone down: the
 holder has to be able to type into the room, which is how you talk down a
 phone. The **handset bar** at the top of the right column shows the phone in
-your hand, its state and its clock, with Keypad, Hang up and Walk away.
+your hand, its state and its clock, with Keypad, Hang up and Walk away. Where
+that column is folded into its 👥 drawer (under 900px, a phone), the bar sits
+over the scene instead, in the fixture strip under the travel strip, beside
+the room's own Phone button (`next/FixtureStrip.js`, `CHAT.md` §5). So a
+phone ringing in your hand shows its Answer button whether the drawer is open
+or not. The keypad and every other fixture dialog are drawn at chat's root
+(`next/ChatNext.js`), so shutting the drawer never takes one with it.
 Actions: `openPhone`, `answerPhone`, `dialPhone`, `insertPhoneObol`,
 `hangUpPhone`, `walkAwayPhone` in `web/app/(app)/chat/actions.js`.
 

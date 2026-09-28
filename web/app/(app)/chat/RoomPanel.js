@@ -13,6 +13,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 // Deep path with zero requires behind it (db/lib/roomSearchCost.js), the dmKinds.js rule for a client component.
 import { SEARCH_MOVE_LABEL } from "@lifeweb/db/lib/roomSearchCost";
 import { TONE_CLASS } from "./PlacePanel";
+import { roomIdOf, roomFixtures } from "./fixtures";
 
 // THIS ROOM: storage and fixtures of the room whose feed is OPEN, and no
 // other — affordancesFor() otherwise returns every room's buttons at once.
@@ -21,11 +22,6 @@ import { TONE_CLASS } from "./PlacePanel";
 // Past this many stacks the strip stops being a glance and starts being an
 // inventory. The rest are one click away and nothing is hidden.
 const VISIBLE_ITEMS = 12;
-
-function roomIdOf(selected) {
-  if (!selected || selected.kind !== "room") return null;
-  return selected.placeKey?.slice("room:".length) || null;
-}
 
 // What is lying in the room, as chips (readStash rows, not a parsed Discord
 // sentence). Every stack is a BUTTON: clicking opens Transfer with this room
@@ -191,9 +187,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
   const here = stash?.roomId === roomId ? stash : null;
   const searchLine = searched?.roomId === roomId ? searched.line : null;
   // Storage and Search are drawn by this panel itself, not as fixtures.
-  const fixtures = affordances.filter(
-    (entry) => entry.kind === "room" && entry.roomId === roomId && entry.id !== "storage" && entry.id !== "search",
-  );
+  const fixtures = roomFixtures(affordances, roomId);
 
   return (
     <div className="chat-room">

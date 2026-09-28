@@ -16,7 +16,7 @@ import {
 import NoticeCards from "../NoticeCards";
 import GmSystemComposer from "../GmSystemComposer";
 import LookReadout from "@/app/components/LookReadout";
-import { ConverseDialog } from "../PlacePanel";
+import { ConverseDialog, usePlaceActions } from "../PlacePanel";
 import DecreeDialog from "../DecreeDialog";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { lookAt, lookAtRow } from "../actions";
@@ -58,6 +58,7 @@ import { useChatTextSize } from "@/app/components/chatTextStore";
 import ChatAside from "./ChatAside";
 import TravelNodes from "../TravelNodes";
 import GmAside from "./GmAside";
+import FixtureStrip from "./FixtureStrip";
 import DmPane from "./DmPane";
 import { actionThrowMessage } from "@/app/components/actionThrow";
 
@@ -398,6 +399,30 @@ export default function ChatNext(props) {
   const [boardVersion, setBoardVersion] = useState(0);
   const bumpBoard = useCallback(() => setBoardVersion((n) => n + 1), []);
 
+  // ---- What is on the walls ------------------------------------------------
+  //
+  // The ONE usePlaceActions bag (../PlacePanel.js): the affordance list, the
+  // fixture dialogs, the handset bar and the line a fixture answered with. It
+  // used to live inside the right column, which on a phone is a drawer — so the
+  // Phone and the Infoterminal could only be found behind the 👥 button, a phone
+  // ringing in your hand showed nothing with the drawer shut, and a keypad
+  // opened from the drawer died with it. Owned here, it is drawn in the column
+  // AND, while the column is folded, in the strip over the scene
+  // (./FixtureStrip.js), and its dialogs sit at this component's root.
+  const placeActions = usePlaceActions(aside?.affordances, bumpBoard);
+  const { openFixture: openFixtureRaw } = placeActions;
+  // A fixture pressed in the drawer shuts it first. The dialog is over the
+  // scene either way, and closing it should leave the player at the composer —
+  // a phone is talked down by typing into the room (PHONES.md §9).
+  const openFixture = useCallback(
+    (entry) => {
+      setAsideOpen(false);
+      openFixtureRaw(entry);
+    },
+    [openFixtureRaw],
+  );
+  const fixtureBag = { ...placeActions, openFixture };
+
   // ---- What a slash command reaches for ----------------------------------
   //
   // Three of them end in something this component owns rather than in a
@@ -696,9 +721,9 @@ export default function ChatNext(props) {
               {...aside}
               selected={selected}
               onOpenMap={openMap}
-              onPlaceChanged={bumpBoard}
               addPlace={addPlace}
               onAddMember={onAddMember}
+              placeActions={fixtureBag}
             />
   ) : gmZones ? (
     <GmAside selected={selected} gmZones={gmZones} />
@@ -761,6 +786,9 @@ export default function ChatNext(props) {
               <TravelNodes onDone={bumpBoard} pick={travelPick} showResult />
             </div>
           )}
+          {/* The open place's fixtures and the phone in your hand, while the
+              column that carries them is folded into its drawer. */}
+          {aside && asideFolded && <FixtureStrip selected={selected} placeActions={fixtureBag} />}
           {/* The stream is down. HERE rather than in the feed or a column
               foot: this row is on screen whichever pane is open, and the
               phone is where a connection drops most — every screen lock. The
@@ -905,6 +933,9 @@ export default function ChatNext(props) {
           this gate is belt and braces — but the dialog carries none of its
           own, which is what makes it the one that matters. */}
       {(gm || viewAs) && decreeOn && <DecreeDialog onClose={() => setDecreeOn(false)} />}
+      {/* Every fixture's dialog, opened from the column, the drawer or the
+          strip — here so shutting the drawer never takes a keypad with it. */}
+      {placeActions.dialogs}
       {look && <LookReadout state={look} onClose={() => setLook(null)} />}
       {mapOpen && (
         <Modal open title="Map" onClose={() => setMapOpen(false)} panelClassName="modal-panel map-panel">
