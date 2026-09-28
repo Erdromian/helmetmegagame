@@ -1020,14 +1020,15 @@ zones:
                 cleaning-powder: 1
           # Meistery.docx: townsfolk speak with the Meister through it. Private
           # from the Tower (the three rings that work the terminal), public from
-          # the Residences; things pass through the hole in the glass
-          # (docs/systemdocs/MEISTERY.md §6, MAP.md §2d). A running game got it
-          # from migration 20261120000000_meistery.
+          # the Square; things pass through the hole in the glass
+          # (docs/systemdocs/MEISTERY.md §2, MAP.md §2d). A running game got it
+          # from migration 20261120000000_meistery, onto the Residences, and
+          # 20261126000000_meistery_window_square moved it to the Square.
           fortress-5-4:
             name: Meistery Window
             access: [meisters-key, hands-key, barons-key]
             sides:
-              - location: town-8
+              - location: town-2
             description: >-
               At the bottom of one of the keep's many spires is a small, barred window level with the streets of the town. Inside sits the Meister's office. A small hole cut through the reinforced glass allows things to be passed through.
       # The ship, drawn one tile above the Keep on the barony1 plate. It has
