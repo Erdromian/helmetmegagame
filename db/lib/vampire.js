@@ -4,6 +4,8 @@
 // hunger.js/gambitModifier.js, so both bot/ and web/ can import this by
 // subpath without dragging in the generated Prisma client.
 
+const { turnsInGameDay } = require("./turnClock");
+
 const BLOOD_MAX = 100;
 const BLOOD_MIN = 0;
 const HUMANITY_MAX = 100;
@@ -19,15 +21,18 @@ function clampHumanity(value) {
   return Math.min(HUMANITY_MAX, Math.max(HUMANITY_MIN, Math.round(n)));
 }
 
-// A per-DAY config rate, scaled to what one turn actually earns. Always call
-// this with the turn being CLOSED (turn.turnLengthHours) and never with live
-// GameConfig — the same discipline db/lib/turnClock.js uses, since a GM's
-// turn-length change must take effect at the next turn, not retroactively
-// resize the one already running.
-function perTurnRate(perDayRate, turnLengthHours) {
+// A per-IN-GAME-DAY config rate, split evenly over the turns that day holds
+// (turnClock.js#turnsInGameDay): GameConfig.turnsPerDay when a GM has set it,
+// else the turn length's share of 24 hours. So 34 a day is 34 a turn on a
+// 24-hour game, 9 on a 6-hour one, and 17 on 24-hour turns run two to a day.
+// Always pass the length of the turn being CLOSED (turn.turnLengthHours),
+// never live GameConfig's — the same discipline db/lib/turnClock.js uses,
+// since a GM's turn-length change must take effect at the next turn, not
+// retroactively resize the one already running.
+function perTurnRate(perDayRate, turnLengthHours, turnsPerDay = 0) {
   const rate = Number.isFinite(perDayRate) ? perDayRate : 0;
   const hours = Number.isFinite(turnLengthHours) && turnLengthHours > 0 ? turnLengthHours : 24;
-  return Math.round(rate * (hours / 24));
+  return Math.round(rate / turnsInGameDay({ turnsPerDay, turnLengthHours: hours }));
 }
 
 // Blood urgency — hidden, mutually exclusive, always returns exactly one.
