@@ -1362,6 +1362,9 @@ zones:
         description: >-
           The den's comfortable interior is separated by wooden dividers, sectioning off the booths from the hookah lounge and the bar. For the client's comfort, all the lights are dimmed, and there's soft music playing. There's private rooms further in.
         rooms:
+          # The jukebox is a button on this room's starter post, not a stash
+          # item — db/lib/jukebox.js, and the whole Den and Den Interior hear
+          # it (docs/systemdocs/SOUND.md §6c).
           undertown-8-1:
             name: Bar
             phone: "Den"

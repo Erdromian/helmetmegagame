@@ -11,7 +11,8 @@ export function usePhase() {
 
 /**
  * Where this viewer is standing — `{ locationSlug, zoneSlug, zoneKind, indoors,
- * attributes, rooms, trainFresh, moodTone, impaired, hallucinating, robed, charonLaunchedAt }`
+ * attributes, rooms, trainFresh, moodTone, impaired, hallucinating, robed, charonLaunchedAt,
+ * jukebox }`
  * — or null for somebody with no living character.
  *
  * It rides the phase payload rather than having a provider of its own: the ambience bed
@@ -58,8 +59,19 @@ function sameAnswer(a, b) {
     x.hallucinating === y.hallucinating &&
     x.robed === y.robed &&
     x.charonLaunchedAt === y.charonLaunchedAt &&
+    sameJukebox(x.jukebox, y.jukebox) &&
     x.attributes.join() === y.attributes.join() &&
     JSON.stringify(x.rooms) === JSON.stringify(y.rooms)
+  );
+}
+
+// The Den's jukebox (SOUND.md, "The Den's jukebox"): null, or what is on and since when.
+function sameJukebox(a, b) {
+  if (!a || !b) return (a ?? null) === (b ?? null);
+  return (
+    a.songKey === b.songKey &&
+    a.startedAt === b.startedAt &&
+    (a.quietRoomIds ?? []).join() === (b.quietRoomIds ?? []).join()
   );
 }
 

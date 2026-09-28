@@ -1831,6 +1831,14 @@ model Room {
   // whose ring works the machine, spent by ordering and never paid back out.
   blackMarketObols Int @default(0)
 
+  // The Den's jukebox (docs/systemdocs/SOUND.md, "The Den's jukebox"). Only the
+  // Den's Bar carries one (db/lib/jukeboxText.js names the room), so both are
+  // null on every other row. The song is a db/lib/jukeboxSongs.js key, and null
+  // means the box is off; startedAt is when that song was put on, which every
+  // listener's loop is anchored to so the whole Den hears the same bar.
+  jukeboxSongKey   String?
+  jukeboxStartedAt DateTime?
+
   // A key from the registry in db/lib/roomLive.js, set from `live:` in
   // docs/zones.yaml. The room's starter message carries one extra line read
   // off live state, re-rendered whenever that state moves — the Landing Pad

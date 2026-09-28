@@ -103,6 +103,25 @@ instruments/boombox/indihome.ogg
 instruments/boombox/clouds.ogg
 "
 
+# The Den's jukebox — the `room` layer (SOUND.md §3, "The Den's jukebox").
+# db/lib/jukeboxSongs.js is what names these to a player; keep the two lists in step.
+# Every one is served 6 dB under its master: these are loudness-war masters, and folded
+# to mono they peak up to +5.7 dBTP, which an integer decoder would clip. The -6dB takes
+# them all under 0 dBTP, and musicGain.js still turns every one of them DOWN from there.
+DEN="
+den/blue-monday.ogg:blue-monday.ogg:-6dB
+den/into-the-void.ogg:into-the-void.ogg:-6dB
+den/red-blood.ogg:red-blood.ogg:-6dB
+den/change-in-the-house-of-flies.ogg:change-in-the-house-of-flies.ogg:-6dB
+den/i-love-you-mary-jane.ogg:i-love-you-mary-jane.ogg:-6dB
+den/hardly-wait.ogg:hardly-wait.ogg:-6dB
+den/navy-light.ogg:navy-light.ogg:-6dB
+den/lsd-truth.ogg:lsd-truth.ogg:-6dB
+den/it-kills.ogg:it-kills.ogg:-6dB
+den/loose-ends.ogg:loose-ends.ogg:-6dB
+den/night-creature.ogg:night-creature.ogg:-6dB
+"
+
 # Beds and spots. Anything a PLACE sounds like rather than anything the game is
 # feeling — see web/app/components/placeAmbience.js for which goes where.
 #
@@ -187,7 +206,8 @@ ambience/locus-meropis.ogg
 # The dB field is for a master that is quieter than the QUIETEST tier in musicGain.js —
 # pathologic measures -42.7 LUFS, and a bed tier of -34 would need a gain above 1 to
 # reach it. Turning a file up in the browser amplifies its own noise floor with it, so
-# the lift happens once, here, against the master.
+# the lift happens once, here, against the master. It cuts too: the Den's songs are served
+# at -6dB so their mono fold stays under 0 dBTP (see DEN above).
 encode() {
   local spec="$1" dest="$2"
   local rel="${spec%%:*}" rest="${spec#*:}" name boost=""
@@ -204,16 +224,19 @@ encode() {
   printf '  %-34s %6s KB\n' "$name" "$(( $(wc -c < "$dest/$name") / 1024 ))"
 }
 
-mkdir -p "$OUT/music" "$OUT/ambience" \
+mkdir -p "$OUT/music" "$OUT/ambience" "$OUT/den" \
   "$OUT/instruments/accordion" "$OUT/instruments/lute" "$OUT/instruments/boombox"
 echo "music/"
 for f in $MUSIC; do encode "$f" "$OUT/music"; done
 echo "instruments/"
 for f in $INSTRUMENTS; do encode "$f" "$OUT/$(dirname "$f")"; done
+echo "den/"
+for f in $DEN; do encode "$f" "$OUT/den"; done
 echo "ambience/"
 for f in $AMBIENCE; do encode "$f" "$OUT/ambience"; done
 
 echo
 echo "music/       $(du -sh "$OUT/music" | cut -f1)"
 echo "instruments/ $(du -sh "$OUT/instruments" | cut -f1)"
+echo "den/         $(du -sh "$OUT/den" | cut -f1)"
 echo "ambience/    $(du -sh "$OUT/ambience" | cut -f1)"

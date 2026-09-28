@@ -45,8 +45,9 @@ import { soundSetting } from "./soundStore";
 //
 // `ambient` and `spot` are driven by musicConductor.js, `music` by musicProgram.js, both
 // through MusicDirector.js, and `player` by InstrumentListener.js, one voice per
-// performance (see VOICES below). `room` and `event` are wired in and still waiting for a
-// caller.
+// performance (see VOICES below). InstrumentListener.js drives `room` too: the Den's
+// jukebox, on loop, through a lowpass of its own (TONED below). `event` is wired in and
+// still waiting for a caller.
 //
 // MUTING IS A DUCK, NOT A STOP. The music switch pulls the master gain to silence and
 // leaves every layer exactly as it was — same track, same place, same tape — so unmuting
@@ -114,6 +115,20 @@ const COEXIST = {
   ambient: { under: new Set(["spot"]), duck: 1, hz: OPEN_HZ },
 };
 const MUFFLE_MS = 600;
+
+// Layers that carry a lowpass of their OWN, whatever is above them: `room`, because the
+// Den's jukebox is "a low quality speaker" (SOUND.md, "The Den's jukebox"). playOn's `hz`
+// is where that filter rests while the layer is heard — its parked cutoff, in place of
+// OPEN_HZ — and setTone() moves it without restarting the track.
+const TONED = new Set(["room"]);
+
+// What duckLayer() is holding a layer down to, by base layer: a fraction of its own gain,
+// and absent means 1. Separate from COEXIST, which is one layer making room for another on
+// the bus; this is the bus making room for something outside it (sfx.js).
+const ducks = new Map();
+function duckOf(layer) {
+  return ducks.get(baseOf(layer)) ?? 1;
+}
 
 const CROSSFADE_MS = 1200;
 // The bed gives way slowly, so a song over it arrives rather than cuts in.
@@ -254,7 +269,7 @@ function state(layer) {
     // graph. element.volume still multiplies, so it is pinned at 1 and never touched again.
     el.volume = 1;
     audio.createMediaElementSource(el).connect(entry.gainNode);
-    if (COEXIST[baseOf(layer)]) {
+    if (COEXIST[baseOf(layer)] || TONED.has(baseOf(layer))) {
       entry.filter = audio.createBiquadFilter();
       entry.filter.type = "lowpass";
       entry.filter.frequency.value = OPEN_HZ;
@@ -364,10 +379,10 @@ function applyPriority() {
       // sounds like somebody turning a siren down, not like a wall going up.
       ramp(
         entry,
-        under ? entry.wanted.gain * rule.duck : entry.wanted.gain,
+        (under ? entry.wanted.gain * rule.duck : entry.wanted.gain) * duckOf(layer),
         under ? MUFFLE_MS : entry.wanted.fadeInMs ?? CROSSFADE_MS,
       );
-      muffle(entry, under ? rule.hz : OPEN_HZ, MUFFLE_MS);
+      muffle(entry, under ? rule.hz : restingHz(entry), MUFFLE_MS);
       // Muted, a song waits paused where it is (a 4 MB file should not stream to nobody);
       // the bed keeps rolling silently, which is what keeps it in time.
       if (muted && mode === "pause") {
@@ -382,7 +397,7 @@ function applyPriority() {
     // and a song over it, what matters is that the lower one does not stop.
     const out = layer === "ambient" ? AMBIENT_HANDOFF_MS : CROSSFADE_MS;
     ramp(entry, 0, out);
-    muffle(entry, OPEN_HZ, 0);
+    muffle(entry, restingHz(entry), 0);
     if (mode === "pause") {
       window.setTimeout(() => {
         if (!entry.wanted || entry.el.paused) return;
@@ -390,6 +405,12 @@ function applyPriority() {
       }, out);
     }
   }
+}
+
+// Where a layer's filter sits while nothing is sweeping it: OPEN_HZ, or a TONED layer's
+// own cutoff from playOn/setTone.
+function restingHz(entry) {
+  return entry.wanted?.hz ?? OPEN_HZ;
 }
 
 // Where this track ought to be, in seconds, right now. `undefined` for a local track —
@@ -456,7 +477,7 @@ function resume(entry) {
 /** Put a track on a layer. Returns at once; the fade and the priority pass are scheduled. */
 export function playOn(
   layer,
-  { src, startAt = 0, loop = false, gain = 1, fadeInMs = 0, anchor = "local" } = {},
+  { src, startAt = 0, loop = false, gain = 1, fadeInMs = 0, anchor = "local", hz = null } = {},
 ) {
   if (typeof window === "undefined" || !src) return;
 
@@ -476,7 +497,7 @@ export function playOn(
   const url = src.startsWith("/") ? src : `${BASE}${src}`;
   const fadeIn = Math.max(fadeInMs, FADE_FLOOR_MS);
 
-  entry.wanted = { src: url, gain, fadeInMs: fadeIn };
+  entry.wanted = { src: url, gain, fadeInMs: fadeIn, hz: TONED.has(baseOf(layer)) && hz ? hz : null };
   entry.anchor = anchor && typeof anchor.startedAt === "number" ? { startedAt: anchor.startedAt } : "local";
   entry.startAt = startAt;
   if (entry.src !== url) {
@@ -494,12 +515,47 @@ export function playOn(
   else entry.seeking = false;
 
   ramp(entry, 0, 0);
+  // Starts already dark, so a muffled track never opens on a sweep down from bright.
+  muffle(entry, restingHz(entry), 0);
   // Queued behind the gesture rather than dropped, so the first click drops the listener
   // into the schedule mid-stride instead of restarting the tape.
   onArmed(() => {
     if (entry.wanted?.src !== url) return;
     applyPriority();
   });
+}
+
+/**
+ * Re-level a layer that is already playing — its gain and, on a TONED layer, its resting
+ * cutoff — without restarting or re-seeking it. Walking into a soundproof room is this: the
+ * same song, from behind a wall. A layer that is not playing is left alone.
+ */
+export function setTone(layer, { gain, hz = null } = {}) {
+  const entry = layers.get(layer);
+  if (!entry?.wanted) return;
+  entry.wanted = {
+    ...entry.wanted,
+    ...(Number.isFinite(gain) ? { gain } : {}),
+    hz: TONED.has(baseOf(layer)) && hz ? hz : null,
+    // A wall going up is a move of MUFFLE_MS, not a fresh fade-in.
+    fadeInMs: MUFFLE_MS,
+  };
+  applyPriority();
+}
+
+/**
+ * Hold a layer down to `factor` of its own level, or let it back up with 1 — over `ms`,
+ * without touching the track. The Den's jukebox under a sound effect (sfx.js#onCuesSounding).
+ * The factor stays on the layer across the priority pass and a new song, until it is lifted.
+ */
+export function duckLayer(layer, factor, ms = MUFFLE_MS) {
+  const next = Number.isFinite(factor) ? Math.min(1, Math.max(0, factor)) : 1;
+  if (duckOf(layer) === next) return;
+  if (next === 1) ducks.delete(baseOf(layer));
+  else ducks.set(baseOf(layer), next);
+  const entry = layers.get(layer);
+  if (!entry?.wanted || entry.seeking || !audibleNow(layer)) return;
+  ramp(entry, entry.wanted.gain * next, Math.max(0, ms));
 }
 
 /** Take a layer off. Ramps its gain down over `fadeMs`, then pauses and releases it. */
@@ -524,6 +580,12 @@ export function stopLayer(layer, { fadeMs = STOP_FADE_MS } = {}) {
     }
   }, fade);
   applyPriority();
+}
+
+/** Whether a layer key is holding a track — false once anything has stopped it, including
+ * the other performance layer starting (the one-jukebox-or-one-lute rule). */
+export function isWanted(layer) {
+  return Boolean(layers.get(layer)?.wanted);
 }
 
 /** Every voice key on a layer that is still wanted — "player:<id>" for each performance. */

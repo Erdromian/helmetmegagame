@@ -10,8 +10,9 @@ import { noteNotified } from "./notifiedStore";
 import { noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
 import { setPlaces, applyRow, removeRow, isOwnRow, resetHistory, placeKind } from "./feedStore";
 import { playSfx, stopSfxLoops } from "@/app/components/sfx";
-import { setPerformances } from "@/app/components/performanceStore";
+import { setPerformances, setFramedJukebox } from "@/app/components/performanceStore";
 import { setPhoneFrame, clearPhones } from "@/app/components/phoneStore";
+import { nudgePhase } from "@/app/components/PhaseProvider";
 
 // THE LIVE STREAM, lifted out of ./Chat.js whole (CHAT-REBUILD.md).
 //
@@ -291,7 +292,11 @@ export default function useFeedStream({
       // time (SOUND.md, "Performances"). InstrumentListener.js turns it into sound.
       source.addEventListener("music", (event) => {
         try {
-          setPerformances(JSON.parse(event.data)?.performances ?? []);
+          const frame = JSON.parse(event.data);
+          setPerformances(frame?.performances ?? []);
+          // The Den's jukebox rides the same frame. A frame without the field (its read
+          // failed) leaves the jukebox as it was rather than switching it off.
+          if (frame && "jukebox" in frame) setFramedJukebox(frame.jukebox ?? null);
         } catch {
           // Same.
         }
@@ -404,6 +409,10 @@ export default function useFeedStream({
       source?.close();
       // A tab that is not listening for the frame must not go on ringing.
       clearPhones();
+      // The jukebox goes back to the phase poll's word, which keeps up without a stream —
+      // asked again now, so a song changed while Chat was open is not a minute behind.
+      setFramedJukebox(undefined);
+      nudgePhase();
       document.removeEventListener("visibilitychange", wake);
       window.removeEventListener("online", wake);
       window.removeEventListener("pageshow", wake);

@@ -22,6 +22,8 @@ import {
 } from "@lifeweb/db/lib/phone";
 import { questInteract } from "@lifeweb/db/lib/quests";
 import { playSlots as playSlotsInDb, CASINO_ROOM_SLUG } from "@lifeweb/db/lib/slotMachine";
+import { setJukebox as setJukeboxInDb } from "@lifeweb/db/lib/jukebox";
+import { JUKEBOX_ROOM_SLUG, JUKEBOX_TEXT } from "@lifeweb/db/lib/jukeboxText";
 import {
   machineView,
   takeMachine,
@@ -1739,6 +1741,26 @@ export async function playSlots({ roomId } = {}) {
   // The stake always leaves the purse, win or lose.
   refresh();
   return { ok: true, line: result.line, sfx: result.sfx };
+}
+
+// The Den's jukebox (docs/systemdocs/SOUND.md, "The Den's jukebox"). `songKey` null turns
+// it off. An act, so it keeps to the sitting like the slot machine's Discord button does.
+// The song reaches the Den through the feed's music frame, this player included.
+export async function setJukebox({ roomId, songKey = null } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  if (typeof roomId !== "string" || !roomId) return { ok: false, error: JUKEBOX_TEXT.noJukebox };
+  const found = await roomHere(me.character, roomId, JUKEBOX_ROOM_SLUG, JUKEBOX_TEXT.noJukebox);
+  if (found.error) return { ok: false, error: found.error };
+
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
+  const result = await setJukeboxInDb(prisma, me.discordUserId, {
+    roomId: found.room.id,
+    songKey: typeof songKey === "string" && songKey ? songKey : null,
+    turn,
+  });
+  if (!result.ok) return { ok: false, error: result.error };
+  return { ok: true, line: result.line, songKey: result.songKey };
 }
 
 // --------------------------------------------------- the Merchant's machine

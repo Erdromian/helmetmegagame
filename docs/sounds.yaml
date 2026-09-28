@@ -884,57 +884,57 @@ sounds:
     use: Song 1
     class: jukebox
     doc: "Blue Monday by Orgy [3e_nJRzCpBE].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/blue-monday.ogg
   den/change-in-the-house-of-flies.ogg:
     use: Song 4
     class: jukebox
     doc: "Change (In the House of Flies) [hzRltUL5M3k].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/change-in-the-house-of-flies.ogg
   den/hardly-wait.ogg:
     use: Song 6
     class: jukebox
     doc: "Hardly Wait [IdEHGXeu4SY].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/hardly-wait.ogg
   den/i-love-you-mary-jane.ogg:
     use: Song 5
     class: jukebox
     doc: "Cypress Hill & Sonic Youth - I Love You Mary Jane [7-ADAr9-Aqs].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/i-love-you-mary-jane.ogg
   den/into-the-void.ogg:
     use: Song 2
     class: jukebox
     doc: "Buzz Kull - Into The Void [Official] [OJm2lSxXrwY].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/into-the-void.ogg
   den/it-kills.ogg:
     use: Song 9
     class: jukebox
     doc: "The Soft Moon - It Kills (Official Music Video) [0gsXdT7mjoI].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/it-kills.ogg
   den/loose-ends.ogg:
     use: Den music, Song 10
     class: jukebox
     doc: "RONNIE & THE RAINBOWS - LOOSE ENDS [nqQD9-1CUuU].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/loose-ends.ogg
   den/lsd-truth.ogg:
     use: Song 8
     class: jukebox
     doc: "Lords of Acid - LSD=Truth [ve4vd5FSIrU].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/lsd-truth.ogg
   den/navy-light.ogg:
     use: Song 7
     class: jukebox
     doc: "Labyrinth Ear - Navy Light [a9qKkG7NDu0].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/navy-light.ogg
   den/night-creature.ogg:
     use: Den music, Song 11
     class: jukebox
     doc: "The Gigolo's -- Night Creature (1960) [DIUHwSLKe24].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/night-creature.ogg
   den/red-blood.ogg:
     use: Song 3
     class: jukebox
     doc: "Chad VanGaalen - Red Blood [xa3aAjnBpzw].ogg"
-    needs: "a jukebox in the Den. The Den (undertown-8) exists; the jukebox does not yet"
+    served: den/red-blood.ogg
 
   # ---- effects
   effects/choir-of-liberty.ogg:

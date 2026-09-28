@@ -356,7 +356,7 @@ function servedFiles() {
  * `ambience/`, neither of which basename matching could work out.
  *
  * Its spec is "path/in/library.ogg", "path:served-name.ogg" or
- * "path:served-name.ogg:+8dB", in three lists with a destination each.
+ * "path:served-name.ogg:+8dB", in four lists with a destination each.
  */
 function servedByBuildScript() {
   const script = fs.readFileSync(path.join(ROOT, "scripts", "audio", "build-assets.sh"), "utf8");
@@ -377,6 +377,7 @@ function servedByBuildScript() {
   // `for f in $INSTRUMENTS; do encode "$f" "$OUT/$(dirname "$f")"` — the spec's own
   // folder is the destination folder.
   add(list("INSTRUMENTS"), (rel) => rel.slice(0, rel.lastIndexOf("/")));
+  add(list("DEN"), "den");
   return out;
 }
 
