@@ -148,7 +148,7 @@ async function presentRows(
   // The jobs those disguises claim, whose estates are the colours they are seen in.
   const jobs =
     knows !== null && worn.length > 0
-      ? await jobsBySlug(prisma, present.filter((c) => disguiseOf(c)).map((c) => disguiseJobFrom(c.tags)))
+      ? await jobsBySlug(prisma, present.filter((c) => disguiseOf(c)).map((c) => disguiseJobFrom(c.tags)?.slug))
       : new Map();
 
   // Concealed the same way the proxy decides it, not straight off the column.
@@ -187,8 +187,9 @@ async function presentRows(
             fooledAs: read.fooledAs,
             // Whether this viewer sees that person's portrait: only when the wearer looks like them.
             fooledFace: fooledFace(read, c),
-            // The claimed job's estate, the colour everybody sees it in; none without a job.
-            group: jobs.get(disguiseJobFrom(c.tags))?.groupSlug ?? null,
+            // The claimed job's estate, the colour everybody sees it in; none without a
+            // job, or for a made-up one.
+            group: jobs.get(disguiseJobFrom(c.tags)?.slug)?.groupSlug ?? null,
           },
           hidden: true,
           stranger: !read.known,

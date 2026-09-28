@@ -293,8 +293,8 @@ const DISGUISE_JOB_FIELD = "act:disguise:job";
 // gate are asked on submit. The personal role follows the false name
 // (PROXYING.md §6) — best-effort, after the tag is on. The same parts as the
 // web's dialog: a title, a first name, a last name and a job (STRANGERS.md §10).
-// The job is typed, since a select holds 25 and there are more seats than that;
-// the verb matches it against every job's name. A title is worn in the form the
+// The job is typed, and any job will do, real or made up: the verb matches it
+// against every seat's name for the estate colour (disguiseMint.js#resolveDisguiseJob). A title is worn in the form the
 // wearer's own gender takes, whichever form they type.
 const disguise = {
   modalFirst: true,
@@ -320,7 +320,7 @@ const disguise = {
             .setTextInputComponent(field(DISGUISE_LAST_FIELD, NAME_LIMITS.lastName, false)),
           new LabelBuilder()
             .setLabel("Job")
-            .setDescription("Optional. Any job in Ravenheart: Docker, Innkeeper, Bishop…")
+            .setDescription("Optional. Any job, real or made up: Docker, Bishop, Rat Catcher…")
             .setTextInputComponent(field(DISGUISE_JOB_FIELD, 60, false)),
         ),
     );

@@ -19,7 +19,7 @@ const {
   ownersWhoKnow,
   DISGUISE_STRANGER_FACE,
 } = require("../lib/disguises");
-const { normalizeDisguiseName } = require("../lib/disguiseMint");
+const { normalizeDisguiseName, resolveDisguiseJob } = require("../lib/disguiseMint");
 const { whosHere, whosHereLines, resolveHoodToken, hiddenFrom } = require("../lib/whosHere");
 const { attachSpeaker, attachDisguised, createLens, lensTyping, keptSpeaker } = require("../lib/strangers");
 const { feedRowShape } = require("../lib/archive");
@@ -31,6 +31,13 @@ const { sceneSpeakerKey } = require("../lib/hoodToken");
 
 // ------------------------------------------------------------------ fixtures
 
+// The game's own jobs, in the fakes.
+const ROLES = [
+  { slug: "bishop", name: "Bishop", groupSlug: "clergy" },
+  { slug: "migrant", name: "Migrant", groupSlug: "outsiders" },
+];
+
+// `job` is a seat's slug, or any other words for a made-up job.
 const disguiseTag = (name, job = null) => ({
   tagId: `t-${name}`,
   equipped: false,
@@ -38,7 +45,8 @@ const disguiseTag = (name, job = null) => ({
     slug: `custom-disguise-abc-${name.length}`,
     name: `Disguised (${name})`,
     forcedName: name,
-    disguiseJobSlug: job,
+    disguiseJob: ROLES.find((r) => r.slug === job)?.name ?? job,
+    disguiseJobSlug: ROLES.find((r) => r.slug === job)?.slug ?? null,
     concealsIdentity: false,
     concealSprite: null,
     forcesConceal: false,
@@ -80,12 +88,6 @@ const wren = person("wren", "Wren", "Holt");
 const mia = person("mia", "Mia", "Dune", { gender: "WOMAN" });
 const pell = person("pell", "Pell", "Orr");
 const bob = person("bob", "Tam", "Rook", { tags: [disguiseTag("Bob Fakename")] });
-
-// The jobs a disguise may claim.
-const ROLES = [
-  { slug: "bishop", name: "Bishop", groupSlug: "clergy" },
-  { slug: "migrant", name: "Migrant", groupSlug: "outsiders" },
-];
 
 // One fake for all of it. `entries` are Acquaintance rows: { ownerId, subjectId, disguiseKey }.
 function fakeDb({ people = [], entries = [], anonymize = true, room = null } = {}) {
@@ -150,7 +152,11 @@ function fakeDb({ people = [], entries = [], anonymize = true, room = null } = {
         return { count };
       },
     },
-    role: { findMany: async ({ where }) => ROLES.filter((r) => where.slug.in.includes(r.slug)) },
+    role: {
+      findMany: async ({ where }) => ROLES.filter((r) => where.slug.in.includes(r.slug)),
+      findFirst: async ({ where }) =>
+        ROLES.find((r) => where.OR.some((w) => w.slug === r.slug || lower(w.name?.equals) === lower(r.name))) ?? null,
+    },
     character: {
       findUnique: async ({ where }) => byId.get(where.id) ?? null,
       findMany: async ({ where } = {}) => {
@@ -474,7 +480,7 @@ test("a stranger's alias for a disguise is the wearer's age and gender, never th
 
 test("a claimed job's estate is the colour everybody sees the disguise in", async () => {
   const cleric = person("xan", "Xan", "Quorble", { tags: [disguiseTag("Sir Aldric Vask", "bishop")] });
-  assert.equal(disguiseJobFrom(cleric.tags), "bishop");
+  assert.deepEqual(disguiseJobFrom(cleric.tags), { name: "Bishop", slug: "bishop" });
   assert.equal(disguiseJobFrom([beastTag()]), null);
 
   const db = fakeDb({ people: [aldric, cleric, wren, mia], entries: [knowsAldric] });
@@ -508,6 +514,21 @@ test("a claimed job's estate is the colour everybody sees the disguise in", asyn
   assert.equal(plain.concealed[0].roleGroup, null);
 });
 
+test("any job title will do, real or made up, and a made-up one has no colour", async () => {
+  const db = fakeDb();
+  assert.equal(await resolveDisguiseJob(db, "  "), null);
+  assert.deepEqual(await resolveDisguiseJob(db, "the  bishop"), ROLES[0], "a seat's name in any case is that seat");
+  assert.deepEqual(await resolveDisguiseJob(db, "bishop"), ROLES[0], "or its slug");
+  assert.deepEqual(await resolveDisguiseJob(db, "rat Catcher"), { slug: null, name: "Rat Catcher", groupSlug: null });
+  assert.equal((await resolveDisguiseJob(db, "x".repeat(80))).name.length, 60);
+
+  const catcher = person("xan", "Xan", "Quorble", { tags: [disguiseTag("Sir Aldric Vask", "Rat Catcher")] });
+  assert.deepEqual(disguiseJobFrom(catcher.tags), { name: "Rat Catcher", slug: null });
+  const seen = await whosHere(fakeDb({ people: [aldric, catcher, wren, mia], entries: [knowsAldric] }), wren);
+  const asWren = seen.concealed.find((c) => c.alias === "Sir Aldric Vask");
+  assert.equal(asWren.roleGroup, null, "fooled, and no estate to colour it");
+});
+
 test("hearing a disguise's job said with its name teaches it, like any role", async () => {
   const cleric = person("bob", "Tam", "Rook", { tags: [disguiseTag("Bob Fakename", "bishop")] });
   const db = fakeDb({ people: [cleric, mia, pell], entries: [{ ...learnedBob }] });
@@ -516,6 +537,18 @@ test("hearing a disguise's job said with its name teaches it, like any role", as
   assert.deepEqual([mias.name, mias.roleText, mias.roleSlug, mias.subjectId], ["Bob Fakename", "Bishop", "bishop", null]);
   const pells = db.entries.find((e) => e.ownerId === "pell");
   assert.deepEqual([pells.roleText, pells.roleSlug], ["Bishop", "bishop"], "an entry learned earlier gets the job filled in");
+
+  // A made-up job is heard by its own words, and has no seat behind it.
+  const catcher = person("bob", "Tam", "Rook", { tags: [disguiseTag("Bob Fakename", "Rat Catcher")] });
+  const db3 = fakeDb({ people: [catcher, mia, pell], entries: [{ ...learnedBob }] });
+  await learnFromSpeech(db3, { row: { placeKey: "conv:c1", content: '"I am Bob Fakename, the Rat Catcher."' }, speakerId: "bob" });
+  const miasCatch = db3.entries.find((e) => e.ownerId === "mia");
+  assert.deepEqual([miasCatch.roleText, miasCatch.roleSlug], ["Rat Catcher", null]);
+  // And somebody who learned it can pass it on, beside the name.
+  const db4 = fakeDb({ people: [catcher, mia, pell], entries: [{ ...learnedBob, name: "Bob Fakename", roleText: "Rat Catcher" }] });
+  await learnFromSpeech(db4, { row: { placeKey: "conv:c1", content: '"That is Bob Fakename, the Rat Catcher."' }, speakerId: "pell" });
+  const fromPell = db4.entries.find((e) => e.ownerId === "mia");
+  assert.deepEqual([fromPell.name, fromPell.roleText, fromPell.roleSlug], ["Bob Fakename", "Rat Catcher", null]);
 
   // The wearer's real seat is never what a disguise teaches.
   const db2 = fakeDb({ people: [cleric, mia] });

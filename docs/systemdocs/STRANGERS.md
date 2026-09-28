@@ -364,7 +364,7 @@ the game is meant to say.
 | Faces without ids | `web/app/api/avatar/here/`, `web/app/api/avatar/line/`, `web/lib/avatarResponse.js` |
 | The lens on the web | `web/lib/strangerLens.js`, `web/app/api/feed/route.js` |
 | Who a disguise fools (§10) | `db/lib/disguises.js` |
-| Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory`, `Acquaintance.disguiseKey`, `ArchiveEntry.disguised` / `disguiseGroup`, `Tag.disguiseJobSlug` |
+| Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory`, `Acquaintance.disguiseKey`, `ArchiveEntry.disguised` / `disguiseGroup`, `Tag.disguiseJob` / `disguiseJobSlug` |
 | Tests | `db/test/strangers.test.js`, `presentedMembers.test.js`, `roomGuests.test.js`, `verbFaces.test.js`, `seenByMany.test.js`, `disguises.test.js`, and `strangerNameCanary.test.js` — every builder that names somebody to one reader, run against a stranger called Zzyzx Quorble, who must never be named |
 
 ## 9. Switching it off
@@ -435,14 +435,19 @@ stranger's alias uses (young, grown, old; `disguises.js#looksAlike`). Anyone
 else they take for that person shows them the name's letter plaque instead.
 Every face route decides that for the viewer asking.
 
-**A job.** The Kit may claim any job (a `Role`, bucketed by estate the way
-the character picker is; `disguiseMint.js#disguiseJobChoices`), stored as
-`Tag.disguiseJobSlug` on the minted tag. A job claims its name and its
-estate's colour and nothing else: no seat's powers, rooms, rings or wages. The
-estate is the colour every viewer sees the disguise in, fooled, recognising or
-a stranger, the way any face's estate is public. A disguise with no job wears
-no colour, even to the people it fools, so claiming the right job is part of
-a good disguise. `ArchiveEntry.disguiseGroup` freezes the job's estate on
+**A job.** The Kit may claim any job title, real or made up, typed
+(`disguiseMint.js#resolveDisguiseJob`). The web dialog suggests the game's own
+seats, by estate (`disguiseJobChoices`). A title that names a seat (its
+name in any case, a leading "the" or "a" dropped, or its slug) is that seat,
+spelled the seat's way. Anything else is kept as typed, first letter raised.
+The minted tag stores the title as `Tag.disguiseJob`, and the seat as
+`Tag.disguiseJobSlug` when it names one. A job claims its name, and a real
+seat's estate colour, and nothing else: no seat's powers, rooms, rings or
+wages. The estate is the colour every viewer sees the disguise in, fooled,
+recognising or a stranger, the way any face's estate is public. A made-up job
+has no estate, so it wears no colour, and neither does a disguise with no
+job, even to the people it fools. Claiming the right job is part of a good
+disguise. `ArchiveEntry.disguiseGroup` freezes the job's estate on
 each line, and `archive.js#feedRowShape` paints the row in it. The job is
 heard like any role (below), and a Look reads it off the viewer's entry for
 the disguise, never off the tag.
@@ -487,7 +492,9 @@ already name it. The lesson writes an entry tied to nobody: `subjectId` null,
 fooled included, gets nothing. A disguise's role is the job it claims, heard by the
 usual rule (said beside its name, or by the wearer on their own), and fills
 the entry's empty role like any other; the wearer's real seat is never taught.
-With no job, it teaches no role. The entry's name
+A made-up job is heard by its own words, with no `roleSlug`, and somebody
+passes it on only when their entry's role is those words
+(`memoryLessons.js#knowsRoleOf`). With no job, it teaches no role. The entry's name
 and notes are the owner's to rewrite like any other; recognition keys on
 `disguiseKey`, so renaming it changes nothing. Anybody who later wears the same
 name is recognised by it, as a costume would be.

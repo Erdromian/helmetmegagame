@@ -33,7 +33,7 @@ const { lessonsFrom } = require("./memoryLessons");
 const { spokenText, hasSpeech } = require("./speech");
 const { anonymizingStrangers } = require("./strangers");
 const { skinlessIdsAmong } = require("./skinless");
-const { disguiseNameFrom, disguiseJobFrom, jobsBySlug, disguiseParts, disguiseKey, ownersWhoKnow } = require("./disguises");
+const { disguiseNameFrom, disguiseJobFrom, disguiseParts, disguiseKey, ownersWhoKnow } = require("./disguises");
 
 // Where a line puts somebody in the room for the day log. `net:` (a radio),
 // `dead:`, `game:` and the like are not rooms: nobody stands in them.
@@ -177,15 +177,15 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
   // A DISGUISE is named by the name it goes by, never the wearer's own
   // (STRANGERS.md §10). It is heard like anybody's name: said by the wearer, or
   // by somebody who can put that name to the face. Its role is the job it
-  // claims, if any, never the wearer's seat, heard the way any role is.
+  // claims, if any, never the wearer's seat, heard the way any role is. A
+  // made-up job is heard by its title, and has no slug.
   const disguised = new Map();
   const wearers = present.filter((person) => disguiseNameFrom(person.tags));
-  const jobs = await jobsBySlug(prisma, wearers.map((person) => disguiseJobFrom(person.tags)));
   for (const person of wearers) {
     const name = disguiseNameFrom(person.tags);
-    const job = jobs.get(disguiseJobFrom(person.tags)) ?? null;
+    const job = disguiseJobFrom(person.tags);
     const parts = disguiseParts(name);
-    const role = job ? { slug: job.slug, name: job.name } : null;
+    const role = job?.name ? { slug: job.slug, name: job.name } : null;
     disguised.set(person.id, { name, candidate: { id: person.id, ...parts, role, roleTitle: null } });
     if (person.id === speakerId) continue;
     const speakerCan = await ownersWhoKnow(prisma, [speakerId], name);
@@ -193,9 +193,9 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
     // The speaker can name it. They can name its job too if the entry they learned for it says so.
     const learned = await prisma.acquaintance.findUnique({
       where: { ownerId_disguiseKey: { ownerId: speakerId, disguiseKey: disguiseKey(name) } },
-      select: { roleSlug: true },
+      select: { roleSlug: true, roleText: true },
     });
-    speakerKnows.set(person.id, { name, roleSlug: learned?.roleSlug ?? null });
+    speakerKnows.set(person.id, { name, roleSlug: learned?.roleSlug ?? null, roleText: learned?.roleText ?? null });
   }
   const candidates = [...faces, ...[...disguised.values()].map((d) => d.candidate)];
 

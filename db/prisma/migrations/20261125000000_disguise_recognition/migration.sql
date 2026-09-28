@@ -9,7 +9,9 @@ CREATE UNIQUE INDEX "Acquaintance_ownerId_disguiseKey_key" ON "Acquaintance"("ow
 -- row reads false, which is how it was read before: a public name.
 ALTER TABLE "ArchiveEntry" ADD COLUMN "disguised" BOOLEAN NOT NULL DEFAULT false;
 
--- The job a disguise claims, as a Role slug on its minted tag, and that job's
--- estate frozen on each line said in it. Null for no job.
+-- The job a disguise claims on its minted tag: its title, real or made up, and
+-- the Role slug when it names a real one. That seat's estate is frozen on each
+-- line said in it. Null for no job, and the slug and estate for a made-up one.
+ALTER TABLE "Tag" ADD COLUMN "disguiseJob" TEXT;
 ALTER TABLE "Tag" ADD COLUMN "disguiseJobSlug" TEXT;
 ALTER TABLE "ArchiveEntry" ADD COLUMN "disguiseGroup" TEXT;

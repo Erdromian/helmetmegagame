@@ -55,24 +55,32 @@ function normalizeDisguiseName(raw, { gender = "NEUTRAL" } = {}) {
   return [honorific, firstName, lastName].filter(Boolean).join(" ");
 }
 
-// The jobs a disguise may claim: every seat in the game, bucketed by estate the way the character
-// picker is (./roleGroups.js#groupRoles). Any of them will do, since a disguise claims what it likes,
-// and a job claims nothing but its name and its estate's colour: no seat's powers, rooms or wages.
+// The longest job a disguise may claim: the same cap a Friends entry's role takes, since a job heard
+// is written into one (web/app/(app)/memories/friendActions.js).
+const DISGUISE_JOB_MAX = 60;
+
+// The real jobs the dialog suggests: every seat in the game, bucketed by estate the way the character
+// picker is (./roleGroups.js#groupRoles). A suggestion, not a list to pick from: any job will do, made
+// up or not, since a disguise claims what it likes (resolveDisguiseJob).
 async function disguiseJobChoices(prisma) {
   const roles = await prisma.role.findMany({ orderBy: { sortOrder: "asc" }, select: { slug: true, name: true, groupSlug: true } });
   return groupRoles(roles);
 }
 
-// The job a posted value names, by slug or by name in any case (Discord types it): `{ slug, name,
-// groupSlug }`, null when none was asked for, or false for a value that is no job at all.
+// The job a typed value claims: `{ slug, name, groupSlug }`, or null when none was typed. Any job
+// title works, real or made up. One that names a seat — by its name in any case, a leading "the" or
+// "a" dropped, or by its slug — is that seat, spelled the seat's way and worn in its estate's colour.
+// Anything else is a job nobody has, kept as typed with its first letter raised: `slug` and
+// `groupSlug` null, so it has a name and no colour. Either way a job claims its name and nothing
+// more: no seat's powers, rooms, rings or wages.
 async function resolveDisguiseJob(prisma, raw) {
-  const typed = typeof raw === "string" ? raw.replace(/\s+/g, " ").trim() : "";
+  const typed = cleanPart(raw, DISGUISE_JOB_MAX).replace(/^(?:the|an?)\s+(?=\S)/i, "");
   if (!typed) return null;
   const role = await prisma.role.findFirst({
     where: { OR: [{ slug: typed }, { name: { equals: typed, mode: "insensitive" } }] },
     select: { slug: true, name: true, groupSlug: true },
   });
-  return role ?? false;
+  return role ?? { slug: null, name: typed[0].toUpperCase() + typed.slice(1), groupSlug: null };
 }
 
 // Wears the paper shape with three changes: not tradeable, removable (drop the act early), and
@@ -91,6 +99,7 @@ function disguiseData(characterId, name, attempt, job = null) {
     name: `Disguised (${label})`,
     description: job ? `You're disguised as ${name}, ${job.name}.` : `You're disguised as ${name}.`,
     forcedName: name,
+    disguiseJob: job?.name ?? null,
     disguiseJobSlug: job?.slug ?? null,
     defaultDurationTurns: DISGUISE_TURNS,
   };
@@ -126,6 +135,7 @@ async function activeDisguise(prisma, characterId) {
 module.exports = {
   DISGUISE_KIT_SLUG,
   DISGUISE_TURNS,
+  DISGUISE_JOB_MAX,
   normalizeDisguiseName,
   disguiseJobChoices,
   resolveDisguiseJob,

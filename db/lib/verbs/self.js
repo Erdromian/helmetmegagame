@@ -134,8 +134,10 @@ function breakRestraints(prisma, { character, discordUserId, openTurn }) {
 // `name` is `{ honorific, firstName, lastName }`, or one typed string. Who the
 // name fools is decided later, per reader (db/lib/disguises.js): a real
 // character's full name fools the people who know them. A title is worn in the
-// form the wearer's own gender takes. `job` is a Role slug or name, or empty
-// for none: the job the disguise claims (disguiseMint.js#resolveDisguiseJob).
+// form the wearer's own gender takes. `job` is any job title, real or made up,
+// or empty for none: the job the disguise claims
+// (disguiseMint.js#resolveDisguiseJob). A real seat's name wears its estate's
+// colour; any other job is worn as typed, with no colour.
 function disguiseSelf(prisma, { character, discordUserId, name: rawName, job: rawJob = null, openTurn }) {
   return asResult(async () => {
     if (!character.tags.some((ct) => ct.tag.slug === DISGUISE_KIT_SLUG)) refuse("You have no disguise kit.");
@@ -148,7 +150,6 @@ function disguiseSelf(prisma, { character, discordUserId, name: rawName, job: ra
     if (!name) refuse("Pick a name to go by.");
     if (name === character.name || namesCharacter(name, character)) refuse("That is already your name.");
     const job = await resolveDisguiseJob(prisma, rawJob);
-    if (job === false) refuse("That isn't a job in Ravenheart.");
     // One at a time: two forcedName rows would race.
     const already = await activeDisguise(prisma, character.id);
     if (already) refuse(`You are already going by ${already.tag.forcedName}. Wait for it to wear off.`);
@@ -160,7 +161,7 @@ function disguiseSelf(prisma, { character, discordUserId, name: rawName, job: ra
       actorDiscordUserId: discordUserId,
       actionType: "request_disguise_self",
       targetCharacterId: character.id,
-      details: { tagId: tag.id, tagName: tag.name, disguiseName: name, disguiseJob: job?.slug ?? null, turns: DISGUISE_TURNS },
+      details: { tagId: tag.id, tagName: tag.name, disguiseName: name, disguiseJob: job?.name ?? null, disguiseJobSlug: job?.slug ?? null, turns: DISGUISE_TURNS },
     });
     return { touched: [character.id], name, job: job?.name ?? null, renamed: true };
   });

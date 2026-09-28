@@ -91,7 +91,7 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
   const worn = members.map(disguiseOf).filter(Boolean);
   const reads = worn.length > 0 ? await readDisguises(prisma, viewer?.id ?? null, worn) : null;
   // The jobs those disguises claim, for the colour they are seen in.
-  const jobs = await jobsBySlug(prisma, members.filter(disguiseOf).map((person) => disguiseJobFrom(person.tags)));
+  const jobs = await jobsBySlug(prisma, members.filter(disguiseOf).map((person) => disguiseJobFrom(person.tags)?.slug));
   const isHooded = (person) =>
     !forcedNameFrom(person.tags) && Boolean(concealmentFrom(person.tags) && (concealmentFrom(person.tags).forced || person.concealed));
   const isStranger = (person) =>
@@ -145,7 +145,7 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
           : read.known
             ? presentedIdentity(person, { forcedName: wearing }).avatarPath
             : DISGUISE_STRANGER_FACE;
-        const job = jobs.get(disguiseJobFrom(person.tags)) ?? null;
+        const job = jobs.get(disguiseJobFrom(person.tags)?.slug) ?? null;
         return {
           characterId: null,
           token,

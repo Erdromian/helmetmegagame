@@ -49,14 +49,20 @@ function disguiseNameFrom(tags) {
   return null;
 }
 
-// The job the disguise that disguiseNameFrom reads claims, as a Role slug, or null. The same first
-// forced-name tag, so the name and the job always come off one disguise. Needs `disguiseJobSlug` selected.
+// The job the disguise that disguiseNameFrom reads claims: `{ name, slug }`, or null for none. `name` is
+// the job title as worn, real or made up; `slug` is the Role it names, null for a made-up job, which
+// therefore has no estate and no colour. The same first forced-name tag, so the name and the job always
+// come off one disguise. Needs `disguiseJob` and `disguiseJobSlug` selected.
 function disguiseJobFrom(tags) {
   if (!Array.isArray(tags)) return null;
   for (const entry of tags) {
     const tag = entry?.tag ?? entry;
     const name = tag?.forcedName;
-    if (typeof name === "string" && name.trim()) return isDisguiseTag(tag) ? (tag.disguiseJobSlug ?? null) : null;
+    if (typeof name !== "string" || !name.trim()) continue;
+    if (!isDisguiseTag(tag)) return null;
+    const job = typeof tag.disguiseJob === "string" && tag.disguiseJob.trim() ? tag.disguiseJob.trim() : null;
+    const slug = tag.disguiseJobSlug ?? null;
+    return job || slug ? { name: job, slug } : null;
   }
   return null;
 }

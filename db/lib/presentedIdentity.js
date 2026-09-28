@@ -26,6 +26,7 @@ const CONCEALMENT_TAG_FIELDS = {
   // Tells a Disguise Kit's forced name from a public one (./disguises.js#isDisguiseTag).
   slug: true,
   // The job that disguise claims, if any (./disguises.js#disguiseJobFrom).
+  disguiseJob: true,
   disguiseJobSlug: true,
 };
 

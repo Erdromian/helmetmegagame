@@ -3187,8 +3187,9 @@ export async function unlockCollarRequestImpl({ targetCharacterId }) {
 // the clasp for himself — and it is the name HE holds for them, so a hood
 // stays a hood (web/lib/peopleHere.js#rosterHere strips the real one).
 // What the Disguise dialog offers: the title words in the form this character's
-// own gender wears them (a disguise never changes who is under it), and every job
-// it may claim, by estate. A read, so it asks for no kit: the verb does.
+// own gender wears them (a disguise never changes who is under it), and the game's
+// own jobs, by estate, to suggest: any other job may be typed. A read, so it asks for
+// no kit: the verb does.
 export async function loadDisguiseImpl() {
   const { character } = await requireCharacter();
   return { titles: titleWordsFor(character.gender), jobs: await disguiseJobChoices(prisma) };

@@ -3257,10 +3257,13 @@ model Tag {
   // NAME_LIMITS.firstName and refuses it beside concealsIdentity.
   forcedName String?
 
-  // The job a Disguise Kit's wearer claims (docs/systemdocs/STRANGERS.md §10),
-  // as a Role slug: its estate is the colour everybody sees the disguise in,
-  // and hearing it said teaches it like any role. Null on every other tag, and
-  // on a disguise that claims no job. Minted by db/lib/disguiseMint.js only.
+  // The job a Disguise Kit's wearer claims (docs/systemdocs/STRANGERS.md §10):
+  // any job title, real or made up, and hearing it said teaches it like any
+  // role. `disguiseJobSlug` is the Role it names when it names a real one, and
+  // that seat's estate is the colour everybody sees the disguise in; a made-up
+  // job has none, so no colour. Both null on every other tag, and on a
+  // disguise that claims no job. Minted by db/lib/disguiseMint.js only.
+  disguiseJob     String?
   disguiseJobSlug String?
 
   // Whether a character can hold more than one of this tag at a time —
