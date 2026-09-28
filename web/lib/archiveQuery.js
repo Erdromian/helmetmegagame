@@ -6,22 +6,62 @@ export const ARCHIVE_PAGE_SIZE = 60;
 
 // The filters that take several values at once. Each is a repeated URL param
 // (`?zone=Town&zone=Caves`): OR within one filter, AND across filters.
-const MULTI = ["zone", "room", "character"];
+const MULTI = ["zone", "location", "room", "character"];
 
-// A room is named by its zone and its own name, since two zones can each have
-// a Cellar. A room with no zone (a party thread) is `|Name`.
-const ROOM_SEP = "|";
+// A place is named by the names above it, since two zones can each have a
+// Cellar: a Location is `Zone|Location`, a room or conversation
+// `Zone|Location|Room`. A missing part is empty, so a party thread, which has
+// neither, is `||Name`. Only the last part may hold the separator itself.
+const SEP = "|";
 
-export function roomKey(zoneName, threadName) {
-  return `${zoneName ?? ""}${ROOM_SEP}${threadName ?? ""}`;
+function splitKey(key, parts) {
+  const out = [];
+  let rest = String(key ?? "");
+  for (let i = 1; i < parts; i++) {
+    const at = rest.indexOf(SEP);
+    if (at < 0) return null;
+    out.push(rest.slice(0, at) || null);
+    rest = rest.slice(at + 1);
+  }
+  out.push(rest);
+  return out;
+}
+
+export function locationKey(zoneName, locationName) {
+  return [zoneName ?? "", locationName ?? ""].join(SEP);
+}
+
+export function parseLocationKey(key) {
+  const parts = splitKey(key, 2);
+  return parts?.[1] ? { zoneName: parts[0], locationName: parts[1] } : null;
+}
+
+export function roomKey(zoneName, locationName, threadName) {
+  return [zoneName ?? "", locationName ?? "", threadName ?? ""].join(SEP);
 }
 
 export function parseRoomKey(key) {
-  const at = String(key ?? "").indexOf(ROOM_SEP);
-  if (at < 0) return null;
-  const zoneName = key.slice(0, at) || null;
-  const threadName = key.slice(at + 1);
-  return threadName ? { zoneName, threadName } : null;
+  const parts = splitKey(key, 3);
+  return parts?.[2] ? { zoneName: parts[0], locationName: parts[1], threadName: parts[2] } : null;
+}
+
+// Places narrow downward: with zones picked, only Locations in them count, and
+// with Locations picked (else zones), only rooms in those. Whatever a change
+// higher up leaves outside is dropped, so no pick can sit hidden in the drawer
+// while it empties the transcript. The keys carry their parents' names, so
+// this needs no list of places.
+export function prunePlaces({ zones = [], locations = [], rooms = [] }) {
+  const keptLocations = zones.length
+    ? locations.filter((k) => zones.includes(parseLocationKey(k)?.zoneName ?? ""))
+    : locations;
+  const keptRooms = rooms.filter((k) => {
+    const room = parseRoomKey(k);
+    if (!room) return false;
+    if (keptLocations.length) return keptLocations.includes(locationKey(room.zoneName, room.locationName));
+    if (zones.length) return zones.includes(room.zoneName ?? "");
+    return true;
+  });
+  return { zones, locations: keptLocations, rooms: keptRooms };
 }
 
 // Next hands a repeated param over as an array, and a single one as a string.
@@ -48,6 +88,7 @@ export function parseArchiveParams(params = {}) {
   return {
     game: get("game"),
     zones: listOf(params?.zone),
+    locations: listOf(params?.location).filter((k) => parseLocationKey(k)),
     rooms: listOf(params?.room).filter((k) => parseRoomKey(k)),
     characters: listOf(params?.character),
     // Matched against the row's own stamped day, never worked out from the turn number: a day is one to four turns now
@@ -72,7 +113,16 @@ export function activeArchiveFilters(f, names = new Map()) {
     const label = f.from === f.to ? `Day ${f.from}` : f.from && f.to ? `Days ${f.from}–${f.to}` : f.from ? `From day ${f.from}` : `To day ${f.to}`;
     on.push({ key: "days", label, clear: { from: "", to: "", day: "" } });
   }
-  for (const z of f.zones) on.push({ key: `zone:${z}`, label: z, clear: { zone: f.zones.filter((v) => v !== z) } });
+  // Taking a place off also takes off what it no longer leaves room for.
+  const without = (patch) => {
+    const kept = prunePlaces({ zones: f.zones, locations: f.locations, rooms: f.rooms, ...patch });
+    return { zone: kept.zones, location: kept.locations, room: kept.rooms };
+  };
+  for (const z of f.zones) on.push({ key: `zone:${z}`, label: z, clear: without({ zones: f.zones.filter((v) => v !== z) }) });
+  for (const l of f.locations) {
+    const location = parseLocationKey(l);
+    on.push({ key: `location:${l}`, label: location.locationName, clear: without({ locations: f.locations.filter((v) => v !== l) }) });
+  }
   for (const r of f.rooms) {
     const room = parseRoomKey(r);
     on.push({ key: `room:${r}`, label: room.threadName, clear: { room: f.rooms.filter((v) => v !== r) } });
@@ -103,8 +153,18 @@ export function archiveWhere(gameId, f) {
     and.push(...noActions);
   }
   if (f.zones?.length) and.push({ zoneName: { in: f.zones } });
+  // A Location takes in everything said or done there, its rooms and
+  // conversations included: they all carry its name.
+  if (f.locations?.length) {
+    and.push({ OR: f.locations.map(parseLocationKey).filter(Boolean).map(({ zoneName, locationName }) => ({ zoneName, locationName })) });
+  }
   if (f.rooms?.length) {
-    and.push({ OR: f.rooms.map(parseRoomKey).filter(Boolean).map(({ zoneName, threadName }) => ({ zoneName, threadName })) });
+    and.push({
+      OR: f.rooms
+        .map(parseRoomKey)
+        .filter(Boolean)
+        .map(({ zoneName, locationName, threadName }) => ({ zoneName, locationName, threadName })),
+    });
   }
   if (f.characters?.length) and.push({ characterId: { in: f.characters } });
   if (f.from || f.to) and.push({ dayNumber: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lte: f.to } : {}) } });
@@ -148,6 +208,7 @@ export function archiveParamsToQuery(f, overrides = {}) {
   const merged = {
     game: f.game,
     zone: f.zones,
+    location: f.locations,
     room: f.rooms,
     character: f.characters,
     from: f.from,

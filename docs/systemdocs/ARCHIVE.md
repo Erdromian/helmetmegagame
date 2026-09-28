@@ -89,7 +89,12 @@ Five things about it are load-bearing:
   transcript (`LOBBY.md` §7).
 
   The place columns are **`zoneId`/`zoneName`** — a row records the zone it
-  was said in, and the Room or Conversation it was said in is `threadName`.
+  was said in, the Location as **`locationName`**, and the Room or
+  Conversation it was said in is `threadName`. A room or conversation row
+  carries its Location's name too, so narrowing to a Location takes in
+  everything inside it. `locationName` is filled from the `placeKey` at write
+  time (`db/lib/placeKey.js#locationNameForPlaceKey`, memoised), and from the
+  audit row's place on an `ACTION` row.
   `channelKind` reads `summary | location | watch | scene` (a plain
   string field, not a Prisma enum, so old rows can still say `mindlink`
   from before the Cult of Bacchus was archived, or `intercom` from before the
@@ -165,15 +170,24 @@ lists are `groupBy`s over the game's own rows, not the live tables: a past
 game's characters are gone and its zones may have been re-synced under new
 ids, but the snapshot names on the rows are exactly what was.
 
-**Filters stack.** Zones, Rooms and People each take several values, as
-repeated URL params (`?zone=Town&zone=Caves`): OR within one, AND across
-them, and with a day range (`from`/`to`; the old `day=N` still reads as a
-range of one) and the text search on top. A room is named by zone and name
-together (`Town|Tavern`), since two zones can each have a Cellar; the list
-holds Rooms and Conversations, whatever carries a `threadName`. They are
-picked in the Filters drawer and applied once, and each value is its own chip
-above the transcript so any one can be taken off. Clicking a name or a scene
-in the transcript adds to what is picked rather than replacing it.
+**Filters stack.** Zones, Locations, Rooms and People each take several
+values, as repeated URL params (`?zone=Town&zone=Caves`): OR within one, AND
+across them, and with a day range (`from`/`to`; the old `day=N` still reads as
+a range of one) and the text search on top. A place is named by the names
+above it, since two zones can each have a Cellar: a Location is
+`Town|Old Town`, a room `Town|Old Town|Tavern`, and a party thread, with
+neither above it, `||Ada's Party`. The Rooms list holds Rooms and
+Conversations, whatever carries a `threadName`. They are picked in the Filters
+drawer and applied once, and each value is its own chip above the transcript
+so any one can be taken off. Clicking a name or a scene in the transcript adds
+to what is picked rather than replacing it.
+
+**Places narrow downward.** With zones picked, the Locations list offers only
+the Locations in them; with Locations picked, Rooms offers only their rooms
+(with only zones picked, the rooms in those zones). Nothing picked above means
+everything is offered. A change higher up drops the picks it leaves outside,
+in the drawer and when a chip is taken off (`archiveQuery.js#prunePlaces`), so
+a pick can never sit hidden in the drawer while it empties the transcript.
 
 **Actions is a switch, off by default.** It sits with Scenes and Faces but is
 not a view toggle like them: it changes which rows the server pages, so it is

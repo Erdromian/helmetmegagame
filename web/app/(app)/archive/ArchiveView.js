@@ -10,7 +10,7 @@ import CheckPicker from "@/app/components/CheckPicker";
 import EmptyState from "@/app/components/EmptyState";
 import useSessionState from "@/app/components/useSessionState";
 import { gameTitle } from "@/lib/gameLabel";
-import { activeArchiveFilters, archiveParamsToQuery } from "@/lib/archiveQuery";
+import { activeArchiveFilters, archiveParamsToQuery, prunePlaces } from "@/lib/archiveQuery";
 import ArchiveTranscript from "./ArchiveTranscript";
 
 // The transcript's controls and its scroll.
@@ -32,7 +32,7 @@ import ArchiveTranscript from "./ArchiveTranscript";
 const VIEW_KEY = "archive:view";
 const VIEW_DEFAULT = { groupScenes: true, portraits: false };
 
-export default function ArchiveView({ game, games, currentGameId, zones, rooms, characters, filters, total, first }) {
+export default function ArchiveView({ game, games, currentGameId, zones, locations, rooms, characters, filters, total, first }) {
   const router = useRouter();
   const [view, setView] = useSessionState(VIEW_KEY, VIEW_DEFAULT);
   const [drawer, setDrawer] = useState(false);
@@ -116,7 +116,7 @@ export default function ArchiveView({ game, games, currentGameId, zones, rooms, 
           <button
             type="button"
             className="archive-chips-clear"
-            onClick={() => go({ q: "", from: "", to: "", zone: [], room: [], character: [] })}
+            onClick={() => go({ q: "", from: "", to: "", zone: [], location: [], room: [], character: [] })}
           >
             Clear all
           </button>
@@ -133,6 +133,7 @@ export default function ArchiveView({ game, games, currentGameId, zones, rooms, 
             games={games}
             currentGameId={currentGameId}
             zones={zones}
+            locations={locations}
             rooms={rooms}
             characters={characters}
             filters={filters}
@@ -157,15 +158,27 @@ export default function ArchiveView({ game, games, currentGameId, zones, rooms, 
 // Everything that narrows, picked together and applied once. Ticking a box
 // does not navigate: three rooms and two people would otherwise be five page
 // loads, each showing a transcript you did not ask for.
-function ArchiveFilters({ game, games, currentGameId, zones, rooms, characters, filters, onGame, onApply }) {
-  const [zonePick, setZonePick] = useState(filters.zones);
-  const [roomPick, setRoomPick] = useState(filters.rooms);
+function ArchiveFilters({ game, games, currentGameId, zones, locations, rooms, characters, filters, onGame, onApply }) {
+  // Zones, Locations and Rooms move together: each list shows only what sits
+  // inside the picks above it, and a change above drops the picks it leaves
+  // outside (prunePlaces). Nothing picked above means everything is offered.
+  const [places, setPlaces] = useState(() => ({ zones: filters.zones, locations: filters.locations, rooms: filters.rooms }));
+  const pickPlaces = (patch) => setPlaces((p) => prunePlaces({ ...p, ...patch }));
   const [peoplePick, setPeoplePick] = useState(filters.characters);
   const [from, setFrom] = useState(filters.from ?? "");
   const [to, setTo] = useState(filters.to ?? "");
   const [order, setOrder] = useState(filters.order);
 
   const zoneItems = useMemo(() => zones.map((z) => ({ id: z, label: z })), [zones]);
+  const locationItems = useMemo(
+    () => (places.zones.length ? locations.filter((l) => places.zones.includes(l.zone)) : locations),
+    [locations, places.zones],
+  );
+  const roomItems = useMemo(() => {
+    if (places.locations.length) return rooms.filter((r) => places.locations.includes(r.location));
+    if (places.zones.length) return rooms.filter((r) => places.zones.includes(r.zone));
+    return rooms;
+  }, [rooms, places.locations, places.zones]);
   const peopleItems = useMemo(() => characters.map((c) => ({ id: c.id, label: c.name })), [characters]);
 
   return (
@@ -174,8 +187,9 @@ function ArchiveFilters({ game, games, currentGameId, zones, rooms, characters, 
       onSubmit={(e) => {
         e.preventDefault();
         onApply({
-          zone: zonePick,
-          room: roomPick,
+          zone: places.zones,
+          location: places.locations,
+          room: places.rooms,
           character: peoplePick,
           from: String(from).trim(),
           to: String(to).trim(),
@@ -206,12 +220,27 @@ function ArchiveFilters({ game, games, currentGameId, zones, rooms, characters, 
         </label>
       </div>
 
-      <CheckPicker label="Zones" items={zoneItems} value={zonePick} onChange={setZonePick} maxHeight="10rem" />
+      <CheckPicker
+        label="Zones"
+        items={zoneItems}
+        value={places.zones}
+        onChange={(zones) => pickPlaces({ zones })}
+        maxHeight="10rem"
+      />
+      <CheckPicker
+        label="Locations"
+        items={locationItems}
+        value={places.locations}
+        onChange={(locations) => pickPlaces({ locations })}
+        filterPlaceholder="Filter locations…"
+        emptyLabel="No location matches."
+        maxHeight="12rem"
+      />
       <CheckPicker
         label="Rooms"
-        items={rooms}
-        value={roomPick}
-        onChange={setRoomPick}
+        items={roomItems}
+        value={places.rooms}
+        onChange={(rooms) => pickPlaces({ rooms })}
         filterPlaceholder="Filter rooms…"
         emptyLabel="No room matches."
         maxHeight="12rem"

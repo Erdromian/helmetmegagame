@@ -210,6 +210,7 @@ async function fileAuditInArchive(db, audit) {
       sentAt: audit.createdAt ?? new Date(),
       zoneId: place.zoneId,
       zoneName: place.zoneName,
+      locationName: place.locationName,
       threadName: place.threadName,
       characterId: character.id,
       characterName: character.name,

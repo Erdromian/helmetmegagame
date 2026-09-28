@@ -9,6 +9,7 @@ const { loadPresentedState } = require("./examineSnapshot");
 const { roleGroupHue } = require("./roleGroups");
 const { isSfx } = require("./sfx");
 const { attachSpeaker, attachAudience, attachSubjects } = require("./strangers");
+const { locationNameForPlaceKey } = require("./placeKey");
 
 // The columns the live feed needs off a row, and nothing else — kept beside feedRowShape below so the two never drift.
 const FEED_ROW_SELECT = {
@@ -133,6 +134,7 @@ const ARCHIVE_ROW_SELECT = {
   kind: true,
   dayNumber: true,
   zoneName: true,
+  locationName: true,
   threadName: true,
   channelKind: true,
   // The audit row behind an ACTION line (./archiveActions.js). Here and never in
@@ -161,6 +163,7 @@ async function archiveRowsShape(prisma, rows) {
       turnNumber: row.turnNumber ?? null,
       dayNumber: row.dayNumber ?? null,
       zoneName: row.zoneName ?? null,
+      locationName: row.locationName ?? null,
       threadName: row.threadName ?? null,
       channelKind: row.channelKind ?? null,
       realName: row.characterName ?? null,
@@ -218,12 +221,22 @@ async function resolvePresentedState(prisma, entry) {
   }
 }
 
+// The row's Location, for /archive's Location filter. Never allowed to fail the
+// write: a line with no Location name is still a line said.
+function placeLocationName(prisma, placeKey) {
+  return locationNameForPlaceKey(prisma, placeKey).catch((err) => {
+    console.error("Archive location lookup failed:", err.message ?? err);
+    return null;
+  });
+}
+
 async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
   const run = async () => {
-    const [turn, gameId, presentedState] = await Promise.all([
+    const [turn, gameId, presentedState, locationName] = await Promise.all([
       resolveTurn(prisma, entry.turn),
       currentGameId(prisma),
       resolvePresentedState(prisma, entry),
+      placeLocationName(prisma, entry.placeKey),
     ]);
     const row = await prisma.archiveEntry.create({
       data: {
@@ -257,6 +270,7 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
         // A line that names people per reader (./peopleLine.js). Left out entirely when there are
         // none, so every other row keeps the column's SQL NULL.
         ...(entry.subjects ? { subjects: entry.subjects } : {}),
+        locationName,
         threadName: entry.threadName ?? null,
         discordChannelId: entry.discordChannelId ?? null,
         placeKey: entry.placeKey ?? null,
@@ -285,7 +299,11 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
 // A system event — a turn opening, a death, a fulfilled Desire. Same table as messages so the two interleave chronologically and the transcript reads as a diary, not a chat log with no context.
 async function recordArchiveEvent(prisma, entry) {
   return safely(`${entry.kind} write`, async () => {
-    const [turn, gameId] = await Promise.all([resolveTurn(prisma, entry.turn), currentGameId(prisma)]);
+    const [turn, gameId, locationName] = await Promise.all([
+      resolveTurn(prisma, entry.turn),
+      currentGameId(prisma),
+      placeLocationName(prisma, entry.placeKey),
+    ]);
     const row = await prisma.archiveEntry.create({
       data: {
         kind: entry.kind,
@@ -295,6 +313,7 @@ async function recordArchiveEvent(prisma, entry) {
         sentAt: entry.sentAt ?? new Date(),
         zoneId: entry.zoneId ?? null,
         zoneName: entry.zoneName ?? null,
+        locationName,
         characterId: entry.character?.id ?? entry.characterId ?? null,
         characterName: entry.character?.name ?? entry.characterName ?? null,
         content: entry.content ?? "",

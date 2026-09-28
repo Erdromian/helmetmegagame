@@ -48,10 +48,12 @@ function sceneOf(row) {
   const named = row.channelKind && !PLACED_KINDS.has(row.channelKind) ? `#${row.channelKind}` : null;
   const place = row.zoneName ?? named ?? "Elsewhere";
   return {
-    key: row.placeKey ?? (row.threadName ? `${place} · ${row.threadName}` : place),
+    key: row.placeKey ?? [place, row.locationName, row.threadName].filter(Boolean).join(" · "),
     placeKey: row.placeKey ?? null,
     zoneName: row.zoneName ?? null,
-    label: row.threadName ? `${place} · ${row.threadName}` : place,
+    // Zone, then Location, then room: the Location is what tells two scenes
+    // in one zone apart when neither is in a room.
+    label: [place, row.locationName, row.threadName].filter(Boolean).join(" · "),
     // A zone's own #summary is not a room, and saying so costs one word.
     channelKind: row.channelKind ?? null,
   };

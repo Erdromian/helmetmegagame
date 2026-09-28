@@ -454,6 +454,7 @@ function ArchiveView({ onOpenContext, characterId }) {
   const query = archiveParamsToQuery({
     game: "",
     zones: filters.zone ? [filters.zone] : [],
+    locations: [],
     rooms: [],
     characters: [characterId],
     from: day,
