@@ -167,7 +167,11 @@ export async function unretireZone(zoneId) {
   });
 }
 
+// Gated like the hard delete it runs ahead of: the answer counts who is
+// standing where, which is GM knowledge, and a server action is reachable
+// without the page that hides its button.
 export async function zoneDeleteBlockers(zoneId) {
+  await requireDev("super");
   return hardDeleteBlockers(prisma, "zone", zoneId);
 }
 
@@ -338,6 +342,7 @@ export async function unretireLocation(locationId) {
 }
 
 export async function locationDeleteBlockers(locationId) {
+  await requireDev("super");
   return hardDeleteBlockers(prisma, "location", locationId);
 }
 
@@ -547,6 +552,7 @@ export async function unretireRoom(roomId) {
 }
 
 export async function roomDeleteBlockers(roomId) {
+  await requireDev("super");
   return hardDeleteBlockers(prisma, "room", roomId);
 }
 
