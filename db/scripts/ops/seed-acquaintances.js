@@ -1,5 +1,5 @@
 // One-off, per environment: gives every living character the Friends entries
-// their seat knows (Role.knowsRoleSlugs) and an ATM PIN — the catch-up for the
+// their seat knows (Role.knowsRoleSlugs) and an infoterminal PIN — the catch-up for the
 // characters made before the Memories page existed
 // (docs/systemdocs/MEMORIES.md §2a). New characters are seeded at creation.
 //

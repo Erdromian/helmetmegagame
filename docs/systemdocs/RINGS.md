@@ -161,8 +161,10 @@ ring has no mark and is refused.
 
 ## 5. Infoterminals
 
-The ATMs are infoterminals now. Player-facing text only: the code still says
-`ATM_ROOM_SLUGS` and so on.
+The ATMs are infoterminals now, in player text and in the code alike. Only the
+ids live data already holds keep the old name: the `room:atm:` and `depotatm:`
+Discord button ids, the `request_depot_atm` audit kind, and `DEPOT_ATM` as a
+`RequestType` and an economy reason.
 
 An infoterminal reads the ring on your finger (`depotCounter.js#terminalAccount`):
 
@@ -262,7 +264,7 @@ afterwards, if wanted.
 | Every word | `db/lib/ringText.js` |
 | Minting, registering, forging | `db/lib/ringMint.js` |
 | The Meister's registration | `db/lib/ringRegistry.js`, the Rings tab of the Meister's Terminal (`MEISTERY.md`) |
-| The infoterminal | `db/lib/depotCounter.js#terminalAccount`, `web/app/(app)/chat/PlacePanel.js#AtmDialog`, `web/app/components/DepotAtmsTab.js`, `bot/src/events/interactions/depotCounter.js` |
+| The infoterminal | `db/lib/depotCounter.js#terminalAccount`, `web/app/(app)/chat/PlacePanel.js#InfoterminalDialog`, `bot/src/events/interactions/depotCounter.js` |
 | Crafting | `web/app/(app)/character/actions/crafting.js`, the pickers built in `character/page.js` |
 | The seat's ring | `ring:` in `docs/roles.yaml`, `db/lib/syncRoles.js` |
 | Catch-up | `db/scripts/ops/ring-in.js` |

@@ -401,7 +401,7 @@ strip over the scene (CHAT.md §0), with its confirm and `/travel` pick intact.
 Panel · hooded rows showing real names · zone picker rail · GmPlaceBox.
 
 **Dialogs** — Noticeboard (player + GM) · Converse · Word · Bell · Pray ·
-Turret · ATM · Merchant's Terminal · Depot-turret · Quest-interact · Intercom · Move ·
+Turret · Infoterminal · Merchant's Terminal · Depot-turret · Quest-interact · Intercom · Move ·
 Decree · PhotoReadout · LookReadout · Map overlay.
 
 **DM pane** — pseudo-place, no seq · renders `DmThread` (shared with the GM

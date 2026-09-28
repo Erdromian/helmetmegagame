@@ -43,7 +43,7 @@ balance and tax. The panel still counts both, because both are value; what
 changed is which glyph a surface prints. See `DEPOT.md` §0.
 
 **Never sum an account and the coin behind it.** A claim and the pile it draws
-on are two things, and the ATM is the door between them (`DEPOT.md` §0g). A
+on are two things, and the infoterminal is the door between them (`DEPOT.md` §0g). A
 panel that adds a TREASURY balance to the Vault's stash is counting the same
 money twice and telling a lie on its front page.
 
@@ -114,7 +114,7 @@ reconcile.** Reconcile does not look at `COIN` at all, so a Health row claiming
 it had checked the backing would be lying. The question it answers is different
 anyway — not "do the books balance" but "is there enough coin in the Keep's
 Vault to honour what the TREASURY accounts claim". Under that line the books are
-perfectly balanced and somebody still walks up to the ATM and is told no.
+perfectly balanced and somebody still walks up to the infoterminal and is told no.
 `npm run db:audit-vault-backing` reads the two side by side. It is a readout,
 not a check: the Vault is short of the claims by design, so it never exits 1
 for that. See `DEPOT.md` §0g.
@@ -180,7 +180,7 @@ drags PrismaClient into the browser bundle.
 
 Each reason declares a `flow` — `FAUCET`, `SINK`, `TRANSFER` or `INTERNAL` —
 and that is what the charts group on. `INTERNAL` is the one worth
-understanding: an ATM withdrawal is the same money changing coat, so counting it as
+understanding: an infoterminal withdrawal is the same money changing coat, so counting it as
 trade would make a quiet turn at the Depot look like a boom.
 
 **Five reasons arrived with the Depot rework** (`DEPOT.md`): `BANK_DEPOSIT`,

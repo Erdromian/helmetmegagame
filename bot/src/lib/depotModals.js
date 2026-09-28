@@ -1,6 +1,6 @@
 const { ModalBuilder, LabelBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 
-// One modal shape, used by the ATM and the drop box: a number, and nothing
+// One modal shape, used by the infoterminal and the drop box: a number, and nothing
 // else. Both are "you are standing at the machine with your phone out" — the
 // comparing and the re-pointing live on /depot.
 //

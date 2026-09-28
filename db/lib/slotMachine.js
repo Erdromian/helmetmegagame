@@ -8,7 +8,7 @@
 // somebody to rob.
 //
 // Because his account is TREASURY-class, the coin leg goes through the Keep's
-// Vault exactly as the ATM's does (db/lib/bankAccounts.js): a stake is a
+// Vault exactly as the infoterminal's does (db/lib/bankAccounts.js): a stake is a
 // deposit into his claim, a payout is a withdrawal out of it, and the Vault
 // backing stays true. Nothing here mints an obol out of nothing.
 //
@@ -170,7 +170,7 @@ async function playSlots(prisma, discordUserId, { turn = null } = {}) {
   try {
     await prisma.$transaction(async (tx) => {
       // ROOM LOCK FIRST, ALWAYS, then the account — db/lib/tagWrites.js takes
-      // the room lock first, and the other order deadlocks against the ATM.
+      // the room lock first, and the other order deadlocks against the infoterminal.
       if (backed) await tx.$queryRaw`SELECT "id" FROM "Room" WHERE "id" = ${vault.id} FOR UPDATE`;
 
       // The stake: real coin out of a hand, into the Vault, credited to the house.

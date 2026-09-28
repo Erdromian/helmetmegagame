@@ -216,7 +216,7 @@ around that or add a second superadmin before the game opens.
       starting character puts a share of their bank balance into it as they
       are built (the **Vault stock** knob on `/gm/dev`, 25% by default). Once
       the first few seats are made, `npm run db:audit-vault-backing` should
-      show coin in it. An empty Vault means the ATM refuses everybody
+      show coin in it. An empty Vault means the infoterminal refuses everybody
       (`DEPOT.md` §0g).
 - [ ] `/documents` is populated
 - [ ] `#cerberon` and `#27.065` both exist under a `radio` category, and the

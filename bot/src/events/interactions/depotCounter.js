@@ -1,5 +1,5 @@
-// The Depot's fixtures, on Discord: the infoterminal (the ATM, renamed —
-// db/lib/depot.js#ATM_ROOM_SLUGS says where they stand) and the Merchant's gun
+// The Depot's fixtures, on Discord: the infoterminal (
+// db/lib/depot.js#INFOTERMINAL_ROOM_SLUGS says where they stand) and the Merchant's gun
 // on his office wall. Each is a button on a Room's starter post
 // (db/lib/placeAffordances.js), and the rules behind both live in
 // db/lib/depotCounter.js so this face and the web's place panel answer the
@@ -20,15 +20,17 @@ const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ack, respond } = require("../../lib/respond");
 const { RING_TEXT } = require("@lifeweb/db/lib/ringText");
 
-const ATM_OUT_PREFIX = "depotatm:out";
-const ATM_IN_PREFIX = "depotatm:in";
+// The ids keep their old "depotatm" spelling: buttons already posted on
+// Discord carry them.
+const INFOTERMINAL_OUT_PREFIX = "depotatm:out";
+const INFOTERMINAL_IN_PREFIX = "depotatm:in";
 // A button or modal id ending in this asks for the account's PIN as well
 // (db/lib/depotCounter.js#terminalAccount): the ring is somebody else's, or its
 // owner is Concussed or Amnesiac.
-const ATM_PIN_SUFFIX = ":pin";
-const ATM_PIN_FIELD = "depotatm:pin";
-const ATM_MODAL_PREFIX = "depotatm:m:";
-const ATM_AMOUNT_FIELD = "depotatm:amount";
+const INFOTERMINAL_PIN_SUFFIX = ":pin";
+const INFOTERMINAL_PIN_FIELD = "depotatm:pin";
+const INFOTERMINAL_MODAL_PREFIX = "depotatm:m:";
+const INFOTERMINAL_AMOUNT_FIELD = "depotatm:amount";
 
 const DEPOT_TURRET_MODAL_PREFIX = "depotturret:toggle:";
 
@@ -41,7 +43,7 @@ async function openTurn() {
 // It reads the ring on the presser's finger (docs/systemdocs/RINGS.md). When a
 // PIN is needed the balance stays hidden, and each amount modal carries a PIN
 // box instead: Discord has no dialog to keep a typed PIN in between steps.
-async function handleAtmOpen(interaction) {
+async function handleInfoterminalOpen(interaction) {
   await ack(interaction);
   const state = await counterState(prisma, interaction.user.id);
   if (!state.ok) {
@@ -54,8 +56,8 @@ async function handleAtmOpen(interaction) {
       content: `» *${state.pinPrompt}*`,
       components: [
         new ActionRowBuilder().addComponents(
-          new ButtonBuilder().setCustomId(ATM_OUT_PREFIX + ATM_PIN_SUFFIX).setLabel("Take coin out").setStyle(ButtonStyle.Secondary),
-          new ButtonBuilder().setCustomId(ATM_IN_PREFIX + ATM_PIN_SUFFIX).setLabel("Put coin in").setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId(INFOTERMINAL_OUT_PREFIX + INFOTERMINAL_PIN_SUFFIX).setLabel("Take coin out").setStyle(ButtonStyle.Secondary),
+          new ButtonBuilder().setCustomId(INFOTERMINAL_IN_PREFIX + INFOTERMINAL_PIN_SUFFIX).setLabel("Put coin in").setStyle(ButtonStyle.Secondary),
         ),
       ],
     });
@@ -73,18 +75,18 @@ async function handleAtmOpen(interaction) {
       `${state.heldObols} ¢ in your pocket.${backing}*`,
     components: [
       new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId(ATM_OUT_PREFIX).setLabel("Take coin out").setStyle(ButtonStyle.Secondary),
-        new ButtonBuilder().setCustomId(ATM_IN_PREFIX).setLabel("Put coin in").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(INFOTERMINAL_OUT_PREFIX).setLabel("Take coin out").setStyle(ButtonStyle.Secondary),
+        new ButtonBuilder().setCustomId(INFOTERMINAL_IN_PREFIX).setLabel("Put coin in").setStyle(ButtonStyle.Secondary),
       ),
     ],
   });
 }
 
 // showModal IS the acknowledgement, so these must NOT be acked first.
-async function handleAtmAmountOpen(interaction, withdrawing, withPin = false) {
+async function handleInfoterminalAmountOpen(interaction, withdrawing, withPin = false) {
   const modal = buildAmountModal({
-    customId: `${ATM_MODAL_PREFIX}${withdrawing ? "out" : "in"}${withPin ? ATM_PIN_SUFFIX : ""}`,
-    field: ATM_AMOUNT_FIELD,
+    customId: `${INFOTERMINAL_MODAL_PREFIX}${withdrawing ? "out" : "in"}${withPin ? INFOTERMINAL_PIN_SUFFIX : ""}`,
+    field: INFOTERMINAL_AMOUNT_FIELD,
     title: withdrawing ? "Take coin out" : "Put coin in",
     label: "How many obols",
   });
@@ -93,21 +95,21 @@ async function handleAtmAmountOpen(interaction, withdrawing, withPin = false) {
       new LabelBuilder()
         .setLabel(RING_TEXT.infoterminalPinLabel)
         .setTextInputComponent(
-          new TextInputBuilder().setCustomId(ATM_PIN_FIELD).setStyle(TextInputStyle.Short).setMaxLength(8).setRequired(true),
+          new TextInputBuilder().setCustomId(INFOTERMINAL_PIN_FIELD).setStyle(TextInputStyle.Short).setMaxLength(8).setRequired(true),
         ),
     );
   }
   await interaction.showModal(modal);
 }
 
-async function handleAtmSubmit(interaction, which) {
+async function handleInfoterminalSubmit(interaction, which) {
   await ack(interaction);
   const turn = await openTurn();
-  const withPin = which.endsWith(ATM_PIN_SUFFIX);
+  const withPin = which.endsWith(INFOTERMINAL_PIN_SUFFIX);
   const result = await bankMove(prisma, interaction.user.id, {
     direction: which.startsWith("out") ? "WITHDRAW" : "DEPOSIT",
-    amount: Number(interaction.fields.getTextInputValue(ATM_AMOUNT_FIELD)),
-    pin: withPin ? interaction.fields.getTextInputValue(ATM_PIN_FIELD) : null,
+    amount: Number(interaction.fields.getTextInputValue(INFOTERMINAL_AMOUNT_FIELD)),
+    pin: withPin ? interaction.fields.getTextInputValue(INFOTERMINAL_PIN_FIELD) : null,
     turn,
   });
   await respond(interaction, result.ok ? result.line : result.error);
@@ -153,14 +155,14 @@ async function handleDepotTurretSubmit(interaction) {
 }
 
 module.exports = {
-  ATM_OUT_PREFIX,
-  ATM_IN_PREFIX,
-  ATM_PIN_SUFFIX,
-  ATM_MODAL_PREFIX,
+  INFOTERMINAL_OUT_PREFIX,
+  INFOTERMINAL_IN_PREFIX,
+  INFOTERMINAL_PIN_SUFFIX,
+  INFOTERMINAL_MODAL_PREFIX,
   DEPOT_TURRET_MODAL_PREFIX,
-  handleAtmOpen,
-  handleAtmAmountOpen,
-  handleAtmSubmit,
+  handleInfoterminalOpen,
+  handleInfoterminalAmountOpen,
+  handleInfoterminalSubmit,
   handleDepotTurretOpen,
   handleDepotTurretSubmit,
 };

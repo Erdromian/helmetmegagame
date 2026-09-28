@@ -33,7 +33,7 @@ const RING_TEXT = {
   sealHint: "Close a letter with an office's signet ring or a wax seal.",
   sealPickBot: "With which seal?",
 
-  // Infoterminals (the ATMs, renamed).
+  // Infoterminals (docs/systemdocs/RINGS.md §5).
   infoterminalButton: "Infoterminal",
   infoterminalAttribute: "**Infoterminal**: you can reach your treasury account here.",
   infoterminalTitle: "The Infoterminal",

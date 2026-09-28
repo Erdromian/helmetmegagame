@@ -1,6 +1,6 @@
 // AUTHORED attributes live in docs/zones.yaml's `attributes:` map, change only on sync. DERIVED lines read live state via `ctx` (Prisma-free). Add an attribute in ATTRIBUTES — the sync rejects an unknown key, failing loudly.
 
-const { ATM_LOCATION_SLUGS } = require("./depot");
+const { INFOTERMINAL_LOCATION_SLUGS } = require("./depot");
 const { RING_TEXT } = require("./ringText");
 
 const GODFLESH_ATTRIBUTE = "godflesh";
@@ -108,9 +108,9 @@ function placementLine(location) {
   return "**Indoors**: you can still bring an arelitz or cart in here.";
 }
 
-// The machine alone, wherever one stands (db/lib/depot.js#ATM_LOCATION_SLUGS).
-function atmLine(location) {
-  return ATM_LOCATION_SLUGS.has(location?.slug) ? RING_TEXT.infoterminalAttribute : null;
+// The machine alone, wherever one stands (db/lib/depot.js#INFOTERMINAL_LOCATION_SLUGS).
+function infoterminalLine(location) {
+  return INFOTERMINAL_LOCATION_SLUGS.has(location?.slug) ? RING_TEXT.infoterminalAttribute : null;
 }
 
 // Says the STATE, not the verb — buttons say what a click DOES, Examine says what IS TRUE.
@@ -176,7 +176,7 @@ function structureLines(ctx = {}) {
 function describeLocation(location, ctx = {}) {
   return [
     placementLine(location),
-    atmLine(location),
+    infoterminalLine(location),
     ...authoredLines(location, ctx),
     ...depotLines(ctx),
     ...structureLines(ctx),

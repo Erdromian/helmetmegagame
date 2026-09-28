@@ -1118,7 +1118,7 @@ zones:
                 # So the Vault opens holding that share of what the town started
                 # with — DELIBERATELY SHORT OF THE CLAIMS, so a bank run is a
                 # live possibility from day one. Every Treasury bank account is
-                # a claim on this pile and nothing else, the ATM refuses rather
+                # a claim on this pile and nothing else, the infoterminal refuses rather
                 # than clamps, and the money goes to whoever walks up first.
                 # Do not add an `obol:` line back: Start Game would pour it on
                 # top of the stock. See docs/systemdocs/DEPOT.md §0g, and
@@ -1246,7 +1246,7 @@ zones:
       # the noticeboard, and since the Depot Overhaul the Merchant's Office
       # and the Cargo Bay. The Storefront's Merchant's Counter opens onto it
       # as well (a multi-locational room, MAP.md §2d). db/lib/train.js names
-      # the Railway and db/lib/depot.js#ATM_ROOM_SLUGS its cash machine.
+      # the Railway and db/lib/depot.js#INFOTERMINAL_ROOM_SLUGS its cash machine.
       undertown-5:
         name: Depot
         indoors: true

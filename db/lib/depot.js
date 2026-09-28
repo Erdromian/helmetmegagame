@@ -32,10 +32,10 @@ const DEPOT_LOCATION_SLUG = "undertown-5";
 // are at the station: the Depot's own on its Railway, and the Merchant's on
 // his Counter in the Storefront next door (db/lib/train.js#STOREFRONT_ROOM_SLUG)
 // — on the Storefront's side of the Counter, the fixture side (MAP.md §2d). The other two have no counter behind them — the Inn's
-// bar and the Den's — and are an ATM and nothing else, no ordering, no drop
+// bar and the Den's — and are an infoterminal and nothing else, no ordering, no drop
 // box, no sell window. Named here rather than imported from train.js, which
 // would be a cycle for two strings.
-const ATM_ROOM_SLUGS = new Set([
+const INFOTERMINAL_ROOM_SLUGS = new Set([
   "undertown-5-1",
   "undertown-6-1",
   "town-7-2",
@@ -47,7 +47,7 @@ const ATM_ROOM_SLUGS = new Set([
 const MERCHANT_LOCATION_SLUG = "undertown-6";
 const INN_LOCATION_SLUG = "town-7";
 const DEN_LOCATION_SLUG = "undertown-8";
-const ATM_LOCATION_SLUGS = new Set([
+const INFOTERMINAL_LOCATION_SLUGS = new Set([
   DEPOT_LOCATION_SLUG,
   MERCHANT_LOCATION_SLUG,
   INN_LOCATION_SLUG,
@@ -74,8 +74,8 @@ module.exports = {
   MERCHANT_LOCATION_SLUG,
   INN_LOCATION_SLUG,
   DEN_LOCATION_SLUG,
-  ATM_ROOM_SLUGS,
-  ATM_LOCATION_SLUGS,
+  INFOTERMINAL_ROOM_SLUGS,
+  INFOTERMINAL_LOCATION_SLUGS,
   DEPOT_MAX_QUANTITY,
   normalizeQuantity,
 };

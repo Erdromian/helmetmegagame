@@ -1198,7 +1198,7 @@ model MerchantOrder {
 /// The generator and the shuttle are gone — a train on a fixed cycle nobody
 /// calls replaced the one, and the other was a switch that could take the
 /// whole market down for a day. The balance moved to the Merchant's own
-/// BankAccount above, so the two pots the ATM used to sit between are one pot
+/// BankAccount above, so the two pots the infoterminal used to sit between are one pot
 /// and one purse now.
 ///
 /// Every number here still moves through db/lib/depotState.js rather than a
@@ -2758,11 +2758,12 @@ model Character {
   // member list and is the backstop, exactly as it was before this column.
   roomThreadRoomIds String[] @default([])
 
-  // The four digits that open this character's account at an ATM, shown on
+  // The four digits that open this character's account at an infoterminal, shown on
   // the "Who am I?" section of /memories (docs/systemdocs/MEMORIES.md §3).
   // Minted by db/lib/acquaintances.js#ensurePin at creation, or by the
-  // backfill for a character made before the column existed. Display only
-  // for now: no ATM asks for it yet.
+  // backfill for a character made before the column existed. An infoterminal
+  // asks for it when the ring is somebody else's or its holder is Concussed or
+  // Amnesiac (db/lib/depotCounter.js#terminalAccount).
   pin String?
 
   // The Friends section of /memories: what this character knows about other

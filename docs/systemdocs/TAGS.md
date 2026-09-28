@@ -2611,7 +2611,7 @@ described. The economy ledger still books it as form `BALANCE` rather than
 physical, rather than a compression of it — and it is money only at the Depot;
 everywhere else it is a coin nobody has to take. It has no `pointCost` and
 is not purchasable — the only door it enters the world through is the Depot's
-ATM.
+infoterminal.
 
 **`sealedShipping: true`** — a ware that arrives in a crate printing no
 manifest, openable only with a `depot-keycard`. Authored rather than guessed

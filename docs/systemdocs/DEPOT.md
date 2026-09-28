@@ -368,7 +368,7 @@ which is why a sell price equal to the buy price prints nothing
 - **A GM can still stock the Vault by hand** from `/gm/dev/zones` (the room's
   "Seed these items now" box), which adds on top of whatever the characters
   put in. `db:import-zones` never writes a stash.
-- **The ATM — an infoterminal now** (`RINGS.md` §5) moves obols between an
+- **The infoterminal** (`RINGS.md` §5) moves obols between an
   account and physical `obol` tags. It reads the signet ring on your finger:
   no registered ring, no account, and somebody else's ring (or your own while
   Concussed or Amnesiac) wants the account's PIN first. For a
@@ -400,7 +400,7 @@ which is why a sell price equal to the buy price prints nothing
   credit through his terminal, and `Depot.debtObols` / `creditCapObols` were
   dropped. Old `request_depot_credit` rows still read in the ledger.
 
-**Send pays another account, or hands the claim back.** A third ATM button,
+**Send pays another account, or hands the claim back.** A third infoterminal button,
 same standing gate as the other two, and the same ring and PIN: it sends from
 the account the worn ring reaches. The picker names **holders, not
 fingerprints** — a fingerprint half-tells you whose an account is, and a
@@ -470,12 +470,12 @@ Black Market or Merchant line is left out whole, an order stamped `ANONYMOUS`
 or with a Custom label shows under that stamp and never in its account's own
 view, and a transfer is two rows, one per book (`MEISTERY.md` §7).
 
-The ATMs tab no longer shows a player the Vault's total, and its Withdraw
+The Infoterminals tab no longer shows a player the Vault's total, and its Withdraw
 dialog caps at the balance rather than the Vault for the same reason. A
 withdrawal the Vault can't cover is refused server-side.
 
 The number worth reading first is the **backing**. Under the line, somebody is
-going to walk up to the ATM and be told no through no fault of their own. Set
+going to walk up to the infoterminal and be told no through no fault of their own. Set
 the rate too high and people stop selling; set it too low and the Vault drains
 and the town's money stops working.
 
@@ -669,12 +669,12 @@ Selling tab went with the drop box, and the Ledger with the page.
 
 **The fixtures stay, because they were never the page's.** The infoterminal and
 the gun are things on walls — `db/lib/placeAffordances.js`, and the
-infoterminal's walls are listed in `db/lib/depot.js#ATM_ROOM_SLUGS` — so each
+infoterminal's walls are listed in `db/lib/depot.js#INFOTERMINAL_ROOM_SLUGS` — so each
 is a button on a Room's starter post on Discord and a dialog in Chat's place
 panel on the web. The rules behind both live once in `db/lib/depotCounter.js`,
 and the web's half is `web/app/(app)/chat/counterActions.js`.
 
-**Send money moved into Chat's infoterminal dialog.** It was on `/depot`'s ATM
+**Send money moved into Chat's infoterminal dialog.** It was on `/depot`'s Infoterminals
 tab and on the Railway's Discord button; the web had no other place for it. The
 dialog offers **Send to an account** only standing at the Depot, because
 `bankSend` keeps the bare Depot gate (§0l) — `counterState` hands the dialog
@@ -685,7 +685,7 @@ Prices print in ¢ throughout, whole, with no decimals anywhere.
 
 ## 0l. There are four infoterminals
 
-Players read "infoterminal" everywhere; the code still says ATM. There is one on
+There is one on
 the Railway and one on the Merchant's Counter, on the Storefront's side. The
 other two are in **the Inn's bar** (`town-7-2`) and **the Den's bar**
 (`undertown-8-1`), and each is the machine alone. A player drinking in town or in the Den can check a
@@ -693,8 +693,8 @@ balance, take coin out and put coin in, and that is the whole of it. Nobody
 opens an account at one any more: a seat's opens at creation, and the Meister
 opens the rest when he registers a ring (`RINGS.md` §6).
 
-Both are named once, in `db/lib/depot.js` — `ATM_ROOM_SLUGS` for where the
-button draws (`db/lib/placeAffordances.js`) and `ATM_LOCATION_SLUGS` for where
+Both are named once, in `db/lib/depot.js` — `INFOTERMINAL_ROOM_SLUGS` for where the
+button draws (`db/lib/placeAffordances.js`) and `INFOTERMINAL_LOCATION_SLUGS` for where
 the machine answers. `counterActor` in `db/lib/depotCounter.js` takes a place
 rather than assuming the Depot, and exactly two functions pass the wider one:
 `counterState` and `bankMove`. Everything else —
@@ -734,7 +734,7 @@ another five. `db/test/slotMachine.test.js` fails if a retune leaves that band.
 **The house is a person.** Stakes credit the living Exactor's account and
 payouts are drawn from it, so a good night at the machine costs him and a bad
 one keeps him — and his account is TREASURY-class, so the coin leg goes through
-the Keep's Vault exactly as the ATM's does (§0g). Nothing here mints an obol.
+the Keep's Vault exactly as the infoterminal's does (§0g). Nothing here mints an obol.
 
 Three consequences worth knowing:
 

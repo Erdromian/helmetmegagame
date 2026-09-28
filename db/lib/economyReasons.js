@@ -7,7 +7,7 @@
 // How a reason behaves in the books — what Faucets/Sinks group on and the supply chart uses to tell a
 // mint from a hand-over. FAUCET: ⬢ that didn't exist before, supply up. SINK: ⬢ stops existing, supply
 // down. TRANSFER: ⬢ changes hands, supply unchanged, velocity up. INTERNAL: a form change, not a
-// movement (the ATM turning balance into coin) — must be excluded from velocity or a Depot trip counts twice.
+// movement (the infoterminal turning balance into coin) — must be excluded from velocity or a Depot trip counts twice.
 const FLOW = { FAUCET: "FAUCET", SINK: "SINK", TRANSFER: "TRANSFER", INTERNAL: "INTERNAL" };
 
 // reason -> { flow, label }. Label is prose a GM reads, never the word "Resources" beside a ⬢ glyph.
@@ -132,7 +132,7 @@ const REASONS = {
   BANK_WITHDRAWAL: { flow: FLOW.INTERNAL, label: "Withdrawal" },
   // Kept, unwritten: BANK_DEPOSIT/BANK_WITHDRAWAL replaced it, and the old rows
   // still name it.
-  DEPOT_ATM: { flow: FLOW.INTERNAL, label: "ATM" },
+  DEPOT_ATM: { flow: FLOW.INTERNAL, label: "Infoterminal" },
   DEPOT_CREDIT: { flow: FLOW.INTERNAL, label: "Credit line" },
 
   // --- the honest ones ---

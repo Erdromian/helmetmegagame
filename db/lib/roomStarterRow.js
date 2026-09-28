@@ -1,4 +1,4 @@
-// The buttons on a Room's starter post: Storage (docs/systemdocs/CARRY.md), Search (SEARCH.md §9), Intercom on the Council Room (db/lib/intercom.js), Toggle Turret on the Censor's Office (db/lib/gatehouseTurret.js) and on the Merchant's Office (db/lib/depotCounter.js), Sound Bell on the Cathedral's Bell Tower (db/lib/bell.js), the ATM on the Storefront and in the Inn's and the Den's bars, the Drop Box in the Railyard (docs/systemdocs/DEPOT.md), and the Slot Machine in the Den's Casino (db/lib/slotMachine.js). Watchtowers get a SECOND row composed by db/lib/syncZones.js#roomComponents. Raw component JSON, same reason as locationAnchorRow.js — the sync posts it over REST from db/, which has no discord.js.
+// The buttons on a Room's starter post: Storage (docs/systemdocs/CARRY.md), Search (SEARCH.md §9), Intercom on the Council Room (db/lib/intercom.js), Toggle Turret on the Censor's Office (db/lib/gatehouseTurret.js) and on the Merchant's Office (db/lib/depotCounter.js), Sound Bell on the Cathedral's Bell Tower (db/lib/bell.js), the infoterminal on the Storefront and in the Inn's and the Den's bars, the Drop Box in the Railyard (docs/systemdocs/DEPOT.md), and the Slot Machine in the Den's Casino (db/lib/slotMachine.js). Watchtowers get a SECOND row composed by db/lib/syncZones.js#roomComponents. Raw component JSON, same reason as locationAnchorRow.js — the sync posts it over REST from db/, which has no discord.js.
 // The room id rides in the custom_id, routed by prefix in bot/src/events/interactionCreate.js — change it here and you must change it there. This row is hashed into Room.postHash.
 
 // Labels and predicates live in db/lib/placeAffordances.js; this file is just Discord's shape (rows of five, a style per tone).
@@ -12,7 +12,7 @@ const {
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
-  ROOM_ATM_PREFIX,
+  ROOM_INFOTERMINAL_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,
@@ -43,7 +43,7 @@ const ROW_BUTTON_LIMIT = 5;
 // omitting it drops those rather than breaking the row.
 //
 // ROWS, five buttons to a row: the Railway at the Depot carries five (Storage,
-// Search, the ATM, the Phone, Send money). A room
+// Search, the infoterminal, the Phone, Send money). A room
 // with five or fewer is one row, exactly as before, so its Room.postHash does
 // not move.
 function roomStarterRows(room, location = null) {
@@ -68,7 +68,7 @@ module.exports = {
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
-  ROOM_ATM_PREFIX,
+  ROOM_INFOTERMINAL_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,

@@ -59,7 +59,7 @@ test("the Meistery Window's street side offers Storage and no terminal", () => {
 test("the web's room panel never draws Discord's own buttons", () => {
   const web = roomAffordances(RAILWAY, null, { web: true }).map((a) => a.id);
   for (const id of ["sendMoney", "merchantCredit"]) assert.ok(!web.includes(id), id);
-  assert.ok(web.includes("atm"), "the ATM is a web fixture too");
+  assert.ok(web.includes("infoterminal"), "the infoterminal is a web fixture too");
 });
 
 test("a room with five buttons or fewer is still one row, so its post hash does not move", () => {

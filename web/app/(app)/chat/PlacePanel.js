@@ -273,7 +273,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "merchantTerminal" && <MerchantTerminalDialog onClose={close} onDone={say} />}
       {dialog?.kind === "meisterTerminal" && <MeisterTerminalDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "atm" && <AtmDialog onClose={close} onDone={say} />}
+      {dialog?.kind === "infoterminal" && <InfoterminalDialog onClose={close} onDone={say} />}
       {dialog?.kind === "depotTurret" && <DepotTurretDialog onClose={close} onDone={say} />}
       {dialog?.kind === "phone" && <PhoneDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "nuke" && <NukeDialog entry={dialog.entry} onClose={close} onDone={say} />}
@@ -1461,19 +1461,19 @@ function TurretDialog({ entry, onClose, onDone }) {
 
 // -------------------------------------------------------------- the counter
 
-// The ATM and the Merchant's gun are fixtures on walls
+// The infoterminal and the Merchant's gun are fixtures on walls
 // (db/lib/placeAffordances.js), so they open from here and from Discord. The
-// gun is the Depot's alone; the ATM is wherever db/lib/depot.js#ATM_ROOM_SLUGS
+// gun is the Depot's alone; the infoterminal is wherever db/lib/depot.js#INFOTERMINAL_ROOM_SLUGS
 // says there is one. Every one of them re-checks the standing, the papers and
 // the money on the server — a dialog outlives somebody walking out of the
 // room, which is the whole reason none of this is decided here.
 
-// The infoterminal (the ATM, renamed — docs/systemdocs/RINGS.md). It reads the
+// The infoterminal (docs/systemdocs/RINGS.md §5). It reads the
 // ring on your finger, and asks for the account's PIN only when the ring is
 // somebody else's or its owner is Concussed or Amnesiac. The PIN lives in this
 // dialog's state alone and rides along with each call; the server checks it
 // every time (db/lib/depotCounter.js#terminalAccount).
-function AtmDialog({ onClose, onDone }) {
+function InfoterminalDialog({ onClose, onDone }) {
   const [state, setState] = useState(null);
   const [pinDraft, setPinDraft] = useState("");
   const [pin, setPin] = useState(null);
@@ -1512,11 +1512,11 @@ function AtmDialog({ onClose, onDone }) {
       <Modal open title={title} onClose={onClose}>
         <p className="text-sm text-muted">{state.pinPrompt}</p>
         <div className="field">
-          <label className="field-label" htmlFor="chat-atm-pin">
+          <label className="field-label" htmlFor="chat-infoterminal-pin">
             {RING_TEXT.infoterminalPinLabel}
           </label>
           <input
-            id="chat-atm-pin"
+            id="chat-infoterminal-pin"
             inputMode="numeric"
             autoComplete="off"
             maxLength={8}
@@ -1571,10 +1571,10 @@ function AtmDialog({ onClose, onDone }) {
         {state.account.backed ? "" : " Held off-world."}
       </p>
       <div className="field">
-        <label className="field-label" htmlFor="chat-atm-dir">
+        <label className="field-label" htmlFor="chat-infoterminal-dir">
           Which way
         </label>
-        <Select id="chat-atm-dir" value={direction} onChange={(e) => setDirection(e.target.value)}>
+        <Select id="chat-infoterminal-dir" value={direction} onChange={(e) => setDirection(e.target.value)}>
           <option value="WITHDRAW">Take coin out</option>
           <option value="DEPOSIT">Put coin in</option>
           {Array.isArray(state.sendTo) && <option value="SEND">Send to an account</option>}
@@ -1582,10 +1582,10 @@ function AtmDialog({ onClose, onDone }) {
       </div>
       {sending && (
         <div className="field">
-          <label className="field-label" htmlFor="chat-atm-to">
+          <label className="field-label" htmlFor="chat-infoterminal-to">
             Send to
           </label>
-          <Select id="chat-atm-to" value={sendTo} onChange={(e) => setSendTo(e.target.value)}>
+          <Select id="chat-infoterminal-to" value={sendTo} onChange={(e) => setSendTo(e.target.value)}>
             <option value="">Pick an account</option>
             {/* The Crown's money is the Vault already; sending it there moves nothing. */}
             {!state.account.crown && <option value="VAULT">The Vault</option>}
@@ -1598,11 +1598,11 @@ function AtmDialog({ onClose, onDone }) {
         </div>
       )}
       <div className="field">
-        <label className="field-label" htmlFor="chat-atm-amount">
+        <label className="field-label" htmlFor="chat-infoterminal-amount">
           How much, up to {max} ¢
         </label>
         <input
-          id="chat-atm-amount"
+          id="chat-infoterminal-amount"
           type="number"
           min={1}
           max={max}
