@@ -36,7 +36,7 @@ the document calls all four Lobby Music.
 | `ambigen11.ogg` | 0:42 | `sound/ambience/ambigen11.ogg` | nowhere: a space station, which does not exist yet |
 | `ambigen12.ogg` | 0:43 | `sound/ambience/ambigen12.ogg` | a spot over space |
 | `ambimine.ogg` | 1:16 | `sound/ambience/ambimine.ogg` | space |
-| `ambi2.ogg` | 0:30 | `sound/ambience/ambi2.ogg` | in pain shock, wherever you are |
+| `ambi2.ogg` | 0:30 | `sound/ambience/ambi2.ogg` | in pain shock, and on Heroin |
 | `spookymaint1.ogg` | 0:41 | `sound/ambience/spookymaint1.ogg` | the Caves, the Depths and the Black Hills |
 | `spookyspace1.ogg` | 1:40 | `sound/ambience/spookyspace1.ogg` | space (it was the Caves' until the rule that space means space) |
 | `spookyspace2.ogg` | 1:41 | `sound/ambience/spookyspace2.ogg` | space (it was the Depths') |
@@ -95,8 +95,11 @@ by `scripts/audio/build-assets.sh` like everything else.
 | `departure.ogg` | 6:16 | Emra Grid — Departure | `8RjXB6zhJ3Q` | (same) |
 | `the-hierophant.ogg` | 7:22 | Kammarheit — The Hierophant | `xwIBo8NTx1U` | (same) |
 | `feast-of-the-night.ogg` | 2:25 | Erang — Feast Of The Night | `ODTWtjyYY48` | the Inn |
-| `parhelic-triangle.ogg` | 6:10 | Autechre — Parhelic Triangle | `QGX1nSR5ymw` | while hallucinating, wherever you are |
-| `fools-village.ogg` | 1:01 | Fool's Village OST — Main Theme | `Wfpc_1bK8ao` | (same) |
+| `parhelic-triangle.ogg` | 6:10 | Autechre — Parhelic Triangle | `QGX1nSR5ymw` | while hallucinating |
+| `fools-village.ogg` | 1:01 | Fool's Village OST — Main Theme | `Wfpc_1bK8ao` | while hallucinating, and on Bliss |
+| `hishmaliin.ogg` | 3:40 | Dvar — Hishmaliin | `7J5JMJ0JHx4` | on Cave Fungus, and the moment it is taken |
+| `mature-raver.ogg` | 2:29 | AFX — (mature raver) | `vHt-0LjZmWM` | on ETH-LOD, and the moment it is taken |
+| `oval-sky.ogg` | 2:29 | Oval — Sky (2010) | `oxJ6NCyVsQ4` | on Changa, and the moment it is taken |
 | `abyssus-abyssum-invocat.ogg` | 1:46 | Hades — Abyssus Abyssum Invocat | `AijB2f-iCEg` | while wearing the Thanati robes |
 | `consciousness-dissolves.ogg` | 9:01 | Consciousness Dissolves into the Emptiness | `Jl7x7VSdpVc` | a ghost |
 | `geist.ogg` | 5:00 | Dronny Darko — Geist | `UFNAMoRUZts` | a ghost, and the moment somebody becomes one |

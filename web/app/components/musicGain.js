@@ -61,8 +61,9 @@ export const MUSIC_GAIN = {
   "train_loop.ogg": 0.119,            //  -15.5 LUFS, 0:21
   // Bascinet's own picks from the new document: the general, fortress, keep, underfort,
   // caves/depths and space beds, the inn's second track, and what a listener hears
-  // hallucinating, robed or dead. Geist is also the "becoming a ghost" interrupter; it is
-  // keyed here, at the tier it spends most of its time at.
+  // hallucinating, robed, dead or on a drug. Geist is also the "becoming a ghost" interrupter,
+  // and each drug song is also the sound of taking that drug; both are keyed here, at the
+  // tier they spend most of their time at.
   "a-curved-blade.ogg": 0.097,        //  -13.7 LUFS, 6:05
   "abyssus-abyssum-invocat.ogg": 0.086,//  -12.7 LUFS, 1:46
   "after-the-party.ogg": 0.100,       //  -14.0 LUFS, 3:21
@@ -84,10 +85,13 @@ export const MUSIC_GAIN = {
   "garden-music.ogg": 0.135,          //  -16.6 LUFS, 1:36
   "geist.ogg": 0.412,                 //  -26.3 LUFS, 5:00
   "heliopolis.ogg": 0.070,            //  -10.9 LUFS, 4:41
+  "hishmaliin.ogg": 0.064,            //  -10.1 LUFS, 3:40
   "horns-of-eden.ogg": 0.347,         //  -24.8 LUFS, 4:57
   "industrial-district.ogg": 0.305,   //  -23.7 LUFS, 4:35
   "introspectre.ogg": 0.151,          //  -17.6 LUFS, 1:43
   "laudanum.ogg": 0.216,              //  -20.7 LUFS, 4:29
+  "mature-raver.ogg": 0.088,          //  -12.9 LUFS, 2:29
+  "oval-sky.ogg": 0.081,              //  -12.2 LUFS, 2:29
   "parhelic-triangle.ogg": 0.063,     //  -10.0 LUFS, 6:10
   "restless-dreams.ogg": 0.172,       //  -18.7 LUFS, 4:57
   "rivers-of-glass.ogg": 0.245,       //  -21.8 LUFS, 3:59

@@ -424,11 +424,13 @@ long track; it just belongs somewhere now.
   interrupting SFX, or the character leaves the specific zone in which they can play,
   in which case they fade out."
   - `interrupt(piece)` fades the piece out over 1.5 s and plays the interrupter in its
-    place, to its own end, then the ordinary gap. Two are wired: `geist.ogg` the moment
-    this page sees its viewer become a ghost, and `locus-meropis.ogg` for the Charon's
+    place, to its own end, then the ordinary gap. Three kinds are wired: `geist.ogg` the
+    moment this page sees its viewer become a ghost, `locus-meropis.ogg` for the Charon's
     passengers once per launch (`standing.charonLaunchedAt`, a 10-minute window, and a
-    `bascinet:music:charon` stamp so a reload does not play it twice). Asked for before
-    the conductor starts, an interrupter is the first thing it plays.
+    `bascinet:music:charon` stamp so a reload does not play it twice), and a drug's song
+    the moment it is taken (`standing.drugs[].takenAt`, the same window, and a
+    `bascinet:music:dose` stamp; §4b). Asked for before the conductor starts, an
+    interrupter is the first thing it plays.
   - `setPlace(next)` fades the piece over 4 s if `next` could never have picked it
     (`placeAmbience.js#placeHas`). Town to Undertown keeps a general or fortress track
     going, because it can play in both; Town to space does not. A spot is held to the
@@ -575,11 +577,42 @@ is space.
 | `parhelic-triangle.ogg`, `fools-village.ogg` — "Ambience while hallucinating" | the `hallucinating` tag |
 | `abyssus-abyssum-invocat.ogg` — "Ambience while wearing thanati robes" | `black-robes`, **equipped** |
 | `loop_airy4.ogg` — "Ambience in town when character mood is low" | zone `town` and `moodTone: "bad"` |
+| a drug's song — see below | `drugs`, the drugs they are on |
 
 These ride the phase payload (§5). **"Sedated" has no counterpart in the tag
 catalog** — `pain-shock` is real and `unconscious` is the nearest thing to it, so
 `IMPAIRED_TAGS` in `gamePhase.js` is a reading rather than a translation. Say so
 before relying on it.
+
+**Being on a drug is one song per drug**, and the song is two things: the "ambience
+interrupting sfx" the moment the dose is taken (§4a), and then the listener's bed for as
+long as the high lasts. The pairings are Bascinet's, picked against the documents'
+sentences, and kept in one table, `placeAmbience.js#BY_DRUG`. No song belongs to two
+drugs:
+
+| Drug | State it leaves | Song | The document's sentence |
+|---|---|---|---|
+| Cave Fungus | High | `hishmaliin.ogg` | "…plays after smoking marijuana" |
+| Bliss | Euphoric + High | `fools-village.ogg` | "Ambience while hallucinating" |
+| Heroin | Doped | `ambi2.ogg` | "Ambience while in pain shock or sedated" — a texture, so it loops for a minute or two and fades |
+| Changa | Changa High | `oval-sky.ogg` | "…a drug induced bad trip, VERY LOUD" — half the volume of the other tracks, on top of its measured level |
+| ETH-LOD | Dissociated | `mature-raver.ogg` | "…after taking DOB or other hardcore drug" |
+
+Buffout, Love Tablets and Opium High are drugs with no song yet, and are silent.
+Ambrosia (tag points) and the Black Market Autoinjector (Damaged Vision) leave no high to
+hear. Fool's Village still plays for the `hallucinating` tag as well, and so does
+Parhelic Triangle, which no drug has — that is a state, not a drug. ambi2 likewise stays
+the bed for `pain-shock` and `unconscious`.
+
+The soundtrack can only see the STATE, so `web/lib/drugHighs.js` is the way back from
+state to drug: a drug is on while every tag it leaves is held, and Bliss — refined fungus,
+which leaves the same High with Euphoric on top — hides Cave Fungus rather than playing
+beside it. Its test holds the table to each item's `consumesInto` in `docs/tags.yaml`.
+
+The dose is heard from the tag's `acquiredAt`, not from the Consume button, so a drug taken
+on Discord, or given by somebody else, cuts in too — on the next poll, or at once when this
+page's own Consume dialog nudges it. Taking a second dose while still high adds no new tag,
+so it is not heard again.
 
 **A ghost is not anywhere.** `GHOST` is its own place: "Ambience while a ghost",
 "Ambience for ghosts", and `geist.ogg`, which is both that and the interrupter for
@@ -597,7 +630,7 @@ the Depot is the Undertown like anywhere else down there.
 
 Most of the new document's tracks are for things the game does not have yet — the
 Count's camp, limbo, an alien location, a Wonder, the Dreamer, THEY, soulbreakers,
-an alarm in the fortress, a space station, three drugs, a revolutionary. Each one is in the library and the registry with a `needs` line
+an alarm in the fortress, a space station, a revolutionary. Each one is in the library and the registry with a `needs` line
 saying what is missing, and nothing plays it. `npm run sounds:report` lists them.
 
 ---
@@ -638,6 +671,9 @@ use cases are about the person rather than the room (§4b):
 - `impaired`, `hallucinating` and `robed` — whether they hold any of
   `IMPAIRED_TAGS`, the `hallucinating` tag, and `black-robes` **equipped**. One join,
   filtered in the query to those few slugs rather than fetching the tag list.
+- `drugs` — `[{ id, takenAt }]`, the drugs they are on (`drugHighs.js`), with `takenAt`
+  only for a dose from the last ten minutes and null otherwise, so an old stamp nobody can
+  act on does not churn the poll. The state tags ride the same narrow join.
 - `charonLaunchedAt` — the launch time, for ten minutes after the Charon lifts, and
   only for somebody standing at the orbit Location it lifted them to. One more read,
   and only there.
@@ -942,14 +978,15 @@ say — it is the `spot` layer plus §3's third rule now, and 12 of the 42 are w
 `haruspex.ogg` is *"Lobby Music when there is a lateparty"* and
 `holywarlobby.ogg` is *"Special round lobby music"*. Neither **lateparty** nor
 **special round** exists anywhere in this repo, so both files sit in the registry
-described and unwired. The same goes for *"sedated"* in `ambi2.ogg`'s use case:
-the catalog has `pain-shock` and `unconscious` and nothing else that fits.
+described and unwired. *"Sedated"* in `ambi2.ogg`'s use case has no tag of its own
+either: the catalog has `pain-shock` and `unconscious`, and Heroin's Doped hears it as a
+drug song (§4b).
 
 The new document names many more, each recorded as the file's `needs` and left
 unwired: the Count and its camp, limbo, an alien location, a Wonder, an ancient super
 intelligence, the Dreamer, THEY, soulbreakers and their ship, a space station, an
-alarm declared in the fortress, an OS13 gamemode, DOB and
-marijuana and a bad trip, and becoming a revolutionary. `npm run sounds:report`
+alarm declared in the fortress, an OS13 gamemode, and becoming a revolutionary.
+`npm run sounds:report`
 groups them by what is missing.
 
 ### The checks

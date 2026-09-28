@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { setMasterVolume, setMusicMuted } from "./music";
-import { GHOST, INTERRUPTS, resolveAmbience } from "./placeAmbience";
+import { BY_DRUG, GHOST, INTERRUPTS, resolveAmbience } from "./placeAmbience";
 import { useHeardPlace, useLastHeardPlace } from "./heardPlace";
 import { standingForKey, useGmPlaces } from "./gmPlaces";
 import { resolveProgram, runProgram } from "./musicProgram";
@@ -128,7 +128,40 @@ export default function MusicDirector() {
     interrupt(INTERRUPTS.charonLaunch);
   }, [launchedAt]);
 
+  // The sound of taking a drug: its song cuts in once per dose, and then stays on as the
+  // listener's bed while the high lasts (placeAmbience.js#BY_DRUG). gamePhase.js only stamps
+  // a dose from the last few minutes, and the stamp outlives a reload, so a dose taken on
+  // Discord is still heard when the site is opened after. The newest dose wins if two land
+  // in one poll — two songs cutting each other off is worse than one.
+  const doses = living ? (standing?.drugs ?? []) : [];
+  const dose = doses
+    .filter((d) => d.takenAt && BY_DRUG[d.id])
+    .reduce((best, d) => (!best || d.takenAt > best.takenAt ? d : best), null);
+  const doseKey = dose ? `${dose.id}@${dose.takenAt}` : null;
+  useEffect(() => {
+    if (!doseKey) return;
+    const id = doseKey.slice(0, doseKey.lastIndexOf("@"));
+    if (heardDose(doseKey)) return;
+    interrupt(BY_DRUG[id]);
+  }, [doseKey]);
+
   return null;
+}
+
+const DOSE_KEY = "bascinet:music:dose";
+let doseHeard = null;
+
+/** Whether this browser has already heard this dose; marks it heard if not. */
+function heardDose(key) {
+  if (doseHeard === key) return true;
+  doseHeard = key;
+  try {
+    if (window.localStorage.getItem(DOSE_KEY) === key) return true;
+    window.localStorage.setItem(DOSE_KEY, key);
+  } catch {
+    // Storage blocked: once per page load, which the module variable already is.
+  }
+  return false;
 }
 
 const LAUNCH_KEY = "bascinet:music:charon";

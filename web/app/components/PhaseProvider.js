@@ -11,8 +11,8 @@ export function usePhase() {
 
 /**
  * Where this viewer is standing — `{ locationSlug, zoneSlug, zoneKind, indoors,
- * attributes, rooms, trainFresh, moodTone, impaired, hallucinating, robed, charonLaunchedAt,
- * jukebox }`
+ * attributes, rooms, trainFresh, moodTone, impaired, hallucinating, robed, drugs,
+ * charonLaunchedAt, jukebox }`
  * — or null for somebody with no living character.
  *
  * It rides the phase payload rather than having a provider of its own: the ambience bed
@@ -59,6 +59,7 @@ function sameAnswer(a, b) {
     x.hallucinating === y.hallucinating &&
     x.robed === y.robed &&
     x.charonLaunchedAt === y.charonLaunchedAt &&
+    JSON.stringify(x.drugs) === JSON.stringify(y.drugs) &&
     sameJukebox(x.jukebox, y.jukebox) &&
     x.attributes.join() === y.attributes.join() &&
     JSON.stringify(x.rooms) === JSON.stringify(y.rooms)
