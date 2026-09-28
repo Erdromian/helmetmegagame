@@ -2514,14 +2514,16 @@ connections:
   # The portcullis joins the Residences to the Courtyard. It has a gate button
   # on BOTH Location anchors, and it moves only for a ring carrying
   # portcullis-key (db/lib/gateControls.js).
+  #
+  # Both are born shut: a new game starts with the gates closed.
   - pair: [hills/bridge, town/town-2]
     announce: true_name
     modular:
-      open: true
+      open: false
   - pair: [town/town-8, fortress/fortress-2]
     announce: true_name
     modular:
-      open: true
+      open: false
 
   # The Baron's lift, top to bottom: the Keep's cage down into the Refuse Pit.
   # The Baron's signet ring opens it (docs/systemdocs/RINGS.md); an Elevator
