@@ -13,6 +13,7 @@ const {
 const { PARTIES } = require("./threats");
 const { listObjectives, membersByParty } = require("./objectives");
 const { sampleChat } = require("./oracleChatSample");
+const { describeAppliedScales } = require("./stagedScales");
 
 // The game's clock — turnClock.js's TIME_ZONE. Every row in every
 // tense-bucketed section carries a stamp built from it, because the window
@@ -128,6 +129,11 @@ function describeStagedEffect(snapshot) {
   if (snapshot?.location) bits.push("relocated");
   if (snapshot?.transfer) bits.push(`${snapshot.transfer.amount} ⬢ transferred`);
   if (snapshot?.roomEntry && !snapshot.roomEntry.already) bits.push(`let into ${snapshot.roomEntry.name}`);
+  if (snapshot?.scales) {
+    // Only what moved: a skip is desk bookkeeping, not something that happened.
+    const moved = Object.fromEntries(Object.entries(snapshot.scales).filter(([, entry]) => !entry?.skipped));
+    bits.push(...describeAppliedScales(moved).map((line) => line.toLowerCase()));
+  }
   return bits.join(", ");
 }
 

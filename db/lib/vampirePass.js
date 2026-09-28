@@ -53,7 +53,14 @@ const HUMANITY_BAND_SLUGS = [HUMANE_SLUG, ESTRANGED_SLUG, DISTURBED_SLUG, WARPED
 const CYCLIC_SLUGS = [...URGENCY_SLUGS, BLACK_SCLERA_SLUG, PALE_SLUG, ...HUMANITY_BAND_SLUGS];
 const ALL_TRACKED_SLUGS = [...CYCLIC_SLUGS, BESTIAL_SLUG, WIGHT_SLUG];
 
-async function runVampirePass(prisma, turn, config) {
+// `hold` is what a GM staged at this close's push (db/lib/stagedScalesApply.js
+// #loadHeldScales). A Vampire in `hold.blood` keeps the blood the GM set, with
+// no drain; one in `hold.humanity` keeps the humanity, with no regen and no
+// Bloodcrazed loss from a drain crossing tonight. The band tags are still
+// worked out from where each meter ends.
+async function runVampirePass(prisma, turn, config, { hold = {} } = {}) {
+  const holdBlood = hold.blood ?? new Set();
+  const holdHumanity = hold.humanity ?? new Set();
   const tags = await prisma.tag.findMany({
     where: { slug: { in: [VAMPIRE_SLUG, ...ALL_TRACKED_SLUGS] } },
     select: { id: true, slug: true, name: true, defaultDurationTurns: true },
@@ -103,15 +110,16 @@ async function runVampirePass(prisma, turn, config) {
 
     const beforeBlood = clampBlood(character.vampireBloodLevel);
     const beforeUrgency = bloodUrgencyBand(beforeBlood);
-    const afterBlood = clampBlood(beforeBlood - bloodRate);
+    const afterBlood = holdBlood.has(character.id) ? beforeBlood : clampBlood(beforeBlood - bloodRate);
     const afterUrgency = bloodUrgencyBand(afterBlood);
     const justEnteredBloodcrazed = beforeUrgency !== "bloodcrazed" && afterUrgency === "bloodcrazed";
 
     const heldBestial = held.has(bySlug.get(BESTIAL_SLUG).id);
+    const humanityHeld = holdHumanity.has(character.id);
     const beforeHumanity = clampHumanity(character.vampireHumanity);
-    let afterHumanity = heldBestial ? beforeHumanity : clampHumanity(beforeHumanity + humanityRate);
+    let afterHumanity = heldBestial || humanityHeld ? beforeHumanity : clampHumanity(beforeHumanity + humanityRate);
     if (justEnteredBloodcrazed) {
-      afterHumanity = clampHumanity(afterHumanity - HUMANITY_LOSS_BLOODCRAZED);
+      if (!humanityHeld) afterHumanity = clampHumanity(afterHumanity - HUMANITY_LOSS_BLOODCRAZED);
       enteredBloodcrazed += 1;
     }
 

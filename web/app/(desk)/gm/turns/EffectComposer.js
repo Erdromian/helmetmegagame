@@ -10,13 +10,15 @@ import { scoreMatch } from "@/lib/fuzzySearch";
 import TagChip from "@/app/components/TagChip";
 import TagCatalogBrowser from "@/app/components/TagCatalogBrowser";
 import CustomTagDialog from "@/app/components/CustomTagDialog";
-import { createStagedEffects, updateStagedEffect, getHeldTags } from "./actions";
+import { createStagedEffects, updateStagedEffect, getHeldTags, getScaleReadings } from "./actions";
 import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import useEscapeLayer from "./escapeLayers";
 import QuickPicks from "./QuickPicks";
 import QuantityField from "@/app/components/QuantityField";
+import ScaleFields, { emptyScaleDraft, scaleDraftDirty, scaleDraftPayload } from "./ScaleFields";
 
-// Stage a mechanical adjustment: signed ⬢ and/or tag adds/removes, against
+// Stage a mechanical adjustment: signed ⬢, tag adds/removes, a relocation
+// and/or the hidden meters (hunger, mood, blood, humanity — ScaleFields.js), against
 // one target or many at once (the "Explosion Burns ×4 players" case — one
 // batch, one tray line). Presence ops only; the Dev Panel keeps the full
 // editor. Ops merge with the same algebra the Dev Panel uses, so add-then-
@@ -66,6 +68,8 @@ export default function EffectComposer({
     return v ? String(v) : "";
   });
   const [locationId, setLocationId] = useState(() => existing?.locationId ?? "");
+  // Hunger, mood, blood, humanity — ScaleFields.js.
+  const [scales, setScales] = useState(() => emptyScaleDraft(existing?.scales));
   const [targetSearch, setTargetSearch] = useState("");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
@@ -74,8 +78,48 @@ export default function EffectComposer({
   // row is exempt: those values are already a staged row.
   const { markDirty, markClean, guardedClose } = useDirtyGuard({
     alsoDirty:
-      !existing && Boolean(resources.trim() || tagPoints.trim() || ops.size || locationId),
+      !existing &&
+      Boolean(resources.trim() || tagPoints.trim() || ops.size || locationId || scaleDraftDirty(scales)),
   });
+
+  // Each target's meters as they stand now, for the Scales group's "now"
+  // line and to know whether anybody picked is a Vampire. Cached per
+  // character for the life of the modal, the held-tags cache's posture.
+  const [readingsById, setReadingsById] = useState(() => new Map());
+  const [readingsFailed, setReadingsFailed] = useState(false);
+  useEffect(() => {
+    const missing = targets.map((t) => t.id).filter((id) => !readingsById.has(id));
+    if (!missing.length) return undefined;
+    let cancelled = false;
+    (async () => {
+      let res;
+      try {
+        res = await getScaleReadings({ characterIds: missing });
+      } catch {
+        res = null;
+      }
+      if (cancelled) return;
+      if (!res?.ok) {
+        setReadingsFailed(true);
+        return;
+      }
+      setReadingsById((prev) => {
+        const next = new Map(prev);
+        // Every id asked about gets an entry, null for one that came back
+        // missing (deleted since), or this effect would ask again forever.
+        for (const id of missing) next.set(id, null);
+        for (const r of res.readings) next.set(r.characterId, r);
+        return next;
+      });
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [targets, readingsById]);
+  const readings = useMemo(() => {
+    const list = targets.map((t) => readingsById.get(t.id)).filter(Boolean);
+    return list.length === targets.length && list.length ? list : null;
+  }, [targets, readingsById]);
 
   // Tags ticked in the catalog browser but not yet folded into `ops` — a GM
   // who checks boxes and presses "Stage it" directly (skipping "Add N
@@ -313,8 +357,16 @@ export default function EffectComposer({
           }
           tagOps = [...merged.values()];
         }
+        const scaleChanges = scaleDraftPayload(scales);
         const res = existing
-          ? await updateStagedEffect({ stagedEffectId: existing.id, resources, tagPoints, tagOps, locationId })
+          ? await updateStagedEffect({
+              stagedEffectId: existing.id,
+              resources,
+              tagPoints,
+              tagOps,
+              locationId,
+              scales: scaleChanges,
+            })
           : await createStagedEffects({
               targetCharacterIds: targets.map((t) => t.id),
               moveId,
@@ -324,6 +376,7 @@ export default function EffectComposer({
               tagPoints,
               tagOps,
               locationId,
+              scales: scaleChanges,
             });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
@@ -475,6 +528,17 @@ export default function EffectComposer({
           )}
           </div>
         </section>
+
+        <ScaleFields
+          value={scales}
+          onChange={(next) => {
+            setScales(next);
+            markDirty();
+          }}
+          readings={readings}
+          readingsFailed={readingsFailed}
+          existing={existing?.scales}
+        />
 
         {/* Only once there is something to change. A headed, ruled-off group
             holding nothing is a heading that looks like a bug — and this one

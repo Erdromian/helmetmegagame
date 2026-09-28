@@ -35,14 +35,21 @@ async function unburiedCorpseLocationIds(prisma) {
   return ids;
 }
 
-async function runMoodPass(prisma, turn) {
+// `hold.mood` is who a GM staged a mood for at this close's push
+// (db/lib/stagedScalesApply.js#loadHeldScales): their dial stays where the GM
+// put it tonight, with no settle at all.
+async function runMoodPass(prisma, turn, { hold = {} } = {}) {
+  const holdMood = hold.mood ?? new Set();
   const intensity = await loadIntensity(prisma);
   const dms = [];
   const failed = [];
 
   // The off switch: nothing moves anyone, and every dial settles at Fine.
   if (intensity === 0) {
-    const zeroed = await prisma.character.updateMany({ where: { mood: { not: 0 } }, data: { mood: 0 } });
+    const zeroed = await prisma.character.updateMany({
+      where: { mood: { not: 0 }, id: { notIn: [...holdMood] } },
+      data: { mood: 0 },
+    });
     return { turnNumber: turn.number, intensity, zeroed: zeroed.count, lifted: 0, sank: 0, failed, dms };
   }
 
@@ -75,9 +82,14 @@ async function runMoodPass(prisma, turn) {
   let lifted = 0;
   let sank = 0;
   let skipped = 0;
+  let heldCount = 0;
   const byPlace = {};
 
   for (const character of characters) {
+    if (holdMood.has(character.id)) {
+      heldCount += 1;
+      continue;
+    }
     const held = new Set(character.tags.map((ct) => ct.tag.slug));
     const terms = [];
     const placeClass = placeClassOf(character.location);
@@ -120,6 +132,7 @@ async function runMoodPass(prisma, turn) {
     intensity,
     settled,
     skipped,
+    held: heldCount || undefined,
     lifted,
     sank,
     byPlace,

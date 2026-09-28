@@ -164,7 +164,7 @@ function fingerprintUnapplied(effects, messages) {
   for (const e of effects) {
     if (e.applied) continue;
     parts.push(
-      `e:${e.id}:${e.resources}:${e.tagPoints}:${e.locationId ?? ""}:${JSON.stringify(e.tagOps ?? [])}`,
+      `e:${e.id}:${e.resources}:${e.tagPoints}:${e.locationId ?? ""}:${JSON.stringify(e.tagOps ?? [])}:${JSON.stringify(e.scales ?? null)}`,
     );
   }
   for (const m of messages) {

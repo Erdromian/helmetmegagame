@@ -103,7 +103,14 @@ function foodsFrom(rows, ingredientsBySlug) {
   return foods;
 }
 
-async function runHungerPass(prisma, turn, { bornBefore } = {}) {
+// `hold` is what a GM staged at this close's push (db/lib/stagedScalesApply.js
+// #loadHeldScales). Somebody in `hold.hunger` keeps the number the GM set: no
+// decay, no eating, and the push already moved their descriptor and zero
+// clock. Somebody in `hold.mood` takes none of this pass's mood (an onset,
+// Dying, a meal).
+async function runHungerPass(prisma, turn, { bornBefore, hold = {} } = {}) {
+  const holdHunger = hold.hunger ?? new Set();
+  const holdMood = hold.mood ?? new Set();
   const tags = await prisma.tag.findMany({
     where: {
       slug: {
@@ -174,6 +181,7 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   }
 
   const hungerlessIds = [];
+  let heldCount = 0;
   // The decay is uniform within a turn for each rate, so everybody who does
   // not eat goes into one of four buckets and one updateMany each. The WHERE
   // side of each bucket matches its own decrement, so hungerValue can never
@@ -186,6 +194,10 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
     const heldIds = new Map(character.tags.map((ct) => [ct.tagId, ct]));
     if (hungerlessId && heldIds.has(hungerlessId)) {
       hungerlessIds.push(character.id);
+      continue;
+    }
+    if (holdHunger.has(character.id)) {
+      heldCount += 1;
       continue;
     }
     const fast = Boolean(fastMetabolismId && heldIds.has(fastMetabolismId));
@@ -389,6 +401,7 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
   // the fright of Dying. One write per character.
   const moodDms = [];
   for (const [id, o] of outcomes) {
+    if (holdMood.has(id)) continue;
     const terms = [];
     if (o.cross.enteredHungry) terms.push({ kind: "HUNGRY_ONSET", base: EVENTS.HUNGRY_ONSET, ctx: {} });
     if (o.cross.enteredStarving) terms.push({ kind: "STARVING_ONSET", base: EVENTS.STARVING_ONSET, ctx: {} });
@@ -414,6 +427,7 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
     perTurnDecay: perTurn,
     decayed: outcomes.size,
     skipped: hungerlessIds.length,
+    held: heldCount || undefined,
     autoAte: starvedAte,
     autoAteUnits,
     poisonedWhileEating: poisonedEaters.length || undefined,

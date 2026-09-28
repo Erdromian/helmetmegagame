@@ -2,6 +2,7 @@
 // Pure functions over DTOs — no server imports, safe in client components.
 
 import { chunkMessage } from "@lifeweb/db/lib/chunkText";
+import { allScalesSkipped, describeAppliedScales, describeScales } from "@lifeweb/db/lib/stagedScales";
 
 // How many Discord messages a staged body will arrive as. Uses chunkText.js,
 // not discordRest.js (reads DISCORD_TOKEN, calls fetch), to keep this module client-safe.
@@ -71,6 +72,10 @@ export function effectSegments(effect, tagsById) {
     segs.push({ k: "tagchip", op: op.op, tag, name: tag?.name ?? "a tag", quantity: qty });
   }
   if (effect.locationId) segs.push({ k: "text", v: `→ ${effect.locationName ?? "?"}` });
+  // Once pushed, say what each meter actually did — the knock-ons and the skips
+  // are the part a GM can't work out from what they typed.
+  const scaleLines = effect.appliedScales ? describeAppliedScales(effect.appliedScales) : describeScales(effect.scales);
+  for (const line of scaleLines) segs.push({ k: "text", v: line });
   return segs;
 }
 
@@ -84,6 +89,16 @@ export function effectSummary(effect, tagsById) {
   return parts.join(" · ") || "nothing";
 }
 
+function isScaleOnly(effect) {
+  return (
+    Boolean(effect.scales) &&
+    !effect.resources &&
+    !effect.tagPoints &&
+    !(effect.tagOps ?? []).length &&
+    !effect.locationId
+  );
+}
+
 // The one-word state of a staged row, for a status pill.
 export function effectState(effect) {
   if (effect.appliedError) return { label: "Errored", tone: "bad" };
@@ -94,6 +109,8 @@ export function effectState(effect) {
     }
     // The side they stood at was open to all, or they hold a key — nothing to let them into.
     if (effect.appliedRoomEntry?.already) return { label: "No-op — already in", tone: "warn" };
+    // A scale-only row whose every meter was skipped (Hungerless, not a Vampire…) moved nothing.
+    if (isScaleOnly(effect) && allScalesSkipped(effect.appliedScales)) return { label: "No-op", tone: "warn" };
     return { label: "Applied", tone: "good" };
   }
   // Missed push is the warning; Staged is the normal resting state.

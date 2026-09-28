@@ -43,7 +43,11 @@ const CYCLIC_SLUGS = [...URGENCY_SLUGS, BLACK_SCLERA_SLUG, PALE_SLUG, ...HUMANIT
 // Does NOT touch Bestial/Wight — those are permanent and one-time-earned by
 // db/lib/vampirePass.js crossing into 0 humanity, never re-derived from a
 // GM's raw number. A GM who wants to undo them removes the tags directly.
-async function syncVampireBandsNow(tx, characterId, bloodLevel, humanity) {
+//
+// `openTurnNumber` is for a caller that already knows which turn the grants
+// land in — the turn push (db/lib/stagedScalesApply.js), where the closing
+// turn and the next one are both in play and a lookup would have to guess.
+async function syncVampireBandsNow(tx, characterId, bloodLevel, humanity, { openTurnNumber = null } = {}) {
   const tags = await tx.tag.findMany({
     where: { slug: { in: [...CYCLIC_SLUGS, BESTIAL_SLUG] } },
     select: { id: true, slug: true, defaultDurationTurns: true },
@@ -62,7 +66,10 @@ async function syncVampireBandsNow(tx, characterId, bloodLevel, humanity) {
   const heldIds = new Set(held.map((row) => row.tagId));
   const heldBestial = heldIds.has(bySlug.get(BESTIAL_SLUG).id);
 
-  const openTurn = await tx.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
+  const openTurn =
+    openTurnNumber != null
+      ? { number: openTurnNumber }
+      : await tx.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
 
   const toGrant = [];
   const toDropIds = [];

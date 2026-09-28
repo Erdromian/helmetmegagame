@@ -10,6 +10,15 @@ import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { validateRoomTagOps } from "@lifeweb/db/lib/roomTagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
 import { resourcesOf, withoutResources } from "@lifeweb/db/lib/resourceStack";
+import {
+  SCALES,
+  SCALE_BY_KEY,
+  SCALE_GATE_SLUGS,
+  SKIP_REASONS,
+  hasScales,
+  normalizeStagedScales,
+  scaleBlockFor,
+} from "@lifeweb/db/lib/stagedScales";
 import { getVisibleZones } from "@/lib/gmZoneView";
 // By path, not off the barrel — the db/lib/dm.js convention this module follows.
 import {
@@ -469,6 +478,39 @@ async function normalizeStagedLocation(raw) {
   return locationId;
 }
 
+// Hunger, mood, blood and humanity (ADJUDICATION.md §1b), checked for shape
+// and range by the same validator the push reads. Returns null for "no scale
+// changes".
+function normalizeStagedScaleChanges(raw) {
+  const { scales, error } = normalizeStagedScales(raw);
+  if (error) throw new UserError(error);
+  return hasScales(scales) ? scales : null;
+}
+
+// Refused only when NOBODY picked can take a scale at all. A batch with one
+// Hungerless character or one non-Vampire in it still stages, and the push
+// skips that one and says why on the row (db/lib/stagedScalesApply.js).
+async function assertScalesFit(scales, targetIds) {
+  if (!scales) return;
+  const rows = await prisma.character.findMany({
+    where: { id: { in: targetIds } },
+    select: {
+      name: true,
+      tags: { where: { tag: { slug: { in: SCALE_GATE_SLUGS } } }, select: { tag: { select: { slug: true } } } },
+    },
+  });
+  for (const key of Object.keys(scales)) {
+    const blocks = rows.map((r) => scaleBlockFor(key, r.tags.map((ct) => ct.tag.slug)));
+    if (!blocks.length || !blocks.every(Boolean)) continue;
+    const label = SCALE_BY_KEY.get(key).label;
+    throw new UserError(
+      rows.length === 1
+        ? `${label} can't change for ${rows[0].name} — ${blocks[0]}.`
+        : `${label} can't change for any of them — ${[...new Set(blocks)].join(", ")}.`,
+    );
+  }
+}
+
 // The room composer stages presence ops too, but through roomTagOps.js'
 // validator rather than tagOps.js'. The difference that matters: a room takes
 // any quantity of a non-stackable tag, because the pin is a rule about what
@@ -482,7 +524,7 @@ function normalizeStagedRoomOps(tagOps) {
   });
 }
 
-async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, combatId, resources, tagPoints, tagOps, locationId }) {
+async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, combatId, resources, tagPoints, tagOps, locationId, scales }) {
   await requireCombatAnchor(combatId);
   const session = await requireGm();
   const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
@@ -492,8 +534,9 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
   const points = normalizeStagedTagPoints(tagPoints);
   const ops = normalizeStagedOps(tagOps);
   const place = await normalizeStagedLocation(locationId);
-  if (!delta && !points && !ops.length && !place) {
-    throw new UserError("Stage a resource, tag-point, tag change, or relocation.");
+  const scaleChanges = normalizeStagedScaleChanges(scales);
+  if (!delta && !points && !ops.length && !place && !scaleChanges) {
+    throw new UserError("Stage a resource, tag-point, tag change, relocation, or scale change.");
   }
 
   // Validated now with the same engine the push runs, so they can't disagree.
@@ -509,6 +552,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
 
   const found = await prisma.character.findMany({ where: { id: { in: targets } }, select: { id: true } });
   if (found.length !== targets.length) throw new UserError("One of those characters no longer exists.");
+  await assertScalesFit(scaleChanges, targets);
 
   const openTurn = await requireOpenTurn();
   const batchId = targets.length > 1 ? crypto.randomUUID() : null;
@@ -517,6 +561,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
     ...(points ? { tagPoints: points } : {}),
     ...(ops.length ? { tagOps: ops } : {}),
     ...(place ? { locationId: place } : {}),
+    ...(scaleChanges ? { scales: scaleChanges } : {}),
   };
 
   const created = await prisma.$transaction(
@@ -900,7 +945,7 @@ function craftKeysAfterEdit(payload, ops, tagsById) {
   };
 }
 
-async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, locationId }) {
+async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, tagOps, locationId, scales }) {
   const session = await requireGm();
   const existing = await prisma.stagedEffect.findUnique({ where: { id: stagedEffectId ?? "" } });
   if (!existing) throw new UserError("That staged effect is gone.");
@@ -910,9 +955,11 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
   const points = normalizeStagedTagPoints(tagPoints);
   const ops = normalizeStagedOps(tagOps);
   const place = await normalizeStagedLocation(locationId);
-  if (!delta && !points && !ops.length && !place) {
-    throw new UserError("Stage a resource, tag-point, tag change, or relocation.");
+  const scaleChanges = normalizeStagedScaleChanges(scales);
+  if (!delta && !points && !ops.length && !place && !scaleChanges) {
+    throw new UserError("Stage a resource, tag-point, tag change, relocation, or scale change.");
   }
+  if (existing.targetCharacterId) await assertScalesFit(scaleChanges, [existing.targetCharacterId]);
   let tagsById = new Map();
   if (ops.length) {
     const tags = await prisma.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
@@ -935,6 +982,7 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
         ...(points ? { tagPoints: points } : {}),
         ...(ops.length ? { tagOps: ops } : {}),
         ...(place ? { locationId: place } : {}),
+        ...(scaleChanges ? { scales: scaleChanges } : {}),
         ...(craft ?? {}),
       },
       batchId: null,
@@ -1775,6 +1823,42 @@ async function getHeldTagsImpl({ characterId }) {
   return { tags: rows.map((r) => ({ tagId: r.tagId, name: r.tag.name, quantity: r.quantity, stackable: r.tag.stackable })) };
 }
 
+// Where each target's hidden meters sit right now, for the composer's Scales
+// group (ADJUDICATION.md §1b), and which scales each of them can't take. The
+// numbers are the GM's; a player never sees them.
+async function getScaleReadingsImpl({ characterIds }) {
+  await requireGm();
+  const ids = [...new Set((characterIds ?? []).filter(Boolean))].slice(0, 200);
+  const rows = await prisma.character.findMany({
+    where: { id: { in: ids } },
+    select: {
+      id: true,
+      name: true,
+      status: true,
+      hungerValue: true,
+      mood: true,
+      vampireBloodLevel: true,
+      vampireHumanity: true,
+      tags: { where: { tag: { slug: { in: SCALE_GATE_SLUGS } } }, select: { tag: { select: { slug: true } } } },
+    },
+  });
+  return {
+    readings: rows.map((r) => {
+      const held = r.tags.map((ct) => ct.tag.slug);
+      const values = { hunger: r.hungerValue, mood: r.mood, blood: r.vampireBloodLevel, humanity: r.vampireHumanity };
+      return {
+        characterId: r.id,
+        name: r.name,
+        vampire: !scaleBlockFor("blood", held),
+        values,
+        blocked: Object.fromEntries(
+          SCALES.map((s) => [s.key, r.status === "ALIVE" ? scaleBlockFor(s.key, held) : SKIP_REASONS.notAlive]),
+        ),
+      };
+    }),
+  };
+}
+
 // The same panel for a room: what is lying on the floor right now, so a GM
 // staging a Remove is choosing from what is actually there. A room has no
 // sheet, so this stands in for getHeldTags.
@@ -2265,6 +2349,9 @@ export async function getCharacterInspector(input) {
 }
 export async function getHeldTags(input) {
   return guarded(() => getHeldTagsImpl(input));
+}
+export async function getScaleReadings(input) {
+  return guarded(() => getScaleReadingsImpl(input));
 }
 export async function getRoomStash(input) {
   return guarded(() => getRoomStashImpl(input));
