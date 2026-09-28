@@ -17,9 +17,8 @@ const CONCEALMENT_TAG_FIELDS = {
   concealsIdentity: true,
   concealSprite: true,
   forcesConceal: true,
-  // Both halves of the ordering below. equipSlot alone is not enough (a robe
-  // and a breastplate share it) and equipLayer alone is not either, now that
-  // HEAD carries none.
+  // Both halves of the ordering below. equipLayer alone is not enough, now
+  // that HEAD and BODY carry none.
   equipSlot: true,
   equipLayer: true,
 };
@@ -32,8 +31,9 @@ const CONCEALMENT_TAG_FIELDS = {
 // happened to return first — a sprite that could change between two reloads.
 //
 // It asks the question it always meant: what is on the outside. A head piece
-// beats a body one, because a hood covers a face and a breastplate does not,
-// and within BODY the Over layer beats Mail.
+// beats a body one, because a hood covers a face and a robe does not. BODY
+// holds one piece now too, so the layer term only still orders a row that
+// carries one from before (and the test fixtures that do).
 function concealRank(tag) {
   if (tag?.equipSlot === "HEAD") return 100;
   const layer = Number.isInteger(tag?.equipLayer) ? tag.equipLayer : 0;

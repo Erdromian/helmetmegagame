@@ -1,5 +1,5 @@
-// Which equipped things cannot be worn together, and how many hands there are. Every equippable tag names a Tag.equipSlot (db/lib/syncTags.js throws on one that doesn't), and the slot is the whole limit. HEAD is ONE thing, unlayered — a mask, a helm or a hood, never two of them; BODY is layered 1-2 (Mail next to the skin, Over on top, so a breastplate goes over a robe but two robes don't go together) and MOUNT 1-2 (a cart (2) is towed behind an arelitz (1)); WEAPON is four hands, everything held goes here, a Tag.twoHanded tag takes two (SHIELD is folded in here and its enum value retired — four is what the two slots already allowed together: a shield plus three hands of weapons); ACCESSORY is four (a badge, spectacles, a fishing rod).
-// HEAD and BODY were each three layers until this. Head stacking (a mask under a helm under a hood) was the elaborate half and bought nothing a single slot does not: the fiction of a coif under a helmet is not worth a player having to reason about three head slots, and concealment now has exactly one source rather than an ordering puzzle. Body kept two because "armour over clothes" is a real choice a player makes and a real thing the armour maths adds up.
+// Which equipped things cannot be worn together, and how many hands there are. Every equippable tag names a Tag.equipSlot (db/lib/syncTags.js throws on one that doesn't), and the slot is the whole limit. HEAD is ONE thing, unlayered — a mask, a helm or a hood, never two of them; BODY is ONE thing too — clothes, a robe, a mail shirt, a breastplate or a cloak, never two of them; MOUNT is layered 1-2 (a cart (2) is towed behind an arelitz (1)); WEAPON is four hands, everything held goes here, a Tag.twoHanded tag takes two (SHIELD is folded in here and its enum value retired — four is what the two slots already allowed together: a shield plus three hands of weapons); ACCESSORY is four (a badge, spectacles, a fishing rod).
+// HEAD and BODY were each three layers until this. Head stacking (a mask under a helm under a hood) was the elaborate half and bought nothing a single slot does not: the fiction of a coif under a helmet is not worth a player having to reason about three head slots, and concealment now has exactly one source rather than an ordering puzzle. Body kept two layers (Mail under Over) until 2026-09-28, when it went the same way: one body piece, whatever kind it is, so a breastplate no longer goes over a robe and body armour no longer stacks with itself.
 // A STACKABLE tag takes one slot/hand PER EQUIPPED UNIT, not one for the whole stack — CharacterTag.equippedQuantity says how many of a held stack are actually out, and every function below expands a row into that many physical instances before asking about slots, layers or hands (five swords readied is three hands spent, two still in the pack; two units of the same stackable layered tag fight over their one layer like two different hats would). Two independent code paths flip CharacterTag.equipped — the player's own toggle (web/app/(app)/character/equipActions.js) and the GM/staged batch (db/lib/tagOps.js) — so the rule lives here, written as "look at the whole equipped set and find a problem" rather than "may I add this one?", because the batch path applies its writes first and a two-argument form couldn't express "unequip A, equip B" without rejecting B for a conflict with an A already gone. See docs/systemdocs/TAGS.md.
 
 const { COLLAR_LOCKED_SLUG, LOCKED_GLYPH_PREFIX } = require("./collarGlyphs");
@@ -49,9 +49,10 @@ const NOT_LOCKED_ON_WHERE = {
   slug: { notIn: [...LOCKED_ON_SLUGS] },
   NOT: LOCKED_ON_PREFIXES.map((p) => ({ slug: { startsWith: p } })),
 };
-// HEAD is deliberately NOT here: one head, one thing on it. An unlayered slot
-// keys on the bare slot in findSlotClash below, which is the whole rule.
-const LAYERED_SLOTS = new Set(["BODY", "MOUNT"]);
+// HEAD and BODY are deliberately NOT here: one head, one thing on it; one body,
+// one thing on it. An unlayered slot keys on the bare slot in findSlotClash
+// below, which is the whole rule.
+const LAYERED_SLOTS = new Set(["MOUNT"]);
 // SHIELD is deliberately absent: syncTags.js validates against this list, so a YAML entry still naming it throws instead of sliding through.
 // FINGER is the signet ring (docs/systemdocs/RINGS.md): unlayered, so findSlotClash
 // allows one, and it is not a hand or an accessory, so gloves and everything held
@@ -80,12 +81,18 @@ const SLOT_TITLES = {
 // shortening one here makes a stale YAML entry fail the sync loudly rather
 // than slide through as a layer nothing can wear.
 const LAYER_NAMES = {
-  BODY: ["Mail", "Over"],
   MOUNT: ["Ridden", "Towed"],
 };
 
 function tagOf(entry) {
   return entry?.tag ?? entry;
+}
+
+// The place a HEAD, BODY, FINGER or MOUNT piece occupies: the bare slot, or
+// slot+layer on a layered one. Two equipped units with the same key clash.
+function slotKey(tag) {
+  if (!LAYERED_SLOTS.has(tag.equipSlot) || tag.equipLayer == null) return tag.equipSlot;
+  return `${tag.equipSlot}:${tag.equipLayer}`;
 }
 
 function listWords(names) {
@@ -116,11 +123,14 @@ function findSlotClash(tags) {
   const seen = new Map();
   for (const tag of expandUnits(tags)) {
     if (!tag?.equipSlot) continue;
-    // WEAPON is counted in hands and ACCESSORY is never counted at all. A layered slot keys on slot+layer; nothing unlayered reaches here any more — SHIELD was the last one.
+    // WEAPON is counted in hands and ACCESSORY against its own cap, both below.
     if (tag.equipSlot === "WEAPON" || tag.equipSlot === "ACCESSORY") continue;
-    // An unlayered slot (HEAD) keys on the slot alone, so two of anything in
-    // it clash. A layered one keys on slot+layer.
-    const key = tag.equipLayer == null ? tag.equipSlot : `${tag.equipSlot}:${tag.equipLayer}`;
+    // An unlayered slot (HEAD, BODY) keys on the slot alone, so two of anything
+    // in it clash. A layered one keys on slot+layer. Asked of the slot rather
+    // than of the tag's own equipLayer, so a row still carrying a layer from
+    // before BODY lost them (a custom craft minted off an old base) cannot
+    // slip a second body piece on.
+    const key = slotKey(tag);
     const other = seen.get(key);
     if (other) return { a: tag, b: other };
     seen.set(key, tag);
@@ -160,7 +170,7 @@ function describeHandsOverflow(tags, hands = WEAPON_HANDS) {
   return `You can't equip that much at once: put away ${named} before you equip something else.`;
 }
 
-// Where a tag goes and what it costs to put there, as a short label for a buying menu or a chip. Null for anything that isn't equippable. Terse on purpose — it sits in a `<dl>` of one-line answers beside Weight and Armour; describeSlotClash's job is the full sentence. Says the thing a shopper can't otherwise work out: that a breastplate and a robe stack because one is Over and the other Mail, that a poleaxe eats two of four hands, that trinkets run out at four.
+// Where a tag goes and what it costs to put there, as a short label for a buying menu or a chip. Null for anything that isn't equippable. Terse on purpose — it sits in a `<dl>` of one-line answers beside Weight and Armour; describeSlotClash's job is the full sentence. Says the thing a shopper can't otherwise work out: that a cart is towed rather than ridden, that a poleaxe eats two of four hands, that trinkets run out at four.
 function describeEquipFit(tag) {
   const slot = tag?.equipSlot;
   if (!slot) return null;
@@ -244,6 +254,7 @@ module.exports = {
   EQUIP_SLOTS,
   SLOT_TITLES,
   LAYER_NAMES,
+  slotKey,
   handsOf,
   handsUsed,
   describeEquipFit,

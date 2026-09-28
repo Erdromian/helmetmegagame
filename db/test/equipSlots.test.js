@@ -1,5 +1,5 @@
 // db/lib/equipSlots.js: what cannot be worn together. Locks down the collapsed
-// slot model — HEAD is one thing, BODY is Mail under Over — since the rule is
+// slot model — HEAD is one thing, BODY is one thing — since the rule is
 // enforced after the write and a mistake here reads to a player as an
 // unrelated equip being refused.
 const test = require("node:test");
@@ -30,15 +30,29 @@ test("HEAD is not a layered slot, so nothing can claim a layer in it", () => {
   assert.equal(LAYER_NAMES.HEAD, undefined);
 });
 
-test("armour goes over clothes, but two of either do not", () => {
-  // Mail (1) under Over (2) is the whole point of keeping two body layers.
-  assert.equal(findSlotClash([body("Black Robes", 1), body("Breastplate", 2)]), null);
-  assert.ok(findSlotClash([body("Black Robes", 1), body("Vestments", 1)]));
-  assert.ok(findSlotClash([body("Breastplate", 2), body("Plate Armor", 2)]));
+test("a body holds exactly one thing, whatever kind it is", () => {
+  assert.equal(findSlotClash([body("Black Robes", null)]), null);
+  // Armour over clothes used to be legal (Mail under Over). It is not now.
+  assert.ok(findSlotClash([body("Black Robes", null), body("Breastplate", null)]));
+  assert.ok(findSlotClash([body("Black Robes", null), body("Vestments", null)]));
+  assert.ok(findSlotClash([body("Breastplate", null), body("Plate Armor", null)]));
+  assert.match(
+    findEquipProblem([body("Black Robes", null), body("Breastplate", null)]),
+    /can't both go on your body/,
+  );
 });
 
-test("the body has two layers and they are named for what a player is doing", () => {
-  assert.deepEqual(LAYER_NAMES.BODY, ["Mail", "Over"]);
+test("BODY is not a layered slot, and a stale layer on a row does not make it one", () => {
+  assert.equal(LAYERED_SLOTS.has("BODY"), false);
+  assert.equal(LAYER_NAMES.BODY, undefined);
+  // A custom craft minted off a base from before could still carry 1 and 2.
+  assert.ok(findSlotClash([body("Black Robes", 1), body("Breastplate", 2)]));
+});
+
+test("MOUNT keeps its two layers: a cart is towed behind what you ride", () => {
+  const mount = (name, equipLayer) => ({ tag: { name, equipSlot: "MOUNT", equipLayer } });
+  assert.equal(findSlotClash([mount("Arelitz", 1), mount("Cart", 2)]), null);
+  assert.ok(findSlotClash([mount("Arelitz", 1), mount("Broken Arelitz", 1)]));
 });
 
 test("a stack equipped twice clashes with itself — two hats are two hats", () => {
@@ -47,7 +61,8 @@ test("a stack equipped twice clashes with itself — two hats are two hats", () 
 });
 
 test("a shopper is told where a thing sits by name, not by layer number", () => {
-  assert.equal(describeEquipFit({ equipSlot: "BODY", equipLayer: 2 }), "Body · Over");
+  assert.equal(describeEquipFit({ equipSlot: "MOUNT", equipLayer: 2 }), "Ride · Towed");
+  assert.equal(describeEquipFit({ equipSlot: "BODY", equipLayer: null }), "Body");
   assert.equal(describeEquipFit({ equipSlot: "HEAD", equipLayer: null }), "Head");
 });
 

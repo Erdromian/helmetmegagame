@@ -471,7 +471,9 @@ npm run db:prune-tags                # deletes tags absent from docs/tags.yaml.
                                      #   DRY RUN unless given `-- --apply`.
 npm run db:collapse-equip-slots      # one-off: takes off whatever no longer
                                      #   fits after HEAD became a single slot
-                                     #   and BODY collapsed to Mail/Over. DRY
+                                     #   and BODY to Mail/Over (BODY's later
+                                     #   collapse to one thing is done by
+                                     #   migration, no run needed). DRY
                                      #   RUN unless given `-- --apply`. Not
                                      #   optional tidying — a pre-existing
                                      #   clash refuses every LATER equip, so

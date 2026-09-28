@@ -2242,10 +2242,11 @@ schema, unread and listed under `INTERNAL_KEYS` in
 `db/lib/gameConfigFields.js`. The slot is the whole rule now. Every
 `equippable` tag names one; sync throws on one that doesn't.
 
-`equipSlot:` is the other half — `HEAD`, `BODY`, `SHIELD`, `WEAPON`,
-`ACCESSORY`, `MOUNT` and `FINGER`, the table below. `HEAD`, `BODY` and `MOUNT` are
-layered (next paragraph), `SHIELD` holds exactly one, `WEAPON` is counted in
-hands rather than a slot, and `ACCESSORY` has no limit at all. **Two equipped
+`equipSlot:` is the other half — `HEAD`, `BODY`, `WEAPON`, `ACCESSORY`,
+`MOUNT` and `FINGER`, the table below (`SHIELD` is retired, further down).
+`HEAD`, `BODY` and `FINGER` hold exactly one thing, `MOUNT` is layered (below),
+`WEAPON` is counted in hands rather than a slot, and `ACCESSORY` is capped at
+four. **Two equipped
 tags may not share a slot (or, on a layered slot, a layer)** — including two
 UNITS of the very same stackable slotted tag (`hat`, `death-mask`, `gas-mask`,
 `graga-hide-cloak` are four that are both today): equipping a second one
@@ -2263,7 +2264,7 @@ because a slot holds one physical thing however large the stack behind it is.
 | `equipSlot` | limit | holds |
 |---|---|---|
 | `HEAD` | **one thing**, no layers | a mask, a helm, a coif, a hat, a hood, a bag — any one of them, never two |
-| `BODY` | layers 1–2, one thing per layer | 1 mail (clothes, suits, robes, garb, longcoat, mail shirt, brigandine), 2 over (breastplate, plate, cloak) |
+| `BODY` | **one thing**, no layers | clothes, a suit, robes, garb, a longcoat, a mail shirt, brigandine, a breastplate, plate, a cloak — any one of them, never two |
 | `WEAPON` | **four hands**, fewer if maimed (below); a `twoHanded: true` weapon takes two | everything you hold — every weapon, the shields, the banners, the flamethrower, the chainsaw |
 | `ACCESSORY` | **four**, not counting anything locked on | badges, pins, jewelry, spectacles, lenses, gloves, hand tools — and the locked bomb collar, the one accessory the wearer cannot take off (`LOCKED_ON_SLUGS` in `equipSlots.js`, `COLLAR.md` §1) |
 | `MOUNT` | layers 1–2 | 1 ridden (horse, motorcycle, boat), 2 towed (cart) |
@@ -2301,28 +2302,37 @@ equip-op block (a maiming carries no equip op, so anything inside it would
 never run). Reaching for a fifth weapon yourself is still a refusal that names
 what to put down, in `character/equipActions.js`.
 
-`equipLayer:` 1 is against the skin and the last name outermost, and **two
-equipped tags may not share a layer**. So a robe (`BODY` 1, Mail) goes under a
-breastplate (`BODY` 2, Over), but two breastplates do not go together; a cart
-(`MOUNT` 2) is towed behind a horse (`MOUNT` 1), but a horse and a boat are one
-ride too many. `HEAD`, `WEAPON` and `ACCESSORY` carry no layer, and sync throws
-if one is set on them — an unlayered slot keys on the bare slot, so two things
-in it clash whatever they are. Sync also throws on a layer outside **that
-slot's own range** — 1–2 on `BODY` and on `MOUNT`, since the rig has no third
-cell to draw one in — a layer with no slot, a layered slot with no layer, a
-slot on a tag that is not `equippable`, and `twoHanded` on anything but a
-`WEAPON`.
+`equipLayer:` is `MOUNT`'s alone now: 1 is ridden and 2 is towed, and **two
+equipped tags may not share a layer**. So a cart (`MOUNT` 2) is towed behind
+an arelitz (`MOUNT` 1), but two things to ride are one ride too many. `HEAD`,
+`BODY`, `WEAPON`, `ACCESSORY` and `FINGER` carry no layer, and sync throws if
+one is set on them — an unlayered slot keys on the bare slot, so two things in
+it clash whatever they are. `findSlotClash` asks the slot, not the row, so a
+stray layer left on an old `custom:` body piece does not make room for a
+second one. Sync also throws on a layer outside **that slot's own range** —
+1–2 on `MOUNT`, since the rig has no third cell to draw one in — a layer with
+no slot, a layered slot with no layer, a slot on a tag that is not
+`equippable`, and `twoHanded` on anything but a `WEAPON`.
 
 **`HEAD` and `BODY` were three layers each until 2026-09-15.** Head stacking —
 a mask under a helm under a hood — was the elaborate half and bought nothing a
 single slot does not: the fiction of a coif beneath a helmet is not worth a
 player reasoning about three head slots, and concealment now has exactly one
 source rather than an ordering puzzle (`db/lib/presentedIdentity.js`). Body
-kept two because *armour over clothes* is a real choice a player makes and a
-real thing the armour maths adds up. The old Clothes and Mail layers folded
-together into **Mail**, and the old Outer became **Over**.
+kept two, **Mail** under **Over**, on the argument that armour over clothes
+was a real choice.
 
-That collapse leaves characters wearing more than the new rule allows, and
+**`BODY` became one thing on 2026-09-28**, the same way `HEAD` did. Every kind
+of body piece — clothes, robes, a mail shirt, a breastplate, a cloak — goes in
+the one cell, and only one is worn at a time. A robe no longer goes under a
+breastplate, and two body pieces no longer add their armour together
+(`armorValue.js#combineArmor` still combines across slots: a helm, a body
+piece and a shield). Migration `20261128000000_one_body_slot` clears the
+layer off every `BODY` tag (the `custom:` clones included, which no YAML
+reaches) and takes off everything but the best piece from anybody wearing two,
+by the same keep order as the script below — so this one needs no hand run.
+
+A collapse leaves characters wearing more than the new rule allows, and
 that is not cosmetic: a clash is validated over the whole equipped set after
 the write, so **a pre-existing clash refuses every later equip**, naming two
 items the player did not touch — and `db/lib/tagOps.js` does the same to a

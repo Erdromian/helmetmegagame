@@ -21,8 +21,8 @@ import { playSfx } from "@/app/components/sfx";
 import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // The rig: what is worn, drawn as the slots it is worn in (TAGS.md,
-// "equipSlot"). One row per slot, one cell per place a thing can go — three
-// head layers, three body layers, four hands, a ride and what it tows, and up
+// "equipSlot"). One row per slot, one cell per place a thing can go — one
+// head, one body, four hands, a ring, a ride and what it tows, and up
 // to MAX_ACCESSORIES accessories. A filled cell names the thing and the one
 // fact about it worth a glance; an empty cell is dashed and named, and
 // clicking it lists what you carry that fits there — and, since 2026-09-10,

@@ -587,7 +587,7 @@ character to carry more than one, so every armor and headgear recipe on the
 Smithing ladder is now both `stackable: true` and `customizable: true`. The
 equip system already handled a stackable, layered, equippable tag correctly
 before this — the Hat proved it — so a second Breastplate just fights the
-first one for the BODY/3 layer exactly like a second Hat would
+first one for the BODY slot exactly like a second Hat would
 (`db/lib/equipSlots.js`).
 
 Player words are cleaned by `cleanCustomText` (web/lib/customCraft.js): no

@@ -1,5 +1,8 @@
 // One-off: take off whatever no longer fits, after HEAD became a single
-// unlayered slot and BODY collapsed from three layers to two (Mail, Over).
+// unlayered slot and BODY collapsed from three layers to two (Mail, Over) —
+// and then, on 2026-09-28, to one. That last step needs no run of this: the
+// 20261128000000_one_body_slot migration does the same in SQL on deploy, by
+// the same keep order. This stays for a set that is over its limit anyway.
 // `node db/scripts/ops/collapse-equip-slots.js` to preview, `-- --apply` to
 // write. See docs/systemdocs/TAGS.md.
 //
@@ -22,7 +25,7 @@
 // did my helm go".
 require("dotenv").config();
 const { prisma } = require("../../index");
-const { findSlotClash } = require("../../lib/equipSlots");
+const { findSlotClash, slotKey } = require("../../lib/equipSlots");
 const { settleCarry } = require("../../lib/carry");
 
 // Which of a clashing set is kept. Armour first, because that is what a
@@ -58,7 +61,7 @@ function losers(rows) {
     const tag = row.tag;
     if (!tag?.equipSlot) continue;
     if (tag.equipSlot === "WEAPON" || tag.equipSlot === "ACCESSORY") continue; // counted in hands / capped separately
-    const key = tag.equipLayer == null ? tag.equipSlot : `${tag.equipSlot}:${tag.equipLayer}`;
+    const key = slotKey(tag);
     const held = best.get(key);
     if (!held) {
       best.set(key, row);
@@ -130,7 +133,7 @@ async function main() {
       .map((r) => r.tag.name);
     console.log(`  ${character.name}`);
     for (const row of unequip) {
-      const where = row.tag.equipLayer == null ? row.tag.equipSlot : `${row.tag.equipSlot}:${row.tag.equipLayer}`;
+      const where = slotKey(row.tag);
       console.log(`    - ${row.tag.name}  (${where})`);
     }
     for (const { row } of trims) {

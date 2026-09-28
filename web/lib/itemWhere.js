@@ -1,6 +1,6 @@
 // Where a held tag sits, for the Items table's "Where" column
-// (docs/design/mockups/character/index.html: "pack", "body, Over", "head",
-// "held", "ride"). Reuses equipSlots.js's own slot titles and layer names
+// (docs/design/mockups/character/index.html: "pack", "body", "head",
+// "held", "ride, Towed"). Reuses equipSlots.js's own slot titles and layer names
 // rather than writing them out again, so a slot that gains a layer says so
 // here too, the same reasoning EquipBoard.js's row hint already leans on.
 //

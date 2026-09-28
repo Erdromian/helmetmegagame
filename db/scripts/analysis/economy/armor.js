@@ -7,7 +7,7 @@
 // (Tag.melee / Tag.ballistic), against what it costs in points, pounds, ⬢ and access. This module
 // puts every wearable piece on that footing and flags the ones with no reason to exist.
 //
-// A piece is compared inside its CLASS (the equip slot, and the layer for BODY — two things that can
+// A piece is compared inside its CLASS (the equip slot — two things that can
 // be worn together are alternatives to nothing, so a Breastplate is never "dominated" by a helmet)
 // and, for the price question only, across the whole catalog. Four flags:
 //
@@ -95,7 +95,7 @@ function buildArmor({ list, get, sources = null, pointsOf = () => 0 }) {
         catalog: t.catalog ?? "all",
         slot: t.equipSlot,
         layer: t.equipLayer ?? null,
-        cls: t.equipSlot === "BODY" ? `Body ${t.equipLayer === 2 ? "over" : "mail"}` : { HEAD: "Head", WEAPON: "Held", ACCESSORY: "Accessory", MOUNT: "Ride" }[t.equipSlot] ?? t.equipSlot,
+        cls: { HEAD: "Head", BODY: "Body", WEAPON: "Held", ACCESSORY: "Accessory", MOUNT: "Ride" }[t.equipSlot] ?? t.equipSlot,
         points: t.pointCost ?? 0,
         weight: t.weight ?? 0,
         melee,
@@ -171,7 +171,7 @@ function buildArmor({ list, get, sources = null, pointsOf = () => 0 }) {
     else r.verdict = "earns its place";
   }
 
-  const order = { Head: 0, "Body mail": 1, "Body over": 2, Held: 3, Accessory: 4 };
+  const order = { Head: 0, Body: 1, Held: 2, Accessory: 3 };
   rows.sort((a, b) => (order[a.cls] ?? 9) - (order[b.cls] ?? 9) || a.points - b.points || a.weight - b.weight || a.name.localeCompare(b.name));
 
   return {

@@ -614,9 +614,11 @@ until somebody equipped the thing in play and Discord served a broken image.
 The images are built from the source sprites in `web/assets/helms/` by
 `npm run assets:helms --workspace=web`; `PORTRAITS.md` covers the sizing.
 
-When two concealing items are worn at once, the **outermost** wins — highest
-`Tag.equipLayer` — because that is the one an onlooker can actually see. A coif
-under a knight's helm is a coif nobody can see.
+When two concealing items are worn at once, the **outermost** wins — a head
+piece over a body piece (`presentedIdentity.js#concealRank`) — because that is
+the one an onlooker can actually see. A hood with a robe under it shows the
+hood. HEAD and BODY each hold one piece now, so there is no stacking within a
+slot to order.
 
 `web/public/assets/unknown.png` is gone. What replaced it is the **question-mark
 plate**, drawn in CSS by `web/app/components/CharacterAvatar.js` under the
