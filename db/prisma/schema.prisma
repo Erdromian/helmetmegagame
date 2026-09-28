@@ -660,6 +660,14 @@ model GameConfig {
   // See docs/systemdocs/PAPERWORK.md.
   noticeExpiryTurns Int @default(10)
 
+  // The Keep's Vault as a share of the town's starting bank balances. Each
+  // starting character's balance (a seat Start Game rolled; later arrivals add
+  // nothing) puts this percentage of it into the Vault as coin
+  // (db/lib/startingAccount.js, db/lib/startingVariance.js#vaultStockFor), so
+  // the Vault opens holding this share of what the town bar the Baron started
+  // with. 25 by default. See docs/systemdocs/DEPOT.md §0g.
+  vaultReservePercent Int @default(25)
+
   // How many crops one Farm action plants (db/lib/soilery.js, FARM_PLANTS is
   // the fallback). Each withers 1 in 6; every survivor is 1 Foodstuff.
   // Edited on /gm/dev. See SOILERY.md.
@@ -950,9 +958,17 @@ model GameState {
 ///
 /// OFFSHORE is the Merchant's and the Docker's: money the Company holds
 /// off-world. No stash to check, no Vault logic — the coins ride the train.
+///
+/// CROWN is the Baron's, and it is not a claim: its balance IS the Vault,
+/// read off the pile every time (db/lib/bankAccounts.js#accountBalance), so the
+/// Baron can take out as much as is there. Its stored `balanceObols` is never
+/// written and never shown, and it is not counted among the claims the Vault
+/// backs. A send from it creates a claim for the payee; a send to it
+/// surrenders the payer's claim to the Vault. See DEPOT.md §0g.
 enum BankAccountClass {
   TREASURY
   OFFSHORE
+  CROWN
 }
 
 /// Where a staged sale's obols land when the train departs. TREASURY pays the
@@ -4093,7 +4109,7 @@ model Role {
   // arrive without one and open one at the counter if they ever want one. The
   // account opens EMPTY; a starting purse is physical obols in `starting_tags`.
   // Declared in the YAML rather than in code, so a new seat needs none. See
-  // docs/systemdocs/DEPOT.md §0g.
+  // docs/systemdocs/DEPOT.md §0g. The Baron's is CROWN: the Vault itself.
   bankAccountClass BankAccountClass?
 
   // What that account opens WITH, declared as `starting_account:` in

@@ -1096,20 +1096,19 @@ zones:
             stash:
               resources: 14
               items:
-                # The town's money. Every Treasury bank account is a claim on
-                # this pile and nothing else, so a withdrawal takes real coin
-                # out of this room and an empty Vault means nobody gets paid.
-                # See docs/systemdocs/DEPOT.md §0g.
-                #
-                # DELIBERATELY SHORT OF THE CLAIMS. The starting purses
-                # (`starting_account:` in docs/roles.yaml) come to about 310 at
-                # 100 players and 395 at 150, so this pile covers roughly two
-                # thirds of what the town is owed and a bank run is a live
-                # possibility from day one. That is the design, not drift: the
-                # ATM refuses rather than clamps, so the money goes to whoever
-                # walks up first. Do not "fix" this by raising it back to 480.
-                # `npm run db:audit-vault-backing` measures the ratio.
-                obol: 250
+                # NO OBOLS HERE, on purpose. The town's money is stocked as the
+                # town is made: each starting character's bank balance puts
+                # GameConfig.vaultReservePercent of it into this room as coin
+                # (25% by default, a knob on /gm/dev; the Baron's is left out,
+                # and nobody who arrives after the Start Game roll adds any).
+                # So the Vault opens holding that share of what the town started
+                # with — DELIBERATELY SHORT OF THE CLAIMS, so a bank run is a
+                # live possibility from day one. Every Treasury bank account is
+                # a claim on this pile and nothing else, the ATM refuses rather
+                # than clamps, and the money goes to whoever walks up first.
+                # Do not add an `obol:` line back: Start Game would pour it on
+                # top of the stock. See docs/systemdocs/DEPOT.md §0g, and
+                # `npm run db:audit-vault-backing` for the ratio.
                 painting: 1
                 # The Hand's old one. Anybody who can already open the Vault
                 # can have the run of the lift too — that is a short list, and

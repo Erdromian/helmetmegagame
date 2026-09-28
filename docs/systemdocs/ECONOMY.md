@@ -62,7 +62,13 @@ Every entry has two ends, and each is one of:
 - `bank:<accountId>` — one player's claim. `bank:clearing` is its book
   counterparty: no live balance, exempt from reconcile, exactly like mint and
   burn. It exists so that a movement whose coin leg is already booked by the tag
-  hook can book its claim leg without double-counting the same money
+  hook can book its claim leg without double-counting the same money. The
+  Baron's CROWN account is the exception: it is not a claim but the Vault
+  itself (`DEPOT.md` §0g), so it books **no** `ACCOUNT` legs at all. Its
+  withdrawals and deposits are coin legs between the Vault room and a hand. A
+  send from it books the payee's new claim against `room:<vault>`, and a send
+  to it books the payer's surrender the same way. Its stored balance is frozen,
+  so its legs still sum to it
 - `machine:<id>` — a vending machine's coin box (`VENDING.md`). **One party for
   both of its pools**, because the loose float in the slot and the locked till
   are two trays in one box: a purchase moving coin between them has not changed
@@ -109,8 +115,9 @@ it had checked the backing would be lying. The question it answers is different
 anyway — not "do the books balance" but "is there enough coin in the Keep's
 Vault to honour what the TREASURY accounts claim". Under that line the books are
 perfectly balanced and somebody still walks up to the ATM and is told no.
-`npm run db:audit-vault-backing` is the check; it exits 1 when the Vault is
-short. See `DEPOT.md` §0g.
+`npm run db:audit-vault-backing` reads the two side by side. It is a readout,
+not a check: the Vault is short of the claims by design, so it never exits 1
+for that. See `DEPOT.md` §0g.
 
 `db/test/economyLedger.test.js` asserts the invariant against the primitives
 directly, including the two cases that are easy to get wrong: a transfer must

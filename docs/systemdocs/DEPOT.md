@@ -334,23 +334,40 @@ which is why a sell price equal to the buy price prints nothing
 **An account is a claim, and a TREASURY claim is hard-backed.**
 
 - `BankAccount.balanceObols` is the claim. `Depot.accountObols` is gone.
-- The **Vault** is `undertown-1-7`, a real room behind the Baron's key,
-  carrying **250 obols** in `docs/zones.yaml`, deliberately short of the
-  roughly 315 ¢ the starting purses claim at 100 players (the comment on the
-  stash says why: a bank run is meant to be a live possibility from day one,
-  and the figure is not to be raised back to 480). Every TREASURY account
-  draws on that pile and nothing else.
-- **Nobody seeds that pile automatically, and this is the trap.**
-  `db:import-zones` never writes a stash — it prints a warning telling you to
-  seed it from `/gm/dev/zones` instead (`db/lib/importZones.js`). So the figure
-  in the YAML is the intended stock, not the live one. Stock the Vault by hand
-  before the game opens and run `npm run db:audit-vault-backing`, which exits 1
-  when the claims outrun the coin.
-- It matters more than it used to. Seats now open their accounts with money in
-  them (`starting_account:` in `docs/roles.yaml`), so an unstocked Vault is not
-  a quiet inconvenience — it is forty characters holding a balance the ATM will
-  refuse to pay. The purses come to about 310 ¢ at 100 players and 395 at 150,
-  which is where 480 comes from.
+- The **Vault** is `undertown-1-7`, a real room behind the Baron's key, and
+  every TREASURY account draws on that pile and nothing else.
+- **Stocked as the town is made.** The Vault is stocked with **25%** of the
+  town's starting balances, rather than poured at Start Game. It has no
+  authored obols in `docs/zones.yaml`. Instead, each starting character's
+  balance puts `GameConfig.vaultReservePercent` of itself into the Vault as
+  coin, in the same transaction that opens the account
+  (`db/lib/startingAccount.js`). The share is rounded up per character, so the
+  Vault never falls short of the percentage. The Baron's balance is left out.
+  So the Vault opens holding that share of what the town started with —
+  deliberately short of the claims, so a bank run is a live possibility from
+  day one. It is the **Vault stock** knob in the Economy section of `/gm/dev`,
+  and a change applies to characters created after it. Offshore balances stock
+  it too, though nothing draws them from it, which leaves the Treasury claims a
+  little better covered than the figure says.
+- **Only the starting cast stocks it.** A starting character is one built from
+  the seat Start Game rolled them, inside its creation window. Anybody who
+  arrives later — a late party's drawn seat, a late join, somebody's next
+  character after a death, a role picked off the open menu — still opens with
+  their rolled balance, but adds nothing to the Vault. The pile is set by the
+  town the game began with, and new arrivals are one more claim on it.
+- **`npm run db:audit-vault-backing` is a readout, not a check.** It prints
+  the Vault's coin against the Treasury claims and never fails for being short:
+  short is the design. (It used to exit 1 under a 40% floor, which the default
+  stock sat under from the first character.)
+- **Every seat's starting figures wobble by up to 10%**
+  (`db/lib/startingVariance.js`). Each new character's `starting_account:`
+  balance and `Obol xN` purse are rolled at creation, so two Courtiers rarely
+  start with the same money, and the Vault — stocked from the rolled balances —
+  wobbles with them. A figure too small to move by a whole obol (anything
+  under 10) stays as written.
+- **A GM can still stock the Vault by hand** from `/gm/dev/zones` (the room's
+  "Seed these items now" box), which adds on top of whatever the characters
+  put in. `db:import-zones` never writes a stash.
 - **The ATM — an infoterminal now** (`RINGS.md` §5) moves obols between an
   account and physical `obol` tags. It reads the signet ring on your finger:
   no registered ring, no account, and somebody else's ring (or your own while
@@ -362,6 +379,23 @@ which is why a sell price equal to the buy price prints nothing
   machine, same accounts, same Vault behind them; §0l has the list and what
   did not follow it out of the Depot.
 - An **OFFSHORE** account skips all of that. There is no pile behind it.
+- The **CROWN** account is the Baron's, and it is the pile itself rather than
+  a claim on it (`db/lib/bankAccounts.js#accountBalance`). At any infoterminal
+  its balance reads as every obol in the Vault right now, so it rises and falls
+  with every deposit, withdrawal, robbery and restock. The Baron can **take out
+  as much as is there**, straight off the pile with no account row debited, and
+  a deposit is coin put back on it. **Send from it creates a claim**: the
+  payee's balance rises while the coin stays in the Vault until they come for
+  it, so the Crown's own balance does not fall. That is how a Baron pays wages
+  by transfer, and how a Baron who pays too many ends up with a bank run.
+  **Send to it surrenders the claim**, exactly like sending to the treasury:
+  the payer's balance falls and nothing is credited. The Crown is never counted
+  among the claims the Vault backs (the Treasury page's figure, and
+  `db:audit-vault-backing`, both read TREASURY only). Its stored `balanceObols`
+  is never written or shown; the migration that made the Baron's account CROWN
+  left whatever it held frozen there, so the ledger's sum for it still matches.
+  The ring and PIN rules are unchanged, so a stolen Baron's ring with the PIN
+  empties the Vault as easily as the Baron can.
 - **The Company's line is gone** (the Depot Overhaul): the Merchant takes no
   credit through his terminal, and `Depot.debtObols` / `creditCapObols` were
   dropped. Old `request_depot_credit` rows still read in the ledger.
@@ -398,7 +432,7 @@ physical obols in `starting_tags`, granted with a `Name xN` suffix
 
 **Who gets one at creation** is `bank_account:` in `docs/roles.yaml`:
 `treasury` for nearly every seat, `offshore` for the Merchant and his Dockers,
-and **absent for the Black Hills** — the Tribunal arrives without one — and
+`crown` for the Baron (above), and **absent for the Black Hills** — the Tribunal arrives without one — and
 for the Slave, the Bum and the Migrant, who start with nothing to their name. Anyone else (a spawned antagonist, a threat handed a body
 mid-game) opens one at the counter with a **Create an account** button: one
 click, no cost, opens empty.

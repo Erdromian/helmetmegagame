@@ -211,12 +211,11 @@ around that or add a second superadmin before the game opens.
       test account holding the player role
 - [ ] The role tree on step 2 is populated — empty means the role sync failed
 - [ ] The point-buy menu on step 3 has tags
-- [ ] **The Vault is stocked.** `undertown-1-7` needs the obols
-      `docs/zones.yaml` says it holds (480), seeded by hand from
-      `/gm/dev/zones` — the zone importer never writes a stash. Every Treasury
-      balance is a claim on that pile, and seats now open their accounts with
-      money already in them, so an empty Vault means the ATM refuses everybody.
-      `npm run db:audit-vault-backing` exits 1 if it is short
+- [ ] **The Vault is stocking.** `undertown-1-7` has no authored obols: each
+      starting character puts a share of their bank balance into it as they
+      are built (the **Vault stock** knob on `/gm/dev`, 25% by default). Once
+      the first few seats are made, `npm run db:audit-vault-backing` should
+      show coin in it. An empty Vault means the ATM refuses everybody
       (`DEPOT.md` §0g).
 - [ ] `/documents` is populated
 - [ ] `#cerberon` and `#27.065` both exist under a `radio` category, and the

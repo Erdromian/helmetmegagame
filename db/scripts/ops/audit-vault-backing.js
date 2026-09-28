@@ -10,20 +10,16 @@
 //
 // THE VAULT IS FRACTIONALLY RESERVED ON PURPOSE. It used to hold more coin
 // than the claims against it, which made the ATM's refusal path unreachable
-// and a bank run impossible. It holds about two thirds now (docs/zones.yaml,
-// `undertown-1-7`), so "short" is the normal state and is not a finding. What
-// IS a finding is the pile falling far enough that the bank is a rumour rather
-// than a bank — somebody emptied the Vault overnight, or a faucet is minting
-// claims with no coin behind them.
+// and a bank run impossible. The starting cast stocks it with a share of their
+// balances now (GameConfig.vaultReservePercent, 25% by default — DEPOT.md
+// §0g), so "short" is the normal state and a bank run is part of the game.
 //
-// So this EXITS 1 below RESERVE_FLOOR rather than below parity, and it can be
-// a check rather than a readout either way.
+// So this is a READOUT, not a check: it never exits 1 for being short, however
+// short. It used to fail under a 40% floor, which the default stock sits under
+// from the first character. Only a missing Vault room or an error exits 1.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { vaultObols, VAULT_ROOM_SLUG } = require("../../lib/bankAccounts");
-
-// Coin per obol of claim. Below this the run has already happened.
-const RESERVE_FLOOR = 0.4;
 
 async function main() {
   const room = await prisma.room.findUnique({ where: { slug: VAULT_ROOM_SLUG }, select: { id: true, name: true } });
@@ -49,16 +45,10 @@ async function main() {
 
   console.log(`${room.name}: ${coin} ¢`);
   console.log(`Treasury claims: ${claims} ¢ across ${accounts.length} account(s)`);
-  console.log(`Reserve: ${pct}% (floor ${Math.round(RESERVE_FLOOR * 100)}%)`);
+  console.log(`Reserve: ${pct}%`);
 
   for (const a of accounts.slice(0, 10)) {
     if (a.balanceObols > 0) console.log(`  ${a.fingerprint}  ${a.holderName}  ${a.balanceObols} ¢`);
-  }
-
-  if (ratio < RESERVE_FLOOR) {
-    console.error(`UNDER THE FLOOR by ${claims - coin} ¢. Most of the town cannot be paid.`);
-    process.exitCode = 1;
-    return;
   }
 
   if (coin < claims) {
