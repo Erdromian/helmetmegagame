@@ -21,10 +21,10 @@ async function addResources(tx, characterId, amount, ctx) {
 
 const { characterParty, recordDelta, record, BURN } = require("./economyLedger");
 const { addCharacterResources } = require("./resourceStack");
-const { TIRED_SLUG, ARELITZ_SLUG, FOODSTUFFS_SLUG } = require("./constants");
+const { TIRED_SLUG, ARELITZ_SLUG, FOODSTUFFS_SLUG, RECENTLY_FARMED_SLUG } = require("./constants");
 const { rollDie } = require("./rollDie");
 const { expiryFrom } = require("./turnFormat");
-const { applyFatigueStep, revertFatigueStep, grantExhaustedOutright } = require("./fatigue");
+const { applyFatigueStep, revertFatigueStep, grantRecentlyFarmed } = require("./fatigue");
 const { drawProspectingLoot } = require("./cavingLoot");
 const { isGatheringZone } = require("./gathering");
 const { PROSPECTING_SLUG } = require("./constants");
@@ -173,7 +173,8 @@ const MOVE_EFFECTS = {
   },
 
   // Soilery (db/lib/soilery.js, SOILERY.md): a Farm Move commits at press, but the wither die and
-  // the Exhausted lockout only land here, at push, exactly like `refined` above.
+  // the Recently Farmed lockout (plus a step up the Tired ladder) only land here, at push,
+  // exactly like `refined` above.
   // `action.farmPlan` is `{ v: 3, locationId, planted, fertilized }`, written by farmRequestImpl.
   // A v1/v2 plan (crops and seed licences, before the Soilery Rework) was filed before the deploy
   // and resolves as an ordinary farm of Foodstuffs, capped at the plants it actually sowed.
@@ -195,8 +196,9 @@ const MOVE_EFFECTS = {
         await addToStack(tx, action.characterId, foodstuffs.id, reaped, { source: "EVENT", stackable: true });
       }
       const turn = await tx.turn.findUnique({ where: { id: action.turnId }, select: { number: true } });
-      const fatigue = turn ? await grantExhaustedOutright(tx, action.characterId, turn.number) : null;
-      return { v: 3, tagId: foodstuffs?.id ?? null, planted, reaped: foodstuffs ? reaped : 0, fertilized, fatigue };
+      const fatigue = turn ? await applyFatigueStep(tx, action.characterId, turn.number) : null;
+      const recentlyFarmed = turn ? await grantRecentlyFarmed(tx, action.characterId, turn.number) : null;
+      return { v: 3, tagId: foodstuffs?.id ?? null, planted, reaped: foodstuffs ? reaped : 0, fertilized, fatigue, recentlyFarmed };
     },
     revert: async (tx, action, snapshot) => {
       if (!snapshot) return;
@@ -209,7 +211,13 @@ const MOVE_EFFECTS = {
           if (row.reaped > 0) await dropCharacterTag(tx, action.characterId, row.tagId, row.reaped);
         }
       }
+      // A snapshot from before Recently Farmed holds an outright Exhausted grant here, which
+      // revertFatigueStep undoes the same way (it reads the granted slug off the snapshot).
       if (snapshot.fatigue) await revertFatigueStep(tx, action.characterId, snapshot.fatigue);
+      if (snapshot.recentlyFarmed) {
+        const tag = await tx.tag.findUnique({ where: { slug: RECENTLY_FARMED_SLUG }, select: { id: true } });
+        if (tag) await tx.characterTag.deleteMany({ where: { characterId: action.characterId, tagId: tag.id } });
+      }
     },
   },
 

@@ -601,7 +601,7 @@ documents:
     description: |-
       Growing food is an arduous process and can only be done in the soilery.
 
-      Plant crops with the farm action. Each one that doesn't wither comes in as {tag:foodstuffs} when the turn is pushed, and the work leaves you {tag:exhausted}.
+      Plant crops with the farm action. Each one that doesn't wither comes in as {tag:foodstuffs} when the turn is pushed, and the work leaves you {tag:recently-farmed} and {tag:tired}.
 
       The soilery has a stable where you can keep {tag:arelitz}. Leaving Foodstuffs for them will nourish them to produce eggs, and eventually, more arelitz.
 

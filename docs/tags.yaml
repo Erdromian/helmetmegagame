@@ -4632,6 +4632,21 @@ tags:
     durationTurns: 1
     expiresInto: [tired]
 
+  # Farming's own lockout (db/lib/soilery.js#farmRefusalFor, SOILERY.md §3).
+  # Granted at the push by db/lib/moveEffects.js's `farmed` entry, beside the
+  # ordinary Tired step. durationTurns: 2 is the clock: filed on turn N, it
+  # refuses the Farm button on N+1 and N+2, so a farmer farms one turn in
+  # three. It stops nothing else.
+  recently-farmed:
+    catalog: gm
+    name: Recently Farmed
+    category: status
+    group: status-debuffs
+    description: "The fields need some time to recover before you can plant there again."
+    pointCost: 0
+    purchasable: false
+    durationTurns: 2
+
   # Over a carry cap. Granted and cleared by db/lib/carry.js#settleCarry —
   # never by a player, never on a clock — and read by the zone-crossing gate
   # in db/lib/locationTravel.js. Description is Bascinet's own wording.

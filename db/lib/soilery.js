@@ -1,11 +1,12 @@
 // The Farm button (E:\Bascinet\V3\Soilery\Soilery Rework.docx): a farmer
 // plants 100 crops, each with a 1-in-6 chance of withering, and every one
 // that survives brings in 1 Foodstuff when the turn is pushed. The farmer is
-// left Exhausted, which wears off into Tired, and neither may farm — so a
-// farmer farms one turn in three. Pure and Prisma-free, modelled on
-// db/lib/godflesh.js. See docs/systemdocs/SOILERY.md.
+// left Recently Farmed for 2 turns, which refuses the next farm — so a farmer
+// farms one turn in three — and takes a step up the ordinary Tired ladder.
+// Pure and Prisma-free, modelled on db/lib/godflesh.js. See
+// docs/systemdocs/SOILERY.md.
 
-const { SOILERY_SLUG, EXHAUSTED_SLUG, TIRED_SLUG } = require("./constants");
+const { SOILERY_SLUG, EXHAUSTED_SLUG, RECENTLY_FARMED_SLUG } = require("./constants");
 
 // How many crops one Farm plants. GameConfig.farmMaxCrops is the live knob
 // (/gm/dev, "Plants per farm"); this is the fallback when it is unset.
@@ -45,14 +46,17 @@ function farmDm(turn, { planted, reaped, fertilized = false } = {}) {
 }
 
 // Null means "go ahead"; a string is the refusal to show the player.
-// Checked in order: must hold Soilery, must be neither Exhausted nor Tired
-// (the doc: both inhibit farming), and must not already have an action open
-// this turn.
+// Checked in order: must hold Soilery, must not be Recently Farmed, must not
+// be Exhausted, and must not already have an action open this turn. Tired
+// alone does not stop a farmer.
 function farmRefusalFor(characterTags, hasOpenAction) {
   if (!holds(characterTags, SOILERY_SLUG)) {
     return "You don't know how to farm.";
   }
-  if (holds(characterTags, EXHAUSTED_SLUG) || holds(characterTags, TIRED_SLUG)) {
+  if (holds(characterTags, RECENTLY_FARMED_SLUG)) {
+    return "The fields need some time to recover before you can plant there again.";
+  }
+  if (holds(characterTags, EXHAUSTED_SLUG)) {
     return "You're too worn out to farm right now.";
   }
   if (hasOpenAction) {

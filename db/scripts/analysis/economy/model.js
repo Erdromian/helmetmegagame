@@ -1630,8 +1630,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       ok: Math.abs(mineDuty - 0.5) < 0.01,
     },
     {
-      doc: "db/lib/soilery.js, db/lib/fatigue.js#grantExhaustedOutright",
-      claim: "A farmer works one turn in three: a Farm action grants Exhausted outright (no Tired rung first), and Exhausted and Tired both refuse the next one",
+      doc: "db/lib/soilery.js, db/lib/fatigue.js#grantRecentlyFarmed",
+      claim: "A farmer works one turn in three: a Farm action grants Recently Farmed for 2 turns, which refuses the next one",
       docValue: "1 in 3",
       model: `1 in ${round1(1 / farmDuty)}`,
       ok: Math.abs(farmDuty - 1 / 3) < 0.01,
