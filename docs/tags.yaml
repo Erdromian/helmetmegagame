@@ -2740,7 +2740,7 @@ tags:
     purchasableAfterStart: true
 
   # Out of the Brigand group on 2026-09-20 and made an ordinary skill: forging
-  # a hand is a craft you learn, not a thing you are born into a camp holding.
+  # a seal is a craft you learn, not a thing you are born into a camp holding.
   # The gate was never on the tag, it was on the group.
   forgery:
     catalog: gm
