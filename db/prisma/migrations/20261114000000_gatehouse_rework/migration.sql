@@ -160,7 +160,42 @@ WHERE r."slug" = 'town-1-4'
   AND l."slug" = 'town-2'
 ON CONFLICT ("roomId", "locationId") DO NOTHING;
 
+-- ─── Rings ──────────────────────────────────────────────────────────────────
+
+-- The rings that man the two gates (docs/roles.yaml `opens:`). db:sync-deploy
+-- does not sync roles, so without this a running game's rings would carry
+-- neither token: nobody could get into the Gatehouse or work the portcullis
+-- until somebody hand-ran db:sync-roles. Appended, never replaced, so a seat's
+-- other doors are untouched.
+UPDATE "Role"
+SET "ringAccessSlugs" = "ringAccessSlugs" || ARRAY['gatehouse-key']::TEXT[]
+WHERE "slug" IN ('baron', 'hand', 'censor', 'incarn', 'cerberus', 'squire')
+  AND NOT ('gatehouse-key' = ANY("ringAccessSlugs"));
+
+UPDATE "Role"
+SET "ringAccessSlugs" = "ringAccessSlugs" || ARRAY['portcullis-key']::TEXT[]
+WHERE "slug" IN ('baron', 'hand', 'meister', 'censor', 'cerberus', 'squire')
+  AND NOT ('portcullis-key' = ANY("ringAccessSlugs"));
+
+-- The rings already on fingers carry a copy of their seats' tokens, so they
+-- follow: db/lib/syncRoles.js#refreshRingAccess, in SQL. The union of the
+-- seats' tokens, sorted by code point as ringAccessFor's plain sort() is.
+UPDATE "Tag" AS t
+SET "ringAccessSlugs" = ARRAY(
+  SELECT DISTINCT tok COLLATE "C"
+  FROM "Role" AS r, unnest(r."ringAccessSlugs") AS tok
+  WHERE r."slug" = ANY(t."ringRoleSlugs")
+  ORDER BY 1
+)
+WHERE t."ringOfCharacterId" IS NOT NULL
+  AND t."ringRegisteredAt" IS NOT NULL
+  AND t."ringRoleSlugs" && ARRAY['baron', 'hand', 'meister', 'censor', 'incarn', 'cerberus', 'squire']::TEXT[];
+
 -- ─── Migrants ───────────────────────────────────────────────────────────────
+
+-- New Migrants are created off the Role row, which db:sync-deploy never
+-- touches, so the YAML's missing bank_account needs saying here too.
+UPDATE "Role" SET "bankAccountClass" = NULL WHERE "slug" = 'migrant';
 
 -- A Migrant no longer starts with a treasury account: the Gatehouse opens one
 -- when it documents them, once a character. The accounts creation already

@@ -323,6 +323,11 @@ test("asking, approving, denying, magma and documents, end to end", { skip: SKIP
   await applyArrivalFacts(prisma, { characterId: outbound.id, fromLocationId: at["town-2"].id, toLocationId: at["town-3"].id });
   assert.equal(await prisma.gatePassage.count({ where: { characterId: outbound.id, status: "PENDING" } }), 0);
 
+  // ── A held asker is not let through: the gate is still a move ──
+  await prisma.character.update({ where: { id: inbound.id }, data: { heldUntil: new Date(Date.now() + 60_000) } });
+  assert.equal((await G.approvePassage(prisma, uid(clerk), { passageId: inRow.id, turn })).error, T.approveHeld);
+  await prisma.character.update({ where: { id: inbound.id }, data: { heldUntil: null } });
+
   // ── Approve, with a bribe taken and a coin given back ──
   const approved = await G.approvePassage(prisma, uid(clerk), {
     passageId: inRow.id,
@@ -345,6 +350,9 @@ test("asking, approving, denying, magma and documents, end to end", { skip: SKIP
   const late = await person("late", "bridge", "Late");
   await G.requestPassage(prisma, uid(late), { roomSlug: GATE_ROOM_SLUG, text: "Me too." });
   assert.equal((await G.pourMagma(prisma, uid(clerk), { turn })).error, T.magmaOnce);
+  // A move that skipped the withdrawal (a GM's, a revive) leaves the row behind; it is never offered.
+  await prisma.character.update({ where: { id: late.id }, data: { locationId: at["town-3"].id } });
+  assert.ok(!(await G.processView(prisma, uid(clerk))).into.some((r) => r.text === "Me too."));
 
   // ── Deny, and the history ──
   const outRow = (await G.processView(prisma, uid(clerk))).outOf.find((r) => r.text === "Out.");

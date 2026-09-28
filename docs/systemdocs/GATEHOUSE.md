@@ -91,7 +91,12 @@ the asker as the clerk sees them (`intercept.js#seenByIdMany` — a stranger is
   **moved through the gate**: into the Square, or out onto the Bridge. It is a
   relocation, so it spends no Move, but the arrival is announced as the manned
   gate's would be. What is left in the offer was never taken, which is the
-  doc's "given back". The asker is DM'd.
+  doc's "given back". The asker is DM'd. It is still a move, though: refused
+  while the asker is held (a fight, an ambush, caught stealing), bound or out
+  cold, and once Moves have locked (`turnGate.js#travelLockReason`).
+- A request whose asker is no longer where they asked is never listed,
+  approved or poured on, even if a move skipped the withdrawal (a GM's, a
+  revive).
 - **Deny** moves nothing and DMs "You were denied access through the gate."
 - **Magma** kills and **gibs** everybody waiting to come **in**, never anybody
   asking to leave, after a confirm with the doc's words. Once a turn:
@@ -132,7 +137,9 @@ the PIN to anybody who can read.
 treasury account. The Meister's **Close account** on `/treasury`
 (`depotCounter.js#closeAccount`) writes the balance off (`ACCOUNT_CLOSED`) and
 deletes the account; the old papers then open nothing, and the character can be
-documented afresh.
+documented afresh. That includes an empty account opened at the counter's
+**Create an account** button (DEPOT.md): a Bum or a Migrant who opens one there
+cannot be documented until the Meister closes it.
 
 **Negative balances.** `bankAccounts.js#bumpBankAccount`'s floor is never above
 where the account already stands: a deposit into -10 lands at -7, and a
@@ -142,6 +149,12 @@ a lower floor.
 **Migrants no longer start with an account** (`docs/roles.yaml`): the
 Gatehouse opens one when it documents them. The migration deleted the untouched
 accounts living Migrants already had — empty, ringless, never used.
+
+**Roles do not sync on deploy** (`db:sync-deploy` runs tags, desires and
+documents only), so the migration also writes what `docs/roles.yaml` changed
+onto a running game: `gatehouse-key` and `portcullis-key` on the seats' Role
+rows and on every registered ring already carrying one of those seats, and no
+`bankAccountClass` on the Migrant's Role row.
 
 ## 6. What is recorded
 
@@ -203,5 +216,5 @@ Discord: `bot/src/events/interactions/gatehouse.js`. Every rule is in
 | `db/lib/placeAffordances.js` | the buttons, and `sides: true` |
 | `db/lib/depotCounter.js` | Documents at the infoterminal; `closeAccount` |
 | `db/lib/paperMint.js#mintDocuments` | the paper |
-| `db/prisma/migrations/20261113000000_gatehouse_rework` | the tables, and the geography on a running game |
+| `db/prisma/migrations/20261114000000_gatehouse_rework` | the tables, and the geography on a running game |
 | `db/test/gatehouse.test.js` | the rules, the map, and the whole flow against Postgres |

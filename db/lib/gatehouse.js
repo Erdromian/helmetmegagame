@@ -31,7 +31,8 @@ const { blockerFor, ACT } = require("./incapacitation");
 const { wornRing, wornRingAccess } = require("./rings");
 const { isTradeable } = require("./tradeable");
 const { isResourcesRow } = require("./resourceStack");
-const { seenByIdMany } = require("./intercept");
+const { seenByIdMany, heldReasonFor } = require("./intercept");
+const { travelLockReason } = require("./turnGate");
 const { dropCharacterTag } = require("./tagWrites");
 const { characterParty, turnStamp } = require("./economyLedger");
 const { openAccount, bumpBankAccount } = require("./bankAccounts");
@@ -236,9 +237,12 @@ async function requestPassage(prisma, discordUserId, { roomSlug, text: rawText, 
 
 // ─── Grant Passage ─────────────────────────────────────────────────────
 
-// Every waiting request whose asker is still alive, with the asker's tags for the live offer.
+// Every waiting request whose asker is still alive and still standing where
+// they asked, with the asker's tags for the live offer. Leaving withdraws a
+// request (locationMove.js#applyArrivalFacts), but a revive or a GM's move can
+// skip that, and a stale row must never be approved or poured on.
 async function pendingPassages(prisma, where = {}) {
-  return prisma.gatePassage.findMany({
+  const rows = await prisma.gatePassage.findMany({
     where: { status: "PENDING", character: { status: "ALIVE" }, ...where },
     orderBy: { createdAt: "asc" },
     include: {
@@ -250,11 +254,14 @@ async function pendingPassages(prisma, where = {}) {
           discordRoleId: true,
           locationId: true,
           zoneId: true,
+          heldUntil: true,
+          heldReason: true,
           tags: { select: { tagId: true, quantity: true, equipped: true, tag: true } },
         },
       },
     },
   });
+  return rows.filter((row) => !row.locationId || row.character.locationId === row.locationId);
 }
 
 /** The terminal's list: the requests, both ways, and the clerk's own things for the Approve screen. */
@@ -372,6 +379,11 @@ async function approvePassage(prisma, discordUserId, { passageId, keep = [], giv
   if (!row) return fail(T.requestGone);
   const asker = row.character;
   if (asker.id === clerk.id) return fail(T.requestGone);
+  // Through the gate is still a move: not out of a fight or an ambush, not
+  // while they are bound or out cold, and not once Moves have locked.
+  if (heldReasonFor(asker) || blockerFor(asker.tags, ACT)) return fail(T.approveHeld);
+  const locked = await travelLockReason(prisma);
+  if (locked) return fail(locked);
 
   const offer = liveOffer(row.offered, asker.tags);
   const kept = pickLines(keep, offer, { strict: true });
