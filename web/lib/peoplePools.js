@@ -20,7 +20,14 @@ import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { craftMoveCost } from "@/lib/craftBudget";
 import { MEDICAL_SIMPLE_PER_TURN } from "@/lib/requests";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
-import { SURGICAL_EQUIPMENT_SLUG, PORTABLE_SURGICAL_PACK_SLUG } from "@lifeweb/db/lib/constants";
+import { SURGICAL_EQUIPMENT_SLUG, PORTABLE_SURGICAL_PACK_SLUG, GUILT_RIDDEN_SLUG } from "@lifeweb/db/lib/constants";
+import {
+  LESSON_CATALOG_SELECT,
+  learnableSkills,
+  knownTeachableSkills,
+  teachesFree,
+} from "@lifeweb/db/lib/lessons";
+import { structuresAt } from "@lifeweb/db/lib/structures";
 import { medicTierOf, healThreshold } from "@lifeweb/db/lib/healGambit";
 import {
   HEALABLE_CATEGORY,
@@ -169,10 +176,16 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // `here` carries what Heal, Miracle, Kiss and Learn read; `zone` is every
   // action on a body standing here — Loot, Bind, Free, Harm, Dose, administer —
   // and reaches the unburied dead.
-  const [hereRoster, zone, tierRows] = await Promise.all([
+  //
+  // The catalog read is the lessons' select, which already carries the three
+  // columns the heal ancestry reads (id, slug, parentTagId), so Heal and
+  // Learn/Teach share one read. The finished structures here are Crucify's and
+  // Shackle's ground (a Cross, Dungeons).
+  const [hereRoster, zone, tierRows, builtHere] = await Promise.all([
     rosterHere(character, { select: HERE_SELECT }),
     rosterHere(character, { includeDead: true, select: ZONE_SELECT }),
-    prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } }),
+    prisma.tag.findMany({ select: LESSON_CATALOG_SELECT }),
+    structuresAt(prisma, character.locationId, { statuses: ["COMPLETE"] }),
   ]);
   const here = hereRoster.named;
   const zoneRoster = zone.named;
@@ -595,6 +608,54 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     .filter((p) => !kissBlock(p, { self: false }))
     .map((p) => ({ id: pickerKey(p), name: pickerName(p) }));
 
+  // Lessons (LESSONS.md). Nobody's skills are read off their sheet for this:
+  // `teachers` is everyone here, each offered what *I* could learn, and
+  // `learners` is everyone here, each offered what *I* know. Whether the pair
+  // actually works is found out by asking (db/lib/lessons.js#acceptLesson).
+  // No threshold either — it named the teacher's Teaching and Drill Instructor.
+  //
+  // Both halves, keyed. A lesson is a thing two people do standing next to each
+  // other, and there is nothing about a mask that stops somebody being shown how
+  // to sharpen a blade — the offer handshake means they consent either way, and
+  // db/lib/lessons.js never reads the far sheet (LESSONS.md §4). pickerName, not
+  // c.name — a forced name is what an offer addresses, and a hood is addressed
+  // by its alias (web/lib/peopleHere.js).
+  //
+  // Built here rather than on the sheet alone so /chat's Here menu can open
+  // Learn, Teach and Confess on a person too.
+  const hereForLessons = hereAll.map((c) => ({ id: pickerKey(c), name: pickerName(c) }));
+  const skillChip = (t) => ({ id: t.id, name: t.name });
+  const learnable = learnableSkills(character, tierRows).map(skillChip);
+  const myTeachable = knownTeachableSkills(character, tierRows).map(skillChip);
+  const teachers = learnable.length ? hereForLessons.map((c) => ({ ...c, skills: learnable })) : [];
+  const learners = myTeachable.length ? hereForLessons.map((c) => ({ ...c, skills: myTeachable })) : [];
+  // Teaching is free for a tag holder and a whole Routine for everybody else.
+  const teachCostsMove = !teachesFree(character);
+  // Confession (CONFESSION.md). Only the penitent gets a menu — no list is
+  // built for a chaplain, which would show everybody's addictions unasked.
+  // A hooded chaplain still hears a confession — a confessional is a box built
+  // so neither side sees the other, so a hood is if anything the point.
+  const confessors = hereAll
+    .filter((c) => c.tags.some((ct) => ct.tag.slug === "chaplain"))
+    .map((c) => ({ id: pickerKey(c), name: pickerName(c) }));
+  // Guilt Ridden can't bring themself to confess at all — mirrors db/lib/confession.js#confessableTags so the button hides, not fails.
+  const mySins = heldSlugSet.has(GUILT_RIDDEN_SLUG)
+    ? []
+    : (
+        await prisma.characterTag.findMany({
+          where: { characterId: character.id, tag: { psychological: true } },
+          select: { tag: { select: { id: true, name: true } } },
+        })
+      )
+        .map((ct) => ct.tag)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+  // Crucify: a Fundamentalist at a finished Cross — your tag, your ground.
+  // Shackle: anyone standing at finished Dungeons — your ground. Both server
+  // actions re-check it (crucifyCharacterRequest, shackleCharacterRequest).
+  const canCrucify = heldSlugSet.has("fundamentalist") && builtHere.some((s) => s.typeSlug === "crucifix");
+  const canShackle = builtHere.some((s) => s.typeSlug === "dungeons");
+
   return {
     // `here` and `zoneRoster` are the NAMED halves, still separate because a
     // caller looks somebody up by real id in them (character/page.js). `hereAll`
@@ -628,6 +689,13 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
     harmTargets,
     harmTags,
     doseTargets,
+    teachers,
+    learners,
+    teachCostsMove,
+    confessors,
+    mySins,
+    canCrucify,
+    canShackle,
   };
 }
 

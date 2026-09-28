@@ -16,9 +16,9 @@ import { brandCharacterRequest } from "@/app/(app)/character/requestActions";
 // INCAPACITATING_SLUGS class, not just Bound, which is what "incapacitated /
 // bound" asks for and why this reuses Poison's pool rather than Torture and
 // Mutilate's narrower bindTargets.
-export default function BrandDialog({ mode, onDone, onClose }) {
+export default function BrandDialog({ mode, presets, onDone, onClose }) {
   const pools = useActionPools();
-  const [targetId, setTargetId] = useState("");
+  const [targetId, setTargetId] = useState(presets?.targetId ?? "");
   const [description, setDescription] = useState("");
   const confirm = useConfirm();
   const { submit, busy, error } = useSubmit();

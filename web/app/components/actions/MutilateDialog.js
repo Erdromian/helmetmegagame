@@ -23,12 +23,13 @@ function keyFor(kind, id) {
   return `${kind}:${id}`;
 }
 
-export default function MutilateDialog({ mode, onDone, onClose }) {
+export default function MutilateDialog({ mode, presets, onDone, onClose }) {
   const pools = useActionPools();
   const { roster, loading } = useRoster(["people", "corpses"], {
     seed: { people: { bindTargets: pools.bindTargets ?? [] }, corpses: pools.corpses ?? [] },
   });
-  const [subjectKey, setSubjectKey] = useState("");
+  // Opened from somebody's row in the Here list: that person, if they are tied up.
+  const [subjectKey, setSubjectKey] = useState(presets?.targetId ? keyFor("person", presets.targetId) : "");
   const [part, setPart] = useState(MUTILATE_PARTS[0].key);
   const { submit, busy, error } = useSubmit();
 
@@ -68,7 +69,7 @@ export default function MutilateDialog({ mode, onDone, onClose }) {
       error={error}
       loading={loading && none}
       empty={!loading && none ? "There’s nobody here you could do that to." : null}
-      canSubmit={Boolean(subjectKey && part)}
+      canSubmit={Boolean(part) && options.some((o) => o.id === subjectKey)}
       onClose={onClose}
       onSubmit={onSubmit}
     >
