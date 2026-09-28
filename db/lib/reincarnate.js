@@ -21,6 +21,7 @@ const { heldSeatsByFate } = require("./seatCount");
 const { loadLiveParty, latePartyCap, partySeatUnderLock } = require("./lateParty");
 const { effectivePlayerCount } = require("./gameState");
 const { parseStartingTag } = require("./startingTags");
+const { varyStartingPurse } = require("./startingVariance");
 const { expiryForGrant } = require("./grantExpiry");
 const { seedStartingMap } = require("./mapMemory");
 const { seedAcquaintances } = require("./acquaintances");
@@ -262,6 +263,8 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
     const { slug, quantity } = parseStartingTag(entry);
     wanted.set(slug, (wanted.get(slug) ?? 0) + quantity);
   }
+  // The purse rolls within 10%, as it does in the wizard (db/lib/startingVariance.js).
+  varyStartingPurse(wanted);
 
   // A role that offers a package CHOICE (Commoner's three trade kits today)
   // gets one picked at random rather than left empty — the wizard's own

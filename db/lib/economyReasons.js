@@ -23,6 +23,8 @@ const REASONS = {
   RITE_GRANT: { flow: FLOW.FAUCET, label: "Rite" },
   THREAT_SPAWN: { flow: FLOW.FAUCET, label: "Threat spawned" },
   CHARACTER_START: { flow: FLOW.FAUCET, label: "Starting purse" },
+  // The Vault's share of a new character's starting balance (db/lib/startingVariance.js#vaultStockFor).
+  VAULT_STOCK: { flow: FLOW.FAUCET, label: "Vault stocked" },
   STRUCTURE_YIELD: { flow: FLOW.FAUCET, label: "Structure yield" },
   CAVING: { flow: FLOW.FAUCET, label: "Caving" },
   GM_GRANT: { flow: FLOW.FAUCET, label: "GM grant" },

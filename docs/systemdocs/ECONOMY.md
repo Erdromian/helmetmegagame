@@ -115,8 +115,9 @@ it had checked the backing would be lying. The question it answers is different
 anyway — not "do the books balance" but "is there enough coin in the Keep's
 Vault to honour what the TREASURY accounts claim". Under that line the books are
 perfectly balanced and somebody still walks up to the ATM and is told no.
-`npm run db:audit-vault-backing` is the check; it exits 1 when the Vault is
-short. See `DEPOT.md` §0g.
+`npm run db:audit-vault-backing` reads the two side by side. It is a readout,
+not a check: the Vault is short of the claims by design, so it never exits 1
+for that. See `DEPOT.md` §0g.
 
 `db/test/economyLedger.test.js` asserts the invariant against the primitives
 directly, including the two cases that are easy to get wrong: a transfer must

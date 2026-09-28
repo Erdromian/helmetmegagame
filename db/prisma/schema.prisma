@@ -660,6 +660,14 @@ model GameConfig {
   // See docs/systemdocs/PAPERWORK.md.
   noticeExpiryTurns Int @default(10)
 
+  // The Keep's Vault as a share of the town's starting bank balances. Each
+  // starting character's balance (a seat Start Game rolled; later arrivals add
+  // nothing) puts this percentage of it into the Vault as coin
+  // (db/lib/startingAccount.js, db/lib/startingVariance.js#vaultStockFor), so
+  // the Vault opens holding this share of what the town bar the Baron started
+  // with. 25 by default. See docs/systemdocs/DEPOT.md §0g.
+  vaultReservePercent Int @default(25)
+
   // How many crops one Farm action plants (db/lib/soilery.js, FARM_PLANTS is
   // the fallback). Each withers 1 in 6; every survivor is 1 Foodstuff.
   // Edited on /gm/dev. See SOILERY.md.

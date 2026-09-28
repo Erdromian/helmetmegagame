@@ -110,8 +110,16 @@
 # seats carry both. The difference matters: coin in your hand can be stolen or
 # pickpocketed, and coin in the bank cannot, but the bank can only pay out what
 # is actually sitting in the Keep's Vault. Every treasury figure here is a
-# claim on that pile (docs/zones.yaml, `undertown-1-7`), so raising one
-# means checking `npm run db:audit-vault-backing` still exits 0.
+# claim on that pile (docs/zones.yaml, `undertown-1-7`) — and the pile is made
+# of them: each starting character's balance puts a share of itself into the
+# Vault as coin (25% by default, the Vault stock knob on /gm/dev, the Baron's
+# excepted; db/lib/startingAccount.js). So raising a figure raises the Vault
+# with it, and the cover opens at that share. Only the seats Start Game rolled
+# stock it; a character who arrives later gets their balance and adds nothing.
+#
+# Both figures are the MIDDLE of a range, not the exact amount: each character
+# rolls their `starting_account` and their `Obol xN` within 10% at creation
+# (db/lib/startingVariance.js). A figure under 10 is too small to move.
 #
 # `starting_zone` (role-level) is a Zone **slug** from docs/zones.yaml — it
 # decides where the character starts, and therefore which zone role (and so
@@ -205,7 +213,7 @@ groups:
         - Sabre
         - Literacy
         - Courtier
-        - Obol x25
+        - Obol x68
         - Post-Christian
         - Appraisal
         - Foodstuffs x4
@@ -228,7 +236,7 @@ groups:
           Your Baron is a stressed, overburdened, and threatened man. Support him however you can.
       difficulty: easy
       bank_account: treasury
-      starting_account: 6
+      starting_account: 26
       multiple: false
       starting_zone: fortress
       knows: *townsfolk
@@ -242,7 +250,7 @@ groups:
         - Nobility
         - Jewelry
         - Literacy
-        - Obol x5
+        - Obol x18
         - Post-Christian
         - Foodstuffs x4
       doc_elements:
@@ -260,7 +268,7 @@ groups:
           Life is good as the Heir — but that may change one day. Will you make an effort to reveal the gravity of your situation, or will you dawdle your days away?
       difficulty: easy
       bank_account: treasury
-      starting_account: 5
+      starting_account: 18
       multiple: false
       starting_zone: fortress
       knows: *townsfolk
@@ -274,7 +282,7 @@ groups:
         - Courtier
         - Nobility
         - Literacy
-        - Obol x5
+        - Obol x7
         - Post-Christian
         - Foodstuffs x4
       doc_elements:
@@ -290,7 +298,7 @@ groups:
       description: []
       difficulty: easy
       bank_account: treasury
-      starting_account: 5
+      starting_account: 24
       multiple: false
       starting_zone: fortress
       knows: *townsfolk
@@ -306,6 +314,7 @@ groups:
         - Literacy
         - Post-Christian
         - Foodstuffs x4
+        - Obol x15
       doc_elements:
         - godking
         - courtstructure
@@ -323,7 +332,7 @@ groups:
           The keep has a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
       difficulty: normal
       bank_account: treasury
-      starting_account: 5
+      starting_account: 57
       multiple: false
       starting_zone: fortress
       knows: *townsfolk
@@ -341,7 +350,7 @@ groups:
         - Courtier
         - Literacy
         - Hand's Pin
-        - Obol x10
+        - Obol x15
         - Foodstuffs x4
       doc_elements:
         - godking
@@ -360,7 +369,7 @@ groups:
           Your terminal lists every account in Ravenheart and allows you to set the sell tax. Be careful to not withdraw too much from the Treasury, or people's accounts will no longer be backed by your obols, certainly leading to rebellion.
       difficulty: normal
       bank_account: treasury
-      starting_account: 4
+      starting_account: 16
       multiple: false
       starting_zone: fortress
       knows: *townsfolk
@@ -379,7 +388,7 @@ groups:
         - Medical I
         - Literacy
         - Bird
-        - Obol x5
+        - Obol x7
         - Foodstuffs x4
       doc_elements:
         - godking
@@ -400,7 +409,7 @@ groups:
           Ask the Baron how you can help him. Your service will surely be appreciated.
       difficulty: normal
       bank_account: treasury
-      starting_account: 5
+      starting_account: 22
       multiple: false
       starting_zone: fortress
       knows: *townsfolk
@@ -413,7 +422,7 @@ groups:
         - Literacy
         - Sabre
         - Major's Insignia
-        - Obol x4
+        - Obol x13
         - Appraisal
         - Foodstuffs x4
       doc_elements:
@@ -428,7 +437,7 @@ groups:
           The Baron keeps you around in his court. Either honorably serve Ravenheart, convince the Censor to launch an expedition into the caves, or duel your fellow courtiers for the Successor's affection. It's your day to make of it what you will.
       difficulty: easy
       bank_account: treasury
-      starting_account: 5
+      starting_account: 14
       multiple: true
       weight: 3
       starting_zone: fortress
@@ -447,6 +456,7 @@ groups:
         - Courtier
         - Literacy
         - Foodstuffs x4
+        - Obol x6
       doc_elements:
         - godking
         - courtstructure
@@ -457,7 +467,7 @@ groups:
       description: []
       difficulty: easy
       bank_account: treasury
-      starting_account: 5
+      starting_account: 10
       multiple: false
       starting_zone: fortress
       knows: *townsfolk
@@ -470,6 +480,7 @@ groups:
         - Musician
         - Instrument Kit
         - Foodstuffs x4
+        - Obol x4
       doc_elements:
         - godking
         - courtstructure
@@ -482,7 +493,7 @@ groups:
           Clean, cook, maintain, and serve.
       difficulty: easy
       bank_account: treasury
-      starting_account: 5
+      starting_account: 10
       multiple: true
       weight: 4
       starting_zone: fortress
@@ -495,6 +506,7 @@ groups:
         - Ravenhearter
         - Servant
         - Cooking I
+        - Obol x6
         # A turn's cooking to start with: 40 Foodstuffs is 20 Basic meals at 2
         # Foodstuffs and 0.05 of a Move each, which is one whole Move
         # (COOKING.md).
@@ -521,7 +533,7 @@ groups:
           Along with the Chaplains, you have the power to take confessions, dispelling psychological drawback tags.
       difficulty: normal
       bank_account: treasury
-      starting_account: 6
+      starting_account: 44
       multiple: false
       starting_zone: town
       knows: *townsfolk
@@ -537,6 +549,7 @@ groups:
       starting_tags:
         - Ravenhearter
         - Chaplain
+        - Obol x54
         # The office as a tag, the same move Chaplain above is. Every gate
         # that means "is this the Bishop" reads this and not the role — the
         # Excommunicate button and the Depriver tag both do.
@@ -565,7 +578,7 @@ groups:
           Along with the Bishop, you have the power to take confessions, dispelling psychological drawback tags.
       difficulty: easy
       bank_account: treasury
-      starting_account: 3
+      starting_account: 12
       multiple: true
       weight: 2
       starting_zone: town
@@ -584,6 +597,7 @@ groups:
         - Vestments
         - Cross
         - Foodstuffs x4
+        - Obol x3
       doc_elements:
         - postchristianity
     inquisitor:
@@ -601,7 +615,7 @@ groups:
           Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
       difficulty: hard
       bank_account: treasury
-      starting_account: 6
+      starting_account: 31
       multiple: false
       starting_zone: town
       knows: *townsfolk
@@ -621,6 +635,7 @@ groups:
         - War Hammer
         - Silver Knife
         - Shield
+        - Obol x14
         # The Order's crossbow and tear gas, which used to lie in the
         # Cathedral's Order Chambers where every Order ring could take them
         # (docs/zones.yaml town-4-3).
@@ -650,7 +665,7 @@ groups:
           Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
       difficulty: easy
       bank_account: treasury
-      starting_account: 3
+      starting_account: 18
       multiple: true
       weight: 3
       starting_zone: town
@@ -671,6 +686,7 @@ groups:
         - Fundamentalist
         - Torturer
         - Foodstuffs x4
+        - Obol x6
       doc_elements:
         - postchristianity
     preacher:
@@ -688,7 +704,7 @@ groups:
           Lastly, the Incarn holds the Silver Cross, the powerful artifact your Order is named after. If the need is dire, secure it from him.
       difficulty: easy
       bank_account: treasury
-      starting_account: 3
+      starting_account: 22
       multiple: true
       weight: 1
       starting_zone: town
@@ -703,6 +719,7 @@ groups:
         - Post-Christian
         - Fundamentalist
         - Foodstuffs x4
+        - Obol x20
       doc_elements:
         - postchristianity
 
@@ -721,7 +738,7 @@ groups:
           The Cerberi are men, but they are also dogs. Remind them that in service of Ravenheart, they should be capable of the savagery their position demands.
       difficulty: hard
       bank_account: treasury
-      starting_account: 6
+      starting_account: 43
       multiple: false
       starting_zone: fortress
       knows: *townsfolk
@@ -758,7 +775,7 @@ groups:
         - Radio System (Cerberon)
         - Radio Bracelet (Cerberon)
         - Literacy
-        - Obol x2
+        - Obol x31
         - Post-Christian
         - Foodstuffs x4
       doc_elements:
@@ -780,7 +797,7 @@ groups:
           Your role is as organizational as it is combat-like — you should assist the Censor in assigning his men, drafting battleplans, and performing espionage. Monitor the outskirts and the caves, and always be a step ahead of the darkness.
       difficulty: normal
       bank_account: treasury
-      starting_account: 3
+      starting_account: 23
       multiple: false
       starting_zone: fortress
       knows: *townsfolk
@@ -796,6 +813,7 @@ groups:
         - Melee (Shield Wall)
         - Pious
         - Cudgel
+        - Obol x16
         # The Garrison's other hound (docs/zones.yaml fortress-1-8).
         - Hound
         - Disabler
@@ -820,7 +838,7 @@ groups:
           You are loyal to the Censor and the Baron, although extreme circumstances could change that.
       difficulty: easy
       bank_account: treasury
-      starting_account: 3
+      starting_account: 17
       multiple: true
       weight: 6
       starting_zone: fortress
@@ -842,7 +860,7 @@ groups:
         - Mail Coif
         - Mail Shirt
         - Post-Christian
-        - Obol x1
+        - Obol x9
         - Foodstuffs x4
       doc_elements:
         - courtstructure
@@ -860,7 +878,7 @@ groups:
           You are loyal to the Censor and the Baron, although extreme circumstances could change that.
       difficulty: easy
       bank_account: treasury
-      starting_account: 3
+      starting_account: 10
       multiple: true
       weight: 2
       starting_zone: fortress
@@ -879,6 +897,7 @@ groups:
         - Mail Shirt
         - Post-Christian
         - Foodstuffs x4
+        - Obol x4
       doc_elements:
         - courtstructure
         - cerberon
@@ -902,7 +921,7 @@ groups:
           Organ harvesting is one of the most profitable enterprises in Ravenheart.
       difficulty: normal
       bank_account: treasury
-      starting_account: 6
+      starting_account: 60
       multiple: false
       starting_zone: town
       knows: *townsfolk
@@ -921,7 +940,7 @@ groups:
         - Brewing III
         - Literacy
         - Esculap's Vest
-        - Obol x10
+        - Obol x33
         - Resources x26
         - Foodstuffs x4
       doc_elements:
@@ -939,7 +958,7 @@ groups:
           Organ harvesting is one of the most profitable enterprises in Ravenheart.
       difficulty: normal
       bank_account: treasury
-      starting_account: 3
+      starting_account: 18
       multiple: true
       weight: 4
       starting_zone: town
@@ -955,6 +974,7 @@ groups:
         - Literacy
         - Resources x8
         - Foodstuffs x4
+        - Obol x9
       doc_elements:
         - medical
 
@@ -977,7 +997,7 @@ groups:
           Unlike other people's accounts, your account's obols are backed off-world, so if the Keep's treasury is drained during a bank run you'll still be able to withdraw obols.
       difficulty: hard
       bank_account: offshore
-      starting_account: 55
+      starting_account: 88
       multiple: false
       starting_zone: undertown
       knows: *townsfolk
@@ -999,7 +1019,7 @@ groups:
         - Merchant's Garb
         - Merchant's License
         - Silencer
-        - Obol x20
+        - Obol x78
         - Nobility
         - Appraisal
         - Foodstuffs x4
@@ -1019,7 +1039,7 @@ groups:
           Maybe they'll let you get a ride on their spaceship if things ever get bad around here.
       difficulty: easy
       bank_account: offshore
-      starting_account: 3
+      starting_account: 8
       multiple: true
       weight: 3
       starting_zone: undertown
@@ -1031,6 +1051,7 @@ groups:
       starting_tags:
         - Appraisal
         - Ration Box
+        - Obol x7
         # Hauling crates is the job (Depot Overhaul.docx, CARRY.md §10).
         - Pack Mule
       doc_elements:
@@ -1050,7 +1071,7 @@ groups:
           Make sure everyone's wearing their armored gloves.
       difficulty: hard
       bank_account: treasury
-      starting_account: 6
+      starting_account: 43
       multiple: false
       starting_zone: hills
       knows: *townsfolk
@@ -1072,6 +1093,7 @@ groups:
         - Bore Pistol
         - Melee I
         - Ranged I
+        - Obol x25
         # Their own pair and the factory's 2 spares. The spares, the hatchet
         # and the ration boxes used to sit in the Logistics Room, which every
         # Refugee can open (docs/zones.yaml factory-logistics-room).
@@ -1097,7 +1119,7 @@ groups:
           Make sure everyone's wearing their armored gloves.
       difficulty: normal
       bank_account: treasury
-      starting_account: 3
+      starting_account: 20
       multiple: false
       starting_zone: hills
       knows: *townsfolk
@@ -1116,6 +1138,7 @@ groups:
         - Brewing I
         - Medical I
         - Cooking I
+        - Obol x18
         # A turn's cooking to start with, as for the Servant.
         - Foodstuffs x40
         - Cleaning Powder
@@ -1150,6 +1173,7 @@ groups:
         - Cleaning Powder
         - Armored Gloves
         - Moldy Bread
+        - Obol x1
       doc_elements:
         - godardfactory
     exactor:
@@ -1167,7 +1191,7 @@ groups:
           Your only job is to make as much money as possible. The slaves and the Pusher will make you money by default, but you should plan big business moves. One lucrative enterprise is selling your slaves or getting new ones. The Incarn might sell you prisoners if you can cut a deal.
       difficulty: normal
       bank_account: treasury
-      starting_account: 6
+      starting_account: 45
       multiple: false
       starting_zone: undertown
       knows: *townsfolk
@@ -1186,6 +1210,7 @@ groups:
         - Bomb Collar
         - Remote Detonator
         - Literacy
+        - Obol x35
         # His ring opens the Den itself. The two guest-room keys stay keys, to
         # lend out, and these are his second copies — there is another pair on
         # the desk in his office (docs/zones.yaml).
@@ -1207,7 +1232,7 @@ groups:
           Your most valued possession is a .45 six-shooter.
       difficulty: normal
       bank_account: treasury
-      starting_account: 3
+      starting_account: 17
       multiple: false
       starting_zone: town
       knows: *townsfolk
@@ -1223,6 +1248,7 @@ groups:
         - Cudgel
         - Sheriff's Badge
         - Foodstuffs x4
+        - Obol x12
       doc_elements:
         - combat
     metalsmith:
@@ -1238,7 +1264,7 @@ groups:
           The theory is important to keep in mind. Axes are good at breaking shields; blunt weapons harm people even in full armor; swords excel in one-to-one combat.
       difficulty: normal
       bank_account: treasury
-      starting_account: 3
+      starting_account: 8
       multiple: true
       weight: 3
       starting_zone: town
@@ -1253,6 +1279,7 @@ groups:
         - Resources x20
         - Appraisal
         - Foodstuffs x4
+        - Obol x3
       doc_elements:
         - smithing
         - combat
@@ -1274,7 +1301,7 @@ groups:
           The caves are very dangerous, and the depths especially so. However, the deeper you go, the higher the reward. Consider hiring an escort.
       difficulty: easy
       bank_account: treasury
-      starting_account: 3
+      starting_account: 5
       multiple: true
       weight: 2
       starting_zone: town
@@ -1289,6 +1316,7 @@ groups:
         - Ration Box x2
         - Pickaxe
         - Appraisal
+        - Obol x2
     # Added 2026-09-20. Starts inside the Soilery (town-3) rather than the
     # town square, because the Farm button only exists on `soilery` ground —
     # a Soiler who starts anywhere else spends their first Move walking.
@@ -1327,6 +1355,7 @@ groups:
         - Resources x2
         - Plebeian Hood
         - Foodstuffs x4
+        - Obol x1
       doc_elements:
         - farming
     mortus:
@@ -1344,7 +1373,7 @@ groups:
           You are allowed to loot whatever corpses you find. That's how the Mortus traditionally sustain themselves.
       difficulty: easy
       bank_account: treasury
-      starting_account: 3
+      starting_account: 22
       multiple: true
       weight: 4
       starting_zone: town
@@ -1362,6 +1391,7 @@ groups:
         - Shovel
         - Corpse Salts
         - Moldy Bread
+        - Obol x13
       doc_elements:
         - respawning
     bum:
@@ -1394,7 +1424,7 @@ groups:
           Your ring works the Black Market terminal in the Exactor's Office.
       difficulty: normal
       bank_account: treasury
-      starting_account: 14
+      starting_account: 23
       multiple: false
       starting_zone: undertown
       knows: *townsfolk
@@ -1411,7 +1441,7 @@ groups:
         - Heroin x2
         - Changa
         - Cave Fungus
-        - Obol x10
+        - Obol x16
         - Appraisal
         - Hood
         - Grasshopper Kebab
@@ -1430,7 +1460,7 @@ groups:
           Pay your staff so they can eat.
       difficulty: normal
       bank_account: treasury
-      starting_account: 6
+      starting_account: 32
       multiple: false
       starting_zone: town
       knows: *townsfolk
@@ -1444,6 +1474,7 @@ groups:
         - Room C Key x2
         - Ravenhearter
         - Cooking I
+        - Obol x24
         # A turn's cooking to start with, as for the Servant.
         - Foodstuffs x40
         - Brewing I
@@ -1462,7 +1493,7 @@ groups:
           You can brew alcohol to sell or cook fine meals.
       difficulty: easy
       bank_account: treasury
-      starting_account: 3
+      starting_account: 8
       multiple: true
       weight: 3
       starting_zone: town
@@ -1474,6 +1505,7 @@ groups:
       starting_tags:
         - Ravenhearter
         - Cooking I
+        - Obol x3
         # A turn's cooking to start with, as for the Servant.
         - Foodstuffs x40
         - Cheese x3
@@ -1501,6 +1533,7 @@ groups:
         spawns: true
         opens: [den-key, courtesans-key]
       starting_tags:
+        - Obol x1
         # The SLUG, not the name: "Seductive" is also the display name of the
         # catalog: secret Demoness power, and the sync refuses an ambiguous
         # name rather than picking one.
@@ -1541,7 +1574,7 @@ groups:
           You're paid better than the Dockers, but commit crimes as your job. What's not to love?
       difficulty: easy
       bank_account: treasury
-      starting_account: 4
+      starting_account: 9
       multiple: true
       weight: 2
       starting_zone: undertown
@@ -1559,6 +1592,7 @@ groups:
         - Padded Cap
         - Hood
         - Ration Box
+        - Obol x4
 
   # Outsiders
   outsiders:
@@ -1588,7 +1622,7 @@ groups:
           If you'd prefer the virtuous angle, you can be a hedge knight instead.
       difficulty: normal
       bank_account: treasury
-      starting_account: 3
+      starting_account: 18
       multiple: true
       weight: 4
       starting_zone: caves
@@ -1610,6 +1644,7 @@ groups:
         - Rough Camper
         - Spelunker
         - Ration Box
+        - Obol x12
       doc_elements: [caving]
   # Elsewhere
   other:
