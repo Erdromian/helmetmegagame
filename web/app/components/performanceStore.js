@@ -59,6 +59,26 @@ export function usePerformances() {
   return useSyncExternalStore(subscribe, () => view, () => EMPTY);
 }
 
+// ---------------------------------------------------------------- the Den's jukebox
+
+// What the feed stream's `music` frame last said about the Den's jukebox (SOUND.md, "The
+// Den's jukebox"): `undefined` while no stream is open — the phase poll's `standing.jukebox`
+// speaks then — `null` for "nothing playing where you stand", or { songKey, startedAt,
+// quietRoomIds }. InstrumentListener.js prefers this whenever it is defined, because the
+// stream is live and the poll is up to a minute behind.
+let framedJukebox;
+
+/** The feed's word on the jukebox, or `undefined` when the stream closes. */
+export function setFramedJukebox(jukebox) {
+  if (jukebox === framedJukebox) return;
+  framedJukebox = jukebox;
+  emit();
+}
+
+export function useFramedJukebox() {
+  return useSyncExternalStore(subscribe, () => framedJukebox, () => undefined);
+}
+
 // ---------------------------------------------------------------- muting
 
 const mutedListeners = new Set();

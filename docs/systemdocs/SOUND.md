@@ -170,12 +170,21 @@ is applied in those two entry points and **nowhere else**: `ramp()` has
 deliberate zero-length sets in it (a gain reset before a fade-in, a filter put
 back to open) and a floor down there would leak the top of every track.
 
-**`ambient`, `spot`, `music` and `player` have callers.** `room` and `event` are
-reachable by `playOn("room", …)` and wired into the rules above, waiting for the
-jukeboxes and the sirens. The Den's jukebox is the first one the design document
-describes — its eleven songs are in the library as class `jukebox` (§7) — and it will
-want `room` plus a muffle, "to imitate a low quality speaker". Nothing builds the jukebox
-yet.
+**Every layer but `event` has a caller.** `room` is the Den's jukebox (§6c). `event`
+is reachable by `playOn("event", …)` and wired into the rules above, waiting for the
+sirens.
+
+**`room` carries a lowpass of its own** (`TONED` in `music.js`), whatever is above it:
+the jukebox is "a low quality speaker". `playOn(…, { hz })` sets where that filter rests
+while the layer is heard, in place of `OPEN_HZ`, and `setTone(layer, { gain, hz })` moves
+it and the gain without restarting or re-seeking the song. The filter is still built in
+`state()` and nowhere else.
+
+**`duckLayer(layer, factor, ms)` holds a layer at a fraction of its own gain** until it
+is lifted with `1`. It is how the bus makes room for something OUTSIDE it — the jukebox
+under a sound effect (§6c) — and it is separate from `COEXIST`, which is one layer making
+room for another. The factor lives in a per-layer map, so it survives the priority pass
+and a new song, and ducking a layer that has not played yet builds nothing.
 
 ### Muting, and where a track comes back
 
@@ -621,7 +630,7 @@ the Depot is the Undertown like anywhere else down there.
 
 Most of the new document's tracks are for things the game does not have yet — the
 Count's camp, limbo, an alien location, a Wonder, the Dreamer, THEY, soulbreakers,
-an alarm in the fortress, a space station, the Den's jukebox, a revolutionary. Each one is in the library and the registry with a `needs` line
+an alarm in the fortress, a space station, a revolutionary. Each one is in the library and the registry with a `needs` line
 saying what is missing, and nothing plays it. `npm run sounds:report` lists them.
 
 ---
@@ -863,6 +872,58 @@ nobody else's.
 
 ---
 
+## 6c. The Den's jukebox
+
+"Den music is played from the jukebox located in the den. Whichever song has been
+picked loops for all characters in the den until it is changed or turned off. It
+replaces any ambience while playing. Muffle the sound to imitate a low quality
+speaker." (`docs/sounds.yaml`, the `jukebox` rule.)
+
+**Where it is.** A fixture in the Den's Bar (`undertown-8-1`): a Jukebox button on the
+Bar's starter post and in Chat's room panel (`db/lib/placeAffordances.js`). Anybody alive,
+able to act and standing in the Bar may put a song on, change it or turn it off. It is
+free. It is an act, so it keeps to the sitting (SESSIONS.md).
+
+**The songs** are the eleven `jukebox` tracks, `db/lib/jukeboxSongs.js`, served from
+`web/public/assets/den/` 6 dB under their masters (`build-assets.sh`'s `DEN` list) and
+measured at the −26 LUFS tier. A player sees them the way the document numbers them,
+"Song 1" to "Song 11".
+
+**State** is two columns on the Bar's row: `Room.jukeboxSongKey` (null is off) and
+`Room.jukeboxStartedAt`, which every listener's loop is anchored to, so the whole Den
+hears the same bar. Restart Game turns it off. `db/lib/jukebox.js#setJukebox` writes
+them, audits `jukebox_played` / `jukebox_stopped`, puts one unsigned line in the Bar
+("The jukebox starts playing Song 3." / "The jukebox goes quiet.") on both faces, and
+raises the music notify (§6b) for the Den and the Den Interior.
+
+**Who hears it.** Everybody standing in the Den (`undertown-8`) or the Den Interior
+(`undertown-9`), in every room. `jukeboxAt(prisma, locationId)` answers `{ songKey,
+startedAt, quietRoomIds }` there and null anywhere else. `quietRoomIds` are that
+Location's soundproof rooms: with one of them open in Chat (the Exactor's Office) the song
+is heard through the wall, darker and at 0.35 of its level.
+
+**How it reaches a browser.** Two ways, the live one first. The feed's `music` frame
+carries `jukebox` beside `performances` (`web/lib/feedHub.js`), so Chat hears a change
+at once. Every other page reads `standing.jukebox` off the phase poll
+(`web/lib/gamePhase.js`), a minute late at worst; this is why the jukebox, unlike an
+instrument, is heard off Chat too. `performanceStore.js#useFramedJukebox` is the frame's
+word, `undefined` while no stream is open, and closing the stream nudges the poll.
+
+**How it sounds.** `InstrumentListener.js` plays it on `room`: looped, anchored, through
+a 2.8 kHz lowpass (500 Hz behind a soundproof wall). As the top of the bus it ducks the
+place's ambience to silence while it plays, and the bed comes back when it stops. An
+instrument beats it: while anybody here is playing, `room` is not issued, and it comes
+back at wherever its loop has got to when the last of them stops (a song running out on
+its own is caught by a timer, since it raises no frame).
+
+**Sound effects play over it**, because they are the other engine (§1). While a one-shot
+cue is sounding (`sfx.js#onCuesSounding`) the jukebox drops to 0.15 of its level in
+150 ms, and comes back over a second once the last cue has finished, after a 300 ms hold
+so two cues close together do not make it pump. Drones and a phone's ring do not duck it:
+they last minutes, and a jukebox held down for all of them would simply be off.
+
+---
+
 ## 7. What each sound is FOR
 
 **Before you wire a sound, read its use case.** 810 of the 816 files in
@@ -924,8 +985,8 @@ drug song (§4b).
 The new document names many more, each recorded as the file's `needs` and left
 unwired: the Count and its camp, limbo, an alien location, a Wonder, an ancient super
 intelligence, the Dreamer, THEY, soulbreakers and their ship, a space station, an
-alarm declared in the fortress, an OS13 gamemode, the Den's jukebox, and becoming a
-revolutionary. `npm run sounds:report`
+alarm declared in the fortress, an OS13 gamemode, and becoming a revolutionary.
+`npm run sounds:report`
 groups them by what is missing.
 
 ### The checks

@@ -5,6 +5,8 @@ import { trainHere } from "@lifeweb/db/lib/train";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
 import { CHARON_SPACE_SLUG } from "@lifeweb/db/lib/charonPlaces";
+import { jukeboxAt } from "@lifeweb/db/lib/jukebox";
+import { JUKEBOX_LOCATION_SLUGS } from "@lifeweb/db/lib/jukeboxText";
 import { getGmSession } from "@/lib/discordGuild";
 import { DRUG_STATE_SLUGS, drugsHeld } from "@/lib/drugHighs";
 
@@ -68,6 +70,7 @@ export const getMusicPhase = cache(async (discordUserId) => {
             },
             location: {
               select: {
+                id: true,
                 slug: true,
                 indoors: true,
                 attributes: true,
@@ -97,6 +100,13 @@ export const getMusicPhase = cache(async (discordUserId) => {
     const at = launch?.launchedAt ? new Date(launch.launchedAt).getTime() : null;
     // The stamp is the launch itself, so a listener can tell one lift-off from the next.
     standing.charonLaunchedAt = at !== null && Date.now() - at < CHARON_FRESH_MS ? at : null;
+  }
+
+  // The Den's jukebox, for somebody standing where it is heard (SOUND.md, "The Den's
+  // jukebox"). Chat's feed stream carries it live; this is what every OTHER page hears it
+  // by, a poll late at worst. Asked only in the two Locations it reaches.
+  if (standing && JUKEBOX_LOCATION_SLUGS.includes(character.location.slug)) {
+    standing.jukebox = await jukeboxAt(prisma, character.location.id).catch(() => null);
   }
 
   // WITH NO LIVING CHARACTER the soundtrack has two more questions, and only in a running
@@ -151,6 +161,8 @@ function standingFor(character, turn) {
       ({ id, takenAt }) => ({ id, takenAt: Date.now() - takenAt < DRUG_FRESH_MS ? takenAt : null }),
     ),
     charonLaunchedAt: null,
+    // { songKey, startedAt, quietRoomIds } in the Den while its jukebox plays; set above.
+    jukebox: null,
     trainFresh:
       trainHere(turn?.number ?? 0) &&
       started !== null &&

@@ -220,6 +220,7 @@ async function hasEverPerformed(prisma, characterIds) {
 
 module.exports = {
   MUSIC_OP,
+  notifyMusic,
   equippedInstruments,
   holdsInstrument,
   startPerformance,

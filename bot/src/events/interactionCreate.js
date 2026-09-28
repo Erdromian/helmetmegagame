@@ -42,6 +42,7 @@ const {
   ROOM_CHARON_SLEEP_PREFIX,
   CHARON_LEAVE_PREFIX,
   ROOM_SLOTS_PREFIX,
+  ROOM_JUKEBOX_PREFIX,
   ROOM_PHONE_PREFIX,
   ROOM_VENDING_PREFIX,
   ROOM_NUKE_PREFIX,
@@ -50,6 +51,7 @@ const {
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
+const { JUKEBOX_PICK_PREFIX, handleJukeboxOpen, handleJukeboxPick } = require("./interactions/jukebox");
 const {
   QUEST_INTERACT_PREFIX,
   QUEST_MODAL_PREFIX,
@@ -561,6 +563,10 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_SLOTS_PREFIX)) {
           return void (await handleSlotsOpen(interaction, interaction.customId.slice(ROOM_SLOTS_PREFIX.length)));
         }
+        // The Den's jukebox. Its picker is a select, routed below.
+        if (interaction.customId.startsWith(ROOM_JUKEBOX_PREFIX)) {
+          return void (await handleJukeboxOpen(interaction, interaction.customId.slice(ROOM_JUKEBOX_PREFIX.length)));
+        }
         // The Merchant's vending machine. EVERY sub-prefix goes before the open
         // prefix, for the reason Pray's and Slots' pairs give above:
         // "room:vending:insert:<id>" also starts with "room:vending:".
@@ -718,6 +724,7 @@ module.exports = {
         if (interaction.customId.startsWith(EDIT_OPEN_PREFIX)) return void (await handleEditOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === ZONE_VIEW_ID) return void (await handleZoneViewPick(interaction));
+        if (interaction.customId.startsWith(JUKEBOX_PICK_PREFIX)) return void (await handleJukeboxPick(interaction));
         if (await routeGatehouse(interaction)) return;
         // The Meister's Terminal (db/lib/meisterTerminal.js): every `mst:` button,
         // select and modal. The ones that open a modal are not acked first.

@@ -183,6 +183,25 @@ test("every instrument song is in the registry, and is an instrument", () => {
   assert.deepEqual(bad, [], "instrument catalog disagrees with the registry");
 });
 
+test("every jukebox song is in the registry, and is a jukebox song", () => {
+  const src = read("db", "lib", "jukeboxSongs.js");
+  const bad = [];
+  let seen = 0;
+  for (const m of src.matchAll(/src: "(\/assets\/[^"]+)"/g)) {
+    seen += 1;
+    const served = m[1].replace(/^\/assets\//, "").toLowerCase();
+    const id = servedInRegistry.get(served);
+    if (!id) {
+      bad.push(`${m[1]} is not in the registry`);
+      continue;
+    }
+    const cls = SOUNDS[id].class;
+    if (cls !== "jukebox") bad.push(`${m[1]} is class ${cls}`);
+  }
+  assert.ok(seen > 0, "no jukebox songs were read");
+  assert.deepEqual(bad, [], "jukebox catalog disagrees with the registry");
+});
+
 test("nothing the app plays is a file the document marks Unused", () => {
   const played = new Set();
   for (const f of sfxFiles()) played.add(f);

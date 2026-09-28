@@ -196,6 +196,21 @@ export const MUSIC_GAIN = {
   "space_asshole.ogg": 0.403,         //  -18.1 LUFS, 4:16
   "space_oddity.ogg": 0.403,          //  -18.1 LUFS, 5:18
   "title1.ogg": 0.417,                //  -18.4 LUFS, 2:30
+
+  // -26 LUFS — the Den's jukebox (the `room` layer). See db/lib/jukeboxSongs.js for what
+  // these are named to a player. Served 6 dB under their masters (build-assets.sh), so
+  // these are the served files' numbers.
+  "blue-monday.ogg": 0.320,           //  -16.1 LUFS, 4:33
+  "change-in-the-house-of-flies.ogg": 0.257, // -14.2 LUFS, 5:00
+  "hardly-wait.ogg": 0.462,           //  -19.3 LUFS, 3:17
+  "i-love-you-mary-jane.ogg": 0.610,  //  -21.7 LUFS, 3:52
+  "into-the-void.ogg": 0.316,         //  -16.0 LUFS, 3:31
+  "it-kills.ogg": 0.339,              //  -16.6 LUFS, 4:28
+  "loose-ends.ogg": 0.537,            //  -20.6 LUFS, 2:00
+  "lsd-truth.ogg": 0.403,             //  -18.1 LUFS, 4:28
+  "navy-light.ogg": 0.417,            //  -18.4 LUFS, 3:09
+  "night-creature.ogg": 0.452,        //  -19.1 LUFS, 2:12
+  "red-blood.ogg": 0.412,             //  -18.3 LUFS, 4:04
 };
 
 /** The measured trim for a file, by URL or bare name. 1 for anything unmeasured. */

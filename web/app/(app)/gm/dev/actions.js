@@ -424,6 +424,13 @@ export async function wipeGameData(formData) {
       // it guards, is what keeps that safe — the guard still refuses to refill
       // a room players looted mid-game, it just no longer refuses the new one.
       prisma.room.updateMany({ data: { seededStashSlugs: [] } }),
+      // The Den's jukebox (SOUND.md, "The Den's jukebox") is off when a game
+      // opens. Nobody is standing in the Den to hear it go quiet, so there is
+      // no music notify to raise.
+      prisma.room.updateMany({
+        where: { jukeboxSongKey: { not: null } },
+        data: { jukeboxSongKey: null, jukeboxStartedAt: null },
+      }),
       // Runtime-minted tags: crates, headstones, written paper, sealed
       // letters. GAME state that happened to be stored in the catalog, and it
       // has to go with the game.

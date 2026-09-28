@@ -21,6 +21,7 @@ const {
 const { INFOTERMINAL_ROOM_SLUGS, MEISTERS_OFFICE_ROOM_SLUG } = require("./depot");
 const { RING_TEXT } = require("./ringText");
 const { BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT } = require("./blackMarketText");
+const { JUKEBOX_ROOM_SLUG, JUKEBOX_TEXT } = require("./jukeboxText");
 const { MEISTER_TERMINAL_TEXT } = require("./meisterTerminalText");
 const { ACTIONS_OPEN_ID } = require("./turnsConsoleRow");
 const { ACTION_START_PREFIX } = require("./actionCatalog");
@@ -101,6 +102,9 @@ const ROOM_PRAY_PREFIX = "room:pray:";
 const ROOM_INFOTERMINAL_PREFIX = "room:atm:";
 const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
 const ROOM_SLOTS_PREFIX = "room:slots:";
+// The Den's jukebox (db/lib/jukebox.js). Its picker's own id starts "room:jukebox:pick:",
+// so the bot tests that first.
+const ROOM_JUKEBOX_PREFIX = "room:jukebox:";
 const ROOM_PHONE_PREFIX = "room:phone:";
 const ROOM_VENDING_PREFIX = "room:vending:";
 // The bomb (docs/systemdocs/NUKE.md). Its keypad's own ids all start
@@ -248,6 +252,15 @@ const ROOM_AFFORDANCES = [
     tone: PLAIN,
     prefix: ROOM_SLOTS_PREFIX,
     when: (room) => room?.slug === CASINO_ROOM_SLUG,
+  },
+  // The Den's jukebox, in the Bar (db/lib/jukebox.js). Free, and anybody standing there
+  // may put a song on, change it or turn it off; the whole Den hears it.
+  {
+    id: "jukebox",
+    label: JUKEBOX_TEXT.button,
+    tone: PLAIN,
+    prefix: ROOM_JUKEBOX_PREFIX,
+    when: (room) => room?.slug === JUKEBOX_ROOM_SLUG,
   },
   // The Black Market terminal in the Exactor's Office (db/lib/blackMarket.js).
   // Drawn for anybody who can get into the room; the ring on the finger is
@@ -623,6 +636,7 @@ module.exports = {
   ROOM_INFOTERMINAL_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
+  ROOM_JUKEBOX_PREFIX,
   ROOM_PHONE_PREFIX,
   ROOM_VENDING_PREFIX,
   ROOM_NUKE_PREFIX,
