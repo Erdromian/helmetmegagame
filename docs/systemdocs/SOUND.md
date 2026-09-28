@@ -577,22 +577,23 @@ before relying on it.
 
 **Being on a drug is one song per drug**, and the song is two things: the "ambience
 interrupting sfx" the moment the dose is taken (§4a), and then the listener's bed for as
-long as the high lasts. The document writes three of these sentences about drugs and two
-about hallucinating; which drug hears which is a reading, kept in one table,
-`placeAmbience.js#BY_DRUG`, and no song belongs to two drugs:
+long as the high lasts. The pairings are Bascinet's, picked against the documents'
+sentences, and kept in one table, `placeAmbience.js#BY_DRUG`. No song belongs to two
+drugs:
 
 | Drug | State it leaves | Song | The document's sentence |
 |---|---|---|---|
 | Cave Fungus | High | `hishmaliin.ogg` | "…plays after smoking marijuana" |
 | Bliss | Euphoric + High | `fools-village.ogg` | "Ambience while hallucinating" |
-| Heroin | Doped | `mature-raver.ogg` | "…after taking DOB or other hardcore drug" |
+| Heroin | Doped | `ambi2.ogg` | "Ambience while in pain shock or sedated" — a texture, so it loops for a minute or two and fades |
 | Changa | Changa High | `oval-sky.ogg` | "…a drug induced bad trip, VERY LOUD" — half the volume of the other tracks, on top of its measured level |
-| ETH-LOD | Dissociated | `parhelic-triangle.ogg` | "Ambience while hallucinating" |
+| ETH-LOD | Dissociated | `mature-raver.ogg` | "…after taking DOB or other hardcore drug" |
 
 Buffout, Love Tablets and Opium High are drugs with no song yet, and are silent.
 Ambrosia (tag points) and the Black Market Autoinjector (Damaged Vision) leave no high to
-hear. The two hallucinating tracks still play for the `hallucinating` tag as well — that
-is a state, not a drug.
+hear. Fool's Village still plays for the `hallucinating` tag as well, and so does
+Parhelic Triangle, which no drug has — that is a state, not a drug. ambi2 likewise stays
+the bed for `pain-shock` and `unconscious`.
 
 The soundtrack can only see the STATE, so `web/lib/drugHighs.js` is the way back from
 state to drug: a drug is on while every tag it leaves is held, and Bliss — refined fungus,
@@ -916,14 +917,15 @@ say — it is the `spot` layer plus §3's third rule now, and 12 of the 42 are w
 `haruspex.ogg` is *"Lobby Music when there is a lateparty"* and
 `holywarlobby.ogg` is *"Special round lobby music"*. Neither **lateparty** nor
 **special round** exists anywhere in this repo, so both files sit in the registry
-described and unwired. The same goes for *"sedated"* in `ambi2.ogg`'s use case:
-the catalog has `pain-shock` and `unconscious` and nothing else that fits.
+described and unwired. *"Sedated"* in `ambi2.ogg`'s use case has no tag of its own
+either: the catalog has `pain-shock` and `unconscious`, and Heroin's Doped hears it as a
+drug song (§4b).
 
 The new document names many more, each recorded as the file's `needs` and left
 unwired: the Count and its camp, limbo, an alien location, a Wonder, an ancient super
 intelligence, the Dreamer, THEY, soulbreakers and their ship, a space station, an
-alarm declared in the fortress, an OS13 gamemode, the Den's jukebox, DOB and
-marijuana and a bad trip, and becoming a revolutionary. `npm run sounds:report`
+alarm declared in the fortress, an OS13 gamemode, the Den's jukebox, and becoming a
+revolutionary. `npm run sounds:report`
 groups them by what is missing.
 
 ### The checks

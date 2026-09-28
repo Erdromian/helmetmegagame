@@ -237,7 +237,7 @@ const TOWN_LOW = [loop("loop_airy4.ogg")];
 // — web/lib/drugHighs.js is the way from one to the other. A drug missing here is simply
 // silent; no song belongs to two drugs (placeAmbience.test.mjs holds that).
 //
-// The pairings are a reading of the documents' sentences, and Bascinet's to change:
+// The pairings are Bascinet's, picked against the documents' sentences:
 export const BY_DRUG = {
   // "Ambience interrupting sfx which plays after smoking marijuana". Raw fungus is the
   // game's mild, cheap High.
@@ -245,16 +245,18 @@ export const BY_DRUG = {
   // "Ambience while hallucinating". Refined fungus: Euphoric, "you could do this for the
   // rest of your life".
   bliss: once("fools-village.ogg"),
-  // "Ambience interrupting sfx which plays after taking DOB or other hardcore drug."
-  heroin: once("mature-raver.ogg"),
+  // "Ambience while in pain shock or sedated". Doped: "You feel tranquil and tired." A
+  // texture, so the dose loops it for a minute or two and then it fades like any bed.
+  heroin: loop("ambi2.ogg"),
   // "Ambience interrupting sfx when having a drug induced bad trip, VERY LOUD, lower the
   // volume on this one before using." Changa High: "You are losing your mind and going
   // crazy. You might die." Its measured level is in musicGain.js, and on top of that it
   // plays at half the volume of the other tracks: Bascinet's call, for the document's "lower
   // the volume". Its bursts swing ten LU either side of its average level.
   changa: once("oval-sky.ogg", { gain: 0.5 }),
-  // "Ambience while hallucinating". A tablet that causes dissociation.
-  "eth-lod": once("parhelic-triangle.ogg"),
+  // "Ambience interrupting sfx which plays after taking DOB or other hardcore drug." A
+  // tablet that causes dissociation.
+  "eth-lod": once("mature-raver.ogg"),
 };
 
 // A GHOST is not anywhere. "Ambience while a ghost", "Ambience interrupting sound effect of
@@ -353,7 +355,8 @@ export function resolveAmbience(standing, heardKey = null) {
     if (listener.includes("robed")) mine.push(...ROBED);
     for (const l of listener) {
       const p = l.startsWith("drug:") ? BY_DRUG[l.slice("drug:".length)] : null;
-      // Bliss and hallucinating share Fool's Village; once in the pool is enough.
+      // Bliss shares Fool's Village with hallucinating, and Heroin shares ambi2 with pain
+      // shock; once in the pool is enough.
       if (p && !mine.some((m) => m.src === p.src)) mine.push(p);
     }
     if (listener.includes("town-low")) mine.push(...TOWN_LOW);

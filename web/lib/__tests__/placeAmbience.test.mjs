@@ -132,7 +132,7 @@ test("a drug is one song, heard as the listener's own bed while the high lasts",
   assert.equal(new Set(songs).size, songs.length, "no song belongs to two drugs");
   for (const [id, p] of Object.entries(BY_DRUG)) {
     assert.ok(DRUGS.some((d) => d.id === id), `${id} is not a drug in web/lib/drugHighs.js`);
-    assert.match(caseOf(p.src), /drug|marijuana|hallucinating/i, id);
+    assert.match(caseOf(p.src), /drug|marijuana|hallucinating|sedated/i, id);
     const high = resolveAmbience({ ...INN, drugs: [{ id, takenAt: null }] });
     assert.ok(high.tiers[0].includes(p), `${id} is not in the top tier`);
     assert.ok(high.tiers.length > 1, "the place still gets a word in");
