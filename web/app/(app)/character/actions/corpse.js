@@ -39,6 +39,7 @@ import { notifyCharacter } from "@/lib/notifyCharacter";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import { applyMood } from "@lifeweb/db/lib/mood";
 import { SFX } from "@lifeweb/db/lib/sfx";
+import { isSkinless, SKINLESS_BRAIN_SLUG } from "@lifeweb/db/lib/skinless";
 import {
   requireCharacter,
   revalidateAll,
@@ -115,6 +116,12 @@ export async function butcherCorpseRequestImpl({
   }
 
   const corpse = await resolveButcherable(character, { tagId, sourceKey });
+  // A dead Skinless gives up a Skinless Brain besides everything a body
+  // always does (db/lib/skinless.js). The tag outlives its holder, so it is read
+  // off the dead character.
+  if (corpse.human && corpse.deadCharacterId && (await isSkinless(prisma, corpse.deadCharacterId))) {
+    corpse.yields = [...corpse.yields, { slug: SKINLESS_BRAIN_SLUG, quantity: 1 }];
+  }
   // Livestock yields several tags at once (meat + fat — ARELITZ.md §5); a
   // corpse always yields exactly one. Same shape either way: `corpse.yields`
   // is `[{ slug, quantity }, ...]`.

@@ -26,6 +26,11 @@ const { assignFates, newSeed } = require("./fateAssignment");
 const { loadLiveParty, loadPartyCounts, latePartyCap } = require("./lateParty");
 const { getGameConfig } = require("./gameState");
 
+// The Skinless are never drawn (db/lib/skinless.js): they never run out of
+// room, so a player respawns as one at once. Named here rather than required,
+// to keep this file's requires where they were.
+const UNDRAWN_FATE_SLUGS = new Set(["skinless"]);
+
 // The names still in the party's hat, as the roll's players. Somebody who has
 // come back by another road (a spawn, Metempsychosis) is taken out, and so is
 // somebody already holding a seat.
@@ -115,7 +120,7 @@ async function runLatePartyRaffle(prisma, turn) {
     const [fates, players] = await Promise.all([loadPartyCounts(tx, party), hatOf(tx, party)]);
     if (players.length === 0) return { drawn: 0, entered: 0 };
 
-    const usable = fates.filter((f) => f.role);
+    const usable = fates.filter((f) => f.role && !UNDRAWN_FATE_SLUGS.has(f.roleSlug));
     const bySlug = new Map(usable.map((f) => [f.roleSlug, f]));
     const seed = newSeed();
     const { rows } = assignFates({

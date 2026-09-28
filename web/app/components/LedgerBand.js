@@ -267,6 +267,7 @@ export default function LedgerBand({
         {isSelf && (
           <CombatTile
             tags={character.tags}
+            zoneKind={character.location?.zone?.kind ?? null}
             open={tileOpen === "combat"}
             onOpen={(want) => setTileOpen(want ? "combat" : null)}
           />

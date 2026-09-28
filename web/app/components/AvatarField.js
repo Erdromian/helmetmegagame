@@ -49,6 +49,9 @@ export default function AvatarField({
   // picture control gives way to one line, and the conceal switch is off and
   // locked. The server actions re-check it (character/actions.js).
   forcedIdentity = null,
+  // A Skinless (db/lib/skinless.js): one face for all of them, never theirs to
+  // change. Every picture control gives way to one line, as above.
+  faceFixed = false,
   // The equipped thing covering this face, highest layer first, as
   // { tagName, forced } — or null for a bare face, which is what shuts the
   // conceal switch. Passed down from /character's page through BioForm.
@@ -142,12 +145,15 @@ export default function AvatarField({
             Your face is fixed while you hold {forcedIdentity.tagName}. Everyone sees {forcedIdentity.name}.
           </span>
         )}
-        {!forcedIdentity && portraitMakerEnabled && (
+        {faceFixed && !forcedIdentity && (
+          <span className="text-sm text-muted">Every Skinless wears the same face. It isn&apos;t yours to change.</span>
+        )}
+        {!forcedIdentity && !faceFixed && portraitMakerEnabled && (
           <button type="button" className="btn-secondary" onClick={() => setMakerOpen(true)}>
             Customize Appearance
           </button>
         )}
-        {forcedIdentity ? null : uploadsEnabled ? (
+        {forcedIdentity || faceFixed ? null : uploadsEnabled ? (
           // NO HoverCard here, deliberately. This used to wear one, and a
           // HoverCard PINS OPEN on click (HoverCard.js §"A click … pins the
           // panel open"). So clicking Browse opened the file picker and left
@@ -176,7 +182,7 @@ export default function AvatarField({
           // shows their letter plaque.
           !portraitMakerEnabled && <span className="text-sm text-muted">Using your letter plaque</span>
         )}
-        {!forcedIdentity && hasCustomAvatar && (
+        {!forcedIdentity && !faceFixed && hasCustomAvatar && (
           // Clears a built portrait and an uploaded picture alike; the plaque
           // is derived at read time, so there is nothing to restore.
           <button type="button" className="btn-quiet" onClick={reset} disabled={resetting}>

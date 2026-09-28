@@ -38,6 +38,13 @@ A party runs in one of two **modes**, picked when it starts (`LateParty.mode`):
   way they ready up in the lobby, and the fates are drawn at the end of each
   turn (§4).
 
+**The Skinless** ([`SKINLESS.md`](SKINLESS.md)) are the one fate that behaves
+differently. It is always unlimited, whatever the form says, so a party naming
+it never fills. A party naming it picks one random Depths Location when it
+starts (`LateParty.skinlessLocationId`), where every Skinless it makes arrives.
+And a Skinless is never built or drawn: open or muster, the card has one
+**Respawn as a Skinless** button that rolls the whole body at once.
+
 ## 2. Live is worked out, not stored
 
 `LateParty` has `endedAt`, and that is the only switch on it. A party is
@@ -138,7 +145,7 @@ These places decide who may be made, and as what:
 | `CreateCharacterWizard.js` | One line under the heading, from the `lateParty` prop (open parties) |
 | `createActions.js#createCharacter` | Refuses any other fate, and refuses every pick during a muster. A drawn seat is the one way into a muster, and is honoured with or without a party. A party fate or drawn seat skips the spawn-only refusal and the curse; the cap is the party's, re-read under the row locks. Stamps `latePartyId` |
 | `createActions.js#reserveFateAction` + `fateReservation.js#reserveFate` | The same rules, for the wizard's hold |
-| `db/lib/reincarnate.js` | Metempsychosis lands in a party fate with room, open or muster (it is automatic, like a draw). Still never a whitelisted or dynasty seat. If none fits, it returns null, as it already could |
+| `db/lib/reincarnate.js` | Metempsychosis lands in a party fate with room, open or muster (it is automatic, like a draw). Still never a whitelisted or dynasty seat, and never the Skinless (`SKINLESS.md` §1). If none fits, it returns null, as it already could |
 
 **A superadmin bypasses the lock**, as they do the other creation gates. They
 get the wizard even during a muster, with the party section above the

@@ -23,6 +23,7 @@ const crypto = require("node:crypto");
 const { concealedAlias, isConcealedAlias } = require("./concealedIdentity");
 const { sceneSpeakerKey } = require("./hoodToken");
 const { renderPeopleLine, peopleIds } = require("./peopleLine");
+const { skinlessIdsAmong, gruntify } = require("./skinless");
 
 // Bascinet's list, lower-cased to sit mid-sentence: "a young man, hunched".
 // "Infront" in the doc is "in front".
@@ -231,11 +232,37 @@ function speakerOf(row) {
 // key for a hood.
 function createLens(prisma, { characterId = null, gm = false } = {}) {
   const facts = new Map(); // speaker id -> { known, voice, age, gender }
+  // THE SKINLESS (db/lib/skinless.js): which speakers grunt, and whether this
+  // reader is one of them and so hears the words. Read here, beside the rest,
+  // because it is the same question: what this reader makes of this speaker.
+  const grunters = new Set();
+  let readerSkinless = false;
+
+  async function prepareGrunts(rows) {
+    const speakers = [
+      ...new Set(
+        (rows ?? [])
+          .filter((row) => row?.source !== "SYSTEM")
+          .map(speakerOf)
+          .filter((id) => id && id !== characterId),
+      ),
+    ];
+    if (speakers.length === 0) return;
+    const skin = await skinlessIdsAmong(prisma, characterId ? [...speakers, characterId] : speakers);
+    if (characterId) readerSkinless = skin.has(characterId);
+    for (const id of speakers) {
+      if (skin.has(id)) grunters.add(id);
+      else grunters.delete(id);
+    }
+  }
 
   // Reads what this reader knows about every speaker in `rows`. It asks again
   // every time, since a line may have just taught a name or a voice.
   async function prepare(rows) {
-    if (gm || !characterId) return;
+    if (gm) return;
+    // Everybody but a GM, the characterless included: a ghost hears grunts too.
+    await prepareGrunts(rows);
+    if (!characterId) return;
     // The speakers, and everybody a line names (a fight's announcement): the lens asks about both.
     const named = (rows ?? []).flatMap((row) => peopleIds(row?.[SUBJECTS]));
     const ids = [...new Set([...(rows ?? []).map(speakerOf), ...named].filter((id) => id && id !== characterId))];
@@ -265,7 +292,8 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
 
   // Null for a row this reader may not see at all (readsRow): every surface
   // drops those rather than drawing them.
-  const apply = (row) => (readsRow(row, { characterId, gm }) ? lensRow(row, { characterId, gm, facts }) : null);
+  const apply = (row) =>
+    readsRow(row, { characterId, gm }) ? lensRow(row, { characterId, gm, facts, grunters, readerSkinless }) : null;
 
   async function all(rows) {
     const visible = (rows ?? []).filter((row) => readsRow(row, { characterId, gm }));
@@ -294,6 +322,11 @@ function lensRow(row, lens) {
   if (!id || lens.gm) return out;
   // Your own lines keep the key your page compares against (self.speakerKey).
   if (id === lens.characterId) return out;
+  // A Skinless's words reach only another Skinless; everyone else hears grunts,
+  // the same grunts on every surface, seeded by the line (db/lib/skinless.js).
+  if (row.source !== "SYSTEM" && lens.grunters?.has(id) && !lens.readerSkinless) {
+    out.content = gruntify(row.content ?? "", Number(row.seq) || 0);
+  }
 
   const hooded = Boolean(row.alias) && isConcealedAlias(row.alias);
   const forced = Boolean(row.alias) && !hooded;

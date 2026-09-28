@@ -52,7 +52,8 @@ export async function saveStarredRow(row, discordUserId, readerId) {
       // a known speaker's face from the id, and only when this name is theirs.
       presentedAvatarPath: speaker.avatarPath,
       zoneId: row.zoneId ?? null,
-      content: row.content,
+      // What the reader heard: a Skinless's line is grunts to anybody but another (db/lib/skinless.js).
+      content: shown?.content ?? row.content,
       sentAt: row.sentAt,
       discordUserId,
     },

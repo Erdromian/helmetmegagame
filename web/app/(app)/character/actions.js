@@ -16,6 +16,7 @@ import { setDiscordMirrored } from "@lifeweb/db/lib/discordMirroring";
 import { clockLabel } from "@/lib/dmTime";
 import { normalizeSelection } from "@/lib/portrait/catalog";
 import { renderPortrait } from "@/lib/portrait/render";
+import { isSkinless } from "@lifeweb/db/lib/skinless";
 
 const AVATAR_SIZE = 256;
 
@@ -63,7 +64,10 @@ export async function updateCharacterProfile(_prevState, formData) {
   // `concealed: true` with a bare face resolves to the real face on its own
   // (db/lib/presentedIdentity.js) — the preference is a wish, only the player retracts it.
   const concealOffered = Boolean(concealment) && !concealment.forced;
-  const avatar = forcedName ? null : formData.get("avatar");
+  // A Skinless's face and appearance are fixed (db/lib/skinless.js): neither
+  // is read from the form, however it is posted.
+  const skinless = await isSkinless(prisma, character.id);
+  const avatar = forcedName || skinless ? null : formData.get("avatar");
 
   // Age is set once and then fixed — a non-null age is never overwritten,
   // however the form is posted. A GM can still change it from /gm/dev/characters/[characterId].
@@ -71,7 +75,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   const age =
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
 
-  const data = { appearance, turnPingOptIn };
+  const data = skinless ? { turnPingOptIn } : { appearance, turnPingOptIn };
   if (concealOffered) data.concealed = formData.get("concealed") === "on";
   if (age !== null && character.age === null) data.age = age;
 
@@ -157,8 +161,9 @@ export async function setPortraitAvatar(rawSelection) {
   });
   if (!character) redirect("/character");
 
-  // The face is fixed while a forced identity is held (Tag.forcedName); the button is hidden, this is the lock.
-  if (await loadForcedName(prisma, character.id)) {
+  // The face is fixed while a forced identity is held (Tag.forcedName), and
+  // always for a Skinless; the button is hidden, this is the lock.
+  if ((await loadForcedName(prisma, character.id)) || (await isSkinless(prisma, character.id))) {
     return { ok: false, error: "Your face is not yours to change right now." };
   }
 
@@ -194,6 +199,7 @@ export async function resetAvatarToDefault() {
     select: { id: true },
   });
   if (!character) redirect("/character");
+  if (await isSkinless(prisma, character.id)) return { ok: false, error: "Your face is not yours to change." };
 
   await prisma.character.update({
     where: { id: character.id },

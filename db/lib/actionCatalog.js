@@ -120,6 +120,7 @@ const ACTIONS = [
   { mode: "wantedlist", label: "Check wanted", section: "role", show: "isCerberon", command: "warrant", sub: "list", description: "Read the warrant book.", run: "native", open: true },
   { mode: "excommunicate", label: "Excommunicate", section: "role", show: "isBishop", command: "bishop", sub: "excommunicate", description: "Excommunicate a Post-Christian.", run: "native", web: true },
   { mode: "unexcommunicate", label: "Lift an excommunication", section: "role", show: "isBishop", command: "bishop", sub: "lift", description: "Lift an excommunication.", run: "native" },
+  { mode: "smellskin", label: "Smell Skin", section: "role", show: "isSkinless", command: "smell", sub: null, description: "Smell the air.", run: "native", open: true },
   { mode: "reinforce", label: "Call reinforcements", section: "role", show: "isBastard", command: "reinforcements", sub: null, description: "Pay for reinforcements to join the game.", run: "native" },
 
   // --- Paper ------------------------------------------------------------------

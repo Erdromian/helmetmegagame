@@ -327,6 +327,8 @@ test("createLens reads every speaker in a batch in one round", async () => {
   let calls = 0;
   const db = {
     acquaintance: { findMany: async () => (calls++, [{ subjectId: "k1" }]) },
+    // Nobody here is a Skinless (db/lib/skinless.js).
+    characterTag: { findMany: async () => [] },
     voiceMemory: { findMany: async () => [{ subjectId: "s1", number: 2, live: true }] },
     character: { findMany: async () => [{ id: "s1", age: 60, gender: "MAN" }, { id: "k1", age: 30, gender: "WOMAN" }] },
   };
@@ -376,6 +378,7 @@ test("switched off, the lens shows a bare face by name, and a hood keeps its ali
   const db = switchedOff({
     acquaintance: { findMany: async () => [] },
     voiceMemory: { findMany: async () => [{ subjectId: "s1", number: 2, live: true }, { subjectId: "h1", number: 3, live: true }] },
+    characterTag: { findMany: async () => [] },
     character: { findMany: async () => [{ id: "s1", age: 60, gender: "MAN" }, { id: "h1", age: 20, gender: "MAN" }] },
   });
   const lens = createLens(db, { characterId: "viewer" });

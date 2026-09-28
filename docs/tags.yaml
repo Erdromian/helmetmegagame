@@ -441,6 +441,43 @@ tags:
         - families: [food, alcohol]
 
   # The Thanati Leader's mark on top of the thanati Belief below — the roster
+  # The Skinless's own tag (db/lib/skinless.js, docs/systemdocs/SKINLESS.md).
+  # Every rule the doc gives them hangs off holding this, not off the role:
+  # the grunts others hear (db/lib/strangers.js), no clothes, armour or
+  # accessories (db/lib/verbs/self.js), the fixed face, Smell Skin, a Skinless
+  # Brain when butchered, no belief and no group. Visible on a look: you can
+  # see what they are. Its desire lock leaves only the Skinless family.
+  skinless:
+    catalog: secret
+    name: Skinless
+    category: general
+    group: general-traits
+    description: "A fleshy humanoid, raw musculature glistening for all to see."
+    pointCost: 0
+    visible: true
+    purchasable: false
+    purchasableAfterStart: false
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [skinless]
+
+  # A Skinless's eyes (db/lib/skinless.js). The +1 tier is real, not
+  # situational: fightingSkill.js adds it while the holder stands in a
+  # CAVE_LEVEL zone (the Caves or the Depths), and lists it for the GM where
+  # nobody knows where they are standing.
+  cave-eyes:
+    catalog: secret
+    name: Cave Eyes
+    category: general
+    group: general-traits
+    description: "Your eyes are perfectly adapted to see inside the caves."
+    fighting: { tree: both, tiers: 1, when: { zoneKind: [CAVE_LEVEL] } }
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   # tells the two seats apart by this tag (db/lib/threats.js).
   thanati-leader:
     catalog: secret

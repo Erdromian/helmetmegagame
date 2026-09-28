@@ -10,6 +10,7 @@ const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { resourcesOf } = require("./resourceStack");
 const { ACT, slugsBlocking } = require("./incapacitation");
+const { SKINLESS_TAG_SLUG } = require("./skinless");
 
 const BOUND_SLUG = "bound";
 // A shackled person is a bound-person ingredient too (db/lib/bind.js#RESTRAINT_SLUGS).
@@ -115,11 +116,12 @@ function boundCandidates(db, room, opts = {}) {
 // two restraint slugs — it carries Dying, Catatonic, Crucified, Seizure,
 // Paralyzed and Unconscious along with them (db/lib/incapacitation.js).
 // The Pious stay in the list and sort last; the rite bounces off them, which is
-// a thing the cult may spend a chant finding out.
+// a thing the cult may spend a chant finding out. A Skinless is never in it: no
+// religion will take one (db/lib/skinless.js).
 function convertCandidates(db, room) {
   return roomCandidates(db, room, {
     where: { tags: { none: { quantity: { gt: 0 }, tag: { slug: { in: slugsBlocking(ACT) } } } } },
-    excludeSlugs: [THANATI_SLUG],
+    excludeSlugs: [THANATI_SLUG, SKINLESS_TAG_SLUG],
     deprioritizeSlugs: [PIOUS_SLUG],
   });
 }

@@ -26,6 +26,9 @@ import {
 import { addToStack, dropCharacterTag } from "@/lib/tagEffects";
 import { syncCharacterNarrowcastAccess } from "@/lib/discordGuild";
 import { syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
+import { isSkinless, SKINLESS_BELIEF_REFUSAL } from "@lifeweb/db/lib/skinless";
+// The Beliefs: one exclusive group (db/lib/xom.js keeps the same slug).
+const BELIEF_GROUP_SLUG = "general-beliefs";
 
 // The /store checkout. One cart, one transaction, ONE batched BUY_TAGS
 // request — applied immediately and reviewed by a GM afterwards, the same
@@ -62,9 +65,13 @@ async function buyTagsImpl({ tagIds }) {
 
   const selected = await prisma.tag.findMany({
     where: { id: { in: ids } },
-    include: { group: { select: { requiredTagId: true } } },
+    include: { group: { select: { requiredTagId: true, slug: true } } },
   });
   if (selected.length !== ids.length) throw new UserError("Unknown tag in the cart.");
+  // No religion will take a Skinless (db/lib/skinless.js), and Post-Christian costs nothing.
+  if (selected.some((t) => t.group?.slug === BELIEF_GROUP_SLUG) && (await isSkinless(prisma, character.id))) {
+    throw new UserError(SKINLESS_BELIEF_REFUSAL);
+  }
 
   // The whole catalog's ids/parents/costs, so chain walks never dead-end on
   // an ancestor the cart didn't include — same reason createCharacter loads

@@ -3,6 +3,7 @@ const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { sceneLineAt } = require("@lifeweb/db/lib/scene");
 const { leakLine } = require("@lifeweb/db/lib/whisperLeak");
+const { skinlessIdsAmong, gruntify } = require("@lifeweb/db/lib/skinless");
 const { pickRandomPublicRoom } = require("@lifeweb/db/lib/partyChat");
 
 // Every 15 minutes, each Room hears who has been whispering in the
@@ -90,7 +91,9 @@ async function runConversationWhispers(prisma) {
     const audible = [...new Set(heardRows.map((row) => row.characterId))];
 
     // Rolled ONCE and handed to both sinks, so Discord and Chat leak the same fragment.
-    const leak = leakLine(heardRows.map((row) => row.content));
+    // A Skinless whispers grunts to whoever overhears (db/lib/skinless.js).
+    const skin = await skinlessIdsAmong(prisma, audible);
+    const leak = leakLine(heardRows.map((row) => (skin.has(row.characterId) ? gruntify(row.content) : row.content)));
     const quoted = leak ? [leak] : [];
 
     const aliases = audible.map((id) =>
@@ -172,7 +175,9 @@ async function runPartyWhispers(prisma) {
     const room = await pickRandomPublicRoom(prisma, party.currentLocationId);
     if (!room?.discordThreadId) continue;
 
-    const leak = leakLine(heardRows.map((row) => row.content));
+    // A Skinless whispers grunts to whoever overhears (db/lib/skinless.js).
+    const skin = await skinlessIdsAmong(prisma, audible);
+    const leak = leakLine(heardRows.map((row) => (skin.has(row.characterId) ? gruntify(row.content) : row.content)));
     const quoted = leak ? [leak] : [];
     const aliases = audible.map((id) =>
       withArticle(concealedAlias(speakers.get(id) ?? {}).toLowerCase()),

@@ -59,6 +59,7 @@ import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
 import LateJoinsPanel from "@/app/(app)/gm/dev/threats/LateJoinsPanel";
 import LatePartyPanel from "@/app/(app)/gm/dev/threats/LatePartyPanel";
+import { SKINLESS_ROLE_SLUG } from "@lifeweb/db/lib/skinless";
 import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
 import BulkActions from "./BulkActions";
 import { VERB_KEYS, PLACE_KINDS } from "./bulkVerbs";
@@ -841,6 +842,10 @@ export default async function DevPanelPage({ searchParams }) {
         (await prisma.lateParty.findFirst({ orderBy: { startedAt: "desc" }, include: { fates: true } }));
       if (shown) {
         const fates = live?.fates ?? (await loadPartyCounts(prisma, shown));
+        // Where this party's Skinless arrive (db/lib/skinless.js), if it names them.
+        const skinlessSpawn = shown.skinlessLocationId
+          ? await prisma.location.findUnique({ where: { id: shown.skinlessLocationId }, select: { name: true } })
+          : null;
         latePartyView = {
           live: Boolean(live),
           mode: shown.mode,
@@ -850,6 +855,7 @@ export default async function DevPanelPage({ searchParams }) {
           endedAt: shown.endedAt?.toISOString() ?? null,
           // endedBy null on an ended party means it filled (loadLiveParty).
           filled: Boolean(shown.endedAt) && shown.endedBy === null,
+          skinlessSpawnName: skinlessSpawn?.name ?? null,
           fates: fates.map((f) => ({
             roleSlug: f.roleSlug,
             roleName: f.role?.name ?? null,
@@ -869,6 +875,8 @@ export default async function DevPanelPage({ searchParams }) {
           name: r.name,
           hidden: isSpawnOnly(r),
           whitelist: r.requiresWhitelist,
+          // The Skinless never run out of room, so their Slots field is shut.
+          alwaysUnlimited: r.slug === SKINLESS_ROLE_SLUG,
         })),
       }));
       break;

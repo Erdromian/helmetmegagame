@@ -23,6 +23,7 @@ const { MOTION_SICKNESS_SLUG } = require("../constants");
 const { HANDS_TAG_FIELDS, findEquipProblem, handsFor, isLockedOn, equipSfx } = require("../equipSlots");
 const { blockerFor, ACT } = require("../incapacitation");
 const { canDetectPoison } = require("../poison");
+const { isSkinlessTags, SKINLESS_BARRED_SLOTS, SKINLESS_EQUIP_REFUSAL } = require("../skinless");
 const { refuse, asResult, requireFreeMove, fileAutoRoutine, parseCount } = require("./common");
 
 const STEPSTONE_SLUG = "stepstone";
@@ -264,6 +265,10 @@ function equipOneTag(prisma, { character, characterTagId }) {
     if (!held) refuse("You aren't holding that.");
     if (!held.tag.equippable) refuse(`${held.tag.name} isn't something you can equip.`);
     if (held.equippedQuantity >= held.quantity) refuse(`You don't have another ${held.tag.name} to equip.`);
+    // A Skinless wears nothing on the body (db/lib/skinless.js); weapons and mounts are fine.
+    if (SKINLESS_BARRED_SLOTS.includes(held.tag.equipSlot) && isSkinlessTags(character.tags)) {
+      refuse(SKINLESS_EQUIP_REFUSAL);
+    }
     // The gates below only fire on the FIRST unit out — none of these slugs is stackable.
     const firstUnitOut = held.equippedQuantity === 0;
     if (

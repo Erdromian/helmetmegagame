@@ -10,6 +10,7 @@ const { concealDiscriminator } = require("@lifeweb/db/lib/concealedDiscriminator
 const { resolveChannelContext } = require("./channels");
 const { sendDm } = require("./dm");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
+const { discordTextFor, relayWordsToSkinless } = require("@lifeweb/db/lib/skinless");
 
 const WEBHOOK_NAME = "Bascinet Tupper";
 
@@ -361,8 +362,13 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
 
   let webhookMessage;
   try {
+    // A Skinless's line is grunts on Discord, where everybody reads one text
+    // (db/lib/skinless.js). Not in Deadchat, which is out of character.
+    const posted = prepared.ghost
+      ? prepared.content
+      : await discordTextFor(prisma, { characterId: character.id, content: prepared.content, seq: row?.seq });
     ({ webhookMessage } = await postAsCharacterTo(channel, character, {
-      content: prepared.content,
+      content: posted,
       files: [...message.attachments.values()].map((a) => a.url),
       identity: prepared.identity,
       // The archive already resolved the open turn to write `row.turnNumber`;
@@ -402,6 +408,10 @@ async function sendAsCharacter(channel, character, message, { identity: _identit
     if (!prepared.ghost) {
       void learnFromSpeech(prisma, { row, speakerId: character.id }).catch((err) =>
         console.error("Learning from speech failed:", err.message ?? err),
+      );
+      // The words themselves, to the other Skinless here who play on Discord.
+      void relayWordsToSkinless(prisma, { seq: row.seq }).catch((err) =>
+        console.error("Skinless words relay failed:", err.message ?? err),
       );
     }
   }

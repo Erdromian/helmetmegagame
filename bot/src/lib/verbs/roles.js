@@ -15,6 +15,7 @@ const {
   excommunicate,
   liftExcommunication,
   callReinforcements,
+  smellSkin,
 } = require("@lifeweb/db/lib/verbs/roles");
 const { readPointerDevice } = require("@lifeweb/db/lib/verbs/self");
 const { listExcommunications } = require("@lifeweb/db/lib/excommunication");
@@ -29,6 +30,15 @@ const pointerdevice = {
   needs: null,
   async start(interaction, { character }) {
     return finish(interaction, await readPointerDevice(prisma, { character }));
+  },
+};
+
+// --- The Skinless ------------------------------------------------------------------------
+
+const smellskin = {
+  needs: null,
+  async start(interaction, { character }) {
+    return finish(interaction, await smellSkin(prisma, { character }));
   },
 };
 
@@ -205,6 +215,7 @@ const reinforce = {
 
 module.exports = {
   pointerdevice,
+  smellskin,
   recall,
   recover,
   hideout,

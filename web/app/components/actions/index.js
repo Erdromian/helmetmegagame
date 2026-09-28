@@ -4,6 +4,7 @@
 
 import { recallComrades, recoverEquipment } from "@/app/(app)/character/thanatiActions";
 import { checkWanted } from "@/app/(app)/character/cerberonActions";
+import { smellSkin } from "@/app/(app)/character/skinlessActions";
 import { extractGodfleshRequest, refineRequest, mineRequest, farmRequest, healCharacterRequest, readPointerDevice, breakRestraintsRequest } from "@/app/(app)/character/requestActions";
 import { formatMoveAmount } from "@/lib/craftBudget";
 import { workVerbByKey } from "@lifeweb/db/lib/gathering";
@@ -55,6 +56,8 @@ export const INSTANT = {
   recall: { run: () => recallComrades(), confirm: () => null },
   // A free read, like Recall and the pointer — nothing to ask first.
   wantedlist: { run: () => checkWanted(), confirm: () => null },
+  // A free read too.
+  smellskin: { run: () => smellSkin(), confirm: () => null },
   recover: {
     run: () => recoverEquipment(),
     confirm: (pools) => {

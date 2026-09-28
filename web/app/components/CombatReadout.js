@@ -128,8 +128,11 @@ export function CombatFace({ combat, armor }) {
 // combineArmor read a MISSING flag as equipped (deliberate latitude for a bare
 // Tag[]), so a caller that drops the column counts every sword in a sack and
 // every breastplate in a cart.
-export default function CombatTile({ tags = [], open = false, onOpen = null, showArmorPieces = false }) {
-  const combat = fightingSkill(tags);
+//
+// `zoneKind` is where they are standing, for a bonus that depends on it (Cave
+// Eyes). A surface that leaves it out gets that bonus listed as situational.
+export default function CombatTile({ tags = [], open = false, onOpen = null, showArmorPieces = false, zoneKind = null }) {
+  const combat = fightingSkill(tags, { zoneKind });
   // Kept apart rather than pre-joined: a joined string could only be split again.
   const armor = {
     melee: armorWord(combineArmor(tags, ARMOR_FIELD.melee)),

@@ -155,6 +155,7 @@ export const ACTION_HELP = {
   warrant: "Declare a man fit for arrest. They are visible as being wanted.",
   wantedlist:
     "Read the warrant book.",
+  smellskin: "Smell the air for skin. It tells you how many locations away the nearest person with skin is.",
 };
 
 export const ACTION_SECTIONS = [
@@ -393,6 +394,15 @@ export const ACTION_SECTIONS = [
   // count and the list you lift from are IN the dialog, so greying the way in
   // would strand a Bishop with a full book and nowhere to empty it. The
   // refusal sits on the dialog's own Confirm instead, the way Intercept's does.
+  // THE SKINLESS (db/lib/skinless.js). Hides for anybody without the tag, the
+  // Cerberon's reasoning: a dead icon would only teach that the Skinless exist.
+  {
+    key: "skinless",
+    label: "SKINLESS",
+    actions: [
+      { mode: "smellskin", icon: SearchPersonIcon, label: "Smell Skin", show: "isSkinless", instant: true },
+    ],
+  },
   {
     key: "bishop",
     label: "BISHOP",

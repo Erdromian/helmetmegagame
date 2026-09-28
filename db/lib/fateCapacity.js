@@ -64,6 +64,8 @@ const SPAWN_ONLY_FATE_SLUGS = [
   "bastard-rifleman",
   "bastard-healer",
   "bastard-engineer",
+  // The Skinless (db/lib/skinless.js): a lateparty is the only way in.
+  "skinless",
 ];
 
 function isSpawnOnly(fate) {

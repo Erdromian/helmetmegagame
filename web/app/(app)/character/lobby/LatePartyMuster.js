@@ -8,6 +8,7 @@ import useActionRunner from "@/app/components/useActionRunner";
 import { setPriority, pickedNothing } from "@lifeweb/db/lib/playerPreferences";
 import { PriorityControl } from "./Lobby";
 import { saveMusterEntry, leaveMuster } from "../musterActions";
+import SkinlessRespawn from "../SkinlessRespawn";
 
 // A MUSTER late party (docs/systemdocs/LATE-PARTIES.md §4), shaped like the
 // lobby: the party's fates down the left with Off / Low / Med / High, and on
@@ -23,7 +24,10 @@ function defaultPriorities(fates) {
   return out;
 }
 
-export default function LatePartyMuster({ fates, entry, entered }) {
+// `skinless` is set when the party names the Skinless (db/lib/skinless.js):
+// they are never drawn, so they get a card of their own that respawns at once.
+// A party of nothing but Skinless has no draw to show at all.
+export default function LatePartyMuster({ fates, entry, entered, skinless = null }) {
   const [priorities, setPriorities] = useState(entry?.priorities ?? defaultPriorities(fates));
   const [inDraw, setInDraw] = useState(Boolean(entry));
   const [openIntro, setOpenIntro] = useState(null);
@@ -65,67 +69,81 @@ export default function LatePartyMuster({ fates, entry, entered }) {
 
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_22rem]">
         <aside className="flex flex-col gap-4 md:sticky md:top-6 md:order-2">
-          <div className="panel flex flex-col gap-3 p-4" data-ready={inDraw ? "true" : undefined}>
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <span className="flex items-center gap-2">
-                <span className="lobby-dot" aria-hidden="true" />
-                <strong>{inDraw ? "In the draw" : "Not in the draw"}</strong>
-              </span>
-              <span className="chip mono">{entered} in</span>
+          {skinless ? (
+            <div className="panel flex flex-col gap-3 p-4">
+              <strong>Skinless</strong>
+              <p className="text-sm text-muted">
+                There is always room among the Skinless. Respawn as one now, buried or not
+                {skinless.locationName ? `, and wake in ${skinless.locationName}` : ""}.
+              </p>
+              <SkinlessRespawn />
             </div>
-            <p className="text-sm text-muted">
-              A lateparty is mustering. The fates are drawn at the end of the turn, and anyone may be drawn,
-              buried or not. If you are not drawn, your name stays in for the next.
-            </p>
-            <div>
-              <button type="button" className={inDraw ? "btn-secondary" : "btn"} onClick={toggle} disabled={pending}>
-                {inDraw ? "Take my name out" : "Put my name down"}
-              </button>
+          ) : null}
+          {fates.length > 0 && (
+            <div className="panel flex flex-col gap-3 p-4" data-ready={inDraw ? "true" : undefined}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <span className="flex items-center gap-2">
+                  <span className="lobby-dot" aria-hidden="true" />
+                  <strong>{inDraw ? "In the draw" : "Not in the draw"}</strong>
+                </span>
+                <span className="chip mono">{entered} in</span>
+              </div>
+              <p className="text-sm text-muted">
+                A lateparty is mustering. The fates are drawn at the end of the turn, and anyone may be drawn,
+                buried or not. If you are not drawn, your name stays in for the next.
+              </p>
+              <div>
+                <button type="button" className={inDraw ? "btn-secondary" : "btn"} onClick={toggle} disabled={pending}>
+                  {inDraw ? "Take my name out" : "Put my name down"}
+                </button>
+              </div>
+              {pickedNothing(priorities) ? (
+                <p className="text-sm text-accent">Every fate is Off: you can&apos;t be drawn.</p>
+              ) : null}
+              <FormError>{error}</FormError>
             </div>
-            {pickedNothing(priorities) ? (
-              <p className="text-sm text-accent">Every fate is Off: you can&apos;t be drawn.</p>
-            ) : null}
-            <FormError>{error}</FormError>
-          </div>
+          )}
         </aside>
 
-        <section className="flex flex-col gap-1 md:order-1">
-          <h2 className="text-xs uppercase tracking-wide text-muted">Fates</h2>
-          <ul className="panel divide-y divide-[var(--border)]">
-            {fates.map((fate) => (
-              <li
-                key={fate.id}
-                className="lobby-role"
-                data-whitelisted={fate.requiresWhitelist ? "true" : undefined}
-                data-locked={fate.whitelistBlocked ? "true" : undefined}
-              >
-                <div className="min-w-0">
-                  <div className="flex flex-wrap items-baseline gap-2">
-                    <button
-                      type="button"
-                      className="lobby-role-name"
-                      onClick={() => setOpenIntro(openIntro === fate.id ? null : fate.id)}
-                      aria-expanded={openIntro === fate.id}
-                    >
-                      {fate.name}
-                      {fate.requiresWhitelist ? <span title="Reserved seat"> ★</span> : null}
-                    </button>
-                    <span className="text-xs text-muted">{fate.startingZoneName}</span>
-                    <span className="text-xs text-muted mono">
-                      {fate.left === null ? "∞ left" : `${fate.left} left`}
-                    </span>
+        {fates.length > 0 && (
+          <section className="flex flex-col gap-1 md:order-1">
+            <h2 className="text-xs uppercase tracking-wide text-muted">Fates</h2>
+            <ul className="panel divide-y divide-[var(--border)]">
+              {fates.map((fate) => (
+                <li
+                  key={fate.id}
+                  className="lobby-role"
+                  data-whitelisted={fate.requiresWhitelist ? "true" : undefined}
+                  data-locked={fate.whitelistBlocked ? "true" : undefined}
+                >
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-baseline gap-2">
+                      <button
+                        type="button"
+                        className="lobby-role-name"
+                        onClick={() => setOpenIntro(openIntro === fate.id ? null : fate.id)}
+                        aria-expanded={openIntro === fate.id}
+                      >
+                        {fate.name}
+                        {fate.requiresWhitelist ? <span title="Reserved seat"> ★</span> : null}
+                      </button>
+                      <span className="text-xs text-muted">{fate.startingZoneName}</span>
+                      <span className="text-xs text-muted mono">
+                        {fate.left === null ? "∞ left" : `${fate.left} left`}
+                      </span>
+                    </div>
+                    {openIntro === fate.id && fate.intro ? <p className="mt-1 text-sm text-muted">{fate.intro}</p> : null}
                   </div>
-                  {openIntro === fate.id && fate.intro ? <p className="mt-1 text-sm text-muted">{fate.intro}</p> : null}
-                </div>
-                {fate.whitelistBlocked ? (
-                  <span className="text-xs text-muted">Whitelist</span>
-                ) : (
-                  <PriorityControl slug={fate.slug} level={priorities[fate.slug]} onChange={changeLevel} />
-                )}
-              </li>
-            ))}
-          </ul>
-        </section>
+                  {fate.whitelistBlocked ? (
+                    <span className="text-xs text-muted">Whitelist</span>
+                  ) : (
+                    <PriorityControl slug={fate.slug} level={priorities[fate.slug]} onChange={changeLevel} />
+                  )}
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
       </div>
     </PageShell>
   );

@@ -929,7 +929,9 @@ const { BANDS, POINTS_PER_TIER, WEAPON_CLASSES } = require("./fightingSkill");
 const FIGHTING_TREES = new Set(["melee", "ranged", "both"]);
 const FIGHTING_BAND_KEYS = new Set(BANDS.map((b) => b.key));
 // `holds` is AND (every slug must be held). `holdsAny` is OR, for a condition spanning rungs of one ladder that replace each other (e.g. "being drunk at all").
-const FIGHTING_WHEN_KEYS = new Set(["weaponClass", "holds", "holdsAny", "equipped", "unarmoured"]);
+// `zoneKind` is where the holder is standing (the ZoneKind enum): Cave Eyes' "in the caves" is CAVE_LEVEL.
+const FIGHTING_WHEN_KEYS = new Set(["weaponClass", "holds", "holdsAny", "equipped", "unarmoured", "zoneKind"]);
+const FIGHTING_ZONE_KINDS = new Set(["SURFACE", "CAVE_GROUP", "CAVE_LEVEL"]);
 
 // A tier is authored to one decimal place and nothing finer: `tiers: 0.25` would silently become 2.5 points and round to a value nobody authored.
 function tiersToPoints(value, label, what) {
@@ -975,6 +977,11 @@ function normalizeFightingWhen(raw, label) {
   for (const cls of when.weaponClass ?? []) {
     if (!WEAPON_CLASSES.has(cls)) {
       throw new Error(`${label}: fighting.when.weaponClass has unknown class "${cls}"`);
+    }
+  }
+  for (const kind of when.zoneKind ?? []) {
+    if (!FIGHTING_ZONE_KINDS.has(kind)) {
+      throw new Error(`${label}: fighting.when.zoneKind has unknown kind "${kind}"`);
     }
   }
   return when;

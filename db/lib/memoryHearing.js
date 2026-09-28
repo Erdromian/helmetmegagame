@@ -32,6 +32,7 @@ const {
 const { lessonsFrom } = require("./memoryLessons");
 const { spokenText, hasSpeech } = require("./speech");
 const { anonymizingStrangers } = require("./strangers");
+const { skinlessIdsAmong } = require("./skinless");
 
 // Where a line puts somebody in the room for the day log. `net:` (a radio),
 // `dead:`, `game:` and the like are not rooms: nobody stands in them.
@@ -179,9 +180,13 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
   const lessons = lessonsFrom({ content: spoken, speaker, candidates, speakerKnows });
   if (lessons.length === 0) return { taught: 0 };
 
-  const listeners = present.filter(
+  let listeners = present.filter(
     (p) => p.id !== speakerId && !p.tags.some((t) => DEAF_TAG_SLUGS.includes(t.tag?.slug)),
   );
+  // A Skinless's words are grunts to anybody but another Skinless
+  // (db/lib/skinless.js), and a grunt teaches nobody a name.
+  const skin = await skinlessIdsAmong(prisma, [speakerId, ...listeners.map((l) => l.id)]);
+  if (skin.has(speakerId)) listeners = listeners.filter((l) => skin.has(l.id));
   let taught = 0;
   for (const lesson of lessons) {
     const learners = listeners.filter((l) => l.id !== lesson.subjectId).map((l) => l.id);

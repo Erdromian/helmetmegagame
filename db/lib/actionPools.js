@@ -55,6 +55,7 @@ const { canSendBird, BIRD_SLUG, birdRestingToday } = require("./bird");
 const { BASE_BIRD_SENDS_PER_DAY, birdAllowanceFrom } = require("./rookery");
 const { THANATI_SLUG, THANATI_LEADER_SLUG, RECOVERABLE_SLUGS, hideoutRoom } = require("./thanati");
 const { CERBERON_SLUG, WARRANT_BADGE_SLUGS } = require("./wanted");
+const { SKINLESS_TAG_SLUG } = require("./skinless");
 const { BISHOP_SLUG } = require("./excommunication");
 const { BASTARD_TAG_SLUG, DEEP_BEAST_HORN_SLUG } = require("./lateJoin");
 const { LESSON_CATALOG_SELECT, learnableSkills, knownTeachableSkills } = require("./lessons");
@@ -451,6 +452,7 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
     atHideout: Boolean(hideout && hideout.locationId === character.locationId),
     canWarrant: WARRANT_BADGE_SLUGS.some(has),
     isCerberon: has(CERBERON_SLUG),
+    isSkinless: has(SKINLESS_TAG_SLUG),
     isBishop: has(BISHOP_SLUG),
     isBastard: has(BASTARD_TAG_SLUG),
   };

@@ -7,6 +7,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { loadLiveParty } from "@lifeweb/db/lib/lateParty";
+import { SKINLESS_ROLE_SLUG } from "@lifeweb/db/lib/skinless";
 import { normalizePriorities } from "@lifeweb/db/lib/playerPreferences";
 import { readGameState } from "@lifeweb/db/lib/gameState";
 import { auth } from "@/lib/auth";
@@ -53,8 +54,12 @@ export async function saveMusterEntry({ priorities }) {
   if (gate.error) return { ok: false, error: gate.error };
   const { discordUserId, party, whitelisted } = gate;
 
+  // The Skinless are never drawn: there is always room, so they respawn at
+  // once from their own button (skinlessActions.js).
   const allowed = new Set(
-    party.fates.filter((f) => f.role && (whitelisted || !f.role.requiresWhitelist)).map((f) => f.roleSlug),
+    party.fates
+      .filter((f) => f.role && f.roleSlug !== SKINLESS_ROLE_SLUG && (whitelisted || !f.role.requiresWhitelist))
+      .map((f) => f.roleSlug),
   );
   const clean = normalizePriorities(priorities, allowed);
   if (Object.keys(clean).length === 0) {
