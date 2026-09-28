@@ -11,7 +11,8 @@ const {
   loadIntensity,
 } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
-const { HUNGER_SLUG, STARVING_SLUG } = require("./constants");
+const { HUNGER_SLUG, STARVING_SLUG, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG } = require("./constants");
+const { DINED_SLUG } = require("./dined");
 
 // db/lib/bind.js reads the slug directly too; a hostage's night is not restful.
 const BOUND_SLUG = "bound";
@@ -53,6 +54,10 @@ async function runMoodPass(prisma, turn) {
     SHACKLED_SLUG,
     HUNGER_SLUG,
     STARVING_SLUG,
+    NOBILITY_SLUG,
+    HUNGERLESS_SLUG,
+    DYING_SLUG,
+    DINED_SLUG,
   ];
   const characters = await alivePassCharacters(prisma, {
     select: {
@@ -85,6 +90,10 @@ async function runMoodPass(prisma, turn) {
     else if (held.has(HUNGER_SLUG)) terms.push({ kind: "HUNGER", base: EVENTS.HUNGER });
     if (held.has(BOUND_SLUG) || held.has(SHACKLED_SLUG)) terms.push({ kind: "BOUND", base: EVENTS.BOUND_HELD });
     if (character.locationId && corpseLocationIds.has(character.locationId)) terms.push({ kind: "CORPSE", base: EVENTS.CORPSE });
+    // A noble who has not eaten a Lavish meal within the day (db/lib/dined.js). Dined runs out on its own clock — the
+    // expiry sweep before this pass takes it off once the day is up — so this pass only reads it and never clears it.
+    const noble = held.has(NOBILITY_SLUG) && !held.has(HUNGERLESS_SLUG) && !held.has(DYING_SLUG);
+    if (noble && !held.has(DINED_SLUG)) terms.push({ kind: "NOBLE_MEAL", base: EVENTS.NOBLE_MEAL });
 
     // Somebody already Fine, in a place that neither lifts nor lowers, has nothing to settle — a capAtFine term counts for nothing here, since shelter can only fill a deficit and at 0 there is none.
     if (character.mood === 0 && !terms.some((t) => t.base && !t.capAtFine)) {

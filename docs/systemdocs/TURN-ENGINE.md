@@ -389,8 +389,9 @@ each arrived at by getting them wrong first.
    It applies the turn's flat harms and reliefs to `Character.mood`, slides
    every dial back toward Fine from either direction — one slow step of
    `MOOD_DRIFT_UP` (4) coming up, one fast `MOOD_DRIFT_DOWN` (40) coming down.
-   It no longer touches Dined, which runs out on its own clock
-   (`COOKING.md` §6a). It settles no tag: the band is a word read off the number, not a
+   A noble without Dined takes NOBLE_MEAL (`MOOD.md` §8); the pass only reads
+   Dined and never clears it — it runs out on its own clock, and the expiry
+   sweep above takes it off first (`COOKING.md` §6a). It settles no tag: the band is a word read off the number, not a
    row. Audit action `mood_resolved`; its DMs — only the two bands that carry
    one — ride the `tagExpiryDms` channel back on the thunk.
 8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
@@ -765,7 +766,10 @@ eaten: raw Human Flesh is −50. Foodstuffs (−5) and Moldy Bread (−10) are w
 inside it.
 
 Whatever is eaten does to the dial exactly what eating it by hand would
-(`dishMoodTerms` for a dish, `rawFoodMoodTerms` for raw food). A poisoned one
+(`dishMoodTerms` for a dish, `rawFoodMoodTerms` for raw food), and a Lavish meal
+eaten here leaves its eater Dined, counted from the closing turn, exactly as
+eating it by hand would (`COOKING.md` §6a) — a noble kept alive on one is spared
+NOBLE_MEAL at the mood pass that follows. A poisoned one
 poisons them exactly as eating it by hand would: `db/lib/consumeGrants.js`
 (moved out of `web/lib` for this) resolves the poison's grants against their
 own resists.
@@ -809,8 +813,8 @@ A food restores `foodHungerFor(tag)` — its `mealHunger` (a meal's class
 figure, a Foodstuff's 4, a Ration Box draw's own), else an ingredient's
 `cooked.hunger`, else nothing. A meal adds every extra ingredient's
 (`unitHungerFor`). There is no longer a default for "something that grants Ate
-Meal": Ate Meal is gone. (Dined is back, but only as a status a Lavish meal
-leaves for a day, and it restores nothing — [`COOKING.md`](COOKING.md) §6a.) Consume can eat several at once, up to what
+Meal": Ate Meal is gone. (Dined is back, as what a Lavish meal leaves
+for a day; it restores nothing, and keeps a noble from NOBLE_MEAL — [`COOKING.md`](COOKING.md) §6a.) Consume can eat several at once, up to what
 fills the eater, and refuses food at 100 unless they are a Glutton; the
 Hungerless may eat but gain neither hunger nor mood — [`REQUESTS.md`](REQUESTS.md)
 §4.
@@ -821,12 +825,15 @@ day; a Basic meal (15) most of a day, a Skilled one (18) a day, a Lavish one
 
 ### 5d. Nobility upkeep
 
-Gone. A noble used to take −10 mood at the mood pass for ending a turn without
-the `dined` marker a fine meal granted; the doc removes every "ate recently"
-tag, so the marker and the penalty went with it. `Character.missedMealStreak`
-stays an orphan column. Dined itself is back as what a Lavish meal leaves for
-one in-game day ([`COOKING.md`](COOKING.md) §6a), but the penalty is not: no
-pass reads it.
+Back. A noble (not Hungerless, not Dying) who ends a turn without `dined` takes
+−10 at the mood pass (NOBLE_MEAL, [`MOOD.md`](MOOD.md) §8). The Soilery Rework
+removed it with the old fine-meal marker; `dined` came back as what a Lavish
+meal leaves for a whole in-game day of turns after the one it was eaten in
+([`COOKING.md`](COOKING.md) §6a), and the penalty with it. The order of the
+close is what makes the day exact: the expiry sweep runs before `hunger`, and
+`hunger` before `mood`, so a Dined granted during turn T (or by this close's own
+eating, §5a) is still held at the closes of T through T + N − 1 and gone at
+T + N's. `Character.missedMealStreak` stays an orphan column.
 
 ### 5e. The horse's feed
 

@@ -3629,11 +3629,13 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # Left by eating a Lavish meal, and by nothing else (db/lib/dined.js). It
-  # lasts one in-game day, which is turnsPerDay turns or the turn length's
-  # share of the calendar day, so the grant works out the expiry itself — no
-  # durationTurns here, and a GM grant from /gm/dev is untimed. Hidden from
-  # anybody inspecting you, like the hunger descriptors. Nothing reads it yet.
+  # Left by eating a Lavish meal, by hand or at the turn close, and by nothing
+  # else (db/lib/dined.js). It lasts one in-game day of whole turns after the
+  # one it was eaten in — turnsPerDay turns, or the turn length's share of the
+  # calendar day — so the grant works out the expiry itself: no durationTurns
+  # here, and a GM grant from /gm/dev is untimed. A noble who ends a turn
+  # without it takes NOBLE_MEAL (db/lib/moodPass.js). Hidden from anybody
+  # inspecting you, like the hunger descriptors.
   dined:
     catalog: gm
     name: Dined

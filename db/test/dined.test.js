@@ -1,11 +1,12 @@
-// node --test over db/lib/dined.js — Dined comes from a Lavish meal only, lasts one in-game day however many turns
-// that is, and a second lavish meal restarts the day. A fake `tx` stands in for Prisma, so no database is needed.
+// node --test over db/lib/dined.js — Dined comes from a Lavish meal only, lasts a whole in-game day of turns after the
+// one it was eaten in however many turns that is, and a second lavish meal restarts the day. A fake `tx` stands in for
+// Prisma, so no database is needed.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const yaml = require("js-yaml");
-const { DINED_SLUG, earnsDined, grantDined } = require("../lib/dined");
+const { DINED_SLUG, earnsDined, dinedExpiry, grantDined } = require("../lib/dined");
 
 const DINED_TAG = { id: "tag-dined", slug: DINED_SLUG, name: "Dined" };
 
@@ -38,12 +39,17 @@ test("only a Lavish meal earns Dined, and never for the Hungerless", () => {
   assert.equal(earnsDined({ mealClass: "LAVISH" }, { hungerless: true }), false);
 });
 
+test("the day is counted in whole turns AFTER the one eaten in", () => {
+  assert.equal(dinedExpiry(10, 1), 11);
+  assert.equal(dinedExpiry(10, 4), 14);
+});
+
 test("Dined lasts one in-game day: turnsPerDay turns, else the length's share of 24 hours", async () => {
   const cases = [
-    [{ turnsPerDay: 0 }, 24, 10], // one turn a day: gone when this turn closes
-    [{ turnsPerDay: 0 }, 6, 13], // four turns a day: this one and three more
-    [{ turnsPerDay: 0 }, 12, 11],
-    [{ turnsPerDay: 3 }, 24, 12], // the GM's count wins over the length
+    [{ turnsPerDay: 0 }, 24, 11], // one turn a day: through the next turn, swept at its close
+    [{ turnsPerDay: 0 }, 6, 14], // four turns a day: four whole turns after this one
+    [{ turnsPerDay: 0 }, 12, 12],
+    [{ turnsPerDay: 3 }, 24, 13], // the GM's count wins over the length
   ];
   for (const [config, turnLengthHours, expiresTurn] of cases) {
     const tx = fakeTx();
@@ -56,10 +62,10 @@ test("Dined lasts one in-game day: turnsPerDay turns, else the length's share of
 });
 
 test("a second lavish meal restarts the day instead of leaving the first clock running", async () => {
-  const tx = fakeTx({ held: { expiresTurn: 13 } });
+  const tx = fakeTx({ held: { expiresTurn: 14 } });
   await grantDined(tx, "c1", { number: 12, turnLengthHours: 6 }, { turnsPerDay: 0 });
   assert.equal(tx.rows.length, 1, "still one row");
-  assert.equal(tx.rows[0].expiresTurn, 15);
+  assert.equal(tx.rows[0].expiresTurn, 16);
 });
 
 test("a GM's untimed Dined is left untimed", async () => {
@@ -70,9 +76,9 @@ test("a GM's untimed Dined is left untimed", async () => {
 
 test("between turns, the day is counted from the turn about to open", async () => {
   const tx = fakeTx({ latestTurn: { number: 7 } });
-  // No open turn, so the length comes off the config.
+  // No open turn, so the length comes off the config: 8-hour turns, 3 to a day.
   await grantDined(tx, "c1", null, { turnsPerDay: 0, turnLengthHours: 8 });
-  assert.equal(tx.rows[0].expiresTurn, 10); // turns 8, 9 and 10
+  assert.equal(tx.rows[0].expiresTurn, 11); // eaten "in" turn 8; 9, 10 and 11 are the day after
 });
 
 test("no Dined in the catalog grants nothing rather than throwing", async () => {
