@@ -165,8 +165,8 @@ enum TagVisibility {
 // (db/lib/syncTags.js throws otherwise), and the slot is the whole limit —
 // GameConfig.equipSlots, the old flat count, is retired and read by nothing.
 //
-// HEAD, BODY and MOUNT carry Tag.equipLayer 1-3, so a coif goes under a helm
-// and a cart is towed behind a horse. WEAPON is everything you hold, capped by
+// HEAD, BODY and FINGER hold one thing each. MOUNT alone carries Tag.equipLayer
+// 1-2, so a cart is towed behind an arelitz. WEAPON is everything you hold, capped by
 // hands — four, a two-hander (Tag.twoHanded) taking two — and ACCESSORY is
 // capped at four. See TAGS.md and db/lib/equipSlots.js.
 //
@@ -3233,10 +3233,10 @@ model Tag {
   sprite String?
 
   // Where this sits on the body, and how deep. Two equipped tags may not share
-  // a layer within HEAD/BODY/MOUNT: layer 1 is against the skin and 3 is
-  // outermost, so a mail coif (1) goes under a knight's helm (2) but two helms
-  // do not go together. The OUTERMOST equipped concealing piece is the one
-  // whose concealSprite the room sees. Enforced in both places that flip
+  // a layer within MOUNT, the one layered slot left: 1 is ridden and 2 is
+  // towed, so a cart goes behind an arelitz but two arelitz do not go
+  // together. HEAD and BODY hold one piece each and carry no layer. Enforced
+  // (db/lib/equipSlots.js#findSlotClash) in both places that flip
   // CharacterTag.equipped — equipActions.js and db/lib/tagOps.js.
   equipSlot  EquipSlot?
   equipLayer Int?

@@ -43,16 +43,20 @@ test("two runs agree, whichever order the rows arrive in", () => {
   assert.deepEqual(names(losers(rows).unequip), names(losers([...rows].reverse()).unequip));
 });
 
-test("a body keeps one piece per layer, not one piece", () => {
+test("a body keeps one piece, the best armour, whatever layers it once had", () => {
   const body = (id, name, equipLayer, meleeArmor = 0) => ({
     id, equippedQuantity: 1,
     tag: { name, equipSlot: "BODY", equipLayer, meleeArmor, ballisticArmor: 0, concealsIdentity: false },
   });
-  // Mail under Over is legal, so nothing comes off.
-  assert.deepEqual(losers([body("a", "Black Robes", 1), body("b", "Breastplate", 2)]).unequip, []);
-  // Two at the same layer is not.
+  // Robes under a breastplate used to be legal (Mail under Over). Now the
+  // breastplate stays and the robes come off — even on rows still carrying
+  // the old layers.
   assert.deepEqual(
-    names(losers([body("a", "Black Robes", 1), body("b", "Mail Shirt", 1, 0.4)]).unequip),
+    names(losers([body("a", "Black Robes", 1), body("b", "Breastplate", 2, 0.55)]).unequip),
+    ["Black Robes"],
+  );
+  assert.deepEqual(
+    names(losers([body("a", "Black Robes", null), body("b", "Mail Shirt", null, 0.4)]).unequip),
     ["Black Robes"],
   );
 });

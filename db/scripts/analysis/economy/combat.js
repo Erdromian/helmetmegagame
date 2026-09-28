@@ -126,7 +126,7 @@ function buildCombat({ list, get, caving, params, starting = null, sources = nul
 
   // ---- armour combinations ------------------------------------------------------------------------------------
   // Pieces stack across slots, multiplicatively on what gets through, capped (armorValue.js#combineArmor, read for
-  // both fields). One or none a slot: HEAD holds one piece, BODY one a layer (equipLayer 1 and 2), a shield is a
+  // both fields). One or none a slot: HEAD holds one piece, BODY one piece, a shield is a
   // WEAPON and takes a hand, and an ACCESSORY has no limit (only one armour accessory exists, so one or none). A status
   // that counts unworn (Resilient) is not a piece and stays out. A piece nobody can buy, stock or make is a role-kit
   // piece: included, and marked.
@@ -162,7 +162,7 @@ function buildCombat({ list, get, caving, params, starting = null, sources = nul
       return {
         slug: t.slug,
         name: t.name,
-        slot: t.equipSlot === "BODY" ? `BODY-${t.equipLayer ?? 1}` : t.equipSlot,
+        slot: t.equipSlot,
         melee: t.melee ?? 0,
         ballistic: t.ballistic ?? 0,
         meleeWord: armorWord(t.melee ?? 0),

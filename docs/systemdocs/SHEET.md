@@ -267,7 +267,7 @@ inventory.
 
 `web/lib/itemWhere.js` is the new small helper the **Where** column reads: a
 tag actually worn or readied gets its equip slot's own words (`head`,
-`body, Over`, `held`, `ride`, `accessories`, off `equipSlots.js`'s own
+`body`, `held`, `ride, Towed`, `accessories`, off `equipSlots.js`'s own
 `SLOT_TITLES`/`LAYER_NAMES` rather than a second list), everything else reads
 `pack`.
 
@@ -383,8 +383,8 @@ while a query is set, and so does an Items or Assets card.
 ## 4. The rig (`EquipBoard.js`)
 
 The equipment rules are `TAGS.md`'s ("equipSlot / equipLayer /
-twoHanded"): **one thing on a head**, one per layer of Body (Mail, then Over)
-and Ride, four
+twoHanded"): **one thing on a head**, **one thing on the body**, one per
+layer of Ride (ridden, then towed), four
 hands — fewer if maimed, and the board draws only the cells you actually have
 (`TAGS.md`, "A maiming takes hands away") — accessories uncapped. The board draws
 exactly that — a row per slot, a

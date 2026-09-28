@@ -8017,7 +8017,6 @@ tags:
     pointCost: 4
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     weight: 3
     stackable: true
     visible: worn
@@ -11916,7 +11915,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     weight: 3
     stackable: false
     visible: worn
@@ -11949,7 +11947,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     visible: worn
     weight: 2
     purchasable: false
@@ -11965,7 +11962,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     # The "thin breastplate beneath" the description has always mentioned,
     # now worth something: Salvage Plate's numbers exactly.
     melee: 0.31
@@ -12158,7 +12154,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     visible: worn
     weight: 2
     purchasable: false
@@ -12188,7 +12183,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     visible: worn
     weight: 5
     purchasable: false
@@ -12204,7 +12198,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     visible: worn
     weight: 3
     purchasable: false
@@ -12220,7 +12213,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     visible: worn
     weight: 3
     purchasable: false
@@ -13499,8 +13491,8 @@ tags:
   # helmet worth literally nothing. At 0.86 the Ordinator Helmet still buys
   # real points on top, which is what stacking is supposed to do.
   #
-  # It sits on BODY layer 2, so it competes with Heavy Infantry rather than
-  # layering over it — nobody wears two outer suits.
+  # It sits on BODY, which holds one piece, so it competes with Heavy Infantry
+  # (and with every robe and coat) rather than layering over it.
   #
   # Weight 65 is most of a carry allowance on its own — "slow and heavy" is a
   # real cost, not flavour.
@@ -13514,7 +13506,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
     melee: 0.86
     ballistic: 0.86
     weight: 65
@@ -13532,7 +13523,6 @@ tags:
     pointCost: 0
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
     melee: 0.58
     ballistic: 0.76
     weight: 30
@@ -13562,7 +13552,6 @@ tags:
     weight: 12
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     melee: 0.38
     ballistic: 0.66
     visible: true
@@ -15291,7 +15280,6 @@ tags:
     weight: 2
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     visible: worn
     purchasable: false
     purchasableAfterStart: false
@@ -15317,7 +15305,6 @@ tags:
     weight: 2
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     melee: 0.57
     ballistic: 0.66
     # `true`, not `worn`, and the description is the reason: the plain robes
@@ -15878,7 +15865,6 @@ tags:
     pointCost: 1
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     melee: 0.26
     ballistic: 0.04
     visible: worn
@@ -15988,7 +15974,7 @@ tags:
 
   # ─── Moderate (5 pt / 7 ⬢ / 1 turn, skilled smithing) ───
   # HIDDEN recipe (non-public ingredient, Chris 2026-09-07): the tailor's
-  # secret. The lightest thing in the Over layer by a distance — 8 lb against
+  # secret. Far lighter than the plates — 8 lb against
   # Salvage Plate's 16 — for a little less against a blade (0.24 vs 0.31) and a
   # little more against a bullet (0.12 vs 0.09), and it reads as a garment
   # rather than armor. Also competes with the brewers for sacs, deliberately.
@@ -16002,7 +15988,6 @@ tags:
     pointCost: 3
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
     melee: 0.24
     ballistic: 0.12
     visible: worn
@@ -16030,7 +16015,6 @@ tags:
     pointCost: 5
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     melee: 0.42
     ballistic: 0.09
     visible: true
@@ -16059,7 +16043,6 @@ tags:
     pointCost: 8
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     melee: 0.5
     ballistic: 0.18
     visible: worn
@@ -16091,7 +16074,6 @@ tags:
     pointCost: 10
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
     melee: 0.55
     ballistic: 0.18
     visible: true
@@ -16120,7 +16102,6 @@ tags:
     pointCost: 9
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
     melee: 0.35
     ballistic: 0.26
     visible: true
@@ -16138,7 +16119,6 @@ tags:
     pointCost: 11
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
     melee: 0.68
     ballistic: 0.26
     visible: true
@@ -16172,7 +16152,6 @@ tags:
     pointCost: 2
     equippable: true
     equipSlot: BODY
-    equipLayer: 2
     melee: 0.31
     ballistic: 0.09
     visible: true
@@ -16200,7 +16179,6 @@ tags:
     pointCost: 4
     equippable: true
     equipSlot: BODY
-    equipLayer: 1
     melee: 0.31
     ballistic: 0.09
     visible: true

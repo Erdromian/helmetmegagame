@@ -321,7 +321,7 @@ ever was the entire enforcement of "you already have that tag." Bascinet's
 call: it's fine for a character to carry more than one, so every recipe here
 is now `stackable: true` too. Nothing else about the equip rig needed to
 change — a stackable, layered, equippable tag already worked (the Hat proved
-it), so a second Breastplate just contests the first one's BODY/3 layer
+it), so a second Breastplate just contests the first one's BODY slot
 exactly like a second Hat would (`db/lib/equipSlots.js`). Armored Gloves
 (§2a) got the same treatment even though it isn't in the table below — and
 it is one of the pieces `db/lib/godflesh.js` reads back by slug, so a signed
@@ -382,13 +382,13 @@ What each piece is for, as the numbers now stand (melee / ballistic, lb):
 | Head | Knight's Helmet | 9 | 0.48 / 0.20, 6 lb | The lighter closed helm, better against a bullet |
 | Head | Bascinet | 9 | 0.54 / 0.16, 8 lb | The best forged helm against a blade |
 | Head | Censor's Helmet | 9 | 0.44 / 0.31, 7 lb | The best forged helm against a bullet |
-| Body, mail | Padded Armor | 1 | 0.26 / 0.04, 8 lb | Lightest and cheapest; under a coat |
-| Body, mail | Mail Shirt | 5 | 0.42 / 0.09, 20 lb | The mid rung, 5 lb lighter than Brigandine |
-| Body, mail | Brigandine | 8 | 0.50 / 0.18, 25 lb | Best in the layer, and it hides under a coat |
-| Body, over | Salvage Plate | 2 | 0.31 / 0.09, 16 lb | No skill at all |
-| Body, over | Graga-Hide Cloak | 3 | 0.24 / 0.12, 8 lb | Lightest in the layer; reads as a garment |
-| Body, over | Breastplate | 10 | 0.55 / 0.18, 20 lb | The best protection a pound |
-| Body, over | Plate Armor | 11 | 0.68 / 0.26, 42 lb | The best forged piece outright; still Massive |
+| Body | Padded Armor | 1 | 0.26 / 0.04, 8 lb | Lightest and cheapest; under a coat |
+| Body | Mail Shirt | 5 | 0.42 / 0.09, 20 lb | The mid rung, 5 lb lighter than Brigandine |
+| Body | Brigandine | 8 | 0.50 / 0.18, 25 lb | Best of the old Mail pieces, and it hides under a coat |
+| Body | Salvage Plate | 2 | 0.31 / 0.09, 16 lb | No skill at all |
+| Body | Graga-Hide Cloak | 3 | 0.24 / 0.12, 8 lb | Lightest of the old Over pieces; reads as a garment |
+| Body | Breastplate | 10 | 0.55 / 0.18, 20 lb | The best protection a pound |
+| Body | Plate Armor | 11 | 0.68 / 0.26, 42 lb | The best forged piece outright; still Massive |
 | Held | Buckler | 1 | 0.22 / 0.04, 3 lb | Lightest and cheapest |
 | Held | Shield | 2 | 0.35 / 0.13, 10 lb | The shield wall bonus |
 | Held | Pavise | 5 | 0.44 / 0.24, 25 lb | Best held piece a crafter can make; cover |

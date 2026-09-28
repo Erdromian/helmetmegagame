@@ -438,9 +438,9 @@ async function syncTagsFromYaml(prisma) {
         );
       }
       if (LAYERED_SLOTS.has(t.equipSlot)) {
-        // Each slot has its OWN depth — MOUNT is only ridden and towed — so a
-        // layer past that slot's last cell would validate here and then be
-        // undrawable in the rig.
+        // Each layered slot has its OWN depth — MOUNT is only ridden and
+        // towed — so a layer past that slot's last cell would validate here
+        // and then be undrawable in the rig.
         const maxLayer = LAYER_NAMES[t.equipSlot].length;
         if (!Number.isInteger(t.equipLayer) || t.equipLayer < 1 || t.equipLayer > maxLayer) {
           throw new Error(
