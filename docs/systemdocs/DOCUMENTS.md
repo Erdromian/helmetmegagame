@@ -146,6 +146,14 @@ It is **synthesized in the page, not a `Document` row**, so `{document:…}` can
 never resolve to it and the sync never sees it. Skipped entirely for a
 character with no role or an empty description.
 
+**A role with a fate paper pins the fate instead, and the charter is not
+shown.** The fate (`fate-<roleSlug>`, §3) is the newer write-up of the same
+seat and is titled with the bare role name ("Baron"), so the two side by side
+were two papers with one title. The fate takes the charter's place: first,
+framed, `⌗ YOUR ROLE`. Only the seats with no fate (the Tribune, the
+Metalsmith, the Pusher and so on) still see the charter here. It still feeds
+Who Am I on `/memories` and the threat recruit's DM, which are not documents.
+
 Worth knowing if you edit `docs/roles.yaml`: that field was written and synced
 for all 49 roles and **rendered nowhere** until this existed. The nearest a
 player got was the one-line `role.intro` in the creation wizard.

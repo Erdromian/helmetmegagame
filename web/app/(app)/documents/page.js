@@ -198,7 +198,8 @@ async function FreshDocuments() {
       .map(([d, source]) => shape(d, source))
     : [];
 
-  // The role charter, pinned first in Assigned.
+  // The role charter, pinned first in Assigned unless the role has a fate
+  // paper (below).
   //
   // Role.description is a String[] of plain sentences (docs/roles.yaml), not
   // Markdown like a Document — joining them as a bullet list is the whole
@@ -234,7 +235,17 @@ async function FreshDocuments() {
       }
       : null;
 
-  const assigned = roleCharter ? [roleCharter, ...assignedDocs] : assignedDocs;
+  // A role with its own fate paper (`fate-<roleSlug>`, docs/documents.yaml)
+  // pins that instead. The fate is the newer write-up of the same seat and
+  // carries the role's bare name, so showing the charter beside it put two
+  // papers with one title in the folder.
+  const fateKey = character?.role ? `fate-${character.role.slug}` : null;
+  const fate = assignedDocs.find((d) => d.key === fateKey);
+  const assigned = fate
+    ? [{ ...fate, pinned: true, source: "Your role" }, ...assignedDocs.filter((d) => d !== fate)]
+    : roleCharter
+      ? [roleCharter, ...assignedDocs]
+      : assignedDocs;
 
   // Appraisal's readout (web/lib/appraisal.js). A fact about the reader's own
   // sheet, same as heldTagIds below.

@@ -63,7 +63,7 @@ Two words for two things, since 2026-09-28:
 
 - A **fate** is who a character was made as: the seat they took at creation
   (`Character.roleId`, CHARACTERS.md §2). It is fixed for that character's
-  life. The fate papers (`Fate: Meister` in `docs/documents.yaml`), the lobby,
+  life. The fate papers (`fate-meister` in `docs/documents.yaml`), the lobby,
   the seat counts and the late parties all speak of fates.
 - A **job** is the work a character does in Ravenheart now, and in-game
   circumstances can change it. The Meister's Terminal pays wages by job, lists
