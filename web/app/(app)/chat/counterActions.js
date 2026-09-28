@@ -43,7 +43,6 @@ async function whoAmI() {
 }
 
 function revalidateAll() {
-  revalidatePath("/treasury");
   revalidatePath("/character");
   revalidatePath("/gm/players", "layout");
   revalidatePath(TURNS_PATH, "page");

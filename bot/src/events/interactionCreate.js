@@ -46,6 +46,7 @@ const {
   ROOM_VENDING_PREFIX,
   ROOM_NUKE_PREFIX,
   ROOM_BLACK_MARKET_PREFIX,
+  ROOM_MEISTER_TERMINAL_PREFIX,
   CENSOR_OFFICE_ROOM_SLUG,
 } = require("@lifeweb/db/lib/roomStarterRow");
 const { INTERCOM_MODAL_PREFIX, buildIntercomModal } = require("../lib/intercomModal");
@@ -225,6 +226,7 @@ const {
   handleDocumentsOpen,
   routeGatehouse,
 } = require("./interactions/gatehouse");
+const { handleMeisterTerminalOpen, routeMeisterTerminal } = require("./interactions/meisterTerminal");
 const {
   MT_UNLOCK,
   MT_INSERT,
@@ -420,7 +422,7 @@ module.exports = {
         if (interaction.customId === "loc:open") return void (await handleTravelOpen(interaction));
         // The Actions button — every Location anchor, and the #turns console.
         if (interaction.customId === ACTIONS_OPEN_ID) return void (await handleActionsOpen(interaction));
-        // A room's own button for one verb (the Depot's Send money, the Meister's Sell tax), and every verb's own
+        // A room's own button for one verb (the Depot's Send money), and every verb's own
         // buttons. Some open a modal, so none is acked here — each step acks for itself.
         if (interaction.customId.startsWith(ACT_START_PREFIX)) return void (await handleStartButton(interaction));
         if (interaction.customId.startsWith(ACT_VERB_PREFIX)) return void (await handleVerbComponent(interaction));
@@ -612,8 +614,14 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_GATE_PROCESS_PREFIX)) return void (await handleProcessOpen(interaction));
         if (interaction.customId.startsWith(ROOM_GATE_DOCS_PREFIX)) return void (await handleDocumentsOpen(interaction));
         if (await routeGatehouse(interaction)) return;
+        // The Meister's Terminal (db/lib/meisterTerminal.js): every `mst:` button,
+        // select and modal. The ones that open a modal are not acked first.
+        if (await routeMeisterTerminal(interaction)) return;
         if (interaction.customId.startsWith(ROOM_BLACK_MARKET_PREFIX)) {
           return void (await handleBlackMarketOpen(interaction));
+        }
+        if (interaction.customId.startsWith(ROOM_MEISTER_TERMINAL_PREFIX)) {
+          return void (await handleMeisterTerminalOpen(interaction));
         }
         if (interaction.customId.startsWith(ROOM_BELL_PREFIX)) {
           return void (await handleBellOpen(interaction, interaction.customId.slice(ROOM_BELL_PREFIX.length)));
@@ -711,6 +719,9 @@ module.exports = {
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === ZONE_VIEW_ID) return void (await handleZoneViewPick(interaction));
         if (await routeGatehouse(interaction)) return;
+        // The Meister's Terminal (db/lib/meisterTerminal.js): every `mst:` button,
+        // select and modal. The ones that open a modal are not acked first.
+        if (await routeMeisterTerminal(interaction)) return;
         // A pick from the Actions menu starts the verb; every verb's own selects are its steps.
         if (interaction.customId.startsWith(ACT_MENU_PREFIX)) return void (await handleMenuPick(interaction));
         if (interaction.customId.startsWith(ACT_VERB_PREFIX)) return void (await handleVerbComponent(interaction));
@@ -797,6 +808,9 @@ module.exports = {
       } else if (interaction.isModalSubmit()) {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
         if (await routeGatehouse(interaction)) return;
+        // The Meister's Terminal (db/lib/meisterTerminal.js): every `mst:` button,
+        // select and modal. The ones that open a modal are not acked first.
+        if (await routeMeisterTerminal(interaction)) return;
         if (isCombatModal(interaction.customId)) return void (await handleCombatDescribe(interaction));
         if (interaction.customId.startsWith(ACT_MODAL_PREFIX)) return void (await handleVerbModal(interaction));
         if (interaction.customId.startsWith(META_PREFIX)) return void (await handleMetaComponent(interaction));

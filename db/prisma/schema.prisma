@@ -1011,6 +1011,47 @@ model BankAccount {
   updatedAt DateTime @updatedAt
 }
 
+/// A daily wage, set at the Meister's Terminal (Meistery.docx,
+/// docs/systemdocs/MEISTERY.md §4): so many obols onto a character's balance
+/// at the end of every in-game day, or off it when the figure is negative.
+///
+/// For ONE fate or ONE character, never both — a CHECK constraint in the
+/// migration says so, since Prisma's schema language cannot. A character's own
+/// row overrides their fate's, and a character row of 0 exempts them from it.
+/// Paid by db/lib/wagePass.js.
+model Wage {
+  id          String     @id @default(cuid())
+  roleId      String?    @unique
+  role        Role?      @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  characterId String?    @unique
+  character   Character? @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  // May be negative: a daily deduction.
+  amountObols Int
+
+  // Who set it, as a snapshot (no FK) — the audit log has the whole story.
+  setByCharacterId String?
+  setByName        String  @default("")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+/// One row per in-game day whose wages have been paid. THE CLAIM: the wage
+/// pass inserts it in the same transaction as the credits, so no re-run of a
+/// turn close — a resume, a lost resolvedPasses write, two advances racing —
+/// can pay a day twice. docs/systemdocs/MEISTERY.md §4.
+model WagePayout {
+  dayNumber Int      @id
+  // The turn whose close paid it.
+  turnNumber Int?
+  paidAt     DateTime @default(now())
+  // What it came to, for the audit and the terminal's ledger.
+  characters    Int @default(0)
+  creditedObols Int @default(0)
+  debitedObols  Int @default(0)
+}
+
 /// One order, by one character, off one manifest.
 ///
 /// This replaces `Depot.manifest`, which was a single JSON blob because there
@@ -2844,6 +2885,10 @@ model Character {
   // one at the counter or never does.
   bankAccount BankAccount?
 
+  // A daily wage the Meister set for this character alone (Wage), which
+  // overrides their fate's. docs/systemdocs/MEISTERY.md §4.
+  wage Wage?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -4181,6 +4226,9 @@ model Role {
   reservations RoleReservation[]
   lobbyEntries LobbyEntry[]
   threatSpawns ThreatSpawn[]
+
+  // The daily wage the Meister set for everybody in this fate (Wage).
+  wage Wage?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

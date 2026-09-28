@@ -21,7 +21,7 @@ import CommandPalette from "./CommandPalette";
 // what AppRail used to do.
 //
 // Two independent Suspense boundaries, mirroring the old AppRail/AppHeader
-// split: the nav items promise waits on a GM/Mortus/treasury check and the
+// split: the nav items promise waits on a GM/Mortus check and the
 // turn promise is its own query, and neither should hold the other off the
 // screen.
 export default function AppBar({ discordUserId, fallback = PLAYER_NAV }) {

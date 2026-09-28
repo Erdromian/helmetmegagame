@@ -21,6 +21,7 @@ const {
 const { ATM_ROOM_SLUGS, MEISTERS_OFFICE_ROOM_SLUG } = require("./depot");
 const { RING_TEXT } = require("./ringText");
 const { BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT } = require("./blackMarketText");
+const { MEISTER_TERMINAL_TEXT } = require("./meisterTerminalText");
 const { ACTIONS_OPEN_ID } = require("./turnsConsoleRow");
 const { ACTION_START_PREFIX } = require("./actionCatalog");
 const { BELL_ROOM_SLUG } = require("./bell");
@@ -104,6 +105,7 @@ const ROOM_VENDING_PREFIX = "room:vending:";
 // "room:nuke:" too (db/lib/nukeKeypad.js), so the bot tests those first.
 const ROOM_NUKE_PREFIX = "room:nuke:";
 const ROOM_BLACK_MARKET_PREFIX = "room:blackmarket:";
+const ROOM_MEISTER_TERMINAL_PREFIX = "room:meister:";
 // The Town Gatehouse (docs/systemdocs/GATEHOUSE.md). The lever's own button is
 // the gate button (GATE_PREFIX); these four are its terminals and windows.
 const ROOM_PASSAGE_PREFIX = "room:passage:";
@@ -391,16 +393,16 @@ const ROOM_AFFORDANCES = [
     when: (room) => room?.slug === RAILYARD_ROOM_SLUG,
     discordOnly: true,
   },
-  // The Meister's terminal (docs/systemdocs/DEPOT.md): the sell tax. The web
-  // has it on /treasury, so `discordOnly` again. The office is behind a
-  // locked door, and setSellTax asks canReadTreasury on every press.
+  // The Meister's Terminal in the Meister's Study (docs/systemdocs/MEISTERY.md).
+  // Drawn for anybody who can get into the room; the terminal reads the
+  // Baron's, the Hand's or the Meister's ring when it is pressed
+  // (db/lib/meisterTerminal.js#meisterActor), so somebody let in is told no in words.
   {
-    id: "sellTax",
-    label: "Sell tax",
+    id: "meisterTerminal",
+    label: MEISTER_TERMINAL_TEXT.button,
     tone: PLAIN,
-    customId: () => `${ACTION_START_PREFIX}selltax`,
+    prefix: ROOM_MEISTER_TERMINAL_PREFIX,
     when: (room) => room?.slug === MEISTERS_OFFICE_ROOM_SLUG,
-    discordOnly: true,
   },
 ];
 
@@ -623,6 +625,7 @@ module.exports = {
   ROOM_VENDING_PREFIX,
   ROOM_NUKE_PREFIX,
   ROOM_BLACK_MARKET_PREFIX,
+  ROOM_MEISTER_TERMINAL_PREFIX,
   ROOM_PASSAGE_PREFIX,
   ROOM_BLOODPRICK_PREFIX,
   ROOM_GATE_PROCESS_PREFIX,

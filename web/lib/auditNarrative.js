@@ -100,6 +100,9 @@ export const AUDIT_FAMILIES = {
   superadmin: { label: "Superadmin", band: "machine", prefixes: ["superadmin_"] },
   // The gates and the Town Gatehouse's terminal (docs/systemdocs/GATEHOUSE.md).
   gates: { label: "Gates", band: "player", prefixes: ["gate_", "documents_", "documentation_"] },
+  // The Meister's Terminal (docs/systemdocs/MEISTERY.md): the tax, balances,
+  // closed accounts, wages and rings.
+  meister: { label: "Meister", band: "player", prefixes: ["meister_"] },
 };
 
 export const AUDIT_BANDS = {
@@ -445,7 +448,32 @@ const R = {
     ...ringTail(d),
   ],
   documentation_denied: () => [actor(), t("denied documents to"), target()],
-  // The Meister's Close account on /treasury.
+  // The Meister's Terminal (docs/systemdocs/MEISTERY.md).
+  sell_tax_rate_set: (d) => [
+    actor(), t("set the tax to"), em(`${d.after ?? "?"}%`),
+    ...(d.before != null ? [t(`(was ${d.before}%)`)] : []),
+    ...(d.via === "gm_dev" ? [t("from /gm/dev")] : []),
+  ],
+  meister_balance_set: (d) => [
+    actor(), t("set"), em(`${d.holderName ?? "an"}'s`), t("balance to"), em(`${d.after ?? "?"} ¢`),
+    ...(d.before != null ? [t(`(was ${d.before} ¢)`)] : []),
+    ...(d.fingerprint ? [mono(d.fingerprint)] : []),
+  ],
+  meister_wage_set: (d) => [
+    actor(),
+    ...(d.after == null
+      ? [t("cleared the daily wage of"), em(d.name ?? "?")]
+      : [t("set the daily wage of"), em(d.name ?? "?"), t("to"), em(`${d.after} ¢`)]),
+    ...(d.roleId ? [t("(a fate)")] : []),
+  ],
+  ring_registered: (d) => [
+    actor(), t(d.reconnected ? "connected" : "registered"), em(d.ringName ?? "a ring"),
+    ...(d.fingerprint ? [t("to account"), mono(d.fingerprint)] : []),
+  ],
+  wages_paid: (d) => [
+    t("Wages paid for day"), em((d.paidDays ?? []).join(", ") || "?"), t("—"), count(d.characters),
+    t(`accounts, +${d.credited ?? 0} ¢ / -${d.debited ?? 0} ¢`),
+  ],
   treasury_account_closed: (d) => [
     actor(), t("closed"), (d.holderName ? em(`${d.holderName}'s`) : t("a")), t("treasury account"),
     ...(d.fingerprint ? [mono(d.fingerprint)] : []),
@@ -527,7 +555,10 @@ const FAMILY_OVERRIDES = {
   caving_resolved: "system",
   tag_expiry_resolved: "system",
   access_revoke_incomplete: "system",
-  treasury_account_closed: "request",
+  treasury_account_closed: "meister",
+  sell_tax_rate_set: "meister",
+  ring_registered: "meister",
+  wages_paid: "system",
 };
 
 export function auditFamily(actionType) {

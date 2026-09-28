@@ -44,6 +44,18 @@ import {
 } from "@lifeweb/db/lib/blackMarket";
 import { BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT } from "@lifeweb/db/lib/blackMarketText";
 import {
+  meisterTerminalState,
+  setTaxRate as meisterSetTaxInDb,
+  setAccountBalance as meisterSetBalanceInDb,
+  closeAccount as meisterCloseAccountInDb,
+  setWage as meisterSetWageInDb,
+  connectRing as meisterConnectRingInDb,
+  meisterActor,
+} from "@lifeweb/db/lib/meisterTerminal";
+import { loadTreasuryTransactions } from "@lifeweb/db/lib/treasuryLedger";
+import { MEISTER_TERMINAL_TEXT } from "@lifeweb/db/lib/meisterTerminalText";
+import { MEISTERS_OFFICE_ROOM_SLUG } from "@lifeweb/db/lib/depot";
+import {
   terminalState as merchantTerminalStateInDb,
   insertObols as insertTerminalObols,
   withdrawObols as withdrawTerminalObols,
@@ -1891,6 +1903,77 @@ export async function blackMarketInsert({ roomId, amount } = {}) {
 // `items` is [{ tagId, quantity }]; the terminal re-prices every line.
 export async function blackMarketBuy({ roomId, items } = {}) {
   return blackMarketVerb(roomId, blackMarketOrderInDb, { items });
+}
+
+// ------------------------------------------------- the Meister's Terminal
+//
+// On the Meister's Study wall (docs/systemdocs/MEISTERY.md). Every rule — the
+// three rings, the Baron's locked account, the bounds, the wages, the rings —
+// is in db/lib/meisterTerminal.js, so this face and Discord's cannot drift.
+// Each action finds the session, re-checks the room, and hands over.
+
+// The read: the totals, every account, the wages, the rings in hand. Open
+// between sittings, like every other reader here.
+export async function meisterTerminalView({ roomId } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, MEISTERS_OFFICE_ROOM_SLUG, MEISTER_TERMINAL_TEXT.noTerminal);
+  if (found.error) return { ok: false, error: found.error };
+  return meisterTerminalState(prisma, me.discordUserId);
+}
+
+// The Ledger tab, read when it is opened rather than with the rest: it is the
+// one heavy query here. `accountId` narrows it to one account's own rows.
+export async function meisterTerminalLedger({ roomId, accountId = null } = {}) {
+  const me = await actor();
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, MEISTERS_OFFICE_ROOM_SLUG, MEISTER_TERMINAL_TEXT.noTerminal);
+  if (found.error) return { ok: false, error: found.error };
+  const gate = await meisterActor(prisma, me.discordUserId);
+  if (!gate.ok) return gate;
+  const rows = await loadTreasuryTransactions(prisma, { accountId: accountId ? String(accountId) : null });
+  return { ok: true, rows };
+}
+
+// Every write, shut between sittings.
+async function meisterVerb(roomId, fn, args, { inventory = false } = {}) {
+  const me = await actor(undefined, { acting: true });
+  if (me.error) return { ok: false, error: me.error };
+  const found = await roomHere(me.character, roomId, MEISTERS_OFFICE_ROOM_SLUG, MEISTER_TERMINAL_TEXT.noTerminal);
+  if (found.error) return { ok: false, error: found.error };
+
+  const turn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const result = await fn(prisma, me.discordUserId, { turn, ...args });
+  if (!result.ok) return { ok: false, error: result.error, sfx: SFX.REFUSE_MONEY };
+  // A ring connected here may already be on a finger, and its doors change.
+  if (inventory) await afterInventoryChange([result.characterId ?? me.character.id]).catch(() => {});
+  return { ok: true, line: result.line };
+}
+
+export async function meisterSetTax({ roomId, rate } = {}) {
+  return meisterVerb(roomId, meisterSetTaxInDb, { rate });
+}
+
+export async function meisterSetBalance({ roomId, accountId, balance } = {}) {
+  return meisterVerb(roomId, meisterSetBalanceInDb, { accountId, balance });
+}
+
+export async function meisterCloseAccount({ roomId, accountId } = {}) {
+  return meisterVerb(roomId, meisterCloseAccountInDb, { accountId });
+}
+
+// `roleId` for a fate, `characterId` for one character; `amount` null clears it.
+export async function meisterSetWage({ roomId, roleId = null, characterId = null, amount = null } = {}) {
+  return meisterVerb(roomId, meisterSetWageInDb, { roleId, characterId, amount });
+}
+
+export async function meisterConnectRing({ roomId, ringTagId, roleSlugs, accountId = null, newAccount = false } = {}) {
+  return meisterVerb(
+    roomId,
+    meisterConnectRingInDb,
+    { ringTagId, roleSlugs, accountId, newAccount: newAccount === true },
+    { inventory: true },
+  );
 }
 
 // ------------------------------------------------- the Merchant's Terminal

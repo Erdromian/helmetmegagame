@@ -99,7 +99,7 @@ button) is in git; none of it comes back either.
 | The fixtures | `db/lib/depotCounter.js` | The infoterminal (and its Send), and the gun. Web: `web/app/(app)/chat/counterActions.js` |
 | The turret | `db/lib/depotTurret.js` | Weighted severity table, bent by the target's `Tag.ballisticArmor` |
 | Per-turn upkeep | `db/lib/depotPass.js` | The turret sweep, and nothing else |
-| The Meister's terminal | `web/app/(app)/treasury/` | Every account, the backing, the tax rate |
+| The Meister's Terminal | `db/lib/meisterTerminal.js` | Every account, the backing, the tax rate, wages, rings — `MEISTERY.md` |
 | GM tuning | `/gm/dev?s=depot` | `updateDepot` in `web/app/(app)/gm/dev/actions.js`: the terminal's coin, the turret, the tax |
 
 ## 0b. The place
@@ -317,7 +317,7 @@ refuses one it does not know.
 
 ## 0f. The Meister's tax
 
-`Depot.sellTaxRate`, a whole percent set from the Meister's terminal (§0h). The
+`Depot.sellTaxRate`, a whole percent set at the Meister's Terminal (§0h). The
 column kept its old name; since the overhaul it is one rate on the train's
 **imports and exports alike**, levied **once per train on the whole load**,
 rounded to the nearest obol, and paid into the Keep's Vault as coin. The doc:
@@ -420,49 +420,21 @@ two go up ("{name}. Owes the house: 40 obols."), in the Exactor's Office and
 the Den's Bar, and nothing is pinned — the Den has no board, and his debts are
 not announced at the Depot. Nothing collects either automatically.
 
-## 0h. The Meister's terminal
+## 0h. The Meister's Terminal
 
-`/treasury`, and the gate is **place and key, not a tag**: a living character
-standing at the `keep` Location who can get through the Meister's office door.
-`canReadTreasury` in `db/lib/depotCounter.js` is the one predicate, and the page,
-its one control and the nav rail all ask it — a rail offering an item that
-redirects is worse than no item.
+It is its own system now: **`MEISTERY.md`**, built from Bascinet's
+`Meistery.docx`. A room button in the Meister's Study, on both faces, gated on
+the Meister's, the Hand's or the Baron's ring. It lists every account, sets the
+tax on the train's imports and exports (§0f), sets or closes any account but
+the Baron's, pays daily wages, and connects rings to accounts.
 
-There was a **Meister's Terminal** tag for about a day and it is gone. The
-terminal is a thing on a desk, so reaching the desk is the permission. The door's
-keys are read off the Room's own `accessTagSlugs` (`meisters-key` or
-`barons-key` today) rather than named in code, so re-keying the office in
-`docs/zones.yaml` moves the gate with it.
-
-**It comes and goes as its holder walks in and out of the Keep**, which is the
-cost of that decision and the one thing nothing else in this app does —
-`/lifeweb` gates on a tag and checks standing inside its actions
-instead. A superadmin reads it (host access, not game permission) but does not
-get the dial; `web/app/(app)/treasury/actions.js` re-checks the real gate.
-
-It shows every account — fingerprint, holder, role, class, balance — the Vault's
-coin against the sum of the TREASURY claims, and what is staged to sell. The one
-control is the **sell tax rate**, 0–100%, written to `Depot.sellTaxRate` with an
-audit row. Click an account, or follow `?account=<id>`, to see only that
-account's history.
-
-**The Transactions list** (`db/lib/treasuryLedger.js`) is built at read time from
-three places: deposits, withdrawals, transfers and opening balances off
-`EconomyEntry`,
-orders off `DepotOrder`, and settled sales off `DepotSale`. It shows only the
-**General manifest's** side of the bank. An order with even one Black Market or
-Merchant line is left out whole, as are sales into the Merchant's books and the
-Company's credit line. That is judged line by line, never by
-`DepotOrder.manifestId`, which records only the last ware carted. An order
-stamped `ANONYMOUS` or with a Custom label shows under that stamp with no
-fingerprint, and never in its account's own view. The account table names every
-fingerprint, so showing it there would unmask the buyer.
-
-**A transfer is two rows, not one** — the sender's and the recipient's, each
-under its own account, because an account-to-account payment has a bank on both
-ends and a single row would lose one of them. Filtered to one account, it is
-whichever end that account is standing on. A claim surrendered to the treasury
-has only the one end, so it draws as one row against the sender.
+It replaced `/treasury`, a page that followed its holder in and out of the
+Tower on the nav rail (and before that, a Meister's Terminal tag that lived for
+about a day). Its ledger is still `db/lib/treasuryLedger.js`, and still shows
+only the **General manifest's** side of the old counter: an order with even one
+Black Market or Merchant line is left out whole, an order stamped `ANONYMOUS`
+or with a Custom label shows under that stamp and never in its account's own
+view, and a transfer is two rows, one per book (`MEISTERY.md` §7).
 
 The ATMs tab no longer shows a player the Vault's total, and its Withdraw
 dialog caps at the balance rather than the Vault for the same reason. A
@@ -825,7 +797,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | Page | none — `/depot` redirects to `/chat` (§0k). The Merchant's Terminal is a fixture on the Depot (§0c) |
 | Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs and a ring-locked one to the Storefront. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it |
 | Rooms | the Railway, the Merchant's Office and the Cargo Bay, and the Merchant's Counter opens onto it from the Storefront (§0b). The Inn's and the Den's bars carry infoterminals of their own (§0l) |
-| Gates | the Merchant's License or the Merchant's ring (`merchants-terminal-key`) for the terminal (§0c); `depot-keycard` for the way through, the Cargo Bay and a sealed crate. The Black Market terminal gates on the `black-market-key` ring token (§0n). `/treasury` gates on standing in the Tower with a key to the Meister's office (§0h) |
+| Gates | the Merchant's License or the Merchant's ring (`merchants-terminal-key`) for the terminal (§0c); `depot-keycard` for the way through, the Cargo Bay and a sealed crate. The Black Market terminal gates on the `black-market-key` ring token (§0n). The Meister's Terminal gates on standing in the Tower with the Meister's, the Hand's or the Baron's ring (§0h, `MEISTERY.md` §2) |
 | Audit kinds | `merchant_terminal_insert`, `merchant_terminal_withdraw`, `merchant_terminal_order`, `merchant_terminal_order_edit`, `merchant_terminal_order_remove`, `train_import`, `train_export`, `train_ran`, `request_depot_atm`, `request_depot_send`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`. Retired, still in old rows: `request_depot_order`, `request_depot_drop`, `request_depot_credit`, `request_depot_account_open` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/crates.js`, `db/lib/merchantTerminalText.js` |
 
@@ -843,9 +815,9 @@ a role check would quietly break the trade. The ring is the other half of that:
 a stolen Merchant's ring on somebody else's finger unlocks the terminal too.
 
 A GM reads the terminal's coin and can correct it from `/gm/dev?s=depot`. A
-superadmin reads `/treasury` without walking to the Tower — host access
-rather than game permission, the way `/lifeweb` works — but does not get the
-tax dial.
+superadmin reads the Meister's books there too, read-only, without walking to
+the Tower — host access rather than game permission, the way `/lifeweb` works
+(`MEISTERY.md` §6).
 
 ## 3. Buying
 

@@ -1,6 +1,7 @@
 // The Discord buttons this change put on places (db/lib/placeAffordances.js):
-// Actions on every Location anchor, Send money on the Depot's Railway, Sell
-// tax in the Meister's Study. (Merchant credit went with the Depot Overhaul.) They are Discord's own —
+// Actions on every Location anchor and Send money on the Depot's Railway.
+// (Merchant credit went with the Depot Overhaul, and the Meister's Sell tax
+// with the Meister's Terminal, which is on both faces.) They are Discord's own —
 // the web has the same verbs elsewhere — so the web's place panel must not
 // draw them. And a starter post splits into rows of five, or Discord rejects
 // the whole message.
@@ -38,14 +39,26 @@ test("the Railway carries Send money and no credit line, and splits into rows of
   }
 });
 
-test("the Meister's Study carries Sell tax; no other room does", () => {
-  assert.ok(roomAffordances(STUDY).some((a) => a.id === "sellTax"));
-  assert.ok(!roomAffordances(RAILWAY).some((a) => a.id === "sellTax"));
+test("the Meister's Study carries the Meister's Terminal on both faces; no other room does", () => {
+  // docs/systemdocs/MEISTERY.md: the terminal replaced the Discord-only Sell tax.
+  for (const web of [false, true]) {
+    const ids = roomAffordances(STUDY, null, { web }).map((a) => a.id);
+    assert.ok(ids.includes("meisterTerminal"), ids.join(", "));
+    assert.ok(!ids.includes("sellTax"), "Sell tax is gone");
+  }
+  assert.ok(!roomAffordances(RAILWAY).some((a) => a.id === "meisterTerminal"));
+  assert.equal(actionFor("selltax"), null);
+});
+
+test("the Meistery Window's street side offers Storage and no terminal", () => {
+  // A room seen from a side it opens onto (roomSides.js#roomAt sets sideId).
+  const window = { id: "r-window", slug: "fortress-5-4", sideId: "side-1", phone: null, questId: null, vendingMachine: false };
+  assert.deepEqual(roomAffordances(window).map((a) => a.id), ["storage"]);
 });
 
 test("the web's room panel never draws Discord's own buttons", () => {
   const web = roomAffordances(RAILWAY, null, { web: true }).map((a) => a.id);
-  for (const id of ["sendMoney", "merchantCredit", "sellTax"]) assert.ok(!web.includes(id), id);
+  for (const id of ["sendMoney", "merchantCredit"]) assert.ok(!web.includes(id), id);
   assert.ok(web.includes("atm"), "the ATM is a web fixture too");
 });
 

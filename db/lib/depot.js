@@ -14,10 +14,10 @@ function isMerchantRole(slug) {
   return slug === MERCHANT_ROLE_SLUG;
 }
 
-// The Meister's study, and the room whose key decides who reads /treasury.
-// A ROOM rather than a tag: the terminal is a thing on a desk, so the gate is
-// standing in the Tower and being able to get through that door — whichever
-// key docs/zones.yaml says opens it. See docs/systemdocs/DEPOT.md §0h.
+// The Meister's Study, and the room whose keys decide who works the Meister's
+// Terminal on its wall. A ROOM rather than a tag: the terminal is a thing on a
+// wall, so the gate is standing in the Tower with a key to that door — whichever
+// keys docs/zones.yaml says open it. See docs/systemdocs/MEISTERY.md §2.
 //
 // The study was in the Keep until the 2026-09-19 map rework moved it up the
 // Tower. These two have to name the SAME place or the gate is unsatisfiable.

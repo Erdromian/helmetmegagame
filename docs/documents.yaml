@@ -635,9 +635,9 @@ documents:
     tags: []
     roles: [meister, baron, hand]
     description: |-
-      Ravenheart's economy functions in a simple way. Crafters and producers sell their goods at the depot's Dropbox, which is automatically collected into the seller's account. A sell tax, set by the Meister, is automatically withheld. Interesting goods can be bought from the Merchant.
+      Ravenheart's economy functions in a simple way. The train carries goods in and out of the Depot, and a tax, set by the Meister, is taken on everything it brings in and everything it takes away. The tax goes into the treasury. Interesting goods can be bought from the Merchant.
 
-      Everyone's accounts are backed by the treasury in the Keep, so if everyone draws at the same time, the Keep will be unable to pay its dues.
+      Everyone's accounts are backed by the treasury in the Keep, so if everyone draws at the same time, the Keep will be unable to pay its dues. The Meister can pay daily wages into accounts, or take them out, and can edit or close any account but the Baron's.
   godardfactory:
     name: Godard Factory
     public: false

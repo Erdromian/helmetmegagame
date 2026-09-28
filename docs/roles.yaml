@@ -354,7 +354,7 @@ groups:
         You are the Keep's circulatory system. Organize the various systems of Ravenheart and ensure the economy remains in order.
       description:
         - >-
-          Your terminal lists every account in Ravenheart and allows you to set the sell tax. Be careful to not withdraw too much from the Treasury, or people's accounts will no longer be backed by your obols, certainly leading to rebellion.
+          The terminal in your study lists every account in Ravenheart. From it you set the tax on everything the train brings in and takes away, pay daily wages to whole fates or to single people, edit or close any account but the Baron's, and connect rings to accounts. Be careful not to promise more than the Treasury holds, or people's accounts will no longer be backed by your obols, certainly leading to rebellion.
       difficulty: normal
       bank_account: treasury
       starting_account: 4

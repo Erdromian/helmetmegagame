@@ -583,13 +583,14 @@ Move.
 
 **The place buttons** come from `db/lib/placeAffordances.js`. Entries marked
 `discordOnly` are dropped from the web's place panels, since the web already has
-the infoterminal's dialog and `/treasury`.
+the infoterminal's dialog. The Meister's Terminal is a room button on both faces
+(`MEISTERY.md` §6); its Discord panel is `bot/src/events/interactions/meisterTerminal.js`
+and its ids start `mst:`.
 
 | Button | Where | Starts |
 |---|---|---|
 | Actions | every Location anchor, after Travel | the Actions menu |
 | Send money | the Depot's Railway post | `/money send` |
-| Sell tax | the Meister's Study | `/selltax` |
 
 Each place button refuses anybody who isn't standing there. The rule itself
 decides that, not the button. A post with more than five buttons is split by
@@ -685,7 +686,7 @@ parsed by literal `startsWith` + `slice`.
 | `cbt:calloff:{participantId}` | Button | Call off a fight — ends it once every attacker has pressed it |
 | `act:open` | Button | The Actions menu (§2g) — on the anchors and the `#turns` console |
 | `act:menu:{section}:{n}` | Select | Start the verb picked from one section of the menu |
-| `act:start:{mode}` | Button | Start one verb — the place buttons (`act:start:sendmoney`, `…credit`, `…selltax`) |
+| `act:start:{mode}` | Button | Start one verb — the place buttons (`act:start:sendmoney`, and the retired `…credit` and `…selltax`) |
 | `act:v:{mode}:{step}[:{payload}]` | Button / Select | One step of a verb's flow — a picker, a confirm, `cancel` |
 | `act:m:{mode}[:{payload}]` | Modal | A verb's form submitted |
 | `meta:feedback` | Button | Show the Feedback modal |

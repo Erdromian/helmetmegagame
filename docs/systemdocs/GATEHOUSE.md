@@ -134,8 +134,8 @@ rule (RINGS.md §5) — the PIN is written on them, so stolen papers are as good
 the PIN to anybody who can read.
 
 **Once a character.** Approval is refused while the character holds any
-treasury account. The Meister's **Close account** on `/treasury`
-(`depotCounter.js#closeAccount`) writes the balance off (`ACCOUNT_CLOSED`) and
+treasury account. The Meister's **Close account** on the Meister's Terminal
+(`meisterTerminal.js#closeAccount`, `MEISTERY.md` §3) writes the balance off (`ACCOUNT_CLOSED`) and
 deletes the account; the old papers then open nothing, and the character can be
 documented afresh. That includes an empty account opened at the counter's
 **Create an account** button (DEPOT.md): a Bum or a Migrant who opens one there
@@ -214,7 +214,7 @@ Discord: `bot/src/events/interactions/gatehouse.js`. Every rule is in
 | `db/lib/gateControls.js` | the anchor gate and the remote lever |
 | `db/lib/gates.js#toggleGate` | the ring check, the lever's room check, the Gatehouse hearing the lever |
 | `db/lib/placeAffordances.js` | the buttons, and `sides: true` |
-| `db/lib/depotCounter.js` | Documents at the infoterminal; `closeAccount` |
+| `db/lib/depotCounter.js` | Documents at the infoterminal (the Meister's Close account is `db/lib/meisterTerminal.js`) |
 | `db/lib/paperMint.js#mintDocuments` | the paper |
 | `db/prisma/migrations/20261114000000_gatehouse_rework` | the tables, and the geography on a running game |
 | `db/test/gatehouse.test.js` | the rules, the map, and the whole flow against Postgres |

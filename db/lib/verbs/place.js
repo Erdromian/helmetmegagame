@@ -1,12 +1,10 @@
 // The verbs tied to one place or to the player rather than their character,
-// both faces: the Meister's tax in his office, Feedback, and readying up in the
-// lobby. (The Merchant's credit line lived here until the Depot Overhaul took
-// it away.) Each was a web server action (treasury/actions.js, feedbackActions.js,
-// character/lobbyActions.js) and still is — that action calls the function
-// here, and so does the Discord bot (bot/src/lib/verbs/place.js). See
-// ./common.js for the result shape.
-const { blockerFor, ACT } = require("../incapacitation");
-const { canReadTreasury } = require("../depotCounter");
+// both faces: Feedback, and readying up in the lobby. (The Merchant's credit
+// line lived here until the Depot Overhaul took it away, and the Meister's tax
+// until the Meister's Terminal did — db/lib/meisterTerminal.js.) Each was a web
+// server action (feedbackActions.js, character/lobbyActions.js) and still is —
+// that action calls the function here, and so does the Discord bot
+// (bot/src/lib/verbs/meta.js). See ./common.js for the result shape.
 const { readGameState } = require("../gameState");
 const { hasGmRole, hasPlaytestRole, hasContributorRole, PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID, SUPERADMIN_DISCORD_IDS } = require("../roleIds");
 const {
@@ -17,39 +15,7 @@ const {
   feedbackWaitMs,
 } = require("../feedbackLimits");
 const { postFeedbackToDiscord } = require("../feedback");
-const { logAudit } = require("../auditLog");
 const { refuse, asResult } = require("./common");
-
-// --- The Meister's sell tax (web: treasury/actions.js#setSellTaxRateImpl) --------
-
-// The terminal in the Meister's office. canReadTreasury is the gate — standing
-// there, behind a door that opens for you — and the dial is game permission.
-function setSellTax(prisma, { discordUserId, rate: rawRate, openTurn }) {
-  return asResult(async () => {
-    const gate = await canReadTreasury(prisma, discordUserId);
-    if (!gate.ok) refuse(gate.error);
-    const character = await prisma.character.findUnique({
-      where: { id: gate.character.id },
-      include: { tags: { include: { tag: true } } },
-    });
-    const blocker = blockerFor(character.tags, ACT);
-    if (blocker) refuse(`You can't act — you're ${blocker.name}.`);
-    const rate = Number(rawRate);
-    if (!Number.isInteger(rate) || rate < 0 || rate > 100) refuse("A rate is a whole number from 0 to 100.");
-    const before = (await prisma.depot.findUnique({ where: { id: 1 }, select: { sellTaxRate: true } }))?.sellTaxRate ?? 0;
-    await prisma.$transaction(async (tx) => {
-      await tx.depot.upsert({ where: { id: 1 }, update: { sellTaxRate: rate }, create: { id: 1, sellTaxRate: rate } });
-      await logAudit(tx, {
-        actorDiscordUserId: discordUserId,
-        actionType: "sell_tax_rate_set",
-        targetCharacterId: character.id,
-        turnId: openTurn?.id ?? null,
-        details: { before, after: rate },
-      });
-    });
-    return { rate, before, line: `The sell tax is ${rate}% now.` };
-  });
-}
 
 // --- Feedback (web: feedbackActions.js#submitFeedback) ----------------------------
 
@@ -157,7 +123,6 @@ function setUnready(prisma, { discordUserId, roleIds }) {
 }
 
 module.exports = {
-  setSellTax,
   submitFeedback,
   onRoster,
   playtestRosterClosed,

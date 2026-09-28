@@ -51,7 +51,7 @@ const VERBS = Object.assign({}, ...FAMILIES);
 
 // The Actions button's own custom id (Location anchors, the #turns console),
 // the menu's one select per section, and a button that starts one verb
-// outright — the Depot's Send money, the Meister's Sell tax (db/lib/placeAffordances.js).
+// outright — the Depot's Send money (db/lib/placeAffordances.js).
 const MENU_PREFIX = "act:menu:";
 const START_PREFIX = ACTION_START_PREFIX;
 

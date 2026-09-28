@@ -206,12 +206,8 @@ const GATEHOUSE_TEXT = Object.freeze({
     `${clerk} printed documents for ${realName} as ${name}, ${occupation}.`,
   archiveDocumentsDenied: (clerk, realName) => `${clerk} denied ${realName}'s application for documents.`,
 
-  // ─── The Meister's delete (/treasury) ───────────────────────────────────
-  deleteAccount: "Close account",
-  deleteConfirm: (name) =>
-    `Close ${name}'s account? Its balance is written off, and any documents printed for it stop working.`,
-  deleteDone: (name) => `${name}'s account is closed.`,
-  deleteGone: "That account is already closed.",
+  // The Meister's Close account moved to the Meister's Terminal, and its words
+  // to db/lib/meisterTerminalText.js.
 });
 
 module.exports = {

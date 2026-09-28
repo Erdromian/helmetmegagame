@@ -131,7 +131,6 @@ const ACTIONS = [
 
   // --- Tied to one room: a button on that room's post, never the menu. -------
   { mode: "sendmoney", label: "Send money", section: "place", command: "money", sub: "send", description: "Send money from your account, at the Depot.", run: "native" },
-  { mode: "selltax", label: "Set the sell tax", section: "place", command: "selltax", sub: null, description: "Set the Depot's sell tax, from the Meister's office.", run: "native" },
 ];
 
 const BY_MODE = new Map(ACTIONS.map((a) => [a.mode, a]));
