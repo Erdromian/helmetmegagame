@@ -19,6 +19,7 @@ const { renameCatatonicRoles } = require("./turnSideEffects/steps/roleRenames");
 const { handleDeaths } = require("./turnSideEffects/steps/death");
 const { sendHungerNotices } = require("./turnSideEffects/steps/hunger");
 const { applyRelocations } = require("./turnSideEffects/steps/relocations");
+const { applyRoomEntries } = require("./turnSideEffects/steps/roomEntries");
 const { runXomOutcomes } = require("./turnSideEffects/steps/xom");
 const { deliverStagedPrivate } = require("./turnSideEffects/steps/delivery");
 const { runBroadcasts } = require("./turnSideEffects/steps/broadcasts");
@@ -62,6 +63,7 @@ function buildSideEffectPayload(fields) {
     stagedDeaths: fields.stagedDeaths ?? [],
     hungerNotices: fields.hungerNotices ?? [],
     zoneMoves: fields.zoneMoves ?? [],
+    roomEntries: fields.roomEntries ?? [],
     xomDeaths: fields.xomDeaths ?? [],
     xomTeleports: fields.xomTeleports ?? [],
     xomConversations: fields.xomConversations ?? [],
@@ -144,6 +146,9 @@ async function runTurnSideEffects(prisma, { turnId, payload }) {
   await sendHungerNotices(ctx);
 
   await applyRelocations(ctx);
+
+  // After the relocations, whose own sync would otherwise run on a Location the let-in never saw.
+  await applyRoomEntries(ctx);
 
   await runXomOutcomes(ctx);
 

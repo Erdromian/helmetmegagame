@@ -549,6 +549,7 @@ async function resolveNeeds(turn, config) {
     privateDeliveries = [],
     publicPosts = [],
     zoneMoves = [],
+    roomEntries = [],
     routineNotices = [],
     gambitRollNotices = [],
     deaths: stagedDeaths = [],
@@ -565,6 +566,7 @@ async function resolveNeeds(turn, config) {
         routineNotices: routineNotices.length,
         gambitRollNotices: gambitRollNotices.length,
         deaths: stagedDeaths.length,
+        roomEntries: roomEntries.length,
       },
       "Staged push",
     );
@@ -1108,6 +1110,7 @@ async function resolveNeeds(turn, config) {
     privateDeliveries,
     publicPosts,
     zoneMoves,
+    roomEntries,
     stagedDeaths,
     xomDeaths,
     xomTeleports,
@@ -1285,6 +1288,7 @@ async function advanceTurn() {
   let privateDeliveries = [];
   let publicPosts = [];
   let zoneMoves = [];
+  let roomEntries = [];
   let stagedDeaths = [];
   let xomDeaths = [];
   let xomTeleports = [];
@@ -1341,6 +1345,7 @@ async function advanceTurn() {
       privateDeliveries,
       publicPosts,
       zoneMoves,
+      roomEntries,
       stagedDeaths,
       xomDeaths,
       xomTeleports,
@@ -1439,6 +1444,7 @@ async function advanceTurn() {
         privateDeliveries,
         publicPosts,
         zoneMoves,
+        roomEntries,
         stagedDeaths,
         xomDeaths,
         xomTeleports,
@@ -1552,6 +1558,7 @@ async function advanceTurn() {
     stagedDeaths,
     hungerNotices,
     zoneMoves,
+    roomEntries,
     xomDeaths,
     xomTeleports,
     xomConversations,

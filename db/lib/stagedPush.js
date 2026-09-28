@@ -30,6 +30,7 @@ const { applyDeathWithVampireOverride, announceVampireAsh } = require("./vampire
 const { farmDm } = require("./soilery");
 const { breakInDm } = require("./arelitz");
 const { isDayLongTurn } = require("./turnClock");
+const { letInAtPush } = require("./roomGuests");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -147,7 +148,29 @@ async function applyOneStagedEffect(prisma, row, turn, notices = []) {
       return snapshot;
     }
 
-    const resources = Number.isInteger(row.payload?.resources) ? row.payload.resources : 0;
+    // A staged "let in" (ADJUDICATION.md §1): the RoomGuest row a GM's /add
+    // would write, and nothing else in this row. Only the row here — the thread
+    // add and the DM go out from the thunk once this commits. Where they stand is
+    // read live, and runStagedPushPass applies these last, so a Relocate staged
+    // alongside has already landed. `already` is a harmless no-op, not a failure.
+    if (row.payload?.roomEntry) {
+      const entry = await letInAtPush(tx, {
+        roomId: row.payload.roomEntry.id,
+        characterId: row.targetCharacterId,
+      });
+      if (entry.error) throw new StagedZoneError(entry.error);
+      snapshot.roomEntry = {
+        roomId: entry.room.id,
+        name: entry.room.name,
+        locationId: entry.room.locationId,
+        locationName: entry.room.location?.name ?? null,
+        ...(entry.already ? { already: entry.already } : {}),
+      };
+      await tx.stagedEffect.update({ where: { id: row.id }, data: { appliedEffect: snapshot } });
+      return snapshot;
+    }
+
+    const resources =Number.isInteger(row.payload?.resources) ? row.payload.resources : 0;
     if (resources) {
       snapshot.resources = await addResources(tx, row.targetCharacterId, resources);
     }
@@ -445,7 +468,16 @@ async function runStagedPushPass(prisma, turn) {
       },
     },
   });
-  for (const row of stagedEffects) {
+  // Let-ins that actually opened a door, for the thunk's thread add and DM.
+  const roomEntries = [];
+  // Every let-in goes after every other row, whatever order they were staged
+  // in: a let-in reads where its target stands, and a Relocate staged beside it
+  // has to have landed first or the row fails for a move that was coming.
+  const ordered = [
+    ...stagedEffects.filter((row) => !row.payload?.roomEntry),
+    ...stagedEffects.filter((row) => row.payload?.roomEntry),
+  ];
+  for (const row of ordered) {
     try {
       // Queued per row and kept only once that row commits, so a rolled-back row never tells anyone anything.
       const rowNotices = [];
@@ -453,6 +485,14 @@ async function runStagedPushPass(prisma, turn) {
       if (snapshot) {
         effectsApplied += 1;
         craftNotices.push(...rowNotices);
+        if (snapshot.roomEntry && !snapshot.roomEntry.already) {
+          roomEntries.push({
+            characterId: row.targetCharacterId,
+            discordUserId: row.targetCharacter?.discordUserId ?? null,
+            roomName: snapshot.roomEntry.name,
+            locationName: snapshot.roomEntry.locationName,
+          });
+        }
         if (snapshot.location) {
           const target = row.targetCharacter;
           if (target?.status === "ALIVE" && target.discordUserId) {
@@ -723,6 +763,7 @@ async function runStagedPushPass(prisma, turn) {
     publicPosts,
     zoneMoves,
     deaths,
+    roomEntries,
   };
 }
 

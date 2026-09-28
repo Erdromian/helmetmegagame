@@ -213,6 +213,9 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     // { gib, reason }: a staged death (db/lib/stagedPush.js short-circuits on it); appliedDeath mirrors the write — { claimed: false } is a no-op, not a failure.
     death: e.payload?.death ? { gib: e.payload.gib === true, reason: e.payload.reason ?? null } : null,
     appliedDeath: e.appliedEffect?.death ?? null,
+    // { id, name, locationName }: a staged let-in (db/lib/roomGuests.js#letInAtPush); appliedRoomEntry.already marks a harmless no-op.
+    roomEntry: e.payload?.roomEntry ?? null,
+    appliedRoomEntry: e.appliedEffect?.roomEntry ?? null,
     // A player's own craft waiting for the push (CRAFTING.md §3a), not a GM's staging — the tray says so.
     craftYield: e.payload?.craftYield === true,
     applied: Boolean(e.appliedAt),

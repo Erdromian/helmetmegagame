@@ -56,6 +56,9 @@ export function StagedEffectRow({
   // own composer (DeathComposer.js): it carries none of EffectComposer's
   // other fields to reopen into.
   const isDeath = Boolean(effect.death);
+  // A let-in is only its target and its room, both fixed once staged, so like
+  // a transfer there is nothing to edit: Delete and re-stage.
+  const isRoomEntry = Boolean(effect.roomEntry);
 
   async function onDelete() {
     setDeleteError(null);
@@ -127,7 +130,7 @@ export function StagedEffectRow({
         <StatusPill tone={state.tone}>{state.label}</StatusPill>
         {!frozen && (
           <>
-            {!isTransfer && (
+            {!isTransfer && !isRoomEntry && (
               <button type="button" className="btn-quiet" onClick={() => setEditing(true)} disabled={pending}>
                 Edit
               </button>
@@ -161,7 +164,7 @@ export function StagedEffectRow({
           onCancel={() => setEditing(false)}
         />
       )}
-      {editing && !isTransfer && !isRoom && !isDeath && (
+      {editing && !isTransfer && !isRoom && !isDeath && !isRoomEntry && (
         <EffectComposer
           existing={effect}
           roster={roster}

@@ -4867,6 +4867,12 @@ model StagedEffect {
   // `gib: true` mints no corpse (CORPSES.md §1a). A target no longer ALIVE
   // by push time (killed some other way meanwhile) resolves as a clean
   // no-op rather than an error — `appliedEffect.death.claimed === false`.
+  //
+  // A ROOM ENTRY row is the fifth shape: `{ roomEntry: {id, name,
+  // locationName} }` with a real targetCharacterId and no other key — the
+  // RoomGuest pass a GM's /add gives, written at the push by
+  // db/lib/roomGuests.js#letInAtPush, and applied after every other row so a
+  // staged relocation lands first (ADJUDICATION.md §1).
   payload Json
 
   appliedAt     DateTime?
