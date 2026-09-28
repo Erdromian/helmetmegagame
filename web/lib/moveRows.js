@@ -5,6 +5,7 @@ import { statusWord, WORKING_STATUSES } from "@lifeweb/db/lib/structures";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
+import { desireIsAutoUnchecked } from "@lifeweb/db/lib/desireReview";
 
 // The DTO mappers the adjudication desk's queue is built from, one place so the RSC and server-action callers can't drift.
 export const MOVE_INCLUDE = {
@@ -315,9 +316,13 @@ export const DESIRE_CLAIM_INCLUDE = {
   },
 };
 
+// Three states on the desk (DESIRES.md §6a–6b): Waiting on a GM, Auto-confirmed
+// (the claim found its own proof — reviewedAt stamped, no person behind it),
+// and Reviewed by a GM. An auto row a GM then Keeps becomes Reviewed.
 export function desireClaimRow(d, { usernameById, catatonicIds } = {}) {
   const c = d.character;
   const reviewed = Boolean(d.reviewedAt);
+  const auto = desireIsAutoUnchecked(d);
   return {
     id: d.id,
     characterId: c.id,
@@ -334,9 +339,12 @@ export function desireClaimRow(d, { usernameById, catatonicIds } = {}) {
     turnNumber: d.setTurnNumber,
     reason: d.reason ?? "",
     reviewedAt: reviewed ? d.reviewedAt.getTime() : null,
+    auto,
+    autoNote: d.autoVerifiedNote ?? "",
+    autoAuditIds: d.autoVerifiedAuditIds ?? [],
     verifyQuery: d.template?.verifyQuery ?? "",
     rule: d.template?.description ?? "",
-    statusLabel: reviewed ? "Reviewed" : "Waiting",
+    statusLabel: auto ? "Auto-confirmed" : reviewed ? "Reviewed" : "Waiting",
     searchText: `${c.name} ${d.text}`,
     createdAtMs: d.createdAt.getTime(),
   };

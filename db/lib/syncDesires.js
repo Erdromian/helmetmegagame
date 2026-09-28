@@ -12,8 +12,24 @@
 // scalars by slug; 2. resolve the tag/role requirement links; 3. soft retire.
 const fs = require("node:fs");
 const yaml = require("js-yaml");
+const { Prisma } = require("@prisma/client");
 const { docsPath } = require("./repoPaths");
 const { entriesOf } = require("./yamlEntries");
+const { validateAutoVerify } = require("./desireAutoVerify");
+
+// Key-order-blind JSON, for diffing a Json column: Postgres jsonb hands keys
+// back in its own order, so a plain JSON.stringify would call every
+// autoVerify changed on every run.
+function stableJson(value) {
+  if (Array.isArray(value)) return `[${value.map(stableJson).join(",")}]`;
+  if (value && typeof value === "object") {
+    return `{${Object.keys(value)
+      .sort()
+      .map((k) => `${JSON.stringify(k)}:${stableJson(value[k])}`)
+      .join(",")}}`;
+  }
+  return JSON.stringify(value ?? null);
+}
 
 // 1 is most Desires, 2 the hard ones, 3 the really good ones, 4 the top tier and 5 the very biggest (every 4 and 5
 // is once-per-game). 6 and 7 are retired: tier 7 used to mark a Desire once-per-game, and that is now
@@ -131,6 +147,8 @@ async function syncDesiresFromYaml(prisma) {
     if (d.verify != null && (typeof d.verify !== "string" || d.verify.trim() === "")) {
       throw new Error(`docs/desires.yaml: desire "${d.slug}" has a "verify" that is not a non-empty string`);
     }
+    // Throws on a bad shape; the canonical form is what pass 1 stores.
+    d.autoVerify = validateAutoVerify(d.slug, d.autoVerify, { knownTagSlugs });
     if (d.oncePerLife != null && typeof d.oncePerLife !== "boolean") {
       throw new Error(`docs/desires.yaml: desire "${d.slug}" has a non-boolean oncePerLife`);
     }
@@ -193,6 +211,10 @@ async function syncDesiresFromYaml(prisma) {
       // Empty string is not "unset" here any more than for the other
       // scalars — an absent or blank `verify:` both mean null.
       verifyQuery: entry.verify?.trim() || null,
+      // Already validated and canonicalized in pass 0 (DESIRES.md §6b).
+      // DbNull, not null: a bare null on a Json column is JSON null, and "no
+      // rule" is meant to be SQL NULL.
+      autoVerify: entry.autoVerify ?? Prisma.DbNull,
       // Default AND. Only an explicit `combine: or` joins anyTags/anyRoles
       // with OR — see db/lib/desireGates.js#evalRequires.
       requiresAnyOf: entry.requires?.combine === "or",
@@ -210,6 +232,7 @@ async function syncDesiresFromYaml(prisma) {
     } else {
       const needsUpdate = Object.entries(scalars).some(([key, value]) => {
         if (Array.isArray(value)) return JSON.stringify(value) !== JSON.stringify(row[key]);
+        if (key === "autoVerify") return stableJson(value === Prisma.DbNull ? null : value) !== stableJson(row[key]);
         return row[key] !== value;
       });
       if (needsUpdate) {

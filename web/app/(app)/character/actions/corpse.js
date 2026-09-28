@@ -222,6 +222,8 @@ export async function butcherCorpseRequestImpl({
       targetCharacterId: corpse.deadCharacterId ?? character.id,
       details: {
         corpse: corpse.tagName,
+        // Read by the "Butcher a human" auto-confirm (DESIRES.md §6b).
+        human: Boolean(corpse.human),
         made: corpse.yields.map((y) => yieldTagBySlug.get(y.slug).name),
         source: corpse.source.kind,
         ...(harvests.length

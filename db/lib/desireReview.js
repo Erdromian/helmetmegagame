@@ -27,6 +27,26 @@ function desireReviewWhere() {
   };
 }
 
+// Auto-confirmed and not yet checked by a person (DESIRES.md §6b): the claim
+// found its own proof, so it was born with reviewedAt stamped and reviewedBy
+// null. It asks nothing of a GM — it is not in the tab count — but a GM may
+// still Keep it (filling reviewedBy in) or Reject it.
+function desireIsAutoUnchecked(desire) {
+  return Boolean(desire?.autoVerifiedAt) && !desire.reviewedBy;
+}
+
+// Whether a GM's Keep or Reject may still act on this row: waiting on a
+// person, or auto-confirmed with no person behind it yet. Pure twin of
+// desireAnswerableWhere below.
+function desireAnswerable(desire) {
+  if (!desire) return false;
+  return !desire.reviewedAt || desireIsAutoUnchecked(desire);
+}
+
+function desireAnswerableWhere() {
+  return { OR: [{ reviewedAt: null }, { autoVerifiedAt: { not: null }, reviewedBy: null }] };
+}
+
 // The transaction body of revoking a GM-fulfilled Desire, shared by the review queue's reject action
 // and the Dev Panel's revoke button (web/app/(app)/gm/dev/characters/[characterId]/actions.js).
 // Deliberately does NOT touch mood — DESIRE_RELIEF_PER_POINT (docs/systemdocs/MOOD.md) is never reversed here.
@@ -50,5 +70,8 @@ module.exports = {
   DesireRevokeRefused,
   desireNeedsReview,
   desireReviewWhere,
+  desireIsAutoUnchecked,
+  desireAnswerable,
+  desireAnswerableWhere,
   revokeDesireCore,
 };

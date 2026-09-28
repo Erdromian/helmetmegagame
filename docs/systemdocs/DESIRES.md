@@ -485,7 +485,9 @@ silently stops showing up.
 row, no DM, no `tagPoints` movement. It is a mark-as-seen, and the update is
 conditional on `reviewedAt: null`, so a second Keep (another GM, a
 double-click) finds nothing left to claim and just reports that rather than
-throwing (`keepDesireClaimImpl`).
+throwing (`keepDesireClaimImpl`). An auto-confirmed claim nobody has checked
+(§6b) is the one exception: it already carries a `reviewedAt`, and Keep and
+Reject both still act on it.
 
 **Reject** is the load-bearing button. It runs `revokeDesireCore` — the same
 transaction body the Dev Panel's `revokeDesireGmImpl` uses (§6), lifted out
@@ -549,6 +551,93 @@ call the rail's own guarded `refresh()` instead. That is the same trade-off
 `AvatarReviewRow` already made, for the same reason: a fifth row type through
 the desk store, the live stream, and the trigger set is a lot of machinery
 for two buttons nobody presses twice in the same turn.
+
+## 6b. Auto-confirmed claims
+
+Most of the queue in §6a is a GM reading one log line the game could have
+read itself: somebody claimed Drink sake, and the audit log says they drank a
+Sake an hour ago. So a Desire may carry an `autoVerify:` rule (§10), and a
+claim against it checks for its own proof the moment it lands.
+
+**What changes for the player: nothing.** They still pick the Desire, still
+type how they pulled it off (§8), and the points still land at once. The only
+difference is where the claim goes next.
+
+**The proof has to be this turn's.** `claimDesireImpl` calls
+`findAutoEvidence` (`db/lib/desireAutoVerify.js`) inside its transaction,
+under the same `FOR UPDATE` lock on `Character`. It looks for the rule's audit
+rows with `createdAt >= Turn.startedAt` of the open turn. It never uses
+`AuditLog.turnId`, because that column is only written where a ration counts
+the row (`REQUESTS.md` §1a), so transfers, crafts and builds leave it null. A
+row the claimant's **account** wrote only counts from this character's own
+creation onward, the same bound `getCharacterAuditSliceImpl` draws, so a dead
+predecessor's act from earlier the same turn is not this character's. The one
+check that reads no log is `holds`: it reads what the character is carrying
+at that instant, inside the transaction.
+
+**Proof is enough; no proof proves nothing.** When it is found, the row is
+born with `autoVerifiedAt`, the cited `autoVerifiedAuditIds`, one GM-facing
+sentence in `autoVerifiedNote` ("Consumed Sake", "Held 112 Obol when
+claiming"), and `reviewedAt` stamped with `reviewedBy` left **null**. The same
+proof goes on the `request_fulfill_desire` audit row as `autoVerified`. When it
+isn't found, nothing is written and the claim waits in §6a exactly as before.
+So a rule is only ever written where the proof is beyond argument. Anything
+that needs a GM to judge motive ("torture someone for a reason") or to read
+something the log doesn't carry (which side accepted a kiss, whether goods
+were stolen) stays off the list.
+
+**One act confirms one claim.** Any audit row already cited by another of this
+character's FULFILLED auto-confirmed claims is skipped. So one Sake can
+auto-confirm Drink sake **or** Drink alcohol, and the other claim waits for a
+GM. A rejected claim is CANCELLED, which frees its rows again. `holds` cites
+nothing, so its per-Desire cooldown (§2) is its only throttle, as it always was.
+
+**What the desk shows.** `desireIsAutoUnchecked` (`db/lib/desireReview.js`) is
+the state: `autoVerifiedAt` set and `reviewedBy` null.
+- The Desires lens gives it a third status, **Auto-confirmed**, between Waiting
+  and Reviewed. It filters and sorts on it. The row is dimmed like a reviewed
+  one, with an "Auto-confirmed: …" line under the reason.
+- The tab count still counts only `reviewedAt: null` rows, so an auto row asks
+  nothing of a GM.
+- It **keeps both buttons**. Keep stamps `reviewedBy` (now it reads Reviewed),
+  and Reject runs `revokeDesireCore` like any other claim.
+  `desireAnswerable`/`desireAnswerableWhere` are the pair Keep and Reject both
+  gate on.
+- `DesireDesk.js` names the proof at the top and marks the cited rows
+  "Proof" in the audit slice.
+- Once a person has Kept it, Reject refuses it like any reviewed claim.
+
+**The checks**, one per rule. Each is one audit shape, found by reading its
+writer:
+
+| check | proof |
+|---|---|
+| `consumed` | `request_consume_tag` naming the claimant, `details.tagId` in the list |
+| `kissed` | `kiss_accepted` written by the claimant's account (one row per side, only on acceptance) |
+| `slots` | `slot_machine` naming the claimant; `minWin` reads `details.payout`, the gross the machine pays out ("They gained 15 ¢"), the same number the four Win N ¢ Desires were written against |
+| `bought` | `vending_buy` naming the claimant. The Merchant's Terminal is left out on purpose: an order can be edited or removed after it is placed |
+| `crafted` | `request_craft_tag` naming the claimant, or a `craft_yield_arrived` whose `details.tags` landed the tag |
+| `built` | `build_completed` naming the claimant, `details.typeSlug` = the structure |
+| `gave` | `request_transfer_tag` by the claimant's account, from them to a character, the tag in the list, to `people` distinct recipients. A pickpocket's leg (`via: "pickpocket"`) never counts. Cites every hand-off |
+| `holds` | the claimant holds `quantity` or more (default 1) of one listed tag, right now |
+| `act` | one named verb in `ACTS`: bury, brand, torture, crucify, donate-own-blood, donate-others-blood, feed-lifeweb, butcher-human, escape-bonds, treated, let-through-town-gate, heard-confession, learned-skill, taught-skill |
+
+Two audit rows got one more field each so their `act` could be exact.
+`lesson_accepted` carries `succeeded` (a failed roll taught nothing), and
+`request_butcher_corpse` carries `human`. Rows written before that have
+neither, and simply fall to the queue.
+
+**Left out on purpose**, so nobody adds them back without thinking:
+- The drug Desires other than heroin. No tag field says what a drug is.
+- `torture-someone` and `crucify-a-heretic`. The motive is the point.
+- `listen-to-boombox`. A Performance writes no audit row.
+- `enter-the-depths`. Solo travel isn't audited.
+- Every theft. They are once-per-life, the stakes are high, and "stolen"
+  can't be read.
+- `dem-offered-kiss`. Which side accepted isn't in the row.
+- `confess-your-sins`. Whether it worked is settled later.
+- Anything spanning turns.
+- Every social or narrative goal.
 
 ## 7. The clawback rule
 
@@ -681,6 +770,7 @@ desires:
     cooldownTurns: 5              # optional, overrides tier as cooldown length
     oncePerLife: true             # optional; the only way to make a Desire once-per-game
     verify: "Alcohol"              # optional, see below
+    autoVerify: { check: consumed, tags: [alcohol] }   # optional, §6b
 ```
 
 **Desires carry no `description:`.** The field still syncs and
@@ -707,6 +797,16 @@ alcohol to three different people in one turn" — and never where a motive is
 left over for a player to argue about.
 It's validated in pass 0 (must be a non-empty string when present) and
 written in pass 1 alongside the other scalars.
+
+**`autoVerify:` is one rule** that lets a claim confirm itself (§6b), synced to
+`DesireTemplate.autoVerify`. Pass 0 runs
+`db/lib/desireAutoVerify.js#validateAutoVerify`: a known `check`, its required
+parameters and no others, tag slugs that exist in the Tag table (tags sync
+first), and an `act` name in `ACTS`. It stores the canonical form. Pass 1 diffs
+it key-order-blind, since jsonb hands keys back in its own order, and writes
+`Prisma.DbNull` for an entry with no rule. The grammar is listed at the top of
+`docs/desires.yaml`, next to `verify:`. 43 entries carry one as of this
+writing.
 
 `families:` is the fixed vocabulary every entry's `families` list draws
 from — nothing writes to it dynamically, and referencing an undeclared key
@@ -796,7 +896,8 @@ The section number is kept rather than renumbering everything below it.
 | `web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js` | GM Dev Panel surface — per-slot Award form (catalog or free text), Revoke on each past row, cooldown readout |
 | `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `awardDesireGm`/`revokeDesireGm` — gates bypassed, bookkeeping not (§6) |
 | `web/app/components/DesireRule.js` | Draws a template's `description` ("Counts: … / Doesn't count: …") in the catalog row, the Claim dialog and the review desk (§10) |
-| `db/lib/desireReview.js` | `desireNeedsReview`/`desireReviewWhere` (the review-queue predicate and its `where` twin) and `revokeDesireCore`, the shared transaction body Reject and `revokeDesireGmImpl` both call (§6a) |
+| `db/lib/desireReview.js` | `desireNeedsReview`/`desireReviewWhere` (the review-queue predicate and its `where` twin), `desireIsAutoUnchecked` and the `desireAnswerable`/`desireAnswerableWhere` pair Keep and Reject gate on (§6b), and `revokeDesireCore`, the shared transaction body Reject and `revokeDesireGmImpl` both call (§6a) |
+| `db/lib/desireAutoVerify.js` | Auto-confirmed claims (§6b): `validateAutoVerify` (the sync's grammar check), the pure `matchAutoVerify`, and `findAutoEvidence`, which the claim calls inside its transaction |
 | `web/app/(desk)/gm/turns/actions.js` | `keepDesireClaim`/`rejectDesireClaim` (the desk's two buttons, §6a) and `getCharacterAuditSlice` (the mini audit-log filter behind `DesireDesk.js`) |
 | `web/app/(desk)/gm/turns/DesireDesk.js` | The arbitration panel for one claim — reason, the audit-slice search box, Keep/Reject |
 | `web/app/(desk)/gm/turns/QueueRail.js` | `DesireClaimRow` — the Desires lens's row and its unreviewed-only tab count (§6a) |

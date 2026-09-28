@@ -6476,6 +6476,12 @@ model DesireTemplate {
   // anyway.
   verifyQuery          String?
 
+  // Optional auto-confirm rule (docs/desires.yaml `autoVerify:`), synced by
+  // db:sync-desires in the canonical form db/lib/desireAutoVerify.js#validateAutoVerify
+  // returns. When a claim finds its proof this turn, it skips the GM review
+  // queue (DESIRES.md §6b). Null for most desires.
+  autoVerify           Json?
+
   desires Desire[]
 }
 
@@ -6516,6 +6522,18 @@ model Desire {
   // reason AuditLog and its neighbours store actor ids that way rather than
   // pointing at a row that might not exist by the time anyone reads it.
   reviewedBy String?
+
+  // Set when the claim found its own proof and skipped the queue
+  // (DESIRES.md §6b, db/lib/desireAutoVerify.js). Such a row is born with
+  // reviewedAt stamped and reviewedBy NULL, which is what "auto-confirmed,
+  // no GM has checked it" means; a GM Keep fills reviewedBy in.
+  autoVerifiedAt       DateTime?
+  // The AuditLog rows cited as proof. Snapshot ids, not FKs, the same as
+  // AuditLog's own actor columns. Empty for a `holds` check, which reads the
+  // sheet. A row cited here can never confirm a second claim.
+  autoVerifiedAuditIds String[]  @default([])
+  // One GM-facing sentence: "Consumed Sake", "Held 112 Obol when claiming".
+  autoVerifiedNote     String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
