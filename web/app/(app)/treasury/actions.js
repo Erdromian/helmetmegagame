@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { setSellTax } from "@lifeweb/db/lib/verbs/place";
 import { registerHeldRing } from "@lifeweb/db/lib/ringRegistry";
+import { closeAccount } from "@lifeweb/db/lib/depotCounter";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { auth } from "@/lib/auth";
 import { getOpenTurn } from "@/lib/turn";
@@ -58,4 +59,24 @@ async function registerRingAtTerminalImpl(input) {
 
 export async function registerRingAtTerminal(input) {
   return acting(() => registerRingAtTerminalImpl(input));
+}
+
+// The third: closing an account, so its holder can be documented afresh at the
+// Town Gatehouse (docs/systemdocs/GATEHOUSE.md). Re-checked in
+// db/lib/depotCounter.js#closeAccount, the same gate the other two stand behind.
+async function closeTreasuryAccountImpl(input) {
+  const session = await auth();
+  if (!session?.discordUserId) redirect("/");
+  const result = await closeAccount(prisma, session.discordUserId, {
+    accountId: input?.accountId,
+    turn: await getOpenTurn(),
+  });
+  if (!result.ok) throw new UserError(result.error);
+  revalidatePath("/treasury");
+  revalidatePath("/gm/audit");
+  return { line: result.line };
+}
+
+export async function closeTreasuryAccount(input) {
+  return acting(() => closeTreasuryAccountImpl(input));
 }

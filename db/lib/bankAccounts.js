@@ -89,7 +89,16 @@ async function openAccount(tx, character, { accountClass = TREASURY, turnNumber 
 // `ctx` records the claim moving on the ledger (form ACCOUNT). The default
 // counterparty is BANK_CLEARING, because the coin half of most movements is
 // already booked by the tag hook and booking both ends twice is a double-count.
-async function bumpBankAccount(tx, accountId, amount, ctx) {
+//
+// NEGATIVE BALANCES. An account opened by the Town Gatehouse's Documents
+// starts owing its processing fee (docs/systemdocs/GATEHOUSE.md), so a
+// balance can be under zero. The floor is never ABOVE where the account
+// already stands: a deposit into -10 lands at -7 rather than being clamped up
+// to 0 (which would quietly write the debt off), and a debit from -10 moves
+// nothing, which every caller already refuses as a short move. `opts.floor`
+// lowers it, and only the fee passes one.
+async function bumpBankAccount(tx, accountId, amount, ctx, opts = {}) {
+  const floor = Math.min(0, Math.trunc(Number(opts.floor) || 0));
   const delta = Math.trunc(Number(amount) || 0);
 
   if (!delta) {
@@ -104,13 +113,14 @@ async function bumpBankAccount(tx, accountId, amount, ctx) {
       SELECT "balanceObols" AS before FROM "BankAccount" WHERE "id" = $2 FOR UPDATE
     )
     UPDATE "BankAccount" b
-    SET "balanceObols" = GREATEST(0, prev.before + $1::int), "updatedAt" = NOW()
+    SET "balanceObols" = GREATEST(LEAST($3::int, prev.before), prev.before + $1::int), "updatedAt" = NOW()
     FROM prev
     WHERE b."id" = $2
     RETURNING prev.before AS before, b."balanceObols" AS after
     `,
     delta,
     accountId,
+    floor,
   );
 
   const before = rows[0]?.before ?? 0;

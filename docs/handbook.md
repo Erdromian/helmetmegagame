@@ -185,7 +185,7 @@ There are six Zones in Bascinet:
 - The Caves
 - The Depths
 
-Every Zone is made of Locations — the Gatehouse, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move.
+Every Zone is made of Locations — the Courtyard, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move.
 
 A Location goes by what it is: the Gullies, the Grand Ravine, the Keep, the Cathedral, the Factory. Inside the walls a Location is addressed by its code off the map instead — town-2, fortress-5 — which is the same place said a shorter way.
 

@@ -255,6 +255,24 @@ A tower whose thread is missing renders a flip nowhere at all, since there is
 no longer an anchor copy to fall back on; the Discord mirror and the channel
 doctor are the repair.
 
+**Two gates are worked some other way** (Incarn and gates.docx,
+`GATEHOUSE.md`), and `db/lib/gateControls.js` names both:
+
+- **An anchor gate** — the portcullis between the Residences and the
+  Courtyard. Its button is on **both** Locations' own anchors (and on both
+  place cards in `/chat`), drawn for everybody, and it moves only for a worn,
+  registered ring carrying `portcullis-key`. Anybody else who presses it is told
+  "Nothing happens." The Courtyard's Watchtower no longer works it.
+- **A remote lever** — the Black Hills gate between the Bridge and the Square.
+  Its lever is in the Town Gatehouse's Gate Controls (`town-1-2`), which stands
+  at neither end, so `toggleGate` checks the clicker is standing in that room
+  rather than at the gate. No ring: anybody who can get into the room may pull
+  it. Its flip is heard at both ends **and** in the Gatehouse.
+
+A shut gate of either kind refuses travel in its own words
+(`gateControls.js#shutRefusalFor`) rather than sending the player to look for
+a watchtower.
+
 Two things about the gating that are easy to get wrong:
 
 - **`listed` is weaker than `passable`.** A locked edge is listed and refuses.
@@ -455,9 +473,9 @@ From Bascinet's `Multi-locational rooms.docx`:
 
 The doc also names four such rooms — the Meistery onto the streets outside the
 Keep, the Merchant onto the streets, and the Incarn's gatehouse onto the fort's
-streets and onto the fortress entrance. None of those places exists on the map
-yet; they come with the gates rework, and are made at `/gm/dev/zones` (below)
-once they do. Nothing in the code names them.
+streets and onto the fortress entrance. The last two came with the gates rework
+(`GATEHOUSE.md`): the Town Gatehouse's **Gate** opens onto the Bridge, and its
+**Gatehouse Window** onto the Square, both publicly.
 
 **The model.** A Room still has one home, `Room.locationId`, gated by its own
 `kind`/`accessTagSlugs` as ever. Each `RoomSide` row is one more Location it
@@ -507,6 +525,9 @@ Neither do the room's **fixtures**. A side offers Storage and nothing else
 machine, the intercom, room Search, a watchtower's winch, the rites and
 workshop equipment are on the home side's wall, and every one of them still
 checks the home Location. Conversations are opened from the home side only.
+The one exception is a fixture that is *about* the far side, marked
+`sides: true`: the gatehouse's **Request Passage**, which draws only on the
+outside of each window, and the Gate's finger-prick terminal (`GATEHOUSE.md`).
 
 **Who's here** (`whosHere(…, { withAcross: true })`, the web HERE column and
 the Discord button) carries `rooms`: one group per such room the viewer is IN,

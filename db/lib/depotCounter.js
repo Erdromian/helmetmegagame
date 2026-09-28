@@ -41,6 +41,7 @@ const { COMPANY, characterParty, roomParty, bankParty, turnStamp } = require("./
 const { blockerFor, ACT } = require("./incapacitation");
 const { accessSlugsOf, wornRing, isRegistered } = require("./rings");
 const { RING_TEXT } = require("./ringText");
+const { GATEHOUSE_TEXT } = require("./gatehouseText");
 const { SCRAMBLING_TAG_SLUGS } = require("./memoryScramble");
 const { ensurePin } = require("./acquaintances");
 
@@ -70,15 +71,35 @@ const AT_AN_ATM = { places: ATM_LOCATION_SLUGS, name: "an infoterminal" };
 // Returns { ok, account } or { ok: false, error, pinNeeded?, pinPrompt? }. A
 // caller drawing a dialog shows pinPrompt beside a PIN box and asks again with
 // the PIN; a caller moving money just refuses with the error.
+//
+// With no ring on the finger, a set of Documents in hand will do instead
+// (docs/systemdocs/GATEHOUSE.md): the account they were printed for, on the
+// same PIN rule — so stolen papers, which have the PIN written on them, open
+// the account for whoever can read it. A worn ring always wins.
 async function terminalAccount(prisma, character, { pin = null } = {}) {
   const ring = wornRing(character.tags);
-  if (!ring) return fail(RING_TEXT.infoterminalNoRing);
-  if (!isRegistered(ring) || !ring.ringBankAccountId) return fail(RING_TEXT.infoterminalUnregistered);
-  const account = await prisma.bankAccount.findUnique({
-    where: { id: ring.ringBankAccountId },
-    include: { character: { select: { id: true, pin: true } } },
-  });
-  if (!account) return fail(RING_TEXT.infoterminalUnregistered);
+  let account = null;
+  if (ring) {
+    if (!isRegistered(ring) || !ring.ringBankAccountId) return fail(RING_TEXT.infoterminalUnregistered);
+    account = await prisma.bankAccount.findUnique({
+      where: { id: ring.ringBankAccountId },
+      include: { character: { select: { id: true, pin: true } } },
+    });
+    if (!account) return fail(RING_TEXT.infoterminalUnregistered);
+  } else {
+    const papers = (character.tags ?? []).filter((ct) => ct.tag?.paperKind === "DOCUMENTS");
+    if (papers.length === 0) return fail(RING_TEXT.infoterminalNoRing);
+    const ids = papers.map((ct) => ct.tag.documentsBankAccountId).filter(Boolean);
+    const accounts = ids.length
+      ? await prisma.bankAccount.findMany({
+          where: { id: { in: ids } },
+          include: { character: { select: { id: true, pin: true } } },
+        })
+      : [];
+    // Your own papers first, when you hold somebody else's as well.
+    account = accounts.find((a) => a.characterId === character.id) ?? accounts[0] ?? null;
+    if (!account) return fail(GATEHOUSE_TEXT.documentsVoid);
+  }
 
   const own = account.characterId === character.id;
   const forgot = (character.tags ?? []).some((ct) => SCRAMBLING_TAG_SLUGS.includes(ct.tag?.slug));
@@ -503,8 +524,55 @@ async function canReadTreasury(prisma, discordUserId) {
   return { ok: true, character };
 }
 
+// The Meister closing an account (Incarn and gates.docx: documents "can only
+// be printed once per character unless the old treasury account is deleted by
+// the meister", docs/systemdocs/GATEHOUSE.md). Whatever it held or owed is
+// written off on the books first, so its ledger legs close at zero; then the
+// row goes. A ring linked to it keeps its doors and reaches no account; a set
+// of Documents printed for it opens nothing. Sales already made keep their
+// fingerprint and name (DepotSale.accountId is SetNull).
+async function closeAccount(prisma, discordUserId, { accountId, turn = null } = {}) {
+  const gate = await canReadTreasury(prisma, discordUserId);
+  if (!gate.ok) return gate;
+  const account = await prisma.bankAccount.findUnique({ where: { id: String(accountId ?? "") } });
+  if (!account) return fail(GATEHOUSE_TEXT.deleteGone);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const fresh = await tx.bankAccount.findUnique({ where: { id: account.id }, select: { balanceObols: true } });
+      if (!fresh) throw Object.assign(new Error(GATEHOUSE_TEXT.deleteGone), { userMessage: GATEHOUSE_TEXT.deleteGone });
+      if (fresh.balanceObols !== 0) {
+        await bumpBankAccount(tx, account.id, -fresh.balanceObols, {
+          holderName: account.holderName,
+          econ: { reason: "ACCOUNT_CLOSED", ...turnStamp(turn) },
+        });
+      }
+      await tx.bankAccount.delete({ where: { id: account.id } });
+      await tx.auditLog.create({
+        data: {
+          actorDiscordUserId: discordUserId,
+          actionType: "treasury_account_closed",
+          targetCharacterId: account.characterId,
+          turnId: turn?.id ?? null,
+          details: {
+            fingerprint: account.fingerprint,
+            holderName: account.holderName,
+            balanceObols: fresh.balanceObols,
+            closedBy: gate.character.id,
+          },
+        },
+      });
+    });
+  } catch (err) {
+    if (err?.userMessage) return fail(err.userMessage);
+    throw err;
+  }
+  return { ok: true, line: GATEHOUSE_TEXT.deleteDone(account.holderName) };
+}
+
 module.exports = {
   canReadTreasury,
+  closeAccount,
   counterActor,
   counterState,
   terminalAccount,

@@ -197,6 +197,14 @@ and an order's goods come back from it. The credit itself
 (`Room.blackMarketObols`) is off-world money, so it books nothing as it rises
 and falls — the coin was counted leaving, and the goods are counted arriving.
 
+**`DOCUMENTS_FEE` and `ACCOUNT_CLOSED` arrived with the gatehouse rework**
+(`GATEHOUSE.md`). Both `TRANSFER`, and both claim legs only, against the bank
+clearing: an account the Gatehouse opens starts owing 10 ¢ — the first balance
+in the game allowed under zero — and nothing physical moves, so paying it off
+is an ordinary deposit whose coin lands in the Vault with no claim left
+against it. `ACCOUNT_CLOSED` is the Meister writing an account off before it
+is deleted, so its legs close at zero rather than drifting.
+
 **`UNATTRIBUTED` is a feature.** A write that reaches a hook with no context is
 recorded under that reason rather than dropped, so an un-hooked call site shows
 up on the panel as its own bar instead of quietly missing. `applyTransfer` used

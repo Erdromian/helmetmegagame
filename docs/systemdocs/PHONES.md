@@ -67,7 +67,7 @@ and migration `20261101000000_phone_overhaul` for rooms that already exist):
 | The Den | `undertown-8-2` Dressing Room |
 | The Lifeweb | `undertown-3-3` Mortus Shacks |
 | The Inn | `town-7-6` Cellar |
-| The Gatehouse | `town-1-2` Watchhouse |
+| The Gatehouse | `town-1-2` Gate Controls |
 | The Cerberon (3) | `fortress-1-2` Censor's Office, `fortress-1-3` Barracks, `fortress-1-5` Armory |
 
 On a running game the migration only writes the seed; the copies arrive at the

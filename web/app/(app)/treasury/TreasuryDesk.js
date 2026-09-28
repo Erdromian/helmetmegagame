@@ -7,7 +7,9 @@ import { useRefresh } from "@/app/components/useRefresh";
 import { FilterBar, TableScroll, SortHeader, useTableState } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
 import InfoIcon from "@/app/components/InfoIcon";
-import { setSellTaxRate } from "./actions";
+import { useConfirm } from "@/app/components/ConfirmProvider";
+import { GATEHOUSE_TEXT } from "@lifeweb/db/lib/gatehouseText";
+import { setSellTaxRate, closeTreasuryAccount } from "./actions";
 import RegisterRing from "./RegisterRing";
 
 // Three numbers and a table. The one worth reading first is the backing: the
@@ -53,6 +55,8 @@ export default function TreasuryDesk({
   const [draft, setDraft] = useState(String(rate));
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
+  const [closeError, setCloseError] = useState(null);
+  const confirm = useConfirm();
 
   const table = useTableState({
     rows: accounts,
@@ -79,6 +83,27 @@ export default function TreasuryDesk({
       }
       setError(null);
       setSaved(true);
+      refresh();
+    });
+  }
+
+  // Closing an account (docs/systemdocs/GATEHOUSE.md): confirm first, then the
+  // transition — never a confirm inside startTransition (DESIGN-SYSTEM.md §8).
+  async function closeSelected(account) {
+    const ok = await confirm({
+      title: GATEHOUSE_TEXT.deleteAccount,
+      message: GATEHOUSE_TEXT.deleteConfirm(account.holderName),
+      confirmLabel: GATEHOUSE_TEXT.deleteAccount,
+    });
+    if (!ok) return;
+    startTransition(async () => {
+      const result = await closeTreasuryAccount({ accountId: account.id });
+      if (!result.ok) {
+        setCloseError(result.error);
+        return;
+      }
+      setCloseError(null);
+      router.push("/treasury");
       refresh();
     });
   }
@@ -160,6 +185,14 @@ export default function TreasuryDesk({
               <dd className="mono">{selected.balanceObols} ¢</dd>
             </div>
           </dl>
+          {!readOnly && (
+            <div className="mt-4">
+              <button type="button" className="btn-danger" disabled={pending} onClick={() => closeSelected(selected)}>
+                {GATEHOUSE_TEXT.deleteAccount}
+              </button>
+              {closeError && <p className="mt-3 text-sm text-danger">{closeError}</p>}
+            </div>
+          )}
           <p className="mt-3 text-sm">
             <Link href="/treasury">← All accounts</Link>
           </p>

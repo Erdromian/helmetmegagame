@@ -121,6 +121,12 @@ opens nothing.
   ring only, `DEPOT.md` §0c — the Merchant's License held opens it too).
 - `depot-keycard`, on the Merchant's and the Dockers' rings, opens the locked
   way between the Storefront and the Depot and the Cargo Bay (`DEPOT.md` §0b).
+- `gatehouse-key`, on the Baron's, the Hand's, the Incarn's, the Censor's, the
+  Cerberi's and the Squires' rings, opens the way from the Square into the Town
+  Gatehouse, and — ring only — works Process Requests in its Gate Controls.
+  `portcullis-key`, on the same rings with the Meister's in place of the
+  Incarn's, works the portcullis between the Residences and the Courtyard, ring
+  only (`GATEHOUSE.md`, `MAP.md` §2a).
 
 Putting a ring on or taking it off re-runs `syncCharacterRoomAccess` through the
 ordinary equip tail, so the private threads follow.
@@ -172,9 +178,16 @@ withheld from the dialog until the PIN is right, and every money call —
 withdraw, deposit, Send — checks it again. The web dialog keeps a typed PIN in
 its own state only; Discord asks for it in each amount modal.
 
+**Documents work too, when no ring is worn** (`GATEHOUSE.md`). A set of
+Documents printed at the Town Gatehouse carries `Tag.documentsBankAccountId`,
+and held in hand it opens that account on exactly the ring's PIN rule: your own
+papers need no PIN, anybody else's need the holder's — which is written on the
+papers, so stolen ones are as good as the PIN to whoever can read. A worn ring
+always wins over papers in a pocket.
+
 **No account is opened at a terminal any more.** A seat's account opens at
 creation and its ring is linked to it; everyone else has a ring smithed and the
-Meister opens one when he registers it. (The drop box and the credit line,
+Meister opens one when he registers it, or is documented at the Town Gatehouse. (The drop box and the credit line,
 which used the character's own account, went with the Depot Overhaul.)
 
 ## 6. Smithing a ring, and the Meister
