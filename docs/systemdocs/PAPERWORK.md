@@ -64,7 +64,7 @@ unbounded.
 | `SEALED` | **A closed letter.** Same row, renamed in place. Carries `sealMark`. |
 | `BROKEN_SEAL` | **A spent envelope.** Evidence somebody opened it, and whose wax it was. |
 | `BOOK` | **A bound book.** Carries `paperText` like a sheet, and is the one kind that can never be added to. §4a. |
-| `DOCUMENTS` | **Identity papers from the Town Gatehouse** (`GATEHOUSE.md` §5). Printed with a name, an occupation, a treasury account and its PIN; fixed text that nothing writes on, seals or pins; `Tag.documentsBankAccountId` is the account an infoterminal opens for whoever holds them. |
+| `DOCUMENTS` | **Identity papers from the Town Gatehouse** (`GATEHOUSE.md` §5). Printed with a name, a job, a treasury account and its PIN; fixed text that nothing writes on, seals or pins; `Tag.documentsBankAccountId` is the account an infoterminal opens for whoever holds them. |
 
 Blank paper is deliberately *not* a runtime row. You hold "Paper ×15" as one
 `CharacterTag`; a sheet only becomes its own `Tag` when somebody writes on it,

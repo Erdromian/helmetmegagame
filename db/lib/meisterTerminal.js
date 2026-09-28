@@ -6,7 +6,7 @@
 //
 //   - set the tax on the train's imports and exports (it fills the Vault);
 //   - set any account's balance, or close the account outright;
-//   - set a daily wage for a fate or for one character (db/lib/wagePass.js pays it);
+//   - set a daily wage for a job or for one character (db/lib/wagePass.js pays it);
 //   - connect a ring in their hands to an account, if it has none yet
 //     (db/lib/ringRegistry.js).
 //
@@ -58,10 +58,10 @@ function displayBalance(account, vault) {
   return isLockedAccount(account) ? vault : (account?.balanceObols ?? 0);
 }
 
-/** A character's daily wage: their own if set (0 exempts them), else their fate's, else nothing. */
+/** A character's daily wage: their own if set (0 exempts them), else their job's, else nothing. */
 function wageFor({ characterWage = null, roleWage = null } = {}) {
   if (characterWage != null) return { amount: characterWage, source: "character" };
-  if (roleWage != null) return { amount: roleWage, source: "fate" };
+  if (roleWage != null) return { amount: roleWage, source: "job" };
   return { amount: 0, source: null };
 }
 
@@ -195,13 +195,13 @@ async function meisterBooks(prisma) {
     else dailyBill.debit += -a.wage.amount;
   }
 
-  // Every fate but the Baron's, in the picker's own order (court, clergy,
+  // Every job but the Baron's, in the picker's own order (court, clergy,
   // cerberon…), with how many living account holders it has right now.
   const holders = new Map();
   for (const a of accounts) {
     if (a.status === "ALIVE" && a.roleId) holders.set(a.roleId, (holders.get(a.roleId) ?? 0) + 1);
   }
-  const fates = groupRoles(roleRows.filter((r) => r.slug !== BARON_ROLE_SLUG))
+  const jobs = groupRoles(roleRows.filter((r) => r.slug !== BARON_ROLE_SLUG))
     .flatMap((g) => g.roles.map((r) => ({ ...r, groupName: g.name })))
     .map((r) => ({
       roleId: r.id,
@@ -228,7 +228,7 @@ async function meisterBooks(prisma) {
     onOrder,
     short: vault < claims,
     accounts,
-    fates,
+    jobs,
     characterWages,
     dailyBill,
     bounds: { maxBalance: MAX_BALANCE, maxWage: MAX_WAGE },
@@ -416,9 +416,9 @@ async function closeAccount(prisma, discordUserId, { accountId, turn = null } = 
 }
 
 /**
- * Sets or clears a daily wage: `roleId` for a whole fate, or `characterId` for
+ * Sets or clears a daily wage: `roleId` for a whole job, or `characterId` for
  * one character. `amount` null (or "") clears it. The Baron takes none, as a
- * fate or as a character.
+ * job or as a character.
  */
 async function setWage(prisma, discordUserId, { roleId = null, characterId = null, amount: rawAmount, turn = null } = {}) {
   const actor = await meisterActor(prisma, discordUserId, { acting: true });
@@ -431,7 +431,7 @@ async function setWage(prisma, discordUserId, { roleId = null, characterId = nul
   let name;
   if (roleId) {
     const role = await prisma.role.findUnique({ where: { id: String(roleId) }, select: { id: true, slug: true, name: true } });
-    if (!role) return fail(T.wageNoFate);
+    if (!role) return fail(T.wageNoJob);
     if (role.slug === BARON_ROLE_SLUG) return fail(T.wageBaron);
     target = { roleId: role.id };
     name = role.name;

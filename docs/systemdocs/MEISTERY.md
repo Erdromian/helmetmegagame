@@ -51,6 +51,32 @@ Bascinet's calls while it was built (2026-09-28):
 - **Both faces.** The whole terminal is on the web and on Discord.
 - **The Baron's account** being the treasury itself is the Crown account
   (DEPOT.md §0g, PR #269). The terminal locks it: see §3.
+- **A ring connects to one account in its life.** Closing its account leaves
+  it for good; the terminal never offers it again (§5).
+- **The terminal says job, not fate.** The doc's "wages … for individual
+  fates" are wages per **job** on screen: a character's fate never changes, and
+  a job can (see below).
+
+### Fate and job
+
+Two words for two things, since 2026-09-28:
+
+- A **fate** is who a character was made as: the seat they took at creation
+  (`Character.roleId`, CHARACTERS.md §2). It is fixed for that character's
+  life. The fate papers (`Fate: Meister` in `docs/documents.yaml`), the lobby,
+  the seat counts and the late parties all speak of fates.
+- A **job** is the work a character does in Ravenheart now, and in-game
+  circumstances can change it. The Meister's Terminal pays wages by job, lists
+  each account's job, and the Town Gatehouse prints a **Job** on the Documents
+  (GATEHOUSE.md §5).
+
+Today nothing moves a character's job away from their fate, so the terminal
+reads a job off the same `Role` row: `Wage.roleId`, and the Job column, are the
+character's fate's seat. A mechanic that gives somebody a new job has to give
+the terminal somewhere to read it from; until then, a character's own wage
+(§4) is how the Meister pays somebody for work their fate doesn't name. The
+code keeps `Role`/`roleId`; the terminal's own names say `job`
+(`books.jobs`, `wagesByJob`, `wage.source === "job"`).
 
 ## 2. The rooms and the gate
 
@@ -85,15 +111,15 @@ Every rule is in `db/lib/meisterTerminal.js`; every word a player reads is in
 | **Totals** | The Vault's coin, what the Treasury accounts claim, what is on order at the Merchant's Terminal, the tax, and tonight's wage bill. When the Vault holds less than the claims: "withdrawals will be refused". |
 | **Tax** | `setTaxRate`: a whole percent 0–100 on `Depot.sellTaxRate`, taken on every train's imports and exports (DEPOT.md §0f). Audit `sell_tax_rate_set`. |
 | **Accounts** | Every account, Treasury and Offshore alike. Set a balance to any whole figure from -999,999 to 999,999 (`setAccountBalance`), or close the account (`closeAccount`). |
-| **Wages** | A daily wage per fate or per character (`setWage`), §4. |
-| **Rings** | Connect a ring in your hands to an account (`db/lib/ringRegistry.js#connectRing`), §5. |
+| **Wages** | A daily wage per job or per character (`setWage`), §4. |
+| **Rings** | Connect a never-registered ring in your hands to an account, once (`db/lib/ringRegistry.js#connectRing`), §5. |
 | **Ledger** | `db/lib/treasuryLedger.js`, §7. |
 
 **The Baron's account is locked** (`isLockedAccount`): the Crown account,
 class `CROWN` (`bankAccounts.js#isCrown`), which is the Vault itself. The
 terminal shows the Vault's coin as its balance, the same figure the Baron's
 infoterminal reads, and it cannot be edited, closed or paid a wage; the Baron's
-fate cannot be given one either. It stays out of the claims the totals count,
+job cannot be given one either. It stays out of the claims the totals count,
 since it is not a claim on the Vault.
 
 **A balance set by hand moves a claim, not coin.** The difference is one ledger
@@ -104,19 +130,19 @@ accounts owing their fee (GATEHOUSE.md §5).
 
 **Closing an account** writes whatever it held or owed off first
 (`ACCOUNT_CLOSED`), then deletes the row. A ring linked to it keeps its doors
-and loses its account (`Tag.ringBankAccountId` is `SET NULL`), so it can be
-connected again (§5); Documents printed for it open nothing. It is refused while
+and loses its account (`Tag.ringBankAccountId` is `SET NULL`) for good — a
+ring connects once (§5) — and Documents printed for it open nothing. It is refused while
 the account has goods on order from the old counter (`DepotOrder` cascades with
 the account, so they would never arrive) or a sale still waiting to settle into
 it. Audit `treasury_account_closed`, with how many rings were unlinked.
 
 ## 4. Wages
 
-`Wage` holds one row per fate (`roleId`) or per character (`characterId`) —
-exactly one of the two, by a CHECK constraint in migration
+`Wage` holds one row per job (`roleId`, "Fate and job" in §1) or per
+character (`characterId`) — exactly one of the two, by a CHECK constraint in migration
 `20261120000000_meistery` that Prisma cannot model. A character's own row
-overrides their fate's, and a character row of `0` exempts them. The Baron takes
-none, as a fate or as a person. Bounds: ±9,999 ¢ a day.
+overrides their job's, and a character row of `0` exempts them. The Baron takes
+none, as a job or as a person. Bounds: ±9,999 ¢ a day.
 
 **Paid by the `wages` turn pass** (`db/lib/wagePass.js`, TURN-ENGINE.md §2),
 just before the train, after every pass that can kill:
@@ -137,7 +163,7 @@ already under zero: a wage never puts anybody into debt. Anybody with no
 account is skipped, not given one. No DMs. Ledger reasons `WAGE` /
 `WAGE_DEDUCTION`, claim legs only; the audit row is `wages_paid`.
 
-**Restart Game** deletes every `Wage` and `WagePayout`: a fate's wage hangs off a
+**Restart Game** deletes every `Wage` and `WagePayout`: a job's wage hangs off a
 Role that survives a restart, and the day numbers start again at 1.
 
 A GM moving the day on `/gm/dev` (`updateCurrentTurn`) can skip or repeat a wage
@@ -145,20 +171,23 @@ day. That is left alone.
 
 ## 5. Connecting a ring
 
-A ring in the worker's hands with no account (`ringBankAccountId` null) can be
-connected. Two cases:
+Only a ring in the worker's hands that was never registered can be connected
+(`ringRegisteredAt` and `ringBankAccountId` both null) — in practice a
+smith's (RINGS.md §6). The worker picks which seats' doors it opens — a seat
+with `authorised_by` needs that item in their hands — and which account it
+reaches.
 
-- **A ring the terminal has never seen** (a smith's, RINGS.md §6) is registered:
-  the worker picks which seats' doors it opens — a seat with `authorised_by`
-  needs that item in their hands — and which account it reaches.
-- **A ring that was registered once** and lost its account when the Meister
-  closed it only gets an account back. Its doors stay what they were, so closing
-  an account and reconnecting the ring can never add a door.
+**A ring connects to one account in its life.** When the Meister closes that
+account the ring keeps its doors and reaches nothing, and the terminal never
+offers it again. An infoterminal tells its wearer the ring has no account
+behind it (`infoterminalClosed`, RINGS.md §5), rather than sending them to the
+Meister. It also means closing an account can never be used to register a ring
+a second time with more doors.
 
 The account is the engraved person's own (opened if they have none), or any
 existing one — on Discord, typed by its fingerprint. The swap is a
-compare-and-swap on `ringBankAccountId`, so two presses cannot connect one ring
-twice. Audit `ring_registered`, with `reconnected`.
+compare-and-swap on both columns being null, so two presses cannot connect one
+ring twice. Audit `ring_registered`.
 
 ## 6. The two faces
 
@@ -167,8 +196,8 @@ twice. Audit `ring_registered`, with `reconnected`.
 | Open | **Meister's Terminal** opens a dialog (`web/app/(app)/chat/MeisterTerminalDialog.js`) | **Meister's Terminal** opens an ephemeral panel, edited in place (`bot/src/events/interactions/meisterTerminal.js`) |
 | Totals, tax | always on top; a number field | the panel's home; **Set tax** opens a modal |
 | Accounts | a searchable table; a row opens its card: set balance, own wage, Close account (the shared confirm) | 15 a page, a select, a search modal; the card has Set balance, Wage, History, Close account (a confirm step) |
-| Wages | every fate with a field; the character overrides and an add row | the fates in a select, 25 a page, then a modal; a character's own wage is on their card |
-| Rings | the ring, the seats (for a new ring), the account | a select of rings, up to two seat multi-selects, then the account |
+| Wages | every job with a field; the character overrides and an add row | the jobs in a select, 25 a page, then a modal; a character's own wage is on their card |
+| Rings | the ring, the seats, the account | a select of rings, up to two seat multi-selects, then the account |
 | Ledger | read when the tab opens, filterable, one account at a time | 15 a page |
 
 The web actions are in `web/app/(app)/chat/actions.js` (`meisterTerminalView`,

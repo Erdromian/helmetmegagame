@@ -467,6 +467,14 @@ The rules are Bascinet's own, from `Fate Slot Logic.docx`. Internally a role
 is a **fate** (the code, this section, the seat modules); what players read
 still says "role".
 
+**A fate is not a job.** A character's fate is the seat they were made in, and
+it never changes for as long as they live (`Character.roleId`). Their **job**
+is the work they do in Ravenheart now, and in-game circumstances can change it.
+Player-facing text that is about the work says job: the Meister's Terminal pays
+wages by job (`MEISTERY.md` §1, "Fate and job"), and the Town Gatehouse prints
+a Job on the Documents (`GATEHOUSE.md` §5). Nothing moves a job away from a
+fate yet, so both are read off the same `Role` row today.
+
 **How many seats a game has.** The readied count plus 10%, rounded up —
 `fateSeatsFor()`. Start Game stamps it on `GameState.playerCount` (`LOBBY.md`
 §3): 72 readied is 80 fate seats. Before Start, the `GameConfig.playerCount`

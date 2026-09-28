@@ -166,7 +166,10 @@ The ATMs are infoterminals now. Player-facing text only: the code still says
 
 An infoterminal reads the ring on your finger (`depotCounter.js#terminalAccount`):
 
-- No ring, or an unregistered one: no account.
+- No ring, or an unregistered one: no account ("Take it to the Meister.").
+- A registered ring whose account the Meister closed: no account, and no way
+  back — a ring connects once (§6). It says so without sending anyone to the
+  Meister (`infoterminalClosed`).
 - Your own ring, and you're not Concussed or Amnesiac: your account, no PIN.
 - Somebody else's ring: that ring's account, **for its holder's PIN**.
 - Your own ring while Concussed or Amnesiac (`memoryScramble.SCRAMBLING_TAG_SLUGS`):
@@ -200,9 +203,10 @@ and comes out unregistered, opening nothing, sealing nothing.
 **Registering** happens at the Meister's Terminal in the Meister's Study
 (`MEISTERY.md` §5), on both faces — worked by the Meister's, the Hand's or the
 Baron's ring. Meistery.docx: a ring is connected "as long as the ring has not
-already been connected to an account", so the terminal offers every ring the
-worker is holding with no account (`ringRegistry.js#connectableRingsHeld`). For
-one it has never seen:
+already been connected to an account", so the terminal offers only the rings
+the worker is holding that were never registered
+(`ringRegistry.js#connectableRingsHeld`: `ringRegisteredAt` and
+`ringBankAccountId` both null). For each:
 
 - tick any seats whose access it should grant (none is allowed: an
   account-only ring). A seat with `ring.authorised_by` is the office's own to
@@ -213,13 +217,17 @@ one it has never seen:
 - link the engraved person's account — opened now if they have none — or any
   existing account.
 
-A ring that was registered once and lost its account — the Meister closed it —
-only gets an account back: its doors stay what they were, so closing an account
-and reconnecting the ring can never add a door.
+**A ring connects to one account in its life** (Bascinet's call, 2026-09-28).
+When the Meister closes that account the ring keeps its doors and reaches no
+account, and the terminal never offers it again. `ringRegisteredAt` is the
+mark: every ring ever connected carries it, a seat's own ring from birth (§7).
+The one gap is a seat's ring whose account failed to open at creation — it is
+registered with no account and can't be connected, so that is a GM fix, the
+same as a ringless character.
 
-A connection is compare-and-swapped on `ringBankAccountId`, so a ring can't be
-connected twice, and it writes a `ring_registered` audit row (`reconnected`
-says which kind). A ring registered
+A connection is compare-and-swapped on `ringBankAccountId` and
+`ringRegisteredAt` both being null, so a ring can't be connected twice, and it
+writes a `ring_registered` audit row. A ring registered
 to an office seat's doors gets "It lacks the signet seal of the original." on
 its description.
 

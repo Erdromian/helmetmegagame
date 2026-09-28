@@ -85,12 +85,14 @@ async function terminalAccount(prisma, character, { pin = null } = {}) {
   const ring = wornRing(character.tags);
   let account = null;
   if (ring) {
-    if (!isRegistered(ring) || !ring.ringBankAccountId) return fail(RING_TEXT.infoterminalUnregistered);
+    if (!isRegistered(ring)) return fail(RING_TEXT.infoterminalUnregistered);
+    // Registered, and its account closed since: a ring connects once.
+    if (!ring.ringBankAccountId) return fail(RING_TEXT.infoterminalClosed);
     account = await prisma.bankAccount.findUnique({
       where: { id: ring.ringBankAccountId },
       include: { character: { select: { id: true, pin: true } } },
     });
-    if (!account) return fail(RING_TEXT.infoterminalUnregistered);
+    if (!account) return fail(RING_TEXT.infoterminalClosed);
   } else {
     const papers = (character.tags ?? []).filter((ct) => ct.tag?.paperKind === "DOCUMENTS");
     if (papers.length === 0) return fail(RING_TEXT.infoterminalNoRing);

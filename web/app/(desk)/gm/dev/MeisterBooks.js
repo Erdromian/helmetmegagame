@@ -12,12 +12,12 @@ import { MEISTER_TERMINAL_TEXT as T, signedObols } from "@lifeweb/db/lib/meister
 const SEARCH = [(r) => r.holderName, (r) => r.fingerprint, (r) => r.roleName];
 const FILTERS = [
   { key: "class", label: T.colClass, value: (r) => r.class },
-  { key: "fate", label: T.colFate, value: (r) => r.roleName || "—" },
+  { key: "job", label: T.colJob, value: (r) => r.roleName || "—" },
 ];
 
 function wageLabel(wage) {
   if (!wage?.source) return T.wageNone;
-  return `${signedObols(wage.amount)} · ${wage.source === "fate" ? T.wageFromFate : T.wageOwn}`;
+  return `${signedObols(wage.amount)} · ${wage.source === "job" ? T.wageFromJob : T.wageOwn}`;
 }
 
 export default function MeisterBooks({ books }) {
@@ -27,7 +27,7 @@ export default function MeisterBooks({ books }) {
     filterDefs: FILTERS,
     initialSort: { key: "balance", dir: "desc" },
   });
-  const fateWages = books.fates.filter((f) => f.amount != null);
+  const jobWages = books.jobs.filter((f) => f.amount != null);
 
   return (
     <div className="flex flex-col gap-4">
@@ -58,8 +58,8 @@ export default function MeisterBooks({ books }) {
       {books.short && <p className="text-sm text-danger">{T.short}</p>}
 
       <p className="text-sm text-muted">
-        {T.wagesByFate}:{" "}
-        {fateWages.length ? fateWages.map((f) => `${f.name} ${signedObols(f.amount)}`).join(", ") : T.wageNone}
+        {T.wagesByJob}:{" "}
+        {jobWages.length ? jobWages.map((f) => `${f.name} ${signedObols(f.amount)}`).join(", ") : T.wageNone}
       </p>
 
       <FilterBar
@@ -76,7 +76,7 @@ export default function MeisterBooks({ books }) {
           <tr>
             <SortHeader label={T.colHolder} sortKey="holderName" sort={table.sort} onSort={table.toggleSort} />
             <SortHeader label={T.colFingerprint} sortKey="fingerprint" sort={table.sort} onSort={table.toggleSort} />
-            <SortHeader label={T.colFate} sortKey="roleName" sort={table.sort} onSort={table.toggleSort} />
+            <SortHeader label={T.colJob} sortKey="roleName" sort={table.sort} onSort={table.toggleSort} />
             <SortHeader label={T.colClass} sortKey="class" sort={table.sort} onSort={table.toggleSort} />
             <SortHeader label={T.colBalance} sortKey="balance" sort={table.sort} onSort={table.toggleSort} />
             <th>{T.colWage}</th>

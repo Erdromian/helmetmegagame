@@ -4,10 +4,11 @@
 // (docs/systemdocs/MEISTERY.md §5, RINGS.md §6).
 //
 // A ring the terminal has never seen is registered here: given the doors of
-// one or more seats and linked to an account. A ring that was registered once
-// and lost its account — the Meister closed it — only gets an account back;
-// its doors stay what they were, so closing an account and reconnecting the
-// ring can never add a door.
+// one or more seats and linked to an account, once. A ring connects to one
+// account in its life: one whose account the Meister closed keeps its doors
+// and reaches nothing, and the terminal never offers it again (Bascinet's
+// call, 2026-09-28). `Tag.ringRegisteredAt` is the mark — every ring that was
+// ever connected carries it, a seat's own ring from birth.
 //
 // Registering never makes a ring seal. Only an office's own spawned ring does,
 // so a smithed ring registered to the Baron's doors opens them and nothing more.
@@ -26,10 +27,10 @@ function fail(error) {
   return { ok: false, error };
 }
 
-// The rings this character is holding that have no account — what the panel offers.
+// The rings this character is holding that were never connected — what the panel offers.
 async function connectableRingsHeld(prisma, characterId) {
   const rows = await prisma.characterTag.findMany({
-    where: { characterId, tag: { ringOfCharacterId: { not: null }, ringBankAccountId: null } },
+    where: { characterId, tag: { ringOfCharacterId: { not: null }, ringRegisteredAt: null, ringBankAccountId: null } },
     select: {
       tag: {
         select: {
@@ -37,24 +38,15 @@ async function connectableRingsHeld(prisma, characterId) {
           name: true,
           ringOfCharacterId: true,
           ringInitials: true,
-          ringRegisteredAt: true,
-          ringRoleSlugs: true,
         },
       },
     },
   });
-  const [owners, roles] = await Promise.all([
-    prisma.character.findMany({
-      where: { id: { in: rows.map((r) => r.tag.ringOfCharacterId) } },
-      select: { id: true, name: true, bankAccount: { select: { id: true } } },
-    }),
-    prisma.role.findMany({
-      where: { slug: { in: [...new Set(rows.flatMap((r) => r.tag.ringRoleSlugs ?? []))] } },
-      select: { slug: true, name: true },
-    }),
-  ]);
+  const owners = await prisma.character.findMany({
+    where: { id: { in: rows.map((r) => r.tag.ringOfCharacterId) } },
+    select: { id: true, name: true, bankAccount: { select: { id: true } } },
+  });
   const byId = new Map(owners.map((c) => [c.id, c]));
-  const roleName = new Map(roles.map((r) => [r.slug, r.name]));
   return rows.map((r) => {
     const owner = byId.get(r.tag.ringOfCharacterId) ?? null;
     return {
@@ -66,9 +58,6 @@ async function connectableRingsHeld(prisma, characterId) {
       // already has one (one per character, BankAccount.characterId), or is gone.
       ownerAccountId: owner?.bankAccount?.id ?? null,
       ownerGone: !owner,
-      // Registered once already: its doors are fixed, and only an account is asked for.
-      registered: Boolean(r.tag.ringRegisteredAt),
-      seatNames: (r.tag.ringRoleSlugs ?? []).map((slug) => roleName.get(slug) ?? slug),
     };
   });
 }
@@ -144,30 +133,25 @@ async function connectRing(
   });
   if (!held || !isRing(held.tag)) return fail(T.registerNone);
   const ring = held.tag;
-  if (ring.ringBankAccountId) return fail(T.registerAlready);
-  const firstTime = !isRegistered(ring);
+  // Once in a ring's life: one that was ever connected is refused, even with
+  // its account closed since.
+  if (ring.ringBankAccountId || isRegistered(ring)) return fail(T.registerAlready);
 
-  // Seats only for a ring the terminal has never seen. A reconnected ring
-  // keeps the doors it has.
-  let wanted = [];
-  let roles = [];
-  if (firstTime) {
-    wanted = [...new Set((Array.isArray(rawRoles) ? rawRoles : []).map(String))];
-    roles = await prisma.role.findMany({
-      where: { slug: { in: wanted } },
-      select: { slug: true, name: true, ringAccessSlugs: true, ringSealOffice: true, ringAuthorisedBy: true },
-    });
-    if (roles.length !== wanted.length) return fail(T.registerNoSeat);
+  const wanted = [...new Set((Array.isArray(rawRoles) ? rawRoles : []).map(String))];
+  const roles = await prisma.role.findMany({
+    where: { slug: { in: wanted } },
+    select: { slug: true, name: true, ringAccessSlugs: true, ringSealOffice: true, ringAuthorisedBy: true },
+  });
+  if (roles.length !== wanted.length) return fail(T.registerNoSeat);
 
-    // Some seats' access is only the office's to hand out: registering a ring
-    // to the Merchant's needs his License in the registrar's hands, the
-    // Baron's his Scepter (`ring.authorised_by` in docs/roles.yaml).
-    const gated = roles.filter((r) => r.ringAuthorisedBy);
-    const missing = gated.find((r) => !(heldSlugs ?? new Set()).has(r.ringAuthorisedBy));
-    if (missing) {
-      const item = await prisma.tag.findUnique({ where: { slug: missing.ringAuthorisedBy }, select: { name: true } });
-      return fail(fillMeisterText("registerNeedsAuth", { role: missing.name, item: item?.name ?? missing.ringAuthorisedBy }));
-    }
+  // Some seats' access is only the office's to hand out: registering a ring
+  // to the Merchant's needs his License in the registrar's hands, the
+  // Baron's his Scepter (`ring.authorised_by` in docs/roles.yaml).
+  const gated = roles.filter((r) => r.ringAuthorisedBy);
+  const missing = gated.find((r) => !(heldSlugs ?? new Set()).has(r.ringAuthorisedBy));
+  if (missing) {
+    const item = await prisma.tag.findUnique({ where: { slug: missing.ringAuthorisedBy }, select: { name: true } });
+    return fail(fillMeisterText("registerNeedsAuth", { role: missing.name, item: item?.name ?? missing.ringAuthorisedBy }));
   }
 
   const picked = await pickAccount(prisma, ring, { accountId, fingerprint, newAccount, turn });
@@ -176,20 +160,18 @@ async function connectRing(
 
   try {
     await prisma.$transaction(async (tx) => {
-      // Compare-and-swap on the account: two clicks, or two terminals, must
-      // not connect one ring twice — nor register it twice with different doors.
+      // Compare-and-swap: two clicks, or two terminals, must not connect one
+      // ring twice — nor register it twice with different doors.
       const { count } = await tx.tag.updateMany({
-        where: { id: ring.id, ringBankAccountId: null, ringRegisteredAt: firstTime ? null : { not: null } },
+        where: { id: ring.id, ringBankAccountId: null, ringRegisteredAt: null },
         data: { ringBankAccountId: account.id },
       });
       if (!count) throw Object.assign(new Error(T.registerAlready), { userMessage: T.registerAlready });
-      if (firstTime) {
-        await registerRing(tx, { ...ring, ringRegisteredAt: new Date() }, {
-          roleSlugs: wanted,
-          roles,
-          bankAccountId: account.id,
-        });
-      }
+      await registerRing(tx, { ...ring, ringRegisteredAt: new Date() }, {
+        roleSlugs: wanted,
+        roles,
+        bankAccountId: account.id,
+      });
       await tx.auditLog.create({
         data: {
           actorDiscordUserId: discordUserId,
@@ -199,11 +181,10 @@ async function connectRing(
           details: {
             ringTagId: ring.id,
             ringName: ring.name,
-            roleSlugs: firstTime ? wanted : (ring.ringRoleSlugs ?? []),
+            roleSlugs: wanted,
             accountId: account.id,
             fingerprint: account.fingerprint,
             registeredBy: registrar.id,
-            reconnected: !firstTime,
           },
         },
       });
@@ -213,10 +194,9 @@ async function connectRing(
     throw err;
   }
 
-  let line;
-  if (!firstTime) line = fillMeisterText("registerDoneAccount", { name: account.holderName });
-  else if (roles.length) line = fillMeisterText("registerDone", { roles: roleListText(roles.map((r) => r.name)) });
-  else line = T.registerDoneNone;
+  const line = roles.length
+    ? fillMeisterText("registerDone", { roles: roleListText(roles.map((r) => r.name)) })
+    : T.registerDoneNone;
 
   // Whoever holds the ring, since a ring worn while it was registered opens
   // new doors at once.

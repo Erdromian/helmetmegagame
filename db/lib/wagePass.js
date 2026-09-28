@@ -17,7 +17,7 @@
 // write, two advances racing — pays a day twice.
 //
 // WHO. Every living character with an account, at their own wage if the
-// Meister set one (0 exempts them), else their fate's. The Baron's account is
+// Meister set one (0 exempts them), else their job's. The Baron's account is
 // the treasury itself and is never paid (meisterTerminal.js#isLockedAccount).
 // A deduction floors at 0, or at the balance if it is already under zero
 // (bankAccounts.js#bumpBankAccount): a wage never puts anybody into debt.

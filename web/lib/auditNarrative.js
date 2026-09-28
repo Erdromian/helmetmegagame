@@ -464,10 +464,10 @@ const R = {
     ...(d.after == null
       ? [t("cleared the daily wage of"), em(d.name ?? "?")]
       : [t("set the daily wage of"), em(d.name ?? "?"), t("to"), em(`${d.after} ¢`)]),
-    ...(d.roleId ? [t("(a fate)")] : []),
+    ...(d.roleId ? [t("(a job)")] : []),
   ],
   ring_registered: (d) => [
-    actor(), t(d.reconnected ? "connected" : "registered"), em(d.ringName ?? "a ring"),
+    actor(), t("registered"), em(d.ringName ?? "a ring"),
     ...(d.fingerprint ? [t("to account"), mono(d.fingerprint)] : []),
   ],
   wages_paid: (d) => [

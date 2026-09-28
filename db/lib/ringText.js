@@ -40,6 +40,9 @@ const RING_TEXT = {
   infoterminalReading: "Reading your ring…",
   infoterminalNoRing: "The infoterminal patiently waits for you to present your ring… except you aren't wearing one.",
   infoterminalUnregistered: "This ring isn't registered to anyone. Take it to the Meister.",
+  // A ring whose account the Meister closed: a ring connects once, so the
+  // Meister can't help (docs/systemdocs/MEISTERY.md §5).
+  infoterminalClosed: "The infoterminal reads your ring and finds no account behind it.",
   infoterminalPinStranger: "Enter your PIN.",
   infoterminalPinForgot: "Enter your PIN.",
   infoterminalPinLabel: "PIN",

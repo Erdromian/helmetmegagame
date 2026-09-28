@@ -10,7 +10,7 @@ const assert = require("node:assert/strict");
 const { isLocalDatabase } = require("../lib/localDatabase");
 const { isLockedAccount, displayBalance, wageFor, wholeWithin, meisterActor } = require("../lib/meisterTerminal");
 const { wageDaysDue, wageLines } = require("../lib/wagePass");
-const { MAX_BALANCE, MAX_WAGE } = require("../lib/meisterTerminalText");
+const { MAX_BALANCE, MAX_WAGE, MEISTER_TERMINAL_TEXT: T } = require("../lib/meisterTerminalText");
 
 const SKIP = !isLocalDatabase() && "point DATABASE_URL at a local Postgres";
 
@@ -28,10 +28,10 @@ test("the Crown's account shows the Vault; everybody else's shows their balance"
   assert.equal(displayBalance({ class: "TREASURY", balanceObols: 36 }, 250), 36);
 });
 
-test("a character's own wage beats their fate's, and 0 exempts them", () => {
+test("a character's own wage beats their job's, and 0 exempts them", () => {
   assert.deepEqual(wageFor({ characterWage: 5, roleWage: 2 }), { amount: 5, source: "character" });
   assert.deepEqual(wageFor({ characterWage: 0, roleWage: 2 }), { amount: 0, source: "character" });
-  assert.deepEqual(wageFor({ characterWage: null, roleWage: -3 }), { amount: -3, source: "fate" });
+  assert.deepEqual(wageFor({ characterWage: null, roleWage: -3 }), { amount: -3, source: "job" });
   assert.deepEqual(wageFor({}), { amount: 0, source: null });
 });
 
@@ -283,15 +283,26 @@ test("balances, closing, wages and rings, end to end", { skip: SKIP }, async (t)
   assert.equal(loose.ringBankAccountId, null);
   assert.deepEqual(loose.ringAccessSlugs, ["cerberus-key"]);
 
-  // The Meister holds it and connects it again: the account comes back, the doors don't grow.
+  // A ring connects to one account in its life: in the Meister's hands, the
+  // closed account's ring is not offered, and connecting it is refused.
   await prisma.characterTag.create({ data: { characterId: meister.id, tagId: guardRing.id, quantity: 1, source: "EVENT" } });
-  const books = await M.meisterTerminalState(prisma, uid);
-  assert.ok(books.rings.some((r) => r.tagId === guardRing.id && r.registered));
-  out = await M.connectRing(prisma, uid, { ringTagId: guardRing.id, roleSlugs: ["baron"], newAccount: true });
+  let books = await M.meisterTerminalState(prisma, uid);
+  assert.ok(!books.rings.some((r) => r.tagId === guardRing.id));
+  out = await M.connectRing(prisma, uid, { ringTagId: guardRing.id, roleSlugs: [], newAccount: true });
+  assert.equal(out.ok, false);
+  assert.equal(out.error, T.registerAlready);
+  assert.equal((await prisma.tag.findUnique({ where: { id: guardRing.id } })).ringBankAccountId, null);
+
+  // A ring never connected is offered, connects once, and then never again.
+  const freshRing = await createRingRow(prisma, guard, {});
+  mintedTags.push(freshRing.id);
+  await prisma.characterTag.create({ data: { characterId: meister.id, tagId: freshRing.id, quantity: 1, source: "EVENT" } });
+  books = await M.meisterTerminalState(prisma, uid);
+  assert.ok(books.rings.some((r) => r.tagId === freshRing.id));
+  out = await M.connectRing(prisma, uid, { ringTagId: freshRing.id, roleSlugs: [], newAccount: true });
   assert.equal(out.ok, true, out.error);
-  const back = await prisma.tag.findUnique({ where: { id: guardRing.id } });
-  assert.ok(back.ringBankAccountId);
-  assert.deepEqual(back.ringRoleSlugs, ["cerberus"]);
-  // Connected once is connected: a second press is refused.
-  assert.equal((await M.connectRing(prisma, uid, { ringTagId: guardRing.id, newAccount: true })).ok, false);
+  const linked = await prisma.tag.findUnique({ where: { id: freshRing.id } });
+  assert.ok(linked.ringBankAccountId);
+  assert.ok(linked.ringRegisteredAt);
+  assert.equal((await M.connectRing(prisma, uid, { ringTagId: freshRing.id, newAccount: true })).ok, false);
 });

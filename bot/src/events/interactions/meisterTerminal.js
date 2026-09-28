@@ -1,7 +1,7 @@
 // The Meister's Terminal on Discord (docs/systemdocs/MEISTERY.md).
 //
 // The twin of Chat's dialog: the totals and the tax, every account (set a
-// balance, a character's own wage, close it), the fates' wages, connecting a
+// balance, a character's own wage, close it), the jobs' wages, connecting a
 // ring, and the ledger. Every rule and every refusal live in
 // db/lib/meisterTerminal.js, so this face and Chat's cannot drift — this file
 // is buttons, selects and modals only.
@@ -108,7 +108,7 @@ function classLabel(value) {
 
 function wageText(wage) {
   if (!wage?.source) return "";
-  return ` · ${signedObols(wage.amount)} ${wage.source === "fate" ? T.wageFromFate : T.wageOwn}`;
+  return ` · ${signedObols(wage.amount)} ${wage.source === "job" ? T.wageFromJob : T.wageOwn}`;
 }
 
 function openTurn() {
@@ -199,7 +199,7 @@ function accountScreen(state, accountId) {
   if (!a) return { content: T.noAccount, components: [row(button(`${PREFIX}acc:0`, T.back))] };
   const lines = [
     `**${a.holderName}** — \`${a.fingerprint}\``,
-    `${T.colClass}: ${classLabel(a.class)} · ${T.colFate}: ${a.roleName || "—"}`,
+    `${T.colClass}: ${classLabel(a.class)} · ${T.colJob}: ${a.roleName || "—"}`,
     `${T.colBalance}: **${a.balance} ¢** · ${T.colWage}: ${a.wage?.source ? wageText(a.wage).slice(3) : T.wageNone}`,
   ];
   if (a.locked) lines.push(`-# ${T.lockedNote}`);
@@ -227,16 +227,16 @@ function closeAskScreen(state, accountId) {
 }
 
 function wagesScreen(state, rawPage) {
-  const fates = state.fates;
-  const pages = Math.max(1, Math.ceil(fates.length / SELECT_CAP));
+  const jobs = state.jobs;
+  const pages = Math.max(1, Math.ceil(jobs.length / SELECT_CAP));
   const page = Math.min(Math.max(Number.parseInt(rawPage, 10) || 0, 0), pages - 1);
-  const slice = fates.slice(page * SELECT_CAP, page * SELECT_CAP + SELECT_CAP);
-  const setFates = fates.filter((f) => f.amount != null);
+  const slice = jobs.slice(page * SELECT_CAP, page * SELECT_CAP + SELECT_CAP);
+  const setJobs = jobs.filter((f) => f.amount != null);
 
-  const lines = [`**${T.tabWages}**`, `-# ${T.wagesHelp}`, fillMeisterText("dailyBill", state.dailyBill), `**${T.wagesByFate}**`];
-  if (!setFates.length) lines.push(T.wageNone);
-  for (const f of setFates) {
-    lines.push(`· ${f.name} — ${signedObols(f.amount)} (${fillMeisterText("fateHolders", { count: f.holders })})`);
+  const lines = [`**${T.tabWages}**`, `-# ${T.wagesHelp}`, fillMeisterText("dailyBill", state.dailyBill), `**${T.wagesByJob}**`];
+  if (!setJobs.length) lines.push(T.wageNone);
+  for (const f of setJobs) {
+    lines.push(`· ${f.name} — ${signedObols(f.amount)} (${fillMeisterText("jobHolders", { count: f.holders })})`);
   }
   lines.push(`**${T.wagesByCharacter}**`);
   if (!state.characterWages.length) lines.push(T.noCharacterWages);
@@ -247,8 +247,8 @@ function wagesScreen(state, rawPage) {
     components: [
       row(
         new StringSelectMenuBuilder()
-          .setCustomId(`${PREFIX}fate`)
-          .setPlaceholder(T.pickFate)
+          .setCustomId(`${PREFIX}job`)
+          .setPlaceholder(T.pickJob)
           .addOptions(
             slice.map((f) => ({
               label: f.name.slice(0, 100),
@@ -332,17 +332,8 @@ function accountStepScreen(state, draft) {
     });
   }
   options.push({ label: T.byFingerprint, value: "fp" });
-  const lines = [`**${ring.name}**`];
-  if (ring.registered) {
-    lines.push(
-      ring.seatNames.length
-        ? fillMeisterText("registerSeatsFixed", { roles: ring.seatNames.join(", ") })
-        : T.registerSeatsFixedNone,
-    );
-  }
-  lines.push(T.pickAccountFor);
   return {
-    content: lines.join("\n"),
+    content: [`**${ring.name}**`, T.pickAccountFor].join("\n"),
     components: [
       row(new StringSelectMenuBuilder().setCustomId(`${PREFIX}acctpick`).setPlaceholder(T.pickAccountFor).addOptions(options)),
       row(button(`${PREFIX}rings`, T.back)),
@@ -465,12 +456,12 @@ const BUTTON_ROUTES = [
 
 const SELECT_ROUTES = [
   [`${PREFIX}pick`, async (i) => { await ack(i, { update: true }); await redraw(i, (s) => accountScreen(s, i.values?.[0])); }],
-  [`${PREFIX}fate`, async (i) => {
+  [`${PREFIX}job`, async (i) => {
     const roleId = i.values?.[0] ?? "";
     const state = await load(i.user.id).catch(() => null);
-    const fate = state?.ok ? state.fates.find((f) => f.roleId === roleId) : null;
-    await i.showModal(modal(`${PREFIX}fwm:${roleId}`, `${T.wageLabel}: ${fate?.name ?? ""}`, [
-      { id: "amount", label: T.wageLabel, value: fate?.amount == null ? "" : String(fate.amount), required: false, placeholder: T.wageBlankClears },
+    const job = state?.ok ? state.jobs.find((f) => f.roleId === roleId) : null;
+    await i.showModal(modal(`${PREFIX}fwm:${roleId}`, `${T.wageLabel}: ${job?.name ?? ""}`, [
+      { id: "amount", label: T.wageLabel, value: job?.amount == null ? "" : String(job.amount), required: false, placeholder: T.wageBlankClears },
     ]));
   }],
   [`${PREFIX}ring`, async (i) => {
@@ -478,10 +469,7 @@ const SELECT_ROUTES = [
     const draft = draftOf(i.user.id);
     draft.ringTagId = i.values?.[0] ?? null;
     draft.seats = new Set();
-    await redraw(i, (s) => {
-      const ring = (s.rings ?? []).find((r) => r.tagId === draft.ringTagId);
-      return ring?.registered ? accountStepScreen(s, draft) : seatsScreen(s, draft);
-    });
+    await redraw(i, (s) => seatsScreen(s, draft));
   }],
   [`${PREFIX}seats:`, async (i, chunk) => {
     await ack(i, { update: true });

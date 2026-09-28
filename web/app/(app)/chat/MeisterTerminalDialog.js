@@ -38,7 +38,7 @@ function classLabel(value) {
 
 function wageLabel(wage) {
   if (!wage?.source) return T.wageNone;
-  const tail = wage.source === "fate" ? T.wageFromFate : T.wageOwn;
+  const tail = wage.source === "job" ? T.wageFromJob : T.wageOwn;
   return `${signedObols(wage.amount)} · ${tail}`;
 }
 
@@ -185,7 +185,7 @@ export default function MeisterTerminalDialog({ entry, onClose, onDone }) {
 const ACCOUNT_SEARCH = [(r) => r.holderName, (r) => r.fingerprint, (r) => r.roleName];
 const ACCOUNT_FILTERS = [
   { key: "class", label: T.colClass, value: (r) => classLabel(r.class) },
-  { key: "fate", label: T.colFate, value: (r) => r.roleName || "—" },
+  { key: "job", label: T.colJob, value: (r) => r.roleName || "—" },
 ];
 
 function AccountsTab({ state, act, pending }) {
@@ -222,7 +222,7 @@ function AccountsTab({ state, act, pending }) {
             <tr>
               <SortHeader label={T.colHolder} sortKey="holderName" sort={table.sort} onSort={table.toggleSort} />
               <SortHeader label={T.colFingerprint} sortKey="fingerprint" sort={table.sort} onSort={table.toggleSort} />
-              <SortHeader label={T.colFate} sortKey="roleName" sort={table.sort} onSort={table.toggleSort} />
+              <SortHeader label={T.colJob} sortKey="roleName" sort={table.sort} onSort={table.toggleSort} />
               <SortHeader label={T.colBalance} sortKey="balance" sort={table.sort} onSort={table.toggleSort} />
               <SortHeader label={T.colWage} sortKey="wageAmount" sort={table.sort} onSort={table.toggleSort} />
             </tr>
@@ -285,7 +285,7 @@ function AccountCard({ account, act, pending, onBack }) {
           <dd>{classLabel(account.class)}</dd>
         </div>
         <div>
-          <dt>{T.colFate}</dt>
+          <dt>{T.colJob}</dt>
           <dd>{account.roleName || "—"}</dd>
         </div>
         <div>
@@ -336,7 +336,7 @@ function AccountCard({ account, act, pending, onBack }) {
                   type="number"
                   className="w-32"
                   value={wage}
-                  placeholder={account.wage?.source === "fate" ? String(account.wage.amount) : ""}
+                  placeholder={account.wage?.source === "job" ? String(account.wage.amount) : ""}
                   onChange={(e) => setWage(e.target.value)}
                 />
                 <button
@@ -372,17 +372,17 @@ function AccountCard({ account, act, pending, onBack }) {
 
 // ─── Wages ───────────────────────────────────────────────────────────────────
 
-const FATE_SEARCH = [(r) => r.name, (r) => r.groupName];
+const JOB_SEARCH = [(r) => r.name, (r) => r.groupName];
 
 function WagesTab({ state, act, pending }) {
   const [drafts, setDrafts] = useState({});
   const [who, setWho] = useState("");
   const [amount, setAmount] = useState("");
-  const fates = useTableState({ rows: state.fates, searchFields: FATE_SEARCH, filterDefs: [], pageSize: 12 });
+  const jobs = useTableState({ rows: state.jobs, searchFields: JOB_SEARCH, filterDefs: [], pageSize: 12 });
 
   // Anybody living with an account who can be paid, for the add row.
   const payable = state.accounts.filter((a) => a.status === "ALIVE" && !a.locked && a.characterId);
-  const draftOf = (fate) => drafts[fate.roleId] ?? (fate.amount == null ? "" : String(fate.amount));
+  const draftOf = (job) => drafts[job.roleId] ?? (job.amount == null ? "" : String(job.amount));
 
   return (
     <div className="flex flex-col gap-4">
@@ -392,42 +392,42 @@ function WagesTab({ state, act, pending }) {
       </p>
 
       <section className="flex flex-col gap-2">
-        <h3>{T.wagesByFate}</h3>
+        <h3>{T.wagesByJob}</h3>
         <FilterBar
           filterDefs={[]}
-          filters={fates.filters}
-          setFilters={fates.setFilters}
-          options={fates.options}
-          query={fates.query}
-          setQuery={fates.setQuery}
-          searchLabel={T.colFate}
+          filters={jobs.filters}
+          setFilters={jobs.setFilters}
+          options={jobs.options}
+          query={jobs.query}
+          setQuery={jobs.setQuery}
+          searchLabel={T.colJob}
         />
-        {fates.pageRows.map((fate) => {
-          const draft = draftOf(fate);
-          const saved = fate.amount == null ? "" : String(fate.amount);
+        {jobs.pageRows.map((job) => {
+          const draft = draftOf(job);
+          const saved = job.amount == null ? "" : String(job.amount);
           return (
-            <div key={fate.roleId} className="terminal-ware">
+            <div key={job.roleId} className="terminal-ware">
               <div className="terminal-ware-text">
-                <span className="chat-person-name">{fate.name}</span>
+                <span className="chat-person-name">{job.name}</span>
                 <span className="text-sm text-muted">
-                  {fate.groupName} · {fillMeisterText("fateHolders", { count: fate.holders })}
+                  {job.groupName} · {fillMeisterText("jobHolders", { count: job.holders })}
                 </span>
               </div>
               <input
                 type="number"
                 className="control w-20"
-                aria-label={`${T.wageLabel} — ${fate.name}`}
+                aria-label={`${T.wageLabel} — ${job.name}`}
                 value={draft}
                 placeholder="0"
-                onChange={(e) => setDrafts((d) => ({ ...d, [fate.roleId]: e.target.value }))}
+                onChange={(e) => setDrafts((d) => ({ ...d, [job.roleId]: e.target.value }))}
               />
               <button
                 type="button"
                 className="btn-secondary"
                 disabled={pending || draft === "" || draft === saved}
                 onClick={() =>
-                  act(meisterSetWage, { roleId: fate.roleId, amount: Number(draft) }, () =>
-                    setDrafts((d) => ({ ...d, [fate.roleId]: undefined })),
+                  act(meisterSetWage, { roleId: job.roleId, amount: Number(draft) }, () =>
+                    setDrafts((d) => ({ ...d, [job.roleId]: undefined })),
                   )
                 }
               >
@@ -436,10 +436,10 @@ function WagesTab({ state, act, pending }) {
               <button
                 type="button"
                 className="btn-secondary"
-                disabled={pending || fate.amount == null}
+                disabled={pending || job.amount == null}
                 onClick={() =>
-                  act(meisterSetWage, { roleId: fate.roleId, amount: null }, () =>
-                    setDrafts((d) => ({ ...d, [fate.roleId]: undefined })),
+                  act(meisterSetWage, { roleId: job.roleId, amount: null }, () =>
+                    setDrafts((d) => ({ ...d, [job.roleId]: undefined })),
                   )
                 }
               >
@@ -448,7 +448,7 @@ function WagesTab({ state, act, pending }) {
             </div>
           );
         })}
-        <Pager page={fates.page} totalPages={fates.totalPages} total={fates.total} unit="fates" onPage={fates.setPage} />
+        <Pager page={jobs.page} totalPages={jobs.totalPages} total={jobs.total} unit="jobs" onPage={jobs.setPage} />
       </section>
 
       <section className="flex flex-col gap-2">
@@ -569,14 +569,7 @@ function RingsTab({ state, act, pending }) {
         </Select>
       </div>
 
-      {ring.registered ? (
-        <p className="text-sm">
-          {ring.seatNames.length
-            ? fillMeisterText("registerSeatsFixed", { roles: ring.seatNames.join(", ") })
-            : T.registerSeatsFixedNone}
-        </p>
-      ) : (
-        <fieldset className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
+      <fieldset className="grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-3">
           <legend className="field-label mb-1">{T.registerRoles}</legend>
           {seats.map((seat) => (
             <CheckField
@@ -591,8 +584,7 @@ function RingsTab({ state, act, pending }) {
               {seat.needs && <span className="text-xs text-muted"> · {seat.needs}</span>}
             </CheckField>
           ))}
-        </fieldset>
-      )}
+      </fieldset>
 
       <div className="field">
         <label className="field-label" htmlFor="meister-ring-account">
@@ -618,7 +610,7 @@ function RingsTab({ state, act, pending }) {
               meisterConnectRing,
               {
                 ringTagId: ring.tagId,
-                roleSlugs: ring.registered ? [] : [...picked],
+                roleSlugs: [...picked],
                 newAccount: choice === "new",
                 accountId: choice === "new" ? null : choice,
               },

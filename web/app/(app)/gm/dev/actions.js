@@ -461,7 +461,7 @@ export async function wipeGameData(formData) {
       prisma.depotSale.deleteMany({}),
       prisma.depotOrder.deleteMany({}),
       prisma.bankAccount.deleteMany({}),
-      // The Meister's wages (docs/systemdocs/MEISTERY.md §4). A fate's wage
+      // The Meister's wages (docs/systemdocs/MEISTERY.md §4). A job's wage
       // hangs off its Role, which survives a restart, so it would carry into
       // the next game; and the day numbers start again at 1, so last game's
       // payout claims would mark the new game's days as already paid.
