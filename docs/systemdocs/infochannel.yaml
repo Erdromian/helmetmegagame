@@ -74,11 +74,37 @@ categories:
         generated: roles-intro
       - title: Lore
         body: |-
-          **Lore**
+          **Evergreen**
 
-          Humanity retreated into the caves after the Long Night. Evergreen was once beautiful and lush, but for unknown reasons, the surface froze and became barren, destroying its ecosystems.
+          We are on Evergreen. A distant planet from humanity's origin of Earth, it has for centuries been shrouded in darkness and isolated. As the sun-deprived surface froze over, almost all of humanity upon Evergreen moved underground. In a state of planetary stasis humanity has regressed to a neo-feudal state, only that which benefits those in power has been maintained and preserved.
 
-          Far from the sun, electric lights illuminate Ravenheart, an ethereal castle ruled by its Baron. The only source of power is the Lifeweb — a revolutionary invention which turns human blood into electricity. While the nobility enjoy electrical appliances in the Keep and the merchant sells weird wares and lost technology, the life of a common Ravenhearter is medieval. Most of them use fire for light and simple tools for their work. They are superstitious and mostly illiterate. The Post-Christian Church is the official faith of Ravenheart, though some keep to the Old Ways in secret. Most of their days are spent working hard, but there is time for merry every once in a while. The current year is 1098.
+          Under the steady hand of the God-King, Evergreen has been shielded from the horrors of the cosmos, but all things must come to an end one way or another.
+
+          **God-King**
+
+          "The God-King watches over all. One eye turned to the soil below, one to the skies above. You don't need to understand his will. In fact, I'm here because I don't expect you to." — A Tribunal officer, visiting Ravenheart
+
+          The God-King Enoch is the absolute monarch of Evergreen. He has ruled for centuries and no memory of the world before his rise to power is left in the public consciousness. He rules from the planet's capital, Gahan. The idea of opposing him is near unthinkable, it would be as if to oppose Evergreen itself.
+
+          The title of God-King was appointed to him long ago by the church itself, when the reality dawned that he was no mere mortal king. The church and the God-King exist in a symbiotic relationship, both feeding power and legitimacy to the other and centralizing the planet around themselves. While he is not considered an embodiment of God-in-Coma, his absolute rule grants him a prophet-like status and unending devotion from the faithful.
+
+          **Post-Christianity**
+
+          God has surely not abandoned us; he merely slumbers in deep restless sleep.
+
+          The Grey Postchristian Church (GPC) is the only legally recognized religion on Evergreen. For centuries it has served as the planet's moral compass, guiding it through its blind and confused isolation.
+
+          Postchristians believe that God-in-Coma is trapped in an eternal nightmare, and when he wakes, he will vanquish the horrors of the cosmos and unveil a new age of paradise. For this to happen, the dark forces binding him must be driven from this world, this task falling to the Church and Inquisition.
+
+          Postchristianity bears almost no resemblance to real life Christianity beyond the general appearances. The doctrine calls for mercy on the holy and suffering for the wicked. Any who openly defy the church are labelled heretics and purged, lest they damn us all.
+
+          **Ravenheart**
+
+          Ravenheart is the fortress in which the game takes place, a minor settlement located in the north of Evergreen. Buried deep below the surface ruled by the Baron it offers some semblance of refuge amongst the hostile caves that surround it. All other sources of energy exhausted long ago, the Lifeweb remains as Ravenheart's only source of electricity, feeding on the very lifeforce of the population.
+
+          Based on its isolation, Ravenheart has significant autonomy from the rest of the God-King's domain. The Baron is still by law a vassal to both the Duke, and the God-King himself, but rarely do either interfere with the goings on of the fortress.
+
+          The current year is 1098. The fortress still glows in the dark, damp caves, but it will wink out like a candle should the Lifeweb cease to sustain it.
   - name: Gameplay
     threads:
       - title: Turns
