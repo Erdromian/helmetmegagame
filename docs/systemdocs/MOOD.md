@@ -25,7 +25,9 @@ are still gone; their jobs are two rows in the tables below.
 a number. It is shown and edited on the Dev Panel's Identity tab (clamped on
 save, `web/lib/characterWrite.js`), and a GM can stage it for the turn push
 from the adjudication desk (`ADJUDICATION.md` §1b), which leaves an
-Imperturbable or Changa-high dial alone. Everything else that moves it goes
+Imperturbable or Changa-high dial alone. A staged mood skips that night's
+settle, and the hunger pass's mood too, so it starts the next turn where the GM
+put it. Everything else that moves it goes
 through `db/lib/mood.js`.
 
 What a player sees is **one word**, in the Mood box on their sheet (§4), read

@@ -18,9 +18,11 @@
 // is always the number they end on, and a Change moves whatever the knock-on
 // left.
 //
-// Then the rest of the close runs from the new numbers: the hunger, Vampire
-// and mood passes all sit after the push in TURN_PASSES, so tonight's decay
-// still happens on top.
+// The GM's figure is the number they start the next turn on: the hunger,
+// Vampire and mood passes that run after the push leave a meter the GM moved
+// alone for that close — no decay, drift or regen, and nothing a crossing
+// would have cost it (loadHeldScales below). A meter the GM did not touch
+// runs as it always does.
 //
 // The player hears what the game says when a meter drops into a worse band —
 // the same lines the passes send — and nothing on the way back up: recovery
@@ -45,7 +47,7 @@ const {
 } = require("./vampire");
 const { syncHungerDescriptor } = require("./hungerDescriptor");
 const { syncVampireBandsNow } = require("./vampireBands");
-const { SCALES, SKIP_REASONS, SCALE_GATE_SLUGS, scaleBlockFor, resolveScale } = require("./stagedScales");
+const { SCALES, SKIP_REASONS, SCALE_GATE_SLUGS, scaleBlockFor, resolveScale, heldScalesFrom } = require("./stagedScales");
 
 // Best first, so a higher index is a worse band.
 const URGENCY_ORDER = ["flush", "satiated", "thirsty", "famished", "bloodcrazed"];
@@ -207,4 +209,15 @@ async function applyStagedScalesInTx(tx, { characterId, scales, turn }) {
   return { snapshot, notices };
 }
 
-module.exports = { applyStagedScalesInTx };
+// What the closing turn's push set, read back from the rows it applied rather
+// than handed along in memory, so a close that resumes after the push already
+// ran still holds the same meters. See db/lib/stagedScales.js#heldScalesFrom.
+async function loadHeldScales(prisma, turn) {
+  const rows = await prisma.stagedEffect.findMany({
+    where: { turnId: turn.id, appliedAt: { not: null }, targetCharacterId: { not: null } },
+    select: { targetCharacterId: true, payload: true, appliedEffect: true },
+  });
+  return heldScalesFrom(rows);
+}
+
+module.exports = { applyStagedScalesInTx, loadHeldScales };

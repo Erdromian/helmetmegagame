@@ -219,6 +219,25 @@ function allScalesSkipped(applied) {
   return entries.length > 0 && entries.every((e) => e?.skipped);
 }
 
+// The meters a GM moved at a push, per scale: { hunger: Set<characterId>, … }.
+// `rows` are that turn's applied StagedEffect rows ({ targetCharacterId,
+// payload, appliedEffect }). A meter counts when the row asked for it and it
+// wasn't skipped — a knock-on (the mood an onset cost, the humanity
+// Bloodcrazed took) is not the GM's figure, so it is not held. The nightly
+// passes leave a held meter where the GM put it (ADJUDICATION.md §1b).
+function heldScalesFrom(rows) {
+  const held = Object.fromEntries(SCALES.map((s) => [s.key, new Set()]));
+  for (const row of rows ?? []) {
+    const asked = row?.payload?.scales;
+    const applied = row?.appliedEffect?.scales;
+    if (!row?.targetCharacterId || !asked || !applied) continue;
+    for (const { key } of SCALES) {
+      if (asked[key] && applied[key] && !applied[key].skipped) held[key].add(row.targetCharacterId);
+    }
+  }
+  return held;
+}
+
 module.exports = {
   SCALES,
   SCALE_BY_KEY,
@@ -234,4 +253,5 @@ module.exports = {
   describeScales,
   describeAppliedScales,
   allScalesSkipped,
+  heldScalesFrom,
 };

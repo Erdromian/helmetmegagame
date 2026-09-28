@@ -292,7 +292,9 @@ each arrived at by getting them wrong first.
    descriptors carry no clock any more, so the order no longer guards against a
    re-grant collision, but food the close eats on its own (§5a) must
    not be one the sweep is about to expire, and a poison it grants starts its
-   clock on the turn about to open.
+   clock on the turn about to open. A hunger a GM staged at this push is
+   left where the GM put it, and so is a staged mood — none of this pass's
+   mood reaches it (`ADJUDICATION.md` §1b).
 8a. **Dawn afflictions pass** (`db/lib/dawnAfflictionPass.js`) — right after
    hunger. Guilt Ridden and Insomniac each roll a chance of a bad night's
    sleep, stepping the Tired → Exhausted ladder (`TAGS.md`, `MINING.md` §5).
@@ -389,6 +391,8 @@ each arrived at by getting them wrong first.
    It applies the turn's flat harms and reliefs to `Character.mood`, slides
    every dial back toward Fine from either direction — one slow step of
    `MOOD_DRIFT_UP` (4) coming up, one fast `MOOD_DRIFT_DOWN` (40) coming down.
+   A mood a GM staged at this push is skipped: it stays where the GM put it
+   (`ADJUDICATION.md` §1b).
    A noble without Dined takes NOBLE_MEAL (`MOOD.md` §8); the pass only reads
    Dined and never clears it — it runs out on its own clock, and the expiry
    sweep above takes it off first (`COOKING.md` §6a). It settles no tag: the band is a word read off the number, not a
@@ -548,8 +552,8 @@ The thunk performs, in narrative order:
    since a GM acting on someone's sheet needs telling apart from the
    player's own eating — `db/lib/hunger.js#hungerDm`. A hunger change a GM
    staged at the desk sends its own Hungry or Starving line with the early
-   tag notices, and this step then counts from the number it set —
-   `ADJUDICATION.md` §1b.)
+   tag notices, and the hunger pass leaves that meter alone for the close, so
+   this step has nothing to say about it — `ADJUDICATION.md` §1b.)
 5. **The staged deliveries** — every unsent `StagedMessage` for the closing
    turn. PRIVATE rows fan out one DM per recipient (per-recipient try/catch,
    failures collected onto the row's `deliveryFailures` and into one

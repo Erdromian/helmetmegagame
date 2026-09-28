@@ -199,20 +199,29 @@ and where the change would leave it. A player never sees a number, only the
 tag or word it drives. Blood and humanity only appear once somebody picked is
 a Vampire.
 
-**It lands at the push, before tonight's own tick.** The push runs ahead of the
-hunger, Vampire and mood passes in `TURN_PASSES`, so the meters still decay,
-regenerate and drift from the number a GM set. Restoring a Vampire's blood to
-100 after a feeding Gambit leaves them where the Dev Panel edit always did: at
-100, less one night's drain.
+**It lands at the push, and the GM's number is the one they start the next
+turn on.** The push runs ahead of the hunger, Vampire and mood passes in
+`TURN_PASSES`, and those passes leave a meter a GM moved alone for that
+close: no decay, drain, regen or drift, and nothing a crossing tonight would
+have cost it. Restoring a Vampire's blood to 100 after a feeding Gambit leaves
+them at 100, not 100 less a night's drain. Which meters are held is read back
+from the push's applied rows (`db/lib/stagedScalesApply.js#loadHeldScales`),
+so a close that resumes after the push still holds them.
+
+Only the meter the GM moved is held. Stage hunger alone and the night's mood
+still settles as usual; stage humanity alone and blood still drains, and a
+drain into Bloodcrazed still grants the tag, but its 60 humanity is not taken
+from the number the GM set. A meter that was skipped (below) is not held. The
+next close runs every meter as normal again.
 
 **A staged change brings its meter's own coded consequences with it**, the
 same ones the change would have had in the world:
 
 - **Hunger.** The descriptor tag (Full, Hungry, Starving) moves at once.
   Dropping into Hungry or Starving costs the same mood the hunger pass charges
-  for it. At 0 the hunger pass that runs straight after grants Dying, unless
-  they carry food to eat, exactly as it would for a meter that reached 0 on
-  its own.
+  for it. Hunger held at 0 grants nothing that night; at the **next** push
+  the hunger pass eats their food for them if they carry any, and grants
+  Dying if it can't, as it would for a meter that reached 0 on its own.
 - **Blood.** The Vampire's band tags move at once. Crossing into Bloodcrazed
   costs 60 humanity (`VAMPIRE.md` §3a), and the forced feed and attack follow
   next turn.

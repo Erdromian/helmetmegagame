@@ -42,7 +42,7 @@ export function scaleDraftDirty(draft) {
 // The consequence a GM should hear about before pressing Stage, not after
 // reading the tray on the next turn.
 function edgeNote(key, to, from) {
-  if (key === "hunger" && to === 0) return "At 0 they start dying tonight unless they carry food.";
+  if (key === "hunger" && to === 0) return "At 0 they start dying at the next push unless they eat before it.";
   if (key === "blood" && to === 0 && from !== 0) return "Bloodcrazed: 60 humanity gone, and they feed and attack next turn.";
   if (key === "humanity" && to === 0 && from !== 0) return "Bestial and a Wight, for good.";
   return null;
@@ -96,7 +96,7 @@ export default function ScaleFields({ value, onChange, readings, readingsFailed,
     <section className="composer-group">
       <h3 className="composer-group-title">Scales</h3>
       <p className="text-xs text-muted">
-        Hidden meters — players only ever see the word. Applied at the push, before tonight&apos;s own decay.
+        Hidden meters — players only ever see the word. Applied at the push, and tonight&apos;s decay leaves them alone: they start the next turn on this number.
       </p>
       {visible.map((scale) => {
         const entry = value?.[scale.key] ?? { op: "", value: "" };

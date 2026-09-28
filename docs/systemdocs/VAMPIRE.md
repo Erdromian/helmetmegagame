@@ -106,7 +106,10 @@ Scales group (`ADJUDICATION.md` §1b), and it lands at the turn push with the
 rest of the ruling. Blood and humanity both stage that way, set or moved. A
 staged drop into Bloodcrazed takes the automatic 60 humanity (§3a), and a
 staged humanity of 0 makes them Bestial and a Wight (§3), the same as if the
-nightly pass had got them there.
+nightly pass had got them there. The nightly pass then leaves a staged meter
+alone for that close — no drain on a staged blood, no regen or Bloodcrazed
+loss on a staged humanity — so the Vampire starts the next turn on the GM's
+number.
 
 This is deliberate, not a placeholder: automating blood restoration or dice
 would mean inventing a combat-resolution system this engine doesn't have

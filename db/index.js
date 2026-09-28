@@ -56,6 +56,7 @@ const { endGameInDb } = require("./lib/gameEnd");
 const { runBirdPass } = require("./lib/birdPass");
 const { runMiningYieldPass } = require("./lib/miningYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
+const { loadHeldScales } = require("./lib/stagedScalesApply");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
 const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
 const { runConfessionPass } = require("./lib/confessionPass");
@@ -574,6 +575,15 @@ async function resolveNeeds(turn, config) {
     );
   }
 
+  // The meters a GM moved at that push, which the hunger, Vampire and mood
+  // passes below leave where the GM put them (ADJUDICATION.md §1b). Read back
+  // from the applied rows, not taken off `stagedPush`, which is null on a
+  // resumed close whose push already ran.
+  const heldScales = await loadHeldScales(prisma, turn).catch((err) => {
+    console.error("Could not read the staged scales — tonight's passes move every meter:", err);
+    return {};
+  });
+
   // The caving release (db/lib/cavingPass.js). Directly after the staged push,
   // because the push is the GM's last chance to have resolved one by hand: the
   // Caving lens is read-only on a past turn, so a TROUBLE roll still open once
@@ -904,7 +914,7 @@ async function resolveNeeds(turn, config) {
   // collides with @@unique([characterId, tagId]) and gets dropped. See
   // db/lib/hungerPass.js.
   const hunger = await runPass("hunger", "Hunger", () =>
-    runHungerPass(prisma, turn, { bornBefore: passRunStartedAt }),
+    runHungerPass(prisma, turn, { bornBefore: passRunStartedAt, hold: heldScales }),
   );
   const { hungerNotices = [], moodDms: hungerMoodDms = [], ...hungerSummary } = hunger ?? {};
   if (hunger) {
@@ -915,7 +925,7 @@ async function resolveNeeds(turn, config) {
 
   // The Vampire's blood/humanity meters. Right after Hunger, same ordering
   // reason. See db/lib/vampirePass.js.
-  const vampire = await runPass("vampire", "Vampire", () => runVampirePass(prisma, turn, config));
+  const vampire = await runPass("vampire", "Vampire", () => runVampirePass(prisma, turn, config, { hold: heldScales }));
   const { bandDms: vampireBandDms = [], ...vampireSummary } = vampire ?? {};
   if (vampire) {
     tagExpiryDms.push(...vampireBandDms);
@@ -960,7 +970,7 @@ async function resolveNeeds(turn, config) {
   // The mood dial's nightly settle (docs/systemdocs/MOOD.md): every ALIVE
   // character pays or earns the night for where they stand, and slides a
   // little back toward Fine. See db/lib/moodPass.js.
-  const mood = await runPass("mood", "Mood", () => runMoodPass(prisma, turn));
+  const mood = await runPass("mood", "Mood", () => runMoodPass(prisma, turn, { hold: heldScales }));
   if (mood) {
     // "You are now Afraid." is a tag notice like any other; same channel.
     const { dms: moodDms = [], ...moodSummary } = mood;

@@ -21,6 +21,7 @@ const {
   describeScales,
   describeAppliedScales,
   allScalesSkipped,
+  heldScalesFrom,
 } = require("../lib/stagedScales");
 
 const SKIP = !isLocalDatabase() && "point DATABASE_URL at a local Postgres";
@@ -115,6 +116,32 @@ test("an applied row says what moved, the knock-ons, and what was skipped", () =
   assert.equal(allScalesSkipped(applied), false);
   assert.equal(allScalesSkipped({ blood: { skipped: SKIP_REASONS.notVampire } }), true);
   assert.equal(allScalesSkipped(null), false);
+});
+
+test("the nightly passes hold only the meters a GM asked for and actually moved", () => {
+  const held = heldScalesFrom([
+    {
+      // Hunger asked for and moved; the mood its onset cost is a knock-on.
+      targetCharacterId: "a",
+      payload: { scales: { hunger: { op: "set", value: 40 } } },
+      appliedEffect: { scales: { hunger: { from: 90, to: 40 }, mood: { from: 0, to: -30, onset: -30 } } },
+    },
+    {
+      // Blood asked for but skipped; humanity asked for and moved.
+      targetCharacterId: "b",
+      payload: { scales: { blood: { op: "set", value: 20 }, humanity: { op: "add", value: -10 } } },
+      appliedEffect: { scales: { blood: { skipped: SKIP_REASONS.notVampire }, humanity: { from: 80, to: 70 } } },
+    },
+    // A row with no scales, a room row, and a row that failed at the push.
+    { targetCharacterId: "c", payload: { resources: 2 }, appliedEffect: { resources: 2 } },
+    { targetCharacterId: null, payload: { scales: { mood: { op: "set", value: 1 } } }, appliedEffect: { scales: { mood: { from: 0, to: 1 } } } },
+    { targetCharacterId: "d", payload: { scales: { mood: { op: "set", value: 1 } } }, appliedEffect: { error: "boom" } },
+  ]);
+  assert.deepEqual(
+    Object.fromEntries(Object.entries(held).map(([k, v]) => [k, [...v]])),
+    { hunger: ["a"], mood: [], blood: [], humanity: ["b"] },
+  );
+  assert.deepEqual(Object.keys(heldScalesFrom(null)), SCALES.map((s) => s.key));
 });
 
 // ─── Against a real database ─────────────────────────────────────────────
@@ -314,4 +341,11 @@ test("a staged scale row goes all the way through the turn push", { skip: SKIP }
   });
   assert.ok(audit, "one audit row for what moved");
   assert.deepEqual(audit.details.scales.hunger, { from: 100, to: 50 });
+
+  // The passes after the push hold that hunger where the GM put it, read back
+  // from the applied row so a resumed close holds it too.
+  const { loadHeldScales } = require("../lib/stagedScalesApply");
+  const held = await loadHeldScales(prisma, turn);
+  assert.deepEqual([...held.hunger], [target.id]);
+  assert.equal(held.mood.size, 0, "the onset's mood is a knock-on, not the GM's figure");
 });
