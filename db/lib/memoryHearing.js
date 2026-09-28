@@ -90,11 +90,16 @@ async function presentWhere(prisma, placeKey, { speakerId = null } = {}) {
 
 // Files a row for everyone present. `row` is the ArchiveEntry just written. A
 // row with no open turn has no day to file under, so it is not filed.
-async function logHeard(prisma, row) {
+// `standing` is everyone standing there, when the caller already looked them up
+// (db/lib/archive.js does, for the row's witnesses); without it this asks.
+async function logHeard(prisma, row, standing = null) {
   if (!row?.placeKey || row.dayNumber == null || row.seq == null) return 0;
-  const where = await presentWhere(prisma, row.placeKey, { speakerId: row.characterId ?? null });
-  if (!where) return 0;
-  const everyone = await prisma.character.findMany({ where, select: { id: true } });
+  let everyone = standing;
+  if (!everyone) {
+    const where = await presentWhere(prisma, row.placeKey, { speakerId: row.characterId ?? null });
+    if (!where) return 0;
+    everyone = await prisma.character.findMany({ where, select: { id: true } });
+  }
   // A row meant for one reader, or kept from one (a telephone's two voices,
   // PHONES.md §6), is only a memory for the people who read it.
   const present = everyone.filter(

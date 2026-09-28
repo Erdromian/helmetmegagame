@@ -10,6 +10,7 @@ const { roleGroupHue } = require("./roleGroups");
 const { isSfx } = require("./sfx");
 const { attachSpeaker, attachAudience, attachSubjects } = require("./strangers");
 const { locationNameForPlaceKey } = require("./placeKey");
+const { presentAt, witnessesFrom, witnessColumns, NO_WITNESS_KINDS } = require("./archiveWitnesses");
 
 // The columns the live feed needs off a row, and nothing else — kept beside feedRowShape below so the two never drift.
 const FEED_ROW_SELECT = {
@@ -232,15 +233,29 @@ function placeLocationName(prisma, placeKey) {
 
 async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
   const run = async () => {
-    const [turn, gameId, presentedState, locationName] = await Promise.all([
+    const [turn, gameId, presentedState, locationName, present] = await Promise.all([
       resolveTurn(prisma, entry.turn),
       currentGameId(prisma),
       resolvePresentedState(prisma, entry),
       placeLocationName(prisma, entry.placeKey),
+      // Everyone standing there: the line's witnesses, and the day's heard
+      // lines below, off the one lookup.
+      presentAt(prisma, entry.placeKey, entry.character?.id ?? null),
     ]);
+    const witnesses = witnessesFrom(
+      {
+        kind: "MESSAGE",
+        characterId: entry.character?.id ?? null,
+        characterName: entry.character?.name ?? null,
+        onlyCharacterId: entry.onlyCharacterId ?? null,
+        exceptCharacterId: entry.exceptCharacterId ?? null,
+      },
+      present,
+    );
     const row = await prisma.archiveEntry.create({
       data: {
         kind: "MESSAGE",
+        ...witnessColumns(witnesses),
         gameId,
         turnNumber: turn?.number ?? null,
         dayNumber: turn?.dayNumber ?? null,
@@ -288,7 +303,7 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
       // fail the line it is a memory of. Required here, not at the top, so the
       // module graph under this file stays as it was.
       void require("./memoryHearing")
-        .logHeard(prisma, row)
+        .logHeard(prisma, row, present)
         .catch((err) => console.error("Heard-line filing failed:", err.message ?? err));
     }
     return row;
@@ -299,14 +314,19 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
 // A system event — a turn opening, a death, a fulfilled Desire. Same table as messages so the two interleave chronologically and the transcript reads as a diary, not a chat log with no context.
 async function recordArchiveEvent(prisma, entry) {
   return safely(`${entry.kind} write`, async () => {
-    const [turn, gameId, locationName] = await Promise.all([
+    const characterId = entry.character?.id ?? entry.characterId ?? null;
+    const characterName = entry.character?.name ?? entry.characterName ?? null;
+    const noWitnesses = NO_WITNESS_KINDS.has(entry.kind);
+    const [turn, gameId, locationName, present] = await Promise.all([
       resolveTurn(prisma, entry.turn),
       currentGameId(prisma),
       placeLocationName(prisma, entry.placeKey),
+      noWitnesses ? [] : presentAt(prisma, entry.placeKey, characterId),
     ]);
     const row = await prisma.archiveEntry.create({
       data: {
         kind: entry.kind,
+        ...witnessColumns(witnessesFrom({ kind: entry.kind, characterId, characterName }, present)),
         gameId,
         turnNumber: turn?.number ?? null,
         dayNumber: turn?.dayNumber ?? null,
@@ -314,8 +334,8 @@ async function recordArchiveEvent(prisma, entry) {
         zoneId: entry.zoneId ?? null,
         zoneName: entry.zoneName ?? null,
         locationName,
-        characterId: entry.character?.id ?? entry.characterId ?? null,
-        characterName: entry.character?.name ?? entry.characterName ?? null,
+        characterId,
+        characterName,
         content: entry.content ?? "",
         placeKey: entry.placeKey ?? null,
         // Carried the same way recordArchiveMessage carries it. An event used to have no way to say

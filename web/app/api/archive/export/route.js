@@ -1,5 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { ARCHIVE_ROW_SELECT } from "@lifeweb/db/lib/archive";
+import { archiveWitnessOptions } from "@lifeweb/db/lib/archiveWitnesses";
 import { readPacketBuffer } from "@lifeweb/db/lib/archiveExport";
 import { bucketConfigured, getObject } from "@lifeweb/db/lib/archiveBucket";
 import { factsLine, rosterLine } from "@lifeweb/db/lib/epilogue";
@@ -59,13 +60,18 @@ function rowsFromPacket(buf) {
     .sort((a, b) => a.sentAt - b.sentAt || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 }
 
-// Character names for the People chips in the header and for mentions sent
-// before names were frozen into the token. A past game's characters are
-// usually gone, so the names on the rows themselves come first.
-async function namesFor(rows, filters) {
+// Character names for the People and Witnessed by chips in the header and for
+// mentions sent before names were frozen into the token. A past game's
+// characters are usually gone, so the names on the rows themselves come first.
+async function namesFor(gameId, rows, filters) {
   const names = new Map();
   for (const r of rows) if (r.characterId && r.characterName && !r.concealedAlias) names.set(r.characterId, r.characterName);
-  const wanted = new Set(filters.characters ?? []);
+  // A witness may never have said a word, so their name is only on the rows
+  // they witnessed.
+  if (filters.witnesses?.some((id) => !names.has(id))) {
+    for (const w of await archiveWitnessOptions(prisma, gameId)) if (!names.has(w.id)) names.set(w.id, w.name);
+  }
+  const wanted = new Set([...(filters.characters ?? []), ...(filters.witnesses ?? [])]);
   for (const r of rows) for (const m of String(r.content ?? "").matchAll(BARE_MENTION_RE)) wanted.add(m[1]);
   const missing = [...wanted].filter((id) => !names.has(id));
   if (missing.length) {
@@ -120,17 +126,18 @@ export async function GET(request) {
     rows,
     filters,
     whole: archived,
-    names: await namesFor(rows, archived ? {} : filters),
+    names: await namesFor(game.id, rows, archived ? {} : filters),
     epilogue: epilogueText(game.epilogue),
     tz: params.get("tz") ?? "",
   });
 
-  // Narrowed means a filter chip was on: a search, days, a place or a person.
+  // Narrowed means a filter chip was on: a search, days, a place, a person or a
+  // witness.
   const filtered =
     !archived &&
     Boolean(
       filters.q || filters.from || filters.to || filters.zones.length || filters.locations.length ||
-      filters.rooms.length || filters.characters.length,
+      filters.rooms.length || filters.characters.length || filters.witnesses.length,
     );
   const name = archiveFileName(game, { filtered });
   return new Response(text, {

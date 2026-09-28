@@ -6,7 +6,7 @@ export const ARCHIVE_PAGE_SIZE = 60;
 
 // The filters that take several values at once. Each is a repeated URL param
 // (`?zone=Town&zone=Caves`): OR within one filter, AND across filters.
-const MULTI = ["zone", "location", "room", "character"];
+const MULTI = ["zone", "location", "room", "character", "witness"];
 
 // A place is named by the names above it, since two zones can each have a
 // Cellar: a Location is `Zone|Location`, a room or conversation
@@ -91,6 +91,9 @@ export function parseArchiveParams(params = {}) {
     locations: listOf(params?.location).filter((k) => parseLocationKey(k)),
     rooms: listOf(params?.room).filter((k) => parseRoomKey(k)),
     characters: listOf(params?.character),
+    // Character ids, like `characters`, but matched against who WITNESSED a
+    // row rather than who said or did it (db/lib/archiveWitnesses.js).
+    witnesses: listOf(params?.witness),
     // Matched against the row's own stamped day, never worked out from the turn number: a day is one to four turns now
     // (TURN-ENGINE.md), so "turns 2N-1 and 2N" found the wrong rows at every length.
     from,
@@ -130,6 +133,13 @@ export function activeArchiveFilters(f, names = new Map()) {
   for (const c of f.characters) {
     on.push({ key: `character:${c}`, label: names.get(c) ?? "one person", clear: { character: f.characters.filter((v) => v !== c) } });
   }
+  for (const w of f.witnesses ?? []) {
+    on.push({
+      key: `witness:${w}`,
+      label: `Witnessed by ${names.get(w) ?? "one person"}`,
+      clear: { witness: f.witnesses.filter((v) => v !== w) },
+    });
+  }
   return on.map((chip) => ({ ...chip, clear: chip.clear ?? { [chip.key]: "" } }));
 }
 
@@ -167,6 +177,9 @@ export function archiveWhere(gameId, f) {
     });
   }
   if (f.characters?.length) and.push({ characterId: { in: f.characters } });
+  // Anything any of them witnessed. A row written before witnesses were
+  // recorded has none, so it never matches.
+  if (f.witnesses?.length) and.push({ witnessIds: { hasSome: f.witnesses } });
   if (f.from || f.to) and.push({ dayNumber: { ...(f.from ? { gte: f.from } : {}), ...(f.to ? { lte: f.to } : {}) } });
   if (f.q) and.push({ content: { contains: f.q, mode: "insensitive" } });
   return { gameId, deletedAt: null, AND: and };
@@ -211,6 +224,7 @@ export function archiveParamsToQuery(f, overrides = {}) {
     location: f.locations,
     room: f.rooms,
     character: f.characters,
+    witness: f.witnesses,
     from: f.from,
     to: f.to,
     q: f.q,

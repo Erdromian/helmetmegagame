@@ -33,12 +33,17 @@ import ArchiveExportButton from "./ArchiveExportButton";
 const VIEW_KEY = "archive:view";
 const VIEW_DEFAULT = { groupScenes: true, portraits: false };
 
-export default function ArchiveView({ game, games, currentGameId, zones, locations, rooms, characters, filters, total, first }) {
+export default function ArchiveView({ game, games, currentGameId, zones, locations, rooms, characters, witnesses, filters, total, first }) {
   const router = useRouter();
   const [view, setView] = useSessionState(VIEW_KEY, VIEW_DEFAULT);
   const [drawer, setDrawer] = useState(false);
   const query = archiveParamsToQuery(filters);
-  const names = useMemo(() => new Map(characters.map((c) => [c.id, c.name])), [characters]);
+  // Both lists key on character ids, so one map names a People chip and a
+  // Witnessed by chip alike. Somebody who only ever listened is only a witness.
+  const names = useMemo(
+    () => new Map([...witnesses, ...characters].map((c) => [c.id, c.name])),
+    [characters, witnesses],
+  );
   const active = activeArchiveFilters(filters, names);
 
   // One place that writes a link, so no control invents its own query string.
@@ -121,7 +126,7 @@ export default function ArchiveView({ game, games, currentGameId, zones, locatio
           <button
             type="button"
             className="archive-chips-clear"
-            onClick={() => go({ q: "", from: "", to: "", zone: [], location: [], room: [], character: [] })}
+            onClick={() => go({ q: "", from: "", to: "", zone: [], location: [], room: [], character: [], witness: [] })}
           >
             Clear all
           </button>
@@ -141,6 +146,7 @@ export default function ArchiveView({ game, games, currentGameId, zones, locatio
             locations={locations}
             rooms={rooms}
             characters={characters}
+            witnesses={witnesses}
             filters={filters}
             onGame={(id) => {
               setDrawer(false);
@@ -163,13 +169,14 @@ export default function ArchiveView({ game, games, currentGameId, zones, locatio
 // Everything that narrows, picked together and applied once. Ticking a box
 // does not navigate: three rooms and two people would otherwise be five page
 // loads, each showing a transcript you did not ask for.
-function ArchiveFilters({ game, games, currentGameId, zones, locations, rooms, characters, filters, onGame, onApply }) {
+function ArchiveFilters({ game, games, currentGameId, zones, locations, rooms, characters, witnesses, filters, onGame, onApply }) {
   // Zones, Locations and Rooms move together: each list shows only what sits
   // inside the picks above it, and a change above drops the picks it leaves
   // outside (prunePlaces). Nothing picked above means everything is offered.
   const [places, setPlaces] = useState(() => ({ zones: filters.zones, locations: filters.locations, rooms: filters.rooms }));
   const pickPlaces = (patch) => setPlaces((p) => prunePlaces({ ...p, ...patch }));
   const [peoplePick, setPeoplePick] = useState(filters.characters);
+  const [witnessPick, setWitnessPick] = useState(filters.witnesses);
   const [from, setFrom] = useState(filters.from ?? "");
   const [to, setTo] = useState(filters.to ?? "");
   const [order, setOrder] = useState(filters.order);
@@ -185,6 +192,7 @@ function ArchiveFilters({ game, games, currentGameId, zones, locations, rooms, c
     return rooms;
   }, [rooms, places.locations, places.zones]);
   const peopleItems = useMemo(() => characters.map((c) => ({ id: c.id, label: c.name })), [characters]);
+  const witnessItems = useMemo(() => witnesses.map((c) => ({ id: c.id, label: c.name })), [witnesses]);
 
   return (
     <form
@@ -196,6 +204,7 @@ function ArchiveFilters({ game, games, currentGameId, zones, locations, rooms, c
           location: places.locations,
           room: places.rooms,
           character: peoplePick,
+          witness: witnessPick,
           from: String(from).trim(),
           to: String(to).trim(),
           order,
@@ -255,6 +264,18 @@ function ArchiveFilters({ game, games, currentGameId, zones, locations, rooms, c
         items={peopleItems}
         value={peoplePick}
         onChange={setPeoplePick}
+        filterPlaceholder="Filter people…"
+        emptyLabel="Nobody matches."
+        maxHeight="12rem"
+      />
+      {/* What they saw and heard for themselves, rather than what they said:
+          every line said where they stood, and every act they did or had
+          done to them (db/lib/archiveWitnesses.js). */}
+      <CheckPicker
+        label="Witnessed by"
+        items={witnessItems}
+        value={witnessPick}
+        onChange={setWitnessPick}
         filterPlaceholder="Filter people…"
         emptyLabel="Nobody matches."
         maxHeight="12rem"

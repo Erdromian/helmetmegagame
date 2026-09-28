@@ -14,6 +14,7 @@
 
 const { auditLine } = require("./oracleAudit");
 const { currentGameId, resolveTurn } = require("./archive");
+const { witnessColumns } = require("./archiveWitnesses");
 
 // Rows that are the GM's desk, the host's panel or the engine talking to
 // itself. Never a character's act, even when the GM happens to have one.
@@ -214,6 +215,10 @@ async function fileAuditInArchive(db, audit) {
       threadName: place.threadName,
       characterId: character.id,
       characterName: character.name,
+      // The one who did it and the one it was done to, and nobody else: what
+      // the room saw of it, if anything, is its own scene line
+      // (./archiveWitnesses.js).
+      ...witnessColumns([character, target].filter(Boolean)),
       content,
       // Never a placeKey: every feed selects by it, and an action is not a line
       // anybody in the room heard.

@@ -157,3 +157,29 @@ test("the query string round-trips every repeated value", () => {
   // Defaults stay out of the link.
   assert.doesNotMatch(archiveParamsToQuery(parseArchiveParams({})), /show|order|actions/);
 });
+
+test("Witnessed by: several people are OR, its own clause, beside People", () => {
+  const f = parseArchiveParams({ witness: ["ada", "otto", "ada"], character: "marrow" });
+  assert.deepEqual(f.witnesses, ["ada", "otto"]);
+  const where = archiveWhere("game-1", f);
+  assert.deepEqual(clause(where, "witnessIds").witnessIds, { hasSome: ["ada", "otto"] });
+  // Who said it and who saw it are separate questions, ANDed.
+  assert.deepEqual(clause(where, "characterId").characterId, { in: ["marrow"] });
+  // Nothing picked, no clause.
+  assert.equal(clause(archiveWhere("game-1", parseArchiveParams({})), "witnessIds"), undefined);
+});
+
+test("a Witnessed by chip names the witness and takes off only them", () => {
+  const f = parseArchiveParams({ witness: ["ada", "otto"] });
+  const chips = activeArchiveFilters(f, new Map([["ada", "Ada Vask"]]));
+  const ada = chips.find((c) => c.key === "witness:ada");
+  assert.equal(ada.label, "Witnessed by Ada Vask");
+  assert.deepEqual(ada.clear, { witness: ["otto"] });
+  assert.equal(chips.find((c) => c.key === "witness:otto").label, "Witnessed by one person");
+});
+
+test("the query string round-trips every witness", () => {
+  const qs = archiveParamsToQuery(parseArchiveParams({ witness: ["ada", "otto"] }));
+  const back = parseArchiveParams(searchParamsObject(new URLSearchParams(qs)));
+  assert.deepEqual(back.witnesses, ["ada", "otto"]);
+});
