@@ -54,13 +54,13 @@ async function ringGroupId(db) {
   return source?.groupId ?? null;
 }
 
-// A ring engraved for `engravedFor` ({ id, name }) and registered to nothing.
+// A ring engraved for `engravedFor` ({ id, firstName, lastName }) and registered to nothing.
 // Plain unless `shape` says otherwise (an office's own ring, spawnRingShape):
 // a plain ring leaves no seal. What a smith hands over is always plain. `db`
 // must be the TOP-LEVEL client: createWithRetry leans on a failed insert, which
 // would abort a transaction.
 async function createRingRow(db, engravedFor, shape = null) {
-  const initials = initialsOf(engravedFor?.name) ?? "?";
+  const initials = initialsOf(engravedFor) ?? "?";
   const groupId = await ringGroupId(db);
   const tag = await createWithRetry(db, (attempt) => ({
     ...RING_SHAPE,
@@ -114,7 +114,7 @@ async function registerRing(tx, ring, { roleSlugs, roles, bankAccountId }) {
 // the ring, or null for a seat that doesn't spawn with one.
 async function mintSpawnRing(prisma, character, role, { turnNumber = null } = {}) {
   if (!role?.ringSpawns) return null;
-  const initials = initialsOf(character.name) ?? "?";
+  const initials = initialsOf(character) ?? "?";
   const ring = await createRingRow(prisma, character, spawnRingShape(role, initials));
   const account = await openAccount(prisma, character, {
     accountClass: role.bankAccountClass ?? undefined,

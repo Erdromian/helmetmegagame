@@ -300,7 +300,7 @@ async function applySpawnSideEffects(prisma, sideEffects) {
     try {
       const [seat, character] = await Promise.all([
         prisma.role.findUnique({ where: { slug: roleSlug } }),
-        prisma.character.findUnique({ where: { id: characterId }, select: { id: true, name: true, discordUserId: true, locationId: true, status: true } }),
+        prisma.character.findUnique({ where: { id: characterId }, select: { id: true, name: true, firstName: true, lastName: true, discordUserId: true, locationId: true, status: true } }),
       ]);
       if (seat && character && (await mintSpawnRing(prisma, character, seat))) {
         await syncCharacterRoomAccess(prisma, character);
