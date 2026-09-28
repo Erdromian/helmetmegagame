@@ -136,9 +136,10 @@ key and the Depot keycard are still loot and shop items, and also in the rings
 of the seats that used to start with them. The Silver Chip was one of these
 until the Black Market left the Depot for the Exactor's terminal; it is gone.
 
-Two doors opened by this that no seat could open before: the Bishop's ring
-carries `bishops-key` (the Order Chambers) and the Servant's `servant-key` (the
-Keep's Storehouse, Kitchen and Workshop).
+One door opened by this that no seat could open before: the Servant's
+`servant-key` (the Keep's Storehouse, Kitchen and Workshop). The Bishop's ring
+carries `order-key` beside `cathedral-key`, so the Bishop goes into the Order
+Chambers by the same doors the Order does.
 
 ## 4. Seals
 

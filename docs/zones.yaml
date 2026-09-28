@@ -360,24 +360,10 @@ zones:
             name: Confessionals
             description: >-
               Cramped and dark, the confession box was the church's primary source of information until the arrival of the inquisition and their more proactive methods. If the bishop is feeling generous, he may even take your confession free of charge.
-          town-4-3:
-            name: Order Chambers
-            description: >-
-              The heart of the Order. There's a small room off to the side: tool racks line the walls with cruel and unusual instruments. Cages are positioned in the corners, awaiting occupants. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
-            # The Order's headquarters, so every Order Key opens it: the
-            # Practicii need the torture kit here. The crossbow and the tear
-            # gas that used to lie here start with the Inquisitor instead
-            # (docs/roles.yaml), so they are the Inquisitor's to hand out.
-            access: [order-key, bishops-key]
-            soundproof: true
-            stash:
-              items:
-                paper: 12
-                torturing-equipment: 1
-                bag: 1
-                mace: 1
-                padded-cap: 1
-                phonebook: 1
+          # town-4-3 was the Order Chambers, a room in here. The Order moved
+          # out into its own Location, undertown-b, and the room is retired
+          # (migration 20261122000000_retire_cathedral_order_chambers). The
+          # slug stays unused so it never comes back as some other room.
           town-4-4:
             name: Hall
             description: >-
@@ -1505,6 +1491,7 @@ zones:
             name: Interrogation Room
             description: >-
               Tool racks line the walls with cruel and unusual instruments. At the center sits a chair with straps. If you tell them what they want to hear, maybe your death will be painless.
+            soundproof: true
             stash:
               hidden:
                 torturing-equipment: 1
@@ -1527,6 +1514,7 @@ zones:
                 bag: 1
                 mace: 1
                 padded-cap: 1
+                phonebook: 1
       undertown-c:
         name: Lake
         description: >-

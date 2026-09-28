@@ -541,7 +541,7 @@ groups:
       whitelist: true
       ring:
         spawns: true
-        opens: [cathedral-key, bishops-key]
+        opens: [cathedral-key, order-key]
         seal_office: Bishop
         seal_mark: "The psychick cross, the seal of the Bishop."
         name: "Bishop's Ring"
@@ -637,8 +637,7 @@ groups:
         - Shield
         - Obol x14
         # The Order's crossbow and tear gas, which used to lie in the
-        # Cathedral's Order Chambers where every Order ring could take them
-        # (docs/zones.yaml town-4-3).
+        # Order Chambers where every Order ring could take them.
         - Crossbow
         - Tear Gas Grenade x3
         - Mail Shirt

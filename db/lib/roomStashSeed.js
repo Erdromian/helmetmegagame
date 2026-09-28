@@ -107,9 +107,13 @@ async function seedRoomStashRows(prisma, room, entries) {
 // Every room in the game that has an authored stash it has not been given
 // yet. This is what Start Game calls, and it is safe to call again: a second
 // run finds every slug already in seededStashSlugs and writes nothing.
+//
+// A retired room is skipped. The Restart Game wipe clears every room's seed
+// history, so without this a retired room was filled again on every restart,
+// with items nobody could reach.
 async function seedAuthoredStashes(prisma) {
   const rooms = await prisma.room.findMany({
-    where: { NOT: { stashSeed: { equals: null } } },
+    where: { retiredAt: null, NOT: { stashSeed: { equals: null } } },
     select: { id: true, slug: true, seededStashSlugs: true, stashSeed: true, destroysContents: true },
   });
   const report = { rooms: 0, items: 0, unknown: [], refusedHidden: [] };

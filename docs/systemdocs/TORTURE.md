@@ -135,7 +135,8 @@ Bone Mask names `butcher` (CRAFTING.md §2) — so there is no smithing skill,
 no forge, and no ladder tier. `craftFamily()` reads it as `torturer` work.
 
 **One is seeded in the Order Chambers** (`docs/zones.yaml`,
-`cathedral-order-chambers`, a stash floor). Anyone with an Order Key stands
+`undertown-b-1`, the Interrogation Room, hidden in its stash). Anyone in the
+Order Chambers stands
 within reach of it; anyone can carry it off.
 
 ## 6. Mutilate
