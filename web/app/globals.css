@@ -116,10 +116,13 @@
      subtract; the rail is gone too (NavRail.js), and none of them need the
      arithmetic any more — see .app-shell below. */
 
-  /* The Chat row's avatar column: the face itself, the skeleton's stand-in,
-     and the indent under it that lines the world's `-#` lines up with the
-     text rather than the face. Three places that must agree. */
-  --chat-face: 32px;
+  /* The Chat feed's portrait (next/Feed.js draws it at this size) and the
+     skeleton's stand-in for it. --chat-gutter is the face plus its gap: the
+     one column every feed line's TEXT starts on — a say, the scenery, a
+     shout, an OOC line — so nothing in the scene starts at a different
+     distance from the places list. */
+  --chat-face: 48px;
+  --chat-gutter: calc(var(--chat-face) + var(--sp-2));
 
   /* The touch floor, DESIGN-SYSTEM §9. --tap is a whole control; --tap-sm is
      for a chip or an inline toggle that sits inside prose. */
@@ -274,8 +277,10 @@
 
      --chat-said was #77623f (3.37:1). Players read long emotes in it and found
      the dark yellow straining, so it is lifted to AA (4.93:1) and pulled a
-     little toward grey, still brown and still well under the pale speech. */
-  --chat-said: #8f7d5e;
+     little toward grey, still brown and still well under the pale speech.
+     Bascinet then took it to an olive #888e59 on the Chat Style Bench
+     (2026-09-28). */
+  --chat-said: #888e59;
   --chat-speech: #b8a8a0;
   --chat-scenery: #746460;
   --fs-chat: 0.8125rem; /* 13px */

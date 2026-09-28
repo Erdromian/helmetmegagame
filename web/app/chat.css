@@ -976,18 +976,29 @@
   outline: none;
 }
 
-/* A row with a portrait: every line in the run indents by the face's width,
-   and the face hangs in that gutter on the run's first line only. */
+/* A row with a portrait: every line in the run indents by the gutter
+   (--chat-gutter, the face and its gap), and the face hangs in that gutter on
+   the run's first line only. The row already bleeds out by --sp-2 (above),
+   hence the --sp-2 on top. */
 .tline[data-density="feed"][data-face="true"] {
-  padding-left: calc(var(--sp-2) + 28px);
+  padding-left: calc(var(--sp-2) + var(--chat-gutter));
 }
 
 /* A new speaker gets a small gap above their line, so two people talking back
-   and forth read as separate turns rather than one block. It also keeps the
-   portraits apart: a face is 24px, taller than a one-line row, and at 8px two
-   alternating speakers' faces touched (0px apart at the small text size). */
+   and forth read as separate turns rather than one block. */
 .tline[data-density="feed"][data-run="start"] {
   margin-top: var(--sp-3);
+}
+
+/* A face is taller than a one-line row. When the run is that one line — the
+   next row is not one of its continuation lines — the row keeps the face's
+   height, or two alternating one-line speakers' faces would overlap, and a
+   scenery line right after one would sit beside its chin. A longer run is
+   already taller than the face. */
+.tline[data-density="feed"][data-face="true"][data-run="start"]:not(
+    :has(+ .tline[data-face="true"]:not([data-run="start"]))
+  ) {
+  min-height: calc(var(--chat-face) + 4px);
 }
 
 .tline[data-density="feed"] .tline-face {
@@ -1240,17 +1251,23 @@
 /* What the WORLD says: an arrival, a smell, a turret, the turn line. The web
    half of db/lib/ambientLine.js's `-#`, which is why it wears no face. The
    unkeyed default, so an unrecognised channelKind reads as scenery. */
-/* No left gutter. Scenery, a shout and an OOC line used to be indented by a
-   face's width while an ordinary say row was not, so half the feed started at
-   one edge and half at another for no reason a reader could see. Everything
-   starts at the same place now; the tints and the OOC rule are what tell the
-   kinds apart. */
+/* Half the feed starting at one edge and half at another, for no reason a
+   reader could see, is the thing to avoid. The tints and the OOC rule are
+   what tell the kinds apart, never where the line starts. In the chat feed
+   that edge is the text column past the portrait gutter (below); the archive
+   and the desk draw no faces, so there it is the row's own edge. */
 .tline--system {
   font-size: var(--fs-2xs);
   color: var(--muted);
   margin-top: var(--sp-2);
 }
 
+/* In the chat feed a say row's words start past its face, so the world's
+   lines, a shout and an OOC line start there too: one column of text down the
+   whole scene, the same distance from the places list whoever said it. */
+:where([data-chat-next] .chat-feed) .tline--system {
+  padding-left: var(--chat-gutter);
+}
 /* The game's own lines IN CHAT — arrivals, the vending machine, a smell, the
    turret — off the Chat Type Bench (Chat Overhaul.docx): bold, in their own
    ink. Scoped to the chat feed, since the archive and the desk draw these rows
@@ -1497,6 +1514,34 @@
   padding-left: 6px;
   border-left: 2px solid var(--border-hi);
   color: var(--ooc);
+  /* Heaviest weight, off the Chat Style Bench (2026-09-28). Verdana ships a
+     regular and a bold only, so this draws as its bold. */
+  font-weight: 900;
+}
+
+/* Quoted words in an OOC line stay in the OOC ink rather than taking the
+   in-character --speech orange: a player quoting something over the table is
+   not a character speaking. */
+.tline--system[data-kind="ooc"] .speech {
+  color: inherit;
+}
+
+/* In the chat feed the words keep to the text column with everything else,
+   so the rule moves out into the portrait gutter, sitting just left of them. */
+:where([data-chat-next] .chat-feed) .tline--system[data-kind="ooc"] {
+  position: relative;
+  padding-left: var(--chat-gutter);
+  border-left: 0;
+}
+
+:where([data-chat-next] .chat-feed) .tline--system[data-kind="ooc"]::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: calc(var(--chat-gutter) - var(--sp-2));
+  width: 2px;
+  background: var(--border-hi);
 }
 
 /* Discord's red line: everything below it arrived since you last had this
@@ -1689,12 +1734,20 @@
 /* A `-#` subtext line INSIDE a message body — remarkSubtext.js hangs this on
    it (db/lib/ambientLine.js's web half). A whole row the world said is
    .tline--system now; this is the same recipe for the paragraph case, left
-   exactly as it was so an existing message does not reflow. */
+   exactly as it was so an existing message does not reflow. The 32px is the
+   old face column's width; --chat-face grew past it, and the archive, the desk
+   and the DM threads were not meant to move. */
 .chat-subtext {
   font-size: var(--fs-xs);
   color: var(--muted);
   margin-top: var(--sp-2);
-  padding-left: calc(var(--chat-face) + var(--sp-3));
+  padding-left: calc(32px + var(--sp-3));
+}
+
+/* In the chat feed the row already starts its words on the text column, so a
+   `-#` line inside one stays on that column rather than stepping in again. */
+:where([data-chat-next] .chat-feed) .chat-subtext {
+  padding-left: 0;
 }
 
 /* The scroller and the jump-to-bottom pill. The wrapper exists only to give
