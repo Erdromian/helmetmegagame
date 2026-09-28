@@ -1,9 +1,9 @@
-// Tired -> Exhausted ladder (docs/systemdocs/TAGS.md). Five unrelated things climb it and they
-// all climb it identically: a day's mining, a day on the Factory floor (both
+// Tired -> Exhausted ladder (docs/systemdocs/TAGS.md). Six unrelated things climb it and they
+// all climb it identically: a day's mining, a day on the Factory floor, a day in the fields (all
 // db/lib/moveEffects.js), a bad night (db/lib/dawnAfflictionPass.js), pushing on through a
 // travel gate (db/lib/locationTravel.js) and a push spent in combat mode (db/lib/combatModePass.js). The Exhausted->Tired decay is the ordinary
 // `expiresInto` chain (TAGS.md §5c).
-const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
+const { TIRED_SLUG, EXHAUSTED_SLUG, RECENTLY_FARMED_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 
 // Returns the slug to grant, or null if already at the top of the ladder.
@@ -14,8 +14,8 @@ function nextFatigueSlug(heldSlugs) {
 
 // The escalation step itself: nothing -> Tired -> Exhausted, one rung per call. Shared by every
 // MOVE_EFFECTS entry that climbs the ladder this way rather than granting Exhausted outright
-// (db/lib/moveEffects.js's `exhausted` entry for Mining, `refined` entry for Refine).
-// `turnNumber` is the CLOSING turn's number, same "+1" convention as grantExhaustedOutright.
+// (db/lib/moveEffects.js's `exhausted` entry for Mining, `refined` entry for Refine, `farmed` for Farm).
+// `turnNumber` is the CLOSING turn's number, same "+1" convention as grantRecentlyFarmed.
 async function applyFatigueStep(tx, characterId, turnNumber) {
   const heldTired = await tx.characterTag.findFirst({
     where: { characterId, tag: { slug: TIRED_SLUG } },
@@ -74,40 +74,32 @@ async function revertFatigueStep(tx, characterId, snapshot) {
   }
 }
 
-// Farming's lockout (db/lib/soilery.js; the Soilery Rework doc): unlike the ladder above, which
-// ESCALATES Tired into Exhausted, a day in the fields grants Exhausted OUTRIGHT — there is no lesser
-// rung to climb through first. Exhausted then wears off into Tired, and both refuse the Farm button,
-// so a farmer farms one turn in three. If the character already holds Tired (say, from an
-// unrelated day of mining earlier the same turn), it's replaced rather than left to stack alongside
-// Exhausted; its `expiresTurn` is snapshotted so db/lib/moveEffects.js's `farmed` entry can restore
-// it exactly on Undo. `turnNumber` is the CLOSING turn's number — this adds one itself, the same
-// "+1" the `exhausted` MOVE_EFFECTS entry already applies when it grants at push.
-async function grantExhaustedOutright(tx, characterId, turnNumber) {
-  const heldTired = await tx.characterTag.findFirst({
-    where: { characterId, tag: { slug: TIRED_SLUG } },
-    select: { id: true, expiresTurn: true },
-  });
-  const exhaustedTag = await tx.tag.findUnique({
-    where: { slug: EXHAUSTED_SLUG },
+// Farming's lockout (db/lib/soilery.js#farmRefusalFor): a day in the fields grants Recently Farmed,
+// which refuses the Farm button for its 2 turns, so a farmer farms one turn in three. The Tired step
+// that comes with it is the ordinary applyFatigueStep above, called beside this. It stands apart
+// from the ladder: Recently Farmed stops farming and nothing else. `turnNumber` is the CLOSING
+// turn's number, same "+1" convention as applyFatigueStep. Returns true when it wrote the row, so
+// db/lib/moveEffects.js's `farmed` entry only takes back on Undo what it gave.
+async function grantRecentlyFarmed(tx, characterId, turnNumber) {
+  const tag = await tx.tag.findUnique({
+    where: { slug: RECENTLY_FARMED_SLUG },
     select: { id: true, defaultDurationTurns: true },
   });
-  if (!exhaustedTag) {
-    console.error(`Farm payout: no "${EXHAUSTED_SLUG}" tag — run npm run db:sync-tags. Farming won't be limited.`);
+  if (!tag) {
+    console.error(`Farm payout: no "${RECENTLY_FARMED_SLUG}" tag — run npm run db:sync-tags. Farming won't be limited.`);
     return null;
   }
-  if (heldTired) await tx.characterTag.delete({ where: { id: heldTired.id } });
-  // skipDuplicates: an existing Exhausted keeps its own clock (same rule as db/lib/tagExpiryPass.js).
-  await tx.characterTag.createMany({
+  // skipDuplicates: an existing row keeps its own clock (same rule as db/lib/tagExpiryPass.js).
+  const { count } = await tx.characterTag.createMany({
     data: [{
       characterId,
-      tagId: exhaustedTag.id,
+      tagId: tag.id,
       source: "EVENT",
-      expiresTurn: expiryFrom(turnNumber + 1, exhaustedTag.defaultDurationTurns ?? 1),
+      expiresTurn: expiryFrom(turnNumber + 1, tag.defaultDurationTurns ?? 2),
     }],
     skipDuplicates: true,
   });
-  // Same shape applyFatigueStep returns, so revertFatigueStep undoes either.
-  return { slug: EXHAUSTED_SLUG, replacedTired: heldTired ? { expiresTurn: heldTired.expiresTurn } : null };
+  return count > 0 ? true : null;
 }
 
-module.exports = { nextFatigueSlug, applyFatigueStep, revertFatigueStep, grantExhaustedOutright };
+module.exports = { nextFatigueSlug, applyFatigueStep, revertFatigueStep, grantRecentlyFarmed };

@@ -404,46 +404,31 @@ refusal — but they get them too; there is no per-tag branch in any of it.
 **Because the block is unconditional, every `tightSqueeze` edge needs some
 OTHER route left standing for a Giant.** Cutting a region off entirely from
 a sixth of the catalog's most expensive tag is a design mistake, not a
-feature. It's used on three edges today. Two of them close nothing off: the
-way round is longer, and it crosses zone lines, and every crossing costs the
-Move (§3). The third, the Razor Tunnels, is the one exception, and it is a
-chosen one: since the rail tunnel out of the Depot was taken out, a Giant
-without `climbing` cannot reach the Chasm side of the Depths at all.
+feature, and so is a long detour. It's used on one edge today:
 
-- The Brooding Grounds (`caves-4 ↔ caves-5`) — "a winding forest of
-  mushrooms... any attempt to establish a proper path through has been
-  quashed by the fungi's competition over the limited space" (caves-4's own
-  description). The Grounds still open onto the Walkways (`caves-3 ↔
-  caves-4`), and the Walkways open onto the East River, so a Giant goes round
-  through the Hills: Camp, Approach, Entrance, Bridge, East River, Walkways,
-  Grounds. That's six hops and two zone crossings instead of one free hop. A
-  Giant with `caving` can cut it to four through the Depot's back door
-  (`undertown-5 ↔ caves-4`, `hidden: caving`).
-- The Crystal Chambers (`depths-5 ↔ depths-6`) — the Razor Tunnels' own
-  "carefully climb through countless of these vicious crystals." A Giant
-  comes at the Chambers from the Chasm instead (`depths-6 ↔ depths-7`), and
-  the only way into the Chasm that skips the Razor Tunnels is the climb down
-  from the Grand Ravine (`depths-7 ↔ hills/grand-ravine`, `locked:
-  climbing`). So a Giant needs `climbing` to reach the Chasm, the Chambers
-  and the shrine at the Chasm's foot. There used to be a rail tunnel from the
-  Depot as well (`undertown-5 ↔ depths-7`); migration
-  `20261103000000_remove_railroad` took it out.
 - Last Chance's own bored tunnel west into the Fork (`depths-3 ↔ depths-4`)
   — "a tunnel has been bored into a smaller cavern system to the West"
-  (depths-3's own description). The shortest detour of the three:
-  `caves-5 ↔ depths-4` already reaches the Fork directly, so a Giant goes
-  Last Chance, Abandoned Camp, Fork. That's two hops, but both cross the
-  Caves/Depths line, so a Giant pays the Move twice for what's a free
-  same-zone hop for anyone else.
+  (depths-3's own description). `caves-5 ↔ depths-4` already reaches the
+  Fork directly, so a Giant goes Last Chance, Abandoned Camp, Fork. That's
+  two hops, and both cross the Caves/Depths line, so a Giant pays the Move
+  twice for what's a free same-zone hop for anyone else.
 
-Every one of those ways round is an edge that was already on the map before
-this feature. Nothing new was added to make them work.
+That way round is an edge that was already on the map before this feature.
+Nothing new was added to make it work.
 
-**Flagging an edge that already exists takes more than a YAML edit.**
-`db:import-zones` never updates an edge that's already there (§2, it only
-adds). That's why the three edges above are also set by a migration
-(`20261022010000_tight_squeeze_existing_edges`), for any database that had
-them before the flag existed. To flag any other existing edge, a GM ticks it
+There used to be two more. The Brooding Grounds (`caves-4 ↔ caves-5`) sent a
+Giant six hops and two zone crossings round through the Hills for one free
+hop. The Razor Tunnels (`depths-5 ↔ depths-6`) became worse once the Depot's
+rail tunnel was taken out: the only other way in was the `climbing`-locked
+drop from the Grand Ravine, so a Giant without `climbing` could not reach the
+Crystal Chambers or the Chasm at all. Both are plain ways now.
+
+**Flagging or unflagging an edge that already exists takes more than a YAML
+edit.** `db:import-zones` never updates an edge that's already there (§2, it
+only adds). So the original three squeezes were set by a migration
+(`20261022010000_tight_squeeze_existing_edges`), and the two above were
+cleared by another (`20261112000000_widen_giant_squeezes`), for any database
+that already had those edges. To flag any other existing edge, a GM ticks it
 in `/gm/dev/zones/links`, and whoever does that needs to check what a Giant
 loses by it first.
 
@@ -628,7 +613,9 @@ in wait where you walked in and stopped you, or you are in a fight — see
 [`INTERCEPT.md`](INTERCEPT.md) and [`ATTACK.md`](ATTACK.md). And once Moves lock
 nobody walks anywhere until the push (`turnGate.js#travelLockReason`, Combat
 Overhaul.docx), checked after the session gate and drawn on every way by
-`resolveNeighbors` and `routesWithinZone`; a first placement is not a walk. `performLocationMove` refuses with the hold's
+`resolveNeighbors` and `routesWithinZone`; a first placement is not a walk, and a
+way into the caves says Caving.docx's sentence rather than the plain one
+(`CAVING.md` §2f). `performLocationMove` refuses with the hold's
 own sentence, beside its incapacitation gate, and `travelOptions` draws every
 way shut and says why. A held follower is left behind rather than carried out
 (§3a).
@@ -1015,9 +1002,10 @@ map's double-click may do (§6c).
 
 Every edge is judged by `crossingCheck`, the very verdict `performLocationMove`
 reaches again at each hop — there is no second copy of the gating rule here. The
-Caving Die is deliberately **not** asked: it only ever shuts a way *out* of the
-zone, which a same-zone walk never crosses, so the mover asks it, in its own
-words, at the hop that meets it. A **hold** is asked, once, up front, the same
+Caving Die's hold is deliberately **not** asked: it only ever shuts a way *up*
+out of the caves, which a same-zone walk never takes, so the mover asks it, in
+its own words, at the hop that meets it. Its severity-10 stop is asked, once, up
+front (`CAVING.md` §2e). A **hold** is asked, once, up front, the same
 `heldReasonFor` call `resolveNeighbors` already makes for the adjacent list —
 being held shuts every way, not just the ones that cross a zone
 ([`INTERCEPT.md`](INTERCEPT.md) §4), so a held character has no first hop to

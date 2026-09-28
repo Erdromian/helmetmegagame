@@ -200,5 +200,5 @@ Discord: `bot/src/events/interactions/gatehouse.js`. Every rule is in
 | `db/lib/placeAffordances.js` | the buttons, and `sides: true` |
 | `db/lib/depotCounter.js` | Documents at the infoterminal; `closeAccount` |
 | `db/lib/paperMint.js#mintDocuments` | the paper |
-| `db/prisma/migrations/20261112000000_gatehouse_rework` | the tables, and the geography on a running game |
+| `db/prisma/migrations/20261113000000_gatehouse_rework` | the tables, and the geography on a running game |
 | `db/test/gatehouse.test.js` | the rules, the map, and the whole flow against Postgres |
