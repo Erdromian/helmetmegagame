@@ -681,7 +681,8 @@ Picking a role decides almost everything:
   `treasury` for nearly every seat (hard-backed by the real `obol` tags in
   the Keep's Vault), `offshore` for the Merchant and his Dockers (no vault
   behind it). Absent for the Black Hills — the Tribunal
-  arrives with no account at all, and open one later at the counter's
+  arrives with no account at all — and for the Slave, the Bum and the
+  Migrant. Any of them can open one later at the counter's
   **Create an account** button, the same as any spawned antagonist. The
   account opens with the role's `starting_account:` obols already in it
   (`web/app/(app)/character/createActions.js` bumps the new account by
