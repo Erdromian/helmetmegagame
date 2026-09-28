@@ -152,6 +152,8 @@ test("the map: Bridge to Square through the gate, the Gatehouse only from the Sq
   assert.equal(find("town/town-1", "hills/bridge"), undefined, "the Gatehouse no longer opens onto the Bridge");
   const gate = find("hills/bridge", "town/town-2");
   assert.ok(gate?.modular, "the Bridge and the Square are joined by a gate");
+  assert.equal(gate.modular.open, false, "the Bridge–Square gate starts shut");
+  assert.equal(find("town/town-8", "fortress/fortress-2")?.modular?.open, false, "the portcullis starts shut");
   assert.equal(gate.announce, "true_name");
   assert.equal(find("town/town-1", "town/town-2")?.locked, GATEHOUSE_KEY);
   assert.equal(zones.zones.fortress.locations["fortress-2"].name, "Courtyard");

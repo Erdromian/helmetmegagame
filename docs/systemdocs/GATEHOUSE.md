@@ -23,6 +23,8 @@ Gatehouse's Gate Controls**. The lever has no lock of its own: anybody in the
 room may pull it (the doc). When it moves, the gate sound plays and a line is
 posted in the Gatehouse, the Bridge and the Square. While it is open, anybody
 may walk through; while it is shut, the way through is to **request passage**.
+It is born shut, and so is the portcullis: a new game starts with both gates
+closed (`modular: open: false` in `docs/zones.yaml`).
 
 The way from the Square into the Gatehouse is `locked: gatehouse-key`: the
 Baron's, the Hand's, the Incarn's, the Cerberi's, the Squires' and the Censor's
