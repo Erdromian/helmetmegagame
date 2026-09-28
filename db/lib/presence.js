@@ -69,7 +69,7 @@ function concealedNow(target) {
   if (target.concealed) return true;
   if (!Array.isArray(target.tags)) return false;
   return presentedIdentity(target, {
-    forcedName: forcedNameFrom(target.tags),
+    forcedName: forcedNameFrom(target.tags, target),
     concealment: concealmentFrom(target.tags),
   }).concealed;
 }

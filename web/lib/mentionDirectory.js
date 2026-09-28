@@ -58,9 +58,9 @@ async function loadMentions({ includeUnburiedDead, viewerId = null }) {
   const known = await knownSubjects(prisma, viewerId, characters.map((c) => c.id));
   return characters.map((character) => {
     const shown = presentedIdentity(character, {
-      forcedName: forcedNameFrom(character.tags),
+      forcedName: forcedNameFrom(character.tags, character),
       concealment: concealmentFrom(character.tags),
-      disguised: Boolean(disguiseNameFrom(character.tags)),
+      disguised: Boolean(disguiseNameFrom(character.tags, character)),
     });
     const stranger = known !== null && !known.has(character.id) && !shown.concealed && !shown.forced;
     // A disguise's plaque beside the real name would pair the two (STRANGERS.md §10),

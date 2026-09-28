@@ -9,12 +9,14 @@ import {
   teachesFree,
 } from "@lifeweb/db/lib/lessons";
 import { cultureForRole } from "@lifeweb/db/lib/nameCorpus";
+import { isDisguiseTag } from "@lifeweb/db/lib/disguises";
 import {
   prisma,
   fateCapacity,
   isDynastyMember,
   presentedIdentity,
   concealmentFrom,
+  forcedNameFrom,
   rosterName,
   startingTagSlugs,
   normalizeAntagonistSlugs,
@@ -1356,16 +1358,18 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     : [];
 
   // A forced identity (Tag.forcedName — Apex Form's "Beast") shows the player what the room sees, not their own face.
+  // A disguise (db/lib/disguises.js) fixes the face too, but leaves the conceal switch usable: a hood goes
+  // over it like any face, and hides it while it is up.
   const forcedTag = character.tags.find((ct) => ct.tag.forcedName)?.tag ?? null;
   const forcedIdentity = forcedTag
-    ? { name: forcedTag.forcedName, tagName: forcedTag.name }
+    ? { name: forcedTag.forcedName, tagName: forcedTag.name, disguise: isDisguiseTag(forcedTag) }
     : null;
   // What's over their face decides whether the conceal switch is usable (PROXYING.md §5). Only `forced` is read now.
   const concealment = concealmentFrom(character.tags);
   const concealGear = concealment ? { forced: concealment.forced } : null;
   // The face the room sees is the face the sheet shows — one resolver decides it for every surface.
   const avatarSrc = presentedIdentity(character, {
-    forcedName: forcedIdentity?.name ?? null,
+    forcedName: forcedNameFrom(character.tags, character),
     concealment,
   }).avatarPath;
 

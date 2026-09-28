@@ -334,7 +334,7 @@ export async function transferRequestImpl(
   // plus one for the ⬢, so handing in two stacks and 30 ⬢ is three rows; a
   // reader groups on this to print it as the one thing it was.
   const identity = presentedIdentity(character, {
-    forcedName: forcedNameFrom(character.tags),
+    forcedName: forcedNameFrom(character.tags, character),
     concealment: concealmentFrom(character.tags),
   });
   const by = identity.name;

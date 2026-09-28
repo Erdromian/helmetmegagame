@@ -78,12 +78,29 @@ async function knownSubjects(prisma, viewerId, subjectIds) {
 // can cover a face (the conceal switch, equipping, a stolen hood, a sack that
 // forces it) would otherwise need its own hook, and this catches all of them
 // with no list to keep up to date.
-function presenceStale(row, hidden) {
-  return !row.presenceLabel || !row.presenceNonce || row.presenceHidden !== hidden;
+//
+// `face` is how the person is showing: "open", "hidden" (a hood, a masked
+// corpse), or "disguise" (./disguises.js). A disguise is hidden too, so
+// presenceHidden cannot tell it from a hood; a nonce rolled for one ends in
+// DISGUISE_NONCE instead, so a hood pulled up over a disguise, or taken down
+// again, rolls a new label and token like any other cover. `true`/`false`
+// still read as "hidden"/"open".
+const DISGUISE_NONCE = ".d";
+
+function faceState(face) {
+  if (face === true) return "hidden";
+  if (face === false || face == null) return "open";
+  return face;
 }
 
-function freshNonce() {
-  return crypto.randomBytes(8).toString("hex");
+function presenceStale(row, face) {
+  const state = faceState(face);
+  if (!row.presenceLabel || !row.presenceNonce || row.presenceHidden !== (state !== "open")) return true;
+  return row.presenceNonce.endsWith(DISGUISE_NONCE) !== (state === "disguise");
+}
+
+function freshNonce(face) {
+  return crypto.randomBytes(8).toString("hex") + (faceState(face) === "disguise" ? DISGUISE_NONCE : "");
 }
 
 // Picks a label nobody else at the Location holds, and a label at random once
@@ -95,9 +112,9 @@ function pickLabel(taken, random = Math.random) {
 }
 
 // Brings the label and nonce up to date for everyone in `rows`, all of whom are
-// standing at one Location. `hiddenOf(row)` says whether that person is hidden
-// from everyone right now, so a change in it rolls a new label. It changes the
-// rows in place and writes what it rolled.
+// standing at one Location. `hiddenOf(row)` says how that person is showing to
+// everyone right now (presenceStale's `face`), so a change in it rolls a new
+// label. It changes the rows in place and writes what it rolled.
 //
 // The write is conditional on the nonce it replaces. So when two readers race,
 // one wins and the other takes the winner's roll instead of writing over it.
@@ -109,8 +126,12 @@ async function settlePresence(prisma, rows, hiddenOf, { random = Math.random } =
 
   const taken = new Set(living.filter((row) => !stale.includes(row)).map((row) => row.presenceLabel).filter(Boolean));
   for (const row of stale) {
-    const hidden = hiddenOf(row);
-    const next = { presenceLabel: pickLabel(taken, random), presenceNonce: freshNonce(), presenceHidden: hidden };
+    const face = hiddenOf(row);
+    const next = {
+      presenceLabel: pickLabel(taken, random),
+      presenceNonce: freshNonce(face),
+      presenceHidden: faceState(face) !== "open",
+    };
     const { count } = await prisma.character.updateMany({
       where: { id: row.id, presenceNonce: row.presenceNonce ?? null },
       data: next,
@@ -370,7 +391,10 @@ function lensRow(row, lens) {
   const disguised = isDisguisedRow(row);
   const hooded = !disguised && Boolean(row.alias) && isConcealedAlias(row.alias);
   const forced = !disguised && Boolean(row.alias) && !hooded;
-  const sceneKey = () => sceneSpeakerKey(id, row.placeKey, row.turnNumber);
+  // A disguise's lines key apart from anything else the wearer says here, so a hood pulled up over it
+  // (./disguises.js#hoodUpOverDisguise) neither joins its run in the feed nor matches its key.
+  const sceneKey = () =>
+    sceneSpeakerKey(id, row.placeKey, disguised ? `${row.turnNumber}:disguise:${row.alias}` : row.turnNumber);
 
   // A forced name is the name everyone sees (PROXYING.md §5). It only loses the
   // stable key, which would follow them from scene to scene.

@@ -25,7 +25,7 @@ function readerOf(character) {
 // another player — only tells a GM whose hand it was.
 function writerName(character) {
   return presentedIdentity(character, {
-    forcedName: forcedNameFrom(character.tags),
+    forcedName: forcedNameFrom(character.tags, character),
     concealment: concealmentFrom(character.tags),
   }).name;
 }

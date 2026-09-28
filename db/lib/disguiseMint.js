@@ -3,7 +3,8 @@
 // crate minters, and db/lib/paperMint.js, whose row shape and retry loop this borrows). A MINTED ROW,
 // not a column — Tag.forcedName does the job (db/lib/presentedIdentity.js#forcedNameFrom), so every
 // identity surface picks it up free and the expiry sweep in db/index.js clears it later; the character
-// posts under a letter plaque and /conceal refuses while it's on. forcedNameFrom takes the FIRST tag
+// posts under a letter plaque, and a hood pulled up over it hides it (./disguises.js#hoodUpOverDisguise).
+// forcedNameFrom takes the FIRST tag
 // with a forcedName, so Apex Form + a disguise together is undefined. Takes `prisma` (or a tx), off the
 // @lifeweb/db barrel like db/lib/dm.js.
 

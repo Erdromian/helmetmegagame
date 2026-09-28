@@ -87,15 +87,15 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
   // A disguise is named only to a viewer who knows the name (STRANGERS.md §10),
   // and always goes under a token, as it does in Who's here.
   const disguiseOf = (person) =>
-    knows !== null && person.id !== viewer?.id ? disguiseNameFrom(person.tags) : null;
+    knows !== null && person.id !== viewer?.id ? disguiseNameFrom(person.tags, person) : null;
   const worn = members.map(disguiseOf).filter(Boolean);
   const reads = worn.length > 0 ? await readDisguises(prisma, viewer?.id ?? null, worn) : null;
   // The jobs those disguises claim, for the colour they are seen in.
-  const jobs = await jobsBySlug(prisma, members.filter(disguiseOf).map((person) => disguiseJobFrom(person.tags)?.slug));
+  const jobs = await jobsBySlug(prisma, members.filter(disguiseOf).map((person) => disguiseJobFrom(person.tags, person)?.slug));
   const isHooded = (person) =>
-    !forcedNameFrom(person.tags) && Boolean(concealmentFrom(person.tags) && (concealmentFrom(person.tags).forced || person.concealed));
+    !forcedNameFrom(person.tags, person) && Boolean(concealmentFrom(person.tags) && (concealmentFrom(person.tags).forced || person.concealed));
   const isStranger = (person) =>
-    knows !== null && person.id !== viewer?.id && !forcedNameFrom(person.tags) && !isHooded(person) && !knows.has(person.id);
+    knows !== null && person.id !== viewer?.id && !forcedNameFrom(person.tags, person) && !isHooded(person) && !knows.has(person.id);
   // Labels for the lookalikes in THIS strip, the way Who's here labels its own list.
   const hiddenMembers = members.filter((person) => isHooded(person) || isStranger(person) || disguiseOf(person));
   const aliasOf = (person) => {
@@ -110,7 +110,7 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
   return members
     .map((person) => {
       const piece = concealmentFrom(person.tags);
-      const forced = forcedNameFrom(person.tags);
+      const forced = forcedNameFrom(person.tags, person);
       const self = person.id === viewer?.id;
       const sighting = self ? null : (seenBy.get(person.id) ?? null);
       const seen = self || Boolean(sighting);
@@ -145,7 +145,7 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
           : read.known
             ? presentedIdentity(person, { forcedName: wearing }).avatarPath
             : DISGUISE_STRANGER_FACE;
-        const job = jobs.get(disguiseJobFrom(person.tags)?.slug) ?? null;
+        const job = jobs.get(disguiseJobFrom(person.tags, person)?.slug) ?? null;
         return {
           characterId: null,
           token,

@@ -89,14 +89,14 @@ function deathMaskPiece(row) {
 // The Disguise Kit name somebody alive is going by, or null (./disguises.js).
 // A corpse goes by its own name: death is not a disguise anybody keeps up.
 function disguiseOf(c) {
-  return c.status === "DEAD" ? null : disguiseNameFrom(c.tags);
+  return c.status === "DEAD" ? null : disguiseNameFrom(c.tags, c);
 }
 
 // Hidden from EVERYONE: a hood, or a masked corpse. Not a forced name, which is
 // a name the whole room reads (PROXYING.md §5). This is what a label is rolled
 // against, since it is the same for every observer.
 function hiddenFromAll(c) {
-  if (forcedNameFrom(c.tags)) return false;
+  if (forcedNameFrom(c.tags, c)) return false;
   if (c.status === "DEAD") return Boolean(deathMaskPiece(c));
   const piece = concealmentFrom(c.tags);
   return Boolean(piece && (piece.forced || c.concealed));
@@ -137,8 +137,9 @@ async function presentRows(
 
   // Everybody's label, before anything reads one. Every row at the Location
   // takes part, so a new roll avoids labels already in use there. Putting on or
-  // taking off a disguise rolls one too, so no token links the two faces.
-  await settlePresence(prisma, present, (c) => hiddenFromAll(c) || Boolean(disguiseOf(c)));
+  // taking off a disguise rolls one too, so no token links the two faces, and
+  // so does a hood pulled up over a disguise or taken down from it.
+  await settlePresence(prisma, present, (c) => (disguiseOf(c) ? "disguise" : hiddenFromAll(c) ? "hidden" : "open"));
 
   // What this viewer makes of every disguise here (docs/systemdocs/STRANGERS.md
   // §10). Only when there is somebody to recognise with: with nobody, a
@@ -148,7 +149,7 @@ async function presentRows(
   // The jobs those disguises claim, whose estates are the colours they are seen in.
   const jobs =
     knows !== null && worn.length > 0
-      ? await jobsBySlug(prisma, present.filter((c) => disguiseOf(c)).map((c) => disguiseJobFrom(c.tags)?.slug))
+      ? await jobsBySlug(prisma, present.filter((c) => disguiseOf(c)).map((c) => disguiseJobFrom(c.tags, c)?.slug))
       : new Map();
 
   // Concealed the same way the proxy decides it, not straight off the column.
@@ -163,7 +164,7 @@ async function presentRows(
       // helmet off unmasks the corpse with no second write anywhere.
       const deathPiece = dead ? deathMaskPiece(c) : null;
       const piece = deathPiece ?? concealmentFrom(c.tags);
-      const forced = forcedNameFrom(c.tags);
+      const forced = forcedNameFrom(c.tags, c);
       const live = dead ? Boolean(deathPiece) : Boolean(piece && (piece.forced || c.concealed));
       const self = c.id === viewer?.id;
       const sighted = self ? null : (seenBy.get(c.id) ?? null); // you have always seen yourself.
@@ -189,7 +190,7 @@ async function presentRows(
             fooledFace: fooledFace(read, c),
             // The claimed job's estate, the colour everybody sees it in; none without a
             // job, or for a made-up one.
-            group: jobs.get(disguiseJobFrom(c.tags)?.slug)?.groupSlug ?? null,
+            group: jobs.get(disguiseJobFrom(c.tags, c)?.slug)?.groupSlug ?? null,
           },
           hidden: true,
           stranger: !read.known,

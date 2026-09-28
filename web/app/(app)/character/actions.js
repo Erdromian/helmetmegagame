@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import sharp from "sharp";
 import { redirect } from "next/navigation";
-import { prisma, loadConcealment, loadForcedName } from "@lifeweb/db";
+import { prisma, loadConcealment, loadHeldForcedName } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import {
   APPEARANCE_MAX_LENGTH,
@@ -49,8 +49,11 @@ export async function updateCharacterProfile(_prevState, formData) {
   const discordMirrored = formData.get("discordMirrored") === "on";
   // The conceal toggle — no Discord side effect, the proxy pipeline resolves
   // it at send time (PROXYING.md). A forced identity (Tag.forcedName) locks
-  // it off, and fixes the face, so an upload is dropped too.
-  const forcedName = await loadForcedName(prisma, character.id);
+  // it off, and fixes the face, so an upload is dropped too. A disguise fixes
+  // the face but leaves the switch alone: a hood goes over it like any face
+  // (db/lib/disguises.js#hoodUpOverDisguise).
+  const held = await loadHeldForcedName(prisma, character.id);
+  const forcedName = held && !held.disguised ? held.name : null;
   // The gear gate too — without something concealing EQUIPPED, or under
   // something that forces it, the stored preference is left exactly as it
   // was rather than rewritten by a form post.
@@ -67,7 +70,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   // A Skinless's face and appearance are fixed (db/lib/skinless.js): neither
   // is read from the form, however it is posted.
   const skinless = await isSkinless(prisma, character.id);
-  const avatar = forcedName || skinless ? null : formData.get("avatar");
+  const avatar = held || skinless ? null : formData.get("avatar");
 
   // Age is set once and then fixed — a non-null age is never overwritten,
   // however the form is posted. A GM can still change it from /gm/dev/characters/[characterId].
@@ -164,7 +167,7 @@ export async function setPortraitAvatar(rawSelection) {
   // The face is fixed while a forced identity is held (Tag.forcedName), and
   // always for a Skinless; the button is hidden, this is the lock.
   if (await isSkinless(prisma, character.id)) return { ok: false, error: SKINLESS_FACE_REFUSAL };
-  if (await loadForcedName(prisma, character.id)) {
+  if (await loadHeldForcedName(prisma, character.id)) {
     return { ok: false, error: "Your face is not yours to change right now." };
   }
 

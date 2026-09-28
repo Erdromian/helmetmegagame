@@ -169,7 +169,7 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
 
   // A forced name is NOT a hood; both write to concealedAlias, told apart by
   // what the ROW froze, not the speaker's live tags (presentedIdentity.js#wasHooded).
-  const forced = forcedNameFrom(subject.tags);
+  const forced = forcedNameFrom(subject.tags, subject);
   const hooded = wasHooded(row, { forcedName: forced });
 
   const sightTags = bystander ? [] : (viewer.tags ?? []); // a camera gets none of the viewer's

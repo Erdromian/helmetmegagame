@@ -98,7 +98,7 @@ function escortName(row, view = null) {
   if (!row) return "somebody";
   const seen = view?.get(row.id);
   if (seen) return seen.name;
-  return view ? "somebody" : (forcedNameFrom(row.tags) ?? row.name);
+  return view ? "somebody" : (forcedNameFrom(row.tags, row) ?? row.name);
 }
 
 // The key a picker posts back (db/lib/targetKey.js): a token for a hood, so the
@@ -301,7 +301,7 @@ async function releaseParty(prisma, leaderId, { tx = null } = {}) {
 // two may never have met, and a stranger is "a young man" (STRANGERS.md).
 async function handshakeName(db, viewerId, row) {
   if (!row) return "somebody";
-  const forced = forcedNameFrom(row.tags);
+  const forced = forcedNameFrom(row.tags, row);
   if (forced) return forced; // a forced name is not hiding (PROXYING.md §5).
   const piece = concealmentFrom(row.tags);
   if (piece && (piece.forced || row.concealed)) return "somebody";

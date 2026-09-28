@@ -74,7 +74,7 @@ async function turnWindow(prisma, turn) {
 function displayName(character) {
   const tags = character.tags ?? [];
   const presented = presentedIdentity(character, {
-    forcedName: forcedNameFrom(tags),
+    forcedName: forcedNameFrom(tags, character),
     concealment: concealmentFrom(tags),
   });
   if (presented.name && presented.name !== character.name) {

@@ -355,9 +355,9 @@ const IDENTITY_SELECT = {
 function identityOf(row) {
   const tags = row?.tags ?? [];
   return presentedIdentity(row, {
-    forcedName: forcedNameFrom(tags),
+    forcedName: forcedNameFrom(tags, row),
     concealment: concealmentFrom(tags),
-    disguised: Boolean(disguiseNameFrom(tags)),
+    disguised: Boolean(disguiseNameFrom(tags, row)),
   });
 }
 

@@ -105,8 +105,8 @@ export default function DisguiseDialog({ mode, onDone, onClose }) {
         For 3 turns nobody sees your name or your face&mdash;you go by this instead. People who know the person
         you name will take you for them. Everyone else sees a stranger until they hear the name. Any job will do,
         and people learn it when they hear it. One of Ravenheart&apos;s own shows in its estate&apos;s colour. Your age and whether you pass as a man or a
-        woman stay your own. You cannot conceal yourself on top of a disguise, and it wears off on its own. The
-        kit is not used up.
+        woman stay your own. Concealing yourself hides the disguise too, until you uncover. It wears off on its
+        own, and the kit is not used up.
       </p>
     </ActionDialog>
   );

@@ -24,7 +24,8 @@ const { whosHere, whosHereLines, resolveHoodToken, hiddenFrom } = require("../li
 const { attachSpeaker, attachDisguised, createLens, lensTyping, keptSpeaker } = require("../lib/strangers");
 const { feedRowShape } = require("../lib/archive");
 const { matchesArrival, seenByMany } = require("../lib/intercept");
-const { presentedIdentity } = require("../lib/presentedIdentity");
+const { presentedIdentity, forcedNameFrom, loadPresentedIdentity } = require("../lib/presentedIdentity");
+const { toggleConceal } = require("../lib/conceal");
 const { learnFromSpeech } = require("../lib/memoryHearing");
 const { renderPeopleLine } = require("../lib/peopleLine");
 const { sceneSpeakerKey } = require("../lib/hoodToken");
@@ -314,7 +315,7 @@ test("a disguised line reads by what each reader makes of its name", async () =>
   assert.equal(asWren.name, "Sir Aldric Vask");
   assert.equal(asWren.avatarPath, "/api/avatar/line/77", "Aldric's face, by the line");
   assert.equal(asWren.roleGroup, null, "no job claimed");
-  assert.equal(asWren.speakerKey, sceneSpeakerKey("xan", "room:r1", 4));
+  assert.equal(asWren.speakerKey, sceneSpeakerKey("xan", "room:r1", "4:disguise:Sir Aldric Vask"));
 
   const [asMia] = await createLens(db, { characterId: "mia" }).all([line()]);
   assert.equal(asMia.name, "Young Man (2)", "a stranger, with Xan's own voice number");
@@ -324,6 +325,18 @@ test("a disguised line reads by what each reader makes of its name", async () =>
 
   const [asGm] = await createLens(db, { gm: true }).all([line()]);
   assert.equal(asGm.name, "Sir Aldric Vask");
+
+  // The same wearer with a hood pulled up over it, in the same room and turn: a hood's line, keyed apart
+  // from the disguise's, so it neither joins its run nor matches its key.
+  const hooded = attachDisguised(
+    attachSpeaker({ ...line(), seq: "78", name: "Young Man", alias: "Young Man", avatarPath: "/assets/helms/hood.webp" }, "xan"),
+    false,
+  );
+  for (const reader of ["wren", "mia"]) {
+    const [said, underHood] = await createLens(db, { characterId: reader }).all([line(), hooded]);
+    assert.equal(underHood.name, "Young Man (2)", `${reader}: the hood, with Xan's own voice number`);
+    assert.notEqual(underHood.speakerKey, said.speakerKey, `${reader}: never the disguise's key`);
+  }
 
   // Apex Form's Beast is untouched: a public name for everybody.
   const beast = attachSpeaker({ ...line(), name: "Beast", alias: "Beast" }, "xan");
@@ -554,4 +567,109 @@ test("hearing a disguise's job said with its name teaches it, like any role", as
   const db2 = fakeDb({ people: [cleric, mia] });
   await learnFromSpeech(db2, { row: { placeKey: "conv:c1", content: '"I am Bob Fakename, a Courtier."' }, speakerId: "bob" });
   assert.equal(db2.entries.find((e) => e.ownerId === "mia").roleText, null);
+});
+
+
+// ------------------------------------------------------------ a hood over it
+
+const hood = (forces = false) => ({
+  tagId: "t-hood",
+  equipped: true,
+  tag: {
+    slug: "hood",
+    name: "Hood",
+    forcedName: null,
+    concealsIdentity: true,
+    concealSprite: "hood",
+    forcesConceal: forces,
+    equipSlot: "HEAD",
+    equipLayer: null,
+  },
+});
+
+test("a hood up over a disguise hides it, and a public forced name is never hidden", () => {
+  const up = person("xan", "Xan", "Quorble", { concealed: true, tags: [disguiseTag("Sir Aldric Vask", "bishop"), hood()] });
+  assert.equal(forcedNameFrom(up.tags, up), null);
+  assert.equal(disguiseNameFrom(up.tags, up), null);
+  assert.equal(disguiseJobFrom(up.tags, up), null);
+  const down = { ...up, concealed: false };
+  assert.equal(forcedNameFrom(down.tags, down), "Sir Aldric Vask", "the hood is only carried");
+  assert.equal(disguiseNameFrom(down.tags, down), "Sir Aldric Vask");
+  const forced = person("xan", "Xan", "Quorble", { tags: [disguiseTag("Sir Aldric Vask"), hood(true)] });
+  assert.equal(disguiseNameFrom(forced.tags, forced), null, "a piece that forces it is up whatever the switch says");
+  assert.equal(disguiseNameFrom(forced.tags), null, "which the tags alone can tell");
+  const beast = person("xan", "Xan", "Quorble", { concealed: true, tags: [beastTag(), hood()] });
+  assert.equal(forcedNameFrom(beast.tags, beast), "Beast");
+});
+
+test("a hooded disguise is the wearer's own hood alias and label, to everybody", async () => {
+  // Xan wears Aldric's name under a hood he has pulled up; Ned is another hooded young man.
+  const hoodedXan = person("xan", "Xan", "Quorble", {
+    concealed: true,
+    presenceLabel: "3",
+    tags: [disguiseTag("Sir Aldric Vask", "bishop"), hood()],
+  });
+  const ned = person("ned", "Ned", "Pike", { concealed: true, presenceLabel: "5", tags: [hood()] });
+  const db = fakeDb({ people: [aldric, hoodedXan, ned, wren, mia], entries: [knowsAldric] });
+
+  for (const viewer of [wren, mia]) {
+    const seen = await whosHere(db, viewer, { withHoodIds: true });
+    const row = seen.concealed.find((c) => seen.hoodIds.get(c.token) === "xan");
+    const nedRow = seen.concealed.find((c) => seen.hoodIds.get(c.token) === "ned");
+    assert.ok(row.alias.startsWith("a young man, "), `${viewer.id}: the hood's alias, labelled like any other (${row.alias})`);
+    assert.notEqual(row.alias, nedRow.alias);
+    assert.equal(row.avatarPath, null, "an unseen hood's plate, never Aldric's portrait");
+    assert.equal(row.roleGroup, null, "no job's colour under a hood");
+    assert.ok(!JSON.stringify(seen).includes("Aldric"), `${viewer.id} sees no sign of the disguise`);
+  }
+
+  // What a line said under it freezes: a hood, not a disguise.
+  const { identity } = await loadPresentedIdentity(db, "xan");
+  assert.deepEqual([identity.name, identity.concealed, identity.forced, identity.disguised], ["Young Man", true, false, false]);
+
+  // Nothing it says teaches the disguise's name.
+  await learnFromSpeech(db, { row: { placeKey: "conv:c1", content: '"I am Aldric Vask, the Bishop."' }, speakerId: "xan" });
+  assert.equal(db.entries.filter((e) => e.disguiseKey).length, 0);
+});
+
+test("a disguised character may conceal themselves; a public forced name may not", async () => {
+  const fake = (tags, concealed = false) => {
+    const writes = [];
+    return {
+      writes,
+      characterTag: {
+        findFirst: async () => tags.find((t) => t.tag.forcedName) ?? null,
+        findMany: async () => tags.filter((t) => t.equipped && t.tag.concealsIdentity),
+      },
+      character: { update: async ({ data }) => writes.push(data) },
+      auditLog: { create: async () => ({}) },
+      me: { id: "xan", concealed, age: 20, gender: "MAN", discordUserId: "u-xan" },
+    };
+  };
+  const on = fake([disguiseTag("Sir Aldric Vask"), hood()]);
+  const up = await toggleConceal(on, on.me);
+  assert.equal(up.ok, true);
+  assert.deepEqual(on.writes, [{ concealed: true }]);
+  const off = fake([disguiseTag("Sir Aldric Vask"), hood()], true);
+  assert.equal((await toggleConceal(off, off.me)).line, "You go by **Sir Aldric Vask** again.");
+
+  const beast = fake([beastTag(), hood()]);
+  const refused = await toggleConceal(beast, beast.me);
+  assert.deepEqual([refused.ok, refused.error], [false, "You are Beast now."]);
+});
+
+test("pulling a hood over a disguise rolls a new token and label, and so does taking it down", async () => {
+  const xanNow = person("xan", "Xan", "Quorble", { tags: [disguiseTag("Sir Aldric Vask"), hood()] });
+  const db = fakeDb({ people: [xanNow, mia] });
+  const tokenOf = async () => {
+    const seen = await whosHere(db, mia, { withHoodIds: true });
+    return [...seen.hoodIds].find(([, id]) => id === "xan")[0];
+  };
+  const disguised = await tokenOf();
+  assert.equal(await tokenOf(), disguised, "steady while nothing changes");
+  xanNow.concealed = true;
+  const hooded = await tokenOf();
+  assert.notEqual(hooded, disguised);
+  xanNow.concealed = false;
+  assert.notEqual(await tokenOf(), hooded);
 });

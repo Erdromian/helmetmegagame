@@ -154,8 +154,11 @@ async function typingFactsFor(characterId) {
     }),
     loadConcealment(prisma, characterId),
   ]);
-  const forcedName = forcedNameFrom(held ? [held] : []);
-  const disguised = Boolean(disguiseNameFrom(held ? [held] : []));
+  // A hood up over a disguise hides it, the way db/lib/disguises.js#hoodUpOverDisguise decides.
+  const hooded = Boolean(concealment && (concealment.forced || character.concealed));
+  const tags = held ? [held] : [];
+  const disguised = Boolean(disguiseNameFrom(tags)) && !hooded;
+  const forcedName = disguiseNameFrom(tags) && hooded ? null : forcedNameFrom(tags);
   const shown = presentedIdentity(character, { forcedName, concealment, disguised });
   const name = shown.name ?? null;
   const typing = {

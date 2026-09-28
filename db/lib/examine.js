@@ -151,7 +151,7 @@ function examineReadout({
   disguise = null,
 }) {
   const identity = presentedIdentity(subject, {
-    forcedName: forcedNameFrom(subject.tags),
+    forcedName: forcedNameFrom(subject.tags, subject),
     concealment: concealmentFrom(subject.tags),
   });
   // MOMENT answer (🔍/📸): a since-unmasked subject would be exposed retroactively — caller-passed alias wins outright.

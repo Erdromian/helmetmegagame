@@ -214,7 +214,8 @@ export default function AvatarField({
         )}
         {/* While this is on every message you send posts under your alias and
             the concealing item's own face, and Who's here? lists the alias too.
-            Three ways it can be locked — a forced name, a bare face, or
+            Three ways it can be locked — a forced name (not a disguise, which a
+            hood goes over), a bare face, or
             something you don't get to take off. The label used to name which
             one; it says the rule once in its tooltip instead now, so the
             greying is the only signal left that one of the three applies. The
@@ -223,9 +224,13 @@ export default function AvatarField({
         <Switch
           name="concealed"
           defaultChecked={
-            forcedIdentity ? false : concealGear?.forced ? true : Boolean(concealGear) && defaultConcealed
+            forcedIdentity && !forcedIdentity.disguise
+              ? false
+              : concealGear?.forced
+                ? true
+                : Boolean(concealGear) && defaultConcealed
           }
-          disabled={Boolean(forcedIdentity) || !concealGear || concealGear.forced}
+          disabled={Boolean(forcedIdentity && !forcedIdentity.disguise) || !concealGear || concealGear.forced}
         >
           <span className="inline-flex items-center gap-1.5">
             Conceal

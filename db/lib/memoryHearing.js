@@ -141,7 +141,7 @@ const LISTENER_SELECT = {
 // matched by its own name instead (learnFromSpeech).
 function showsOwnFace(person) {
   const shown = presentedIdentity(person, {
-    forcedName: forcedNameFrom(person.tags),
+    forcedName: forcedNameFrom(person.tags, person),
     concealment: concealmentFrom(person.tags),
   });
   return !shown.concealed && !shown.forced;
@@ -180,10 +180,10 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
   // claims, if any, never the wearer's seat, heard the way any role is. A
   // made-up job is heard by its title, and has no slug.
   const disguised = new Map();
-  const wearers = present.filter((person) => disguiseNameFrom(person.tags));
+  const wearers = present.filter((person) => disguiseNameFrom(person.tags, person));
   for (const person of wearers) {
-    const name = disguiseNameFrom(person.tags);
-    const job = disguiseJobFrom(person.tags);
+    const name = disguiseNameFrom(person.tags, person);
+    const job = disguiseJobFrom(person.tags, person);
     const parts = disguiseParts(name);
     const role = job?.name ? { slug: job.slug, name: job.name } : null;
     disguised.set(person.id, { name, candidate: { id: person.id, ...parts, role, roleTitle: null } });

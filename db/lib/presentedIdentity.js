@@ -1,7 +1,7 @@
 // forced (Tag.forcedName; posts under that initial, never their own face, and
 // cannot conceal), concealed (equipped item's alias+sprite), or own. DERIVED, never stored.
 const { concealedAlias, isConcealedAlias } = require("./concealedIdentity");
-const { disguiseNameFrom } = require("./disguises");
+const { disguiseNameFrom, isDisguiseTag, hoodUpOverDisguise } = require("./disguises");
 
 // Fallback plaque: the caller here is a Discord webhook avatar
 // (db/lib/discordRest.js), which cannot render the web's question-mark plate.
@@ -46,28 +46,53 @@ function concealRank(tag) {
   return layer;
 }
 
-// Forced name off a character's tags; first one wins.
-function forcedNameFrom(tags) {
+// Forced name off a character's tags; first one wins. A disguise under a hood is not showing
+// (./disguises.js#hoodUpOverDisguise: concealment beats a disguise), so pass the character, with
+// `concealed`, beside tags that carry the equipped concealing pieces too. Without it only a piece that
+// forces concealment can hide a disguise.
+function forcedNameFrom(tags, character = null) {
   if (!Array.isArray(tags)) return null;
   for (const entry of tags) {
     const tag = entry?.tag ?? entry;
     const name = tag?.forcedName;
-    if (typeof name === "string" && name.trim()) return name.trim();
+    if (typeof name !== "string" || !name.trim()) continue;
+    if (isDisguiseTag(tag) && hoodUpOverDisguise(tags, character)) continue;
+    return name.trim();
   }
   return null;
 }
 
 // Label for a roster row already excluding hoods; not a hood-safe helper.
 function rosterName(row) {
-  return forcedNameFrom(row?.tags) ?? row?.name ?? null;
+  return forcedNameFrom(row?.tags, row) ?? row?.name ?? null;
 }
 
+// The held forced-name tags and the equipped concealing pieces: what deciding the forced name the
+// room sees takes.
+const FORCED_NAME_SELECT = {
+  concealed: true,
+  tags: {
+    where: { OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }] },
+    select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+  },
+};
+
+// The forced name the room sees on this character now, or null: a disguise under a hood is hidden.
 async function loadForcedName(prisma, characterId) {
+  const row = await prisma.character.findUnique({ where: { id: characterId }, select: FORCED_NAME_SELECT });
+  return row ? forcedNameFrom(row.tags, row) : null;
+}
+
+// The forced name this character HOLDS, hood or no hood: `{ name, disguised }`, or null. For the
+// locks, not for showing anybody: a public forced name fixes the face and refuses concealment; a
+// disguise fixes the face but may be concealed (./conceal.js).
+async function loadHeldForcedName(prisma, characterId) {
   const held = await prisma.characterTag.findFirst({
     where: { characterId, tag: { forcedName: { not: null } } },
-    select: { tag: { select: { forcedName: true } } },
+    select: { tag: { select: { forcedName: true, slug: true } } },
   });
-  return forcedNameFrom(held ? [held] : []);
+  const name = forcedNameFrom(held ? [held] : []);
+  return name ? { name, disguised: isDisguiseTag(held.tag) } : null;
 }
 
 // Returns the OUTERMOST equipped concealing piece (highest concealRank);
@@ -132,9 +157,9 @@ async function loadPresentedIdentity(prisma, characterId) {
     });
     if (!row) return { row: null, identity: null };
     const identity = presentedIdentity(row, {
-      forcedName: forcedNameFrom(row.tags),
+      forcedName: forcedNameFrom(row.tags, row),
       concealment: concealmentFrom(row.tags),
-      disguised: Boolean(disguiseNameFrom(row.tags)),
+      disguised: Boolean(disguiseNameFrom(row.tags, row)),
     });
     return { row, identity };
   } catch (err) {
@@ -224,6 +249,7 @@ module.exports = {
   forcedNameFrom,
   rosterName,
   loadForcedName,
+  loadHeldForcedName,
   concealmentFrom,
   loadConcealment,
   letterPlaqueFile,

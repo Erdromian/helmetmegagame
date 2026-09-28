@@ -129,6 +129,7 @@ import {
 } from "@lifeweb/db/lib/escort";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { forcedNameFrom } from "@lifeweb/db/lib/presentedIdentity";
+import { disguiseNameFrom } from "@lifeweb/db/lib/disguises";
 import { syncPartyMembership } from "@lifeweb/db/lib/partyChat";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { loadRoomsAt, roomAt, WITH_SIDES } from "@lifeweb/db/lib/roomSides";
@@ -2955,12 +2956,14 @@ export async function lookAt(personRef) {
   // same sighting), so only a hand-posted id lands here — and answering it with
   // the hooded line told the asker who was under the mask. A forced name worn
   // NOW is the one exception, because presentRows lists that person by name.
+  // Not a disguise: presentRows only ever offers one under a token.
   if (!HOOD_TOKEN.test(ref) && sighting.concealed) {
     const row = await prisma.character.findUnique({
       where: { id: targetId },
-      select: { tags: { where: { tag: { forcedName: { not: null } } }, select: { tag: { select: { forcedName: true } } } } },
+      select: { tags: { where: { tag: { forcedName: { not: null } } }, select: { tag: { select: { forcedName: true, slug: true } } } } },
     });
-    if (!forcedNameFrom(row?.tags)) return { ok: false, error: "You haven't heard them say anything." };
+    const worn = forcedNameFrom(row?.tags);
+    if (!worn || disguiseNameFrom(row?.tags)) return { ok: false, error: "You haven't heard them say anything." };
   }
 
   return lookAtRow(sighting.seq);

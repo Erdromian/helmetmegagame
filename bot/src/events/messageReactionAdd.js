@@ -116,7 +116,7 @@ async function handleDossierReaction(reaction, proxy, user) {
     }),
   ]);
 
-  const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags) }); // GM eyes: real name/face, mask noted not worn
+  const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags, character) }); // GM eyes: real name/face, mask noted not worn
   const where = [character.location?.name, character.zone?.name].filter(Boolean).join(" · ") || "nowhere";
   const embed = new EmbedBuilder()
     .setTitle(character.name)

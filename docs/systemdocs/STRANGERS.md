@@ -404,7 +404,7 @@ name to fool anyone (a title is its own choice and never decides it), and a
 Friends entry for a made-up name comes from hearing it, as any name does.
 Two more followed the same day: the Kit may claim a job, and a disguise
 changes the name and job but never the body under it, so its age and gender
-are always the wearer's.
+are always the wearer's. Then a third: a hood goes over a disguise.
 
 **Three readers.** `db/lib/disguises.js#readDisguises` decides, for one
 viewer and a list of names:
@@ -434,6 +434,19 @@ wearer looks like them: the same gender and the same age band, the one a
 stranger's alias uses (young, grown, old; `disguises.js#looksAlike`). Anyone
 else they take for that person shows them the name's letter plaque instead.
 Every face route decides that for the viewer asking.
+
+**A hood over it.** Concealment beats a disguise. A disguised character may
+conceal themselves like anybody else (`conceal.js`, and the switch on
+`/character`), and while the hood is up the disguise is not showing at all:
+they are a hooded stranger under their own concealed alias, label and voice
+number ("a young man, in front"), to everybody, the people the name would fool
+included. Nothing about the name, its job or its colour shows, and nothing
+they say teaches it. When the hood comes down the disguise shows again. The
+rule lives in `disguises.js#hoodUpOverDisguise`, which `forcedNameFrom`,
+`disguiseNameFrom` and `disguiseJobFrom` all ask when given the character:
+a hood is up when a piece forces it, or when one is equipped and the character
+has chosen to wear it up (`Character.concealed`). A public forced name (Apex
+Form's Beast) still refuses concealment and is never hidden.
 
 **A job.** The Kit may claim any job title, real or made up, typed
 (`disguiseMint.js#resolveDisguiseJob`). The web dialog suggests the game's own

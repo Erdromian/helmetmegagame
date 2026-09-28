@@ -374,7 +374,7 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       discordMirrored: character.discordMirrored,
       concealed: character.concealed,
       concealedInEffect: presentedIdentity(character, {
-        forcedName: forcedNameFrom(heldTagsComposed),
+        forcedName: forcedNameFrom(heldTagsComposed, character),
         concealment: concealmentFrom(heldTagsComposed),
       }).concealed,
       discordRoleId: character.discordRoleId,

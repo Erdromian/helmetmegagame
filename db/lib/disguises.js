@@ -36,35 +36,59 @@ function isDisguiseTag(tag) {
   return typeof tag?.slug === "string" && tag.slug.startsWith(DISGUISE_SLUG_PREFIX);
 }
 
-// The disguise name a character is going by, or null. Mirrors presentedIdentity.js#forcedNameFrom,
-// which takes the FIRST held forced name: only when that one is a disguise is the character disguised,
-// so the two can never disagree about which name is showing.
-function disguiseNameFrom(tags) {
-  if (!Array.isArray(tags)) return null;
+// Whether a hood is up over a disguise, which hides it: CONCEALMENT BEATS A DISGUISE. A wearer who
+// conceals themselves is a hooded stranger like anybody else, under their own concealed alias and
+// presence label ("a young man (2)"), and the disguise's name shows again when the hood comes down. A
+// hood is up the way presentedIdentity.js decides it: an equipped concealing piece that forces it, or
+// one the character has chosen to wear up (`character.concealed`). A character loaded without the
+// column counts only a forcing piece. Needs the equipped concealing tags (CONCEALMENT_TAG_FIELDS)
+// alongside the forced-name ones; without them nothing reads as up. A public forced name (Apex Form's
+// "Beast") is never hidden: its wearer cannot conceal at all.
+function hoodUpOverDisguise(tags, character) {
+  if (!Array.isArray(tags)) return false;
+  let piece = false;
   for (const entry of tags) {
+    if (entry?.equipped !== true) continue;
     const tag = entry?.tag ?? entry;
-    const name = tag?.forcedName;
-    if (typeof name === "string" && name.trim()) return isDisguiseTag(tag) ? name.trim() : null;
+    if (!tag?.concealsIdentity || !tag?.concealSprite) continue;
+    if (tag.forcesConceal) return true;
+    piece = true;
   }
-  return null;
+  return piece && character?.concealed === true;
 }
 
-// The job the disguise that disguiseNameFrom reads claims: `{ name, slug }`, or null for none. `name` is
-// the job title as worn, real or made up; `slug` is the Role it names, null for a made-up job, which
-// therefore has no estate and no colour. The same first forced-name tag, so the name and the job always
-// come off one disguise. Needs `disguiseJob` and `disguiseJobSlug` selected.
-function disguiseJobFrom(tags) {
+// The first held forced-name tag, when it is a disguise with no hood over it: the disguise showing.
+function shownDisguiseTag(tags, character) {
   if (!Array.isArray(tags)) return null;
   for (const entry of tags) {
     const tag = entry?.tag ?? entry;
     const name = tag?.forcedName;
     if (typeof name !== "string" || !name.trim()) continue;
-    if (!isDisguiseTag(tag)) return null;
-    const job = typeof tag.disguiseJob === "string" && tag.disguiseJob.trim() ? tag.disguiseJob.trim() : null;
-    const slug = tag.disguiseJobSlug ?? null;
-    return job || slug ? { name: job, slug } : null;
+    if (!isDisguiseTag(tag) || hoodUpOverDisguise(tags, character)) return null;
+    return tag;
   }
   return null;
+}
+
+// The disguise name a character is going by, or null. Mirrors presentedIdentity.js#forcedNameFrom,
+// which takes the FIRST held forced name: only when that one is a disguise is the character disguised,
+// so the two can never disagree about which name is showing. Pass the character (with `concealed`)
+// so a hood over the disguise hides it (hoodUpOverDisguise).
+function disguiseNameFrom(tags, character = null) {
+  return shownDisguiseTag(tags, character)?.forcedName.trim() ?? null;
+}
+
+// The job the disguise that disguiseNameFrom reads claims: `{ name, slug }`, or null for none. `name` is
+// the job title as worn, real or made up; `slug` is the Role it names, null for a made-up job, which
+// therefore has no estate and no colour. The same first forced-name tag, so the name and the job always
+// come off one disguise, and a hood over it hides the job too. Needs `disguiseJob` and
+// `disguiseJobSlug` selected.
+function disguiseJobFrom(tags, character = null) {
+  const tag = shownDisguiseTag(tags, character);
+  if (!tag) return null;
+  const job = typeof tag.disguiseJob === "string" && tag.disguiseJob.trim() ? tag.disguiseJob.trim() : null;
+  const slug = tag.disguiseJobSlug ?? null;
+  return job || slug ? { name: job, slug } : null;
 }
 
 // The jobs behind these Role slugs: Map<slug, { slug, name, groupSlug }>. A slug no Role has any more is
@@ -224,6 +248,7 @@ module.exports = {
   DISGUISE_SLUG_PREFIX,
   DISGUISE_STRANGER_FACE,
   isDisguiseTag,
+  hoodUpOverDisguise,
   disguiseNameFrom,
   disguiseJobFrom,
   jobsBySlug,
