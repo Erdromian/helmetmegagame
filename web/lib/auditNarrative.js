@@ -98,6 +98,8 @@ export const AUDIT_FAMILIES = {
   // bucketed here so the existing "System" filter chip picks them up for free.
   system: { label: "System", band: "machine", prefixes: ["turn_", "system_tag_"] },
   superadmin: { label: "Superadmin", band: "machine", prefixes: ["superadmin_"] },
+  // The gates and the Town Gatehouse's terminal (docs/systemdocs/GATEHOUSE.md).
+  gates: { label: "Gates", band: "player", prefixes: ["gate_", "documents_", "documentation_"] },
 };
 
 export const AUDIT_BANDS = {
@@ -412,6 +414,44 @@ const R = {
   gm_tag_wipe_gib: (d) => [actor(), t("gibbed"), target(), t("— every tag wiped"), ...(d.tagCount ? [em(`(${d.tagCount})`)] : [])],
   system_tag_wipe_gib: (d) => [t("A gib"), t("wiped every tag on"), target(), ...(d.tagCount ? [em(`(${d.tagCount})`)] : [])],
 
+  // ---- Gates and the Town Gatehouse (GATEHOUSE.md) ----
+  gate_opened: (d) => gateLine("opened", d),
+  gate_closed: (d) => gateLine("closed", d),
+  gate_passage_requested: (d) => [
+    actor(), t(d.direction === "OUT" ? "asked to leave Ravenheart" : "asked to come into Ravenheart"),
+    ...msgTail(d.text),
+    ...(d.offered?.length ? [t("— offering"), ...itemChips(d.offered)] : []),
+  ],
+  gate_passage_approved: (d) => [
+    actor(), t("let"), target(), t(d.direction === "OUT" ? "out of Ravenheart" : "into Ravenheart"),
+    ...(d.kept?.length ? [t("— took"), ...itemChips(d.kept)] : []),
+    ...(d.given?.length ? [t("— gave"), ...itemChips(d.given)] : []),
+    ...ringTail(d),
+  ],
+  gate_passage_denied: (d) => [
+    actor(), t("denied"), target(), t(d.direction === "OUT" ? "passage out of Ravenheart" : "passage into Ravenheart"),
+    ...ringTail(d),
+  ],
+  gate_magma: (d) => [
+    actor(), t("poured magma on the gate"),
+    ...(d.killed?.length ? [t("— killed"), em(d.killed.map((k) => k.name).join(", "))] : []),
+    ...ringTail(d),
+  ],
+  documentation_submitted: () => [actor(), t("gave blood at the Gate for documents")],
+  documents_issued: (d) => [
+    actor(), t("printed documents for"), target(), t("as"), em(d.name),
+    ...(d.occupation ? [t(","), em(d.occupation)] : []),
+    ...(d.fingerprint ? [t("— account"), mono(d.fingerprint)] : []),
+    ...ringTail(d),
+  ],
+  documentation_denied: () => [actor(), t("denied documents to"), target()],
+  // The Meister's Close account on /treasury.
+  treasury_account_closed: (d) => [
+    actor(), t("closed"), (d.holderName ? em(`${d.holderName}'s`) : t("a")), t("treasury account"),
+    ...(d.fingerprint ? [mono(d.fingerprint)] : []),
+    ...(Number.isFinite(Number(d.balanceObols)) ? [t(`— a balance of ${d.balanceObols} ¢ written off`)] : []),
+  ],
+
   // ---- Superadmin ----
   superadmin_turn_forced: (d) => [actor(), t("FORCED turn"), em(String(d.number ?? "?")), t("open")],
   superadmin_game_wipe: (d) => [actor(), t("started a GAME WIPE —"), count(d.characters), t("characters")],
@@ -447,6 +487,8 @@ const DESTRUCTIVE = new Set([
   "request_tag_wipe_gib",
   "gm_tag_wipe_gib",
   "system_tag_wipe_gib",
+  "gate_magma",
+  "treasury_account_closed",
 ]);
 
 // Something did not work — distinct from destructive: nobody chose it.
@@ -485,6 +527,7 @@ const FAMILY_OVERRIDES = {
   caving_resolved: "system",
   tag_expiry_resolved: "system",
   access_revoke_incomplete: "system",
+  treasury_account_closed: "request",
 };
 
 export function auditFamily(actionType) {
@@ -569,6 +612,31 @@ function effectTail(d) {
   if (Number.isFinite(Number(d.resources))) bits.push(t("—"), res(d.resources));
   if (d.tagNames?.length) bits.push(t("—"), ...joinChips(d.tagNames));
   return bits;
+}
+
+// "Aurelia Vane opened the gate between Bridge and Square — from Gate Controls".
+function gateLine(verb, d) {
+  const [a, b] = Array.isArray(d.between) ? d.between : [];
+  return [
+    actor(), t(`${verb} the gate`),
+    ...(a && b ? [t("between"), em(a), t("and"), em(b)] : []),
+    ...(d.lever ? [t("— from Gate Controls")] : []),
+  ];
+}
+
+// [{ name, quantity }] as chips, the way a transfer names what moved.
+function itemChips(list) {
+  const out = [];
+  (list ?? []).forEach((item, i) => {
+    if (i > 0) out.push(t(","));
+    out.push(chip(item?.name), qty(item?.quantity));
+  });
+  return out;
+}
+
+// Whose ring worked the terminal — the history's own column (the doc).
+function ringTail(d) {
+  return d.ring ? [t("— wearing the"), em(d.ring)] : [];
 }
 
 function bloodTail(d) {

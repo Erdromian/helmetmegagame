@@ -109,6 +109,14 @@ const REASONS = {
   // Kept, unwritten: the generator is gone, but a reason is a plain string and
   // deleting one blanks the old rows that name it.
   DEPOT_REFUEL: { flow: FLOW.TRANSFER, label: "Refuelled" },
+  // The Town Gatehouse (docs/systemdocs/GATEHOUSE.md). An account opened by a
+  // set of Documents starts owing 10 ¢ of processing fees: a claim leg to the
+  // bank clearing, and nothing physical moves. Paying it off is an ordinary
+  // deposit, whose coin lands in the Vault with no claim left against it.
+  DOCUMENTS_FEE: { flow: FLOW.TRANSFER, label: "Documents fee" },
+  // The Meister closing an account at /treasury. Whatever it held or owed is
+  // written off against the bank clearing so its books close at zero.
+  ACCOUNT_CLOSED: { flow: FLOW.TRANSFER, label: "Account closed" },
 
   // --- internal (a form change, not a movement) ---
   BANK_OPEN: { flow: FLOW.INTERNAL, label: "Account opened" },

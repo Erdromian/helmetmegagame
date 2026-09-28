@@ -20,6 +20,10 @@ import { RING_TEXT } from "@lifeweb/db/lib/ringText";
 import { VENDING_TEXT, VENDING_MAX_PRICE, secondsLeftOn, timeLeftLine } from "@lifeweb/db/lib/vendingText";
 import { BLACK_MARKET_TEXT } from "@lifeweb/db/lib/blackMarketText";
 import { MERCHANT_TERMINAL_TEXT, withTax } from "@lifeweb/db/lib/merchantTerminalText";
+import { GATEHOUSE_TEXT } from "@lifeweb/db/lib/gatehouseText";
+import { controlThing } from "@lifeweb/db/lib/gateControls";
+import { PassageDialog, ProcessRequestsDialog, DocumentsDialog } from "./GatehouseDialogs";
+import { gateSubmitDocumentation } from "./gatehouseActions";
 import {
   loadAffordances,
   flipGate,
@@ -155,10 +159,12 @@ export function usePlaceActions(initialAffordances, onChanged) {
     async (entry) => {
       setError(null);
       setNotice(null);
-      if (entry.kind === "gate") {
+      // The Town Gatehouse's lever (db/lib/gateControls.js) is a gate button
+      // drawn in its room rather than on the place card; it flips the same way.
+      if (entry.kind === "gate" || entry.id === "gateLever") {
         // A room that named its control is asked about that ("The shutters
         // come down"), not about a way to somewhere — db/lib/placeAffordances.js.
-        const thing = entry.control ? `The ${entry.control.toLowerCase()}` : `The way to ${entry.farName}`;
+        const thing = controlThing(entry.control) ?? `The way to ${entry.farName}`;
         const ask = entry.isOpen
           ? { title: "Shut it?", message: `${thing} closes.`, confirmLabel: "Shut it" }
           : { title: "Open it?", message: `${thing} opens.`, confirmLabel: "Open it" };
@@ -174,6 +180,18 @@ export function usePlaceActions(initialAffordances, onChanged) {
           return;
         }
         run(holdKeyed, entry.linkId, { onOk: say });
+        return;
+      }
+      // The Gate's finger-prick (docs/systemdocs/GATEHOUSE.md): the shared
+      // confirm says what it does, and there is nothing else to ask.
+      if (entry.id === "submitDocumentation") {
+        const ask = {
+          title: GATEHOUSE_TEXT.documentTitle,
+          message: GATEHOUSE_TEXT.documentConfirm,
+          confirmLabel: GATEHOUSE_TEXT.documentConfirmLabel,
+        };
+        if (!(await confirm(ask))) return;
+        run(gateSubmitDocumentation, undefined, { onOk: say });
         return;
       }
       // The Charon (docs/systemdocs/CHARON.md). Four buttons and no dialogs:
@@ -248,6 +266,9 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "slots" && <SlotDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "vending" && <VendingDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "blackMarket" && <BlackMarketDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "requestPassage" && <PassageDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "processRequests" && <ProcessRequestsDialog onClose={close} onDone={say} />}
+      {dialog?.kind === "createDocuments" && <DocumentsDialog onClose={close} onDone={say} />}
       {dialog?.kind === "merchantTerminal" && <MerchantTerminalDialog onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "atm" && <AtmDialog onClose={close} onDone={say} />}
@@ -1543,8 +1564,8 @@ function AtmDialog({ onClose, onDone }) {
   return (
     <Modal open title={title} onClose={onClose}>
       <p className="text-sm text-muted">
-        {state.account.fingerprint} · {state.account.balanceObols} ¢ in the account, {state.heldObols} ¢ in your
-        pocket.
+        {state.account.fingerprint} · {state.account.balanceObols} ¢ in {state.account.crown ? "the Vault" : "the account"},{" "}
+        {state.heldObols} ¢ in your pocket.
         {state.account.backed ? "" : " Held off-world."}
       </p>
       <div className="field">
@@ -1564,7 +1585,8 @@ function AtmDialog({ onClose, onDone }) {
           </label>
           <Select id="chat-atm-to" value={sendTo} onChange={(e) => setSendTo(e.target.value)}>
             <option value="">Pick an account</option>
-            <option value="VAULT">The Vault</option>
+            {/* The Crown's money is the Vault already; sending it there moves nothing. */}
+            {!state.account.crown && <option value="VAULT">The Vault</option>}
             {state.sendTo.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.holderName}

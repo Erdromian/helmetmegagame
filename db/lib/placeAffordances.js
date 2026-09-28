@@ -39,6 +39,15 @@ const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { ensureNuke, markNukeRoom } = require("./nuke");
 const { NUKE_TEXT } = require("./nukeText");
 const { loadRoomsAt } = require("./roomSides");
+const {
+  GATE_ROOM_SLUG,
+  GATE_CONTROLS_ROOM_SLUG,
+  GATEHOUSE_WINDOW_ROOM_SLUG,
+  BRIDGE_SLUG,
+  SQUARE_SLUG,
+  GATEHOUSE_TEXT,
+} = require("./gatehouseText");
+const { anchorGateFor, remoteLeverIn, workedElsewhere, joins } = require("./gateControls");
 
 // The one room with a big red button on the wall (docs/zones.yaml). Named
 // here rather than imported from gatehouseTurret.js, which pulls in the whole turret engine.
@@ -52,15 +61,19 @@ const CENSOR_OFFICE_ROOM_SLUG = "fortress-1-2";
 // `null` takes the default label, which names the far side, because a
 // watchtower can stand over two gates and "Close" alone would be a coin flip.
 // A room with exactly one gate may name the thing it actually moves instead.
+//
+// Two gates are worked some other way now (db/lib/gateControls.js): the
+// portcullis from both Locations' anchors, by ring, and the Black Hills gate
+// from the Town Gatehouse's Gate Controls, which stands at neither end.
 const GATE_CONTROL_ROOMS = new Map([
-  ["fortress-2-3", null], //       fortress/fortress-2 <-> town/town-8
-  ["town-1-2", null], //           town/town-1         <-> hills/bridge
   // The Den's basement stairs, worked from the Exactor's desk. Not a
   // watchtower at all — the first gate in the game whose winch is in an office.
   ["undertown-9-3", "Shutters"], // undertown/undertown-9 <-> undertown/undertown-8
 ]);
 
-const WATCHTOWER_ROOM_SLUGS = new Set(GATE_CONTROL_ROOMS.keys());
+// Every room whose starter carries a gate button: the watchtowers above, and
+// the rooms holding a remote lever. What the Discord refresh after a flip reads.
+const WATCHTOWER_ROOM_SLUGS = new Set([...GATE_CONTROL_ROOMS.keys(), GATE_CONTROLS_ROOM_SLUG]);
 
 /** What this room calls its gate control, or null for the default label. */
 function gateControlIn(roomSlug) {
@@ -91,6 +104,12 @@ const ROOM_VENDING_PREFIX = "room:vending:";
 // "room:nuke:" too (db/lib/nukeKeypad.js), so the bot tests those first.
 const ROOM_NUKE_PREFIX = "room:nuke:";
 const ROOM_BLACK_MARKET_PREFIX = "room:blackmarket:";
+// The Town Gatehouse (docs/systemdocs/GATEHOUSE.md). The lever's own button is
+// the gate button (GATE_PREFIX); these four are its terminals and windows.
+const ROOM_PASSAGE_PREFIX = "room:passage:";
+const ROOM_BLOODPRICK_PREFIX = "room:bloodprick:";
+const ROOM_GATE_PROCESS_PREFIX = "room:gateprocess:";
+const ROOM_GATE_DOCS_PREFIX = "room:gatedocs:";
 // The Charon (docs/systemdocs/CHARON.md). Three room buttons and one on the
 // Location: the Panic Room's way in, the Cockpit's terminal, the Habitation's
 // last one, and Leave on the ship itself.
@@ -236,6 +255,46 @@ const ROOM_AFFORDANCES = [
     prefix: ROOM_BLACK_MARKET_PREFIX,
     when: (room) => room?.slug === BLACK_MARKET_ROOM_SLUG,
   },
+  // The Town Gatehouse (Incarn and gates.docx, docs/systemdocs/GATEHOUSE.md).
+  // Request Passage is on the OUTSIDE of each window — the Gate as seen from
+  // the Bridge, the Gatehouse Window as seen from the Square — because nobody
+  // asks to pass from inside the gatehouse. `sides: true` is what lets it
+  // draw on a side's copy of a room at all (see SIDE_AFFORDANCE_IDS below).
+  {
+    id: "requestPassage",
+    label: GATEHOUSE_TEXT.requestButton,
+    tone: PLAIN,
+    prefix: ROOM_PASSAGE_PREFIX,
+    sides: true,
+    when: (room, location) =>
+      (room?.slug === GATE_ROOM_SLUG && location?.slug === BRIDGE_SLUG) ||
+      (room?.slug === GATEHOUSE_WINDOW_ROOM_SLUG && location?.slug === SQUARE_SLUG),
+  },
+  // The finger-prick terminal in the Gate, from either side of it.
+  {
+    id: "submitDocumentation",
+    label: GATEHOUSE_TEXT.documentButton,
+    tone: PLAIN,
+    prefix: ROOM_BLOODPRICK_PREFIX,
+    sides: true,
+    when: (room) => room?.slug === GATE_ROOM_SLUG,
+  },
+  // Gate Controls' terminal. Grant Passage asks for a gatehouse-key ring
+  // when pressed; Documents is anybody's in the room (the doc).
+  {
+    id: "processRequests",
+    label: GATEHOUSE_TEXT.processButton,
+    tone: PLAIN,
+    prefix: ROOM_GATE_PROCESS_PREFIX,
+    when: (room) => room?.slug === GATE_CONTROLS_ROOM_SLUG,
+  },
+  {
+    id: "createDocuments",
+    label: GATEHOUSE_TEXT.createButton,
+    tone: PLAIN,
+    prefix: ROOM_GATE_DOCS_PREFIX,
+    when: (room) => room?.slug === GATE_CONTROLS_ROOM_SLUG,
+  },
   // The Merchant's vending machine (docs/systemdocs/VENDING.md). Resolved off a
   // COLUMN rather than a slug, the way the phone above is: there is one today,
   // on the Storefront, and a second is a YAML edit plus a tick on
@@ -376,13 +435,15 @@ function locationAffordances(location, { web = false } = {}) {
 // A room seen from a side it opens onto rather than its home (db/lib/roomSides.js
 // — `sideId` is set) offers Storage and nothing else. What passes over a counter
 // is talk and what is left lying on it; the bell, the phone, the machine and the
-// rest are fixtures on the home side's wall.
+// rest are fixtures on the home side's wall. The one exception is a fixture
+// that is ABOUT the far side — the gatehouse's windows (`sides: true`), whose
+// `when` then decides from which side.
 const SIDE_AFFORDANCE_IDS = new Set(["storage"]);
 function roomAffordances(room, location = null, { web = false } = {}) {
   return ROOM_AFFORDANCES.filter(
     (def) =>
       !(web && def.discordOnly) &&
-      (!room.sideId || SIDE_AFFORDANCE_IDS.has(def.id)) &&
+      (!room.sideId || SIDE_AFFORDANCE_IDS.has(def.id) || def.sides === true) &&
       (!def.when || def.when(room, location)),
   ).map((def) => ({
     id: def.id,
@@ -391,6 +452,21 @@ function roomAffordances(room, location = null, { web = false } = {}) {
     roomId: room.id,
     customId: customIdFor(def, room.id, room),
   }));
+}
+
+// The one link a remote lever works, with its ends, or null.
+async function remoteLink(prisma, lever) {
+  const rows = await prisma.locationLink.findMany({
+    where: {
+      modular: true,
+      OR: [
+        { a: { slug: lever.ends[0] }, b: { slug: lever.ends[1] } },
+        { a: { slug: lever.ends[1] }, b: { slug: lever.ends[0] } },
+      ],
+    },
+    include: { a: true, b: true },
+  });
+  return rows.find((link) => joins(link, lever.ends)) ?? null;
 }
 
 // The label a gate button wears. Far side named by default, because a location
@@ -446,11 +522,29 @@ async function affordancesFor(prisma, character) {
   }
 
   // Reaching the room IS the permission — anyone its `access:` list lets in may work the gate.
-  const gateRoom = open.find((room) => !room.sideId && WATCHTOWER_ROOM_SLUGS.has(room.slug)) ?? null;
+  const gateRoom = open.find((room) => !room.sideId && GATE_CONTROL_ROOMS.has(room.slug)) ?? null;
   const control = gateRoom ? gateControlIn(gateRoom.slug) : null;
   const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
   for (const link of links ?? []) {
     if (!gateOperable(link)) continue;
+    // The portcullis: a button on this Location's own card, for everybody. The
+    // ring is asked for when it is pressed (db/lib/gates.js).
+    const anchor = anchorGateFor(link);
+    if (anchor) {
+      const farName = endpoints(link, character.locationId).far.name;
+      out.push({
+        id: "gate",
+        kind: "gate",
+        linkId: link.id,
+        label: gateLabel({ isOpen: link.isOpen, farName, control: anchor.control }),
+        tone: link.isOpen ? DANGER : GO,
+        isOpen: link.isOpen,
+        farName,
+        control: anchor.control,
+      });
+      continue;
+    }
+    if (workedElsewhere(link)) continue;
     if (!gateRoom) continue;
     const farName = endpoints(link, character.locationId).far.name;
     out.push({
@@ -462,6 +556,26 @@ async function affordancesFor(prisma, character) {
       isOpen: link.isOpen,
       farName,
       control,
+    });
+  }
+
+  // A lever for a gate somewhere else (db/lib/gateControls.js): drawn in its
+  // room, like any room fixture, for anybody who can get in.
+  for (const room of open) {
+    const lever = !room.sideId ? remoteLeverIn(room.slug) : null;
+    if (!lever) continue;
+    const link = await remoteLink(prisma, lever);
+    if (!link) continue;
+    out.push({
+      id: "gateLever",
+      kind: "room",
+      roomId: room.id,
+      roomName: room.name,
+      linkId: link.id,
+      label: gateLabel({ isOpen: link.isOpen, farName: null, control: lever.control }),
+      tone: link.isOpen ? DANGER : GO,
+      isOpen: link.isOpen,
+      control: lever.control,
     });
   }
 
@@ -509,6 +623,10 @@ module.exports = {
   ROOM_VENDING_PREFIX,
   ROOM_NUKE_PREFIX,
   ROOM_BLACK_MARKET_PREFIX,
+  ROOM_PASSAGE_PREFIX,
+  ROOM_BLOODPRICK_PREFIX,
+  ROOM_GATE_PROCESS_PREFIX,
+  ROOM_GATE_DOCS_PREFIX,
   ROOM_CHARON_ENTER_PREFIX,
   ROOM_CHARON_LAUNCH_PREFIX,
   ROOM_CHARON_SLEEP_PREFIX,
@@ -524,5 +642,6 @@ module.exports = {
   locationAffordances,
   roomAffordances,
   gateLabel,
+  remoteLink,
   affordancesFor,
 };

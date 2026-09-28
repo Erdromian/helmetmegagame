@@ -119,9 +119,10 @@ function gateLines(gates) {
     .slice()
     .sort((x, y) => x.farName.localeCompare(y.farName))
     .map((gate) => {
+      const worked = gate.workedFrom ?? "Worked from the watchtower.";
       return gate.isOpen
-        ? `**${gate.farName}**: the way stands open. Worked from the watchtower.`
-        : `**${gate.farName}**: the way is closed. Worked from the watchtower.`;
+        ? `**${gate.farName}**: the way stands open. ${worked}`
+        : `**${gate.farName}**: the way is closed. ${worked}`;
     });
 }
 

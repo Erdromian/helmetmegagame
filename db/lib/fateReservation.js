@@ -9,6 +9,7 @@
 // the two call shapes distinct.
 const { fateCapacity } = require("./fateCapacity");
 const { lateJoinOpeningFor, lateJoinCapacity } = require("./lateJoin");
+const { partySeatUnderLock } = require("./lateParty");
 const { heldSeats, heldSeatsByFate } = require("./seatCount");
 
 // Long enough to read the tag menu, short enough that an abandoned tab frees
@@ -22,7 +23,10 @@ async function sweepExpired(tx, roleId) {
 
 // Takes a row lock on the Role first so two concurrent reservers serialize
 // instead of both reading the same stale count.
-async function reserveFate(prisma, discordUserId, roleId, playerCount) {
+// `partyId` is the live late party when this role is one of its fates
+// (db/lib/lateParty.js): the party's slots are the cap then, counted off the
+// characters the party made.
+async function reserveFate(prisma, discordUserId, roleId, playerCount, { partyId = null } = {}) {
   return prisma.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${roleId} FOR UPDATE`;
     await sweepExpired(tx, roleId);
@@ -30,14 +34,20 @@ async function reserveFate(prisma, discordUserId, roleId, playerCount) {
     const role = await tx.role.findUnique({ where: { id: roleId } });
     if (!role) return { ok: false, reason: "ROLE_NOT_FOUND" };
 
-    // A late join's cap is the number of chairs a GM opened (db/lib/lateJoin.js),
-    // not a share of the roster. Asked under the same row lock as everything
-    // else here, so closing the door mid-wizard wins.
-    const opening = await lateJoinOpeningFor(tx, role.slug);
-    const cap = opening?.enabled ? lateJoinCapacity(opening) : fateCapacity(role, playerCount);
-    // Caller's own hold on THIS role doesn't count against itself.
-    if ((await heldSeats(tx, role, { excludeDiscordUserId: discordUserId })) >= cap) {
-      return { ok: false, reason: "ROLE_FULL" };
+    if (partyId) {
+      const seat = await partySeatUnderLock(tx, partyId, role, { excludeDiscordUserId: discordUserId });
+      if (!seat) return { ok: false, reason: "PARTY_OVER" };
+      if (seat.held >= seat.cap) return { ok: false, reason: "ROLE_FULL" };
+    } else {
+      // A late join's cap is the number of chairs a GM opened (db/lib/lateJoin.js),
+      // not a share of the roster. Asked under the same row lock as everything
+      // else here, so closing the door mid-wizard wins.
+      const opening = await lateJoinOpeningFor(tx, role.slug);
+      const cap = opening?.enabled ? lateJoinCapacity(opening) : fateCapacity(role, playerCount);
+      // Caller's own hold on THIS role doesn't count against itself.
+      if ((await heldSeats(tx, role, { excludeDiscordUserId: discordUserId })) >= cap) {
+        return { ok: false, reason: "ROLE_FULL" };
+      }
     }
 
     const expiresAt = new Date(Date.now() + RESERVATION_TTL_MS);

@@ -93,8 +93,11 @@
 # `bank_account` (role-level, optional) opens a fingerprinted account at the
 # Depot for this character at creation: `treasury` for a claim on the coin in
 # the Keep's Vault, `offshore` for money the Company holds off-world (the
-# Merchant's and his Dockers'). Absent means no account — the Black Hills seats
-# arrive without one, and open one at the counter if they ever want one.
+# Merchant's and his Dockers'), `crown` for the Baron's: not a claim on the
+# Vault but the Vault itself, so its balance is whatever the Vault holds and a
+# `crown` seat may not set `starting_account`. Absent means no account — the
+# Black Hills seats, the Slave, the Bum and the Migrant arrive without one, and
+# open one at the counter if they ever want one.
 # See docs/systemdocs/DEPOT.md §0g.
 #
 # `starting_account` (role-level, optional, defaults 0) is how many obols are
@@ -183,9 +186,10 @@ groups:
           If things become too dire, you and your family can escape on the Charon.
         - >-
           The keep has a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
+        - >-
+          Your bank account is the Vault itself. At any infoterminal it holds every obol in the Vault, and you can take out as much as is there.
       difficulty: hard
-      bank_account: treasury
-      starting_account: 36
+      bank_account: crown
       multiple: false
       starting_zone: fortress
       knows: &townsfolk [court, clergy, cerberon, saviors, business, soil, mercenary]
@@ -194,7 +198,7 @@ groups:
       whitelist: true
       ring:
         spawns: true
-        opens: [armory-key, cerberus-key, barons-key, tower-key, elevator-key]
+        opens: [armory-key, cerberus-key, barons-key, tower-key, elevator-key, gatehouse-key, portcullis-key]
         authorised_by: barons-scepter
         seal_office: Baron
         seal_mark: "A raven clutching a banner, the seal of the Baron."
@@ -335,7 +339,7 @@ groups:
       extra_starting_points: 5
       ring:
         spawns: true
-        opens: [armory-key, hands-key, tower-key]
+        opens: [armory-key, hands-key, tower-key, gatehouse-key, portcullis-key]
         seal_office: Hand
         seal_mark: "An open palm, the seal of the Hand."
         name: "Hand's Ring"
@@ -371,7 +375,7 @@ groups:
       starting_location: fortress-4
       ring:
         spawns: true
-        opens: [meisters-key, tower-key]
+        opens: [meisters-key, tower-key, portcullis-key]
         seal_office: Meister
         seal_mark: "A single goblet, the seal of the Meister."
         name: "Meister's Ring"
@@ -741,7 +745,7 @@ groups:
       whitelist: true
       ring:
         spawns: true
-        opens: [armory-key, cerberus-key, censors-key, tower-key]
+        opens: [armory-key, cerberus-key, censors-key, tower-key, gatehouse-key, portcullis-key]
         seal_office: Censor
         seal_mark: "The head of a wolf, the seal of the Censor."
         name: "Censor's Ring"
@@ -799,7 +803,7 @@ groups:
       starting_location: fortress-1
       ring:
         spawns: true
-        opens: [armory-key, cerberus-key, incarns-key]
+        opens: [armory-key, cerberus-key, incarns-key, gatehouse-key]
       starting_tags:
         - Ravenhearter
         - Melee II
@@ -841,7 +845,7 @@ groups:
       starting_location: fortress-1
       ring:
         spawns: true
-        opens: [cerberus-key]
+        opens: [cerberus-key, gatehouse-key, portcullis-key]
       starting_tags:
         - Cerberus Helmet
         - Ravenhearter
@@ -881,7 +885,7 @@ groups:
       starting_location: fortress-1
       ring:
         spawns: true
-        opens: [cerberus-key]
+        opens: [cerberus-key, gatehouse-key, portcullis-key]
       starting_tags:
         - Ravenhearter
         - Cerberon
@@ -1395,8 +1399,6 @@ groups:
         You live in a shell and sleep with the dogs.
       description: []
       difficulty: easy
-      bank_account: treasury
-      starting_account: 3
       multiple: true
       weight: unlimited
       starting_zone: undertown
@@ -1599,7 +1601,8 @@ groups:
         Make it to the fortress.
       description: []
       difficulty: easy
-      bank_account: treasury
+      # No bank_account: a Migrant's account is opened when the Town Gatehouse
+      # documents them, at -10 ¢ of processing fees (docs/systemdocs/GATEHOUSE.md).
       multiple: true
       weight: unlimited
       starting_zone: caves

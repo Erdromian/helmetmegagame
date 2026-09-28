@@ -20,6 +20,10 @@ const LEDGER_KINDS = {
   BANK_WITHDRAWAL: "Withdrawal",
   CHARACTER_START: "Opening balance",
   BANK_TRANSFER: "Transfer",
+  // The Town Gatehouse (docs/systemdocs/GATEHOUSE.md): a documented account
+  // opens owing its processing fee, and the Meister may close one.
+  DOCUMENTS_FEE: "Documents fee",
+  ACCOUNT_CLOSED: "Account closed",
 };
 
 function linesOf(order) {

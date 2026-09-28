@@ -31,7 +31,7 @@ const NOTHING_LINE = {
 };
 const SAVE_DELAY_MS = 400;
 
-function PriorityControl({ slug, level, onChange }) {
+export function PriorityControl({ slug, level, onChange }) {
   return (
     <div className="chip-row priority-row" role="radiogroup" aria-label="Priority">
       {["OFF", ...LEVELS].map((value) => {

@@ -71,7 +71,7 @@ maps:
         zone: fortress
         nodes:
           "1": Garrison
-          "2": Gatehouse
+          "2": Courtyard
           "3": Court
           "4": Keep
           "5": Tower

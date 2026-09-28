@@ -462,6 +462,9 @@ export async function wipeGameData(formData) {
       // this array.
       // The lobby is per game; the preferences behind it are not.
       prisma.lobbyEntry.deleteMany({}),
+      // So is a late party: one left open would narrow the next game's
+      // creation to its fates. Its fates cascade off it.
+      prisma.lateParty.deleteMany({}),
       // Delete and recreate rather than reset a list of columns: a fresh row
       // cannot carry anything over, which the old allowlist provably could.
       prisma.gameState.deleteMany({}),

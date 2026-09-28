@@ -21,6 +21,9 @@ export const SECTION_TIER = {
   assignments: "gm",
   antagonists: "gm",
   latejoins: "gm",
+  // Superadmin only (Bascinet, 2026-09-27): a late party locks every other fate
+  // in character creation for as long as it runs (LATE-PARTIES.md).
+  lateparty: "super",
 
   // Deleting a quest takes the record of who touched it, so THAT verb asks for super (questActions.js).
   quests: "gm",

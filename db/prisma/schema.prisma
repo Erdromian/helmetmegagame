@@ -236,6 +236,10 @@ enum ArchiveKind {
   DESIRE_FULFILLED
   LIFEWEB
   TRAVEL
+  // What was done at the gatehouse's controls: the gate worked, a request
+  // decided, the magma, documents printed or refused (GATEHOUSE.md). Never on
+  // a feed: the terminal keeps no log of its own (Incarn and gates.docx).
+  GATEHOUSE
 }
 
 // Which face wrote an ArchiveEntry. DISCORD is a message proxied out of a
@@ -882,6 +886,12 @@ model GameState {
   // "It seems to be off."
   gatehouseTurretArmed Boolean @default(false)
 
+  // The Magma button in the Town Gatehouse's Gate Controls
+  // (docs/systemdocs/GATEHOUSE.md): the id of the turn it was last pressed on,
+  // so it works once a turn. A turn id rather than a number, because a new
+  // game counts from 1 again and this row is recreated with it anyway.
+  gatehouseMagmaTurnId String?
+
   // When the Cathedral bell was last rung, so the rope has a cooldown on it
   // (db/lib/bell.js). Global rather than per-character: the bell is one
   // object, and two people taking turns on it would be the same noise either
@@ -949,9 +959,17 @@ model GameState {
 ///
 /// OFFSHORE is the Merchant's and the Docker's: money the Company holds
 /// off-world. No stash to check, no Vault logic — the coins ride the train.
+///
+/// CROWN is the Baron's, and it is not a claim: its balance IS the Vault,
+/// read off the pile every time (db/lib/bankAccounts.js#accountBalance), so the
+/// Baron can take out as much as is there. Its stored `balanceObols` is never
+/// written and never shown, and it is not counted among the claims the Vault
+/// backs. A send from it creates a claim for the payee; a send to it
+/// surrenders the payer's claim to the Vault. See DEPOT.md §0g.
 enum BankAccountClass {
   TREASURY
   OFFSHORE
+  CROWN
 }
 
 /// Where a staged sale's obols land when the train departs. TREASURY pays the
@@ -1003,6 +1021,8 @@ model BankAccount {
   sales  DepotSale[]
   // The signet rings the Meister has linked to this account (Tag.ringBankAccountId).
   rings  Tag[]      @relation("RingAccount")
+  // The Documents printed for this account at the Town Gatehouse (Tag.documentsBankAccountId).
+  documents Tag[]   @relation("DocumentsAccount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2259,6 +2279,13 @@ model Character {
   roleId    String?
   role      Role?   @relation(fields: [roleId], references: [id])
 
+  // The late party this character was made in, if any (db/lib/lateParty.js).
+  // It is what a party's slots are counted off -- the characters it made, dead
+  // or alive -- so an existing fate the party reopens is counted apart from the
+  // seats that fate already had.
+  latePartyId String?
+  lateParty   LateParty? @relation(fields: [latePartyId], references: [id], onDelete: SetNull)
+
   // AUTHORITATIVE "where is this character" since Bascinet 2. Drives the
   // "Location: {Name}" Discord role (swapped by
   // db/lib/locationMove.js#applyLocationMoveSideEffects) and therefore the
@@ -2799,6 +2826,10 @@ model Character {
   roomsSearched    RoomSearchAttempt[]
   // The bomb's keypad (docs/systemdocs/NUKE.md): wrong codes, and the lockout.
   nukeLockout      NukeLockout?
+  // The Town Gatehouse (docs/systemdocs/GATEHOUSE.md): asking to pass the
+  // gate, and giving blood to be documented.
+  gatePassages     GatePassage[]
+  gateDocuments    GateDocumentation[]
   // Notes this character started the game knowing (JournalEntry.characterId).
   seededNotes      JournalEntry[]
 
@@ -2843,6 +2874,8 @@ model Character {
   @@index([escortedById])
   // The one query a release ever runs: everyone this character is holding.
   @@index([heldById])
+  // A late party's slot count: the characters it made (db/lib/lateParty.js).
+  @@index([latePartyId, roleId])
 }
 
 // Fresh or rotten. A player's corpse is written FRESH and turns ROTTEN three
@@ -2868,6 +2901,9 @@ enum PaperKind {
   SEALED
   BROKEN_SEAL
   BOOK
+  // Printed at the Town Gatehouse (docs/systemdocs/GATEHOUSE.md). Fixed text,
+  // like a book, and nothing writes on, seals or pins one.
+  DOCUMENTS
 }
 
 // Master-sourced from docs/tags.yaml (db/lib/syncTags.js#syncTagsFromYaml,
@@ -2966,6 +3002,13 @@ model Tag {
   ringRegisteredAt  DateTime?
   ringBankAccountId String?
   ringBankAccount   BankAccount? @relation("RingAccount", fields: [ringBankAccountId], references: [id], onDelete: SetNull)
+
+  // A set of Documents (paperKind DOCUMENTS, docs/systemdocs/GATEHOUSE.md):
+  // the treasury account they were printed for, so an infoterminal opens it
+  // for whoever holds them and types the PIN written on them. SetNull, so
+  // papers for an account the Meister deleted open nothing.
+  documentsBankAccountId String?
+  documentsBankAccount   BankAccount? @relation("DocumentsAccount", fields: [documentsBankAccountId], references: [id], onDelete: SetNull)
 
   // The short label a seal presses into a letter's title — "Baron" for the
   // Baron's own ring, and for a wax seal forged from it. Null on everything
@@ -4065,7 +4108,7 @@ model Role {
   // arrive without one and open one at the counter if they ever want one. The
   // account opens EMPTY; a starting purse is physical obols in `starting_tags`.
   // Declared in the YAML rather than in code, so a new seat needs none. See
-  // docs/systemdocs/DEPOT.md §0g.
+  // docs/systemdocs/DEPOT.md §0g. The Baron's is CROWN: the Vault itself.
   bankAccountClass BankAccountClass?
 
   // What that account opens WITH, declared as `starting_account:` in
@@ -4251,6 +4294,12 @@ model LobbyEntry {
   // When the assignment DM was delivered; null until it was, which is what the
   // sweep reads to send it again after a Start that died mid-loop.
   notifiedAt     DateTime?
+  // Set when a late party's muster drew this seat rather than the lobby roll
+  // (db/lib/latePartyRaffle.js). Such a seat is honoured while a party locks
+  // every other fate, and carries the party's exemptions: the curse and the
+  // spawn-only refusal do not reach it.
+  latePartyId    String?
+  lateParty      LateParty? @relation(fields: [latePartyId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -4985,6 +5034,86 @@ model NukeLockout {
   streak      Int       @default(0)
   lockedAt    DateTime?
   updatedAt   DateTime  @updatedAt
+}
+
+// The Town Gatehouse (docs/systemdocs/GATEHOUSE.md). Which way somebody asked
+// to go: IN from the Bridge to the Square, OUT from the Square to the Bridge.
+enum GatePassageDirection {
+  IN
+  OUT
+}
+
+enum GatePassageStatus {
+  PENDING
+  APPROVED
+  DENIED
+  // Killed by the Magma button while waiting to come in.
+  MAGMA
+}
+
+// One request to pass the gate, from the Gate on the Bridge side or the
+// Gatehouse Window on the Square side. PENDING rows are the Process Requests
+// list; the rest are its history. A PENDING row is deleted outright when its
+// asker changes Location (db/lib/locationMove.js#applyArrivalFacts) — the doc's
+// "their request is deleted" — so the history only holds what somebody decided.
+//
+// Nothing is taken when it is made. `offered` is [{ tagId, quantity }], re-read
+// against what the asker actually holds whenever it is shown or processed, so
+// a thing dropped or stolen in between simply drops out of it. Keyed on tagId
+// with no FK, the Search offer's posture.
+model GatePassage {
+  id          String                @id @default(cuid())
+  characterId String
+  character   Character             @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  direction   GatePassageDirection
+  status      GatePassageStatus     @default(PENDING)
+  text        String
+  offered     Json                  @default("[]")
+  // Where it was asked from, so a stale row is easy to spot on /gm/audit.
+  locationId  String?
+  turnId      String?
+  createdAt   DateTime              @default(now())
+
+  // Who decided it, and the ring on their finger when they did — snapshots,
+  // the log-table convention, because the history must keep reading right
+  // after a ring changes hands.
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolvedByName String?
+  resolvedByRing String?
+  // What changed hands on an approval: { kept: [{ name, quantity }], given: [...] }.
+  moved          Json?
+
+  @@index([status, direction])
+  @@index([characterId, status])
+}
+
+enum GateDocumentationStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+// A drop of blood given at the Gate's little terminal: a request to be
+// documented. The clerk in Gate Controls approves it by writing a name and an
+// occupation, which prints the Documents and opens the treasury account; the
+// APPROVED rows are the "previously documented" half of the register.
+model GateDocumentation {
+  id          String                  @id @default(cuid())
+  characterId String
+  character   Character               @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  status      GateDocumentationStatus @default(PENDING)
+  createdAt   DateTime                @default(now())
+
+  resolvedAt   DateTime?
+  resolvedById String?
+  // What the clerk wrote, and the account it opened — snapshots.
+  name         String?
+  occupation   String?
+  fingerprint  String?
+
+  @@index([status])
+  @@index([characterId, status])
 }
 
 // How a Friends entry came to exist (docs/systemdocs/MEMORIES.md §2).
@@ -7042,6 +7171,71 @@ model LateJoinRole {
 
   updatedAt DateTime @updatedAt
   createdAt DateTime @default(now())
+}
+
+// A LATE PARTY (db/lib/lateParty.js, docs/systemdocs/LATE-PARTIES.md): a
+// superadmin opens it, and while it is live character creation offers ONLY its
+// fates, and anybody without a living character may take one at once, buried
+// or not.
+//
+// There is no "filled" column. A party is live while `endedAt` is null AND one
+// of its fates still has room, and room is counted off the Character rows that
+// carry this party's id -- the one source of truth, and the reason an abandoned
+// wizard hold hands its chair back on its own.
+model LateParty {
+  id        String         @id @default(cuid())
+  // OPEN: pick a party fate in the wizard and spawn now. MUSTER: put your name
+  // down, and the fates are drawn at the end of the turn like the lobby roll.
+  mode      LatePartyMode  @default(OPEN)
+  startedAt DateTime       @default(now())
+  startedBy String
+  endedAt   DateTime?
+  endedBy   String?
+
+  fates      LatePartyFate[]
+  characters Character[]
+  // A MUSTER party's names in the hat, and the lobby seats its draws handed out.
+  entries    LatePartyEntry[]
+  seats      LobbyEntry[]
+
+  @@index([endedAt])
+}
+
+enum LatePartyMode {
+  OPEN
+  MUSTER
+}
+
+// One player's name in a MUSTER party's hat (db/lib/latePartyRaffle.js). Their
+// priorities over the party's fates, in the lobby's shape ({ slug: level }).
+// `whitelisted` is read off Discord when they enter, since the draw runs in the
+// turn advance, which has no member roles to ask. A player the draw passes over
+// stays in for the next turn's; a winner's row is deleted and becomes an
+// ASSIGNED LobbyEntry carrying the party's id.
+model LatePartyEntry {
+  partyId       String
+  discordUserId String
+  priorities    Json     @default("{}")
+  whitelisted   Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  party LateParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@id([partyId, discordUserId])
+}
+
+// One fate a late party opens. Keyed by slug with no Role relation, for the
+// reason LateJoinRole gives. `slots` null is UNLIMITED: a party holding one
+// never fills, and runs until a superadmin ends it.
+model LatePartyFate {
+  partyId  String
+  roleSlug String
+  slots    Int?
+
+  party LateParty @relation(fields: [partyId], references: [id], onDelete: Cascade)
+
+  @@id([partyId, roleSlug])
 }
 
 // One note somebody wrote in the Feedback composer (the top bar's button, and

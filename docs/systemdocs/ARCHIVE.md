@@ -25,10 +25,12 @@ failed announcement can't leave two days with no boundary — **one row per zone
 since phase 4 of Chat, each with `placeKey: zone:<id>`, so every zone's feed
 on `/chat` carries the day line; the transcript still draws one divider, since
 it keys on the day and never renders a `TURN_START` as a row), `CHARACTER_CREATED`,
-`DEATH`, `DESIRE_FULFILLED`, `LIFEWEB`, and `TRAVEL`
-— the last gated behind `GameConfig.archiveTravelEvents`, off by default,
+`DEATH`, `DESIRE_FULFILLED`, `LIFEWEB`, `TRAVEL` and `GATEHOUSE`
+— `TRAVEL` gated behind `GameConfig.archiveTravelEvents`, off by default,
 since arrivals are what make a zone read like a story and also two rows per
-character per turn before anyone speaks.
+character per turn before anyone speaks. `GATEHOUSE` is everything done at the
+gatehouse's controls, written with no `placeKey` so it reaches no feed
+(`GATEHOUSE.md` §6).
 
 Five things about it are load-bearing:
 

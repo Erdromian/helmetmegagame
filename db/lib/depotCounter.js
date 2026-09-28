@@ -35,12 +35,21 @@ const {
   TURRET_ARMED_LINE,
   TURRET_DISARMED_LINE,
 } = require("./gatehouseTurret");
-const { bumpBankAccount, vaultAndCoin, takeFromVault, TREASURY } = require("./bankAccounts");
+const {
+  bumpBankAccount,
+  vaultAndCoin,
+  vaultObols,
+  takeFromVault,
+  accountBalance,
+  vaultBacked,
+  isCrown,
+} = require("./bankAccounts");
 const { addToStack, dropCharacterTag, addToRoomStack } = require("./tagWrites");
 const { COMPANY, characterParty, roomParty, bankParty, turnStamp } = require("./economyLedger");
 const { blockerFor, ACT } = require("./incapacitation");
 const { accessSlugsOf, wornRing, isRegistered } = require("./rings");
 const { RING_TEXT } = require("./ringText");
+const { GATEHOUSE_TEXT } = require("./gatehouseText");
 const { SCRAMBLING_TAG_SLUGS } = require("./memoryScramble");
 const { ensurePin } = require("./acquaintances");
 
@@ -70,15 +79,35 @@ const AT_AN_ATM = { places: ATM_LOCATION_SLUGS, name: "an infoterminal" };
 // Returns { ok, account } or { ok: false, error, pinNeeded?, pinPrompt? }. A
 // caller drawing a dialog shows pinPrompt beside a PIN box and asks again with
 // the PIN; a caller moving money just refuses with the error.
+//
+// With no ring on the finger, a set of Documents in hand will do instead
+// (docs/systemdocs/GATEHOUSE.md): the account they were printed for, on the
+// same PIN rule — so stolen papers, which have the PIN written on them, open
+// the account for whoever can read it. A worn ring always wins.
 async function terminalAccount(prisma, character, { pin = null } = {}) {
   const ring = wornRing(character.tags);
-  if (!ring) return fail(RING_TEXT.infoterminalNoRing);
-  if (!isRegistered(ring) || !ring.ringBankAccountId) return fail(RING_TEXT.infoterminalUnregistered);
-  const account = await prisma.bankAccount.findUnique({
-    where: { id: ring.ringBankAccountId },
-    include: { character: { select: { id: true, pin: true } } },
-  });
-  if (!account) return fail(RING_TEXT.infoterminalUnregistered);
+  let account = null;
+  if (ring) {
+    if (!isRegistered(ring) || !ring.ringBankAccountId) return fail(RING_TEXT.infoterminalUnregistered);
+    account = await prisma.bankAccount.findUnique({
+      where: { id: ring.ringBankAccountId },
+      include: { character: { select: { id: true, pin: true } } },
+    });
+    if (!account) return fail(RING_TEXT.infoterminalUnregistered);
+  } else {
+    const papers = (character.tags ?? []).filter((ct) => ct.tag?.paperKind === "DOCUMENTS");
+    if (papers.length === 0) return fail(RING_TEXT.infoterminalNoRing);
+    const ids = papers.map((ct) => ct.tag.documentsBankAccountId).filter(Boolean);
+    const accounts = ids.length
+      ? await prisma.bankAccount.findMany({
+          where: { id: { in: ids } },
+          include: { character: { select: { id: true, pin: true } } },
+        })
+      : [];
+    // Your own papers first, when you hold somebody else's as well.
+    account = accounts.find((a) => a.characterId === character.id) ?? accounts[0] ?? null;
+    if (!account) return fail(GATEHOUSE_TEXT.documentsVoid);
+  }
 
   const own = account.characterId === character.id;
   const forgot = (character.tags ?? []).some((ct) => SCRAMBLING_TAG_SLUGS.includes(ct.tag?.slug));
@@ -157,8 +186,10 @@ async function counterState(prisma, discordUserId, { pin = null } = {}) {
       ? {
           fingerprint: account.fingerprint,
           class: account.class,
-          balanceObols: account.balanceObols,
-          backed: account.class === TREASURY,
+          // The Crown's is the Vault itself, read fresh (bankAccounts.js#accountBalance).
+          balanceObols: await accountBalance(prisma, account),
+          backed: vaultBacked(account),
+          crown: isCrown(account),
           own: account.characterId === character.id,
         }
       : null,
@@ -190,6 +221,11 @@ async function counterState(prisma, discordUserId, { pin = null } = {}) {
 // so a withdrawal the Vault cannot cover is refused rather than clamped — the
 // claim is only worth what is behind it. An OFFSHORE account skips the Vault
 // entirely: that money is held off-world.
+//
+// The CROWN account (the Baron's) has no claim to move. Its balance is the
+// Vault, so a withdrawal is coin off the pile and a deposit is coin back on
+// it, with no account row touched either way — as much as the Vault holds,
+// whenever the ring and PIN say so.
 async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, pin = null, turn = null } = {}) {
   const actor = await counterActor(prisma, discordUserId, AT_AN_ATM);
   if (!actor.ok) return actor;
@@ -202,13 +238,15 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, p
   const amount = Math.trunc(Number(rawAmount));
   if (!Number.isInteger(amount) || amount < 1) return fail("That isn't an amount.");
 
-  if (withdrawing && (account.balanceObols ?? 0) < amount) {
-    return fail(`Your account holds ${account.balanceObols ?? 0} ¢.`);
+  const crown = isCrown(account);
+  if (withdrawing) {
+    const holds = await accountBalance(prisma, account);
+    if (holds < amount) return fail(crown ? `The Vault holds ${holds} ¢.` : `Your account holds ${holds} ¢.`);
   }
 
   const { room: vault, coin } = await vaultAndCoin(prisma);
   if (!coin) return fail("The obol isn't in the catalog yet. A GM needs to run the tag sync.");
-  const backed = account.class === TREASURY;
+  const backed = vaultBacked(account);
   if (backed && !vault) return fail("The treasury isn't in the database yet. A GM needs to run the zone sync.");
 
   if (!withdrawing) {
@@ -231,14 +269,25 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, p
       // would deadlock a deposit against a withdrawal.
       if (backed) await tx.$queryRaw`SELECT "id" FROM "Room" WHERE "id" = ${vault.id} FOR UPDATE`;
 
-      const moved = await bumpBankAccount(tx, account.id, withdrawing ? -amount : amount, {
-        holderName: account.holderName,
-        econ: { reason, ...stamp },
-      });
-      if (Math.abs(moved.delta) < amount) {
-        const err = new Error("Your account was edited. Try again.");
-        err.userMessage = err.message;
-        throw err;
+      // The Crown's balance is the pile itself, read under the room lock just
+      // taken; the coin moving below is the whole transaction. takeFromVault
+      // still refuses a short Vault, so a race with another withdrawal cannot
+      // pay out coin that is not there.
+      let moved;
+      if (crown) {
+        const before = await vaultObols(tx);
+        const delta = withdrawing ? -amount : amount;
+        moved = { before, after: before + delta, delta };
+      } else {
+        moved = await bumpBankAccount(tx, account.id, withdrawing ? -amount : amount, {
+          holderName: account.holderName,
+          econ: { reason, ...stamp },
+        });
+        if (Math.abs(moved.delta) < amount) {
+          const err = new Error("Your account was edited. Try again.");
+          err.userMessage = err.message;
+          throw err;
+        }
       }
 
       if (withdrawing) {
@@ -273,6 +322,8 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, p
             balanceBefore: moved.before,
             balanceAfter: moved.after,
             backed,
+            // The balances above are the Vault's own pile when this is set.
+            ...(crown ? { crown: true } : {}),
             fingerprint: account.fingerprint,
             // Whose account it was — a ring on the wrong finger reaches somebody else's.
             ...(account.characterId !== character.id ? { accountHolderId: account.characterId } : {}),
@@ -306,6 +357,14 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, p
 // sending to it SURRENDERS the claim: the balance falls and the coin behind it
 // stays where it was. The Keep ends up better backed rather than richer, which
 // is the only honest thing a claim can do when it has nowhere to be paid into.
+//
+// The Crown's account (the Baron's) is the Vault, so it works both ways round.
+// Sending FROM it creates a claim: the payee's balance rises and the coin stays
+// on the pile until they come for it, so the Crown's own balance does not fall
+// — which is how a Baron pays wages by transfer, and how a Baron who pays too
+// many ends up with a bank run. Sending TO it is sending to the treasury: the
+// payer's claim is surrendered and nothing is credited, because the Crown's
+// balance is the pile and the pile has not changed.
 async function bankSend(prisma, discordUserId, { toAccountId, toTreasury = false, amount: rawAmount, pin = null, turn = null } = {}) {
   const actor = await counterActor(prisma, discordUserId);
   if (!actor.ok) return actor;
@@ -313,23 +372,32 @@ async function bankSend(prisma, discordUserId, { toAccountId, toTreasury = false
   const access = await terminalAccount(prisma, character, { pin });
   if (!access.ok) return access;
   const account = access.account;
+  const fromCrown = isCrown(account);
 
   const amount = Math.trunc(Number(rawAmount));
   if (!Number.isInteger(amount) || amount < 1) return fail("That isn't an amount.");
-  if ((account.balanceObols ?? 0) < amount) return fail(`Your account holds ${account.balanceObols ?? 0} ¢.`);
+  const holds = await accountBalance(prisma, account);
+  if (holds < amount) return fail(fromCrown ? `The Vault holds ${holds} ¢.` : `Your account holds ${holds} ¢.`);
+
+  const { room: vault } = await vaultAndCoin(prisma);
+  const vaultParty = vault ? roomParty({ ...vault, zoneId: vault.location?.zoneId ?? null }) : null;
 
   let target = null;
   let otherParty = null;
   if (toTreasury) {
-    const { room: vault } = await vaultAndCoin(prisma);
     if (!vault) return fail("The treasury isn't in the database yet. A GM needs to run the zone sync.");
-    otherParty = roomParty({ ...vault, zoneId: vault.location?.zoneId ?? null });
+    if (fromCrown) return fail("That money is already in the Vault.");
+    otherParty = vaultParty;
   } else {
     target = await prisma.bankAccount.findUnique({ where: { id: String(toAccountId ?? "") } });
     if (!target) return fail("There's no account with that name.");
     if (target.id === account.id) return fail("That's your own account.");
-    otherParty = bankParty(target);
+    if (fromCrown && isCrown(target)) return fail("That money is already in the Vault.");
+    if (isCrown(target) && !vault) return fail("The treasury isn't in the database yet. A GM needs to run the zone sync.");
+    // Paying the Crown hands the claim back to the Vault, so the ledger names the Vault.
+    otherParty = isCrown(target) ? vaultParty : bankParty(target);
   }
+  const toCrown = Boolean(target && isCrown(target));
 
   const econ = { other: otherParty, reason: "BANK_TRANSFER", ...turnStamp(turn) };
 
@@ -342,12 +410,28 @@ async function bankSend(prisma, discordUserId, { toAccountId, toTreasury = false
       // (ECONOMY.md §3). The credit takes no ctx at all — booking it again from
       // the far side would count the same 30 ¢ twice and leave the invariant
       // reading double on both books.
-      const legs = target
-        ? [
-            { id: account.id, holderName: account.holderName, delta: -amount, ctx: { holderName: account.holderName, econ } },
-            { id: target.id, holderName: target.holderName, delta: amount, ctx: null },
-          ].sort((a, b) => (a.id < b.id ? -1 : 1))
-        : [{ id: account.id, holderName: account.holderName, delta: -amount, ctx: { holderName: account.holderName, econ } }];
+      //
+      // The Crown is never bumped: from it, the payee's credit is the only leg
+      // and books the claim as issued by the Vault; to it, the payer's debit is
+      // the only leg, the same as sending to the treasury.
+      let legs;
+      if (fromCrown) {
+        legs = [
+          {
+            id: target.id,
+            holderName: target.holderName,
+            delta: amount,
+            ctx: { holderName: target.holderName, econ: { ...econ, other: vaultParty } },
+          },
+        ];
+      } else if (target && !toCrown) {
+        legs = [
+          { id: account.id, holderName: account.holderName, delta: -amount, ctx: { holderName: account.holderName, econ } },
+          { id: target.id, holderName: target.holderName, delta: amount, ctx: null },
+        ].sort((a, b) => (a.id < b.id ? -1 : 1));
+      } else {
+        legs = [{ id: account.id, holderName: account.holderName, delta: -amount, ctx: { holderName: account.holderName, econ } }];
+      }
 
       const moved = {};
       for (const leg of legs) {
@@ -357,11 +441,13 @@ async function bankSend(prisma, discordUserId, { toAccountId, toTreasury = false
       // The clamp inside bumpBankAccount is a FLOOR, never a check: a balance
       // edited between the read above and here would pay out less than it
       // said, so refuse the whole thing rather than move a short amount.
-      if (Math.abs(moved[account.id].delta) < amount) {
+      if (!fromCrown && Math.abs(moved[account.id].delta) < amount) {
         const err = new Error("Your account was edited. Try again.");
         err.userMessage = err.message;
         throw err;
       }
+      // The Crown's side of the audit row is the pile, which a send never moves.
+      if (fromCrown) moved[account.id] = { before: holds, after: holds, delta: 0 };
 
       await tx.auditLog.create({
         data: {
@@ -374,6 +460,9 @@ async function bankSend(prisma, discordUserId, { toAccountId, toTreasury = false
             balanceBefore: moved[account.id].before,
             balanceAfter: moved[account.id].after,
             toTreasury: Boolean(toTreasury),
+            // A send from the Crown issues a claim; one to the Crown surrenders it.
+            ...(fromCrown ? { fromCrown: true } : {}),
+            ...(toCrown ? { toCrown: true } : {}),
             // Snapshots, the log-table convention: the row has to keep reading
             // correctly after a holder is renamed or an account is closed.
             toName: target?.holderName ?? null,
@@ -503,8 +592,55 @@ async function canReadTreasury(prisma, discordUserId) {
   return { ok: true, character };
 }
 
+// The Meister closing an account (Incarn and gates.docx: documents "can only
+// be printed once per character unless the old treasury account is deleted by
+// the meister", docs/systemdocs/GATEHOUSE.md). Whatever it held or owed is
+// written off on the books first, so its ledger legs close at zero; then the
+// row goes. A ring linked to it keeps its doors and reaches no account; a set
+// of Documents printed for it opens nothing. Sales already made keep their
+// fingerprint and name (DepotSale.accountId is SetNull).
+async function closeAccount(prisma, discordUserId, { accountId, turn = null } = {}) {
+  const gate = await canReadTreasury(prisma, discordUserId);
+  if (!gate.ok) return gate;
+  const account = await prisma.bankAccount.findUnique({ where: { id: String(accountId ?? "") } });
+  if (!account) return fail(GATEHOUSE_TEXT.deleteGone);
+
+  try {
+    await prisma.$transaction(async (tx) => {
+      const fresh = await tx.bankAccount.findUnique({ where: { id: account.id }, select: { balanceObols: true } });
+      if (!fresh) throw Object.assign(new Error(GATEHOUSE_TEXT.deleteGone), { userMessage: GATEHOUSE_TEXT.deleteGone });
+      if (fresh.balanceObols !== 0) {
+        await bumpBankAccount(tx, account.id, -fresh.balanceObols, {
+          holderName: account.holderName,
+          econ: { reason: "ACCOUNT_CLOSED", ...turnStamp(turn) },
+        });
+      }
+      await tx.bankAccount.delete({ where: { id: account.id } });
+      await tx.auditLog.create({
+        data: {
+          actorDiscordUserId: discordUserId,
+          actionType: "treasury_account_closed",
+          targetCharacterId: account.characterId,
+          turnId: turn?.id ?? null,
+          details: {
+            fingerprint: account.fingerprint,
+            holderName: account.holderName,
+            balanceObols: fresh.balanceObols,
+            closedBy: gate.character.id,
+          },
+        },
+      });
+    });
+  } catch (err) {
+    if (err?.userMessage) return fail(err.userMessage);
+    throw err;
+  }
+  return { ok: true, line: GATEHOUSE_TEXT.deleteDone(account.holderName) };
+}
+
 module.exports = {
   canReadTreasury,
+  closeAccount,
   counterActor,
   counterState,
   terminalAccount,

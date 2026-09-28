@@ -62,7 +62,13 @@ Every entry has two ends, and each is one of:
 - `bank:<accountId>` — one player's claim. `bank:clearing` is its book
   counterparty: no live balance, exempt from reconcile, exactly like mint and
   burn. It exists so that a movement whose coin leg is already booked by the tag
-  hook can book its claim leg without double-counting the same money
+  hook can book its claim leg without double-counting the same money. The
+  Baron's CROWN account is the exception: it is not a claim but the Vault
+  itself (`DEPOT.md` §0g), so it books **no** `ACCOUNT` legs at all. Its
+  withdrawals and deposits are coin legs between the Vault room and a hand. A
+  send from it books the payee's new claim against `room:<vault>`, and a send
+  to it books the payer's surrender the same way. Its stored balance is frozen,
+  so its legs still sum to it
 - `machine:<id>` — a vending machine's coin box (`VENDING.md`). **One party for
   both of its pools**, because the loose float in the slot and the locked till
   are two trays in one box: a purchase moving coin between them has not changed
@@ -196,6 +202,14 @@ terminal** (`DEPOT.md` §0n). Both `TRANSFER`, against the Company, the posture
 and an order's goods come back from it. The credit itself
 (`Room.blackMarketObols`) is off-world money, so it books nothing as it rises
 and falls — the coin was counted leaving, and the goods are counted arriving.
+
+**`DOCUMENTS_FEE` and `ACCOUNT_CLOSED` arrived with the gatehouse rework**
+(`GATEHOUSE.md`). Both `TRANSFER`, and both claim legs only, against the bank
+clearing: an account the Gatehouse opens starts owing 10 ¢ — the first balance
+in the game allowed under zero — and nothing physical moves, so paying it off
+is an ordinary deposit whose coin lands in the Vault with no claim left
+against it. `ACCOUNT_CLOSED` is the Meister writing an account off before it
+is deleted, so its legs close at zero rather than drifting.
 
 **`UNATTRIBUTED` is a feature.** A write that reaches a hook with no context is
 recorded under that reason rather than dropped, so an un-hooked call site shows

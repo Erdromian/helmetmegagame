@@ -297,6 +297,17 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     );
   }
 
+  // A request to pass the gate is withdrawn by leaving (docs/systemdocs/GATEHOUSE.md: "If the
+  // character moves to a different location, their request is deleted"). Here for the reason
+  // every clear above gives, and behind `fromLocationId` for the same one. An approved request's
+  // own trip through the gate is not caught: the row is resolved before the character moves.
+  // Inline rather than a call into db/lib/gatehouse.js, which requires this file back.
+  if (fromLocationId) {
+    await prisma.gatePassage
+      .deleteMany({ where: { characterId, status: "PENDING" } })
+      .catch((err) => console.error(`Move: withdrawing the gate request failed for ${characterId}:`, err.message ?? err));
+  }
+
   // Laying in wait ends the moment you leave the place you were waiting in (docs/systemdocs/INTERCEPT.md §1). Here rather than in performLocationMove because this is the writer every relocation runs — a teleport, Bulk Move, a staged Relocate to and a rite all break the anchor as surely as walking does. Above the Discord guard, same recordArrival reasoning: the watch is a database fact and must not survive on a box with no token.
   // `fromLocationId` has to be set. Three callers pass null for something that is NOT a move — a GM's Discord resync, a revive, and a character's first placement — cancelling on those would have a GM pressing Resync silently end a player's ambush.
   const droppedWatch = fromLocationId

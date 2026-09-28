@@ -18,6 +18,7 @@
 const { METEMPSYCHOSIS_SLUG, HEIGHTENED_PSYCHOSIS_SLUG } = require("./constants");
 const { fateCapacity, isSpawnOnly } = require("./fateCapacity");
 const { heldSeatsByFate } = require("./seatCount");
+const { loadLiveParty, latePartyCap, partySeatUnderLock } = require("./lateParty");
 const { effectivePlayerCount } = require("./gameState");
 const { parseStartingTag } = require("./startingTags");
 const { varyStartingPurse } = require("./startingVariance");
@@ -192,8 +193,19 @@ async function rollDrawbackTags(prisma, { roleSlug, grantedIds, targetPoints }) 
 }
 
 // Every role a soul could land in: whitelisted and spawn-only seats excluded,
-// same as the assignment roll.
+// same as the assignment roll. While a LATE PARTY is live (db/lib/lateParty.js)
+// it is the party's fates with room instead -- spawn-only ones included, since
+// the party opened them, but still never a whitelisted or dynasty seat -- and
+// `partyId` says so. Every other fate is locked for its length.
 async function openRoles(prisma, config, state) {
+  const party = await loadLiveParty(prisma);
+  if (party) {
+    const roles = party.fates
+      .filter((f) => f.role && !f.role.requiresWhitelist && !isDynastyMember(f.role.slug))
+      .filter((f) => f.taken < latePartyCap(f))
+      .map((f) => f.role);
+    return { roles, partyId: party.party.id };
+  }
   const roles = await prisma.role.findMany({
     where: { requiresWhitelist: false },
     include: { startingLocation: { include: { zone: true } } },
@@ -204,7 +216,7 @@ async function openRoles(prisma, config, state) {
   const selectable = roles.filter((r) => !isSpawnOnly(r) && !isDynastyMember(r.slug));
   const heldById = await heldSeatsByFate(prisma, selectable);
   const playerCount = effectivePlayerCount(config, state);
-  return selectable.filter((r) => (heldById.get(r.id) ?? 0) < fateCapacity(r, playerCount));
+  return { roles: selectable.filter((r) => (heldById.get(r.id) ?? 0) < fateCapacity(r, playerCount)), partyId: null };
 }
 
 // Returns the new Character row, or null when nothing happened — no tag, no
@@ -235,7 +247,7 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
     prisma.gameState.findUnique({ where: { id: 1 }, select: { playerCount: true } }).catch(() => null),
   ]);
 
-  const candidates = await openRoles(prisma, config, state);
+  const { roles: candidates, partyId } = await openRoles(prisma, config, state);
   if (candidates.length === 0) return null;
   const role = candidates[Math.floor(Math.random() * candidates.length)];
 
@@ -289,9 +301,15 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
   // Same row lock the wizard takes: two deaths in one turn pass must not both land in the last seat.
   const createInSeat = async (tx) => {
     await tx.$queryRaw`SELECT id FROM "Role" WHERE id = ${role.id} FOR UPDATE`;
-    const held = await heldSeatsByFate(tx, [role]);
-    if ((held.get(role.id) ?? 0) >= fateCapacity(role, effectivePlayerCount(config, state))) {
-      throw new Error("ROLE_FULL");
+    if (partyId) {
+      // The party's own count and cap, under its row lock (db/lib/lateParty.js).
+      const seat = await partySeatUnderLock(tx, partyId, role);
+      if (!seat || seat.held >= seat.cap) throw new Error("ROLE_FULL");
+    } else {
+      const held = await heldSeatsByFate(tx, [role]);
+      if ((held.get(role.id) ?? 0) >= fateCapacity(role, effectivePlayerCount(config, state))) {
+        throw new Error("ROLE_FULL");
+      }
     }
 
     const character = await tx.character.create({
@@ -312,6 +330,7 @@ async function reincarnate(prisma, deadCharacter, { turn = null, priorPsychosisC
         zoneId: role.startingLocation?.zoneId ?? null,
         // Unspent, on purpose — see the bonus note above.
         tagPoints: budget,
+        latePartyId: partyId,
       },
     });
 

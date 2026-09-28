@@ -64,6 +64,7 @@ unbounded.
 | `SEALED` | **A closed letter.** Same row, renamed in place. Carries `sealMark`. |
 | `BROKEN_SEAL` | **A spent envelope.** Evidence somebody opened it, and whose wax it was. |
 | `BOOK` | **A bound book.** Carries `paperText` like a sheet, and is the one kind that can never be added to. §4a. |
+| `DOCUMENTS` | **Identity papers from the Town Gatehouse** (`GATEHOUSE.md` §5). Printed with a name, an occupation, a treasury account and its PIN; fixed text that nothing writes on, seals or pins; `Tag.documentsBankAccountId` is the account an infoterminal opens for whoever holds them. |
 
 Blank paper is deliberately *not* a runtime row. You hold "Paper ×15" as one
 `CharacterTag`; a sheet only becomes its own `Tag` when somebody writes on it,
@@ -347,7 +348,7 @@ so nothing downstream needs to know how it arrived.
 
 `noticeboard: true` in a Location's `attributes:` map
 (`docs/zones.yaml`, registered in `db/lib/locationAttributes.js`, which refuses
-an unregistered key). Set on the Square, the Gatehouse, the Garrison, the
+an unregistered key). Set on the Square, the Courtyard, the Garrison, the
 Factory and the Depot.
 
 The button is the **fifth** on the Location anchor, which is exactly Discord's
