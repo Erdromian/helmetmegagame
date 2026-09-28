@@ -2433,12 +2433,9 @@ connections:
     hidden: caving
     on_foot: true
 
-  # The river runs on into the Undertown's Lake. Only ONE tag fits on an edge,
-  # and the swim is the whole of it. Hidden, for the same reason as the Den's
-  # back door below.
-  - pair: [hills/east-river, undertown/undertown-c]
-    hidden: strong-swimmer
-    on_foot: true
+  # The East River no longer runs on into the Undertown's Lake. It was a way
+  # into the fort round both gates, and is gone (migration
+  # 20261123000000_lake_shores). The river still reaches the Walkways below.
 
   # --- Caves ------------------------------------------------------------
   # Plain, and deliberately so. There was a manned gate in the cave mouth here,
@@ -2688,5 +2685,10 @@ connections:
   # Ravenheart to arrive at the place people arrive at.
   - [caves/caves-1, hills/bridge]
 
-  # The Grand Chamber's Deep Sea and the Undertown's Lake are the same water.
-  - [undertown/undertown-c, depths/depths-5]
+  # The Grand Chamber's Deep Sea and the Undertown's Lake are the same water,
+  # and the only way across is to swim it. LOCKED rather than hidden, like the
+  # Island: everybody on either shore can see the water go on. It used to be
+  # plain, which let anybody walk round the Bridge gate through the Caves.
+  - pair: [undertown/undertown-c, depths/depths-5]
+    locked: strong-swimmer
+    on_foot: true
