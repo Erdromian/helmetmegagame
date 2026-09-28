@@ -200,12 +200,50 @@ test("a disguise's name splits like a character's, and its title never decides w
   assert.ok(!typedNameMatches("Sir Aldric Vask", "Xan Quorble"));
 });
 
-test("the Kit takes a title, a first name and a last name, and refuses a title that is not one", () => {
-  assert.equal(normalizeDisguiseName({ honorific: "sir", firstName: " Aldric ", lastName: "Vask" }, { gender: "MAN" }), "Sir Aldric Vask");
+// The no-break space the Kit joins a title to the name with (disguises.js#DISGUISE_TITLE_JOIN).
+const NB = "\u00A0";
+
+test("the Kit takes any title, a first name and a last name", () => {
+  assert.equal(normalizeDisguiseName({ honorific: "sir", firstName: " Aldric ", lastName: "Vask" }, { gender: "MAN" }), `Sir${NB}Aldric Vask`);
   assert.equal(normalizeDisguiseName({ honorific: "", firstName: "Bob", lastName: "" }), "Bob");
-  assert.equal(normalizeDisguiseName({ honorific: "Emperor", firstName: "Bob" }), null);
+  assert.equal(normalizeDisguiseName({ honorific: " Grand   Poobah ", firstName: "Bob" }), `Grand Poobah${NB}Bob`, "any text at all");
+  assert.equal(normalizeDisguiseName({ honorific: `Grand${NB}Poobah`, firstName: `Bob${NB}`, lastName: "Fake" }), `Grand Poobah${NB}Bob Fake`, "nothing typed can place the join");
+  assert.equal(normalizeDisguiseName({ honorific: "x".repeat(40), firstName: "Bob" }), `${"x".repeat(24)}${NB}Bob`);
   assert.equal(normalizeDisguiseName({ firstName: "  " }), null);
   assert.equal(normalizeDisguiseName("  Bob   Fakename "), "Bob Fakename", "one typed string from an older page");
+});
+
+test("a made-up title of any length never decides who is fooled", async () => {
+  const worn = normalizeDisguiseName({ honorific: "Keeper of the Sluice", firstName: "Aldric", lastName: "Vask" });
+  assert.deepEqual(disguiseParts(worn), {
+    name: "Keeper of the Sluice Aldric Vask",
+    honorific: "Keeper of the Sluice",
+    firstName: "Aldric",
+    lastName: "Vask",
+  });
+  assert.equal(disguiseKey(worn), "aldric vask");
+  assert.ok(namesCharacter(worn, aldric), "Aldric's own title is Priest's, and it makes no difference");
+  assert.ok(typedNameMatches(worn, "Aldric Vask"));
+  assert.ok(typedNameMatches(worn, "Keeper of the Sluice Aldric Vask"));
+
+  // A last name with a space in it, under a title that is not the game's.
+  const vanDyke = person("vd", "Pieter", "van Dyke", { locationId: "elsewhere" });
+  const asVan = normalizeDisguiseName({ honorific: "Mynheer", firstName: "Pieter", lastName: "van Dyke" });
+  assert.equal(disguiseParts(asVan).lastName, "van Dyke");
+  assert.ok(namesCharacter(asVan, vanDyke));
+
+  // Wren, who knows Aldric, is fooled by it; its line reads it as a stranger to Mia.
+  const wearer = person("xan", "Xan", "Quorble", { tags: [disguiseTag(worn)] });
+  const db = fakeDb({ people: [aldric, wearer, wren, mia], entries: [knowsAldric] });
+  const reads = await readDisguises(db, "wren", [worn]);
+  assert.equal(reads.get(worn).fooledAs, "aldric");
+  const seen = await whosHere(db, wren);
+  assert.ok(seen.concealed.some((c) => c.alias === worn));
+
+  // Hearing it teaches the bare name, never the title.
+  await learnFromSpeech(db, { row: { placeKey: "conv:c1", content: '"I am Aldric Vask."' }, speakerId: "xan" });
+  const learned = db.entries.find((e) => e.ownerId === "mia");
+  assert.deepEqual([learned.name, learned.disguiseKey], ["Aldric Vask", "aldric vask"]);
 });
 
 test("only a Disguise Kit's forced name is a disguise; Apex Form's Beast is a public name", () => {
@@ -444,10 +482,11 @@ test("somebody else can only teach a disguise's name if they know it", async () 
 // ------------------------------------------------------- the wearer's own body
 
 test("a title is worn in the form the wearer's own gender takes", () => {
-  assert.equal(normalizeDisguiseName({ honorific: "Sir", firstName: "Aldric", lastName: "Vask" }, { gender: "WOMAN" }), "Dame Aldric Vask");
-  assert.equal(normalizeDisguiseName({ honorific: "lady", firstName: "Ann", lastName: "Vask" }, { gender: "MAN" }), "Lord Ann Vask");
-  assert.equal(normalizeDisguiseName({ honorific: "Father", firstName: "Ann" }, { gender: "NEUTRAL" }), "Reverend Ann");
-  assert.equal(normalizeDisguiseName({ honorific: "Bishop", firstName: "Ann" }, { gender: "WOMAN" }), "Bishop Ann", "an ungendered title is itself");
+  assert.equal(normalizeDisguiseName({ honorific: "Sir", firstName: "Aldric", lastName: "Vask" }, { gender: "WOMAN" }), `Dame${NB}Aldric Vask`);
+  assert.equal(normalizeDisguiseName({ honorific: "lady", firstName: "Ann", lastName: "Vask" }, { gender: "MAN" }), `Lord${NB}Ann Vask`);
+  assert.equal(normalizeDisguiseName({ honorific: "Father", firstName: "Ann" }, { gender: "NEUTRAL" }), `Reverend${NB}Ann`);
+  assert.equal(normalizeDisguiseName({ honorific: "Bishop", firstName: "Ann" }, { gender: "WOMAN" }), `Bishop${NB}Ann`, "an ungendered title is itself");
+  assert.equal(normalizeDisguiseName({ honorific: "Grand Poobah", firstName: "Ann" }, { gender: "WOMAN" }), `Grand Poobah${NB}Ann`, "a made-up one as typed");
   // The title never decides who is fooled, so Dame Aldric Vask still fools Aldric's friends.
   assert.ok(namesCharacter("Dame Aldric Vask", aldric));
 });

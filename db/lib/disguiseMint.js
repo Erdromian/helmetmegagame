@@ -13,7 +13,7 @@ const { addToStack } = require("./tagWrites");
 const { NAME_LIMITS } = require("./characterName");
 const { titleFormFor } = require("./titles");
 const { groupRoles } = require("./roleGroups");
-const { DISGUISE_SLUG_PREFIX } = require("./disguises");
+const { DISGUISE_SLUG_PREFIX, DISGUISE_TITLE_JOIN } = require("./disguises");
 const { noteCode } = require("./paper");
 const { expiryForGrant } = require("./grantExpiry");
 
@@ -33,14 +33,19 @@ function cleanPart(raw, limit) {
   return raw.replace(/\s+/g, " ").trim().slice(0, limit).trim();
 }
 
+// The longest title a disguise may claim. With the longest first and last names it still fits the 80
+// characters a Discord webhook's name may have (./characterName.js#NAME_LIMITS).
+const DISGUISE_TITLE_MAX = 24;
+
 // The name to go by, as one string: "Sir Aldric Vask". Takes the dialog's three parts — a title, a first
 // name and a last name, each trimmed and capped like a character's own — or, from an older client, one
-// typed string. A title must be one of the game's title words (./titles.js), matched in any case; any of
-// them will do, since a disguise claims what it likes. It is worn in the form the WEARER's `gender`
-// takes: a disguise changes the name, not who is under it, so a woman who picks Sir goes by Dame. Null
-// for anything unusable, and for a title that is not a title — a server action is a public endpoint and
-// the dialog's limits are a hint, not a lock. The name is matched on its bare "First Last"
-// (./disguises.js), so the title never decides who it fools.
+// typed string. A title is any text at all, since a disguise claims what it likes ("Grand Poobah"), and
+// it is joined to the name by the no-break space that says where it ends (./disguises.js
+// #DISGUISE_TITLE_JOIN). One of the game's own title words (./titles.js), in any case, is worn in the
+// form the WEARER's `gender` takes: a disguise changes the name, not who is under it, so a woman who
+// picks Sir goes by Dame. Null for anything unusable — a server action is a public endpoint and the
+// dialog's limits are a hint, not a lock. The name is matched on its bare "First Last"
+// (./disguises.js), so the title never decides who it fools, whatever the person it names is called.
 function normalizeDisguiseName(raw, { gender = "NEUTRAL" } = {}) {
   if (typeof raw === "string") {
     const name = cleanPart(raw, NAME_LIMITS.honorific + NAME_LIMITS.firstName + NAME_LIMITS.lastName + 2);
@@ -50,10 +55,10 @@ function normalizeDisguiseName(raw, { gender = "NEUTRAL" } = {}) {
   const firstName = cleanPart(raw.firstName, NAME_LIMITS.firstName);
   if (!firstName) return null;
   const lastName = cleanPart(raw.lastName, NAME_LIMITS.lastName);
-  const typedTitle = cleanPart(raw.honorific, NAME_LIMITS.honorific);
-  const honorific = typedTitle ? titleFormFor(typedTitle, gender) : null;
-  if (typedTitle && !honorific) return null;
-  return [honorific, firstName, lastName].filter(Boolean).join(" ");
+  const typedTitle = cleanPart(raw.honorific, DISGUISE_TITLE_MAX);
+  const honorific = typedTitle ? (titleFormFor(typedTitle, gender) ?? typedTitle) : null;
+  const bare = [firstName, lastName].filter(Boolean).join(" ");
+  return honorific ? `${honorific}${DISGUISE_TITLE_JOIN}${bare}` : bare;
 }
 
 // The longest job a disguise may claim: the same cap a Friends entry's role takes, since a job heard
@@ -137,6 +142,7 @@ module.exports = {
   DISGUISE_KIT_SLUG,
   DISGUISE_TURNS,
   DISGUISE_JOB_MAX,
+  DISGUISE_TITLE_MAX,
   normalizeDisguiseName,
   disguiseJobChoices,
   resolveDisguiseJob,

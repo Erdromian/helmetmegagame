@@ -133,8 +133,9 @@ function breakRestraints(prisma, { character, discordUserId, openTurn }) {
 //
 // `name` is `{ honorific, firstName, lastName }`, or one typed string. Who the
 // name fools is decided later, per reader (db/lib/disguises.js): a real
-// character's full name fools the people who know them. A title is worn in the
-// form the wearer's own gender takes. `job` is any job title, real or made up,
+// character's full name fools the people who know them, whatever title it
+// carries. A title is any text; one of the game's own is worn in the form the
+// wearer's own gender takes. `job` is any job title, real or made up,
 // or empty for none: the job the disguise claims
 // (disguiseMint.js#resolveDisguiseJob). A real seat's name wears its estate's
 // colour; any other job is worn as typed, with no colour.
@@ -144,9 +145,6 @@ function disguiseSelf(prisma, { character, discordUserId, name: rawName, job: ra
     // Raw musculature passes for nobody else (db/lib/skinless.js).
     if (isSkinlessTags(character.tags)) refuse(SKINLESS_DISGUISE_REFUSAL);
     const name = normalizeDisguiseName(rawName, { gender: character.gender });
-    if (!name && typeof rawName?.honorific === "string" && rawName.honorific.trim() && rawName.firstName?.trim?.()) {
-      refuse("That isn't a title anybody goes by.");
-    }
     if (!name) refuse("Pick a name to go by.");
     if (name === character.name || namesCharacter(name, character)) refuse("That is already your name.");
     const job = await resolveDisguiseJob(prisma, rawJob);

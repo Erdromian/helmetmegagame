@@ -35,7 +35,7 @@ const { applyLocationMoveSideEffects } = require("@lifeweb/db/lib/locationMove")
 const { rollCavingOnArrival } = require("@lifeweb/db/lib/cavingPass");
 const { characterRoleAppearance } = require("@lifeweb/db/lib/characterRoleAppearance");
 const { formatBareName, NAME_LIMITS } = require("@lifeweb/db/lib/characterName");
-const { DISGUISE_TURNS } = require("@lifeweb/db/lib/disguiseMint");
+const { DISGUISE_TURNS, DISGUISE_TITLE_MAX } = require("@lifeweb/db/lib/disguiseMint");
 const { moveIsEditable, editMove, withdrawMove } = require("@lifeweb/db/lib/moves");
 const { clockStatus } = require("@lifeweb/db/lib/gameState");
 const { sendDm } = require("@lifeweb/db/lib/dm");
@@ -294,8 +294,8 @@ const DISGUISE_JOB_FIELD = "act:disguise:job";
 // (PROXYING.md §6) — best-effort, after the tag is on. The same parts as the
 // web's dialog: a title, a first name, a last name and a job (STRANGERS.md §10).
 // The job is typed, and any job will do, real or made up: the verb matches it
-// against every seat's name for the estate colour (disguiseMint.js#resolveDisguiseJob). A title is worn in the form the
-// wearer's own gender takes, whichever form they type.
+// against every seat's name for the estate colour (disguiseMint.js#resolveDisguiseJob). A title is any
+// text; one of the game's own is worn in the form the wearer's own gender takes, whichever form they type.
 const disguise = {
   modalFirst: true,
   start(interaction) {
@@ -308,19 +308,19 @@ const disguise = {
         .addLabelComponents(
           new LabelBuilder()
             .setLabel("Title")
-            .setDescription("Optional. Sir, Lady, Father, Doctor…")
-            .setTextInputComponent(field(DISGUISE_TITLE_FIELD, NAME_LIMITS.honorific, false)),
+            .setDescription("Optional.")
+            .setTextInputComponent(field(DISGUISE_TITLE_FIELD, DISGUISE_TITLE_MAX, false)),
           new LabelBuilder()
             .setLabel("First name")
             .setDescription(`It lasts ${DISGUISE_TURNS} turns.`)
             .setTextInputComponent(field(DISGUISE_NAME_FIELD, NAME_LIMITS.firstName, true)),
           new LabelBuilder()
             .setLabel("Last name")
-            .setDescription("Somebody's full name fools the people who know them.")
+            .setDescription("Having a target's full name will fool those who know them.")
             .setTextInputComponent(field(DISGUISE_LAST_FIELD, NAME_LIMITS.lastName, false)),
           new LabelBuilder()
             .setLabel("Job")
-            .setDescription("Optional. Any job, real or made up: Docker, Bishop, Rat Catcher…")
+            .setDescription("Any job, real or fake.")
             .setTextInputComponent(field(DISGUISE_JOB_FIELD, 60, false)),
         ),
     );

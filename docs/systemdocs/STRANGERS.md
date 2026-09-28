@@ -416,8 +416,20 @@ viewer and a list of names:
 | Anybody else | A stranger: "a young man", with labels and voice numbers, on the blank plaque |
 
 The name is matched on its bare "First Last" (`disguiseKey`): "Sir Aldric
-Vask" and "Lord Aldric Vask" are the same disguise, and fool the same people.
-"Aldric" alone fools nobody. A viewer is never fooled by their own name: they
+Vask", "Lord Aldric Vask" and "Keeper of the Sluice Aldric Vask" are the same
+disguise, and fool the same people, whatever title (if any) Aldric has himself.
+"Aldric" alone fools nobody.
+
+**Any title.** The Kit's title is any text, up to 24 characters
+(`disguiseMint.js#DISGUISE_TITLE_MAX`); the web dialog suggests the game's
+own. A title can be several words and a name can have spaces in it, so the
+Kit joins the title to the name with a no-break space
+(`disguises.js#DISGUISE_TITLE_JOIN`), and `disguiseParts` splits the stored
+name there. It reads as an ordinary space on every surface, lines freeze it
+in `concealedAlias` as they freeze the rest of the name, and nothing a player
+types can put one in, since every typed part has its whitespace collapsed. A
+name without one (older, or typed as a single string) still takes a leading
+title word of the game's own, as before. A viewer is never fooled by their own name: they
 read it, on the plaque. People who really know the wearer do not see through
 it; the face is not theirs. A GM, a ghost and a reader with nobody to
 recognise with read the name. With the rule off (§9), everybody does, as
@@ -425,9 +437,10 @@ before.
 
 **The wearer's own body.** A disguise never changes age or gender. A
 stranger's alias, labels and voice are the wearer's ("a young woman" under
-"Sir Aldric Vask"). A title is worn in the form the wearer's gender takes:
-the Kit offers each title in that form, and a typed "Sir" on a woman becomes
-"Dame" (`disguiseMint.js#normalizeDisguiseName`, `titles.js#titleFormFor`).
+"Sir Aldric Vask"). One of the game's own titles is worn in the form the
+wearer's gender takes: the Kit suggests each in that form, and a typed "Sir"
+on a woman becomes "Dame" (`disguiseMint.js#normalizeDisguiseName`,
+`titles.js#titleFormFor`). A made-up title is worn as typed.
 The title never decides who is fooled, so "Dame Aldric Vask" still fools
 Aldric's friends. And the fooled see the real person's portrait only when the
 wearer looks like them: the same gender and the same age band, the one a

@@ -116,13 +116,32 @@ function fooledFace(read, wearer) {
   return Boolean(read?.fooledAs) && looksAlike(wearer, read.fooledLook);
 }
 
-// PURE. A stored disguise name ("Sir Aldric Vask") split the way a character's name is: a leading
-// title word, a first name, and the rest as the last name. Shaped like a character row, so
+// Where a disguise's title ends. A title is any words at all ("Grand Poobah"), and a name may have
+// spaces in it too, so no word of the stored name can say where one stops and the other starts. The
+// Kit joins the title to the name with a NO-BREAK SPACE instead (./disguiseMint.js#normalizeDisguiseName):
+// it reads as an ordinary space everywhere, it survives onto every line the disguise says
+// (ArchiveEntry.concealedAlias freezes the string as it is), and nothing a player types can put one in,
+// since every typed part has its whitespace collapsed first.
+const DISGUISE_TITLE_JOIN = "\u00A0";
+
+function squash(value) {
+  return (value ?? "").toString().replace(/\s+/g, " ").trim();
+}
+
+// PURE. A stored disguise name ("Grand Poobah Aldric Vask") split the way a character's name is: its
+// title, a first name, and the rest as the last name. The title is everything before the no-break
+// space the Kit put after it; a name with none (older, or typed as one string) takes a leading title
+// word of the game's own (./titles.js), as it always did. Shaped like a character row, so
 // characterName.js#matchesTypedName and memoryLessons.js#nameFormsFor take it as one.
 function disguiseParts(name) {
-  const full = (name ?? "").toString().replace(/\s+/g, " ").trim();
-  const words = full ? full.split(" ") : [];
-  const honorific = words.length > 1 && TITLE_WORDS.includes(words[0]) ? words.shift() : null;
+  const raw = (name ?? "").toString().trim();
+  const full = squash(raw);
+  const at = raw.lastIndexOf(DISGUISE_TITLE_JOIN);
+  const titled = at > 0 && Boolean(squash(raw.slice(0, at))) && Boolean(squash(raw.slice(at + 1)));
+  const rest = titled ? squash(raw.slice(at + 1)) : full;
+  const words = rest ? rest.split(" ") : [];
+  let honorific = titled ? squash(raw.slice(0, at)) : null;
+  if (!titled && words.length > 1 && TITLE_WORDS.includes(words[0])) honorific = words.shift();
   const firstName = words.shift() ?? "";
   const lastName = words.length ? words.join(" ") : null;
   return { name: full, honorific, firstName, lastName };
@@ -246,6 +265,7 @@ function disguiseRead(reads, name) {
 
 module.exports = {
   DISGUISE_SLUG_PREFIX,
+  DISGUISE_TITLE_JOIN,
   DISGUISE_STRANGER_FACE,
   isDisguiseTag,
   hoodUpOverDisguise,
