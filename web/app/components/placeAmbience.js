@@ -249,9 +249,10 @@ export const BY_DRUG = {
   heroin: once("mature-raver.ogg"),
   // "Ambience interrupting sfx when having a drug induced bad trip, VERY LOUD, lower the
   // volume on this one before using." Changa High: "You are losing your mind and going
-  // crazy. You might die." Its measured level is in musicGain.js; the trim on top is the
-  // document's "lower the volume" — its bursts swing ten LU either side of that level.
-  changa: once("oval-sky.ogg", { gain: 0.6 }),
+  // crazy. You might die." Its measured level is in musicGain.js, and on top of that it
+  // plays at half the volume of the other tracks: Bascinet's call, for the document's "lower
+  // the volume". Its bursts swing ten LU either side of its average level.
+  changa: once("oval-sky.ogg", { gain: 0.5 }),
   // "Ambience while hallucinating". A tablet that causes dissociation.
   "eth-lod": once("parhelic-triangle.ogg"),
 };

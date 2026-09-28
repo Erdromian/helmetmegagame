@@ -586,7 +586,7 @@ about hallucinating; which drug hears which is a reading, kept in one table,
 | Cave Fungus | High | `hishmaliin.ogg` | "…plays after smoking marijuana" |
 | Bliss | Euphoric + High | `fools-village.ogg` | "Ambience while hallucinating" |
 | Heroin | Doped | `mature-raver.ogg` | "…after taking DOB or other hardcore drug" |
-| Changa | Changa High | `oval-sky.ogg` | "…a drug induced bad trip, VERY LOUD" — trimmed to 0.6 on top of its measured level |
+| Changa | Changa High | `oval-sky.ogg` | "…a drug induced bad trip, VERY LOUD" — half the volume of the other tracks, on top of its measured level |
 | ETH-LOD | Dissociated | `parhelic-triangle.ogg` | "Ambience while hallucinating" |
 
 Buffout, Love Tablets and Opium High are drugs with no song yet, and are silent.
