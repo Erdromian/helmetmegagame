@@ -198,6 +198,26 @@ test("logAudit files an act in the archive, inside the caller's transaction", { 
   assert.equal(rows[0].zoneName, location.zone?.name ?? null);
   assert.equal(rows[0].action.type, "request_farm");
   assert.equal(rows[0].action.locationName, location.name);
+  // Witnessed by the one who did it, and nobody standing around them.
+  assert.deepEqual(rows[0].witnessIds, [character.id]);
+  assert.deepEqual(rows[0].witnessNames, ["Archive Tester"]);
+
+  // An act done to somebody is witnessed by both of them.
+  const victim = await prisma.character.create({
+    data: { discordUserId: `${run}-v`, name: "Archive Victim", firstName: "Archive", locationId: location.id },
+  });
+  t.after(async () => {
+    await prisma.archiveEntry.deleteMany({ where: { characterId: victim.id } }).catch(() => {});
+    await prisma.character.delete({ where: { id: victim.id } }).catch(() => {});
+  });
+  const done = await prisma.$transaction((tx) =>
+    logAudit(tx, { actorDiscordUserId: run, actionType: "steal", targetCharacterId: victim.id, details: {}, place: null }),
+  );
+  const theft = await prisma.archiveEntry.findFirst({ where: { characterId: character.id, action: { path: ["type"], equals: "steal" } } });
+  assert.ok(done && theft, "the steal was filed");
+  assert.deepEqual(theft.witnessIds, [character.id, victim.id]);
+  assert.deepEqual(theft.witnessNames, ["Archive Tester", "Archive Victim"]);
+  await prisma.archiveEntry.delete({ where: { id: theft.id } });
 
   // The act fails after its audit row: neither row survives.
   await assert.rejects(

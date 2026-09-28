@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
 import { ARCHIVE_ROW_SELECT, archiveRowsShape } from "@lifeweb/db/lib/archive";
+import { archiveWitnessOptions } from "@lifeweb/db/lib/archiveWitnesses";
 import { factsLine, rosterLine } from "@lifeweb/db/lib/epilogue";
 import { formatAntagonistLines } from "@lifeweb/db/lib/objectives";
 import PageShell from "@/app/components/PageShell";
@@ -49,8 +50,8 @@ export default async function ArchivePage({ searchParams }) {
   // empty filter dropdowns, which reads as a bug rather than as a game that
   // was deliberately put away. The epilogue below is the whole stub, and it is
   // still on the Game row.
-  const [rows, total, zoneRows, characterRows, locationRows, roomRows] = archived
-    ? [[], 0, [], [], [], []]
+  const [rows, total, zoneRows, characterRows, locationRows, roomRows, witnesses] = archived
+    ? [[], 0, [], [], [], [], []]
     : await Promise.all([
         prisma.archiveEntry.findMany({
           where,
@@ -84,6 +85,10 @@ export default async function ArchivePage({ searchParams }) {
           by: ["zoneName", "locationName", "threadName"],
           where: { gameId: game.id, threadName: { not: null } },
         }),
+        // Everyone who witnessed anything, by the names frozen on the rows.
+        // Wider than the People list: somebody who only ever stood and
+        // listened is somebody a GM may want to follow too.
+        archiveWitnessOptions(prisma, game.id),
       ]);
 
   const done = rows.length <= ARCHIVE_PAGE_SIZE;
@@ -172,6 +177,7 @@ export default async function ArchivePage({ searchParams }) {
             locations={locations}
             rooms={rooms}
             characters={characters}
+            witnesses={witnesses}
             filters={filters}
             total={total}
             first={first}

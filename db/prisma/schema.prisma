@@ -6669,6 +6669,15 @@ model ArchiveEntry {
   // row's place for an ACTION row (db/lib/archiveActions.js).
   locationName String?
 
+  // Who personally witnessed the row, frozen as it was written: the speaker or
+  // actor, everyone standing in the place that heard a line, and the target of
+  // an act. Real names, in the same order as the ids, for /archive's "Witnessed
+  // by" filter. Snapshot ids, not FKs, like every id column here, so a past
+  // game still knows who was in the room after its characters are gone.
+  // db/lib/archiveWitnesses.js owns the rule (docs/systemdocs/ARCHIVE.md).
+  witnessIds   String[] @default([])
+  witnessNames String[] @default([])
+
   // Forum post / thread title, so a scene reads as one unit rather than
   // scattered lines under its location.
   threadName String?
@@ -6736,6 +6745,7 @@ model ArchiveEntry {
   @@index([characterId, sentAt])
   @@index([discordChannelId, sentAt])
   @@index([placeKey, seq])
+  @@index([witnessIds], type: Gin)
 }
 
 /// One page of the Oracle's chronicle: what happened in one zone during one

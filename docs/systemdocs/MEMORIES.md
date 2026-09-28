@@ -224,7 +224,11 @@ present when the row was written. `db/lib/archive.js#recordArchiveMessage`
 files it (`memoryHearing.js#logHeard`, unawaited), because every feed row
 passes through there: speech, shouts, scenes, gate echoes and GM posts. It
 also covers the zone summary of the zone you stand in, and loose scenery at
-your Location.
+your Location. The archive looks up who is standing there anyway, for the
+row's witnesses (`ARCHIVE.md`, "Witnesses"), and hands that list to
+`logHeard` so it does not ask twice. The two rules differ in one place:
+somebody Asleep or Unconscious still gets the heard line, but is not a
+witness.
 
 The page reads today's rows only (`dayNumber`), leaves out deleted lines, and
 draws a line with no speaker as scenery. A line can be starred into Highlights

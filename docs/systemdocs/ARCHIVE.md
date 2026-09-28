@@ -72,6 +72,43 @@ lost its plot. An `ACTION` row is that act, filed into the transcript:
   Like `presentedState`, `action` is in `ARCHIVE_ROW_SELECT` and never in
   `FEED_ROW_SELECT`.
 
+### Witnesses: who saw it for themselves
+
+Every row carries who personally witnessed it, in `witnessIds` and
+`witnessNames`: two arrays in step, the same person at the same index, real
+names. They are worked out as the row is written, by
+`db/lib/archiveWitnesses.js`, and never again, so a row says who was in the
+room *then*. That is what `/archive`'s **Witnessed by** filter reads.
+
+- **A line** (speech, or a scene line the world says) is witnessed by its
+  speaker, if it has one, and by everyone standing in the place it was said
+  in. "Standing in" is the day's-heard-lines rule
+  (`memoryHearing.js#presentWhere`), so a room counts both sides of a
+  counter. A street you just walked out of, or a room seen through the
+  Scrying Eye, does not count. A telephone's row goes only to the people who
+  read it (`onlyCharacterId` / `exceptCharacterId`). Anyone Asleep or
+  Unconscious witnesses nothing, except their own row. A radio net, Deadchat
+  and the Game channel are places nobody stands in, so their rows have only
+  their speaker.
+- **An event** (a death, an arrival) is witnessed by whoever it is about and
+  by everyone standing in its place, the same way. A `TURN_START` has none,
+  because it is a divider.
+- **An act** (`ACTION`) is witnessed by whoever did it and whoever it was done
+  to, and nobody else. A quiet Steal is not seen by the room. What the room
+  *was* shown of an act is its own scene line, and that line has the room as
+  witnesses.
+
+The presence lookup runs beside the row's other lookups, before the insert,
+and `logHeard` reuses it for the day's heard lines instead of asking again. It
+never fails the write: a line nobody could be counted around gets only its
+speaker.
+
+It lives on the row rather than in `HeardLine` because that table is wiped
+every day and cascades off `Character`, which Restart Game clears. A column
+rides in the packet with nothing added, since the exporter reads its columns
+off the DMMF. Rows written before this existed have empty arrays and were not
+backfilled, so a Witnessed by filter leaves them out.
+
 Five things about it are load-bearing:
 
 - **The id columns are not foreign keys.** Same posture as
@@ -170,7 +207,7 @@ lists are `groupBy`s over the game's own rows, not the live tables: a past
 game's characters are gone and its zones may have been re-synced under new
 ids, but the snapshot names on the rows are exactly what was.
 
-**Filters stack.** Zones, Locations, Rooms and People each take several
+**Filters stack.** Zones, Locations, Rooms, People and Witnessed by each take several
 values, as repeated URL params (`?zone=Town&zone=Caves`): OR within one, AND
 across them, and with a day range (`from`/`to`; the old `day=N` still reads as
 a range of one) and the text search on top. A place is named by the names
@@ -181,6 +218,14 @@ Conversations, whatever carries a `threadName`. They are picked in the Filters
 drawer and applied once, and each value is its own chip above the transcript
 so any one can be taken off. Clicking a name or a scene in the transcript adds
 to what is picked rather than replacing it.
+
+**People and Witnessed by are two questions.** People is who said or did a
+row (`characterId`). Witnessed by is who saw it for themselves
+(`witnessIds hasSome`, `witness=<id>` in the link), which takes in everything
+said around them and everything done to them. Its list comes from the
+names frozen on the rows (`archiveWitnessOptions`), not from People, since
+somebody who only ever stood and listened is a witness and not a speaker.
+Picking two witnesses shows what either of them saw, the OR every list uses.
 
 **Places narrow downward.** With zones picked, the Locations list offers only
 the Locations in them; with Locations picked, Rooms offers only their rooms

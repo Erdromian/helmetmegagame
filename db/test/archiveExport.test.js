@@ -95,6 +95,9 @@ test("archive packet round-trip", { skip: SKIP && "set ARCHIVE_TEST_DATABASE_URL
       // existed exports as null.
       presentedState: i === 1 ? { v: 1, n: "Sir Alder", a: null, r: null, s: 3, f: null, c: false, t: [["t-sword", 1, null]] } : undefined,
       deletedAt: i === 2 ? new Date() : null,
+      // The array columns: a row with witnesses keeps them in order, and a
+      // row with none comes back empty, not null.
+      ...(i === 1 ? { witnessIds: ["c-alder", "c-marrow"], witnessNames: ["Sir Alder", "Marrow Kell"] } : {}),
       placeKey: `zone:${i}`,
     })),
   });
