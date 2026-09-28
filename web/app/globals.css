@@ -2546,6 +2546,60 @@ input[type="radio"]:disabled {
   margin: 0;
 }
 
+/* A name you can hover in chat (NameCard.js): what you can see on them over
+   what you remember of them, the Look cut down to a glance. Portaled like
+   every .tag-tooltip, so unscoped, under names nothing else uses. */
+.name-card-trigger {
+  cursor: help;
+}
+
+.name-card {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 180px;
+}
+
+.name-card-name {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.name-card-label {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: var(--fs-2xs);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.name-card-text {
+  color: var(--text);
+}
+
+/* Notes can run long; the full text is on /memories and in the Look. */
+.name-card-notes {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 4;
+  line-clamp: 4;
+  overflow: hidden;
+  white-space: pre-wrap;
+}
+
+.name-card-quiet {
+  color: var(--muted);
+}
+
+.name-card-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 2px;
+}
+
 /* The "Unlocks" block on a tag panel — which Desires holding the tag opens.
    Shares .tag-meta's rule-above-it treatment so the two read as sibling
    sections of one panel rather than as two unrelated lists.
@@ -7745,16 +7799,22 @@ button.chip[data-off="true"]:not([data-active]) {
 
 /* The role, in its estate's colour — the same six the feed paints a name in. */
 .memory-role[data-role-group="court"],
+.name-card-role[data-role-group="court"],
 .memory-line-name[data-role-group="court"] { color: var(--role-court); }
 .memory-role[data-role-group="clergy"],
+.name-card-role[data-role-group="clergy"],
 .memory-line-name[data-role-group="clergy"] { color: var(--role-clergy); }
 .memory-role[data-role-group="cerberon"],
+.name-card-role[data-role-group="cerberon"],
 .memory-line-name[data-role-group="cerberon"] { color: var(--role-cerberon); }
 .memory-role[data-role-group="saviors"],
+.name-card-role[data-role-group="saviors"],
 .memory-line-name[data-role-group="saviors"] { color: var(--role-saviors); }
 .memory-role[data-role-group="business"],
+.name-card-role[data-role-group="business"],
 .memory-line-name[data-role-group="business"] { color: var(--role-business); }
 .memory-role[data-role-group="soil"],
+.name-card-role[data-role-group="soil"],
 .memory-line-name[data-role-group="soil"] { color: var(--role-soil); }
 
 .memory-self-grid {

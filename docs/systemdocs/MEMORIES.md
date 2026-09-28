@@ -301,6 +301,22 @@ The role is no longer frozen onto each line (`examineSnapshot.js`); old lines
 still carry `rt` and `rg`, and both are ignored. The GM dossier (⚜️) is
 unchanged.
 
+### 7a. Hovering a name
+
+In `/chat`, hovering a speaker's name in the feed or a name in the Here list
+opens a small card. It has two halves: what you remember of them and what you
+can see on them. A tap pins it on a touch screen. It is **the look itself,
+cut down**. The card calls the same `lookAtRow(seq)` the eye does and draws
+only the role, the name you know them by, your notes, and the ailments, gear
+and tags on show. So every rule above holds without being written twice. A
+stranger's card says you don't know them, and a hood's card draws nothing
+from memory. Like the eye, it shows somebody as they were when that line was
+said. The Here list's card uses the last line you heard from them.
+
+No card appears on your own lines, on system lines or for a GM. It waits a
+quarter-second before asking, so a pointer crossing the feed costs nothing,
+and it keeps each answer for a minute (`web/app/components/NameCard.js`).
+
 ## 8. Where the code lives
 
 | Concern | File |
@@ -312,5 +328,6 @@ unchanged.
 | Scrambling (pure) | `db/lib/memoryScramble.js` |
 | The map as a memory (§6a) | `db/lib/mapMemory.js`, `web/app/(app)/map/actions.js` |
 | Inspect | `db/lib/examineRow.js`, `db/lib/examine.js` |
+| The hover card on a name (§7a) | `web/app/components/NameCard.js` |
 | Page and actions | `web/app/(app)/memories/`, `web/lib/memories.js` |
 | Tests | `db/test/memoryLessons.test.js`, `memoryScramble.test.js`, `roleKnows.test.js`, `examineRoleTitle.test.js` |

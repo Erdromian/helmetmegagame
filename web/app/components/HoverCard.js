@@ -71,6 +71,18 @@ export default function HoverCard({ children, panel, className = "", pinnable = 
     if (open) place();
   }, [open, pinned, place]);
 
+  // A panel that fills in after it opens (NameCard.js: "Looking…", then the
+  // card) was placed above the trigger at its first, smaller height, then grew
+  // DOWNWARD over the very name it describes. Re-place it whenever it resizes,
+  // so its bottom edge stays just above the trigger.
+  useEffect(() => {
+    const el = panelRef.current;
+    if (!open || !el || typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(() => place());
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [open, place]);
+
   useEffect(() => {
     if (!open) return;
     // Fixed positioning detaches on scroll: unpinned, close rather than chase it; pinned, reposition instead.

@@ -10,6 +10,7 @@ import { Readout } from "@/app/components/ExamineDialog";
 import IconButton from "@/app/components/IconButton";
 import TranscriptLine from "@/app/components/TranscriptLine";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import NameCard from "@/app/components/NameCard";
 import { startsRun } from "@/lib/feedRuns";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { CameraIcon, EditIcon, EyeIcon, NotesIcon, TrashIcon } from "@/app/components/icons";
@@ -177,7 +178,16 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
       // over their run. The real name behind an alias is printed in the
       // parentheses and nowhere else.
       layout={stacked ? "stacked" : "log"}
-      name={stacked && !startsRun ? null : realName ? `${row.name} (${realName})` : row.name}
+      name={
+        stacked && !startsRun ? null : realName ? (
+          `${row.name} (${realName})`
+        ) : line.canCard ? (
+          // What you can see on them and what you remember of them, on hover (NameCard.js).
+          <NameCard seq={row.seq}>{row.name}</NameCard>
+        ) : (
+          row.name
+        )
+      }
       alias={Boolean(row.alias)}
       // Decided on the server and withheld on a hooded row
       // (db/lib/archive.js#feedRowShape), so a line with no colour is one whose
@@ -610,6 +620,11 @@ export default function Feed({
             // A note is filed under a living character.
             canStar: row.seq != null && !gm && !ghost,
           },
+          // Hovering the name. Outside `guards`, which decides whether the row
+          // has an action bar at all. Unlike the eye, a hood and a stranger get
+          // one too — the Here list already lets you look at them, and the
+          // readout itself withholds what their face does not give away.
+          canCard: !mine && !system && !gm && row.seq != null && !row.pending,
           dayBreak,
           newLine: Boolean(row.seq) && String(row.seq) === String(newAt),
         };
