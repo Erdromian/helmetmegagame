@@ -21,15 +21,18 @@ import { placeHas } from "./placeAmbience";
 //     it. Walking from the Town into the Undertown keeps a general or a fortress track
 //     going, because it can play in both; walking into space does not.
 //
-// A GM is the one listener the second rule does not apply to: "GMs do not have ambience
-// tracks end until they have reached completion". MusicDirector passes `{ keep: true }`.
+// A GM with no character "stands" in whatever place they have open in Chat, so for them the
+// second rule is switching Chat to a place the piece cannot play in. Going back to a GM
+// panel is not leaving anywhere: the piece plays on to its end. What a GM panel does is
+// HOLD the timeline (setHold) — nothing new starts there, not a piece and not a spot, until
+// the GM is back on a page that is not one.
 //
 // A performance — a jukebox or somebody playing — still covers a piece rather than ending
 // it, and music.js handles that on its own.
 //
 // Module scope, so a soft navigation (/character → /chat) never restarts it.
-// MusicDirector.js calls start() and stop() when in-game play begins and ends, and
-// setPlace() whenever where you are standing changes. The rules live in musicSchedule.js.
+// MusicDirector.js calls start() and stop() when in-game play begins and ends, setPlace()
+// whenever where you are standing changes, and setHold() as a GM goes on and off the desks. The rules live in musicSchedule.js.
 
 const AMBIENT_FADE_IN_MS = 3000;
 const ONESHOT_TAIL_MS = 2000;
@@ -54,6 +57,11 @@ let lastSrc = null;
 let lastSpot = null;
 // An interrupter asked for before start(): the first thing played once it does.
 let pending = null;
+// While held, a piece or a spot that comes due is not played; the flag remembers that it
+// came due, so lifting the hold can start it.
+let held = false;
+let heldNext = false;
+let heldSpot = false;
 
 let timer = null;
 let piece = null; // { layer, src, startedAt, drops: [], leaving }
@@ -104,6 +112,10 @@ function scheduleSpot(ms) {
 /** One short sound over whatever is or is not playing, then a long wait, then another. */
 function playNextSpot() {
   if (!running) return;
+  if (held) {
+    heldSpot = true;
+    return;
+  }
   const spots = here?.spots ?? [];
   if (!spots.length) {
     scheduleSpot(NO_PLACE_RETRY_MS);
@@ -157,6 +169,10 @@ function finish() {
 
 function playNext() {
   if (!running) return;
+  if (held) {
+    heldNext = true;
+    return;
+  }
   const item = here ? pickTiered(here.tiers, lastSrc) : null;
   if (!item) {
     wait(NO_PLACE_RETRY_MS, playNext);
@@ -224,6 +240,8 @@ export function stop() {
   if (!running) return;
   running = false;
   pending = null;
+  heldNext = false;
+  heldSpot = false;
   clearTimer();
   clearSpot();
   stopLayer("spot", { fadeMs: 600 });
@@ -234,15 +252,34 @@ export function stop() {
 }
 
 /**
+ * Hold the timeline, or let it go. Held, nothing NEW starts — a piece or a spot that comes
+ * due waits — but whatever is already playing plays on to its end. Let go, anything that
+ * came due while held starts after the same short wait as a first visit. A silence gap
+ * still counting down just carries on, so bouncing on and off a GM panel never cuts the
+ * silence short.
+ */
+export function setHold(on) {
+  held = Boolean(on);
+  if (held || !running) return;
+  if (heldNext) {
+    heldNext = false;
+    wait(roll(FIRST_WAIT_MS), playNext);
+  }
+  if (heldSpot) {
+    heldSpot = false;
+    scheduleSpot(roll(SPOT_GAP_MS));
+  }
+}
+
+/**
  * Where the listener is standing now: a placeAmbience.js stack, or null. What plays NEXT
  * comes from here. What is playing NOW carries on if it could have been picked here too,
- * and fades out if it could not — unless `keep`, which is a GM's: their track always runs
- * to its end. A null place (the payload has not landed, a key that names nowhere) says
- * nothing about where anybody went, so it never fades anything.
+ * and fades out if it could not. A null place (the payload has not landed, a key that
+ * names nowhere) says nothing about where anybody went, so it never fades anything.
  */
-export function setPlace(next, { keep = false } = {}) {
+export function setPlace(next) {
   here = next;
-  if (!running || keep || !next) return;
+  if (!running || !next) return;
   if (piece && !piece.leaving && !placeHas(next, piece.src)) leave();
   if (spotSrc && !(next.spots ?? []).some((s) => s.src === spotSrc)) {
     clearSpot();

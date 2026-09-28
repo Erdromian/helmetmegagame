@@ -243,7 +243,7 @@ program from the phase and runs it.
 
 | state | who | program |
 |---|---|---|
-| any `/gm/` path | anyone | no phase tape. The conductor still plays for the three rows at the bottom |
+| any `/gm/` path | anyone | no phase tape. The conductor still runs for the three rows at the bottom, but for a GM with no character it is **held** there: a track already playing finishes, and nothing new starts (below) |
 | `CLOSED` | anyone | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
 | anything but `CLOSED` | a living character | no phase tape — the conductor plays where they stand (§4a) |
 | `RUNNING` | a **ghost** | no phase tape — the conductor plays the dead's own ambience (§4b) |
@@ -260,8 +260,17 @@ the document gives them the place they are **viewing in Chat, or last viewed** �
 `bascinet:play:last-place` key Chat keeps across page loads. Chat's keys are ids, so
 `gmPlaces.js` turns one into slugs through `/api/music-places`, a GM-only route fetched
 once per page load. A key that names no place — a DM, a net, Deadchat — leaves the last
-place standing. And "GMs do not have ambience tracks end until they have reached
-completion": a GM's piece is never faded for a move (§4a).
+place standing.
+
+**A GM panel holds a characterless GM's ambience; it does not stop it.** No new
+piece or spot starts while they are on a `/gm/` page, so a GM who opens the desk
+straight from a bookmark hears nothing. A piece that started in Chat plays on to its
+end across every page, desks included. It fades mid-track for one reason only: the GM
+switches Chat to a place the piece could not have been picked in — the same rule a
+living character's piece follows when they walk (§4a). Other pages (Map, Documents…)
+are not desks, so new pieces keep coming there off the last place. A GM with a living
+character of their own is not held: they hear where that character stands, desks
+included.
 
 `ghost` and `gm` ride the phase payload (§5), asked only when there is no living
 character in a running game, so a player's poll never pays for either.
@@ -415,9 +424,15 @@ long track; it just belongs somewhere now.
     (`placeAmbience.js#placeHas`). Town to Undertown keeps a general or fortress track
     going, because it can play in both; Town to space does not. A spot is held to the
     same test against the new place's spots.
-  - **A GM's piece is never faded for a move** — `setPlace(next, { keep: true })`.
+  - A characterless GM follows the same rule, with Chat's open place as where they
+    stand. Going to a GM panel is not a move, so it fades nothing.
   A performance — a jukebox or somebody playing — still covers a piece rather than
   ending it, and §3's rules handle that.
+- **`setHold(true)` holds the timeline** — MusicDirector's, for a characterless GM on a
+  `/gm/` page. A piece or spot that comes due while held waits, and one already playing
+  finishes. Let go, whatever waited starts after the same 5–20 s as a first visit; a
+  silence gap still counting down just carries on, so bouncing on and off a desk never
+  cuts the silence short.
 - **About 75% of in-game time is silence**, which is the document's first rule for
   an ambience track. After a piece that lasted *d*, the gap is *d* × 3, ±30%,
   never under 2 minutes (`SILENCE_SHARE`, `MIN_GAP_MS`). Scaling the gap to the

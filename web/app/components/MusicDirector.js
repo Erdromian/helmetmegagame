@@ -9,6 +9,7 @@ import { standingForKey, useGmPlaces } from "./gmPlaces";
 import { resolveProgram, runProgram } from "./musicProgram";
 import {
   interrupt,
+  setHold,
   setPlace,
   start as startConductor,
   stop as stopConductor,
@@ -32,13 +33,16 @@ import { musicIsAudible, useSound } from "./soundStore";
 //     a living character — the place they stand in, on every page, a GM desk included;
 //     a GHOST in a running game — the dead's own ambience, wherever they are looking;
 //     a GM with no character in a running game — the place they are looking at in Chat,
-//       or the last one they looked at, and a track of theirs is never cut short.
+//       or the last one they looked at. Nothing new starts on a GM panel, but a track
+//       already playing runs on to its end there; it fades only when Chat is switched to a
+//       place it cannot play in.
 //
 //   Nothing, otherwise: a GM desk outside a running game.
 //
-// It does NOT re-run on a route change — `pathname` is read only to keep the phase tapes off
-// the GM desks (musicProgram.js#resolveProgram), and the effect's dependency is the ANSWER
-// to that question, not the path, so walking between ordinary pages never restarts a track.
+// It does NOT re-run on a route change — `pathname` is read only to ask "is this a GM desk?",
+// which keeps the phase tapes off them (musicProgram.js#resolveProgram) and holds a
+// characterless GM's timeline there. The effects depend on the ANSWER to that question, not
+// the path, so walking between ordinary pages never restarts a track.
 //
 // Nor on the mute switch, and that is the other half of the same rule. The program keeps
 // running while muted; muting only silences the bus (music.js#setMusicMuted), so unmuting
@@ -89,8 +93,15 @@ export default function MusicDirector() {
   // at one again.
   useEffect(() => {
     if (gmMode && !here) return;
-    setPlace(here, { keep: gmMode });
+    setPlace(here);
   }, [here, gmMode]);
+
+  // Also before start(), so a GM who loads straight onto a desk starts held and hears
+  // nothing. A GM with a character of their own is `living`, and hears that place anywhere.
+  const held = gmMode && onDesk;
+  useEffect(() => {
+    setHold(held);
+  }, [held]);
 
   useEffect(() => {
     if (!inGame) return undefined;
