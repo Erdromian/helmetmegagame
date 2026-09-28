@@ -154,32 +154,70 @@ async function verifyPacket(filePath) {
     input: fs.createReadStream(filePath).pipe(zlib.createGunzip()),
     crlfDelay: Infinity,
   });
-  let manifest = null;
-  const hash = sha256Stream();
-  let count = 0;
+  const check = packetCheck();
   try {
-    for await (const line of rl) {
-      if (manifest === null) {
-        manifest = JSON.parse(line);
-        if (manifest.kind !== PACKET_KIND) throw new Error(`not an archive packet: ${manifest.kind}`);
-        continue;
-      }
-      if (line === "") continue;
-      hash.update(line + "\n");
-      count += 1;
-    }
+    for await (const line of rl) check.line(line);
   } finally {
     rl.close();
   }
-  if (manifest === null) throw new Error("archiveExport: empty packet, no manifest");
-  const digest = hash.digest("hex");
-  if (count !== manifest.entryCount) {
-    throw new Error(`archiveExport: packet holds ${count} entries, manifest claims ${manifest.entryCount}`);
+  return check.finish();
+}
+
+// The one set of rules both readers hold a packet to: a manifest first, then
+// every entry line counted and hashed. `line` answers the line when it is an
+// entry, else null; `finish` throws unless the count and the hash both agree.
+function packetCheck() {
+  let manifest = null;
+  const hash = sha256Stream();
+  let count = 0;
+  return {
+    line(line) {
+      if (line === "") return null;
+      if (manifest === null) {
+        manifest = JSON.parse(line);
+        if (manifest.kind !== PACKET_KIND) throw new Error(`not an archive packet: ${manifest.kind}`);
+        return null;
+      }
+      hash.update(line + "\n");
+      count += 1;
+      return line;
+    },
+    finish() {
+      if (manifest === null) throw new Error("archiveExport: empty packet, no manifest");
+      const digest = hash.digest("hex");
+      if (count !== manifest.entryCount) {
+        throw new Error(`archiveExport: packet holds ${count} entries, manifest claims ${manifest.entryCount}`);
+      }
+      if (digest !== manifest.sha256) {
+        throw new Error("archiveExport: packet hash does not match its manifest — the file is damaged");
+      }
+      return manifest;
+    },
+  };
+}
+
+// A packet already in memory (fetched from the bucket), read back into rows —
+// what /archive's text export reads a put-away game from. Checked whole before
+// any row is handed back: a damaged packet throws rather than printing half a
+// game as if it were all of it.
+function readPacketBuffer(buf) {
+  let text;
+  try {
+    text = zlib.gunzipSync(buf).toString("utf8");
+  } catch (err) {
+    throw new Error(`archiveExport: packet is not readable gzip (${err.message})`);
   }
-  if (digest !== manifest.sha256) {
-    throw new Error("archiveExport: packet hash does not match its manifest — the file is damaged");
+  const check = packetCheck();
+  const entries = [];
+  for (const line of text.split(/\r?\n/)) {
+    const entry = check.line(line);
+    if (entry !== null) entries.push(entry);
   }
-  return manifest;
+  const manifest = check.finish();
+  const fields = archiveFields();
+  const seen = { missing: new Set(), dropped: new Set() };
+  const rows = entries.map((line) => decodeRow(JSON.parse(line), fields, seen));
+  return { manifest, rows };
 }
 
 // ---------------------------------------------------------------- import
@@ -307,6 +345,7 @@ module.exports = {
   decodeRow,
   exportGame,
   verifyPacket,
+  readPacketBuffer,
   importPacket,
   bumpSeqSequence,
 };

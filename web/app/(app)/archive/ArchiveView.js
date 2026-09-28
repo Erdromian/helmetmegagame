@@ -12,6 +12,7 @@ import useSessionState from "@/app/components/useSessionState";
 import { gameTitle } from "@/lib/gameLabel";
 import { activeArchiveFilters, archiveParamsToQuery, prunePlaces } from "@/lib/archiveQuery";
 import ArchiveTranscript from "./ArchiveTranscript";
+import ArchiveExportButton from "./ArchiveExportButton";
 
 // The transcript's controls and its scroll.
 //
@@ -87,6 +88,10 @@ export default function ArchiveView({ game, games, currentGameId, zones, locatio
         <button type="button" className="btn" onClick={() => setDrawer(true)}>
           Filters{active.length ? ` · ${active.length}` : ""}
         </button>
+
+        {/* The same query the stream below is keyed on, so the file holds
+            exactly what the filters show. */}
+        <ArchiveExportButton query={query} />
 
         <div className="archive-bar-spacer" />
 

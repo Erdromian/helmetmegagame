@@ -251,6 +251,25 @@ hardcoded array. It is deliberately **not** a strict field: a packet written
 before it existed imports fine and those rows simply read live, which is the
 behaviour they had anyway.
 
+**Export** writes what is on screen to a text file. The button sits in the bar
+beside Filters and asks `/api/archive/export` with the page's own query, which
+runs the same `parseArchiveParams` and `archivePageWhere` as the scroll and
+reads to the end in batches. So the file holds exactly the rows the filters
+show, in the order they show them: Speech or Everything, Actions on or off,
+and every chip. `web/lib/archiveText.js` writes it: a header naming the game,
+what was shown and what narrowed it, then the epilogue if there is one, then
+the rows under `== Day N ==` and `-- Zone · Location · Room --` lines. The day
+and scene breaks come from `web/lib/archiveScenes.js`, the same rules the
+transcript uses. A hood reads `Young Man (Sir Alder)`, an act reads as the
+audit sentence, and a mention prints the name frozen in its token. Times are
+in the reader's own timezone, which the button sends along.
+
+A game that was put away has no rows left to query, so its stub has its own
+**Export as text** button. That one reads the packet out of the bucket
+(`archiveExport.js#readPacketBuffer`, which checks the count and the hash
+before it hands back any row) and writes the whole game, since the stub has no
+filters. It never imports anything back.
+
 **The gate.** A GM tool, always — every game, current or past, requires a GM
 (`web/lib/archiveAccess.js`), enforced in the page and mirrored in the nav
 (which shows the link only to a GM). There is no toggle that opens it to
@@ -425,7 +444,9 @@ the root `.gitignore`, and the destination folder is given its own
 
 | File | What |
 |---|---|
-| `db/lib/archiveExport.js` | `exportGame`, `verifyPacket`, `importPacket`, the seq guard |
+| `db/lib/archiveExport.js` | `exportGame`, `verifyPacket`, `readPacketBuffer`, `importPacket`, the seq guard |
+| `web/app/api/archive/export/route.js` | `/archive`'s Export button: the filtered transcript, or a put-away game's packet, as text |
+| `web/lib/archiveText.js` | how that text file is written |
 | `db/lib/archiveBucket.js` | SigV4 against the bucket, for the web action and the scripts |
 | `scripts/db/bucket.py` | the same, for a terminal: `archives`, `put`, `getkey`, `rm` |
 | `db/scripts/ops/archive-*.js` | `npm run archive:export` / `import` / `pull` / `exports` |
