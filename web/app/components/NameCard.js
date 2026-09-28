@@ -4,13 +4,15 @@ import { useEffect, useState } from "react";
 import HoverCard from "./HoverCard";
 import { lookAtRow } from "@/app/(app)/chat/actions";
 import { actionThrowMessage } from "./actionThrow";
+import { ALERT_LINE } from "@lifeweb/db/lib/combatMode";
 
 // A NAME YOU CAN HOVER: what you can see on somebody and what you remember of
 // them, over their name in the feed and the Here list. It is the Look's own
 // readout (db/lib/examineRow.js, via lookAtRow), cut down to the two halves a
 // glance wants — no new rule lives here. So everything the eye withholds, this
 // withholds too: a hood draws nothing from your memories, a stranger reads under
-// their alias, and a blindfold answers with the blindness line.
+// their alias, and a blindfold answers with the blindness line. And it keeps
+// the look's "They look alert." for somebody in combat mode.
 //
 // Keyed by the LINE (`seq`), never by a character id, for the same reason the
 // eye is: a stranger's or a hood's row carries no id to send. It shows them as
@@ -102,7 +104,9 @@ function NameCardBody({ seq }) {
       {recall && <span className="name-card-quiet">{recall}</span>}
 
       <span className="name-card-label">What you can see</span>
-      {seen.length > 0 ? (
+      {/* Combat mode, frozen with the rest of the look — a hood hides who, never that (COMBAT-MODE.md §5). */}
+      {r.alert && <span className="name-card-text">{ALERT_LINE}</span>}
+      {seen.length > 0 && (
         <span className="name-card-chips">
           {seen.map((name, i) => (
             <span key={`${name}-${i}`} className="chip">
@@ -110,9 +114,8 @@ function NameCardBody({ seq }) {
             </span>
           ))}
         </span>
-      ) : (
-        <span className="name-card-quiet">Nothing stands out.</span>
       )}
+      {seen.length === 0 && !r.alert && <span className="name-card-quiet">Nothing stands out.</span>}
     </span>
   );
 }

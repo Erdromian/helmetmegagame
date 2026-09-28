@@ -307,8 +307,10 @@ In `/chat`, hovering a speaker's name in the feed or a name in the Here list
 opens a small card. It has two halves: what you remember of them and what you
 can see on them. A tap pins it on a touch screen. It is **the look itself,
 cut down**. The card calls the same `lookAtRow(seq)` the eye does and draws
-only the role, the name you know them by, your notes, and the ailments, gear
-and tags on show. So every rule above holds without being written twice. A
+only the role, the name you know them by, your notes, the ailments, gear and
+tags on show, and "They look alert." for somebody in combat mode (the same
+line the look gives, and a hood still shows it). So every rule above holds
+without being written twice. A
 stranger's card says you don't know them, and a hood's card draws nothing
 from memory. Like the eye, it shows somebody as they were when that line was
 said. The Here list's card uses the last line you heard from them.
