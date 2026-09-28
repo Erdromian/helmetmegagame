@@ -1162,3 +1162,15 @@ guard: being shot is a database fact and must not depend on there being a token
 to announce it with.
 
 See `docs/systemdocs/DEPOT.md` §0c, §0d and §0f.
+
+## The late party draw
+
+`db/lib/latePartyRaffle.js`, registered in `TURN_PASSES` as `"lateParty"` and
+run **after everything else**, so everybody this close killed is already dead
+and anybody who came back some other way this turn is already out of the hat.
+
+It does nothing unless a **MUSTER** late party is live. Then it rolls the names
+put down in `LatePartyEntry` into the party's fates with the lobby's own roll,
+and writes each winner an ASSIGNED `LobbyEntry` carrying the party's id. It
+sends nothing itself: the lobby sweep delivers each seat's "You're in" DM, as
+it does any seat not yet announced. See `LATE-PARTIES.md` §4.

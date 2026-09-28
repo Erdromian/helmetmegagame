@@ -681,7 +681,8 @@ Picking a role decides almost everything:
   `treasury` for nearly every seat (hard-backed by the real `obol` tags in
   the Keep's Vault), `offshore` for the Merchant and his Dockers (no vault
   behind it). Absent for the Black Hills — the Tribunal
-  arrives with no account at all, and open one later at the counter's
+  arrives with no account at all — and for the Slave, the Bum and the
+  Migrant. Any of them can open one later at the counter's
   **Create an account** button, the same as any spawned antagonist. The
   account opens with the role's `starting_account:` obols already in it
   (`web/app/(app)/character/createActions.js` bumps the new account by
@@ -857,6 +858,13 @@ new character on death, into whatever seat is open — in a full game Bum or
 Migrant, since those are the only two that reopen (§"Who occupies a seat"),
 but a role nobody ever took is fair game. That, rather than the +4 points it
 also carries, is what the tag buys.
+
+**A late party lifts it for everybody while it runs**
+([`LATE-PARTIES.md`](LATE-PARTIES.md)). A superadmin opens one, creation
+offers only its fates, and any player without a living character may take one
+at once, buried or not — a GM-forced curse included. The rule in `curse.js`
+does not change; the creation gates skip it for a party fate, as they do for a
+late join.
 
 **Players lift it themselves, by burying the body — or, failing that, by
 carving a stone.** Two requests do it (`REQUESTS.md` §5d,

@@ -398,7 +398,8 @@ physical obols in `starting_tags`, granted with a `Name xN` suffix
 
 **Who gets one at creation** is `bank_account:` in `docs/roles.yaml`:
 `treasury` for nearly every seat, `offshore` for the Merchant and his Dockers,
-and **absent for the Black Hills** — the Tribunal arrives without one. Anyone else (a spawned antagonist, a threat handed a body
+and **absent for the Black Hills** — the Tribunal arrives without one — and
+for the Slave, the Bum and the Migrant, who start with nothing to their name. Anyone else (a spawned antagonist, a threat handed a body
 mid-game) opens one at the counter with a **Create an account** button: one
 click, no cost, opens empty.
 
