@@ -472,6 +472,10 @@ function concealedRows(rows, { withTokens, lookRefs = false }) {
             ? roleGroupHue(c.role?.groupSlug)
             : null,
         stranger: Boolean(c.stranger),
+        // A disguise this viewer can name reads as a name, not an alias, so a
+        // readout lists it among the names (whosHereLines). The row's own name
+        // already says as much, so the flag tells the page nothing new.
+        named: Boolean(c.disguise?.known),
       };
     });
 }
@@ -525,10 +529,12 @@ async function hiddenFrom(prisma, viewer, characterId, { sightings = null, inclu
 // The Discord button's readout, built off the same rows so the channel and the page can never disagree.
 function whosHereLines({ named, concealed, across = [], rooms = [] }) {
   const lines = [];
-  if (named.length > 0) {
-    lines.push(`**Here:** ${named.map((c) => c.name).join(" | ")}`);
-  }
-  if (concealed.length > 0) lines.push(`**Also here:** ${concealed.map((c) => c.alias).join(" | ")}`);
+  // A disguise the viewer can name is listed with the names, not the aliases:
+  // "Also here" beside a face they know would give it away.
+  const names = [...named.map((c) => c.name), ...concealed.filter((c) => c.named).map((c) => c.alias)];
+  const aliases = concealed.filter((c) => !c.named).map((c) => c.alias);
+  if (names.length > 0) lines.push(`**Here:** ${names.join(" | ")}`);
+  if (aliases.length > 0) lines.push(`**Also here:** ${aliases.join(" | ")}`);
   for (const group of across) {
     const people = [
       ...group.named.map((c) => c.name),

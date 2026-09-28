@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import ActionDialog from "./ActionDialog";
+import Select from "../Select";
 import useSubmit from "./useSubmit";
 import { noticeLine } from "./noticeLines";
 import { NAME_LIMITS, TITLE_WORDS } from "@/lib/characterName";
@@ -35,14 +36,14 @@ export default function DisguiseDialog({ mode, onDone, onClose }) {
     >
       <label className="field">
         <span className="field-label">Title</span>
-        <select value={honorific} onChange={(e) => setHonorific(e.target.value)}>
+        <Select value={honorific} onChange={(e) => setHonorific(e.target.value)}>
           <option value="">(none)</option>
           {TITLE_WORDS.map((word) => (
             <option key={word} value={word}>
               {word}
             </option>
           ))}
-        </select>
+        </Select>
       </label>
       <label className="field">
         <span className="field-label">First name</span>

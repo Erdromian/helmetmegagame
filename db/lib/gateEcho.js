@@ -71,6 +71,8 @@ async function echoSpeech(prisma, prepared, row) {
         content: echoContent(row.content),
         character: prepared.character,
         concealedAlias: row.concealedAlias ?? null,
+        // Heard through the gate in disguise is still a disguise (STRANGERS.md §10).
+        disguised: Boolean(row.disguised),
         presentedAvatarPath: row.presentedAvatarPath ?? null,
         presentedState: prepared.presentedState ?? null,
         placeKey,

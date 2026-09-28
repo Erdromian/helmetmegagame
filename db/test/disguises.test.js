@@ -17,7 +17,7 @@ const {
   DISGUISE_STRANGER_FACE,
 } = require("../lib/disguises");
 const { normalizeDisguiseName } = require("../lib/disguiseMint");
-const { whosHere, resolveHoodToken, hiddenFrom } = require("../lib/whosHere");
+const { whosHere, whosHereLines, resolveHoodToken, hiddenFrom } = require("../lib/whosHere");
 const { attachSpeaker, attachDisguised, createLens, lensRow, lensTyping, keptSpeaker } = require("../lib/strangers");
 const { matchesArrival, seenByMany } = require("../lib/intercept");
 const { presentedIdentity } = require("../lib/presentedIdentity");
@@ -234,6 +234,13 @@ test("a disguise is always under a token, named to who knows it and a stranger t
   assert.equal(await resolveHoodToken(db, mia, row.token, none), "xan");
   assert.equal(await hiddenFrom(db, mia, "xan", none), true);
   assert.equal(await hiddenFrom(db, wren, "xan", none), true, "even to somebody it fools");
+});
+
+test("the readout lists a disguise you can name with the names, not under 'Also here'", async () => {
+  const db = fakeDb({ people: [aldric, xan, wren, mia], entries: [knowsAldric] });
+  const lines = whosHereLines(await whosHere(db, wren));
+  assert.ok(lines[0].startsWith("**Here:**") && lines[0].includes("Sir Aldric Vask"), lines.join(" / "));
+  assert.ok(!lines.some((l) => l.startsWith("**Also here:**") && l.includes("Aldric")));
 });
 
 test("you see your own disguise as your name, and nobody to recognise with reads it too", async () => {
