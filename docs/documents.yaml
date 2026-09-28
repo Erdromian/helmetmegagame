@@ -1,8 +1,8 @@
 explanation:
   tag: Anyone with this tag gets this Document.
   public: If assigned, this will appear in a player's document folder. However, using the search function, anyone can browse and find this document.
-# Documents are a map keyed by their document key (`lore:`, not
-# `- key: lore`) — see docs/tags.yaml's header, and db/lib/yamlEntries.js.
+# Documents are a map keyed by their document key (`evergreen:`, not
+# `- key: evergreen`) — see docs/tags.yaml's header, and db/lib/yamlEntries.js.
 documents:
   # FATES — one per role, reached by `roles:` rather than the role's
   # doc_elements, which count toward the role's power score
@@ -310,22 +310,53 @@ documents:
     roles: [inn-staff]
     description: |-
       Eternally overworked, you rarely get a chance to get out of the inn for recreational time. Running between the kitchen and dining room, serving drinks and food, working the inn is both the coziest and most stressful job in Ravenheart. Perhaps tonight is the night you sneak out, and have some fun instead?
-  lore:
-    name: Lore
+  # THE SETTING — four public papers, Bascinet's text from
+  # E:\Bascinet\V3\Lore Docs\ (Evergreen, God-King, Post Christianity and
+  # Ravenheart .docx). Evergreen and Ravenheart replace the old single `lore`
+  # paper. God-King and Post-Christianity keep their keys because a dozen
+  # roles' doc_elements point at them; they are public now as well. Edits are
+  # straight quotes, the epigraph's dash, and three typos (planet's,
+  # capital, God-King).
+  evergreen:
+    name: Evergreen
     public: true
     tags: []
     description: |-
-      Humanity retreated into the caves after the Long Night. Evergreen was once beautiful and lush, but for unknown reasons, the surface froze and became barren, destroying its ecosystems.
+      We are on Evergreen. A distant planet from humanity's origin of Earth, it has for centuries been shrouded in darkness and isolated. As the sun-deprived surface froze over, almost all of humanity upon Evergreen moved underground. In a state of planetary stasis humanity has regressed to a neo-feudal state, only that which benefits those in power has been maintained and preserved.
 
-      Far from the sun, electric lights illuminate Ravenheart, an ethereal castle ruled by its Baron. The only source of power is the Lifeweb — a revolutionary invention which turns human blood into electricity. While the nobility enjoy electrical appliances in the Keep and the merchant sells weird wares and lost technology, the life of a common Ravenhearter is medieval. Most of them use fire for light and simple tools for their work. They are superstitious and mostly illiterate. The Post-Christian Church is the official faith of Ravenheart, though some keep to the Old Ways in secret. Most of their days are spent working hard, but there is time for merry every once in a while. The current year is 1098.
+      Under the steady hand of the God-King, Evergreen has been shielded from the horrors of the cosmos, but all things must come to an end one way or another.
   godking:
     name: God-King
-    public: false
+    public: true
     tags: []
     description: |-
-      Ravenheart's liege is God-King Enoch II, a mercurial and unpredictable ruler. Usually, he is quite calm and allows Ravenheart to do whatever it pleases. Wartime is a different matter however — and as of this year, he is busy trading howitzer blows with a rival state several mountain ranges south of Ravenheart. The Arbiter represents his interests in court and arranges the royal tithe if such a thing becomes necessary.
+      "The God-King watches over all. One eye turned to the soil below, one to the skies above. You don't need to understand his will. In fact, I'm here because I don't expect you to." — A Tribunal officer, visiting Ravenheart
 
-      He is accepted by the Post-Christian Church as an aspect or son of God. He took the place of Jesus who never came back, according to Post-Christian interpretations. His title is holy, as is his family, all members of which are considered godlike. Speaking out against him or disobeying his orders means certain death at the hands of his Tribunal.
+      The God-King Enoch is the absolute monarch of Evergreen. He has ruled for centuries and no memory of the world before his rise to power is left in the public consciousness. He rules from the planet's capital, Gahan. The idea of opposing him is near unthinkable, it would be as if to oppose Evergreen itself.
+
+      The title of God-King was appointed to him long ago by the church itself, when the reality dawned that he was no mere mortal king. The church and the God-King exist in a symbiotic relationship, both feeding power and legitimacy to the other and centralizing the planet around themselves. While he is not considered an embodiment of God-in-Coma, his absolute rule grants him a prophet-like status and unending devotion from the faithful.
+  postchristianity:
+    name: Post-Christianity
+    public: true
+    tags: []
+    description: |-
+      God has surely not abandoned us; he merely slumbers in deep restless sleep.
+
+      The Grey Postchristian Church (GPC) is the only legally recognized religion on Evergreen. For centuries it has served as the planet's moral compass, guiding it through its blind and confused isolation.
+
+      Postchristians believe that God-in-Coma is trapped in an eternal nightmare, and when he wakes, he will vanquish the horrors of the cosmos and unveil a new age of paradise. For this to happen, the dark forces binding him must be driven from this world, this task falling to the Church and Inquisition.
+
+      Postchristianity bears almost no resemblance to real life Christianity beyond the general appearances. The doctrine calls for mercy on the holy and suffering for the wicked. Any who openly defy the church are labelled heretics and purged, lest they damn us all.
+  ravenheart:
+    name: Ravenheart
+    public: true
+    tags: []
+    description: |-
+      Ravenheart is the fortress in which the game takes place, a minor settlement located in the north of Evergreen. Buried deep below the surface ruled by the Baron it offers some semblance of refuge amongst the hostile caves that surround it. All other sources of energy exhausted long ago, the Lifeweb remains as Ravenheart's only source of electricity, feeding on the very lifeforce of the population.
+
+      Based on its isolation, Ravenheart has significant autonomy from the rest of the God-King's domain. The Baron is still by law a vassal to both the Duke, and the God-King himself, but rarely do either interfere with the goings on of the fortress.
+
+      The current year is 1098. The fortress still glows in the dark, damp caves, but it will wink out like a candle should the Lifeweb cease to sustain it.
   sanctuary:
     name: Sanctuary
     public: true
@@ -432,17 +463,6 @@ documents:
       All Cerberi are expected to be, at minimum, functioning men. They are all loyal to the Baron. The Censor can freely fire, hire, and equip more Cerberi. Consider buying firearms from the Merchant.
 
       Cerberi also carry a {tag:radio-bracelet-cerberon}, which connects to the Censor's {tag:radio-system-cerberon}.
-  postchristianity:
-    name: Post-Christianity
-    public: true
-    tags: []
-    description: |-
-      Post-Christianity believes in God and Christ. Its doctrines are non-specific, as different people practice in different ways. However, there's a few commonalities:
-
-      - The virtues are as important now as they ever were. The world is a dark place, but it still has room for goodness.
-      - Christ never returned. The Earth was ruined, and we were left behind. It is our responsibility to redeem ourselves and await the afterlife.
-      - There is a heaven, so we can endure anything that happens here — just remain pure.
-      - There is also a hell, so we must protect others from descending into the spiritual darkness that's consumed the rest of the world.
   caving:
     name: Caving
     public: true
