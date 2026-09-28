@@ -123,6 +123,9 @@
      distance from the places list. */
   --chat-face: 48px;
   --chat-gutter: calc(var(--chat-face) + var(--sp-2));
+  /* The gap wherever the feed turns from what players wrote (a say, an OOC
+     line) to what the game said (scenery, a shout), or back. */
+  --chat-kind-gap: var(--sp-5);
 
   /* The touch floor, DESIGN-SYSTEM §9. --tap is a whole control; --tap-sm is
      for a chip or an inline toggle that sits inside prose. */
@@ -277,8 +280,10 @@
 
      --chat-said was #77623f (3.37:1). Players read long emotes in it and found
      the dark yellow straining, so it is lifted to AA (4.93:1) and pulled a
-     little toward grey, still brown and still well under the pale speech. */
-  --chat-said: #8f7d5e;
+     little toward grey, still brown and still well under the pale speech.
+     Bascinet then took it to an olive #888e59 on the Chat Style Bench
+     (2026-09-28). */
+  --chat-said: #888e59;
   --chat-speech: #b8a8a0;
   --chat-scenery: #746460;
   --fs-chat: 0.8125rem; /* 13px */

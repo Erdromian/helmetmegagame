@@ -1269,6 +1269,20 @@
   padding-left: var(--chat-gutter);
 }
 
+/* Where the scene turns from what players wrote — a say, or an OOC line — to
+   what the game said — scenery, a shout — or back again, it stands off by
+   --chat-kind-gap, wider than the gap between two speakers. The two kinds read
+   as separate voices rather than one run of text. Two game lines in a row, or
+   two players, keep their ordinary spacing. */
+:where([data-chat-next] .chat-feed)
+  :is(.tline[data-density="feed"], .tline--system[data-kind="ooc"])
+  + .tline--system:not([data-kind="ooc"]),
+:where([data-chat-next] .chat-feed)
+  .tline--system:not([data-kind="ooc"])
+  + :is(.tline[data-density="feed"], .tline--system[data-kind="ooc"]) {
+  margin-top: var(--chat-kind-gap);
+}
+
 /* The game's own lines IN CHAT — arrivals, the vending machine, a smell, the
    turret — off the Chat Type Bench (Chat Overhaul.docx): bold, in their own
    ink. Scoped to the chat feed, since the archive and the desk draw these rows
@@ -1515,6 +1529,16 @@
   padding-left: 6px;
   border-left: 2px solid var(--border-hi);
   color: var(--ooc);
+  /* Heaviest weight, off the Chat Style Bench (2026-09-28). Verdana ships a
+     regular and a bold only, so this draws as its bold. */
+  font-weight: 900;
+}
+
+/* Quoted words in an OOC line stay in the OOC ink rather than taking the
+   in-character --speech orange: a player quoting something over the table is
+   not a character speaking. */
+.tline--system[data-kind="ooc"] .speech {
+  color: inherit;
 }
 
 /* In the chat feed the words keep to the text column with everything else,
