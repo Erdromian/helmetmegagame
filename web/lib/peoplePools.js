@@ -208,9 +208,10 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
   // instead of wrapping the value in "character:". A token is null when
   // AUTH_SECRET is unset, and an untokened hood is not offerable.
   //
-  // Plus, alone among the verbs, the people on the far side of a counter you
-  // are at (the Merchant's Counter, Depot Overhaul.docx), keyed "across:<ref>"
-  // and noted with the room (db/lib/whosHere.js#acrossRecipients).
+  // Plus, alone among the verbs, the people on the far side of any
+  // multi-locational room you are in (the Merchant's Counter, the Gate, the
+  // Windows — every room with a side), keyed "across:<ref>" and noted with the
+  // room (db/lib/whosHere.js#acrossRecipients).
   const transferParties = [
     selfEntry,
     ...roomNow.named.map((c) => ({ id: c.characterId, name: c.name })),

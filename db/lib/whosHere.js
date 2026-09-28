@@ -171,7 +171,8 @@ async function whosHere(prisma, viewer, { withHoodIds = false, withAcross = fals
   if (withAcross) {
     const locationId = options.locationId ?? viewer?.locationId ?? null;
     // Through a counter: everybody on the far side of a room this viewer is in (db/lib/roomSides.js).
-    // The same rule as the gate — listed and inspectable, never in hoodIds, so no picker can offer them.
+    // The same rule as the gate — listed and inspectable, never in hoodIds, so no picker can offer them —
+    // except Transfer's, which reaches them by an `across:` key (acrossRecipients below).
     result.rooms = (await crossRoomGroups(prisma, viewer, { locationId, sightings: sightings ?? new Map() })).map(
       (group) => ({
         roomId: group.roomId,
@@ -263,11 +264,13 @@ async function resolveCrossRoomRef(prisma, viewer, token, { sightings = null } =
   return null;
 }
 
-// TRANSFER ACROSS A COUNTER (Depot Overhaul.docx: the Merchant's Counter —
-// "items can be transferred to characters on either side"). The one verb that
-// reaches the far side of a room that opens onto two Locations; every other
-// verb on a person stays Location-grain (MAP.md §2d), and nothing else reads
-// these two.
+// TRANSFER ACROSS A MULTI-LOCATIONAL ROOM. Every room that opens onto more than
+// one Location lets you hand things to a person on its other side — the default,
+// with no per-room switch: the Merchant's Counter (Depot Overhaul.docx, "items
+// can be transferred to characters on either side") was first, and the Gate,
+// the Gatehouse Window and the Meistery Window work the same way. The one verb
+// that reaches across; every other verb on a person stays Location-grain
+// (MAP.md §2d), and nothing else reads these two.
 //
 // The key is `across:<ref>`: a named row's character id, or a hooded one's
 // token — which is minted exactly as the counter's lookRef is, so the picker
@@ -290,8 +293,8 @@ async function acrossRecipients(prisma, viewer, { sightings = null } = {}) {
   return out;
 }
 
-// Who `ref` (the part after `across:`) names on the far side of a counter this
-// viewer is at, or null. Resolved against the same rows the picker was built
+// Who `ref` (the part after `across:`) names on the far side of a multi-locational
+// room this viewer is in, or null. Resolved against the same rows the picker was built
 // from, so a ref for somebody who has since walked off names nobody.
 async function resolveAcrossRecipient(prisma, viewer, ref, { sightings = null } = {}) {
   if (!ref || !viewer?.locationId) return null;
@@ -376,9 +379,9 @@ function labelledAliases(rows) {
   return new Map(rows.map((c, i) => [c.id, names[i]]));
 }
 
-// `lookRefs` is the counter's middle ground (crossRoomGroups): no token — so no
-// menu and no picker — but a `lookRef` a look may name them by, and the
-// stranger's face served under it.
+// `lookRefs` is a multi-locational room's middle ground (crossRoomGroups): no
+// token — so no verb's picker — but a `lookRef` a look may name them by, the
+// stranger's face served under it, and the `across:` key Transfer alone takes.
 function concealedRows(rows, { withTokens, lookRefs = false }) {
   const hooded = rows.filter((c) => c.hidden && !c.forced);
   const shown = labelledAliases(hooded);
