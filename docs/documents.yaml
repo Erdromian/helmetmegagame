@@ -12,9 +12,10 @@ documents:
   # E:\Bascinet\V3\Fates.docx. Edits are the {tag:…} tokens, straight quotes
   # and a handful of typo fixes. The V2 Scholastic, Fisherman and Headman fates
   # are not here: no role has those slugs.
-  # First in the file so a fate sits right under the pinned role charter.
+  # Each is named for its role alone ("Baron", not "Fate: Baron"), and
+  # /documents pins it first in Assigned in place of the role charter.
   fate-baron:
-    name: "Fate: Baron"
+    name: Baron
     public: false
     tags: []
     roles: [baron]
@@ -23,7 +24,7 @@ documents:
 
       Regardless of your characteristics, as a Baron you must be decisive and willing to have your men crack as many heads as needed in order to get what you want. This is a story about you, and you must steer it as such!
   fate-baroness:
-    name: "Fate: Baroness"
+    name: Baroness
     public: false
     tags: []
     roles: [baroness]
@@ -32,7 +33,7 @@ documents:
 
       However, this doesn't mean you can't play a significant and even pivotal role in the story, it only means it is up to you to make that happen. Pester your husband to lend his ear to you for once instead of his foolish courtiers, scheme behind his back either in support or against him. Act first and ask for permission later, as his wife you have similar authority to the Baron.
   fate-heir:
-    name: "Fate: Heir"
+    name: Heir
     public: false
     tags: []
     roles: [heir]
@@ -41,7 +42,7 @@ documents:
 
       Parties, adventures, vices and all the other things that you won't be able to do when you are forced to take up responsibilities, they are your forte. The world is your oyster, and you can actually afford to make an impact on it!
   fate-successor:
-    name: "Fate: Successor"
+    name: Successor
     public: false
     tags: []
     roles: [successor]
@@ -50,7 +51,7 @@ documents:
 
       You still have your freedom to impact the world around you; you would be wise to make good use of it. Leave your mark on the world and maybe people will start to realise you are more than just some pretty-faced noble lady.
   fate-hand:
-    name: "Fate: Hand"
+    name: Hand
     public: false
     tags: []
     roles: [hand]
@@ -59,7 +60,7 @@ documents:
 
       You are perhaps the only person in Ravenheart who can save the Baron from himself, good luck.
   fate-meister:
-    name: "Fate: Meister"
+    name: Meister
     public: false
     tags: []
     roles: [meister]
@@ -68,7 +69,7 @@ documents:
 
       Micromanagement is key, the Banneret cannot be relied upon if experience has taught you anything. Make sure your presence is overbearing and scrutinize every {tag:obol} and resource they send your way. If the treasury winds up empty, you will be the one taking the fall along with the Banneret.
   fate-arbiter:
-    name: "Fate: Arbiter"
+    name: Arbiter
     public: false
     tags: []
     roles: [arbiter]
@@ -77,21 +78,21 @@ documents:
 
       If things are going wrong in Ravenheart, it is the Baron's fault and you must ensure he is accountable for it.
   fate-courtier:
-    name: "Fate: Courtier"
+    name: Courtier
     public: false
     tags: []
     roles: [courtier]
     description: |-
       The Baron saw fit to recruit you to his court, and now he expects you to earn your keep. Show your liege how indispensable your skills, talents and advice are, or you might be quietly sent away.
   fate-minstrel:
-    name: "Fate: Minstrel"
+    name: Minstrel
     public: false
     tags: []
     roles: [minstrel]
     description: |-
       The court's entertainer, not everyone understands the appeal, but for some reason the Baron can't get enough of you! The keep can be a very tense place, and the Baron is no stranger to losing his temper. You must keep this place sane by providing the occasional whimsical routine, if tensions get too high perhaps the Baron will find your head on a spike to be the most entertaining thing to do with you.
   fate-servant:
-    name: "Fate: Servant"
+    name: Servant
     public: false
     tags: []
     roles: [servant]
@@ -100,7 +101,7 @@ documents:
 
       Chop Chop!
   fate-bishop:
-    name: "Fate: Bishop"
+    name: Bishop
     public: false
     tags: []
     roles: [bishop]
@@ -109,14 +110,14 @@ documents:
 
       The inquisitor arrived in Ravenheart not too long ago, he will be your greatest ally in saving Ravenheart from damnation. Make sure you hold regular sermons, or the faithful will surely start losing sight of God-in-Coma.
   fate-chaplain:
-    name: "Fate: Chaplain"
+    name: Chaplain
     public: false
     tags: []
     roles: [chaplain]
     description: |-
       Man of the cloth, you have seen the light of God in Coma and dedicated your life to honouring him. Many in Ravenheart find themselves jaded and lost, it is your duty to provide them with a path back to grace. Counsel those who bear guilt, nourish those who might go hungry and enlighten those who have lost faith. All the while, inform the inquisition of exactly who might be a little too far from God…
   fate-inquisitor:
-    name: "Fate: Inquisitor"
+    name: Inquisitor
     public: false
     tags: []
     roles: [inquisitor]
@@ -127,7 +128,7 @@ documents:
 
       God be saved, dear inquisitor. You must succeed or else damnation is all but assured for this wretched place.
   fate-practicus:
-    name: "Fate: Practicus"
+    name: Practicus
     public: false
     tags: []
     roles: [practicus]
@@ -136,7 +137,7 @@ documents:
 
       There is no such thing as unwarranted suspicion, and deeper evil is almost always behind those who seem out of place.
   fate-preacher:
-    name: "Fate: Preacher"
+    name: Preacher
     public: false
     tags: []
     roles: [preacher]
@@ -147,7 +148,7 @@ documents:
 
       Call out the sinful, shame them for all to see!
   fate-censor:
-    name: "Fate: Censor"
+    name: Censor
     public: false
     tags: []
     roles: [censor]
@@ -156,7 +157,7 @@ documents:
 
       Give regular assignments to your cerberii and receive any reports of incidents in town. You are the Baron's first line of defence against those who seek to undermine his rule.
   fate-incarn:
-    name: "Fate: Incarn"
+    name: Incarn
     public: false
     tags: []
     roles: [incarn]
@@ -165,7 +166,7 @@ documents:
 
       As a warrior of God, one of the only things that can lure you from your post is the fear of missing one of the Bishop's sermons. God be saved, dear Incarnatus!
   fate-cerberus:
-    name: "Fate: Cerberus"
+    name: Cerberus
     public: false
     tags: []
     roles: [cerberus]
@@ -176,7 +177,7 @@ documents:
 
       Your zeal for serving your liege does not rival that of your captain. Nevertheless, your life revolves around your service to the Baron and you should follow all but the most preposterous orders without question.
   fate-squire:
-    name: "Fate: Squire"
+    name: Squire
     public: false
     tags: []
     roles: [squire]
@@ -187,7 +188,7 @@ documents:
 
       You lack the zeal and unquestioning loyalty of the cerberii to your liege, but you are no old dog and learning tricks is what you are good at.
   fate-esculap:
-    name: "Fate: Esculap"
+    name: Esculap
     public: false
     tags: []
     roles: [esculap]
@@ -198,7 +199,7 @@ documents:
 
       Organise your serpents, delegating healing and preparation of tonics and medicines. Set reasonable but also profitable prices for each treatment, or your beloved sanctuary may go under. If all else fails, human organs will always fetch a high price, and there are plenty to go around.
   fate-serpent:
-    name: "Fate: Serpent"
+    name: Serpent
     public: false
     tags: []
     roles: [serpent]
@@ -207,7 +208,7 @@ documents:
 
       Stay up to date with the prices for each treatment as prescribed by your mentor. Consistent profits are what keeps the sanctuary running, and those who cannot pay should be turned away. Run errands, craft tonics and heal those the Esculap is too busy for. Anything in service of your beloved Sanctuary.
   fate-merchant:
-    name: "Fate: Merchant"
+    name: Merchant
     public: false
     tags: []
     roles: [merchant]
@@ -222,7 +223,7 @@ documents:
 
       Your only loyalty is to your own profits. The people here are only as good to you as their ability to make you money, and you couldn't care less for their own internal squabbling unless it threatens your bottom line.
   fate-docker:
-    name: "Fate: Docker"
+    name: Docker
     public: false
     tags: []
     roles: [docker]
@@ -231,7 +232,7 @@ documents:
 
       Do your best not to attract the ire of your boss. To lose your job would leave you stuck here, destitute and aimless. When you are being ordered around the depot, see what sort of entertainment there is to be had in town with your fellow dockers. The merchant has learned to accept you getting into the occasional bar fight as long as you get back in time to haul freight.
   fate-banneret:
-    name: "Fate: Banneret"
+    name: Banneret
     public: false
     tags: []
     roles: [banneret]
@@ -242,7 +243,7 @@ documents:
 
       Migrants are continually arriving in Ravenheart, seeking shelter from the terrors further South. See that their ultimate destination is the factory floor, replacing the regular casualties that occur here. You will likely need to coordinate this effort with the captain and garrison. Those who refuse to work to earn their keep in Ravenheart need to be made examples of.
   fate-geschef:
-    name: "Fate: Geschef"
+    name: Geschef
     public: false
     tags: []
     roles: [geschef]
@@ -253,7 +254,7 @@ documents:
 
       Don't be afraid to put the boot to any who show signs of insubordination, injury is a normal part of this line of work and the workers organizing a strike would be the fastest way for you to end up with your head on a spike.
   fate-refugee:
-    name: "Fate: Refugee"
+    name: Refugee
     public: false
     tags: []
     roles: [refugee]
@@ -264,7 +265,7 @@ documents:
 
       Escape is always an option, but as the strung-up corpses of ungrateful refugees who refused to work outside the factory demonstrates, it comes with its own risks. For now, just hope you can make it another day without losing any fingers.
   fate-sheriff:
-    name: "Fate: Sheriff"
+    name: Sheriff
     public: false
     tags: []
     roles: [sheriff]
@@ -275,7 +276,7 @@ documents:
 
       Walk this tightrope carefully, protecting those dear to you, while saving your own neck. Your people need you, good luck.
   fate-soiler:
-    name: "Fate: Soiler"
+    name: Soiler
     public: false
     tags: []
     roles: [soiler]
@@ -284,7 +285,7 @@ documents:
 
       Sell your produce to any who can pay. Your most common customers are the inn staff and keep servants, both seeking to satisfy the appetites of those they serve. As the sole source of food in the fortress, you have a lot of leverage in how much people pay for food, exploit it.
   fate-mortus:
-    name: "Fate: Mortus"
+    name: Mortus
     public: false
     tags: []
     roles: [mortus]
@@ -295,7 +296,7 @@ documents:
 
       Your loyalty is solely to the Lifeweb, providing her with a steady flow of blood is all you care for anymore. As for providing for yourself, you are under the employment of the Baron, as your work is vital to the upkeep of his barony. Seek to arrange a liveable wage through him, supplemented with the belongings of donors fed to the Lifeweb.
   fate-innkeeper:
-    name: "Fate: Innkeeper"
+    name: Innkeeper
     public: false
     tags: []
     roles: [innkeeper]
@@ -304,7 +305,7 @@ documents:
 
       Running the only place in town that reliably serves hot food allows you to charge extortionate prices if you so choose, much to the dismay of the townsfolk.
   fate-inn-staff:
-    name: "Fate: Inn Staff"
+    name: Inn Staff
     public: false
     tags: []
     roles: [inn-staff]
