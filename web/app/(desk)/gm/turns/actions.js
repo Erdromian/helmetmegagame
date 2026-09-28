@@ -24,7 +24,12 @@ import { publicPostTargets } from "@lifeweb/db/lib/publicPostTargets";
 import { broadcastDecree } from "@lifeweb/db/lib/decree";
 import { DECREE_BODY_MAX, DECREE_TITLE_MAX } from "@lifeweb/db/lib/decreeText";
 import { getGmSession, killCharacter, listGuildMembers, sendDm } from "@/lib/discordGuild";
-import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireReview";
+import {
+  DesireRevokeRefused,
+  desireAnswerable,
+  desireAnswerableWhere,
+  revokeDesireCore,
+} from "@lifeweb/db/lib/desireReview";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { turnAt } from "@/lib/auditQuery";
 import { dropCharacterTag } from "@/lib/tagEffects";
@@ -1990,12 +1995,13 @@ async function rejectAvatarImpl({ characterId }) {
 // back off.
 
 // Idempotent by construction: the updateMany only flips a row still waiting
-// (reviewedAt null), so a second press — another GM, or a double-click —
+// (reviewedAt null) or auto-confirmed with no person behind it yet
+// (DESIRES.md §6b), so a second press — another GM, or a double-click —
 // finds nothing left to claim and simply reports it, rather than throwing.
 async function keepDesireClaimImpl({ desireId }) {
   const session = await requireGm();
   const { count } = await prisma.desire.updateMany({
-    where: { id: String(desireId ?? ""), reviewedAt: null },
+    where: { id: String(desireId ?? ""), ...desireAnswerableWhere() },
     data: { reviewedAt: new Date(), reviewedBy: session.discordUserId },
   });
   return { ok: true, kept: count > 0 };
@@ -2009,7 +2015,8 @@ async function rejectDesireClaimImpl({ desireId }) {
     include: { character: { select: { id: true, name: true, discordUserId: true, status: true } } },
   });
   if (!desire) throw new UserError("That claim is gone.");
-  if (desire.reviewedAt) throw new UserError("That claim was already reviewed.");
+  // An auto-confirmed claim no GM has checked is still open to a Reject.
+  if (!desireAnswerable(desire)) throw new UserError("That claim was already reviewed.");
 
   await prisma.$transaction(async (tx) => {
     // Same row lock revokeDesireGmImpl takes, so a Reject here and a Dev

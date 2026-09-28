@@ -667,6 +667,9 @@ async function acceptLesson(prisma, offer, responder) {
           tagId: tag.id,
           tagName: tag.name,
           threshold,
+          // Whether the skill actually landed — what an auto-confirmed Learn
+          // or Teach Desire reads (DESIRES.md §6b). Also on Offer.outcome.
+          succeeded,
           learnerActionId: learnerAction.id,
           teacherActionId: teacherAction?.id ?? null,
         },

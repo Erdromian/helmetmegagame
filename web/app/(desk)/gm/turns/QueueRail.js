@@ -162,9 +162,11 @@ function CombatRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
 
 // The Desires lens — fulfilled, catalog-backed claims waiting on a GM
 // (docs/systemdocs/DESIRES.md §6). Unreviewed sorts first; a reviewed row
-// stays in the list, dimmed, rather than dropping out.
-const DESIRE_STATUS_OPTIONS = ["Waiting", "Reviewed"];
-const DESIRE_STATUS_RANK = { Waiting: 0, Reviewed: 1 };
+// stays in the list, dimmed, rather than dropping out. Auto-confirmed claims
+// (§6b) found their own proof and sit between the two: dimmed like a reviewed
+// row, but still answerable, so a GM can filter to them and check.
+const DESIRE_STATUS_OPTIONS = ["Waiting", "Auto-confirmed", "Reviewed"];
+const DESIRE_STATUS_RANK = { Waiting: 0, "Auto-confirmed": 1, Reviewed: 2 };
 const DESIRE_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.zoneName },
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: DESIRE_STATUS_OPTIONS },
@@ -175,6 +177,7 @@ const desireSearchMap = (r) => ({
   zone: r.zoneName,
   status: r.statusLabel,
   text: r.reason,
+  auto: r.autoNote,
 });
 
 // The Other lens — everything holding somebody in place this turn
@@ -479,13 +482,16 @@ function AvatarReviewRow({ row, matchFor, onInspect, active, kbd }) {
 // An already-reviewed row keeps its place in the rail (desireReviewWhere()
 // deliberately doesn't filter reviewedAt out) but loses its buttons and
 // dims via [data-auto] — the same "already dealt with, no GM attention
-// needed" affordance a Travel Move's row already wears.
+// needed" affordance a Travel Move's row already wears. An auto-confirmed
+// row (DESIRES.md §6b) dims the same way but KEEPS both buttons: Keep marks
+// it checked by a person, Reject takes the points back.
 function DesireClaimRow({ row, matchFor, onInspect, onSelect, active, kbd }) {
   const confirm = useConfirm();
   const [refresh] = useRefresh();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
   const reviewed = Boolean(row.reviewedAt);
+  const answerable = !reviewed || row.auto;
 
   const open = () => {
     onSelect?.({ type: "desire", id: row.id });
@@ -546,10 +552,11 @@ function DesireClaimRow({ row, matchFor, onInspect, onSelect, active, kbd }) {
               {row.desireName} · {row.points} pt{row.points === 1 ? "" : "s"}
             </span>
             <span className="block truncate text-xs text-muted">{error ?? (row.reason ? `» ${row.reason}` : "No reason given")}</span>
+            {row.auto && <span className="block truncate text-xs text-muted">Auto-confirmed: {row.autoNote}</span>}
           </span>
         </span>
       </button>
-      {!reviewed && (
+      {answerable && (
         <span className="desk-queue-actions">
           <IconButton icon={CheckIcon} label="Keep" disabled={busy} onClick={() => answer(keepDesireClaim)} />
           <IconButton icon={CloseIcon} label="Reject" disabled={busy} onClick={reject} />

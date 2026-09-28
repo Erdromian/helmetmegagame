@@ -26,6 +26,11 @@ import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDes
 // desk (what the character actually said) is the real answer, and a GM
 // reading the `reason` field is still the enforcement DESIRES.md §8
 // describes.
+//
+// An AUTO-CONFIRMED claim (DESIRES.md §6b) found its own proof when it was
+// made, so it never asked for this desk. It still opens here: the proof is
+// named at the top, the rows it cited are marked in the audit slice, and
+// Keep/Reject stay live until a person has looked.
 
 export default function DesireDesk({ desire, onInspect, onClose, registerEscape, onOpenDev }) {
   const confirm = useConfirm();
@@ -38,6 +43,8 @@ export default function DesireDesk({ desire, onInspect, onClose, registerEscape,
   }, [registerEscape, onClose]);
 
   const reviewed = Boolean(desire.reviewedAt);
+  const answerable = !reviewed || desire.auto;
+  const proofIds = new Set(desire.autoAuditIds ?? []);
 
   const answer = (fn) => {
     if (pending) return;
@@ -152,6 +159,16 @@ export default function DesireDesk({ desire, onInspect, onClose, registerEscape,
         </div>
       )}
 
+      {desire.auto && (
+        <div className="desk-result mt-4 flex flex-col gap-2">
+          <span className="field-label">Auto-confirmed — the game found this</span>
+          <p className="text-sm">{desire.autoNote || "Proof found when it was claimed."}</p>
+          <p className="text-xs text-muted">
+            No GM has checked it yet. Keep marks it checked; Reject takes the points back.
+          </p>
+        </div>
+      )}
+
       <div className="desk-result mt-4 flex flex-col gap-2">
         <span className="field-label">Reason — how they say they earned it</span>
         <p className="text-sm">{desire.reason || "No reason given."}</p>
@@ -176,15 +193,16 @@ export default function DesireDesk({ desire, onInspect, onClose, registerEscape,
           <div className="desk-audit-slice">
             {sliceRows.map((entry) => {
               const { familyLabel, segments } = describeAudit(entry);
+              const proof = proofIds.has(entry.id);
               return (
-                <div key={entry.id} className="text-xs text-muted flex items-start gap-2 py-1">
+                <div key={entry.id} className={`text-xs flex items-start gap-2 py-1${proof ? " font-medium" : " text-muted"}`}>
                   <span className="mono" title={entry.createdAt}>
                     {new Date(entry.createdAt).toLocaleDateString(undefined, { month: "short", day: "numeric" })}
                   </span>
                   <span className="flex-1 min-w-0">
                     <AuditSegments entry={entry} segments={segments} />
                   </span>
-                  <span className="text-muted">{familyLabel}</span>
+                  <span className="text-muted">{proof ? "Proof" : familyLabel}</span>
                 </div>
               );
             })}
@@ -195,7 +213,7 @@ export default function DesireDesk({ desire, onInspect, onClose, registerEscape,
       <FormError>{error}</FormError>
 
       <div className="mt-4 flex flex-wrap justify-end gap-3">
-        {reviewed ? (
+        {!answerable ? (
           <p className="text-xs text-muted self-center">Already reviewed.</p>
         ) : (
           <>

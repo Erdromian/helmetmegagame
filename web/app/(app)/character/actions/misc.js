@@ -65,6 +65,7 @@ import {
 import { craftMoveCost } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
 import { SFX } from "@lifeweb/db/lib/sfx";
+import { findAutoEvidence } from "@lifeweb/db/lib/desireAutoVerify";
 import { describeTurn } from "@/lib/turnFormat";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
@@ -2278,6 +2279,24 @@ export async function claimDesireImpl({
     });
     assertAvailable(historyInTx);
 
+    // A claim whose proof is already in the game — the act in the audit log
+    // this turn, or the thing on their person — skips the GM queue
+    // (DESIRES.md §6b). Under the row lock above, so two claims landing
+    // together can't both cite the same act. No proof leaves it waiting for a
+    // GM, exactly as before — and so does a matcher that throws, since a bug
+    // in a rule must never cost a player their claim. (A failed QUERY still
+    // aborts the transaction; Postgres allows nothing after one.)
+    const auto = await findAutoEvidence(tx, {
+      rule: template.autoVerify,
+      character,
+      discordUserId: session.discordUserId,
+      openTurn,
+    }).catch((err) => {
+      console.error(`Auto-confirm check failed for ${template.slug}:`, err);
+      return null;
+    });
+    const now = new Date();
+
     // Born ended: the claim IS the fulfilment.
     const row = await tx.desire.create({
       data: {
@@ -2290,6 +2309,15 @@ export async function claimDesireImpl({
         setTurnNumber: openTurn?.number ?? null,
         endedTurnNumber: openTurn?.number ?? null,
         reason,
+        ...(auto
+          ? {
+              autoVerifiedAt: now,
+              autoVerifiedAuditIds: auto.auditLogIds,
+              autoVerifiedNote: auto.note,
+              reviewedAt: now,
+              reviewedBy: null,
+            }
+          : {}),
       },
     });
     await tx.character.update({
@@ -2308,6 +2336,7 @@ export async function claimDesireImpl({
         slug: template.slug,
         slotIndex,
         reason,
+        ...(auto ? { autoVerified: { auditLogIds: auto.auditLogIds, note: auto.note } } : {}),
       },
     });
     return row;

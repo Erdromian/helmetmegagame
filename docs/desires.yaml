@@ -344,6 +344,24 @@ desires:
   # entries below are social or narrative — a GM has to judge those by
   # reading the scene, not by searching a log — and correctly have no
   # `verify:` at all.
+  #
+  # `autoVerify:` (optional, DESIRES.md §6b): lets a claim confirm itself.
+  # When the player claims it, the game looks for proof — the act in the audit
+  # log THIS turn, or, for `holds`, the thing on their person right now — and
+  # if it finds it, the claim skips the GM review queue as "Auto-confirmed".
+  # Not finding proof just leaves the claim waiting for a GM as usual, so only
+  # write one where the proof is beyond argument. One `check` per entry:
+  #   consumed  tags: [...]                ate, drank or smoked one of these
+  #   kissed                               a kiss they were part of was accepted
+  #   slots     minWin: N (optional)       played the Den's slots (one pull paying N ¢ or more)
+  #   bought    tags: [...] (optional)     bought from the Merchant's vending machine
+  #   crafted   tags: [...]                made one of these
+  #   built     structure: slug            finished building this structure
+  #   gave      tags: [...], people: N     handed these to N different people
+  #   holds     tags: [...], quantity: N   holds N or more (default 1) of one of these
+  #   act       action: name               one of the named verbs in db/lib/desireAutoVerify.js#ACTS
+  # Tags are slugs from docs/tags.yaml; the sync refuses an unknown one. One
+  # act can confirm one claim only — a second claim citing it waits for a GM.
   # No entry carries a `description:` — Desires don't need one (removed 2026-09-18).
   # === 4a. Ungated ==========================================================
   con-a-noble:
@@ -365,6 +383,7 @@ desires:
 
   drink-alcohol:
     name: Drink alcohol
+    autoVerify: { check: consumed, tags: [alcohol, sake, moonshine, ravenheart-red] }
     verify: "Alcohol"
     tier: 1
     families: [alcohol]
@@ -372,6 +391,7 @@ desires:
 
   drink-ravenheart-red:
     name: Drink Ravenheart Red
+    autoVerify: { check: consumed, tags: [ravenheart-red] }
     verify: "Ravenheart Red"
     tier: 1
     families: [alcohol]
@@ -379,6 +399,7 @@ desires:
 
   smoke-a-cigarette:
     name: Smoke a cigarette
+    autoVerify: { check: consumed, tags: [cigarette] }
     verify: "Cigarette"
     tier: 1
     families: [drugs]
@@ -390,6 +411,7 @@ desires:
   # A 1-turn cooldown, the shortest in the file, because a habit does not wait.
   use-heroin:
     name: Use heroin
+    autoVerify: { check: consumed, tags: [heroin] }
     verify: "Heroin"
     tier: 1
     families: [heroin]
@@ -466,6 +488,7 @@ desires:
 
   kiss-someone:
     name: Kiss someone
+    autoVerify: { check: kissed }
     tier: 1
     families: [romance]
     cooldownTurns: 3
@@ -504,24 +527,28 @@ desires:
 
   win-5-gambling:
     name: Win 5 ¢ gambling
+    autoVerify: { check: slots, minWin: 5 }
     verify: "slots"
     tier: 1
     families: [gambling]
 
   win-10-gambling:
     name: Win 10 ¢ gambling
+    autoVerify: { check: slots, minWin: 10 }
     verify: "slots"
     tier: 1
     families: [gambling]
 
   win-25-gambling-one-game:
     name: Win 25 ¢ gambling in one game
+    autoVerify: { check: slots, minWin: 25 }
     verify: "slots"
     tier: 2
     families: [gambling]
 
   win-50-gambling-one-game:
     name: Win 50 ¢ gambling in one game
+    autoVerify: { check: slots, minWin: 50 }
     verify: "slots"
     tier: 3
     families: [gambling]
@@ -553,6 +580,7 @@ desires:
 
   lavish-meal:
     name: Have a lavish meal
+    autoVerify: { check: consumed, tags: [lavish-meal] }
     verify: "Lavish Meal"
     tier: 1
     families: [food]
@@ -567,6 +595,7 @@ desires:
   # free tap and takes the ladder (COOLDOWN POLICY above), not the bare tier.
   hold-100:
     name: Have 100 ¢ in your inventory at once
+    autoVerify: { check: holds, tags: [obol], quantity: 100 }
     tier: 2
     families: [wealth]
     cooldownTurns: 4
@@ -628,6 +657,7 @@ desires:
 
   get-jewelry:
     name: Buy some jewelry
+    autoVerify: { check: bought, tags: [jewelry] }
     verify: "Jewelry"
     tier: 1
     families: [vanity, wealth]
@@ -655,6 +685,7 @@ desires:
 
   drink-sake:
     name: Drink sake
+    autoVerify: { check: consumed, tags: [sake] }
     verify: "Sake"
     tier: 1
     families: [alcohol]
@@ -662,6 +693,7 @@ desires:
 
   drink-tea-or-coffee:
     name: Drink tea or coffee
+    autoVerify: { check: consumed, tags: [tea, coffee] }
     verify: "Tea"
     tier: 1
     families: [food]
@@ -676,6 +708,7 @@ desires:
 
   make-a-merchant-purchase:
     name: Purchase something from the merchant.
+    autoVerify: { check: bought }
     tier: 1
     families: [wealth]
     cooldownTurns: 5
@@ -689,6 +722,7 @@ desires:
   # keeps access through its own food carve-out, no separate gated entry.
   eat-sweets:
     name: Eat sweets
+    autoVerify: { check: consumed, tags: [sugar-candy] }
     verify: "Sweets"
     tier: 1
     families: [food]
@@ -737,6 +771,7 @@ desires:
   # Replaced learn-to-read, which was one skill's version of this.
   learn-a-skill:
     name: Learn a skill from someone
+    autoVerify: { check: act, action: learned-skill }
     tier: 1
     families: [craft]
     cooldownTurns: 5
@@ -783,6 +818,7 @@ desires:
 
   escape-being-bound:
     name: Escape being bound
+    autoVerify: { check: act, action: escape-bonds }
     tier: 1
     families: [adventure, bravery]
     requires:
@@ -835,6 +871,7 @@ desires:
 
   feed-the-lifeweb:
     name: Feed someone to the Lifeweb, killing them
+    autoVerify: { check: act, action: feed-lifeweb }
     tier: 3
     families: [mortality, cruelty]
     requires:
@@ -871,6 +908,7 @@ desires:
   # recipe leaks nowhere.
   own-a-death-mask:
     name: Own a Death Mask
+    autoVerify: { check: holds, tags: [death-mask] }
     verify: "Death Mask"
     tier: 1
     families: [status, mortality]
@@ -913,6 +951,7 @@ desires:
 
   bury-a-body:
     name: Bury a body or engrave a name
+    autoVerify: { check: act, action: bury }
     tier: 1
     families: [mortality]
     requires:
@@ -963,6 +1002,7 @@ desires:
   # what it already is: feeding a living person to the Web.
   feed-the-lifeweb-blood:
     name: "Offer your own blood to the Lifeweb"
+    autoVerify: { check: act, action: donate-own-blood }
     tier: 1
     families: [mortality]
     requires:
@@ -971,6 +1011,7 @@ desires:
 
   feed-web-willing:
     name: Donate someone's blood to the Lifeweb
+    autoVerify: { check: act, action: donate-others-blood }
     tier: 1
     families: [mortality]
     requires:
@@ -1036,6 +1077,7 @@ desires:
   # a tag or a role. Teaching literacy keeps its own gated entry below.
   teach-a-skill:
     name: Successfully teach a skill.
+    autoVerify: { check: act, action: taught-skill }
     tier: 1
     families: [craft]
 
@@ -1155,6 +1197,7 @@ desires:
 
   cup-of-tea:
     name: Enjoy a cup of tea
+    autoVerify: { check: consumed, tags: [tea] }
     verify: "Tea"
     tier: 1
     families: [food]
@@ -1186,6 +1229,7 @@ desires:
 
   amass-200:
     name: Amass a stockpile of 200 ¢
+    autoVerify: { check: holds, tags: [obol], quantity: 200 }
     tier: 3
     families: [wealth]
     requires:
@@ -1396,6 +1440,7 @@ desires:
 
   brand-someone:
     name: Brand someone
+    autoVerify: { check: act, action: brand }
     tier: 1
     families: [cruelty]
     requires:
@@ -1563,6 +1608,7 @@ desires:
 
   be-treated:
     name: Be treated for your illness
+    autoVerify: { check: act, action: treated }
     tier: 1
     families: [medical]
     requires:
@@ -1585,6 +1631,7 @@ desires:
 
   cook-a-lavish-meal:
     name: Cook a lavish meal
+    autoVerify: { check: crafted, tags: [lavish-meal] }
     verify: "Lavish Meal"
     tier: 1
     families: [food, craft]
@@ -1889,6 +1936,7 @@ desires:
   # --- Role-flavoured: the Metalsmith ---------------------------------------
   craft-plate-armor:
     name: Craft plate armor
+    autoVerify: { check: crafted, tags: [plate-armor] }
     tier: 2
     families: [craft]
     requires:
@@ -1896,6 +1944,7 @@ desires:
 
   brand-with-hot-iron:
     name: Brand somebody with a hot iron
+    autoVerify: { check: act, action: brand }
     tier: 1
     families: [craft, cruelty]
     requires:
@@ -1906,6 +1955,7 @@ desires:
   # one, so a new belief tag has to be added here by hand.
   build-wayside-shrine:
     name: Build a Wayside Shrine
+    autoVerify: { check: built, structure: wayside-shrine }
     tier: 2
     cooldownTurns: 6
     families: [faith, craft]
@@ -1976,6 +2026,7 @@ desires:
   # --- Role-flavoured: the Migrant ------------------------------------------
   through-the-town-gates:
     name: Be let through the Town gates
+    autoVerify: { check: act, action: let-through-town-gate }
     tier: 1
     families: [status]
     requires:
@@ -2032,6 +2083,7 @@ desires:
 
   dem-torture:
     name: "Torture someone"
+    autoVerify: { check: act, action: torture }
     tier: 2
     families: [demoness, cruelty]
     requires:
@@ -2094,6 +2146,7 @@ desires:
   # and is not the role, and a Bishop who cannot want a confession is absurd.
   hear-a-confession:
     name: Have someone confess to you
+    autoVerify: { check: act, action: heard-confession }
     tier: 1
     families: [faith, social]
     requires:
@@ -2110,6 +2163,7 @@ desires:
 
   crucify-someone:
     name: Crucify someone
+    autoVerify: { check: act, action: crucify }
     tier: 1
     families: [faith, violence]
     requires:
@@ -2226,6 +2280,7 @@ desires:
   # the real gate is upstream of `requires` and neither entry restates it.
   eat-human-flesh:
     name: Eat human meat.
+    autoVerify: { check: consumed, tags: [human-flesh] }
     tier: 1
     families: [cruelty, food]
     requires:
@@ -2243,6 +2298,7 @@ desires:
   # AND the trade, so either tag alone is not enough.
   butcher-a-human:
     name: Butcher a human
+    autoVerify: { check: act, action: butcher-human }
     tier: 2
     families: [cruelty, violence]
     requires:
@@ -2259,6 +2315,7 @@ desires:
 
   metal-ride:
     name: Get your hands on a sweet metal ride
+    autoVerify: { check: holds, tags: [motorcycle, motorcycle-ridden-1, motorcycle-ridden-2] }
     tier: 3
     families: [wealth]
     requires:
@@ -2303,6 +2360,7 @@ desires:
   # a cube.
   drink-moonshine:
     name: Drink moonshine
+    autoVerify: { check: consumed, tags: [moonshine] }
     tier: 1
     families: [alcohol]
     # Not the bare tier: the cooldown ladder for a Desire whose cost is real
@@ -2476,6 +2534,7 @@ desires:
       anyTags: [thanati]
   thanati-carry-silver-cross:
     name: Carry the stolen Silver Cross around with you
+    autoVerify: { check: holds, tags: [silver-cross] }
     tier: 1
     families: [thanati]
     requires:
@@ -2500,6 +2559,7 @@ desires:
   # game, so there is no other way to have done this.
   play-the-slots:
     name: Play the slots at the Casino
+    autoVerify: { check: slots }
     verify: "slots"
     tier: 1
     families: [gambling]
@@ -2522,6 +2582,7 @@ desires:
   # claimant's own account wrote (DESIRES.md §6a).
   give-alcohol-to-three:
     name: Give alcohol to three different people in one turn
+    autoVerify: { check: gave, tags: [alcohol, sake, moonshine, ravenheart-red], people: 3 }
     verify: "Alcohol"
     tier: 1
     families: [alcohol, social]
