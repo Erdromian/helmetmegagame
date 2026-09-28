@@ -75,6 +75,7 @@ or stripping it by hand moves all of them.
 | Rule | Where |
 |---|---|
 | Nothing on the body: HEAD, BODY, ACCESSORY and FINGER refuse. A weapon in hand and a mount are fine | `db/lib/verbs/self.js#equipOneTag` (both faces) |
+| No disguise: a Disguise Kit refuses and its button stays hidden. Every hood and mask is a HEAD piece, so the row above already rules those out | `db/lib/verbs/self.js#disguiseSelf` (both faces), `web/lib/itemPools.js`, `db/lib/actionPools.js` |
 | The face and the appearance text are fixed; the Bio card leaves the appearance box out and says the face is "beyond your control" | `character/actions.js`, `BioForm.js`, `AvatarField.js` |
 | Hungerless (the existing tag) — never hungry, food does nothing | `db/lib/hunger.js`, unchanged |
 | Only the Skinless desires: the tag locks every other family | `docs/tags.yaml` + `docs/desires.yaml` |

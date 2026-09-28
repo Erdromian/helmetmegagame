@@ -23,7 +23,12 @@ const { MOTION_SICKNESS_SLUG } = require("../constants");
 const { HANDS_TAG_FIELDS, findEquipProblem, handsFor, isLockedOn, equipSfx } = require("../equipSlots");
 const { blockerFor, ACT } = require("../incapacitation");
 const { canDetectPoison } = require("../poison");
-const { isSkinlessTags, SKINLESS_BARRED_SLOTS, SKINLESS_EQUIP_REFUSAL } = require("../skinless");
+const {
+  isSkinlessTags,
+  SKINLESS_BARRED_SLOTS,
+  SKINLESS_EQUIP_REFUSAL,
+  SKINLESS_DISGUISE_REFUSAL,
+} = require("../skinless");
 const { refuse, asResult, requireFreeMove, fileAutoRoutine, parseCount } = require("./common");
 
 const STEPSTONE_SLUG = "stepstone";
@@ -127,6 +132,8 @@ function breakRestraints(prisma, { character, discordUserId, openTurn }) {
 function disguiseSelf(prisma, { character, discordUserId, name: rawName, openTurn }) {
   return asResult(async () => {
     if (!character.tags.some((ct) => ct.tag.slug === DISGUISE_KIT_SLUG)) refuse("You have no disguise kit.");
+    // Raw musculature passes for nobody else (db/lib/skinless.js).
+    if (isSkinlessTags(character.tags)) refuse(SKINLESS_DISGUISE_REFUSAL);
     const name = normalizeDisguiseName(rawName);
     if (!name) refuse("Pick a name to go by.");
     if (name === character.name) refuse("That is already your name.");

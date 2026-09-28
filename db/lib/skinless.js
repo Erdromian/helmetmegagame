@@ -37,6 +37,8 @@ const SKINLESS_BARRED_SLOTS = ["HEAD", "BODY", "ACCESSORY", "FINGER"];
 const SKINLESS_EQUIP_REFUSAL = "Your raw flesh cannot accommodate that.";
 // No religion will take a Skinless, and no group will have one.
 const SKINLESS_BELIEF_REFUSAL = "Skinless cannot hold beliefs.";
+// Reaching for a Disguise Kit: no false name hides what a Skinless is.
+const SKINLESS_DISGUISE_REFUSAL = "No disguise can hide what you are.";
 // Changing the portrait anyway.
 const SKINLESS_FACE_REFUSAL = "Your appearance is beyond your control.";
 const SKINLESS_GROUP_REFUSAL = "A Skinless can't join any faction or antagonist group.";
@@ -451,6 +453,7 @@ module.exports = {
   SKINLESS_EQUIP_REFUSAL,
   SKINLESS_BELIEF_REFUSAL,
   SKINLESS_FACE_REFUSAL,
+  SKINLESS_DISGUISE_REFUSAL,
   SKINLESS_GROUP_REFUSAL,
   SKINLESS_NAMES,
   SKINLESS_PRESET_TAGS,

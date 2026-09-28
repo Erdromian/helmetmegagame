@@ -266,3 +266,14 @@ test("a ghost (no character) hears grunts", () => {
   const out = lensRow(speechRow(), { characterId: null, grunters: new Set(["sk"]), readerSkinless: false });
   assert.equal(out.content, gruntify("Take the gate.", 77));
 });
+
+// --- Disguise ----------------------------------------------------------------
+
+test("a Skinless can't put on a Disguise Kit's false name", async () => {
+  const { disguiseSelf } = require("../lib/verbs/self");
+  const tags = [{ quantity: 1, tag: { slug: "disguise-kit" } }, { quantity: 1, tag: { slug: "skinless" } }];
+  const character = { id: "sk", name: "Urist Skinless", tags };
+  // No database: the refusal comes before anything is read.
+  const out = await disguiseSelf(null, { character, discordUserId: "1", name: "Sir Alder", openTurn: { number: 1 } });
+  assert.deepEqual(out, { ok: false, error: "No disguise can hide what you are." });
+});

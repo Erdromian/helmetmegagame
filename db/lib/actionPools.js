@@ -416,7 +416,7 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
     isPerforming: Boolean(performing),
     hasTrumpet: has(TRUMPET_SLUG),
     hasHorn: has(DEEP_BEAST_HORN_SLUG),
-    canDisguise: has("disguise-kit"),
+    canDisguise: has("disguise-kit") && !has(SKINLESS_TAG_SLUG), // a Skinless can't pass for anybody
     canLearn,
     canTeach,
     canConfess,
