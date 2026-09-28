@@ -141,6 +141,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | The `#turns` console pointer | Deliberate, and the safety net for step 5 above: a stale id makes the bot repost on its next `ready`. |
 | `GameConfig` | Every knob on the Configuration section. Per-game state is on `GameState`, which is recreated. |
 | `PlayerPreference` rows | Role priorities, opt-ins and the fallback a player set in the lobby, keyed by Discord user. Next game they only press Ready. |
+| READY `LobbyEntry` rows | Whoever was readied up when the wipe ran is still readied up after it, in the same order. Every other lobby row (last game's seats) goes (`LOBBY.md` §8). |
 | `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its id, with the reveal on top. |
 | `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |

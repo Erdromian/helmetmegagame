@@ -4323,8 +4323,8 @@ enum LobbyStatus {
 }
 
 /// One row per player per GAME: readying up creates it, un-readying deletes
-/// it, Start Game stamps the assignment on it, and Restart Game clears the
-/// table. Everything a game needs to know about a player before they have a
+/// it, Start Game stamps the assignment on it, and Restart Game clears every
+/// row but the READY ones. Everything a game needs to know about a player before they have a
 /// character. See docs/systemdocs/LOBBY.md.
 model LobbyEntry {
   id            String      @id @default(cuid())
