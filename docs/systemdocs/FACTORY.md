@@ -119,9 +119,7 @@ commits at the press, and the cubes come off the line at the turn push
   all day to prove they own it.
 - **The output** is 8 Squeeze, and the Godflesh is consumed.
 - **Fatigue.** A day on the floor steps the same **Tired → Exhausted** ladder
-  a day's mining does (`MINING.md` §5, `db/lib/fatigue.js`). Escalates rather
-  than granting Exhausted outright — a shift here is the same order of effort
-  as a day in the seam, not Farming's uniquely brutal single day. Exhausted
+  a day's mining and a day in the fields do (`MINING.md` §5, `db/lib/fatigue.js`). Exhausted
   refuses the next shift; the refusal check lives in the Refine button itself
   (`web/app/(app)/character/actions/refine.js`) and the sheet's tooltip asks the
   same function (`refineFatigueRefusal`), the payout in `db/lib/moveEffects.js`'s

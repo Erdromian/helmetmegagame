@@ -21,7 +21,7 @@ const ladder = require("../../../lib/fatigue");
 const mining = require("../../../lib/mining");
 const soilery = require("../../../lib/soilery");
 const refinery = require("../../../lib/refinery");
-const { TIRED_SLUG, EXHAUSTED_SLUG, SOILERY_SLUG, PICKAXE_SLUG } = require("../../../lib/constants");
+const { TIRED_SLUG, EXHAUSTED_SLUG, SOILERY_SLUG, PICKAXE_SLUG, RECENTLY_FARMED_SLUG } = require("../../../lib/constants");
 const { expiryFrom } = require("../../../lib/turnFormat");
 
 const REPO = path.resolve(__dirname, "../../../..");
@@ -62,16 +62,19 @@ const VERBS = [
     id: "farm",
     label: "Farm",
     refused: (slugs) => soilery.farmRefusalFor([SOILERY_SLUG, ...slugs].map((s) => ({ tag: { slug: s } })), false) != null,
-    // db/lib/moveEffects.js `farmed` calls grantExhaustedOutright (db/lib/fatigue.js), the Soilery Rework's
-    // own rule: a day in the fields grants Exhausted OUTRIGHT, with no lesser Tired rung to climb through
-    // first. Exhausted then wears off into Tired, and both refuse the Farm button (db/lib/soilery.js#farmRefusalFor),
-    // so a farmer farms one turn in three.
+    // db/lib/moveEffects.js `farmed`: the same ladder step Mine takes, plus Recently Farmed
+    // (db/lib/fatigue.js#grantRecentlyFarmed), whose 2 turns refuse the Farm button
+    // (db/lib/soilery.js#farmRefusalFor), so a farmer farms one turn in three. Tired alone no longer refuses.
     grant: (held, turn, dur) => {
-      held.delete(TIRED_SLUG);
-      if (!held.has(EXHAUSTED_SLUG)) held.set(EXHAUSTED_SLUG, expiryFrom(turn + 1, dur[EXHAUSTED_SLUG]));
+      const target = ladder.nextFatigueSlug(new Set(held.has(TIRED_SLUG) ? [TIRED_SLUG] : []));
+      if (target) {
+        held.delete(TIRED_SLUG);
+        if (!held.has(target)) held.set(target, expiryFrom(turn + 1, dur[target]));
+      }
+      if (!held.has(RECENTLY_FARMED_SLUG)) held.set(RECENTLY_FARMED_SLUG, expiryFrom(turn + 1, dur[RECENTLY_FARMED_SLUG]));
     },
-    source: "db/lib/soilery.js, db/lib/moveEffects.js, db/lib/fatigue.js#grantExhaustedOutright",
-    mechanism: "Grants Exhausted outright, no Tired rung first. Both Exhausted and Tired refuse the next press.",
+    source: "db/lib/soilery.js, db/lib/moveEffects.js, db/lib/fatigue.js#grantRecentlyFarmed",
+    mechanism: "Steps the ladder like Mine, and grants Recently Farmed for 2 turns. Recently Farmed and Exhausted refuse the next press.",
   },
 ];
 
@@ -84,7 +87,7 @@ const UNTIRED = [
   { id: "cave", label: "Caving Die (walking)", files: ["db/lib/cavingPass.js"] },
 ];
 
-const FATIGUE_WORDS = /\b(TIRED_SLUG|EXHAUSTED_SLUG|nextFatigueSlug|grantExhaustedOutright|tired|exhausted)\b/;
+const FATIGUE_WORDS = /\b(TIRED_SLUG|EXHAUSTED_SLUG|nextFatigueSlug|grantRecentlyFarmed|tired|exhausted)\b/;
 
 function scanFile(rel, region) {
   let text;
@@ -119,7 +122,7 @@ function readersOfLadder() {
       if (e.isDirectory()) walk(rel);
       else if (/\.(js|mjs)$/.test(e.name)) {
         const text = fs.readFileSync(path.join(REPO, rel), "utf8");
-        if (/\b(TIRED_SLUG|EXHAUSTED_SLUG|nextFatigueSlug|grantExhaustedOutright)\b/.test(text)) hits.push(rel);
+        if (/\b(TIRED_SLUG|EXHAUSTED_SLUG|nextFatigueSlug|grantRecentlyFarmed)\b/.test(text)) hits.push(rel);
       }
     }
   })("db/lib");
@@ -137,7 +140,7 @@ function readersOfLadder() {
         if (e.isDirectory()) walk(rel);
         else if (/\.(js|mjs)$/.test(e.name)) {
           const text = fs.readFileSync(path.join(REPO, rel), "utf8");
-          if (/\b(TIRED_SLUG|EXHAUSTED_SLUG|nextFatigueSlug|grantExhaustedOutright)\b/.test(text)) hits.push(rel);
+          if (/\b(TIRED_SLUG|EXHAUSTED_SLUG|nextFatigueSlug|grantRecentlyFarmed)\b/.test(text)) hits.push(rel);
         }
       }
     })(d);
@@ -173,6 +176,7 @@ function fatigueModel({ bySlug, gameTurns = 30 }) {
   const dur = {
     [TIRED_SLUG]: bySlug.get(TIRED_SLUG)?.durationTurns ?? 1,
     [EXHAUSTED_SLUG]: bySlug.get(EXHAUSTED_SLUG)?.durationTurns ?? 1,
+    [RECENTLY_FARMED_SLUG]: bySlug.get(RECENTLY_FARMED_SLUG)?.durationTurns ?? 2,
   };
   const into = { [EXHAUSTED_SLUG]: bySlug.get(EXHAUSTED_SLUG)?.expiresInto ?? [] };
 

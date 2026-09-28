@@ -46,6 +46,8 @@ const OVERBURDENED_SLUG = "overburdened";
 // Fertilizer's buff (SOILERY.md's Addendum) — read by farmRequestImpl to flip
 // db/lib/soilery.js#reap into its bounty table instead of the wither one.
 const FERTILIZED_FIELDS_SLUG = "fertilized-fields";
+// Farming's lockout (db/lib/soilery.js#farmRefusalFor), granted by db/lib/fatigue.js#grantRecentlyFarmed.
+const RECENTLY_FARMED_SLUG = "recently-farmed";
 
 // Read on a gate crossing (db/lib/locationMove.js#announceGateCrossing) — a MANNED gate falls back to what a passer-by saw.
 const STEALTH_SLUG = "stealth";
@@ -307,6 +309,7 @@ module.exports = {
   CATATONIC_SLUG,
   OVERBURDENED_SLUG,
   FERTILIZED_FIELDS_SLUG,
+  RECENTLY_FARMED_SLUG,
   STEALTH_SLUG,
   CORPSE_GROUP_SLUG,
   BUTCHER_SLUG,

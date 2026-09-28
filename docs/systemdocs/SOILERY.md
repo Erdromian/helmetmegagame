@@ -3,8 +3,9 @@
 A character holding **Soilery**, the skill, standing on `soilery` ground,
 presses **Farm**. That plants **100 crops** and spends their Move. When the turn
 is pushed, each crop has a 1-in-6 chance of withering; every crop that survives
-brings in **1 Foodstuff**. The farmer is left **Exhausted**, which wears off into
-**Tired**, and neither may farm — so a farmer farms one turn in three.
+brings in **1 Foodstuff**. The farmer is left **Recently Farmed** for 2 turns,
+which refuses the next farm — so a farmer farms one turn in three — and takes a
+step up the ordinary **Tired → Exhausted** ladder.
 
 This is the whole of Bascinet's design doc
 `E:\Bascinet\V3\Soilery\Soilery Rework.docx` as far as farming goes. The same doc
@@ -13,7 +14,7 @@ also reworks hunger ([`TURN-ENGINE.md`](TURN-ENGINE.md) §5), cooking
 lives in its own doc and is not repeated here.
 
 Read this before touching `db/lib/soilery.js`, the `farmed` entry in
-`db/lib/moveEffects.js`, `db/lib/fatigue.js#grantExhaustedOutright`, the
+`db/lib/moveEffects.js`, `db/lib/fatigue.js#grantRecentlyFarmed`, the
 `soilery` attribute in `db/lib/locationAttributes.js`, or the `foodstuffs` tag.
 
 ## 1. What the rework replaced
@@ -73,7 +74,9 @@ nothing from the client. Gates, in order:
 2. `db/lib/soilery.js#farmRefusalFor(tags, hasOpenAction)` — the **one**
    function the server action and the sheet's Farm button both read:
    - no `soilery` skill → *"You don't know how to farm."*
-   - holds `exhausted` **or** `tired` → *"You're too worn out to farm right now."*
+   - holds `recently-farmed` → *"The fields need some time to recover before you can plant there again."*
+   - holds `exhausted` → *"You're too worn out to farm right now."* Tired alone
+     does not refuse.
    - already filed a Move → *"You already have an action this turn."*
 3. `blockerFor(tags, ACT)` — Bound, Dying, Paralyzed, Catatonic.
 4. `requireFreeMove` — an open turn, outside the Move lock, and no Action yet.
@@ -91,12 +94,16 @@ is `GameConfig.farmMaxCrops` ("Plants per farm" on `/gm/dev`, 100 by default,
   crop **independently** — never a rounded average, so a harvest has real
   variance. About 83 of 100 survive.
 - The survivors land on the farmer as Foodstuffs (`addToStack`).
-- `db/lib/fatigue.js#grantExhaustedOutright` gives **Exhausted** straight away,
-  with no Tired rung first. `exhausted` expires into `tired`
-  (`docs/tags.yaml`), and both refuse the next farm. Filed on turn N, the
-  farmer is Exhausted through N+1, Tired through N+2, and may farm again on N+3.
-- Undo (`revert`) takes the Foodstuffs back and hands the fatigue snapshot to
-  `revertFatigueStep`.
+- `db/lib/fatigue.js#grantRecentlyFarmed` gives **Recently Farmed**
+  (`durationTurns: 2` in `docs/tags.yaml`). Filed on turn N, the farmer is
+  Recently Farmed through N+2 and may farm again on N+3.
+- `db/lib/fatigue.js#applyFatigueStep` steps the ordinary ladder, the same as
+  a day's mining (`MINING.md` §5): nothing becomes Tired, and Tired becomes
+  Exhausted. Exhausted still refuses a farm; Tired does not.
+- Undo (`revert`) takes the Foodstuffs back, hands the fatigue snapshot to
+  `revertFatigueStep`, and removes Recently Farmed if this push granted it. A
+  harvest pushed before Recently Farmed existed granted Exhausted outright, and
+  its snapshot reverts the same way.
 - A plan filed before the rework (`v` 1 or 2: rows of crops) resolves as an
   ordinary farm, capped at the plants it sowed, so nothing in flight is lost.
 
@@ -142,11 +149,11 @@ Both steps change live data and need Bascinet's yes first (CLAUDE.md).
 |---|---|
 | The rules: plants per farm, the wither and bounty dice, the refusal, the DM | `db/lib/soilery.js` |
 | The Farm server action | `web/app/(app)/character/actions/soilery.js` |
-| The push: harvest, Exhausted, Undo | `db/lib/moveEffects.js` (`farmed`), `db/lib/fatigue.js` |
+| The push: harvest, Recently Farmed, Tired, Undo | `db/lib/moveEffects.js` (`farmed`), `db/lib/fatigue.js` |
 | The harvest DM | `db/lib/stagedPush.js` |
 | The Farm verb and its confirm | `web/app/components/actionRegistry.js`, `web/app/components/actions/index.js` (`INSTANT.farm`) |
 | The sheet's Farm gate | `web/app/(app)/character/page.js` (`canSeeFarm`/`farmBlocked`/`canFarm`) |
 | The `soilery` attribute | `db/lib/locationAttributes.js` |
-| Foodstuffs, Fertilizer, Exhausted/Tired | `docs/tags.yaml` |
+| Foodstuffs, Fertilizer, Recently Farmed, Exhausted/Tired | `docs/tags.yaml` |
 | Plants per farm | `GameConfig.farmMaxCrops`, `db/lib/gameConfigFields.js` |
 | Moving a running game across | `db/scripts/ops/convert-soilery.js` |

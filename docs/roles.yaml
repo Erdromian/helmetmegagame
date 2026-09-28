@@ -1296,7 +1296,7 @@ groups:
         Grow food for Ravenheart and tame the arelitz.
       description:
         - >-
-          You can farm, but you must be in the Soilery, a set of plots and sheds in the town's east. The Farm button there plants 100 crops, and whatever doesn't wither comes in as Foodstuffs when the turn is pushed. A day in the fields leaves you Exhausted, so you farm one turn in three.
+          You can farm, but you must be in the Soilery, a set of plots and sheds in the town's east. The Farm button there plants 100 crops, and whatever doesn't wither comes in as Foodstuffs when the turn is pushed. A day in the fields leaves you Recently Farmed and Tired, so you farm one turn in three.
         - >-
           Food fetches nothing at the Depot, so cut a deal with the Inn or other organizations instead. A hungry town will pay for it.
         - >-
