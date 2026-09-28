@@ -8256,7 +8256,7 @@ tags:
     name: Obol
     category: items
     group: items-gear
-    sprite: 5obol
+    sprite: copper-coins
     description: "A small coin used by the Merchant."
     pointCost: 0
     weight: 0
