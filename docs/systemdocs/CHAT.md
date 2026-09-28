@@ -14,7 +14,8 @@ disagrees with this section, this section is right.
 - **Travel sits over the scene**, in a strip under the chat head (2026-09-25,
   player feedback; `ChatNext.js`), not at the top of the right column. Every
   way out is one line: its name, its zone only when it crosses into another,
-  and the cost. A walk keeps its stops, since a double-click takes it. A shut
+  and the cost. Only the ways next door are on it: a walk of several hops
+  across a zone is the map's (`MAP.md` §3c), which moves you there at once. A shut
   way's cost line says why, and the full text rides the hover title. Picking
   a way puts the Go / Push on / Cancel line straight under the strip, and the
   move's own sentence ("Moved to Gatehouse.") stays there after. On a phone

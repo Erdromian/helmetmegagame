@@ -831,7 +831,7 @@
 
 /* The zone is only news on a crossing; a way inside this zone says nothing
    the head above it has not. */
-[data-chat-next] .chat-travel-ways .chat-node:not([data-crossing]):not([data-walk]) .chat-node-zone {
+[data-chat-next] .chat-travel-ways .chat-node:not([data-crossing]) .chat-node-zone {
   display: none;
 }
 

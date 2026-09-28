@@ -90,8 +90,7 @@ import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
 import { STAR_ROW_SELECT, saveStarredRow } from "@/lib/starNote";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { maybeSendGmAutoReply } from "@lifeweb/db/lib/gmAutoReply";
-import { travelOptions, linksFor, endpoints, isHeldOpen, linkBetween, routesWithinZone, loadGraph } from "@lifeweb/db/lib/locationGraph";
-import { knownLocations } from "@lifeweb/db/lib/locationVisits";
+import { travelOptions, linksFor, endpoints, isHeldOpen, linkBetween, loadGraph } from "@lifeweb/db/lib/locationGraph";
 import { walkWithinZone } from "@lifeweb/db/lib/locationWalk";
 import { examineLines } from "@lifeweb/db/lib/examineLocation";
 import { structuresAt } from "@lifeweb/db/lib/structures";
@@ -527,24 +526,17 @@ export async function loadTravel() {
   const character = me.character;
   if (!character.locationId) return { ok: false, error: "You are nowhere yet." };
 
-  // Two waves, the shape /map's loadMap uses and for the same reason: these
-  // four used to be four awaits in a row, and the two graph questions below
-  // each read Location and LocationLink for themselves.
-  const [graph, config, openTurn, { seen }] = await Promise.all([
+  // Two waves, the shape /map's loadMap uses: these used to be awaits in a row.
+  const [graph, config, openTurn] = await Promise.all([
     loadGraph(prisma),
     prisma.gameConfig.findUnique({ where: { id: 1 } }),
     prisma.turn.findFirst({ where: { status: "OPEN" } }),
-    knownLocations(prisma, character.id),
   ]);
-  const [routes, options, party, currentZone, action] = await Promise.all([
-    // Everywhere farther in their own zone they could walk to (MAP.md §3c). Kept
-    // OUT of `options` on purpose: that grid means "doors out of this room", and
-    // folding a three-hop walk into it would make the panel lie about what is
-    // next door.
-    routesWithinZone(prisma, character, { known: seen, graph }),
+  const [options, party, action] = await Promise.all([
+    // Only the ways next door. A walk of several hops across a zone is the
+    // map's (MAP.md §3c), not the travel strip's.
     travelOptions(prisma, character, character.locationId, { graph }),
     partyOf(prisma, character.id),
-    character.zoneId ? prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true, name: true } }) : null,
     // Whether the Move is spent — a push on is only offered after it is
     // (MAP.md §3). The same read the sheet's hasMoved makes.
     prisma.action.findFirst({ where: { characterId: character.id, turn: { status: "OPEN" } }, select: { id: true } }),
@@ -572,23 +564,6 @@ export async function loadTravel() {
     // The Move already spent this turn: Go leaves the strip and the push on
     // is the only way across a zone with no travel left (MAP.md §3).
     moved: acted,
-    // The zone they are standing in, for the heading over the walks.
-    zoneName: currentZone?.name ?? null,
-    // More than one hop only — a neighbour is already a way out above, and
-    // listing it twice would read as two different journeys to one place.
-    walks: routes
-      .filter((row) => row.hops > 1)
-      .map((row) => ({
-        id: row.location.id,
-        name: row.location.name,
-        description: row.location.description || null,
-        hops: row.hops,
-        through: row.path.slice(0, -1).map((l) => l.name),
-        dismounts: row.dismounts,
-        // A tight squeeze somewhere along the road (MAP.md §2a) — said to
-        // everybody, so a leader knows their Giant cannot finish this walk.
-        tightSqueeze: Boolean(row.tightSqueeze),
-      })),
     options: options.map((row) => {
       // Which way the push on's die leans for this character, said before
       // they commit (MAP.md §3). Null when it doesn't.
