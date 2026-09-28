@@ -8,6 +8,7 @@ import IconButton from "@/app/components/IconButton";
 import ActionButton from "@/app/components/ActionButton";
 import FormError from "@/app/components/FormError";
 import LookReadout from "@/app/components/LookReadout";
+import NameCard from "@/app/components/NameCard";
 import { EyeIcon, SpeakerIcon, SpeakerOffIcon } from "@/app/components/icons";
 import { toggleMutedPerformer, useMutedPerformers } from "@/app/components/performanceStore";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
@@ -323,7 +324,14 @@ export default function HereList({
                 online={person.online}
               />
               <span className="chat-person-name" data-role-group={person.roleGroup ?? undefined}>
-                {person.name}
+                {/* Not pinnable: a click on the name still opens the menu below. */}
+                {person.characterId === selfId ? (
+                  person.name
+                ) : (
+                  <NameCard seq={person.sightingSeq} pinnable={false}>
+                    {person.name}
+                  </NameCard>
+                )}
                 {person.characterId === selfId ? <span className="text-muted"> · you</span> : null}
                 {/* The avatar's glow ring is the mobile signal (portrait always
                     shows, name may not); this is desktop's second cue, beside it. */}
@@ -386,7 +394,9 @@ export default function HereList({
                 className={person.stranger ? "chat-person-name" : "chat-person-name text-muted"}
                 data-role-group={person.roleGroup ?? undefined}
               >
-                {person.alias}
+                <NameCard seq={person.sightingSeq} pinnable={false}>
+                  {person.alias}
+                </NameCard>
               </span>
             </button>
             {person.sightingSeq && (
@@ -473,7 +483,7 @@ export default function HereList({
                   online={person.online}
                 />
                 <span className="chat-person-name" data-role-group={person.roleGroup ?? undefined}>
-                  {person.name}
+                  <NameCard seq={person.sightingSeq}>{person.name}</NameCard>
                 </span>
               </span>
               {person.sightingSeq && (
@@ -497,7 +507,7 @@ export default function HereList({
                   className={person.stranger ? "chat-person-name" : "chat-person-name text-muted"}
                   data-role-group={person.roleGroup ?? undefined}
                 >
-                  {person.alias}
+                  <NameCard seq={person.sightingSeq}>{person.alias}</NameCard>
                 </span>
               </span>
               {person.sightingSeq && (
