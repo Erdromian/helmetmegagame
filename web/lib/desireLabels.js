@@ -5,3 +5,7 @@ export function lockedSlotLabel(slot) {
   const n = slot?.lockedTurnsLeft ?? 1;
   return `Locked (${n}t)`;
 }
+
+// What the claim dialog says when the GM switch rejected a claim on the spot
+// (DESIRES.md §6c): the game looked for proof this turn and found none.
+export const DESIRE_REJECTED = "Rejected — the game found no sign of that this turn.";

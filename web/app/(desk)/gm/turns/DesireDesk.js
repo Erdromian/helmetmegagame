@@ -169,6 +169,16 @@ export default function DesireDesk({ desire, onInspect, onClose, registerEscape,
         </div>
       )}
 
+      {desire.autoRejected && (
+        <div className="desk-result mt-4 flex flex-col gap-2">
+          <span className="field-label">Auto-rejected — the game found no proof</span>
+          <p className="text-sm">Nothing this turn showed it, so the claim paid nothing and the slot stayed open.</p>
+          <p className="text-xs text-muted">
+            Reject unproven claims is on in /gm/dev. To grant it anyway, award the Desire from the Dev Panel.
+          </p>
+        </div>
+      )}
+
       <div className="desk-result mt-4 flex flex-col gap-2">
         <span className="field-label">Reason — how they say they earned it</span>
         <p className="text-sm">{desire.reason || "No reason given."}</p>

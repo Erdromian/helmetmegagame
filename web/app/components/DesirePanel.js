@@ -8,7 +8,7 @@ import RichText from "./RichText";
 import DesireRule from "./DesireRule";
 import DesireCatalog, { cooldownLabel } from "./DesireCatalog";
 import { claimDesire } from "../(app)/character/requestActions";
-import { lockedSlotLabel } from "@/lib/desireLabels";
+import { DESIRE_REJECTED, lockedSlotLabel } from "@/lib/desireLabels";
 import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // The one help tooltip, on the heading. It used to be two — flavour text
@@ -80,6 +80,9 @@ export default function DesirePanel({
       }
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setClaiming(null);
+      // Rejected on the spot by the GM switch (DESIRES.md §6c): the claim is
+      // on record, so the dialog closes and the verdict shows beside the slots.
+      if (res.rejected) setError(DESIRE_REJECTED);
     });
   }
 

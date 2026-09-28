@@ -334,6 +334,22 @@ function matchAutoVerify(rule, ctx) {
 }
 
 /**
+ * Pure. What becomes of a claim once its check has run: "confirm" (born
+ * auto-confirmed), "reject" (born CANCELLED, DESIRES.md §6c) or "queue" (waits
+ * for a GM). Rejecting is opt-in (GameConfig.autoRejectUnprovenDesires), and
+ * even then only a check that actually RAN and came back empty rejects: no
+ * rule, an unknown check, no open turn to bound "this turn", or a matcher that
+ * threw all leave the claim for a GM, because a bug or a missing window must
+ * never cost a player their claim.
+ */
+function autoClaimOutcome({ rule, openTurn, evidence, checkFailed = false, rejectUnproven = false }) {
+  if (evidence) return "confirm";
+  if (!rejectUnproven || checkFailed) return "queue";
+  if (!rule?.check || !CHECKS[rule.check] || !openTurn?.startedAt) return "queue";
+  return "reject";
+}
+
+/**
  * Loads what the matcher needs and runs it. Call it inside the claim's
  * transaction, under the Character row lock, so two claims landing together
  * can't both cite the same row. Returns null when there is no rule, no open
@@ -424,5 +440,6 @@ module.exports = {
   AutoVerifyShapeError,
   validateAutoVerify,
   matchAutoVerify,
+  autoClaimOutcome,
   findAutoEvidence,
 };

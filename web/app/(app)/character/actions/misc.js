@@ -65,7 +65,7 @@ import {
 import { craftMoveCost } from "@/lib/craftBudget";
 import { UserError } from "@/lib/actionResult";
 import { SFX } from "@lifeweb/db/lib/sfx";
-import { findAutoEvidence } from "@lifeweb/db/lib/desireAutoVerify";
+import { autoClaimOutcome, findAutoEvidence } from "@lifeweb/db/lib/desireAutoVerify";
 import { describeTurn } from "@/lib/turnFormat";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { expiryForGrant } from "@lifeweb/db/lib/grantExpiry";
@@ -2192,6 +2192,7 @@ export async function claimDesireImpl({
     select: {
       desireSlots: true,
       desireSlotLockTurns: true,
+      autoRejectUnprovenDesires: true,
     },
   });
   const desireSlots = config?.desireSlots ?? 2;
@@ -2290,9 +2291,11 @@ export async function claimDesireImpl({
     // this turn, or the thing on their person — skips the GM queue
     // (DESIRES.md §6b). Under the row lock above, so two claims landing
     // together can't both cite the same act. No proof leaves it waiting for a
-    // GM, exactly as before — and so does a matcher that throws, since a bug
-    // in a rule must never cost a player their claim. (A failed QUERY still
-    // aborts the transaction; Postgres allows nothing after one.)
+    // GM, unless the GM switch rejects it (§6c) — but a matcher that throws
+    // always waits, since a bug in a rule must never cost a player their
+    // claim. (A failed QUERY still aborts the transaction; Postgres allows
+    // nothing after one.)
+    let checkFailed = false;
     const auto = await findAutoEvidence(tx, {
       rule: template.autoVerify,
       character,
@@ -2300,9 +2303,54 @@ export async function claimDesireImpl({
       openTurn,
     }).catch((err) => {
       console.error(`Auto-confirm check failed for ${template.slug}:`, err);
+      checkFailed = true;
       return null;
     });
     const now = new Date();
+    const outcome = autoClaimOutcome({
+      rule: template.autoVerify,
+      openTurn,
+      evidence: auto,
+      checkFailed,
+      rejectUnproven: config?.autoRejectUnprovenDesires === true,
+    });
+
+    if (outcome === "reject") {
+      // Born rejected: the same CANCELLED shape a GM Reject leaves
+      // (revokeDesireCore), with endedTurnNumber null so neither the slot lock
+      // nor the Desire's cooldown counts it. Nothing was paid, so there is
+      // nothing to take back and no mood to lift.
+      const row = await tx.desire.create({
+        data: {
+          characterId: character.id,
+          templateId: template.id,
+          slotIndex,
+          text: template.name,
+          points: template.tier,
+          status: "CANCELLED",
+          setTurnNumber: openTurn?.number ?? null,
+          endedTurnNumber: null,
+          reason,
+          autoRejectedAt: now,
+          reviewedAt: now,
+          reviewedBy: null,
+        },
+      });
+      await logAudit(tx, {
+        actorDiscordUserId: session.discordUserId,
+        actionType: "desire_auto_rejected",
+        targetCharacterId: character.id,
+        details: {
+          desireId: row.id,
+          desireName: row.text,
+          slug: template.slug,
+          slotIndex,
+          reason,
+          check: template.autoVerify.check,
+        },
+      });
+      return row;
+    }
 
     // Born ended: the claim IS the fulfilment.
     const row = await tx.desire.create({
@@ -2348,6 +2396,16 @@ export async function claimDesireImpl({
     });
     return row;
   });
+
+  if (desire.autoRejectedAt) {
+    // The same NOTICE a GM Reject sends (web/app/(desk)/gm/turns/actions.js),
+    // so a rejection reads the same whoever made it.
+    await sendDm(session.discordUserId, "Your desire was rejected.").catch((err) =>
+      console.error("Desire rejection DM failed:", err),
+    );
+    revalidateAll();
+    return { rejected: true };
+  }
 
   await recordArchiveEvent({
     kind: "DESIRE_FULFILLED",

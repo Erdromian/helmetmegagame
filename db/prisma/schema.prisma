@@ -598,6 +598,11 @@ model GameConfig {
   // 2026-09-19.
   desireSlotLockTurns Int @default(1)
 
+  // When on, a claim on a Desire with an autoVerify rule that finds no proof
+  // this turn is rejected on the spot instead of waiting for a GM
+  // (DESIRES.md §6c). Desires with no rule are untouched. Off by default.
+  autoRejectUnprovenDesires Boolean @default(false)
+
   // Expected total fate seats, standing in for GameState.playerCount until
   // Start Game stamps the real one (the readied count plus 10%). A fate with
   // `weight: 6` in docs/roles.yaml gets round(6 * pool / 60) seats, the pool
@@ -6551,6 +6556,10 @@ model Desire {
   autoVerifiedAuditIds String[]  @default([])
   // One GM-facing sentence: "Consumed Sake", "Held 112 Obol when claiming".
   autoVerifiedNote     String?
+  // Set when GameConfig.autoRejectUnprovenDesires rejected the claim because
+  // its rule found no proof (DESIRES.md §6c). Such a row is born CANCELLED,
+  // paid nothing, with reviewedAt stamped and reviewedBy null.
+  autoRejectedAt       DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

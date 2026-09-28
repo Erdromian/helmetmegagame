@@ -135,6 +135,11 @@ const FIELDS = [
     key: "desireSlotLockTurns", type: "int", group: "desires", default: 1, min: 0, max: 20,
     label: "Desire slot lock",
   },
+  {
+    key: "autoRejectUnprovenDesires", type: "bool", group: "desires", default: false,
+    label: "Reject unproven claims",
+    info: "On: a claim on a Desire the game can check is rejected at once when it finds no proof this turn — no points, no mood, and the slot stays free. Desires the game can't check still wait for a GM. Off: every claim without proof waits for a GM. See DESIRES.md §6c",
+  },
 
   // --- Turn clock ------------------------------------------------------------
   {

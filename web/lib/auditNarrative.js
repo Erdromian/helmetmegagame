@@ -226,6 +226,12 @@ const R = {
   request_loot_tag: (d) => [actor(), t("looted"), chip(d.tagName, d.tagId), qty(d.quantity), t("from"), em(d.fromName)],
   request_transfer_tag: (d) => transferSegments(d, chip(d.tagName, d.tagId), qty(d.quantity)),
   request_fulfill_desire: (d) => [actor(), t("claimed a Desire for"), points(d.pointsAwarded)],
+  // The GM switch rejected it on the spot: no proof this turn (DESIRES.md §6c).
+  desire_auto_rejected: (d) => [
+    actor(),
+    t("claimed a Desire, rejected for no proof"),
+    ...(d?.desireName ? [t("—"), em(quote(d.desireName))] : []),
+  ],
   request_donate_blood: (d) => [actor(), t("donated blood to the Lifeweb"), ...bloodTail(d)],
   request_feed_person: (d) => [actor(), t("fed a person to the Lifeweb"), ...bloodTail(d)],
   request_feed_person_killed: (d) => [t("The Lifeweb took"), em(d.targetName), t("— fed by"), actor()],
