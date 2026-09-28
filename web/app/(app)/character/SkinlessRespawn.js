@@ -21,7 +21,7 @@ export default function SkinlessRespawn({ className = "btn" }) {
     setError(null);
     const ok = await confirm({
       title: "Respawn as a Skinless?",
-      message: "You don't choose a name, a face or your tags. Your body is made for you, and you wake at once.",
+      message: "You don't choose a name, a face or your tags. Your body is made for you, and you emerge immediately.",
       confirmLabel: "Respawn",
     });
     if (!ok) return;

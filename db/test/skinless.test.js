@@ -22,6 +22,8 @@ const { fightingSkill } = require("../lib/fightingSkill");
 const { normalizeFighting } = require("../lib/tagShapes");
 const { normalizePartyFates } = require("../lib/lateParty");
 const { lensRow } = require("../lib/strangers");
+const { concealedAlias, aliasSubject, isConcealedAlias } = require("../lib/concealedIdentity");
+const { seedRows } = require("../lib/acquaintances");
 
 // A catalog row for every slug, with the conflicts and prerequisites the real
 // catalog carries for the ones the roll has to respect.
@@ -52,6 +54,50 @@ test("an identity is a man or a woman, named from that half of the pool, surname
     assert.equal(who.lastName, "Skinless");
     assert.equal(who.name, `${who.firstName} Skinless`);
   }
+});
+
+test("a body is 20 to 70 years old, both ends reachable", () => {
+  const ages = new Set();
+  for (let seed = 1; seed < 3000; seed += 1) {
+    const { age } = rollSkinlessIdentity(seededRng(seed));
+    assert.ok(Number.isInteger(age) && age >= 20 && age <= 70, `age ${age} (seed ${seed})`);
+    ages.add(age);
+  }
+  assert.ok(ages.has(20) && ages.has(70));
+});
+
+// --- Friends and strangers ---------------------------------------------------
+
+const skinlessRole = { slug: "skinless", name: "Skinless", knowsRoleSlugs: ["skinless"] };
+const guardRole = { slug: "guard", name: "Guard", knowsRoleSlugs: ["guard", "skinless-never"] };
+
+test("a new Skinless and the Skinless already here learn each other, and nobody else", () => {
+  const me = { id: "new", firstName: "Urist", lastName: "Skinless", role: skinlessRole };
+  const others = [
+    { id: "old", firstName: "Anne", lastName: "Skinless", role: skinlessRole },
+    { id: "guard", firstName: "Ada", lastName: "Hale", role: guardRole },
+  ];
+  const rows = seedRows(me, others).map((r) => `${r.ownerId}->${r.subjectId}`);
+  assert.deepEqual(rows.sort(), ["new->old", "old->new"]);
+});
+
+test("a stranger's alias names what a Skinless plainly is", () => {
+  const tags = [{ quantity: 1, tag: { slug: "skinless" } }];
+  assert.equal(concealedAlias({ age: 22, gender: "MAN", tags }), "Young Skinless Man");
+  assert.equal(concealedAlias({ age: 64, gender: "WOMAN", tags }), "Old Skinless Woman");
+  assert.equal(concealedAlias({ age: 40, gender: "WOMAN", tags }), "Skinless Woman");
+  assert.equal(aliasSubject({ age: 22, gender: "MAN", tags }), "A young skinless man");
+  assert.equal(concealedAlias({ age: 22, gender: "MAN", tags: [{ quantity: 0, tag: { slug: "skinless" } }] }), "Young Man");
+  assert.equal(concealedAlias({ age: 22, gender: "MAN", descriptor: "Skinless" }), "Young Skinless Man");
+  assert.equal(concealedAlias({ age: 22, gender: "MAN" }), "Young Man");
+  // Still read back as a hood's alias, should a hood ever cover one.
+  assert.ok(isConcealedAlias("Old Skinless Woman"));
+});
+
+test("the chat lens shows a Skinless stranger as one", () => {
+  const facts = new Map([["sk", { known: false, age: 22, gender: "MAN", tags: [{ quantity: 1, tag: { slug: "skinless" } }] }]]);
+  const out = lensRow(speechRow(), { characterId: "reader", facts, grunters: new Set(["sk"]), readerSkinless: false });
+  assert.equal(out.name, "Young Skinless Man");
 });
 
 test("every body holds the whole preset and exactly one weapon", () => {
@@ -115,10 +161,26 @@ test("grunts keep the length roughly and none of the words", () => {
   for (const word of ["Kill", "lantern", "gate"]) assert.ok(!g.includes(word));
 });
 
+test("grunts run together, with a pause only every four to seven sounds", () => {
+  const line = Array.from({ length: 40 }, () => "word").join(" ");
+  for (let seed = 1; seed < 50; seed += 1) {
+    const sounds = gruntify(line, seed).split(" ");
+    let run = 0;
+    for (const sound of sounds.slice(0, -1)) {
+      run += 1;
+      if (/[,…]$/.test(sound)) {
+        assert.ok(run >= 4 && run <= 7, `a pause after ${run} sounds (seed ${seed})`);
+        run = 0;
+      }
+    }
+    assert.ok(run <= 7);
+  }
+});
+
 // --- Smell Skin and the DM ---------------------------------------------------
 
 test("Smell Skin's words", () => {
-  assert.equal(smellSkinLine(null), "You smell no skin anywhere.");
+  assert.equal(smellSkinLine(null), "You can't seem to smell any skin.");
   assert.equal(smellSkinLine(0), "You smell skin right here.");
   assert.equal(smellSkinLine(1), "You smell skin 1 location away.");
   assert.equal(smellSkinLine(4), "You smell skin 4 locations away.");

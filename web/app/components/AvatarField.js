@@ -146,7 +146,7 @@ export default function AvatarField({
           </span>
         )}
         {faceFixed && !forcedIdentity && (
-          <span className="text-sm text-muted">Every Skinless wears the same face. It isn&apos;t yours to change.</span>
+          <span className="text-sm text-muted">Your appearance is beyond your control.</span>
         )}
         {!forcedIdentity && !faceFixed && portraitMakerEnabled && (
           <button type="button" className="btn-secondary" onClick={() => setMakerOpen(true)}>

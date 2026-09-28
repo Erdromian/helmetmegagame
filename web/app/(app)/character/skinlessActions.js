@@ -109,7 +109,7 @@ export async function respawnAsSkinless() {
     zoneId: created.zoneId ?? null,
     zoneName: location?.zone?.name ?? null,
     turn: openTurn,
-    content: `${created.name} crawled out of the dark as ${role.name}.`,
+    content: `${created.name} crawled out of the dark.`,
   });
 
   revalidatePath("/", "layout");

@@ -16,7 +16,7 @@ import { setDiscordMirrored } from "@lifeweb/db/lib/discordMirroring";
 import { clockLabel } from "@/lib/dmTime";
 import { normalizeSelection } from "@/lib/portrait/catalog";
 import { renderPortrait } from "@/lib/portrait/render";
-import { isSkinless } from "@lifeweb/db/lib/skinless";
+import { isSkinless, SKINLESS_FACE_REFUSAL } from "@lifeweb/db/lib/skinless";
 
 const AVATAR_SIZE = 256;
 
@@ -163,7 +163,8 @@ export async function setPortraitAvatar(rawSelection) {
 
   // The face is fixed while a forced identity is held (Tag.forcedName), and
   // always for a Skinless; the button is hidden, this is the lock.
-  if ((await loadForcedName(prisma, character.id)) || (await isSkinless(prisma, character.id))) {
+  if (await isSkinless(prisma, character.id)) return { ok: false, error: SKINLESS_FACE_REFUSAL };
+  if (await loadForcedName(prisma, character.id)) {
     return { ok: false, error: "Your face is not yours to change right now." };
   }
 
@@ -199,7 +200,7 @@ export async function resetAvatarToDefault() {
     select: { id: true },
   });
   if (!character) redirect("/character");
-  if (await isSkinless(prisma, character.id)) return { ok: false, error: "Your face is not yours to change." };
+  if (await isSkinless(prisma, character.id)) return { ok: false, error: SKINLESS_FACE_REFUSAL };
 
   await prisma.character.update({
     where: { id: character.id },

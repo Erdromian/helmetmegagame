@@ -10,7 +10,7 @@ import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { knownSubjects } from "@lifeweb/db/lib/strangers";
-import { concealedAlias } from "@lifeweb/db/lib/concealedIdentity";
+import { concealedAlias, LOOK_TAGS_SELECT } from "@lifeweb/db/lib/concealedIdentity";
 
 // Examine — looking at somebody you have HEARD. Moves nothing, costs nothing,
 // spends no Move, writes no audit row. The subject must have said something
@@ -86,7 +86,7 @@ export async function peopleToExamine() {
     const known = ghost ? null : await knownSubjects(prisma, me.id, [...seen.keys()]);
     const strangers = [...seen.entries()].filter(([id, s]) => !s.concealed && known && !known.has(id)).map(([id]) => id);
     const looks = strangers.length
-      ? await prisma.character.findMany({ where: { id: { in: strangers } }, select: { id: true, age: true, gender: true } })
+      ? await prisma.character.findMany({ where: { id: { in: strangers } }, select: { id: true, age: true, gender: true, tags: LOOK_TAGS_SELECT } })
       : [];
     const lookOf = new Map(looks.map((c) => [c.id, c]));
 

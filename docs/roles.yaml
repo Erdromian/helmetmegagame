@@ -1927,28 +1927,31 @@ groups:
     # never built -- db/lib/skinless.js rolls the name, the face and the whole
     # kit, so `starting_tags` stays empty here -- and arrives at the party's
     # own Depths Location, not `starting_location`, which is only the fallback.
-    # No `knows:` and no bank account.
+    # Every Skinless knows every other Skinless (`knows: [skinless]`, both ways,
+    # later arrivals included) and nobody else, and nobody else knows them. No
+    # bank account.
     skinless:
       name: Skinless
       intro: >-
-        A fleshy humanoid, raw musculature glistening for all to see. You came up out of the caves, and everything with skin is your enemy.
+        You are an aberration of the Puppeteer's mind, drive out those who have come to desecrate your caves.
       description:
         - >-
-          You are hostile to every character who is not a Skinless.
+          You must slay every non-skinless you find.
         - >-
-          When you speak, anybody who is not a Skinless hears only grunts.
+          Skinless are not stupid, and speak their own tongue. Non-skinless are unable to discern your words.
         - >-
-          You can't wear clothes, armour or anything else on your body. You can still carry a weapon.
+          You can't wear clothes, armour or anything else on your body. You may only equip weaponry.
         - >-
-          You don't need to eat, and food does nothing for you.
+          Your body has no need for sustenance, and eating does nothing for you.
         - >-
-          Smell Skin tells you how many locations away the nearest person with skin is.
+          Smell Skin tells you how many locations away the nearest human is.
         - >-
-          No religion will take you, and no faction or antagonist group will have you.
+          You are a creature too alien to hold religious beliefs, your only purpose is the hunting of humans.
       difficulty: easy
       multiple: true
       weight: unlimited
       examine_visible: false
+      knows: [skinless]
       starting_zone: depths
       starting_location: depths-7
       starting_tags: []

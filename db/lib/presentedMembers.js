@@ -15,7 +15,7 @@ const {
   forcedNameFrom,
   presentedIdentity,
 } = require("./presentedIdentity");
-const { aliasRow } = require("./concealedIdentity");
+const { aliasRow, LOOK_SLUGS } = require("./concealedIdentity");
 const { hoodToken } = require("./hoodToken");
 const { knownSubjects, labelAliases } = require("./strangers");
 const { roleGroupHue } = require("./roleGroups");
@@ -35,10 +35,15 @@ const MEMBER_SELECT = {
   presenceLabel: true,
   presenceNonce: true,
   tags: {
+    // Plus the tags that put a word in a stranger's alias ("Young Skinless Man").
     where: {
-      OR: [{ tag: { forcedName: { not: null } } }, { equipped: true, tag: { concealsIdentity: true } }],
+      OR: [
+        { tag: { forcedName: { not: null } } },
+        { equipped: true, tag: { concealsIdentity: true } },
+        { tag: { slug: { in: LOOK_SLUGS } } },
+      ],
     },
-    select: { equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+    select: { equipped: true, tag: { select: { forcedName: true, slug: true, ...CONCEALMENT_TAG_FIELDS } } },
   },
 };
 

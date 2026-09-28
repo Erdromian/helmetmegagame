@@ -7,7 +7,7 @@
 // a look may not read. Concealed characters come back separately. A forced
 // name (Tag.forcedName) outranks a real one and never joins the concealed list.
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
-const { aliasRow } = require("./concealedIdentity");
+const { aliasRow, LOOK_SLUGS } = require("./concealedIdentity");
 const { lastSightings } = require("./sightings");
 const { UNBURIED_BODY_WHERE } = require("./presence");
 const { hoodToken, performerKey } = require("./hoodToken");
@@ -44,10 +44,11 @@ const PRESENT_SELECT = {
     // Every concealing piece, equipped or not, rather than only the worn ones:
     // a corpse's remembered mask is by definition no longer in its slot, and
     // concealmentFrom() goes on ignoring the unequipped for everybody alive.
+    // Plus the tags that put a word in a stranger's alias ("Young Skinless Man").
     where: {
-      OR: [{ tag: { forcedName: { not: null } } }, { tag: { concealsIdentity: true } }],
+      OR: [{ tag: { forcedName: { not: null } } }, { tag: { concealsIdentity: true } }, { tag: { slug: { in: LOOK_SLUGS } } }],
     },
-    select: { tagId: true, equipped: true, tag: { select: { forcedName: true, ...CONCEALMENT_TAG_FIELDS } } },
+    select: { tagId: true, equipped: true, tag: { select: { forcedName: true, slug: true, ...CONCEALMENT_TAG_FIELDS } } },
   },
 };
 

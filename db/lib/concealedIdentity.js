@@ -21,10 +21,34 @@ function ageWord(age) {
   return null;
 }
 
-// "Young Man" / "Old Woman" / "Person". Used as the webhook username — Title Case, inside Discord's
+// A body that reads as something at a glance says so in its alias, between the
+// age and the gender: "Young Skinless Man". Keyed by the tag that makes it so
+// (the Skinless, db/lib/skinless.js). A person carries it either as held tag
+// rows with their slug (LOOK_TAGS_SELECT, or any select that already loads
+// every held tag) or as a ready `descriptor`.
+const LOOK_WORDS = { skinless: "Skinless" };
+const LOOK_SLUGS = Object.keys(LOOK_WORDS);
+
+// For a select that loads no tags of its own: just the ones LOOK_WORDS reads.
+const LOOK_TAGS_SELECT = {
+  where: { quantity: { gt: 0 }, tag: { slug: { in: LOOK_SLUGS } } },
+  select: { quantity: true, tag: { select: { slug: true } } },
+};
+
+function lookWord(person) {
+  if (person?.descriptor) return person.descriptor;
+  for (const row of Array.isArray(person?.tags) ? person.tags : []) {
+    const word = LOOK_WORDS[row?.tag?.slug ?? row?.slug];
+    if (word && (row?.quantity ?? 1) > 0) return word;
+  }
+  return null;
+}
+
+// "Young Man" / "Old Woman" / "Person" / "Old Skinless Woman". Used as the webhook username — Title Case, inside Discord's
 // 80-char cap. Frozen into ArchiveEntry.concealedAlias at send time, so a later gender change never rewrites history.
-function concealedAlias({ age, gender } = {}) {
-  return [ageWord(age), genderWord(gender)].filter(Boolean).join(" ");
+function concealedAlias(person = {}) {
+  const { age, gender } = person ?? {};
+  return [ageWord(age), lookWord(person), genderWord(gender)].filter(Boolean).join(" ");
 }
 
 // The line shown when someone 🔍-inspects a concealed message. Lower-cased
@@ -55,11 +79,16 @@ function aliasSubject(character) {
   return capitalizeFirst(withArticle(concealedAlias(character ?? {}).toLowerCase()));
 }
 
-// Every alias a hood can produce: three age words against three gender words, nine strings, built
+// Every alias a hood can produce: three age words against three gender words (and each look word
+// between them, should a hood ever cover somebody who has one), built
 // from the same functions the alias itself is. Exists to read an ARCHIVED row back — a
 // ArchiveEntry.concealedAlias not in this closed set was a forced name instead. See presentedIdentity.js#wasHooded.
 const CONCEALED_ALIASES = new Set(
-  [null, 24, 60].flatMap((age) => ["MAN", "WOMAN", "NEUTRAL"].map((gender) => concealedAlias({ age, gender }))),
+  [null, 24, 60].flatMap((age) =>
+    ["MAN", "WOMAN", "NEUTRAL"].flatMap((gender) =>
+      [null, ...Object.values(LOOK_WORDS)].map((descriptor) => concealedAlias({ age, gender, descriptor })),
+    ),
+  ),
 );
 
 function isConcealedAlias(alias) {
@@ -67,6 +96,9 @@ function isConcealedAlias(alias) {
 }
 
 module.exports = {
+  LOOK_WORDS,
+  LOOK_SLUGS,
+  LOOK_TAGS_SELECT,
   concealedAlias,
   concealedLine,
   genderWord,

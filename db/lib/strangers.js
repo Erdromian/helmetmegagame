@@ -20,7 +20,7 @@
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel.
 
 const crypto = require("node:crypto");
-const { concealedAlias, isConcealedAlias } = require("./concealedIdentity");
+const { concealedAlias, isConcealedAlias, LOOK_TAGS_SELECT } = require("./concealedIdentity");
 const { sceneSpeakerKey } = require("./hoodToken");
 const { renderPeopleLine, peopleIds } = require("./peopleLine");
 const { skinlessIdsAmong, gruntify } = require("./skinless");
@@ -231,7 +231,7 @@ function speakerOf(row) {
 // everybody, as they did before this existed, but still never gets a stable
 // key for a hood.
 function createLens(prisma, { characterId = null, gm = false } = {}) {
-  const facts = new Map(); // speaker id -> { known, voice, age, gender }
+  const facts = new Map(); // speaker id -> { known, voice, age, gender, tags }
   // THE SKINLESS (db/lib/skinless.js): which speakers grunt, and whether this
   // reader is one of them and so hears the words. Read here, beside the rest,
   // because it is the same question: what this reader makes of this speaker.
@@ -274,7 +274,8 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
         where: { ownerId: characterId, subjectId: { in: ids } },
         select: { subjectId: true, number: true, live: true },
       }),
-      prisma.character.findMany({ where: { id: { in: ids } }, select: { id: true, age: true, gender: true } }),
+      // The tags that put a word in the alias ("Young Skinless Man").
+      prisma.character.findMany({ where: { id: { in: ids } }, select: { id: true, age: true, gender: true, tags: LOOK_TAGS_SELECT } }),
     ]);
     const knownIds = new Set(known.map((row) => row.subjectId));
     const voiceOf = new Map(voices.map((row) => [row.subjectId, row]));
@@ -286,6 +287,7 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
         voice: voiceOf.get(id) ?? null,
         age: person.get(id)?.age ?? null,
         gender: person.get(id)?.gender ?? null,
+        tags: person.get(id)?.tags ?? [],
       });
     }
   }

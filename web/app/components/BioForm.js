@@ -75,9 +75,7 @@ export default function BioForm({
           Name, portrait and settings…
         </button>
       </h2>
-      {faceFixed ? (
-        <p className="text-sm text-muted">A Skinless can&apos;t change how they look.</p>
-      ) : (
+      {faceFixed ? null : (
         <form action={appearanceAction} className="flex flex-col gap-3">
           <AppearanceField defaultValue={character.appearance ?? ""} />
           {/* The fallback trio — see the header comment. Present only while the

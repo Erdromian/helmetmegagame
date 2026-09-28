@@ -1,4 +1,4 @@
-const { concealedAlias, withArticle } = require("@lifeweb/db/lib/concealedIdentity");
+const { concealedAlias, withArticle, LOOK_WORDS } = require("@lifeweb/db/lib/concealedIdentity");
 const { postMessage } = require("@lifeweb/db/lib/discordRest");
 const { ambientLine } = require("@lifeweb/db/lib/ambientLine");
 const { sceneLineAt } = require("@lifeweb/db/lib/scene");
@@ -97,7 +97,7 @@ async function runConversationWhispers(prisma) {
     const quoted = leak ? [leak] : [];
 
     const aliases = audible.map((id) =>
-      withArticle(concealedAlias(speakers.get(id) ?? {}).toLowerCase()),
+      withArticle(concealedAlias({ ...speakers.get(id), descriptor: skin.has(id) ? LOOK_WORDS.skinless : null }).toLowerCase()),
     );
     const heard = `You hear ${joinAliases(aliases)} whispering.`;
     const line = ambientLine(heard, quoted, { signed: false });
@@ -180,7 +180,7 @@ async function runPartyWhispers(prisma) {
     const leak = leakLine(heardRows.map((row) => (skin.has(row.characterId) ? gruntify(row.content) : row.content)));
     const quoted = leak ? [leak] : [];
     const aliases = audible.map((id) =>
-      withArticle(concealedAlias(speakers.get(id) ?? {}).toLowerCase()),
+      withArticle(concealedAlias({ ...speakers.get(id), descriptor: skin.has(id) ? LOOK_WORDS.skinless : null }).toLowerCase()),
     );
     const heard = `You hear ${joinAliases(aliases)} whispering.`;
     const line = ambientLine(heard, quoted, { signed: false });

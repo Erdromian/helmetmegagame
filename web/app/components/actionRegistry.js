@@ -155,7 +155,7 @@ export const ACTION_HELP = {
   warrant: "Declare a man fit for arrest. They are visible as being wanted.",
   wantedlist:
     "Read the warrant book.",
-  smellskin: "Smell the air for skin. It tells you how many locations away the nearest person with skin is.",
+  smellskin: "Smell the air for skin. It tells you how many locations away the nearest human is.",
 };
 
 export const ACTION_SECTIONS = [

@@ -17,7 +17,6 @@
 // Only the two pure requires at the top: the lens (db/lib/strangers.js) and the
 // equip gate load this file, and the database half below reaches into the
 // lobby and the map, which would close a require cycle if loaded eagerly.
-const { babble } = require("./babble");
 const { formatCharacterName } = require("./characterName");
 
 const SKINLESS_ROLE_SLUG = "skinless";
@@ -25,6 +24,9 @@ const SKINLESS_TAG_SLUG = "skinless";
 // What a butcher cuts out of a dead Skinless, besides the usual.
 const SKINLESS_BRAIN_SLUG = "skinless-brain";
 const SKINLESS_LAST_NAME = "Skinless";
+// How old a new body is, both ends included.
+const SKINLESS_AGE_MIN = 20;
+const SKINLESS_AGE_MAX = 70;
 // Where every Skinless of a party arrives is picked once, when the party opens
 // (LateParty.skinlessLocationId), from this zone's Locations.
 const SKINLESS_SPAWN_ZONE_SLUG = "depths";
@@ -32,9 +34,11 @@ const SKINLESS_SPAWN_ZONE_SLUG = "depths";
 // "clothes, armour or any other accessory"). A weapon in the hand is fine, and
 // so is a mount.
 const SKINLESS_BARRED_SLOTS = ["HEAD", "BODY", "ACCESSORY", "FINGER"];
-const SKINLESS_EQUIP_REFUSAL = "Nothing will stay on your raw flesh. You can't wear that.";
+const SKINLESS_EQUIP_REFUSAL = "Your raw flesh cannot accommodate that.";
 // No religion will take a Skinless, and no group will have one.
-const SKINLESS_BELIEF_REFUSAL = "No faith will have a Skinless.";
+const SKINLESS_BELIEF_REFUSAL = "Skinless cannot hold beliefs.";
+// Changing the portrait anyway.
+const SKINLESS_FACE_REFUSAL = "Your appearance is beyond your control.";
 const SKINLESS_GROUP_REFUSAL = "A Skinless can't join any faction or antagonist group.";
 // The fixed face, served for anybody holding the tag.
 const SKINLESS_AVATAR_PATH = "/assets/skinless/skinless-avatar.webp";
@@ -107,7 +111,8 @@ const SKINLESS_TAG_SLUGS = [
 ];
 
 // What a Skinless's speech sounds like to anybody who is not one. Not Stupid's
-// babble and not a Ghoul's growl: wet, throaty, and kept lower case.
+// babble (db/lib/babble.js) and not a Ghoul's growl: wet, throaty, and kept
+// lower case.
 const SKINLESS_SYLLABLES = [
   "hrrk", "ghh", "hnnh", "urgh", "khh", "grrh", "hhuh", "nngh", "gak", "hrm", "uhh", "ghrk",
 ];
@@ -127,10 +132,26 @@ function seededRng(seed) {
   };
 }
 
-// A Skinless's line as anybody else hears it: roughly one grunt per word, the
-// shape kept and the meaning gone (db/lib/babble.js).
+// A Skinless's line as anybody else hears it: one grunt per word, the shape
+// kept and the meaning gone. Mostly bare sounds run together, with a comma or
+// an ellipsis only now and then, every four to seven sounds.
 function gruntify(text, seed = 0) {
-  return babble(text, seededRng(seed), SKINLESS_SYLLABLES);
+  const words = String(text ?? "").trim().split(/\s+/).filter(Boolean);
+  if (words.length === 0) return "";
+  const rng = seededRng(seed);
+  const out = [];
+  let sinceBreak = 0;
+  for (let i = 0; i < words.length; i += 1) {
+    const sound = pick(SKINLESS_SYLLABLES, rng);
+    out.push(i === 0 ? sound.charAt(0).toUpperCase() + sound.slice(1) : sound);
+    if (i === words.length - 1) break;
+    sinceBreak += 1;
+    if (sinceBreak >= 4 + Math.floor(rng() * 4)) {
+      out[out.length - 1] += rng() < 0.5 ? "," : "…";
+      sinceBreak = 0;
+    }
+  }
+  return `${out.join(" ")}${rng() < 0.5 ? "!" : "…"}`;
 }
 
 function pick(list, rng) {
@@ -138,14 +159,18 @@ function pick(list, rng) {
 }
 
 // Who the new body is. A coin flip between MAN and WOMAN, a first name from
-// that half of the pool, and the last name every Skinless shares. No age and
-// no honorific: nobody chose either.
+// that half of the pool, the last name every Skinless shares, and an age
+// anywhere from SKINLESS_AGE_MIN to SKINLESS_AGE_MAX, which is what makes one
+// a "Young Skinless Man" and another an "Old Skinless Woman" to a stranger. No
+// honorific: nobody chose one.
 function rollSkinlessIdentity(rng = Math.random) {
   const gender = rng() < 0.5 ? "MAN" : "WOMAN";
   const firstName = pick(SKINLESS_NAMES[gender], rng);
   const lastName = SKINLESS_LAST_NAME;
+  const age = SKINLESS_AGE_MIN + Math.floor(rng() * (SKINLESS_AGE_MAX - SKINLESS_AGE_MIN + 1));
   return {
     gender,
+    age,
     firstName,
     lastName,
     name: formatCharacterName({ honorific: null, firstName, title: null, lastName }),
@@ -201,7 +226,7 @@ function isSkinlessTags(tags) {
 // Smell Skin's answer, from the hops to the nearest person with skin (null
 // when nobody can be smelled at all).
 function smellSkinLine(distance) {
-  if (distance === null || distance === undefined) return "You smell no skin anywhere.";
+  if (distance === null || distance === undefined) return "You can't seem to smell any skin.";
   if (distance === 0) return "You smell skin right here.";
   if (distance === 1) return "You smell skin 1 location away.";
   return `You smell skin ${distance} locations away.`;
@@ -292,7 +317,7 @@ async function spawnSkinless(prisma, { discordUserId, partyId, turn = null, rng 
         lastName: identity.lastName,
         name: identity.name,
         gender: identity.gender,
-        age: null,
+        age: identity.age,
         discordMirrored: false, // as createCharacter: web first, Discord from the Bio card
         roleId: role.id,
         roleTitle: role.name,
@@ -418,11 +443,14 @@ module.exports = {
   SKINLESS_TAG_SLUG,
   SKINLESS_BRAIN_SLUG,
   SKINLESS_LAST_NAME,
+  SKINLESS_AGE_MIN,
+  SKINLESS_AGE_MAX,
   SKINLESS_SPAWN_ZONE_SLUG,
   SKINLESS_AVATAR_PATH,
   SKINLESS_BARRED_SLOTS,
   SKINLESS_EQUIP_REFUSAL,
   SKINLESS_BELIEF_REFUSAL,
+  SKINLESS_FACE_REFUSAL,
   SKINLESS_GROUP_REFUSAL,
   SKINLESS_NAMES,
   SKINLESS_PRESET_TAGS,

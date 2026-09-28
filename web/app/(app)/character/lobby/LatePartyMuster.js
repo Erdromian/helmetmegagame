@@ -74,7 +74,7 @@ export default function LatePartyMuster({ fates, entry, entered, skinless = null
               <strong>Skinless</strong>
               <p className="text-sm text-muted">
                 There is always room among the Skinless. Respawn as one now, buried or not
-                {skinless.locationName ? `, and wake in ${skinless.locationName}` : ""}.
+                {skinless.locationName ? `, and emerge from ${skinless.locationName}` : ""}.
               </p>
               <SkinlessRespawn />
             </div>

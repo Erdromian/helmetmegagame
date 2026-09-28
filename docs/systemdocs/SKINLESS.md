@@ -38,7 +38,8 @@ locks:
 - **Sex:** a coin flip, MAN or WOMAN.
 - **Name:** a first name from that half of the doc's pool
   (`SKINLESS_NAMES`, 28 a side, Bascinet's names as written), and the last
-  name **Skinless**. No age, no honorific.
+  name **Skinless**. No honorific.
+- **Age:** anywhere from 20 to 70, both included (`SKINLESS_AGE_MIN`/`MAX`).
 - **Face:** `web/public/assets/skinless/skinless-avatar.webp`, for anybody
   holding the `skinless` tag, served by `web/lib/avatarResponse.js`. A
   stranger sees it too: what they are is plain to anyone who looks.
@@ -49,7 +50,12 @@ locks:
   A random tag that clashes with one already chosen (Dwarf and Giant, Frail
   and Strong) or lacks its prerequisite is skipped. The list is shuffled first,
   so neither half of a clashing pair always wins.
-- **No points** to spend, no bank account, no ring, no `knows:`.
+- **No points** to spend, no bank account, no ring.
+- **Friends:** every other living Skinless and nobody else (`knows: [skinless]`
+  in `docs/roles.yaml`, seeded both ways by `seedAcquaintances`, so a Skinless
+  who arrives later is added to everyone already there). Nobody else's seat
+  knows the Skinless. What a Skinless overhears afterwards still teaches names
+  the ordinary way (`MEMORIES.md`).
 
 The doc's "Melee 1", "Ranged 1", "Medical 1" and "Guerilla" are the catalog's
 Melee I, Ranged I, Medical I and Guerrilla; its "Bone club" is the Cracked
@@ -69,7 +75,7 @@ or stripping it by hand moves all of them.
 | Rule | Where |
 |---|---|
 | Nothing on the body: HEAD, BODY, ACCESSORY and FINGER refuse. A weapon in hand and a mount are fine | `db/lib/verbs/self.js#equipOneTag` (both faces) |
-| The face and the appearance text are fixed; the Bio card says so instead of offering them | `character/actions.js`, `BioForm.js`, `AvatarField.js` |
+| The face and the appearance text are fixed; the Bio card leaves the appearance box out and says the face is "beyond your control" | `character/actions.js`, `BioForm.js`, `AvatarField.js` |
 | Hungerless (the existing tag) — never hungry, food does nothing | `db/lib/hunger.js`, unchanged |
 | Only the Skinless desires: the tag locks every other family | `docs/tags.yaml` + `docs/desires.yaml` |
 | No belief from the store; never a Rite of Conversion candidate; a GM's threat Assign refuses | `store/actions.js`, `riteIngredients.js#convertCandidates`, `threatActions.js#assignThreat` |
@@ -77,6 +83,7 @@ or stripping it by hand moves all of them.
 | Smell Skin (§4) | `db/lib/verbs/roles.js#smellSkin` |
 | Grunts (§3) | `db/lib/strangers.js`, the Discord posters |
 | Visible on a look | `visible: true` on the tag |
+| A stranger's alias says it: "Young Skinless Man", "Old Skinless Woman", plain "Skinless Man" in the middle years | `concealedIdentity.js#LOOK_WORDS` (§5) |
 
 **Cave Eyes** is a real modifier, not a situational one: `fighting: { tree:
 both, tiers: 1, when: { zoneKind: [CAVE_LEVEL] } }`. `zoneKind` is a new
@@ -90,10 +97,11 @@ to rule on (`ATTACK.md`).
 
 ## 3. Grunts
 
-A Skinless's speech reaches anybody who is not a Skinless as grunts of about
-the same length (`gruntify`, `db/lib/babble.js` with the Skinless's own
-syllables). The grunts are **seeded by the row's `seq`**, so every reader and
-both faces see the same ones.
+A Skinless's speech reaches anybody who is not a Skinless as grunts, one per
+word (`gruntify`): mostly bare sounds run together, with a comma or an ellipsis
+every four to seven of them (Bascinet's note), ending in "!" or "…". The grunts
+are **seeded by the row's `seq`**, so every reader and both faces see the same
+ones.
 
 - **The web** decides per reader in the lens (`strangers.js#createLens`):
   `prepare` reads which speakers hold the tag and whether the reader does, and
@@ -125,7 +133,21 @@ name gives nothing away). It counts the hops, over every way the way a shout
 does (`locationGraph.js#soundRange`), to the nearest living character without
 the tag, and answers `smellSkinLine`. Free, unlimited, and tells nobody else.
 
-## 5. What it does not touch
+## 5. How a stranger sees one
+
+Somebody who cannot put a name to a Skinless sees them as the ordinary stranger
+alias (`STRANGERS.md`) with **Skinless** between the age and the sex: "Young
+Skinless Man", "Old Skinless Woman", and "Skinless Man" for the middle years,
+which carry no age word for anybody. `concealedIdentity.js#concealedAlias`
+reads it off the held tag through `LOOK_WORDS`, so every surface that names a
+stranger says it: the chat lens, Who's here and the members strip, the examine
+pickers, a typing notice, a gate crossing ("A young skinless man has entered
+…"), a fight's announcement, a verb naming its target, and the whisper leak.
+A select that loads no tags adds `LOOK_TAGS_SELECT`; one that loads every held
+tag with its slug needs nothing more. Another Skinless knows them all by name
+(§1), so this is what the living see.
+
+## 6. What it does not touch
 
 - **The decoy.** `db/lib/threats.js` has an antagonist opt-in named
   "skinless" among its decoys. It is unrelated and left alone.
