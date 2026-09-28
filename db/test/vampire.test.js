@@ -15,6 +15,8 @@ const {
   isPale,
   hasBlackSclera,
   humanityBand,
+  BLOOD_DESCRIPTORS,
+  bloodDescriptorFor,
 } = require("../lib/vampire");
 
 test("clampBlood/clampHumanity hold the meter inside 0-100", () => {
@@ -66,4 +68,28 @@ test("humanityBand: every boundary, null at 0 (Bestial/Wight territory instead)"
   assert.equal(humanityBand(25), "warped");
   assert.equal(humanityBand(1), "warped");
   assert.equal(humanityBand(0), null);
+});
+
+test("bloodDescriptorFor: the held urgency tag wins, blood level is the fallback, non-vampires get none", () => {
+  assert.equal(bloodDescriptorFor({ heldSlugs: ["vampire", "thirsty"], bloodLevel: 100 }).word, "Thirsty");
+  assert.equal(bloodDescriptorFor({ heldSlugs: new Set(["vampire"]), bloodLevel: 20 }).word, "Famished");
+  assert.equal(bloodDescriptorFor({ heldSlugs: ["vampire"], bloodLevel: undefined }).word, "Flush");
+  assert.equal(bloodDescriptorFor({ heldSlugs: ["vampire"], bloodLevel: 0 }).word, "Bloodcrazed");
+  assert.equal(bloodDescriptorFor({ heldSlugs: ["thirsty"], bloodLevel: 40 }), null);
+  assert.equal(bloodDescriptorFor({ heldSlugs: [], bloodLevel: 40 }), null);
+});
+
+test("BLOOD_DESCRIPTORS carry the doc's own lines and a tone per band", () => {
+  assert.equal(BLOOD_DESCRIPTORS.satiated.line, "Your thirst for human blood is satisfied.");
+  assert.equal(BLOOD_DESCRIPTORS.thirsty.line, "Your appetite for blood is growing, it would be wise to find a victim soon...");
+  assert.deepEqual(
+    Object.values(BLOOD_DESCRIPTORS).map((d) => [d.word, d.tone]),
+    [
+      ["Flush", "good"],
+      ["Satiated", "muted"],
+      ["Thirsty", "warn"],
+      ["Famished", "bad"],
+      ["Bloodcrazed", "bad"],
+    ],
+  );
 });

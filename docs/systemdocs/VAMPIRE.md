@@ -25,8 +25,8 @@ carry what a Role's charter would otherwise say.
 Both stats start at 100 the moment the seat is assigned (`Character.
 vampireBloodLevel`/`vampireHumanity`, schema defaults). Neither is ever shown
 to the player as a raw number — same posture as `hungerValue` — only the tag
-chips below say anything, and only to the extent each one's visibility
-allows.
+chips below (and the Blood tile standing in for Hunger, §2c) say anything,
+and only to the extent each one's visibility allows.
 
 ## 2. Blood level
 
@@ -98,6 +98,19 @@ This is deliberate, not a placeholder: automating blood restoration or dice
 would mean inventing a combat-resolution system this engine doesn't have
 anywhere else. See the Blood Abilities menu (out of scope, §0 above) for
 where a coded, purchasable effect belongs instead.
+
+### 2c. Blood stands where Hunger would
+
+A vampire is Hungerless (§8), so the two places every other character is
+told their Hunger — the sheet's Hunger tile (`SHEET.md` §2) and the /chat You
+plate's descriptor row (`CHAT.md` §0) — tell a vampire their **Blood**
+instead: the urgency band's word (Flush, Satiated, Thirsty, Famished,
+Bloodcrazed) toned good, muted, warn, bad, bad, with the band's own line from
+the table above. Never the number. `db/lib/vampire.js#bloodDescriptorFor`
+reads the held urgency tag first and falls back to `vampireBloodLevel` when
+none is held, the same order `hunger.js#hungerDescriptorFor` uses;
+`web/lib/descriptors.js#appetiteOf` picks Blood or Hunger. The urgency chip is
+left off the sheet's status strip, since the tile already says it.
 
 ## 3. Humanity
 

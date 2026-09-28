@@ -77,7 +77,7 @@ import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
-import { hungerOf } from "@/lib/descriptors";
+import { appetiteOf } from "@/lib/descriptors";
 import {
   freeMovesLeft,
   freeMovesBreakdown,
@@ -1199,7 +1199,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // no number, ever), so it is read here, turned into the descriptor's word,
   // and dropped from `sheetCharacter` below rather than trusted to every
   // future reader. Nothing forecasts next turn's hunger any more (the doc).
-  const hunger = hungerOf(character);
+  // A vampire is told their Blood in its place (web/lib/descriptors.js).
+  const appetite = appetiteOf(character);
 
   // The mood dial rides along as a number (MOOD.md) — the sheet needs it for
   // the Mood box's word and the Gambit tile's modifier, both computed client-side.
@@ -1395,7 +1396,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     kind: "sheet",
     sheet: {
       character: sheetCharacter,
-      hunger: hunger,
+      appetite: appetite,
       mode: "self",
       openTurn: openTurnWithWindow,
       currentAction: sheetAction,

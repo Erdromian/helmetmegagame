@@ -377,6 +377,11 @@
   color: var(--muted);
 }
 
+/* A vampire's Flush — the one appetite word that is good news. */
+.tile-icon[data-tone="good"] {
+  color: var(--positive);
+}
+
 .tile-icon[data-tone="warn"] {
   color: var(--warning);
 }
