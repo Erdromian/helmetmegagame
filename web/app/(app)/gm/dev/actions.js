@@ -23,7 +23,6 @@ import {
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
-  syncMiningDropsFromYaml,
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
@@ -690,9 +689,6 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
   await step("role sync", () => syncRolesFromYaml(prisma));
   await step("desire sync", () => syncDesiresFromYaml(prisma));
   await step("document sync", () => syncDocumentsFromYaml(prisma));
-  // No dependents of its own, so it runs last — validates against the tag,
-  // zone and location catalogs the steps above just rebuilt.
-  await step("mining drop sync", () => syncMiningDropsFromYaml(prisma));
 
   // Furnish the board again. The wipe transaction emptied every room and pulled
   // down every standing structure; this is what puts docs/zones.yaml's authored
