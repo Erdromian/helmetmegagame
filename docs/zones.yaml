@@ -1076,7 +1076,7 @@ zones:
                 # NO OBOLS HERE, on purpose. The town's money is stocked as the
                 # town is made: each new character's starting bank balance puts
                 # GameConfig.vaultReservePercent of it into this room as coin
-                # (40% by default, a knob on /gm/dev; the Baron's is left out).
+                # (25% by default, a knob on /gm/dev; the Baron's is left out).
                 # So the Vault always holds that share of what everybody opened
                 # with — DELIBERATELY SHORT OF THE CLAIMS, so a bank run is a
                 # live possibility from day one. Every Treasury bank account is

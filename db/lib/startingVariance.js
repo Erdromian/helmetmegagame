@@ -15,7 +15,7 @@
 // The Keep's Vault has no authored pile any more. It is stocked as the town is
 // made: each new character's starting balance — as rolled — puts
 // GameConfig.vaultReservePercent of it into the Vault as coin (vaultStockFor
-// below; 40% by default, a knob on /gm/dev). So the Vault always holds that
+// below; 25% by default, a knob on /gm/dev). So the Vault always holds that
 // share of what everybody opened with, late joiners included, and it wobbles
 // from game to game along with the balances it follows. The Baron is left out:
 // their account is the treasury's to begin with, and the Vault is not stocked
@@ -35,7 +35,7 @@ const VAULT_UNSTOCKED_ROLE_SLUGS = new Set(["baron"]);
 
 // GameConfig.vaultReservePercent's default (db/lib/gameConfigFields.js), for a
 // config row that predates the column.
-const DEFAULT_VAULT_RESERVE_PERCENT = 40;
+const DEFAULT_VAULT_RESERVE_PERCENT = 25;
 
 function startingRange(value) {
   const n = Math.trunc(Number(value) || 0);
@@ -61,9 +61,7 @@ function varyStartingPurse(wanted, rng = Math.random) {
 
 // How many obols one new character's starting balance puts into the Vault.
 // Rounded UP, one character at a time, so the Vault never falls short of the
-// percentage through rounding — 40% of a 3 ¢ balance stocks 2, not 1 — and the
-// reserve floor db:audit-vault-backing checks is met rather than missed by a
-// hair when the knob sits on it.
+// percentage through rounding — 25% of a 5 ¢ balance stocks 2, not 1.
 function vaultStockFor({ roleSlug, balance, percent }) {
   if (VAULT_UNSTOCKED_ROLE_SLUGS.has(roleSlug)) return 0;
   const b = Math.trunc(Number(balance) || 0);

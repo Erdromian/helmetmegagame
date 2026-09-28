@@ -660,9 +660,10 @@ model GameConfig {
   // character's starting balance puts this percentage of it into the Vault as
   // coin (web/app/(app)/character/createActions.js,
   // db/lib/startingVariance.js#vaultStockFor), so the Vault holds this share
-  // of what everybody bar the Baron opened with. 40 matches the reserve floor
-  // db:audit-vault-backing fails under. See docs/systemdocs/DEPOT.md §0g.
-  vaultReservePercent Int @default(40)
+  // of what everybody bar the Baron opened with. 25 by default, which is under
+  // the 40% reserve floor db:audit-vault-backing checks, so that audit reads
+  // short from day one. See docs/systemdocs/DEPOT.md §0g.
+  vaultReservePercent Int @default(25)
 
   // How many crops one Farm action plants (db/lib/soilery.js, FARM_PLANTS is
   // the fallback). Each withers 1 in 6; every survivor is 1 Foodstuff.

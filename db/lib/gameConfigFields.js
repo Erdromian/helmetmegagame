@@ -74,7 +74,7 @@ const FIELDS = [
     label: "Notice lifespan (turns)",
   },
   {
-    key: "vaultReservePercent", type: "int", group: "economy", default: 40, min: 0, max: 500,
+    key: "vaultReservePercent", type: "int", group: "economy", default: 25, min: 0, max: 500,
     label: "Vault stock (% of starting balances)",
     info: "Each new character's starting bank balance puts this share of it into the Keep's Vault as coin, so the Vault opens holding this percentage of what everyone (bar the Baron) starts with in the bank. Applies to characters created after it is changed. See DEPOT.md §0g",
   },

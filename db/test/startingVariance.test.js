@@ -75,13 +75,14 @@ test("stocked character by character, the Vault never falls under the percentage
   assert.ok(stock <= total * 0.4 + balances.length, "and over by less than an obol a character");
 });
 
-test("the dev-panel knob defaults to the same 40 the code falls back on", () => {
+test("the dev-panel knob defaults to the same 25 the code falls back on", () => {
   const field = FIELDS.find((f) => f.key === "vaultReservePercent");
   assert.ok(field, "vaultReservePercent is on /gm/dev");
   assert.equal(field.default, DEFAULT_VAULT_RESERVE_PERCENT);
   assert.equal(field.group, "economy");
   const schema = fs.readFileSync(path.join(__dirname, "../prisma/schema.prisma"), "utf8");
-  assert.match(schema, /vaultReservePercent Int @default\(40\)/);
+  assert.equal(DEFAULT_VAULT_RESERVE_PERCENT, 25);
+  assert.match(schema, /vaultReservePercent Int @default\(25\)/);
 });
 
 test("the Vault has no authored obols left to pour on top of the stock", () => {

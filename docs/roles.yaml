@@ -109,7 +109,7 @@
 # is actually sitting in the Keep's Vault. Every treasury figure here is a
 # claim on that pile (docs/zones.yaml, `undertown-1-7`) — and the pile is made
 # of them: each character's starting balance puts a share of itself into the
-# Vault as coin (40% by default, the Vault stock knob on /gm/dev, the Baron's
+# Vault as coin (25% by default, the Vault stock knob on /gm/dev, the Baron's
 # excepted; db/lib/startingAccount.js). So raising a figure raises the Vault
 # with it, and the cover stays at that share.
 #

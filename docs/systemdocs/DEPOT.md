@@ -336,7 +336,7 @@ which is why a sell price equal to the buy price prints nothing
 - `BankAccount.balanceObols` is the claim. `Depot.accountObols` is gone.
 - The **Vault** is `undertown-1-7`, a real room behind the Baron's key, and
   every TREASURY account draws on that pile and nothing else.
-- **Stocked as the town is made.** The Vault is stocked with **40%** of the
+- **Stocked as the town is made.** The Vault is stocked with **25%** of the
   town's starting balances, rather than poured at Start Game. It has no
   authored obols in `docs/zones.yaml`. Instead, each new character's starting
   balance puts `GameConfig.vaultReservePercent` of itself into the Vault as
@@ -345,8 +345,9 @@ which is why a sell price equal to the buy price prints nothing
   Vault never falls short of the percentage. The Baron's balance is left out.
   So the Vault always holds that share of what everybody opened with, late
   joiners included — deliberately short of the claims, so a bank run is a live
-  possibility from day one. 40% is the default, matching the floor
-  `npm run db:audit-vault-backing` fails under; it is the **Vault stock** knob
+  possibility from day one. 25% is the default, which is under the 40% floor
+  `npm run db:audit-vault-backing` fails under, so that audit reads short from
+  the first character; it is the **Vault stock** knob
   in the Economy section of `/gm/dev`, and a change applies to characters
   created after it. Offshore balances stock it too, though nothing draws them
   from it, which leaves the Treasury claims a little better covered than the

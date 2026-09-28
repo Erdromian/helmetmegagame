@@ -510,7 +510,7 @@ export async function createCharacter(formData) {
   // be a claim with nothing behind it in the Vault. That is answered by
   // stocking the Vault as the balances are handed out: the balance is rolled
   // within 10% of `startingAccountObols`, and puts GameConfig.vaultReservePercent
-  // of itself into the Vault as coin (40% by default, the Baron's excluded), all
+  // of itself into the Vault as coin (25% by default, the Baron's excluded), all
   // in one transaction — db/lib/startingAccount.js. So the Vault always holds
   // that share of what the town opened with. `npm run db:audit-vault-backing`
   // is the check that keeps the two honest.
