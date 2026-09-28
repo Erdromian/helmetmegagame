@@ -687,7 +687,10 @@ Picking a role decides almost everything:
   (`web/app/(app)/character/createActions.js` bumps the new account by
   `Role.startingAccountObols`), on top of any physical `Obol xN` tags in
   `starting_tags`. Those balances are claims on the Vault, which is stocked
-  deliberately short of them — see `DEPOT.md` §0g.
+  deliberately short of them — see `DEPOT.md` §0g. Both the balance and the
+  `Obol xN` purse are rolled within 10% of the seat's figure for each new
+  character (`db/lib/startingVariance.js`), so they are a guide, not a
+  promise.
 
 **Everyone starts with about one meal**, in `starting_tags`, flavoured to the
 seat: moldy bread or a Ration Box for the poor, the Dockers and the soldiers of

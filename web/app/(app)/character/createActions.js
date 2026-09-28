@@ -35,6 +35,7 @@ import {
 import { addToStack } from "@lifeweb/db/lib/tagWrites";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
 import { openAccount, bumpBankAccount } from "@lifeweb/db/lib/bankAccounts";
+import { varyStarting, varyStartingPurse } from "@lifeweb/db/lib/startingVariance";
 import { turnStamp } from "@lifeweb/db/lib/economyLedger";
 import {
   ensureCharacterRole,
@@ -226,6 +227,9 @@ export async function createCharacter(formData) {
     const { slug, quantity } = parseStartingTag(entry);
     startingWanted.set(slug, (startingWanted.get(slug) ?? 0) + quantity);
   }
+  // The purse is the middle of a range: rolled within 10% once, here, for this
+  // character (db/lib/startingVariance.js).
+  varyStartingPurse(startingWanted);
   const startingTags = startingWanted.size
     ? await prisma.tag.findMany({ where: { slug: { in: [...startingWanted.keys()] } } })
     : [];
@@ -523,7 +527,8 @@ export async function createCharacter(formData) {
           turnNumber: openTurn?.number ?? null,
         });
         if (!account || !(role.startingAccountObols > 0)) return;
-        await bumpBankAccount(tx, account.id, role.startingAccountObols, {
+        // Rolled within 10% of the seat's figure, like the purse above.
+        await bumpBankAccount(tx, account.id, varyStarting(role.startingAccountObols), {
           holderName: account.holderName,
           econ: { reason: "CHARACTER_START", ...turnStamp(openTurn) },
         });

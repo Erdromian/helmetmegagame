@@ -1078,15 +1078,18 @@ zones:
                 # out of this room and an empty Vault means nobody gets paid.
                 # See docs/systemdocs/DEPOT.md §0g.
                 #
-                # DELIBERATELY SHORT OF THE CLAIMS. The starting purses
-                # (`starting_account:` in docs/roles.yaml) come to about 310 at
-                # 100 players and 395 at 150, so this pile covers roughly two
-                # thirds of what the town is owed and a bank run is a live
+                # DELIBERATELY SHORT OF THE CLAIMS. The starting balances
+                # (`starting_account:` in docs/roles.yaml) come to about 1,590
+                # at 100 players and 2,170 at 150, so this pile covers well
+                # under half of what the town is owed and a bank run is a live
                 # possibility from day one. That is the design, not drift: the
                 # ATM refuses rather than clamps, so the money goes to whoever
-                # walks up first. Do not "fix" this by raising it back to 480.
+                # walks up first. Do not "fix" this by raising it to match.
                 # `npm run db:audit-vault-backing` measures the ratio.
-                obol: 250
+                #
+                # 350 is the middle of the range: Start Game pours 315–385,
+                # rolled once a game (db/lib/startingVariance.js).
+                obol: 350
                 painting: 1
                 # The Hand's old one. Anybody who can already open the Vault
                 # can have the run of the lift too — that is a short list, and

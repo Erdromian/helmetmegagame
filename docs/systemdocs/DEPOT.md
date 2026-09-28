@@ -335,11 +335,17 @@ which is why a sell price equal to the buy price prints nothing
 
 - `BankAccount.balanceObols` is the claim. `Depot.accountObols` is gone.
 - The **Vault** is `undertown-1-7`, a real room behind the Baron's key,
-  carrying **250 obols** in `docs/zones.yaml`, deliberately short of the
-  roughly 315 ¢ the starting purses claim at 100 players (the comment on the
-  stash says why: a bank run is meant to be a live possibility from day one,
-  and the figure is not to be raised back to 480). Every TREASURY account
+  carrying **350 obols** in `docs/zones.yaml`, deliberately short of the
+  roughly 1,590 ¢ the starting balances claim at 100 players (the comment on
+  the stash says why: a bank run is meant to be a live possibility from day
+  one, and the figure is not to be raised to match). Every TREASURY account
   draws on that pile and nothing else.
+- **Every starting figure wobbles by up to 10% a game**
+  (`db/lib/startingVariance.js`). Start Game pours the Vault at 315–385
+  rather than exactly 350, and each new character's `starting_account:`
+  balance and `Obol xN` purse are rolled the same way at creation, so two
+  Courtiers rarely start with the same money. A figure too small to move by a
+  whole obol (anything under 10) stays as written.
 - **Nobody seeds that pile automatically, and this is the trap.**
   `db:import-zones` never writes a stash — it prints a warning telling you to
   seed it from `/gm/dev/zones` instead (`db/lib/importZones.js`). So the figure
@@ -349,8 +355,8 @@ which is why a sell price equal to the buy price prints nothing
 - It matters more than it used to. Seats now open their accounts with money in
   them (`starting_account:` in `docs/roles.yaml`), so an unstocked Vault is not
   a quiet inconvenience — it is forty characters holding a balance the ATM will
-  refuse to pay. The purses come to about 310 ¢ at 100 players and 395 at 150,
-  which is where 480 comes from.
+  refuse to pay. The balances come to about 1,590 ¢ at 100 players and 2,170
+  at 150, against a Vault of 350.
 - **The ATM — an infoterminal now** (`RINGS.md` §5) moves obols between an
   account and physical `obol` tags. It reads the signet ring on your finger:
   no registered ring, no account, and somebody else's ring (or your own while
