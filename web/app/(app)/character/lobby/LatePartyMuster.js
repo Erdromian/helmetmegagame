@@ -61,7 +61,7 @@ export default function LatePartyMuster({ fates, entry, entered }) {
 
   return (
     <PageShell width="wide">
-      <h2 className="section-title">Late Party</h2>
+      <h2 className="section-title">Lateparty</h2>
 
       <div className="grid grid-cols-1 items-start gap-6 md:grid-cols-[minmax(0,1fr)_22rem]">
         <aside className="flex flex-col gap-4 md:sticky md:top-6 md:order-2">
@@ -74,7 +74,7 @@ export default function LatePartyMuster({ fates, entry, entered }) {
               <span className="chip mono">{entered} in</span>
             </div>
             <p className="text-sm text-muted">
-              A late party is mustering. The fates are drawn at the end of the turn, and anyone may be drawn,
+              A lateparty is mustering. The fates are drawn at the end of the turn, and anyone may be drawn,
               buried or not. If you are not drawn, your name stays in for the next.
             </p>
             <div>

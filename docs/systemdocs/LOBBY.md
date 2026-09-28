@@ -249,10 +249,12 @@ one-line DM pointing at late join.
 
 `creationWindowHours` is a `GameConfig` knob (default 12).
 
-**A late party's muster hands out the same seats** (`LATE-PARTIES.md` §4): an
+**A lateparty's muster hands out the same seats** (`LATE-PARTIES.md` §4): an
 ASSIGNED entry with `latePartyId` set, drawn at the end of a turn rather than
 at Start. Everything above applies to it; it also skips the curse and the
-spawn-only refusal, and is honoured while a party locks every other fate.
+spawn-only refusal, and is honoured while a party locks every other fate. When
+one is declined or expires, the chair is offered on at once to somebody still in
+that party's draw who asked for the fate, rather than freed to late join.
 
 **Who is mid-window is visible to every GM**, on the Dev Panel's Assignments
 section as **Seats out** (`DEV-PANEL.md` §11b): the ASSIGNED entries with no

@@ -90,12 +90,12 @@ function creationOpen(phase, member) {
 }
 
 // While a late party is live, its fates are the only ones anybody may take.
-const PARTY_LOCKED_REFUSAL = "A late party is mustering. Only its fates are open right now.";
+const PARTY_LOCKED_REFUSAL = "A lateparty is mustering. Only its fates are open right now.";
 // A MUSTER party is drawn, never picked from (db/lib/latePartyRaffle.js).
-const MUSTER_REFUSAL = "A late party is mustering. Its fates are drawn at the end of the turn.";
+const MUSTER_REFUSAL = "A lateparty is mustering. Its fates are drawn at the end of the turn.";
 // The party ended between picking a fate and confirming it. No "pick another":
 // for somebody the curse still holds, there is no other.
-const PARTY_OVER_REFUSAL = "The late party ended before you finished.";
+const PARTY_OVER_REFUSAL = "The lateparty left before you finished.";
 
 // Creates a character from the wizard's Confirm step. Everything posted is
 // re-derived and re-checked. The seat-cap recheck closes a real race (Prisma

@@ -30,7 +30,7 @@
 
 // The picker's heading for a party's fates. It takes the place of the Special
 // section and the seven buckets while the party is live.
-const LATE_PARTY_GROUP = { slug: "late-party", name: "Late Party" };
+const LATE_PARTY_GROUP = { slug: "late-party", name: "Lateparty" };
 
 // A GM typing 9999 by mistake should not open a party nobody can fill; blank
 // is how you ask for unlimited.
@@ -211,9 +211,9 @@ async function endLateParty(tx, { by }) {
 // The DM a new party sends to everybody playersWithoutLivingCharacter names.
 function latePartyMessage(origin, mode = "OPEN") {
   if (mode === "MUSTER") {
-    return `A late party is mustering. Put your name down before the turn ends to be drawn for a new character, whether or not your body has been buried: ${origin}/character`;
+    return `A lateparty is mustering. You may enter into the draw for one of the seats regardless of whether you have been buried: ${origin}/character`;
   }
-  return `A late party is mustering. You can make a new character now, whether or not your body has been buried: ${origin}/character`;
+  return `A lateparty is approaching, you can freely respawn as a part of it regardless of whether or not you have been buried: ${origin}/character`;
 }
 
 // Who a new party is announced to: every player with a character and none of

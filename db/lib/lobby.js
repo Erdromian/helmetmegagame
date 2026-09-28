@@ -11,6 +11,7 @@ const { normalizeTurnLength, nextBoundaryAfter } = require("./turnClock");
 const { seedAuthoredWorld } = require("./worldSeed");
 const { resetExchange, rollPhoneNumbers } = require("./phoneNumbers");
 const { rollNuke } = require("./nuke");
+const { offerFreedSeat } = require("./latePartyRaffle");
 
 // Button customId prefix for the assignment DM's Decline (web builds it, bot routes the click).
 const LOBBY_DECLINE_PREFIX = "lobby-decline:";
@@ -357,6 +358,15 @@ async function declineAssignment(db, entryId, discordUserId) {
       },
     })
     .catch((err) => console.error("Lobby decline audit failed:", err));
+  // A seat a lateparty's muster drew is offered straight on to somebody still
+  // in its hat who wants that fate (LATE-PARTIES.md §4). Best-effort: the
+  // decline has landed either way, and a chair nobody takes now waits for the
+  // next draw.
+  if (entry.latePartyId) {
+    await offerFreedSeat(db, { partyId: entry.latePartyId, roleId: entry.assignedRoleId, reason: "declined" }).catch(
+      (err) => console.error("Lateparty re-offer after a decline failed:", err),
+    );
+  }
   // A seat a late party's muster drew goes back into that party's draw, not
   // to late join (LATE-PARTIES.md), so it does not promise late join.
   return { ok: true, line: entry.latePartyId ? "You turned the seat down." : "You turned the seat down. Late join is open." };

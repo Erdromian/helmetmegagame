@@ -231,3 +231,23 @@ test("the draw still honours the whitelist", () => {
   const { rows } = assignFates({ players, roles, seed: "x", pickable: () => true, capacity: () => 1 });
   assert.equal(rows[0].roleSlug, null);
 });
+
+test("a freed chair goes to the highest priority for that fate, and to nobody who never asked", () => {
+  const roles = [{ slug: "cerberus", name: "Cerberus", requiresWhitelist: false, spawnOnly: false }];
+  const players = [
+    { discordUserId: "low", priorities: { cerberus: "LOW" }, joblessRole: "RETURN_TO_LOBBY", whitelisted: false },
+    { discordUserId: "high", priorities: { cerberus: "HIGH" }, joblessRole: "RETURN_TO_LOBBY", whitelisted: false },
+    { discordUserId: "other", priorities: { tribune: "HIGH" }, joblessRole: "RETURN_TO_LOBBY", whitelisted: false },
+  ];
+  // The re-offer's own call: that one fate, one chair.
+  const { rows } = assignFates({
+    players,
+    roles,
+    taken: new Map([["cerberus", 0]]),
+    seed: "reoffer",
+    pickable: () => true,
+    capacity: () => 1,
+  });
+  const winners = rows.filter((r) => r.roleSlug === "cerberus").map((r) => r.discordUserId);
+  assert.deepEqual(winners, ["high"]);
+});

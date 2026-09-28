@@ -77,7 +77,7 @@ the seat or a superadmin ends it. The panel marks those fates.
 
 ## 3. An open party
 
-The picker draws one section, **Late Party**, with the party's fates in it,
+The picker draws one section, **Lateparty**, with the party's fates in it,
 hidden ones included, each card counting against the party's own slots. The
 player picks, builds and spawns at once, as with any seat. That is the
 "instant" respawn: no burial, no wait, no draw.
@@ -108,6 +108,16 @@ seat already does comes with it:
   six-hours-left reminder, and the expiry;
 - **Decline** frees the chair, and the next draw can hand it on;
 - the GMs' **Seats out** table lists it.
+
+**A drawn seat that comes back is offered on at once, before the next draw.**
+Declined, or left to run out its window, it goes straight to somebody still in
+the hat who asked for that fate (`latePartyRaffle.js#offerFreedSeat`, called
+from `lobby.js#declineAssignment` and the lobby sweep's expiry): the same roll
+over that one chair, so High before Med before Low, random among equals, the
+whitelist honoured. They get an ordinary drawn seat with a fresh window, and
+the sweep's next tick sends them the "You're in" DM. Only when nobody left in
+the hat wants that fate does the chair wait for the turn's draw. Each re-offer
+writes `late_party_reoffer` (why, which fate, to whom).
 
 **Nobody the draw passes over is told anything.** Their name stays in for the
 next turn's draw. A name is taken out when its player is drawn, comes back

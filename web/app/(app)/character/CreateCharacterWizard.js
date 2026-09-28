@@ -563,8 +563,8 @@ export default function CreateCharacterWizard({
               )}
               {lateParty && (
                 <p className="text-sm text-muted">
-                  A late party is mustering. These are the only fates open right now, and anyone
-                  may take one, buried or not.
+                  A lateparty approaches. These are the only fates open right now, and anyone may
+                  take one, buried or not.
                 </p>
               )}
               <div className="grid gap-2 sm:grid-cols-2">

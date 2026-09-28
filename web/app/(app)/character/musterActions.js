@@ -33,7 +33,7 @@ async function musterGate() {
   ]);
   if (living) return { error: "You already have a character." };
   if (seat) return { error: "You have already been drawn. Build your character." };
-  if (party?.party.mode !== "MUSTER") return { error: "There is no late party mustering." };
+  if (party?.party.mode !== "MUSTER") return { error: "There is no lateparty mustering." };
   const phase = state?.phase;
   if (phase !== "RUNNING" && phase !== "ENDED" && !isGm(member)) {
     return { error: "Ravenheart isn't open yet." };
