@@ -38,6 +38,7 @@ const { createWithRetry } = require("./paperMint");
 const { wornRingTokens } = require("./roomAccess");
 const { seenById, seenByPlace } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
+const { logAudit } = require("./auditLog");
 const {
   COLLAR_ITEM_SLUG,
   COLLAR_LOCKED_SLUG,
@@ -335,15 +336,13 @@ async function applyCollar(prisma, { actor, target, turn, collar, offerId = null
     if (!inHand) return { ok: false, reason: "You don't have that collar any more." };
     await dropCharacterTag(tx, actor.id, collar.id, 1);
     await lockOn(tx, target.id, locked);
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: actor.discordUserId ?? "system",
-        actionType: "request_apply_collar",
-        targetCharacterId: target.id,
-        turnId: turn?.id ?? null,
-        locationId: actor.locationId ?? null,
-        details: effect,
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: actor.discordUserId ?? "system",
+      actionType: "request_apply_collar",
+      targetCharacterId: target.id,
+      turnId: turn?.id ?? null,
+      details: effect,
+      place: { locationId: actor.locationId ?? null, roomId: null },
     });
     return { ok: true, ...effect };
   });
@@ -488,15 +487,13 @@ async function unlockCollar(prisma, { actor, target, turn }) {
   const done = await prisma.$transaction(async (tx) => {
     if (!(await takeOff(tx, target.id, worn.tagId))) return false;
     await addToStack(tx, actor.id, loose.id, 1, { source: "EVENT", stackable: false });
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: actor.discordUserId ?? "system",
-        actionType: "request_unlock_collar",
-        targetCharacterId: target.id,
-        turnId: turn?.id ?? null,
-        locationId: actor.locationId ?? null,
-        details: effect,
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: actor.discordUserId ?? "system",
+      actionType: "request_unlock_collar",
+      targetCharacterId: target.id,
+      turnId: turn?.id ?? null,
+      details: effect,
+      place: { locationId: actor.locationId ?? null, roomId: null },
     });
     return true;
   });
@@ -564,15 +561,13 @@ async function detonateCollar(prisma, { actor, collarSlug, turn }) {
   // about where it went and the corpse is not left wearing it.
   const gone = await prisma.$transaction(async (tx) => {
     if (!(await takeOff(tx, target.id, worn.tagId))) return false;
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: actor.discordUserId ?? "system",
-        actionType: "request_detonate_collar",
-        targetCharacterId: target.id,
-        turnId: turn?.id ?? null,
-        locationId: target.locationId ?? null,
-        details: { targetCharacterId: target.id, targetName: target.name, glyph },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: actor.discordUserId ?? "system",
+      actionType: "request_detonate_collar",
+      targetCharacterId: target.id,
+      turnId: turn?.id ?? null,
+      details: { targetCharacterId: target.id, targetName: target.name, glyph },
+      place: { locationId: target.locationId ?? null, roomId: null },
     });
     return true;
   });

@@ -26,6 +26,7 @@ const { severityRungOf, healOutcome } = require("./healGambit");
 const { pickComplication } = require("./healComplications");
 const { seenById } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
+const { logAudit } = require("./auditLog");
 
 const HEAL_AUDIT_ACTION = "request_heal_character";
 const RESOLVED_AUDIT_ACTION = "heal_gambit_resolved";
@@ -204,22 +205,20 @@ async function runHealGambitPass(prisma, turn) {
           data: { moveReviewStatus: "SOLVED", resultMessage, reviewedAt: new Date() },
         });
 
-        await tx.auditLog.create({
-          data: {
-            actorDiscordUserId: "system",
-            actionType: RESOLVED_AUDIT_ACTION,
-            targetCharacterId,
-            turnId: turn.id,
-            details: {
-              actionId: action.id,
-              medicCharacterId: action.characterId,
-              tagId,
-              tagName: tag.name,
-              succeeded,
-              total,
-              threshold,
-              complicationSlug: succeeded ? null : complicationName,
-            },
+        await logAudit(tx, {
+          actorDiscordUserId: "system",
+          actionType: RESOLVED_AUDIT_ACTION,
+          targetCharacterId,
+          turnId: turn.id,
+          details: {
+            actionId: action.id,
+            medicCharacterId: action.characterId,
+            tagId,
+            tagName: tag.name,
+            succeeded,
+            total,
+            threshold,
+            complicationSlug: succeeded ? null : complicationName,
           },
         });
 

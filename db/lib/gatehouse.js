@@ -46,6 +46,7 @@ const { locationLine } = require("./placeLine");
 const { sendDm } = require("./dm");
 const { SFX } = require("./sfx");
 const { recordArchiveEvent } = require("./archive");
+const { logAudit } = require("./auditLog");
 
 function fail(error, extra = {}) {
   return { ok: false, error, ...extra };
@@ -220,16 +221,13 @@ async function requestPassage(prisma, discordUserId, { roomSlug, text: rawText, 
         turnId: turn?.id ?? null,
       },
     });
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "gate_passage_requested",
-        targetCharacterId: character.id,
-        turnId: turn?.id ?? null,
-        locationId: character.locationId,
-        roomId: room.id,
-        details: { direction: way.direction, text, offered: lines },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: discordUserId,
+      actionType: "gate_passage_requested",
+      targetCharacterId: character.id,
+      turnId: turn?.id ?? null,
+      details: { direction: way.direction, text, offered: lines },
+      place: { locationId: character.locationId, roomId: room.id },
     });
   });
   return { ok: true, line: T.requestSent };
@@ -425,26 +423,23 @@ async function approvePassage(prisma, discordUserId, { passageId, keep = [], giv
         where: { id: asker.id },
         data: { locationId: destination.id, zoneId: destination.zoneId, escortedById: null },
       });
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "gate_passage_approved",
-          targetCharacterId: asker.id,
-          turnId: turn?.id ?? null,
-          locationId: clerk.locationId,
-          roomId: room.id,
-          details: {
-            passageId: row.id,
-            direction: row.direction,
-            askerName: asker.name,
-            clerkName: clerk.name,
-            ring: ringName(clerk.tags),
-            kept: summary(kept.lines),
-            given: summary(given.lines),
-            from: asker.locationId,
-            to: destination.id,
-          },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "gate_passage_approved",
+        targetCharacterId: asker.id,
+        turnId: turn?.id ?? null,
+        details: {
+          passageId: row.id,
+          direction: row.direction,
+          askerName: asker.name,
+          clerkName: clerk.name,
+          ring: ringName(clerk.tags),
+          kept: summary(kept.lines),
+          given: summary(given.lines),
+          from: asker.locationId,
+          to: destination.id,
         },
+        place: { locationId: clerk.locationId, roomId: room.id },
       });
     });
   } catch (err) {
@@ -489,22 +484,19 @@ async function denyPassage(prisma, discordUserId, { passageId, turn = null } = {
     },
   });
   if (claim.count === 0) return fail(T.requestGone);
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: discordUserId,
-      actionType: "gate_passage_denied",
-      targetCharacterId: row.characterId,
-      turnId: turn?.id ?? null,
-      locationId: clerk.locationId,
-      roomId: room.id,
-      details: {
-        passageId: row.id,
-        direction: row.direction,
-        askerName: row.character.name,
-        clerkName: clerk.name,
-        ring: ringName(clerk.tags),
-      },
+  await logAudit(prisma, {
+    actorDiscordUserId: discordUserId,
+    actionType: "gate_passage_denied",
+    targetCharacterId: row.characterId,
+    turnId: turn?.id ?? null,
+    details: {
+      passageId: row.id,
+      direction: row.direction,
+      askerName: row.character.name,
+      clerkName: clerk.name,
+      ring: ringName(clerk.tags),
     },
+    place: { locationId: clerk.locationId, roomId: room.id },
   });
   await archiveGatehouse(prisma, clerk, T.archiveDenied(clerk.name, row.character.name, row.direction), turn);
   return {
@@ -558,16 +550,13 @@ async function pourMagma(prisma, discordUserId, { turn = null } = {}) {
     dms.push({ teardown: { ...asker, discordRoleId: roleId }, discordUserId: asker.discordUserId, text: `You have died.\n${T.magmaDeath}` });
   }
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: discordUserId,
-      actionType: "gate_magma",
-      targetCharacterId: clerk.id,
-      turnId: current.id,
-      locationId: clerk.locationId,
-      roomId: room.id,
-      details: { ring, clerkName: clerk.name, killed },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: discordUserId,
+    actionType: "gate_magma",
+    targetCharacterId: clerk.id,
+    turnId: current.id,
+    details: { ring, clerkName: clerk.name, killed },
+    place: { locationId: clerk.locationId, roomId: room.id },
   });
   if (killed.length > 0) {
     const names = killed.map((k) => k.name);
@@ -627,16 +616,13 @@ async function submitDocumentation(prisma, discordUserId, { turn = null } = {}) 
   });
   if (waiting) return fail(T.documentWaiting);
   await prisma.gateDocumentation.create({ data: { characterId: character.id } });
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: discordUserId,
-      actionType: "documentation_submitted",
-      targetCharacterId: character.id,
-      turnId: turn?.id ?? null,
-      locationId: character.locationId,
-      roomId: room.id,
-      details: {},
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: discordUserId,
+    actionType: "documentation_submitted",
+    targetCharacterId: character.id,
+    turnId: turn?.id ?? null,
+    details: {},
+    place: { locationId: character.locationId, roomId: room.id },
   });
   return { ok: true, line: T.documentDone };
 }
@@ -769,25 +755,22 @@ async function approveDocumentation(prisma, discordUserId, { submissionId, name:
         accountId: account.id,
       });
       // The audit log and the archive keep the record the terminal does not (the doc).
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "documents_issued",
-          targetCharacterId: submission.characterId,
-          turnId: turn?.id ?? null,
-          locationId: clerk.locationId,
-          roomId: room.id,
-          details: {
-            name,
-            occupation,
-            fingerprint,
-            realName: submission.character.name,
-            clerkId: clerk.id,
-            clerkName: clerk.name,
-            ring: ringName(clerk.tags),
-            feeObols: DOCUMENTS_FEE_OBOLS,
-          },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "documents_issued",
+        targetCharacterId: submission.characterId,
+        turnId: turn?.id ?? null,
+        details: {
+          name,
+          occupation,
+          fingerprint,
+          realName: submission.character.name,
+          clerkId: clerk.id,
+          clerkName: clerk.name,
+          ring: ringName(clerk.tags),
+          feeObols: DOCUMENTS_FEE_OBOLS,
         },
+        place: { locationId: clerk.locationId, roomId: room.id },
       });
     });
   } catch (err) {
@@ -814,16 +797,13 @@ async function denyDocumentation(prisma, discordUserId, { submissionId, turn = n
     data: { status: "DENIED", resolvedAt: new Date(), resolvedById: clerk.id },
   });
   if (claim.count === 0) return fail(T.submissionGone);
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: discordUserId,
-      actionType: "documentation_denied",
-      targetCharacterId: submission.characterId,
-      turnId: turn?.id ?? null,
-      locationId: clerk.locationId,
-      roomId: room.id,
-      details: { realName: submission.character.name, clerkName: clerk.name, ring: ringName(clerk.tags) },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: discordUserId,
+    actionType: "documentation_denied",
+    targetCharacterId: submission.characterId,
+    turnId: turn?.id ?? null,
+    details: { realName: submission.character.name, clerkName: clerk.name, ring: ringName(clerk.tags) },
+    place: { locationId: clerk.locationId, roomId: room.id },
   });
   await archiveGatehouse(prisma, clerk, T.archiveDocumentsDenied(clerk.name, submission.character.name), turn);
   return {

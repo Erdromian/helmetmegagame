@@ -220,6 +220,7 @@ import {
   toChipRow,
 } from "@/lib/tagChipRows";
 import { thingGroups } from "./thingRows";
+import { logAudit } from "@/lib/requests";
 
 // Every button in Chat's right column, as a server action. THE CONTRACT: the
 // acting character is resolved from the session, never posted; every gate is
@@ -377,13 +378,11 @@ export async function photographRow(seq) {
   });
 
   // Written only once the print exists, so a failed mint can retry rather than burning the shot.
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: me.discordUserId,
-      actionType: PHOTO_ACTION,
-      targetCharacterId: row.characterId,
-      details: { seq: wanted, placeKey: row.placeKey, hooded, photoTagId: photo.id, photoName: photo.name },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: me.discordUserId,
+    actionType: PHOTO_ACTION,
+    targetCharacterId: row.characterId,
+    details: { seq: wanted, placeKey: row.placeKey, hooded, photoTagId: photo.id, photoName: photo.name },
   });
 
   return {

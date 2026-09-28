@@ -35,6 +35,7 @@ const { SFX } = require("./sfx");
 // (db/lib/vendingText.js says the same about itself). Re-exported below, so a
 // server caller keeps its one import.
 const { SLOT_COST, SLOT_PAYOUTS, SLOT_MAX_PAYOUT, SLOT_PROMPT } = require("./slotText");
+const { logAudit } = require("./auditLog");
 
 const CASINO_ROOM_SLUG = "undertown-8-3";
 
@@ -208,16 +209,14 @@ async function playSlots(prisma, discordUserId, { turn = null } = {}) {
         });
       }
 
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "slot_machine",
-          targetCharacterId: character.id,
-          turnId: turn?.id ?? null,
-          // `game` is a fixed word the Desire desk's audit filter can search for
-          // ("slots" — DESIRES.md §10); the house's name changes with the Exactor.
-          details: { game: "slots", faces, outcome: outcome ?? "nothing", stake: SLOT_COST, payout, house: seat.house.name },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "slot_machine",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        // `game` is a fixed word the Desire desk's audit filter can search for
+        // ("slots" — DESIRES.md §10); the house's name changes with the Exactor.
+        details: { game: "slots", faces, outcome: outcome ?? "nothing", stake: SLOT_COST, payout, house: seat.house.name },
       });
     });
   } catch (err) {

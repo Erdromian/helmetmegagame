@@ -16,6 +16,7 @@ const { RING_ACCESS_TAG_FIELDS, wornRingAccess } = require("./rings");
 const { anchorGateFor, remoteLeverFor, controlThing } = require("./gateControls");
 const { GATEHOUSE_TEXT } = require("./gatehouseText");
 const { recordArchiveEvent } = require("./archive");
+const { logAudit } = require("./auditLog");
 
 // `character` needs { id, locationId }, and its tags with the ring's columns: a watchtower's winch
 // asks nothing of the person pulling it (the room they clicked in already answered who they are),
@@ -90,22 +91,19 @@ async function toggleGate(prisma, { character, linkId, actorDiscordUserId }) {
   if (outcome === "gone") return { ok: false, error: "There's no gate here to work." };
   if (outcome === "raced") return { ok: false, error: "Somebody just beat you to it." };
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: actorDiscordUserId ?? null,
-      actionType: wantOpen ? "gate_opened" : "gate_closed",
-      targetCharacterId: character.id,
-      // Where it was worked from: the lever's own room, or the end the clicker stood at.
-      locationId: leverLocationId ?? character.locationId ?? null,
-      roomId: leverRoomId,
-      details: {
-        linkId: link.id,
-        between: [link.a.name, link.b.name],
-        isOpen: wantOpen,
-        actorName: character.name ?? null,
-        ...(lever ? { lever: lever.roomSlug } : {}),
-      },
+  await logAudit(prisma, {
+    actorDiscordUserId: actorDiscordUserId ?? null,
+    actionType: wantOpen ? "gate_opened" : "gate_closed",
+    targetCharacterId: character.id,
+    details: {
+      linkId: link.id,
+      between: [link.a.name, link.b.name],
+      isOpen: wantOpen,
+      actorName: character.name ?? null,
+      ...(lever ? { lever: lever.roomSlug } : {}),
     },
+    // Where it was worked from: the lever's own room, or the end the clicker stood at.
+    place: { locationId: leverLocationId ?? character.locationId ?? null, roomId: leverRoomId },
   });
 
   // The gatehouse's two gates go in the archive too, naming who worked them:
@@ -223,13 +221,11 @@ async function holdKeyedOpen(prisma, { discordUserId, linkId, hold }) {
   });
   if (claim.count === 0) return { ok: false, error: "Somebody just beat you to it." };
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: discordUserId ?? null,
-      actionType: "keyed_way_held_open",
-      targetCharacterId: character.id,
-      details: { linkId: link.id, between: [link.a.name, link.b.name], openUntil: openUntil.toISOString() },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: discordUserId ?? null,
+    actionType: "keyed_way_held_open",
+    targetCharacterId: character.id,
+    details: { linkId: link.id, between: [link.a.name, link.b.name], openUntil: openUntil.toISOString() },
   });
 
   return {

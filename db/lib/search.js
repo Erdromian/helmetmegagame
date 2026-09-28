@@ -19,6 +19,7 @@ const { capitalizeFirst } = require("./concealedIdentity");
 const { seenAs, seenBy, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { searchButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
+const { logAudit } = require("./auditLog");
 
 // The ask writes this; the ration counts SearchAttempt rows, not these. Kept
 // apart the way KISS.md §3 keeps `kiss` and `kiss_accepted` apart: if the
@@ -189,17 +190,15 @@ async function createSearchOffer(prisma, { actor, target, turn }) {
         data: { offerId: row.id },
       });
       if (actor.discordUserId) {
-        await tx.auditLog.create({
-          data: {
-            actorDiscordUserId: actor.discordUserId,
-            actionType: SEARCH_AUDIT_ACTION,
-            targetCharacterId: target.id,
-            turnId: turn.id,
-            locationId: actor.locationId ?? null,
-            // `presented` for the INTERCEPT.md §2 reason: the log must not be
-            // the thing that unmasks somebody the searcher never saw.
-            details: { offerId: row.id, presented: theirFace, asked: true },
-          },
+        await logAudit(tx, {
+          actorDiscordUserId: actor.discordUserId,
+          actionType: SEARCH_AUDIT_ACTION,
+          targetCharacterId: target.id,
+          turnId: turn.id,
+          // `presented` for the INTERCEPT.md §2 reason: the log must not be
+          // the thing that unmasks somebody the searcher never saw.
+          details: { offerId: row.id, presented: theirFace, asked: true },
+          place: { locationId: actor.locationId ?? null, roomId: null },
         });
       }
       return row;
@@ -336,32 +335,30 @@ async function acceptSearch(prisma, offer, responder) {
 
   // One row per side, both carrying turnId — REQUESTS.md §1a. `presented` is
   // stored rather than the bare name for the INTERCEPT.md §2 reason.
-  await prisma.auditLog.createMany({
-    data: [
-      {
-        actorDiscordUserId: actor.discordUserId ?? "system",
-        actionType: SEARCH_ACCEPTED_ACTION,
-        targetCharacterId: target.id,
-        turnId: turn?.id ?? null,
-        locationId: actor.locationId ?? null,
-        details: {
-          offerId: offer.id,
-          die,
-          hiddenCount: hidden.length,
-          revealed: givenUp.map((r) => r.name),
-          found: found.map((r) => r.name),
-          presented: seenAs(identityOf(target)),
-        },
-      },
-      {
-        actorDiscordUserId: target.discordUserId ?? "system",
-        actionType: SEARCH_ACCEPTED_ACTION,
-        targetCharacterId: actor.id,
-        turnId: turn?.id ?? null,
-        locationId: target.locationId ?? null,
-        details: { offerId: offer.id, searched: true, presented: seenAs(identityOf(actor)) },
-      },
-    ],
+  // Through logAudit, one side at a time, so each is filed in the archive as
+  // that side's own act.
+  await logAudit(prisma, {
+    actorDiscordUserId: actor.discordUserId ?? "system",
+    actionType: SEARCH_ACCEPTED_ACTION,
+    targetCharacterId: target.id,
+    turnId: turn?.id ?? null,
+    details: {
+      offerId: offer.id,
+      die,
+      hiddenCount: hidden.length,
+      revealed: givenUp.map((r) => r.name),
+      found: found.map((r) => r.name),
+      presented: seenAs(identityOf(target)),
+    },
+    place: { locationId: actor.locationId ?? null, roomId: null },
+  });
+  await logAudit(prisma, {
+    actorDiscordUserId: target.discordUserId ?? "system",
+    actionType: SEARCH_ACCEPTED_ACTION,
+    targetCharacterId: actor.id,
+    turnId: turn?.id ?? null,
+    details: { offerId: offer.id, searched: true, presented: seenAs(identityOf(actor)) },
+    place: { locationId: target.locationId ?? null, roomId: null },
   });
 
   // The die goes on the row so a GM auditing it can see what happened, and

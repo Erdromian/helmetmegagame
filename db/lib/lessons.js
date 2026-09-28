@@ -42,6 +42,7 @@ const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
 const { autoMovesOpen } = require("./turnGate");
 const { seenById } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
+const { logAudit } = require("./auditLog");
 const LESSON_CHARACTER_SELECT = {
   id: true,
   name: true,
@@ -653,23 +654,21 @@ async function acceptLesson(prisma, offer, responder) {
         },
       });
 
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: responder.discordUserId ?? "system",
-          actionType: "lesson_accepted",
-          targetCharacterId: learner.id,
-          details: {
-            offerId: offer.id,
-            teacherId: teacher.id,
-            teacherName: teacher.name,
-            learnerId: learner.id,
-            learnerName: learner.name,
-            tagId: tag.id,
-            tagName: tag.name,
-            threshold,
-            learnerActionId: learnerAction.id,
-            teacherActionId: teacherAction?.id ?? null,
-          },
+      await logAudit(tx, {
+        actorDiscordUserId: responder.discordUserId ?? "system",
+        actionType: "lesson_accepted",
+        targetCharacterId: learner.id,
+        details: {
+          offerId: offer.id,
+          teacherId: teacher.id,
+          teacherName: teacher.name,
+          learnerId: learner.id,
+          learnerName: learner.name,
+          tagId: tag.id,
+          tagName: tag.name,
+          threshold,
+          learnerActionId: learnerAction.id,
+          teacherActionId: teacherAction?.id ?? null,
         },
       });
 

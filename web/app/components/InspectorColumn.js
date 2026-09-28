@@ -26,6 +26,8 @@ import {
 } from "@/app/(desk)/gm/turns/actions";
 import Select from "./Select";
 import useArchiveScroll from "./useArchiveScroll";
+import ArchiveActionSentence from "./ArchiveActionSentence";
+import Switch from "./Switch";
 import { archiveParamsToQuery } from "@/lib/archiveQuery";
 import { useVisibleZoneNames } from "./GmZoneViewProvider";
 import { getDmThreadPage, sendGmDm } from "@/app/(desk)/gm/players/actions";
@@ -424,8 +426,8 @@ function MovesView({ data }) {
 // already defines and the scroll it already runs (useArchiveScroll).
 //
 // It reads GET /api/archive rather than an action of its own. Everything it
-// needs was already there — archiveQuery.js speaks `character`, `zone`, `day`,
-// `q`, `show` and `order`, and the route already pages them by keyset cursor —
+// needs was already there — archiveQuery.js speaks `character`, `zone`, a day
+// range, `q`, `show`, `order` and `actions`, and the route pages them by keyset cursor —
 // so the tab used to be a worse, unfilterable copy of a thing one directory
 // over. A GM is never shut out of that route: archiveAccess.js is GM-only,
 // full stop — a player is refused before any game or filter is even looked at.
@@ -435,7 +437,7 @@ function MovesView({ data }) {
 // over whoever happens to be selected and has no shareable identity of its own.
 function ArchiveView({ onOpenContext, characterId }) {
   const visibleZones = useVisibleZoneNames(null);
-  const [filters, setFilters] = useState({ q: "", zone: "", day: "", show: "all", order: "desc" });
+  const [filters, setFilters] = useState({ q: "", zone: "", day: "", show: "all", order: "desc", actions: false });
   // The draft is separate from the applied `q`: every keystroke would be a new
   // query string, which — since the row list is KEYED on that string — would
   // remount and refetch the transcript on each letter.
@@ -448,7 +450,20 @@ function ArchiveView({ onOpenContext, characterId }) {
   // `show: "all"` and `order: "desc"` are this tab's defaults rather than the
   // page's ("speech"/"asc"), so both always appear in the query — which is
   // what archiveParamsToQuery omitting its own defaults would otherwise hide.
-  const query = archiveParamsToQuery({ ...filters, character: characterId, game: "" });
+  const day = Number.parseInt(filters.day, 10) || null;
+  const query = archiveParamsToQuery({
+    game: "",
+    zones: filters.zone ? [filters.zone] : [],
+    locations: [],
+    rooms: [],
+    characters: [characterId],
+    from: day,
+    to: day,
+    q: filters.q,
+    show: filters.show,
+    order: filters.order,
+    actions: filters.actions,
+  });
 
   return (
     <div className="desk-archive">
@@ -510,6 +525,10 @@ function ArchiveView({ onOpenContext, characterId }) {
               Oldest
             </button>
           </div>
+          {/* What they did, beside what they said. Off by default, as on /archive. */}
+          <Switch checked={filters.actions} onChange={(e) => set({ actions: e.target.checked })}>
+            Actions
+          </Switch>
         </div>
       </div>
 
@@ -551,7 +570,7 @@ function ArchiveRows({ query, onOpenContext }) {
               </>
             }
           >
-            <MarkdownContent content={r.content} />
+            {r.kind === "ACTION" ? <ArchiveActionSentence row={r} /> : <MarkdownContent content={r.content} />}
           </TranscriptLine>
         );
         if (r.kind !== "MESSAGE") return <div key={r.id}>{row}</div>;
