@@ -6,7 +6,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 const yaml = require("js-yaml");
-const { ACTS, validateAutoVerify, matchAutoVerify } = require("../lib/desireAutoVerify");
+const { ACTS, validateAutoVerify, matchAutoVerify, autoClaimOutcome } = require("../lib/desireAutoVerify");
 
 const readMaster = (name) => yaml.load(fs.readFileSync(path.join(__dirname, "../../docs", name), "utf8"));
 const tagSlugs = new Set(Object.keys(readMaster("tags.yaml").tags ?? {}));
@@ -185,4 +185,29 @@ test("every autoVerify in docs/desires.yaml is well formed against the tag catal
     if (canon.check === "act") assert.ok(Object.hasOwn(ACTS, canon.action), `${slug}: unknown action`);
   }
   assert.ok(count > 0, "no Desire carries an autoVerify — did the block get lost?");
+});
+
+// DESIRES.md §6c: the GM switch that rejects a claim with no proof. Only a
+// check that ran cleanly inside an open turn and came back empty rejects.
+test("autoClaimOutcome: confirm on proof, reject only when the switch is on and the check really ran", () => {
+  const rule = { check: "consumed", tags: ["sake"] };
+  const openTurn = { number: 3, startedAt: new Date(TURN_START) };
+  const evidence = { auditLogIds: ["a1"], note: "Consumed Sake" };
+  const on = { rule, openTurn, rejectUnproven: true };
+
+  assert.equal(autoClaimOutcome({ ...on, evidence }), "confirm");
+  assert.equal(autoClaimOutcome({ rule, openTurn, evidence }), "confirm");
+  assert.equal(autoClaimOutcome({ ...on, evidence: null }), "reject");
+  // The switch is off by default: no proof waits for a GM, as before.
+  assert.equal(autoClaimOutcome({ rule, openTurn, evidence: null }), "queue");
+  assert.equal(autoClaimOutcome({ ...on, rejectUnproven: false, evidence: null }), "queue");
+  // A Desire the game can't check is untouched.
+  assert.equal(autoClaimOutcome({ ...on, rule: null, evidence: null }), "queue");
+  assert.equal(autoClaimOutcome({ ...on, rule: { check: "juggle" }, evidence: null }), "queue");
+  // No open turn, no "this turn" to look in.
+  assert.equal(autoClaimOutcome({ ...on, openTurn: null, evidence: null }), "queue");
+  // A matcher that threw never costs the player their claim.
+  assert.equal(autoClaimOutcome({ ...on, evidence: null, checkFailed: true }), "queue");
+  // `holds` reads the sheet, but still only rejects inside an open turn.
+  assert.equal(autoClaimOutcome({ ...on, rule: { check: "holds", tags: ["obol"] }, evidence: null }), "reject");
 });

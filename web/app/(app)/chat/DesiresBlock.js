@@ -9,7 +9,7 @@ import RequestDialog from "@/app/components/RequestDialog";
 import DesireCatalog, { cooldownLabel } from "@/app/components/DesireCatalog";
 import { claimDesire } from "@/app/(app)/character/requestActions";
 import { desireCatalogView } from "./actions";
-import { lockedSlotLabel } from "@/lib/desireLabels";
+import { DESIRE_REJECTED, lockedSlotLabel } from "@/lib/desireLabels";
 import { actionThrowMessage } from "@/app/components/actionThrow";
 
 // The sheet's Desire slots, in the column. Same shape as
@@ -75,6 +75,9 @@ export default function DesiresBlock({ view }) {
       }
       if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
       setClaiming(null);
+      // Rejected on the spot by the GM switch (DESIRES.md §6c): the claim is
+      // on record, so the dialog closes and the verdict shows beside the slots.
+      if (res.rejected) setError(DESIRE_REJECTED);
       // The slots came down with the page and the catalog's cooldowns just
       // moved, so both are re-read rather than patched.
       setFull(null);

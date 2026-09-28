@@ -165,8 +165,10 @@ function CombatRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
 // stays in the list, dimmed, rather than dropping out. Auto-confirmed claims
 // (§6b) found their own proof and sit between the two: dimmed like a reviewed
 // row, but still answerable, so a GM can filter to them and check.
-const DESIRE_STATUS_OPTIONS = ["Waiting", "Auto-confirmed", "Reviewed"];
-const DESIRE_STATUS_RANK = { Waiting: 0, "Auto-confirmed": 1, Reviewed: 2 };
+// Auto-rejected claims (§6c) found no proof while the GM switch was on: they
+// paid nothing and sort last, dimmed and with no buttons.
+const DESIRE_STATUS_OPTIONS = ["Waiting", "Auto-confirmed", "Reviewed", "Auto-rejected"];
+const DESIRE_STATUS_RANK = { Waiting: 0, "Auto-confirmed": 1, Reviewed: 2, "Auto-rejected": 3 };
 const DESIRE_FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (r) => r.zoneName },
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: DESIRE_STATUS_OPTIONS },
@@ -553,6 +555,9 @@ function DesireClaimRow({ row, matchFor, onInspect, onSelect, active, kbd }) {
             </span>
             <span className="block truncate text-xs text-muted">{error ?? (row.reason ? `» ${row.reason}` : "No reason given")}</span>
             {row.auto && <span className="block truncate text-xs text-muted">Auto-confirmed: {row.autoNote}</span>}
+            {row.autoRejected && (
+              <span className="block truncate text-xs text-muted">Auto-rejected: no proof found this turn</span>
+            )}
           </span>
         </span>
       </button>

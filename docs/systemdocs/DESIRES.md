@@ -580,7 +580,9 @@ born with `autoVerifiedAt`, the cited `autoVerifiedAuditIds`, one GM-facing
 sentence in `autoVerifiedNote` ("Consumed Sake", "Held 112 Obol when
 claiming"), and `reviewedAt` stamped with `reviewedBy` left **null**. The same
 proof goes on the `request_fulfill_desire` audit row as `autoVerified`. When it
-isn't found, nothing is written and the claim waits in §6a exactly as before.
+isn't found, nothing is written and the claim waits in §6a exactly as before —
+unless a GM has turned on **Reject unproven claims**, which rejects it instead
+(§6c).
 So a rule is only ever written where the proof is beyond argument. Anything
 that needs a GM to judge motive ("torture someone for a reason") or to read
 something the log doesn't carry (which side accepted a kiss, whether goods
@@ -639,6 +641,47 @@ neither, and simply fall to the queue.
 - Anything spanning turns.
 - Every social or narrative goal.
 
+## 6c. Auto-rejected claims (off by default)
+
+`GameConfig.autoRejectUnprovenDesires` is a switch on `/gm/dev`, under
+Configuration → Desires → **Reject unproven claims**. It defaults to **off**,
+and off changes nothing in §6b.
+
+**On, a claim on a Desire with an `autoVerify:` rule that finds no proof is
+rejected on the spot.** A Desire with no rule is untouched: it waits for a GM
+as always. The decision is `autoClaimOutcome` (`db/lib/desireAutoVerify.js`),
+and it only rejects when the check actually **ran**:
+- there is an open turn (no turn, no "this turn" to look in), and
+- the rule's check is one the matcher knows, and
+- the matcher did not throw. A bug in a rule must never cost a player their
+  claim, so a throw sends the claim to the queue even with the switch on.
+
+**What a rejected claim is.** `claimDesireImpl` writes the row in the same
+transaction, born `CANCELLED` — the shape a GM Reject leaves
+(`revokeDesireCore`), with `endedTurnNumber` null. It carries
+`autoRejectedAt`, and `reviewedAt` stamped with `reviewedBy` null.
+- **Nothing is paid.** No Tag Points, no mood (MOOD.md), no
+  `DESIRE_FULFILLED` archive event.
+- **Nothing is spent.** Slot locks and cooldowns (§2) count only FULFILLED rows,
+  so the slot stays open and the player may claim again once they have really
+  done it.
+- **Audit:** `desire_auto_rejected` instead of `request_fulfill_desire`, with
+  the reason they typed and the check that found nothing.
+- **The player** sees "Rejected — the game found no sign of that this turn." in
+  the Desires block, and gets the same "Your desire was rejected." DM a GM
+  Reject sends.
+
+**On the desk** the row gets a fourth status, **Auto-rejected**, sorted after
+Reviewed and dimmed, with no Keep or Reject buttons (`desireAnswerable` is
+false for it, so the server refuses both too). `desireReviewWhere` lists it
+beside the FULFILLED rows. It is the only CANCELLED row the lens lists; a claim
+a GM rejected by hand drops out, as it always did. It never counts toward the
+tab. A GM who disagrees awards the Desire from the Dev Panel.
+
+Remember what "no proof" covers before turning this on: the proof must be this
+turn's (an act from last turn rejects), and one act confirms one claim (a
+second claim citing the same Sake rejects).
+
 ## 7. The clawback rule
 
 Curing an Addiction or a negative Personality tag (a Chaplain confessing
@@ -695,9 +738,9 @@ Which is the right place for it: the difference between an evening that
 happened and an evening staged to be claimed is a judgement about fiction, and
 no gate was ever going to make it.
 
-## 9. Config: `desireSlots` / `desireSlotLockTurns` / `maxDrawbackTags`
+## 9. Config: `desireSlots` / `desireSlotLockTurns` / `autoRejectUnprovenDesires` / `maxDrawbackTags`
 
-Three `GameConfig` knobs govern this system, all live-editable from
+Four `GameConfig` knobs govern this system, all live-editable from
 `/gm/dev` and all reset by a Restart Game wipe. There used to be a fourth, a
 `desiresEnabled` master switch; it was deleted in the 2026-09-07 config trim,
 since nobody had ever turned it off and Desires are the only faucet Tag Points
@@ -710,6 +753,9 @@ have in play:
   the game, so it is the first number to reach for if income is running hot or
   cold. `0` disables the lock entirely, which is a debugging setting, not a
   balance one.
+- **`autoRejectUnprovenDesires`** (default off) — "Reject unproven claims".
+  On, a claim on a Desire with an `autoVerify:` rule that finds no proof is
+  rejected instead of waiting for a GM. See §6c.
 - **`maxDrawbackTags`** (default 6) — **not** a Desires-system knob itself,
   but the field every drawback counts against at character creation. It caps
   the *count* of point-bought drawback tags, not their combined point value —
@@ -896,8 +942,8 @@ The section number is kept rather than renumbering everything below it.
 | `web/app/(app)/gm/dev/characters/[characterId]/GoalsTab.js` | GM Dev Panel surface — per-slot Award form (catalog or free text), Revoke on each past row, cooldown readout |
 | `web/app/(app)/gm/dev/characters/[characterId]/actions.js` | `awardDesireGm`/`revokeDesireGm` — gates bypassed, bookkeeping not (§6) |
 | `web/app/components/DesireRule.js` | Draws a template's `description` ("Counts: … / Doesn't count: …") in the catalog row, the Claim dialog and the review desk (§10) |
-| `db/lib/desireReview.js` | `desireNeedsReview`/`desireReviewWhere` (the review-queue predicate and its `where` twin), `desireIsAutoUnchecked` and the `desireAnswerable`/`desireAnswerableWhere` pair Keep and Reject gate on (§6b), and `revokeDesireCore`, the shared transaction body Reject and `revokeDesireGmImpl` both call (§6a) |
-| `db/lib/desireAutoVerify.js` | Auto-confirmed claims (§6b): `validateAutoVerify` (the sync's grammar check), the pure `matchAutoVerify`, and `findAutoEvidence`, which the claim calls inside its transaction |
+| `db/lib/desireReview.js` | `desireNeedsReview`/`desireReviewWhere` (the review-queue predicate and its `where` twin), `desireIsAutoUnchecked`, `desireIsAutoRejected` (§6c) and the `desireAnswerable`/`desireAnswerableWhere` pair Keep and Reject gate on (§6b), and `revokeDesireCore`, the shared transaction body Reject and `revokeDesireGmImpl` both call (§6a) |
+| `db/lib/desireAutoVerify.js` | Auto-confirmed claims (§6b): `validateAutoVerify` (the sync's grammar check), the pure `matchAutoVerify`, the pure `autoClaimOutcome` (confirm, reject or queue, §6c), and `findAutoEvidence`, which the claim calls inside its transaction |
 | `web/app/(desk)/gm/turns/actions.js` | `keepDesireClaim`/`rejectDesireClaim` (the desk's two buttons, §6a) and `getCharacterAuditSlice` (the mini audit-log filter behind `DesireDesk.js`) |
 | `web/app/(desk)/gm/turns/DesireDesk.js` | The arbitration panel for one claim — reason, the audit-slice search box, Keep/Reject |
 | `web/app/(desk)/gm/turns/QueueRail.js` | `DesireClaimRow` — the Desires lens's row and its unreviewed-only tab count (§6a) |

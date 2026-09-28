@@ -18,12 +18,14 @@ function desireNeedsReview(desire) {
   return !desire.reviewedAt;
 }
 
-// The same sentence as a Prisma `where` — MUST agree with desireNeedsReview above. reviewedAt is
+// The rows the Desires lens lists. MUST agree with desireNeedsReview above on what waits. reviewedAt is
 // deliberately NOT in this where: the queue shows reviewed rows too, dimmed; it's a sort key, not a filter.
+// The one CANCELLED shape it lists is a claim the GM switch rejected on the spot (DESIRES.md §6c), so a GM
+// can see what the game turned down; a claim a GM rejected by hand drops out, as it always did.
 function desireReviewWhere() {
   return {
-    status: "FULFILLED",
     templateId: { not: null },
+    OR: [{ status: "FULFILLED" }, { status: "CANCELLED", autoRejectedAt: { not: null } }],
   };
 }
 
@@ -33,6 +35,12 @@ function desireReviewWhere() {
 // still Keep it (filling reviewedBy in) or Reject it.
 function desireIsAutoUnchecked(desire) {
   return Boolean(desire?.autoVerifiedAt) && !desire.reviewedBy;
+}
+
+// Rejected on the spot because its autoVerify rule found no proof (DESIRES.md §6c). Born CANCELLED
+// with reviewedAt stamped, so it asks nothing of a GM and neither Keep nor Reject acts on it.
+function desireIsAutoRejected(desire) {
+  return Boolean(desire?.autoRejectedAt);
 }
 
 // Whether a GM's Keep or Reject may still act on this row: waiting on a
@@ -71,6 +79,7 @@ module.exports = {
   desireNeedsReview,
   desireReviewWhere,
   desireIsAutoUnchecked,
+  desireIsAutoRejected,
   desireAnswerable,
   desireAnswerableWhere,
   revokeDesireCore,
