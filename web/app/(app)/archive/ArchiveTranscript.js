@@ -4,12 +4,14 @@ import ChatMarkdown from "@/app/components/ChatMarkdown";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ArchiveActionSentence from "@/app/components/ArchiveActionSentence";
 import { zoneKey } from "@/lib/zones";
+import { FOLD_MARK, dayLabel, sameScene, sceneOf } from "@/lib/archiveScenes";
 
 // The transcript as a dense reading surface (docs/systemdocs/ARCHIVE.md §5):
 // one line per thing said, under a sticky day header and scene line, with
 // event rows folded into one muted line each. Grouping is by CONSECUTIVE runs
 // over the rows in query order, never bucketing the whole list — that would
-// silently reorder a view sorted newest-first.
+// silently reorder a view sorted newest-first. Where a day or a scene begins is
+// web/lib/archiveScenes.js, shared with the text export.
 
 const FOLD_LABEL = {
   CHARACTER_CREATED: (n) => `${n} arrived`,
@@ -19,45 +21,6 @@ const FOLD_LABEL = {
   LIFEWEB: (n) => `${n} lifeweb`,
   GATEHOUSE: (n) => `${n} at the gate`,
 };
-
-// A mark per kind, so a death and a move are not the same muted line.
-const FOLD_MARK = {
-  CHARACTER_CREATED: "✦",
-  DEATH: "†",
-  DESIRE_FULFILLED: "✧",
-  TRAVEL: "→",
-  LIFEWEB: "❧",
-  GATEHOUSE: "⊓",
-};
-
-// The day is snapshotted onto the ArchiveEntry itself — there is no Turn row to
-// join here, and it stopped being derivable from the turn number when the turn
-// length became a knob. The fallback covers rows written before the column.
-function dayLabel(row) {
-  if (row.turnNumber == null) return "Before the game";
-  return `Day ${row.dayNumber ?? Math.ceil(row.turnNumber / 2)}`;
-}
-
-// channelKinds meaning "a place in the world", already covered by zoneName.
-// Anything else with no zone is a standing channel outside the zone system.
-const PLACED_KINDS = new Set(["summary", "location", "scene", "intercom", "decree"]);
-
-// The KEY is placeKey where there is one, since the display string alone
-// merges two same-named rooms and splits a renamed one.
-function sceneOf(row) {
-  const named = row.channelKind && !PLACED_KINDS.has(row.channelKind) ? `#${row.channelKind}` : null;
-  const place = row.zoneName ?? named ?? "Elsewhere";
-  return {
-    key: row.placeKey ?? [place, row.locationName, row.threadName].filter(Boolean).join(" · "),
-    placeKey: row.placeKey ?? null,
-    zoneName: row.zoneName ?? null,
-    // Zone, then Location, then room: the Location is what tells two scenes
-    // in one zone apart when neither is in a room.
-    label: [place, row.locationName, row.threadName].filter(Boolean).join(" · "),
-    // A zone's own #summary is not a room, and saying so costs one word.
-    channelKind: row.channelKind ?? null,
-  };
-}
 
 // A concealed message keeps both halves: alias (what the room saw) and real
 // name, as two spans so the real name can be dimmed rather than merged.
@@ -76,15 +39,6 @@ function foldSummary(rows) {
   return [...counts]
     .map(([kind, n]) => (FOLD_LABEL[kind] ?? (() => `${n} ${kind.toLowerCase()}`))(n))
     .join(" · ");
-}
-
-// An act has no place key (it never goes on a feed), so it cannot be matched to
-// the speech around it by key. Between two keyed rows the key decides; with
-// either one missing, the name does.
-function sameScene(a, b) {
-  if (!a || !b) return false;
-  if (a.placeKey && b.placeKey) return a.placeKey === b.placeKey;
-  return a.label === b.label;
 }
 
 function buildBlocks(rows, { groupScenes = true } = {}) {

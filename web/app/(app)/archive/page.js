@@ -15,6 +15,7 @@ import {
   roomKey,
 } from "@/lib/archiveQuery";
 import ArchiveView from "./ArchiveView";
+import ArchiveExportButton from "./ArchiveExportButton";
 
 // The transcript, one game at a time (docs/systemdocs/ARCHIVE.md).
 //
@@ -155,6 +156,12 @@ export default async function ArchivePage({ searchParams }) {
               transcript is not here to read. What it ended with is above.
             </p>
             <p className="text-sm text-muted mono">npm run archive:import -- --key {game.exportKey ?? "…"}</p>
+            {/* The packet can still be read as it stands, whole, without importing it back. */}
+            {game.exportKey ? (
+              <div className="flex flex-wrap items-center gap-2">
+                <ArchiveExportButton query={`game=${encodeURIComponent(game.id)}`} label="Export as text" />
+              </div>
+            ) : null}
           </section>
         ) : (
           <ArchiveView
