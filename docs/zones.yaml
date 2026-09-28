@@ -240,20 +240,43 @@ zones:
         name: Gatehouse
         description: >-
           A large gate with sharpened bars like spears. A grated metal bridge crosses the moat. There are murder holes in the roof and arrow slits in the walls, sufficient to repel invaders.
+        # The Town Gatehouse (Incarn and gates.docx, docs/systemdocs/GATEHOUSE.md).
+        # It is no longer the road out: the Bridge and the Square have their own
+        # gate between them (`connections:` below), and this is the house that
+        # works it. Its one way in is from the Square, behind the gatehouse-key
+        # rings. The Gate and the Window open onto the Bridge and the Square as
+        # well, so the people inside can talk to the people outside — and take
+        # their requests to pass.
         rooms:
+          # Request Passage (inward) on the Bridge side, and the finger-prick
+          # terminal on either side (db/lib/placeAffordances.js).
           town-1-1:
             name: Gate
+            sides:
+              - location: bridge
             description: >-
-              Rusted grates surround you.
-          # The winch for the Black Hills gate is worked from HERE, so getting
-          # into this room IS the authority to shut it —
-          # db/lib/placeAffordances.js puts the gate button on this starter.
+              Great doors of steel loom, keeping the evils out of Ravenheart. A tiny window connects the gatehouse, allowing newcomers to be properly inspected. A small terminal is inlaid into the wall, with a small hole for you to insert your finger into if you are feeling brave. The metal floor of the fort's entryway sounds hollow and almost feels warm to the touch.
+          # The lever for the Bridge–Square gate, Grant Passage and Documents.
+          # The lever and the documents are anybody's who gets in
+          # here; Grant Passage asks for a gatehouse-key ring. This row was
+          # the Watchhouse, and keeps its slug and its phonebook.
           town-1-2:
-            name: Watchhouse
-            access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
+            name: Gate Controls
             description: >-
-              The winch to the gate is here, and you can also shoot people through holes in the walls. This is a hard place to assault.
-            stash: [shortbow, spear, phonebook]
+              A room overlooking the gateway into the fortress. A terminal stands at the centre, allowing travellers to be easily processed, with some levers to the sides controlling the gate. Windows peer down at the bridge below.
+            stash: [phonebook]
+          town-1-3:
+            name: Incarn's Chambers
+            access: [incarns-key]
+            description: >-
+              Tucked inside the interior of the fortress walls is a cramped room with a bunk and a wooden table stained by countless spilt cups of tea.
+          # Request Passage (outward) on the Square side.
+          town-1-4:
+            name: Gatehouse Window
+            sides:
+              - location: town-2
+            description: >-
+              A window between the streets of the fortress and the gatehouse gives a small glimpse into the inner machinations of the gate's mechanisms.
       town-2:
         name: Square
         # The public board (docs/systemdocs/PAPERWORK.md). The Square is where
@@ -742,8 +765,10 @@ zones:
             access: [cerberus-key, barons-key]
             description: >-
               A small stable. Most of the pens are empty. Those that aren't have old horses, lame and unable to bear the weight of a human. Good and mean dogs both are caged along the back wall, ready to hunt unruly peasants.
+      # The Keep's gatehouse, renamed the Courtyard (Incarn and gates.docx).
+      # The slug stays, as slugs always do.
       fortress-2:
-        name: Gatehouse
+        name: Courtyard
         attributes:
           noticeboard: true
         description: >-
@@ -757,11 +782,9 @@ zones:
             name: Yard
             description: >-
               A former baroness raised vines across the fortress walls, which flower white and pink.
-          # The portcullis winch is worked from HERE, not from the Gatehouse
-          # anchor: db/lib/placeAffordances.js puts the gate button on this
-          # room's starter. Hence the access list — getting in here IS the
-          # authority to work the winch, so it is the only answer to "who may
-          # shut the gate".
+          # The portcullis is no longer worked from here: its gate button is on
+          # the Courtyard's and the Residences' own anchors, and it answers to a
+          # ring carrying portcullis-key (db/lib/gateControls.js).
           fortress-2-3:
             name: Watchtower
             access: [cerberus-key, cerberon, knighted, barons-key, hands-key, censors-key]
@@ -2357,7 +2380,9 @@ zones:
 
 connections:
   # --- Town -------------------------------------------------------------
-  - [town/town-1, town/town-2]
+  # Into the Gatehouse: the rings that man the gate (docs/systemdocs/GATEHOUSE.md).
+  - pair: [town/town-1, town/town-2]
+    locked: gatehouse-key
   - [town/town-2, town/town-3]
   - [town/town-2, town/town-4]
   - [town/town-2, town/town-7]
@@ -2449,7 +2474,8 @@ connections:
   # --- Between zones — each of these costs the Move ----------------------
   # There is exactly ONE plain way up from the Town into the Fortress, and it
   # is the portcullis (town-8 <-> fortress-2, among the manned gates below).
-  # The Sanctuary and the Graveyard used to open onto the Gatehouse too, so
+  # The Sanctuary and the Graveyard used to open onto the Courtyard (then the
+  # Gatehouse) too, so
   # dropping the portcullis shut nothing: everyone walked round through the
   # graves, for free, since a hop inside the Town costs no Move. A gate is
   # only a gate if it is the only way across — db/lib/gateBypass.js, which
@@ -2465,10 +2491,17 @@ connections:
   # cleared customs cannot reach the shop. That happened once already.
   - [caves/caves-1, undertown/undertown-5]
 
-  # The two manned gates. A Cerberus on each reads everyone's papers, and the
-  # winch can be dropped by anyone who can get into the watch room above it —
-  # town-1-2 for the Black Hills gate, fortress-2-3 for the portcullis.
-  - pair: [town/town-1, hills/bridge]
+  # The two manned gates. A Cerberus on each reads everyone's papers.
+  #
+  # The Black Hills gate joins the Bridge straight to the Square. Its lever is
+  # in the Town Gatehouse's Gate Controls (town-1-2), which stands at neither
+  # end; while it is shut, the way through is to ask at the Gate or the
+  # Gatehouse Window (docs/systemdocs/GATEHOUSE.md).
+  #
+  # The portcullis joins the Residences to the Courtyard. It has a gate button
+  # on BOTH Location anchors, and it moves only for a ring carrying
+  # portcullis-key (db/lib/gateControls.js).
+  - pair: [hills/bridge, town/town-2]
     announce: true_name
     modular:
       open: true

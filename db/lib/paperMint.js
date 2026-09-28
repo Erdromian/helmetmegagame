@@ -197,8 +197,34 @@ async function breakSeal(tx, characterId, sealedTag) {
   return { paper, envelope };
 }
 
+// A set of Documents from the Town Gatehouse (docs/systemdocs/GATEHOUSE.md),
+// put in the CLERK's hands — they hand them over at the gate, the doc's "hand
+// over documents to those granted entry". Its own paperKind, so nothing writes
+// on, seals or pins it, and a link to the account it opens at an infoterminal.
+// Its name is public, like any paper's; the text (with the PIN on it) is behind
+// the literacy gate.
+async function mintDocuments(tx, ownerId, { name, text, accountId }) {
+  const groupId = await paperGroupId(tx);
+  const tag = await createWithRetry(tx, (attempt) => ({
+    ...PAPER_SHAPE,
+    groupId,
+    slug: customSlug("documents", ownerId, attempt),
+    name,
+    paperTitle: name,
+    description: null,
+    paperKind: "DOCUMENTS",
+    paperText: (text ?? "").trim(),
+    paperAuthor: null,
+    documentsBankAccountId: accountId,
+  }));
+  if (!tag) throw new Error("Could not name the documents.");
+  await addToStack(tx, ownerId, tag.id, 1, {});
+  return tag;
+}
+
 module.exports = {
   PAPER_SHAPE,
+  mintDocuments,
   createWithRetry,
   writeNewPaper,
   bindBook,

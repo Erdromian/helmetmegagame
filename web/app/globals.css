@@ -5093,6 +5093,88 @@ button.chip[data-off="true"]:not([data-active]) {
   gap: var(--sp-1);
 }
 
+/* The Town Gatehouse's terminal (docs/systemdocs/GATEHOUSE.md): the Process
+   Requests list, its history, and the documentation queue. One row shape for
+   all three — who, what they said, what changed hands. The request list is
+   picked with a radio, and a picked row takes the accent border. */
+.gate-dialog {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.gate-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  max-height: min(26rem, 55vh);
+  overflow-y: auto;
+}
+
+.gate-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.gate-request {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  background: var(--surface-raised);
+}
+
+label.gate-request {
+  cursor: pointer;
+}
+
+.gate-request[data-checked] {
+  border-color: var(--accent);
+}
+
+.gate-request input[type="radio"] {
+  margin-top: 0.2rem;
+  flex: none;
+}
+
+.gate-request-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.gate-request-who {
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.gate-request-text {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.gate-request-offer {
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}
+
+.gate-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(10rem, 1fr));
+  gap: var(--sp-2);
+}
+
+.gate-row-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+}
+
 .stack-row {
   display: flex;
   align-items: center;

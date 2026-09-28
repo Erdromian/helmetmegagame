@@ -12016,6 +12016,39 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Never an item: two tokens rings carry (RINGS.md §3), from Incarn and
+  # gates.docx (docs/systemdocs/GATEHOUSE.md). gatehouse-key is on the Baron's,
+  # the Hand's, the Incarn's, the Censor's, the Cerberi's and the Squires'
+  # rings: it opens the way from the Square into the Town Gatehouse and works
+  # Grant Passage in Gate Controls. portcullis-key is on the Baron's, the
+  # Hand's, the Meister's, the Censor's, the Cerberi's and the Squires' rings:
+  # it works the gate buttons at the Courtyard and the Residences.
+  gatehouse-key:
+    catalog: gm
+    name: Gatehouse Key
+    category: items
+    group: items-keys
+    description: "It opens the Town Gatehouse and works its terminal."
+    pointCost: 0
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  portcullis-key:
+    catalog: gm
+    name: Portcullis Key
+    category: items
+    group: items-keys
+    description: "It works the portcullis between the Residences and the Courtyard."
+    pointCost: 0
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   incarns-key:
     catalog: gm
     name: Incarn's Key

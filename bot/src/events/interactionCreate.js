@@ -211,7 +211,20 @@ const {
   handleBlackMarketPick,
   handleBlackMarketQtySubmit,
 } = require("./interactions/blackMarket");
-const { MERCHANT_TERMINAL_PREFIX } = require("@lifeweb/db/lib/placeAffordances");
+const {
+  MERCHANT_TERMINAL_PREFIX,
+  ROOM_PASSAGE_PREFIX,
+  ROOM_BLOODPRICK_PREFIX,
+  ROOM_GATE_PROCESS_PREFIX,
+  ROOM_GATE_DOCS_PREFIX,
+} = require("@lifeweb/db/lib/placeAffordances");
+const {
+  handlePassageOpen,
+  handleBloodOpen,
+  handleProcessOpen,
+  handleDocumentsOpen,
+  routeGatehouse,
+} = require("./interactions/gatehouse");
 const {
   MT_UNLOCK,
   MT_INSERT,
@@ -590,6 +603,15 @@ module.exports = {
         if (interaction.customId === BM_INSERT_PREFIX) {
           return void (await handleBlackMarketInsert(interaction));
         }
+        // The Town Gatehouse (docs/systemdocs/GATEHOUSE.md). Request Passage
+        // opens a modal, so it must NOT be acked first; the rest ack themselves.
+        if (interaction.customId.startsWith(ROOM_PASSAGE_PREFIX)) {
+          return void (await handlePassageOpen(interaction, interaction.customId.slice(ROOM_PASSAGE_PREFIX.length)));
+        }
+        if (interaction.customId.startsWith(ROOM_BLOODPRICK_PREFIX)) return void (await handleBloodOpen(interaction));
+        if (interaction.customId.startsWith(ROOM_GATE_PROCESS_PREFIX)) return void (await handleProcessOpen(interaction));
+        if (interaction.customId.startsWith(ROOM_GATE_DOCS_PREFIX)) return void (await handleDocumentsOpen(interaction));
+        if (await routeGatehouse(interaction)) return;
         if (interaction.customId.startsWith(ROOM_BLACK_MARKET_PREFIX)) {
           return void (await handleBlackMarketOpen(interaction));
         }
@@ -688,6 +710,7 @@ module.exports = {
         if (interaction.customId.startsWith(EDIT_OPEN_PREFIX)) return void (await handleEditOpen(interaction));
       } else if (interaction.isStringSelectMenu()) {
         if (interaction.customId === ZONE_VIEW_ID) return void (await handleZoneViewPick(interaction));
+        if (await routeGatehouse(interaction)) return;
         // A pick from the Actions menu starts the verb; every verb's own selects are its steps.
         if (interaction.customId.startsWith(ACT_MENU_PREFIX)) return void (await handleMenuPick(interaction));
         if (interaction.customId.startsWith(ACT_VERB_PREFIX)) return void (await handleVerbComponent(interaction));
@@ -773,6 +796,7 @@ module.exports = {
         }
       } else if (interaction.isModalSubmit()) {
         if (interaction.customId === "move:new") return void (await handleMoveSubmit(interaction));
+        if (await routeGatehouse(interaction)) return;
         if (isCombatModal(interaction.customId)) return void (await handleCombatDescribe(interaction));
         if (interaction.customId.startsWith(ACT_MODAL_PREFIX)) return void (await handleVerbModal(interaction));
         if (interaction.customId.startsWith(META_PREFIX)) return void (await handleMetaComponent(interaction));

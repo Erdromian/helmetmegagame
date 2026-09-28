@@ -16,6 +16,7 @@ const FOLD_LABEL = {
   DESIRE_FULFILLED: (n) => (n === 1 ? "1 desire fulfilled" : `${n} desires fulfilled`),
   TRAVEL: (n) => `${n} moved`,
   LIFEWEB: (n) => `${n} lifeweb`,
+  GATEHOUSE: (n) => `${n} at the gate`,
 };
 
 // A mark per kind, so a death and a move are not the same muted line.
@@ -25,6 +26,7 @@ const FOLD_MARK = {
   DESIRE_FULFILLED: "✧",
   TRAVEL: "→",
   LIFEWEB: "❧",
+  GATEHOUSE: "⊓",
 };
 
 // The day is snapshotted onto the ArchiveEntry itself — there is no Turn row to

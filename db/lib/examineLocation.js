@@ -9,6 +9,8 @@
 const { qualityWord } = require("./miningYield");
 const { workVerbFor } = require("./gathering");
 const { linksFor, endpoints } = require("./locationGraph");
+const { anchorGateFor, remoteLeverFor } = require("./gateControls");
+const { GATEHOUSE_TEXT } = require("./gatehouseText");
 const { describeLocation, hasAttribute } = require("./locationAttributes");
 const { loadDepot } = require("./depotState");
 const { trainHere } = require("./train");
@@ -39,7 +41,16 @@ async function examineLines(prisma, locationId) {
   const links = await linksFor(prisma, locationId);
   const gates = links
     .filter((link) => link.modular)
-    .map((link) => ({ isOpen: link.isOpen, farName: endpoints(link, locationId).far.name }));
+    .map((link) => ({
+      isOpen: link.isOpen,
+      farName: endpoints(link, locationId).far.name,
+      // Where it is worked from, when that is not a watchtower (db/lib/gateControls.js).
+      workedFrom: remoteLeverFor(link)
+        ? GATEHOUSE_TEXT.workedFromLever
+        : anchorGateFor(link)
+          ? GATEHOUSE_TEXT.workedFromRings
+          : null,
+    }));
 
   // No row means you cannot dig here at all (MINING.md §3), so the line is
   // left off entirely rather than printed as a permanent ×. A row that has

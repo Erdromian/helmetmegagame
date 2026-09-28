@@ -6,6 +6,7 @@ const { heldReasonFor } = require("./intercept");
 const { cavingRestrictionsFor, cavingRefusalFor } = require("./cavingPass");
 const { crossingCost } = require("./crossingCost");
 const { travelLockReason, lockedTravelSentence } = require("./turnGate");
+const { shutRefusalFor } = require("./gateControls");
 
 // The two endpoints of a link, oriented so `near` is the side you're standing on. Callers only ever want `far`.
 function endpoints(link, locationId) {
@@ -127,7 +128,9 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
     return {
       listed: true,
       passable: false,
-      refusal: "The way is shut. Somebody in the watchtower would have to work the winch.",
+      // A gate worked from somewhere else says so (db/lib/gateControls.js) —
+      // the Black Hills gate is asked at, not winched.
+      refusal: shutRefusalFor(link) ?? "The way is shut. Somebody in the watchtower would have to work the winch.",
       tightSqueeze,
     };
   }

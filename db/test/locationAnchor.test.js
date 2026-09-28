@@ -50,6 +50,9 @@ function fakePrisma({ claimCount = 1, stored = null } = {}) {
       },
       update: async () => ({}),
     },
+    // The portcullis's button rides on its anchors (db/lib/gateControls.js);
+    // the Keep has no gate of that kind, so there are no ways to read.
+    locationLink: { findMany: async () => [] },
   };
 }
 

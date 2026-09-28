@@ -236,6 +236,10 @@ enum ArchiveKind {
   DESIRE_FULFILLED
   LIFEWEB
   TRAVEL
+  // What was done at the gatehouse's controls: the gate worked, a request
+  // decided, the magma, documents printed or refused (GATEHOUSE.md). Never on
+  // a feed: the terminal keeps no log of its own (Incarn and gates.docx).
+  GATEHOUSE
 }
 
 // Which face wrote an ArchiveEntry. DISCORD is a message proxied out of a
@@ -873,6 +877,12 @@ model GameState {
   // "It seems to be off."
   gatehouseTurretArmed Boolean @default(false)
 
+  // The Magma button in the Town Gatehouse's Gate Controls
+  // (docs/systemdocs/GATEHOUSE.md): the id of the turn it was last pressed on,
+  // so it works once a turn. A turn id rather than a number, because a new
+  // game counts from 1 again and this row is recreated with it anyway.
+  gatehouseMagmaTurnId String?
+
   // When the Cathedral bell was last rung, so the rope has a cooldown on it
   // (db/lib/bell.js). Global rather than per-character: the bell is one
   // object, and two people taking turns on it would be the same noise either
@@ -994,6 +1004,8 @@ model BankAccount {
   sales  DepotSale[]
   // The signet rings the Meister has linked to this account (Tag.ringBankAccountId).
   rings  Tag[]      @relation("RingAccount")
+  // The Documents printed for this account at the Town Gatehouse (Tag.documentsBankAccountId).
+  documents Tag[]   @relation("DocumentsAccount")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -2797,6 +2809,10 @@ model Character {
   roomsSearched    RoomSearchAttempt[]
   // The bomb's keypad (docs/systemdocs/NUKE.md): wrong codes, and the lockout.
   nukeLockout      NukeLockout?
+  // The Town Gatehouse (docs/systemdocs/GATEHOUSE.md): asking to pass the
+  // gate, and giving blood to be documented.
+  gatePassages     GatePassage[]
+  gateDocuments    GateDocumentation[]
   // Notes this character started the game knowing (JournalEntry.characterId).
   seededNotes      JournalEntry[]
 
@@ -2868,6 +2884,9 @@ enum PaperKind {
   SEALED
   BROKEN_SEAL
   BOOK
+  // Printed at the Town Gatehouse (docs/systemdocs/GATEHOUSE.md). Fixed text,
+  // like a book, and nothing writes on, seals or pins one.
+  DOCUMENTS
 }
 
 // Master-sourced from docs/tags.yaml (db/lib/syncTags.js#syncTagsFromYaml,
@@ -2966,6 +2985,13 @@ model Tag {
   ringRegisteredAt  DateTime?
   ringBankAccountId String?
   ringBankAccount   BankAccount? @relation("RingAccount", fields: [ringBankAccountId], references: [id], onDelete: SetNull)
+
+  // A set of Documents (paperKind DOCUMENTS, docs/systemdocs/GATEHOUSE.md):
+  // the treasury account they were printed for, so an infoterminal opens it
+  // for whoever holds them and types the PIN written on them. SetNull, so
+  // papers for an account the Meister deleted open nothing.
+  documentsBankAccountId String?
+  documentsBankAccount   BankAccount? @relation("DocumentsAccount", fields: [documentsBankAccountId], references: [id], onDelete: SetNull)
 
   // The short label a seal presses into a letter's title — "Baron" for the
   // Baron's own ring, and for a wax seal forged from it. Null on everything
@@ -4991,6 +5017,86 @@ model NukeLockout {
   streak      Int       @default(0)
   lockedAt    DateTime?
   updatedAt   DateTime  @updatedAt
+}
+
+// The Town Gatehouse (docs/systemdocs/GATEHOUSE.md). Which way somebody asked
+// to go: IN from the Bridge to the Square, OUT from the Square to the Bridge.
+enum GatePassageDirection {
+  IN
+  OUT
+}
+
+enum GatePassageStatus {
+  PENDING
+  APPROVED
+  DENIED
+  // Killed by the Magma button while waiting to come in.
+  MAGMA
+}
+
+// One request to pass the gate, from the Gate on the Bridge side or the
+// Gatehouse Window on the Square side. PENDING rows are the Process Requests
+// list; the rest are its history. A PENDING row is deleted outright when its
+// asker changes Location (db/lib/locationMove.js#applyArrivalFacts) — the doc's
+// "their request is deleted" — so the history only holds what somebody decided.
+//
+// Nothing is taken when it is made. `offered` is [{ tagId, quantity }], re-read
+// against what the asker actually holds whenever it is shown or processed, so
+// a thing dropped or stolen in between simply drops out of it. Keyed on tagId
+// with no FK, the Search offer's posture.
+model GatePassage {
+  id          String                @id @default(cuid())
+  characterId String
+  character   Character             @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  direction   GatePassageDirection
+  status      GatePassageStatus     @default(PENDING)
+  text        String
+  offered     Json                  @default("[]")
+  // Where it was asked from, so a stale row is easy to spot on /gm/audit.
+  locationId  String?
+  turnId      String?
+  createdAt   DateTime              @default(now())
+
+  // Who decided it, and the ring on their finger when they did — snapshots,
+  // the log-table convention, because the history must keep reading right
+  // after a ring changes hands.
+  resolvedAt     DateTime?
+  resolvedById   String?
+  resolvedByName String?
+  resolvedByRing String?
+  // What changed hands on an approval: { kept: [{ name, quantity }], given: [...] }.
+  moved          Json?
+
+  @@index([status, direction])
+  @@index([characterId, status])
+}
+
+enum GateDocumentationStatus {
+  PENDING
+  APPROVED
+  DENIED
+}
+
+// A drop of blood given at the Gate's little terminal: a request to be
+// documented. The clerk in Gate Controls approves it by writing a name and an
+// occupation, which prints the Documents and opens the treasury account; the
+// APPROVED rows are the "previously documented" half of the register.
+model GateDocumentation {
+  id          String                  @id @default(cuid())
+  characterId String
+  character   Character               @relation(fields: [characterId], references: [id], onDelete: Cascade)
+  status      GateDocumentationStatus @default(PENDING)
+  createdAt   DateTime                @default(now())
+
+  resolvedAt   DateTime?
+  resolvedById String?
+  // What the clerk wrote, and the account it opened — snapshots.
+  name         String?
+  occupation   String?
+  fingerprint  String?
+
+  @@index([status])
+  @@index([characterId, status])
 }
 
 // How a Friends entry came to exist (docs/systemdocs/MEMORIES.md §2).

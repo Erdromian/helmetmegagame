@@ -188,7 +188,7 @@ groups:
       whitelist: true
       ring:
         spawns: true
-        opens: [armory-key, cerberus-key, barons-key, tower-key, elevator-key]
+        opens: [armory-key, cerberus-key, barons-key, tower-key, elevator-key, gatehouse-key, portcullis-key]
         authorised_by: barons-scepter
         seal_office: Baron
         seal_mark: "A raven clutching a banner, the seal of the Baron."
@@ -328,7 +328,7 @@ groups:
       extra_starting_points: 5
       ring:
         spawns: true
-        opens: [armory-key, hands-key, tower-key]
+        opens: [armory-key, hands-key, tower-key, gatehouse-key, portcullis-key]
         seal_office: Hand
         seal_mark: "An open palm, the seal of the Hand."
         name: "Hand's Ring"
@@ -364,7 +364,7 @@ groups:
       starting_location: fortress-4
       ring:
         spawns: true
-        opens: [meisters-key, tower-key]
+        opens: [meisters-key, tower-key, portcullis-key]
         seal_office: Meister
         seal_mark: "A single goblet, the seal of the Meister."
         name: "Meister's Ring"
@@ -726,7 +726,7 @@ groups:
       whitelist: true
       ring:
         spawns: true
-        opens: [armory-key, cerberus-key, censors-key, tower-key]
+        opens: [armory-key, cerberus-key, censors-key, tower-key, gatehouse-key, portcullis-key]
         seal_office: Censor
         seal_mark: "The head of a wolf, the seal of the Censor."
         name: "Censor's Ring"
@@ -784,7 +784,7 @@ groups:
       starting_location: fortress-1
       ring:
         spawns: true
-        opens: [armory-key, cerberus-key, incarns-key]
+        opens: [armory-key, cerberus-key, incarns-key, gatehouse-key]
       starting_tags:
         - Ravenhearter
         - Melee II
@@ -825,7 +825,7 @@ groups:
       starting_location: fortress-1
       ring:
         spawns: true
-        opens: [cerberus-key]
+        opens: [cerberus-key, gatehouse-key, portcullis-key]
       starting_tags:
         - Cerberus Helmet
         - Ravenhearter
@@ -865,7 +865,7 @@ groups:
       starting_location: fortress-1
       ring:
         spawns: true
-        opens: [cerberus-key]
+        opens: [cerberus-key, gatehouse-key, portcullis-key]
       starting_tags:
         - Ravenhearter
         - Cerberon
@@ -1565,6 +1565,8 @@ groups:
         Make it to the fortress.
       description: []
       difficulty: easy
+      # No bank_account: a Migrant's account is opened when the Town Gatehouse
+      # documents them, at -10 ¢ of processing fees (docs/systemdocs/GATEHOUSE.md).
       multiple: true
       weight: unlimited
       starting_zone: caves

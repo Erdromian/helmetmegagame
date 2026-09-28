@@ -18,6 +18,8 @@ const {
 const { locationAnchorRows, locationGateRow } = require("../locationAnchorRow");
 const { roomStarterRows, WATCHTOWER_ROOM_SLUGS, gateControlIn } = require("../roomStarterRow");
 const { linksFor, endpoints, gateOperable } = require("../locationGraph");
+const { anchorGateFor, remoteLeverIn, workedElsewhere } = require("../gateControls");
+const { remoteLink } = require("../placeAffordances");
 const { markNukeRoom } = require("../nuke");
 const { hashBody } = require("./shared");
 const { buildRoomBody, buildAnchorBody } = require("./bodies");
@@ -152,10 +154,12 @@ async function syncRoomThread(prisma, room, location, snapshot, liveState) {
 
 // Reads the graph rather than the sync's own state, since the button handler
 // refreshes an anchor too and has no sync state to hand.
+// A gate worked somewhere else (db/lib/gateControls.js) is left out: its button
+// is on the anchors (anchorGatesFor) or in the lever's room (leverGates).
 async function gatesFor(prisma, locationId, control = null) {
   const links = await linksFor(prisma, locationId);
   return links
-    .filter((link) => gateOperable(link))
+    .filter((link) => gateOperable(link) && !workedElsewhere(link))
     .map((link) => ({
       linkId: link.id,
       isOpen: link.isOpen,
@@ -163,6 +167,25 @@ async function gatesFor(prisma, locationId, control = null) {
       control,
     }))
     .sort((x, y) => x.farName.localeCompare(y.farName));
+}
+
+// The portcullis's button on a Location's own anchor (db/lib/gateControls.js).
+async function anchorGatesFor(prisma, locationId) {
+  const links = await linksFor(prisma, locationId);
+  return links
+    .filter((link) => gateOperable(link) && anchorGateFor(link))
+    .map((link) => ({
+      linkId: link.id,
+      isOpen: link.isOpen,
+      farName: endpoints(link, locationId).far.name,
+      control: anchorGateFor(link).control,
+    }));
+}
+
+// The one gate a remote lever works, in the row shape.
+async function leverGates(prisma, lever) {
+  const link = await remoteLink(prisma, lever);
+  return link ? [{ linkId: link.id, isOpen: link.isOpen, farName: null, control: lever.control }] : [];
 }
 
 // A Room's starter row, plus — for watchtowers — one Open/Close button per
@@ -186,7 +209,12 @@ async function roomComponents(prisma, room, locationId) {
   const rows = roomStarterRows(marked, location);
   // The winch is on the tower's own wall: never on a side's copy of the thread.
   if (!room.sideId && WATCHTOWER_ROOM_SLUGS.has(room.slug)) {
-    rows.push(locationGateRow(await gatesFor(prisma, locationId, gateControlIn(room.slug))));
+    const lever = remoteLeverIn(room.slug);
+    rows.push(
+      locationGateRow(
+        lever ? await leverGates(prisma, lever) : await gatesFor(prisma, locationId, gateControlIn(room.slug)),
+      ),
+    );
   }
   return rows.filter(Boolean);
 }
@@ -216,8 +244,11 @@ async function syncLocationAnchor(prisma, location, rooms) {
 
   const body = buildAnchorBody(location, rooms);
   // Whole set of rows, not just the id: Noticeboard is conditional on
-  // `attributes` (db/lib/noticeboard.js), Travel pushed a second row.
-  const components = locationAnchorRows(location);
+  // `attributes` (db/lib/noticeboard.js), Travel pushed a second row. The
+  // portcullis's button rides on its two anchors (db/lib/gateControls.js), so
+  // it is part of the hash and a flip redraws it.
+  const gateRow = locationGateRow(await anchorGatesFor(prisma, location.id));
+  const components = [...locationAnchorRows(location), ...(gateRow ? [gateRow] : [])];
   const hash = hashBody(`${body} ${JSON.stringify(components)}`);
 
   if (location.anchorMessageId && location.anchorHash === hash) return "unchanged";
@@ -280,6 +311,7 @@ module.exports = {
   alsoReachedFrom,
   syncRoomThread,
   gatesFor,
+  anchorGatesFor,
   roomComponents,
   syncLocationAnchor,
 };
