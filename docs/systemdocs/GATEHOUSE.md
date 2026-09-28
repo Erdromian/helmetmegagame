@@ -115,14 +115,18 @@ hold a treasury account — or your sample is already waiting.
 **Documents** in Gate Controls is anybody's (the doc). It shows the new
 submissions (as the clerk sees them: a sample is only blood) and the
 **register**: everybody with a registered ring, and everybody documented, by
-name, occupation and account. Real names, the treasury's own ring register's
+name, job and account (a ring's job is the seats it opens). Real names, the treasury's own ring register's
 posture (STRANGERS.md §7).
 
-Approving a submission, with a name and an occupation the clerk writes:
+Approving a submission, with a name and a **job** the clerk writes (the
+field was Occupation until 2026-09-28, and the column still is:
+`GateDocumentation.occupation`). A job, not a fate — a fate is fixed for a
+character, a job is whatever they work now (CHARACTERS.md §2), so the clerk
+writes what they like:
 
 1. opens a **TREASURY account** in that name, owing **-10 ¢** of processing
    fees (reason `DOCUMENTS_FEE`, ECONOMY.md);
-2. prints the **Documents** into the clerk's hands — name, occupation, account
+2. prints the **Documents** into the clerk's hands — name, job, account
    and PIN — to be handed over at the gate like anything else;
 3. writes `documents_issued` to the audit log and a line to the archive. The
    terminal itself keeps no log of it (the doc) — see §6.
@@ -134,8 +138,8 @@ rule (RINGS.md §5) — the PIN is written on them, so stolen papers are as good
 the PIN to anybody who can read.
 
 **Once a character.** Approval is refused while the character holds any
-treasury account. The Meister's **Close account** on `/treasury`
-(`depotCounter.js#closeAccount`) writes the balance off (`ACCOUNT_CLOSED`) and
+treasury account. The Meister's **Close account** on the Meister's Terminal
+(`meisterTerminal.js#closeAccount`, `MEISTERY.md` §3) writes the balance off (`ACCOUNT_CLOSED`) and
 deletes the account; the old papers then open nothing, and the character can be
 documented afresh. That includes an empty account opened at the counter's
 **Create an account** button (DEPOT.md): a Bum or a Migrant who opens one there
@@ -197,7 +201,7 @@ allowlist and `GATEHOUSE` is not in `oracleInput.js`'s beat kinds.
 | Request Passage | dialog: text and a picker with quantities | modal for the text, then a select of whole stacks |
 | Submit for Documentation | the shared confirm | a confirm button |
 | Grant Passage | dialog: grouped radio list, Approve screen with two pickers, History in the header | panel: a select of requests, Approve (two selects of whole stacks), Deny, Magma, History |
-| Documents | dialog: each submission with Name and Occupation, the register as a table | panel: a select of submissions, then a Name/Occupation modal or Deny |
+| Documents | dialog: each submission with Name and Job, the register as a table | panel: a select of submissions, then a Name/Job modal or Deny |
 | The lever, the portcullis | gate buttons (the lever in Gate Controls' room panel, the portcullis on both place cards) | `loc:gate:` buttons on the Gate Controls starter and on both anchors |
 
 Web: `web/app/(app)/chat/GatehouseDialogs.js` and `gatehouseActions.js`.
@@ -214,7 +218,7 @@ Discord: `bot/src/events/interactions/gatehouse.js`. Every rule is in
 | `db/lib/gateControls.js` | the anchor gate and the remote lever |
 | `db/lib/gates.js#toggleGate` | the ring check, the lever's room check, the Gatehouse hearing the lever |
 | `db/lib/placeAffordances.js` | the buttons, and `sides: true` |
-| `db/lib/depotCounter.js` | Documents at the infoterminal; `closeAccount` |
+| `db/lib/depotCounter.js` | Documents at the infoterminal (the Meister's Close account is `db/lib/meisterTerminal.js`) |
 | `db/lib/paperMint.js#mintDocuments` | the paper |
 | `db/prisma/migrations/20261114000000_gatehouse_rework` | the tables, and the geography on a running game |
 | `db/test/gatehouse.test.js` | the rules, the map, and the whole flow against Postgres |

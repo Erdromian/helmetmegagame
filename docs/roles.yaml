@@ -366,7 +366,7 @@ groups:
         You are the Keep's circulatory system. Organize the various systems of Ravenheart and ensure the economy remains in order.
       description:
         - >-
-          Your terminal lists every account in Ravenheart and allows you to set the sell tax. Be careful to not withdraw too much from the Treasury, or people's accounts will no longer be backed by your obols, certainly leading to rebellion.
+          The terminal in your study lists every account in Ravenheart. From it you control the entire economy of Ravenheart. Manage taxes, wages and people's treasury accounts.
       difficulty: normal
       bank_account: treasury
       starting_account: 16

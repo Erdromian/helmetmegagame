@@ -212,6 +212,13 @@ is an ordinary deposit whose coin lands in the Vault with no claim left
 against it. `ACCOUNT_CLOSED` is the Meister writing an account off before it
 is deleted, so its legs close at zero rather than drifting.
 
+**`MEISTER_CREDIT`, `MEISTER_DEBIT`, `WAGE` and `WAGE_DEDUCTION` arrived with
+the Meistery** (`MEISTERY.md`). The same posture: `TRANSFER`, claim legs only,
+against the bank clearing. The first two are a balance the Meister set by hand,
+the last two the daily wages. No coin moves for any of them, so each one widens
+or narrows the gap between the claims and the Vault — the backing, which is a
+separate check (§3), is where that shows.
+
 **`UNATTRIBUTED` is a feature.** A write that reaches a hook with no context is
 recorded under that reason rather than dropped, so an un-hooked call site shows
 up on the panel as its own bar instead of quietly missing. `applyTransfer` used

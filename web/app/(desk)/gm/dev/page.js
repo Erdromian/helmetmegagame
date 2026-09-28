@@ -2,6 +2,8 @@ import SubmitButton from "@/app/components/SubmitButton";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { prisma, loadDepot } from "@lifeweb/db";
+import { meisterBooks } from "@lifeweb/db/lib/meisterTerminal";
+import MeisterBooks from "./MeisterBooks";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getDevTier, resolveSection } from "@/lib/devAccess";
 import { getOpenTurn } from "@/lib/turn";
@@ -240,6 +242,10 @@ export default async function DevPanelPage({ searchParams }) {
     loadDepot(prisma),
     prisma.lobbyEntry.count({ where: { status: "READY" } }),
   ]);
+
+  // The Meister's books (docs/systemdocs/MEISTERY.md), read-only, only on the
+  // Depot section — every account in the game is one query nobody else needs.
+  const books = section === "depot" ? await meisterBooks(prisma) : null;
 
   // The GM roster, only when its own section is open — it costs a full guild
   // member fetch, and every other section would pay for it otherwise.
@@ -1247,6 +1253,17 @@ export default async function DevPanelPage({ searchParams }) {
                   <SubmitButton pendingLabel="Saving…">Save the Depot</SubmitButton>
                 </div>
               </form>
+              {books && (
+                <>
+                  <div className="ops-section-head">
+                    <h2 className="section-title">The Meister&apos;s books</h2>
+                    <p className="ops-lede">
+                      What the Meister&apos;s Terminal shows, read-only. Changes made at it are on /gm/audit under Meister.
+                    </p>
+                  </div>
+                  <MeisterBooks books={books} />
+                </>
+              )}
             </section>
           ) : null}
 

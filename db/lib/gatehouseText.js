@@ -159,10 +159,13 @@ const GATEHOUSE_TEXT = Object.freeze({
   registerAccountHeader: "Account",
   registerKindHeader: "On file by",
   nameLabel: "Name",
-  occupationLabel: "Occupation",
+  // The job the clerk writes, not the fate: a fate is fixed for a character,
+  // a job is whatever they work in Ravenheart now (CHARACTERS.md §2). The
+  // column is still GatehouseSubmission.occupation.
+  occupationLabel: "Job",
   printButton: "Print documents",
   denyButton: "Deny",
-  needBoth: "Write a name and an occupation.",
+  needBoth: "Write a name and a job.",
   submissionGone: "That submission is gone.",
   alreadyHasAccount:
     "They already have an account at the treasury. The Meister must close it before new documents can be printed.",
@@ -178,7 +181,7 @@ const GATEHOUSE_TEXT = Object.freeze({
       "DOCUMENTS OF RAVENHEART",
       "",
       `Name: ${name}`,
-      `Occupation: ${occupation}`,
+      `Job: ${occupation}`,
       `Treasury account: ${fingerprint}`,
       `PIN: ${pin}`,
     ].join("\n"),
@@ -206,12 +209,8 @@ const GATEHOUSE_TEXT = Object.freeze({
     `${clerk} printed documents for ${realName} as ${name}, ${occupation}.`,
   archiveDocumentsDenied: (clerk, realName) => `${clerk} denied ${realName}'s application for documents.`,
 
-  // ─── The Meister's delete (/treasury) ───────────────────────────────────
-  deleteAccount: "Close account",
-  deleteConfirm: (name) =>
-    `Close ${name}'s account? Its balance is written off, and any documents printed for it stop working.`,
-  deleteDone: (name) => `${name}'s account is closed.`,
-  deleteGone: "That account is already closed.",
+  // The Meister's Close account moved to the Meister's Terminal, and its words
+  // to db/lib/meisterTerminalText.js.
 });
 
 module.exports = {

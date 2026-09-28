@@ -23,6 +23,7 @@ import { MERCHANT_TERMINAL_TEXT, withTax } from "@lifeweb/db/lib/merchantTermina
 import { GATEHOUSE_TEXT } from "@lifeweb/db/lib/gatehouseText";
 import { controlThing } from "@lifeweb/db/lib/gateControls";
 import { PassageDialog, ProcessRequestsDialog, DocumentsDialog } from "./GatehouseDialogs";
+import MeisterTerminalDialog from "./MeisterTerminalDialog";
 import { gateSubmitDocumentation } from "./gatehouseActions";
 import {
   loadAffordances,
@@ -270,6 +271,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "processRequests" && <ProcessRequestsDialog onClose={close} onDone={say} />}
       {dialog?.kind === "createDocuments" && <DocumentsDialog onClose={close} onDone={say} />}
       {dialog?.kind === "merchantTerminal" && <MerchantTerminalDialog onClose={close} onDone={say} />}
+      {dialog?.kind === "meisterTerminal" && <MeisterTerminalDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "atm" && <AtmDialog onClose={close} onDone={say} />}
       {dialog?.kind === "depotTurret" && <DepotTurretDialog onClose={close} onDone={say} />}

@@ -103,7 +103,7 @@ holds.
 opens nothing.
 
 - `db/lib/roomAccess.js#heldTagSlugs` uses it, so every caller of
-  `roomAccessKeys` — rooms, threads, stashes, the Meister's desk, the phones,
+  `roomAccessKeys` — rooms, threads, stashes, the Meister's Terminal, the phones,
   vending, search — follows the ring with no change of its own.
 - Travel takes its held set from the caller's own select, so
   `withRingTokens` adds the worn ring's tokens there (`locationGraph.js`,
@@ -166,7 +166,10 @@ The ATMs are infoterminals now. Player-facing text only: the code still says
 
 An infoterminal reads the ring on your finger (`depotCounter.js#terminalAccount`):
 
-- No ring, or an unregistered one: no account.
+- No ring, or an unregistered one: no account ("Take it to the Meister.").
+- A registered ring whose account the Meister closed: no account, and no way
+  back — a ring connects once (§6). It says so without sending anyone to the
+  Meister (`infoterminalClosed`).
 - Your own ring, and you're not Concussed or Amnesiac: your account, no PIN.
 - Somebody else's ring: that ring's account, **for its holder's PIN**.
 - Your own ring while Concussed or Amnesiac (`memoryScramble.SCRAMBLING_TAG_SLUGS`):
@@ -197,10 +200,13 @@ smith picks who it is for: themselves, or anybody on their Friends list known by
 a real person (`resolveRingTarget`). It is engraved with that person's initials
 and comes out unregistered, opening nothing, sealing nothing.
 
-**Registering** happens at the Meister's terminal, `/treasury` — standing in the
-Tower with a way into the Meister's Study (`canReadTreasury`), so the Baron can
-do it too, and so can anybody who got in. The panel offers the unregistered
-rings the person at the desk is holding (`ringRegistry.js`):
+**Registering** happens at the Meister's Terminal in the Meister's Study
+(`MEISTERY.md` §5), on both faces — worked by the Meister's, the Hand's or the
+Baron's ring. Meistery.docx: a ring is connected "as long as the ring has not
+already been connected to an account", so the terminal offers only the rings
+the worker is holding that were never registered
+(`ringRegistry.js#connectableRingsHeld`: `ringRegisteredAt` and
+`ringBankAccountId` both null). For each:
 
 - tick any seats whose access it should grant (none is allowed: an
   account-only ring). A seat with `ring.authorised_by` is the office's own to
@@ -211,8 +217,17 @@ rings the person at the desk is holding (`ringRegistry.js`):
 - link the engraved person's account — opened now if they have none — or any
   existing account.
 
-A registration is compare-and-swapped on `ringRegisteredAt`, so a ring can't be
-registered twice, and it writes a `ring_registered` audit row. A ring registered
+**A ring connects to one account in its life** (Bascinet's call, 2026-09-28).
+When the Meister closes that account the ring keeps its doors and reaches no
+account, and the terminal never offers it again. `ringRegisteredAt` is the
+mark: every ring ever connected carries it, a seat's own ring from birth (§7).
+The one gap is a seat's ring whose account failed to open at creation — it is
+registered with no account and can't be connected, so that is a GM fix, the
+same as a ringless character.
+
+A connection is compare-and-swapped on `ringBankAccountId` and
+`ringRegisteredAt` both being null, so a ring can't be connected twice, and it
+writes a `ring_registered` audit row. A ring registered
 to an office seat's doors gets "It lacks the signet seal of the original." on
 its description.
 
@@ -246,7 +261,7 @@ afterwards, if wanted.
 | The rules (doors, seals, names) | `db/lib/rings.js` |
 | Every word | `db/lib/ringText.js` |
 | Minting, registering, forging | `db/lib/ringMint.js` |
-| The Meister's registration | `db/lib/ringRegistry.js`, `web/app/(app)/treasury/RegisterRing.js` |
+| The Meister's registration | `db/lib/ringRegistry.js`, the Rings tab of the Meister's Terminal (`MEISTERY.md`) |
 | The infoterminal | `db/lib/depotCounter.js#terminalAccount`, `web/app/(app)/chat/PlacePanel.js#AtmDialog`, `web/app/components/DepotAtmsTab.js`, `bot/src/events/interactions/depotCounter.js` |
 | Crafting | `web/app/(app)/character/actions/crafting.js`, the pickers built in `character/page.js` |
 | The seat's ring | `ring:` in `docs/roles.yaml`, `db/lib/syncRoles.js` |
@@ -257,6 +272,4 @@ afterwards, if wanted.
 
 - **Depot orders are paid from your own account**, not the ring's. Only the
   infoterminal's own buttons read the ring.
-- **Registering is web-only.** The Meister's terminal has no Discord twin, the
-  same as the rest of `/treasury`.
 - **Missing fingers don't stop a ring going on.**

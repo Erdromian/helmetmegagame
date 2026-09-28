@@ -74,7 +74,7 @@ function assumptionsFor({ rv, rvMined, minedValue, resourceValue, sellTaxRate, t
     {
       key: "SELL_TAX",
       value: `${sellTaxRate}% of the gross of every counter sale`,
-      why: "Depot.sellTaxRate, a whole percent the Meister sets from /treasury; this run takes it from --sell-tax, else the schema default. It comes off the gross of each settled drop-box sale (trainDeparturePass.js#taxOn), never off profit, and touches nothing that is not sold at the counter: not a Depot purchase, a trade between players, food eaten, or ⬢ bartered. Every craft figure is shown before tax (raw) and at this rate (net).",
+      why: "Depot.sellTaxRate, a whole percent the Meister sets at the Meister's Terminal; this run takes it from --sell-tax, else the schema default. It comes off the gross of each settled drop-box sale (trainDeparturePass.js#taxOn), never off profit, and touches nothing that is not sold at the counter: not a Depot purchase, a trade between players, food eaten, or ⬢ bartered. Every craft figure is shown before tax (raw) and at this rate (net).",
     },
     {
       key: "CRAFT_DUTY",
@@ -1872,8 +1872,8 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
 
   // The sell tax, read from the code that sets and takes it, and the one doc that describes a tax the code lacks.
   {
-    // The /treasury action hands the rate to the shared verb, which is where the check lives now.
-    const treasurySrc = fs.readFileSync(path.join(REPO, "db/lib/verbs/place.js"), "utf8");
+    // Both faces of the Meister's Terminal hand the rate to db/lib/meisterTerminal.js#setTaxRate, which is where the check lives.
+    const treasurySrc = fs.readFileSync(path.join(REPO, "db/lib/meisterTerminal.js"), "utf8");
     const wholeZeroToHundred = /Number\.isInteger\(rate\)/.test(treasurySrc) && /rate < 0 \|\| rate > 100/.test(treasurySrc);
     const passSrc = fs.readFileSync(path.join(REPO, "db/lib/trainDeparturePass.js"), "utf8");
     const taxSrc = fs.readFileSync(path.join(REPO, "db/lib/merchantTerminalText.js"), "utf8");
@@ -1886,9 +1886,9 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     claims.push(
       {
         doc: "DEPOT.md §0f",
-        claim: "The sell tax rate is a whole percent from 0 to 100 (db/lib/verbs/place.js, behind /treasury)",
+        claim: "The sell tax rate is a whole percent from 0 to 100 (db/lib/meisterTerminal.js, the Meister's Terminal)",
         docValue: "whole, 0–100",
-        model: wholeZeroToHundred ? "whole, 0–100" : "the treasury action no longer checks a whole 0–100",
+        model: wholeZeroToHundred ? "whole, 0–100" : "the Meister's Terminal no longer checks a whole 0–100",
         ok: wholeZeroToHundred,
       },
       {

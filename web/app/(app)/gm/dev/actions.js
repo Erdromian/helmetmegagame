@@ -101,7 +101,9 @@ export async function updateGameConfig(formData) {
 // formData keys would let a hand-posted field write a column nobody meant to
 // expose.
 export async function updateDepot(formData) {
-  await requireDev();
+  const session = await requireDev();
+  const beforeRate = (await prisma.depot.findUnique({ where: { id: 1 }, select: { sellTaxRate: true } }))?.sellTaxRate ?? 0;
+  const sellTaxRate = Math.max(0, Math.min(100, intOrZero(formData, "sellTaxRate")));
 
   await prisma.depot.upsert({
     where: { id: 1 },
@@ -115,9 +117,21 @@ export async function updateDepot(formData) {
       // Tuning.
       // A percentage, and clamped rather than refused — a GM typing 150 here
       // meant 100, and the Meister's own terminal is where it is really set.
-      sellTaxRate: Math.max(0, Math.min(100, intOrZero(formData, "sellTaxRate"))),
+      sellTaxRate,
     },
   });
+
+  // The same audit row the Meister's Terminal writes, so /gm/audit shows
+  // every change to the tax whoever made it (docs/systemdocs/MEISTERY.md §3).
+  if (sellTaxRate !== beforeRate) {
+    await prisma.auditLog.create({
+      data: {
+        actorDiscordUserId: session?.discordUserId ?? "gm",
+        actionType: "sell_tax_rate_set",
+        details: { before: beforeRate, after: sellTaxRate, via: "gm_dev" },
+      },
+    });
+  }
 
   revalidatePath("/gm/dev");
 }
@@ -447,6 +461,12 @@ export async function wipeGameData(formData) {
       prisma.depotSale.deleteMany({}),
       prisma.depotOrder.deleteMany({}),
       prisma.bankAccount.deleteMany({}),
+      // The Meister's wages (docs/systemdocs/MEISTERY.md §4). A job's wage
+      // hangs off its Role, which survives a restart, so it would carry into
+      // the next game; and the day numbers start again at 1, so last game's
+      // payout claims would mark the new game's days as already paid.
+      prisma.wage.deleteMany({}),
+      prisma.wagePayout.deleteMany({}),
       prisma.character.deleteMany({}),
       prisma.playerThread.deleteMany({}),
       prisma.playerThreadInvite.deleteMany({}),

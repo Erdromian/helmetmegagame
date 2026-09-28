@@ -1,13 +1,12 @@
-// The verbs tied to one room, on Discord — each has a button on that room's
-// first post as well as its command: Send money at the Depot's Railway, and the
-// Meister's tax in his Study. Every rule is db/lib's (depotCounter.js#bankSend,
-// verbs/place.js), shared with the infoterminal and /treasury on the web, and
-// each refuses anybody not standing there.
+// The verbs tied to one room, on Discord — a button on that room's first post as
+// well as its command: Send money at the Depot's Railway. The rule is db/lib's
+// (depotCounter.js#bankSend), shared with the infoterminal on the web, and it
+// refuses anybody not standing there. The Meister's tax used to be here too; it
+// is on the Meister's Terminal now (events/interactions/meisterTerminal.js).
 const { ModalBuilder, LabelBuilder, TextInputBuilder, TextInputStyle } = require("discord.js");
 const { bankSend, sendableAccounts } = require("@lifeweb/db/lib/depotCounter");
-const { setSellTax } = require("@lifeweb/db/lib/verbs/place");
 const { ack, respond } = require("../respond");
-const { prisma, openTurn, done, pickFrom, picked, loadActor, modalId, OPTION_LIMIT } = require("./context");
+const { prisma, openTurn, pickFrom, picked, modalId, OPTION_LIMIT } = require("./context");
 
 const AMOUNT_FIELD = "act:amount";
 const VAULT = "vault";
@@ -66,38 +65,4 @@ const sendmoney = {
   },
 };
 
-// --- The Meister's tax -------------------------------------------------------------
-
-const RATE_FIELD = "act:rate";
-
-const selltax = {
-  modalFirst: true,
-  start(interaction) {
-    return interaction.showModal(
-      new ModalBuilder()
-        .setCustomId(modalId("selltax"))
-        .setTitle("The Meister's tax")
-        .addLabelComponents(
-          new LabelBuilder()
-            .setLabel("The rate, a whole percent from 0 to 100")
-            .setDescription("It is taken on every train's imports and exports.")
-            .setTextInputComponent(
-              new TextInputBuilder().setCustomId(RATE_FIELD).setStyle(TextInputStyle.Short).setMaxLength(3).setRequired(true),
-            ),
-        ),
-    );
-  },
-  async modal(interaction) {
-    await ack(interaction);
-    const character = await loadActor(interaction);
-    if (!character) return done(interaction, "You don't have a living character.");
-    const result = await setSellTax(prisma, {
-      discordUserId: character.discordUserId,
-      rate: interaction.fields.getTextInputValue(RATE_FIELD),
-      openTurn: await openTurn(),
-    });
-    return done(interaction, result.ok ? result.line : result.error);
-  },
-};
-
-module.exports = { sendmoney, selltax };
+module.exports = { sendmoney };

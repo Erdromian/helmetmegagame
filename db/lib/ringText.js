@@ -40,6 +40,9 @@ const RING_TEXT = {
   infoterminalReading: "Reading your ring…",
   infoterminalNoRing: "The infoterminal patiently waits for you to present your ring… except you aren't wearing one.",
   infoterminalUnregistered: "This ring isn't registered to anyone. Take it to the Meister.",
+  // A ring whose account the Meister closed: a ring connects once, so the
+  // Meister can't help (docs/systemdocs/MEISTERY.md §5).
+  infoterminalClosed: "The infoterminal reads your ring and finds no account behind it.",
   infoterminalPinStranger: "Enter your PIN.",
   infoterminalPinForgot: "Enter your PIN.",
   infoterminalPinLabel: "PIN",
@@ -48,18 +51,7 @@ const RING_TEXT = {
   infoterminalDepotHint: "You have no account. The Meister opens one when he registers a ring for you.",
   memoriesPin: "Infoterminal PIN",
 
-  // The Meister's terminal.
-  registerTitle: "Register a ring",
-  registerIntro: "Hold an unregistered ring to register it. Choose what access it grants and which account it reaches.",
-  registerNone: "You aren't holding an unregistered ring.",
-  registerRoles: "Grants the access of",
-  registerAccountNew: "Open a new account for {name}",
-  registerAccountExisting: "Link an existing account",
-  registerConfirm: "Register",
-  registerDone: "Registered. The ring now grants {roles} access.",
-  registerDoneNone: "Registered. The ring reaches its account and grants no access.",
-  // A seat whose access only its holder of office may hand out (`ring.authorised_by`).
-  registerNeedsAuth: "Granting the {role}'s access needs the {item} in your hands.",
+  // Registering a ring at the Meister's Terminal: db/lib/meisterTerminalText.js.
 };
 
 // Initials end in a full stop ("A.V."), so one set at the end of a sentence

@@ -22,11 +22,8 @@ const {
   DEPOT_LOCATION_SLUG,
   ATM_LOCATION_SLUGS,
   MERCHANT_LICENSE_SLUG,
-  MEISTERS_OFFICE_ROOM_SLUG,
-  TOWER_LOCATION_SLUG,
 } = require("./depot");
 const { DEPOT_KEYCARD_SLUG, loadDepot } = require("./depotState");
-const { roomAccessKeys, accessibleRooms } = require("./roomAccess");
 const { MERCHANTS_OFFICE_ROOM_SLUG } = require("./train");
 const {
   ARM_WORD,
@@ -88,12 +85,14 @@ async function terminalAccount(prisma, character, { pin = null } = {}) {
   const ring = wornRing(character.tags);
   let account = null;
   if (ring) {
-    if (!isRegistered(ring) || !ring.ringBankAccountId) return fail(RING_TEXT.infoterminalUnregistered);
+    if (!isRegistered(ring)) return fail(RING_TEXT.infoterminalUnregistered);
+    // Registered, and its account closed since: a ring connects once.
+    if (!ring.ringBankAccountId) return fail(RING_TEXT.infoterminalClosed);
     account = await prisma.bankAccount.findUnique({
       where: { id: ring.ringBankAccountId },
       include: { character: { select: { id: true, pin: true } } },
     });
-    if (!account) return fail(RING_TEXT.infoterminalUnregistered);
+    if (!account) return fail(RING_TEXT.infoterminalClosed);
   } else {
     const papers = (character.tags ?? []).filter((ct) => ct.tag?.paperKind === "DOCUMENTS");
     if (papers.length === 0) return fail(RING_TEXT.infoterminalNoRing);
@@ -562,85 +561,7 @@ async function toggleDepotTurret(prisma, discordUserId, { word, turn = null } = 
   };
 }
 
-// Who may read /treasury: somebody standing in the Keep who can get through the
-// Meister's office door. ONE predicate, because the page, the action behind its
-// one control and the nav rail all ask it and must not drift — the rail showing
-// an item that redirects is worse than no item.
-//
-// The door's keys are read off the Room's own accessTagSlugs rather than named
-// here, so re-keying the office in docs/zones.yaml moves the gate with it.
-async function canReadTreasury(prisma, discordUserId) {
-  const character = await prisma.character.findFirst({
-    where: { discordUserId, status: "ALIVE" },
-    select: { id: true, location: { select: { slug: true } } },
-  });
-  if (!character) return { ok: false, error: "You don't have a living character." };
-  if (character.location?.slug !== TOWER_LOCATION_SLUG) {
-    return { ok: false, error: "The terminal is in the Meister's office." };
-  }
-
-  const room = await prisma.room.findUnique({
-    where: { slug: MEISTERS_OFFICE_ROOM_SLUG },
-    select: { id: true, kind: true, accessTagSlugs: true },
-  });
-  if (!room) return { ok: false, error: "The Meister's office isn't in the database yet." };
-
-  const keys = await roomAccessKeys(prisma, character.id);
-  if (!accessibleRooms([room], keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds).length) {
-    return { ok: false, error: "The office is locked." };
-  }
-  return { ok: true, character };
-}
-
-// The Meister closing an account (Incarn and gates.docx: documents "can only
-// be printed once per character unless the old treasury account is deleted by
-// the meister", docs/systemdocs/GATEHOUSE.md). Whatever it held or owed is
-// written off on the books first, so its ledger legs close at zero; then the
-// row goes. A ring linked to it keeps its doors and reaches no account; a set
-// of Documents printed for it opens nothing. Sales already made keep their
-// fingerprint and name (DepotSale.accountId is SetNull).
-async function closeAccount(prisma, discordUserId, { accountId, turn = null } = {}) {
-  const gate = await canReadTreasury(prisma, discordUserId);
-  if (!gate.ok) return gate;
-  const account = await prisma.bankAccount.findUnique({ where: { id: String(accountId ?? "") } });
-  if (!account) return fail(GATEHOUSE_TEXT.deleteGone);
-
-  try {
-    await prisma.$transaction(async (tx) => {
-      const fresh = await tx.bankAccount.findUnique({ where: { id: account.id }, select: { balanceObols: true } });
-      if (!fresh) throw Object.assign(new Error(GATEHOUSE_TEXT.deleteGone), { userMessage: GATEHOUSE_TEXT.deleteGone });
-      if (fresh.balanceObols !== 0) {
-        await bumpBankAccount(tx, account.id, -fresh.balanceObols, {
-          holderName: account.holderName,
-          econ: { reason: "ACCOUNT_CLOSED", ...turnStamp(turn) },
-        });
-      }
-      await tx.bankAccount.delete({ where: { id: account.id } });
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "treasury_account_closed",
-          targetCharacterId: account.characterId,
-          turnId: turn?.id ?? null,
-          details: {
-            fingerprint: account.fingerprint,
-            holderName: account.holderName,
-            balanceObols: fresh.balanceObols,
-            closedBy: gate.character.id,
-          },
-        },
-      });
-    });
-  } catch (err) {
-    if (err?.userMessage) return fail(err.userMessage);
-    throw err;
-  }
-  return { ok: true, line: GATEHOUSE_TEXT.deleteDone(account.holderName) };
-}
-
 module.exports = {
-  canReadTreasury,
-  closeAccount,
   counterActor,
   counterState,
   terminalAccount,

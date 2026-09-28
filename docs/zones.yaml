@@ -1008,10 +1008,12 @@ zones:
                 antibiotics: 1
                 antidote: 1
                 mulligan-potion: 1
+          # The Meister's Terminal is on this room's wall (docs/systemdocs/MEISTERY.md),
+          # and these keys are its gate: the Baron's, the Hand's and the Meister's rings.
           fortress-5-2:
             name: Meister's Study
             phone: "Meister"
-            access: [meisters-key, barons-key]
+            access: [meisters-key, hands-key, barons-key]
             soundproof: true
             description: >-
               A narrow office.
@@ -1030,6 +1032,18 @@ zones:
               items:
                 paper: 7
                 cleaning-powder: 1
+          # Meistery.docx: townsfolk speak with the Meister through it. Private
+          # from the Tower (the three rings that work the terminal), public from
+          # the Residences; things pass through the hole in the glass
+          # (docs/systemdocs/MEISTERY.md §6, MAP.md §2d). A running game got it
+          # from migration 20261120000000_meistery.
+          fortress-5-4:
+            name: Meistery Window
+            access: [meisters-key, hands-key, barons-key]
+            sides:
+              - location: town-8
+            description: >-
+              At the bottom of one of the keep's many spires is a small, barred window level with the streets of the town. Inside sits the Meister's office. A small hole cut through the reinforced glass allows things to be passed through.
       # The ship, drawn one tile above the Keep on the barony1 plate. It has
       # NO entry in connections: below, on purpose — there is no road to it
       # and no edge to light it up, so it shows on the map only for the three

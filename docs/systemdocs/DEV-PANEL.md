@@ -932,9 +932,9 @@ line's two fields went with it in the Depot Overhaul. There is no ⬢-per-obol f
 either: an obol is one ⬢ and the rate never existed as a knob.
 
 The last two duplicate a player-facing surface rather than being the only
-door: the tax rate is really the Meister's own dial, set day to day
-from `/treasury`, which gates on standing in the Keep with a key to his office
-(`DEPOT.md` §0h), and
+door: the tax rate is really the Meister's own dial, set day to day at the
+Meister's Terminal in his Study (`MEISTERY.md`) — a change made here writes the
+same `sell_tax_rate_set` audit row, marked `via: gm_dev` — and
 the turret's switch is really a red button on the Merchant's Office starter
 post, typed word, re-checked at submit, the same pattern as the Censor's
 (`DEPOT.md` §0i) — this checkbox is a superadmin's way to flip it without

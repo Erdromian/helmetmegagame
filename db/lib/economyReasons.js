@@ -114,9 +114,17 @@ const REASONS = {
   // bank clearing, and nothing physical moves. Paying it off is an ordinary
   // deposit, whose coin lands in the Vault with no claim left against it.
   DOCUMENTS_FEE: { flow: FLOW.TRANSFER, label: "Documents fee" },
-  // The Meister closing an account at /treasury. Whatever it held or owed is
-  // written off against the bank clearing so its books close at zero.
+  // The Meister closing an account at the Meister's Terminal. Whatever it held
+  // or owed is written off against the bank clearing so its books close at zero.
   ACCOUNT_CLOSED: { flow: FLOW.TRANSFER, label: "Account closed" },
+  // The rest of the Meister's Terminal (docs/systemdocs/MEISTERY.md): a balance
+  // set by hand, and the daily wages. Claim legs only, against the bank
+  // clearing, the posture of the two above — no coin moves, so each one widens
+  // or narrows the gap between the claims and the Vault.
+  MEISTER_CREDIT: { flow: FLOW.TRANSFER, label: "Balance raised" },
+  MEISTER_DEBIT: { flow: FLOW.TRANSFER, label: "Balance lowered" },
+  WAGE: { flow: FLOW.TRANSFER, label: "Wage" },
+  WAGE_DEDUCTION: { flow: FLOW.TRANSFER, label: "Wage deducted" },
 
   // --- internal (a form change, not a movement) ---
   BANK_OPEN: { flow: FLOW.INTERNAL, label: "Account opened" },

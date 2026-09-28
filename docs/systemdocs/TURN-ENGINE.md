@@ -1085,6 +1085,22 @@ markers for the desk's labels.
 | `db/lib/moveConfirm.js` | Confirming a filed Move — both faces call it, and a Move that never reaches it stays `PENDING_TYPE` and is skipped by the staged push (`bot/src/lib/moveConfirm.js` is a shim that binds `prisma`) |
 | `web/app/(app)/gm/dev/actions.js` | `forceAdvanceTurn`, the GM caller |
 
+## The wage pass
+
+`db/lib/wagePass.js#runWagePass`, registered in `TURN_PASSES` as `"wages"`,
+just before `trainDeparture`: after every pass that can kill (so nobody who died
+on this close is paid for the day), and beside the train because both move
+account balances and nothing else. It pays the Meister's daily wages
+(`MEISTERY.md` §4).
+
+It pays the day this turn belongs to when the NEXT turn will open on a new day
+— `nextDayFor`, the floor settle's own measure — and yesterday too if yesterday
+is still unpaid, which covers a day that rolled between one close and the next
+turn opening, and a wages pass that threw. Each day is claimed once, by
+inserting `WagePayout(dayNumber)` in the same transaction as the credits, so a
+resumed or doubled advance can never pay a day twice. It writes `wages_paid`
+to the audit log when it pays anything.
+
 ## The train passes
 
 `db/lib/trainDeparturePass.js` and `db/lib/trainArrivalPass.js`, registered in

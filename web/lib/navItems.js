@@ -1,5 +1,4 @@
 import { prisma, MORTUS_SLUG } from "@lifeweb/db";
-import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { readGameState } from "@lifeweb/db/lib/gameState";
 import { getGmSession, getGuildMember, isPlaytester, isEconomist } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
@@ -51,12 +50,6 @@ export const ECONOMIST_NAV = [
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "gm" };
-// The Meister's terminal over the town's accounts. Follows PLACE AND KEY, the
-// same predicate the page itself gates on (db/lib/depotCounter.js), so the rail
-// can never offer an item that redirects. It comes and goes as its holder walks
-// in and out of the Keep, which is the cost of a terminal being a thing on a
-// desk. See docs/systemdocs/DEPOT.md §0h.
-const TREASURY_NAV_ITEM = { href: "/treasury", label: "Treasury", icon: "store", section: "player" };
 
 // Streamed separately (Suspense boundary in AppRail) — the live Discord role check and the
 // Mortus-tag lookup never block a navigation's paint.
@@ -87,7 +80,7 @@ async function loadUnreadConversationCount(discordUserId) {
 const CLOSED_NAV_HREFS = new Set(["/character", "/chat", "/memories", "/documents"]);
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, member, hasMortusTag, treasuryGate, gameConfig, state] =
+  const [{ isGm: gm }, member, hasMortusTag, gameConfig, state] =
     await Promise.all([
       getGmSession(),
       // Cached with in-flight dedup (web/lib/discordGuild.js), and getGmSession above
@@ -96,7 +89,6 @@ export async function loadNavItems(discordUserId) {
       prisma.characterTag.findFirst({
         where: { character: { discordUserId, status: "ALIVE" }, tag: { slug: MORTUS_SLUG } },
       }),
-      canReadTreasury(prisma, discordUserId),
       // Chat switch (CHAT.md §5). Presentation here; /chat enforces it.
       prisma.gameConfig.findUnique({
         where: { id: 1 },
@@ -127,17 +119,12 @@ export async function loadNavItems(discordUserId) {
       item.href === "/gm/players" && unreadCount > 0 ? { ...item, badge: unreadCount } : item,
     );
   // Archive first, then Lifeweb: the bar starts a new group wherever `section`
-  // changes, so the order here is what decides the grouping. Lifeweb sits with
-  // the Treasury — the places a character goes to look at what is held rather
-  // than to act — instead of trailing the ordinary pages. (The Depot's page went
-  // with the Depot Overhaul; its terminal is a fixture you stand at.)
+  // changes, so the order here is what decides the grouping. (The Depot's page
+  // went with the Depot Overhaul, and the Treasury's with the Meister's Terminal:
+  // both are fixtures you stand at now.)
   const withArchive = gm ? [...baseNav, ARCHIVE_NAV_ITEM] : baseNav;
   const withLifeweb = hasMortus ? [...withArchive, LIFEWEB_NAV_ITEM] : withArchive;
-  // Appended rather than filtered out of a list, so the closed-game narrowing
-  // has to be asked again here or it walks straight past it.
-  const withTreasury =
-    !narrowed && (treasuryGate.ok || superadmin) ? [...withLifeweb, TREASURY_NAV_ITEM] : withLifeweb;
-  if (!superadmin) return withTreasury;
-  const lastGm = withTreasury.findLastIndex((item) => item.section === "gm");
-  return [...withTreasury.slice(0, lastGm + 1), DEV_NAV_ITEM, ...withTreasury.slice(lastGm + 1)];
+  if (!superadmin) return withLifeweb;
+  const lastGm = withLifeweb.findLastIndex((item) => item.section === "gm");
+  return [...withLifeweb.slice(0, lastGm + 1), DEV_NAV_ITEM, ...withLifeweb.slice(lastGm + 1)];
 }

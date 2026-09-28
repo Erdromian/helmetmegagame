@@ -39,6 +39,7 @@ const { runXomPass } = require("./lib/xomPass");
 const { runDepotPass } = require("./lib/depotPass");
 const { runTrainArrivalPass } = require("./lib/trainArrivalPass");
 const { runTrainDeparturePass } = require("./lib/trainDeparturePass");
+const { runWagePass } = require("./lib/wagePass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { runLatePartyRaffle } = require("./lib/latePartyRaffle");
 const { getGameState, readGameState, inSession } = require("./lib/gameState");
@@ -381,6 +382,12 @@ const TURN_PASSES = [
   // They deliberately do NOT go up with the income passes. A settled sale
   // credits an ACCOUNT, and no upkeep pass can spend an account — only ⬢ and
   // coin — so the income-before-upkeep rule does not reach here.
+  //
+  // The Meister's daily wages (db/lib/wagePass.js) sit just before the train,
+  // for the same reason: they move account balances and nothing else. After
+  // every pass that can kill (dyingDeath, the bomb, catatonicDeath, Xom), so
+  // nobody who died on this close is paid for the day.
+  "wages",
   "trainDeparture",
   "trainArrival",
   // The Merchant's gun, sweeping whoever is standing in the room. Last, so it
@@ -1002,6 +1009,14 @@ async function resolveNeeds(turn, config) {
   if (restedMounts && restedMounts.rested > 0) {
     await audit("mounts_rested", restedMounts, "Mount rest");
   }
+
+  // The Meister's daily wages (db/lib/wagePass.js, MEISTERY.md §4): paid when
+  // the next turn opens on a new day, and yesterday too if it was missed. A
+  // WagePayout row per day is the claim, so a resumed close cannot pay twice.
+  const wages = await runPass("wages", "Wages", () =>
+    nextDayFor(turn, new Date(), config).then((nextDay) => runWagePass(prisma, turn, { nextDay })),
+  );
+  if (wages?.paidDays?.length) await audit("wages_paid", wages, "Wages", turn.id);
 
   // The train. Each pass checks the turn's parity itself and returns
   // `ran: false` on the half that is not its turn, so both are entered every
