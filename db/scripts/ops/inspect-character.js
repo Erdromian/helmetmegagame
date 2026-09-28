@@ -104,7 +104,7 @@ async function main() {
 
     const concealing = c.tags.filter((ct) => ct.tag.concealsIdentity || ct.tag.forcesConceal);
     const concealment = concealmentFrom(c.tags);
-    const forcedName = forcedNameFrom(c.tags);
+    const forcedName = forcedNameFrom(c.tags, c);
     const identity = presentedIdentity(c, { forcedName, concealment });
 
     console.log(`\n  Character.concealed (the wish): ${c.concealed}`);

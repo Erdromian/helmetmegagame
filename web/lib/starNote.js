@@ -14,6 +14,7 @@ export const STAR_ROW_SELECT = {
   characterId: true,
   characterName: true,
   concealedAlias: true,
+  disguised: true,
   presentedAvatarPath: true,
   discordMessageId: true,
   discordChannelId: true,

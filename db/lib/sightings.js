@@ -13,12 +13,16 @@ const { placesFor } = require("./feedAccess");
 // A concealed row whose face was never recorded cannot be given one now
 // (guessing from today's tags could unmask somebody); `unknownFace` draws the
 // question-mark plate instead, CSS not a file (CharacterAvatar.js).
+//
+// A line said in disguise is marked `disguised`. Its name is not one every viewer read
+// (docs/systemdocs/STRANGERS.md §10), so db/lib/whosHere.js#presentRows keeps only its seq.
 function shapeSighting(row) {
   const alias = row.concealedAlias ?? null;
   return {
     seq: String(row.seq),
     name: alias ?? row.characterName ?? null,
     concealed: Boolean(alias),
+    disguised: Boolean(alias) && Boolean(row.disguised),
     avatarPath: row.presentedAvatarPath ?? null,
     unknownFace: Boolean(alias) && !row.presentedAvatarPath,
   };
@@ -75,6 +79,7 @@ async function lastSightings(prisma, character, { gm = false, ghost = false, dis
         characterId: true,
         characterName: true,
         concealedAlias: true,
+        disguised: true,
         presentedAvatarPath: true,
       },
     });

@@ -11,11 +11,19 @@
 
 // `viewerId` is the reader; `knows(id)` whether they have a Friends entry for somebody; `everyone` reads
 // every face by name (a GM, or a reader with no character — the lens's own rule for those).
-function renderPeopleLine(subjects, { viewerId = null, knows = () => false, everyone = false } = {}) {
+//
+// A person marked `disguise` goes by a Disguise Kit's name (docs/systemdocs/STRANGERS.md §10), which a
+// reader knows or not by the NAME, never by who wears it: `knowsName(name)` answers that, and a reader
+// with none reads the alias.
+function renderPeopleLine(subjects, { viewerId = null, knows = () => false, knowsName = () => false, everyone = false } = {}) {
   const people = Array.isArray(subjects?.people) ? subjects.people : [];
   const text = String(subjects?.text ?? "").replace(/\{(\d+)\}/g, (_match, index) => {
     const person = people[Number(index)];
     if (!person) return "somebody";
+    if (person.disguise) {
+      const reads = everyone || (viewerId && person.id === viewerId) || knowsName(person.name);
+      return reads ? person.name : (person.alias ?? person.name);
+    }
     if (everyone || person.masked || (viewerId && person.id === viewerId) || knows(person.id)) return person.name;
     return person.alias ?? person.name;
   });
@@ -34,4 +42,9 @@ function peopleIds(subjects) {
   return (Array.isArray(subjects?.people) ? subjects.people : []).map((p) => p?.id).filter(Boolean);
 }
 
-module.exports = { renderPeopleLine, slotList, peopleIds };
+// The disguise names a line uses, for the same lens.
+function disguiseNames(subjects) {
+  return (Array.isArray(subjects?.people) ? subjects.people : []).filter((p) => p?.disguise && p.name).map((p) => p.name);
+}
+
+module.exports = { renderPeopleLine, slotList, peopleIds, disguiseNames };

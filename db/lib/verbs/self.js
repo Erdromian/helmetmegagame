@@ -14,7 +14,8 @@ const { logAudit } = require("../auditLog");
 const { rollWithAdvantage } = require("../advantage");
 const { resolveBreakRestraints, formatBreakRestraintsRoll, ESCAPE_ARTIST_SLUG } = require("../breakRestraints");
 const { RESTRAINT_SLUGS } = require("../bind");
-const { DISGUISE_KIT_SLUG, DISGUISE_TURNS, normalizeDisguiseName, mintDisguise, activeDisguise } = require("../disguiseMint");
+const { DISGUISE_KIT_SLUG, DISGUISE_TURNS, normalizeDisguiseName, mintDisguise, activeDisguise, resolveDisguiseJob } = require("../disguiseMint");
+const { namesCharacter } = require("../disguises");
 const { heldReasonFor } = require("../intercept");
 const { cavingRestrictionsFor, cavingRefusalFor, standingZoneKind } = require("../cavingPass");
 const { isPointerDeviceSlug, partnerSlugOf, locatePointerPartner } = require("../pointerMint");
@@ -129,28 +130,38 @@ function breakRestraints(prisma, { character, discordUserId, openTurn }) {
 // false name (PROXYING.md §6) — that rename is the FACE's to do, best-effort
 // and after this returns (`renamed` says it should), because the disguise is
 // the tag, not the role, and a Discord hiccup must not cost somebody their kit.
-function disguiseSelf(prisma, { character, discordUserId, name: rawName, openTurn }) {
+//
+// `name` is `{ honorific, firstName, lastName }`, or one typed string. Who the
+// name fools is decided later, per reader (db/lib/disguises.js): a real
+// character's full name fools the people who know them, whatever title it
+// carries. A title is any text; one of the game's own is worn in the form the
+// wearer's own gender takes. `job` is any job title, real or made up,
+// or empty for none: the job the disguise claims
+// (disguiseMint.js#resolveDisguiseJob). A real seat's name wears its estate's
+// colour; any other job is worn as typed, with no colour.
+function disguiseSelf(prisma, { character, discordUserId, name: rawName, job: rawJob = null, openTurn }) {
   return asResult(async () => {
     if (!character.tags.some((ct) => ct.tag.slug === DISGUISE_KIT_SLUG)) refuse("You have no disguise kit.");
     // Raw musculature passes for nobody else (db/lib/skinless.js).
     if (isSkinlessTags(character.tags)) refuse(SKINLESS_DISGUISE_REFUSAL);
-    const name = normalizeDisguiseName(rawName);
+    const name = normalizeDisguiseName(rawName, { gender: character.gender });
     if (!name) refuse("Pick a name to go by.");
-    if (name === character.name) refuse("That is already your name.");
+    if (name === character.name || namesCharacter(name, character)) refuse("That is already your name.");
+    const job = await resolveDisguiseJob(prisma, rawJob);
     // One at a time: two forcedName rows would race.
     const already = await activeDisguise(prisma, character.id);
     if (already) refuse(`You are already going by ${already.tag.forcedName}. Wait for it to wear off.`);
     if (!openTurn) refuse("No turn is open.");
     // Minted OUTSIDE the transaction: its retry loop cannot run inside one.
-    const tag = await mintDisguise(prisma, character.id, name, openTurn);
+    const tag = await mintDisguise(prisma, character.id, name, openTurn, { job });
     if (!tag) refuse("Couldn't put that name on. Try another.");
     await logAudit(prisma, {
       actorDiscordUserId: discordUserId,
       actionType: "request_disguise_self",
       targetCharacterId: character.id,
-      details: { tagId: tag.id, tagName: tag.name, disguiseName: name, turns: DISGUISE_TURNS },
+      details: { tagId: tag.id, tagName: tag.name, disguiseName: name, disguiseJob: job?.name ?? null, disguiseJobSlug: job?.slug ?? null, turns: DISGUISE_TURNS },
     });
-    return { touched: [character.id], name, renamed: true };
+    return { touched: [character.id], name, job: job?.name ?? null, renamed: true };
   });
 }
 

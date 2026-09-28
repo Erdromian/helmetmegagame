@@ -6,6 +6,7 @@
 const { presentedIdentity, CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
 const { withArticle, concealedAlias } = require("./concealedIdentity");
 const { knownSubjects } = require("./strangers");
+const { disguiseNameFrom, readDisguises, disguiseRead, typedNameMatches } = require("./disguises");
 const { matchesTypedName } = require("./characterName");
 const { blockerFor, ACT } = require("./incapacitation");
 const { inCombatMode } = require("./combatMode");
@@ -226,9 +227,20 @@ const INTERCEPT_CANCELLED_DM = "You left, so your interception was canceled.";
 // face the watcher has never met is a stranger to them, and a typed name must not reach past that any more
 // than past a hood. "Anyone I can't identify" is the dragnet for the rest: a hood, a forced name, or a
 // stranger's face.
-function matchesArrival(watch, arrival, presented, { known = true } = {}) {
+//
+// A DISGUISE is caught by its name, not the wearer's (STRANGERS.md §10). `disguiseKnown` is whether the
+// watcher can put the disguise's name to the face: they learned it, or it fools them into seeing
+// somebody they know. Then a typed name catches it when it matches the name the disguise goes by, so a
+// watch for "Aldric Vask" stops an impostor dressed as him. To anybody else it is a stranger, caught
+// only by "Anyone I can't identify". It is never "any concealed person": nothing covers the face.
+function matchesArrival(watch, arrival, presented, { known = true, disguiseKnown = true } = {}) {
   if (!watch) return null;
   if (watch.anyPerson) return "anyPerson";
+  if (presented?.disguised) {
+    if (!disguiseKnown) return watch.anyUnidentified ? "anyUnidentified" : null;
+    const typed = (watch.targetNames ?? []).find((name) => typedNameMatches(presented.name, name));
+    return typed ? "name" : null;
+  }
   const hidden = Boolean(presented?.concealed || presented?.forced);
   if (watch.anyUnidentified && (hidden || !known)) return "anyUnidentified";
   if (hidden) {
@@ -265,15 +277,28 @@ async function seenBy(db, viewerId, row) {
 // index. Row by row the rule is seenBy's — yourself, a hood and a forced name
 // never ask about Friends, a stranger is what they look like, a row that is
 // missing is "somebody". `rows` need IDENTITY_SELECT; `db` may be a transaction.
+//
+// A disguise reads as its name to a reader who can put it to the face, and as
+// a stranger to anybody else (STRANGERS.md §10).
 async function seenByMany(db, viewerId, rows) {
   const list = (Array.isArray(rows) ? rows : []).map((row) => ({ row, presented: row ? identityOf(row) : null }));
   const asks = ({ row, presented }) =>
     Boolean(presented && row.id && viewerId && row.id !== viewerId && !presented.concealed && !presented.forced);
+  const disguised = ({ row, presented }) =>
+    Boolean(presented?.disguised && row.id && viewerId && row.id !== viewerId);
   const ids = list.filter(asks).map(({ row }) => row.id);
-  const known = ids.length > 0 ? await knownSubjects(db, viewerId, ids) : null;
+  const worn = list.filter(disguised).map(({ presented }) => presented.name);
+  const [known, reads] = await Promise.all([
+    ids.length > 0 ? knownSubjects(db, viewerId, ids) : null,
+    worn.length > 0 ? readDisguises(db, viewerId, worn) : null,
+  ]);
+  const stranger = (row) => withArticle(concealedAlias(row).toLowerCase());
   return list.map((entry) => {
+    if (disguised(entry)) {
+      return disguiseRead(reads, entry.presented.name).known ? seenAs(entry.presented) : stranger(entry.row);
+    }
     if (!asks(entry) || !known || known.has(entry.row.id)) return seenAs(entry.presented);
-    return withArticle(concealedAlias(entry.row).toLowerCase());
+    return stranger(entry.row);
   });
 }
 
@@ -329,7 +354,11 @@ const IDENTITY_SELECT = {
 // IDENTITY_SELECT already filters the held tags to quantity > 0, so both helpers see exactly what the character has on them.
 function identityOf(row) {
   const tags = row?.tags ?? [];
-  return presentedIdentity(row, { forcedName: forcedNameFrom(tags), concealment: concealmentFrom(tags) });
+  return presentedIdentity(row, {
+    forcedName: forcedNameFrom(tags, row),
+    concealment: concealmentFrom(tags),
+    disguised: Boolean(disguiseNameFrom(tags, row)),
+  });
 }
 
 // ─── Firing ────────────────────────────────────────────────────────────────
@@ -394,7 +423,10 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
 
     for (const watch of live) {
       const known = knownBy.get(watch.characterId);
-      const matchedBy = matchesArrival(watch, row, presented, { known: !known || known.has(row.id) });
+      const disguiseKnown = presented.disguised
+        ? disguiseRead(await readDisguises(db, watch.characterId, [presented.name]), presented.name).known
+        : true;
+      const matchedBy = matchesArrival(watch, row, presented, { known: !known || known.has(row.id), disguiseKnown });
       if (!matchedBy) continue;
       // Where they came from, not who they are. It reads `arrival` and not `row`, since
       // the journey is on the descriptor the mover handed us and the fresh row knows only the face. BEFORE the ration insert below: a local this watch deliberately ignored must not burn the turn's one catch, or a stranger arriving later the same turn would walk straight through.

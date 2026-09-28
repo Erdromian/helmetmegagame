@@ -13,8 +13,9 @@
 // Takes `prisma`, off the @lifeweb/db barrel (db/lib/dm.js convention). Best-effort: a fight has already
 // started by the time this runs, and a missed announcement must never undo it.
 const { sceneLineAt } = require("./scene");
-const { renderPeopleLine, peopleIds } = require("./peopleLine");
+const { renderPeopleLine, peopleIds, disguiseNames } = require("./peopleLine");
 const { knownSubjects } = require("./strangers");
+const { readDisguises, disguiseRead } = require("./disguises");
 const { DM_KIND } = require("./dmKinds");
 
 // `announce` is combat.js#startCombat's { locationId, subjects }; `skipIds` the fighters.
@@ -43,9 +44,15 @@ async function announceFight(prisma, announce, { skipIds = [] } = {}) {
       select: { id: true, discordUserId: true },
     });
     const named = peopleIds(subjects);
+    const worn = disguiseNames(subjects);
     for (const reader of readers.filter((r) => r.discordUserId)) {
       const known = await knownSubjects(prisma, reader.id, named).catch(() => null);
-      const text = renderPeopleLine(subjects, { viewerId: reader.id, knows: (id) => !known || known.has(id) });
+      const reads = worn.length > 0 ? await readDisguises(prisma, reader.id, worn).catch(() => null) : null;
+      const text = renderPeopleLine(subjects, {
+        viewerId: reader.id,
+        knows: (id) => !known || known.has(id),
+        knowsName: (name) => disguiseRead(reads, name).known,
+      });
       const where = location?.name ? `\n-# ${location.name}` : "";
       await sendDm(prisma, reader.discordUserId, `${text}${where}`, { kind: DM_KIND.NOTICE, allowedMentions: { parse: [] } })
         .then(() => (relayed += 1))

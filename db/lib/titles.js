@@ -60,6 +60,24 @@ const TITLE_WORDS = Object.freeze(
   ),
 );
 
+// Every title word in the one form a character of `gender` wears, in table order: what the
+// Disguise Kit offers (./disguiseMint.js), since a disguise claims any title but cannot change who is
+// under it — a woman going by Sir is going by Dame.
+function titleWordsFor(gender) {
+  return TITLES.map((t) => wordFor(t, gender)).filter((word, i, all) => all.indexOf(word) === i);
+}
+
+// Any title word (in any case, in any gendered form) as a character of `gender` wears it: "Sir" for a
+// woman is "Dame", "Lady" for a man is "Lord". Null for a word that is no title.
+function titleFormFor(word, gender) {
+  const typed = String(word ?? "").trim().toLowerCase();
+  if (!typed) return null;
+  const entry = TITLES.find((t) =>
+    typeof t.words === "string" ? t.words.toLowerCase() === typed : Object.values(t.words).some((w) => w.toLowerCase() === typed),
+  );
+  return entry ? wordFor(entry, gender) : null;
+}
+
 // The words this character may wear. One word per earned title, never the
 // gendered variants together — those aren't a player choice. Order follows
 // the table (ladder order, not alphabetical).
@@ -128,5 +146,7 @@ module.exports = {
   TITLE_WORDS,
   GENDERS,
   earnedTitles,
+  titleWordsFor,
+  titleFormFor,
   assertTitlesResolve,
 };

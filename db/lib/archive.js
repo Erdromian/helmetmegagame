@@ -8,7 +8,7 @@ const { hoodToken } = require("./whosHere");
 const { loadPresentedState } = require("./examineSnapshot");
 const { roleGroupHue } = require("./roleGroups");
 const { isSfx } = require("./sfx");
-const { attachSpeaker, attachAudience, attachSubjects } = require("./strangers");
+const { attachSpeaker, attachAudience, attachSubjects, attachDisguised } = require("./strangers");
 const { locationNameForPlaceKey } = require("./placeKey");
 const { presentAt, witnessesFrom, witnessColumns, NO_WITNESS_KINDS } = require("./archiveWitnesses");
 
@@ -49,6 +49,11 @@ const FEED_ROW_SELECT = {
   // shaped onto the wire, where an id on a room row would say who holds the phone.
   onlyCharacterId: true,
   exceptCharacterId: true,
+  // Whether the alias was a Disguise Kit's name (STRANGERS.md §10). Hidden on a symbol for the
+  // lens, NEVER shaped onto the wire: it would tell every reader the name is false.
+  disguised: true,
+  // The estate of the job the disguise claimed, which IS on the wire: the colour every reader sees.
+  disguiseGroup: true,
 };
 
 // One archived row as the wire shape /chat and /api/feed speak.
@@ -66,7 +71,7 @@ function feedRowShape(row, extra = {}) {
   // never serialised: JSON and a spread both leave it behind. The row's audience
   // (onlyCharacterId / exceptCharacterId) rides the same way, for the lens to
   // decide who reads the row at all.
-  return attachSubjects(attachAudience(attachSpeaker({
+  return attachDisguised(attachSubjects(attachAudience(attachSpeaker({
     seq: String(row.seq),
     placeKey: row.placeKey ?? null,
     characterId: hooded ? null : (row.characterId ?? null),
@@ -77,7 +82,10 @@ function feedRowShape(row, extra = {}) {
     // every line one person said all session. Only the six COLOURED groups ever
     // get this far — roleGroupHue answers null for an Outsider, for Elsewhere
     // and for anybody with no seat, so an uncoloured bucket never leaves here.
-    roleGroup: hooded ? null : (roleGroup ?? null),
+    //
+    // A disguise wears the estate of the job it claimed (STRANGERS.md §10), frozen on the line: that
+    // is what the room saw, whoever they took the wearer for, and it says nothing of the wearer's own.
+    roleGroup: row.disguised ? roleGroupHue(row.disguiseGroup) : hooded ? null : (roleGroup ?? null),
     name: row.concealedAlias ?? row.characterName ?? null,
     alias: row.concealedAlias ?? null,
     avatarPath: row.presentedAvatarPath ?? null,
@@ -92,7 +100,7 @@ function feedRowShape(row, extra = {}) {
     editedAt: row.editedAt ? new Date(row.editedAt).toISOString() : null,
     deletedAt: row.deletedAt ? new Date(row.deletedAt).toISOString() : null,
     ...rest,
-  }, row.characterId ?? null), { only: row.onlyCharacterId ?? null, except: row.exceptCharacterId ?? null }), row.subjects ?? null);
+  }, row.characterId ?? null), { only: row.onlyCharacterId ?? null, except: row.exceptCharacterId ?? null }), row.subjects ?? null), Boolean(row.disguised));
 }
 
 // A batch of rows shaped with ONE `?v=` per character — feedRowShape falls back to
@@ -265,6 +273,8 @@ async function recordArchiveMessage(prisma, entry, { rethrow = false } = {}) {
         characterId: entry.character?.id ?? null,
         characterName: entry.character?.name ?? null,
         concealedAlias: entry.concealedAlias ?? null,
+        disguised: Boolean(entry.concealedAlias && entry.disguised),
+        disguiseGroup: entry.concealedAlias && entry.disguised ? (entry.disguiseGroup ?? null) : null,
         presentedAvatarPath: entry.presentedAvatarPath ?? null,
         // The third frozen column. DbNull, not null, is how a Json column is told to hold a SQL NULL — a bare null is the other kind of nothing on a Json field, and "not frozen" is the one meant here.
         presentedState: presentedState ?? Prisma.DbNull,
@@ -360,6 +370,7 @@ const MESSAGE_ROW_SELECT = {
   characterId: true,
   characterName: true,
   concealedAlias: true,
+  disguised: true,
   presentedAvatarPath: true,
   content: true,
   sentAt: true,

@@ -160,6 +160,15 @@ function roleSaidIn(sentence, roleWords, name) {
   return false;
 }
 
+// Whether the speaker's own entry holds this role: the same seat, or for a
+// role with no seat behind it, the same words.
+function knowsRoleOf(entry, role) {
+  if (!entry || !role) return false;
+  if (role.slug) return entry.roleSlug === role.slug;
+  const text = (entry.roleText ?? "").trim().toLowerCase();
+  return Boolean(text) && text === (role.name ?? "").trim().toLowerCase();
+}
+
 // Whether the speaker's own entry holds the name form that was said.
 function entryHoldsName(entry, form) {
   if (!entry?.name) return false;
@@ -171,7 +180,8 @@ function entryHoldsName(entry, form) {
 // `candidates` are the people in the room whose own identity is showing (never
 // a hood or a forced name — the caller filters those), the speaker included if
 // they are. `speakerKnows` maps a subject id to the speaker's own entry
-// `{ name, roleSlug }`.
+// `{ name, roleSlug, roleText }`. A role with no slug (a disguise's made-up
+// job) is known when the entry's role text is that job, in any case.
 //
 // Returns one lesson per subject: `{ subjectId, name, role, entry }`, where
 // `name` means "a listener with no entry gets one" and `role` means "a
@@ -197,7 +207,7 @@ function lessonsFrom({ content, speaker, candidates, speakerKnows = new Map() })
 
     const forms = nameFormsFor(candidate, lastNameCounts);
     const roleWords = roleWordsFor(candidate);
-    const knowsRole = self || (Boolean(entry?.roleSlug) && entry.roleSlug === candidate.role?.slug);
+    const knowsRole = self || knowsRoleOf(entry, candidate.role);
 
     let name = false;
     let role = false;

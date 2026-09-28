@@ -49,6 +49,7 @@ import {
   detonateCollarRequestImpl,
   readRemoteRequestImpl,
   disguiseSelfRequestImpl,
+  loadDisguiseImpl,
   harmCharacterRequestImpl,
   brandCharacterRequestImpl,
   extractGodfleshRequestImpl,
@@ -219,6 +220,10 @@ export async function readRemoteRequest() {
 }
 export async function disguiseSelfRequest(input) {
   return acting(() => disguiseSelfRequestImpl(input));
+}
+// A read: the dialog's titles and jobs.
+export async function loadDisguise() {
+  return guarded(() => loadDisguiseImpl());
 }
 export async function harmCharacterRequest(input) {
   return acting(() => harmCharacterRequestImpl(input));

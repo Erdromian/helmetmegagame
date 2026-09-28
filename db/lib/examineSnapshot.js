@@ -14,6 +14,7 @@
 // convention).
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
 const { RESOURCES_SLUG, resourcesOf } = require("./resourceStack");
+const { disguiseNameFrom, disguiseJobFrom, jobsBySlug } = require("./disguises");
 
 const SNAPSHOT_VERSION = 1;
 
@@ -117,11 +118,17 @@ async function loadPresentedState(prisma, characterId) {
     where: { id: characterId },
     select: PRESENTED_STATE_SELECT,
   });
-  if (!character) return { state: null, forcedName: null, concealment: undefined };
+  if (!character) return { state: null, forcedName: null, concealment: undefined, disguised: false, disguiseGroup: null };
+  const disguised = Boolean(disguiseNameFrom(character.tags, character));
+  // The estate of the job a disguise claims, frozen on the line it is said in (STRANGERS.md §10).
+  const job = disguised ? disguiseJobFrom(character.tags, character)?.slug : null;
+  const disguiseGroup = job ? ((await jobsBySlug(prisma, [job])).get(job)?.groupSlug ?? null) : null;
   return {
     state: presentedStateFrom(character),
-    forcedName: forcedNameFrom(character.tags),
+    forcedName: forcedNameFrom(character.tags, character),
     concealment: concealmentFrom(character.tags),
+    disguised,
+    disguiseGroup,
   };
 }
 

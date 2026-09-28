@@ -59,7 +59,7 @@ async function stampMentionNames(prisma, content) {
       character.id,
       freezeMentionName(
         presentedIdentity(character, {
-          forcedName: forcedNameFrom(character.tags),
+          forcedName: forcedNameFrom(character.tags, character),
           concealment: concealmentFrom(character.tags),
         }).name,
       ),
@@ -244,7 +244,7 @@ async function charactersNamedNearby(prisma, { placeKey, content, speakerId = nu
 
   const shaped = candidates.map((character) => {
     const shown = presentedIdentity(character, {
-      forcedName: forcedNameFrom(character.tags),
+      forcedName: forcedNameFrom(character.tags, character),
       concealment: concealmentFrom(character.tags),
     });
     const { tags, ...rest } = character;

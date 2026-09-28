@@ -22,8 +22,9 @@
 const crypto = require("node:crypto");
 const { concealedAlias, isConcealedAlias, LOOK_TAGS_SELECT } = require("./concealedIdentity");
 const { sceneSpeakerKey } = require("./hoodToken");
-const { renderPeopleLine, peopleIds } = require("./peopleLine");
+const { renderPeopleLine, peopleIds, disguiseNames } = require("./peopleLine");
 const { skinlessIdsAmong, gruntify } = require("./skinless");
+const { readDisguises, disguiseRead, fooledFace, DISGUISE_STRANGER_FACE: BLANK_PLAQUE } = require("./disguises");
 
 // Bascinet's list, lower-cased to sit mid-sentence: "a young man, hunched".
 // "Infront" in the doc is "in front".
@@ -77,12 +78,29 @@ async function knownSubjects(prisma, viewerId, subjectIds) {
 // can cover a face (the conceal switch, equipping, a stolen hood, a sack that
 // forces it) would otherwise need its own hook, and this catches all of them
 // with no list to keep up to date.
-function presenceStale(row, hidden) {
-  return !row.presenceLabel || !row.presenceNonce || row.presenceHidden !== hidden;
+//
+// `face` is how the person is showing: "open", "hidden" (a hood, a masked
+// corpse), or "disguise" (./disguises.js). A disguise is hidden too, so
+// presenceHidden cannot tell it from a hood; a nonce rolled for one ends in
+// DISGUISE_NONCE instead, so a hood pulled up over a disguise, or taken down
+// again, rolls a new label and token like any other cover. `true`/`false`
+// still read as "hidden"/"open".
+const DISGUISE_NONCE = ".d";
+
+function faceState(face) {
+  if (face === true) return "hidden";
+  if (face === false || face == null) return "open";
+  return face;
 }
 
-function freshNonce() {
-  return crypto.randomBytes(8).toString("hex");
+function presenceStale(row, face) {
+  const state = faceState(face);
+  if (!row.presenceLabel || !row.presenceNonce || row.presenceHidden !== (state !== "open")) return true;
+  return row.presenceNonce.endsWith(DISGUISE_NONCE) !== (state === "disguise");
+}
+
+function freshNonce(face) {
+  return crypto.randomBytes(8).toString("hex") + (faceState(face) === "disguise" ? DISGUISE_NONCE : "");
 }
 
 // Picks a label nobody else at the Location holds, and a label at random once
@@ -94,9 +112,9 @@ function pickLabel(taken, random = Math.random) {
 }
 
 // Brings the label and nonce up to date for everyone in `rows`, all of whom are
-// standing at one Location. `hiddenOf(row)` says whether that person is hidden
-// from everyone right now, so a change in it rolls a new label. It changes the
-// rows in place and writes what it rolled.
+// standing at one Location. `hiddenOf(row)` says how that person is showing to
+// everyone right now (presenceStale's `face`), so a change in it rolls a new
+// label. It changes the rows in place and writes what it rolled.
 //
 // The write is conditional on the nonce it replaces. So when two readers race,
 // one wins and the other takes the winner's roll instead of writing over it.
@@ -108,8 +126,12 @@ async function settlePresence(prisma, rows, hiddenOf, { random = Math.random } =
 
   const taken = new Set(living.filter((row) => !stale.includes(row)).map((row) => row.presenceLabel).filter(Boolean));
   for (const row of stale) {
-    const hidden = hiddenOf(row);
-    const next = { presenceLabel: pickLabel(taken, random), presenceNonce: freshNonce(), presenceHidden: hidden };
+    const face = hiddenOf(row);
+    const next = {
+      presenceLabel: pickLabel(taken, random),
+      presenceNonce: freshNonce(face),
+      presenceHidden: faceState(face) !== "open",
+    };
     const { count } = await prisma.character.updateMany({
       where: { id: row.id, presenceNonce: row.presenceNonce ?? null },
       data: next,
@@ -217,6 +239,22 @@ function attachSubjects(shaped, subjects) {
   return shaped;
 }
 
+// That the row's alias is a Disguise Kit's name (ArchiveEntry.disguised), which the lens names per
+// reader (STRANGERS.md §10). Hidden for a plainer reason than the others: a visible flag would tell
+// every reader that the name on the line is false. From the global registry for the reason SPEAKER gives.
+const DISGUISED = Symbol.for("bascinet.feed.disguised");
+
+function attachDisguised(shaped, disguised) {
+  if (shaped && disguised) {
+    Object.defineProperty(shaped, DISGUISED, { value: true, enumerable: false });
+  }
+  return shaped;
+}
+
+function isDisguisedRow(row) {
+  return Boolean(row?.alias) && Boolean(row?.[DISGUISED]);
+}
+
 // The row's own characterId is the fallback. A bare-faced row carries it anyway,
 // so a row that somehow lost its symbol is still judged rather than waved
 // through under a name the reader may not know. A hooded row has none, and
@@ -237,6 +275,10 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
   // because it is the same question: what this reader makes of this speaker.
   const grunters = new Set();
   let readerSkinless = false;
+  // What this reader makes of each disguise name on the rows (./disguises.js#readDisguises). `null`
+  // until something is read, and after a read that came back null (the rule is off): every name known.
+  const disguises = new Map();
+  let disguisesOff = false;
 
   async function prepareGrunts(rows) {
     const speakers = [
@@ -263,6 +305,19 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
     // Everybody but a GM, the characterless included: a ghost hears grunts too.
     await prepareGrunts(rows);
     if (!characterId) return;
+    // The disguise names on these lines, read against this reader's Friends list. Asked again every
+    // time, since a line may have just taught one.
+    const worn = [
+      ...new Set([
+        ...(rows ?? []).filter(isDisguisedRow).map((row) => row.alias),
+        ...(rows ?? []).flatMap((row) => disguiseNames(row?.[SUBJECTS])),
+      ]),
+    ];
+    if (worn.length > 0) {
+      const reads = await readDisguises(prisma, characterId, worn);
+      disguisesOff = reads === null;
+      for (const [name, read] of reads ?? []) disguises.set(name, read);
+    }
     // The speakers, and everybody a line names (a fight's announcement): the lens asks about both.
     const named = (rows ?? []).flatMap((row) => peopleIds(row?.[SUBJECTS]));
     const ids = [...new Set([...(rows ?? []).map(speakerOf), ...named].filter((id) => id && id !== characterId))];
@@ -295,7 +350,9 @@ function createLens(prisma, { characterId = null, gm = false } = {}) {
   // Null for a row this reader may not see at all (readsRow): every surface
   // drops those rather than drawing them.
   const apply = (row) =>
-    readsRow(row, { characterId, gm }) ? lensRow(row, { characterId, gm, facts, grunters, readerSkinless }) : null;
+    readsRow(row, { characterId, gm })
+      ? lensRow(row, { characterId, gm, facts, grunters, readerSkinless, disguises: disguisesOff ? null : disguises })
+      : null;
 
   async function all(rows) {
     const visible = (rows ?? []).filter((row) => readsRow(row, { characterId, gm }));
@@ -319,6 +376,7 @@ function lensRow(row, lens) {
       viewerId: lens.characterId ?? null,
       everyone: Boolean(lens.gm) || !lens.characterId,
       knows: (subjectId) => Boolean(lens.facts?.get(subjectId)?.known),
+      knowsName: (name) => disguiseRead(lens.disguises, name).known,
     });
   }
   if (!id || lens.gm) return out;
@@ -330,18 +388,41 @@ function lensRow(row, lens) {
     out.content = gruntify(row.content ?? "", Number(row.seq) || 0);
   }
 
-  const hooded = Boolean(row.alias) && isConcealedAlias(row.alias);
-  const forced = Boolean(row.alias) && !hooded;
-  const sceneKey = () => sceneSpeakerKey(id, row.placeKey, row.turnNumber);
+  const disguised = isDisguisedRow(row);
+  const hooded = !disguised && Boolean(row.alias) && isConcealedAlias(row.alias);
+  const forced = !disguised && Boolean(row.alias) && !hooded;
+  // A disguise's lines key apart from anything else the wearer says here, so a hood pulled up over it
+  // (./disguises.js#hoodUpOverDisguise) neither joins its run in the feed nor matches its key.
+  const sceneKey = () =>
+    sceneSpeakerKey(id, row.placeKey, disguised ? `${row.turnNumber}:disguise:${row.alias}` : row.turnNumber);
 
   // A forced name is the name everyone sees (PROXYING.md §5). It only loses the
   // stable key, which would follow them from scene to scene.
   if (forced) return { ...out, speakerKey: sceneKey() };
+  // A disguise's name is read by whoever can put it to the face (§10): nobody to recognise with, the
+  // rule switched off, a reader who learned the name, or one it fools. The one it fools sees the
+  // face of the person they take the wearer for — served per reader by the line's own face route —
+  // but only when the wearer looks like them: the same gender and age band (./disguises.js#looksAlike).
+  // Otherwise the name's letter plaque, which the row already carries. The colour is the claimed
+  // job's, frozen on the row (archive.js#feedRowShape), the same for every reader.
+  if (disguised) {
+    const read = lens.characterId ? disguiseRead(lens.disguises, row.alias) : { known: true, fooledAs: null };
+    if (read.known) {
+      const shown = { ...out, speakerKey: sceneKey() };
+      if (row.seq && fooledFace(read, lens.facts?.get(id))) {
+        shown.avatarPath = `/api/avatar/line/${row.seq}`;
+        shown.avatarVersion = null;
+        shown.unknownFace = false;
+      }
+      return shown;
+    }
+  }
   // Nobody to recognise with: hoods stay hoods, faces stay named.
   if (!lens.characterId) return hooded ? { ...out, speakerKey: sceneKey() } : out;
 
   const fact = lens.facts?.get(id) ?? null;
-  const stranger = !hooded && !fact?.known;
+  // An unrecognised disguise is a stranger's face, whoever is wearing it.
+  const stranger = disguised || (!hooded && !fact?.known);
   if (!hooded && !stranger) return out;
 
   const alias = hooded ? row.alias : concealedAlias(fact ?? {});
@@ -357,6 +438,12 @@ function lensRow(row, lens) {
     out.avatarPath = row.seq ? `/api/avatar/line/${row.seq}` : null;
     out.avatarVersion = null;
     out.unknownFace = !row.seq;
+    // A disguise is not the wearer's own face. Its colour stays the claimed job's (feedRowShape), never
+    // the wearer's own estate.
+    if (disguised) {
+      out.avatarPath = BLANK_PLAQUE;
+      out.unknownFace = false;
+    }
   }
   return out;
 }
@@ -372,6 +459,10 @@ function lensRow(row, lens) {
 // read the line, and a Highlight is kept long after that. Somebody the keeper
 // knows keeps their name; the page draws their face from the id.
 function keptSpeaker(row, shown) {
+  // A disguise the keeper could not put a name to is kept as the stranger they saw, with no face.
+  if (row?.concealedAlias && row.disguised && shown?.alias && shown.alias !== row.concealedAlias) {
+    return { name: shown.alias, avatarPath: null };
+  }
   if (row?.concealedAlias) return { name: row.concealedAlias, avatarPath: row.presentedAvatarPath ?? null };
   if (shown?.alias) return { name: shown.alias, avatarPath: null };
   return { name: row?.characterName ?? null, avatarPath: null };
@@ -381,11 +472,18 @@ function keptSpeaker(row, shown) {
 // the real id, the presented name, whether that name hides them (`hidden`), and
 // the alias their face would give. The id is swapped for a scene key whenever
 // the name is an alias, since the browser keys its list on it.
-function lensTyping(event, { characterId = null, gm = false, known = null } = {}) {
+//
+// A disguise always types under a scene key, since its real id beside its false name is the unmasking.
+// `disguiseKnown` is whether this reader can put the disguise's name to the face (./disguises.js); false
+// shows the alias instead.
+function lensTyping(event, { characterId = null, gm = false, known = null, disguiseKnown = true } = {}) {
   const base = { placeKey: event.placeKey, characterId: event.characterId, name: event.name };
   if (gm) return base;
   const scene = sceneSpeakerKey(event.characterId, event.placeKey, "typing");
   if (event.hidden) return { ...base, characterId: scene };
+  if (event.disguised) {
+    return characterId && !disguiseKnown ? { ...base, characterId: scene, name: event.alias } : { ...base, characterId: scene };
+  }
   if (event.forced || !characterId || !known || known.has(event.characterId)) return base;
   return { ...base, characterId: scene, name: event.alias };
 }
@@ -406,6 +504,9 @@ module.exports = {
   attachAudience,
   SUBJECTS,
   attachSubjects,
+  DISGUISED,
+  attachDisguised,
+  isDisguisedRow,
   readsRow,
   createLens,
   lensRow,

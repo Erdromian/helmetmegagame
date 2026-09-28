@@ -33,6 +33,7 @@ const { lessonsFrom } = require("./memoryLessons");
 const { spokenText, hasSpeech } = require("./speech");
 const { anonymizingStrangers } = require("./strangers");
 const { skinlessIdsAmong } = require("./skinless");
+const { disguiseNameFrom, disguiseJobFrom, disguiseParts, disguiseKey, ownersWhoKnow } = require("./disguises");
 
 // Where a line puts somebody in the room for the day log. `net:` (a radio),
 // `dead:`, `game:` and the like are not rooms: nobody stands in them.
@@ -141,10 +142,11 @@ const LISTENER_SELECT = {
 };
 
 // Whether this person's own identity is showing — not hooded, not under a
-// forced name. Only then can their name be matched to them.
+// forced name. Only then can their REAL name be matched to them. A disguise is
+// matched by its own name instead (learnFromSpeech).
 function showsOwnFace(person) {
   const shown = presentedIdentity(person, {
-    forcedName: forcedNameFrom(person.tags),
+    forcedName: forcedNameFrom(person.tags, person),
     concealment: concealmentFrom(person.tags),
   });
   return !shown.concealed && !shown.forced;
@@ -164,10 +166,10 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
   const speaker = present.find((p) => p.id === speakerId);
   if (!speaker) return { taught: 0 };
 
-  const candidates = present.filter(showsOwnFace);
+  const faces = present.filter(showsOwnFace);
   // The speaker's own memory of the people here, which is what decides whether
   // they could have known what they said.
-  const others = candidates.filter((c) => c.id !== speakerId).map((c) => c.id);
+  const others = faces.filter((c) => c.id !== speakerId).map((c) => c.id);
   const known =
     others.length > 0
       ? await prisma.acquaintance.findMany({
@@ -176,6 +178,31 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
         })
       : [];
   const speakerKnows = new Map(known.map((k) => [k.subjectId, k]));
+
+  // A DISGUISE is named by the name it goes by, never the wearer's own
+  // (STRANGERS.md §10). It is heard like anybody's name: said by the wearer, or
+  // by somebody who can put that name to the face. Its role is the job it
+  // claims, if any, never the wearer's seat, heard the way any role is. A
+  // made-up job is heard by its title, and has no slug.
+  const disguised = new Map();
+  const wearers = present.filter((person) => disguiseNameFrom(person.tags, person));
+  for (const person of wearers) {
+    const name = disguiseNameFrom(person.tags, person);
+    const job = disguiseJobFrom(person.tags, person);
+    const parts = disguiseParts(name);
+    const role = job?.name ? { slug: job.slug, name: job.name } : null;
+    disguised.set(person.id, { name, candidate: { id: person.id, ...parts, role, roleTitle: null } });
+    if (person.id === speakerId) continue;
+    const speakerCan = await ownersWhoKnow(prisma, [speakerId], name);
+    if (speakerCan && !speakerCan.has(speakerId)) continue;
+    // The speaker can name it. They can name its job too if the entry they learned for it says so.
+    const learned = await prisma.acquaintance.findUnique({
+      where: { ownerId_disguiseKey: { ownerId: speakerId, disguiseKey: disguiseKey(name) } },
+      select: { roleSlug: true, roleText: true },
+    });
+    speakerKnows.set(person.id, { name, roleSlug: learned?.roleSlug ?? null, roleText: learned?.roleText ?? null });
+  }
+  const candidates = [...faces, ...[...disguised.values()].map((d) => d.candidate)];
 
   // Only what was SAID teaches: the words in quotation marks. "*nods at Marrow*"
   // is narration, and nobody in the room heard a name (docs/systemdocs/STRANGERS.md
@@ -194,8 +221,43 @@ async function learnFromSpeech(prisma, { row, speakerId }) {
   if (skin.has(speakerId)) listeners = listeners.filter((l) => skin.has(l.id));
   let taught = 0;
   for (const lesson of lessons) {
-    const learners = listeners.filter((l) => l.id !== lesson.subjectId).map((l) => l.id);
+    let learners = listeners.filter((l) => l.id !== lesson.subjectId).map((l) => l.id);
     if (learners.length === 0) continue;
+    const disguise = disguised.get(lesson.subjectId);
+    if (disguise) {
+      const key = disguiseKey(disguise.name);
+      // Its job, onto the entries already learned for it that hold no role yet.
+      // Nobody it fools has one of those: they filed the name under somebody else.
+      if (lesson.role && lesson.entry.roleText) {
+        const { count } = await prisma.acquaintance.updateMany({
+          where: { ownerId: { in: learners }, disguiseKey: key, OR: [{ roleText: null }, { roleText: "" }] },
+          data: { roleText: lesson.entry.roleText, roleSlug: lesson.entry.roleSlug },
+        });
+        taught += count;
+      }
+      // An entry for the disguise itself, tied to nobody: the face it
+      // recognises is the disguise, whoever wears it. Not for anybody who can
+      // already put the name to the face, the ones it fools included — they
+      // think they know who this is.
+      if (!lesson.name) continue;
+      const know = await ownersWhoKnow(prisma, learners, disguise.name);
+      if (know) learners = learners.filter((id) => !know.has(id));
+      if (learners.length === 0) continue;
+      const { count } = await prisma.acquaintance.createMany({
+        data: learners.map((ownerId) => ({
+          ownerId,
+          subjectId: null,
+          disguiseKey: key,
+          name: lesson.entry.name,
+          roleText: lesson.entry.roleText,
+          roleSlug: lesson.entry.roleSlug,
+          source: "HEARD",
+        })),
+        skipDuplicates: true,
+      });
+      taught += count;
+      continue;
+    }
     if (lesson.name) {
       const { count } = await prisma.acquaintance.createMany({
         data: learners.map((ownerId) => ({ ownerId, subjectId: lesson.subjectId, source: "HEARD", ...lesson.entry })),
@@ -232,13 +294,17 @@ const VOICE_ATTEMPTS = 4;
 //
 // `identity` is how the line was said (db/lib/presentedIdentity.js). A hood is
 // an alias to everyone. A bare face is an alias to whoever has no Friends entry
-// for the speaker. A forced name is a name to everyone, so it gives no voice.
+// for the speaker. A disguise is an alias to whoever cannot put its name to the
+// face (STRANGERS.md §10), and it is the same voice as the wearer's own, so it
+// keeps the number they already have. A public forced name is a name to
+// everyone, so it gives no voice.
 //
 // Awaited BEFORE the line is written (db/lib/say.js#recordSpeech), so the first
 // line a hearer gets already carries the number. Returns how many hearers now
 // hold the voice.
 async function hearVoice(prisma, { speakerId, placeKey, content, identity }) {
-  if (!speakerId || !placeKey || identity?.forced || !hasSpeech(content)) return 0;
+  if (!speakerId || !placeKey || !hasSpeech(content)) return 0;
+  if (identity?.forced && !identity.disguised) return 0;
   const parsed = parsePlaceKey(placeKey);
   if (!parsed || !VOICE_KINDS.has(parsed.kind)) return 0;
   const where = await presentWhere(prisma, placeKey, { speakerId });
@@ -254,7 +320,14 @@ async function hearVoice(prisma, { speakerId, placeKey, content, identity }) {
   let hearers = present.map((c) => c.id);
   if (hearers.length === 0) return 0;
 
-  if (!identity?.concealed) {
+  if (identity?.disguised) {
+    // Only the people who cannot put the disguise's name to the face. With the
+    // stranger switch off that is nobody.
+    const know = await ownersWhoKnow(prisma, hearers, identity.name);
+    if (!know) return 0;
+    hearers = hearers.filter((id) => !know.has(id));
+    if (hearers.length === 0) return 0;
+  } else if (!identity?.concealed) {
     // With the GM's stranger switch off, everybody can name a bare face, so
     // it gives nobody a voice (STRANGERS.md §9).
     if (!(await anonymizingStrangers(prisma))) return 0;

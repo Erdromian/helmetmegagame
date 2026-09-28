@@ -25,6 +25,7 @@ const { THANATI_SLUG } = require("./thanati");
 const { scrambleState, scrambleEntry } = require("./memoryScramble");
 const { roleGroupHue } = require("./roleGroups");
 const { anonymizingStrangers } = require("./strangers");
+const { readDisguises, disguiseRead, disguiseKey } = require("./disguises");
 
 // `equipped` and the roof are for examineVision.js: spectacles only correct while worn, Sun
 // Sensitivity only blinds outdoors. `acquiredAt` is for db/lib/memoryScramble.js: when a
@@ -42,9 +43,15 @@ const VIEWER_SELECT = {
 // §6). Scrambled by the same rule the Friends section uses, field for field,
 // so a role the page shows as nonsense reads as nonsense here too, and a
 // scrambled role wears no estate colour, which would otherwise give it away.
-async function memoryForLook(prisma, viewer, subjectId, dayNumber) {
+//
+// `disguiseKey` reads the entry the viewer learned for a disguise instead (./disguises.js), which is
+// tied to no character: a recognised disguise is looked at as what the viewer heard of it, its job
+// included.
+async function memoryForLook(prisma, viewer, subjectId, dayNumber, { disguiseKey: key = null } = {}) {
   const entry = await prisma.acquaintance.findUnique({
-    where: { ownerId_subjectId: { ownerId: viewer.id, subjectId } },
+    where: key
+      ? { ownerId_disguiseKey: { ownerId: viewer.id, disguiseKey: key } }
+      : { ownerId_subjectId: { ownerId: viewer.id, subjectId } },
     select: { id: true, name: true, roleText: true, roleSlug: true, notes: true },
   });
   if (!entry) return null;
@@ -98,6 +105,7 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
       turnNumber: true,
       characterId: true,
       concealedAlias: true,
+      disguised: true,
       presentedAvatarPath: true,
       presentedState: true,
       deletedAt: true,
@@ -161,7 +169,7 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
 
   // A forced name is NOT a hood; both write to concealedAlias, told apart by
   // what the ROW froze, not the speaker's live tags (presentedIdentity.js#wasHooded).
-  const forced = forcedNameFrom(subject.tags);
+  const forced = forcedNameFrom(subject.tags, subject);
   const hooded = wasHooded(row, { forcedName: forced });
 
   const sightTags = bystander ? [] : (viewer.tags ?? []); // a camera gets none of the viewer's
@@ -171,6 +179,16 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
   // tells you nothing about who is under it), nothing for a false name (the
   // room sees somebody else), and nothing for a camera, which remembers no one.
   const memoryNeeded = !hooded && !forced && !bystander;
+
+  // A line said in disguise reads by what the looker makes of its name
+  // (docs/systemdocs/STRANGERS.md §10). A GM and a ghost read the name.
+  const disguise =
+    !hooded && forced && row.disguised && row.concealedAlias && !gm && !ghost
+      ? disguiseRead(await readDisguises(prisma, viewer.id, [row.concealedAlias]), row.concealedAlias)
+      : null;
+  // A disguise the looker learned the name of is remembered by that entry. Not one it fools: they
+  // take it for somebody else, and what they know of that person is not on this face.
+  const learnedKey = disguise?.known && !disguise.fooledAs && !bystander ? disguiseKey(row.concealedAlias) : null;
 
   const [skillCatalog, lastDesire, memory] = await Promise.all([
     bystander ? [] : prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
@@ -190,7 +208,11 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
         select: { text: true, points: true },
       })
       : null,
-    memoryNeeded ? memoryForLook(prisma, viewer, subject.id, openTurn?.dayNumber ?? 0) : null,
+    memoryNeeded
+      ? memoryForLook(prisma, viewer, subject.id, openTurn?.dayNumber ?? 0)
+      : learnedKey
+        ? memoryForLook(prisma, viewer, null, openTurn?.dayNumber ?? 0, { disguiseKey: learnedKey })
+        : null,
   ]);
 
   return {
@@ -215,6 +237,7 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
       // watches from outside the fiction.
       stranger: !hooded && !forced && !gm && !ghost && !(await looksKnown(prisma, viewer, subject.id, { memory, bystander })),
       strangerSeq: String(row.seq),
+      disguise,
     }),
   };
 }

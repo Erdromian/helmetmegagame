@@ -24,6 +24,7 @@ const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
 const { revealedTags } = require("./torture");
 const { withoutResources, isResourcesRow } = require("./resourceStack");
 const { inCombatMode } = require("./combatMode");
+const { DISGUISE_STRANGER_FACE, fooledFace } = require("./disguises");
 
 // TAG half split out for db/lib/examineSnapshot.js — name/armour/requirement are RULES, read live even for an old look.
 const EXAMINE_TAG_SELECT = {
@@ -142,9 +143,15 @@ function examineReadout({
   // (`strangerSeq`) rather than by an id.
   stranger = false,
   strangerSeq = null,
+  // What the looker makes of a Disguise Kit's name (./disguises.js#disguiseRead), for a line said in
+  // one: `{ known, fooledAs, fooledLook }`, or null for anything else. Unknown reads as a stranger's
+  // blank face under their alias; fooled shows the face of the person they take the wearer for, by the
+  // line, when the wearer looks like them. A disguise the looker learned brings its own entry as
+  // `memory`, which is how its job reads.
+  disguise = null,
 }) {
   const identity = presentedIdentity(subject, {
-    forcedName: forcedNameFrom(subject.tags),
+    forcedName: forcedNameFrom(subject.tags, subject),
     concealment: concealmentFrom(subject.tags),
   });
   // MOMENT answer (🔍/📸): a since-unmasked subject would be exposed retroactively — caller-passed alias wins outright.
@@ -161,12 +168,20 @@ function examineReadout({
   // A false name is somebody else as far as the room can tell, so the looker's
   // memory of the person underneath has nothing to attach to. The caller
   // already withholds it; this is the belt to that brace.
-  const known = identityVisible ? memory : null;
+  const disguised = identity.forced && disguise ? disguise : null;
+  const known = identityVisible || (disguised?.known && !disguised.fooledAs) ? memory : null;
   const unnamed = stranger && identityVisible && !known;
+  const lineFace = strangerSeq ? `/api/avatar/line/${strangerSeq}` : null;
   return {
     concealed: false,
-    name: unnamed ? concealedAlias(subject) : identity.name,
-    avatarPath: unnamed ? (strangerSeq ? `/api/avatar/line/${strangerSeq}` : null) : identity.avatarPath,
+    name: unnamed || (disguised && !disguised.known) ? concealedAlias(subject) : identity.name,
+    avatarPath: unnamed
+      ? lineFace
+      : disguised && !disguised.known
+        ? DISGUISE_STRANGER_FACE
+        : fooledFace(disguised, subject)
+          ? (lineFace ?? identity.avatarPath)
+          : identity.avatarPath,
     line: null,
     appearance: subject.appearance || null,
     alert: alertOf(subject),

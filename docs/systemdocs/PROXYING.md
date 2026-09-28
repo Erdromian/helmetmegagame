@@ -703,8 +703,15 @@ hiding them. Apex Form carries `forcesName: Beast` (`TAGS.md`, "`forcesName`").
 calls it instead of branching on `concealed` by hand:
 
 ```
-presentedIdentity(character, { forcedName }) -> { name, avatarPath, alias, concealed, forced }
+presentedIdentity(character, { forcedName, disguised }) -> { name, avatarPath, alias, concealed, forced, disguised }
 ```
+
+**A Disguise Kit's forced name is not public any more.** `disguised: true`
+(the tag's slug is `custom-disguise-*`, `db/lib/disguises.js`) marks one, and
+on the web each reader sees it by who they know: the person it names, the name
+they learned, or a stranger (`STRANGERS.md` §10). Discord still posts it under
+the name for the whole channel. Everything below about a forced name holds for
+Apex Form's Beast as it always did.
 
 Precedence is **forced > concealed > own name**. A forced identity posts under
 the forced name with the static plaque `/assets/letters/<Initial>.webp` — not
@@ -715,15 +722,18 @@ into `concealedAlias` and what ⭐ files under. `concealed` stays true only for
 a real hood, so the impoverished 🔍 embed and the no-relay rule below keep
 applying only to hoods — a Beast is not hiding.
 
-Call sites that already hold `character.tags` use `forcedNameFrom(tags)`; the
-two proxy paths that load a bare `Character` (`messageCreate.js`, the Speak
-modal) run `loadForcedName(prisma, id)`, one indexed query. The REST twin
+Call sites that already hold `character.tags` use `forcedNameFrom(tags, character)`;
+the two proxy paths that load a bare `Character` (`messageCreate.js`, the Speak
+modal) run `loadForcedName(prisma, id)`. A Disguise Kit's name is the one forced
+name a hood goes over: with the hood up it is not showing, and concealment wins
+(`STRANGERS.md` §10), which is why both take the character. The REST twin
 takes `forcedName` from its caller in `db/index.js`, since `discordRest.js`
 has no prisma of its own.
 
 While a forced name is held, `/conceal` refuses and the switch on `/character`
 renders disabled; `updateCharacterProfile` writes `concealed: false` whatever
-the form posted, and drops any upload.
+the form posted, and drops any upload. A disguise drops the upload too but
+leaves the switch and `/conceal` working (`loadHeldForcedName` says which).
 
 **The @-mention role follows the forced name.** This
 used to say the role kept the real bare name on purpose, and the Disguise Kit is

@@ -8,6 +8,7 @@ import {
   letterPlaqueFile,
 } from "@lifeweb/db/lib/presentedIdentity";
 import { knownSubjects } from "@lifeweb/db/lib/strangers";
+import { disguiseNameFrom } from "@lifeweb/db/lib/disguises";
 
 // Two lists off one query: who a `{char:<id>}` token may RESOLVE to (everybody, kept LIVE), and who the @ menu
 // may OFFER (narrower, hides a hooded/disguised character). A token carries the name it was sent under
@@ -57,11 +58,15 @@ async function loadMentions({ includeUnburiedDead, viewerId = null }) {
   const known = await knownSubjects(prisma, viewerId, characters.map((c) => c.id));
   return characters.map((character) => {
     const shown = presentedIdentity(character, {
-      forcedName: forcedNameFrom(character.tags),
+      forcedName: forcedNameFrom(character.tags, character),
       concealment: concealmentFrom(character.tags),
+      disguised: Boolean(disguiseNameFrom(character.tags, character)),
     });
     const stranger = known !== null && !known.has(character.id) && !shown.concealed && !shown.forced;
-    return shape(character, stranger ? { ...shown, avatarPath: `/assets/letters/${letterPlaqueFile(character.firstName ?? character.name)}` } : shown);
+    // A disguise's plaque beside the real name would pair the two (STRANGERS.md §10),
+    // so its entry wears its own name's plaque, the way a stranger's does.
+    const plaque = stranger || shown.disguised;
+    return shape(character, plaque ? { ...shown, avatarPath: `/assets/letters/${letterPlaqueFile(character.firstName ?? character.name)}` } : shown);
   });
 }
 

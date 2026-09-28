@@ -148,7 +148,11 @@ The pure half is `db/lib/memoryLessons.js`.
   standing there. Someone reading the room from outside (a walked-out street,
   the Scrying Eye) is not in it.
 - **Who is named.** Candidates are the people present whose own face is
-  showing. A hood or a forced name is never matched. The first name counts,
+  showing. A hood or a forced name is never matched by the real name. A
+  Disguise Kit's name is matched instead, and teaches a Friends entry tied to
+  nobody (`subjectId` null, `disguiseKey` set), which recognises the disguise
+  from then on; its role is the job the disguise claims, if any, real or
+  made up, never the wearer's seat (`STRANGERS.md` §10). The first name counts,
   and the last name counts only when nobody else present shares it (the
   Baron's house shares one). Matching is case-sensitive and must be
   capitalised, so "will" is not Will. A name that is also a common opening

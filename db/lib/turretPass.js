@@ -48,7 +48,7 @@ const TURRET_CHARACTER_SELECT = {
 // your own gun is the feature.
 function presentedNameOf(character) {
   return presentedIdentity(character, {
-    forcedName: forcedNameFrom(character.tags),
+    forcedName: forcedNameFrom(character.tags, character),
     concealment: concealmentFrom(character.tags),
   }).name;
 }

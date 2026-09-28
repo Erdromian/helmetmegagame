@@ -19,6 +19,15 @@ const { aliasRow, LOOK_SLUGS } = require("./concealedIdentity");
 const { hoodToken } = require("./hoodToken");
 const { knownSubjects, labelAliases } = require("./strangers");
 const { roleGroupHue } = require("./roleGroups");
+const {
+  disguiseNameFrom,
+  disguiseJobFrom,
+  jobsBySlug,
+  readDisguises,
+  disguiseRead,
+  fooledFace,
+  DISGUISE_STRANGER_FACE,
+} = require("./disguises");
 
 // Columns and tags presentedIdentity reads — whosHere's PRESENT_SELECT minus
 // the role title, since a members strip prints no Role.
@@ -75,13 +84,23 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
 
   // Dead members drop out — a conversation is a corner of a room, not a roster.
   const members = ids.map((id) => byId.get(id)).filter(Boolean);
+  // A disguise is named only to a viewer who knows the name (STRANGERS.md §10),
+  // and always goes under a token, as it does in Who's here.
+  const disguiseOf = (person) =>
+    knows !== null && person.id !== viewer?.id ? disguiseNameFrom(person.tags, person) : null;
+  const worn = members.map(disguiseOf).filter(Boolean);
+  const reads = worn.length > 0 ? await readDisguises(prisma, viewer?.id ?? null, worn) : null;
+  // The jobs those disguises claim, for the colour they are seen in.
+  const jobs = await jobsBySlug(prisma, members.filter(disguiseOf).map((person) => disguiseJobFrom(person.tags, person)?.slug));
   const isHooded = (person) =>
-    !forcedNameFrom(person.tags) && Boolean(concealmentFrom(person.tags) && (concealmentFrom(person.tags).forced || person.concealed));
+    !forcedNameFrom(person.tags, person) && Boolean(concealmentFrom(person.tags) && (concealmentFrom(person.tags).forced || person.concealed));
   const isStranger = (person) =>
-    knows !== null && person.id !== viewer?.id && !forcedNameFrom(person.tags) && !isHooded(person) && !knows.has(person.id);
+    knows !== null && person.id !== viewer?.id && !forcedNameFrom(person.tags, person) && !isHooded(person) && !knows.has(person.id);
   // Labels for the lookalikes in THIS strip, the way Who's here labels its own list.
-  const hiddenMembers = members.filter((person) => isHooded(person) || isStranger(person));
+  const hiddenMembers = members.filter((person) => isHooded(person) || isStranger(person) || disguiseOf(person));
   const aliasOf = (person) => {
+    const wearing = disguiseOf(person);
+    if (wearing) return disguiseRead(reads, wearing).known ? wearing : aliasRow(person, null);
     const sighting = person.id === viewer?.id ? null : (seenBy.get(person.id) ?? null);
     return aliasRow(person, isHooded(person) && sighting?.concealed ? sighting.name : null);
   };
@@ -91,7 +110,7 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
   return members
     .map((person) => {
       const piece = concealmentFrom(person.tags);
-      const forced = forcedNameFrom(person.tags);
+      const forced = forcedNameFrom(person.tags, person);
       const self = person.id === viewer?.id;
       const sighting = self ? null : (seenBy.get(person.id) ?? null);
       const seen = self || Boolean(sighting);
@@ -114,6 +133,32 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
       }
 
       const token = hoodToken(person.id, person.presenceNonce);
+      const wearing = disguiseOf(person);
+      if (wearing) {
+        const read = disguiseRead(reads, wearing);
+        // Whose face the viewer takes it for (when the wearer looks like them), the plaque of a name
+        // they can read, or a stranger's blank one.
+        const face = fooledFace(read, person)
+          ? token
+            ? `/api/avatar/here/${token}`
+            : null
+          : read.known
+            ? presentedIdentity(person, { forcedName: wearing }).avatarPath
+            : DISGUISE_STRANGER_FACE;
+        const job = jobs.get(disguiseJobFrom(person.tags, person)?.slug) ?? null;
+        return {
+          characterId: null,
+          token,
+          name: shownAlias.get(person.id),
+          avatarPath: face,
+          avatarVersion: null,
+          unknownFace: !face,
+          concealed: true,
+          stranger: !read.known,
+          // The claimed job's estate, the same for everybody (STRANGERS.md §10).
+          roleGroup: roleGroupHue(job?.groupSlug),
+        };
+      }
       if (stranger) {
         // Their own face, fetched by token so no id reaches the browser.
         return {

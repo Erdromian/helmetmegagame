@@ -130,7 +130,7 @@ module.exports = {
     const identity = ghost
       ? null
       : presentedIdentity(character, {
-          forcedName: forcedNameFrom(character.tags),
+          forcedName: forcedNameFrom(character.tags, character),
           concealment: concealmentFrom(character.tags),
         });
 
