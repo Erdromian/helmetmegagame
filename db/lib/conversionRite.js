@@ -297,7 +297,9 @@ async function answerConversionPick(prisma, { attemptId, discordUserId, pick }) 
  * The Pious path. The vision arrives, means nothing, and leaves them surer of
  * themselves than before. No Offer row is ever written, so there is nothing to
  * answer and nothing to expire — the cult finds out it wasted the chant by
- * reading the room.
+ * reading the room. acceptConversion() comes here too, for somebody who turned
+ * Pious while the question was open; that road closes its own row first and
+ * has no room when the offer never recorded one.
  */
 async function dismissConversion(prisma, { target, room }) {
   if (target.discordUserId) {
@@ -309,9 +311,11 @@ async function dismissConversion(prisma, { target, room }) {
   await prisma
     .$transaction((tx) => applyMood(tx, target.id, { kind: "RITE_DISMISSED" }))
     .catch(log(`dismissal mood for ${target.name}`));
-  await roomLine(prisma, room, `${aliasSubject(target)} refuses the ritual, a look of determination in their eyes!`).catch(
-    log("dismissal room line"),
-  );
+  if (room) {
+    await roomLine(prisma, room, `${aliasSubject(target)} refuses the ritual, a look of determination in their eyes!`).catch(
+      log("dismissal room line"),
+    );
+  }
   return { dismissed: target.name, characterId: target.id };
 }
 
@@ -387,6 +391,7 @@ async function acceptConversion(prisma, offer, responder) {
       age: true,
       gender: true,
       discordUserId: true,
+      tags: { where: { quantity: { gt: 0 } }, select: { tag: { select: { slug: true } } } },
     },
   });
   // Three hours is long enough to die in, so the gate is re-run here and not
@@ -397,6 +402,21 @@ async function acceptConversion(prisma, offer, responder) {
       data: { status: "CANCELLED", respondedAt: new Date() },
     });
     return { ok: false, reason: "That offer's gone.", dms: [] };
+  }
+
+  // And long enough to find faith in. The Pious cannot be converted, so
+  // somebody who became Pious after the vision was put to them gets the Pious
+  // ending rather than the one they pressed — otherwise the Thanati grant
+  // below would strip the Pious (it conflicts) and convert them anyway.
+  if (dismisses(target)) {
+    const claimed = await prisma.offer.updateMany({
+      where: { id: offer.id, status: "PENDING" },
+      data: { status: "DECLINED", respondedAt: new Date(), resolvedAt: new Date() },
+    });
+    if (claimed.count === 0) return { ok: false, reason: "That offer's gone.", dms: [] };
+    await dismissConversion(prisma, { target, room: roomFromOffer(offer) });
+    await tellAsker(prisma, offer);
+    return { ok: true, line: "You dismiss the vision.", dms: [] };
   }
 
   const claim = await prisma.offer.updateMany({
