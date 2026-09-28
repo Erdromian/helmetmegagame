@@ -36,3 +36,18 @@ test("the two numbers are the ones the doc promises", () => {
   assert.equal(CORPSE_SENSE_HOPS, 7);
   assert.equal(CORPSE_SENSE_INTERVAL_MS, 20 * 60_000);
 });
+
+// The sweep's query itself, against a real Postgres. It used to filter
+// `discordUserId: { not: null }`, which Prisma refuses outright for a required
+// column, so every minute's sweep threw and nobody holding the salts ever
+// smelled anything. Skips itself unless DATABASE_URL is local.
+test("the minute sweep's query is one Prisma accepts", { skip: !require("../lib/localDatabase").isLocalDatabase() && "point DATABASE_URL at a local Postgres" }, async (t) => {
+  const { PrismaClient } = require("@prisma/client");
+  const prisma = new PrismaClient();
+  t.after(() => prisma.$disconnect());
+  const { runCorpseSenseSweep } = require("../lib/corpseSense");
+  // Nobody holds the salts on a fresh CI database, so this is the one query and out.
+  const holders = await prisma.characterTag.count({ where: { tag: { slug: "corpse-sense" } } });
+  if (holders) t.skip("somebody holds corpse sense here; the sweep would DM them");
+  else await assert.doesNotReject(() => runCorpseSenseSweep(prisma));
+});

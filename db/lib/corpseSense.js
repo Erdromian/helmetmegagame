@@ -143,7 +143,7 @@ async function runCorpseSenseSweep(db) {
   const holders = await db.characterTag.findMany({
     where: {
       tag: { slug: CORPSE_SENSE_SLUG },
-      character: { status: "ALIVE", discordUserId: { not: null } },
+      character: { status: "ALIVE" },
     },
     select: {
       character: {
