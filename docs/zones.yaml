@@ -1964,13 +1964,12 @@ zones:
           # The cave mouth, and it is not a post any more. The watchtower, the
           # floodlights, the manned gate and the winch are all gone: what is
           # left is a dark opening where people are camped, and the paperwork
-          # happens there because it has to happen somewhere. Nothing guards
-          # this way in now.
+          # happens there because it has to happen somewhere.
           #
-          # It still needs its plain edge to the Depot in `connections:`. The
-          # two were one Location once, and splitting them without an edge left
-          # a migrant who had cleared customs unable to walk to the shop. Do
-          # not remove that pair while these are two places.
+          # It no longer opens onto the Depot (migration
+          # 20261124000000_depot_storefront_only): the Depot's only way is the
+          # Storefront. A migrant who has cleared customs walks up to the
+          # Bridge and in through the gate like everybody else.
           caves-1:
             name: Entrance
             indoors: true
@@ -2483,11 +2482,9 @@ connections:
   # This is the way round the tight squeeze at depths-3 <-> depths-4 above,
   # so if you ever gate it, check what a Giant loses.
   - [caves/caves-5, depths/depths-4]
-  # Over the cave-river, from the sentry post to the shop. The Depot moved
-  # into the Undertown with the rest of the town, so this crossing costs the
-  # Move now — but it still has to exist, because without it a migrant who
-  # cleared customs cannot reach the shop. That happened once already.
-  - [caves/caves-1, undertown/undertown-5]
+  # The Entrance no longer opens onto the Depot, and the Brooding Grounds no
+  # longer open into its cargo bay: the Depot's only way is the Storefront
+  # (migration 20261124000000_depot_storefront_only).
 
   # The two manned gates. A Cerberus on each reads everyone's papers.
   #
@@ -2542,10 +2539,6 @@ connections:
     hidden: strong-swimmer
     on_foot: true
 
-  # …and the Lake's other shore, so it is a place rather than a one-way
-  # trapdoor out of somebody's basement.
-  - [undertown/undertown-4, undertown/undertown-c]
-
   # The tunnels the Alleys' description promises, down into the Undertown's
   # sewers. Hidden, so a player who does not know the tunnels never learns
   # they are there. Only ONE tag fits on an edge, so this is `tunnel-rat`
@@ -2558,12 +2551,6 @@ connections:
   # hidden — everyone knows the Mortii go down there, and knows they cannot.
   - pair: [town/town-a, undertown/undertown-3]
     locked: mortus-key
-    on_foot: true
-
-  # The mushroom forest's own way into the cargo bay, which is how the
-  # merchant's crates get in without passing the sentry at the gate.
-  - pair: [undertown/undertown-5, caves/caves-4]
-    hidden: caving
     on_foot: true
 
   # The Storefront, off the freight platform and out into the Undertown
@@ -2598,10 +2585,13 @@ connections:
     on_foot: true
 
   # --- The rest of the Undertown ----------------------------------------
-  # The burnt quarter off the freight platform. Plain, so the Old Town is
-  # reachable without the Baron's key now that its other door is a Fortress
-  # crossing — the Burnt Home and the cellar under it keep their own gates.
-  - [undertown/undertown-2, undertown/undertown-5]
+  # The burnt quarter, off the Storefront and the Sewer. Plain, so the Old
+  # Town is reachable without the Baron's key now that its other door is a
+  # Fortress crossing — the Burnt Home and the cellar under it keep their own
+  # gates. It used to open off the Depot instead, and the Sewer used to open
+  # onto the Lake (migration 20261124000000_depot_storefront_only).
+  - [undertown/undertown-2, undertown/undertown-6]
+  - [undertown/undertown-2, undertown/undertown-4]
 
   # The shelter sits between the pipes and the shanties, which is most of why
   # anybody ends up in it.

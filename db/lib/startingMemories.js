@@ -126,10 +126,9 @@ const FACTORY_CLUSTER = ["factory", "east-river", "cliffs", "gullies", "grand-ra
 
 // As much of the caves as somebody who works customs has reason to know. NOT
 // the abandoned camp — that's a bigger reveal than a trade seat has earned;
-// the Migrant, who lives there, gets it below. Both ends of the crossing out
-// of the caves: the Depot is the freight platform the Entrance lets onto, and
-// the Merchant's berth one hop past it is the shop somebody working customs
-// would actually have reason to know.
+// the Migrant, who lives there, gets it below. The Depot is where the freight
+// comes in, and the Storefront is the shop somebody working customs would
+// actually have reason to know. Neither opens onto the caves any more.
 const CAVE_MOUTH = ["caves-1", "caves-2", "undertown-5", "undertown-6"];
 
 // The one open road from the town out to the Factory — every other way is

@@ -121,9 +121,11 @@ sides, a line said at it is heard on both sides, its floor is one stash, and
 (`CARRY.md` §6). Its fixtures are the Storefront's: the vending machine and the
 infoterminal are on that side's wall only.
 
-The Depot keeps its old edges — to Customs, and the hidden caving way into the
-Mushroom Forest, which now really does lead into the room with the cargo bay in
-it.
+**The Storefront is the Depot's only way.** It used to open onto the cave
+Entrance, the Brooding Grounds (a hidden caving way into the cargo bay) and the
+Old Town as well. Migration `20261124000000_depot_storefront_only` removed all
+three, and the Old Town opens off the Storefront now. Anybody without the
+keycard deals with the platform only across the counter.
 
 **Moving a running game over** is the migration
 `20261111000000_depot_overhaul`, since `db:import-zones` never moves a room or
