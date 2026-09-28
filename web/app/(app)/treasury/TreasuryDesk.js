@@ -28,6 +28,7 @@ const TX_FILTER_DEFS = [
 function classLabel(value) {
   if (value === "OFFSHORE") return "Offshore";
   if (value === "TREASURY") return "Treasury";
+  if (value === "CROWN") return "Crown";
   return "—";
 }
 
@@ -197,7 +198,7 @@ export default function TreasuryDesk({
                     </td>
                     <td className="mono text-muted">{row.fingerprint}</td>
                     <td className="text-muted">{row.roleName || "—"}</td>
-                    <td className="text-muted">{row.class === "OFFSHORE" ? "Offshore" : "Treasury"}</td>
+                    <td className="text-muted">{classLabel(row.class)}</td>
                     <td className="mono">{row.balanceObols} ¢</td>
                   </tr>
                 ))}

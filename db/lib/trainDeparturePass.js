@@ -21,7 +21,7 @@
 const { addToRoomStack, dropRoomTag } = require("./tagWrites");
 const { isDepartureTurn, RAILYARD_ROOM_SLUG } = require("./train");
 const { loadDepot } = require("./depotState");
-const { bumpBankAccount, vaultAndCoin, TREASURY } = require("./bankAccounts");
+const { bumpBankAccount, vaultAndCoin, isCrown, TREASURY } = require("./bankAccounts");
 const { record, roomParty, COMPANY, turnStamp } = require("./economyLedger");
 const { MERCHANT_LICENSE_SLUG } = require("./depot");
 const { isCrateTag, canPack, crateValue } = require("./crates");
@@ -64,7 +64,10 @@ async function settleBoxSales(prisma, turn, { depot, vault, coin, stamp }) {
     const net = gross - tax;
     const target =
       sale.destination === "MERCHANT" ? (merchant ?? sale.account) : sale.destination === "SELF" ? sale.account : null;
-    const toVault = sale.destination === "TREASURY";
+    // Paying the Baron's CROWN account IS paying the Vault: its balance is the
+    // pile (db/lib/bankAccounts.js), so the coin goes on the pile and no claim
+    // is booked. Crediting the account would land on a balance nothing reads.
+    const toVault = sale.destination === "TREASURY" || isCrown(target);
 
     try {
       await prisma.$transaction(async (tx) => {

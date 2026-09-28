@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import PageShell from "@/app/components/PageShell";
 import TreasuryDesk from "./TreasuryDesk";
-import { prisma, loadDepot, vaultObols, loadTreasuryTransactions, TREASURY } from "@lifeweb/db";
+import { prisma, loadDepot, vaultObols, loadTreasuryTransactions, TREASURY, CROWN } from "@lifeweb/db";
 import { canReadTreasury } from "@lifeweb/db/lib/depotCounter";
 import { unregisteredRingsHeld } from "@lifeweb/db/lib/ringRegistry";
 import { groupRoles } from "@lifeweb/db/lib/roleGroups";
@@ -117,7 +117,9 @@ export default async function TreasuryPage({ searchParams }) {
           fingerprint: a.fingerprint,
           holderName: a.holderName,
           class: a.class,
-          balanceObols: a.balanceObols,
+          // The Crown's account is the Vault itself (db/lib/bankAccounts.js), and
+          // stays out of `claims` above because it is not a claim on it.
+          balanceObols: a.class === CROWN ? coin : a.balanceObols,
           roleName: a.character?.role?.name ?? "",
           status: a.character?.status ?? "",
         }))}

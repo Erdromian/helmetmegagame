@@ -93,9 +93,11 @@
 # `bank_account` (role-level, optional) opens a fingerprinted account at the
 # Depot for this character at creation: `treasury` for a claim on the coin in
 # the Keep's Vault, `offshore` for money the Company holds off-world (the
-# Merchant's and his Dockers'). Absent means no account — the Black Hills
-# seats, the Slave, the Bum and the Migrant arrive without one, and open one at
-# the counter if they ever want one.
+# Merchant's and his Dockers'), `crown` for the Baron's: not a claim on the
+# Vault but the Vault itself, so its balance is whatever the Vault holds and a
+# `crown` seat may not set `starting_account`. Absent means no account — the
+# Black Hills seats, the Slave, the Bum and the Migrant arrive without one, and
+# open one at the counter if they ever want one.
 # See docs/systemdocs/DEPOT.md §0g.
 #
 # `starting_account` (role-level, optional, defaults 0) is how many obols are
@@ -177,9 +179,10 @@ groups:
           If things become too dire, you and your family can escape on the Charon.
         - >-
           The keep has a trapdoor in the throne room that drops into a dark pit. There's a Graga there, a true monster.
+        - >-
+          Your bank account is the Vault itself. At any infoterminal it holds every obol in the Vault, and you can take out as much as is there.
       difficulty: hard
-      bank_account: treasury
-      starting_account: 36
+      bank_account: crown
       multiple: false
       starting_zone: fortress
       knows: &townsfolk [court, clergy, cerberon, saviors, business, soil, mercenary]
