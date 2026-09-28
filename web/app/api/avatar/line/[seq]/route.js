@@ -1,5 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { mayReadPlace } from "@lifeweb/db/lib/feedAccess";
+import { readDisguises, disguiseRead } from "@lifeweb/db/lib/disguises";
 import { loadFeedViewer } from "@/lib/feedAccess";
 import { avatarResponse, STRANGER_FACE_CACHE } from "@/lib/avatarResponse";
 
@@ -9,7 +10,8 @@ import { avatarResponse, STRANGER_FACE_CACHE } from "@/lib/avatarResponse";
 // stays, since a stranger is not hiding it. It is served here to anybody who
 // may read the line: somebody who can read its place now, or who was in the
 // room for it (a HeardLine, which is what the day's memories read). A line said
-// under a hood or a false name never gets a face here: that face is not theirs.
+// under a hood or a false name never gets its speaker's face here: that face is
+// not theirs. A disguise's line may get somebody else's (below).
 export const dynamic = "force-dynamic";
 
 export async function GET(_request, { params }) {
@@ -26,11 +28,16 @@ export async function GET(_request, { params }) {
 
   const row = await prisma.archiveEntry.findUnique({
     where: { seq: key },
-    select: { characterId: true, placeKey: true, concealedAlias: true, deletedAt: true },
+    select: { characterId: true, placeKey: true, concealedAlias: true, disguised: true, deletedAt: true },
   });
-  if (!row?.characterId || row.deletedAt || row.concealedAlias || !row.placeKey) {
+  const disguise = Boolean(row?.concealedAlias) && Boolean(row?.disguised);
+  if (!row?.characterId || row.deletedAt || (row.concealedAlias && !disguise) || !row.placeKey) {
     return new Response("Not found", { status: 404 });
   }
+  // A line said in disguise shows its reader the face of whoever the disguise
+  // fools them into seeing (STRANGERS.md §10), and nobody else any face at all.
+  const faceId = disguise ? await fooledBy(viewer.character, row.concealedAlias) : row.characterId;
+  if (!faceId) return new Response("Not found", { status: 404 });
 
   const heard = viewer.character
     ? await prisma.heardLine.findUnique({
@@ -41,5 +48,11 @@ export async function GET(_request, { params }) {
   const readable = heard || (await mayReadPlace(prisma, viewer.character, row.placeKey, viewer.options));
   if (!readable) return new Response("Not found", { status: 404 });
 
-  return avatarResponse(row.characterId, { cacheControl: STRANGER_FACE_CACHE, blankPlaque: true });
+  return avatarResponse(faceId, { cacheControl: STRANGER_FACE_CACHE, blankPlaque: !disguise });
+}
+
+async function fooledBy(character, name) {
+  if (!character?.id) return null;
+  const reads = await readDisguises(prisma, character.id, [name]);
+  return disguiseRead(reads, name).fooledAs;
 }

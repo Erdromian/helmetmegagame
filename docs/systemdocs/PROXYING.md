@@ -701,8 +701,15 @@ hiding them. Apex Form carries `forcesName: Beast` (`TAGS.md`, "`forcesName`").
 calls it instead of branching on `concealed` by hand:
 
 ```
-presentedIdentity(character, { forcedName }) -> { name, avatarPath, alias, concealed, forced }
+presentedIdentity(character, { forcedName, disguised }) -> { name, avatarPath, alias, concealed, forced, disguised }
 ```
+
+**A Disguise Kit's forced name is not public any more.** `disguised: true`
+(the tag's slug is `custom-disguise-*`, `db/lib/disguises.js`) marks one, and
+on the web each reader sees it by who they know: the person it names, the name
+they learned, or a stranger (`STRANGERS.md` §10). Discord still posts it under
+the name for the whole channel. Everything below about a forced name holds for
+Apex Form's Beast as it always did.
 
 Precedence is **forced > concealed > own name**. A forced identity posts under
 the forced name with the static plaque `/assets/letters/<Initial>.webp` — not

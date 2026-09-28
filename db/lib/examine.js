@@ -24,6 +24,7 @@ const { turnsLeft, formatTurnsLeft } = require("./turnFormat");
 const { revealedTags } = require("./torture");
 const { withoutResources, isResourcesRow } = require("./resourceStack");
 const { inCombatMode } = require("./combatMode");
+const { DISGUISE_STRANGER_FACE } = require("./disguises");
 
 // TAG half split out for db/lib/examineSnapshot.js — name/armour/requirement are RULES, read live even for an old look.
 const EXAMINE_TAG_SELECT = {
@@ -142,6 +143,10 @@ function examineReadout({
   // (`strangerSeq`) rather than by an id.
   stranger = false,
   strangerSeq = null,
+  // What the looker makes of a Disguise Kit's name (./disguises.js#disguiseRead), for a line said in
+  // one: `{ known, fooledAs }`, or null for anything else. Unknown reads as a stranger's blank face
+  // under their alias; fooled shows the face of the person they take the wearer for, by the line.
+  disguise = null,
 }) {
   const identity = presentedIdentity(subject, {
     forcedName: forcedNameFrom(subject.tags),
@@ -163,10 +168,18 @@ function examineReadout({
   // already withholds it; this is the belt to that brace.
   const known = identityVisible ? memory : null;
   const unnamed = stranger && identityVisible && !known;
+  const disguised = identity.forced && disguise ? disguise : null;
+  const lineFace = strangerSeq ? `/api/avatar/line/${strangerSeq}` : null;
   return {
     concealed: false,
-    name: unnamed ? concealedAlias(subject) : identity.name,
-    avatarPath: unnamed ? (strangerSeq ? `/api/avatar/line/${strangerSeq}` : null) : identity.avatarPath,
+    name: unnamed || (disguised && !disguised.known) ? concealedAlias(subject) : identity.name,
+    avatarPath: unnamed
+      ? lineFace
+      : disguised && !disguised.known
+        ? DISGUISE_STRANGER_FACE
+        : disguised?.fooledAs
+          ? (lineFace ?? identity.avatarPath)
+          : identity.avatarPath,
     line: null,
     appearance: subject.appearance || null,
     alert: alertOf(subject),

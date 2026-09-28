@@ -1968,7 +1968,10 @@ export async function tortureCharacterRequestImpl({ targetCharacterId }) {
 // Two things the player is told up front by the tag's own description, because
 // both fall straight out of riding forcedName: they post under a letter plaque
 // rather than their portrait, and /conceal refuses while it is on.
-export async function disguiseSelfRequestImpl({ name: rawName }) {
+// `honorific`/`firstName`/`lastName` are the dialog's three fields; `name` is one
+// typed string from a page loaded before they existed.
+export async function disguiseSelfRequestImpl({ name: typedName, honorific, firstName, lastName } = {}) {
+  const rawName = typeof firstName === "string" ? { honorific, firstName, lastName } : typedName;
   const { session, character } = await requireCharacter({ needs: ACT });
   // The rule is db/lib/verbs/self.js's, shared with Discord's /disguise.
   const result = await disguiseSelf(prisma, {

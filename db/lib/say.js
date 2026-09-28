@@ -184,7 +184,11 @@ async function prepareSpeech(
   } else {
     const loaded = await loadPresentedState(prisma, character.id);
     presentedState = loaded.state;
-    identity = presentedIdentity(character, { forcedName: loaded.forcedName, concealment: loaded.concealment });
+    identity = presentedIdentity(character, {
+      forcedName: loaded.forcedName,
+      concealment: loaded.concealment,
+      disguised: loaded.disguised,
+    });
   }
 
   return {
@@ -246,6 +250,8 @@ async function recordSpeech(
     // the five-minute edit window all working with no new rule.
     character: prepared.ghost ? { ...prepared.character, name: prepared.identity.name } : prepared.character,
     concealedAlias: prepared.identity?.alias ?? null,
+    // Whether that alias was a Disguise Kit's name, which the lens names per reader (STRANGERS.md §10).
+    disguised: Boolean(prepared.identity?.disguised),
     // Frozen so a live lookup never unmasks an old line. Gated on `alias`, not
     // unconditional, since the own-face path carries a cache-buster.
     presentedAvatarPath: prepared.identity?.alias ? (prepared.identity.avatarPath ?? null) : null,
@@ -373,6 +379,7 @@ const EDITABLE_SELECT = {
   characterId: true,
   characterName: true,
   concealedAlias: true,
+  disguised: true,
   presentedAvatarPath: true,
   content: true,
   sentAt: true,

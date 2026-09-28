@@ -44,6 +44,7 @@ const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
 const { examineBlock } = require("@lifeweb/db/lib/examineVision");
 const { lastSightings } = require("@lifeweb/db/lib/sightings");
 const { knownSubjects } = require("@lifeweb/db/lib/strangers");
+const { readDisguises, disguiseRead } = require("@lifeweb/db/lib/disguises");
 const { concealedAlias, capitalizeFirst, LOOK_TAGS_SELECT } = require("@lifeweb/db/lib/concealedIdentity");
 const {
   ESCORT_SELECT,
@@ -745,7 +746,13 @@ const examine = {
     if (blocked) return done(interaction, blocked);
     const seen = await lastSightings(prisma, me, { discordUserId: me.discordUserId });
     const known = await knownSubjects(prisma, me.id, [...seen.keys()]);
-    const strangers = [...seen.entries()].filter(([id, s]) => !s.concealed && known && !known.has(id)).map(([id]) => id);
+    // A line said in disguise is listed under its name only to somebody who knows it (STRANGERS.md §10).
+    const worn = await readDisguises(prisma, me.id, [...seen.values()].filter((s) => s.disguised).map((s) => s.name));
+    const strangers = [...seen.entries()]
+      .filter(([id, s]) =>
+        s.disguised ? !disguiseRead(worn, s.name).known : !s.concealed && known && !known.has(id),
+      )
+      .map(([id]) => id);
     const looks = strangers.length
       ? await prisma.character.findMany({ where: { id: { in: strangers } }, select: { id: true, age: true, gender: true, tags: LOOK_TAGS_SELECT } })
       : [];

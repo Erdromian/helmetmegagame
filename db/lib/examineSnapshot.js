@@ -14,6 +14,7 @@
 // convention).
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
 const { RESOURCES_SLUG, resourcesOf } = require("./resourceStack");
+const { disguiseNameFrom } = require("./disguises");
 
 const SNAPSHOT_VERSION = 1;
 
@@ -117,11 +118,12 @@ async function loadPresentedState(prisma, characterId) {
     where: { id: characterId },
     select: PRESENTED_STATE_SELECT,
   });
-  if (!character) return { state: null, forcedName: null, concealment: undefined };
+  if (!character) return { state: null, forcedName: null, concealment: undefined, disguised: false };
   return {
     state: presentedStateFrom(character),
     forcedName: forcedNameFrom(character.tags),
     concealment: concealmentFrom(character.tags),
+    disguised: Boolean(disguiseNameFrom(character.tags)),
   };
 }
 

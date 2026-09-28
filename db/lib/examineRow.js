@@ -25,6 +25,7 @@ const { THANATI_SLUG } = require("./thanati");
 const { scrambleState, scrambleEntry } = require("./memoryScramble");
 const { roleGroupHue } = require("./roleGroups");
 const { anonymizingStrangers } = require("./strangers");
+const { readDisguises, disguiseRead } = require("./disguises");
 
 // `equipped` and the roof are for examineVision.js: spectacles only correct while worn, Sun
 // Sensitivity only blinds outdoors. `acquiredAt` is for db/lib/memoryScramble.js: when a
@@ -98,6 +99,7 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
       turnNumber: true,
       characterId: true,
       concealedAlias: true,
+      disguised: true,
       presentedAvatarPath: true,
       presentedState: true,
       deletedAt: true,
@@ -172,6 +174,13 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
   // room sees somebody else), and nothing for a camera, which remembers no one.
   const memoryNeeded = !hooded && !forced && !bystander;
 
+  // A line said in disguise reads by what the looker makes of its name
+  // (docs/systemdocs/STRANGERS.md §10). A GM and a ghost read the name.
+  const disguise =
+    !hooded && forced && row.disguised && row.concealedAlias && !gm && !ghost
+      ? disguiseRead(await readDisguises(prisma, viewer.id, [row.concealedAlias]), row.concealedAlias)
+      : null;
+
   const [skillCatalog, lastDesire, memory] = await Promise.all([
     bystander ? [] : prisma.tag.findMany({ select: { id: true, parentTagId: true } }),
     !hooded && canSeeDesire(sightTags)
@@ -215,6 +224,7 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
       // watches from outside the fiction.
       stranger: !hooded && !forced && !gm && !ghost && !(await looksKnown(prisma, viewer, subject.id, { memory, bystander })),
       strangerSeq: String(row.seq),
+      disguise,
     }),
   };
 }

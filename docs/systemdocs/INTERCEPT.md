@@ -100,12 +100,21 @@ move of any kind.
 
 `db/lib/intercept.js#matchesArrival` is the whole rule, and it is pure:
 
-| The watch says | A face you know | A stranger's face | A hood | A forced name (`Beast`) |
-|---|---|---|---|---|
-| Any person | caught | caught | caught | caught |
-| Anyone I can't identify | — | caught | caught | caught |
-| Any concealed person | — | — | caught | — |
-| A typed name | caught if it matches | **never** | **never** | **never** |
+| The watch says | A face you know | A stranger's face | A hood | A forced name (`Beast`) | A disguise you can name | A disguise you can't |
+|---|---|---|---|---|---|---|
+| Any person | caught | caught | caught | caught | caught | caught |
+| Anyone I can't identify | — | caught | caught | caught | — | caught |
+| Any concealed person | — | — | caught | — | — | — |
+| A typed name | caught if it matches | **never** | **never** | **never** | caught if it matches **the disguise's name** | **never** |
+
+**A disguise is caught by the name it goes by** (`STRANGERS.md` §10). A Disguise
+Kit's name is one the watcher can name when they learned it, or when it is the
+full name of somebody they know, which fools them. Then a typed name matching
+it catches the wearer: a watch for "Aldric Vask" stops an impostor dressed as
+him, whoever is underneath. The wearer's real name never does. To anybody else
+a disguise is a stranger's face. `fireWatches` asks
+`disguises.js#readDisguises` per watcher, and `matchesArrival` takes the answer
+as `disguiseKnown`.
 
 **A name only catches somebody you know** (Combat Overhaul.docx: "only intercept
 people recognized as targets, concealed or unfamiliar characters will not be

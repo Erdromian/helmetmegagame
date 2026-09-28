@@ -34,7 +34,7 @@ const { broadcastDeepBeastHorn } = require("@lifeweb/db/lib/deepBeastHorn");
 const { applyLocationMoveSideEffects } = require("@lifeweb/db/lib/locationMove");
 const { rollCavingOnArrival } = require("@lifeweb/db/lib/cavingPass");
 const { characterRoleAppearance } = require("@lifeweb/db/lib/characterRoleAppearance");
-const { formatBareName } = require("@lifeweb/db/lib/characterName");
+const { formatBareName, NAME_LIMITS } = require("@lifeweb/db/lib/characterName");
 const { DISGUISE_TURNS } = require("@lifeweb/db/lib/disguiseMint");
 const { moveIsEditable, editMove, withdrawMove } = require("@lifeweb/db/lib/moves");
 const { clockStatus } = require("@lifeweb/db/lib/gameState");
@@ -284,25 +284,36 @@ const horn = soundVerb("horn", soundHorn, () => broadcastDeepBeastHorn(prisma), 
 
 // --- Disguise -----------------------------------------------------------------------------
 
+const DISGUISE_TITLE_FIELD = "act:disguise:title";
 const DISGUISE_NAME_FIELD = "act:disguise:name";
+const DISGUISE_LAST_FIELD = "act:disguise:last";
 
 // A modal first, so it opens inside the three seconds; the kit and every other
 // gate are asked on submit. The personal role follows the false name
-// (PROXYING.md §6) — best-effort, after the tag is on.
+// (PROXYING.md §6) — best-effort, after the tag is on. The same three parts as
+// the web's dialog: a title, a first name and a last name (STRANGERS.md §10).
 const disguise = {
   modalFirst: true,
   start(interaction) {
+    const field = (id, max, required) =>
+      new TextInputBuilder().setCustomId(id).setStyle(TextInputStyle.Short).setMaxLength(max).setRequired(required);
     return interaction.showModal(
       new ModalBuilder()
         .setCustomId(modalId("disguise"))
         .setTitle("Disguise")
         .addLabelComponents(
           new LabelBuilder()
-            .setLabel("The name you go by")
+            .setLabel("Title")
+            .setDescription("Optional. Sir, Lady, Father, Doctor…")
+            .setTextInputComponent(field(DISGUISE_TITLE_FIELD, NAME_LIMITS.honorific, false)),
+          new LabelBuilder()
+            .setLabel("First name")
             .setDescription(`It lasts ${DISGUISE_TURNS} turns.`)
-            .setTextInputComponent(
-              new TextInputBuilder().setCustomId(DISGUISE_NAME_FIELD).setStyle(TextInputStyle.Short).setMaxLength(60).setRequired(true),
-            ),
+            .setTextInputComponent(field(DISGUISE_NAME_FIELD, NAME_LIMITS.firstName, true)),
+          new LabelBuilder()
+            .setLabel("Last name")
+            .setDescription("Somebody's full name fools the people who know them.")
+            .setTextInputComponent(field(DISGUISE_LAST_FIELD, NAME_LIMITS.lastName, false)),
         ),
     );
   },
@@ -313,7 +324,11 @@ const disguise = {
     const result = await disguiseSelf(prisma, {
       character,
       discordUserId: character.discordUserId,
-      name: interaction.fields.getTextInputValue(DISGUISE_NAME_FIELD),
+      name: {
+        honorific: interaction.fields.getTextInputValue(DISGUISE_TITLE_FIELD),
+        firstName: interaction.fields.getTextInputValue(DISGUISE_NAME_FIELD),
+        lastName: interaction.fields.getTextInputValue(DISGUISE_LAST_FIELD),
+      },
       openTurn: await openTurn(),
     });
     if (result.ok && character.discordRoleId) {

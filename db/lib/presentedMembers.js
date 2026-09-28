@@ -19,6 +19,7 @@ const { aliasRow, LOOK_SLUGS } = require("./concealedIdentity");
 const { hoodToken } = require("./hoodToken");
 const { knownSubjects, labelAliases } = require("./strangers");
 const { roleGroupHue } = require("./roleGroups");
+const { disguiseNameFrom, readDisguises, disguiseRead, DISGUISE_STRANGER_FACE } = require("./disguises");
 
 // Columns and tags presentedIdentity reads — whosHere's PRESENT_SELECT minus
 // the role title, since a members strip prints no Role.
@@ -75,13 +76,21 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
 
   // Dead members drop out — a conversation is a corner of a room, not a roster.
   const members = ids.map((id) => byId.get(id)).filter(Boolean);
+  // A disguise is named only to a viewer who knows the name (STRANGERS.md §10),
+  // and always goes under a token, as it does in Who's here.
+  const disguiseOf = (person) =>
+    knows !== null && person.id !== viewer?.id ? disguiseNameFrom(person.tags) : null;
+  const worn = members.map(disguiseOf).filter(Boolean);
+  const reads = worn.length > 0 ? await readDisguises(prisma, viewer?.id ?? null, worn) : null;
   const isHooded = (person) =>
     !forcedNameFrom(person.tags) && Boolean(concealmentFrom(person.tags) && (concealmentFrom(person.tags).forced || person.concealed));
   const isStranger = (person) =>
     knows !== null && person.id !== viewer?.id && !forcedNameFrom(person.tags) && !isHooded(person) && !knows.has(person.id);
   // Labels for the lookalikes in THIS strip, the way Who's here labels its own list.
-  const hiddenMembers = members.filter((person) => isHooded(person) || isStranger(person));
+  const hiddenMembers = members.filter((person) => isHooded(person) || isStranger(person) || disguiseOf(person));
   const aliasOf = (person) => {
+    const wearing = disguiseOf(person);
+    if (wearing) return disguiseRead(reads, wearing).known ? wearing : aliasRow(person, null);
     const sighting = person.id === viewer?.id ? null : (seenBy.get(person.id) ?? null);
     return aliasRow(person, isHooded(person) && sighting?.concealed ? sighting.name : null);
   };
@@ -114,6 +123,29 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
       }
 
       const token = hoodToken(person.id, person.presenceNonce);
+      const wearing = disguiseOf(person);
+      if (wearing) {
+        const read = disguiseRead(reads, wearing);
+        // Whose face the viewer takes it for, the plaque of a name they learned, or a stranger's blank one.
+        const face = read.fooledAs
+          ? token
+            ? `/api/avatar/here/${token}`
+            : null
+          : read.known
+            ? presentedIdentity(person, { forcedName: wearing }).avatarPath
+            : DISGUISE_STRANGER_FACE;
+        return {
+          characterId: null,
+          token,
+          name: shownAlias.get(person.id),
+          avatarPath: face,
+          avatarVersion: null,
+          unknownFace: !face,
+          concealed: true,
+          stranger: !read.known,
+          roleGroup: roleGroupHue(read.fooledGroup),
+        };
+      }
       if (stranger) {
         // Their own face, fetched by token so no id reaches the browser.
         return {

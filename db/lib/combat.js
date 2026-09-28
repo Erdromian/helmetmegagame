@@ -483,13 +483,17 @@ function startCombat(
 // One fighter as a place line names them (./peopleLine.js): who they are to somebody who knows them, what
 // they look like to somebody who does not, and whether a hood or a forced name makes that the same for
 // everybody. `row` is a COMBAT_SELECT row (its tags are the held ones, as identityOf expects).
+//
+// A disguise is neither: its name reads only to somebody who can put it to the face (STRANGERS.md §10).
 function subjectOf(row) {
   const presented = identityOf(row);
+  const disguised = Boolean(presented?.disguised);
   return {
     id: row.id,
     name: seenAs(presented),
     alias: withArticle(concealedAlias(row).toLowerCase()),
-    masked: Boolean(presented?.concealed || presented?.forced),
+    masked: Boolean(presented?.concealed || (presented?.forced && !disguised)),
+    ...(disguised ? { disguise: true } : {}),
   };
 }
 

@@ -10,6 +10,8 @@
 const { PAPER_SHAPE, createWithRetry } = require("./paperMint");
 const { addToStack } = require("./tagWrites");
 const { NAME_LIMITS } = require("./characterName");
+const { TITLE_WORDS } = require("./titles");
+const { DISGUISE_SLUG_PREFIX } = require("./disguises");
 const { noteCode } = require("./paper");
 const { expiryForGrant } = require("./grantExpiry");
 
@@ -21,16 +23,33 @@ const DISGUISE_TURNS = 3;
 function disguiseSlug(characterId, attempt = 0) {
   const stamp = Date.now().toString(36);
   const rand = Math.random().toString(36).slice(2, 7);
-  return `custom-disguise-${characterId.slice(-8)}-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`;
+  return `${DISGUISE_SLUG_PREFIX}${characterId.slice(-8)}-${stamp}-${rand}${attempt ? `-${attempt}` : ""}`;
 }
 
-// Trimmed and capped like every other first name; null for anything unusable — a server action is a
-// public endpoint and the dialog's maxlength is a hint, not a lock.
+function cleanPart(raw, limit) {
+  if (typeof raw !== "string") return "";
+  return raw.replace(/\s+/g, " ").trim().slice(0, limit).trim();
+}
+
+// The name to go by, as one string: "Sir Aldric Vask". Takes the dialog's three parts — a title, a first
+// name and a last name, each trimmed and capped like a character's own — or, from an older client, one
+// typed string. A title must be one of the game's title words (./titles.js), matched in any case; any of
+// them will do, since a disguise claims what it likes. Null for anything unusable, and for a title that
+// is not a title — a server action is a public endpoint and the dialog's limits are a hint, not a lock.
+// The name is matched on its bare "First Last" (./disguises.js), so the title never decides who it fools.
 function normalizeDisguiseName(raw) {
-  if (typeof raw !== "string") return null;
-  const name = raw.replace(/\s+/g, " ").trim();
-  if (!name) return null;
-  return name.slice(0, NAME_LIMITS.firstName);
+  if (typeof raw === "string") {
+    const name = cleanPart(raw, NAME_LIMITS.honorific + NAME_LIMITS.firstName + NAME_LIMITS.lastName + 2);
+    return name || null;
+  }
+  if (!raw || typeof raw !== "object") return null;
+  const firstName = cleanPart(raw.firstName, NAME_LIMITS.firstName);
+  if (!firstName) return null;
+  const lastName = cleanPart(raw.lastName, NAME_LIMITS.lastName);
+  const typedTitle = cleanPart(raw.honorific, NAME_LIMITS.honorific);
+  const honorific = typedTitle ? TITLE_WORDS.find((word) => word.toLowerCase() === typedTitle.toLowerCase()) : null;
+  if (typedTitle && !honorific) return null;
+  return [honorific, firstName, lastName].filter(Boolean).join(" ");
 }
 
 // Wears the paper shape with three changes: not tradeable, removable (drop the act early), and
@@ -73,7 +92,7 @@ async function mintDisguise(prisma, characterId, name, openTurn) {
 // forcedName rows racing.
 async function activeDisguise(prisma, characterId) {
   return prisma.characterTag.findFirst({
-    where: { characterId, tag: { forcedName: { not: null }, slug: { startsWith: "custom-disguise-" } } },
+    where: { characterId, tag: { forcedName: { not: null }, slug: { startsWith: DISGUISE_SLUG_PREFIX } } },
     select: { id: true, tagId: true, tag: { select: { id: true, name: true, forcedName: true } } },
   });
 }

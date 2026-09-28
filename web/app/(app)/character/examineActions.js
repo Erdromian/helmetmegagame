@@ -10,6 +10,7 @@ import { examineBlock } from "@lifeweb/db/lib/examineVision";
 import { isDaylight } from "@lifeweb/db/lib/turnClock";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { knownSubjects } from "@lifeweb/db/lib/strangers";
+import { readDisguises, disguiseRead } from "@lifeweb/db/lib/disguises";
 import { concealedAlias, LOOK_TAGS_SELECT } from "@lifeweb/db/lib/concealedIdentity";
 
 // Examine — looking at somebody you have HEARD. Moves nothing, costs nothing,
@@ -84,7 +85,13 @@ export async function peopleToExamine() {
     // heard, never by the character: an id here is a face at /api/avatar/<id>,
     // and a stable handle for somebody the list is careful not to name.
     const known = ghost ? null : await knownSubjects(prisma, me.id, [...seen.keys()]);
-    const strangers = [...seen.entries()].filter(([id, s]) => !s.concealed && known && !known.has(id)).map(([id]) => id);
+    // A line said in disguise lists under its name only to somebody who knows it (STRANGERS.md §10).
+    const worn = ghost
+      ? null
+      : await readDisguises(prisma, me.id, [...seen.values()].filter((s) => s.disguised).map((s) => s.name));
+    const strangers = [...seen.entries()]
+      .filter(([id, s]) => (s.disguised ? !disguiseRead(worn, s.name).known : !s.concealed && known && !known.has(id)))
+      .map(([id]) => id);
     const looks = strangers.length
       ? await prisma.character.findMany({ where: { id: { in: strangers } }, select: { id: true, age: true, gender: true, tags: LOOK_TAGS_SELECT } })
       : [];

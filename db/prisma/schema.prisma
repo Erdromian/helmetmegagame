@@ -5214,12 +5214,20 @@ model Acquaintance {
   roleSlug String?
   notes    String  @default("")
 
+  // A disguise the owner learned the name of (docs/systemdocs/STRANGERS.md
+  // §10): the bare "First Last" of a Disguise Kit's name, lower-cased. Such an
+  // entry has no subject — the face it recognises is the disguise, whoever is
+  // wearing it — and recognition keys on this, never on `name`, so the owner
+  // can rename the entry freely. Null on every other entry.
+  disguiseKey String?
+
   source AcquaintanceSource
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@unique([ownerId, subjectId])
+  @@unique([ownerId, disguiseKey])
   @@index([ownerId])
   @@index([subjectId])
 }
@@ -6574,6 +6582,14 @@ model ArchiveEntry {
   // Frozen for the same reason concealedAlias is: a live lookup would unmask
   // every line said behind a mask the moment it came off.
   presentedAvatarPath String?
+
+  // True when concealedAlias was a Disguise Kit's name rather than a hood's
+  // alias or a public forced name like Apex Form's "Beast". Only a disguise is
+  // named per reader (docs/systemdocs/STRANGERS.md §10), and the alias alone
+  // cannot tell "Bob" from "Beast". Frozen, so a line keeps reading as the
+  // disguise after it wears off. Never sent to a browser: it would tell every
+  // reader that the name on the line is false.
+  disguised Boolean @default(false)
 
   // What the room could SEE of the speaker, frozen at send time — the third
   // frozen column, and the same argument as the two above it: a live lookup

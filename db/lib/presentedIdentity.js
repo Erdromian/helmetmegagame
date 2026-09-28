@@ -1,6 +1,7 @@
 // forced (Tag.forcedName; posts under that initial, never their own face, and
 // cannot conceal), concealed (equipped item's alias+sprite), or own. DERIVED, never stored.
 const { concealedAlias, isConcealedAlias } = require("./concealedIdentity");
+const { disguiseNameFrom } = require("./disguises");
 
 // Fallback plaque: the caller here is a Discord webhook avatar
 // (db/lib/discordRest.js), which cannot render the web's question-mark plate.
@@ -22,6 +23,8 @@ const CONCEALMENT_TAG_FIELDS = {
   // HEAD carries none.
   equipSlot: true,
   equipLayer: true,
+  // Tells a Disguise Kit's forced name from a public one (./disguises.js#isDisguiseTag).
+  slug: true,
 };
 
 // How outermost a concealing piece is, for picking the face the room sees.
@@ -128,6 +131,7 @@ async function loadPresentedIdentity(prisma, characterId) {
     const identity = presentedIdentity(row, {
       forcedName: forcedNameFrom(row.tags),
       concealment: concealmentFrom(row.tags),
+      disguised: Boolean(disguiseNameFrom(row.tags)),
     });
     return { row, identity };
   } catch (err) {
@@ -143,7 +147,10 @@ function letterPlaqueFile(name) {
 }
 
 // avatarPath is site-relative; the bot prefixes WEB_BASE_URL.
-function presentedIdentity(character, { forcedName = null, concealment = undefined } = {}) {
+// `disguised` says the forced name is a Disguise Kit's (./disguises.js#disguiseNameFrom), which only
+// some readers can put to the face (docs/systemdocs/STRANGERS.md §10). Leaving it out reads a disguise
+// as a public forced name, the way every one read before.
+function presentedIdentity(character, { forcedName = null, concealment = undefined, disguised = false } = {}) {
   if (forcedName) {
     return {
       name: forcedName,
@@ -151,6 +158,7 @@ function presentedIdentity(character, { forcedName = null, concealment = undefin
       alias: forcedName,
       concealed: false,
       forced: true,
+      disguised: Boolean(disguised),
     };
   }
   // Fall back to the column alone — errs toward hiding, never toward exposing.
@@ -175,6 +183,7 @@ function presentedIdentity(character, { forcedName = null, concealment = undefin
       alias,
       concealed: true,
       forced: false,
+      disguised: false,
     };
   }
   const version = character.updatedAt?.getTime?.() ?? "";
@@ -184,6 +193,7 @@ function presentedIdentity(character, { forcedName = null, concealment = undefin
     alias: null,
     concealed: false,
     forced: false,
+    disguised: false,
   };
 }
 

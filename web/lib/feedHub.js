@@ -8,7 +8,8 @@ import { DM_CHANNEL } from "@lifeweb/db/lib/dmNotify";
 import { DESK_CHANNEL } from "@lifeweb/db/lib/deskNotify";
 import { withoutDmNoise, PLAYER_DM_SELECT, playerDmRow, GM_DM_SELECT, gmDmRow } from "./dmThread";
 import { dmActionOf } from "@lifeweb/db/lib/dmActions";
-import { loadForcedName, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
+import { forcedNameFrom, loadConcealment, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
+import { disguiseNameFrom } from "@lifeweb/db/lib/disguises";
 import { concealedAlias, LOOK_TAGS_SELECT } from "@lifeweb/db/lib/concealedIdentity";
 import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { livePerformancesAt, MUSIC_OP } from "@lifeweb/db/lib/performance";
@@ -145,13 +146,25 @@ async function typingFactsFor(characterId) {
     select: { id: true, name: true, concealed: true, age: true, gender: true, updatedAt: true, tags: LOOK_TAGS_SELECT },
   });
   if (!character) return null;
-  const [forcedName, concealment] = await Promise.all([
-    loadForcedName(prisma, characterId),
+  const [held, concealment] = await Promise.all([
+    // loadForcedName's query, with the slug that says whether it is a disguise (db/lib/disguises.js).
+    prisma.characterTag.findFirst({
+      where: { characterId, tag: { forcedName: { not: null } } },
+      select: { tag: { select: { forcedName: true, slug: true } } },
+    }),
     loadConcealment(prisma, characterId),
   ]);
-  const shown = presentedIdentity(character, { forcedName, concealment });
+  const forcedName = forcedNameFrom(held ? [held] : []);
+  const disguised = Boolean(disguiseNameFrom(held ? [held] : []));
+  const shown = presentedIdentity(character, { forcedName, concealment, disguised });
   const name = shown.name ?? null;
-  const typing = { name, hidden: Boolean(shown.concealed), forced: Boolean(shown.forced), alias: concealedAlias(character) };
+  const typing = {
+    name,
+    hidden: Boolean(shown.concealed),
+    forced: Boolean(shown.forced),
+    disguised: Boolean(shown.disguised),
+    alias: concealedAlias(character),
+  };
   h.nameMemo.set(characterId, {
     ...(cached ?? {}),
     name,

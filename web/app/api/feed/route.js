@@ -6,6 +6,7 @@ import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
 import { loadFeedViewer, loadFeedCharacter, placesFor } from "@/lib/feedAccess";
 import { lensFor } from "@/lib/strangerLens";
 import { knownSubjects, lensTyping } from "@lifeweb/db/lib/strangers";
+import { readDisguises, disguiseRead } from "@lifeweb/db/lib/disguises";
 import {
   subscribeToPlace,
   subscribeToPresence,
@@ -206,17 +207,34 @@ export async function GET(request) {
         knownTypists.set(id, { known, at: Date.now() });
         return known;
       };
+      // The same for a disguise, by the name it goes by (docs/systemdocs/STRANGERS.md §10).
+      const knownDisguises = new Map();
+      const knowsDisguise = async (name) => {
+        const hit = knownDisguises.get(name);
+        if (hit && Date.now() - hit.at < 30_000) return hit.known;
+        const reads = await readDisguises(prisma, viewer.character?.id ?? null, [name]);
+        const known = disguiseRead(reads, name).known;
+        knownDisguises.set(name, { known, at: Date.now() });
+        return known;
+      };
       const sendTyping = async (event) => {
         if (!event?.placeKey || !event.name) return;
         if (viewer.character && event.characterId === viewer.character.id) return;
         let known;
+        let disguiseKnown = true;
         try {
           known = new Set((await knowsTypist(event.characterId)) ? [event.characterId] : []);
+          if (event.disguised && !viewer.gm) disguiseKnown = await knowsDisguise(event.name);
         } catch (err) {
           console.error("Feed typing lens failed:", err);
           return;
         }
-        const shown = lensTyping(event, { characterId: viewer.character?.id ?? null, gm: viewer.gm, known });
+        const shown = lensTyping(event, {
+          characterId: viewer.character?.id ?? null,
+          gm: viewer.gm,
+          known,
+          disguiseKnown,
+        });
         write(`event: typing\ndata: ${JSON.stringify(shown)}\n\n`);
       };
 

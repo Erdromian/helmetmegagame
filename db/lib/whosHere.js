@@ -14,6 +14,7 @@ const { hoodToken, performerKey } = require("./hoodToken");
 const { hasEverPerformed } = require("./performance"); // leaf requires only; no cycle. // its own leaf to avoid a require cycle; re-exported below.
 const { roleGroupHue } = require("./roleGroups");
 const { knownSubjects, settlePresence, labelAliases } = require("./strangers");
+const { disguiseNameFrom, readDisguises, disguiseRead, DISGUISE_STRANGER_FACE } = require("./disguises");
 const { WITH_SIDES, opensOntoWhere, otherSides, roomAt, sidePresenceWhere } = require("./roomSides");
 
 const PRESENT_SELECT = {
@@ -77,6 +78,12 @@ function deathMaskPiece(row) {
   return { sprite: tag.concealSprite, name: tag.name ?? null, tagId: row.deathMaskTagId };
 }
 
+// The Disguise Kit name somebody alive is going by, or null (./disguises.js).
+// A corpse goes by its own name: death is not a disguise anybody keeps up.
+function disguiseOf(c) {
+  return c.status === "DEAD" ? null : disguiseNameFrom(c.tags);
+}
+
 // Hidden from EVERYONE: a hood, or a masked corpse. Not a forced name, which is
 // a name the whole room reads (PROXYING.md §5). This is what a label is rolled
 // against, since it is the same for every observer.
@@ -121,8 +128,15 @@ async function presentRows(
   const knows = known !== undefined ? known : await knownSubjects(prisma, viewer?.id ?? null, present.map((c) => c.id));
 
   // Everybody's label, before anything reads one. Every row at the Location
-  // takes part, so a new roll avoids labels already in use there.
-  await settlePresence(prisma, present, hiddenFromAll);
+  // takes part, so a new roll avoids labels already in use there. Putting on or
+  // taking off a disguise rolls one too, so no token links the two faces.
+  await settlePresence(prisma, present, (c) => hiddenFromAll(c) || Boolean(disguiseOf(c)));
+
+  // What this viewer makes of every disguise here (docs/systemdocs/STRANGERS.md
+  // §10). Only when there is somebody to recognise with: with nobody, a
+  // disguise reads as the public forced name it always was.
+  const worn = present.filter((c) => c.id !== viewer?.id).map(disguiseOf).filter(Boolean);
+  const reads = knows !== null && worn.length > 0 ? await readDisguises(prisma, viewer?.id ?? null, worn) : null;
 
   // Concealed the same way the proxy decides it, not straight off the column.
   return present
@@ -139,7 +153,33 @@ async function presentRows(
       const forced = forcedNameFrom(c.tags);
       const live = dead ? Boolean(deathPiece) : Boolean(piece && (piece.forced || c.concealed));
       const self = c.id === viewer?.id;
-      const sighting = self ? null : (seenBy.get(c.id) ?? null); // you have always seen yourself.
+      const sighted = self ? null : (seenBy.get(c.id) ?? null); // you have always seen yourself.
+      // A DISGUISE is a face with a name only some viewers can put to it
+      // (STRANGERS.md §10). It is always hidden, so it is always offered under a
+      // token: the page never holds the wearer's id beside the name. The name
+      // shows to a viewer who knows it; to anybody else it is a stranger.
+      const wearing = disguiseOf(c);
+      if (wearing && !self && knows !== null) {
+        const read = disguiseRead(reads, wearing);
+        // A sighting counts only for the line it points at, and only when that
+        // line was said in this disguise: its frozen name is not one every
+        // viewer read.
+        const sighting = sighted?.disguised && sighted.name === wearing ? sighted : null;
+        return {
+          ...c,
+          forced: null,
+          disguise: { name: wearing, known: read.known, fooledAs: read.fooledAs, fooledGroup: read.fooledGroup },
+          hidden: true,
+          stranger: !read.known,
+          seen: Boolean(sighting),
+          sighting,
+          self,
+          livePiece: piece,
+        };
+      }
+      // A line last heard in a disguise that is gone now says nothing about
+      // this face, and its name is not one every viewer read.
+      const sighting = sighted?.disguised ? null : sighted;
       const seen = self || Boolean(sighting);
       // A forced name is not hiding (PROXYING.md §5), so it never moves lists.
       const hooded = forced ? false : sighting ? sighting.concealed : live;
@@ -257,7 +297,9 @@ async function resolveCrossRoomRef(prisma, viewer, token, { sightings = null } =
   const seen = sightings ?? (await lastSightings(prisma, viewer));
   for (const group of await crossRoomGroups(prisma, viewer, { locationId: viewer.locationId, sightings: seen })) {
     for (const c of group.rows) {
-      if (c.hidden && !c.forced && hoodToken(c.id, c.presenceNonce) === token) return { id: c.id, stranger: c.stranger };
+      if (c.hidden && !c.forced && hoodToken(c.id, c.presenceNonce) === token) {
+        return { id: c.id, stranger: c.stranger, disguise: c.disguise ?? null };
+      }
     }
   }
   return null;
@@ -363,8 +405,21 @@ function hoodOrder(list, nameOf, idOf) {
 // The alias a hidden row is listed under. A hood reads the name it was last
 // HEARD under, if any. A stranger never does: their sighting holds their real
 // name, which is exactly what they are hidden behind.
+//
+// A disguise is listed under its name to a viewer who knows it, and as a
+// stranger to anybody else: never under the sighting, whose name is the disguise's.
 function hiddenAlias(c) {
+  if (c.disguise) return c.disguise.known ? c.disguise.name : aliasRow(c, null);
   return aliasRow(c, c.sighting?.concealed ? c.sighting.name : null);
+}
+
+// The face a disguise shows this viewer: the portrait of the person it fools
+// them into seeing, served per viewer by token (web/app/api/avatar/here); the
+// letter plaque of a name they learned; the blank plaque to a stranger.
+function disguiseFace(c, token) {
+  if (c.disguise.fooledAs) return token ? `/api/avatar/here/${token}` : null;
+  if (c.disguise.known) return presentedIdentity(c, { forcedName: c.disguise.name }).avatarPath;
+  return DISGUISE_STRANGER_FACE;
 }
 
 // A hidden row's list name, with its label when another row here looks the
@@ -390,23 +445,32 @@ function concealedRows(rows, { withTokens, lookRefs = false }) {
       // A stranger has no hood, so the room sees their own face. It is served by
       // token (web/app/api/avatar/here), never by id, and only to somebody
       // standing here. Across a gate there is no token, so no face.
-      const face = c.stranger
-        ? ((withTokens || lookRefs) && token ? `/api/avatar/here/${token}` : null)
-        : c.self
-          ? presentedIdentity(c, { concealment: c.livePiece }).avatarPath
-          : (c.sighting?.avatarPath ?? null);
-      const faceShown = c.stranger ? Boolean(face) : c.seen;
+      const face = c.disguise
+        ? disguiseFace(c, (withTokens || lookRefs) && token ? token : null)
+        : c.stranger
+          ? ((withTokens || lookRefs) && token ? `/api/avatar/here/${token}` : null)
+          : c.self
+            ? presentedIdentity(c, { concealment: c.livePiece }).avatarPath
+            : (c.sighting?.avatarPath ?? null);
+      // A disguise shows its face whether or not you have heard it speak: it is
+      // not covered, only unfamiliar.
+      const faceShown = c.stranger || c.disguise ? Boolean(face) : c.seen;
       return {
         alias: shown.get(c.id),
         token: withTokens ? token : null,
         ...(lookRefs ? { lookRef: token } : {}),
         avatarPath: faceShown ? face : null,
-        unknownFace: c.stranger ? !face : !c.seen || Boolean(c.sighting?.unknownFace),
+        unknownFace: c.stranger || c.disguise ? !face : !c.seen || Boolean(c.sighting?.unknownFace),
         seen: c.seen,
         sightingSeq: c.sighting?.seq ?? null,
         // A stranger's estate is as public as anyone's (db/lib/roleGroups.js).
-        // A hood hides it.
-        roleGroup: c.stranger ? roleGroupHue(c.role?.groupSlug) : null,
+        // A hood hides it. A disguise wears the estate of whoever it fools the
+        // viewer into seeing, and none otherwise: it is not the wearer's own.
+        roleGroup: c.disguise
+          ? roleGroupHue(c.disguise.fooledGroup)
+          : c.stranger
+            ? roleGroupHue(c.role?.groupSlug)
+            : null,
         stranger: Boolean(c.stranger),
       };
     });

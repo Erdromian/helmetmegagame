@@ -78,8 +78,9 @@ To a character, somebody is **hidden** if either of these is true:
 - **A stranger:** their face shows, but the viewer has no Friends entry for them
   (`Acquaintance` with that `subjectId`).
 
-A forced name ("Beast", a Disguise Kit) is neither. It is a name the whole room
-reads. You always know yourself.
+A public forced name ("Beast") is neither. It is a name the whole room reads.
+A Disguise Kit's name is the exception: it is a new face with a name on it,
+which only some viewers can put to it (§10). You always know yourself.
 
 The decision is made once, in `db/lib/whosHere.js#presentRows`, which now marks
 a row `stranger` as well as `hidden`. Everything that already read that answer
@@ -362,8 +363,9 @@ the game is meant to say.
 | Looking | `db/lib/examineRow.js`, `db/lib/examine.js` |
 | Faces without ids | `web/app/api/avatar/here/`, `web/app/api/avatar/line/`, `web/lib/avatarResponse.js` |
 | The lens on the web | `web/lib/strangerLens.js`, `web/app/api/feed/route.js` |
-| Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory` |
-| Tests | `db/test/strangers.test.js`, `presentedMembers.test.js`, `roomGuests.test.js`, `verbFaces.test.js`, `seenByMany.test.js`, and `strangerNameCanary.test.js` — every builder that names somebody to one reader, run against a stranger called Zzyzx Quorble, who must never be named |
+| Who a disguise fools (§10) | `db/lib/disguises.js` |
+| Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory`, `Acquaintance.disguiseKey`, `ArchiveEntry.disguised` |
+| Tests | `db/test/strangers.test.js`, `presentedMembers.test.js`, `roomGuests.test.js`, `verbFaces.test.js`, `seenByMany.test.js`, `disguises.test.js`, and `strangerNameCanary.test.js` — every builder that names somebody to one reader, run against a stranger called Zzyzx Quorble, who must never be named |
 
 ## 9. Switching it off
 
@@ -388,3 +390,80 @@ off, `knownSubjects` returns `null`, which every caller already reads as "no
 stranger rule". The lens (`createLens`), `hearVoice` and a look's
 `examineRow.js#looksKnown` do their own Friends lookups, so each of them checks
 the switch too.
+
+## 10. Disguises
+
+A Disguise Kit (`db/lib/disguiseMint.js`) mints a tag whose `Tag.forcedName`
+is the name its wearer goes by for three turns. It used to be a public name
+like Apex Form's "Beast", which the whole room read. Now it is a new face with
+a name on it, and each viewer makes of it what they can. This is Bascinet's
+note "Allow friends system to wrongly identify disguised individuals and
+register new disguises as friends", with three calls made on 2026-09-28: the
+fooled see the real person's portrait, a disguise must give somebody's full
+name to fool anyone (a title is its own choice and never decides it), and a
+Friends entry for a made-up name comes from hearing it, as any name does.
+
+**Three readers.** `db/lib/disguises.js#readDisguises` decides, for one
+viewer and a list of names:
+
+| The viewer | Sees the wearer as |
+|---|---|
+| **Fooled:** has a Friends entry for the real character the name belongs to | That person: the name, that person's portrait, and the estate colour they know that person by |
+| **Recognises it:** learned this disguise's name (an entry with `disguiseKey`) | The name, on its letter plaque |
+| Anybody else | A stranger: "a young man", with labels and voice numbers, on the blank plaque |
+
+The name is matched on its bare "First Last" (`disguiseKey`): "Sir Aldric
+Vask" and "Lord Aldric Vask" are the same disguise, and fool the same people.
+"Aldric" alone fools nobody. A viewer is never fooled by their own name: they
+read it, on the plaque. People who really know the wearer do not see through
+it; the face is not theirs. A GM, a ghost and a reader with nobody to
+recognise with read the name. With the rule off (§9), everybody does, as
+before.
+
+A disguise is told from a public forced name by its tag's slug
+(`custom-disguise-*`, `disguises.js#disguiseNameFrom`). `presentedIdentity`
+carries it as `disguised: true` beside `forced: true`, and every `forced`
+exemption in the code is now "a forced name that is not a disguise".
+
+**Always under a token.** In `whosHere.js#presentRows` a disguised row is
+hidden for every viewer but its wearer, so it is offered under a token in
+Who's here, the member strips and every picker, and resolves through
+`resolveHoodToken` like a hood's. The page never holds the wearer's id beside
+somebody else's face. A plain id posted by hand is refused. Putting a disguise
+on or taking it off rolls a new label and nonce, so no token links the two
+faces. A fooled viewer's portrait is served by that token
+(`web/app/api/avatar/here/`) and a chat line's by its seq
+(`web/app/api/avatar/line/`), each deciding for the viewer asking.
+
+**Every verb reaches it.** Anything that resolves a target through
+`targetKey.js` or `resolveHoodToken` takes a disguise by token, as it takes a
+stranger. Intercept catches one by the name it goes by, for a watcher who can
+name it, and as "Anyone I can't identify" for anybody else (`INTERCEPT.md`
+§2). DMs name it through `seenBy`, which answers by the same three readers.
+
+**A line keeps its disguise.** `ArchiveEntry.disguised` is frozen when the line
+is written, so the lens can tell "Bob" from "Beast", and an old line still
+reads as the disguise after it wears off. It rides the feed row on a hidden
+symbol (`strangers.js#DISGUISED`) and never reaches a browser, where it would
+say the name is false. A sighting of a disguised line keeps only its seq in
+Who's here: its frozen name is not one every viewer read.
+
+**Voices.** A disguise gives a voice number to every hearer who cannot name
+it. It is the same voice as the wearer's own, so it keeps the number they
+already have (`memoryHearing.js#hearVoice`).
+
+**Learning the name** (`MEMORIES.md` §2b). A disguised person is a candidate
+under the disguise's name and never their real one. A name said in quotes
+teaches it by the usual rules: said by the wearer, or by somebody who can
+already name it. The lesson writes an entry tied to nobody: `subjectId` null,
+`disguiseKey` set, `source: HEARD`. Somebody who can already name it, the
+fooled included, gets nothing. A disguise teaches no role. The entry's name
+and notes are the owner's to rewrite like any other; recognition keys on
+`disguiseKey`, so renaming it changes nothing. Anybody who later wears the same
+name is recognised by it, as a costume would be.
+
+**What it does not reach.** Discord posts a line under one name for the whole
+channel (§7), so on Discord a disguise still shows its name to everybody.
+Discord's per-viewer readouts (Who's here, the Look list, a fight's
+announcement) follow the rule. Place lines about somebody (`seenByPlace`) name
+the disguise, as they name a bare face.
