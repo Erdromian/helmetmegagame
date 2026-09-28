@@ -2422,44 +2422,28 @@ connections:
   - [caves/caves-1, caves/caves-2]
   - [caves/caves-2, caves/caves-5]
   - [caves/caves-3, caves/caves-4]
-  # The Brooding Grounds are "a winding forest of mushrooms... any attempt to
-  # establish a proper path through has been quashed by the fungi's
-  # competition over the limited space" (caves-4's own description) — no
-  # giant forces a way through that, caving or not. This only costs a Giant
-  # the shortcut. The Grounds still open onto the Walkways (caves-3, just
-  # above), and the Walkways open onto the East River, so a Giant walks
-  # round: Camp, Approach, Entrance, out over the Bridge and the East River,
-  # and back in at the Walkways. That's six hops and two zone crossings
-  # where everyone else takes one. A Giant with caving can cut it shorter
-  # through the Depot's back door (`hidden: caving` below).
-  - pair: [caves/caves-4, caves/caves-5]
-    tight_squeeze: true
+  # Plain on purpose. This was a tight squeeze once, and it sent a Giant six
+  # hops and two zone crossings round through the Hills for one free hop.
+  - [caves/caves-4, caves/caves-5]
 
   # --- Depths -----------------------------------------------------------
   - [depths/depths-1, depths/depths-2]
   - [depths/depths-2, depths/depths-3]
   # "A tunnel has been bored into a smaller cavern system to the West"
   # (depths-3's own description, of the Fork beyond it) — narrow enough that
-  # a Giant does not force it either. The shortest of the three detours:
-  # `caves-5 <-> depths-4`, further down among the between-zone edges,
-  # reaches the Fork directly, so a Giant goes Last Chance, Abandoned Camp,
-  # Fork. That's two hops instead of one, but both cross a zone line, so a
+  # a Giant does not force it. It's the only tight squeeze on the map, and
+  # the detour is short: `caves-5 <-> depths-4`, further down among the
+  # between-zone edges, reaches the Fork directly, so a Giant goes Last
+  # Chance, Abandoned Camp, Fork. That's two hops instead of one, but both cross a zone line, so a
   # Giant pays the Move twice for what's a free same-zone hop for anyone
   # else.
   - pair: [depths/depths-3, depths/depths-4]
     tight_squeeze: true
   - [depths/depths-4, depths/depths-5]
-  # The Crystal Chambers open through the Razor Tunnels, which "requires you
-  # carefully climb through countless of these vicious crystals" (depths-6-1's
-  # own description) — a giant does not force that either, climbing or not.
-  # A Giant comes at the Chambers from the Chasm side instead (depths-7 <->
-  # depths-6, just below), and the only way into the Chasm that skips the
-  # Razor Tunnels is the climb down from the Grand Ravine (`locked: climbing`
-  # below). So a Giant without climbing does not reach the Chambers, the
-  # Chasm or the shrine at its foot at all. There used to be a rail tunnel
-  # from the Depot too; it was taken out.
-  - pair: [depths/depths-5, depths/depths-6]
-    tight_squeeze: true
+  # The Razor Tunnels into the Crystal Chambers. Plain on purpose: as a tight
+  # squeeze, with the Depot's rail tunnel gone, it shut a Giant without
+  # climbing out of the Chambers and the Chasm altogether.
+  - [depths/depths-5, depths/depths-6]
   - [depths/depths-6, depths/depths-7]
 
   # --- Between zones — each of these costs the Move ----------------------
