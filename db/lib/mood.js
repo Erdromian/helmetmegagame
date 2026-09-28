@@ -99,6 +99,9 @@ const EVENTS = Object.freeze({
   // HUNGER/STARVING above, which keep landing every turn the band holds.
   HUNGRY_ONSET: -30,
   STARVING_ONSET: -30,
+  // A noble (not Hungerless, not Dying) who ends a turn without Dined, which
+  // only a Lavish meal grants (db/lib/dined.js; MOOD.md §8).
+  NOBLE_MEAL: -10,
   ROBBED: -10,
   // Picking up a crate (Depot Overhaul.docx, CARRY.md §10), each one, unless
   // a Pack Mule or Strong (db/lib/crates.js#hauls).
@@ -256,7 +259,7 @@ const AMOR_FATI_SHOCK = Object.freeze(
     "CAVE_TROUBLE", "DEATH_SEEN",
   ]),
 );
-const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "STARVING", "CORPSE"]));
+const AMOR_FATI_AMBIENT = Object.freeze(new Set(["WILDERNESS", "CAVE", "HUNGER", "STARVING", "CORPSE", "NOBLE_MEAL"]));
 const AMOR_FATI_SHARE = -0.5;
 
 // Takes the RAW base, not the multiplied harm, and that is the fix rather than

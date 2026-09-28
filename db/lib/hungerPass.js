@@ -25,6 +25,7 @@ const { logBatchSystemTagChange } = require("./tagAudit");
 const { dropCharacterTag, grantTagSlugs } = require("./tagWrites");
 const { lockCharacter } = require("./moveLedger");
 const { resolveConsumeGrants, resistSlugsOf, heldSlugsOf } = require("./consumeGrants");
+const { earnsDined, grantDined } = require("./dined");
 const {
   HUNGER_MAX,
   DESCRIPTORS,
@@ -58,6 +59,7 @@ const FOOD_TAG_SELECT = {
   cookedFrom: true,
   mealHunger: true,
   mealMood: true,
+  mealClass: true,
 };
 
 // Only rows that could possibly be food: a meal or dish (mealHunger) or a raw
@@ -89,6 +91,8 @@ function foodsFrom(rows, ingredientsBySlug) {
       slug: row.tag.slug,
       name: row.tag.name,
       quantity: row.quantity,
+      // Eating a Lavish meal here dines, the same as eating it by hand (db/lib/dined.js).
+      dines: earnsDined(row.tag),
       hunger: unitHungerFor(row.tag, ingredients),
       mood: foodMoodFor(row.tag, ingredients),
       moodTerms: isDish
@@ -276,6 +280,11 @@ async function runHungerPass(prisma, turn, { bornBefore } = {}) {
           starvingSinceTurn: fresh.starvingSinceTurn,
           turnNumber,
         });
+        // A lavish meal eaten to keep somebody alive still dines them, counted from the closing turn so the mood pass
+        // that follows sees it. The Hungerless never get here: they eat nothing at the close.
+        if (plan.meals.some((meal) => meal.dines && meal.count > 0)) {
+          await grantDined(tx, eater.id, { number: turnNumber, turnLengthHours }, config);
+        }
         autoAteUnits += settled.eaten;
         if (settled.eaten) starvedAte += 1;
         await tx.character.update({ where: { id: eater.id }, data: { hungerValue: settled.final } });

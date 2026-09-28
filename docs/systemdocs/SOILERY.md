@@ -132,7 +132,9 @@ and before `npm run db:prune-tags`:
 - each food crop becomes 1 Foodstuff and each seed bag 2, wherever they are
   held — characters, room floors (hidden units too), vending slots and crate
   manifests — poison and all;
-- sowing licences, Tobacco, Pigtails, Ate Meal and Dined are deleted;
+- sowing licences, Tobacco, Pigtails and Ate Meal are deleted (Dined was too,
+  until it came back as what a Lavish meal leaves — [`COOKING.md`](COOKING.md)
+  §6a — so the script no longer touches a held one);
 - a plain recipe dish (`bread` held as-is) becomes a meal of its class, keeping
   the recipe's own hunger, mood and taste; a dish already minted off a recipe
   is re-pointed at its class; both get the class's symbols;

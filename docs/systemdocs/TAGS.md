@@ -1281,6 +1281,10 @@ sheet, and `consumesInto` (a list of tag *slugs*) is what it turns into. A
 meal turns into nothing: what eating does to hunger is its `mealHunger` or
 `cooked.hunger` (`TURN-ENGINE.md` §5), not a granted tag. There used to be an
 `ate-meal` marker and Nobility's `dined`; the Soilery Rework removed both.
+`dined` is back, granted by the Consume path (and the hunger pass's own
+eating) when a Lavish meal is eaten, never through `consumesInto`, read by the
+mood pass for the noble penalty, and timed to one in-game day
+(`COOKING.md` §6a).
 
 Five rules carry it:
 

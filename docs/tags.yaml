@@ -498,7 +498,7 @@ tags:
     psychological: true
     category: general
     group: general-personality
-    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You need to regularly eat cooked meals. You can't take any Desire related to something below your station."
+    description: "You are a person of noble breeding, accustomed to comfort in all aspects. You need to regularly eat lavish meals. You can't take any Desire related to something below your station."
     pointCost: -2
     requiredTag: courtier
     purchasable: false
@@ -3624,6 +3624,24 @@ tags:
     category: status
     group: status-food
     description: "You are starving to death! If you do not eat soon, you will perish. -1 to all gambits."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
+  # Left by eating a Lavish meal, by hand or at the turn close, and by nothing
+  # else (db/lib/dined.js). It lasts one in-game day of whole turns after the
+  # one it was eaten in — turnsPerDay turns, or the turn length's share of the
+  # calendar day — so the grant works out the expiry itself: no durationTurns
+  # here, and a GM grant from /gm/dev is untimed. A noble who ends a turn
+  # without it takes NOBLE_MEAL (db/lib/moodPass.js). Hidden from anybody
+  # inspecting you, like the hunger descriptors.
+  dined:
+    catalog: gm
+    name: Dined
+    category: status
+    group: status-food
+    description: "You've eaten properly today."
     pointCost: 0
     visible: false
     purchasable: false

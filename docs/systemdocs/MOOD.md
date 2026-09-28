@@ -116,6 +116,7 @@ key on.
 | Freshly crossed into Hungry this close | HUNGRY_ONSET | −30 | one-time, `hungerPass.js`, not the mood pass |
 | Freshly crossed into Starving this close | STARVING_ONSET | −30 | one-time, `hungerPass.js`; not charged to somebody the close fed to keep them Hungry (`TURN-ENGINE.md` §5a) |
 | Eat a raw Foodstuff (by hand or at the close) | DISGUST | −5 each | `consumeTagRequestImpl`, `hungerPass.js` — anything else the close eats moves the dial exactly as eating it by hand would |
+| A noble without `dined` at turn end — not Hungerless, not Dying | NOBLE_MEAL | −10 | mood pass (§8) |
 | Looted while alive | ROBBED | −10 | `lootCharacterRequestImpl` |
 | Picked up a crate, each one — not a Pack Mule or Strong | CRATE_HAULED | −20 | `db/lib/crateHaul.js` (`CARRY.md` §10) |
 
@@ -387,7 +388,7 @@ who goes hungry (−5) and sleeps in a Haven wakes at exactly **0** — the bed
 absorbs the hunger — while a character at +40 in that same Haven only drifts down
 to +8, because there is no room at all. Measuring against the other terms rather
 than against `before` alone is what makes it order-independent, and that matters:
-the nightly pass hands place, drift, HUNGER, BOUND and CORPSE to
+the nightly pass hands place, drift, HUNGER, BOUND, CORPSE and NOBLE_MEAL to
 **one** `applyMoodTerms` call, so a rule that read term order would be deciding
 by array position. What landed comes back as `restorativeApplied`, beside
 `moveApplied` — the answer to "why didn't my Haven night help".
@@ -439,12 +440,21 @@ seat assigns Rough Camper, the Judge assigns Rough Camper, Outsider and Brave.
 
 ## 8. Nobles
 
-`nobility` grants no Disappointed track and, since the Soilery Rework, no
-dinner penalty either. A noble used to take −10 (NOBLE_MEAL) for ending a turn
-without the hidden `dined` marker a fine meal granted; the doc removes every
-"ate recently" tag, so `dined`, Ate Meal and NOBLE_MEAL are all gone. A noble
-is hungry the way anybody is (`TURN-ENGINE.md` §5). The Merchant still starts
-with Nobility, and therefore with its 1-point Desire lock.
+`nobility` grants no Disappointed track. A noble who ends a turn without
+`dined` takes −10 (NOBLE_MEAL, so Brave halves it, and Amor Fati silences it
+like the other everyday miseries — "The two mastery tags that own the dial"
+below); Hungerless and Dying nobles are exempt. Only a Lavish meal grants `dined`,
+eaten by hand or by the close, and it lasts a whole in-game day of turns after
+the one it was eaten in (`COOKING.md` §6a) — so a noble who eats one lavish meal
+a day is never charged. The Soilery Rework removed the penalty with the old
+fine-meal marker; it came back with the Lavish one.
+
+The mood pass only READS `dined`. It used to delete every marker after its
+loop, because the marker was a one-turn thing with no clock; `dined` runs out
+on its own `expiresTurn` now, swept before this pass (`TURN-ENGINE.md` §2), so
+there is nothing for the pass to clear. A noble is hungry the way anybody is
+(`TURN-ENGINE.md` §5). The Merchant still starts with Nobility, and therefore
+with its 1-point Desire lock.
 `Character.missedMealStreak` is an orphan column: kept, never read.
 
 ## 9. The turn pass
@@ -457,8 +467,8 @@ from; travel lands at once now (`MAP.md` §3), so everybody simply pays the
 night for wherever they ended the day standing — which is also what the
 turrets now read.
 
-Per ALIVE character it gathers the terms — place, drift, HUNGER, BOUND and
-CORPSE — and applies them in one write through `applyMoodTerms`, its own
+Per ALIVE character it gathers the terms — place, drift, HUNGER, BOUND, CORPSE
+and NOBLE_MEAL — and applies them in one write through `applyMoodTerms`, its own
 transaction per character so one bad row cannot roll back a hundred good ones,
 and hands `applyMoodTerms` the row it already loaded (the multiplier slugs and
 this pass's own gates in one filtered read) rather than letting it read the
@@ -569,8 +579,8 @@ What had to go was the phobia's involvement at all.
 The kinds are split on purpose. Misfortune that *happens* to you — a shock with
 an author and a moment — pays half back: `WOUND`, `DYING`, `CRUCIFIED`,
 `TORTURED`, `MUTILATED`, `BRANDED`, `BOUND`, `ROBBED`, `TURRET`, `CAVE_TROUBLE`,
-`DEATH_SEEN`. The weather does not: `WILDERNESS`, `CAVE`, `HUNGER`, `STARVING`
-and `CORPSE` simply stop landing rather than becoming a pleasure, because nobody
+`DEATH_SEEN`. The weather does not: `WILDERNESS`, `CAVE`, `HUNGER`, `STARVING`,
+`CORPSE` and `NOBLE_MEAL` simply stop landing rather than becoming a pleasure, because nobody
 would call an ever-present cost an incident. `DRIFT` needs no entry (it carries
 `noMultiplier`), `PLACE` harm is already capped at Fine, and relief is untouched
 throughout — this is not a damper on good things.

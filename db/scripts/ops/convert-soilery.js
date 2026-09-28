@@ -13,12 +13,14 @@
 //     Foodstuff is 4); a seed bag becomes 2 Foodstuffs. Everywhere they are
 //     held: characters, room floors (hidden units too), vending slots and
 //     crate manifests. Poison rides along with them.
-//   - Sowing licences, Tobacco, Pigtails, Ate Meal and Dined are deleted.
+//   - Sowing licences, Tobacco, Pigtails and Ate Meal are deleted. (Dined
+//     was too, until it came back as what a Lavish meal leaves.)
 //   - A plain recipe dish (a catalog `bread` row held as-is) becomes a meal
 //     of the matching class, dressed in that class's symbols and keeping the
 //     recipe's own hunger, mood and taste. A dish already minted off a recipe
 //     is re-pointed at its class and given the symbols too.
-//   - A custom tag that granted Ate Meal stops granting it.
+//   - A custom tag that granted Ate Meal or Dined stops granting it; Dined
+//     comes from eating a Lavish meal now, never from a tag's consumesInto.
 //   - Every living character gets the hunger descriptor their meter says.
 //   - The Stable gets its three unruly arelitz, once.
 //   - Room stash seeds that name a retired slug are rewritten.
@@ -72,7 +74,8 @@ const DELETE = [
   "tobacco",
   "pigtails",
   "ate-meal",
-  "dined",
+  // Not "dined": it came back as what a Lavish meal leaves (db/lib/dined.js),
+  // so a second run must not take it off the people who have just eaten one.
 ];
 
 // The 36 named recipes, by the tier the old COOKING.md §2a put them in.

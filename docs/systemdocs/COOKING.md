@@ -303,6 +303,39 @@ several can be eaten at once up to what fills the eater
 5. Mood (§7).
 6. Return `{ line }` — the taste sentence.
 
+### 6a. Dined
+
+Eating a **Lavish** meal leaves the eater **Dined** ("You've eaten properly
+today."), and nothing else grants it: no `consumesInto` names it, and
+`db/test/dined.test.js` fails the build if one does. The Soilery Rework took it
+out along with Ate Meal; it is back, and so is what it is for: a noble who ends a
+turn without it takes −10 (NOBLE_MEAL, [`MOOD.md`](MOOD.md) §8).
+
+It lasts **one in-game day**, and a day is however many turns the game counts
+to one right now (`db/lib/turnClock.js#turnsInGameDay`): `GameConfig.turnsPerDay`
+when a GM has set it, else the turn length's share of 24 hours — 1 turn at 24
+hours, 2 at 12, 3 at 8, 4 at 6. That many **whole turns after the one you ate
+in**, never "what is left of today": eaten during turn T with N turns to a day,
+it expires on T + N (`dined.js#dinedExpiry`). The close's expiry sweep runs
+before the mood pass, so it is still held at the close of T and of every turn
+after it up to T + N − 1 — N closes, a day's worth, each spared NOBLE_MEAL — and
+is swept at the close of T + N. That length can't be a `durationTurns` in
+`docs/tags.yaml`, so `db/lib/dined.js#grantDined` works out the expiry at the
+grant, and a GM grant from `/gm/dev` is untimed.
+
+- **Another lavish meal restarts the day.** The row's `expiresTurn` moves
+  forward, so Dined always means "within a day of your last lavish meal". An
+  untimed GM grant is left alone.
+- **Several at once is one Dined**, and a lavish meal **fed to somebody else**
+  leaves *them* Dined, like every other grant of an administered consume.
+- **The Hungerless never dine.** Food does nothing for them (the Soilery Rework
+  doc), and Dined is no exception.
+- **The close's own eating dines too.** When the turn close eats a lavish meal
+  to keep somebody out of Dying (`TURN-ENGINE.md` §5a), `hungerPass.js` grants
+  Dined from the closing turn, so the mood pass right after sees it.
+- It is `visible: false`, like the hunger descriptors: it shows on the eater's
+  own sheet and to nobody inspecting them.
+
 ## 7. Mood
 
 **[`MOOD.md` §6a](MOOD.md) is canonical** — it sits with the rest of the mood
