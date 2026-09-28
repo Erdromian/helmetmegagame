@@ -493,20 +493,24 @@ overlaid; a new reader of "the rooms here" should use it rather than
   (below).
 
 **What never crosses is a Location.** Every verb on a person — Attack, Kiss,
-Heal, Search, Bind, Transfer to a person, all of them — resolves its target
+Heal, Search, Bind, all of them but Transfer (below) — resolves its target
 through `presentRows` / `resolveHoodToken` / `isHere`, which stay Location-grain
-on purpose. Nobody on the far side is ever in `hoodIds` or a picker. That is
-the doc's "cannot target characters on the other location", and it is the rule
-that must not be widened.
+on purpose. Nobody on the far side is ever in `hoodIds` or any other verb's
+picker. That is the doc's "cannot target characters on the other location",
+and it is the rule that must not be widened.
 
-**One exception, by a later doc: Transfer to a person across the Merchant's
-Counter** (Depot Overhaul.docx: "items can be transferred to characters on
-either side"). Transfer's picker alone lists the far side's people, under an
-`across:<ref>` key the action re-resolves at submit
-(`db/lib/whosHere.js#acrossRecipients` / `resolveAcrossRecipient`); `hoodIds`
-and every other verb are untouched. The counter is the first room to carry a
-side on the live map: `undertown-6-1`, home in the Storefront, open onto the
-Depot (`DEPOT.md` §0b).
+**The one exception: Transfer to a person, across every multi-locational
+room.** It is the default for any room with a side — no per-room switch, and a
+room given a side later gets it too. It began with the Merchant's Counter
+(Depot Overhaul.docx: "items can be transferred to characters on either side")
+and was made general on 2026-09-28, so the Gate, the Gatehouse Window and the
+Meistery Window hand things through the same way, from either side. Transfer's
+picker alone lists the far side's people, under an `across:<ref>` key the
+action re-resolves at submit (`db/lib/whosHere.js#acrossRecipients` /
+`resolveAcrossRecipient`), and the far side's rows in Who's here carry a menu
+with Transfer on it and nothing else; `hoodIds` and every other verb are
+untouched. The counter was the first room to carry a side on the live map:
+`undertown-6-1`, home in the Storefront, open onto the Depot (`DEPOT.md` §0b).
 
 Neither do the room's **fixtures**. A side offers Storage and nothing else
 (`placeAffordances.js#roomAffordances`): the bell, the phone, the vending
@@ -523,10 +527,11 @@ titled `Room · Location`, listing the people on every other side who are in it
 too. Rows are `presentRows`' own, so hoods, strangers and labels read exactly
 as they do for your own street. They carry the eye — a look lands on the line
 you last heard them say, which is readable because the room is in your
-`placesFor` — and no menu. A hooded or stranger row carries a `lookRef` rather
-than a token: `resolveCrossRoomRef` resolves it for `/look` and for a
-stranger's face (`/api/avatar/here`) only, and `db/lib/targetKey.js` never
-calls it.
+`placesFor` — and, on the web, a menu with Transfer alone on it, which opens
+the dialog on `across:<ref>`. A hooded or stranger row carries a `lookRef`
+rather than a token: `resolveCrossRoomRef` resolves it for `/look` and for a
+stranger's face (`/api/avatar/here`), `resolveAcrossRecipient` for Transfer,
+and `db/lib/targetKey.js` never calls either.
 
 **Guests are bound to a side.** `RoomGuest.locationId` is where the pass was
 given, and it is spent on leaving that Location: a nod over the easy counter is

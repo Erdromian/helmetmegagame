@@ -432,18 +432,22 @@ through `roomSides.js`, and the sheet refreshes when the far side drops
 something. Workshop equipment and bodies lying in the room are still reached
 from its home side only.
 
-**At the Merchant's Counter, Transfer also reaches a person on the other
-side** (Depot Overhaul.docx: "items can be transferred to characters on either
-side"). It is the one exception to "every verb on a person stays
-Location-grain" (`MAP.md` §2d), and it is Transfer's alone — Loot, Steal, Kiss
-and every other verb still refuse across. The picker lists the far side's
-people noted with the room's name, under an `across:<ref>` key: a named
-person's id, or a hood's token, the same token the counter's Who's here? uses
-to let you look at them (`db/lib/whosHere.js#acrossRecipients`). The action
-re-resolves it against the counter at submit
-(`resolveAcrossRecipient`), so somebody who has walked off names nobody.
-Nothing about the counter is named in code: any room with a side would do the
-same.
+**In every multi-locational room, Transfer also reaches a person on the other
+side.** It is the default for any room with a side, from either side, with no
+per-room switch: the Merchant's Counter (Depot Overhaul.docx: "items can be
+transferred to characters on either side") was first, and the Gate, the
+Gatehouse Window and the Meistery Window do the same. It is the one exception
+to "every verb on a person stays Location-grain" (`MAP.md` §2d), and it is
+Transfer's alone — Loot, Steal, Kiss and every other verb still refuse across.
+The picker lists the far side's people noted with the room's name, under an
+`across:<ref>` key: a named person's id, or a hood's token, the same token the
+room's Who's here? uses to let you look at them
+(`db/lib/whosHere.js#acrossRecipients`). Those Who's here? rows open a menu
+with Transfer on it, preset to that key (`web/app/components/HereList.js`). The
+action re-resolves it against the room at submit (`resolveAcrossRecipient`),
+so somebody who has walked off, or left the room on their side, names nobody.
+Nothing about any one room is named in code; `db/test/roomSides.test.js` holds
+the rule for a counter and a window alike.
 
 **Two rooms hold nothing at all.** `Room.destroysContents` — the Godard
 Factory's Spillway and the Servant Wing's Latrines — makes both writers into a room

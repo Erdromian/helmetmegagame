@@ -49,7 +49,8 @@ was this doc's "shift 1 tile to the left".
 Gate Controls is the old Watchhouse row, renamed, with its access list cleared
 (getting into the Gatehouse is the lock) and its shortbow and spear gone. The
 two windows are multi-locational rooms (MAP.md §2d): the people inside can talk
-to the people outside, and both sides' HERE columns list each other. Request
+to the people outside, both sides' HERE columns list each other, and Transfer
+hands things through to a person on the other side (CARRY.md §6). Request
 Passage is drawn only on the **outside** of each window — `sides: true` on its
 affordance, so it can draw on a side's copy of a room at all — because nobody
 asks to pass from inside the gatehouse.
