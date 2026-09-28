@@ -8,8 +8,8 @@
 // e.g. Blood Strength is "4n" — `n` there is the doc's own name for the dev-
 // panel variable `v`; both mean the same knob). The turns-cooldown is
 // `Math.round(cooldownConstant * v)`, `v` = GameConfig.vampireBloodAbilityCooldownVariable —
-// the exact `Math.round(rate * factor)` shape db/lib/vampire.js#perTurnRate
-// already uses for the meter rates, reused here for the same reason: a GM
+// rounded the way db/lib/vampire.js#perTurnRate rounds
+// the meter rates, and for the same reason: a GM
 // tuning knob multiplies a per-ability constant, never a live number read
 // mid-transaction.
 //
@@ -143,7 +143,7 @@ function abilityByKey(key) {
   return ABILITIES_BY_KEY.get(key) ?? null;
 }
 
-// Same `Math.round(rate * factor)` shape as db/lib/vampire.js#perTurnRate —
+// Rounded the way db/lib/vampire.js#perTurnRate rounds —
 // a GM's `v` change takes effect on the next cast, never retroactively
 // resizes a cooldown already running (nothing stores the multiplier used;
 // each check re-reads live GameConfig, which is fine here since — unlike the

@@ -3,6 +3,16 @@
 // out-of-scope task). No Prisma import here, same posture as db/lib/
 // hunger.js/gambitModifier.js, so both bot/ and web/ can import this by
 // subpath without dragging in the generated Prisma client.
+const {
+  VAMPIRE_SLUG,
+  FLUSH_SLUG,
+  SATIATED_SLUG,
+  THIRSTY_SLUG,
+  FAMISHED_SLUG,
+  BLOODCRAZED_SLUG,
+} = require("./constants");
+
+const { turnsInGameDay } = require("./turnClock");
 
 const BLOOD_MAX = 100;
 const BLOOD_MIN = 0;
@@ -19,15 +29,18 @@ function clampHumanity(value) {
   return Math.min(HUMANITY_MAX, Math.max(HUMANITY_MIN, Math.round(n)));
 }
 
-// A per-DAY config rate, scaled to what one turn actually earns. Always call
-// this with the turn being CLOSED (turn.turnLengthHours) and never with live
-// GameConfig — the same discipline db/lib/turnClock.js uses, since a GM's
-// turn-length change must take effect at the next turn, not retroactively
-// resize the one already running.
-function perTurnRate(perDayRate, turnLengthHours) {
+// A per-IN-GAME-DAY config rate, split evenly over the turns that day holds
+// (turnClock.js#turnsInGameDay): GameConfig.turnsPerDay when a GM has set it,
+// else the turn length's share of 24 hours. So 34 a day is 34 a turn on a
+// 24-hour game, 9 on a 6-hour one, and 17 on 24-hour turns run two to a day.
+// Always pass the length of the turn being CLOSED (turn.turnLengthHours),
+// never live GameConfig's — the same discipline db/lib/turnClock.js uses,
+// since a GM's turn-length change must take effect at the next turn, not
+// retroactively resize the one already running.
+function perTurnRate(perDayRate, turnLengthHours, turnsPerDay = 0) {
   const rate = Number.isFinite(perDayRate) ? perDayRate : 0;
   const hours = Number.isFinite(turnLengthHours) && turnLengthHours > 0 ? turnLengthHours : 24;
-  return Math.round(rate * (hours / 24));
+  return Math.round(rate / turnsInGameDay({ turnsPerDay, turnLengthHours: hours }));
 }
 
 // Blood urgency — hidden, mutually exclusive, always returns exactly one.
@@ -100,6 +113,34 @@ function vampireDm(notice) {
   }
 }
 
+// What a vampire is told about their blood where everybody else is told about
+// their hunger (the sheet's tile, the /chat You plate): the urgency band's
+// word and its onset line, never the number. Same shape as
+// db/lib/hunger.js#DESCRIPTORS, and `tone` is the same design-system tone.
+const BLOOD_DESCRIPTORS = Object.fromEntries(
+  [
+    [FLUSH_SLUG, "flush", "Flush", "good"],
+    [SATIATED_SLUG, "satiated", "Satiated", "muted"],
+    [THIRSTY_SLUG, "thirsty", "Thirsty", "warn"],
+    [FAMISHED_SLUG, "famished", "Famished", "bad"],
+    [BLOODCRAZED_SLUG, "bloodcrazed", "Bloodcrazed", "bad"],
+  ].map(([slug, band, word, tone]) => [band, { band, slug, word, line: vampireDm({ kind: band }), tone }]),
+);
+const BLOOD_DESCRIPTOR_BY_SLUG = Object.fromEntries(Object.values(BLOOD_DESCRIPTORS).map((d) => [d.slug, d]));
+
+// Mirrors db/lib/hunger.js#hungerDescriptorFor: the urgency tag they hold
+// wins, and the blood level is the fallback when they hold none (a sheet read
+// before the turn pass first ran, or between a tag's expiry and its regrant).
+// Null for anybody who is not a vampire — they get the hunger descriptor.
+function bloodDescriptorFor({ heldSlugs, bloodLevel }) {
+  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  if (!held.has(VAMPIRE_SLUG)) return null;
+  for (const slug of held) {
+    if (BLOOD_DESCRIPTOR_BY_SLUG[slug]) return BLOOD_DESCRIPTOR_BY_SLUG[slug];
+  }
+  return BLOOD_DESCRIPTORS[bloodUrgencyBand(bloodLevel ?? BLOOD_MAX)];
+}
+
 module.exports = {
   BLOOD_MAX,
   BLOOD_MIN,
@@ -114,4 +155,6 @@ module.exports = {
   humanityBand,
   HUMANITY_LOSS_BLOODCRAZED,
   vampireDm,
+  BLOOD_DESCRIPTORS,
+  bloodDescriptorFor,
 };

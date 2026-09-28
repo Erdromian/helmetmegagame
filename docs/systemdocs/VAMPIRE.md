@@ -25,18 +25,25 @@ carry what a Role's charter would otherwise say.
 Both stats start at 100 the moment the seat is assigned (`Character.
 vampireBloodLevel`/`vampireHumanity`, schema defaults). Neither is ever shown
 to the player as a raw number — same posture as `hungerValue` — only the tag
-chips below say anything, and only to the extent each one's visibility
-allows.
+chips below (and the Blood tile standing in for Hunger, §2c) say anything,
+and only to the extent each one's visibility allows.
 
 ## 2. Blood level
 
-Decays every turn, reaching 0 in **3 days** without feeding, at a rate
-configurable on the Dev Panel (`vampireBloodDecayPerDay`, default 34 — 100/3
-rounded). The rate is authored per **day**, not per turn, because this
-engine's turn length is itself a GM knob (6/8/12/24 hours,
-`TURN-ENGINE.md`) — `db/lib/vampirePass.js` scales the configured daily rate
-by the turn actually closing (`turnLengthHours / 24`), so "3 days to empty"
-holds true whatever the server's turn length is set to.
+Decays every turn, reaching 0 in **3 in-game days** without feeding, at a
+rate configurable on the Dev Panel (`vampireBloodDecayPerDay`, default 34 —
+100/3 rounded). The rate is authored per **in-game day**, not per turn or per
+real day, because how many turns make a day is itself a GM knob
+(`TURN-ENGINE.md` §1). `db/lib/vampirePass.js` splits the daily rate evenly
+over the turns in one in-game day (`turnClock.js#turnsInGameDay`), rounded:
+
+- **Turns per in-game day** (`GameConfig.turnsPerDay`) set to N: the day is N
+  turns, whatever their length. 24-hour turns run two to a day drain 17 each,
+  so a full meter lasts 6 turns (6 real days).
+- Left at 0 (the midnight rule): the day is the turn length's share of 24
+  hours, so 34 a turn at 24 hours, 17 at 12, 11 at 8 and 9 at 6.
+
+Either way "3 days to empty" means 3 in-game days.
 
 Two independent tag tracks ride off the blood level, both recomputed every
 turn close:
@@ -106,9 +113,23 @@ would mean inventing a combat-resolution system this engine doesn't have
 anywhere else. See the Blood Abilities menu (out of scope, §0 above) for
 where a coded, purchasable effect belongs instead.
 
+### 2c. Blood stands where Hunger would
+
+A vampire is Hungerless (§8), so the two places every other character is
+told their Hunger — the sheet's Hunger tile (`SHEET.md` §2) and the /chat You
+plate's descriptor row (`CHAT.md` §0) — tell a vampire their **Blood**
+instead: the urgency band's word (Flush, Satiated, Thirsty, Famished,
+Bloodcrazed) toned good, muted, warn, bad, bad, with the band's own line from
+the table above. Never the number. `db/lib/vampire.js#bloodDescriptorFor`
+reads the held urgency tag first and falls back to `vampireBloodLevel` when
+none is held, the same order `hunger.js#hungerDescriptorFor` uses;
+`web/lib/descriptors.js#appetiteOf` picks Blood or Hunger. The urgency chip is
+left off the sheet's status strip, since the tile already says it.
+
 ## 3. Humanity
 
-Regenerates **+10 a day**, same turn-length scaling as blood decay
+Regenerates **+10 an in-game day**, split over the day's turns the same way
+as blood decay
 (`vampireHumanityRegenPerDay`, dev-panel configurable). Four hidden, mutually
 exclusive bands:
 
@@ -210,11 +231,11 @@ moved on.
 
 ## 5. Config
 
-Both rates are per-**day**, on `/gm/dev` under Vampire:
+Both rates are per **in-game day**, on `/gm/dev` under Vampire:
 
 | Key | Default | |
 |---|---|---|
-| `vampireBloodDecayPerDay` | 34 | Empties a full meter in 3 days at the default 24h turn length |
+| `vampireBloodDecayPerDay` | 34 | Empties a full meter in 3 in-game days |
 | `vampireHumanityRegenPerDay` | 10 | Matches the design doc's own figure |
 
 ## 6. The Blood Abilities menu
@@ -242,8 +263,8 @@ one server action every "Use" button calls, dispatched by ability key.
 **The cooldown formula is the design doc's own**: `round(constant × v)`, `v` =
 `GameConfig.vampireBloodAbilityCooldownVariable` (dev panel, default 5). Each
 ability's own constant (4, 2, 6...) lives in the catalog, not the config —
-matches `db/lib/vampire.js#perTurnRate`'s own `Math.round(rate * factor)`
-shape, just multiplying instead of scaling by turn length.
+rounded the same way `db/lib/vampire.js#perTurnRate` rounds the meter rates,
+just multiplying instead of splitting a day over its turns.
 
 **Cooldowns are tracked per character, not per ability column.**
 `Character.vampireBloodAbilityCooldowns` is one JSON map, `{ [abilityKey]:

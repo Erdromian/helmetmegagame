@@ -186,12 +186,12 @@ const FIELDS = [
   {
     key: "vampireBloodDecayPerDay", type: "int", group: "vampire", default: 34, min: 0, max: 100,
     label: "Blood decay / day",
-    info: "Scaled by the closing turn's own length — 3 days to empty a full meter at the default.",
+    info: "Per in-game day, split over that day's turns (Turns per in-game day, else the turn length) — 3 in-game days to empty a full meter at the default.",
   },
   {
     key: "vampireHumanityRegenPerDay", type: "int", group: "vampire", default: 10, min: 0, max: 100,
     label: "Humanity regen / day",
-    info: "Scaled the same way. Stops entirely once a vampire holds Bestial.",
+    info: "Per in-game day, split the same way. Stops entirely once a vampire holds Bestial.",
   },
   {
     key: "vampireBloodAbilityCooldownVariable", type: "int", group: "vampire", default: 5, min: 0, max: 50,

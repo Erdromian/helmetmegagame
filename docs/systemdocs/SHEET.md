@@ -132,6 +132,12 @@ Who this is, where they stand, and:
   sheet ships. A Hungerless character reads "—", "You don't need to eat." The
   descriptor's own chip is filtered out of the band's status strip, so the tile
   is the one place hunger shows there (`TURN-ENGINE.md` §5).
+  **A vampire's tile is Blood instead** (`VAMPIRE.md` §2c): a droplet icon
+  (`BloodIcon`) and the urgency band's word — **Flush** (good), **Satiated**
+  (muted), **Thirsty** (warn), **Famished** or **Bloodcrazed** (bad) — with the
+  band's own line on press. `character/page.js` picks it with
+  `web/lib/descriptors.js#appetiteOf`, and the held urgency chip is filtered out
+  of the status strip the same way.
 - **The row below is This turn · Combat · Turn Effects** — three boxes of the
   same build, reading as what you are doing, what you can do (`COMBAT.md`) and
   what the turn will do to you. It is `auto-fit`, so Turn Effects simply

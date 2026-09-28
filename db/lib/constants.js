@@ -215,6 +215,9 @@ const SATIATED_SLUG = "satiated";
 const THIRSTY_SLUG = "thirsty";
 const FAMISHED_SLUG = "famished";
 const BLOODCRAZED_SLUG = "bloodcrazed";
+// The urgency track, top to bottom. A vampire holds exactly one; the sheet
+// draws it as the Blood tile in place of Hunger (web/lib/descriptors.js).
+const BLOOD_URGENCY_SLUGS = [FLUSH_SLUG, SATIATED_SLUG, THIRSTY_SLUG, FAMISHED_SLUG, BLOODCRAZED_SLUG];
 const BLACK_SCLERA_SLUG = "black-sclera";
 const PALE_SLUG = "pale";
 const HUMANE_SLUG = "humane";
@@ -270,6 +273,7 @@ module.exports = {
   THIRSTY_SLUG,
   FAMISHED_SLUG,
   BLOODCRAZED_SLUG,
+  BLOOD_URGENCY_SLUGS,
   BLACK_SCLERA_SLUG,
   PALE_SLUG,
   HUMANE_SLUG,

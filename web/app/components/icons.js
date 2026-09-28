@@ -3,6 +3,7 @@
 // job. Nine glyphs with no Lucide equivalent stay hand-drawn at the bottom of the file.
 
 import {
+  Droplet,
   User,
   Users,
   ScrollText,
@@ -167,6 +168,8 @@ export const BandageIcon = lucide(Bandage, "BandageIcon");
 export const MealIcon = lucide(Soup, "MealIcon");
 // The sheet's Hunger tile (LedgerBand.js) — the same glyph a hunger descriptor chip wears (web/lib/tagIcons.js status-food).
 export const HungerIcon = lucide(Utensils, "HungerIcon");
+// The same tile's glyph for a vampire, whose Blood stands in for Hunger (web/lib/descriptors.js#appetiteOf).
+export const BloodIcon = lucide(Droplet, "BloodIcon");
 // Re-push this character's Discord state.
 export const SyncIcon = lucide(RefreshCw, "SyncIcon");
 export const TrashIcon = lucide(Trash2, "TrashIcon");

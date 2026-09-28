@@ -47,9 +47,10 @@ export default function CharacterSheet({
   character,
   mode,
   // The hunger meter's ONLY client-visible trace (db/lib/hunger.js): the
-  // descriptor as { word, line, tone }, or null for the Hungerless — worked
-  // out in character/page.js so the raw hungerValue never crosses at all.
-  hunger = null,
+  // descriptor as { key, label, word, line, tone }, or null for the
+  // Hungerless — worked out in character/page.js so the raw hungerValue never
+  // crosses at all. A vampire's is their Blood instead (key "blood").
+  appetite = null,
   openTurn,
   avatarSrc,
   transferParties,
@@ -377,7 +378,7 @@ export default function CharacterSheet({
           hasHorn={hasHorn}
           isBastard={isBastard}
           isSelf={isSelf}
-          hunger={hunger}
+          appetite={appetite}
         />
 
         <div className="ledger-body">
