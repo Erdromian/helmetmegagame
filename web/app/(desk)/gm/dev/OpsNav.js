@@ -46,6 +46,7 @@ const SECTIONS = [
       { key: "assignments", label: "Assignments" },
       { key: "antagonists", label: "Antagonists" },
       { key: "latejoins", label: "Late joins" },
+      { key: "lateparty", label: "Late party" },
     ],
   },
 ];

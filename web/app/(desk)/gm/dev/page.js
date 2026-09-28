@@ -28,6 +28,8 @@ import {
 import { PLAYER_ROLE_ID, LEADER_WHITELIST_ROLE_ID } from "@lifeweb/db/lib/roleIds";
 import { fateCapacity, seatHolderStatuses } from "@lifeweb/db/lib/fateCapacity";
 import { loadLateJoinRoles } from "@lifeweb/db/lib/lateJoin";
+import { loadLiveParty, loadPartyCounts } from "@lifeweb/db/lib/lateParty";
+import { groupRoles } from "@lifeweb/db/lib/roleGroups";
 import {
   updateGameConfig,
   updateDepot,
@@ -56,6 +58,7 @@ import ThreatAssignmentsTable from "@/app/(app)/gm/dev/threats/ThreatAssignments
 import ThreatRosterTable from "@/app/(app)/gm/dev/threats/ThreatRosterTable";
 import ObjectivesPanel from "@/app/(app)/gm/dev/threats/ObjectivesPanel";
 import LateJoinsPanel from "@/app/(app)/gm/dev/threats/LateJoinsPanel";
+import LatePartyPanel from "@/app/(app)/gm/dev/threats/LatePartyPanel";
 import RitesPanel from "@/app/(app)/gm/dev/threats/RitesPanel";
 import BulkActions from "./BulkActions";
 import { VERB_KEYS, PLACE_KINDS } from "./bulkVerbs";
@@ -302,6 +305,8 @@ export default async function DevPanelPage({ searchParams }) {
   let seatRows = [];
   let pendingSpawns = [];
   let lateJoinRows = [];
+  let latePartyView = null;
+  let latePartyGroups = [];
   let riteWordRows = [];
   let riteAttemptRows = [];
   // The Objectives cards under the roster (THREATS.md §6a).
@@ -815,6 +820,56 @@ export default async function DevPanelPage({ searchParams }) {
         enabled: row.enabled,
         slots: row.slots,
         taken: row.taken,
+      }));
+      break;
+    }
+    case "lateparty": {
+      // The live party with its chairs -- or, with none live, the last one and
+      // how it ended -- and every fate the start form may offer, bucketed the
+      // way the picker buckets them. Spawn-only fates are flagged, since a
+      // party is how those reach the picker, and whitelisted ones, since a
+      // party's chair only a vouched player may take can keep it live.
+      const [live, roles] = await Promise.all([
+        loadLiveParty(prisma),
+        prisma.role.findMany({
+          orderBy: { sortOrder: "asc" },
+          select: { slug: true, name: true, groupSlug: true, requiresWhitelist: true },
+        }),
+      ]);
+      const shown =
+        live?.party ??
+        (await prisma.lateParty.findFirst({ orderBy: { startedAt: "desc" }, include: { fates: true } }));
+      if (shown) {
+        const fates = live?.fates ?? (await loadPartyCounts(prisma, shown));
+        latePartyView = {
+          live: Boolean(live),
+          mode: shown.mode,
+          // A muster's names in the hat, waiting on the end-of-turn draw.
+          entered: shown.mode === "MUSTER" ? await prisma.latePartyEntry.count({ where: { partyId: shown.id } }) : 0,
+          startedAt: shown.startedAt.toISOString(),
+          endedAt: shown.endedAt?.toISOString() ?? null,
+          // endedBy null on an ended party means it filled (loadLiveParty).
+          filled: Boolean(shown.endedAt) && shown.endedBy === null,
+          fates: fates.map((f) => ({
+            roleSlug: f.roleSlug,
+            roleName: f.role?.name ?? null,
+            hidden: f.role ? isSpawnOnly(f.role) : false,
+            whitelist: Boolean(f.role?.requiresWhitelist),
+            slots: f.slots,
+            seated: f.seated,
+            held: f.held,
+          })),
+        };
+      }
+      latePartyGroups = groupRoles(roles).map((group) => ({
+        slug: group.slug,
+        name: group.name,
+        roles: group.roles.map((r) => ({
+          slug: r.slug,
+          name: r.name,
+          hidden: isSpawnOnly(r),
+          whitelist: r.requiresWhitelist,
+        })),
       }));
       break;
     }
@@ -1467,6 +1522,20 @@ export default async function DevPanelPage({ searchParams }) {
                 Enable and set up late join roles that people can select and respawn as.
               </p>
               <LateJoinsPanel rows={lateJoinRows} />
+            </section>
+          ) : null}
+
+          {section === "lateparty" ? (
+            <section className="ops-section">
+              <div className="ops-section-head">
+                <h2 className="section-title">Late party</h2>
+              </div>
+              <p className="text-sm text-muted">
+                While a late party is live, character creation offers only its fates, to anyone without a
+                living character, buried or not. An open party is picked from at once; a muster is drawn at the
+                end of each turn.
+              </p>
+              <LatePartyPanel party={latePartyView} groups={latePartyGroups} />
             </section>
           ) : null}
 

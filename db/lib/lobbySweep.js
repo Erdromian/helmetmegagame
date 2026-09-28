@@ -14,6 +14,7 @@ const { sendDm } = require("./dm");
 const { WEB_ORIGIN } = require("./constants");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { assignmentMessage, reminderMessage, expiredMessage, declineComponents, claimNotification } = require("./lobby");
+const { offerFreedSeat } = require("./latePartyRaffle");
 
 const REMINDER_BEFORE_MS = 6 * 60 * 60 * 1000;
 const RESEND_AFTER_MS = 5 * 60 * 1000;
@@ -92,6 +93,14 @@ async function runLobbySweep(prisma, { origin = WEB_ORIGIN, now = new Date() } =
       source: "lobby_expired",
     }).catch((err) => console.error(`Lobby expiry DM failed for ${entry.discordUserId}:`, err));
     expired += 1;
+    // A lateparty's drawn seat goes straight on to somebody still in its hat
+    // (db/lib/latePartyRaffle.js). Their "You're in" DM is this sweep's resend
+    // on a later tick, as for any seat not yet announced.
+    if (entry.latePartyId) {
+      await offerFreedSeat(prisma, { partyId: entry.latePartyId, roleId: entry.assignedRoleId, reason: "expired" }).catch(
+        (err) => console.error("Lateparty re-offer after an expiry failed:", err),
+      );
+    }
   }
 
   return { resent, reminded, expired };

@@ -60,14 +60,26 @@ function shuffled(items, rng) {
 // roles:    [{ slug, name, isUnique, unlimited, weight, requiresWhitelist, spawnOnly }]
 // taken:    Map<slug, number> — seats already held before the roll
 // playerCount: total fate seats (fateCapacity.js#fateSeatsFor), as stamped on GameState.playerCount
+// pickable / capacity: which roles the two passes may hand out, and each one's
+//   cap. The lobby's own answers by default; a late party's muster
+//   (db/lib/latePartyRaffle.js) passes its fates and its slots instead.
 // Returns { rows: [{ discordUserId, roleSlug, source }], warnings: [string], seed }
-function assignFates({ players, roles, taken = new Map(), playerCount, leaderWhitelistEnabled = true, seed }) {
+function assignFates({
+  players,
+  roles,
+  taken = new Map(),
+  playerCount,
+  leaderWhitelistEnabled = true,
+  seed,
+  pickable = isLobbyFate,
+  capacity = null,
+}) {
   const rng = mulberry32(hashSeed(seed));
   const used = new Map();
   const result = new Map();
-  const lobbyFates = roles.filter(isLobbyFate);
+  const lobbyFates = roles.filter(pickable);
 
-  const capOf = (role) => fateCapacity(role, playerCount);
+  const capOf = capacity ?? ((role) => fateCapacity(role, playerCount));
   const heldOf = (role) => (taken.get(role.slug) ?? 0) + (used.get(role.slug) ?? 0);
   const isOpen = (role) => capOf(role) - heldOf(role) > 0;
   const mayHold = (player, role) =>

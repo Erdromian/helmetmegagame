@@ -10,6 +10,12 @@ picker.
 Companion to [`THREATS.md`](THREATS.md) (the spawn, which this is deliberately
 not) and [`CHARACTERS.md`](CHARACTERS.md) (the wizard this draws into).
 
+A **late party** ([`LATE-PARTIES.md`](LATE-PARTIES.md)) is the bigger door.
+While one is live, the Special section is not drawn, and every late-join seat is
+locked along with every other fate the party does not name. No row here
+changes, but a character the party made in a late-join fate counts against
+that seat's chairs afterwards, like anybody else holding it.
+
 ## 1. What a late join is
 
 A **spawn-only Role that a GM has opened to whoever wants it.**
