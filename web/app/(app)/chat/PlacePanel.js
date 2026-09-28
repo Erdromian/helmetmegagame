@@ -10,6 +10,10 @@ import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/db/lib/questText";
 import { SLOT_PROMPT } from "@lifeweb/db/lib/slotText";
+import { JUKEBOX_TEXT } from "@lifeweb/db/lib/jukeboxText";
+import { JUKEBOX_SONGS, jukeboxSongByKey, jukeboxSongLabel } from "@lifeweb/db/lib/jukeboxSongs";
+import { useFramedJukebox } from "@/app/components/performanceStore";
+import { useStanding } from "@/app/components/PhaseProvider";
 import { PHONE_TEXT, PHONE_DIGITS, clockLeft } from "@lifeweb/db/lib/phoneText";
 import { NUKE_TEXT, NUKE_CODE_DIGITS } from "@lifeweb/db/lib/nukeText";
 import { usePhoneFrame, noteHandset, setDialling } from "@/app/components/phoneStore";
@@ -38,6 +42,7 @@ import {
   ringBell,
   pray,
   playSlots,
+  setJukebox,
   turretState,
   toggleTurret,
   speakOnIntercom,
@@ -265,6 +270,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       {dialog?.kind === "bell" && <BellDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "pray" && <PrayDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "slots" && <SlotDialog entry={dialog.entry} onClose={close} onDone={say} />}
+      {dialog?.kind === "jukebox" && <JukeboxDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "vending" && <VendingDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "blackMarket" && <BlackMarketDialog entry={dialog.entry} onClose={close} onDone={say} />}
       {dialog?.kind === "requestPassage" && <PassageDialog entry={dialog.entry} onClose={close} onDone={say} />}
@@ -625,6 +631,63 @@ function SlotDialog({ entry, onClose, onDone }) {
       </div>
     </Modal>
   );
+}
+
+// The Den's jukebox (docs/systemdocs/SOUND.md, "The Den's jukebox"). A list of the
+// eleven songs with a Play on each, and Turn off. What is on now is read off the same
+// feed frame the music plays from, so the dialog and the speaker never disagree.
+function JukeboxDialog({ entry, onClose, onDone }) {
+  const T = JUKEBOX_TEXT;
+  const { run, pending, error } = useActionRunner();
+  const framed = useFramedJukebox();
+  const standing = useStanding();
+  const current = framed !== undefined ? framed : (standing?.jukebox ?? null);
+  const playing = current?.songKey ? jukeboxSongByKey(current.songKey) : null;
+
+  const choose = (songKey) =>
+    run(setJukebox, { roomId: entry.roomId, songKey }, {
+      onOk: (res) => {
+        onDone(res);
+        onClose();
+      },
+    });
+
+  return (
+    <Modal open title={T.title} onClose={onClose}>
+      <p className="text-sm text-muted">{playing ? T.nowPlaying(jukeboxSongLabel(playing)) : T.silent}</p>
+      <p className="text-sm text-muted">{T.pickPrompt}</p>
+      {JUKEBOX_SONGS.map((song) => {
+        const on = playing?.key === song.key;
+        return (
+          <div key={song.key} className="chat-notice-row">
+            <span className="chat-person-name">{jukeboxSongLabel(song)}</span>
+            <span className="mono text-sm text-muted">{songLength(song.seconds)}</span>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={pending || on}
+              aria-label={`${T.play} — ${jukeboxSongLabel(song)}`}
+              onClick={() => choose(song.key)}
+            >
+              {on ? T.playing : T.play}
+            </button>
+          </div>
+        );
+      })}
+      <FormError>{error}</FormError>
+      <div className="modal-actions">
+        <button type="button" className="btn-secondary" disabled={pending || !playing} onClick={() => choose(null)}>
+          {T.turnOff}
+        </button>
+      </div>
+    </Modal>
+  );
+}
+
+// "4:33" for a song's length.
+function songLength(seconds) {
+  const whole = Math.round(Number(seconds) || 0);
+  return `${Math.floor(whole / 60)}:${String(whole % 60).padStart(2, "0")}`;
 }
 
 // The Black Market terminal in the Exactor's Office (docs/systemdocs/DEPOT.md

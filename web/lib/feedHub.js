@@ -13,6 +13,7 @@ import { disguiseNameFrom } from "@lifeweb/db/lib/disguises";
 import { concealedAlias, LOOK_TAGS_SELECT } from "@lifeweb/db/lib/concealedIdentity";
 import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { livePerformancesAt, MUSIC_OP } from "@lifeweb/db/lib/performance";
+import { jukeboxAt } from "@lifeweb/db/lib/jukebox";
 import { PHONE_OP } from "@lifeweb/db/lib/phoneFrame";
 
 // One Postgres LISTEN per web process, fanned out to every open SSE stream —
@@ -531,7 +532,8 @@ async function connect() {
   }
 }
 
-// A performance started, stopped or changed volume at a Location.
+// A performance started, stopped or changed volume at a Location, or the Den's jukebox
+// changed (it notifies both Locations it is heard in).
 async function handleMusic(placeKey) {
   const locationId = typeof placeKey === "string" && placeKey.startsWith("loc:") ? placeKey.slice(4) : null;
   if (!locationId) return;
@@ -542,7 +544,12 @@ async function handleMusic(placeKey) {
     return null;
   });
   if (!performances) return;
-  const frame = { locationId, performances };
+  const jukebox = await jukeboxAt(prisma, locationId).catch((err) => {
+    console.error("Jukebox read failed:", err);
+    // Left off the frame, so a browser keeps what it had rather than hearing "off".
+    return undefined;
+  });
+  const frame = { locationId, performances, jukebox };
   for (const send of [...set]) {
     try {
       send(frame);
@@ -555,8 +562,12 @@ async function handleMusic(placeKey) {
 // What is playing at a Location, for a stream that has just arrived there — the late
 // joiner's first frame, sent before any notify.
 export async function musicFrameFor(locationId) {
-  if (!locationId) return { locationId: null, performances: [] };
-  return { locationId, performances: await livePerformancesAt(prisma, locationId) };
+  if (!locationId) return { locationId: null, performances: [], jukebox: null };
+  const [performances, jukebox] = await Promise.all([
+    livePerformancesAt(prisma, locationId),
+    jukeboxAt(prisma, locationId).catch(() => undefined),
+  ]);
+  return { locationId, performances, jukebox };
 }
 
 // A phone changed somewhere that these Locations can hear. Every stream standing in
