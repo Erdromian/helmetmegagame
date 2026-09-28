@@ -1,11 +1,18 @@
-// Starting money rolls within 10% of what the YAML says (db/lib/startingVariance.js):
-// a seat's bank balance and purse at creation, the Vault once at Start Game.
-// Pure, plus one fake-Prisma run of the stash pour.
+// Starting money (db/lib/startingVariance.js): each character's bank balance
+// and purse roll within 10% of the seat's figure, and each starting balance
+// stocks the Vault with GameConfig.vaultReservePercent of itself. Pure.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { startingRange, varyStarting, varyStartingPurse, varyVaultEntries } = require("../lib/startingVariance");
-const { seedAuthoredStashes } = require("../lib/roomStashSeed");
-const { VAULT_ROOM_SLUG } = require("../lib/bankAccounts");
+const fs = require("node:fs");
+const path = require("node:path");
+const {
+  startingRange,
+  varyStarting,
+  varyStartingPurse,
+  vaultStockFor,
+  DEFAULT_VAULT_RESERVE_PERCENT,
+} = require("../lib/startingVariance");
+const { FIELDS } = require("../lib/gameConfigFields");
 
 const low = () => 0;
 const high = () => 0.9999999;
@@ -46,27 +53,40 @@ test("only the purse in a role kit rolls", () => {
   assert.deepEqual([...varyStartingPurse(none, high)], [["dagger", 1]]);
 });
 
-test("only the Vault's visible obols roll; every other room pours what it says", () => {
-  const entries = [["obol", 350, 5], ["painting", 1, 0]];
-  assert.deepEqual(varyVaultEntries(VAULT_ROOM_SLUG, entries, low), [["obol", 315, 5], ["painting", 1, 0]]);
-  assert.deepEqual(varyVaultEntries("undertown-6-3", [["obol", 10, 0]], low), [["obol", 10, 0]]);
+test("a starting balance stocks the Vault with its percentage, rounded up", () => {
+  assert.equal(vaultStockFor({ roleSlug: "hand", balance: 57, percent: 40 }), 23); // 22.8
+  assert.equal(vaultStockFor({ roleSlug: "courtier", balance: 10, percent: 40 }), 4);
+  assert.equal(vaultStockFor({ roleSlug: "soiler", balance: 3, percent: 40 }), 2); // 1.2, never short
+  assert.equal(vaultStockFor({ roleSlug: "merchant", balance: 88, percent: 100 }), 88);
+  assert.equal(vaultStockFor({ roleSlug: "merchant", balance: 88, percent: 150 }), 132);
 });
 
-test("Start Game pours the Vault within range and the Cargo Bay exactly", async () => {
-  const written = [];
-  const prisma = {
-    room: {
-      findMany: async () => [
-        { id: "v", slug: VAULT_ROOM_SLUG, seededStashSlugs: [], stashSeed: { items: [["obol", 350]] }, destroysContents: false },
-        { id: "c", slug: "undertown-6-3", seededStashSlugs: [], stashSeed: { items: [["obol", 10]] }, destroysContents: false },
-      ],
-      update: (args) => ({ room: args }),
-    },
-    tag: { findMany: async ({ where }) => where.slug.in.map((slug) => ({ id: `t-${slug}`, slug })) },
-    roomTag: { upsert: (args) => { written.push(args); return args; } },
-    $transaction: async (ops) => ops,
-  };
-  await seedAuthoredStashes(prisma, { rng: high });
-  const byRoom = Object.fromEntries(written.map((w) => [w.create.roomId, w.create.quantity]));
-  assert.deepEqual(byRoom, { v: 385, c: 10 });
+test("the Baron's balance, a zero balance and a zero percentage stock nothing", () => {
+  assert.equal(vaultStockFor({ roleSlug: "baron", balance: 36, percent: 40 }), 0);
+  assert.equal(vaultStockFor({ roleSlug: "hand", balance: 0, percent: 40 }), 0);
+  assert.equal(vaultStockFor({ roleSlug: "hand", balance: 57, percent: 0 }), 0);
+});
+
+test("stocked character by character, the Vault never falls under the percentage", () => {
+  const balances = [26, 18, 24, 57, 16, 22, 14, 10, 10, 44, 12, 31, 18, 22, 43, 23, 17, 10, 60, 18, 3, 3, 5, 8];
+  const total = balances.reduce((a, b) => a + b, 0);
+  const stock = balances.reduce((a, b) => a + vaultStockFor({ roleSlug: "x", balance: b, percent: 40 }), 0);
+  assert.ok(stock >= total * 0.4, `${stock} against 40% of ${total}`);
+  assert.ok(stock <= total * 0.4 + balances.length, "and over by less than an obol a character");
+});
+
+test("the dev-panel knob defaults to the same 40 the code falls back on", () => {
+  const field = FIELDS.find((f) => f.key === "vaultReservePercent");
+  assert.ok(field, "vaultReservePercent is on /gm/dev");
+  assert.equal(field.default, DEFAULT_VAULT_RESERVE_PERCENT);
+  assert.equal(field.group, "economy");
+  const schema = fs.readFileSync(path.join(__dirname, "../prisma/schema.prisma"), "utf8");
+  assert.match(schema, /vaultReservePercent Int @default\(40\)/);
+});
+
+test("the Vault has no authored obols left to pour on top of the stock", () => {
+  const zones = fs.readFileSync(path.join(__dirname, "../../docs/zones.yaml"), "utf8");
+  const vault = zones.slice(zones.indexOf("undertown-1-7:"), zones.indexOf("undertown-1-7:") + 2500);
+  const items = vault.slice(vault.indexOf("items:"), vault.indexOf("elevator-key"));
+  assert.doesNotMatch(items, /^\s+obol:/m);
 });

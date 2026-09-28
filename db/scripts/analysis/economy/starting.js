@@ -21,6 +21,7 @@ const { ALL_GROUPS } = require("../../../lib/roleGroups");
 const { median } = require("./stats");
 const { fateCapacity, fateSeatsFor } = require("../../../lib/fateCapacity");
 const { ringName } = require("../../../lib/rings");
+const { vaultStockFor, DEFAULT_VAULT_RESERVE_PERCENT } = require("../../../lib/startingVariance");
 
 const REPO = path.resolve(__dirname, "../../../..");
 const readYaml = (rel) => yaml.load(fs.readFileSync(path.join(REPO, rel), "utf8"));
@@ -338,9 +339,15 @@ function buildStarting({ list, get, foods, params, foodFloor, sources, players, 
   }).filter(Boolean);
 
   // The Vault: the treasury claims are meant to fit inside it (docs/roles.yaml, `db:audit-vault-backing`).
-  const vault = roomView.find((r) => r.id === "undertown-1-7");
+  // It has no authored obols; each character's starting balance stocks it with the dev panel's percentage
+  // (db/lib/startingAccount.js), so its coin is what these seats' balances put in, at the knob's default.
+  const vaultRoom = roomView.find((r) => r.id === "undertown-1-7");
   const treasuryClaims = seated.filter((r) => r.account === "treasury").reduce((n, r) => n + r.bank * r.seats, 0);
   const offshoreClaims = seated.filter((r) => r.account === "offshore").reduce((n, r) => n + r.bank * r.seats, 0);
+  const vaultStock = seated
+    .filter((r) => r.account)
+    .reduce((n, r) => n + r.seats * vaultStockFor({ roleSlug: r.slug, balance: r.bank, percent: DEFAULT_VAULT_RESERVE_PERCENT }), 0);
+  const vault = vaultRoom ? { ...vaultRoom, coin: vaultRoom.coin + vaultStock } : null;
 
   // What lies in open rooms, for anybody who walks in.
   const commons = roomView

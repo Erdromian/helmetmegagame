@@ -1,38 +1,41 @@
-// Starting money wobbles a little from game to game.
+// Starting money: the wobble on every seat's figures, and the Vault's share.
 //
-// Every figure the YAML sets for the opening economy — a seat's
-// `starting_account:` balance and its `Obol xN` purse (docs/roles.yaml), and
-// the coin poured into the Keep's Vault (docs/zones.yaml, `undertown-1-7`) —
-// is the MIDDLE of a range, not the exact amount. Each is rolled within 10% of
-// what was written, so nobody can work out another seat's money from the
-// roles list, and the Vault's cover against the town's claims is never quite
-// the same twice.
-//
-// When each roll happens, and why there:
-//
-//   - A character's balance and purse roll at creation
-//     (web/app/(app)/character/createActions.js, and db/lib/reincarnate.js for
-//     the purse), once per character. Two Courtiers in one game rarely match.
-//   - The Vault rolls when Start Game pours the authored stashes
-//     (db/lib/roomStashSeed.js#seedAuthoredStashes). That pour happens once a
-//     game — Room.seededStashSlugs guards it — so the Vault gets one roll a game
-//     too. A GM typing a stash in by hand on /gm/dev/zones gets exactly what
-//     they typed.
+// A seat's `starting_account:` balance and its `Obol xN` purse
+// (docs/roles.yaml) are the MIDDLE of a range, not the exact amount. Each
+// character rolls both within 10% at creation (web/app/(app)/character/
+// createActions.js, and db/lib/reincarnate.js for the purse), so nobody can
+// work out another seat's money from the roles list and two Courtiers in one
+// game rarely match.
 //
 // The range is whole obols: from 10% under, rounded up, to 10% over, rounded
 // down, every whole number in it equally likely. So a figure under 10 cannot
 // move at all (3 ¢ is 2.7–3.3, and the only whole obol in that is 3), which is
 // right for pocket change and saves anybody reading 0 where the YAML says 1.
 //
-// Pure apart from the two slugs it needs, with an injectable `rng` so the
-// tests can pin the ends of the range.
+// The Keep's Vault has no authored pile any more. It is stocked as the town is
+// made: each new character's starting balance — as rolled — puts
+// GameConfig.vaultReservePercent of it into the Vault as coin (vaultStockFor
+// below; 40% by default, a knob on /gm/dev). So the Vault always holds that
+// share of what everybody opened with, late joiners included, and it wobbles
+// from game to game along with the balances it follows. The Baron is left out:
+// their account is the treasury's to begin with, and the Vault is not stocked
+// against it.
+//
+// Pure apart from the obol slug, with an injectable `rng` so the tests can pin
+// the ends of the range.
 
 const { OBOL_SLUG } = require("./depotState");
-const { VAULT_ROOM_SLUG } = require("./bankAccounts");
 
 // Tenths, so the bounds are integer arithmetic: 9n/10 and 11n/10 never land a
 // hair above a whole number the way n * 0.9 can.
 const VARIANCE_TENTHS = 1;
+
+// Whose starting balance does not stock the Vault.
+const VAULT_UNSTOCKED_ROLE_SLUGS = new Set(["baron"]);
+
+// GameConfig.vaultReservePercent's default (db/lib/gameConfigFields.js), for a
+// config row that predates the column.
+const DEFAULT_VAULT_RESERVE_PERCENT = 40;
 
 function startingRange(value) {
   const n = Math.trunc(Number(value) || 0);
@@ -56,14 +59,24 @@ function varyStartingPurse(wanted, rng = Math.random) {
   return wanted;
 }
 
-// The Vault's authored stash, as roomStashSeed.js#stashSeedEntries returns it
-// ([[slug, quantity, hidden], ...]). Only the Vault, and only its visible
-// obols: every other room pours exactly what it was written with.
-function varyVaultEntries(roomSlug, entries, rng = Math.random) {
-  if (roomSlug !== VAULT_ROOM_SLUG) return entries;
-  return entries.map(([slug, quantity, hidden]) =>
-    slug === OBOL_SLUG ? [slug, varyStarting(quantity, rng), hidden] : [slug, quantity, hidden],
-  );
+// How many obols one new character's starting balance puts into the Vault.
+// Rounded UP, one character at a time, so the Vault never falls short of the
+// percentage through rounding — 40% of a 3 ¢ balance stocks 2, not 1 — and the
+// reserve floor db:audit-vault-backing checks is met rather than missed by a
+// hair when the knob sits on it.
+function vaultStockFor({ roleSlug, balance, percent }) {
+  if (VAULT_UNSTOCKED_ROLE_SLUGS.has(roleSlug)) return 0;
+  const b = Math.trunc(Number(balance) || 0);
+  const p = Math.trunc(Number(percent) || 0);
+  if (b <= 0 || p <= 0) return 0;
+  return Math.ceil((b * p) / 100);
 }
 
-module.exports = { startingRange, varyStarting, varyStartingPurse, varyVaultEntries };
+module.exports = {
+  startingRange,
+  varyStarting,
+  varyStartingPurse,
+  vaultStockFor,
+  VAULT_UNSTOCKED_ROLE_SLUGS,
+  DEFAULT_VAULT_RESERVE_PERCENT,
+};

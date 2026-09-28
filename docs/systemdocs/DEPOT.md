@@ -334,29 +334,32 @@ which is why a sell price equal to the buy price prints nothing
 **An account is a claim, and a TREASURY claim is hard-backed.**
 
 - `BankAccount.balanceObols` is the claim. `Depot.accountObols` is gone.
-- The **Vault** is `undertown-1-7`, a real room behind the Baron's key,
-  carrying **350 obols** in `docs/zones.yaml`, deliberately short of the
-  roughly 1,590 ¢ the starting balances claim at 100 players (the comment on
-  the stash says why: a bank run is meant to be a live possibility from day
-  one, and the figure is not to be raised to match). Every TREASURY account
-  draws on that pile and nothing else.
-- **Every starting figure wobbles by up to 10% a game**
-  (`db/lib/startingVariance.js`). Start Game pours the Vault at 315–385
-  rather than exactly 350, and each new character's `starting_account:`
-  balance and `Obol xN` purse are rolled the same way at creation, so two
-  Courtiers rarely start with the same money. A figure too small to move by a
-  whole obol (anything under 10) stays as written.
-- **Nobody seeds that pile automatically, and this is the trap.**
-  `db:import-zones` never writes a stash — it prints a warning telling you to
-  seed it from `/gm/dev/zones` instead (`db/lib/importZones.js`). So the figure
-  in the YAML is the intended stock, not the live one. Stock the Vault by hand
-  before the game opens and run `npm run db:audit-vault-backing`, which exits 1
-  when the claims outrun the coin.
-- It matters more than it used to. Seats now open their accounts with money in
-  them (`starting_account:` in `docs/roles.yaml`), so an unstocked Vault is not
-  a quiet inconvenience — it is forty characters holding a balance the ATM will
-  refuse to pay. The balances come to about 1,590 ¢ at 100 players and 2,170
-  at 150, against a Vault of 350.
+- The **Vault** is `undertown-1-7`, a real room behind the Baron's key, and
+  every TREASURY account draws on that pile and nothing else.
+- **Stocked as the town is made.** The Vault is stocked with **40%** of the
+  town's starting balances, rather than poured at Start Game. It has no
+  authored obols in `docs/zones.yaml`. Instead, each new character's starting
+  balance puts `GameConfig.vaultReservePercent` of itself into the Vault as
+  coin, in the same transaction that opens the account
+  (`db/lib/startingAccount.js`). The share is rounded up per character, so the
+  Vault never falls short of the percentage. The Baron's balance is left out.
+  So the Vault always holds that share of what everybody opened with, late
+  joiners included — deliberately short of the claims, so a bank run is a live
+  possibility from day one. 40% is the default, matching the floor
+  `npm run db:audit-vault-backing` fails under; it is the **Vault stock** knob
+  in the Economy section of `/gm/dev`, and a change applies to characters
+  created after it. Offshore balances stock it too, though nothing draws them
+  from it, which leaves the Treasury claims a little better covered than the
+  figure says.
+- **Every seat's starting figures wobble by up to 10%**
+  (`db/lib/startingVariance.js`). Each new character's `starting_account:`
+  balance and `Obol xN` purse are rolled at creation, so two Courtiers rarely
+  start with the same money, and the Vault — stocked from the rolled balances —
+  wobbles with them. A figure too small to move by a whole obol (anything
+  under 10) stays as written.
+- **A GM can still stock the Vault by hand** from `/gm/dev/zones` (the room's
+  "Seed these items now" box), which adds on top of whatever the characters
+  put in. `db:import-zones` never writes a stash.
 - **The ATM — an infoterminal now** (`RINGS.md` §5) moves obols between an
   account and physical `obol` tags. It reads the signet ring on your finger:
   no registered ring, no account, and somebody else's ring (or your own while

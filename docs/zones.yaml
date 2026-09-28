@@ -1073,23 +1073,18 @@ zones:
             stash:
               resources: 14
               items:
-                # The town's money. Every Treasury bank account is a claim on
-                # this pile and nothing else, so a withdrawal takes real coin
-                # out of this room and an empty Vault means nobody gets paid.
-                # See docs/systemdocs/DEPOT.md §0g.
-                #
-                # DELIBERATELY SHORT OF THE CLAIMS. The starting balances
-                # (`starting_account:` in docs/roles.yaml) come to about 1,590
-                # at 100 players and 2,170 at 150, so this pile covers well
-                # under half of what the town is owed and a bank run is a live
-                # possibility from day one. That is the design, not drift: the
-                # ATM refuses rather than clamps, so the money goes to whoever
-                # walks up first. Do not "fix" this by raising it to match.
-                # `npm run db:audit-vault-backing` measures the ratio.
-                #
-                # 350 is the middle of the range: Start Game pours 315–385,
-                # rolled once a game (db/lib/startingVariance.js).
-                obol: 350
+                # NO OBOLS HERE, on purpose. The town's money is stocked as the
+                # town is made: each new character's starting bank balance puts
+                # GameConfig.vaultReservePercent of it into this room as coin
+                # (40% by default, a knob on /gm/dev; the Baron's is left out).
+                # So the Vault always holds that share of what everybody opened
+                # with — DELIBERATELY SHORT OF THE CLAIMS, so a bank run is a
+                # live possibility from day one. Every Treasury bank account is
+                # a claim on this pile and nothing else, the ATM refuses rather
+                # than clamps, and the money goes to whoever walks up first.
+                # Do not add an `obol:` line back: Start Game would pour it on
+                # top of the stock. See docs/systemdocs/DEPOT.md §0g, and
+                # `npm run db:audit-vault-backing` for the ratio.
                 painting: 1
                 # The Hand's old one. Anybody who can already open the Vault
                 # can have the run of the lift too — that is a short list, and

@@ -23,8 +23,6 @@
 // Takes `prisma` as a parameter for the db/lib/dm.js reason, and is
 // deliberately NOT on the @lifeweb/db barrel; require it by path.
 
-const { varyVaultEntries } = require("./startingVariance");
-
 // `{ resources, items: [[slug, quantity], ...], hidden: [[slug, quantity], ...] }`,
 // the shape db/lib/syncZones/parse.js#parseStash normalises a `stash:` block
 // into, and the shape Room.stashSeed stores. Resources are a tag like any
@@ -109,18 +107,14 @@ async function seedRoomStashRows(prisma, room, entries) {
 // Every room in the game that has an authored stash it has not been given
 // yet. This is what Start Game calls, and it is safe to call again: a second
 // run finds every slug already in seededStashSlugs and writes nothing.
-//
-// The Vault's obols are rolled within 10% of the authored figure here, and
-// only here (db/lib/startingVariance.js): once a game, because this pour is.
-// The hand-seeding box above takes what the GM typed.
-async function seedAuthoredStashes(prisma, { rng = Math.random } = {}) {
+async function seedAuthoredStashes(prisma) {
   const rooms = await prisma.room.findMany({
     where: { NOT: { stashSeed: { equals: null } } },
     select: { id: true, slug: true, seededStashSlugs: true, stashSeed: true, destroysContents: true },
   });
   const report = { rooms: 0, items: 0, unknown: [], refusedHidden: [] };
   for (const room of rooms) {
-    const entries = varyVaultEntries(room.slug, stashSeedEntries(room.stashSeed), rng);
+    const entries = stashSeedEntries(room.stashSeed);
     if (entries.length === 0) continue;
     const out = await seedRoomStashRows(prisma, room, entries);
     if (out.seeded > 0) {

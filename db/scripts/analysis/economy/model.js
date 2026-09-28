@@ -1822,9 +1822,12 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   {
     const depotDoc = fs.readFileSync(path.join(REPO, "docs/systemdocs/DEPOT.md"), "utf8");
     const charsDoc = fs.readFileSync(path.join(REPO, "docs/systemdocs/CHARACTERS.md"), "utf8");
+    // The credit moved out of createActions.js into db/lib/startingAccount.js, which createActions calls.
     const createSrc = fs.readFileSync(path.join(REPO, "web/app/(app)/character/createActions.js"), "utf8");
+    const accountSrc = fs.readFileSync(path.join(REPO, "db/lib/startingAccount.js"), "utf8");
     const saysEmpty = /An account opens EMPTY/.test(depotDoc) || /account itself opens EMPTY/.test(charsDoc);
-    const seeds = /startingAccountObols/.test(createSrc) && /bumpBankAccount\([^)]*startingAccountObols/.test(createSrc);
+    const seeds =
+      /openStartingAccount\(/.test(createSrc) && /bumpBankAccount\([^)]*startingAccountObols/.test(accountSrc);
     const seededRoles = starting.roles.filter((r) => r.bank > 0);
     // CHARACTERS.md §3 lists who sets extra_starting_points in a parenthetical after the budget line:
     // "(Baron, Heir and Hand +5, Courtier +7, Migrant +3, the Bastard +2, Bum −3; docs/roles.yaml is the
@@ -1848,13 +1851,14 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
     const extraOk =
       extraRoles.length === docExtra.size &&
       extraRoles.every((r) => docExtra.get(r.name.replace(/^the /i, "").toLowerCase()) === r.extraPoints);
-    const vaultDoc = Number((depotDoc.match(/carrying \*\*(\d+) obols\*\*/) ?? [])[1]);
+    const vaultDoc = Number((depotDoc.match(/stocked with \*\*(\d+)%\*\* of/) ?? [])[1]);
+    const vaultKnob = require("../../../lib/gameConfigFields").FIELDS.find((f) => f.key === "vaultReservePercent")?.default;
     claims.push(
       {
         doc: "DEPOT.md, CHARACTERS.md",
         claim: "A bank account opens empty; a starting purse is physical obols",
         docValue: saysEmpty ? "opens empty" : "not stated",
-        model: seeds ? `createActions.js credits role.startingAccountObols on creation (${seededRoles.length} roles start with a balance)` : "nothing seeds an account",
+        model: seeds ? `startingAccount.js credits role.startingAccountObols on creation (${seededRoles.length} roles start with a balance)` : "nothing seeds an account",
         ok: !(saysEmpty && seeds),
         note: "A doc bug: the docs predate the seeding in createActions.js.",
       },
@@ -1868,11 +1872,11 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       },
       {
         doc: "DEPOT.md §0g",
-        claim: "The Vault carries the obols its doc names",
-        docValue: Number.isFinite(vaultDoc) ? `${vaultDoc} obols` : "not stated",
-        model: starting.vault ? `${starting.vault.coin} obols in docs/zones.yaml` : "no Vault room",
-        ok: Boolean(starting.vault) && starting.vault.coin === vaultDoc,
-        note: "If this differs, the Vault stash in zones.yaml has moved since the doc was written.",
+        claim: "The Vault is stocked with the share of starting balances its doc names",
+        docValue: Number.isFinite(vaultDoc) ? `${vaultDoc}%` : "not stated",
+        model: vaultKnob != null ? `${vaultKnob}% (GameConfig.vaultReservePercent's default)` : "no vaultReservePercent knob",
+        ok: vaultKnob === vaultDoc,
+        note: "If this differs, the /gm/dev knob's default (db/lib/gameConfigFields.js) has moved since the doc was written.",
       },
     );
   }
