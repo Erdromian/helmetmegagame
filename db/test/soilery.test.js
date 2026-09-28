@@ -1,7 +1,7 @@
 // node --test over db/lib/soilery.js. Pure and Prisma-free. Covers the Farm
 // button's rules after the Soilery Rework: 100 crops, a 1-in-6 wither die per
 // crop (real per-unit variance, never a rounded average), one Foodstuff per
-// survivor, the Exhausted/Tired refusal, and that the catalog carries the
+// survivor, the Recently Farmed/Exhausted refusal, and that the catalog carries the
 // tags all of it names.
 const test = require("node:test");
 const assert = require("node:assert/strict");
@@ -36,12 +36,16 @@ test("reapFoodstuffs: real per-unit variance — a large sample lands within 3 s
   assert.ok(Math.abs(got - mean) < 3 * sd, `got ${got}, expected about ${mean}`);
 });
 
-test("farmRefusalFor: needs Soilery, refuses Exhausted AND Tired, and a second action", () => {
+test("farmRefusalFor: needs Soilery, refuses Recently Farmed and Exhausted but not Tired, and a second action", () => {
   const soiler = [{ tag: { slug: "soilery" } }];
   assert.equal(farmRefusalFor([], false), "You don't know how to farm.");
   assert.equal(farmRefusalFor(soiler, false), null);
+  assert.equal(
+    farmRefusalFor([...soiler, { tag: { slug: "recently-farmed" } }], false),
+    "The fields need some time to recover before you can plant there again.",
+  );
   assert.match(farmRefusalFor([...soiler, { tag: { slug: "exhausted" } }], false), /worn out/);
-  assert.match(farmRefusalFor([...soiler, { tag: { slug: "tired" } }], false), /worn out/);
+  assert.equal(farmRefusalFor([...soiler, { tag: { slug: "tired" } }], false), null);
   assert.match(farmRefusalFor(soiler, true), /already have an action/);
 });
 
@@ -68,6 +72,7 @@ test("the catalog: Foodstuffs weigh 1 and restore 4 hunger for -5 mood; the crop
     assert.equal(tags[`${slug}-seed-bag`], undefined, `${slug}-seed-bag is retired`);
     assert.equal(tags[`sowing-${slug}`], undefined, `sowing-${slug} is retired`);
   }
-  // Exhausted wears off into Tired, which is what makes a farmer farm one turn in three.
-  assert.deepEqual([].concat(tags.exhausted.expiresInto), ["tired"]);
+  // Recently Farmed lasts 2 turns, which is what makes a farmer farm one turn in three.
+  assert.equal(tags["recently-farmed"].name, "Recently Farmed");
+  assert.equal(tags["recently-farmed"].durationTurns, 2);
 });
