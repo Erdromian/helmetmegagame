@@ -234,7 +234,7 @@ async function requestPassage(prisma, discordUserId, { roomSlug, text: rawText, 
   return { ok: true, line: T.requestSent };
 }
 
-// ─── Process Requests ─────────────────────────────────────────────────────
+// ─── Grant Passage ─────────────────────────────────────────────────────
 
 // Every waiting request whose asker is still alive, with the asker's tags for the live offer.
 async function pendingPassages(prisma, where = {}) {
@@ -630,7 +630,7 @@ async function submitDocumentation(prisma, discordUserId, { turn = null } = {}) 
 }
 
 /**
- * The Create Documents terminal: new submissions, and the register — everybody
+ * The Documents terminal: new submissions, and the register — everybody
  * with a ring, and everybody documented. Real names on the register, the
  * treasury's own ring register's posture (docs/systemdocs/STRANGERS.md §7); a
  * new submission is only blood, so it reads as whoever the clerk sees.

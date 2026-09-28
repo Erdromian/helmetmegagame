@@ -88,7 +88,7 @@ export async function gateSubmitDocumentation() {
   return submitDocumentation(prisma, me.discordUserId, { turn: await openTurn() });
 }
 
-// ─── Process Requests ─────────────────────────────────────────────────────
+// ─── Grant Passage ─────────────────────────────────────────────────────
 
 export async function gateProcessView() {
   const me = await whoAmI();
@@ -123,7 +123,7 @@ export async function gateMagma() {
   return result.ok ? landed(result) : result;
 }
 
-// ─── Create Documents ─────────────────────────────────────────────────────
+// ─── Documents ─────────────────────────────────────────────────────
 
 export async function gateDocumentsView() {
   const me = await whoAmI();

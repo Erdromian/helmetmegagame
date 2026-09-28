@@ -40,7 +40,7 @@ was this doc's "shift 1 tile to the left".
 | Room | Slug | Opens onto | What is in it |
 |---|---|---|---|
 | Gate | `town-1-1` | the Gatehouse, and the **Bridge** (public) | Request Passage (inward, from the Bridge side only); Submit for Documentation (either side) |
-| Gate Controls | `town-1-2` | the Gatehouse | the lever; Process Requests (gatehouse-key ring); Create Documents (anybody); a phonebook |
+| Gate Controls | `town-1-2` | the Gatehouse | the lever; Grant Passage (gatehouse-key ring); Documents (anybody); a phonebook |
 | Incarn's Chambers | `town-1-3` | the Gatehouse | `access: [incarns-key]` |
 | Gatehouse Window | `town-1-4` | the Gatehouse, and the **Square** (public) | Request Passage (outward, from the Square side only) |
 
@@ -64,13 +64,16 @@ against what the asker actually holds every time it is shown or processed, so
 a thing dropped or stolen in between simply drops out of it (the doc: "they
 become absent from the request").
 
-- IN from the Gate on the Bridge side, OUT from the Window on the Square side.
+- **Entering** Ravenheart is asked at the **Gate**, from the Bridge. **Leaving**
+  is asked at the **Gatehouse Window**, from the Square. Nobody inside the
+  Gatehouse can ask at all: the button is not drawn there, and
+  `directionFor` refuses a stale press (`requestInside`).
 - One waiting request a character; sending another replaces it.
 - **Leaving withdraws it.** `db/lib/locationMove.js#applyArrivalFacts` deletes a
   PENDING row whenever its owner changes Location — walking, a teleport, a rite,
   anything. An approval resolves the row before it moves anybody.
 
-## 4. Process Requests
+## 4. Grant Passage
 
 `processView` / `approvePassage` / `denyPassage` / `pourMagma` /
 `passageHistory`. Gated on a **worn ring carrying `gatehouse-key`**
@@ -104,7 +107,7 @@ the asker as the clerk sees them (`intercept.js#seenByIdMany` — a stranger is
 `GateDocumentation` row. Refused if the terminal already knows your blood — you
 hold a treasury account — or your sample is already waiting.
 
-**Create Documents** in Gate Controls is anybody's (the doc). It shows the new
+**Documents** in Gate Controls is anybody's (the doc). It shows the new
 submissions (as the clerk sees them: a sample is only blood) and the
 **register**: everybody with a registered ring, and everybody documented, by
 name, occupation and account. Real names, the treasury's own ring register's
@@ -157,7 +160,7 @@ and refusing Documents.
 | `gate_passage_approved` / `gate_passage_denied` | the terminal, with what moved and the clerk's ring |
 | `gate_magma` | the terminal, with who died |
 | `documentation_submitted` | the finger-prick at the Gate |
-| `documents_issued` / `documentation_denied` | Create Documents |
+| `documents_issued` / `documentation_denied` | Documents |
 | `treasury_account_closed` | the Meister's Close account |
 
 Every row done at the controls carries `locationId` and `roomId` (Gate
@@ -180,8 +183,8 @@ allowlist and `GATEHOUSE` is not in `oracleInput.js`'s beat kinds.
 |---|---|---|
 | Request Passage | dialog: text and a picker with quantities | modal for the text, then a select of whole stacks |
 | Submit for Documentation | the shared confirm | a confirm button |
-| Process Requests | dialog: grouped radio list, Approve screen with two pickers, History in the header | panel: a select of requests, Approve (two selects of whole stacks), Deny, Magma, History |
-| Create Documents | dialog: each submission with Name and Occupation, the register as a table | panel: a select of submissions, then a Name/Occupation modal or Deny |
+| Grant Passage | dialog: grouped radio list, Approve screen with two pickers, History in the header | panel: a select of requests, Approve (two selects of whole stacks), Deny, Magma, History |
+| Documents | dialog: each submission with Name and Occupation, the register as a table | panel: a select of submissions, then a Name/Occupation modal or Deny |
 | The lever, the portcullis | gate buttons (the lever in Gate Controls' room panel, the portcullis on both place cards) | `loc:gate:` buttons on the Gate Controls starter and on both anchors |
 
 Web: `web/app/(app)/chat/GatehouseDialogs.js` and `gatehouseActions.js`.

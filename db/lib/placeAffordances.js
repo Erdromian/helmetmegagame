@@ -279,8 +279,8 @@ const ROOM_AFFORDANCES = [
     sides: true,
     when: (room) => room?.slug === GATE_ROOM_SLUG,
   },
-  // Gate Controls' terminal. Process Requests asks for a gatehouse-key ring
-  // when pressed; Create Documents is anybody's in the room (the doc).
+  // Gate Controls' terminal. Grant Passage asks for a gatehouse-key ring
+  // when pressed; Documents is anybody's in the room (the doc).
   {
     id: "processRequests",
     label: GATEHOUSE_TEXT.processButton,

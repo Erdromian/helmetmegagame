@@ -86,9 +86,9 @@ const GATEHOUSE_TEXT = Object.freeze({
   documentWaiting: "You are already in the database, waiting to be processed.",
   documentAlready: "The terminal already knows your blood. You have an account at the treasury.",
 
-  // ─── Process Requests (Gate Controls) ───────────────────────────────────
-  processButton: "Process Requests",
-  processTitle: "Process Requests",
+  // ─── Grant Passage (Gate Controls) ───────────────────────────────────
+  processButton: "Grant Passage",
+  processTitle: "Grant Passage",
   processNoRing: "Access denied.",
   groupIn: "Into Ravenheart",
   groupOut: "Out of Ravenheart",
@@ -147,7 +147,7 @@ const GATEHOUSE_TEXT = Object.freeze({
   historyGiven: "Given",
 
   // ─── Create Documents (Gate Controls) ───────────────────────────────────
-  createButton: "Create Documents",
+  createButton: "Documents",
   createTitle: "Create Documents",
   pendingTitle: "New submissions",
   pendingEmpty: "No new submissions.",

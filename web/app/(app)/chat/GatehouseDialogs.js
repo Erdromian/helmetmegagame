@@ -28,7 +28,7 @@ import {
 
 // The Town Gatehouse's dialogs (Incarn and gates.docx,
 // docs/systemdocs/GATEHOUSE.md): asking to pass at a window, the clerk's
-// Process Requests terminal, and Create Documents. Opened from
+// Grant Passage terminal, and Documents. Opened from
 // ./PlacePanel.js#usePlaceActions like every other fixture. Every rule is in
 // db/lib/gatehouse.js; this is the shape of the pages, and nothing here is
 // trusted — the server re-reads who is standing where on every press.
@@ -170,7 +170,7 @@ export function PassageDialog({ entry, onClose, onDone }) {
   );
 }
 
-// ─── Process Requests ─────────────────────────────────────────────────────
+// ─── Grant Passage ─────────────────────────────────────────────────────
 
 function RequestRow({ row, checked, onPick }) {
   const offer = linesText(row.offered);
@@ -464,7 +464,7 @@ export function ProcessRequestsDialog({ onClose, onDone }) {
   );
 }
 
-// ─── Create Documents ─────────────────────────────────────────────────────
+// ─── Documents ─────────────────────────────────────────────────────
 
 function SubmissionRow({ row, onDone }) {
   const [name, setName] = useState("");

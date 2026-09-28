@@ -123,7 +123,7 @@ opens nothing.
   way between the Storefront and the Depot and the Cargo Bay (`DEPOT.md` §0b).
 - `gatehouse-key`, on the Baron's, the Hand's, the Incarn's, the Censor's, the
   Cerberi's and the Squires' rings, opens the way from the Square into the Town
-  Gatehouse, and — ring only — works Process Requests in its Gate Controls.
+  Gatehouse, and — ring only — works Grant Passage in its Gate Controls.
   `portcullis-key`, on the same rings with the Meister's in place of the
   Incarn's, works the portcullis between the Residences and the Courtyard, ring
   only (`GATEHOUSE.md`, `MAP.md` §2a).

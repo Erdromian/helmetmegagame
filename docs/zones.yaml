@@ -256,9 +256,9 @@ zones:
               - location: bridge
             description: >-
               Great doors of steel loom, keeping the evils out of Ravenheart. A tiny window connects the gatehouse, allowing newcomers to be properly inspected. A small terminal is inlaid into the wall, with a small hole for you to insert your finger into if you are feeling brave. The metal floor of the fort's entryway sounds hollow and almost feels warm to the touch.
-          # The lever for the Bridge–Square gate, Process Requests and Create
-          # Documents. The lever and the documents are anybody's who gets in
-          # here; Process Requests asks for a gatehouse-key ring. This row was
+          # The lever for the Bridge–Square gate, Grant Passage and Documents.
+          # The lever and the documents are anybody's who gets in
+          # here; Grant Passage asks for a gatehouse-key ring. This row was
           # the Watchhouse, and keeps its slug and its phonebook.
           town-1-2:
             name: Gate Controls

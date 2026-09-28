@@ -93,6 +93,9 @@ test("Request Passage is on the outside of each window, never the inside", () =>
   assert.ok(!ids(gateHome, "town-1").includes("requestPassage"));
   assert.ok(ids(windowFromSquare, "town-2").includes("requestPassage"));
   assert.ok(!ids(windowHome, "town-1").includes("requestPassage"));
+  // Entering is the Gate's, leaving the Window's: never the other way round.
+  assert.ok(!ids({ ...gateHome, sideId: "side-x" }, "town-2").includes("requestPassage"));
+  assert.ok(!ids({ ...windowHome, sideId: "side-x" }, "bridge").includes("requestPassage"));
   // The finger-prick is on both sides of the Gate; the Window has none.
   assert.ok(ids(gateFromBridge, "bridge").includes("submitDocumentation"));
   assert.ok(ids(gateHome, "town-1").includes("submitDocumentation"));
@@ -357,7 +360,7 @@ test("asking, approving, denying, magma and documents, end to end", { skip: SKIP
   assert.equal((await G.submitDocumentation(prisma, uid(migrant), { turn })).ok, true);
   assert.equal((await G.submitDocumentation(prisma, uid(migrant), { turn })).error, T.documentWaiting);
   const docs = await G.documentsView(prisma, uid(plain));
-  assert.equal(docs.ok, true, "Create Documents is anybody's in the room");
+  assert.equal(docs.ok, true, "Documents is anybody's in the room");
   const submission = docs.pending.find((p) => p.id);
   const mine2 = await prisma.gateDocumentation.findFirst({ where: { characterId: migrant.id, status: "PENDING" } });
   assert.ok(submission && mine2);

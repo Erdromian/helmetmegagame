@@ -1,8 +1,8 @@
 // The Town Gatehouse on Discord (Incarn and gates.docx, docs/systemdocs/GATEHOUSE.md).
 //
 // The twin of Chat's dialogs (web/app/(app)/chat/GatehouseDialogs.js): asking
-// to pass at a window, the finger-prick, the clerk's Process Requests terminal
-// and Create Documents. Every rule and every refusal lives in
+// to pass at a window, the finger-prick, the clerk's Grant Passage terminal
+// and Documents. Every rule and every refusal lives in
 // db/lib/gatehouse.js, so this face and Chat's cannot drift — this file is
 // buttons, selects and modals only. The lever and the portcullis are ordinary
 // gate buttons (loc:gate:, bot/src/events/interactions/travel.js).
@@ -193,7 +193,7 @@ async function handleBloodYes(interaction) {
   await respond(interaction, { content: result.ok ? result.line : result.error, components: [] });
 }
 
-// ─── Process Requests ─────────────────────────────────────────────────────
+// ─── Grant Passage ─────────────────────────────────────────────────────
 
 function requestLine(row, i) {
   const offer = linesText(row.offered) ?? T.offeredNone;
@@ -391,7 +391,7 @@ async function handleHistory(interaction) {
   });
 }
 
-// ─── Create Documents ─────────────────────────────────────────────────────
+// ─── Documents ─────────────────────────────────────────────────────
 
 async function documentsPanel(discordUserId, note = null) {
   const view = await documentsView(prisma, discordUserId);
