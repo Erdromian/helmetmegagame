@@ -31,6 +31,7 @@ const { addToStack, dropCharacterTag } = require("./tagWrites");
 const { characterParty, machineParty, turnStamp } = require("./economyLedger");
 const { holdLimitRefusal } = require("./mounts");
 const { SFX } = require("./sfx");
+const { logAudit } = require("./auditLog");
 const {
   MERCHANT_TERMINAL_TOKEN,
   MERCHANT_TERMINAL_TEXT: T,
@@ -279,14 +280,12 @@ async function insertObols(prisma, discordUserId, { amount, turn = null } = {}) 
       select: { terminalObols: true },
     });
     total = updated.terminalObols;
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "merchant_terminal_insert",
-        targetCharacterId: character.id,
-        turnId: turn?.id ?? null,
-        details: { amount: n, holdsAfter: total },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: discordUserId,
+      actionType: "merchant_terminal_insert",
+      targetCharacterId: character.id,
+      turnId: turn?.id ?? null,
+      details: { amount: n, holdsAfter: total },
     });
     return { ok: true };
   });
@@ -321,14 +320,12 @@ async function withdrawObols(prisma, discordUserId, { amount, turn = null } = {}
       stackable: true,
       econ: { from: TERMINAL_PARTY, to: characterParty(character), reason: "TERMINAL_WITHDRAW", ...turnStamp(turn) },
     });
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "merchant_terminal_withdraw",
-        targetCharacterId: character.id,
-        turnId: turn?.id ?? null,
-        details: { amount: n, holdsAfter: total },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: discordUserId,
+      actionType: "merchant_terminal_withdraw",
+      targetCharacterId: character.id,
+      turnId: turn?.id ?? null,
+      details: { amount: n, holdsAfter: total },
     });
     return { ok: true };
   });
@@ -366,14 +363,12 @@ async function placeOrder(prisma, discordUserId, { items, turn = null } = {}) {
         placedTurn: turn?.number ?? 0,
       },
     });
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "merchant_terminal_order",
-        targetCharacterId: character.id,
-        turnId: turn?.id ?? null,
-        details: { orderId: order.id, lines, subtotal },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: discordUserId,
+      actionType: "merchant_terminal_order",
+      targetCharacterId: character.id,
+      turnId: turn?.id ?? null,
+      details: { orderId: order.id, lines, subtotal },
     });
     return { ok: true, id: order.id };
   });
@@ -413,14 +408,12 @@ async function editOrder(prisma, discordUserId, { orderId, items, turn = null } 
       data: { lines, totalObols: subtotal },
     });
     if (count !== 1) throw userError(T.noOrder);
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "merchant_terminal_order_edit",
-        targetCharacterId: character.id,
-        turnId: turn?.id ?? null,
-        details: { orderId: id, lines, subtotal },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: discordUserId,
+      actionType: "merchant_terminal_order_edit",
+      targetCharacterId: character.id,
+      turnId: turn?.id ?? null,
+      details: { orderId: id, lines, subtotal },
     });
     return { ok: true };
   });
@@ -440,14 +433,12 @@ async function removeOrder(prisma, discordUserId, { orderId, turn = null } = {})
     if (!order) throw userError(T.noOrder);
     const { count } = await tx.merchantOrder.deleteMany({ where: { id, deliveredAt: null } });
     if (count !== 1) throw userError(T.noOrder);
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "merchant_terminal_order_remove",
-        targetCharacterId: character.id,
-        turnId: turn?.id ?? null,
-        details: { orderId: id, lines: linesOf(order), subtotal: order.totalObols },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: discordUserId,
+      actionType: "merchant_terminal_order_remove",
+      targetCharacterId: character.id,
+      turnId: turn?.id ?? null,
+      details: { orderId: id, lines: linesOf(order), subtotal: order.totalObols },
     });
     return { ok: true };
   });

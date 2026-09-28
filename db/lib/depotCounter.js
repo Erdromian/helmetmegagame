@@ -49,6 +49,7 @@ const { RING_TEXT } = require("./ringText");
 const { GATEHOUSE_TEXT } = require("./gatehouseText");
 const { SCRAMBLING_TAG_SLUGS } = require("./memoryScramble");
 const { ensurePin } = require("./acquaintances");
+const { logAudit } = require("./auditLog");
 
 function fail(error) {
   return { ok: false, error };
@@ -309,24 +310,22 @@ async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, p
         }
       }
 
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "request_depot_atm",
-          targetCharacterId: character.id,
-          turnId: turn?.id ?? null,
-          details: {
-            direction: withdrawing ? "WITHDRAW" : "DEPOSIT",
-            amount,
-            balanceBefore: moved.before,
-            balanceAfter: moved.after,
-            backed,
-            // The balances above are the Vault's own pile when this is set.
-            ...(crown ? { crown: true } : {}),
-            fingerprint: account.fingerprint,
-            // Whose account it was — a ring on the wrong finger reaches somebody else's.
-            ...(account.characterId !== character.id ? { accountHolderId: account.characterId } : {}),
-          },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "request_depot_atm",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: {
+          direction: withdrawing ? "WITHDRAW" : "DEPOSIT",
+          amount,
+          balanceBefore: moved.before,
+          balanceAfter: moved.after,
+          backed,
+          // The balances above are the Vault's own pile when this is set.
+          ...(crown ? { crown: true } : {}),
+          fingerprint: account.fingerprint,
+          // Whose account it was — a ring on the wrong finger reaches somebody else's.
+          ...(account.characterId !== character.id ? { accountHolderId: account.characterId } : {}),
         },
       });
     });
@@ -448,25 +447,23 @@ async function bankSend(prisma, discordUserId, { toAccountId, toTreasury = false
       // The Crown's side of the audit row is the pile, which a send never moves.
       if (fromCrown) moved[account.id] = { before: holds, after: holds, delta: 0 };
 
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "request_depot_send",
-          targetCharacterId: character.id,
-          turnId: turn?.id ?? null,
-          details: {
-            amount,
-            balanceBefore: moved[account.id].before,
-            balanceAfter: moved[account.id].after,
-            toTreasury: Boolean(toTreasury),
-            // A send from the Crown issues a claim; one to the Crown surrenders it.
-            ...(fromCrown ? { fromCrown: true } : {}),
-            ...(toCrown ? { toCrown: true } : {}),
-            // Snapshots, the log-table convention: the row has to keep reading
-            // correctly after a holder is renamed or an account is closed.
-            toName: target?.holderName ?? null,
-            toFingerprint: target?.fingerprint ?? null,
-          },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "request_depot_send",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: {
+          amount,
+          balanceBefore: moved[account.id].before,
+          balanceAfter: moved[account.id].after,
+          toTreasury: Boolean(toTreasury),
+          // A send from the Crown issues a claim; one to the Crown surrenders it.
+          ...(fromCrown ? { fromCrown: true } : {}),
+          ...(toCrown ? { toCrown: true } : {}),
+          // Snapshots, the log-table convention: the row has to keep reading
+          // correctly after a holder is renamed or an account is closed.
+          toName: target?.holderName ?? null,
+          toFingerprint: target?.fingerprint ?? null,
         },
       });
     });
@@ -538,14 +535,12 @@ async function toggleDepotTurret(prisma, discordUserId, { word, turn = null } = 
 
   await prisma.$transaction(async (tx) => {
     await tx.depot.update({ where: { id: 1 }, data: { turretArmed: next } });
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: discordUserId,
-        actionType: "depot_turret_toggled",
-        targetCharacterId: actor.character.id,
-        turnId: turn?.id ?? null,
-        details: { armed: next, characterId: actor.character.id, characterName: actor.character.name },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: discordUserId,
+      actionType: "depot_turret_toggled",
+      targetCharacterId: actor.character.id,
+      turnId: turn?.id ?? null,
+      details: { armed: next, characterId: actor.character.id, characterName: actor.character.name },
     });
   });
 

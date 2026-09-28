@@ -463,7 +463,8 @@ streets and onto the fortress entrance. The last two came with the gates rework
 **Gatehouse Window** onto the Square, both publicly. The **Meistery Window**
 (`fortress-5-4`, `MEISTERY.md` §2) came with the Meistery: home in the Tower,
 behind the Baron's, the Hand's and the Meister's rings, and public onto the
-Residences. It is the first side that crosses zones, Fortress to Town.
+Square (the Residences until 2026-09-28). It is the first side that crosses
+zones, Fortress to Town.
 
 **The model.** A Room still has one home, `Room.locationId`, gated by its own
 `kind`/`accessTagSlugs` as ever. Each `RoomSide` row is one more Location it

@@ -240,6 +240,11 @@ enum ArchiveKind {
   // decided, the magma, documents printed or refused (GATEHOUSE.md). Never on
   // a feed: the terminal keeps no log of its own (Incarn and gates.docx).
   GATEHOUSE
+  // What a character DID: a verb, a Move, or what the GM and the engine did to
+  // them as a result. Filed from the audit row by db/lib/archiveActions.js,
+  // with the audit row itself in `action`. Never on a feed (no placeKey), and
+  // hidden on /archive until the Actions switch is on (ARCHIVE.md).
+  ACTION
 }
 
 // Which face wrote an ArchiveEntry. DISCORD is a message proxied out of a
@@ -6675,6 +6680,21 @@ model ArchiveEntry {
   // renders this per reader (db/lib/strangers.js#lensRow); like the audience
   // it rides a hidden symbol and never reaches the wire.
   subjects Json?
+
+  // The audit row behind an ACTION row, and null on every other kind:
+  // { type, details, targetId, targetName, locationName }. /archive draws it as
+  // a sentence with the audit log's own renderer (web/lib/auditNarrative.js);
+  // `content` holds a plain one-line version for search and for packets. Like
+  // presentedState, NEVER put it in FEED_ROW_SELECT: `details` can name what a
+  // hidden hand did.
+  action Json?
+
+  // The Location it was said or done at, by the name it had then, the same
+  // snapshot argument as zoneName. A room or conversation carries its
+  // Location's name here, so /archive can narrow to a Location and everything
+  // inside it. Filled from the placeKey (db/lib/archive.js), or from the audit
+  // row's place for an ACTION row (db/lib/archiveActions.js).
+  locationName String?
 
   // Forum post / thread title, so a scene reads as one unit rather than
   // scattered lines under its location.

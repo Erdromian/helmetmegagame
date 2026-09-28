@@ -37,6 +37,7 @@ const { holdLimitRefusal } = require("./mounts");
 const { rowWeight } = require("./tagWeight");
 const { SFX } = require("./sfx");
 const { BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT: T } = require("./blackMarketText");
+const { logAudit } = require("./auditLog");
 
 // The ring token that works the terminal, and opens the office door for the
 // Pusher. A tag row in docs/tags.yaml that is never an item (RINGS.md §3).
@@ -229,15 +230,13 @@ async function insertObols(prisma, discordUserId, { amount, turn = null } = {}) 
         select: { blackMarketObols: true },
       });
       total = updated.blackMarketObols;
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "black_market_insert",
-          targetCharacterId: character.id,
-          roomId: room.id,
-          turnId: turn?.id ?? null,
-          details: { amount: n, creditAfter: total },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "black_market_insert",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: { amount: n, creditAfter: total },
+        place: { locationId: null, roomId: room.id },
       });
     });
   } catch {
@@ -298,15 +297,13 @@ async function blackMarketOrder(prisma, discordUserId, { items, turn = null } = 
       }
       const after = await tx.room.findUnique({ where: { id: room.id }, select: { blackMarketObols: true } });
       left = after?.blackMarketObols ?? 0;
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "black_market_order",
-          targetCharacterId: character.id,
-          roomId: room.id,
-          turnId: turn?.id ?? null,
-          details: { lines: snapshot, total, creditAfter: left },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "black_market_order",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: { lines: snapshot, total, creditAfter: left },
+        place: { locationId: null, roomId: room.id },
       });
     });
   } catch (err) {

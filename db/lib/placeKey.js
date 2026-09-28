@@ -206,6 +206,31 @@ async function archiveContextForPlaceKey(prisma, placeKey) {
   return { zoneId: zone.id, zoneName: zone.name, channelKind: "summary", threadName: null };
 }
 
+// The Location a key sits in, by name: the Location itself, or the one a room
+// or conversation belongs to. Every archive row carries it (ArchiveEntry.
+// locationName), so this runs on every line said. Memoised for five minutes,
+// since a Location is renamed about never and a stale name costs one row.
+const LOCATION_NAME_TTL_MS = 5 * 60 * 1000;
+const locationNameMemo = new Map();
+
+async function locationNameForPlaceKey(prisma, placeKey) {
+  const parsed = parsePlaceKey(placeKey);
+  if (!parsed || !["loc", "room", "conv"].includes(parsed.kind)) return null;
+  const memo = locationNameMemo.get(placeKey);
+  if (memo && Date.now() - memo.at < LOCATION_NAME_TTL_MS) return memo.name;
+  const select = { location: { select: { name: true } } };
+  let name = null;
+  if (parsed.kind === "loc") {
+    name = (await prisma.location.findUnique({ where: { id: parsed.id }, select: { name: true } }))?.name ?? null;
+  } else if (parsed.kind === "room") {
+    name = (await prisma.room.findUnique({ where: { id: parsed.id }, select }))?.location?.name ?? null;
+  } else {
+    name = (await prisma.playerThread.findUnique({ where: { id: parsed.id }, select }))?.location?.name ?? null;
+  }
+  locationNameMemo.set(placeKey, { name, at: Date.now() });
+  return name;
+}
+
 // The other direction: what a key points at. Returns { kind, id } or null.
 function parsePlaceKey(placeKey) {
   if (typeof placeKey !== "string") return null;
@@ -414,6 +439,7 @@ module.exports = {
   placeKeyForChannel,
   discordTargetForPlaceKey,
   archiveContextForPlaceKey,
+  locationNameForPlaceKey,
   placeKeyForLocation,
   placeKeyForRoom,
   placeKeyForConversation,

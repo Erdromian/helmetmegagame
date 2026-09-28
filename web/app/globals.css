@@ -1734,6 +1734,18 @@ input[type="radio"]:disabled {
   gap: var(--sp-3);
 }
 
+/* From and To side by side: a range reads as one control. */
+.archive-drawer-days {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+.archive-drawer-foot {
+  display: flex;
+  justify-content: flex-end;
+}
+
 /* NOT `overflow: hidden`. It was, and that made .archive its own scrollport,
    so the day header's `position: sticky` stuck to the top of THIS box rather
    than to the viewport and never actually stuck to anything a reader could
@@ -1824,6 +1836,19 @@ input[type="radio"]:disabled {
 .archive-row[data-world="true"] {
   color: var(--muted);
   font-size: var(--fs-xs);
+}
+
+/* Something a character DID (ArchiveKind.ACTION), among the things they said.
+   Quieter than speech so a scene still reads as its conversation, with a mark
+   so an act is never mistaken for a line somebody spoke. */
+.archive-row[data-action="true"] {
+  color: var(--muted);
+  font-size: var(--fs-xs);
+}
+
+.archive-row[data-action="true"] .archive-row-what::before {
+  content: "▸ ";
+  opacity: 0.8;
 }
 
 .archive-row-time {

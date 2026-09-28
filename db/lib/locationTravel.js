@@ -32,6 +32,7 @@ const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
 const { expiryForGrant } = require("./grantExpiry");
 const { addToStack, grantTagSlugs } = require("./tagWrites");
 const { sendDm } = require("./dm");
+const { logAudit } = require("./auditLog");
 
 // Too hurt or too dazed to make a whole zone's walk for free. A Peg Leg is absent on
 // purpose (Bascinet's call: a wooden leg still walks); Pain Shock joins for the other reason: not injured enough to stop you, just too out of it to find your own way. An equipped mount cancels every one of these — the arelitz is doing the walking (or, for Pain Shock, the finding).
@@ -258,22 +259,20 @@ async function pushOn(tx, character, openTurn, targetLocation) {
 
   // No Action is filed — the Move was never spent — so this row is the GM's
   // only record of the push.
-  await tx.auditLog.create({
-    data: {
-      actorDiscordUserId: character.discordUserId ?? null,
-      actionType: "exert_crossing",
-      targetCharacterId: character.id,
-      turnId: openTurn.id,
-      details: {
-        die: roll.die,
-        rolls: roll.rolls,
-        edge: roll.edge,
-        edgeFrom: roll.names,
-        effect,
-        granted: slug,
-        to: targetLocation.name,
-        zone: targetLocation.zone.name,
-      },
+  await logAudit(tx, {
+    actorDiscordUserId: character.discordUserId ?? null,
+    actionType: "exert_crossing",
+    targetCharacterId: character.id,
+    turnId: openTurn.id,
+    details: {
+      die: roll.die,
+      rolls: roll.rolls,
+      edge: roll.edge,
+      edgeFrom: roll.names,
+      effect,
+      granted: slug,
+      to: targetLocation.name,
+      zone: targetLocation.zone.name,
     },
   });
   return { die: roll.die, rolls: roll.rolls, edge: roll.edge, names: roll.names, effect, tagName };
@@ -730,18 +729,16 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
           where: { id: { in: outcome.partyRows.map((t) => t.id) } },
           data: { locationId: targetLocation.id, zoneId: targetLocation.zoneId, lastLocationMoveAt: now },
         });
-        await tx.auditLog.create({
-          data: {
-            actorDiscordUserId: character.discordUserId ?? null,
-            actionType: "characters_escorted",
-            targetCharacterId: character.id,
-            details: {
-              mover: character.name,
-              to: targetLocation.name,
-              zone: targetLocation.zone.name,
-              party: outcome.partyRows.map((t) => ({ id: t.id, name: t.name })),
-              leftBehind: outcome.leftBehind.map((e) => ({ id: e.row.id, name: e.row.name, why: e.reason })),
-            },
+        await logAudit(tx, {
+          actorDiscordUserId: character.discordUserId ?? null,
+          actionType: "characters_escorted",
+          targetCharacterId: character.id,
+          details: {
+            mover: character.name,
+            to: targetLocation.name,
+            zone: targetLocation.zone.name,
+            party: outcome.partyRows.map((t) => ({ id: t.id, name: t.name })),
+            leftBehind: outcome.leftBehind.map((e) => ({ id: e.row.id, name: e.row.name, why: e.reason })),
           },
         });
       }

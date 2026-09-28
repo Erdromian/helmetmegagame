@@ -12,6 +12,7 @@ const { concealmentFrom, CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity
 const { capitalizeFirst } = require("./concealedIdentity");
 const { seenBy } = require("./intercept");
 const { applyKissMood } = require("./mood");
+const { logAudit } = require("./auditLog");
 
 // Same clock as db/lib/discordMirroring.js. Spent by the ASK, not the answer — a decline doesn't refund it, or a whole room could be asked for free.
 const KISS_COOLDOWN_MS = 2 * 60 * 60 * 1000;
@@ -194,15 +195,13 @@ async function createKissOffer(prisma, { actor, target, turn }) {
       data: { kind: "KISS", turnId: turn.id, initiatorId: actor.id, responderId: target.id },
     });
     if (actor.discordUserId) {
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: actor.discordUserId,
-          actionType: KISS_AUDIT_ACTION,
-          targetCharacterId: target.id,
-          turnId: turn.id,
-          locationId: actor.locationId ?? null,
-          details: { offerId: row.id, targetName: target.name, asked: true },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: actor.discordUserId,
+        actionType: KISS_AUDIT_ACTION,
+        targetCharacterId: target.id,
+        turnId: turn.id,
+        details: { offerId: row.id, targetName: target.name, asked: true },
+        place: { locationId: actor.locationId ?? null, roomId: null },
       });
     }
     return row;
@@ -275,25 +274,23 @@ async function acceptKiss(prisma, offer, responder) {
       }),
     ]);
     // One row per side, both carry turnId — REQUESTS.md §1a — the only thing that lets a ration ever count them.
-    await tx.auditLog.createMany({
-      data: [
-        {
-          actorDiscordUserId: actor.discordUserId ?? "system",
-          actionType: KISS_ACCEPTED_ACTION,
-          targetCharacterId: target.id,
-          turnId: turn?.id ?? null,
-          locationId: actor.locationId ?? null,
-          details: { offerId: offer.id, initiator: actor.name, responder: target.name, moodApplied: Boolean(a) },
-        },
-        {
-          actorDiscordUserId: target.discordUserId ?? "system",
-          actionType: KISS_ACCEPTED_ACTION,
-          targetCharacterId: actor.id,
-          turnId: turn?.id ?? null,
-          locationId: target.locationId ?? null,
-          details: { offerId: offer.id, initiator: actor.name, responder: target.name, moodApplied: Boolean(b) },
-        },
-      ],
+    // Through logAudit, one side at a time, so each is filed in the archive as
+    // that side's own act.
+    await logAudit(tx, {
+      actorDiscordUserId: actor.discordUserId ?? "system",
+      actionType: KISS_ACCEPTED_ACTION,
+      targetCharacterId: target.id,
+      turnId: turn?.id ?? null,
+      details: { offerId: offer.id, initiator: actor.name, responder: target.name, moodApplied: Boolean(a) },
+      place: { locationId: actor.locationId ?? null, roomId: null },
+    });
+    await logAudit(tx, {
+      actorDiscordUserId: target.discordUserId ?? "system",
+      actionType: KISS_ACCEPTED_ACTION,
+      targetCharacterId: actor.id,
+      turnId: turn?.id ?? null,
+      details: { offerId: offer.id, initiator: actor.name, responder: target.name, moodApplied: Boolean(b) },
+      place: { locationId: target.locationId ?? null, roomId: null },
     });
     return { actorMoved: Boolean(a), targetMoved: Boolean(b) };
   });

@@ -21,6 +21,7 @@ const { autoMovesOpen } = require("./turnGate");
 const { checkLedgerMove, spendLedgerMove, lockCharacter } = require("./moveLedger");
 const { SEARCH_MOVE } = require("./roomSearchCost");
 const { hiddenCountLine, countHiddenStacks } = require("./roomStash");
+const { logAudit } = require("./auditLog");
 
 const ROOM_SEARCH_AUDIT_ACTION = "room_search";
 
@@ -277,27 +278,24 @@ async function searchRoom(prisma, { character, roomId, turn, rng = Math.random }
         if (count) surfaced.push(row);
       }
       // The only place the die is written down (SEARCH.md §3b).
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: character.discordUserId ?? "",
-          actionType: ROOM_SEARCH_AUDIT_ACTION,
-          targetCharacterId: character.id,
-          turnId: turn.id,
-          locationId: room.locationId,
+      await logAudit(tx, {
+        actorDiscordUserId: character.discordUserId ?? "",
+        actionType: ROOM_SEARCH_AUDIT_ACTION,
+        targetCharacterId: character.id,
+        turnId: turn.id,
+        details: {
           roomId: room.id,
-          details: {
-            roomId: room.id,
-            roomName: room.name,
-            die: roll.die,
-            rolls: roll.rolls,
-            advantage: roll.advantage,
-            modifiers,
-            total,
-            hiddenStacks: hidden.length,
-            revealedTagIds: surfaced.map((r) => r.tagId),
-            move: { num: SEARCH_MOVE.num, den: SEARCH_MOVE.den },
-          },
+          roomName: room.name,
+          die: roll.die,
+          rolls: roll.rolls,
+          advantage: roll.advantage,
+          modifiers,
+          total,
+          hiddenStacks: hidden.length,
+          revealedTagIds: surfaced.map((r) => r.tagId),
+          move: { num: SEARCH_MOVE.num, den: SEARCH_MOVE.den },
         },
+        place: { locationId: room.locationId, roomId: room.id },
       });
       return { surfaced, remaining: await countHiddenStacks(tx, room.id) };
     });

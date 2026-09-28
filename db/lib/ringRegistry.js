@@ -22,6 +22,7 @@ const { registerRing } = require("./ringMint");
 const { isRing, isRegistered } = require("./rings");
 const { groupRoles } = require("./roleGroups");
 const { MEISTER_TERMINAL_TEXT: T, fillMeisterText, roleListText } = require("./meisterTerminalText");
+const { logAudit } = require("./auditLog");
 
 function fail(error) {
   return { ok: false, error };
@@ -172,20 +173,18 @@ async function connectRing(
         roles,
         bankAccountId: account.id,
       });
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "ring_registered",
-          targetCharacterId: ring.ringOfCharacterId,
-          turnId: turn?.id ?? null,
-          details: {
-            ringTagId: ring.id,
-            ringName: ring.name,
-            roleSlugs: wanted,
-            accountId: account.id,
-            fingerprint: account.fingerprint,
-            registeredBy: registrar.id,
-          },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "ring_registered",
+        targetCharacterId: ring.ringOfCharacterId,
+        turnId: turn?.id ?? null,
+        details: {
+          ringTagId: ring.id,
+          ringName: ring.name,
+          roleSlugs: wanted,
+          accountId: account.id,
+          fingerprint: account.fingerprint,
+          registeredBy: registrar.id,
         },
       });
     });

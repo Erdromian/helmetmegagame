@@ -21,6 +21,7 @@ import {
   requireCharacter,
   revalidateAll,
 } from "./shared.js";
+import { logAudit } from "@/lib/requests";
 
 // --- Lessons (docs/systemdocs/LESSONS.md) ------------------------------
 
@@ -44,13 +45,11 @@ async function lessonOfferImpl({ teacherId, learnerId, tagId }) {
       console.error(`Lesson offer DM for ${offer.offer.id} failed:`, err),
     ),
   );
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_lesson_offer",
-      targetCharacterId: offer.offer.responderId,
-      details: { offerId: offer.offer.id, teacherId, learnerId, tagId },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: session.discordUserId,
+    actionType: "request_lesson_offer",
+    targetCharacterId: offer.offer.responderId,
+    details: { offerId: offer.offer.id, teacherId, learnerId, tagId },
   });
   revalidateAll();
   return { pending: true };
@@ -102,17 +101,15 @@ export async function confessRequestImpl({ chaplainId, tagId }) {
     ),
   );
   // The audit row DOES name the tag — the chaplain is kept in the dark, not the host.
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: "request_confession_offer",
-      targetCharacterId: offer.offer.responderId,
-      details: {
-        offerId: offer.offer.id,
-        chaplainId,
-        penitentId: character.id,
-        tagId,
-      },
+  await logAudit(prisma, {
+    actorDiscordUserId: session.discordUserId,
+    actionType: "request_confession_offer",
+    targetCharacterId: offer.offer.responderId,
+    details: {
+      offerId: offer.offer.id,
+      chaplainId,
+      penitentId: character.id,
+      tagId,
     },
   });
   revalidateAll();

@@ -17,6 +17,7 @@ const { CHAPLAIN_SLUG, CONFESSION_THRESHOLD, GUILT_RIDDEN_SLUG } = require("./co
 const { autoMovesOpen } = require("./turnGate");
 const { seenById } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
+const { logAudit } = require("./auditLog");
 
 // mood feeds the penitent's Gambit modifier, same as a hand-filed Gambit
 // (Hunger comes off held tags instead, already part of `tags` below).
@@ -351,23 +352,21 @@ async function acceptConfession(prisma, offer, responder) {
         },
       });
 
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: responder.discordUserId ?? "system",
-          actionType: "confession_accepted",
-          targetCharacterId: penitent.id,
-          details: {
-            offerId: offer.id,
-            chaplainId: chaplain.id,
-            chaplainName: chaplain.name,
-            penitentId: penitent.id,
-            penitentName: penitent.name,
-            tagId: tag.id,
-            tagName: tag.name,
-            threshold: CONFESSION_THRESHOLD,
-            penitentActionId: penitentAction.id,
-            chaplainActionId: chaplainAction.id,
-          },
+      await logAudit(tx, {
+        actorDiscordUserId: responder.discordUserId ?? "system",
+        actionType: "confession_accepted",
+        targetCharacterId: penitent.id,
+        details: {
+          offerId: offer.id,
+          chaplainId: chaplain.id,
+          chaplainName: chaplain.name,
+          penitentId: penitent.id,
+          penitentName: penitent.name,
+          tagId: tag.id,
+          tagName: tag.name,
+          threshold: CONFESSION_THRESHOLD,
+          penitentActionId: penitentAction.id,
+          chaplainActionId: chaplainAction.id,
         },
       });
 

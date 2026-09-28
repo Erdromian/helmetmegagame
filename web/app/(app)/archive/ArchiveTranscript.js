@@ -2,6 +2,7 @@
 
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import ArchiveActionSentence from "@/app/components/ArchiveActionSentence";
 import { zoneKey } from "@/lib/zones";
 
 // The transcript as a dense reading surface (docs/systemdocs/ARCHIVE.md §5):
@@ -47,9 +48,12 @@ function sceneOf(row) {
   const named = row.channelKind && !PLACED_KINDS.has(row.channelKind) ? `#${row.channelKind}` : null;
   const place = row.zoneName ?? named ?? "Elsewhere";
   return {
-    key: row.placeKey ?? (row.threadName ? `${place} · ${row.threadName}` : place),
+    key: row.placeKey ?? [place, row.locationName, row.threadName].filter(Boolean).join(" · "),
+    placeKey: row.placeKey ?? null,
     zoneName: row.zoneName ?? null,
-    label: row.threadName ? `${place} · ${row.threadName}` : place,
+    // Zone, then Location, then room: the Location is what tells two scenes
+    // in one zone apart when neither is in a room.
+    label: [place, row.locationName, row.threadName].filter(Boolean).join(" · "),
     // A zone's own #summary is not a room, and saying so costs one word.
     channelKind: row.channelKind ?? null,
   };
@@ -74,15 +78,24 @@ function foldSummary(rows) {
     .join(" · ");
 }
 
+// An act has no place key (it never goes on a feed), so it cannot be matched to
+// the speech around it by key. Between two keyed rows the key decides; with
+// either one missing, the name does.
+function sameScene(a, b) {
+  if (!a || !b) return false;
+  if (a.placeKey && b.placeKey) return a.placeKey === b.placeKey;
+  return a.label === b.label;
+}
+
 function buildBlocks(rows, { groupScenes = true } = {}) {
   const blocks = [];
   let dayKey;
-  let sceneKey;
+  let current;
   for (const row of rows) {
     const thisDay = row.turnNumber ?? "none";
     if (thisDay !== dayKey) {
       dayKey = thisDay;
-      sceneKey = undefined;
+      current = undefined;
       blocks.push({ type: "day", key: `d${row.id}`, label: dayLabel(row) });
     }
     if (row.kind === "TURN_START") {
@@ -90,11 +103,15 @@ function buildBlocks(rows, { groupScenes = true } = {}) {
       continue;
     }
     const scene = sceneOf(row);
-    if (groupScenes && scene.key !== sceneKey) {
-      sceneKey = scene.key;
-      blocks.push({ type: "scene", key: `s${row.id}`, ...scene });
+    if (groupScenes && !sameScene(scene, current)) {
+      current = scene;
+      // The block's own key last: the scene carries a `key` of its own, which
+      // spread after it would give every header of one room the same React key.
+      blocks.push({ type: "scene", ...scene, key: `s${row.id}` });
     }
-    if (row.kind === "MESSAGE") {
+    // An act stays in the scene as its own line rather than folding away with
+    // the system events: somebody who turned Actions on came to read them.
+    if (row.kind === "MESSAGE" || row.kind === "ACTION") {
       blocks.push({ type: "row", key: row.id, row, scene });
     } else {
       const last = blocks[blocks.length - 1];
@@ -123,10 +140,17 @@ function SceneHeader({ block, onPick }) {
 }
 
 function Row({ row, showPlace, portraits, onPick, onCite }) {
-  const world = row.source === "SYSTEM";
+  // An act is written by the game too (source SYSTEM), but it has a person.
+  const action = row.kind === "ACTION";
+  const world = row.source === "SYSTEM" && !action;
   const speaker = speakerParts(row);
   return (
-    <div className="archive-row" id={`e${row.id}`} data-world={world ? "true" : undefined}>
+    <div
+      className="archive-row"
+      id={`e${row.id}`}
+      data-world={world ? "true" : undefined}
+      data-action={action ? "true" : undefined}
+    >
       <span className="archive-row-time">{clock(row.sentAt)}</span>
       <span className="archive-row-who">
         {/* A world line has no speaker at all — not "Unknown". */}
@@ -161,7 +185,7 @@ function Row({ row, showPlace, portraits, onPick, onCite }) {
       </span>
       <span className="archive-row-what">
         {showPlace ? <span className="archive-row-place">{sceneOf(row).label}</span> : null}
-        <ChatMarkdown content={row.content} />
+        {action ? <ArchiveActionSentence row={row} /> : <ChatMarkdown content={row.content} />}
         {row.editedAt ? <span className="archive-row-edited">edited</span> : null}
       </span>
       <button type="button" className="archive-row-cite" onClick={() => onCite?.(row)} title="Copy a link to this line">

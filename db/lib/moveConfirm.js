@@ -1,5 +1,6 @@
 const { describeMoveEffects } = require("./moveEffects");
 const { ensureGambitDie } = require("./gambitDie");
+const { logAudit } = require("./auditLog");
 
 // Read at call time, not at import: the bot sets it, the web does not always need it.
 const WEB_BASE_URL = process.env.WEB_BASE_URL?.replace(/\/+$/, "") ?? "";
@@ -43,13 +44,11 @@ async function confirmMove(prisma, action, actorDiscordUserId) {
     return row;
   });
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId,
-      actionType: "move_confirmed",
-      targetCharacterId: action.characterId,
-      details: { actionId: action.id },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId,
+    actionType: "move_confirmed",
+    targetCharacterId: action.characterId,
+    details: { actionId: action.id },
   });
 
   const lines = [

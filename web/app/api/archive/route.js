@@ -4,10 +4,10 @@ import { loadArchiveAccess } from "@/lib/archiveAccess";
 import {
   ARCHIVE_PAGE_SIZE,
   archiveCursorOf,
-  archiveCursorWhere,
   archiveOrderBy,
-  archiveWhere,
+  archivePageWhere,
   parseArchiveParams,
+  searchParamsObject,
 } from "@/lib/archiveQuery";
 
 // GET /api/archive?…filters&cursor=<sentAt|id> — the next screen of transcript.
@@ -31,11 +31,13 @@ export async function GET(request) {
   // Nothing to scroll through: the rows are in a packet in the bucket.
   if (access.archived) return Response.json({ rows: [], cursor: null, done: true });
 
-  const filters = parseArchiveParams(Object.fromEntries(params.entries()));
-  const where = {
-    ...archiveWhere(access.game.id, filters),
-    ...archiveCursorWhere(params.get("cursor"), filters.order),
-  };
+  // searchParamsObject, not Object.fromEntries: a repeated `zone` or `room` is
+  // several filters, and fromEntries would keep only the last of them.
+  const filters = parseArchiveParams(searchParamsObject(params));
+  // One helper for the filter AND the cursor. Spreading the two into one object
+  // let the cursor's OR overwrite Speech's, so a scroll past the first screen
+  // quietly turned Speech into Everything.
+  const where = archivePageWhere(access.game.id, filters, params.get("cursor"));
 
   // One more than a screen, so "is there another screen" needs no second
   // count(*) over a filtered transcript on every scroll.

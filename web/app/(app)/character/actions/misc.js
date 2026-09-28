@@ -1613,13 +1613,11 @@ export async function bindCharacterRequestImpl({
         console.error(`Bind offer DM to ${target.id} failed:`, err),
       ),
     );
-    await prisma.auditLog.create({
-      data: {
-        actorDiscordUserId: session.discordUserId,
-        actionType: "request_bind_offer",
-        targetCharacterId: target.id,
-        details: { offerId: offer.offer.id, targetName: target.name },
-      },
+    await logAudit(prisma, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_bind_offer",
+      targetCharacterId: target.id,
+      details: { offerId: offer.offer.id, targetName: target.name },
     });
     revalidateAll();
     return { pending: true, name: await seenName(character, target.id) };
@@ -3145,13 +3143,11 @@ export async function applyCollarRequestImpl({ targetCharacterId, collarSlug = n
         source: "player_event",
       }).catch((err) => console.error(`Collar offer DM to ${target.id} failed:`, err)),
     );
-    await prisma.auditLog.create({
-      data: {
-        actorDiscordUserId: session.discordUserId,
-        actionType: "request_collar_offer",
-        targetCharacterId: target.id,
-        details: { offerId: offer.offer.id, targetName: target.name },
-      },
+    await logAudit(prisma, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "request_collar_offer",
+      targetCharacterId: target.id,
+      details: { offerId: offer.offer.id, targetName: target.name },
     });
     revalidateAll();
     return { pending: true, name: await seenName(character, target.id) };

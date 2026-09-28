@@ -191,6 +191,8 @@ test("balances, closing, wages and rings, end to end", { skip: SKIP }, async (t)
     await prisma.character.deleteMany({ where: { id: { in: made } } }); // accounts and wages cascade
     await prisma.wagePayout.deleteMany({ where: { dayNumber: { in: [day, day + 1] } } });
     await prisma.auditLog.deleteMany({ where: { actorDiscordUserId: { startsWith: `mst-test-${run}` } } }).catch(() => {});
+    // What logAudit filed in the archive for them (db/lib/archiveActions.js).
+    await prisma.archiveEntry.deleteMany({ where: { characterId: { in: made } } }).catch(() => {});
     await prisma.$disconnect();
   });
 
