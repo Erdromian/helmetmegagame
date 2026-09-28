@@ -442,7 +442,9 @@ seat assigns Rough Camper, the Judge assigns Rough Camper, Outsider and Brave.
 `nobility` grants no Disappointed track and, since the Soilery Rework, no
 dinner penalty either. A noble used to take −10 (NOBLE_MEAL) for ending a turn
 without the hidden `dined` marker a fine meal granted; the doc removes every
-"ate recently" tag, so `dined`, Ate Meal and NOBLE_MEAL are all gone. A noble
+"ate recently" tag, so `dined`, Ate Meal and NOBLE_MEAL are all gone. (`dined`
+has since come back as what a Lavish meal leaves for a day, `COOKING.md` §6a,
+but the mood pass does not read it and NOBLE_MEAL stays gone.) A noble
 is hungry the way anybody is (`TURN-ENGINE.md` §5). The Merchant still starts
 with Nobility, and therefore with its 1-point Desire lock.
 `Character.missedMealStreak` is an orphan column: kept, never read.

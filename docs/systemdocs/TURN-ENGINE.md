@@ -388,9 +388,9 @@ each arrived at by getting them wrong first.
    Location they ended the day in rather than the one they haven't reached yet.
    It applies the turn's flat harms and reliefs to `Character.mood`, slides
    every dial back toward Fine from either direction — one slow step of
-   `MOOD_DRIFT_UP` (4) coming up, one fast `MOOD_DRIFT_DOWN` (40) coming down —
-   and deletes each character's `dined` marker so a fresh turn starts
-   unmarked. It settles no tag: the band is a word read off the number, not a
+   `MOOD_DRIFT_UP` (4) coming up, one fast `MOOD_DRIFT_DOWN` (40) coming down.
+   It no longer touches Dined, which runs out on its own clock
+   (`COOKING.md` §6a). It settles no tag: the band is a word read off the number, not a
    row. Audit action `mood_resolved`; its DMs — only the two bands that carry
    one — ride the `tagExpiryDms` channel back on the thunk.
 8d. **Travel arrival pass** (`db/lib/travelArrivalPass.js`, `"travelArrival"`
@@ -809,7 +809,8 @@ A food restores `foodHungerFor(tag)` — its `mealHunger` (a meal's class
 figure, a Foodstuff's 4, a Ration Box draw's own), else an ingredient's
 `cooked.hunger`, else nothing. A meal adds every extra ingredient's
 (`unitHungerFor`). There is no longer a default for "something that grants Ate
-Meal": Ate Meal and Dined are gone. Consume can eat several at once, up to what
+Meal": Ate Meal is gone. (Dined is back, but only as a status a Lavish meal
+leaves for a day, and it restores nothing — [`COOKING.md`](COOKING.md) §6a.) Consume can eat several at once, up to what
 fills the eater, and refuses food at 100 unless they are a Glutton; the
 Hungerless may eat but gain neither hunger nor mood — [`REQUESTS.md`](REQUESTS.md)
 §4.
@@ -823,7 +824,9 @@ day; a Basic meal (15) most of a day, a Skilled one (18) a day, a Lavish one
 Gone. A noble used to take −10 mood at the mood pass for ending a turn without
 the `dined` marker a fine meal granted; the doc removes every "ate recently"
 tag, so the marker and the penalty went with it. `Character.missedMealStreak`
-stays an orphan column.
+stays an orphan column. Dined itself is back as what a Lavish meal leaves for
+one in-game day ([`COOKING.md`](COOKING.md) §6a), but the penalty is not: no
+pass reads it.
 
 ### 5e. The horse's feed
 

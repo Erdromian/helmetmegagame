@@ -19,6 +19,7 @@ const {
   moveWindow,
   advanceDue,
   nextDayNumber,
+  turnsInGameDay,
   isDaylight,
   isDayLongTurn,
 } = require("../lib/turnClock");
@@ -203,4 +204,15 @@ test("only a 24-hour turn is a day, for the wording that says so", () => {
   // A row selected without its length, or no row at all, keeps the old sentence rather than a wrong one.
   assert.equal(isDayLongTurn({}), true);
   assert.equal(isDayLongTurn(null), true);
+});
+
+test("a day is turnsPerDay turns when set, else the turn length's share of 24 hours", () => {
+  assert.equal(turnsInGameDay({ turnsPerDay: 3, turnLengthHours: 24 }), 3, "turnsPerDay wins over the length");
+  assert.equal(turnsInGameDay({ turnsPerDay: 1, turnLengthHours: 6 }), 1);
+  for (const [hours, turns] of [[24, 1], [12, 2], [8, 3], [6, 4]]) {
+    assert.equal(turnsInGameDay({ turnsPerDay: 0, turnLengthHours: hours }), turns, `${hours}h`);
+  }
+  // No config at all, or a length that isn't one of the four, reads as a 24-hour day.
+  assert.equal(turnsInGameDay(), 1);
+  assert.equal(turnsInGameDay({ turnLengthHours: 7 }), 1);
 });

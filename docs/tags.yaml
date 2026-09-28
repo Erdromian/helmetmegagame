@@ -3629,6 +3629,22 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Left by eating a Lavish meal, and by nothing else (db/lib/dined.js). It
+  # lasts one in-game day, which is turnsPerDay turns or the turn length's
+  # share of the calendar day, so the grant works out the expiry itself — no
+  # durationTurns here, and a GM grant from /gm/dev is untimed. Hidden from
+  # anybody inspecting you, like the hunger descriptors. Nothing reads it yet.
+  dined:
+    catalog: gm
+    name: Dined
+    category: status
+    group: status-food
+    description: "You've eaten properly today."
+    pointCost: 0
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   # --- The Vampire (docs/systemdocs/VAMPIRE.md) --------------------------
   # Two checkpoint-tag tracks, granted/dropped every turn close by
   # db/lib/vampirePass.js off Character.vampireBloodLevel/vampireHumanity.

@@ -303,6 +303,35 @@ several can be eaten at once up to what fills the eater
 5. Mood (§7).
 6. Return `{ line }` — the taste sentence.
 
+### 6a. Dined
+
+Eating a **Lavish** meal leaves the eater **Dined** ("You've eaten properly
+today."), and nothing else grants it: no `consumesInto` names it, and
+`db/test/dined.test.js` fails the build if one does. The Soilery Rework took it
+out along with Ate Meal. It came back on its own, as a status and nothing more
+(the noble dinner penalty it once fed stays gone, [`MOOD.md`](MOOD.md) §8).
+
+It lasts **one in-game day**, and a day is however many turns the game counts
+to one right now (`db/lib/turnClock.js#turnsInGameDay`): `GameConfig.turnsPerDay`
+when a GM has set it, else the turn length's share of 24 hours — 1 turn at 24
+hours, 2 at 12, 3 at 8, 4 at 6. The day counts the turn you ate in, so on a
+24-hour game it comes off when that turn closes. That length can't be a
+`durationTurns` in `docs/tags.yaml`, so `db/lib/dined.js#grantDined` works out
+the expiry at the grant, and a GM grant from `/gm/dev` is untimed.
+
+- **Another lavish meal restarts the day.** The row's `expiresTurn` moves
+  forward, so Dined always means "within a day of your last lavish meal". An
+  untimed GM grant is left alone.
+- **Several at once is one Dined**, and a lavish meal **fed to somebody else**
+  leaves *them* Dined, like every other grant of an administered consume.
+- **The Hungerless never dine.** Food does nothing for them (the Soilery Rework
+  doc), and Dined is no exception.
+- **Only a Consume dines.** The turn close eats a lavish meal only as a last
+  resort to keep somebody out of Dying (`TURN-ENGINE.md` §5a), and that
+  mouthful grants nothing: it is not dining.
+- It is `visible: false`, like the hunger descriptors: it shows on the eater's
+  own sheet and to nobody inspecting them.
+
 ## 7. Mood
 
 **[`MOOD.md` §6a](MOOD.md) is canonical** — it sits with the rest of the mood

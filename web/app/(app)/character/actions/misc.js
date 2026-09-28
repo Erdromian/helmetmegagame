@@ -221,6 +221,7 @@ import {
   rawFoodMoodTerms,
 } from "@lifeweb/db/lib/hunger";
 import { syncHungerDescriptor } from "@lifeweb/db/lib/hungerDescriptor";
+import { earnsDined, grantDined } from "@lifeweb/db/lib/dined";
 import { GLUTTON_SLUG, HUNGERLESS_SLUG } from "@lifeweb/db/lib/constants";
 import {
   NAME_LIMITS,
@@ -926,6 +927,12 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
     const refusal = eatRefusal(target.hungerValue ?? HUNGER_MAX);
     if (refusal) throw new UserError(refusal);
   }
+  // A lavish meal leaves the eater Dined for one in-game day (db/lib/dined.js), and the length of a day is the GM's
+  // turnsPerDay, so the config is read only when there is a Dined to grant.
+  const dined = earnsDined(held.tag, { hungerless });
+  const dinedConfig = dined
+    ? await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnsPerDay: true, turnLengthHours: true } })
+    : null;
 
   // The rungs the climb clears — Tipsy coming off as Wasted goes on. Built
   // INSIDE the transaction below, once the poisoned draw is known (fix
@@ -1139,6 +1146,10 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
       allGrantDurations,
     );
     grantedNames = granted.map((g) => g.tagName);
+    if (dined) {
+      const dinedName = await grantDined(tx, target.id, openTurn, dinedConfig);
+      if (dinedName) grantedNames.push(dinedName);
+    }
     // The Resources half — Purse and Supply Kit (CAVING.md). Most
     // consumables grant none, so this is usually a no-op.
     if (allResourcesGranted) {
@@ -1255,7 +1266,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
         tagName: held.tag.name,
         quantity: n > 1 ? n : undefined,
         restore,
-        granted: granted.map((g) => g.tagName),
+        granted: grantedNames,
         resourcesGranted: allResourcesGranted,
         tagPointsGranted,
         moodRelief: moodRelief || undefined,

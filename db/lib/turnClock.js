@@ -186,6 +186,14 @@ function nextDayNumber(lastTurn, startedAt, { turnsPerDay = 0, turnsInDay = 0 } 
   return (lastTurn.dayNumber ?? 1) + (sameDay ? 0 : 1);
 }
 
+// How many turns make one in-game day, by the same two rules nextDayNumber rolls the day on: GameConfig.turnsPerDay when a
+// GM has set it, else the turn length's share of the Chicago calendar day (24 hours is 1 turn, 6 is 4). Every length divides
+// 24, so the second rule is always a whole number; normalizeTurnLength keeps a stray value from making it otherwise.
+function turnsInGameDay({ turnsPerDay = 0, turnLengthHours = DEFAULT_TURN_LENGTH_HOURS } = {}) {
+  if (Number.isInteger(turnsPerDay) && turnsPerDay >= 1) return turnsPerDay;
+  return 24 / normalizeTurnLength(turnLengthHours);
+}
+
 // Whether the sun is up in Ravenheart, on the real Chicago clock. Sun Sensitivity used to read this, and went with the
 // surface on 2026-09-20; nothing reads it now, and it is kept only because every caller still threads it through.
 // 06:00-18:00 was also,
@@ -221,6 +229,7 @@ module.exports = {
   cutoffReached,
   advanceDue,
   nextDayNumber,
+  turnsInGameDay,
   DAYLIGHT_START_HOUR,
   DAYLIGHT_END_HOUR,
   isDaylight,
