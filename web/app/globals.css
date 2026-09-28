@@ -4215,7 +4215,7 @@ body:has(.map-shell) {
   background: var(--bg);
 }
 
-/* The economy report's iframe (web/app/(desk)/gm/economy/page.js): the shell's flex child takes the
+/* The economy report's iframe (web/app/components/EconomyReportView.js): the shell's flex child takes the
    rest of the viewport, and the frame fills it. No themed background here on purpose — the report is
    its own standalone document, sandboxed from the app's colours by design (DESIGN-SYSTEM.md's "never
    hardcode a colour" is about this app's own surfaces, not a foreign document rendered inside one). */
@@ -4229,6 +4229,37 @@ body:has(.map-shell) {
   width: 100%;
   height: 100%;
   border: 0;
+}
+
+/* The share bar's list of public links (web/app/components/EconomyReportView.js), dropped open under
+   the desk header. Capped so a long list never pushes the report itself off the screen. */
+.economy-shares {
+  flex-shrink: 0;
+  max-height: 40%;
+  overflow-y: auto;
+  margin: 0;
+  padding: 0.25rem 1rem;
+  list-style: none;
+  border-bottom: 1px solid var(--border);
+}
+
+.economy-shares li {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.25rem 0;
+}
+
+.economy-shares li a {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.economy-share-url {
+  width: min(28rem, 60vw);
 }
 
 .desk-header {

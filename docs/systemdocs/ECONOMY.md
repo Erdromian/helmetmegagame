@@ -305,6 +305,33 @@ exist in the web app yet — nothing under `web/` reads `EconomyEntry` today —
 so there is nothing to widen for the Economist there until it's built; when
 it is, give it the same treatment.
 
+### 7a. Sharing one page of the report publicly
+
+Anyone who can read the report (a GM, an Economist, a superadmin) can hand
+one page of it to somebody with no account at all. **Share this page**, in
+the bar above the report, makes a link to whatever page the frame is showing
+and copies it. The link is `/share/economy/<token>`.
+
+- **One page, never the report.** The report names secret recipes (the
+  Secret recipes page, and the "Secret" column on several others), so the
+  public route (`web/app/(public)/share/economy/[token]/route.js`) serves
+  exactly the page the token was made for. The report's nav is taken out of
+  that page, and its CSS and script are put inline, so nothing else is
+  reachable from it (`web/lib/economyShareHtml.js`). The confirm dialog says
+  that anything secret on the chosen page goes with it.
+- **Live, not a snapshot.** The link shows the page as the current deploy
+  builds it. If a later deploy drops that page from the report, the link says
+  so and 404s.
+- **One link per page.** Sharing a page that already has a link hands back
+  the same link. **Revoke** deletes the `EconomyReportShare` row, and the link
+  is dead at once (the route serves `no-store`). Sharing again makes a new
+  token.
+- **Shared links · N** in the bar lists every live link, with Copy and Revoke.
+  Making or revoking one writes `gm_economy_share_created` /
+  `gm_economy_share_revoked` to the audit log, with the actor.
+- The token is looked up before the report is touched, so a guessed token
+  never starts the twenty-second first build.
+
 ## 8. Per-turn numbers are grouped, not cached
 
 `flowsByTurn()` groups the ledger directly. There was an `EconomyTurnRollup`
