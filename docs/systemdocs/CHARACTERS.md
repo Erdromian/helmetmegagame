@@ -688,8 +688,9 @@ Picking a role decides almost everything:
   account opens with the role's `starting_account:` obols already in it
   (`web/app/(app)/character/createActions.js` bumps the new account by
   `Role.startingAccountObols`), on top of any physical `Obol xN` tags in
-  `starting_tags`. Those balances are claims on the Vault, which is stocked
-  deliberately short of them — see `DEPOT.md` §0g. Both the balance and the
+  `starting_tags`. Those balances are claims on the Vault, which the starting
+  cast stocks deliberately short of them (a character who arrives after the
+  Start Game roll adds nothing to it) — see `DEPOT.md` §0g. Both the balance and the
   `Obol xN` purse are rolled within 10% of the seat's figure for each new
   character (`db/lib/startingVariance.js`), so they are a guide, not a
   promise.

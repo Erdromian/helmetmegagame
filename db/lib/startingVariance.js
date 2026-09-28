@@ -13,11 +13,12 @@
 // right for pocket change and saves anybody reading 0 where the YAML says 1.
 //
 // The Keep's Vault has no authored pile any more. It is stocked as the town is
-// made: each new character's starting balance — as rolled — puts
+// made: each starting character's balance — as rolled — puts
 // GameConfig.vaultReservePercent of it into the Vault as coin (vaultStockFor
-// below; 25% by default, a knob on /gm/dev). So the Vault always holds that
-// share of what everybody opened with, late joiners included, and it wobbles
-// from game to game along with the balances it follows. The Baron is left out:
+// below; 25% by default, a knob on /gm/dev). So the Vault opens holding that
+// share of what the town started with, and it wobbles from game to game along
+// with the balances it follows. Only the starting cast counts
+// (db/lib/startingAccount.js says who that is). The Baron is left out:
 // their account is the treasury's to begin with, and the Vault is not stocked
 // against it.
 //

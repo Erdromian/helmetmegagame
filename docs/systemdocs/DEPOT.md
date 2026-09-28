@@ -338,20 +338,27 @@ which is why a sell price equal to the buy price prints nothing
   every TREASURY account draws on that pile and nothing else.
 - **Stocked as the town is made.** The Vault is stocked with **25%** of the
   town's starting balances, rather than poured at Start Game. It has no
-  authored obols in `docs/zones.yaml`. Instead, each new character's starting
+  authored obols in `docs/zones.yaml`. Instead, each starting character's
   balance puts `GameConfig.vaultReservePercent` of itself into the Vault as
   coin, in the same transaction that opens the account
   (`db/lib/startingAccount.js`). The share is rounded up per character, so the
   Vault never falls short of the percentage. The Baron's balance is left out.
-  So the Vault always holds that share of what everybody opened with, late
-  joiners included — deliberately short of the claims, so a bank run is a live
-  possibility from day one. 25% is the default, which is under the 40% floor
-  `npm run db:audit-vault-backing` fails under, so that audit reads short from
-  the first character; it is the **Vault stock** knob
-  in the Economy section of `/gm/dev`, and a change applies to characters
-  created after it. Offshore balances stock it too, though nothing draws them
-  from it, which leaves the Treasury claims a little better covered than the
-  figure says.
+  So the Vault opens holding that share of what the town started with —
+  deliberately short of the claims, so a bank run is a live possibility from
+  day one. It is the **Vault stock** knob in the Economy section of `/gm/dev`,
+  and a change applies to characters created after it. Offshore balances stock
+  it too, though nothing draws them from it, which leaves the Treasury claims a
+  little better covered than the figure says.
+- **Only the starting cast stocks it.** A starting character is one built from
+  the seat Start Game rolled them, inside its creation window. Anybody who
+  arrives later — a late party's drawn seat, a late join, somebody's next
+  character after a death, a role picked off the open menu — still opens with
+  their rolled balance, but adds nothing to the Vault. The pile is set by the
+  town the game began with, and new arrivals are one more claim on it.
+- **`npm run db:audit-vault-backing` is a readout, not a check.** It prints
+  the Vault's coin against the Treasury claims and never fails for being short:
+  short is the design. (It used to exit 1 under a 40% floor, which the default
+  stock sat under from the first character.)
 - **Every seat's starting figures wobble by up to 10%**
   (`db/lib/startingVariance.js`). Each new character's `starting_account:`
   balance and `Obol xN` purse are rolled at creation, so two Courtiers rarely
