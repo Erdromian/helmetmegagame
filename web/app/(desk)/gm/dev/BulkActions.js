@@ -374,7 +374,7 @@ export default function BulkActions({
               type="text"
               maxLength={80}
               value={senderName}
-              placeholder="God-King Enoch II"
+              placeholder="God-King Enoch"
               onChange={(e) => setSenderName(e.target.value)}
             />
             {/* A bird letter arrives unsigned (BIRD.md §8): this names it on the desk only. */}

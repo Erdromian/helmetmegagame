@@ -36,9 +36,9 @@ test("a waiting letter from before the paperwork rework still has a name", () =>
 // A GM letter's meta carries the name the GM signed it under, for the desk's
 // card. The player's copy of the row leaves without it (web/lib/dmThread.js#playerDmRow).
 test("the player's copy of a GM letter's meta drops the desk's sender name", () => {
-  const meta = { birdMessageId: "b1", senderName: "God-King Enoch II", letterName: "A Note", sealed: false };
+  const meta = { birdMessageId: "b1", senderName: "God-King Enoch", letterName: "A Note", sealed: false };
   assert.deepEqual(withoutDeskSender(meta), { birdMessageId: "b1", letterName: "A Note", sealed: false });
-  assert.equal(meta.senderName, "God-King Enoch II", "the stored meta is not touched");
+  assert.equal(meta.senderName, "God-King Enoch", "the stored meta is not touched");
 });
 
 test("meta without a sender name passes through as it was", () => {
