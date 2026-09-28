@@ -10,6 +10,7 @@
 // rewiring to take a ring instead of a key.
 
 const { fillRingText, tidyStops } = require("./ringText");
+const { formatBareName } = require("./characterName");
 
 // The Tag columns accessSlugsOf reads. Select these (with CharacterTag.equipped
 // beside them) anywhere a door is decided from a hand-picked select, or a worn
@@ -39,9 +40,18 @@ function isRegistered(tag) {
   return Boolean(tagOf(tag)?.ringRegisteredAt);
 }
 
-// "Aurel Vane" -> "A.V." · "Gribb" -> "G." Splits on whitespace rather than
-// firstName/lastName, so a three-part name still produces something.
-function initialsOf(name) {
+// "Aurel Vane" -> "A.V." · "Gribb" -> "G." Given a character, only the first
+// and last name are engraved: `Sir Aurel "the Bold" Vane` is still "A.V.", as
+// the honorific and the quoted title are not part of who the ring is for. A
+// bare string (or a row with no firstName) is split on whitespace, so a
+// three-part name still produces something.
+function initialsOf(nameOrCharacter) {
+  const name =
+    nameOrCharacter && typeof nameOrCharacter === "object"
+      ? nameOrCharacter.firstName
+        ? formatBareName(nameOrCharacter)
+        : nameOrCharacter.name
+      : nameOrCharacter;
   const parts = String(name ?? "")
     .split(/\s+/)
     .map((part) => part.replace(/[^\p{L}\p{N}]/gu, ""))

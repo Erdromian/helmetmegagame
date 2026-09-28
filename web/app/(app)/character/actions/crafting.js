@@ -665,7 +665,7 @@ async function resolveRingTarget(character, ingredientChoice) {
       select: { id: true },
     }));
   if (!known) throw new UserError(RING_TEXT.craftTargetMissing);
-  const target = await prisma.character.findUnique({ where: { id: choice }, select: { id: true, name: true } });
+  const target = await prisma.character.findUnique({ where: { id: choice }, select: { id: true, name: true, firstName: true, lastName: true } });
   if (!target) throw new UserError(RING_TEXT.craftTargetMissing);
   return target;
 }

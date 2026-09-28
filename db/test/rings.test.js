@@ -89,6 +89,14 @@ test("initials", () => {
   assert.equal(initialsOf("  "), null);
 });
 
+test("a character's initials leave out the honorific and the title", () => {
+  const knight = { name: 'Sir Aurel "the Bold" Vane', honorific: "Sir", firstName: "Aurel", title: "the Bold", lastName: "Vane" };
+  assert.equal(initialsOf(knight), "A.V.");
+  assert.equal(initialsOf({ name: 'Lady Gribb "Ironhand"', honorific: "Lady", firstName: "Gribb", title: "Ironhand", lastName: null }), "G.");
+  // A row selected without the name parts falls back to the whole name.
+  assert.equal(initialsOf({ name: "Aurel Vane" }), "A.V.");
+});
+
 test("the finger holds one ring and blocks nothing else", () => {
   assert.ok(EQUIP_SLOTS.includes("FINGER"));
   const gloves = { name: "Armored Gloves", equipSlot: "ACCESSORY" };
