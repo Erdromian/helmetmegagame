@@ -1268,21 +1268,6 @@
 :where([data-chat-next] .chat-feed) .tline--system {
   padding-left: var(--chat-gutter);
 }
-
-/* Where the scene turns from what players wrote — a say, or an OOC line — to
-   what the game said — scenery, a shout — or back again, it stands off by
-   --chat-kind-gap, wider than the gap between two speakers. The two kinds read
-   as separate voices rather than one run of text. Two game lines in a row, or
-   two players, keep their ordinary spacing. */
-:where([data-chat-next] .chat-feed)
-  :is(.tline[data-density="feed"], .tline--system[data-kind="ooc"])
-  + .tline--system:not([data-kind="ooc"]),
-:where([data-chat-next] .chat-feed)
-  .tline--system:not([data-kind="ooc"])
-  + :is(.tline[data-density="feed"], .tline--system[data-kind="ooc"]) {
-  margin-top: var(--chat-kind-gap);
-}
-
 /* The game's own lines IN CHAT — arrivals, the vending machine, a smell, the
    turret — off the Chat Type Bench (Chat Overhaul.docx): bold, in their own
    ink. Scoped to the chat feed, since the archive and the desk draw these rows

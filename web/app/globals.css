@@ -123,9 +123,6 @@
      distance from the places list. */
   --chat-face: 48px;
   --chat-gutter: calc(var(--chat-face) + var(--sp-2));
-  /* The gap wherever the feed turns from what players wrote (a say, an OOC
-     line) to what the game said (scenery, a shout), or back. */
-  --chat-kind-gap: var(--sp-5);
 
   /* The touch floor, DESIGN-SYSTEM §9. --tap is a whole control; --tap-sm is
      for a chip or an inline toggle that sits inside prose. */
