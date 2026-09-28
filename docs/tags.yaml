@@ -9207,21 +9207,6 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
-  # The Bishop's own way into the Order Chambers, beside the Order's key.
-  bishops-key:
-    catalog: gm
-    name: "Bishop's Key"
-    category: items
-    group: items-keys
-    sprite: key3
-    description: "An old key."
-    pointCost: 0
-    stackable: true
-    weight: 0
-    visible: false
-    purchasable: false
-    purchasableAfterStart: false
-
   # The four homes in the Residences. Every home is locked and every key is
   # named after its door, so a key found on a body says which house it opens.
   # One description and one sprite between them, deliberately: telling them

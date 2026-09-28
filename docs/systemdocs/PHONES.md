@@ -61,7 +61,7 @@ and migration `20261101000000_phone_overhaul` for rooms that already exist):
 
 | Where | Room |
 |---|---|
-| Order Chambers | `town-4-3` Order Chambers |
+| Order Chambers | `undertown-b-3` Order Barracks |
 | The Merchant's | `undertown-6-2` Merchant's Office |
 | The Keep (3) | `fortress-4-1` Council Room, `fortress-4-6` Baron's Study, `fortress-4-7` Storehouse |
 | The Den | `undertown-8-2` Dressing Room |
