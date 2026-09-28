@@ -39,6 +39,9 @@ CC BY-SA 3.0 terms as the original, which is why it is written down here.
 
 Files are named after the source sprite, not the tag, so several tags that
 should look alike — the keys, the untitled books — share one file.
+The exception is `copper-coins.png`, the obol: its source frame is `5` in
+`coins.dmi` (a pile of five copper coins), and a file called `5.png` would
+say nothing.
 
 A tag names its file through `sprite:` in `docs/tags.yaml`, which
 `db/lib/syncTags.js` checks really exists. Anything without one draws its
