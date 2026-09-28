@@ -67,9 +67,10 @@ function isPersonKey(key) {
   return raw.startsWith("character:") || raw.startsWith("hood:") || raw.startsWith("across:");
 }
 
-// Somebody on the far side of a room that opens onto two Locations — the
-// Merchant's Counter (Depot Overhaul.docx: "items can be transferred to
-// characters on either side"). Transfer is the only verb that reaches across;
+// Somebody on the far side of a room that opens onto two Locations — any such
+// room, by default: the Merchant's Counter (Depot Overhaul.docx: "items can be
+// transferred to characters on either side"), the Gate, the Gatehouse Window,
+// the Meistery Window. Transfer is the only verb that reaches across;
 // db/lib/whosHere.js#resolveAcrossRecipient re-checks that they are still
 // there and still at the counter. Resolved with no actor, because the actor's
 // own Location is exactly what they are not standing in.

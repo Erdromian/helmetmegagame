@@ -46,6 +46,7 @@ const {
   pickOptions,
   createConversionOffer,
   answerConversionPick,
+  acceptConversion,
   refuseConversion,
   expireConversionOffers,
 } = require("../lib/conversionRite");
@@ -300,6 +301,26 @@ test("a refuser who died in the three hours closes the row and nothing else", as
 
   assert.equal(out.ok, true);
   assert.equal(offer.status, "DECLINED");
+});
+
+test("somebody who turned Pious while being asked cannot accept their way in", async () => {
+  // The Pious cannot be converted. The pick checks it, but the question stays
+  // open three hours; a Join pressed after they found faith must bounce like
+  // the vision would have, not grant Thanati and strip the Pious it conflicts with.
+  const offer = pendingOffer();
+  const target = victim({ mood: 0, tags: [{ tag: { slug: "pious" } }] });
+  delete target.slugs;
+  const db = makeDb({ offer: [offer], character: [target] });
+
+  const out = await acceptConversion(db, offer, target);
+
+  assert.equal(out.ok, true);
+  assert.equal(offer.status, "DECLINED", "closed as a no, never ACCEPTED");
+  assert.equal(db._store.characterTag.length, 0, "no Thanati granted");
+  assert.deepEqual(target.tags, [{ tag: { slug: "pious" } }], "and the Pious kept");
+
+  const again = await acceptConversion(db, offer, target);
+  assert.equal(again.ok, false, "the row is closed, so a second press finds nothing");
 });
 
 // ---- the clock ---------------------------------------------------------------

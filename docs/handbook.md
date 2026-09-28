@@ -274,6 +274,8 @@ Resources in Bascinet are shown with the ⬢ symbol. They are bulk material — 
 
 Transfer is give-only, both ways — you can never take ⬢ or an item from another character with it. The only way to take something from someone is **Loot**, and only if they're dead or helpless; a mugging plays out that way, not through Transfer.
 
+A few rooms open onto two places at once — a counter, a window, a gate. If you're in one, you can also hand things to anyone in it on the other side: they show up in Transfer's list with the room's name beside them, and under the room's name in the Here list. Nothing else reaches across.
+
 The **Storage** button on a room's first post lists what's there.
 
 Not everything in a room is on the shelf. **Search** (beside Storage on the room's first post, and on the room's panel in [Chat](https://ravenheart.quest/chat)) goes through the place for what's hidden. It costs **0.33 of your Move** — three searches fill a turn, or a search shares the turn with work at the bench — and you can only search one room a turn, though you can go through that same room up to three times. Whatever you turn up lands on the floor, where anyone can take it; you'll want to be quick. The room's thread hears that somebody rummaged, not what they found.
@@ -357,7 +359,7 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 - **Craft** picks a recipe you know the skills for and pays its ⬢ cost right away — from you, a room stash, or someone standing with you who agrees to pay. It files as your Move. **Dead Simple** recipes take no turns to make, so they're capped instead: at most **4 Dead Simple items per turn**. A long recipe becomes a project you can keep working on from the same button, turn after turn, or cancel with no refund.
 - **Destroy** drops items or otherwise removes applicable tags. Health tags aren't included — a wound gets healed, not destroyed.
 - **Consume** removes item tags that can be eaten, drunk, or otherwise used.
-- **Transfer** hands a tag from you or a room stash you're in, to someone standing with you or to a room stash. Give only — taking from a person is Loot's job, not Transfer's.
+- **Transfer** hands a tag from you or a room stash you're in, to someone standing with you (or across a room that opens onto two places) or to a room stash. Give only — taking from a person is Loot's job, not Transfer's.
 - **Heal** heals injuries and ailments based on your Medical skill.
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
@@ -490,7 +492,7 @@ The Merchant's Counter also has a vendor, on the Storefront side, and that one w
 | **Craft** | Pick a recipe you know the skills for and pay its ⬢ cost right away, from your own purse, a Room stash you're in, or someone standing with you who agrees to pay (they get a DM naming what it's for). Files as your Routine. A long recipe becomes a project you can keep working on turn after turn from the same button (Continue), or cancel — no refund. A Dead Simple recipe needs no Move at all, just a cap per turn. | Always, but ensure you use your Move accordingly. |
 | **Destroy** | Drops a tag you're allowed to throw away. Health tags aren't on this list — a wound gets healed, not destroyed. | When holding something you could reasonably drop or remove. |
 | **Consume** | Consumes an item tag (drinking alcohol, eating food). Clicking the tag performs the same action. | When holding a consumable item. |
-| **Transfer** | Give ⬢ or a tag from yourself or a Room stash you're in, to someone standing with you or to a Room stash. Giving only — the only way to take something from someone else is Loot, and only if they're dead or helpless. Not everything can change hands — a house isn't portable, and some things are part of you. | When holding something you can transfer. |
+| **Transfer** | Give ⬢ or a tag from yourself or a Room stash you're in, to someone standing with you, someone on the other side of a room that opens onto two places, or a Room stash. Giving only — the only way to take something from someone else is Loot, and only if they're dead or helpless. Not everything can change hands — a house isn't portable, and some things are part of you. | When holding something you can transfer. |
 | **Learn Skill** | Ask someone standing with you who teaches a skill to teach it to you. Files as your Gambit if they accept. | Always. |
 | **Teach Skill** | Offer to teach a skill to someone standing with you. Files as your Routine if they accept, unless you hold Teaching — then it costs you nothing. | When holding the skill. |
 

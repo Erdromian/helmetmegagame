@@ -25,7 +25,14 @@ const {
   sidePresenceWhere,
 } = require("../lib/roomSides");
 const { accessibleRooms, privateThreadUnits } = require("../lib/roomAccess");
-const { whosHere, whosHereLines, resolveHoodToken, resolveCrossRoomRef } = require("../lib/whosHere");
+const {
+  whosHere,
+  whosHereLines,
+  resolveHoodToken,
+  resolveCrossRoomRef,
+  acrossRecipients,
+  resolveAcrossRecipient,
+} = require("../lib/whosHere");
 const { buildDesired } = require("../lib/discordMirror/desired");
 const { parseZonesYaml } = require("../lib/syncZones/parse");
 
@@ -207,6 +214,56 @@ test("a look-only ref names the far hood for a look, and nobody for a verb", asy
   assert.equal(looked?.id, "masked");
   // resolveHoodToken is what db/lib/targetKey.js resolves every verb's target through.
   assert.equal(await resolveHoodToken(prisma, merchantViewer, ref, { sightings: new Map() }), null);
+});
+
+// --- Transfer across -------------------------------------------------------
+//
+// Handing something to a person on the other side is the default for EVERY
+// room that opens onto more than one Location, not a counter's feature: the
+// Gate, the Gatehouse Window, the Meistery Window and the Merchant's Counter
+// all get it because they have a side, and a room added with a side later gets
+// it the same way. Nothing about the room is named anywhere on the path.
+
+// A room that is not the counter: public on both sides, and a different name.
+const windowRoom = () => ({ ...counter(), id: "window", name: "Window", slug: "town-1-4", kind: "PUBLIC", accessTagSlugs: [] });
+
+for (const [label, room] of [
+  ["the counter (private home, public side)", counter],
+  ["a window (public both sides)", windowRoom],
+]) {
+  test(`Transfer reaches the far side of ${label}, from either end`, async () => {
+    const prisma = fakePrisma({ rooms: [room()] });
+    const r = room();
+
+    // From home: the far side's named person and hood, keyed by id and lookRef.
+    const fromHome = await acrossRecipients(prisma, merchantViewer, { sightings: new Map() });
+    assert.equal(fromHome.length, 2);
+    assert.ok(fromHome.some((p) => p.id === "shopper" && p.name === "Shopper"));
+    assert.ok(fromHome.every((p) => p.kind === "across" && p.note === r.name));
+    for (const p of fromHome) {
+      const hit = await resolveAcrossRecipient(prisma, merchantViewer, p.id, { sightings: new Map() });
+      assert.equal(hit?.roomId, r.id);
+    }
+    const masked = fromHome.find((p) => p.id !== "shopper");
+    assert.notEqual(masked.id, "masked", "a hood is offered by its ref, never its id");
+    assert.equal((await resolveAcrossRecipient(prisma, merchantViewer, masked.id, { sightings: new Map() }))?.id, "masked");
+
+    // From the side: the home's people, the same way round.
+    const shopper = { id: "shopper", locationId: "slums" };
+    const fromSide = await acrossRecipients(prisma, shopper, { sightings: new Map() });
+    assert.deepEqual(fromSide.map((p) => [p.id, p.name, p.note]), [["merchant-1", "Merchant", r.name]]);
+    assert.equal((await resolveAcrossRecipient(prisma, shopper, "merchant-1", { sightings: new Map() }))?.id, "merchant-1");
+  });
+}
+
+test("Transfer does not reach across a room with no side, or from outside its gate", async () => {
+  const noSide = { ...windowRoom(), sides: [] };
+  assert.deepEqual(await acrossRecipients(fakePrisma({ rooms: [noSide] }), merchantViewer, { sightings: new Map() }), []);
+  // merchant-2 holds no licence, so is not in the counter on the home side.
+  const outside = { id: "merchant-2", locationId: "merchant" };
+  const prisma = fakePrisma();
+  assert.deepEqual(await acrossRecipients(prisma, outside, { sightings: new Map() }), []);
+  assert.equal(await resolveAcrossRecipient(prisma, outside, "shopper", { sightings: new Map() }), null);
 });
 
 // --- Discord: a thread per side --------------------------------------------

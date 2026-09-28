@@ -252,6 +252,15 @@ never the wasted one. The vision bounces off: no `Offer` row is ever written,
 they get the hallucination DM and `EVENTS.RITE_DISMISSED` (+50), and the room
 hears them refuse. The cult finds out it wasted the chant by reading the room.
 
+**The Pious cannot be converted, and that is checked twice.** The question
+stays open three hours, and somebody can turn Pious inside them — a GM's hand,
+say. `acceptConversion()` re-reads their tags, so a Join pressed after that
+closes the row as `DECLINED` and takes the Pious ending instead: the
+hallucination DM, `RITE_DISMISSED`, the room's refusal line, and
+`ASK_REFUSED_DM` to the cultist who called them. Without it the Thanati grant
+would go through and strip the Pious, which it `conflictsWith`. Only a GM's
+Assign of the Thanati seat can turn a Pious character now.
+
 **Nobody is ever named**, on any surface. The vision names no cultist, the room
 lines use `aliasSubject()`, and `web/app/(app)/character/page.js` nulls
 `otherName` for this kind so the initiator's name never reaches the browser at

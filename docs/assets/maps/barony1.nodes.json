@@ -96,7 +96,7 @@
       "slug": "fortress-2",
       "name": "Courtyard",
       "x": 9,
-      "y": 13
+      "y": 12
     },
     {
       "code": "3",
@@ -191,7 +191,7 @@
       "zone": "town",
       "slug": "town-8",
       "name": "Residences",
-      "x": 12,
+      "x": 11,
       "y": 14
     },
     {

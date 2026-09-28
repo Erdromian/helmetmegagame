@@ -82,10 +82,27 @@ const PEOPLE_ACTIONS = [
   { mode: "free", label: "Free", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
   { mode: "harm", label: "Harm", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
 ];
+// Somebody on the far side of a room that opens onto here too — every
+// multi-locational room, by default (MAP.md §2d). Transfer is the one verb that
+// reaches across, keyed "across:<ref>" for named and hooded alike: the ref is a
+// character id or the row's lookRef, which is what acrossRecipients lists and
+// resolveAcrossRecipient takes back (db/lib/whosHere.js).
+const ACROSS_ACTIONS = [
+  { mode: "transfer", label: "Transfer", preset: "toKey", group: 1, prefix: "across:", hoodPrefix: "across:" },
+];
 
 // `person` is normalised by the two lists below to { ref, name, hooded }:
 // a character id for somebody named, a hood token for somebody in one.
-function PersonMenu({ person, isSelf = false, onLook = null, onClose, onConverse, addPlace, onAddMember }) {
+function PersonMenu({
+  person,
+  isSelf = false,
+  onLook = null,
+  onClose,
+  onConverse,
+  addPlace,
+  onAddMember,
+  menu = PEOPLE_ACTIONS,
+}) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
   const pools = actions?.pools ?? null;
@@ -104,7 +121,7 @@ function PersonMenu({ person, isSelf = false, onLook = null, onClose, onConverse
   // Then the registry's own `show`, exactly as ActionGrid.js applies it. A mode
   // the registry doesn't know stays on the menu, so nothing can vanish by
   // accident — the filter only ever removes a row somebody wrote a rule for.
-  const entries = PEOPLE_ACTIONS.filter((entry) => {
+  const entries = menu.filter((entry) => {
     if (isSelf && entry.self === false) return false;
     if (person.hooded && !(entry.hoodPrefix && person.ref)) return false;
     const action = actionFor(entry.mode);
@@ -465,60 +482,108 @@ export default function HereList({
 
       {/* Over a counter: the far side of a room that opens onto here too (db/lib/roomSides.js).
           In the room with you, so a face and an eye once you have heard them — but standing
-          somewhere else, so no menu: nothing is done to anybody across it. */}
-      {(live?.rooms ?? []).map((group) => (
-        <div key={`${group.roomId}:${group.locationId}`}>
-          <p className="group-label chat-section-title">
-            {group.roomName} · {group.locationName} · {group.named.length + group.concealed.length}
-          </p>
-          {group.named.map((person) => (
-            <div key={person.characterId} className="chat-person-row">
-              <span className="chat-person">
-                <CharacterAvatar
-                  characterId={person.characterId}
-                  name={person.name}
-                  version={person.avatarVersion}
-                  src={person.avatarPath ?? undefined}
-                  size={24}
-                  online={person.online}
-                />
-                <span className="chat-person-name" data-role-group={person.roleGroup ?? undefined}>
-                  <NameCard seq={person.sightingSeq}>{person.name}</NameCard>
-                </span>
-              </span>
-              {person.sightingSeq && (
-                <span className="chat-person-eye">
-                  <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
-                </span>
-              )}
-            </div>
-          ))}
-          {group.concealed.map((person, index) => (
-            <div key={`counter-hooded-${index}`} className="chat-person-row">
-              <span className="chat-person">
-                <CharacterAvatar
-                  characterId={null}
-                  name={person.alias}
-                  src={person.avatarPath ?? undefined}
-                  unknown={person.unknownFace}
-                  size={24}
-                />
-                <span
-                  className={person.stranger ? "chat-person-name" : "chat-person-name text-muted"}
-                  data-role-group={person.roleGroup ?? undefined}
-                >
-                  <NameCard seq={person.sightingSeq}>{person.alias}</NameCard>
-                </span>
-              </span>
-              {person.sightingSeq && (
-                <span className="chat-person-eye">
-                  <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
-                </span>
-              )}
-            </div>
-          ))}
-        </div>
-      ))}
+          somewhere else, so the menu holds Transfer and nothing else: handing something
+          across is the one thing done to anybody on the other side (MAP.md §2d). */}
+      {(live?.rooms ?? []).map((group) => {
+        const groupKey = `${group.roomId}:${group.locationId}`;
+        return (
+          <div key={groupKey}>
+            <p className="group-label chat-section-title">
+              {group.roomName} · {group.locationName} · {group.named.length + group.concealed.length}
+            </p>
+            {group.named.map((person) => {
+              const rowId = `across:${groupKey}:${person.characterId}`;
+              return (
+                <div key={person.characterId} className="chat-person-wrap">
+                  <div className="chat-person-row">
+                    <button
+                      type="button"
+                      className="chat-person"
+                      aria-haspopup="menu"
+                      aria-expanded={openId === rowId}
+                      onClick={() => setOpenId(openId === rowId ? null : rowId)}
+                    >
+                      <CharacterAvatar
+                        characterId={person.characterId}
+                        name={person.name}
+                        version={person.avatarVersion}
+                        src={person.avatarPath ?? undefined}
+                        size={24}
+                        online={person.online}
+                      />
+                      <span className="chat-person-name" data-role-group={person.roleGroup ?? undefined}>
+                        {/* Not pinnable: a click on the name opens the menu below. */}
+                        <NameCard seq={person.sightingSeq} pinnable={false}>
+                          {person.name}
+                        </NameCard>
+                      </span>
+                    </button>
+                    {person.sightingSeq && (
+                      <span className="chat-person-eye">
+                        <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
+                      </span>
+                    )}
+                  </div>
+                  {openId === rowId && (
+                    <PersonMenu
+                      person={{ ref: person.characterId, name: person.name, hooded: false }}
+                      onLook={person.sightingSeq ? () => lookAtSeq(person.sightingSeq) : null}
+                      onClose={close}
+                      menu={ACROSS_ACTIONS}
+                    />
+                  )}
+                </div>
+              );
+            })}
+            {group.concealed.map((person, index) => {
+              const rowId = `across:${groupKey}:hooded-${index}`;
+              return (
+                <div key={`counter-hooded-${index}`} className="chat-person-wrap">
+                  <div className="chat-person-row">
+                    <button
+                      type="button"
+                      className="chat-person"
+                      aria-haspopup="menu"
+                      aria-expanded={openId === rowId}
+                      onClick={() => setOpenId(openId === rowId ? null : rowId)}
+                    >
+                      <CharacterAvatar
+                        characterId={null}
+                        name={person.alias}
+                        src={person.avatarPath ?? undefined}
+                        unknown={person.unknownFace}
+                        size={24}
+                      />
+                      <span
+                        className={person.stranger ? "chat-person-name" : "chat-person-name text-muted"}
+                        data-role-group={person.roleGroup ?? undefined}
+                      >
+                        <NameCard seq={person.sightingSeq} pinnable={false}>
+                          {person.alias}
+                        </NameCard>
+                      </span>
+                    </button>
+                    {person.sightingSeq && (
+                      <span className="chat-person-eye">
+                        <IconButton icon={EyeIcon} label="Look at" onClick={() => lookAtSeq(person.sightingSeq)} />
+                      </span>
+                    )}
+                  </div>
+                  {/* The lookRef is the hood's across ref; with no AUTH_SECRET there is none, and the menu is Look at alone. */}
+                  {openId === rowId && (
+                    <PersonMenu
+                      person={{ ref: person.lookRef ?? null, name: person.alias, hooded: true }}
+                      onLook={person.sightingSeq ? () => lookAtSeq(person.sightingSeq) : null}
+                      onClose={close}
+                      menu={ACROSS_ACTIONS}
+                    />
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        );
+      })}
 
       <FormError>{addError}</FormError>
 

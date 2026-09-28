@@ -882,7 +882,7 @@ tags:
     name: Pious
     category: general
     group: general-traits
-    description: "You cannot be forcibly converted."
+    description: "You cannot be converted."
     pointCost: 0
     purchasable: false
 
@@ -2494,8 +2494,8 @@ tags:
     purchasable: false
     purchasableAfterStart: false
     exclusive: true
-    # Pious ("cannot be forcibly converted") goes too. The conversion rite
-    # bounces off a Pious target before it gets here, so this only bites on
+    # Pious ("cannot be converted") goes too. The conversion rite bounces
+    # off a Pious target, at the pick and again at Join, so this only bites on
     # a GM's Assign.
     conflictsWith: [pacifist, charitable, saint, pilgrim, pious]
     # A cultist wants what the cult wants, and past that only the ugly things.

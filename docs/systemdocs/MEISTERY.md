@@ -96,8 +96,8 @@ Discord every `mst:` press is act-gated, the Black Market's posture.
 **The Meistery Window** (`fortress-5-4`) is a multi-locational room (MAP.md
 §2d): home in the Tower, gated by the same three keys, with a public side onto
 the **Residences** (`town-8`). Talk and whatever is dropped in it cross between
-the sides, and Transfer works across it, the Merchant's Counter posture
-(CARRY.md). It has no terminal — a side offers Storage and nothing else.
+the sides, and Transfer works across it, as it does across every
+multi-locational room (CARRY.md §6). It has no terminal — a side offers Storage and nothing else.
 Because presence is by Location, whoever is in the Tower holding one of its
 keys shows in the Window's Who's here from the street.
 
