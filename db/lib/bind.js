@@ -19,6 +19,7 @@ const { INCAPACITATING_SLUGS } = require("./incapacitation");
 const { stopPerformances } = require("./performance");
 const { seenById } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
+const { logAudit } = require("./auditLog");
 
 const BIND_SELECT = {
   id: true,
@@ -83,14 +84,12 @@ async function applyBind(prisma, { actor, target, turn, offerId = null }) {
     // Being tied up is frightening, consented to or not (MOOD.md); every night
     // still bound costs more, in db/lib/moodPass.js.
     await applyMood(tx, target.id, { kind: "BOUND" });
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: actor.discordUserId ?? "system",
-        actionType: "request_bind_character",
-        targetCharacterId: target.id,
-        turnId: turn?.id ?? null,
-        details: effect,
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: actor.discordUserId ?? "system",
+      actionType: "request_bind_character",
+      targetCharacterId: target.id,
+      turnId: turn?.id ?? null,
+      details: effect,
     });
   });
   // Bound hands play nothing (SOUND.md, "Performances").

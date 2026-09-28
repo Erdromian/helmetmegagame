@@ -55,6 +55,7 @@ import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 // deliberately not on it (the db/lib/dm.js convention).
 import { cancelAttack } from "@lifeweb/db/lib/attack";
 import { endCombatAsGm } from "@lifeweb/db/lib/combat";
+import { logAudit } from "@/lib/requests";
 
 // EVERY MUTATION HERE HANDS BACK THE ROWS IT CHANGED, as `patch` — the shape
 // web/lib/deskRows.js#deskPatchFor builds and the client's desk store folds in
@@ -1245,13 +1246,11 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     return { status: "SOLVED", note: "Staged for the push." };
   });
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: `move_${mode}`,
-      targetCharacterId: action.characterId,
-      details: { actionId, note: result.note },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: session.discordUserId,
+    actionType: `move_${mode}`,
+    targetCharacterId: action.characterId,
+    details: { actionId, note: result.note },
   });
 
   return { ...result, patch: await deskPatchFor({ moveIds: [actionId] }) };
@@ -1300,13 +1299,11 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "
     }
   });
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: session.discordUserId,
-      actionType: mode === "save" ? "caving_roll_saved" : "caving_roll_resolved",
-      targetCharacterId: roll.characterId,
-      details: { cavingRollId: notesId, cavingRollIds: ids, die: roll.die, kind: roll.kind },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: session.discordUserId,
+    actionType: mode === "save" ? "caving_roll_saved" : "caving_roll_resolved",
+    targetCharacterId: roll.characterId,
+    details: { cavingRollId: notesId, cavingRollIds: ids, die: roll.die, kind: roll.kind },
   });
 
   const patch = await deskPatchFor({ cavingRollIds: ids });
@@ -1460,17 +1457,15 @@ async function rejectMoveImpl({ actionId }) {
   let lessonDms = [];
   await prisma.$transaction(async (tx) => {
     lessonDms = await deleteActionRestoringTurn(tx, action);
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: session.discordUserId,
-        actionType: "move_rejected",
-        targetCharacterId: action.characterId,
-        details: {
-          actionId,
-          description: action.description,
-          moveKind: action.moveKind,
-          appliedEffects: action.appliedEffects ?? null,
-        },
+    await logAudit(tx, {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "move_rejected",
+      targetCharacterId: action.characterId,
+      details: {
+        actionId,
+        description: action.description,
+        moveKind: action.moveKind,
+        appliedEffects: action.appliedEffects ?? null,
       },
     });
   for (const dm of lessonDms) {

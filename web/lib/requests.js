@@ -1,4 +1,4 @@
-import { prisma, placePairForAudit } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
 import { MAX_REASON_LENGTH } from "@/lib/constants";
 
 // What is left of the old Request system: the per-turn rations, and the one helper every player action writes its audit row through. See docs/systemdocs/REQUESTS.md.
@@ -65,17 +65,6 @@ export async function craftFreeUnits(db, characterId, turnId, tags) {
 
 // A player action writes one AuditLog row and nothing else — no Request table, no Undo; `details` is
 // the ONLY record. `place` (for /gm/audit's filter) is optional: {locationId, roomId}, a character, or a place key (db/lib/placeKey.js).
-export async function logAudit(tx, { actorDiscordUserId, actionType, targetCharacterId, turnId, details, place }) {
-  const { locationId, roomId } = await placePairForAudit(tx, place);
-  return tx.auditLog.create({
-    data: {
-      actorDiscordUserId,
-      actionType,
-      targetCharacterId: targetCharacterId ?? null,
-      turnId: turnId ?? null,
-      details: details ?? {},
-      locationId,
-      roomId,
-    },
-  });
-}
+// One writer for both faces now, since it also files the act in the archive (db/lib/archiveActions.js) and
+// two copies of that would drift.
+export { logAudit } from "@lifeweb/db/lib/auditLog";

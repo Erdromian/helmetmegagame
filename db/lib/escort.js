@@ -9,6 +9,7 @@ const { escortButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom } = require("./presentedIdentity");
 const { whosHere } = require("./whosHere");
+const { logAudit } = require("./auditLog");
 
 // How many turns an accepted escort keeps counting as consent. Two, so a party that walks apart and regroups inside the same day isn't asked twice.
 const CONSENT_TURNS = 2;
@@ -380,18 +381,16 @@ async function acceptEscort(prisma, offer, _responder) {
       where: { id: offer.id, status: "PENDING" },
       data: { status: "ACCEPTED", respondedAt: new Date(), resolvedAt: new Date() },
     });
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: target.discordUserId ?? "system",
-        actionType: "escort_consented",
-        targetCharacterId: actor.id,
-        turnId: turn.id,
-        details: {
-          follower: target.name,
-          leader: actor.name,
-          untilTurn: turn.number + CONSENT_TURNS,
-          attached: attaches,
-        },
+    await logAudit(tx, {
+      actorDiscordUserId: target.discordUserId ?? "system",
+      actionType: "escort_consented",
+      targetCharacterId: actor.id,
+      turnId: turn.id,
+      details: {
+        follower: target.name,
+        leader: actor.name,
+        untilTurn: turn.number + CONSENT_TURNS,
+        attached: attaches,
       },
     });
   });

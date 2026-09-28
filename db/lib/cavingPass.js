@@ -13,6 +13,7 @@ const { rollWithAdvantage } = require("./advantage");
 const { LUCKY_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { loadPresentedState } = require("./examineSnapshot");
+const { logAudit } = require("./auditLog");
 
 function quietDm(die) {
   return `Caving Die: ${die} — Nothing happens.`;
@@ -123,14 +124,12 @@ async function rollCaving(prisma, character, turn, location) {
       expiresTurn: expiryFrom(turn.number, tag.defaultDurationTurns),
     });
 
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: character.discordUserId ?? "system",
-        actionType: "caving_loot_granted",
-        targetCharacterId: character.id,
-        turnId: turn.id,
-        details: { tagId: tag.id, tagName: tag.name, added: 1, zoneId: zone.id, tier, die },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: character.discordUserId ?? "system",
+      actionType: "caving_loot_granted",
+      targetCharacterId: character.id,
+      turnId: turn.id,
+      details: { tagId: tag.id, tagName: tag.name, added: 1, zoneId: zone.id, tier, die },
     });
 
     const row = await tx.cavingRoll.create({

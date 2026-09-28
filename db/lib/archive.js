@@ -135,6 +135,9 @@ const ARCHIVE_ROW_SELECT = {
   zoneName: true,
   threadName: true,
   channelKind: true,
+  // The audit row behind an ACTION line (./archiveActions.js). Here and never in
+  // FEED_ROW_SELECT: the archive is a GM surface, a feed is not.
+  action: true,
 };
 
 // A page of transcript rows, shaped for the browser. Goes through feedRowShape rather
@@ -161,6 +164,7 @@ async function archiveRowsShape(prisma, rows) {
       threadName: row.threadName ?? null,
       channelKind: row.channelKind ?? null,
       realName: row.characterName ?? null,
+      action: row.action ?? null,
     });
   });
 }
@@ -360,6 +364,7 @@ module.exports = {
   withAvatarVersions,
   archiveRowsShape,
   currentGameId,
+  resolveTurn,
   forgetGameId,
   recordArchiveMessage,
   recordArchiveEvent,

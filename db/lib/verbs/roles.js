@@ -422,18 +422,16 @@ function callReinforcements(prisma, { character, discordUserId, roleSlug, quanti
       }
       if (fromResources > 0 && !(await takeCharacterResources(tx, character.id, fromResources))) refuse(tooPoor);
       await openLateJoinSlots(tx, reinforcement.roleSlug, count);
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "reinforcements_called",
-          targetCharacterId: character.id,
-          details: {
-            characterName: character.name,
-            roleSlug: reinforcement.roleSlug,
-            quantity: count,
-            paidObols: fromObols,
-            paidResources: fromResources,
-          },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "reinforcements_called",
+        targetCharacterId: character.id,
+        details: {
+          characterName: character.name,
+          roleSlug: reinforcement.roleSlug,
+          quantity: count,
+          paidObols: fromObols,
+          paidResources: fromResources,
         },
       });
     });

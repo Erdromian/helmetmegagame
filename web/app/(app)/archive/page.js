@@ -11,6 +11,7 @@ import {
   archiveOrderBy,
   archiveWhere,
   parseArchiveParams,
+  roomKey,
 } from "@/lib/archiveQuery";
 import ArchiveView from "./ArchiveView";
 
@@ -46,8 +47,8 @@ export default async function ArchivePage({ searchParams }) {
   // empty filter dropdowns, which reads as a bug rather than as a game that
   // was deliberately put away. The epilogue below is the whole stub, and it is
   // still on the Game row.
-  const [rows, total, zoneRows, characterRows] = archived
-    ? [[], 0, [], []]
+  const [rows, total, zoneRows, characterRows, roomRows] = archived
+    ? [[], 0, [], [], []]
     : await Promise.all([
         prisma.archiveEntry.findMany({
           where,
@@ -64,9 +65,17 @@ export default async function ArchivePage({ searchParams }) {
         // been re-synced under new ids, but the snapshot names on the rows are
         // exactly what was.
         prisma.archiveEntry.groupBy({ by: ["zoneName"], where: { gameId: game.id, zoneName: { not: null } } }),
+        // Somebody who only ever acted is somebody a GM may want to follow, so
+        // ACTION rows count here beside what was said.
         prisma.archiveEntry.groupBy({
           by: ["characterId", "characterName"],
-          where: { gameId: game.id, kind: "MESSAGE", characterId: { not: null } },
+          where: { gameId: game.id, kind: { in: ["MESSAGE", "ACTION"] }, characterId: { not: null } },
+        }),
+        // Rooms and Conversations, by the names on the rows: the same snapshot
+        // argument as the zones above.
+        prisma.archiveEntry.groupBy({
+          by: ["zoneName", "threadName"],
+          where: { gameId: game.id, threadName: { not: null } },
         }),
       ]);
 
@@ -78,9 +87,14 @@ export default async function ArchivePage({ searchParams }) {
     done,
   };
   const zones = zoneRows.map((r) => r.zoneName).sort((a, b) => a.localeCompare(b));
-  const characters = characterRows
+  // One entry per character: a renamed one (or a ghost's Deadchat name) groups
+  // twice, and the picker keys on the id.
+  const characters = [...new Map(characterRows.map((r) => [r.characterId, r])).values()]
     .map((r) => ({ id: r.characterId, name: r.characterName ?? r.characterId }))
     .sort((a, b) => a.name.localeCompare(b.name));
+  const rooms = roomRows
+    .map((r) => ({ id: roomKey(r.zoneName, r.threadName), label: r.threadName, note: r.zoneName ?? "" }))
+    .sort((a, b) => a.label.localeCompare(b.label) || a.note.localeCompare(b.note));
 
   const epilogue = game.epilogue ?? null;
   return (
@@ -127,6 +141,7 @@ export default async function ArchivePage({ searchParams }) {
             games={games}
             currentGameId={state?.gameId ?? null}
             zones={zones}
+            rooms={rooms}
             characters={characters}
             filters={filters}
             total={total}

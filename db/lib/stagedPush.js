@@ -31,6 +31,7 @@ const { farmDm } = require("./soilery");
 const { breakInDm } = require("./arelitz");
 const { isDayLongTurn } = require("./turnClock");
 const { letInAtPush } = require("./roomGuests");
+const { logAudit } = require("./auditLog");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -292,17 +293,15 @@ async function applyOneStagedEffect(prisma, row, turn, notices = []) {
       // A craft's own arrival is the player's doing, not a GM's: audited as
       // that, so /gm/audit doesn't read "Ada resolved a gambit for Ada".
       if (craftYield) {
-        await tx.auditLog.create({
-          data: {
-            actorDiscordUserId: row.createdByDiscordUserId ?? "system:staged_push",
-            actionType: "craft_yield_arrived",
-            targetCharacterId: row.targetCharacterId,
-            details: {
-              tags: summarizeTagOps(snapshot.tags),
-              label: row.payload?.craftLabel ?? null,
-              stagedEffectId: row.id,
-              ...(snapshot.craftSpare ? { spare: snapshot.craftSpare } : {}),
-            },
+        await logAudit(tx, {
+          actorDiscordUserId: row.createdByDiscordUserId ?? "system:staged_push",
+          actionType: "craft_yield_arrived",
+          targetCharacterId: row.targetCharacterId,
+          details: {
+            tags: summarizeTagOps(snapshot.tags),
+            label: row.payload?.craftLabel ?? null,
+            stagedEffectId: row.id,
+            ...(snapshot.craftSpare ? { spare: snapshot.craftSpare } : {}),
           },
         });
       } else if (snapshot.tags?.length) {
@@ -314,20 +313,18 @@ async function applyOneStagedEffect(prisma, row, turn, notices = []) {
         // back to whoever staged this specific effect.
         const resolverId =
           row.move?.reviewedByDiscordUserId ?? row.createdByDiscordUserId ?? "system:staged_push";
-        await tx.auditLog.create({
-          data: {
-            actorDiscordUserId: resolverId,
-            actionType: "gm_staged_tag_applied",
-            targetCharacterId: row.targetCharacterId,
-            details: {
-              tags: summarizeTagOps(snapshot.tags),
-              stagedByDiscordUserId: row.createdByDiscordUserId,
-              resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? null,
-              gambitCharacterId: row.move?.characterId ?? null,
-              gambitCharacterName: row.move?.character?.name ?? null,
-              gambitId: row.moveId ?? null,
-              moveKind: row.move?.moveKind ?? null,
-            },
+        await logAudit(tx, {
+          actorDiscordUserId: resolverId,
+          actionType: "gm_staged_tag_applied",
+          targetCharacterId: row.targetCharacterId,
+          details: {
+            tags: summarizeTagOps(snapshot.tags),
+            stagedByDiscordUserId: row.createdByDiscordUserId,
+            resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? null,
+            gambitCharacterId: row.move?.characterId ?? null,
+            gambitCharacterName: row.move?.character?.name ?? null,
+            gambitId: row.moveId ?? null,
+            moveKind: row.move?.moveKind ?? null,
           },
         });
       }

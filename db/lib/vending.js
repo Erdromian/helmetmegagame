@@ -46,6 +46,7 @@ const { characterParty, machineParty, turnStamp } = require("./economyLedger");
 // sendDm twins and why they differ are in CLAUDE.md.
 const { sendDm } = require("./dm");
 const { SFX } = require("./sfx");
+const { logAudit } = require("./auditLog");
 // The words and the numbers live in their own zero-require file so Chat's dialog
 // can import them without dragging PrismaClient into the browser (slotText.js
 // says the same about itself). Re-exported below, so a server caller keeps its
@@ -302,15 +303,13 @@ async function takeMachine(prisma, discordUserId, { roomId, turn = null } = {}) 
     });
     took = count === 1;
     if (took) {
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "vending_open",
-          targetCharacterId: character.id,
-          roomId: room.id,
-          turnId: turn?.id ?? null,
-          details: { machineId: machine.id },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "vending_open",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: { machineId: machine.id },
+        place: { locationId: null, roomId: room.id },
       });
     }
   });
@@ -415,15 +414,13 @@ async function insertCoins(prisma, discordUserId, { roomId, amount, turn = null 
         select: { floatObols: true },
       });
       total = updated.floatObols;
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "vending_insert",
-          targetCharacterId: character.id,
-          roomId: room.id,
-          turnId: turn?.id ?? null,
-          details: { machineId: machine.id, amount: n, floatAfter: total },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "vending_insert",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: { machineId: machine.id, amount: n, floatAfter: total },
+        place: { locationId: null, roomId: room.id },
       });
     });
   } catch {
@@ -475,15 +472,13 @@ async function withdrawCoins(prisma, discordUserId, { roomId, turn = null } = {}
         stackable: true,
         econ: { from: box, to: me, ...econ },
       });
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "vending_withdraw",
-          targetCharacterId: character.id,
-          roomId: room.id,
-          turnId: turn?.id ?? null,
-          details: { machineId: machine.id, amount: taken },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "vending_withdraw",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: { machineId: machine.id, amount: taken },
+        place: { locationId: null, roomId: room.id },
       });
     });
   } catch (err) {
@@ -593,17 +588,15 @@ async function buySlot(prisma, discordUserId, { roomId, tagId, turn = null } = {
       });
       leftInSlot = after?.floatObols ?? 0;
 
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "vending_buy",
-          targetCharacterId: character.id,
-          roomId: room.id,
-          turnId: turn?.id ?? null,
-          // No poison in the details: an audit row a GM reads is fine, but this
-          // one is also what auditNarrative renders, and that is read widely.
-          details: { machineId: machine.id, tagId, name: tag?.name ?? null, price },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "vending_buy",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        // No poison in the details: an audit row a GM reads is fine, but this
+        // one is also what auditNarrative renders, and that is read widely.
+        details: { machineId: machine.id, tagId, name: tag?.name ?? null, price },
+        place: { locationId: null, roomId: room.id },
       });
     });
   } catch (err) {
@@ -649,15 +642,13 @@ async function unlockMachine(prisma, discordUserId, { roomId, turn = null } = {}
     where: { id: machine.id, holderId: character.id },
     data: { unlocked: true },
   });
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: discordUserId,
-      actionType: "vending_unlock",
-      targetCharacterId: character.id,
-      roomId: room.id,
-      turnId: turn?.id ?? null,
-      details: { machineId: machine.id },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: discordUserId,
+    actionType: "vending_unlock",
+    targetCharacterId: character.id,
+    turnId: turn?.id ?? null,
+    details: { machineId: machine.id },
+    place: { locationId: null, roomId: room.id },
   });
 
   const who = await presentedName(prisma, character.id);
@@ -721,15 +712,13 @@ async function collectTill(prisma, discordUserId, { roomId, turn = null } = {}) 
         stackable: true,
         econ: { from: box, to: me, ...econ },
       });
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "vending_collect",
-          targetCharacterId: character.id,
-          roomId: room.id,
-          turnId: turn?.id ?? null,
-          details: { machineId: machine.id, amount: taken },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "vending_collect",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: { machineId: machine.id, amount: taken },
+        place: { locationId: null, roomId: room.id },
       });
     });
   } catch (err) {
@@ -811,15 +800,13 @@ async function stockMachine(
           },
         });
       }
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "vending_stock",
-          targetCharacterId: character.id,
-          roomId: room.id,
-          turnId: turn?.id ?? null,
-          details: { machineId: machine.id, tagId, name: tag.name, quantity: n, price },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "vending_stock",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: { machineId: machine.id, tagId, name: tag.name, quantity: n, price },
+        place: { locationId: null, roomId: room.id },
       });
     });
   } catch {
@@ -904,15 +891,13 @@ async function unstockMachine(prisma, discordUserId, { roomId, tagId, quantity, 
         poisonPayload: poisoned > 0 ? slot.poisonPayload : null,
         econ: { from: box, to: me, ...econ },
       });
-      await tx.auditLog.create({
-        data: {
-          actorDiscordUserId: discordUserId,
-          actionType: "vending_unstock",
-          targetCharacterId: character.id,
-          roomId: room.id,
-          turnId: turn?.id ?? null,
-          details: { machineId: machine.id, tagId, name: tag?.name ?? null, quantity: take },
-        },
+      await logAudit(tx, {
+        actorDiscordUserId: discordUserId,
+        actionType: "vending_unstock",
+        targetCharacterId: character.id,
+        turnId: turn?.id ?? null,
+        details: { machineId: machine.id, tagId, name: tag?.name ?? null, quantity: take },
+        place: { locationId: null, roomId: room.id },
       });
     });
   } catch (err) {
@@ -940,15 +925,13 @@ async function setSlotPrice(prisma, discordUserId, { roomId, tagId, priceObols, 
   if (price === null) return fail(T.priceRange(VENDING_MAX_PRICE));
 
   await prisma.vendingSlot.update({ where: { id: slot.id }, data: { priceObols: price } });
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: discordUserId,
-      actionType: "vending_price",
-      targetCharacterId: character.id,
-      roomId: room.id,
-      turnId: turn?.id ?? null,
-      details: { machineId: machine.id, tagId, name: slot.tag?.name ?? null, price },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: discordUserId,
+    actionType: "vending_price",
+    targetCharacterId: character.id,
+    turnId: turn?.id ?? null,
+    details: { machineId: machine.id, tagId, name: slot.tag?.name ?? null, price },
+    place: { locationId: null, roomId: room.id },
   });
 
   const name = slot.tag?.name ?? "It";

@@ -8,6 +8,7 @@ const { movesOpen } = require("./turnGate");
 const { blockerFor, gambitBlockerFor, ACT } = require("./incapacitation");
 const { touchCharacterActivity } = require("./characterActivity");
 const { deleteActionRestoringTurn, lockIsLive, syncQuestIntention } = require("./moveEconomy");
+const { logAudit } = require("./auditLog");
 
 // What the modal and the Move dialog may submit. There is one: a Move IS a Gambit. The column's other
 // value, ROUTINE, is written by every button that spends a Move (Mine, Refine, Farm) and by a GM
@@ -80,15 +81,13 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
 
   await touchCharacterActivity(prisma, character.id);
 
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: actorDiscordUserId ?? character.discordUserId ?? null,
-      actionType: "move_submitted",
-      targetCharacterId: character.id,
-      // Three per-turn rations COUNT audit rows (REQUESTS.md §1a), so every row gets its turn stamped even when nothing reads it yet.
-      turnId: openTurn.id,
-      details: { actionId: action.id, kind: moveKind },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: actorDiscordUserId ?? character.discordUserId ?? null,
+    actionType: "move_submitted",
+    targetCharacterId: character.id,
+    // Three per-turn rations COUNT audit rows (REQUESTS.md §1a), so every row gets its turn stamped even when nothing reads it yet.
+    turnId: openTurn.id,
+    details: { actionId: action.id, kind: moveKind },
   });
 
   return { ok: true, action, openTurn };
@@ -170,14 +169,12 @@ async function editMove(prisma, { character, actorDiscordUserId, actionId, descr
   });
 
   await touchCharacterActivity(prisma, character.id);
-  await prisma.auditLog.create({
-    data: {
-      actorDiscordUserId: actorDiscordUserId ?? character.discordUserId ?? null,
-      actionType: "move_edited",
-      targetCharacterId: character.id,
-      turnId: openTurn.id,
-      details: { actionId: action.id, from: action.description, to: raw },
-    },
+  await logAudit(prisma, {
+    actorDiscordUserId: actorDiscordUserId ?? character.discordUserId ?? null,
+    actionType: "move_edited",
+    targetCharacterId: character.id,
+    turnId: openTurn.id,
+    details: { actionId: action.id, from: action.description, to: raw },
   });
 
   return { ok: true, action: updated };
@@ -197,14 +194,12 @@ async function withdrawMove(prisma, { character, actorDiscordUserId, actionId })
   let dms = [];
   await prisma.$transaction(async (tx) => {
     dms = await deleteActionRestoringTurn(tx, action);
-    await tx.auditLog.create({
-      data: {
-        actorDiscordUserId: actorDiscordUserId ?? character.discordUserId ?? null,
-        actionType: "move_withdrawn",
-        targetCharacterId: character.id,
-        turnId: openTurn.id,
-        details: { actionId: action.id, description: action.description, moveKind: action.moveKind },
-      },
+    await logAudit(tx, {
+      actorDiscordUserId: actorDiscordUserId ?? character.discordUserId ?? null,
+      actionType: "move_withdrawn",
+      targetCharacterId: character.id,
+      turnId: openTurn.id,
+      details: { actionId: action.id, description: action.description, moveKind: action.moveKind },
     });
   });
 

@@ -25,12 +25,52 @@ failed announcement can't leave two days with no boundary — **one row per zone
 since phase 4 of Chat, each with `placeKey: zone:<id>`, so every zone's feed
 on `/chat` carries the day line; the transcript still draws one divider, since
 it keys on the day and never renders a `TURN_START` as a row), `CHARACTER_CREATED`,
-`DEATH`, `DESIRE_FULFILLED`, `LIFEWEB`, `TRAVEL` and `GATEHOUSE`
+`DEATH`, `DESIRE_FULFILLED`, `LIFEWEB`, `TRAVEL`, `GATEHOUSE` and `ACTION`
 — `TRAVEL` gated behind `GameConfig.archiveTravelEvents`, off by default,
 since arrivals are what make a zone read like a story and also two rows per
 character per turn before anyone speaks. `GATEHOUSE` is everything done at the
 gatehouse's controls, written with no `placeKey` so it reaches no feed
 (`GATEHOUSE.md` §6).
+
+### `ACTION`: what characters did
+
+The transcript used to hold only what was said. What was DONE — a Farm, a
+Steal, a vending buy, a Move filed — lived only in `AuditLog`, which Restart
+Game wipes and no packet carries, so a finished game kept its conversation and
+lost its plot. An `ACTION` row is that act, filed into the transcript:
+
+- **Every verb, every Move, and what came of them.** A Move confirmed, solved
+  or rejected, a cave find, a staged effect landing at the push, an
+  above-skill heal's roll. `db/lib/archiveActions.js#archiveRoleOf` sorts an
+  audit type into three: filed on the **actor** (the acting player's
+  character — the default, so a new verb is archived without anybody
+  remembering to list it), filed on the **target** (an outcome: the character
+  it happened to, with "A GM" or "The game" as the one who did it), or not a
+  character's act at all (the GM's desk, the host's panel, the engine's own
+  passes).
+- **It comes from the audit row, written by `logAudit`.** Both faces write a
+  player action's row through `db/lib/auditLog.js#logAudit` (the web's
+  `web/lib/requests.js` re-exports it), and that is where the act is filed —
+  **through the caller's transaction**, so an act that rolls back never
+  leaves a line saying it happened. Everything that could make the insert
+  fail is looked up first and a row that cannot be filed is skipped, because
+  an error inside a Postgres transaction would abort the player's action with
+  it. **So a player action never writes its audit row with a raw
+  `auditLog.create`.** `db/test/archiveActions.test.js` scans every source
+  file and fails on one whose type the archive would file; the few raw writes
+  left are the machine's, the engine writing as `"system"`, or listed there
+  with the reason.
+- **Never on a feed.** No `placeKey`, the `GATEHOUSE` rule, since every feed
+  reader selects by one. The place is still stamped — `zoneName`, and the
+  Room as `threadName` — so an act sits in the same scene as the talk around
+  it.
+- **`action` carries the audit row** (`{ type, details, actorName, targetId,
+  targetName, locationName }`), and `/archive` draws it with the audit log's
+  own renderer (`web/lib/auditNarrative.js`), so an act reads the same there
+  and on `/gm/audit`. `content` holds a plain one-line version
+  (`db/lib/oracleAudit.js#auditLine`) for the text search and for packets.
+  Like `presentedState`, `action` is in `ARCHIVE_ROW_SELECT` and never in
+  `FEED_ROW_SELECT`.
 
 Five things about it are load-bearing:
 
@@ -120,10 +160,32 @@ pages.
 
 **One game at a time.** `?game=N` picks a `Game`; the current one is the
 default. A game with an epilogue shows it on top — the closing note, the
-facts line, and "who was who" folded under a click. The zone and character
-filters are `groupBy`s over the game's own rows, not the live tables: a past
+facts line, and "who was who" folded under a click. The zone, room and person
+lists are `groupBy`s over the game's own rows, not the live tables: a past
 game's characters are gone and its zones may have been re-synced under new
 ids, but the snapshot names on the rows are exactly what was.
+
+**Filters stack.** Zones, Rooms and People each take several values, as
+repeated URL params (`?zone=Town&zone=Caves`): OR within one, AND across
+them, and with a day range (`from`/`to`; the old `day=N` still reads as a
+range of one) and the text search on top. A room is named by zone and name
+together (`Town|Tavern`), since two zones can each have a Cellar; the list
+holds Rooms and Conversations, whatever carries a `threadName`. They are
+picked in the Filters drawer and applied once, and each value is its own chip
+above the transcript so any one can be taken off. Clicking a name or a scene
+in the transcript adds to what is picked rather than replacing it.
+
+**Actions is a switch, off by default.** It sits with Scenes and Faces but is
+not a view toggle like them: it changes which rows the server pages, so it is
+`actions=1` in the link. Off, `ACTION` rows are left out of both Speech and
+Everything; on, they join either, drawn as a muted `▸` line in their scene.
+The GM inspector's Archive tab has the same switch.
+
+`archiveWhere` builds every clause as its own entry in an `AND` list. It used
+to spread them onto one object, and the scroll endpoint spread the keyset
+cursor beside them — both carried an `OR`, so past the first screen the
+cursor's replaced Speech's and the view quietly turned into Everything.
+`archivePageWhere` joins the two now.
 
 **The transcript is dense** (`ArchiveTranscript.js`): the page's rows grouped
 by consecutive day, then scene, at the audit log's sizes. A `TURN_START` row
