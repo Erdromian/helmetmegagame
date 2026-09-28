@@ -42,6 +42,12 @@ export function effectSegments(effect, tagsById) {
     });
     return segs;
   }
+  // A let-in carries nothing else either.
+  if (effect.roomEntry) {
+    const { name, locationName } = effect.roomEntry;
+    segs.push({ k: "text", v: `Let into ${locationName ? `${locationName} — ${name}` : name}` });
+    return segs;
+  }
   if (effect.transfer) {
     const { from, to, amount } = effect.transfer;
     segs.push({ k: "text", v: `${partyLabel(from)} → ${partyLabel(to)} · ${amount} ⬢` });
@@ -86,6 +92,8 @@ export function effectState(effect) {
     if (effect.death && effect.appliedDeath && effect.appliedDeath.claimed === false) {
       return { label: "No-op — already dead", tone: "warn" };
     }
+    // The side they stood at was open to all, or they hold a key — nothing to let them into.
+    if (effect.appliedRoomEntry?.already) return { label: "No-op — already in", tone: "warn" };
     return { label: "Applied", tone: "good" };
   }
   // Missed push is the warning; Staged is the normal resting state.

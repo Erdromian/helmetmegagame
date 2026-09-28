@@ -127,6 +127,7 @@ function describeStagedEffect(snapshot) {
   }
   if (snapshot?.location) bits.push("relocated");
   if (snapshot?.transfer) bits.push(`${snapshot.transfer.amount} ⬢ transferred`);
+  if (snapshot?.roomEntry && !snapshot.roomEntry.already) bits.push(`let into ${snapshot.roomEntry.name}`);
   return bits.join(", ");
 }
 

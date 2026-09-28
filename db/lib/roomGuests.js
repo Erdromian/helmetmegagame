@@ -143,6 +143,36 @@ async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm =
   return { ok: true, room, target, line: `${shown} was shown out.` };
 }
 
+// The GM's staged "let in" (docs/systemdocs/ADJUDICATION.md §1), run by db/lib/stagedPush.js inside the push's own
+// transaction — `tx` is that client. The same door as a GM's /add, with two differences. It writes only the ROW: the
+// thread add and the "you were let in" DM are the side-effect thunk's (turnSideEffects/steps/roomEntries.js), after the
+// commit. And its refusals are worded for the tray rather than a player, since a GM reads them the next morning. Standing
+// somewhere else fails the row rather than moving them there, on purpose: a GM who means both stages a Relocate too, and
+// the push applies every let-in after every other row so that relocation has already landed.
+async function letInAtPush(tx, { roomId, characterId }) {
+  const row = await tx.room.findUnique({ where: { id: String(roomId ?? "") }, select: ROOM_SELECT });
+  if (!row) return { error: "That room no longer exists." };
+
+  const target = await tx.character.findUnique({ where: { id: String(characterId ?? "") }, select: GUEST_SELECT });
+  if (!target || target.status !== "ALIVE") return { error: "They're no longer alive." };
+
+  const room = roomAt(row, target.locationId);
+  if (!room) {
+    return { error: `They weren't standing at ${row.location?.name ?? "that room's Location"} when the turn pushed.` };
+  }
+  if (room.kind !== "PRIVATE") return { room, target, already: "open" };
+
+  const held = await heldTagSlugs(tx, target.id);
+  if (room.accessTagSlugs.some((slug) => held.has(slug))) return { room, target, already: "key" };
+
+  await tx.roomGuest.upsert({
+    where: { roomId_characterId: { roomId: room.id, characterId: target.id } },
+    update: { locationId: room.locationId },
+    create: { roomId: room.id, characterId: target.id, invitedById: null, locationId: room.locationId },
+  });
+  return { room, target };
+}
+
 // Who is in a private room on a guest row — on one side, when `atLocationId` names it. Key-holders are NOT in this list — a different fact the room's own accessTagSlugs already says.
 // Through db/lib/presentedMembers.js, the same resolver the HERE column and a conversation's strip go through — /api/avatar/<id> is ungated, so
 // a raw id would leak a hooded guest's real portrait.
@@ -157,4 +187,4 @@ async function roomGuests(prisma, roomId, viewer, { atLocationId = null, ...opti
   return presentedMembers(prisma, rows.map((row) => row.characterId), viewer, options);
 }
 
-module.exports = { addRoomGuest, removeRoomGuest, roomGuests };
+module.exports = { addRoomGuest, removeRoomGuest, roomGuests, letInAtPush };

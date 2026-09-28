@@ -9,6 +9,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import EffectComposer from "./EffectComposer";
 import RoomEffectComposer from "./RoomEffectComposer";
 import DeathComposer from "./DeathComposer";
+import RoomEntryComposer from "./RoomEntryComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
@@ -272,6 +273,7 @@ export default function CombatDesk({
             <StagingStrip
               onEffect={() => setComposer("effect")}
               onRoom={() => setComposer("room")}
+              onLetIn={() => setComposer("letin")}
               onDeath={() => setComposer("death")}
               onMessage={() => {
                 setMessageSeed(null);
@@ -311,6 +313,16 @@ export default function CombatDesk({
         <RoomEffectComposer
           combatId={combat.id}
           tagCatalog={tagCatalog}
+          stagingRooms={stagingRooms}
+          onDone={done}
+          onCancel={() => setComposer(null)}
+        />
+      )}
+      {composer === "letin" && (
+        <RoomEntryComposer
+          combatId={combat.id}
+          quickPicks={everyone}
+          roster={roster}
           stagingRooms={stagingRooms}
           onDone={done}
           onCancel={() => setComposer(null)}

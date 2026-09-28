@@ -615,6 +615,64 @@ async function createStagedDeathsImpl({ targetCharacterIds, moveId, cavingRollId
   };
 }
 
+// A staged "let in": at the push each target gets the RoomGuest row a GM's
+// /add would write (db/lib/roomGuests.js#letInAtPush). One row per target
+// under a shared batchId, the death shape, and nothing else rides on the row.
+// Where they stand is NOT checked here — it can change before midnight, and
+// the push reads it live and fails the row if they aren't there.
+async function createStagedRoomEntriesImpl({ targetCharacterIds, roomId, moveId, cavingRollId, combatId }) {
+  await requireCombatAnchor(combatId);
+  const session = await requireGm();
+  const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
+  if (!targets.length) throw new UserError("Pick at least one character.");
+
+  const room = await requireStagedRoom(roomId, session);
+  // Private at home or on any side (db/lib/roomSides.js) — which side matters is decided at the push.
+  if (room.roomKind !== "PRIVATE" && !room.sides?.some((s) => s.kind === "PRIVATE")) {
+    throw new UserError("Anyone can already walk into that room.");
+  }
+
+  const found = await prisma.character.findMany({ where: { id: { in: targets } }, select: { id: true } });
+  if (found.length !== targets.length) throw new UserError("One of those characters no longer exists.");
+
+  const openTurn = await requireOpenTurn();
+  const batchId = targets.length > 1 ? crypto.randomUUID() : null;
+  const payload = { roomEntry: { id: room.id, name: room.name, locationName: room.locationName } };
+
+  const created = await prisma.$transaction(
+    targets.map((targetCharacterId) =>
+      prisma.stagedEffect.create({
+        data: {
+          turnId: openTurn.id,
+          moveId: moveId || null,
+          cavingRollId: cavingRollId || null,
+          combatId: combatId || null,
+          targetCharacterId,
+          createdByDiscordUserId: session.discordUserId,
+          batchId,
+          payload,
+        },
+        select: { id: true },
+      }),
+    ),
+  );
+  await retargetIfTurnClosed(prisma.stagedEffect, created.map((r) => r.id), openTurn.id);
+
+  await prisma.auditLog.create({
+    data: {
+      actorDiscordUserId: session.discordUserId,
+      actionType: "staged_effects_created",
+      details: { batchId, targets: targets.length, moveId: moveId || null, payload },
+    },
+  });
+
+  return {
+    count: created.length,
+    batchId,
+    patch: await deskPatchFor({ stagedEffectIds: created.map((r) => r.id) }),
+  };
+}
+
 // A staged character-to-character transfer. Separate from
 // createStagedEffectsImpl because the balance check runs against live
 // balances at stage time, not a mint/burn delta.
@@ -1766,6 +1824,9 @@ export async function createStagedDeaths(input) {
 }
 export async function updateStagedDeath(input) {
   return guarded(() => updateStagedDeathImpl(input));
+}
+export async function createStagedRoomEntries(input) {
+  return guarded(() => createStagedRoomEntriesImpl(input));
 }
 export async function createStagedTransfer(input) {
   return guarded(() => createStagedTransferImpl(input));

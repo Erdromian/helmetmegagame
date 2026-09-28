@@ -8,6 +8,7 @@ import useDirtyGuard from "@/app/components/useDirtyGuard";
 import EffectComposer from "./EffectComposer";
 import RoomEffectComposer from "./RoomEffectComposer";
 import DeathComposer from "./DeathComposer";
+import RoomEntryComposer from "./RoomEntryComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
@@ -271,6 +272,7 @@ export default function CavingDesk({
             <StagingStrip
               onEffect={() => setComposer("effect")}
             onRoom={() => setComposer("room")}
+              onLetIn={() => setComposer("letin")}
               onDeath={() => setComposer("death")}
               onMessage={() => {
                 setMessagePrefill(null);
@@ -299,6 +301,19 @@ export default function CavingDesk({
         <RoomEffectComposer
           cavingRollId={roll.id}
           tagCatalog={tagCatalog}
+          stagingRooms={stagingRooms}
+          onDone={(patch) => {
+            setComposer(null);
+            applyDeskPatch(patch);
+          }}
+          onCancel={() => setComposer(null)}
+        />
+      )}
+      {composer === "letin" && (
+        <RoomEntryComposer
+          cavingRollId={roll.id}
+          defaultTarget={{ id: roll.characterId, name: roll.characterName }}
+          roster={roster}
           stagingRooms={stagingRooms}
           onDone={(patch) => {
             setComposer(null);

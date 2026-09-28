@@ -431,7 +431,7 @@ export default function RoomEffectComposer({
 // One <optgroup> per Location, labelled with its zone. Rooms arrive already
 // ordered zone → location → name (web/lib/deskRows.js), so one pass keeps them
 // in docs/zones.yaml order.
-function groupByLocation(rooms) {
+export function groupByLocation(rooms) {
   const groups = [];
   for (const r of rooms ?? []) {
     const last = groups[groups.length - 1];

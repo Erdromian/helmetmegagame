@@ -281,6 +281,8 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         id: true,
         name: true,
         destroysContents: true,
+        kind: true,
+        sides: { select: { kind: true } },
         location: { select: { id: true, name: true, zoneId: true, zone: { select: { name: true } } } },
       },
     }),
@@ -296,6 +298,8 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       id: r.id,
       name: r.name,
       destroysContents: r.destroysContents,
+      // The let-in composer offers only these: a room private at home or on any side (db/lib/roomSides.js).
+      private: r.kind === "PRIVATE" || r.sides.some((s) => s.kind === "PRIVATE"),
       locationId: r.location.id,
       locationName: r.location.name,
       zoneId: r.location.zoneId,

@@ -16,6 +16,7 @@ import useMoveLock from "./useMoveLock";
 import EffectComposer from "./EffectComposer";
 import RoomEffectComposer from "./RoomEffectComposer";
 import DeathComposer from "./DeathComposer";
+import RoomEntryComposer from "./RoomEntryComposer";
 import MessageComposer from "./MessageComposer";
 import PublicComposer from "./PublicComposer";
 import StagedItems from "./StagedItems";
@@ -386,6 +387,7 @@ export default function MoveDesk({
           <StagingStrip
             onEffect={() => setComposer("effect")}
             onRoom={() => setComposer("room")}
+            onLetIn={() => setComposer("letin")}
             onDeath={() => setComposer("death")}
             onMessage={() => {
               setMessagePrefill(null);
@@ -413,6 +415,19 @@ export default function MoveDesk({
         <RoomEffectComposer
           moveId={move.id}
           tagCatalog={tagCatalog}
+          stagingRooms={stagingRooms}
+          onDone={(patch) => {
+            setComposer(null);
+            applyDeskPatch(patch);
+          }}
+          onCancel={() => setComposer(null)}
+        />
+      )}
+      {composer === "letin" && (
+        <RoomEntryComposer
+          moveId={move.id}
+          defaultTarget={{ id: move.characterId, name: move.characterName }}
+          roster={roster}
           stagingRooms={stagingRooms}
           onDone={(patch) => {
             setComposer(null);
