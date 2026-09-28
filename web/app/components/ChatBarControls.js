@@ -54,9 +54,12 @@ export default function ChatBarControls() {
 }
 
 // The phone's copy, in the chat head. A 390px head has room for the place's
-// name and a few thumb-sized buttons, not eight, so only the tick stays out;
-// the bell and the sound cluster (the switches, the volume and the text size,
-// which is what the top bar's caret opens) fold behind one ⋯ button.
+// name and a few thumb-sized buttons, not eight, so everything here folds
+// behind one ⋯ button: the bell and the tick, in a row the way the top bar
+// draws them, then the sound cluster (the switches, the volume and the text
+// size, which is what the top bar's caret opens). The tick used to stay out
+// on its own; with ≡, Actions, Search and 👥 beside it, that left the place's
+// name "B…" on a 390px screen.
 export function ChatPhoneControls() {
   const bar = useChatBar();
   const moreRef = useRef(null);
@@ -64,7 +67,6 @@ export function ChatPhoneControls() {
   if (!bar) return null;
   return (
     <>
-      <IconButton icon={CheckIcon} label="Mark all read" size="lg" onClick={bar.onMarkAllSeen} />
       {/* Bare .icon-btn, not IconButton: the popover measures itself against
           this ref, and a tooltip on a disclosure is noise. */}
       <button
@@ -83,6 +85,7 @@ export function ChatPhoneControls() {
           <div className="sound-panel">
             <div className="sound-controls">
               <Bell />
+              <IconButton icon={CheckIcon} label="Mark all read" onClick={bar.onMarkAllSeen} />
               <SoundControls layout="stack" />
             </div>
             <VolumeSlider id="volume-phone" />

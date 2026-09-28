@@ -1059,6 +1059,22 @@ a 48px head and a one-line composer:
   are one tap away and the count is on the button. The drawer's own title is
   the open place and its zone, not "Here" — the zone is dropped when it IS
   the open place, the zone summary.
+- **What is on the walls stays over the scene.** While the right column is
+  folded (under 900px), a **fixture strip** sits under the travel strip
+  (`next/FixtureStrip.js`). It holds the open place's fixtures: a room's
+  Phone, Infoterminal, Slot Machine and the rest, or the street's
+  Noticeboard, gates and Merchant's Terminal. It also holds the handset bar
+  while a phone is in your hand, and the line the last one answered with.
+  Players could not find the Phone or the Infoterminal when they lived only
+  behind the 👥 button, and a phone ringing in your hand showed nothing with
+  the drawer shut. The strip and the column draw from one filter
+  (`chat/fixtures.js`) and one `usePlaceActions` bag, which `ChatNext` owns.
+  Every fixture dialog is drawn at `ChatNext`'s root, and a fixture pressed
+  inside the drawer shuts the drawer first, so closing the keypad leaves you
+  at the composer. With nothing to show, the strip draws nothing.
+- **The head drops its crumb and count under 720px**, and its ✓ Mark all read
+  moves into the ⋯ popover beside the bell. With ≡, Actions, Search, ⋯ and 👥
+  on a 390px bar, the place's own name had been cut to "B…".
 - **A touch screen swaps the hover bar for one ⋯.** Every row carries a `⋯`
   at its right edge, opening the same verbs the desktop hover bar shows
   (Change, Delete, Look at, Photograph, Save to Notes, Remove) as a

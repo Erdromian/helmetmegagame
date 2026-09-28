@@ -390,19 +390,15 @@
     height: 48px;
     min-height: 48px;
   }
-  /* Between two drawer buttons and Search there is room for about one word,
-     and it went to the crumb and "2 here" while the place's own name was cut
-     to "MERCHA…". The count is already on the 👥 button's badge, so it goes;
-     the crumb gives way before the name does. */
-  [data-chat-next] .chat-head > .sub {
-    display: none;
-  }
+  /* Between two drawer buttons, Actions, Search and ⋯ there is room for about
+     one word, and it went to the crumb and "2 here" while the place's own name
+     was cut to "B…" — the Bar, in the Inn. The count is already on the 👥
+     button's badge, the zone is in both drawers' titles and the Location
+     heads the right drawer's place block, so both go and the name has the
+     whole gap. */
+  [data-chat-next] .chat-head > .sub,
   [data-chat-next] .chat-head > .crumb {
-    flex: 0 100 auto;
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    display: none;
   }
 }
 
@@ -920,6 +916,60 @@
   [data-chat-next] .chat-travel-ways .chat-node {
     min-height: var(--tap-sm);
     align-items: center;
+  }
+}
+
+/* THE FIXTURE STRIP (next/FixtureStrip.js): under the travel strip while the
+   right column is folded into its drawer — the open place's fixtures (Phone,
+   Infoterminal…), the handset bar while a phone is held, and the line the last
+   one answered with. A STRIP like the ways above it (vocabulary §1): no fill,
+   a RULE under it, and on a phone one line of buttons that scrolls sideways
+   inside itself. Gone entirely when it has nothing in it, which is most
+   places. */
+[data-chat-next] .chat-fixture-strip {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-1) var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+
+[data-chat-next] .chat-fixture-strip:empty {
+  display: none;
+}
+
+[data-chat-next] .chat-fixture-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-1);
+}
+
+[data-chat-next] .chat-fixture-strip .chat-quiet-line {
+  padding: 0;
+}
+
+/* The handset bar is framed for the column; over the scene the strip is its
+   frame, so it sheds the box and keeps its line and buttons. */
+[data-chat-next] .chat-fixture-strip .phone-bar {
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+/* The row bleeds out to the scene's edges so a button scrolls off the side
+   rather than into the strip's padding, the way the ways above it do. */
+@media (max-width: 720px) {
+  [data-chat-next] .chat-fixture-row {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overscroll-behavior-x: contain;
+    scrollbar-width: none;
+    margin-inline: calc(var(--sp-3) * -1);
+    padding-inline: var(--sp-3);
+  }
+  [data-chat-next] .chat-fixture-row > * {
+    flex: 0 0 auto;
   }
 }
 
