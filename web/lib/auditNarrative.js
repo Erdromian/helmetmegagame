@@ -4,6 +4,8 @@
 
 // Zero requires on purpose (its own header says why), so it is safe in a client bundle.
 import { workVerbByKey } from "@lifeweb/db/lib/gathering";
+// Prisma-free (its own header), so it is safe here too.
+import { describeAppliedScales } from "@lifeweb/db/lib/stagedScales";
 
 const t = (v) => ({ k: "t", v });
 const em = (v) => ({ k: "em", v });
@@ -318,6 +320,15 @@ const R = {
     d.gambitCharacterName ? em(d.gambitCharacterName) : target(),
     t("—"),
     ...(d.tags?.length ? [chip(tagOpSummary(d.tags))] : []),
+  ],
+  // A staged hunger/mood/blood/humanity change landing at the push
+  // (db/lib/stagedScalesApply.js). Same actor rule as the tag row above.
+  gm_staged_scales_applied: (d) => [
+    actor(),
+    t("moved"),
+    target(),
+    t("—"),
+    em(describeAppliedScales(d.scales).join(", ")),
   ],
   // A craft staged for the push (CRAFTING.md §3a) landing — db/lib/stagedPush.js.
   // The actor is the player who made it; a spare they already held went to a room.

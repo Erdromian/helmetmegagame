@@ -4866,7 +4866,10 @@ model StagedEffect {
   // handed to the side-effect thunk. May instead carry
   // `transfer?: { from: {kind,id,name}, to: {kind,id,name}, amount }` —
   // mutually exclusive with `resources`; a row either mints/burns ⬢ from
-  // nowhere or moves it between two named parties, never both.
+  // nowhere or moves it between two named parties, never both. May also carry
+  // `scales?: { hunger|mood|blood|humanity: { op: "set"|"add", value } }` —
+  // the hidden meters, set or moved at the push (db/lib/stagedScales.js,
+  // ADJUDICATION.md §1b), alongside any of the character keys above.
   //
   // A ROOM row is the third shape and stands entirely apart:
   // `{ room: {id, name, locationName}, roomTagOps?: [{tagId, op, quantity?}],

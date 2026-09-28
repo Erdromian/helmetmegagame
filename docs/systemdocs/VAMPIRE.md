@@ -94,6 +94,13 @@ severity against how desperate the vampire actually was. Setting blood there
 re-syncs the Pale/Bloodcrazed-etc. chips immediately
 (`db/lib/vampireBands.js`), rather than waiting for the next turn close.
 
+Or the GM **stages it** from the Move itself, with the Effect composer's
+Scales group (`ADJUDICATION.md` §1b), and it lands at the turn push with the
+rest of the ruling. Blood and humanity both stage that way, set or moved. A
+staged drop into Bloodcrazed takes the automatic 60 humanity (§3a), and a
+staged humanity of 0 makes them Bestial and a Wight (§3), the same as if the
+nightly pass had got them there.
+
 This is deliberate, not a placeholder: automating blood restoration or dice
 would mean inventing a combat-resolution system this engine doesn't have
 anywhere else. See the Blood Abilities menu (out of scope, §0 above) for

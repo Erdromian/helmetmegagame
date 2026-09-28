@@ -546,7 +546,10 @@ The thunk performs, in narrative order:
    A character who stayed in the same band hears nothing from this step.
    (The Dev Panel's Feed Them button sends its own `recovered` line instead,
    since a GM acting on someone's sheet needs telling apart from the
-   player's own eating — `db/lib/hunger.js#hungerDm`.)
+   player's own eating — `db/lib/hunger.js#hungerDm`. A hunger change a GM
+   staged at the desk sends its own Hungry or Starving line with the early
+   tag notices, and this step then counts from the number it set —
+   `ADJUDICATION.md` §1b.)
 5. **The staged deliveries** — every unsent `StagedMessage` for the closing
    turn. PRIVATE rows fan out one DM per recipient (per-recipient try/catch,
    failures collected onto the row's `deliveryFailures` and into one

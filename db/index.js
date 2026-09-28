@@ -552,6 +552,7 @@ async function resolveNeeds(turn, config) {
     roomEntries = [],
     routineNotices = [],
     gambitRollNotices = [],
+    scaleNotices = [],
     deaths: stagedDeaths = [],
     ...stagedPushSummary
   } = stagedPush ?? {};
@@ -565,6 +566,7 @@ async function resolveNeeds(turn, config) {
         publicPosts: publicPosts.length,
         routineNotices: routineNotices.length,
         gambitRollNotices: gambitRollNotices.length,
+        scaleNotices: scaleNotices.length,
         deaths: stagedDeaths.length,
         roomEntries: roomEntries.length,
       },
@@ -603,7 +605,10 @@ async function resolveNeeds(turn, config) {
   // dawn afflictions, Xom, the mood dial — rather than each threading a
   // variable of its own through runSideEffects/advanceTurn. Combat mode's
   // notices ran before this list existed, so they lead it, after the ambushes the push ended.
-  const tagExpiryDms = [...combatCloseNotices, ...combatModeNotices, ...tagExpiryDmsFromProgression];
+  // A GM's staged scale change (db/lib/stagedScalesApply.js) goes first of all:
+  // the hunger, Vampire and mood passes below run on from the number it set,
+  // so their own lines have to read after it, not before.
+  const tagExpiryDms = [...scaleNotices, ...combatCloseNotices, ...combatModeNotices, ...tagExpiryDmsFromProgression];
   if (progressed) await audit("tag_expiry_resolved", tagExpirySummary, "Tag expiry");
 
   // Moonshine's slow bill.

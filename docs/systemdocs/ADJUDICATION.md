@@ -21,7 +21,7 @@ day of work survives a refresh):
 |---|---|---|
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
 | **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`** — except underground, where there is no `#summary` at all: a `CAVE_LEVEL` zone (Caves, Depths) fans the declaration out to **every Location channel in the level**, one `Delivery` row per channel (`db/lib/publicPostTargets.js`). Full size and verbatim in both places; a declaration is a GM speaking, not scenery, so it wears no `-#`. If there is nowhere at all to post — an unprovisioned `#summary`, or a cave whose Locations have no channels yet — the post is skipped and recorded on `deliveryFailures`, never lost. A post survives the wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). The cave copies then live under the Location cadence, which is **every** turn rather than Dawn-only, so they get one turn where a `#summary` copy gets up to two. |
-| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, locationId? }` per target character | Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper for a **stackable** tag, so a GM can stage several at once; a non-stackable tag is a holds-it-or-doesn't flag and gets no stepper, because nobody may hold two of one (`TAGS.md` §5a). |
+| **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, locationId?, scales? }` per target character | `scales` is hunger, mood, blood and humanity, set or moved (§1b). Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper for a **stackable** tag, so a GM can stage several at once; a non-stackable tag is a holds-it-or-doesn't flag and gets no stepper, because nobody may hold two of one (`TAGS.md` §5a). |
 | **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive a player's Transfer and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 | **Room adjustments** | `StagedEffect` — `payload` `{ room: {id, name, locationName}, roomTagOps?, roomResources? }`, `targetCharacterId` **null** and mutually exclusive with every character key above | What is lying on a room's floor, and the room's own ⬢ (`CARRY.md`). The ⬢ is a **mint/burn** clamped at 0 (`db/lib/roomStash.js#addRoomResources`), not a transfer — there is no other end to balance against, so the snapshot records what actually moved. Tags go through `db/lib/roomTagOps.js`, **not** `tagOps.js`: a floor has no equip slots, no hands, and no treated-wound aftermath (`Tag.removesInto` chains are skipped on purpose — a scar is a fact about a body), and above all **no non-stackable pin** — two players can each leave their Longbow here, so a room takes any quantity of anything. Adds still carry `expiresTurn`, because the nightly sweep deletes `RoomTag` rows on the same clock it uses for characters. A `remove` the stack can't cover **fails the row** rather than taking what is there. Never batched: one room per row, like a transfer. Staged from "+ Room" on the tray and on a Move or Caving row (`RoomEffectComposer.js`). |
 | **Staged death** | `StagedEffect` — `payload` `{ death: true, gib?, reason }`, a real `targetCharacterId`, mutually exclusive with every other character key above | Instantaneous, via `db/lib/characterDeath.js#applyDeathToRow` inside the row's own transaction — the same teardown a turret kill or the Catatonic death pass gets (`CHARACTERS.md` §5). `gib: true` mints no corpse (`CORPSES.md` §1a). A target already dead by push time resolves as a clean no-op, recorded on `appliedEffect.death.claimed`. Staged from "+ Death" on the tray and on a Move or Caving row (`DeathComposer.js`) — its own dialog for the same reason Transfer and Room have theirs: death doesn't combine with a resource/tag delta on the same row. |
@@ -180,6 +180,72 @@ last-write-wins, which five GMs can live with.
 **Move links detach, never cascade.** `moveId` is `SetNull` on both staged
 models: rejecting a Move (deleting its Action) leaves the staged work in the
 tray as "unattached" for the GM to keep or drop.
+
+### 1b. Scales: hunger, mood, blood, humanity
+
+The Effect composer's **Scales** group stages a change to a character's hidden
+meters: the hunger meter (`TURN-ENGINE.md` §5), the mood dial (`MOOD.md`), and
+a Vampire's blood and humanity (`VAMPIRE.md`). Each one is left alone, **Set
+to** a number, or **Changed by** one, and the result is clamped to the meter's
+range. It rides the same `StagedEffect` row as ⬢, tags and a relocation, as
+`payload.scales` — `{ hunger: { op: "set", value: 40 }, mood: { op: "add",
+value: -20 } }` — so it batches onto several targets and edits like any other
+effect. The registry of scales, their ranges and the validator both the desk
+and the push run is `db/lib/stagedScales.js`; the push half is
+`db/lib/stagedScalesApply.js`.
+
+The composer shows each target's number as it stands, the word it reads as,
+and where the change would leave it. A player never sees a number, only the
+tag or word it drives. Blood and humanity only appear once somebody picked is
+a Vampire.
+
+**It lands at the push, before tonight's own tick.** The push runs ahead of the
+hunger, Vampire and mood passes in `TURN_PASSES`, so the meters still decay,
+regenerate and drift from the number a GM set. Restoring a Vampire's blood to
+100 after a feeding Gambit leaves them where the Dev Panel edit always did: at
+100, less one night's drain.
+
+**A staged change brings its meter's own coded consequences with it**, the
+same ones the change would have had in the world:
+
+- **Hunger.** The descriptor tag (Full, Hungry, Starving) moves at once.
+  Dropping into Hungry or Starving costs the same mood the hunger pass charges
+  for it. At 0 the hunger pass that runs straight after grants Dying, unless
+  they carry food to eat, exactly as it would for a meter that reached 0 on
+  its own.
+- **Blood.** The Vampire's band tags move at once. Crossing into Bloodcrazed
+  costs 60 humanity (`VAMPIRE.md` §3a), and the forced feed and attack follow
+  next turn.
+- **Humanity.** Reaching 0 from above makes them Bestial and a Wight, for good.
+
+A GM's own figure for a meter goes on **after** any knock-on to it. A **Set**
+is always the number they end on, so Set humanity 50 beside a blood drop to 0
+ends at 50 with no 60 taken. A **Change** moves whatever the knock-on left:
+Change humanity by −20 beside that same drop costs 80 in all. The "most
+severe loss only" cap in `VAMPIRE.md` §3a is still the GM's to apply by hand.
+
+**Some meters can't take a change, and the push skips them rather than
+failing the row:** a Hungerless character's hunger, an Imperturbable or
+Changa-high character's mood (both hold the dial where it is), blood or
+humanity on anybody who isn't a Vampire, and anything on a character who is no
+longer alive. The applied row says which were skipped and why, and a row that
+moved nothing reads **No-op**. The desk refuses the stage only when **nobody**
+picked could take it, so a batch with one Hungerless character in it still
+goes through.
+
+**What the player hears** is the line the game sends when hunger, blood or
+humanity drops into a worse band — "You're **Starving**…", the Vampire's
+Famished or Warped line — and nothing on the way back up. Recovery shows on
+their sheet, and the GM's staged message is the place to say how it happened.
+Mood keeps its own rule: the Afraid, Panicking and Ecstatic lines, on the way
+into each (`MOOD.md`). A row's lines arrive as **one DM**, and it goes out
+with the turn's other tag notices, **ahead of** the passes' own lines, so a
+band change the night's tick adds afterwards reads second.
+
+Each applied row writes one `gm_staged_scales_applied` audit row, with the
+before and after of every meter it moved. The actor is the GM who solved the
+Move, falling back to whoever staged the row (the `gm_staged_tag_applied`
+rule).
 
 ## 2. What a Move is now
 
@@ -984,6 +1050,9 @@ adjudicable the moment the Ram is a ruin.
 | `.../MoveDesk.js` / `CavingDesk.js` | The desks |
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
 | `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
+| `.../ScaleFields.js` | The Effect composer's Scales group (§1b) — hunger, mood, blood and humanity, with each target's number as it stands |
+| `db/lib/stagedScales.js` | The scales: their ranges, the validator the desk and the push share, who can't take which (`scaleBlockFor`), and the tray's wording. Prisma-free, so the composer reads it too |
+| `db/lib/stagedScalesApply.js` | What a staged scale change does at the push, knock-ons and notices included (§1b) |
 | `.../DecreeButton.js` / `.../DecreeComposer.js` | The header's Decree door and the dialog behind it (§3a) — a SEND, not a staging composer |
 | `db/lib/decree.js` | What a decree IS: one feed row and one `#summary` embed per zone. `db/lib/intercom.js` is the model |
 | `db/lib/decreeText.js` | The title/body seam and Discord's two embed caps. **Zero requires**, so the feed's client code can read a decree row back (`db/lib/dmKinds.js`'s rule) |

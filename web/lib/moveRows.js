@@ -207,6 +207,9 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     room: e.payload?.room ?? null,
     roomTagOps: e.payload?.roomTagOps ?? [],
     roomResources: e.payload?.roomResources ?? 0,
+    // { [key]: { op, value } }: hunger, mood, blood, humanity (db/lib/stagedScales.js); appliedScales is what the push did, skips included.
+    scales: e.payload?.scales ?? null,
+    appliedScales: e.appliedEffect?.scales ?? null,
     locationId: e.payload?.locationId ?? null,
     locationName: e.payload?.locationId
       ? (locationNameById.get(e.payload.locationId) ?? "(deleted location)")

@@ -32,6 +32,7 @@ const { breakInDm } = require("./arelitz");
 const { isDayLongTurn } = require("./turnClock");
 const { letInAtPush } = require("./roomGuests");
 const { logAudit } = require("./auditLog");
+const { applyStagedScalesInTx } = require("./stagedScalesApply");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -84,8 +85,10 @@ class StagedZoneError extends Error {}
 
 // One transaction per row, never one around the batch: one bad row must not
 // roll back a hundred good ones. Returns what the row actually moved, for the
-// appliedEffect snapshot.
-async function applyOneStagedEffect(prisma, row, turn, notices = []) {
+// appliedEffect snapshot. `notices` go out with the Routine DMs, late;
+// `scaleNotices` go out early, ahead of the hunger/Vampire/mood passes' own
+// lines, because those passes run on from the number a scale row just set.
+async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotices = []) {
   return prisma.$transaction(async (tx) => {
     // The claim IS the double-apply guard: a resumed pass re-selects
     // appliedAt: null, so this updateMany comes back 0 for anything the
@@ -357,6 +360,38 @@ async function applyOneStagedEffect(prisma, row, turn, notices = []) {
       };
     }
 
+    // Hunger, mood, blood and humanity (ADJUDICATION.md §1b). After the tags,
+    // so a Hungerless or a Vampire seat granted in this same row already
+    // counts. A scale the character can't take (a Hungerless meter, blood on
+    // somebody who isn't a Vampire, anything on a body) is recorded as
+    // skipped, not as a failure.
+    const scales = row.payload?.scales ?? null;
+    if (scales && row.targetCharacterId) {
+      const applied = await applyStagedScalesInTx(tx, { characterId: row.targetCharacterId, scales, turn });
+      if (applied.snapshot) {
+        snapshot.scales = applied.snapshot;
+        scaleNotices.push(...applied.notices);
+        const moved = Object.fromEntries(Object.entries(applied.snapshot).filter(([, entry]) => !entry.skipped));
+        if (Object.keys(moved).length) {
+          // Same actor rule as the staged tag audit above.
+          await logAudit(tx, {
+            actorDiscordUserId:
+              row.move?.reviewedByDiscordUserId ?? row.createdByDiscordUserId ?? "system:staged_push",
+            actionType: "gm_staged_scales_applied",
+            targetCharacterId: row.targetCharacterId,
+            details: {
+              scales: moved,
+              stagedByDiscordUserId: row.createdByDiscordUserId,
+              resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? null,
+              gambitCharacterName: row.move?.character?.name ?? null,
+              gambitId: row.moveId ?? null,
+              stagedEffectId: row.id,
+            },
+          });
+        }
+      }
+    }
+
     // A room's stash — tags left on a floor and the room's own ⬢
     // (docs/systemdocs/CARRY.md). A row carrying `room` has no target
     // character at all, and carries none of the character keys above, so it
@@ -446,6 +481,8 @@ async function runStagedPushPass(prisma, turn) {
   const deaths = [];
   // A craft whose spare was set down in a room (applyOneStagedEffect) — sent with the Routine notices.
   const craftNotices = [];
+  // What a staged scale change says to its player — sent early (applyOneStagedEffect's header).
+  const scaleNotices = [];
   const stagedEffects = await prisma.stagedEffect.findMany({
     where: { turnId: turn.id, appliedAt: null },
     orderBy: { createdAt: "asc" },
@@ -478,10 +515,12 @@ async function runStagedPushPass(prisma, turn) {
     try {
       // Queued per row and kept only once that row commits, so a rolled-back row never tells anyone anything.
       const rowNotices = [];
-      const snapshot = await applyOneStagedEffect(prisma, row, turn, rowNotices);
+      const rowScaleNotices = [];
+      const snapshot = await applyOneStagedEffect(prisma, row, turn, rowNotices, rowScaleNotices);
       if (snapshot) {
         effectsApplied += 1;
         craftNotices.push(...rowNotices);
+        scaleNotices.push(...rowScaleNotices);
         if (snapshot.roomEntry && !snapshot.roomEntry.already) {
           roomEntries.push({
             characterId: row.targetCharacterId,
@@ -756,6 +795,7 @@ async function runStagedPushPass(prisma, turn) {
     failures,
     routineNotices,
     gambitRollNotices,
+    scaleNotices,
     privateDeliveries,
     publicPosts,
     zoneMoves,
