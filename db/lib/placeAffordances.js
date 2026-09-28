@@ -18,7 +18,7 @@ const {
   MERCHANTS_OFFICE_ROOM_SLUG,
   RAILYARD_ROOM_SLUG,
 } = require("./train");
-const { ATM_ROOM_SLUGS, MEISTERS_OFFICE_ROOM_SLUG } = require("./depot");
+const { INFOTERMINAL_ROOM_SLUGS, MEISTERS_OFFICE_ROOM_SLUG } = require("./depot");
 const { RING_TEXT } = require("./ringText");
 const { BLACK_MARKET_ROOM_SLUG, BLACK_MARKET_TEXT } = require("./blackMarketText");
 const { MEISTER_TERMINAL_TEXT } = require("./meisterTerminalText");
@@ -96,7 +96,9 @@ const ROOM_INTERCOM_PREFIX = "room:intercom:";
 const ROOM_TURRET_PREFIX = "room:turret:";
 const ROOM_BELL_PREFIX = "room:bell:";
 const ROOM_PRAY_PREFIX = "room:pray:";
-const ROOM_ATM_PREFIX = "room:atm:";
+// Still "atm" on the wire: the custom_id is hashed into Room.postHash, so a new
+// spelling would repost every room with an infoterminal.
+const ROOM_INFOTERMINAL_PREFIX = "room:atm:";
 const ROOM_DEPOT_TURRET_PREFIX = "room:depotturret:";
 const ROOM_SLOTS_PREFIX = "room:slots:";
 const ROOM_PHONE_PREFIX = "room:phone:";
@@ -217,16 +219,16 @@ const ROOM_AFFORDANCES = [
   // to a wall: you have to be standing at it, and both faces should be able to
   // say so. Most accounts draw on the Keep's Vault through it
   // (db/lib/bankAccounts.js); the Merchant's and the Docker's do not. There are
-  // four of them now (db/lib/depot.js#ATM_ROOM_SLUGS) — the counter's own on
+  // four of them now (db/lib/depot.js#INFOTERMINAL_ROOM_SLUGS) — the counter's own on
   // the Depot's Railway, the Merchant's on his Storefront next door, the
   // Inn's, and the Den's. The last two are the machine alone with no counter
   // behind it.
   {
-    id: "atm",
+    id: "infoterminal",
     label: RING_TEXT.infoterminalButton,
     tone: PLAIN,
-    prefix: ROOM_ATM_PREFIX,
-    when: (room) => ATM_ROOM_SLUGS.has(room?.slug),
+    prefix: ROOM_INFOTERMINAL_PREFIX,
+    when: (room) => INFOTERMINAL_ROOM_SLUGS.has(room?.slug),
   },
   // The Merchant's gun, on the wall the Merchant's Office description has
   // called a big red button since before anything could press one. The second
@@ -618,7 +620,7 @@ module.exports = {
   ROOM_TURRET_PREFIX,
   ROOM_BELL_PREFIX,
   ROOM_PRAY_PREFIX,
-  ROOM_ATM_PREFIX,
+  ROOM_INFOTERMINAL_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_SLOTS_PREFIX,
   ROOM_PHONE_PREFIX,

@@ -1,5 +1,5 @@
 // The Friends section of /memories: who a character already knows when they
-// are made, and the ATM PIN minted beside it (docs/systemdocs/MEMORIES.md §2a
+// are made, and the infoterminal PIN minted beside it (docs/systemdocs/MEMORIES.md §2a
 // and §3). Learning from what is said in a room is db/lib/memoryHearing.js.
 //
 // Takes `prisma` as a parameter, like archive.js, so db/index.js can re-export

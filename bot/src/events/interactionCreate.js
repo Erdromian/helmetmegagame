@@ -31,7 +31,7 @@ const {
 const {
   ROOM_STORAGE_PREFIX,
   ROOM_SEARCH_PREFIX,
-  ROOM_ATM_PREFIX,
+  ROOM_INFOTERMINAL_PREFIX,
   ROOM_DEPOT_TURRET_PREFIX,
   ROOM_INTERCOM_PREFIX,
   ROOM_TURRET_PREFIX,
@@ -244,14 +244,14 @@ const {
   handleMerchantTerminalRemove,
 } = require("./interactions/merchantTerminal");
 const {
-  ATM_OUT_PREFIX,
-  ATM_IN_PREFIX,
-  ATM_PIN_SUFFIX,
-  ATM_MODAL_PREFIX,
+  INFOTERMINAL_OUT_PREFIX,
+  INFOTERMINAL_IN_PREFIX,
+  INFOTERMINAL_PIN_SUFFIX,
+  INFOTERMINAL_MODAL_PREFIX,
   DEPOT_TURRET_MODAL_PREFIX,
-  handleAtmOpen,
-  handleAtmAmountOpen,
-  handleAtmSubmit,
+  handleInfoterminalOpen,
+  handleInfoterminalAmountOpen,
+  handleInfoterminalSubmit,
   handleDepotTurretOpen,
   handleDepotTurretSubmit,
 } = require("./interactions/depotCounter");
@@ -443,17 +443,17 @@ module.exports = {
         if (interaction.customId.startsWith(ROOM_SEARCH_PREFIX)) {
           return void (await handleRoomSearch(interaction, interaction.customId.slice(ROOM_SEARCH_PREFIX.length)));
         }
-        // The Depot's counter (docs/systemdocs/DEPOT.md). The ATM's own button
+        // The Depot's counter (docs/systemdocs/DEPOT.md). The infoterminal's own button
         // acks and answers with a balance; its two amount buttons open modals,
         // so those must NOT be acked first.
-        if (interaction.customId.startsWith(ROOM_ATM_PREFIX)) {
-          return void (await handleAtmOpen(interaction));
+        if (interaction.customId.startsWith(ROOM_INFOTERMINAL_PREFIX)) {
+          return void (await handleInfoterminalOpen(interaction));
         }
-        if (interaction.customId === ATM_OUT_PREFIX || interaction.customId === ATM_OUT_PREFIX + ATM_PIN_SUFFIX) {
-          return void (await handleAtmAmountOpen(interaction, true, interaction.customId.endsWith(ATM_PIN_SUFFIX)));
+        if (interaction.customId === INFOTERMINAL_OUT_PREFIX || interaction.customId === INFOTERMINAL_OUT_PREFIX + INFOTERMINAL_PIN_SUFFIX) {
+          return void (await handleInfoterminalAmountOpen(interaction, true, interaction.customId.endsWith(INFOTERMINAL_PIN_SUFFIX)));
         }
-        if (interaction.customId === ATM_IN_PREFIX || interaction.customId === ATM_IN_PREFIX + ATM_PIN_SUFFIX) {
-          return void (await handleAtmAmountOpen(interaction, false, interaction.customId.endsWith(ATM_PIN_SUFFIX)));
+        if (interaction.customId === INFOTERMINAL_IN_PREFIX || interaction.customId === INFOTERMINAL_IN_PREFIX + INFOTERMINAL_PIN_SUFFIX) {
+          return void (await handleInfoterminalAmountOpen(interaction, false, interaction.customId.endsWith(INFOTERMINAL_PIN_SUFFIX)));
         }
         // The Merchant's Terminal (db/lib/merchantTerminal.js), on the Depot's
         // anchor. Insert and Withdraw open a modal, so they must NOT be acked first.
@@ -865,8 +865,8 @@ module.exports = {
             interaction.customId.slice(VENDING_PRICE_MODAL.length),
           ));
         }
-        if (interaction.customId.startsWith(ATM_MODAL_PREFIX)) {
-          return void (await handleAtmSubmit(interaction, interaction.customId.slice(ATM_MODAL_PREFIX.length)));
+        if (interaction.customId.startsWith(INFOTERMINAL_MODAL_PREFIX)) {
+          return void (await handleInfoterminalSubmit(interaction, interaction.customId.slice(INFOTERMINAL_MODAL_PREFIX.length)));
         }
         if (interaction.customId.startsWith(MT_COIN_MODAL)) {
           return void (await handleMerchantTerminalCoinSubmit(interaction, interaction.customId.slice(MT_COIN_MODAL.length)));

@@ -9,7 +9,7 @@
 // never hold stock for a balance that was never opened.
 //
 // THE ORDERING RULE (db/lib/bankAccounts.js): room lock first, then the
-// account. The Vault is locked before anything else here, the way the ATM does
+// account. The Vault is locked before anything else here, the way the infoterminal does
 // it, so a creation and a withdrawal cannot deadlock each other.
 //
 // THE STARTING CAST is whoever builds the seat Start Game rolled them, inside

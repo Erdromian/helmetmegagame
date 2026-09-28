@@ -513,7 +513,7 @@ export async function createCharacter(formData) {
   // transaction, so travelOptions reads the tags just granted, and after placement.
   await seedStartingMap(prisma, { ...created, tags: heldTagRows }, role.slug, heldSlugs).catch(() => {});
   // The people this seat already knows, and everyone who already knows this
-  // seat (db/lib/acquaintances.js), plus the ATM PIN.
+  // seat (db/lib/acquaintances.js), plus the infoterminal PIN.
   await seedAcquaintances(prisma, created.id).catch((err) => console.error("seedAcquaintances failed:", err));
   // A leader's note about where the bomb is (docs/systemdocs/NUKE.md §4). Best-effort, like the line above.
   await seedNukeBriefing(prisma, created.id).catch((err) => console.error("seedNukeBriefing failed:", err));

@@ -5,11 +5,11 @@
 // compares ledger legs against live balances, form by form; it never looks at
 // COIN at all, so a Health row claiming it checked the backing would be lying.
 // This is the separate question: a claim is only worth the coin behind it, and
-// under the line somebody walks up to the ATM and is told no through no fault
+// under the line somebody walks up to the infoterminal and is told no through no fault
 // of their own. See docs/systemdocs/ECONOMY.md §3.
 //
 // THE VAULT IS FRACTIONALLY RESERVED ON PURPOSE. It used to hold more coin
-// than the claims against it, which made the ATM's refusal path unreachable
+// than the claims against it, which made the infoterminal's refusal path unreachable
 // and a bank run impossible. The starting cast stocks it with a share of their
 // balances now (GameConfig.vaultReservePercent, 25% by default — DEPOT.md
 // §0g), so "short" is the normal state and a bank run is part of the game.
@@ -53,7 +53,7 @@ async function main() {
 
   if (coin < claims) {
     // The ordinary state. Say what it means so nobody reads it as an alarm.
-    console.log(`Short by ${claims - coin} ¢ — fractional by design. First to the ATM gets paid.`);
+    console.log(`Short by ${claims - coin} ¢ — fractional by design. First to the infoterminal gets paid.`);
     return;
   }
   console.log(`Fully backed, with ${coin - claims} ¢ of slack.`);

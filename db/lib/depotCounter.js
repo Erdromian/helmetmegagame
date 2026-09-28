@@ -1,8 +1,8 @@
 // The Depot's fixtures, as both faces work them.
 //
-// The ATM (the infoterminal) and the Merchant's gun are fixtures on walls
+// The infoterminal and the Merchant's gun are fixtures on walls
 // (db/lib/placeAffordances.js), so each is reachable from Chat's place panel
-// AND from a button on a Discord room post. The ATM stands in more places than
+// AND from a button on a Discord room post. The infoterminal stands in more places than
 // the Depot — the Inn's bar, the Den's — which is why the gate below takes a
 // place rather than assuming one. The drop box that stood beside them, and the
 // /depot page's gate, went with the Depot Overhaul; the Merchant's Terminal
@@ -20,7 +20,7 @@
 
 const {
   DEPOT_LOCATION_SLUG,
-  ATM_LOCATION_SLUGS,
+  INFOTERMINAL_LOCATION_SLUGS,
   MERCHANT_LICENSE_SLUG,
 } = require("./depot");
 const { DEPOT_KEYCARD_SLUG, loadDepot } = require("./depotState");
@@ -59,12 +59,12 @@ function fail(error) {
 // somebody walking out of the room, which is the whole reason nothing here
 // trusts what it was opened with.
 //
-// `where` widens that last clause for the ATM functions, and only those: a
+// `where` widens that last clause for the infoterminal functions, and only those: a
 // cash machine stands in the Inn's bar as well as at the Depot
-// (db/lib/depot.js#ATM_LOCATION_SLUGS), but the transfer window and the gun
+// (db/lib/depot.js#INFOTERMINAL_LOCATION_SLUGS), but the transfer window and the gun
 // are Depot business and stay there. Default is the Depot alone.
 const AT_THE_DEPOT = { places: null, name: "the Depot" };
-const AT_AN_ATM = { places: ATM_LOCATION_SLUGS, name: "an infoterminal" };
+const AT_AN_INFOTERMINAL = { places: INFOTERMINAL_LOCATION_SLUGS, name: "an infoterminal" };
 
 // Whose account the terminal opens (docs/systemdocs/RINGS.md). An infoterminal
 // reads the signet ring on your finger, never your face: no ring, no account,
@@ -161,7 +161,7 @@ async function counterActor(prisma, discordUserId, where = AT_THE_DEPOT) {
 // typed when one is needed — `pinNeeded` and `pinPrompt` say so, and
 // `accountProblem` says why there is none at all.
 async function counterState(prisma, discordUserId, { pin = null } = {}) {
-  const actor = await counterActor(prisma, discordUserId, AT_AN_ATM);
+  const actor = await counterActor(prisma, discordUserId, AT_AN_INFOTERMINAL);
   if (!actor.ok) return actor;
   const { character, held, licensed, keycard } = actor;
 
@@ -214,7 +214,7 @@ async function counterState(prisma, discordUserId, { pin = null } = {}) {
 // to it; everybody else has a ring smithed and the Meister opens one when he
 // registers it (docs/systemdocs/RINGS.md).
 
-// The ATM. A claim on one side, coins on the other.
+// The infoterminal. A claim on one side, coins on the other.
 //
 // For a TREASURY account the coins are REAL and come out of the Keep's Vault,
 // so a withdrawal the Vault cannot cover is refused rather than clamped — the
@@ -226,7 +226,7 @@ async function counterState(prisma, discordUserId, { pin = null } = {}) {
 // it, with no account row touched either way — as much as the Vault holds,
 // whenever the ring and PIN say so.
 async function bankMove(prisma, discordUserId, { direction, amount: rawAmount, pin = null, turn = null } = {}) {
-  const actor = await counterActor(prisma, discordUserId, AT_AN_ATM);
+  const actor = await counterActor(prisma, discordUserId, AT_AN_INFOTERMINAL);
   if (!actor.ok) return actor;
   const { character } = actor;
   const access = await terminalAccount(prisma, character, { pin });

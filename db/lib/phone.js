@@ -370,7 +370,7 @@ async function takePhoneCoin(tx, character, room, turn) {
   const vaultParty = vault ? roomParty({ ...vault, zoneId: vault.location?.zoneId ?? null }) : null;
 
   // ROOM LOCK FIRST, ALWAYS — db/lib/tagWrites.js takes the room lock first,
-  // and the other order deadlocks against the ATM and the slot machine.
+  // and the other order deadlocks against the infoterminal and the slot machine.
   if (vault) await tx.$queryRaw`SELECT "id" FROM "Room" WHERE "id" = ${vault.id} FOR UPDATE`;
   await dropCharacterTag(tx, character.id, coin.id, PHONE_COST, {
     econ: { from: me, to: vaultParty, ...econ },
