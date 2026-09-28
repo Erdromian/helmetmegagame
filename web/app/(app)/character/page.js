@@ -1,13 +1,6 @@
 import { redirect } from "next/navigation";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
-import { pickerKey, pickerName } from "@/lib/peopleHere";
 import { HEAL_SKILL_SELECT } from "@/lib/healRequests";
-import {
-  LESSON_CATALOG_SELECT,
-  learnableSkills,
-  knownTeachableSkills,
-  teachesFree,
-} from "@lifeweb/db/lib/lessons";
 import { cultureForRole } from "@lifeweb/db/lib/nameCorpus";
 import { isDisguiseTag } from "@lifeweb/db/lib/disguises";
 import {
@@ -51,7 +44,6 @@ import { APPRAISAL_SLUG } from "@lifeweb/db/lib/appraisal";
 import {
   WORKSHOP_EQUIPMENT_SLUG,
   PACKAGING_EQUIPMENT_SLUG,
-  GUILT_RIDDEN_SLUG,
 } from "@lifeweb/db/lib/constants";
 import {
   hasAttribute,
@@ -668,7 +660,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // cannot disagree about who is standing near you.
   const {
     here,
-    hereAll,
     zoneRoster,
     peopleParties,
     transferParties,
@@ -692,6 +683,15 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     searchParties,
     kissBlocked,
     pickpocketBlocked,
+    // Lessons, confession, Crucify and Shackle — built there so /chat's Here
+    // menu reads the same lists (web/lib/peoplePools.js).
+    teachers,
+    learners,
+    teachCostsMove,
+    confessors,
+    mySins,
+    canCrucify,
+    canShackle,
   } = await loadPeoplePools(character, {
     discordUserId: session.discordUserId,
     openTurn,
@@ -1087,10 +1087,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   );
   const buildable = canBuildHere(character.location).ok; // craftRequest judges the same ground again with the same function
 
-  // Crucify: a Fundamentalist at a finished Cross — your tag, your ground. crucifyCharacterRequest re-checks both.
-  const canCrucify =
-    heldSlugs.has("fundamentalist") &&
-    sitesHere.some((s) => s.typeSlug === "crucifix" && s.status === "COMPLETE");
   // Everything in your pockets that lights a verb (web/lib/itemPools.js) —
   // /chat reads the same helper, so an item's verb is lit on the same facts in
   // both places. Each is re-checked by its server action.
@@ -1109,8 +1105,6 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     hasStepstone,
     stepstoneTargets,
   } = await itemPools(prisma, character, heldSlugs);
-  // Shackle: anyone standing at finished Dungeons — your ground. shackleCharacterRequest re-checks it and that the target is Bound.
-  const canShackle = sitesHere.some((s) => s.typeSlug === "dungeons" && s.status === "COMPLETE");
   // THE THANATI (THANATI.md). Whether you are one/lead is your own sheet's
   // facts. thanatiActions.js re-checks every one of these.
   const isThanati = heldSlugs.has(THANATI_SLUG);
@@ -1241,53 +1235,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Who can pay: you, anyone here, or a room stash here (same as Craft).
   const healParties = { characters: peopleParties, rooms };
 
-  // Lessons (LESSONS.md). Nobody's skills are read off their sheet for this:
-  // `teachers` is everyone here, each offered what *I* could learn, and
-  // `learners` is everyone here, each offered what *I* know. Whether the pair
-  // actually works is found out by asking (db/lib/lessons.js#acceptLesson).
-  // No threshold either — it named the teacher's Teaching and Drill Instructor.
-  // `pendingOffers`: the handshakes I'm part of this turn.
-  const lessonCatalog = await prisma.tag.findMany({
-    select: LESSON_CATALOG_SELECT,
-  });
-  const meForLessons = {
-    id: character.id,
-    tags: character.tags.map((ct) => ({ tagId: ct.tagId, tag: ct.tag })),
-  };
-  // Both halves, keyed. A lesson is a thing two people do standing next to each
-  // other, and there is nothing about a mask that stops somebody being shown how
-  // to sharpen a blade — the offer handshake means they consent either way, and
-  // db/lib/lessons.js never reads the far sheet (LESSONS.md §4).
-  //
-  // pickerName, not c.name — a forced name is what an offer addresses, and a
-  // hood is addressed by its alias (web/lib/peopleHere.js).
-  const hereForLessons = hereAll.map((c) => ({ id: pickerKey(c), name: pickerName(c) }));
-  const skillChip = (t) => ({ id: t.id, name: t.name });
-  const learnable = learnableSkills(meForLessons, lessonCatalog).map(skillChip);
-  const myTeachable = knownTeachableSkills(meForLessons, lessonCatalog).map(skillChip);
-  const teachers = learnable.length ? hereForLessons.map((c) => ({ ...c, skills: learnable })) : [];
-  const learners = myTeachable.length ? hereForLessons.map((c) => ({ ...c, skills: myTeachable })) : [];
-  // Teaching is free for a tag holder and a whole Routine for everybody else.
-  const teachCostsMove = !teachesFree(meForLessons);
-  // Confession (CONFESSION.md). Only the penitent gets a menu — no list is
-  // built for a chaplain, which would show everybody's addictions unasked.
-  // A hooded chaplain still hears a confession — a confessional is a box built
-  // so neither side sees the other, so a hood is if anything the point.
-  const confessors = hereAll
-    .filter((c) => c.tags.some((ct) => ct.tag.slug === "chaplain"))
-    .map((c) => ({ id: pickerKey(c), name: pickerName(c) }));
-  // Guilt Ridden can't bring themself to confess at all — mirrors db/lib/confession.js#confessableTags so the button hides, not fails.
-  const mySins = heldSlugs.has(GUILT_RIDDEN_SLUG)
-    ? []
-    : (
-        await prisma.characterTag.findMany({
-          where: { characterId: character.id, tag: { psychological: true } },
-          select: { tag: { select: { id: true, name: true } } },
-        })
-      )
-        .map((ct) => ct.tag)
-        .sort((a, b) => a.name.localeCompare(b.name));
-
+  // Lessons and confession: `teachers`, `learners` and `confessors` come from
+  // loadPeoplePools above. `pendingOffers`: the handshakes I'm part of this turn.
   const openOffers = openTurn
     ? await prisma.offer.findMany({
         where: {

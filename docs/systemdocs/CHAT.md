@@ -1745,13 +1745,22 @@ a 48px head and a one-line composer:
      is a 24px avatar, the presented name (`you` on your own) and, **once you
      have heard them speak**,
      an eye at the row's right edge that opens **Look at** in one click. The
-     name opens a `.chat-menu` of the SHEET's own people dialogs — Heal,
-     Transfer, Loot, Bind, Free, Harm, **Converse** — by mounting
-     `RequestActionsProvider` on the page with the people pools and calling
-     `open(mode, null, { targetId })`. Nothing is forked: same dialogs, same
-     server actions — and Bind, Free and a one-affliction Heal opened this
-     way skip the dialog for their one question (`actions/index.js#FAST_PATHS`).
-     A hood gets the same row; its menu is Converse alone.
+     name opens a `.chat-menu` of the SHEET's own people dialogs, in bands —
+     **Converse**; Kiss, Heal, Perform Miracle, Transfer, Search; Learn skill,
+     Teach skill, Confess; Pickpocket, Loot; Attack; Bind, Free, Harm, Torture,
+     Crucify, Shackle, Mutilate, Brand, Poison, Apply Collar, Unlock Collar —
+     by mounting `RequestActionsProvider` on the page with the people pools and
+     calling `open(mode, null, { targetId })`, so each dialog opens with the
+     person already picked. Nothing is forked: same dialogs, same server
+     actions — and Bind, Free, Torture, Crucify, Shackle and a one-affliction
+     Heal opened this way skip the dialog for their one question
+     (`actions/index.js#FAST_PATHS`). Each row keeps the registry's `show` and
+     `gate`, so a Torturer's verbs appear only for a Torturer. The lesson,
+     confession, Crucify and Shackle pools come out of
+     `web/lib/peoplePools.js`, so /chat has them as well as the sheet. A hood
+     gets the same row and the same menu, keyed by its token. Detonate and
+     Intercept are not on it: the remote knows a collar by its glyph, and a
+     watch is for who walks in next.
 
      **The "online" badge.** A named row (never a hooded one — a hood already
      withholds every identity-linked signal) also carries `person.online`:

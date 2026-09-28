@@ -19,25 +19,32 @@ import { joinSideLine, DECLINED_ATTACKERS } from "@lifeweb/db/lib/combatMode";
 //
 // The picker lists everybody here, including the people who are already fighting, greyed with why: that
 // is a thing the room can see. A hood is listed by its token, never its id (db/lib/targetKey.js).
-export default function AttackDialog({ onDone, onClose }) {
+//
+// `presets.targetId` is somebody picked from the Here list — a target key, the same shape the picker uses.
+// They start ticked once the list has loaded, unless they are not here or already fighting.
+export default function AttackDialog({ presets, onDone, onClose }) {
   const [loading, setLoading] = useState(true);
   const [state, setState] = useState({ people: [], fights: [], blocked: null, view: null });
   const [targets, setTargets] = useState([]);
   const [helpers, setHelpers] = useState([]);
   const confirm = useConfirm();
   const { submit, busy, error } = useSubmit();
+  const presetKey = presets?.targetId ?? null;
 
   useEffect(() => {
     let live = true;
     loadAttacks()
       .then((res) => {
-        if (live && res?.ok) setState({ people: res.people ?? [], fights: res.fights ?? [], blocked: res.blocked ?? null, view: res.view ?? null });
+        if (!live || !res?.ok) return;
+        const people = res.people ?? [];
+        setState({ people, fights: res.fights ?? [], blocked: res.blocked ?? null, view: res.view ?? null });
+        if (presetKey && people.some((p) => p.key === presetKey && !p.fighting)) setTargets([presetKey]);
       })
       .finally(() => live && setLoading(false));
     return () => {
       live = false;
     };
-  }, []);
+  }, [presetKey]);
 
   const { people, fights, blocked, view } = state;
   const nameOf = (key) => people.find((p) => p.key === key)?.name ?? "somebody";

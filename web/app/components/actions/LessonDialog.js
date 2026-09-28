@@ -60,11 +60,14 @@ const VERBS = {
   },
 };
 
-export default function LessonDialog({ mode, onDone, onClose }) {
+// `presets.targetId` is the partner already picked, when the Here menu opened
+// this on somebody's row. Somebody not on the list (not a chaplain, for
+// Confess) leaves the picker empty rather than guessing.
+export default function LessonDialog({ mode, presets, onDone, onClose }) {
   const verb = VERBS[mode];
   const pools = useActionPools();
   const people = verb.people(pools);
-  const [partnerId, setPartnerId] = useState("");
+  const [partnerId, setPartnerId] = useState(presets?.targetId ?? "");
   const [tagId, setTagId] = useState("");
   const { submit, busy, error } = useSubmit();
 

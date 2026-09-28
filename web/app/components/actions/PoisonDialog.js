@@ -28,9 +28,11 @@ export default function PoisonDialog({ mode, presets, onDone, onClose }) {
   const { tagsBySlug } = useTags();
   const [tagId, setTagId] = useState(presets?.tagId ?? "");
   // "food" (lace a held meal/drink), "person" (dose someone helpless here) or
-  // "self" (drink it — an ordinary Consume posted from this dialog).
-  const [poisonUse, setPoisonUse] = useState("");
-  const [targetId, setTargetId] = useState("");
+  // "self" (drink it — an ordinary Consume posted from this dialog). Opened
+  // from somebody's row in the Here list, it is "person" and them.
+  const presetPerson = presets?.targetId ?? "";
+  const [poisonUse, setPoisonUse] = useState(presetPerson ? "person" : "");
+  const [targetId, setTargetId] = useState(presetPerson);
   const { submit, busy, error } = useSubmit();
 
   const characterTags = roster?.self?.characterTags ?? [];
@@ -68,13 +70,20 @@ export default function PoisonDialog({ mode, presets, onDone, onClose }) {
     return bits.length ? bits.join(" · ") : null;
   }
 
+  // Changing the poison keeps a person picked from the Here list.
   function pick(nextTagId) {
     setTagId(nextTagId);
-    setPoisonUse("");
-    setTargetId("");
+    setPoisonUse(presetPerson ? "person" : "");
+    setTargetId(presetPerson);
   }
 
-  const canSubmit = Boolean(chosen && poisonUse) && (poisonUse === "self" ? true : Boolean(targetId));
+  // The target has to be on the list the picker shows — a preset for somebody
+  // who is not helpless picks nobody.
+  const targetListed =
+    poisonUse === "person"
+      ? doseTargets.some((t) => t.id === targetId)
+      : foodTargets.some((t) => t.id === targetId);
+  const canSubmit = Boolean(chosen && poisonUse) && (poisonUse === "self" ? true : targetListed);
 
   function onSubmit() {
     if (!chosen || !poisonUse) return;

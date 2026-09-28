@@ -642,6 +642,15 @@ async function FreshChat({ userId }) {
         kissBlocked: aside.pools.kissBlocked,
         pickpocketBlocked: aside.pools.pickpocketBlocked,
         doseTargets: aside.pools.doseTargets,
+        // Learn, Teach and Confess, and the ground Crucify and Shackle need —
+        // the Here menu opens those on a person too (HereList.js).
+        teachers: aside.pools.teachers,
+        learners: aside.pools.learners,
+        teachCostsMove: aside.pools.teachCostsMove,
+        confessors: aside.pools.confessors,
+        mySins: aside.pools.mySins,
+        canCrucify: aside.pools.canCrucify,
+        canShackle: aside.pools.canShackle,
         // The held-item flags (web/lib/itemPools.js), for the Things drawer.
         ...aside.items,
         // The four paperwork dialogs the ✉ opens, named exactly as

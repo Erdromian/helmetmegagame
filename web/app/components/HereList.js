@@ -66,21 +66,47 @@ import { actionThrowMessage } from "@/app/components/actionThrow";
 // and the sentence saying why — comes from the registry, not from here.
 const HOOD_KEYS = { prefix: "character:", hoodPrefix: "hood:" };
 // `group` orders the menu into kind-of-act bands, drawn with a rule between
-// them: help, then the things done TO somebody. `self: false` rows never appear
-// on your own row — nobody kisses, searches or harms themselves.
+// them — roughly the sheet strip's own groups (actionRegistry.js#STRIP_GROUPS):
+// look and talk, help, lessons, theft, the fight, then the things done to
+// somebody tied up, then the door. `self: false` rows never appear on your own
+// row — nobody kisses, searches or harms themselves.
+const BAND = { look: 0, help: 1, lessons: 2, theft: 3, fight: 4, captives: 5, door: 6 };
 const PEOPLE_ACTIONS = [
   // Kiss keeps its row for a hood even though kissBlock() will refuse a covered
   // face: the refusal is the gate, and the menu is not the place to re-implement
   // it (web/lib/peoplePools.js says the same about kissTargets).
-  { mode: "kiss", label: "Kiss", preset: "targetId", group: 1, self: false, ...HOOD_KEYS },
-  { mode: "heal", label: "Heal", preset: "patientId", group: 1, ...HOOD_KEYS },
-  { mode: "miracle", label: "Perform Miracle", preset: "patientId", group: 1, ...HOOD_KEYS },
-  { mode: "transfer", label: "Transfer", preset: "toKey", group: 1, ...HOOD_KEYS },
-  { mode: "search", label: "Search", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
-  { mode: "loot", label: "Loot", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
-  { mode: "bind", label: "Bind", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
-  { mode: "free", label: "Free", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
-  { mode: "harm", label: "Harm", preset: "targetId", group: 2, self: false, ...HOOD_KEYS },
+  { mode: "kiss", label: "Kiss", preset: "targetId", group: BAND.help, self: false, ...HOOD_KEYS },
+  { mode: "heal", label: "Heal", preset: "patientId", group: BAND.help, ...HOOD_KEYS },
+  { mode: "miracle", label: "Perform Miracle", preset: "patientId", group: BAND.help, ...HOOD_KEYS },
+  { mode: "transfer", label: "Transfer", preset: "toKey", group: BAND.help, ...HOOD_KEYS },
+  { mode: "search", label: "Search", preset: "targetId", group: BAND.help, self: false, ...HOOD_KEYS },
+  // Confess shows on every row, chaplain or not: whether somebody can hear a
+  // confession is a fact about THEM, and the metagaming rule below keeps that
+  // off the menu. The dialog opens with nobody picked if they can't.
+  { mode: "learn", label: "Learn skill", preset: "targetId", group: BAND.lessons, self: false, ...HOOD_KEYS },
+  { mode: "teach", label: "Teach skill", preset: "targetId", group: BAND.lessons, self: false, ...HOOD_KEYS },
+  { mode: "confess", label: "Confess", preset: "targetId", group: BAND.lessons, self: false, ...HOOD_KEYS },
+  { mode: "pickpocket", label: "Pickpocket", preset: "targetId", group: BAND.theft, self: false, ...HOOD_KEYS },
+  // Loot's dialog is the Transfer one (actions/MoveThingsDialog.js), so the
+  // person is the FROM end, not a target.
+  { mode: "loot", label: "Loot", preset: "fromKey", group: BAND.theft, self: false, ...HOOD_KEYS },
+  { mode: "attack", label: "Attack", preset: "targetId", group: BAND.fight, self: false, ...HOOD_KEYS },
+  { mode: "bind", label: "Bind", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
+  { mode: "free", label: "Free", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
+  { mode: "harm", label: "Harm", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
+  { mode: "torture", label: "Torture", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
+  { mode: "crucify", label: "Crucify", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
+  { mode: "shackle", label: "Shackle", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
+  { mode: "mutilate", label: "Mutilate", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
+  { mode: "brand", label: "Brand", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
+  // Dosing somebody helpless; drinking it yourself is the sheet's own Poison.
+  { mode: "poison", label: "Poison", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
+  // Apply Collar keeps your own row: the collar roster lists yourself
+  // (web/lib/peoplePools.js#collarTargets). Detonate is not here and must not
+  // be — the remote knows a collar by its glyph, never by whose neck it is on
+  // (COLLAR.md).
+  { mode: "applycollar", label: "Apply Collar", preset: "targetId", group: BAND.captives, ...HOOD_KEYS },
+  { mode: "unlockcollar", label: "Unlock Collar", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
 ];
 // Somebody on the far side of a room that opens onto here too — every
 // multi-locational room, by default (MAP.md §2d). Transfer is the one verb that
@@ -88,7 +114,7 @@ const PEOPLE_ACTIONS = [
 // character id or the row's lookRef, which is what acrossRecipients lists and
 // resolveAcrossRecipient takes back (db/lib/whosHere.js).
 const ACROSS_ACTIONS = [
-  { mode: "transfer", label: "Transfer", preset: "toKey", group: 1, prefix: "across:", hoodPrefix: "across:" },
+  { mode: "transfer", label: "Transfer", preset: "toKey", group: BAND.help, prefix: "across:", hoodPrefix: "across:" },
 ];
 
 // `person` is normalised by the two lists below to { ref, name, hooded }:
@@ -128,10 +154,10 @@ function PersonMenu({
     return action?.show ? Boolean(pools?.[action.show]) : true;
   });
 
-  // Bands, in order: look and talk, help, acts done to somebody, then the door.
-  const bands = [[], [], [], []];
+  // Bands, in BAND's order; an empty one draws nothing.
+  const bands = Object.values(BAND).map(() => []);
   if (onLook) {
-    bands[0].push(
+    bands[BAND.look].push(
       <ActionButton
         key="look"
         variant="menu"
@@ -144,7 +170,7 @@ function PersonMenu({
     );
   }
   if (onConverse && !isSelf) {
-    bands[0].push(
+    bands[BAND.look].push(
       <ActionButton
         key="converse"
         variant="menu"
@@ -175,7 +201,7 @@ function PersonMenu({
   }
   // Only offered where there is a door to open; the server re-checks that this character may work it.
   if (addPlace && onAddMember && person.ref && !isSelf) {
-    bands[3].push(
+    bands[BAND.door].push(
       <ActionButton
         key="add"
         variant="menu"
