@@ -32,6 +32,16 @@ test("perTurnRate scales a per-day config rate by the turn's own length", () => 
   assert.equal(perTurnRate(34, 6), 9);
   assert.equal(perTurnRate(10, 24), 10);
   assert.equal(perTurnRate(10, 6), 3);
+  // turnsPerDay 0 is the midnight rule, so it changes nothing above.
+  assert.equal(perTurnRate(34, 6, 0), 9);
+});
+
+test("perTurnRate splits the day over turnsPerDay turns, whatever their length", () => {
+  assert.equal(perTurnRate(34, 24, 1), 34);
+  assert.equal(perTurnRate(34, 24, 2), 17, "two 24-hour turns a day drain half each");
+  assert.equal(perTurnRate(34, 24, 3), 11);
+  assert.equal(perTurnRate(10, 24, 2), 5, "humanity regen splits the same way");
+  assert.equal(perTurnRate(34, 6, 1), 34, "the GM's count wins over the length");
 });
 
 test("bloodUrgencyBand: every boundary, Flush only at the exact top", () => {

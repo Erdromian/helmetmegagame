@@ -83,8 +83,10 @@ async function runVampirePass(prisma, turn, config) {
     return { turnNumber: turn.number, vampires: 0, enteredBloodcrazed: 0, enteredBestial: 0, bandDms: [] };
   }
 
-  const bloodRate = perTurnRate(config.vampireBloodDecayPerDay, turn.turnLengthHours);
-  const humanityRate = perTurnRate(config.vampireHumanityRegenPerDay, turn.turnLengthHours);
+  // Both rates are per in-game day, so a day of several turns splits them.
+  const turnsPerDay = config.turnsPerDay ?? 0;
+  const bloodRate = perTurnRate(config.vampireBloodDecayPerDay, turn.turnLengthHours, turnsPerDay);
+  const humanityRate = perTurnRate(config.vampireHumanityRegenPerDay, turn.turnLengthHours, turnsPerDay);
 
   const characterUpdates = [];
   // slug -> characterId[]
