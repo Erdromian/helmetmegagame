@@ -23,7 +23,6 @@ import {
   syncRolesFromYaml,
   syncDesiresFromYaml,
   syncDocumentsFromYaml,
-  syncMiningDropsFromYaml,
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
@@ -256,7 +255,8 @@ export async function forceAdvanceTurn() {
 //
 // GameConfig and PlayerPreference are deliberately NOT touched: the knobs a
 // GM tuned and the priorities a player set are meant to outlive the game
-// (docs/systemdocs/LOBBY.md §6).
+// (docs/systemdocs/LOBBY.md §6). Neither is a READY LobbyEntry: whoever was
+// readied up is still readied up for the next game (LOBBY.md §8).
 // Write the current game's transcript out to the bucket as one packet, and
 // stamp the Game row to say so. See docs/systemdocs/ARCHIVE.md.
 //
@@ -480,8 +480,11 @@ export async function wipeGameData(formData) {
       // The transcript is not touched HERE. It leaves after this transaction
       // commits, in batches — see the delete below for why it cannot be in
       // this array.
-      // The lobby is per game; the preferences behind it are not.
-      prisma.lobbyEntry.deleteMany({}),
+      // The lobby's seats are per game; the preferences behind them are not.
+      // A player who readied up and has not been rolled yet keeps their place,
+      // the way Close lobby keeps it — a READY row holds no seat, character or
+      // party, so nothing of the old game rides on it.
+      prisma.lobbyEntry.deleteMany({ where: { status: { not: "READY" } } }),
       // So is a late party: one left open would narrow the next game's
       // creation to its fates. Its fates cascade off it.
       prisma.lateParty.deleteMany({}),
@@ -686,9 +689,6 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
   await step("role sync", () => syncRolesFromYaml(prisma));
   await step("desire sync", () => syncDesiresFromYaml(prisma));
   await step("document sync", () => syncDocumentsFromYaml(prisma));
-  // No dependents of its own, so it runs last — validates against the tag,
-  // zone and location catalogs the steps above just rebuilt.
-  await step("mining drop sync", () => syncMiningDropsFromYaml(prisma));
 
   // Furnish the board again. The wipe transaction emptied every room and pulled
   // down every standing structure; this is what puts docs/zones.yaml's authored

@@ -191,7 +191,7 @@ mode. Living players are not told.
 
 `wipeGameData` deletes every `LateParty` (its fates and names cascade), because
 a party left open would narrow the next game's creation to its fates. The
-lobby's seats go with `LobbyEntry`, and `Character.latePartyId` is `SET NULL` on
+seats a muster drew go with every `LobbyEntry` that is not READY, and `Character.latePartyId` is `SET NULL` on
 delete either way.
 
 ## 9. What it does not touch

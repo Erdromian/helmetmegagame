@@ -79,7 +79,8 @@ debounced on the client):
 - **Ready** — a `LobbyEntry` row, `status: READY`. Unready deletes it.
 
 `PlayerPreference` is keyed by Discord user and **survives Restart Game**: a
-returning player only has to press Ready. Priorities are keyed by role slug, so
+returning player only has to press Ready. A player who was already readied
+does not even have to do that — the READY row survives the wipe too (§8). Priorities are keyed by role slug, so
 a role that leaves `docs/roles.yaml` drops out silently. Opt-ins copy onto
 `Character.antagonistOptIns` at creation and lock there; the wizard's
 Antagonists step opens prefilled from the preference row and writes back to
@@ -318,8 +319,18 @@ ever been with a link into each transcript (`ARCHIVE.md`, `DEV-PANEL.md` §11c).
 
 ## 8. What Restart Game does and does not touch
 
-Keeps: `GameConfig` (every knob), `PlayerPreference`.
-Wipes: `LobbyEntry`, and recreates `GameState` (phase CLOSED, new `gameId`).
+Keeps: `GameConfig` (every knob), `PlayerPreference`, and every **READY**
+`LobbyEntry`, with its `readyAt`.
+Wipes: every other `LobbyEntry` (last game's seats), and recreates `GameState`
+(phase CLOSED, new `gameId`).
+
+**Readied players stay readied.** A wipe used to clear the whole lobby, so a
+GM who restarted before Start un-readied everybody. Now the new game opens as a
+frozen lobby (§1), the same as Close lobby leaves it: press Open lobby and they
+are all still in, in the order they readied. The old preview goes with
+`GameState`, so Preview again before Start. After a game that ran, there is
+nothing to keep — Start already turned every READY row into ASSIGNED or
+UNASSIGNED.
 Everything else as before (`LAUNCH.md` §2, §4).
 
 **The authored board comes back, and the wipe does it itself.** Step 10 of the
