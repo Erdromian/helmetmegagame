@@ -95,8 +95,11 @@ by `scripts/audio/build-assets.sh` like everything else.
 | `departure.ogg` | 6:16 | Emra Grid — Departure | `8RjXB6zhJ3Q` | (same) |
 | `the-hierophant.ogg` | 7:22 | Kammarheit — The Hierophant | `xwIBo8NTx1U` | (same) |
 | `feast-of-the-night.ogg` | 2:25 | Erang — Feast Of The Night | `ODTWtjyYY48` | the Inn |
-| `parhelic-triangle.ogg` | 6:10 | Autechre — Parhelic Triangle | `QGX1nSR5ymw` | while hallucinating, wherever you are |
-| `fools-village.ogg` | 1:01 | Fool's Village OST — Main Theme | `Wfpc_1bK8ao` | (same) |
+| `parhelic-triangle.ogg` | 6:10 | Autechre — Parhelic Triangle | `QGX1nSR5ymw` | while hallucinating, and on ETH-LOD |
+| `fools-village.ogg` | 1:01 | Fool's Village OST — Main Theme | `Wfpc_1bK8ao` | while hallucinating, and on Bliss |
+| `hishmaliin.ogg` | 3:40 | Dvar — Hishmaliin | `7J5JMJ0JHx4` | on Cave Fungus, and the moment it is taken |
+| `mature-raver.ogg` | 2:29 | AFX — (mature raver) | `vHt-0LjZmWM` | on Heroin, and the moment it is taken |
+| `oval-sky.ogg` | 2:29 | Oval — Sky (2010) | `oxJ6NCyVsQ4` | on Changa, and the moment it is taken |
 | `abyssus-abyssum-invocat.ogg` | 1:46 | Hades — Abyssus Abyssum Invocat | `AijB2f-iCEg` | while wearing the Thanati robes |
 | `consciousness-dissolves.ogg` | 9:01 | Consciousness Dissolves into the Emptiness | `Jl7x7VSdpVc` | a ghost |
 | `geist.ogg` | 5:00 | Dronny Darko — Geist | `UFNAMoRUZts` | a ghost, and the moment somebody becomes one |

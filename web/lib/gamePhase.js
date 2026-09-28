@@ -6,6 +6,7 @@ import { bandOf } from "@lifeweb/db/lib/mood";
 import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
 import { CHARON_SPACE_SLUG } from "@lifeweb/db/lib/charonPlaces";
 import { getGmSession } from "@/lib/discordGuild";
+import { DRUG_STATE_SLUGS, drugsHeld } from "@/lib/drugHighs";
 
 // What "in pain shock or sedated" resolves to. `pain-shock` is the document's own words and
 // a real tag; SEDATED IS NOT IN THE CATALOG AT ALL, and `unconscious` is the nearest thing
@@ -15,12 +16,16 @@ const IMPAIRED_TAGS = ["pain-shock", "unconscious"];
 const HALLUCINATING_TAG = "hallucinating";
 // "Ambience while wearing thanati robes". WEARING, so the robes count only while equipped.
 const ROBES_TAG = "black-robes";
-const LISTENER_TAGS = [...IMPAIRED_TAGS, HALLUCINATING_TAG, ROBES_TAG];
+// Being on a drug: the state tags each one leaves behind (drugHighs.js).
+const LISTENER_TAGS = [...IMPAIRED_TAGS, HALLUCINATING_TAG, ROBES_TAG, ...DRUG_STATE_SLUGS];
 
 // How long after the Charon lifts its passengers still hear it lift. "Plays immediately
 // after the charon has taken off" — the phase poll is a minute, so this only has to outlast
 // one poll and a tab that was asleep for a few.
 const CHARON_FRESH_MS = 10 * 60 * 1000;
+// The same window for a dose: long enough that the sound of taking it still reaches a tab
+// that polls a minute later, or a player who took it on Discord and opens the site after.
+const DRUG_FRESH_MS = 10 * 60 * 1000;
 
 // The facts the soundtrack needs, and nothing else (docs/systemdocs/SOUND.md §3, §5).
 //
@@ -59,7 +64,7 @@ export const getMusicPhase = cache(async (discordUserId) => {
             mood: true,
             tags: {
               where: { tag: { slug: { in: LISTENER_TAGS } } },
-              select: { equipped: true, tag: { select: { slug: true } } },
+              select: { equipped: true, acquiredAt: true, tag: { select: { slug: true } } },
             },
             location: {
               select: {
@@ -139,6 +144,12 @@ function standingFor(character, turn) {
     impaired: character.tags.some((t) => IMPAIRED_TAGS.includes(t.tag.slug)),
     hallucinating: character.tags.some((t) => t.tag.slug === HALLUCINATING_TAG),
     robed: character.tags.some((t) => t.tag.slug === ROBES_TAG && t.equipped),
+    // The drugs they are on, and — only for a dose inside the last few minutes — when it
+    // was taken, which is what the sound of taking it waits for (MusicDirector.js). An old
+    // dose crosses as null, so a stamp nobody can act on does not churn the poll.
+    drugs: drugsHeld(character.tags.map((t) => ({ slug: t.tag.slug, acquiredAt: t.acquiredAt }))).map(
+      ({ id, takenAt }) => ({ id, takenAt: Date.now() - takenAt < DRUG_FRESH_MS ? takenAt : null }),
+    ),
     charonLaunchedAt: null,
     trainFresh:
       trainHere(turn?.number ?? 0) &&

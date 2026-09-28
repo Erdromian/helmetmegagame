@@ -231,6 +231,31 @@ const ROBED = [once("abyssus-abyssum-invocat.ogg")];
 // "Ambience in town when character mood is low."
 const TOWN_LOW = [loop("loop_airy4.ogg")];
 
+// BEING ON A DRUG. One song per drug, and each song is two things: the "ambience
+// interrupting sfx" that cuts in the moment the dose is taken (MusicDirector.js), and then
+// the listener's own bed for as long as the high lasts. Keyed by the drug, not the state tag
+// — web/lib/drugHighs.js is the way from one to the other. A drug missing here is simply
+// silent; no song belongs to two drugs (placeAmbience.test.mjs holds that).
+//
+// The pairings are a reading of the documents' sentences, and Bascinet's to change:
+export const BY_DRUG = {
+  // "Ambience interrupting sfx which plays after smoking marijuana". Raw fungus is the
+  // game's mild, cheap High.
+  "cave-fungus": once("hishmaliin.ogg"),
+  // "Ambience while hallucinating". Refined fungus: Euphoric, "you could do this for the
+  // rest of your life".
+  bliss: once("fools-village.ogg"),
+  // "Ambience interrupting sfx which plays after taking DOB or other hardcore drug."
+  heroin: once("mature-raver.ogg"),
+  // "Ambience interrupting sfx when having a drug induced bad trip, VERY LOUD, lower the
+  // volume on this one before using." Changa High: "You are losing your mind and going
+  // crazy. You might die." Its measured level is in musicGain.js; the trim on top is the
+  // document's "lower the volume" — its bursts swing ten LU either side of that level.
+  changa: once("oval-sky.ogg", { gain: 0.6 }),
+  // "Ambience while hallucinating". A tablet that causes dissociation.
+  "eth-lod": once("parhelic-triangle.ogg"),
+};
+
 // A GHOST is not anywhere. "Ambience while a ghost", "Ambience interrupting sound effect of
 // becoming a ghost, and also ambience while a ghost", "Ambience for ghosts".
 export const GHOST = {
@@ -263,6 +288,7 @@ export const ALL_PLACES = [
   { id: "impaired", pieces: IMPAIRED, spots: [] },
   { id: "hallucinating", pieces: HALLUCINATING, spots: [] },
   { id: "robed", pieces: ROBED, spots: [] },
+  ...Object.entries(BY_DRUG).map(([id, p]) => ({ id: `drug:${id}`, pieces: [p], spots: [] })),
   { id: "town-low", pieces: TOWN_LOW, spots: WIND_SPOTS },
   { id: "ghost", pieces: GHOST.tiers[0], spots: [] },
   { id: "interrupts", pieces: Object.values(INTERRUPTS), spots: [] },
@@ -295,6 +321,7 @@ export function resolveAmbience(standing, heardKey = null) {
     impaired,
     hallucinating,
     robed,
+    drugs = [],
     rooms,
   } = standing;
 
@@ -313,6 +340,7 @@ export function resolveAmbience(standing, heardKey = null) {
     impaired && "impaired",
     hallucinating && "hallucinating",
     robed && "robed",
+    ...drugs.filter((d) => BY_DRUG[d.id]).map((d) => `drug:${d.id}`),
     moodTone === "bad" && zoneSlug === "town" && "town-low",
   ].filter(Boolean);
 
@@ -322,6 +350,11 @@ export function resolveAmbience(standing, heardKey = null) {
     if (listener.includes("impaired")) mine.push(...IMPAIRED);
     if (listener.includes("hallucinating")) mine.push(...HALLUCINATING);
     if (listener.includes("robed")) mine.push(...ROBED);
+    for (const l of listener) {
+      const p = l.startsWith("drug:") ? BY_DRUG[l.slice("drug:".length)] : null;
+      // Bliss and hallucinating share Fool's Village; once in the pool is enough.
+      if (p && !mine.some((m) => m.src === p.src)) mine.push(p);
+    }
     if (listener.includes("town-low")) mine.push(...TOWN_LOW);
     const tiers = [
       mine,

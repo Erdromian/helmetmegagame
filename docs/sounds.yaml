@@ -951,7 +951,7 @@ sounds:
     use: Ambience interrupting sfx which plays after smoking marijuana
     class: interrupt
     doc: "Dvar - Hishmaliin [7J5JMJ0JHx4].ogg"
-    needs: marijuana, which is not in the game yet
+    served: ambience/hishmaliin.ogg
   effects/hot-plates.ogg:
     use: Ambience interrupting combat music which plays after enabling combat mode as dreamer, and at turn push if in combat as dreamer.
     class: interrupt
@@ -966,12 +966,12 @@ sounds:
     use: Ambience interrupting sfx which plays after taking DOB or other hardcore drug.
     class: interrupt
     doc: "AFX - (mature raver) - AFx [vHt-0LjZmWM].ogg"
-    needs: DOB or another hardcore drug, which are not in the game yet
+    served: ambience/mature-raver.ogg
   effects/oval-sky.ogg:
     use: Ambience interrupting sfx when having a drug induced bad trip, VERY LOUD, lower the volume on this one before using.
     class: interrupt
     doc: "Oval - Sky (2010) [oxJ6NCyVsQ4].ogg"
-    needs: "a drug-induced bad trip, which is not in the game yet. Lower its level before wiring it: the document says it is very loud"
+    served: ambience/oval-sky.ogg
   effects/pipe-organ-ambience.ogg:
     use: Ambience interrupting sfx which plays when waking up as the Dreamer
     class: interrupt

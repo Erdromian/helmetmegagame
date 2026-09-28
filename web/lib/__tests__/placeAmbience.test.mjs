@@ -20,10 +20,11 @@ import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
 
-const { resolveAmbience, placeHas, ALL_PLACES, GHOST, INTERRUPTS } = await import(
+const { resolveAmbience, placeHas, ALL_PLACES, GHOST, INTERRUPTS, BY_DRUG } = await import(
   "../../app/components/placeAmbience.js"
 );
 const { pickTiered, TIER_WEIGHTS } = await import("../../app/components/musicSchedule.js");
+const { DRUGS } = await import("../drugHighs.js");
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..", "..");
 const yaml = createRequire(import.meta.url)("js-yaml");
@@ -64,7 +65,14 @@ test("no pool anywhere plays the fire", () => {
 test("space hears only what refers to space, whoever is listening", () => {
   for (const standing of [
     at("space", "space-1"),
-    { ...at("space", "space-1"), attributes: ["offMap", "space"], impaired: true, robed: true, hallucinating: true },
+    {
+      ...at("space", "space-1"),
+      attributes: ["offMap", "space"],
+      impaired: true,
+      robed: true,
+      hallucinating: true,
+      drugs: DRUGS.map((d) => ({ id: d.id, takenAt: null })),
+    },
   ]) {
     const place = resolveAmbience(standing);
     assert.equal(place.tiers.length, 1);
@@ -117,6 +125,28 @@ test("what the listener IS is the most specific tier, not a wall", () => {
   assert.deepEqual(top, ["parhelic-triangle.ogg", "fools-village.ogg", "abyssus-abyssum-invocat.ogg"]);
   assert.ok(hazy.tiers.length > 1, "the place still gets a word in");
   assert.ok(names(resolveAmbience({ ...INN, moodTone: "bad" })).includes("loop_airy4.ogg"));
+});
+
+test("a drug is one song, heard as the listener's own bed while the high lasts", () => {
+  const songs = Object.values(BY_DRUG).map((p) => p.src);
+  assert.equal(new Set(songs).size, songs.length, "no song belongs to two drugs");
+  for (const [id, p] of Object.entries(BY_DRUG)) {
+    assert.ok(DRUGS.some((d) => d.id === id), `${id} is not a drug in web/lib/drugHighs.js`);
+    assert.match(caseOf(p.src), /drug|marijuana|hallucinating/i, id);
+    const high = resolveAmbience({ ...INN, drugs: [{ id, takenAt: null }] });
+    assert.ok(high.tiers[0].includes(p), `${id} is not in the top tier`);
+    assert.ok(high.tiers.length > 1, "the place still gets a word in");
+    assert.ok(!placeHas(resolveAmbience(INN), p.src), `${id} plays sober`);
+  }
+  // A drug with no song is simply silent, and a fresh stamp is not a different place.
+  assert.equal(resolveAmbience({ ...INN, drugs: [{ id: "no-such-drug", takenAt: 1 }] }), resolveAmbience(INN));
+  assert.equal(
+    resolveAmbience({ ...INN, drugs: [{ id: "changa", takenAt: 1 }] }),
+    resolveAmbience({ ...INN, drugs: [{ id: "changa", takenAt: null }] }),
+  );
+  // Hallucinating on Bliss: Fool's Village once, not twice.
+  const both = names(resolveAmbience({ ...INN, hallucinating: true, drugs: [{ id: "bliss", takenAt: null }] }));
+  assert.equal(both.filter((n) => n === "fools-village.ogg").length, 1);
 });
 
 test("the same place resolves to the same object, so a re-render is not a move", () => {

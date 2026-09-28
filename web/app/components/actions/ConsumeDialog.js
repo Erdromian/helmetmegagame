@@ -11,6 +11,7 @@ import { useActionPools } from "./poolsContext";
 import { consumableTags } from "@/lib/tagRequests";
 import { consumeTagRequest } from "@/app/(app)/character/requestActions";
 import { fitsInRemaining } from "@/lib/craftBudget";
+import { nudgePhase } from "../PhaseProvider";
 
 // Consume: one of the things in your pockets that can be used up, as chips.
 // Nothing about what it leaves behind — that is the tag's own business, and
@@ -66,7 +67,11 @@ export default function ConsumeDialog({ mode, presets, onDone, onClose }) {
               targetCharacterId: administerable && targetId ? targetId : undefined,
               quantity: slider ? count : 1,
             }),
-          (res) => onDone(noticeLine(mode, res, { name: chosen.name })),
+          (res) => {
+            // A drug is heard the moment it is taken (MusicDirector.js), not a minute later.
+            nudgePhase();
+            onDone(noticeLine(mode, res, { name: chosen.name }));
+          },
         )
       }
     >

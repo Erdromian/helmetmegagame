@@ -110,7 +110,9 @@ instruments/boombox/clouds.ogg
 # fortress, keep, underfort, caves/depths and space beds, the inn's second track, what a
 # listener hears hallucinating, robed or dead, and Locus Meropis for the Charon's lift-off.
 # fools-village sits in the library's effects/ folder, where Bascinet filed it, and is served
-# with the other beds because a bed is what its sentence makes it.
+# with the other beds because a bed is what its sentence makes it. So are the three drug
+# songs after it: each is the sound of taking a drug and then the bed while it lasts
+# (placeAmbience.js#BY_DRUG).
 #
 # track3, track13, outpost and beyondretrieval have moved to MUSIC above: the document calls
 # all four Lobby Music, and they were the INDOORS bed only because a filename is all anybody
@@ -175,6 +177,9 @@ ambience/the-hierophant.ogg
 ambience/feast-of-the-night.ogg
 ambience/parhelic-triangle.ogg
 effects/fools-village.ogg
+effects/hishmaliin.ogg
+effects/mature-raver.ogg
+effects/oval-sky.ogg
 ambience/abyssus-abyssum-invocat.ogg
 ambience/consciousness-dissolves.ogg
 ambience/geist.ogg
