@@ -63,9 +63,9 @@ DESTRUCTIVE_SCRIPTS = {
 APPLY_ONLY_SCRIPTS = {
     "db:mirror": "db/scripts/ops/mirror.js",
     "db:import-zones": "db/scripts/ops/import-zones.js",
-    # Brings existing places up to docs/zones.yaml: overwrites fields, retires
-    # rooms and locations the YAML dropped, deletes its dropped ways. Bare, it
-    # only prints the plan.
+    # Makes every place match docs/zones.yaml: overwrites fields, retires
+    # zones, locations and rooms it doesn't name, deletes such sides and ways.
+    # Bare, it only prints the plan.
     "db:sync-zones": "db/scripts/ops/sync-zones.js",
     # Unequips gear on live characters after the HEAD/BODY slot collapse.
     # Bare, it only reports who is over the new limit.

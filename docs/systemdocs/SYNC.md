@@ -1,18 +1,18 @@
 # YAML masters and the sync scripts
 
-**Places have two authors.** Zone, Location and Room are edited live on
-`/gm/dev/zones` (`docs/systemdocs/DEV-PANEL.md` §Zones), and `docs/zones.yaml`
-is still where PRs change the map. The old zones sync was destructive — a
+**`docs/zones.yaml` is the master for places; `/gm/dev/zones` edits last one
+game.** Zone, Location and Room can be edited live on `/gm/dev/zones`
+(`docs/systemdocs/DEV-PANEL.md` §Zones), and those edits hold until the game
+ends. `docs/zones.yaml` is what carries into the next one. The old zones sync was destructive — a
 dropped row lost its Discord footprint and everything in it — so it went, and
 for a while a zones.yaml edit to a place that already existed reached no
 database at all: `db:import-zones` only creates. That is how the Den's Bar
 poured its hidden stock onto the floor on 2026-09-28, from a stash seed
 written before `hidden:` blocks existed.
 
-**Restart Game and Start Game now bring the places up to the YAML**
-(`db/lib/zonesSync.js`, §1a), and keep a GM's hand edit unless the YAML has
-changed that same field since. `npm run db:sync-zones` shows what the next
-run would change.
+**Restart Game and Start Game now make every place match the YAML**
+(`db/lib/zonesSync.js`, §1a), so a change meant to outlive the game goes in the
+YAML. `npm run db:sync-zones` shows what the next run would change.
 
 The remaining five hand-edited YAML files under `docs/` are the sole source
 of truth for their tables. Each has a sync that reconciles the database to
@@ -26,7 +26,7 @@ YAML and running the sync is the only way their rows change.
 
 | Master | Script | Table(s) | Match key | Removal behaviour |
 |---|---|---|---|---|
-| `docs/zones.yaml` | `db:sync-zones` (and `db:import-zones`, create-only) | `Zone`, `Location`, `Room`, `RoomSide`, `LocationLink`, `LocationMining`, `Structure` | `slug` (a side by room + location, a link by its endpoint pair, a mining row by its location, a structure by location + type) | **Three-way, soft** — updates a field only when the YAML changed it since the last run, so a GM's hand edit survives; retires a dropped zone, location or room and removes a dropped side or way; never deletes a place and never writes a `discord*Id`. Run by Restart Game and Start Game (§1a) |
+| `docs/zones.yaml` | `db:sync-zones` (and `db:import-zones`, create-only) | `Zone`, `Location`, `Room`, `RoomSide`, `LocationLink`, `LocationMining`, `Structure` | `slug` (a side by room + location, a link by its endpoint pair, a mining row by its location, a structure by location + type) | **The YAML wins, softly** — sets every field the YAML owns to the YAML's value, whoever changed it during the game; retires a zone, location or room the YAML does not name (a GM's included) and removes such a side or way; never deletes a place and never writes a `discord*Id`. Run by Restart Game and Start Game (§1a) |
 | `docs/tags.yaml` + `docs/taggroups.yaml` | `db:sync-tags` | `Tag`, `TagGroup` | `slug` | **Upsert-only** — never deletes; a removed entry just stops receiving updates. `db:prune-tags` is the opt-in destructive half (§3b): it prunes a tag absent from `docs/tags.yaml`, and once no surviving tag sits in it, a group absent from `docs/taggroups.yaml` too |
 | `docs/roles.yaml` | `db:sync-roles` | `Role` | `slug` | **Prunes only if unreferenced** — a Role a character still holds is left in place and reported |
 | `docs/desires.yaml` | `db:sync-desires` | `DesireTemplate` | `slug` | **Soft-retire** — a dropped slug is never deleted, only marked `retired: true` (hidden from every picker; existing `Desire` rows referencing it keep running). A slug that comes back has it cleared. See `DESIRES.md` §10 |
@@ -46,23 +46,20 @@ order throws on a reference that would have existed.
 `db/lib/zonesSync.js#syncZonesFromYaml` runs at Restart Game (after the tag
 sync and before roles, which resolve their starting location by slug) and at
 Start Game (before the roll, which reads the phones and the bomb's room). It
-keeps the YAML as it last applied it in `SyncStamp` row `"zones"`
-(`snapshot`), and decides each field of each row on its own:
+makes every place match `docs/zones.yaml`, so what a GM changed at
+`/gm/dev/zones` during a game lasts that game and no longer:
 
-- the YAML says what it said last time: the database is left alone. Either
-  nothing changed or a GM changed it at `/gm/dev/zones`, and that edit stands;
-- the YAML says something new: it is written. If a GM had changed the same
-  field, the YAML wins and the run reports a **conflict**;
-- no snapshot yet (the first run, or the row was deleted): the YAML wins every
-  field that differs.
+- a place the YAML names is set to the YAML, every field it owns, and comes
+  back if a GM retired it;
+- a place the YAML names and the database lacks is created through
+  `importZonesFromYaml`, even one a GM hard-deleted;
+- a zone, location or room the YAML does not name — dropped from it, or made by
+  a GM during the game — is **retired**, never deleted, and never while
+  somebody is standing there; such a room side or way is removed;
+- a quest room (`Room.questId`) has a life of its own (`QUESTS.md`) and is
+  never looked at.
 
-Rows on one side only: a place the YAML names and the database lacks is
-created through `importZonesFromYaml` — unless the snapshot had it, which
-means a GM hard-deleted it, and it stays gone. A zone, location or room the YAML
-dropped is **retired** (never while somebody is standing there), and a dropped
-side or way is removed. A place only the database has, never in the YAML, is a
-GM's and is left alone, and a quest room is never looked at. The first run has
-no snapshot to tell those apart, so it retires and removes nothing.
+To keep a change for the next game, put it in the YAML.
 
 Before anybody plays (`beforePlay`, both call sites), a room whose stash seed
 changed is emptied and its `seededStashSlugs` cleared so the world seed pours
@@ -412,7 +409,7 @@ everything else from YAML.
 | Command | What it does |
 |---|---|
 | `db:sync` | The four routine masters in order (tags, roles, desires, documents), then a structure Discord mirror pass. Zones are not part of this run — see `db:import-zones` in §1. |
-| `db:sync-zones` | Brings the places the database already has up to `docs/zones.yaml`, keeping GM edits the YAML has not changed since (§1a). **Dry run by default**; `-- --apply` writes. Restart Game and Start Game run it themselves. |
+| `db:sync-zones` | Makes every place match `docs/zones.yaml` (§1a). **Dry run by default**; `-- --apply` writes. Restart Game and Start Game run it themselves. |
 | `db:import-zones` | One-shot, additive: creates whatever `docs/zones.yaml` names that the database doesn't have yet, skips the rest, never deletes. **Dry run by default**; `-- --apply` writes. See §1. |
 | `db:mirror` | Diffs the live Discord guild against the database and provisions, renames or reparents to match — the repair path for zones/locations/rooms/narrowcast/Deadchat now. **Dry run by default**; `-- --apply` writes, `-- --full` adds the member sweeps. `db/lib/discordMirror/`. |
 | `db:doctor` | The channel doctor from a terminal. **Dry run by default**; `-- --apply` repairs, `-- --full` adds the expensive scope (overwrites, threads, invites, narrowcast) on top of the cheap role-membership checks. See `CHANNELS.md` §6. |

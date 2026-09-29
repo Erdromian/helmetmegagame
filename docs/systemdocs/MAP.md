@@ -21,10 +21,9 @@ channel doctor's `character-place` check flags a mismatch (`CHANNELS.md`
 Geography is authored live at `/gm/dev/zones` now — a GM edits a Zone,
 Location or Room's fields directly, and the change lands in the database
 immediately, with Discord catching up behind it (`db/lib/discordMirror/`).
-`docs/zones.yaml` is the other author: Restart Game and Start Game bring
-every place up to it, but only the fields the YAML has changed since the last
-run, so a GM's edit here survives a restart unless the YAML moves that same
-field (`SYNC.md` §1a, `npm run db:sync-zones` to look first). See `SYNC.md`
+Those edits last the game: Restart Game and Start Game make every place match
+`docs/zones.yaml` again, so a change meant to outlive the game goes in the YAML
+(`SYNC.md` §1a, `npm run db:sync-zones` to look first). See `SYNC.md`
 for the format and `DEV-PANEL.md` for the editor. That includes which zone a
 Location is in: the Zone control on its form moves it, taking everyone
 standing there along and making the ways in from the old zone the crossings

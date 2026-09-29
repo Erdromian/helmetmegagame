@@ -37,14 +37,7 @@ function readZonesYaml() {
 // `doc` lets a test hand in an already-parsed YAML fixture instead of reading
 // docs/zones.yaml off disk — the only reason this isn't just `readZonesYaml()`
 // called unconditionally below.
-//
-// `skip` is { slugs: Set, pairs: Set } of places to leave missing even though
-// the YAML names them: the zones sync (db/lib/zonesSync.js) passes the ones a
-// GM hard-deleted, so a restart does not put them back. A pair is the two
-// location slugs sorted and joined with "|".
-async function importZonesFromYaml(prisma, { apply = false, doc = null, skip = null } = {}) {
-  const skipSlug = (slug) => Boolean(skip?.slugs?.has(slug));
-  const skipPair = (a, b) => Boolean(skip?.pairs?.has([a, b].sort().join("|")));
+async function importZonesFromYaml(prisma, { apply = false, doc = null } = {}) {
   const { zoneEntries, locationEntries, roomEntries, connections, warnings } = doc
     ? parseZonesYaml(doc)
     : readZonesYaml();
@@ -63,10 +56,6 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null, skip = n
   );
   const ordered = [...zoneEntries].sort((a, b) => (a.parentSlug ? 1 : 0) - (b.parentSlug ? 1 : 0));
   for (const entry of ordered) {
-    if (skipSlug(entry.slug)) {
-      report.skipped.push(`skipped zone "${entry.slug}" (left out on purpose)`);
-      continue;
-    }
     if (zonesBySlug.has(entry.slug)) {
       report.skipped.push(`skipped zone "${entry.slug}" (exists)`);
       continue;
@@ -108,10 +97,6 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null, skip = n
     (await prisma.location.findMany()).map((l) => [l.slug, l]),
   );
   for (const entry of locationEntries) {
-    if (skipSlug(entry.slug)) {
-      report.skipped.push(`skipped location "${entry.slug}" (left out on purpose)`);
-      continue;
-    }
     if (locationsBySlug.has(entry.slug)) {
       report.skipped.push(`skipped location "${entry.slug}" (exists)`);
       continue;
@@ -178,10 +163,6 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null, skip = n
   // --- Rooms -----------------------------------------------------------------
   const roomsBySlug = new Map((await prisma.room.findMany()).map((r) => [r.slug, r]));
   for (const entry of roomEntries) {
-    if (skipSlug(entry.slug)) {
-      report.skipped.push(`skipped room "${entry.slug}" (left out on purpose)`);
-      continue;
-    }
     if (roomsBySlug.has(entry.slug)) {
       report.skipped.push(`skipped room "${entry.slug}" (exists)`);
       continue;
@@ -255,10 +236,6 @@ async function importZonesFromYaml(prisma, { apply = false, doc = null, skip = n
     if (!locA || !locB) continue; // one endpoint was skipped above for a reason already reported
     const { aId, bId } = orderEndpoints(entry.a, locA.id, entry.b, locB.id);
     const pairLabel = `${entry.a} <-> ${entry.b}`;
-    if (skipPair(entry.a, entry.b)) {
-      report.skipped.push(`skipped link "${pairLabel}" (left out on purpose)`);
-      continue;
-    }
     if (!apply) {
       // Dry-run ids are placeholders, so existence can only be checked against
       // real rows; a link between two dry-run locations is reported created.
