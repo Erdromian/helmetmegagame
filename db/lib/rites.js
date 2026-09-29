@@ -47,6 +47,8 @@ const GRACE_MS = 2 * 60_000;
 
 // An ingredient is { tag, count } (RoomTag stack), { resources: n } (⬢ on the floor), or { kind } — "bound-person"|"corpse"|"photograph"|"weapon",
 // found by db/lib/riteIngredients.js and handed to the effect rather than eaten.
+// `leaderPresent` means a `thanati-leader` must be among the chanters (checked there too). The Grimoire does not print the flag, so a rite
+// carrying it says so in its own description.
 const RITES = [
   {
     key: "initial",
@@ -60,9 +62,10 @@ const RITES = [
     key: "conversion",
     name: "Rite of Conversion",
     minChanters: 1,
+    leaderPresent: true,
     ingredients: [{ kind: "convert-candidate" }],
     ingredientsText: "1 person in the same location who is able to act, not {tag:bound} and not already Thanati. They must have room access to wherever you are chanting at",
-    description: "Reveal the wicked truth of this reality, so they might join in its destruction! After fulfilling, you will be asked which of them to call. They must be added to whatever room or conversation you chant at. They may refuse your offer, causing no malus to you or themselves.",
+    description: "Reveal the wicked truth of this reality, so they might join in its destruction! After fulfilling, you will be asked which of them to call. They must be added to whatever room or conversation you chant at. They may refuse your offer, causing no malus to you or themselves. Your leader must be present!",
   },
   {
     key: "sacrifice",
@@ -164,6 +167,7 @@ const RITES = [
     key: "fulfillment",
     name: "Rite of Fulfillment",
     minChanters: 4,
+    leaderPresent: true,
     ingredients: [],
     ingredientsText: "",
     description: "Time to break free from this torturous reality, and do so in spectacular fashion! For each of the Dark Lord's objectives completed, you will be granted 100 ⬢. You may only perform this rite once, and your leader must be present!",
