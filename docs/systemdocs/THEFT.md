@@ -122,8 +122,9 @@ Ns."*, an escort cannot carry them off, and the Charon stone refuses them.
 
 **Two theft holds share this reason.** A successful Steal holds nobody, and
 taking from a room with Transfer holds nobody either. The other writer is a
-**failed or noticed Pickpocket** (§2g), and it differs in one column: the victim is
-`heldById`, because a person can hold a thief the way a stash cannot. Either
+**failed or noticed Pickpocket** (§2g), and it differs in two columns: the victim is
+`heldById`, because a person can hold a thief the way a stash cannot, and it
+runs an hour rather than five minutes (`PICKPOCKET_CAUGHT_HOLD_MS`). Either
 way, a caught hand also stays out of pockets until the clock runs (§2g).
 
 Four things follow from reusing the hold rather than inventing one:
@@ -181,8 +182,8 @@ Read off the die **plus** Skilled's +1, **minus** the mark's defense (§2i):
 | total | what happens |
 |---|---|
 | 4+ | **clean.** They are told nothing at all. |
-| 2–3 | **noticed.** You get the goods, they are DM'd that you picked them, and **you are stuck there for 5 minutes, held by them** — both at the take (§2e, §2g). |
-| 1 or less | **failed.** Nothing moves, they are DM'd that you tried and failed, and **you are stuck there for 5 minutes, held by them** (§2g). |
+| 2–3 | **noticed.** You get the goods, they are DM'd that you picked them, and **you are stuck there for an hour, held by them** — both at the take (§2e, §2g). |
+| 1 or less | **failed.** Nothing moves, they are DM'd that you tried and failed, and **you are stuck there for an hour, held by them** (§2g). |
 
 The middle band is the whole texture, and collapsing it into a plain pass/fail
 is the easy accident — a verb that only ever succeeded silently or failed
@@ -314,8 +315,8 @@ escapes notice — the spent ration is the brake on doing that all afternoon.
 **The noticed hold lands at the take too** (§2g), for the same reason and one
 more: pinning the thief at the roll would tell them their band before they took
 anything, which is exactly the tell §2c keeps out of the payload. A noticed
-thief learns they were felt the way a noticed Steal does — the first time they
-try to leave.
+thief learns they were felt from their own DM, sent at the take beside the
+victim's (§2g).
 
 ### 2f. No mood hit, no notice
 
@@ -326,8 +327,8 @@ for. If a mood hit is ever wanted, it belongs on the **noticed** band alone.
 
 ### 2g. A felt pickpocket is held by its victim, and a caught hand stays out of pockets
 
-Both bands the victim feels write the same 5-minute hold a noticed Steal does
-(§1e) — the failed band at the roll, the noticed band at the take (§2e) —
+Both bands the victim feels write the hold a noticed Steal does (§1e), but
+for **an hour** (`PICKPOCKET_CAUGHT_HOLD_MS`) rather than five minutes — the failed band at the roll, the noticed band at the take (§2e) —
 `Character.heldUntil`, `heldReason: "caught"`, through `holdWhereTheyStand` —
 with one difference that changes who is in charge of it: **`heldById` is the
 target.** A stash has no owner, so a caught Steal is held by nobody; a
@@ -340,13 +341,14 @@ That buys the victim the whole intercept toolkit for free (`INTERCEPT.md` §3):
   holding list with the ordinary Release button.
 - **Walking off frees them**, and so does the victim dying. You cannot keep a
   hand on a shoulder from the next Location.
-- **An Attack from the victim** holds both sides to the end of the turn, since
-  a longer hold always beats a shorter one.
+- **An Attack from the victim** replaces it with the fight's own hold, which
+  the fight writes over any other. When the fight ends, so does the hold — the
+  caught hour does not come back.
 
 `holdWhereTheyStand`'s two rules apply unchanged: a hold already running
 longer is left alone, and a running fight is never overwritten. The DM says
 so only when the hold actually landed: *"…pickpocketed you! They won't get
-far for the next 5 minutes — you have hold of them. To let them go sooner,
+far for the next hour — you have hold of them. To let them go sooner,
 open Intercept and press Let them go."*, or the same tail after *"…tried to
 pickpocket you, but failed!"* The DM names the button because the holding list
 lives in the Intercept dialog, where a robbed person would never think to
@@ -356,6 +358,18 @@ would unmask a hooded thief. A thief already held
 longer gets the first sentence alone. Only a **fresh** roll writes the failed
 hold; a reopened dialog rolled nothing and must not extend it. The noticed
 hold cannot repeat, since the take can only happen once.
+
+**Both sides are pinged.** Whenever the hold lands, the thief is DM'd too:
+*"X felt your hand in their pocket. You can't leave for the next hour unless
+they let you go."* — X being the victim as the thief knows them. An hour is
+long enough that a thief who stepped away would come back to a scene that
+happened without them, and five minutes never was. It gives away the noticed
+band, which the dialog still keeps quiet (§2c), but by the time it is sent the
+victim has been told, so there is nothing left to protect.
+
+The countdown on the shut ways and the greyed button reads in minutes past
+five (*"another 59 min"*) and seconds under it, through
+`pickpocket.js#caughtWait`, so a Steal's hold still counts down in seconds.
 
 **While caught, the thief may not pick another pocket.** The hold takes
 movement everywhere else in the game (`INTERCEPT.md` §3); this is the one
@@ -442,7 +456,7 @@ Three things fall out of that, and each is deliberate:
 - **A defended mark is never immune.** The noticed band never closes: even at
   4, a plain thief on a 6 or a master on a 5–6 still gets the goods and gets
   felt. What defense buys is that the theft is *known*, not that it fails —
-  and since a felt reach holds the thief (§2g), known means 5 minutes with
+  and since a felt reach holds the thief (§2g), known means an hour with
   them pinned in front of you.
 - **A clean take against 3 needs Skilled, and against 4 nobody gets one.**
   Somebody carrying all four has spent 13 points on it, and "you cannot be

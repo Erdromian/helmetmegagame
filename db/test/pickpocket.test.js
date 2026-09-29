@@ -23,6 +23,7 @@ const {
   pickpocketRation,
   pickpocketSpent,
   pickpocketSelfBlock,
+  caughtWait,
   PICKPOCKET_SPENT,
   pickpocketableHoldings,
   pickpocketFitCount,
@@ -225,4 +226,15 @@ test("one sentence for the greyed button and the refusal, caught first", () => {
   assert.equal(pickpocketSelfBlock({ fighting: true }), "You're in a fight.");
   assert.equal(pickpocketSelfBlock({ attempts: [{ outcome: FAILED, spentLbs: 0 }] }), PICKPOCKET_SPENT);
   assert.equal(pickpocketSelfBlock({ attempts: [{ outcome: CLEAN, spentLbs: 0 }] }), null);
+});
+
+test("a felt pickpocket's hour counts down in minutes, a Steal's five in seconds", () => {
+  assert.equal(caughtWait(300), "300s");
+  assert.equal(caughtWait(301), "6 min");
+  assert.equal(caughtWait(3600), "60 min");
+  assert.equal(caughtWait(61), "61s");
+  assert.equal(
+    pickpocketSelfBlock({ caughtSeconds: 3540 }),
+    "You were caught stealing. You can't pick a pocket for another 59 min.",
+  );
 });

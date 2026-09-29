@@ -38,7 +38,7 @@ import {
   identityOf,
   IDENTITY_SELECT,
   HELD_REASON,
-  CAUGHT_HOLD_MS,
+  PICKPOCKET_CAUGHT_HOLD_MS,
   holdWhereTheyStand,
   inFight,
   caughtSecondsLeft,
@@ -62,14 +62,21 @@ import { SFX } from "@lifeweb/db/lib/sfx";
 const NOTICED_DM = (who) => `${who} pickpocketed you!`;
 const FAILED_DM = (who) => `${who} tried to pickpocket you, but failed!`;
 // ...and what you can do about it. On either DM the thief is pinned for
-// CAUGHT_HOLD_MS and you are the one holding them (THEFT.md §2g), so the line
+// PICKPOCKET_CAUGHT_HOLD_MS and you are the one holding them (THEFT.md §2g), so the line
 // has to say so, or the victim assumes they're already gone and never answers.
 // Added only when the hold actually landed — a thief already in a fight, or
 // held longer, gets the first sentence alone. It names the button, too: the
 // holding list lives in the Intercept dialog, which is nowhere a robbed person
 // would think to look.
 const STUCK =
-  "They won't get far for the next 5 minutes — you have hold of them. To let them go sooner, open Intercept and press Let them go.";
+  "They won't get far for the next hour — you have hold of them. To let them go sooner, open Intercept and press Let them go.";
+// The thief's half, sent beside the victim's whenever the hold lands. An hour
+// is long enough that a thief who stepped away would come back to find the
+// scene over without them, so they are told — which gives away a noticed band,
+// but by then the victim has already been told, so there is nothing left to
+// keep. Names the victim by the face the thief saw.
+const CAUGHT_DM = (whom) =>
+  `${whom} felt your hand in their pocket. You can't leave for the next hour unless they let you go.`;
 
 // A superset of IDENTITY_SELECT, and `tags` OVERRIDES rather than merges —
 // the single most breakable line here, exactly as SEARCH_SELECT's comment says
@@ -176,7 +183,7 @@ function holdingRows(target) {
   }));
 }
 
-// A thief the target felt, pinned for five minutes where they stand and held
+// A thief the target felt, pinned for an hour where they stand and held
 // BY THE VICTIM (THEFT.md §2g) — a failed roll at the roll, a noticed one at the
 // take. The same Character.heldUntil every picker and the mover's gate already
 // read, and the same column pickpocketAuthority reads to keep this hand out of
@@ -187,9 +194,12 @@ function holdingRows(target) {
 // overwritten. Called after the attempt is already claimed (and, at the take,
 // after the goods moved), so a failed write is logged and the victim still
 // hears the first line. -> whether the hold landed.
+//
+// Both sides are pinged when it lands: the victim is told they have hold of
+// somebody, and the thief that they are stuck (CAUGHT_DM).
 function pinThief(thief, victim) {
   return holdWhereTheyStand(prisma, thief.id, {
-    until: new Date(Date.now() + CAUGHT_HOLD_MS),
+    until: new Date(Date.now() + PICKPOCKET_CAUGHT_HOLD_MS),
     reason: HELD_REASON.CAUGHT,
     heldById: victim.id,
   }).catch((err) => {
@@ -310,6 +320,7 @@ export async function pickpocketRequestImpl({ targetKey }) {
       const who = capitalizeFirst(thiefSeen);
       const pinned = await pinThief(character, target);
       notifyCharacter(target, pinned ? `${FAILED_DM(who)} ${STUCK}` : FAILED_DM(who));
+      if (pinned) notifyCharacter(character, CAUGHT_DM(capitalizeFirst(targetSeen)));
     }
     revalidateAll();
     // Nothing moves, and the thief is told nothing about the die beyond this.
@@ -511,6 +522,7 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
     const who = capitalizeFirst(thiefSeen);
     const pinned = await pinThief(character, target);
     notifyCharacter(target, pinned ? `${NOTICED_DM(who)} ${STUCK}` : NOTICED_DM(who));
+    if (pinned) notifyCharacter(character, CAUGHT_DM(capitalizeFirst(targetSeen)));
   }
 
   // Nothing is posted to the room, on any outcome.

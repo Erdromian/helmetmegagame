@@ -133,6 +133,16 @@ function pickpocketSpent(attempts = []) {
   return !attempts.some((a) => pickpocketTook(a.outcome) && !(a.spentLbs > 0));
 }
 
+// How long a caught hand has left, as the countdown reads it. Seconds under
+// five minutes, where a Steal's hold lives; minutes above that, since a felt
+// pickpocket is held an hour (THEFT.md §2g) and "3540s" is no way to say it.
+// Here rather than in intercept.js so this file keeps its zero-require rule;
+// intercept.js#heldReasonFor reads it too, so the shut ways and the greyed
+// button count down in the same words.
+function caughtWait(seconds) {
+  return seconds <= 300 ? `${seconds}s` : `${Math.ceil(seconds / 60)} min`;
+}
+
 // Why this thief can't reach into anybody right now, or null — off their OWN
 // sheet only (THEFT.md §2, §2g), never the target's or the room's. One set of
 // sentences for the greyed button (web/lib/peoplePools.js) and the server's
@@ -142,7 +152,7 @@ function pickpocketSpent(attempts = []) {
 // turn's PickpocketAttempt rows. The authority omits `attempts` — it runs the
 // ration itself, under a lock, with a sharper per-target sentence.
 function pickpocketSelfBlock({ caughtSeconds = 0, fighting = false, attempts = [] } = {}) {
-  if (caughtSeconds > 0) return `You were caught stealing. You can't pick a pocket for another ${caughtSeconds}s.`;
+  if (caughtSeconds > 0) return `You were caught stealing. You can't pick a pocket for another ${caughtWait(caughtSeconds)}.`;
   if (fighting) return "You're in a fight.";
   if (pickpocketSpent(attempts)) return PICKPOCKET_SPENT;
   return null;
@@ -190,4 +200,5 @@ module.exports = {
   PICKPOCKET_SPENT,
   pickpocketSpent,
   pickpocketSelfBlock,
+  caughtWait,
 };
