@@ -171,7 +171,7 @@ reaches each hearer already wearing their number.
 - **Only speech counts.** `db/lib/speech.js#spokenText` finds the words inside
   quotation marks by the same rules the browser uses to tint speech
   (`web/app/components/remarkChat.js`): straight or curly marks, opening onto a
-  word, no line break, at most 400 characters. "*nods*" gives nothing.
+  word, no line break, any length. "*nods*" gives nothing.
 - **Numbering:** a new voice gets the hearer's next number. A voice heard before
   keeps its number and goes live again. Numbers are per observer and never
   change.

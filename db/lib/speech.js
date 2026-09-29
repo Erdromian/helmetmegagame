@@ -9,8 +9,8 @@
 //   - straight or curly marks, opening on " or “ and closing on " or ”;
 //   - the opening mark must be followed by a real character, since a lone "
 //     mid-sentence is punctuation;
-//   - no line break inside, and nothing longer than 400 characters, so one
-//     unmatched quote cannot swallow the rest of a message;
+//   - no line break inside, so one unmatched quote cannot swallow the rest of
+//     a message. There is no length cap: a speech is as long as it is;
 //   - two marks with nothing between them are not a quote.
 //
 // Inline `code` is literal text, the same as in the browser.
@@ -18,7 +18,6 @@
 const OPEN = /["“]/g;
 const CLOSE = /["”]/g;
 const FORBIDDEN = /["“”\n]/;
-const MAX_INNER = 400;
 
 // Backtick runs blanked to spaces of the same length, so indexes still line up.
 function withoutCode(text) {
@@ -44,7 +43,7 @@ function spokenSpans(text) {
     CLOSE.lastIndex = start;
     const close = CLOSE.exec(source);
     const inner = close ? source.slice(start, close.index) : "";
-    if (!close || FORBIDDEN.test(inner) || inner.length < 1 || inner.length > MAX_INNER) {
+    if (!close || FORBIDDEN.test(inner) || inner.length < 1) {
       // An opener with no partner is just a character; carry on looking.
       from = start;
       continue;

@@ -1425,8 +1425,10 @@ a 48px head and a one-line composer:
   closer still have to sit in text nodes, and everything between them — an
   emphasis, a link, a resolved mention, a `<t:…>` — goes inside the wrapper
   whole. The old refusals all survive it: no newline or hard break inside, a
-  400-character cap, a quote opens only on a real character, and an opener with
-  no partner is left as a character rather than swallowing the rest of the line.
+  quote opens only on a real character, and an opener with no partner is left
+  as a character rather than swallowing the rest of the line. A spoiler is
+  capped at 400 characters; speech has no cap, so a long speech is tinted and
+  heard whole.
   `db/test/chatFormatting.test.js` is the guard.
 
   **A token is the opposite case, and gets the opposite fix.** A

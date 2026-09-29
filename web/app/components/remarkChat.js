@@ -8,13 +8,16 @@ import wrapRuns from "./chatRuns.js";
 // (tinted with --speech, since the words somebody SAID are what a reader scans a wall of narration for).
 // BOTH PASSES SCAN SIBLINGS, not one text node — chatRuns.js says why (so `he said "*get out*"` still tints).
 
-// Not greedy, no newlines, capped: an unmatched quote must not swallow the rest of a long message looking for a
-// partner. Both curly and straight marks (phone keyboards produce the curly pair without asking).
-// `openTight`: a quote opens on a real character, since `he said " ` mid-sentence is punctuation, not speech.
+// Not greedy and no newlines: an unmatched quote must not swallow the rest of a long message looking for a
+// partner. No length cap, though — a speech runs as long as the speaker keeps talking, and the next mark or
+// line break already stops a stray one. Both curly and straight marks (phone keyboards produce the curly pair
+// without asking). `openTight`: a quote opens on a real character, since `he said " ` mid-sentence is
+// punctuation, not speech.
 const SPEECH = {
   open: /["“]/,
   close: /["”]/,
   forbidden: /["“”\n]/,
+  maxInner: Infinity,
   openTight: true,
   keepDelimiters: true,
   build: (children) => element("span", "speech", children),
