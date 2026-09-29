@@ -9,7 +9,7 @@
 // back for the caller, the returned-side-effects rule every pass in db/ follows (ARCHITECTURE.md).
 
 const { readGameConfig, readGameState } = require("./gameState");
-const { nextBoundaryAfter } = require("./turnClock");
+const { nextBoundaryAfter, turnOriginHour } = require("./turnClock");
 
 // Everything both functions need to decide, in one read.
 async function sessionSnapshot(db) {
@@ -17,6 +17,7 @@ async function sessionSnapshot(db) {
     readGameConfig(db, { gameMode: true, turnLengthHours: true }),
     readGameState(db, {
       phase: true,
+      startedAt: true,
       sessionOpenedAt: true,
       sessionClosedAt: true,
       sessionScheduledStartAt: true,
@@ -29,7 +30,7 @@ async function sessionSnapshot(db) {
 // Open the session. The open turn's clock RESTARTS from now: a session that opens at 15:00 must not hand players the tail
 // end of a turn that has been sitting frozen since Tuesday, and its cutoff would already be in the past. Snapping to the next
 // grid boundary (rather than running a full length) keeps the game on clean local times, the same rule a manual advance
-// follows.
+// follows — the grid that starts at the game's own start hour (turnClock.js#turnOriginHour).
 async function openSession(db, { now = new Date() } = {}) {
   const { state, sessions, config } = await sessionSnapshot(db);
   if (!sessions) return { ok: false, reason: "NOT_SESSIONS" };
@@ -47,7 +48,7 @@ async function openSession(db, { now = new Date() } = {}) {
     const lengthHours = openTurn.turnLengthHours ?? config?.turnLengthHours ?? 24;
     await db.turn.update({
       where: { id: openTurn.id },
-      data: { startedAt: now, endsAt: new Date(nextBoundaryAfter(now.getTime(), lengthHours)) },
+      data: { startedAt: now, endsAt: new Date(nextBoundaryAfter(now.getTime(), lengthHours, turnOriginHour(state?.startedAt))) },
     });
   }
 

@@ -7,7 +7,7 @@ const { fateCapacity, fateSeatsFor, isSpawnOnly } = require("./fateCapacity");
 const { heldSeatsByFate } = require("./seatCount");
 const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
-const { normalizeTurnLength, nextBoundaryAfter } = require("./turnClock");
+const { normalizeTurnLength, nextBoundaryAfter, turnOriginAt, turnOriginHour } = require("./turnClock");
 const { seedAuthoredWorld } = require("./worldSeed");
 const { resetExchange, rollPhoneNumbers } = require("./phoneNumbers");
 const { rollNuke } = require("./nuke");
@@ -195,9 +195,12 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
       data: { phase: "RUNNING", startedAt: now, playerCount: draft.playerCount ?? null, assignmentDraft: null },
     });
     // Restamp the clock, not just the start: every Move deadline comes off the turn row now (turnClock.js), so `endsAt` has
-    // to be recomputed or Turn 1 keeps a deadline set before anybody was playing.
+    // to be recomputed or Turn 1 keeps a deadline set before anybody was playing. The grid starts at the hour nearest
+    // `now` (turnClock.js#turnOriginHour), and Turn 1 runs one whole length from that hour: start at 5:14 and it ends at
+    // 05:00 tomorrow, start at 5:45 and it ends at 06:00. Counting from the origin rather than from `now` is what stops a
+    // start just before the hour getting a turn a few minutes long.
     const turnLengthHours = normalizeTurnLength(config?.turnLengthHours);
-    const endsAt = new Date(nextBoundaryAfter(now.getTime(), turnLengthHours));
+    const endsAt = new Date(nextBoundaryAfter(turnOriginAt(now).getTime(), turnLengthHours, turnOriginHour(now)));
     const open = await tx.turn.findFirst({ where: { status: "OPEN" } });
     let turn;
     if (open) turn = await tx.turn.update({ where: { id: open.id }, data: { startedAt: now, endsAt, turnLengthHours } });

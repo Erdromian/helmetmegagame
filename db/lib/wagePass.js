@@ -7,8 +7,9 @@
 // WHEN. A turn close pays the day it belongs to if the NEXT turn opens on a
 // new day — nextDayFor in db/index.js, the same measure the floor settle
 // uses. That is exact when GameConfig.turnsPerDay counts the days, and nearly
-// so on the midnight clock: a turn that closes before midnight whose successor
-// opens after it rolls the day without this close seeing it. So every close
+// so on the clock rule (the day rolls at the hour the game started): a turn
+// that closes before that hour whose successor opens after it rolls the day
+// without this close seeing it. So every close
 // also pays YESTERDAY if yesterday is still unpaid — the backstop, which also
 // covers a wages pass that threw on the last close of a day.
 //

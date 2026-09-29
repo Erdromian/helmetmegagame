@@ -40,7 +40,7 @@ over the turns in one in-game day (`turnClock.js#turnsInGameDay`), rounded:
 - **Turns per in-game day** (`GameConfig.turnsPerDay`) set to N: the day is N
   turns, whatever their length. 24-hour turns run two to a day drain 17 each,
   so a full meter lasts 6 turns (6 real days).
-- Left at 0 (the midnight rule): the day is the turn length's share of 24
+- Left at 0 (the clock rule): the day is the turn length's share of 24
   hours, so 34 a turn at 24 hours, 17 at 12, 11 at 8 and 9 at 6.
 
 Either way "3 days to empty" means 3 in-game days.

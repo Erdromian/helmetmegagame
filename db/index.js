@@ -43,7 +43,7 @@ const { runWagePass } = require("./lib/wagePass");
 const { runGatehouseTurretPass } = require("./lib/gatehouseTurret");
 const { runLatePartyRaffle } = require("./lib/latePartyRaffle");
 const { getGameState, readGameState, inSession } = require("./lib/gameState");
-const { normalizeTurnLength, nextBoundaryAfter, nextDayNumber } = require("./lib/turnClock");
+const { normalizeTurnLength, nextBoundaryAfter, nextDayNumber, turnOriginHour } = require("./lib/turnClock");
 const { settleFloors, FLOOR_SETTLE_AUDIT_ACTION } = require("./lib/floorSettle");
 const { runCatatonicPass } = require("./lib/catatonicPass");
 const { runCatatonicDeathPass } = require("./lib/catatonicDeathPass");
@@ -416,14 +416,16 @@ const TURN_PASSES = [
 const RESUME_LEASE_MS = 30 * 60 * 1000;
 
 // The day a turn opening after `lastTurn` will carry. The count is only needed
-// when GameConfig.turnsPerDay is set; the default midnight rule never asks.
+// when GameConfig.turnsPerDay is set; the default rule, which rolls the day at
+// the game's origin hour, needs the game's start instead.
 async function nextDayFor(lastTurn, startedAt, config) {
   const turnsPerDay = config?.turnsPerDay ?? 0;
   const turnsInDay =
     turnsPerDay >= 1 && lastTurn
       ? await prisma.turn.count({ where: { dayNumber: lastTurn.dayNumber ?? 1 } })
       : 0;
-  return nextDayNumber(lastTurn, startedAt, { turnsPerDay, turnsInDay });
+  const gameStartedAt = (await readGameState(prisma, { startedAt: true }))?.startedAt ?? null;
+  return nextDayNumber(lastTurn, startedAt, { turnsPerDay, turnsInDay, gameStartedAt });
 }
 
 async function resolveNeeds(turn, config) {
@@ -1493,7 +1495,8 @@ async function advanceTurn() {
       number: (lastTurn?.number ?? 0) + 1,
       dayNumber: await nextDayFor(lastTurn, startedAt, config),
       turnLengthHours,
-      endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours)),
+      // On the grid that starts at the game's own start hour (turnClock.js#turnOriginHour).
+      endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours, turnOriginHour(state.startedAt))),
       startedAt,
       status: "OPEN",
     },

@@ -150,12 +150,12 @@ const FIELDS = [
     key: "turnLengthHours", type: "select", group: "clock", default: 24,
     options: [6, 8, 12, 24].map((h) => ({ value: h, label: `${h} hours` })),
     label: "Turn length",
-    info: "Takes effect at the next turn, never the open one. Adjudication window: 2 hours on 6 and 8, 3 on 12 and 24.",
+    info: "Takes effect at the next turn, never the open one. Turns end on the hour the game started, rounded to the nearest hour, and every length after it. Adjudication window: 2 hours on 6 and 8, 3 on 12 and 24.",
   },
   {
     key: "turnsPerDay", type: "int", group: "clock", default: 0, min: 0, max: 24,
-    label: "Turns per in-game day (0 = at midnight)",
-    info: "0 rolls the day at midnight Chicago, so the turn length decides. Any other number rolls it after that many turns. Takes effect at the next turn; days already played keep their number.",
+    label: "Turns per in-game day (0 = by the clock)",
+    info: "0 rolls the day at the hour the game started, Chicago time, so the turn length decides. Any other number rolls it after that many turns. Takes effect at the next turn; days already played keep their number.",
   },
   {
     key: "gameMode", type: "select", group: "clock", default: "PERSISTENT",
