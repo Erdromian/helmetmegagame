@@ -84,6 +84,11 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
         cavesSkilled: rate("caves", "skilled", t.slug),
         depthsPlain: rate("depths", "plain", t.slug),
         depthsSkilled: rate("depths", "skilled", t.slug),
+        // Lucky's second draw (MINING.md §3b), the same two columns again.
+        cavesPlainLucky: rate("caves", "plainLucky", t.slug),
+        cavesSkilledLucky: rate("caves", "skilledLucky", t.slug),
+        depthsPlainLucky: rate("depths", "plainLucky", t.slug),
+        depthsSkilledLucky: rate("depths", "skilledLucky", t.slug),
         cavingCaves: cavingRate("caves", t.slug),
         cavingDepths: cavingRate("depths", t.slug),
         // What forging one adds, over selling it, for a smith of each kind.
@@ -137,7 +142,7 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
   // Per press: every stone that drops is forged in pairs, a Trinket a pair, on the rest turn a miner has
   // anyway (a quarter of a Move a turn at a press every other turn, well under the one Move there is).
   const perPress = (zone, col, h) => {
-    const rows = stones.map((s) => ({ s, p: s[`${zone}${col === "plain" ? "Plain" : "Skilled"}`] })).filter((r) => r.p > 0);
+    const rows = stones.map((s) => ({ s, p: s[`${zone}${col[0].toUpperCase()}${col.slice(1)}`] })).filter((r) => r.p > 0);
     const stoneCount = rows.reduce((n, r) => n + r.p, 0);
     const trinkets = stoneCount / gate.slotsMax;
     const inlay = rows.reduce((n, r) => n + r.p * r.s.inlay, 0);
@@ -150,9 +155,12 @@ function buildTrinkets({ get, list, rv, rvMined, producerDrops, profitTiers, mov
     const net = raw - trinkets * TIERS.reduce((sum, t, i) => sum + h.tierP[i] * tax(t.base + t.mult * inlayEach), 0);
     return { stones: stoneCount, trinkets, revenue, forgone, raw, net };
   };
+  // The Lucky columns are the stones a Lucky miner digs up; which smith forges them is the holder, as before.
   const prospector = {};
-  for (const [zone, col] of [["caves", "plain"], ["caves", "skilled"], ["depths", "plain"], ["depths", "skilled"]]) {
-    prospector[`${zone}:${col}`] = Object.fromEntries(holders.map((h) => [h.id, perPress(zone, col, h)]));
+  for (const zone of ["caves", "depths"]) {
+    for (const col of ["plain", "skilled", "plainLucky", "skilledLucky"]) {
+      prospector[`${zone}:${col}`] = Object.fromEntries(holders.map((h) => [h.id, perPress(zone, col, h)]));
+    }
   }
 
   // ---- checks against the doc -----------------------------------------------------------------------------------

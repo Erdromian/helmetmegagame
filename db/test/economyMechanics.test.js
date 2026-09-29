@@ -153,6 +153,18 @@ test("the Caving Die's find and trouble odds match a seeded run of rollWithAdvan
   }
 });
 
+// Drops, Lucky: the report's Lucky mining columns are the game's two-draw rule, 1 − (1 − p)² for a tier or better.
+test("the report's Lucky mining columns keep the rarer of two draws", () => {
+  const { PROSPECTING_TABLE, PROSPECTING_SKILLED_WEIGHTS_BY_ZONE } = require("../lib/cavingLoot");
+  const top = new Set(PROSPECTING_TABLE["nearly-impossible"]);
+  const share = (rows) => rows.filter((r) => top.has(r.slug)).reduce((n, r) => n + r.p, 0);
+  const p = PROSPECTING_SKILLED_WEIGHTS_BY_ZONE.depths["nearly-impossible"];
+  const drops = model.producerDrops.prospecting.depths;
+  assert.ok(Math.abs(share(drops.skilled) - p) < 0.003, `plain ${share(drops.skilled)} against ${p}`);
+  assert.ok(Math.abs(share(drops.skilledLucky) - (1 - (1 - p) ** 2)) < 0.003, `lucky ${share(drops.skilledLucky)} against ${1 - (1 - p) ** 2}`);
+  assert.ok(model.lucky.uses.some((u) => u.id === "mining-depths-skilled" && u.gain > 0), "the Lucky page prices mining");
+});
+
 // Combat, armour kits: a kit's combined figures are combineArmor's on the same pieces.
 test("an armour kit's combined values are armorValue.combineArmor's", () => {
   const kit = model.combat.armourKits.kits.find((k) => k.count === 2);

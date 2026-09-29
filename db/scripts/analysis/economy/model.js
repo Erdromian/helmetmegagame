@@ -617,16 +617,15 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
       .sort((x, y) => y.ev - x.ev || y.p - x.p);
   const evOf = (tbl) => tbl.reduce((sum, row) => sum + row.ev, 0);
   const producerDrops = {
-    prospecting: {
-      caves: {
-        plain: dropTable(sources.drops.prospecting.caves.plain.dist),
-        skilled: dropTable(sources.drops.prospecting.caves.skilled.dist),
-      },
-      depths: {
-        plain: dropTable(sources.drops.prospecting.depths.plain.dist),
-        skilled: dropTable(sources.drops.prospecting.depths.skilled.dist),
-      },
-    },
+    // Four columns a zone: plain and skilled, each with and without Lucky's second draw.
+    prospecting: Object.fromEntries(
+      ["caves", "depths"].map((zone) => [
+        zone,
+        Object.fromEntries(
+          ["plain", "skilled", "plainLucky", "skilledLucky"].map((col) => [col, dropTable(sources.drops.prospecting[zone][col].dist)]),
+        ),
+      ]),
+    ),
     caving: {
       caves: dropTable(sources.drops.caving.caves.dist, SOURCE_RULES.cavingFindChance),
       depths: dropTable(sources.drops.caving.depths.dist, SOURCE_RULES.cavingFindChance),
@@ -1405,7 +1404,7 @@ function buildModel({ players = 100, gameTurns = 30, freeMoves = null, resourceV
   trinkets.shelfLoop.topWage = profitTiers.length ? Math.max(...profitTiers.map((t) => t.rate)) : 0;
 
   trinkets.moveValue = moveValueUsed;
-  const lucky = buildLucky({ get, rv, params, caving, trinkets, moveValue: moveValueUsed, gameTurns });
+  const lucky = buildLucky({ get, rv, params, caving, trinkets, producerDrops, moveValue: moveValueUsed, gameTurns });
   // What the sell tax does to each business the wage table lists (sellTax.js).
   const sellTaxModel = buildSellTax({ activities, baselines, profitRows, trinkets, params, rv });
   const tiersRise = profitTiers.every((t, i) => i === 0 || t.median >= profitTiers[i - 1].median);

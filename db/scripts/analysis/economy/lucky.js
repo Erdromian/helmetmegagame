@@ -32,7 +32,7 @@ const within = (p, lo, hi) => p.slice(lo - 1, hi).reduce((a, b) => a + b, 0);
 const atLeast = (p, n) => within(p, n, 6);
 const mean = (p) => p.reduce((s, x, i) => s + x * (i + 1), 0);
 
-function buildLucky({ get, rv, params, caving, trinkets, moveValue, gameTurns }) {
+function buildLucky({ get, rv, params, caving, trinkets, producerDrops, moveValue, gameTurns }) {
   const nameOf = (slug) => get(slug)?.name ?? slug;
   const cancels = {
     gambit: worseSlugs("db/lib/gambitDie.js", /GAMBIT_WORSE = Object\.freeze\(new Set\(\[([^\]]*)\]\)\)/).map(nameOf),
@@ -90,19 +90,46 @@ function buildLucky({ get, rv, params, caving, trinkets, moveValue, gameTurns })
       });
     }
   }
-  // A prospector who forges what they dig up (the case the investment table prices).
-  const pp = (col, id) => trinkets.prospector[`caves:${col}`][id];
-  const proGain = pp("plain", "apprentice-lucky").net - pp("plain", "apprentice").net;
-  add({
-    id: "trinket-prospector",
-    die: "Forging a Trinket",
-    who: "A Caves miner forging their own stones, Smithing",
-    gain: proGain * params.mineDuty,
-    basis: `${round1(proGain)} ¢ more a press, a press one turn in ${round1(1 / params.mineDuty)}`,
-    note: "Limited by how many stones drop, about one a press.",
-    scales: false,
-    kind: "forge",
-  });
+  // A prospector who forges what they dig up (the case the investment table prices). Lucky reaches both halves:
+  // the stones come off its second draw, and the Trinket off its second die.
+  const pp = (key, id) => trinkets.prospector[key][id];
+  for (const { id, who, plain, lucky } of [
+    { id: "trinket-prospector", who: "A Caves miner forging their own stones, Smithing", plain: ["caves:plain", "apprentice"], lucky: ["caves:plainLucky", "apprentice-lucky"] },
+    { id: "trinket-prospector-depths", who: "A Depths prospector forging their own stones, Smithing II", plain: ["depths:skilled", "skilled"], lucky: ["depths:skilledLucky", "skilled-lucky"] },
+  ]) {
+    const proGain = pp(...lucky).net - pp(...plain).net;
+    add({
+      id,
+      die: "Forging a Trinket",
+      who,
+      gain: proGain * params.mineDuty,
+      basis: `${round1(proGain)} ¢ more a press, a press one turn in ${round1(1 / params.mineDuty)}, rarer stones and better Trinkets both`,
+      note: "Limited by how many stones drop, about one a press.",
+      scales: false,
+      kind: "forge",
+    });
+  }
+
+  // ---- the Mine press's loot draw ---------------------------------------------------------------------------
+  // No die: Lucky draws twice and keeps the rarer find (MINING.md §3b). Priced at what the station pays for the
+  // find, the same floor the drops page uses, so a stone a smith would forge is worth more than this says.
+  const evOf = (rows) => rows.reduce((sum, r) => sum + r.ev, 0);
+  for (const [zone, label] of [["caves", "Caves"], ["depths", "Depths"]]) {
+    for (const [col, skill] of [["plain", "a pickaxe"], ["skilled", "Prospecting"]]) {
+      const plainEv = evOf(producerDrops.prospecting[zone][col]);
+      const luckyEv = evOf(producerDrops.prospecting[zone][`${col}Lucky`]);
+      add({
+        id: `mining-${zone}-${col}`,
+        die: "The Mine press's loot draw",
+        who: `A miner at the ${label} with ${skill}`,
+        gain: (luckyEv - plainEv) * params.mineDuty,
+        basis: `${round1(luckyEv)} ¢ of finds a press against ${round1(plainEv)}, a press one turn in ${round1(1 / params.mineDuty)}`,
+        note: "Valued at the station's price; forging the stones is the Trinket row's.",
+        scales: false,
+        kind: "mine",
+      });
+    }
+  }
 
   // ---- pushing on ----------------------------------------------------------------------------------------
   const ankle = get("sprained-ankle");
