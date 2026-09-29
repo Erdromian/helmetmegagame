@@ -1,5 +1,5 @@
-// docs/zones.yaml -> the places that already exist. `npm run db:sync-zones`,
-// and a step of both Restart Game and Start Game.
+// docs/zones.yaml -> the places. `npm run db:sync-zones`, and a step of both
+// Restart Game and Start Game.
 //
 // WHY. db/lib/importZones.js only ever CREATES, so a zones.yaml edit to a place
 // the game already had never reached it: a new description, a moved room, a
@@ -8,28 +8,24 @@
 // game — that is how the Den's Bar poured its hidden drink and cigarettes onto
 // the floor on 2026-09-28.
 //
-// THE RULE: THREE-WAY, SO A GM'S HAND EDIT SURVIVES. Places are also edited
-// live at /gm/dev/zones, and a restart must not quietly undo that. So the
-// YAML as it stood the last time this applied is kept in SyncStamp "zones"
-// (`snapshot`), and each field is decided on its own:
-//
-//   - the YAML still says what it said last time: leave the database alone.
-//     Either nothing changed, or a GM changed it on purpose;
-//   - the YAML says something new: write it. If a GM had also changed that
-//     field, the YAML wins and the report calls it a conflict;
-//   - no snapshot yet (the first run): the YAML wins every field that differs.
-//
-// Rows on one side only:
+// THE RULE: THE YAML IS THE MASTER, AND A GAME'S EDITS END WITH THE GAME.
+// Places are also edited live at /gm/dev/zones, and those edits are for the
+// game they were made in. Every run makes each place the YAML names match it,
+// field by field, whoever changed it in between:
 //
 //   - in the YAML, not in the database: created (through importZonesFromYaml),
-//     unless the snapshot had it — then a GM hard-deleted it, and it stays gone;
-//   - in the database and the snapshot, gone from the YAML: a zone, location
-//     or room is RETIRED (never deleted), a room's side or a way between two
-//     locations is removed. A location somebody is standing in is not retired;
-//   - in the database only, never in the YAML: a GM made it. Left alone. A
-//     quest room (Room.questId) is never even looked at;
-//   - the first run has no snapshot to tell those two apart, so it retires and
-//     removes nothing, and says what it would have looked at instead.
+//     even one a GM hard-deleted;
+//   - in both: every field the YAML owns is set to the YAML's value, and a
+//     place a GM retired comes back;
+//   - in the database, not in the YAML: a zone, location or room is RETIRED
+//     (never deleted, so its history and Discord footprint stay), a room's
+//     side or a way between two locations is removed. That covers places a GM
+//     made at /gm/dev/zones as well as ones the YAML dropped. A location
+//     somebody is standing in is not retired, and says so;
+//   - a quest room (Room.questId) is a GM's runtime room with a lifecycle of
+//     its own (QUESTS.md), and is never even looked at.
+//
+// So a change that should outlive the game belongs in docs/zones.yaml.
 //
 // It never touches a structure, which db/lib/worldSeed.js owns. What is lying
 // in a room (RoomTag) it touches only with `beforePlay` (below).
@@ -46,7 +42,6 @@
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel; require
 // it by path. Dry run by default, like the importer.
 const fs = require("node:fs");
-const crypto = require("node:crypto");
 const yaml = require("js-yaml");
 const { Prisma } = require("@prisma/client");
 const { docsPath } = require("./repoPaths");
@@ -55,8 +50,6 @@ const { importZonesFromYaml } = require("./importZones");
 const { enqueueMirror } = require("./discordMirror/queue");
 // Whole module, not destructured, so a test can stub one export.
 const placeDeletable = require("./placeDeletable");
-
-const STAMP_KEY = "zones";
 
 // Everything docs/zones.yaml owns on each kind of row, named as the model below
 // names it (slug space: a parent, zone or location is its slug, not an id).
@@ -89,7 +82,7 @@ const pairKey = (a, b) => [a, b].sort().join("|");
 const sideKey = (roomSlug, locationSlug) => `${roomSlug}|${locationSlug}`;
 
 // JSON with sorted keys, so two objects that differ only in key order compare
-// equal and a snapshot hashes the same every run.
+// equal.
 function canonical(value) {
   if (value === undefined) return "null";
   if (value === null || typeof value !== "object") return JSON.stringify(value);
@@ -286,71 +279,32 @@ async function dbModel(prisma) {
   return { model, rows };
 }
 
-// What to do, decided from three models: `yaml` (now), `db` (now) and `base`
-// (the YAML at the last apply, or null on the first run). Pure, so the rule at
-// the top of this file is testable without a database.
-function planZonesSync(yamlM, dbM, base) {
-  const plan = { firstRun: !base, creates: [], updates: [], kept: [], retires: [], deletes: [], reportOnly: [] };
+// What to do, decided from two models: `yaml` and `db`, both as they are now.
+// Pure, so the rule at the top of this file is testable without a database.
+function planZonesSync(yamlM, dbM) {
+  const plan = { creates: [], updates: [], retires: [], deletes: [], reportOnly: [] };
   for (const kind of KINDS) {
     const y = yamlM[kind] ?? {};
     const d = dbM[kind] ?? {};
-    const b = base ? base[kind] ?? {} : null;
     for (const key of new Set([...Object.keys(y), ...Object.keys(d)])) {
       const yv = y[key];
       const dv = d[key];
-      const bv = b ? b[key] : undefined;
-
       if (yv && !dv) {
-        if (bv) plan.reportOnly.push({ kind, key, code: "hand-deleted", reason: "deleted by hand, and zones.yaml has not changed it since — left gone" });
-        else plan.creates.push({ kind, key });
+        plan.creates.push({ kind, key });
         continue;
       }
-
       if (!yv && dv) {
         if (dv.retired) continue;
-        if (!b) {
-          plan.reportOnly.push({ kind, key, reason: "not in zones.yaml — no baseline yet to tell a GM's place from a dropped one" });
-          continue;
-        }
-        if (!bv) continue; // made by a GM at runtime; never the YAML's
         (RETIRABLE[kind] ? plan.retires : plan.deletes).push({ kind, key });
         continue;
       }
-
-      // On both sides. A retired row the YAML still names comes back only
-      // when the YAML has just (re)added it; a GM's retire otherwise stands.
-      if (dv.retired) {
-        if (b && !bv) plan.updates.push({ kind, key, field: "retired", from: true, to: false, conflict: false });
-        else if (!b) plan.reportOnly.push({ kind, key, reason: "retired, but zones.yaml still names it" });
-        else plan.kept.push({ kind, key, field: "retired" });
-      }
+      if (dv.retired) plan.updates.push({ kind, key, field: "retired", from: true, to: false });
       for (const field of FIELDS[kind]) {
-        if (same(yv[field], dv[field])) continue;
-        // No baseline for this row or this field: nothing to protect, the YAML wins.
-        if (!bv || !(field in bv)) {
-          plan.updates.push({ kind, key, field, from: dv[field], to: yv[field], conflict: false });
-          continue;
-        }
-        if (same(yv[field], bv[field])) {
-          plan.kept.push({ kind, key, field });
-          continue;
-        }
-        plan.updates.push({ kind, key, field, from: dv[field], to: yv[field], conflict: !same(dv[field], bv[field]) });
+        if (!same(yv[field], dv[field])) plan.updates.push({ kind, key, field, from: dv[field], to: yv[field] });
       }
     }
   }
   return plan;
-}
-
-// The rows a GM hard-deleted, in the shape importZonesFromYaml's `skip` takes.
-function skipFor(plan) {
-  const skip = { slugs: new Set(), pairs: new Set() };
-  for (const r of plan.reportOnly) {
-    if (r.code !== "hand-deleted") continue;
-    if (r.kind === "links") skip.pairs.add(r.key);
-    else if (RETIRABLE[r.kind]) skip.slugs.add(r.key);
-  }
-  return skip;
 }
 
 function groupUpdates(updates) {
@@ -538,32 +492,26 @@ function changeLines(updates) {
   return groupUpdates(updates).map((r) => `${r.kind}/${r.key}: ${Object.keys(r.fields).join(", ")}`);
 }
 
-// Brings the places up to docs/zones.yaml under the rule at the top of this
+// Makes the places match docs/zones.yaml under the rule at the top of this
 // file. `doc` is an already-loaded YAML document (a test fixture); otherwise
 // the file is read. Throws on a YAML that does not parse, before any write.
 async function syncZonesFromYaml(prisma, { apply = false, doc = null, beforePlay = false, actorDiscordUserId = "system" } = {}) {
   const source = doc ?? readZonesYaml();
   const yamlM = yamlModel(parseZonesYaml(source));
-  const hash = crypto.createHash("sha256").update(canonical(yamlM)).digest("hex");
-  const stamp = await prisma.syncStamp.findUnique({ where: { key: STAMP_KEY } });
-  const base = stamp?.snapshot ?? null;
 
   const before = await dbModel(prisma);
-  const plan = planZonesSync(yamlM, before.model, base);
-  const imported = await importZonesFromYaml(prisma, { apply, doc: source, skip: skipFor(plan) });
+  const plan = planZonesSync(yamlM, before.model);
+  const imported = await importZonesFromYaml(prisma, { apply, doc: source });
 
   const report = {
     apply,
-    firstRun: plan.firstRun,
     created: imported.created,
     changes: changeLines(plan.updates),
-    conflicts: plan.updates.filter((u) => u.conflict).map((u) => `${u.kind}/${u.key}: ${u.field}`),
-    kept: plan.kept.map((k) => `${k.kind}/${k.key}: ${k.field}`),
     sidesToAdd: plan.creates.filter((c) => c.kind === "sides").map((c) => c.key),
     retired: [],
     deleted: [],
     repoured: [],
-    reportOnly: [...plan.reportOnly],
+    reportOnly: [],
     warnings: [...imported.warnings],
   };
   if (!apply) {
@@ -576,7 +524,7 @@ async function syncZonesFromYaml(prisma, { apply = false, doc = null, beforePlay
   // what is there now. Anything it created now matches the YAML, so this adds
   // no work — it only finds the new ids and drops the creates it handled.
   const after = await dbModel(prisma);
-  const final = planZonesSync(yamlM, after.model, base);
+  const final = planZonesSync(yamlM, after.model);
   await applyPlan(prisma, final, after.rows, yamlM, report, { beforePlay });
 
   const createdCount = Object.values(imported.created).reduce((n, list) => n + list.length, 0);
@@ -587,25 +535,14 @@ async function syncZonesFromYaml(prisma, { apply = false, doc = null, beforePlay
         actorDiscordUserId,
         actionType: "zones_synced_from_yaml",
         details: {
-          firstRun: plan.firstRun,
           created: imported.created,
           changes: report.changes.slice(0, 200),
-          conflicts: report.conflicts.slice(0, 100),
           retired: report.retired,
           deleted: report.deleted,
           repoured: report.repoured,
           reportOnly: report.reportOnly.slice(0, 100).map((r) => `${r.kind}/${r.key}: ${r.reason}`),
         },
       },
-    });
-  }
-  // Last, so a run that threw part-way keeps the old baseline and the next
-  // one plans the rest.
-  if (stamp?.hash !== hash) {
-    await prisma.syncStamp.upsert({
-      where: { key: STAMP_KEY },
-      create: { key: STAMP_KEY, hash, snapshot: yamlM },
-      update: { hash, snapshot: yamlM, syncedAt: new Date() },
     });
   }
   return report;
@@ -615,11 +552,8 @@ async function syncZonesFromYaml(prisma, { apply = false, doc = null, beforePlay
 function summarizeZonesSync(report) {
   const created = Object.values(report.created ?? {}).reduce((n, list) => n + list.length, 0);
   return {
-    firstRun: report.firstRun,
     created,
     changed: report.changes.length,
-    conflicts: report.conflicts.length,
-    keptGmEdits: report.kept.length,
     retired: report.retired.length,
     deleted: report.deleted.length,
     repoured: report.repoured.length,

@@ -1,5 +1,5 @@
-// The zones sync's rule (db/lib/zonesSync.js), on the pure planner: three
-// models in, a plan out. No database.
+// The zones sync's rule (db/lib/zonesSync.js), on the pure planner: the YAML
+// and the database in, a plan out. No database.
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
@@ -48,125 +48,88 @@ function dbFrom(yamlM) {
 
 const fields = (plan) => plan.updates.map((u) => `${u.kind}/${u.key}.${u.field}`).sort();
 
-test("in step with the YAML and the baseline: nothing to do", () => {
+test("in step with the YAML: nothing to do", () => {
   const y = yamlOf(fixture);
-  const plan = planZonesSync(y, dbFrom(y), clone(y));
+  const plan = planZonesSync(y, dbFrom(y));
   assert.deepEqual(plan.updates, []);
   assert.deepEqual(plan.creates, []);
   assert.deepEqual(plan.retires, []);
   assert.deepEqual(plan.deletes, []);
 });
 
-test("first run: the YAML wins every field that differs", () => {
+test("a stale stash seed is brought up to the YAML", () => {
   const y = yamlOf(fixture);
   const db = dbFrom(y);
   db.rooms.bar.stashSeed = { resources: 0, items: [["alcohol", 4], ["cigarette", 6]] };
-  db.locations.den.description = "Old words.";
-  const plan = planZonesSync(y, db, null);
-  assert.equal(plan.firstRun, true);
-  assert.deepEqual(fields(plan), ["locations/den.description", "rooms/bar.stashSeed"]);
-  assert.deepEqual(plan.updates.find((u) => u.field === "stashSeed").to, {
-    resources: 0,
-    items: [],
-    hidden: [["alcohol", 4], ["cigarette", 6]],
-  });
+  const plan = planZonesSync(y, db);
+  assert.deepEqual(fields(plan), ["rooms/bar.stashSeed"]);
+  assert.deepEqual(plan.updates[0].to, { resources: 0, items: [], hidden: [["alcohol", 4], ["cigarette", 6]] });
 });
 
-test("a GM's hand edit is kept while the YAML has not changed that field", () => {
+test("a GM's edit during the game goes back to the YAML", () => {
   const y = yamlOf(fixture);
   const db = dbFrom(y);
   db.locations.den.description = "A GM rewrote this.";
-  const plan = planZonesSync(y, db, clone(y));
-  assert.deepEqual(plan.updates, []);
-  assert.deepEqual(plan.kept, [{ kind: "locations", key: "den", field: "description" }]);
+  db.links["den|slums"].onFoot = true;
+  const plan = planZonesSync(y, db);
+  assert.deepEqual(fields(plan), ["links/den|slums.onFoot", "locations/den.description"]);
+  assert.equal(plan.updates.find((u) => u.field === "description").to, "Smoke and dice.");
 });
 
-test("a YAML change overwrites, and says so when a GM had changed it too", () => {
-  const base = yamlOf(fixture);
-  const doc = clone(fixture);
-  doc.zones[0].locations[0].description = "New smoke, new dice.";
-  doc.zones[0].locations[1].name = "The Old Slums";
-  const y = yamlOf(doc);
-  const db = dbFrom(base);
-  db.locations.den.description = "A GM rewrote this.";
-  const plan = planZonesSync(y, db, base);
-  const byField = Object.fromEntries(plan.updates.map((u) => [`${u.key}.${u.field}`, u]));
-  assert.equal(byField["den.description"].to, "New smoke, new dice.");
-  assert.equal(byField["den.description"].conflict, true);
-  assert.equal(byField["slums.name"].conflict, false);
+test("a place a GM made during the game is retired, its side and way removed", () => {
+  const y = yamlOf(fixture);
+  const db = dbFrom(y);
+  db.locations.cellar = { ...clone(db.locations.slums), name: "Cellar" };
+  db.rooms.stall = { ...clone(db.rooms.bar), name: "Stall", locationSlug: "cellar", stashSeed: null };
+  db.sides["stall|den"] = { kind: "PUBLIC", accessTagSlugs: [], sortOrder: 0 };
+  db.links["cellar|den"] = clone(db.links["den|slums"]);
+  const plan = planZonesSync(y, db);
+  assert.deepEqual(plan.retires, [
+    { kind: "locations", key: "cellar" },
+    { kind: "rooms", key: "stall" },
+  ]);
+  assert.deepEqual(plan.deletes, [
+    { kind: "sides", key: "stall|den" },
+    { kind: "links", key: "cellar|den" },
+  ]);
 });
 
-test("a dropped room is retired only when the baseline had it", () => {
-  const base = yamlOf(fixture);
+test("a place the YAML dropped is retired, and an already-retired one is left be", () => {
   const doc = clone(fixture);
   doc.zones[0].locations[0].rooms = [];
-  const y = yamlOf(doc);
-  const db = dbFrom(base);
+  const db = dbFrom(yamlOf(fixture));
+  const plan = planZonesSync(yamlOf(doc), db);
+  assert.deepEqual(plan.retires, [{ kind: "rooms", key: "bar" }]);
+  assert.deepEqual(plan.deletes, [{ kind: "sides", key: "bar|slums" }]);
 
-  const withBase = planZonesSync(y, db, base);
-  assert.deepEqual(withBase.retires, [{ kind: "rooms", key: "bar" }]);
-  assert.deepEqual(withBase.deletes, [{ kind: "sides", key: "bar|slums" }]);
-
-  const firstRun = planZonesSync(y, db, null);
-  assert.deepEqual(firstRun.retires, []);
-  assert.deepEqual(firstRun.deletes, []);
-  assert.ok(firstRun.reportOnly.some((r) => r.kind === "rooms" && r.key === "bar"));
-});
-
-test("a room a GM made at runtime is never touched", () => {
-  const y = yamlOf(fixture);
-  const db = dbFrom(y);
-  db.rooms["gm-cellar"] = { ...clone(db.rooms.bar), name: "Cellar", stashSeed: null };
-  const plan = planZonesSync(y, db, clone(y));
-  assert.deepEqual(plan.retires, []);
-  assert.equal(plan.reportOnly.length, 0);
-});
-
-test("a dropped way is removed", () => {
-  const base = yamlOf(fixture);
-  const doc = clone(fixture);
-  doc.connections = [];
-  // Unreachable is only a warning, so the parse still passes.
-  const plan = planZonesSync(yamlOf(doc), dbFrom(base), base);
-  assert.deepEqual(plan.deletes, [{ kind: "links", key: "den|slums" }]);
-});
-
-test("a place a GM hard-deleted is not made again", () => {
-  const y = yamlOf(fixture);
-  const db = dbFrom(y);
-  delete db.rooms.bar;
-  delete db.sides["bar|slums"];
-  const plan = planZonesSync(y, db, clone(y));
-  assert.deepEqual(plan.creates, []);
-  assert.ok(plan.reportOnly.some((r) => r.key === "bar" && r.code === "hand-deleted"));
-
-  const firstRun = planZonesSync(y, db, null);
-  assert.ok(firstRun.creates.some((c) => c.kind === "rooms" && c.key === "bar"));
-});
-
-test("a GM's retire stands; a place the YAML brings back returns", () => {
-  const y = yamlOf(fixture);
-  const db = dbFrom(y);
   db.rooms.bar.retired = true;
-
-  const kept = planZonesSync(y, db, clone(y));
-  assert.equal(kept.updates.length, 0);
-
-  const base = clone(y);
-  delete base.rooms.bar; // the YAML dropped it last time, and has it again now
-  const back = planZonesSync(y, db, base);
-  assert.deepEqual(fields(back), ["rooms/bar.retired"]);
+  delete db.sides["bar|slums"];
+  assert.deepEqual(planZonesSync(yamlOf(doc), db).retires, []);
 });
 
-test("a field the baseline predates is written without a conflict", () => {
+test("a place a GM retired or deleted comes back", () => {
   const y = yamlOf(fixture);
+  const retired = dbFrom(y);
+  retired.rooms.bar.retired = true;
+  assert.deepEqual(fields(planZonesSync(y, retired)), ["rooms/bar.retired"]);
+
+  const deleted = dbFrom(y);
+  delete deleted.rooms.bar;
+  delete deleted.sides["bar|slums"];
+  const plan = planZonesSync(y, deleted);
+  assert.deepEqual(plan.creates, [
+    { kind: "rooms", key: "bar" },
+    { kind: "sides", key: "bar|slums" },
+  ]);
+});
+
+test("an access list is a set: order is not a change", () => {
+  const doc = clone(fixture);
+  doc.zones[0].locations[0].rooms[0].access = ["b-key", "a-key"];
+  const y = yamlOf(doc);
   const db = dbFrom(y);
-  db.rooms.bar.soundproof = true;
-  const base = clone(y);
-  delete base.rooms.bar.soundproof;
-  const plan = planZonesSync(y, db, base);
-  assert.deepEqual(fields(plan), ["rooms/bar.soundproof"]);
-  assert.equal(plan.updates[0].conflict, false);
+  db.rooms.bar.accessTagSlugs = ["a-key", "b-key"];
+  assert.deepEqual(planZonesSync(y, db).updates, []);
 });
 
 test("a seed compares by what it pours, not how it was written", () => {

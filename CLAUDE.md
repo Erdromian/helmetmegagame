@@ -269,7 +269,7 @@ you pick the right doc — they are never enough to change code with.
 | [`LOBBY.md`](docs/systemdocs/LOBBY.md) | You're touching the game phases (`GameState.phase`), readying up, role priorities, the assignment roll, the creation window, Start Game / End Game, the epilogue, or what Restart Game keeps |
 | [`SHEET.md`](docs/systemdocs/SHEET.md) | You're touching `/character` — the sheet: the band, the verb strip, the tag rail and its rows, the equip board, or Escape back to `/play` |
 | [`DEV-PANEL.md`](docs/systemdocs/DEV-PANEL.md) | You're touching `/gm/dev/characters/[characterId]`, the GM microactions, `/gm/dev/tags`, or the `/gm/dev/zones` place editor |
-| [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, **walking several hops across a zone** (§3c), or the `/map` panel — geography is edited live at `/gm/dev/zones`, and `docs/zones.yaml` changes reach it at Restart or Start Game without undoing those edits (`SYNC.md` §1a) |
+| [`MAP.md`](docs/systemdocs/MAP.md) | You're touching geography, travel cost, **walking several hops across a zone** (§3c), or the `/map` panel — geography is edited live at `/gm/dev/zones` for one game, and every Restart or Start Game resets it to `docs/zones.yaml` (`SYNC.md` §1a) |
 | [`MEISTERY.md`](docs/systemdocs/MEISTERY.md) | You're touching the **Meister's Terminal** in the Meister's Study (`db/lib/meisterTerminal.js`) — the tax, setting or closing an account, the Baron's locked account, connecting a ring to an account (once in its life) — the **daily wages** by job and their turn pass (`db/lib/wagePass.js`), or the Meistery Window onto the Square |
 | [`GATEHOUSE.md`](docs/systemdocs/GATEHOUSE.md) | You're touching the two gatehouses — the Courtyard's portcullis worked by ring from both ends, the Bridge–Square gate and its lever in the Town Gatehouse, **Request Passage** and Grant Passage (Approve, Deny, the once-a-turn Magma), or the **Documents**: the -10 ¢ account they open, reading them at an infoterminal, the **Job** they print (a job, not a fate: `CHARACTERS.md` §2) |
 | [`INTERCEPT.md`](docs/systemdocs/INTERCEPT.md) | You're touching the Intercept verb — laying in wait, Safe and Ambush, the hold on somebody's movement and its Release, or **anything that asks whether a character may move** (`heldReasonFor`) |
@@ -424,13 +424,12 @@ npm run db:import-zones              # docs/zones.yaml -> Zone/Location/Room/
                                      #   updates or deletes, never writes a
                                      #   discord*Id. DRY RUN unless given
                                      #   `-- --apply`. Not part of db:sync.
-npm run db:sync-zones                # docs/zones.yaml -> the places that
-                                     #   already exist: updates what the YAML
-                                     #   changed since the last run, keeps a
-                                     #   GM's /gm/dev/zones edit it didn't,
-                                     #   retires what it dropped. Restart Game
-                                     #   and Start Game run it themselves. DRY
-                                     #   RUN unless given `-- --apply`. SYNC.md §1a.
+npm run db:sync-zones                # makes every place match docs/zones.yaml:
+                                     #   a /gm/dev/zones edit lasts one game,
+                                     #   a place the YAML doesn't name is
+                                     #   retired. Restart Game and Start Game
+                                     #   run it themselves. DRY RUN unless
+                                     #   given `-- --apply`. SYNC.md §1a.
 npm run db:sync-tags                 # docs/tags.yaml       (upsert-only)
 npm run db:sync-roles                # docs/roles.yaml      (prunes unreferenced)
 npm run db:sync-desires              # docs/desires.yaml    (upsert-only; soft-

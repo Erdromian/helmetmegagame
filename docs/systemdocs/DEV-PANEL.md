@@ -957,11 +957,11 @@ retiring, hard-deleting and seeding a stash are superadmin-only, checked with
 `requireDev("super")`. See `docs/systemdocs/SYNC.md`'s top note for why
 this exists beside `docs/zones.yaml`.
 
-**What a restart does to an edit made here:** it keeps it, unless
-`docs/zones.yaml` has changed that same field since the last Restart or Start
-Game — then the YAML wins and the wipe report counts a conflict. A place a GM
-made here and the YAML never named is left alone; a place a GM hard-deleted
-stays deleted (`SYNC.md` §1a).
+**What a restart does to an edit made here:** undoes it. Restart Game and Start
+Game make every place match `docs/zones.yaml`: an edited field goes back, a
+retired or deleted place the YAML names comes back, and a place made here that
+the YAML never named is retired (`SYNC.md` §1a). An edit here is for this
+game; one for every game goes in the YAML.
 
 Pages:
 
