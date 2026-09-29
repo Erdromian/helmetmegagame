@@ -20,10 +20,17 @@ const {
 
 const CHANNEL_TYPE_TEXT = 0;
 
-async function wipeChannelMessages(channelId) {
+async function wipeChannelMessages(channelId, options) {
   const messages = await fetchAllMessages(channelId);
-  if (messages.length > 0) await bulkDeleteMessages(channelId, messages.map((m) => m.id));
+  if (messages.length > 0) await bulkDeleteMessages(channelId, messages.map((m) => m.id), options);
 }
+
+// A zone #summary is the one channel a restart must leave EMPTY. The rest
+// take the ordinary cap on over-14-day deletes, but a game that sat ended for
+// a fortnight left every summary older than that, and the cap of 50 left the
+// rest of the last day's posts standing into the next game. A summary is
+// wiped once a game-day, so this is one day's posts at most.
+const SUMMARY_CLEAR = { oldCap: Infinity };
 
 // Same sweep as the old runFullChannelWipe — every archive/turns/summary/
 // location channel's messages — but it never deletes a category, a channel
@@ -46,14 +53,39 @@ async function wipeChannelMessages(channelId) {
 // Anchors are nulled unconditionally, same as before: every summary/location
 // channel's messages just went, so every anchor needs to repost regardless
 // of whether its own hash changed.
+//
+// One failed channel no longer stops the sweep. It used to throw out of the
+// whole thing, so a hiccup in #archive left every zone's #summary holding the
+// last game. Each channel is tried on its own, the zone summaries first, and
+// the failures are thrown together at the end, after the DB half has run, so
+// finishGameWipe still reports the step as failed and retries it.
 async function wipeGameMessages(prisma) {
+  const failures = [];
+  const attempt = async (label, fn) => {
+    try {
+      await fn();
+    } catch (err) {
+      failures.push(`${label}: ${err.message}`);
+      console.error(`Game wipe: ${label} failed, continuing:`, err.message);
+    }
+  };
+
+  const zones = await prisma.zone.findMany({ include: { locations: true } });
+  for (const zone of zones) {
+    if (zone.discordSummaryChannelId) {
+      await attempt(`${zone.name ?? zone.id} #summary`, () =>
+        wipeChannelMessages(zone.discordSummaryChannelId, SUMMARY_CLEAR),
+      );
+    }
+  }
+
   const channels = await getGuildChannels();
 
   const archiveChannels = channels.filter((c) => c.type === CHANNEL_TYPE_TEXT && c.name?.toLowerCase() === "archive");
-  for (const channel of archiveChannels) await wipeChannelMessages(channel.id);
+  for (const channel of archiveChannels) await attempt("#archive", () => wipeChannelMessages(channel.id));
 
   const turnsChannel = channels.find((c) => c.type === CHANNEL_TYPE_TEXT && c.name?.toLowerCase() === "turns");
-  if (turnsChannel) await wipeChannelMessages(turnsChannel.id);
+  if (turnsChannel) await attempt("#turns", () => wipeChannelMessages(turnsChannel.id));
 
   const rooms = await prisma.room.findMany({
     where: { discordThreadId: { not: null } },
@@ -72,29 +104,32 @@ async function wipeGameMessages(prisma) {
   }
   const questRoomIdsToUnlink = [];
 
-  const zones = await prisma.zone.findMany({ include: { locations: true } });
   for (const zone of zones) {
-    if (zone.discordSummaryChannelId) await wipeChannelMessages(zone.discordSummaryChannelId);
     for (const location of zone.locations) {
       if (!location.discordChannelId) continue;
+      const label = location.name ?? location.id;
 
-      const active = await listActiveThreadsForChannel(location.discordChannelId);
-      const archivedPublic = await listArchivedPublicThreads(location.discordChannelId);
-      const archivedPrivate = await listArchivedPrivateThreads(location.discordChannelId);
-      const threadsById = new Map();
-      for (const thread of [...active, ...archivedPublic, ...archivedPrivate]) threadsById.set(thread.id, thread);
+      await attempt(`${label} threads`, async () => {
+        const active = await listActiveThreadsForChannel(location.discordChannelId);
+        const archivedPublic = await listArchivedPublicThreads(location.discordChannelId);
+        const archivedPrivate = await listArchivedPrivateThreads(location.discordChannelId);
+        const threadsById = new Map();
+        for (const thread of [...active, ...archivedPublic, ...archivedPrivate]) threadsById.set(thread.id, thread);
 
-      for (const thread of threadsById.values()) {
-        const room = roomByThreadId.get(thread.id);
-        if (room && !room.questId) {
-          await wipeChannelMessages(thread.id);
-        } else {
-          await deleteThread(thread.id);
-          if (room && !room.side) questRoomIdsToUnlink.push(room.id);
+        for (const thread of threadsById.values()) {
+          const room = roomByThreadId.get(thread.id);
+          if (room && !room.questId) {
+            await attempt(`${label} / ${thread.name ?? thread.id}`, () => wipeChannelMessages(thread.id));
+          } else {
+            await attempt(`${label} / ${thread.name ?? thread.id}`, async () => {
+              await deleteThread(thread.id);
+              if (room && !room.side) questRoomIdsToUnlink.push(room.id);
+            });
+          }
         }
-      }
+      });
 
-      await wipeChannelMessages(location.discordChannelId);
+      await attempt(label, () => wipeChannelMessages(location.discordChannelId));
     }
   }
 
@@ -119,6 +154,10 @@ async function wipeGameMessages(prisma) {
       where: { roomId: { in: questRoomIdsToUnlink } },
       data: { discordThreadId: null, starterMessageId: null, postHash: null },
     });
+  }
+
+  if (failures.length > 0) {
+    throw new Error(`${failures.length} channel(s) not cleared — ${failures.join("; ")}`);
   }
 }
 
