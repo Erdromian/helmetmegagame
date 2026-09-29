@@ -8,7 +8,7 @@ import ActionButton from "@/app/components/ActionButton";
 import ClickMenu from "@/app/components/ClickMenu";
 import IconButton from "@/app/components/IconButton";
 import RequestActionsProvider, { useRequestActions } from "@/app/components/RequestActionsProvider";
-import { ACTION_SECTIONS, labelFor, helpFor, reasonFor } from "@/app/components/actionRegistry";
+import { ACTION_SECTIONS, labelFor, helpFor, reasonFor, sectionLabelFor } from "@/app/components/actionRegistry";
 import { ActionsIcon } from "@/app/components/icons";
 import { loadActionSheet } from "../actionSheet";
 
@@ -74,7 +74,7 @@ function MenuBody({ placeName, onPicked, loading, error }) {
       else if (gated) leftOut += 1;
       else lit.push(action);
     }
-    if (lit.length > 0) groups.push({ key: section.key, label: HEADINGS[section.key] ?? section.label, actions: lit });
+    if (lit.length > 0) groups.push({ key: section.key, label: HEADINGS[section.key] ?? sectionLabelFor(section, pools), actions: lit });
   }
 
   const item = (action, gated = false) => (

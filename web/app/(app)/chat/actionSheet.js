@@ -32,7 +32,7 @@ const NOT_FOR_ACTIONS = [
   "portraitFantasyPartsEnabled",
   "avatarUploadsEnabled",
   "hasCustomAvatar",
-  "vampireBlood",
+  "bloodMenu",
 ];
 
 export async function loadActionSheet() {

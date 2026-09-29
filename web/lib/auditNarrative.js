@@ -5,7 +5,6 @@
 // Zero requires on purpose (its own header says why), so it is safe in a client bundle.
 import { workVerbByKey } from "@lifeweb/db/lib/gathering";
 // Prisma-free (its own header), so it is safe here too.
-import { describeAppliedScales } from "@lifeweb/db/lib/stagedScales";
 
 const t = (v) => ({ k: "t", v });
 const em = (v) => ({ k: "em", v });
@@ -23,6 +22,18 @@ const target = () => ({ k: "target" });
 
 // Per CLAUDE.md the glyph REPLACES the word, so this is never written beside one.
 const res = (n) => (Number.isFinite(Number(n)) ? { k: "res", v: Number(n) } : null);
+
+// A staged-scales row from before the push wrote its own `scalesText`: each
+// meter as it moved, from the row alone. Nothing imported, on purpose — the
+// full wording lives in db/lib/stagedScales.js, which names the vampire's
+// meters and must not reach a browser.
+function plainScales(scales) {
+  const n = (v) => (Number.isFinite(Number(v)) ? Math.round(Number(v)) : "?");
+  return Object.entries(scales ?? {})
+    .filter(([, e]) => e && !e.skipped)
+    .map(([key, e]) => `${key.charAt(0).toUpperCase()}${key.slice(1)} ${n(e.from)} → ${n(e.to)}`)
+    .join(", ");
+}
 
 // "×3", omitted entirely at 1 — noise on every single tag line otherwise.
 const qty = (n) => (Number(n) > 1 ? { k: "qty", v: Number(n) } : null);
@@ -328,7 +339,7 @@ const R = {
     t("moved"),
     target(),
     t("—"),
-    em(describeAppliedScales(d.scales).join(", ")),
+    em(d.scalesText ?? plainScales(d.scales)),
   ],
   // A craft staged for the push (CRAFTING.md §3a) landing — db/lib/stagedPush.js.
   // The actor is the player who made it; a spare they already held went to a room.

@@ -427,7 +427,7 @@ to survive: the reveal is on `Game.epilogue`.
 | `db/lib/objectiveKinds.js` | The objective kinds, pure — `describeObjective`, `kindsForParty`, `PARTY_DEFAULTS` |
 | `db/lib/objectives.js` | Scoring, `listObjectives`, the reveal (`buildAntagonistReveal`, `formatAntagonistLines`), `locationEligible` |
 | `db/test/objectives.test.js` | The pure half under `node --test` |
-| `web/lib/threats.js` | Client-safe re-export shim (the wizard is a client component) |
+| `web/lib/threats.js` | Server-side re-export for the GM pages. **Never import it, or `db/lib/threats.js`, from a client component** — the file is CommonJS, so the whole catalog would ship to the browser. The lobby and the wizard get a yes/no and the blurb as props, and the server builds the seat list |
 | `web/app/(app)/gm/dev/threatActions.js` | `assignThreat`, `offerThreatSpawn`, `cancelThreatSpawn` |
 | `web/app/(app)/gm/dev/objectiveActions.js` | `addObjective`, `addStandardObjectives`, `pinObjective`, `removeObjective` |
 | `web/app/(app)/gm/dev/threats/ThreatAssignmentsTable.js` | The players table |

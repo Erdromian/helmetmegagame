@@ -75,7 +75,10 @@ debounced on the client):
   whitelisted ones included only for a player who holds the Whitelist role;
   unticking stores none. The column is still a list of slugs, so the roll and
   the GM tables are unchanged — the player is just no longer asked to pick
-  from twelve public names.
+  from twelve public names. **Only the yes or no crosses the wire**, both ways:
+  `savePreferences` takes `antagonists: true|false` and builds the list itself,
+  and the page is sent a boolean back. The slugs name the real seats, so the
+  browser never holds them (`THREATS.md` §1).
 - **Ready** — a `LobbyEntry` row, `status: READY`. Unready deletes it.
 
 `PlayerPreference` is keyed by Discord user and **survives Restart Game**: a

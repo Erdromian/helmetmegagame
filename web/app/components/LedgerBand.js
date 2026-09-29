@@ -6,7 +6,7 @@ import { useState } from "react";
 // barrel here would drag PrismaClient into the browser bundle.
 import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { formatGambitModifiers, gambitModifiers } from "@lifeweb/db/lib/gambitModifier";
-import { BLOOD_URGENCY_SLUGS, HUNGER_DESCRIPTOR_SLUGS } from "@lifeweb/db/lib/constants";
+import { HUNGER_DESCRIPTOR_SLUGS } from "@lifeweb/db/lib/constants";
 import StatusStrip from "@/app/(app)/chat/StatusStrip";
 import { obolsOf } from "@/lib/purse";
 import ActionGrid from "./ActionGrid";
@@ -154,7 +154,7 @@ export default function LedgerBand({
                 tags={character.tags.filter(
                   (ct) =>
                     !HUNGER_DESCRIPTOR_SLUGS.includes(ct.tag?.slug) &&
-                    !(isBlood && BLOOD_URGENCY_SLUGS.includes(ct.tag?.slug)),
+                    !(appetite?.tileSlugs ?? []).includes(ct.tag?.slug),
                 )}
                 onPick={(ct) => setPicked((was) => (was === (ct.tag.id ?? ct.tagId) ? null : ct.tag.id ?? ct.tagId))}
                 pickedId={picked}

@@ -110,8 +110,9 @@ The request's other sentences (no Smithing, not a stone) live in the same file.
 **Discord can't hide it the same way.** Slash commands are registered
 globally, so `/item trinket` shows in every player's command picker; only the
 Actions menu leaves it out for a non-smith, and typing it gets the generic
-"That isn't something you can do right now." This is the same trade `/blood`,
-`/smell` and `/thanati` already make. It gives little away in practice: every
+"That isn't something you can do right now." This is the same trade `/smell` and
+`/reinforcements` already make (a secret seat's verbs have no command at all,
+`COMMANDS.md` §2g). It gives little away in practice: every
 `items-mining` stone's own description already says it can be smithed into a
 Trinket.
 

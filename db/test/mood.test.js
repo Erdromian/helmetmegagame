@@ -20,7 +20,6 @@ const {
   MOVE_MOOD_TURN_CAP,
   woundRungOf,
   woundMoodFor,
-  deathWitnessTerm,
   multiplierFor,
   resolveDelta,
   clampMood,
@@ -28,6 +27,7 @@ const {
   consumeReliefFor,
   scaleTerms,
 } = require("../lib/mood");
+const { deathWitnessTerm } = require("../lib/deathWitness");
 
 const wound = (extra = {}) => ({
   slug: "x",

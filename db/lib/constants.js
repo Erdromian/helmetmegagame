@@ -81,31 +81,8 @@ const PORTABLE_SURGICAL_PACK_SLUG = "portable-surgical-pack";
 const TORTURING_EQUIPMENT_SLUG = "torturing-equipment";
 const TORTURER_SLUG = "torturer";
 
-// Mutilate's gate: any ONE shows the button (TORTURE.md §6) — no single "would cut pieces off somebody" tag.
-const MUTILATE_GATE_SLUGS = Object.freeze([
-  "cruel",
-  "torturer",
-  "thanati",
-  "medical-basic",
-  "medical-skilled",
-  "medical-expert",
-  "butcher",
-]);
-
-// Kissing's OTHER gate (KISS.md); incapacity half is db/lib/incapacitation.js. Things that walk/work/
-// talk normally but still can't kiss: not-a-person (ghoul/apex-form/servant-of-tzchernobog), bloodlust
-// (rage), consent-is-meaningless (broken/broken-enslaved — keeps {desire:dem-kiss-a-broken} a GM call),
-// and the phrygian-toxin/poison-tooth tell. Taste/belief tags (Prudish, Eunuch, etc) stay OUT — they lock Desires, not the verb.
-const KISS_BLOCKING_SLUGS = Object.freeze([
-  "ghoul",
-  "rage",
-  "servant-of-tzchernobog",
-  "apex-form",
-  "broken",
-  "broken-enslaved",
-  "phrygian-toxin",
-  "installed-poison-tooth",
-]);
+// Mutilate's gate and Kissing's other gate name secret tags, so they live in
+// db/lib/secretSlugs.js — this file is in the browser bundle.
 
 // Puts a Sound Trumpet button on your Character page; heard across the Location graph (db/lib/trumpet.js).
 const TRUMPET_SLUG = "trumpet";
@@ -163,9 +140,6 @@ const DRILL_THRESHOLD = 4;
 const CHAPLAIN_SLUG = "chaplain";
 const CONFESSION_THRESHOLD = 5;
 
-// The one "read someone else's sheet" tag (db/lib/inspectVision.js). Mindreading is deliberately NOT here — GM-adjudicated Gambit, not code.
-const SEDUCTIVE_DEMONESS_SLUG = "demoness-seductive";
-
 // What a drawback-triggered ride leaves you as (db/lib/locationTravel.js).
 const VOMITING_SLUG = "vomiting";
 // Drawback slugs read by their scripted mechanics.
@@ -208,36 +182,11 @@ const MUSICIAN_SLUG = "musician";
 // A ZONE slug, not a tag: the Fortress holds the Lifeweb tower and the PA system.
 const FORTRESS_SLUG = "fortress";
 
-// The Vampire (docs/systemdocs/VAMPIRE.md). VAMPIRE_SLUG is the seat marker
-// (db/lib/threats.js); the rest are the two checkpoint-tag tracks db/lib/
-// vampirePass.js grants/drops off vampireBloodLevel/vampireHumanity.
-// PALE_SLUG is the game's existing `pale` tag (docs/tags.yaml), reused here
-// per the design doc's own instruction rather than a second tag.
-const VAMPIRE_SLUG = "vampire";
-const FLUSH_SLUG = "flush";
-const SATIATED_SLUG = "satiated";
-const THIRSTY_SLUG = "thirsty";
-const FAMISHED_SLUG = "famished";
-const BLOODCRAZED_SLUG = "bloodcrazed";
-// The urgency track, top to bottom. A vampire holds exactly one; the sheet
-// draws it as the Blood tile in place of Hunger (web/lib/descriptors.js).
-const BLOOD_URGENCY_SLUGS = [FLUSH_SLUG, SATIATED_SLUG, THIRSTY_SLUG, FAMISHED_SLUG, BLOODCRAZED_SLUG];
-const BLACK_SCLERA_SLUG = "black-sclera";
+// The Vampire's slugs are db/lib/secretSlugs.js (this file ships to every
+// browser). PALE_SLUG is the game's existing `pale` tag, which the vampire's
+// humanity track reuses; HEART_SLUG is the organ Corrupt consumes. Neither is secret.
 const PALE_SLUG = "pale";
-const HUMANE_SLUG = "humane";
-const ESTRANGED_SLUG = "estranged";
-const DISTURBED_SLUG = "disturbed";
-const WARPED_SLUG = "warped";
-const BESTIAL_SLUG = "bestial";
-const WIGHT_SLUG = "wight";
-
-// The Blood Abilities menu and its fallout (VAMPIRE.md §6-9 — design doc
-// pages 4-11): db/lib/vampireBloodAbilities.js's `grantsTagSlugs`, Corrupt's
-// item cost, Enthral's victim tags, and the ash death (db/lib/vampireDeath.js).
-const PILE_OF_ASH_SLUG = "pile-of-ash";
-const THRALL_SLUG = "thrall";
-const VAMPIRE_BLOOD_ADDICT_SLUG = "vampire-blood-addict";
-const HEART_SLUG = "heart"; // the existing harvested-organ item Corrupt consumes — not a new tag.
+const HEART_SLUG = "heart";
 
 // #leave — GM-only departure alerts and catatonic deaths, hardcoded (db/lib/roleIds.js reason). Lives in db/ since db/index.js's turn-engine thunk posts death alerts here too.
 const LEAVE_ANNOUNCE_CHANNEL_ID = "1540014692926361651";
@@ -271,24 +220,7 @@ module.exports = {
   WEB_ORIGIN,
   FORTRESS_SLUG,
   LEAVE_ANNOUNCE_CHANNEL_ID,
-  VAMPIRE_SLUG,
-  FLUSH_SLUG,
-  SATIATED_SLUG,
-  THIRSTY_SLUG,
-  FAMISHED_SLUG,
-  BLOODCRAZED_SLUG,
-  BLOOD_URGENCY_SLUGS,
-  BLACK_SCLERA_SLUG,
   PALE_SLUG,
-  HUMANE_SLUG,
-  ESTRANGED_SLUG,
-  DISTURBED_SLUG,
-  WARPED_SLUG,
-  BESTIAL_SLUG,
-  WIGHT_SLUG,
-  PILE_OF_ASH_SLUG,
-  THRALL_SLUG,
-  VAMPIRE_BLOOD_ADDICT_SLUG,
   HEART_SLUG,
   FULL_SLUG,
   HUNGER_SLUG,
@@ -334,8 +266,6 @@ module.exports = {
   PORTABLE_SURGICAL_PACK_SLUG,
   TORTURING_EQUIPMENT_SLUG,
   TORTURER_SLUG,
-  MUTILATE_GATE_SLUGS,
-  KISS_BLOCKING_SLUGS,
   TRUMPET_SLUG,
   ARELITZ_SLUG,
   UNRULY_ARELITZ_SLUG,
@@ -362,7 +292,6 @@ module.exports = {
   DRILL_THRESHOLD,
   CHAPLAIN_SLUG,
   CONFESSION_THRESHOLD,
-  SEDUCTIVE_DEMONESS_SLUG,
   VOMITING_SLUG,
   LAZY_SLUG,
   GUILT_RIDDEN_SLUG,

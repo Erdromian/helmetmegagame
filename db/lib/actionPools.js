@@ -39,11 +39,10 @@ const {
   WORKSHOP_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
   BUTCHER_SLUG,
-  MUTILATE_GATE_SLUGS,
   MUSICIAN_SLUG,
   TRUMPET_SLUG,
-  VAMPIRE_SLUG,
 } = require("./constants");
+const { MUTILATE_GATE_SLUGS, VAMPIRE_SLUG } = require("./secretSlugs");
 const { isPointerDeviceSlug } = require("./pointerMint");
 const { kissBlock } = require("./kiss");
 const { holdsPickpocket, pickpocketSelfBlock } = require("./pickpocket");
@@ -462,8 +461,10 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
     canDetonateCollar: canWorkRemote(heldSlugs, wornRingAccess(tags)),
     canButcher: has(BUTCHER_SLUG),
     hasPointerDevice: [...heldSlugs].some(isPointerDeviceSlug),
-    isThanati,
-    isThanatiLeader: has(THANATI_LEADER_SLUG),
+    // A secret seat's verbs, under neutral keys: the web's registry names these
+    // pools in every player's bundle (db/lib/thanati.js#thanatiVerbCopy).
+    seatVerbs: isThanati,
+    seatLead: has(THANATI_LEADER_SLUG),
     canRecover: RECOVERABLE_SLUGS.some((slug) => !has(slug)),
     atHideout: Boolean(hideout && hideout.locationId === character.locationId),
     canWarrant: WARRANT_BADGE_SLUGS.some(has),

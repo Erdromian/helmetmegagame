@@ -7,7 +7,8 @@ const { recordArchiveEvent } = require("./archive");
 const { mintCorpse } = require("./corpseMint");
 const { cancelOffersForCharacter } = require("./lessons");
 const { SEAT_TAG_SLUGS } = require("./threats");
-const { applyMood, deathWitnessTerm } = require("./mood");
+const { applyMood } = require("./mood");
+const { deathWitnessTerm } = require("./deathWitness");
 const { GIBBED_SLUG, METEMPSYCHOSIS_SLUG, HEIGHTENED_PSYCHOSIS_SLUG } = require("./constants");
 const { THANATI_SLUG } = require("./thanati");
 const { NOT_A_FIGHT } = require("./intercept");
@@ -272,7 +273,7 @@ async function applyDeathToRow(
   return { claimed: true, corpse };
 }
 
-// Frightens everybody but the Thanati, whom a death lifts (mood.js#deathWitnessTerm).
+// Frightens everybody but the Thanati, whom a death lifts (deathWitness.js).
 async function frightenWitnesses(prisma, deadCharacterId) {
   const dead = await prisma.character.findUnique({ where: { id: deadCharacterId }, select: { locationId: true } });
   if (!dead?.locationId) return;

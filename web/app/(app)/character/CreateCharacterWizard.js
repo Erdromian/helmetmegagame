@@ -31,7 +31,6 @@ import {
   GENDER_LABELS,
 } from "@/lib/characterName";
 import { randomCharacterName, cultureForRole } from "@/lib/nameCorpus";
-import { takeableAntagonistSlugs, ANTAGONIST_BLURB } from "@/lib/threats";
 
 // Identity comes AFTER Role and Tags, and has to: a title is earned from the
 // role you took and the tags you hold (db/lib/titles.js), so there is nothing
@@ -149,17 +148,18 @@ export default function CreateCharacterWizard({
   // The living Baron's surname, or null if nobody holds the seat yet. Only
   // read for a role whose `lastNameLocked` is set — see db/lib/dynasty.js.
   dynastyName = null,
-  // Whether this player holds the Whitelist role. Decides whether ticking the
-  // antagonist box includes the whitelisted seats; the server drops those
-  // slugs regardless.
-  whitelisted = false,
   // GameConfig.playPanelEnabled. With Chat off there is nowhere else to play
   // from, so the "Play from the web" switch is not offered — the same gate
   // AvatarField.js puts on the Bio card's copy of it.
   playPanelEnabled = true,
-  // What they ticked in the lobby (PlayerPreference), so the step opens
-  // already filled in. The server writes the final answer back there too.
-  initialAntagonists = [],
+  // Whether they ticked the box in the lobby (PlayerPreference), so the step
+  // opens already filled in. A yes or no, never the seat list: the server
+  // builds that on Confirm (createActions.js), so the page never holds a
+  // seat's slug. The server writes the final answer back there too.
+  initialAntagonists = false,
+  // The line under the box, sent from the server with the rest of the data
+  // (db/lib/threats.js#ANTAGONIST_BLURB) so the catalog stays out of the bundle.
+  antagonistBlurb = "",
   // Start Game gave this player a seat (docs/systemdocs/LOBBY.md §4): the
   // role step is skipped, the seat is shown as a banner with its deadline,
   // and createCharacter forces the role whatever the form says.
@@ -413,7 +413,7 @@ export default function CreateCharacterWizard({
   }
 
   function toggleAntagonist(on) {
-    setAntagonists(on ? takeableAntagonistSlugs({ whitelisted }) : []);
+    setAntagonists(on);
   }
 
   // The role is already picked by the time Identity renders, so the last-name
@@ -490,7 +490,7 @@ export default function CreateCharacterWizard({
     if (age.trim()) fd.set("age", age.trim());
     fd.set("roleId", roleId);
     for (const id of selectedIds) fd.append("tagIds", id);
-    for (const slug of antagonists) fd.append("antagonistOptIns", slug);
+    if (antagonists) fd.set("antagonists", "on");
     // A successful create redirects, so anything RETURNED here is an error.
     // createCharacter rethrows whatever it doesn't recognise, from several
     // throw sites after the transaction commits (the audit row, the archive
@@ -748,10 +748,10 @@ export default function CreateCharacterWizard({
       {step === 3 && (
         <div className="panel flex flex-col gap-4 p-4">
           <h2 className="panel-header">Antagonists (optional)</h2>
-          <CheckField checked={antagonists.length > 0} onChange={(e) => toggleAntagonist(e.target.checked)}>
+          <CheckField checked={antagonists} onChange={(e) => toggleAntagonist(e.target.checked)}>
             Enable antagonist roles
           </CheckField>
-          <p className="text-sm text-muted">{ANTAGONIST_BLURB}</p>
+          <p className="text-sm text-muted">{antagonistBlurb}</p>
         </div>
       )}
 
@@ -775,7 +775,7 @@ export default function CreateCharacterWizard({
             </div>
             <div>
               <dt className="text-muted">Antagonist roles</dt>
-              <dd>{antagonists.length === 0 ? <span className="text-muted">Off</span> : "Enabled"}</dd>
+              <dd>{antagonists ? "Enabled" : <span className="text-muted">Off</span>}</dd>
             </div>
           </dl>
           <div className="flex flex-wrap items-center gap-2 text-sm">

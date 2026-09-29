@@ -33,8 +33,8 @@ import { buryCorpse, engraveHeadstone } from "@lifeweb/db/lib/verbs/bodies";
 import { dropRoomTag } from "@lifeweb/db/lib/tagWrites";
 import {
   BUTCHER_SLUG,
-  MUTILATE_GATE_SLUGS,
 } from "@lifeweb/db/lib/constants";
+import { MUTILATE_GATE_SLUGS } from "@lifeweb/db/lib/secretSlugs";
 import { notifyCharacter } from "@/lib/notifyCharacter";
 import { ACT } from "@lifeweb/db/lib/incapacitation";
 import { applyMood } from "@lifeweb/db/lib/mood";

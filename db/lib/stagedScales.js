@@ -12,7 +12,8 @@
 // A payload's `scales` is { [key]: { op: "set" | "add", value } }, one entry
 // per scale it touches. `set` puts the meter at that number; `add` moves it by
 // that much. Either way the result is clamped to the meter's own range.
-const { HUNGERLESS_SLUG, IMPERTURBABLE_SLUG, CHANGA_HIGH_SLUG, VAMPIRE_SLUG } = require("./constants");
+const { HUNGERLESS_SLUG, IMPERTURBABLE_SLUG, CHANGA_HIGH_SLUG } = require("./constants");
+const { VAMPIRE_SLUG } = require("./secretSlugs");
 const { clampHunger, bandOf: hungerBandOf, DESCRIPTORS, HUNGER_MIN, HUNGER_MAX } = require("./hunger");
 const { clampMood, bandOf: moodBandOf, MOOD_MIN, MOOD_MAX } = require("./mood");
 const {

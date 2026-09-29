@@ -3,7 +3,7 @@
 import { Children } from "react";
 import ActionButton from "./ActionButton";
 import { useRequestActions } from "./RequestActionsProvider";
-import { ACTION_SECTIONS, labelFor, helpFor, reasonFor, stripGroups } from "./actionRegistry";
+import { ACTION_SECTIONS, labelFor, helpFor, reasonFor, sectionLabelFor, stripGroups } from "./actionRegistry";
 
 // Everything a player can do to a sheet, as captioned rows of buttons. The
 // list itself lives in actionRegistry.js; this only lays it out, and
@@ -83,9 +83,9 @@ export default function ActionGrid({ variant = "rack", children = null }) {
     return (
       <div className="action-strip">
         {groups.map((group) => (
-          <div key={group.key} className="action-strip-group" role="group" aria-label={group.label}>
+          <div key={group.key} className="action-strip-group" role="group" aria-label={sectionLabelFor(group, pools)}>
             <span className="action-strip-caption" aria-hidden="true">
-              {group.label}
+              {sectionLabelFor(group, pools)}
             </span>
             <div className="action-strip-buttons">{group.shown.map(button)}</div>
           </div>
@@ -108,7 +108,7 @@ export default function ActionGrid({ variant = "rack", children = null }) {
       <div className="action-columns">
         {sections.map((section) => (
           <div key={section.key} className="action-column">
-            <p className="field-label mb-2">{section.label}</p>
+            <p className="field-label mb-2">{sectionLabelFor(section, pools)}</p>
             <div className="flex flex-col gap-1">{section.visible.map(button)}</div>
           </div>
         ))}
@@ -120,7 +120,7 @@ export default function ActionGrid({ variant = "rack", children = null }) {
     <div className="flex flex-col gap-2">
       {sections.map((section) => (
         <div key={section.key}>
-          <p className="field-label mb-1">{section.label}</p>
+          <p className="field-label mb-1">{sectionLabelFor(section, pools)}</p>
           <div className="flex flex-wrap gap-1" style={{ maxWidth: "12rem" }}>
             {section.visible.map(button)}
           </div>

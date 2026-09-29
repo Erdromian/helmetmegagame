@@ -40,7 +40,7 @@ on `GameState`.
 sacrifice, a brawl, a comrade, a stranger, by any hand — they take +10
 (`DEATH_RELISHED`) where everybody else there takes the −15 `DEATH_SEEN`.
 Holding `thanati` is the whole test and the cause is never read;
-`db/lib/mood.js#deathWitnessTerm` picks the term, `MOOD.md` §6 has the row.
+`db/lib/deathWitness.js#deathWitnessTerm` picks the term, `MOOD.md` §6 has the row.
 
 ## 2. The tags
 
@@ -68,10 +68,17 @@ two were always equal, and Purchase Gear spends both together.
 
 ## 3. The buttons (`web/app/(app)/character/thanatiActions.js`)
 
-All four are declared in `actionRegistry.js` under `THANATI` and **hide**
-rather than grey on `isThanati` / `isThanatiLeader` (own-sheet facts).
-`character/page.js` resolves the flags and the dialog data; every action
-re-checks the tag from the session.
+All four are declared in `actionRegistry.js` and **hide** rather than grey on
+`seatVerbs` / `seatLead` (own-sheet facts). **The registry carries no words
+for them**, and the pool keys are neutral on purpose: that file is in every
+player's browser bundle, and a "THANATI" heading or "Remember the other
+Thanati cultists" in it told anybody with DevTools the Cultist opt-in was a
+real seat. The heading, the labels (Recover's worded for what is missing) and
+the help lines come from `db/lib/thanati.js#thanatiVerbCopy`, which
+`character/page.js` sends as `seatVerbs` to a cultist and as null to everybody
+else. The same page resolves the dialog data (`hideoutWares`, the stock), and
+every action re-checks the tag from the session. There are no slash commands
+for them either (`COMMANDS.md` §2g): the Actions menu is the Discord way in.
 
 - **Recall Comrades** — an instant verb (no dialog; `components/actions/
   index.js#INSTANT`). Returns `listComrades()` to the page, and the notice

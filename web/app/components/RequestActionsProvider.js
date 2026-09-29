@@ -11,7 +11,6 @@ import { ActionPoolsContext } from "./actions/poolsContext";
 import { noticeLine } from "./actions/noticeLines";
 // Prisma-free on purpose (it takes `db` as a parameter), so importing it here
 // does not drag the @lifeweb/db barrel into the browser bundle.
-import { RECOVERABLE_SLUGS } from "@lifeweb/db/lib/thanati";
 import { MUSICIAN_SLUG } from "@lifeweb/db/lib/constants";
 import { playSfx } from "@/app/components/sfx";
 import { actionThrowMessage } from "@/app/components/actionThrow";
@@ -264,12 +263,15 @@ export default function RequestActionsProvider({
   // re-checked by stepstoneRequest.
   hasStepstone = false,
   stepstoneTargets = [],
-  // THE THANATI (docs/systemdocs/THANATI.md). Whether you are one and whether
-  // you lead are your own sheet; the hideout is one you set. `hideoutRooms`
-  // is Set Hideout's picker, `thanatiWares` / `hideoutStock` are Purchase
-  // Gear's shelf and the purse on the hideout's floor.
-  isThanati = false,
-  isThanatiLeader = false,
+  // A SECRET SEAT'S VERBS — the Thanati's (docs/systemdocs/THANATI.md), under
+  // neutral names because this file is in every player's bundle. `seatVerbs`
+  // is null for everybody else; for a cultist it is the buttons' words
+  // (db/lib/thanati.js#thanatiVerbCopy). `seatLead` is the leader. The
+  // hideout is one they set: `hideoutRooms` is Set Hideout's picker,
+  // `hideoutWares` / `hideoutStock` are Purchase Gear's shelf and the purse
+  // on the hideout's floor.
+  seatVerbs = null,
+  seatLead = false,
   isCerberon = false,
   isSkinless = false,
   canWarrant = false,
@@ -282,7 +284,7 @@ export default function RequestActionsProvider({
   atHideout = false,
   hideoutRooms = [],
   hideoutStock = null,
-  thanatiWares = [],
+  hideoutWares = [],
 }) {
   const [mode, setMode] = useState(() => (initialMode && DIALOGS[initialMode] ? initialMode : null));
   const confirm = useConfirm();
@@ -349,13 +351,6 @@ export default function RequestActionsProvider({
     [consumable],
   );
   const heldSlugs = useMemo(() => heldSlugsOf(characterTags), [characterTags]);
-  // Which of the robes and the mask are NOT on this sheet — what Recover
-  // Equipment would hand back, and the label the button wears
-  // (actionRegistry.js#labelFor). Your own pockets, so the button may grey.
-  const recoverMissing = useMemo(
-    () => RECOVERABLE_SLUGS.filter((slug) => !heldSlugs.has(slug)),
-    [heldSlugs],
-  );
 
   // Play Instrument (SOUND.md, "Performances"): shown to anyone carrying an instrument or
   // holding Musician, live once one is in hand. Tag.instrument, never a list of slugs.
@@ -422,7 +417,7 @@ export default function RequestActionsProvider({
     stepstoneTargets,
     hideoutRooms,
     hideoutStock,
-    thanatiWares,
+    hideoutWares,
     atHideout,
     excommunications,
     excommunicationSeats,
@@ -495,9 +490,9 @@ export default function RequestActionsProvider({
     (next) => {
       const verb = INSTANT[next];
       if (!verb) return;
-      runNow(next, { ask: verb.confirm({ recoverMissing, workVerb }), run: verb.run });
+      runNow(next, { ask: verb.confirm({ seatVerbs, workVerb }), run: verb.run });
     },
-    [runNow, recoverMissing, workVerb],
+    [runNow, seatVerbs, workVerb],
   );
 
   const open = useCallback(
@@ -614,15 +609,14 @@ export default function RequestActionsProvider({
       canDetonateCollar,
       canBreakRestraints,
       hasPointerDevice,
-      isThanati,
-      isThanatiLeader,
+      seatVerbs,
+      seatLead,
       isCerberon,
       isSkinless,
       canWarrant,
       isBishop,
       atHideout,
-      canRecover: recoverMissing.length > 0,
-      recoverMissing,
+      canRecover: Boolean(seatVerbs?.canRecover),
       canSeePlay: playFacts.canSeePlay,
       canPlay: playFacts.canPlay,
       canSeeTrinket: Boolean(trinket),
@@ -631,7 +625,6 @@ export default function RequestActionsProvider({
     [
       playFacts,
       trinket,
-      recoverMissing,
       craftable,
       craftProjects,
       buildSites,
@@ -689,8 +682,8 @@ export default function RequestActionsProvider({
       canDetonateCollar,
       canBreakRestraints,
       hasPointerDevice,
-      isThanati,
-      isThanatiLeader,
+      seatVerbs,
+      seatLead,
       isCerberon,
       isSkinless,
       canWarrant,

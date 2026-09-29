@@ -25,7 +25,11 @@
 //               verb; falsy `gate` greys it, with `gateReason` unless the
 //               pools carry a sharper sentence.
 //   command     the slash command, and `sub` its subcommand (null for a
-//               command that is the verb itself).
+//               command that is the verb itself). NULL for a secret seat's
+//               verb: Discord shows every global command to every member and
+//               cannot hide one per player, so a /thanati in the picker told
+//               the whole guild the cult was real. Those live in the Actions
+//               menu only, which lists what the reader can do.
 //   description the slash command's own line, 100 characters at most.
 //   run         "native" when the bot does it itself, "link" when the reply
 //               is a link to the web's dialog for it (web: true means that
@@ -79,7 +83,7 @@ const ACTIONS = [
   { mode: "mymove", label: "My Move", section: "self", show: "hasOpenTurn", command: "mymove", sub: null, description: "See the Move you filed this turn, and edit or withdraw it.", run: "native", open: true },
   { mode: "rename", label: "Drink the Mulligan Potion", section: "self", show: "hasMulligan", command: "mulligan", sub: null, description: "Drink the Mulligan Potion and take a new name.", run: "link" },
   { mode: "desire", label: "Claim a Desire", section: "self", command: "desire", sub: null, description: "Claim a Desire from the catalog.", run: "link" },
-  { mode: "blood", label: "Blood abilities", section: "self", show: "isVampire", command: "blood", sub: null, description: "Use one of your blood abilities.", run: "link" },
+  { mode: "blood", label: "Blood abilities", section: "self", show: "isVampire", command: null, sub: null, description: "Use one of your blood abilities.", run: "link" },
 
   // --- Someone here. The metagaming rule: nothing here greys on who is
   // standing near you (actionRegistry.js's header). -----------------------------
@@ -112,10 +116,10 @@ const ACTIONS = [
 
   // --- Your role. Every row HIDES for anyone who doesn't hold the seat. --------
   { mode: "pointerdevice", label: "Use pointer device", section: "role", show: "hasPointerDevice", command: "item", sub: "pointer", description: "Check where the other pointer device is.", run: "native", open: true },
-  { mode: "recall", label: "Recall comrades", section: "role", show: "isThanati", command: "thanati", sub: "recall", description: "Remember the other Thanati cultists.", run: "native" },
-  { mode: "recover", label: "Recover equipment", section: "role", show: "isThanati", gate: "canRecover", gateReason: "You have both.", command: "thanati", sub: "recover", description: "Recover your mask and robes.", run: "native" },
-  { mode: "hideout", label: "Set hideout", section: "role", show: "isThanatiLeader", command: "thanati", sub: "hideout", description: "Set the room the cult buys its gear from.", run: "native", web: true },
-  { mode: "purchase", label: "Purchase gear", section: "role", show: "isThanati", gate: "atHideout", gateReason: "You aren't standing at the hideout.", command: "thanati", sub: "gear", description: "Buy gear at the hideout.", run: "link", web: true },
+  { mode: "recall", label: "Recall comrades", section: "role", show: "seatVerbs", command: null, sub: null, description: "Remember the other Thanati cultists.", run: "native" },
+  { mode: "recover", label: "Recover equipment", section: "role", show: "seatVerbs", gate: "canRecover", gateReason: "You have both.", command: null, sub: null, description: "Recover your mask and robes.", run: "native" },
+  { mode: "hideout", label: "Set hideout", section: "role", show: "seatLead", command: null, sub: null, description: "Set the room the cult buys its gear from.", run: "native", web: true },
+  { mode: "purchase", label: "Purchase gear", section: "role", show: "seatVerbs", gate: "atHideout", gateReason: "You aren't standing at the hideout.", command: null, sub: null, description: "Buy gear at the hideout.", run: "link", web: true },
   { mode: "warrant", label: "Arrest warrant", section: "role", show: "canWarrant", command: "warrant", sub: "issue", description: "Declare somebody fit for arrest.", run: "native", web: true },
   { mode: "unwarrant", label: "Remove warrant", section: "role", show: "canWarrant", command: "warrant", sub: "remove", description: "Take somebody's warrant down.", run: "native", web: true },
   { mode: "wantedlist", label: "Check wanted", section: "role", show: "isCerberon", command: "warrant", sub: "list", description: "Read the warrant book.", run: "native", open: true },
@@ -141,8 +145,9 @@ function actionFor(mode) {
   return BY_MODE.get(mode) ?? null;
 }
 
-// The verb a typed command names, or null.
+// The verb a typed command names, or null. A verb with no command is never one.
 function actionForCommand(command, sub = null) {
+  if (!command) return null;
   return ACTIONS.find((a) => a.command === command && (a.sub ?? null) === (sub ?? null)) ?? null;
 }
 
@@ -151,6 +156,7 @@ function actionForCommand(command, sub = null) {
 function commandGroups() {
   const groups = new Map();
   for (const action of ACTIONS) {
+    if (!action.command) continue; // a secret seat's verb: the Actions menu only
     if (!groups.has(action.command)) groups.set(action.command, []);
     groups.get(action.command).push(action);
   }

@@ -7,7 +7,8 @@
 // holder warned, never killed outright. Slotted after stagedPush and
 // tagExpiry so a same-close cure or staged removal beats the axe. Discord
 // work is returned as `deaths`/`warnings` for the side-effect thunk.
-const { DYING_SLUG, VAMPIRE_SLUG } = require("./constants");
+const { DYING_SLUG } = require("./constants");
+const { VAMPIRE_SLUG } = require("./secretSlugs");
 const { applyDeathToRow } = require("./characterDeath");
 const { alivePassCharacters } = require("./aliveCharacters");
 

@@ -15,19 +15,21 @@
 // Takes `tx` first, same convention as db/lib/tagWrites.js, so a caller can
 // compose this into a larger transaction.
 const {
+  PALE_SLUG,
+} = require("./constants");
+const {
   FLUSH_SLUG,
   SATIATED_SLUG,
   THIRSTY_SLUG,
   FAMISHED_SLUG,
   BLOODCRAZED_SLUG,
   BLACK_SCLERA_SLUG,
-  PALE_SLUG,
   HUMANE_SLUG,
   ESTRANGED_SLUG,
   DISTURBED_SLUG,
   WARPED_SLUG,
   BESTIAL_SLUG,
-} = require("./constants");
+} = require("./secretSlugs");
 const { expiryFrom } = require("./turnFormat");
 const {
   bloodUrgencyBand,

@@ -1,7 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { prisma, normalizeAntagonistSlugs } from "@lifeweb/db";
+import { prisma } from "@lifeweb/db";
+import { takeableAntagonistSlugs } from "@lifeweb/db/lib/threats";
 import { normalizePriorities, normalizeJoblessRole } from "@lifeweb/db/lib/playerPreferences";
 import { auth } from "@/lib/auth";
 import { getGuildMember } from "@/lib/discordGuild";
@@ -45,7 +46,10 @@ async function allowedRoleSlugs(whitelisted) {
   );
 }
 
-export async function savePreferences({ priorities, antagonistOptIns, joblessRole }) {
+// `antagonists` is the one box, true or false. The seat list it stands for is
+// built here, never in the browser: the slugs name the real seats, and the
+// page must not carry them (THREATS.md §1).
+export async function savePreferences({ priorities, antagonists, joblessRole }) {
   const gate = await lobbyGate();
   if (gate.error) return { ok: false, error: gate.error };
   const { discordUserId, whitelisted } = gate;
@@ -53,7 +57,7 @@ export async function savePreferences({ priorities, antagonistOptIns, joblessRol
   const allowed = await allowedRoleSlugs(whitelisted);
   const data = {
     rolePriorities: normalizePriorities(priorities, allowed),
-    antagonistOptIns: normalizeAntagonistSlugs(antagonistOptIns ?? [], { whitelisted }),
+    antagonistOptIns: antagonists === true ? takeableAntagonistSlugs({ whitelisted }) : [],
     joblessRole: normalizeJoblessRole(joblessRole),
   };
   await prisma.playerPreference.upsert({
@@ -61,7 +65,14 @@ export async function savePreferences({ priorities, antagonistOptIns, joblessRol
     create: { discordUserId, ...data },
     update: data,
   });
-  return { ok: true, saved: data };
+  return {
+    ok: true,
+    saved: {
+      rolePriorities: data.rolePriorities,
+      antagonists: data.antagonistOptIns.length > 0,
+      joblessRole: data.joblessRole,
+    },
+  };
 }
 
 // The rule is db/lib/verbs/place.js#setReady, shared with the Ready button on

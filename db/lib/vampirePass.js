@@ -14,6 +14,9 @@
 //
 // Takes `prisma` as a parameter — see db/lib/dm.js for why.
 const {
+  PALE_SLUG,
+} = require("./constants");
+const {
   VAMPIRE_SLUG,
   FLUSH_SLUG,
   SATIATED_SLUG,
@@ -21,14 +24,13 @@ const {
   FAMISHED_SLUG,
   BLOODCRAZED_SLUG,
   BLACK_SCLERA_SLUG,
-  PALE_SLUG,
   HUMANE_SLUG,
   ESTRANGED_SLUG,
   DISTURBED_SLUG,
   WARPED_SLUG,
   BESTIAL_SLUG,
   WIGHT_SLUG,
-} = require("./constants");
+} = require("./secretSlugs");
 const { expiryFrom } = require("./turnFormat");
 const { alivePassCharacters } = require("./aliveCharacters");
 const { logBatchSystemTagChange } = require("./tagAudit");

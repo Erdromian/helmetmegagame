@@ -30,7 +30,6 @@ const GROUP_DESCRIPTIONS = {
   medic: "Heal somebody.",
   collar: "The bomb collar.",
   body: "Deal with the dead.",
-  thanati: "The cult's own.",
   warrant: "The Cerberon's warrant book.",
   bishop: "The Bishop's excommunications.",
   paper: "Read, write, seal and answer letters.",

@@ -15,7 +15,8 @@ import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT, INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
-import { VAMPIRE_SLUG, HEART_SLUG, THRALL_SLUG, VAMPIRE_BLOOD_ADDICT_SLUG } from "@lifeweb/db/lib/constants";
+import { HEART_SLUG } from "@lifeweb/db/lib/constants";
+import { VAMPIRE_SLUG, THRALL_SLUG, VAMPIRE_BLOOD_ADDICT_SLUG } from "@lifeweb/db/lib/secretSlugs";
 import { clampBlood } from "@lifeweb/db/lib/vampire";
 import { syncVampireBandsNow } from "@lifeweb/db/lib/vampireBands";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
@@ -52,11 +53,11 @@ function requiredTagLabel(ability) {
 // throws UserError for a refusal, guarded() into { ok, error } data so a
 // validation failure never crosses the server-action boundary as a thrown
 // error (actionResult.js's own header explains why).
-export async function castBloodAbility(input) {
-  return guarded(() => castBloodAbilityImpl(input));
+export async function castMenuAbility(input) {
+  return guarded(() => castMenuAbilityImpl(input));
 }
 
-async function castBloodAbilityImpl({
+async function castMenuAbilityImpl({
   abilityKey,
   targetCharacterId = null,
   locationId = null,
