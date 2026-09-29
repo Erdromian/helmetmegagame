@@ -36,6 +36,7 @@ const { hasEquipmentInReach } = require("./equipmentReach");
 const { structuresAt, canBuildHere, WORKING_STATUSES } = require("./structures");
 const {
   PACKAGING_EQUIPMENT_SLUG,
+  WORKSHOP_EQUIPMENT_SLUG,
   GUILT_RIDDEN_SLUG,
   BUTCHER_SLUG,
   MUTILATE_GATE_SLUGS,
@@ -76,6 +77,8 @@ const {
   consumableTags,
 } = require("./craftRecipes");
 const { rosterHere } = require("./peopleHere");
+const { isSmith, trinketRefusalFor } = require("./trinket");
+const { resourcesOf } = require("./resourceStack");
 const { partyOf } = require("./escort");
 
 const MULLIGAN_SLUG = "mulligan-potion";
@@ -387,6 +390,17 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
   const canTeach = anyoneHere && knownTeachableSkills(me, lessonCatalog).length > 0;
   const canConfess = !has(GUILT_RIDDEN_SLUG) && tags.some((ct) => ct.tag?.psychological);
 
+  // Make a Trinket (TRINKETS.md §2; character/page.js reads the same db/lib/trinket.js).
+  const smith = isSmith(tierRows, satisfied);
+  if (smith) {
+    gateReason.trinket = trinketRefusalFor({
+      hasOpenTurn: Boolean(openTurn),
+      hasWorkshop: await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG),
+      hasMoved: Boolean(currentAction),
+      resources: resourcesOf(character),
+    });
+  }
+
   // Instruments (RequestActionsProvider.js 352–364).
   const instruments = tags.filter((ct) => ct.tag?.instrument && (ct.quantity ?? 1) > 0);
   const instrumentInHand = instruments.some((ct) => (ct.equippedQuantity ?? 0) > 0 || ct.equipped);
@@ -411,6 +425,8 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
     canPoison: consumable.some((t) => t.poison),
     canEquip: tags.some((ct) => ct.tag?.equippable && (ct.equippedQuantity ?? 0) < (ct.quantity ?? 1)),
     canUnequip: tags.some((ct) => (ct.equippedQuantity ?? 0) > 0 || ct.equipped),
+    canSeeTrinket: smith,
+    canTrinket: smith && !gateReason.trinket,
     canSeePlay: instruments.length > 0 || has(MUSICIAN_SLUG),
     canPlay: instrumentInHand,
     isPerforming: Boolean(performing),

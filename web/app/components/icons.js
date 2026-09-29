@@ -4,6 +4,7 @@
 
 import {
   Droplet,
+  Gem,
   User,
   Users,
   ScrollText,
@@ -175,6 +176,8 @@ export const SyncIcon = lucide(RefreshCw, "SyncIcon");
 export const TrashIcon = lucide(Trash2, "TrashIcon");
 // Craft — the recipe door on the action grid (actionRegistry.js).
 export const HammerIcon = lucide(Hammer, "HammerIcon");
+// Make a Trinket — the forge's own Gambit (TRINKETS.md). The same gem the Mining group wears, since the stones are what go into one.
+export const TrinketIcon = lucide(Gem, "TrinketIcon");
 // Transfer Resources — the filled ⬢ of the Resources glyph.
 export function ResourcesIcon(props) {
   return <Hexagon strokeWidth={STROKE} fill="currentColor" {...props} />;

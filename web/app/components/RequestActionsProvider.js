@@ -62,6 +62,10 @@ export default function RequestActionsProvider({
   // examineActions.js refuses with the same sentence.
   examineBlocked = null,
   hasWorkshop = false,
+  // Make a Trinket (TRINKETS.md §2), resolved in character/page.js: null for
+  // anyone who isn't a smith, which hides the button; otherwise
+  // `{ blocked, stones }` — why it's greyed, and the inlay stones they carry.
+  trinket = null,
   // A kitchen where you stand — a Lavish meal needs one (COOKING.md).
   atKitchen = false,
   // The Consume slider's top end per held item (web/lib/eatLimits.js).
@@ -438,6 +442,8 @@ export default function RequestActionsProvider({
     hasWorkshop,
     atKitchen,
     eatMax,
+    // Trinket's slice (actions/TrinketDialog.js).
+    trinketStones: trinket?.stones ?? [],
   };
   // Read through a ref by `open`, which is memoized and would otherwise hold
   // the first render's rosters forever — the pattern Modal.js uses for
@@ -541,6 +547,7 @@ export default function RequestActionsProvider({
         mine: mineBlocked,
         farm: farmBlocked,
         breakin: breakInBlocked,
+        trinket: trinket?.blocked ?? null,
         kiss: kissBlocked,
         // Only for somebody with the tag: without it the registry's own
         // "You don't know how" is the true reason, and must not be covered.
@@ -614,9 +621,12 @@ export default function RequestActionsProvider({
       recoverMissing,
       canSeePlay: playFacts.canSeePlay,
       canPlay: playFacts.canPlay,
+      canSeeTrinket: Boolean(trinket),
+      canTrinket: Boolean(trinket) && !trinket.blocked,
     }),
     [
       playFacts,
+      trinket,
       recoverMissing,
       craftable,
       craftProjects,

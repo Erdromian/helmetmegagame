@@ -42,6 +42,7 @@ import StepstoneDialog from "./StepstoneDialog";
 import ExamineAction from "./ExamineAction";
 import CraftAction from "./CraftAction";
 import PlayInstrumentDialog from "./PlayInstrumentDialog";
+import TrinketDialog from "./TrinketDialog";
 
 // Instant verbs. Each is `{ run, confirm }`: `run()` is the server action,
 // `confirm(pools)` is the one-line question to ask first, or null for none.
@@ -161,6 +162,7 @@ export const DIALOGS = {
   stepstone: StepstoneDialog,
   examine: ExamineAction,
   craft: CraftAction,
+  trinket: TrinketDialog,
   play: PlayInstrumentDialog,
 };
 

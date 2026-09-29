@@ -19,7 +19,8 @@ import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
-import { WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import { WORKSHOP_EQUIPMENT_SLUG, TRINKET_RESOURCE_COST, TRINKET_INLAY_SLOTS } from "@lifeweb/db/lib/constants";
+import { isSmith, TRINKET_NEEDS_SMITHING, TRINKET_NO_FORGE } from "@lifeweb/db/lib/trinket";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { dropCharacterTag, debitResources } from "@/lib/tagEffects";
 import { buildSkillAncestry, satisfiedSkillIds } from "@lifeweb/db/lib/medicalVision";
@@ -27,10 +28,8 @@ import { cleanCustomText, CUSTOM_NAME_MAX, CUSTOM_DESCRIPTION_MAX } from "@/lib/
 import { resolveIngredientSlots, resolveCraftPayer } from "./actions/crafting";
 import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
 
-// The recipe's own numbers (TRINKETS.md §1), authored as constants (see file header).
-const TRINKET_RESOURCE_COST = 4;
-const SMITHING_SLUG = "smithing";
-const INGREDIENT_SLOTS = { min: 0, max: 2 };
+// The recipe's own numbers (TRINKETS.md §1) live in db/lib/constants.js, where the sheet's button reads them too.
+const INGREDIENT_SLOTS = { min: 0, max: TRINKET_INLAY_SLOTS };
 const GMNOTES = "auto:trinket";
 
 const TRINKET_SELECT = {
@@ -65,19 +64,13 @@ async function me() {
 // Smithing, or a higher tier — same tier-walk every other recipe skill gate uses.
 async function requireSmithing(character) {
   const catalog = await prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } });
-  const bySlug = new Map(catalog.map((t) => [t.slug, t]));
-  const smithing = bySlug.get(SMITHING_SLUG);
-  if (!smithing) throw new UserError("Making a Trinket needs Smithing.");
-  const ancestry = buildSkillAncestry(catalog);
-  const satisfied = satisfiedSkillIds(character.tags.map((ct) => ct.tagId), ancestry);
-  if (!satisfied.has(smithing.id)) throw new UserError("Making a Trinket needs Smithing.");
+  const satisfied = satisfiedSkillIds(character.tags.map((ct) => ct.tagId), buildSkillAncestry(catalog));
+  if (!isSmith(catalog, satisfied)) throw new UserError(TRINKET_NEEDS_SMITHING);
 }
 
 async function requireWorkshop(character) {
   if (await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG)) return;
-  throw new UserError(
-    "Making a Trinket is smith's work: hold Workshop Equipment, or stand somewhere a set is already put up.",
-  );
+  throw new UserError(TRINKET_NO_FORGE);
 }
 
 async function requireFreeMoveForGambit(character, openTurn) {
