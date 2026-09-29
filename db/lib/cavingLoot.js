@@ -295,15 +295,24 @@ function drawLoot(zoneSlug) {
 //
 // A gathering zone draws on the GATHERING TABLE instead, skilled or not: what the Black Hills give
 // up is food, and Prospecting reads ore.
-function drawProspectingLoot(zoneSlug, { prospecting = false } = {}) {
+//
+// `lucky` draws twice and keeps the rarer tier, the loot-table shape of Lucky's two dice (MINING.md
+// §3b). A tie keeps the first draw. It works on either table, since both are the one Mine press.
+function drawProspectingLoot(zoneSlug, { prospecting = false, lucky = false } = {}) {
+  let weights;
+  let table;
   if (isGatheringZone(zoneSlug)) {
-    const gathering = GATHERING_WEIGHTS_BY_ZONE[zoneSlug];
-    return gathering ? drawFrom(gathering, GATHERING_TABLE) : null;
+    weights = GATHERING_WEIGHTS_BY_ZONE[zoneSlug];
+    table = GATHERING_TABLE;
+  } else {
+    weights = (prospecting ? PROSPECTING_SKILLED_WEIGHTS_BY_ZONE : PROSPECTING_WEIGHTS_BY_ZONE)[zoneSlug];
+    table = PROSPECTING_TABLE;
   }
-  const map = prospecting ? PROSPECTING_SKILLED_WEIGHTS_BY_ZONE : PROSPECTING_WEIGHTS_BY_ZONE;
-  const weights = map[zoneSlug];
   if (!weights) return null;
-  return drawFrom(weights, PROSPECTING_TABLE);
+  const first = drawFrom(weights, table);
+  if (!lucky) return first;
+  const second = drawFrom(weights, table);
+  return TIERS.indexOf(second.tier) > TIERS.indexOf(first.tier) ? second : first;
 }
 
 module.exports = {

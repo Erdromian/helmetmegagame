@@ -27,7 +27,7 @@ const { expiryFrom } = require("./turnFormat");
 const { applyFatigueStep, revertFatigueStep, grantRecentlyFarmed } = require("./fatigue");
 const { drawProspectingLoot } = require("./cavingLoot");
 const { isGatheringZone } = require("./gathering");
-const { PROSPECTING_SLUG } = require("./constants");
+const { PROSPECTING_SLUG, LUCKY_SLUG } = require("./constants");
 const { AUTO_MINE_NOTE, AUTO_REFINE_NOTE } = require("./constants");
 const { reapFoodstuffs, FARM_PLANTS } = require("./soilery");
 
@@ -118,15 +118,18 @@ const MOVE_EFFECTS = {
       if (!zone) return 0;
 
       // NOT a gate any more — underground the skill picks which column gets drawn, and an unskilled digger still turns up stones, just poorer
-      // ones (db/lib/cavingLoot.js). The gathering table ignores it, so a gathering zone skips the lookup. Whether the press was allowed at all
-      // (the pickaxe underground, nothing in the hills) is decided upstream in db/lib/mining.js.
-      const prospecting = isGatheringZone(zone.slug)
-        ? false
-        : !!(await tx.characterTag.findFirst({
-            where: { characterId: action.characterId, tag: { slug: PROSPECTING_SLUG } },
-            select: { id: true },
-          }));
-      const drawn = drawProspectingLoot(zone.slug, { prospecting });
+      // ones (db/lib/cavingLoot.js). The gathering table ignores it. Lucky draws twice and keeps the rarer find, on either table. Whether the
+      // press was allowed at all (the pickaxe underground, nothing in the hills) is decided upstream in db/lib/mining.js.
+      const held = new Set(
+        (
+          await tx.characterTag.findMany({
+            where: { characterId: action.characterId, tag: { slug: { in: [PROSPECTING_SLUG, LUCKY_SLUG] } } },
+            select: { tag: { select: { slug: true } } },
+          })
+        ).map((ct) => ct.tag.slug),
+      );
+      const prospecting = !isGatheringZone(zone.slug) && held.has(PROSPECTING_SLUG);
+      const drawn = drawProspectingLoot(zone.slug, { prospecting, lucky: held.has(LUCKY_SLUG) });
       if (!drawn) return 0;
 
       const tag = await tx.tag.findUnique({

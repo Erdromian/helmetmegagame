@@ -2601,7 +2601,7 @@ tags:
     name: Lucky
     category: general
     group: general-traits
-    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and every other die the game throws included."
+    description: "Fortune leans your way. You roll every Gambit twice and keep the better die, the Caving Die and every other die the game throws included. When you mine, you turn up the better of two finds."
     pointCost: 15
     visible: false
     purchasable: true
