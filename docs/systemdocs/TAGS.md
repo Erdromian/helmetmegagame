@@ -2104,9 +2104,10 @@ resolve, so a bad reference is visible rather than silently dropped.
 A kind whose data the browser doesn't already hold also needs a read API and a
 provider mounted in `layout.js`, the way `{tag:…}` has `getVisibleTags` +
 `TagsProvider`. `{document:…}` is the case to copy if the data is
-access-controlled: `/api/documents` ships every document's *name* but a body
-only to a reader who may open it, so a chip for a paper you have not been
-handed renders inert rather than either vanishing or leaking.
+access-controlled: `getDocumentIndex` ships a body only to a reader who may
+open the paper, and the name of one they may not only when something they can
+read names it, so a chip for a paper you have not been handed renders inert
+rather than either vanishing or leaking.
 
 `full`, `hungry` and `starving` — the hunger descriptors — are granted and
 cleared entirely by automatic game logic rather than by a player, a GM, or a

@@ -26,7 +26,7 @@ function ResourceToken({ payload, fallback }) {
   return <ResourceChip value={rate.display} />;
 }
 
-// Payload is Document.key. The index carries every document's name, but a body only for those the reader may open.
+// Payload is Document.key. The index carries a body only for papers the reader may open (getDocumentIndex).
 function DocumentToken({ payload, fallback }) {
   const { docsByKey } = useDocuments();
   const doc = docsByKey.get(payload.trim());
