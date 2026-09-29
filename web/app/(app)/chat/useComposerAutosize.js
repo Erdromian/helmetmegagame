@@ -28,7 +28,12 @@ export default function useComposerAutosize(ref, value, extra = null) {
       return;
     }
     el.style.height = "auto";
-    const line = parseFloat(getComputedStyle(el).lineHeight) || 20;
-    el.style.height = `${Math.min(el.scrollHeight, Math.round(line * 6) + 12)}px`;
+    const style = getComputedStyle(el);
+    const line = parseFloat(style.lineHeight) || 20;
+    // The six lines plus the box's own padding: on a phone the scene's box
+    // pads a lone line into the middle of its 44px floor, and the old flat
+    // 12px allowance then capped it at about five and a half lines.
+    const pad = (parseFloat(style.paddingTop) || 0) + (parseFloat(style.paddingBottom) || 0);
+    el.style.height = `${Math.min(el.scrollHeight, Math.round(line * 6) + Math.max(12, pad))}px`;
   }, [ref, value, extra]);
 }

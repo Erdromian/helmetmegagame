@@ -542,10 +542,12 @@
   min-width: 0;
 }
 
-/* The turn card beside the forecast; either alone takes the whole row. */
+/* The turn card beside the forecast; either alone takes the whole row.
+   min(18rem, 100%): a bare 18rem floor is wider than the row on a 320px
+   phone, and both boxes hung 18px out past the sheet's edge. */
 .sheet-band-row {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(18rem, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
   gap: var(--sp-2);
 }
 
@@ -1047,6 +1049,19 @@
   flex: 0 1 12rem;
 }
 
+/* Held: a cell grows by the hands it takes (EquipBoard.js sets flex-grow to
+   the span), but never below 7.5rem, so "Dagger" is not "Dag…". Four full
+   hands that no longer fit side by side wrap onto a second line. */
+.equip-cells-hands {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.equip-cells-hands > .equip-cell {
+  flex: 1 1 0;
+  min-width: min(100%, 7.5rem);
+}
+
 .equip-cell {
   position: relative;
   display: flex;
@@ -1239,6 +1254,14 @@ button.equip-cell-face:focus-visible {
   align-items: center;
   gap: var(--sp-1);
   min-width: 0;
+}
+
+/* Baseline, not the table's `top`: the name is a 23px chip and the other
+   cells are one 14px line, so top-aligned the chip's name read about 5px
+   lower than "pack" and "4 lb" beside it. Baseline lines up the text itself,
+   however tall the first cell grows. */
+.sheet-card[data-card="items"] .data-table td {
+  vertical-align: baseline;
 }
 
 .data-table-face:hover .chip,

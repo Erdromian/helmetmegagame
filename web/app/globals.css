@@ -6296,7 +6296,8 @@ label.gate-request {
 }
 
 /* ── The two GM desks get narrower (DESIGN-SYSTEM.md §"Breakpoints") ─────
-   Everything below is /gm/turns and /gm/players only. /gm/audit keeps its
+   Everything below is /gm/turns and /gm/players only, plus /gm/oracle's
+   inspector overlay (it mounts the same InspectorColumn). /gm/audit keeps its
    three columns at every width: its inspector is a different component with
    no toggle, and hiding it there would put the row detail out of reach.
 
@@ -6320,7 +6321,8 @@ label.gate-request {
    deliberately: a sheet pulled up beside the work, not the work. */
 @media (max-width: 1024px) {
   .desk-body--turns,
-  .desk-body--players {
+  .desk-body--players,
+  .desk-body--oracle {
     grid-template-columns: 23rem minmax(0, 1fr);
   }
 
@@ -6329,7 +6331,8 @@ label.gate-request {
   }
 
   .desk-body--turns .desk-inspector,
-  .desk-body--players .desk-inspector {
+  .desk-body--players .desk-inspector,
+  .desk-body--oracle .desk-inspector {
     display: none;
   }
 
@@ -6344,7 +6347,8 @@ label.gate-request {
      rail's 30, which is exactly the bug .desk-shell and .desk-body--ops both
      warn about. Anything lower would paint desk dialogs under the bottom bar. */
   .desk-body--turns .desk-inspector[data-open],
-  .desk-body--players .desk-inspector[data-open] {
+  .desk-body--players .desk-inspector[data-open],
+  .desk-body--oracle .desk-inspector[data-open] {
     display: flex;
     position: fixed;
     top: 0;
@@ -6408,6 +6412,16 @@ label.gate-request {
 
   .desk-body--turns .desk-back {
     margin: 0.75rem 0.75rem 0;
+  }
+}
+
+/* /gm/oracle has no one-screen-at-a-time step: its rail picks a page, not a
+   queue row, so under 720px it stacks like every other desk. This undoes its
+   two columns from the 1024px block, which would otherwise win (same
+   specificity, later in the file). */
+@media (max-width: 720px) {
+  .desk-body--oracle {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -8018,4 +8032,43 @@ label.gate-request {
 .memory-line .btn-quiet {
   font-size: var(--fs-lg);
   line-height: 1;
+}
+
+/* A touch screen's 24px floor (WCAG 2.5.8) for the small text controls a
+   player taps most: the top bar's links, Feedback and Spend Tag Points on the
+   sheet, a Desire's ?, an item's name in the Items table, the Bio's settings
+   button, a Memories section head, the map's chips and /analysis's jump links.
+   Each measured 14-23px tall on a phone. The HIT AREA grows, not the control:
+   an invisible ::after reaches out to 24px in whichever direction is short,
+   so nothing on the page moves. It stops at 24px, which none of them can
+   stretch across into a neighbour.
+   .sheet-band-feedback is already absolute and .info-icon (a .tag-hover)
+   already relative, so neither is given a position here. Every control here
+   must really be positioned: left static, its ::after reaches for the page
+   instead and swallows every tap on it. .data-table-face is `all: unset` in
+   sheet.css, which loads later, hence button.data-table-face. */
+@media (pointer: coarse) {
+  .top-bar .nav-link,
+  .tag-points-spend,
+  button.data-table-face,
+  .panel-header > .note.btn-quiet,
+  .memory-section > summary,
+  .map-controls .chip,
+  nav.panel > .menu-item {
+    position: relative;
+  }
+
+  .top-bar .nav-link::after,
+  .sheet-band-feedback::after,
+  .tag-points-spend::after,
+  .info-icon::after,
+  .data-table-face::after,
+  .panel-header > .note.btn-quiet::after,
+  .memory-section > summary::after,
+  .map-controls .chip::after,
+  nav.panel > .menu-item::after {
+    content: "";
+    position: absolute;
+    inset: min(0px, calc((100% - 24px) / 2));
+  }
 }

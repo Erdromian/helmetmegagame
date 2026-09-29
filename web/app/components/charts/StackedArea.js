@@ -116,10 +116,12 @@ export function Legend({ items }) {
 
 // A sr-only table: every chart's exact numbers, for a screen-reader user or
 // anyone who wants to copy values rather than read a curve.
+// The hiding sits on a wrapping div, not the table: a table ignores `width: 1`
+// and grows to its nowrap caption, which gave /analysis a sideways scroll on
+// phones in Chrome and Edge (the page was 654px wide on a 390px screen).
 export function VisuallyHiddenTable({ caption, columns, rows }) {
   return (
-    <table
-      className="mono"
+    <div
       style={{
         position: "absolute",
         width: 1,
@@ -132,24 +134,26 @@ export function VisuallyHiddenTable({ caption, columns, rows }) {
         border: 0,
       }}
     >
-      <caption>{caption}</caption>
-      <thead>
-        <tr>
-          {columns.map((c) => (
-            <th key={c}>{c}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, i) => (
-          <tr key={i}>
-            {row.map((cell, j) => (
-              <td key={j}>{cell}</td>
+      <table className="mono">
+        <caption>{caption}</caption>
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th key={c}>{c}</th>
             ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i}>
+              {row.map((cell, j) => (
+                <td key={j}>{cell}</td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
 

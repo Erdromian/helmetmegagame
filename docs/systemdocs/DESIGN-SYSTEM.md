@@ -924,6 +924,10 @@ only they, carry two extra tiers in `globals.css`:
   stacking context this family has, and 40 rather than anything lower because
   `Modal.js` renders in-tree, so a dialog opened inside the inspector is
   trapped at that level and has to clear the mobile nav bar's 30.
+  `/gm/oracle` takes this tier too (`.desk-body--oracle`), because it mounts
+  the same `InspectorColumn` and its middle column was squeezed to about 48px
+  on a 768px tablet the same way. It takes neither of the two below: under
+  720px it simply stacks like every other desk.
 - **Under 800px the desk shows one screen at a time.** Pick a Move (or open a
   conversation) and the rail steps aside; a `← Back to queue` / `← Back`
   button at the top of the work is the way back. Stacking the two instead just

@@ -41,53 +41,55 @@ export default function RoomsList({ locationId, rows, canSuper, fromElsewhere = 
           ))}
         </p>
       )}
-      <table className="mono-table w-full">
-        <thead>
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Slug</th>
-            <th scope="col">Kind</th>
-            <th scope="col">Discord</th>
-            <th scope="col">Status</th>
-            <th scope="col" aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id} className={r.retiredAt ? "text-muted" : undefined}>
-              <td>
-                <Link href={`/gm/dev/zones/rooms/${r.id}`} className="menu-item">
-                  {r.name}
-                </Link>
-              </td>
-              <td className="mono">{r.slug}</td>
-              <td>{r.kind}</td>
-              <td>
-                <span className="chip">{r.mirrored ? "mirrored" : "pending"}</span>
-              </td>
-              <td>{r.retiredAt ? <span className="chip">retired</span> : "live"}</td>
-              <td className="whitespace-nowrap">
-                {canSuper && (
-                  <>
-                    {r.retiredAt ? (
-                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => call(unretireRoom, r.id)}>
-                        Unretire
-                      </button>
-                    ) : (
-                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => onRetire(r)}>
-                        Retire
-                      </button>
-                    )}
-                    <button type="button" className="btn-quiet" disabled={pending} onClick={() => onDelete(r)}>
-                      Delete
-                    </button>
-                  </>
-                )}
-              </td>
+      <div className="overflow-x-auto">
+        <table className="mono-table w-full">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Slug</th>
+              <th scope="col">Kind</th>
+              <th scope="col">Discord</th>
+              <th scope="col">Status</th>
+              <th scope="col" aria-label="Actions" />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id} className={r.retiredAt ? "text-muted" : undefined}>
+                <td>
+                  <Link href={`/gm/dev/zones/rooms/${r.id}`} className="menu-item">
+                    {r.name}
+                  </Link>
+                </td>
+                <td className="mono">{r.slug}</td>
+                <td>{r.kind}</td>
+                <td>
+                  <span className="chip">{r.mirrored ? "mirrored" : "pending"}</span>
+                </td>
+                <td>{r.retiredAt ? <span className="chip">retired</span> : "live"}</td>
+                <td className="whitespace-nowrap">
+                  {canSuper && (
+                    <>
+                      {r.retiredAt ? (
+                        <button type="button" className="btn-quiet" disabled={pending} onClick={() => call(unretireRoom, r.id)}>
+                          Unretire
+                        </button>
+                      ) : (
+                        <button type="button" className="btn-quiet" disabled={pending} onClick={() => onRetire(r)}>
+                          Retire
+                        </button>
+                      )}
+                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => onDelete(r)}>
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <form
         className="flex flex-wrap items-end gap-2"

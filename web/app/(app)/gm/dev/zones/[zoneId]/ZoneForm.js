@@ -68,7 +68,9 @@ export default function ZoneForm({ zone }) {
           <span className="field-label">Map polygon (JSON [[x,y],…], 0-100)</span>
           <textarea name="mapPolygon" defaultValue={zone.mapPolygon} className="control mono" />
         </label>
-        <div className="flex gap-2">
+        {/* A grid, not a flex row: two number inputs at their natural width
+            ran off a phone's edge. */}
+        <div className="grid grid-cols-2 gap-2">
           <label className="field">
             <span className="field-label">Map label X</span>
             <input name="mapLabelX" type="number" step="any" defaultValue={zone.mapLabelX ?? ""} className="control" />

@@ -20,30 +20,32 @@ export default function LinksTable({ rows, locationOptions, canSuper }) {
   return (
     <div className="flex flex-col gap-4">
       <FormError>{error}</FormError>
-      <table className="mono-table w-full">
-        <thead>
-          <tr>
-            <th scope="col">A</th>
-            <th scope="col">B</th>
-            <th scope="col">Announce</th>
-            <th scope="col">Hidden</th>
-            <th scope="col">Modular</th>
-            <th scope="col">Born open</th>
-            <th scope="col">Open (live)</th>
-            <th scope="col">Keyed</th>
-            <th scope="col">On foot</th>
-            <th scope="col">Tight squeeze</th>
-            <th scope="col">Required tag</th>
-            <th scope="col" aria-label="Save" />
-            <th scope="col" aria-label="Delete" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((l) => (
-            <LinkRow key={l.id} link={l} canSuper={canSuper} pending={pending} onSave={(input) => call(updateLink, l.id, l.updatedAt, input)} onDelete={() => onDelete(l)} />
-          ))}
-        </tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <table className="mono-table w-full">
+          <thead>
+            <tr>
+              <th scope="col">A</th>
+              <th scope="col">B</th>
+              <th scope="col">Announce</th>
+              <th scope="col">Hidden</th>
+              <th scope="col">Modular</th>
+              <th scope="col">Born open</th>
+              <th scope="col">Open (live)</th>
+              <th scope="col">Keyed</th>
+              <th scope="col">On foot</th>
+              <th scope="col">Tight squeeze</th>
+              <th scope="col">Required tag</th>
+              <th scope="col" aria-label="Save" />
+              <th scope="col" aria-label="Delete" />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((l) => (
+              <LinkRow key={l.id} link={l} canSuper={canSuper} pending={pending} onSave={(input) => call(updateLink, l.id, l.updatedAt, input)} onDelete={() => onDelete(l)} />
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <Panel title="New link">
         <form
