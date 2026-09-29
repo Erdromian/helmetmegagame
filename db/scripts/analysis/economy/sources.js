@@ -176,12 +176,18 @@ function buildSources({ list, bySlug, players }) {
 
   // Loot: real functions, sampled.
   // Mining draws from a plain column for anyone with a pickaxe and a richer one with Prospecting.
+  // Lucky draws twice and keeps the rarer find (MINING.md §3b), on either column.
   const plainDraw = (z) => cavingLoot.drawProspectingLoot(z, { prospecting: false });
   const skilledDraw = (z) => cavingLoot.drawProspectingLoot(z, { prospecting: true });
-  const prospecting = {
-    caves: { plain: lootDistribution(plainDraw, "caves"), skilled: lootDistribution(skilledDraw, "caves") },
-    depths: { plain: lootDistribution(plainDraw, "depths"), skilled: lootDistribution(skilledDraw, "depths") },
-  };
+  const plainLuckyDraw = (z) => cavingLoot.drawProspectingLoot(z, { prospecting: false, lucky: true });
+  const skilledLuckyDraw = (z) => cavingLoot.drawProspectingLoot(z, { prospecting: true, lucky: true });
+  const prospectingColumns = (z) => ({
+    plain: lootDistribution(plainDraw, z),
+    skilled: lootDistribution(skilledDraw, z),
+    plainLucky: lootDistribution(plainLuckyDraw, z),
+    skilledLucky: lootDistribution(skilledLuckyDraw, z),
+  });
+  const prospecting = { caves: prospectingColumns("caves"), depths: prospectingColumns("depths") };
   // Gathering (MINING.md §3c): the same press in a gathering zone draws food off its own table,
   // with no tool and no skill in it. Counted per press, as a find, whatever its stack size.
   const gathering = Object.fromEntries(GATHERING_ZONE_SLUGS.map((z) => [z, lootDistribution(plainDraw, z)]));
