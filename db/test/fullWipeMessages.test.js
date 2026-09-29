@@ -197,3 +197,75 @@ test("wipeGameMessages deletes a thread matching no Room (a Conversation)", asyn
     fake.restore();
   }
 });
+
+test("wipeGameMessages clears a zone #summary with no cap on over-age deletes", async () => {
+  const fake = fakeDiscord();
+  rest.fetchAllMessages = async (channelId) => {
+    fake.calls.push({ name: "fetchAllMessages", args: [channelId] });
+    return [{ id: `${channelId}-m1` }, { id: `${channelId}-m2` }];
+  };
+  delete require.cache[require.resolve("../lib/fullWipe")];
+  const { wipeGameMessages } = require("../lib/fullWipe");
+
+  try {
+    await wipeGameMessages(fakePrisma({ rooms: [] }));
+
+    const deletes = fake.calls.filter((c) => c.name === "bulkDeleteMessages");
+    const summary = deletes.find((c) => c.args[0] === "chan-summary-1");
+    assert.ok(summary, "the summary was cleared");
+    assert.equal(summary.args[2]?.oldCap, Infinity, "the summary clear is uncapped");
+    const location = deletes.find((c) => c.args[0] === "chan-loc-1");
+    assert.equal(location.args[2], undefined, "other channels keep the ordinary cap");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("wipeGameMessages keeps going past a failed channel and throws at the end", async () => {
+  const fake = fakeDiscord();
+  rest.fetchAllMessages = async (channelId) => {
+    fake.calls.push({ name: "fetchAllMessages", args: [channelId] });
+    if (channelId === "chan-archive") throw new Error("Discord 500");
+    return [{ id: `${channelId}-m1` }, { id: `${channelId}-m2` }];
+  };
+  delete require.cache[require.resolve("../lib/fullWipe")];
+  const { wipeGameMessages } = require("../lib/fullWipe");
+
+  try {
+    const prisma = fakePrisma({ rooms: [] });
+    await assert.rejects(wipeGameMessages(prisma), /#archive: Discord 500/);
+
+    const cleared = fake.calls.filter((c) => c.name === "bulkDeleteMessages").map((c) => c.args[0]);
+    assert.ok(cleared.includes("chan-summary-1"), "the summary was still cleared");
+    assert.ok(cleared.includes("chan-turns"), "#turns was still cleared");
+    assert.ok(cleared.includes("chan-loc-1"), "the Location was still cleared");
+    assert.equal(prisma.updateManyCalls.location.length, 1, "anchors were still nulled");
+  } finally {
+    fake.restore();
+  }
+});
+
+test("bulkDeleteMessages deletes every over-age message when oldCap is Infinity", async () => {
+  const core = require("../lib/discordRest/core");
+  const original = core.discordRequest;
+  const deleted = [];
+  core.discordRequest = async (path, { method } = {}) => {
+    if (method === "DELETE") deleted.push(path);
+    return null;
+  };
+  // messages.js binds discordRequest at require time, so it is re-required under the fake.
+  delete require.cache[require.resolve("../lib/discordRest/messages")];
+  const fresh = require("../lib/discordRest/messages");
+  try {
+    // Snowflakes from 2016, far past the 14-day bulk-delete window.
+    const old = Array.from({ length: 60 }, (_, i) => String((BigInt(i + 1) << 22n) + (1n << 40n)));
+    await fresh.bulkDeleteMessages("chan", old);
+    assert.equal(deleted.length, 50, "the default cap still holds");
+    deleted.length = 0;
+    await fresh.bulkDeleteMessages("chan", old, { oldCap: Infinity });
+    assert.equal(deleted.length, 60, "uncapped deletes them all");
+  } finally {
+    core.discordRequest = original;
+    delete require.cache[require.resolve("../lib/discordRest/messages")];
+  }
+});

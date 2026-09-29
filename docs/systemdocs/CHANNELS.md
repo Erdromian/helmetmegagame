@@ -1100,6 +1100,16 @@ into `db/lib/discordRest.js` so both the Location channel's own clear and a
 Room's use it); they used to be cleared one message per request, which on a
 busy turn was the single largest cost in the whole pass.
 
+The over-age half goes one request per message, so it is capped at 50 a
+channel a run — **except in a zone `#summary`**, where both the daily clear and
+Restart Game's (`fullWipe.js`) pass `oldCap: Infinity`. A game that sat ended
+for a fortnight leaves its last day of summary posts over 14 days old, and the
+cap of 50 used to leave the rest of them standing into the next game. A
+summary holds one day's posts at most, so uncapping it costs little. Restart
+Game also clears the summaries **first**, and one failed channel no longer
+stops the sweep: each channel is tried on its own and the failures are
+reported together at the end.
+
 **Every rule below is bounded by a cutoff, and that is the important part.**
 The wipe takes a `cutoffMs` — the moment `advanceTurn()`'s side-effect thunk
 began — and touches nothing created at or after it. A Discord snowflake carries

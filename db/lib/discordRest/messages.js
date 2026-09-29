@@ -115,7 +115,9 @@ function messageTimestamp(messageId) {
 
 // Bulk-delete rejects the WHOLE batch if any id is over 14 days old, so ids
 // split by age: young ones bulk-delete together, old ones go one at a time.
-async function bulkDeleteMessages(channelId, messageIds) {
+// `oldCap` bounds the one-at-a-time half; `Infinity` for a clear that has to
+// finish in one run (a zone #summary on Restart Game).
+async function bulkDeleteMessages(channelId, messageIds, { oldCap = OLD_MESSAGE_DELETE_CAP } = {}) {
   const cutoff = Date.now() - BULK_DELETE_MAX_AGE_MS;
   const young = [];
   const old = [];
@@ -139,7 +141,7 @@ async function bulkDeleteMessages(channelId, messageIds) {
 
   if (old.length === 0) return;
 
-  const deleting = old.slice(0, OLD_MESSAGE_DELETE_CAP);
+  const deleting = old.slice(0, oldCap);
   console.warn(
     `Bulk delete: ${old.length} message(s) in ${channelId} are over 14 days old and can't be ` +
       `batched. Deleting ${deleting.length} one at a time` +

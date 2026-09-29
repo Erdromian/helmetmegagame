@@ -40,12 +40,13 @@ function isAfterCutoff(snowflakeId, cutoff) {
   return at !== null && at >= cutoff.ms;
 }
 
-async function clearMessages(channelOrThreadId, before) {
+async function clearMessages(channelOrThreadId, before, options) {
   const messages = await fetchAllMessages(channelOrThreadId, { before });
   if (messages.length === 0) return;
   await bulkDeleteMessages(
     channelOrThreadId,
     messages.map((m) => m.id),
+    options,
   );
 }
 
@@ -178,10 +179,12 @@ async function runMessageWipe(prisma, { cutoffMs = Date.now(), wipeSummaries = f
   for (const zone of zones) {
     console.log(`Message wipe: ${zone.name}`);
     // The one Dawn-only target; the zone loop still runs every turn for the
-    // Locations underneath it.
+    // Locations underneath it. Uncapped, like the Restart Game clear
+    // (fullWipe.js): a summary is one day's posts, and 50 a day of over-age
+    // leftovers is how an old game's posts outlived a restart.
     if (wipeSummaries && zone.discordSummaryChannelId) {
       try {
-        await timeStep(`${zone.name} / summary`, () => clearMessages(zone.discordSummaryChannelId, cutoff.before));
+        await timeStep(`${zone.name} / summary`, () => clearMessages(zone.discordSummaryChannelId, cutoff.before, { oldCap: Infinity }));
       } catch (err) {
         failures.push({ step: "summary", target: zone.name, message: err.message });
         console.error(`Message wipe: ${zone.name} #summary failed, continuing:`, err.message);
