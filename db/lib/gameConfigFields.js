@@ -150,12 +150,21 @@ const FIELDS = [
     key: "turnLengthHours", type: "select", group: "clock", default: 24,
     options: [6, 8, 12, 24].map((h) => ({ value: h, label: `${h} hours` })),
     label: "Turn length",
-    info: "Takes effect at the next turn, never the open one. Turns end on the hour the game started, rounded to the nearest hour, and every length after it. Adjudication window: 2 hours on 6 and 8, 3 on 12 and 24.",
+    info: "Takes effect at the next turn, never the open one. Turns end on the push hour and every length after it. Adjudication window: 2 hours on 6 and 8, 3 on 12 and 24.",
+  },
+  {
+    key: "turnPushHour", type: "select", group: "clock", default: -1,
+    options: [
+      { value: -1, label: "When the game started" },
+      ...Array.from({ length: 24 }, (_, h) => ({ value: h, label: `${String(h).padStart(2, "0")}:00` })),
+    ],
+    label: "Turn push hour (Chicago)",
+    info: "The hour turns end, whatever time the game started. \"When the game started\" uses the start time rounded to the nearest hour. Turns end at this hour and every turn length after it (6-hour turns pushing at 19:00 end at 19:00, 01:00, 07:00 and 13:00), and the in-game day rolls here. Takes effect at the next turn, never the open one, so that one turn may run short or long. At Start Game, Turn 1 runs to the first push at least half a turn away.",
   },
   {
     key: "turnsPerDay", type: "int", group: "clock", default: 0, min: 0, max: 24,
     label: "Turns per in-game day (0 = by the clock)",
-    info: "0 rolls the day at the hour the game started, Chicago time, so the turn length decides. Any other number rolls it after that many turns. Takes effect at the next turn; days already played keep their number.",
+    info: "0 rolls the day at the push hour, Chicago time, so the turn length decides. Any other number rolls it after that many turns. Takes effect at the next turn; days already played keep their number.",
   },
   {
     key: "gameMode", type: "select", group: "clock", default: "PERSISTENT",

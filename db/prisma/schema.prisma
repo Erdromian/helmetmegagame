@@ -489,9 +489,17 @@ model GameConfig {
   // can never move under somebody mid-action.
   turnLengthHours Int @default(24)
 
-  // How many turns make one in-game day. 0 keeps the old rule: the day rolls
-  // at 00:00 America/Chicago, so the turn length decides (24 hours is one turn
-  // a day, 6 is four). Any other number rolls the day after that many turns,
+  // The Chicago hour turns push at, 0-23, whatever time the game started. -1
+  // (the default) is "the hour the game started": GameState.startedAt rounded
+  // to the nearest hour. Turns end on this hour and every turn length after it,
+  // and the in-game day rolls here. Read only when a turn OPENS, so a change
+  // moves the next deadline and never the open one
+  // (db/lib/turnClock.js#turnOriginHour).
+  turnPushHour Int @default(-1)
+
+  // How many turns make one in-game day. 0 keeps the clock rule: the day rolls
+  // at the push hour on the America/Chicago clock (turnPushHour above), so the
+  // turn length decides (24 hours is one turn a day, 6 is four). Any other number rolls the day after that many turns,
   // whatever the clock says. Read only when a turn OPENS and stamped onto
   // Turn.dayNumber there, so a change never renumbers a day already played
   // (db/lib/turnClock.js#nextDayNumber).

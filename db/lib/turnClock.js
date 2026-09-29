@@ -43,6 +43,10 @@ function isDayLongTurn(turn) {
 // Worked out from GameState.startedAt, rounded to the NEAREST hour (5:45 is 06:00), rather than stored: Start Game is the
 // only thing that stamps it, so a running game picks up its own origin the next time a turn opens. No start (the lobby,
 // the placeholder turn Restart Game leaves) is origin 0, the old midnight grid.
+//
+// A GM can pin it instead: GameConfig.turnPushHour, 0–23 on the Chicago clock, wins over the start whenever it is set.
+// -1 (the default) is "the hour the game started", the rule above. Like the length it is read only when a turn OPENS, so
+// changing it moves the next deadline and never the open one.
 const HOUR_MS = 60 * 60 * 1000;
 
 function turnOriginAt(gameStartedAt) {
@@ -50,8 +54,13 @@ function turnOriginAt(gameStartedAt) {
   return new Date(Math.round(new Date(gameStartedAt).getTime() / HOUR_MS) * HOUR_MS);
 }
 
+function isPushHour(hour) {
+  return Number.isInteger(hour) && hour >= 0 && hour <= 23;
+}
+
 // Chicago's offset is a whole number of hours, so rounding the instant in UTC lands on a whole local hour too.
-function turnOriginHour(gameStartedAt) {
+function turnOriginHour(gameStartedAt, pushHour = -1) {
+  if (isPushHour(pushHour)) return pushHour;
   const origin = turnOriginAt(gameStartedAt);
   return origin ? zonedParts(origin, TIME_ZONE).hour : 0;
 }
@@ -131,6 +140,16 @@ function nextBoundaryAfter(ms, lengthHours, originHour = 0) {
   return Math.min(...candidates.filter((t) => t > ms));
 }
 
+// Where Start Game puts Turn 1's end: the first boundary at least half a turn away. On the game's own origin (never more
+// than 30 minutes from `now`) that is exactly one length after the origin — 5:14 or 5:45, a 24-hour Turn 1 ends at the
+// origin hour tomorrow. On a push hour a GM pinned it keeps Turn 1 from being a stub: pushing at 19:00, a 24-hour game
+// started at 10:00 runs to 19:00 tomorrow, not the same evening. A boundary exactly half a turn away counts, hence the
+// millisecond back off the search's strictly-after.
+function firstTurnEndsAt(now, lengthHours, originHour = 0) {
+  const halfMs = (normalizeTurnLength(lengthHours) * HOUR_MS) / 2;
+  return nextBoundaryAfter(new Date(now).getTime() + halfMs - 1, lengthHours, originHour);
+}
+
 // The stored answer, with the derivation kept only for rows written before `endsAt` existed. That fallback knows no game,
 // so it stays on the midnight grid — only rows older than the column ever reach it.
 function turnEndsAt(turn) {
@@ -199,12 +218,13 @@ function advanceDue(turn, { now = new Date() } = {}) {
 //
 // `ceil(number / 2)` used to answer this and cannot any more: it would renumber the whole history the moment the length
 // changed, including the day keys the Bird and Fast Travel claim once a day against (Character.birdTurnId).
-// `gameStartedAt` is GameState.startedAt; left out, the day rolls at midnight as it always did.
-function nextDayNumber(lastTurn, startedAt, { turnsPerDay = 0, turnsInDay = 0, gameStartedAt = null } = {}) {
+// `gameStartedAt` is GameState.startedAt and `pushHour` GameConfig.turnPushHour; left out, the day rolls at midnight as it
+// always did.
+function nextDayNumber(lastTurn, startedAt, { turnsPerDay = 0, turnsInDay = 0, gameStartedAt = null, pushHour = -1 } = {}) {
   if (!lastTurn) return 1;
   if (turnsPerDay >= 1) return (lastTurn.dayNumber ?? 1) + (turnsInDay >= turnsPerDay ? 1 : 0);
-  const previous = lastTurn.startedAt ? gameDayKey(lastTurn.startedAt, gameStartedAt) : null;
-  return (lastTurn.dayNumber ?? 1) + (previous === gameDayKey(startedAt, gameStartedAt) ? 0 : 1);
+  const previous = lastTurn.startedAt ? gameDayKey(lastTurn.startedAt, gameStartedAt, pushHour) : null;
+  return (lastTurn.dayNumber ?? 1) + (previous === gameDayKey(startedAt, gameStartedAt, pushHour) ? 0 : 1);
 }
 
 // The calendar date an instant falls on once the day is taken to begin at the game's origin hour rather than midnight.
@@ -212,11 +232,11 @@ function nextDayNumber(lastTurn, startedAt, { turnsPerDay = 0, turnsInDay = 0, g
 // starts before its own grid, and it belongs to the day the grid starts, not the evening before. The shift is done on
 // the WALL CLOCK (Date.UTC over the local parts), not by subtracting real hours, so the DST changeover cannot slide a
 // boundary turn into the wrong day.
-function gameDayKey(at, gameStartedAt) {
+function gameDayKey(at, gameStartedAt, pushHour = -1) {
   const originAt = turnOriginAt(gameStartedAt);
   const when = originAt && new Date(at) < originAt ? originAt : new Date(at);
   const { year, month, day, hour, minute } = zonedParts(when, TIME_ZONE);
-  const shifted = new Date(Date.UTC(year, month - 1, day, hour - turnOriginHour(gameStartedAt), minute));
+  const shifted = new Date(Date.UTC(year, month - 1, day, hour - turnOriginHour(gameStartedAt, pushHour), minute));
   return `${shifted.getUTCFullYear()}-${shifted.getUTCMonth()}-${shifted.getUTCDate()}`;
 }
 
@@ -257,6 +277,7 @@ module.exports = {
   boundaryHours,
   adjudicationHours,
   nextBoundaryAfter,
+  firstTurnEndsAt,
   zonedTimeToUtc,
   zonedParts,
   turnEndsAt,

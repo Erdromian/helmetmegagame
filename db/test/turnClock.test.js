@@ -24,6 +24,7 @@ const {
   isDayLongTurn,
   turnOriginAt,
   turnOriginHour,
+  firstTurnEndsAt,
 } = require("../lib/turnClock");
 
 // The local Chicago hour of an instant, for the grid assertions below.
@@ -227,9 +228,10 @@ test("the grid starts at the origin hour and still divides the day evenly", () =
 });
 
 test("Turn 1 runs one whole length from the origin hour, however far past it the game started", () => {
-  // What Start Game stamps (db/lib/lobby.js): the first boundary strictly after the ORIGIN, not after now.
+  // What Start Game stamps (db/lib/lobby.js): the first boundary at least half a turn on, which from the game's own origin
+  // is one whole length after it.
   const turnOneEnd = (startedAt, hours) =>
-    new Date(nextBoundaryAfter(turnOriginAt(startedAt).getTime(), hours, turnOriginHour(startedAt))).toISOString();
+    new Date(firstTurnEndsAt(startedAt, hours, turnOriginHour(startedAt))).toISOString();
 
   const fourteenPast = new Date("2026-09-16T10:14:00Z"); // 5:14 Chicago
   assert.equal(turnOneEnd(fourteenPast, 24), "2026-09-17T10:00:00.000Z", "05:00 tomorrow");
@@ -289,6 +291,42 @@ test("Turn 1 opened just before its origin hour belongs to the grid's first day"
   // ...and the day rolls at 06:00 the next morning.
   const turnFour = { startedAt: new Date("2026-09-17T05:00:00Z"), dayNumber: 1 }; // 00:00 Chicago
   assert.equal(nextDayNumber(turnFour, new Date("2026-09-17T11:00:00Z"), { gameStartedAt: quarterTo }), 2);
+});
+
+test("a push hour the GM set wins over the game's start; anything off the clock falls back to it", () => {
+  const fiveFourteen = new Date("2026-09-16T10:14:00Z");
+  assert.equal(turnOriginHour(fiveFourteen, 19), 19);
+  assert.equal(turnOriginHour(fiveFourteen, 0), 0, "midnight is a real choice, not the fallback");
+  assert.equal(turnOriginHour(null, 19), 19, "no game start needed");
+  for (const unset of [-1, null, undefined, 24, 7.5, "19"]) {
+    assert.equal(turnOriginHour(fiveFourteen, unset), 5, `${String(unset)} reads as the game's start`);
+  }
+});
+
+test("on a set push hour Turn 1 runs to the first push at least half a turn away", () => {
+  // 24-hour turns pushing at 19:00 Chicago (00:00Z the next day, in September).
+  const turnOneEnd = (iso, hours) => new Date(firstTurnEndsAt(new Date(iso), hours, 19)).toISOString();
+  assert.equal(turnOneEnd("2026-09-16T15:00:00Z", 24), "2026-09-18T00:00:00.000Z", "10:00 start runs 33 hours");
+  assert.equal(turnOneEnd("2026-09-16T23:00:00Z", 24), "2026-09-18T00:00:00.000Z", "18:00 start runs 25 hours");
+  assert.equal(turnOneEnd("2026-09-17T01:00:00Z", 24), "2026-09-18T00:00:00.000Z", "20:00 start runs 23 hours");
+  assert.equal(turnOneEnd("2026-09-17T07:00:00Z", 24), "2026-09-18T00:00:00.000Z", "02:00 start: 17 hours is enough");
+  // 6-hour turns on the same hour push at 01:00, 07:00, 13:00 and 19:00.
+  assert.equal(turnOneEnd("2026-09-16T15:00:00Z", 6), "2026-09-16T18:00:00.000Z", "10:00 start: 13:00 is exactly half");
+  assert.equal(turnOneEnd("2026-09-16T16:00:00Z", 6), "2026-09-17T00:00:00.000Z", "11:00 start runs to 19:00");
+});
+
+test("on a set push hour the day rolls there, not at the hour the game started", () => {
+  // Game started at 5:14; a GM set 6-hour turns pushing at 19:00. Turns open at 19:00, 01:00, 07:00, 13:00.
+  const gameStartedAt = new Date("2026-09-16T10:14:00Z");
+  const opts = { gameStartedAt, pushHour: 19 };
+  let last = { startedAt: new Date("2026-09-17T00:00:00Z"), dayNumber: 3 }; // 19:00
+  for (const at of ["2026-09-17T06:00:00Z", "2026-09-17T12:00:00Z", "2026-09-17T18:00:00Z"]) {
+    assert.equal(nextDayNumber(last, new Date(at), opts), 3, `${at} is still day 3`);
+    last = { startedAt: new Date(at), dayNumber: 3 };
+  }
+  assert.equal(nextDayNumber(last, new Date("2026-09-18T00:00:00Z"), opts), 4, "19:00 rolls it");
+  // Without the push hour the same 13:00 -> 19:00 step stays inside the 05:00 day.
+  assert.equal(nextDayNumber(last, new Date("2026-09-18T00:00:00Z"), { gameStartedAt }), 3);
 });
 
 test("only a 24-hour turn is a day, for the wording that says so", () => {
