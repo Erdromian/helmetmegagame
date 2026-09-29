@@ -195,7 +195,7 @@ groups:
       starting_zone: fortress
       knows: &townsfolk [court, clergy, cerberon, saviors, business, soil, mercenary]
       starting_location: fortress-4
-      extra_starting_points: 5
+      extra_starting_points: 9
       whitelist: true
       ring:
         spawns: true
@@ -250,6 +250,7 @@ groups:
         - Nobility
         - Jewelry
         - Literacy
+        - Insightful
         - Obol x18
         - Post-Christian
         - Foodstuffs x4
@@ -273,7 +274,7 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
-      extra_starting_points: 5
+      extra_starting_points: 8
       ring:
         spawns: true
         opens: [heirs-key]
@@ -282,6 +283,8 @@ groups:
         - Courtier
         - Nobility
         - Literacy
+        - Game Master
+        - Hot-Headed
         - Obol x7
         - Post-Christian
         - Foodstuffs x4
@@ -303,6 +306,7 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
+      extra_starting_points: 5
       ring:
         spawns: true
         opens: [successors-key]
@@ -312,6 +316,8 @@ groups:
         - Nobility
         - Jewelry
         - Literacy
+        - Artist
+        - Beautiful
         - Post-Christian
         - Foodstuffs x4
         - Obol x15
@@ -337,7 +343,7 @@ groups:
       starting_zone: fortress
       knows: *townsfolk
       starting_location: fortress-4
-      extra_starting_points: 5
+      extra_starting_points: 10
       ring:
         spawns: true
         opens: [armory-key, hands-key, tower-key, gatehouse-key, portcullis-key]
@@ -350,6 +356,8 @@ groups:
         - Courtier
         - Literacy
         - Hand's Pin
+        - Subtle
+        - Dagger
         - Obol x15
         - Foodstuffs x4
       doc_elements:
@@ -388,6 +396,8 @@ groups:
         - Medical I
         - Literacy
         - Bird
+        - Teaching
+        - Appraisal
         - Obol x7
         - Foodstuffs x4
       doc_elements:
@@ -424,6 +434,7 @@ groups:
         - Major's Insignia
         - Obol x13
         - Appraisal
+        - Tactician
         - Foodstuffs x4
       doc_elements:
         - godking
