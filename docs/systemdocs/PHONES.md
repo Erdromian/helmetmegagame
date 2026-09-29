@@ -22,7 +22,7 @@ the overhaul, and those places say so.
 | Who holds a phone | one person at a time, `Room.phoneHolderId` — and a held phone with no call still rings |
 | What a call costs | nothing at a named phone; 1 ¢ at a payphone to dial or to answer, which buys 10 minutes |
 | How long it rings | until somebody answers — capped at the caller's 10 idle minutes |
-| Who hears the ring | the phone's own Location loudly, the Locations next to it faintly |
+| Who hears the ring | the phone's own Location loudly, the Locations next to it barely, through the walls |
 | What crosses the line | a VOICE, never a name — clear to the far holder, half-garbled to everybody else |
 | Where to find a number | on the phone itself, or in a Phonebook |
 
@@ -231,7 +231,7 @@ Cues in `db/lib/sfx.js` and `web/app/components/sfx.js`:
 | `coin-insert` | `coininsert` | a payphone takes your obol |
 | `phone-calling` | `phone_calling` | **loop** at the caller's ear while it rings out, and during a misdial's wait |
 | `phone-ring` | `phone_ring` | **loop** in the ringing phone's Location |
-| `phone-ring-far` | `phone_ring` | **loop**, faint, in the Locations next to it |
+| `phone-ring-far` | `phone_ring_far` | **loop** in the Locations next to it: the same bell, muffled and barely heard |
 | `phone-pickup` | `phone_pickup` | somebody answers; either end hangs up |
 | `phone-busy` | `phone_busy` | **loop** at a dead line's holder's ear |
 | `phone-error` | `console_error` | a number not in service, or busy |

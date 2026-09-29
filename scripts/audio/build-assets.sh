@@ -240,6 +240,17 @@ for f in $DEN; do encode "$f" "$OUT/den"; done
 echo "ambience/"
 for f in $AMBIENCE; do encode "$f" "$OUT/ambience"; done
 
+# Served into sfx/, which is otherwise byte-for-byte copies (sfx/ATTRIBUTION.md). The one
+# cue made here is phone_ring_far: the phone's bell one Location over, heard through the
+# walls. Two stacked 500 Hz lowpasses (-24 dB/octave, the jukebox's soundproof-wall corner
+# in InstrumentListener.js) take the clang off it and leave the rhythm of the ring, so it
+# reads as a phone somewhere else rather than a quiet one here. Baked rather than filtered
+# in the browser because sfx.js plays plain Audio elements, with no graph to filter on.
+echo "sfx/"
+ffmpeg -v error -y -i "$SRC/notify/phone_ring.ogg" -af "lowpass=f=500,lowpass=f=500" \
+  -ac 1 -ar 32000 -c:a libvorbis -q:a 0 "$OUT/sfx/phone_ring_far.ogg"
+printf '  %-34s %6s KB\n' "phone_ring_far.ogg" "$(( $(wc -c < "$OUT/sfx/phone_ring_far.ogg") / 1024 ))"
+
 echo
 echo "music/       $(du -sh "$OUT/music" | cut -f1)"
 echo "instruments/ $(du -sh "$OUT/instruments" | cut -f1)"

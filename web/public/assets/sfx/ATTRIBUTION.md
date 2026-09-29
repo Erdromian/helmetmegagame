@@ -24,12 +24,17 @@ grant its README gives.
 
 They are byte-for-byte copies out of `assets/osw-sounds/`, the curated export
 of that repository's `sound/` tree kept in this repo for exactly this. Nothing
-is trimmed, converted or normalised, with **one exception**: `radio3.ogg`, the
-intercom, is the library's file with 2 seconds taken off the end and the last
-2 seconds faded out, because it stopped dead mid-squawk. It was decoded and
-re-encoded to do that, so unlike everything else here it is not the source's
-own bytes. CC BY-SA 3.0 permits the edit; this paragraph is the notice that
-one was made.
+is trimmed, converted or normalised, with **two exceptions**:
+
+- `radio3.ogg`, the intercom, is the library's file with 2 seconds taken off the
+  end and the last 2 seconds faded out, because it stopped dead mid-squawk.
+- `phone_ring_far.ogg` is the library's `notify/phone_ring.ogg` run through a
+  500 Hz lowpass and folded to mono, so a phone ringing one Location over
+  sounds muffled by the walls. `scripts/audio/build-assets.sh` makes it.
+
+Both were decoded and re-encoded to do that, so unlike everything else here
+they are not the source's own bytes. CC BY-SA 3.0 permits the edits; this
+paragraph is the notice that they were made.
 
 This folder holds **only the sounds the game actually plays** — a deploy has no
 business carrying 691 files and 67 MB. `web/app/components/sfx.js` maps a game
