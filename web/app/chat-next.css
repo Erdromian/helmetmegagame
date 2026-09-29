@@ -457,7 +457,10 @@
   }
 
   /* On a 320px phone the box is about 80px wide, and "Say something…"
-     wrapped into a second and third line that the box cut off. */
+     wrapped into a second line that the box sliced through. One line now:
+     Chromium forces a textarea placeholder's text-overflow to clip, so it
+     ends at the box's edge like any full field; the ellipsis is for
+     engines that honour it. */
   [data-chat-next] textarea.say::placeholder {
     white-space: nowrap;
     overflow: hidden;

@@ -8043,11 +8043,14 @@ label.gate-request {
    so nothing on the page moves. It stops at 24px, which none of them can
    stretch across into a neighbour.
    .sheet-band-feedback is already absolute and .info-icon (a .tag-hover)
-   already relative, so neither is given a position here. */
+   already relative, so neither is given a position here. Every control here
+   must really be positioned: left static, its ::after reaches for the page
+   instead and swallows every tap on it. .data-table-face is `all: unset` in
+   sheet.css, which loads later, hence button.data-table-face. */
 @media (pointer: coarse) {
   .top-bar .nav-link,
   .tag-points-spend,
-  .data-table-face,
+  button.data-table-face,
   .panel-header > .note.btn-quiet,
   .memory-section > summary,
   .map-controls .chip,
