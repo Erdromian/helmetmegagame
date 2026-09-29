@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import FormError from "@/app/components/FormError";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import HoverCard from "@/app/components/HoverCard";
@@ -14,6 +14,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import { SEARCH_MOVE_LABEL } from "@lifeweb/db/lib/roomSearchCost";
 import { TONE_CLASS } from "./PlacePanel";
 import { roomIdOf, roomFixtures } from "./fixtures";
+import useVisiblePoll from "./useVisiblePoll";
 
 // THIS ROOM: storage and fixtures of the room whose feed is OPEN, and no
 // other — affordancesFor() otherwise returns every room's buttons at once.
@@ -22,6 +23,24 @@ import { roomIdOf, roomFixtures } from "./fixtures";
 // Past this many stacks the strip stops being a glance and starts being an
 // inventory. The rest are one click away and nothing is hidden.
 const VISIBLE_ITEMS = 12;
+
+// How often the strip asks whether anything in this Location's rooms moved.
+// It asks /api/character-version, which is a handful of cheap counts, and
+// only re-reads the stash itself when the answer changes.
+const STASH_POLL_MS = 15_000;
+
+// The fingerprint CharacterPoller.js watches. It moves when any room that
+// opens onto here gains or loses a stack, so it is what tells this strip
+// somebody else took something. Null on any failure: a missed tick, not an error.
+async function readFingerprint() {
+  try {
+    const res = await fetch("/api/character-version", { cache: "no-store", signal: AbortSignal.timeout(5000) });
+    if (!res.ok) return null;
+    return (await res.json())?.fp ?? null;
+  } catch {
+    return null;
+  }
+}
 
 // What is lying in the room, as chips (readStash rows, not a parsed Discord
 // sentence). Every stack is a BUTTON: clicking opens Transfer with this room
@@ -108,11 +127,23 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
   const confirm = useConfirm();
   const actions = useRequestActions();
 
+  // Bumped when the fingerprint says the rooms here changed under us.
+  const [moved, setMoved] = useState(0);
+  const fingerprint = useRef(null);
+  // Your own Take, Drop or Steal: the dialog lands and this count moves.
+  const landed = actions?.landed ?? 0;
+
   // Answer is stamped with the room it came from, so a slow reply for a room
-  // already left renders for nobody rather than under the wrong name.
+  // already left renders for nobody rather than under the wrong name. The
+  // stash is kept on screen while a re-read is in flight, so a refresh never
+  // flickers the strip back to empty. The fingerprint is taken with it, so the
+  // poll below compares against the moment this stash was read.
   useEffect(() => {
     if (!roomId) return undefined;
     let cancelled = false;
+    readFingerprint().then((fp) => {
+      if (!cancelled && fp) fingerprint.current = fp;
+    });
     readStash(roomId)
       .then((res) => {
         if (!cancelled) setStash({ roomId, ...res });
@@ -123,7 +154,16 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
     return () => {
       cancelled = true;
     };
-  }, [roomId]);
+  }, [roomId, landed, moved]);
+
+  // Somebody else taking or leaving something moves no dialog on this page.
+  const checkForChange = useCallback(async () => {
+    const fp = await readFingerprint();
+    if (!fp || fp === fingerprint.current) return;
+    fingerprint.current = fp;
+    setMoved((n) => n + 1);
+  }, []);
+  useVisiblePoll(checkForChange, STASH_POLL_MS, { enabled: Boolean(roomId) });
 
   if (!roomId) return null;
 

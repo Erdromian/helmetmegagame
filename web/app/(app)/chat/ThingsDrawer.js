@@ -248,6 +248,14 @@ export default function Things({ groups: initialGroups = [], framed = false }) {
   // is open — a closed one is not worth a query a minute.
   useVisiblePoll(refresh, POLL_MS, { enabled: open });
 
+  // A dialog that just landed — Take, Drop, Give, Eat — has most likely changed
+  // what you carry, so the drawer re-reads then rather than a minute later.
+  // Skipped at zero, since the page already handed this render its groups.
+  const landed = useRequestActions()?.landed ?? 0;
+  useEffect(() => {
+    if (landed) refresh();
+  }, [landed, refresh]);
+
   // Equipping is instant and answers { equipped } or { error } rather than the
   // { ok } shape useActionRunner reads, so it is run here. Each call moves
   // exactly one unit — a slot holds one physical item, so pulling all of a

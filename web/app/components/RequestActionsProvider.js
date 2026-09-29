@@ -289,6 +289,10 @@ export default function RequestActionsProvider({
   // row was clicked, the stack, the two ends of a move — handed to the dialog
   // component for the mode (components/actions/*).
   const [presets, setPresets] = useState(null);
+  // How many dialogs have landed. A panel that shows something a dialog can
+  // change — chat's room Storage strip — re-reads when this moves, since the
+  // dialog itself knows nothing about who else is on the page.
+  const [landed, setLanded] = useState(0);
 
   const heldIds = useMemo(
     () => characterTags.map((ct) => ct.tagId),
@@ -689,8 +693,8 @@ export default function RequestActionsProvider({
   // the Transfer presets take without being handed the id a second way. The
   // Chat's room panel is the one that needs it (Drop and Take name both ends).
   const value = useMemo(
-    () => (enabled ? { open, pools, selfId, busy } : null),
-    [enabled, open, pools, selfId, busy],
+    () => (enabled ? { open, pools, selfId, busy, landed } : null),
+    [enabled, open, pools, selfId, busy, landed],
   );
 
   // The dialog for the open mode (components/actions/index.js).
@@ -710,6 +714,7 @@ export default function RequestActionsProvider({
   const done = useCallback(
     (line) => {
       closeDialog();
+      setLanded((n) => n + 1);
       if (line) notice(line);
     },
     [notice, closeDialog],
