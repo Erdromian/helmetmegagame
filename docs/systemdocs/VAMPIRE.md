@@ -264,7 +264,7 @@ one server action every "Use" button calls, dispatched by ability key.
 | Nourish | — | 30 | 2v | Target must hold Thrall and be at your Location; clears their health-wounds tags and resets Vampire Blood Addict to 9 turns |
 
 **The cooldown formula is the design doc's own**: `round(constant × v)`, `v` =
-`GameConfig.vampireBloodAbilityCooldownVariable` (dev panel, default 5). Each
+`GameConfig.vampireBloodAbilityCooldownVariable` (dev panel, default 1). Each
 ability's own constant (4, 2, 6...) lives in the catalog, not the config —
 rounded the same way `db/lib/vampire.js#perTurnRate` rounds the meter rates,
 just multiplying instead of splitting a day over its turns.

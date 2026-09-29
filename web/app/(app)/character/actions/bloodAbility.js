@@ -334,5 +334,5 @@ async function resolveCooldownTurns(ability) {
     where: { id: 1 },
     select: { vampireBloodAbilityCooldownVariable: true },
   });
-  return abilityCooldownTurns(ability, config?.vampireBloodAbilityCooldownVariable ?? 5);
+  return abilityCooldownTurns(ability, config?.vampireBloodAbilityCooldownVariable ?? 1);
 }
