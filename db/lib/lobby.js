@@ -9,6 +9,7 @@ const { LEADER_WHITELIST_ROLE_ID } = require("./roleIds");
 const { getGameConfig } = require("./gameState");
 const { normalizeTurnLength, firstTurnEndsAt, turnOriginHour } = require("./turnClock");
 const { seedAuthoredWorld } = require("./worldSeed");
+const { syncZonesFromYaml, summarizeZonesSync } = require("./zonesSync");
 const { resetExchange, rollPhoneNumbers } = require("./phoneNumbers");
 const { rollNuke } = require("./nuke");
 const { offerFreedSeat } = require("./latePartyRaffle");
@@ -119,6 +120,29 @@ async function validateDraft(db, draft) {
 // Turn 1 restamped to now. Re-validates under a lock on GameState so two
 // Start clicks cannot both commit.
 async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
+  // Bring the places up to docs/zones.yaml before anything below reads them.
+  // A lobby can sit for days after Restart Game, and a deploy in that time
+  // otherwise waited a whole game: the rooms poured, and the phones and the bomb
+  // were rolled, from what the restart saw. BEFORE the transaction, because the
+  // transaction rolls the phone numbers and the bomb's room from Room rows, and
+  // the sync opens transactions of its own. The phase check keeps a refused
+  // second click from syncing; the transaction still makes the real one.
+  //
+  // A failure is reported, not thrown: a place the YAML meant to change is a
+  // smaller problem than a Start Game that will not start.
+  let zonesSynced = null;
+  try {
+    const before = await db.gameState.findUnique({ where: { id: 1 }, select: { phase: true } });
+    if (before && ROLL_PHASES.has(before.phase)) {
+      zonesSynced = summarizeZonesSync(
+        await syncZonesFromYaml(db, { apply: true, beforePlay: true, actorDiscordUserId: actorDiscordUserId ?? "system" }),
+      );
+    }
+  } catch (err) {
+    console.error("Start Game: zones sync failed:", err);
+    zonesSynced = { error: String(err?.message ?? err) };
+  }
+
   const result = await db.$transaction(async (tx) => {
     await tx.$queryRaw`SELECT id FROM "GameState" WHERE id = 1 FOR UPDATE`;
     const state = await tx.gameState.findUnique({ where: { id: 1 } });
@@ -251,6 +275,7 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
   // /gm/dev/zones; the reverse, a rollback that un-starts a game players have
   // already been DM'd about, is not.
   const seeded = await seedAuthoredWorld(db);
+  result.zonesSynced = zonesSynced;
   result.worldSeeded = seeded;
 
   return result;

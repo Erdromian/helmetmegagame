@@ -74,7 +74,7 @@ The order, and why:
 | 3 | **Deadchat**: close every open seat, then a fresh provision (`ensureDeadchatChannel({ fresh: true })`) | Closing each seat by id is the belt; the fresh provision strips every member overwrite on the channel outright, which is the brace for a departed member or a failed call the loop missed. The mirror has no equivalent — it never touches a channel's raw per-member overwrites — so this stays its own step |
 | 4 | **Message wipe** (`wipeGameMessages`) | Clears `#turns`, every `#archive`-named channel, every zone's `#summary` and every Location channel. A zone Room's thread is **kept** — its messages clear, and its starter id/hash are nulled so the mirror reposts into it. A quest Room's thread, and any thread that matches no Room at all (a Conversation), is deleted outright — neither needs to survive, and the mirror already knows how to rebuild a quest Room's thread from scratch. Anchors are nulled unconditionally, since every channel they sit in just emptied |
 | 5 | **`#turns` console repost** | After the wipe, never before: step 4 bulk-deletes every message in `#turns`, including this one if it were posted first. Turn 1 is opened by a plain `turn.create`, so `runSideEffects()` never fires and the announcement that normally rides it never went out |
-| 6 | **Tag sync** → 7. **Role sync** → 8. **Desire sync** → 9. **Document sync** | Dependency order: roles resolve a `starting_zone` and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags and roles |
+| 6 | **Tag sync** → **Zone sync** → 7. **Role sync** → 8. **Desire sync** → 9. **Document sync** | Dependency order: the zone sync brings every existing place up to `docs/zones.yaml`, keeping a GM's hand edit the YAML has not changed since, and makes the ones it lacks (`SYNC.md` §1a) — before roles, which resolve a `starting_zone` and `starting_location` by slug and validate `starting_tags`; desires validate `requires.anyRoles`/`notRoles` against roles and `requires.anyTags`/`notTags` against tags (`SYNC.md` §1, `DESIRES.md` §10); documents validate against tags and roles |
 | 10 | **World seed** (`seedAuthoredWorld`) | Puts the authored board back: every Location's `structures:` and every Room's `stash:`. After the tag sync, because a structure resolves its type by Tag slug; before the mirror, so the anchors it reposts hash a Location that already has its furniture. Both halves are guarded, so the Start Game that follows re-runs it as a harmless top-up (`db/lib/worldSeed.js`) |
 | 11 | **Discord mirror** (`runDiscordMirror`, full scope, apply) | The structural backstop: reconciles every category, channel, role, radio net, Deadchat channel, Location anchor and Room thread against the database, and reposts anything step 4 just cleared. Replaces the old zone sync, special-channels sync and channel doctor steps — one repair path instead of three |
 
@@ -145,7 +145,7 @@ Worth knowing, because none of it is obvious from the confirm dialog.
 | `Game` and `ArchiveEntry` rows | The transcript of every past game, readable on `/archive` under its id, with the reveal on top. |
 | `GmZoneView` rows | GMs keep the zones they chose across a restart. Clearing the table is safe: no rows means every zone. |
 | `SystemReport` rows | The operational history is kept on purpose; the panel shows the latest per kind. |
-| `Zone`, `Location`, `Room`, `Tag`, `Role`, `Document` | Kept as rows throughout — nothing here re-syncs them from YAML any more. |
+| `Zone`, `Location`, `Room`, `Tag`, `Role`, `Document` | Kept as rows throughout, then brought up to their YAML by steps 6–9. A place a GM edited by hand at `/gm/dev/zones` keeps that edit unless `docs/zones.yaml` has changed the same field since; a place the YAML dropped is retired, not deleted (`SYNC.md` §1a). |
 | A structure a player BUILT | Only in the sense that it does not come back: the wipe deletes every `Structure` row, and step 10 raises only what `docs/zones.yaml` authored. A forge somebody built in the Undercroft is play state and goes. |
 
 A quest Room's thread and any Conversation thread do not survive — see §2
@@ -159,8 +159,9 @@ Run the masters yourself, in dependency order — roles resolve a
 ```
 npm run db:sync-tags                 # upsert-only, never deletes; before zones,
                                      #   so a Location's `structures:` resolves
-npm run db:import-zones -- --apply   # additive-only: creates what's missing,
-                                     #   skips the rest, never deletes
+npm run db:sync-zones -- --apply     # creates what's missing, updates what the
+                                     #   YAML changed (GM edits kept), retires
+                                     #   what it dropped (SYNC.md §1a)
 npm run db:sync-narrowcast-channels  # after zones: its grants name the zone roles
 npm run db:sync-roles                # prunes unreferenced
 npm run db:sync-documents            # destructive; last

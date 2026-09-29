@@ -954,8 +954,14 @@ constant. See `docs/systemdocs/DEPOT.md` §0i for the shipped table.
 `zones/locations/[locationId]`, `zones/rooms/[roomId]`, `zones/links`) are
 still routes of their own. Any GM can edit a Zone, Location or Room;
 retiring, hard-deleting and seeding a stash are superadmin-only, checked with
-`requireDev("super")`. See `docs/systemdocs/SYNC.md`'s new top note for why
-this exists instead of another pass of `docs/zones.yaml`.
+`requireDev("super")`. See `docs/systemdocs/SYNC.md`'s top note for why
+this exists beside `docs/zones.yaml`.
+
+**What a restart does to an edit made here:** it keeps it, unless
+`docs/zones.yaml` has changed that same field since the last Restart or Start
+Game — then the YAML wins and the wipe report counts a conflict. A place a GM
+made here and the YAML never named is left alone; a place a GM hard-deleted
+stays deleted (`SYNC.md` §1a).
 
 Pages:
 

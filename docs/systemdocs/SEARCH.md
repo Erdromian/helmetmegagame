@@ -537,6 +537,13 @@ skipped, so a second run moves nothing, even after a Search has brought some
 of it back up and nobody has taken it yet. It moves clean units only; poisoned
 ones stay on the floor with the count they were drawn against.
 
+It is only for a game already running. The next game needs nothing by hand:
+Restart Game and Start Game bring every `Room.stashSeed` up to `docs/zones.yaml`
+before they pour (`SYNC.md` §1a), so a `hidden:` block added to the YAML lands
+under the floor at the next game's first pour. The live seeds were rewritten by
+hand on 2026-09-29, ahead of that sync, which is why `db:hide-authored-stock`
+now finds every room already done.
+
 ### 9f. Where this half lives
 
 | File | What |

@@ -27,6 +27,7 @@ import {
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
 import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
 import { seedAuthoredWorld } from "@lifeweb/db/lib/worldSeed";
+import { syncZonesFromYaml, summarizeZonesSync } from "@lifeweb/db/lib/zonesSync";
 import { drainMirrorQueue } from "@lifeweb/db/lib/discordMirror/queue";
 import { clearTurnsConsole } from "@lifeweb/db/lib/turnAnnouncement";
 import { normalizeTurnLength, nextBoundaryAfter, turnOriginHour } from "@lifeweb/db/lib/turnClock";
@@ -696,8 +697,17 @@ async function finishGameWipe(actorDiscordUserId, characters, deadchatMemberIds,
   await step("turns console clear", () => clearTurnsConsole(prisma));
 
   // Dependency order: roles resolve a starting zone and validate
-  // starting_tags.
+  // starting_tags, so tags and zones come first.
+  //
+  // The zone sync brings the places the game already has up to
+  // docs/zones.yaml — descriptions, ways, room flags, the stash seeds the world
+  // seed below pours — while keeping any field a GM changed by hand that the
+  // YAML has not changed since (db/lib/zonesSync.js). Without it a zones.yaml
+  // edit never reached a running database at all.
   await step("tag sync", () => syncTagsFromYaml(prisma));
+  await step("zone sync", async () =>
+    summarizeZonesSync(await syncZonesFromYaml(prisma, { apply: true, beforePlay: true, actorDiscordUserId })),
+  );
   await step("role sync", () => syncRolesFromYaml(prisma));
   await step("desire sync", () => syncDesiresFromYaml(prisma));
   await step("document sync", () => syncDocumentsFromYaml(prisma));
