@@ -311,27 +311,27 @@ async function buildMap({ character, unfogged, canReveal }) {
   }
 
   const shown = new Set(nodes.map((n) => n.id));
-  const slugOf = new Map(locations.map((l) => [l.id, l.slug]));
+  const placeById = new Map(locations.map((l) => [l.id, l]));
 
   // Draws only when both ends are known AND the way is LISTED (MAP.md §2a):
   // `listed` is weaker than `passable`, so a locked door draws dashed but a hidden crawl draws nothing.
   //
   // A STAIR needs only one end (MAP.md §6g). A way to the other plate is part
-  // of the place it leaves from, so knowing the Square is knowing it has a
-  // stair down, even before you know where it goes. Such a way draws no line
-  // and sends no id or name for the far side: `stairsAt` is only the near
-  // place's id, and the board says "somewhere you don't know" for it.
+  // of the place it leaves from, so knowing the Square is knowing its stair
+  // down to the Slums. Such a way draws no line and sends no node for the far
+  // side: `stairsAt` carries the near place's id and the far side's name only.
   const edges = [];
-  const stairsAt = new Set();
+  const stairsAt = [];
   for (const link of links) {
     const knowA = shown.has(link.aId);
     const knowB = shown.has(link.bId);
     if (!knowA && !knowB) continue;
     const oneEnd = knowA !== knowB;
-    const near = knowA ? link.aId : link.bId;
+    const near = placeById.get(knowA ? link.aId : link.bId);
+    const far = placeById.get(knowA ? link.bId : link.aId);
     if (oneEnd) {
-      const nearPlate = plateOf(slugOf.get(near) ?? "")?.plate;
-      const farPlate = plateOf(slugOf.get(knowA ? link.bId : link.aId) ?? "")?.plate;
+      const nearPlate = plateOf(near?.slug ?? "")?.plate;
+      const farPlate = plateOf(far?.slug ?? "")?.plate;
       if (!nearPlate || !farPlate || nearPlate === farPlate) continue;
     }
     const verdict = crossingCheck(link, { tagSlugs, onFootBlocked, now });
@@ -344,7 +344,9 @@ async function buildMap({ character, unfogged, canReveal }) {
     const touchesHere = link.aId === character?.locationId || link.bId === character?.locationId;
     if (!touchesHere && scrambleText(scramble, `way:${link.id}`, "x").scrambled) continue;
     if (oneEnd) {
-      stairsAt.add(near);
+      // Through `remembered`, so a scrambled memory garbles this name the
+      // way it garbles every other place name on the board.
+      stairsAt.push({ at: near.id, name: remembered(far).name });
       continue;
     }
     edges.push({
@@ -383,7 +385,7 @@ async function buildMap({ character, unfogged, canReveal }) {
     },
     nodes,
     edges,
-    stairsAt: [...stairsAt],
+    stairsAt,
     travel: character
       ? {
           held: heldReasonFor(character),

@@ -229,12 +229,15 @@ function placeLabels(nodes, marks, cell, rank) {
 // arrived, so it draws no stair either. Keyed by node id, the far side's
 // nodes in name order.
 //
-// `stairsAt` adds the stairs whose far side they do not know yet (loadMap
-// sends only the near place's id). Each gets one nameless entry, last in the
-// list, which `stairNames` words as somewhere unknown.
+// `stairsAt` adds the stairs whose far side they do not know yet: loadMap
+// sends the near place's id and the far side's name, and no node for it.
 function stairsOf(nodes, edges, plateId, stairsAt = []) {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const out = new Map();
+  const add = (id, far) => {
+    if (!out.has(id)) out.set(id, []);
+    out.get(id).push(far);
+  };
   for (const e of edges) {
     for (const [near, far] of [
       [e.a, e.b],
@@ -243,22 +246,14 @@ function stairsOf(nodes, edges, plateId, stairsAt = []) {
       const n = byId.get(near);
       const f = byId.get(far);
       if (!n || !f || n.plate !== plateId || !f.plate || f.plate === plateId) continue;
-      if (!out.has(n.id)) out.set(n.id, []);
-      out.get(n.id).push(f);
+      add(n.id, f);
     }
   }
-  for (const list of out.values()) list.sort((a, b) => a.name.localeCompare(b.name));
-  for (const id of stairsAt) {
-    if (byId.get(id)?.plate !== plateId) continue;
-    if (!out.has(id)) out.set(id, []);
-    out.get(id).push({ name: null });
+  for (const s of stairsAt) {
+    if (byId.get(s.at)?.plate === plateId) add(s.at, { name: s.name });
   }
+  for (const list of out.values()) list.sort((a, b) => a.name.localeCompare(b.name));
   return out;
-}
-
-// The far side's names, for the hover and the card.
-function stairNames(far) {
-  return far.map((f) => f.name ?? "somewhere you don't know");
 }
 
 // "Down to" from the Barony, "Up to" from under it. Plate ids rather than a
@@ -1202,7 +1197,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
                       key={n.id}
                       className="map-stair map-tip-target"
                       transform={`translate(${n.x * cell + cell * 0.62} ${n.y * cell - cell * 0.38}) scale(0.6)`}
-                      {...tipHandlers(`stairs:${n.id}`, `${heading}:`, stairNames(far))}
+                      {...tipHandlers(`stairs:${n.id}`, `${heading}:`, far.map((f) => f.name))}
                     >
                       <rect className="map-stair-hit" x="-2" y="-2" width={cell + 4} height={cell + 4} />
                       <path className="map-stair-halo" transform="translate(1 1)" d={marks.stairs} />
@@ -1517,7 +1512,7 @@ function MapCard({ node, here, travel, pending, error, note, stairs = null, onCa
           would rather read than point. */}
       {stairs?.far.length > 0 && (
         <p className="chat-quiet-line">
-          Stairs {stairs.heading.toLowerCase()} {stairNames(stairs.far).join(", ")}.
+          Stairs {stairs.heading.toLowerCase()} {stairs.far.map((f) => f.name).join(", ")}.
         </p>
       )}
 

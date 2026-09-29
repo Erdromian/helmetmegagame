@@ -1719,11 +1719,13 @@ drawn on the Undertown plate) takes the stair up to the Court.
 
 **A stair needs only one end.** A way draws its line only when you know both
 places, but a stair belongs to the place it leaves from: knowing the Square is
-knowing it has a stair down. So when you know one end and not the other,
-loadMap still sends that stair, as the near place's id in `stairsAt`. No line,
-and no id or name for the far side. The hover and the card then say
-"somewhere you don't know". Before this, a character who knew every town place
-but none of the Undertown saw no stairs in the town at all.
+knowing its stair down to the Slums. So when you know one end and not the
+other, loadMap still sends that stair in `stairsAt`, as the near place's id and
+the far side's name. The hover and the card name the far side as usual. It
+gets no line, no node and no id, so it is not on the map until you learn it
+some other way. The name goes through the same scramble as every other place
+name. Before this, a character who knew every town place but none of the
+Undertown saw no stairs in the town at all.
 
 `Zone.mapPolygon` / `mapLabelX` / `mapLabelY` stay as dead as §6d leaves them;
 none of this reads them.
