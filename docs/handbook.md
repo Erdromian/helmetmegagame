@@ -4,6 +4,7 @@
 1. [About Bascinet](#about-bascinet)  
 2. [How Do I Play?](#how-do-i-play)  
     - [Turn Overview](#turn-overview)  
+    - [Help & GMs](#help--gms)  
     - [Quick Reference](#quick-reference)  
 3. [The Game Clock](#the-game-clock)  
     - [The Wipe](#the-wipe)  
@@ -18,25 +19,29 @@
     - [Concealing Your Identity](#concealing-your-identity)  
     - [Talking OOC](#talking-ooc)  
     - [Reactions](#reactions)  
-7. [Resources & Hunger](#resources--hunger)  
-    - [Transferring Resources](#transferring-resources)  
+7. [Memories](#memories)  
+8. [Resources & Hunger](#resources--hunger)  
+    - [Transferring & Storage](#transferring--storage)  
     - [Hunger](#hunger)  
-8. [Submitting A Move](#submitting-a-move)  
+    - [Mood](#mood)  
+9. [Submitting A Move](#submitting-a-move)  
     - [Move Submission Is Final](#move-submission-is-final)  
-9. [Tags & Tag Points](#tags--tag-points)  
+10. [Tags & Tag Points](#tags--tag-points)  
     - [Gaining, Using, and Losing Tags](#gaining-using-and-losing-tags)  
+    - [How Good You Are In A Fight](#how-good-you-are-in-a-fight)  
+    - [Attacking Somebody](#attacking-somebody)  
     - [Examining Tags](#examining-tags)  
     - [Health Tags](#health-tags)  
-10. [Crafting](#crafting)  
-11. [Building](#building)  
-12. [The Depot](#the-depot)  
-13. [Character Page](#character-page)  
-14. [Death](#death)  
+11. [Crafting](#crafting)  
+12. [Building](#building)  
+13. [The Depot](#the-depot)  
+14. [Desires](#desires)  
+15. [Death](#death)  
 
 
 ## About Bascinet
 
-Bascinet is an online megagame played across Discord and the website, found [here](https://ravenheart.quest/). You can play either through a combination of the website and discord or the website alone, many features of the website sadly cannot be ported to the discord.
+Bascinet is an online megagame played across Discord and the website, found [here](https://ravenheart.quest/). You can play either through a combination of the website and Discord, or the website alone. Many features of the website sadly cannot be ported to Discord.
 
 ## How Do I Play?
 
@@ -50,7 +55,7 @@ Each turn you will receive the results of your Move and other Moves that affecte
 Each Zone has a Summary channel, where players can post descriptions of what their character can be seen doing, and each Location in the Zone has its own channel, where the people standing there interact. See what's happening around you and consider how your character might respond.
 
 **Talk To People**  
-Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in a Location's channel, its Rooms, or a private Conversation. OOC discussions should take place in `#general`, keeping in mind that you should not intentionally reveal which character you play.
+Introduce yourself, barge into conversations, make plans, offer services, beg for food, ask questions, etc. The bulk of the game is roleplaying as your character in a Location's Rooms, or private conversations. OOC discussions should take place in `#general`, and should not cover ongoing in-game events.
 
 **Decide What You're Doing**  
 Walk between Locations as often as you like, travel to another Zone, or submit a description of what your character is trying to accomplish during the turn.  
@@ -63,7 +68,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 
 #### **Reactions:**  
 🔍 Inspect Character  
-⭐ Save message to Notes  
+⭐ Save message to Memories  
 ✏️ Edit Message  
 ❌ Delete Message
 
@@ -88,14 +93,15 @@ General questions can be asked in the `#general` channel or by creating a thread
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
-| **A Location** (text channel) | The one place you're standing in. Talk in the channel itself, step into one of its public Rooms (threads), or use the pinned message's buttons: **Who's here?**, **Secret rooms?**, **Converse**. |
+| **A Location** (text channel) | The one place you're standing in. Talk in one of its public Rooms (threads), or use the pinned message's buttons: **Who's here?**, **Secret rooms?**, **Converse**. |
 
 #### **Website**
 | Page | Content |
 |---|---|
 | **Character** | Your character sheet. Current Location, Resources, Gambit modifier, Tag Points, tags and equipment, Desires, your bio and portrait, all requests functions. |
+| **Chat** | A mirror of the Discord chats, with significantly more possible features than on Discord itself. |
 | **Documents** | Game rules and briefs. **Assigned** has specific documents provided by your role or tags. |
-| **Notes** | Your private Journal, plus messages saved with ⭐. Both are visible only to you. |
+| **Memories** | Everything your character can remember off the top of their head. It is not exhaustive, and a lot of things are up to you to take specific note of. |
 | **Handbook** | A full page version of this document. |
 
 ## The Game Clock
@@ -121,7 +127,7 @@ What survives:
 - Every Room keeps its thread and its description; the messages in it are archived.
 - Conversations do not survive. Open a new one after the wipe.
 
-If you want to remember something, use the ⭐ reaction on the message before the turn ends to save it to your [Memories](https://ravenheart.quest/memories) .
+If you want to remember something, use the ⭐ reaction on the message before the turn ends to save it to your [Memories](https://ravenheart.quest/memories).
 
 ## Character Creation
 The first thing you will do is open the **Character** page on the website, from the button at the top of the sidebar.
@@ -173,33 +179,13 @@ Sometimes turns will have consequences that impact your character. If you were b
 
 As a roleplay game, conversation is at the heart of Bascinet, and the bot is designed to maintain separation between a player's identity and their character. When you send a message to a roleplay channel, the bot will automatically delete your message and post it again under your character name.
 
-To prevent people connecting your character to your discord account, you can use the /message command or chat through the webpage.
+To prevent people connecting your character to your Discord account, you can use the `/message` command or chat through the webpage.
 
 ### Channels And Locations
 
-There are six Zones in Bascinet:
-- The Fortress
-- The Town
-- The Undertown
-- The Black Hills
-- The Caves
-- The Depths
-
 Every Zone is made of Locations. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are all interconnected: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs movement points. Some crossings between locations are locked or hidden behind certain requirements.
 
-Some ways are too tight, too steep or too enclosed for mounts and carts to pass, you will be ejected from them if you attempt to cross.
-
-Each Location's channel has a pinned message at the top with its description, the list of its public Rooms, and three buttons.
-| Channel | What it's for |
-|---|---|
-| **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
-| **A Location** (text channel) | The open street. You can see what happens here, but talk belongs in its Rooms — step into one to speak. |
-| **Rooms** (threads under the Location) | The places inside a Location. Public Rooms are open to everyone here. Private Rooms are hidden and require certain tags or circumstances to be accessed. |
-
-The three buttons on the pinned message:
-- **Who's here?** — the characters standing in this Location. Anyone concealed shows up as "a young man" or the like.
-- **Secret rooms?** — the private Rooms you can enter here, and the Conversations you're part of.
-- **Converse** — open a private Conversation, linked to one of the Rooms.
+Some ways are too tight, too steep or too enclosed for mounts and carts to pass; you will be ejected from them if you attempt to cross.
 
 - **Important:** Roleplaying outside of the server or in DMs is not allowed. If it didn't happen inside the Bascinet server, then it didn't happen at all.
 
@@ -235,7 +221,7 @@ Other players can still 🔎 you and see any visible wounds or gear, but your na
 
 ### Talking OOC
 
-OOC discussion should be kept out of roleplay channels as much as possible. If you need to add a brief OOC comment, use the OOC command for example letting someone know "I need to be right back irl".
+OOC discussion should be kept out of roleplay channels as much as possible. If you need to add a brief OOC comment, use the `/ooc` command, for example to let someone know "I need to be right back irl".
 
 Non-roleplay conversation should take place in `#general`, keeping in mind that you should not reveal who you're playing or anything going on inside the current game as a whole.
 
@@ -248,15 +234,15 @@ You can interact with messages posted in roleplay channels by adding a Reaction.
 | React | Used By | What It Does |
 |---|---|---|
 | 🔍 / 🔎 | Anyone | DMs you their appearance and visible gear or wounds. A doctor will also see afflictions they can treat. |
-| ⭐ | Anyone | Saves the message to your personal [Memories](https://ravenheart.quest/memories) . |
+| ⭐ | Anyone | Saves the message to your personal [Memories](https://ravenheart.quest/memories). |
 | ✏️ / 📝 | The author | Edit your message (the bot DMs you). |
 | ❌ | The author | Delete your message. |
 
 ## Memories
 
-Your character possesses memories throughout the game, these are what allow them to recognize those they know as well as remember their way around town.
+Your character possesses memories throughout the game. These are what allow them to recognize those they know as well as remember their way around town.
 
-Learning new faces and making new friends is mostly automatic, you character will make note of names as well as people's jobs.
+Learning new faces and making new friends is mostly automatic; your character will make note of names as well as people's jobs.
 
 ## Resources & Hunger
 
@@ -264,7 +250,7 @@ Resources in Bascinet are shown with the ⬢ symbol. They are bulk material — 
 
 Foodstuffs are the basic unit of food, and can be consumed to sate your appetite. Eating raw food is not very pleasant, and yields significantly less hunger than if you had cooked it first, or bought a cooked meal.
 
-Obols are the universal currency within the game, they have no weight or carrying limit and can be safely stored and withdrawn with infoterminals.
+Obols are the universal currency within the game. They have no weight or carrying limit and can be safely stored and withdrawn with infoterminals.
 
 **⬢, foodstuffs and obols are things you carry, not a number on your sheet.** Each one weighs a pound except obols, they sit in your pack beside everything else you own, and they can be put down in a room, handed over, stolen, pickpocketed and looted off your body exactly like any other item.
 
@@ -290,7 +276,7 @@ Becoming hungry or starving will cause a notable drop in your mood.
 
 Being Starving costs you −1 on Gambit rolls and will quickly result in your death. Try to stay on top of your hunger to avoid this.
 
-Your character will automatically eat foot to avoid starving, but only as a last resort. It is recommended you keep them fed yourself so you have a say in what they eat and when.
+Your character will automatically eat food to avoid starving, but only as a last resort. It is recommended you keep them fed yourself so you have a say in what they eat and when.
 
 After a certain point of eating, your character will have no room left for another bite.
 
@@ -298,7 +284,7 @@ After a certain point of eating, your character will have no room left for anoth
 
 Your character has a mood, and there is a box for it on your sheet that says it in one word. From best to worst: Ecstatic, Happy, Pleased, Content, **Fine**, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Most people sit at Fine.
 
-You mood is constantly in flux, with different conditions and situations having different gradual effects on it over time. The best ways to boost your mood are with the consumption of luxuries such as fine food, drink, drugs and all manner of other vices.
+Your mood is constantly in flux, with different conditions and situations having different gradual effects on it over time. The best ways to boost your mood are with the consumption of luxuries such as fine food, drink, drugs and all manner of other vices.
 
 Only the most extreme moods affect your character significantly. **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2 and at the other end, **Ecstatic** gives you +1.
 
@@ -354,7 +340,7 @@ You can spend Tag Points, using the option on your character sheet, to acquire n
 
 Tags are gained, used, and removed via options on your [Character](https://ravenheart.quest/character) page. Each is a *request*. It applies immediately, but prompts for a reason which a GM will review.
 
-- **Craft** picks a recipe you know the skills for and pays its ⬢ cost right away — from you, a room stash, or someone standing with you who agrees to pay. It files as your Move. **Dead Simple** recipes take no turns to make, so they're capped instead: at most **4 Dead Simple items per turn**. A long recipe becomes a project you can keep working on from the same button, turn after turn, or cancel with no refund.
+- **Craft** picks a recipe you know the skills for and pays its ⬢ cost right away — from you, a room stash, or someone standing with you who agrees to pay. It files as your Move. A long recipe becomes a project you can keep working on from the same button, turn after turn, or cancel with no refund.
 - **Destroy** drops items or otherwise removes applicable tags. Health tags aren't included — a wound gets healed, not destroyed.
 - **Consume** removes item tags that can be eaten, drunk, or otherwise used.
 - **Transfer** hands a tag from you or a room stash you're in, to someone standing with you (or across a room that opens onto two places) or to a room stash. Give only — taking from a person is Loot's job, not Transfer's.
@@ -398,7 +384,7 @@ Combat occurs separately to gambits, and is dependent on numerous factors all of
 
 To engage in combat, you must have combat mode enabled. This essentially indicates that your character is anticipating a fight and allows you to explain how your character will respond to the fight. Being attacked without combat mode enabled is the equivalent of being caught completely off guard, you won't be defenseless, but you will not have any initiative or control over how the fight progresses. Once enabled, combat mode cannot be turned off until the end of your turn and having it enabled will tire you out.
 
-Enabling combat mode **after** entering combat will have no effect on your performance in the ongoing fight, it will only influence fights which start after it is enabled.
+Enabling combat mode **after** entering combat will have no effect on your performance in the ongoing fight; it will only influence fights which start after it is enabled.
 
 Combat can be called off by those who initiate it, and combat actions altered as long as the turn has not yet locked. The defenders will still receive a chance to go on the counterattack in such a scenario.
 
@@ -465,16 +451,16 @@ The Storefront also has a vendor, allowing you to buy things from the merchant, 
 
 ## Desires
 
-Small goals which can be used to guide your character's motivations. These should only really be used as a fallback for when your character lacks a more defined purpose, what your character truly desires is up to you, and it is up to you to make that happen.
+Small goals which can be used to guide your character's motivations. These should only really be used as a fallback for when your character lacks a more defined purpose. What your character truly desires is up to you, and it is up to you to make that happen.
 
 Claiming shuts that slot for a couple of turns, and puts that specific Desire on its own cooldown before anyone can claim it again. If you have an Addiction, your bottom slot only accepts Desires about the thing you're addicted to; your other slot is untouched.
 
 ## Death
 
-Death is a regular and common occurrence within Bascinet, and should be anticipated. Only the luckiest, or most boring characters survive to the end of the round.
+Death is a regular and common occurrence within Bascinet, and should be anticipated. Only the luckiest or most boring characters survive to the end of the round.
 Dying is not the end of your time in the story. While your character may no longer play an active role, you can respawn as a new one either when your character is put to rest, or a late party is required.
 
-**Important**; When you respawn as a new character you must retain no memories or grudges of your previous character.
+**Important:** When you respawn as a new character you must retain no memories or grudges of your previous character.
 
 ## Credits
 
