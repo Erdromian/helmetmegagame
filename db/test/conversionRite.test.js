@@ -146,6 +146,58 @@ test("one cultist is enough, and the description no longer threatens a refuser",
   assert.ok(!/weakened|distraught/.test(rite.description));
 });
 
+test("the leader must be among the chanters, and the Grimoire says so", () => {
+  // The flag is what riteIngredients.js checks; the description is what the
+  // cult reads. The Grimoire prints no line for the flag, so each rite that
+  // carries it has to say it in its own words.
+  const { RITES } = require("../lib/rites");
+  const flagged = RITES.filter((r) => r.leaderPresent).map((r) => r.key);
+  assert.deepEqual(flagged, ["conversion", "fulfillment"]);
+  for (const key of flagged) assert.match(riteByKey(key).description, /leader must be present/, key);
+});
+
+// Just enough of Prisma for resolveIngredients over a rite with no floor
+// ingredients: convertCandidates' findMany, and the leader count.
+function leaderDb({ leaderIds = [], candidates = [] } = {}) {
+  return new Proxy(
+    {
+      character: {
+        findMany: async () => candidates,
+        count: async ({ where }) => where.id.in.filter((id) => leaderIds.includes(id)).length,
+      },
+    },
+    {
+      get: (target, key) =>
+        key in target
+          ? target[key]
+          : { findMany: async () => [], findUnique: async () => null, findFirst: async () => null },
+    },
+  );
+}
+
+test("a circle with no leader in it cannot convert, and waits for one", async () => {
+  const { resolveIngredients } = require("../lib/riteIngredients");
+  const room = { id: "r1", kind: "PUBLIC", locationId: "loc1", accessTagSlugs: [] };
+  const candidates = [{ id: "n1", name: "Zeb", role: null, tags: [] }];
+  const rite = riteByKey("conversion");
+
+  const without = await resolveIngredients(leaderDb({ candidates }), rite, room, { participants: CHANTERS });
+  assert.equal(without.ok, false);
+  assert.deepEqual(without.missing, ["leader"], "the candidate is there; only the leader is missing");
+
+  // Standing in the room is not enough: the count is over the chanters.
+  const silent = await resolveIngredients(leaderDb({ candidates, leaderIds: ["boss"] }), rite, room, {
+    participants: CHANTERS,
+  });
+  assert.deepEqual(silent.missing, ["leader"]);
+
+  const led = await resolveIngredients(leaderDb({ candidates, leaderIds: ["c2"] }), rite, room, {
+    participants: CHANTERS,
+  });
+  assert.equal(led.ok, true);
+  assert.equal(led.resolved.convertCandidates.length, 1);
+});
+
 test("refusing the dark god costs nothing, and the event that cost is gone", () => {
   // Deleted rather than left at 0: an event still in the table is one a future
   // call site can reach for. The Pious bonus is the only rite event left.

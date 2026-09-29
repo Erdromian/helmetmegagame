@@ -184,7 +184,13 @@ anyone else — nothing here reads the Belief.
 
 **The Rite of Conversion is the one rite that does not do anything to
 anybody.** It puts a question in front of somebody, and they answer it. **One
-cultist is enough to ask it.**
+cultist is enough to ask it, but the leader has to be in the circle** — a
+`thanati-leader` among the chanters, the same check as Fulfillment's
+(`rites.js` `leaderPresent`, checked in `riteIngredients.js`). A lone leader
+can convert; a circle of ten without one cannot. A leader standing silently in
+the room does not count, and a leaderless circle's attempt stays OPEN, so the
+leader can walk in and chant inside the twelve hours. The Grimoire says so at
+the end of the rite's description: *"Your leader must be present."*
 
 **The target must be able to walk away from the question.** Not bound, not
 shackled, not dying, catatonic, crucified, paralyzed, unconscious or in
@@ -471,7 +477,7 @@ words where a room or a player hears anything:
 | Rite | Needs (resolved by `riteIngredients.js`) | Does |
 |---|---|---|
 | Initial | 1 chanter | DMs every participant the cult's objectives with Success!/Incomplete |
-| Conversion | every character at the Location with access to the room who is **able to act** and not already Thanati; leaders first, **Pious last** | **Waits.** Parks on AWAITING and DMs the circle a picker; the pick writes the `Offer` — see §4a |
+| Conversion | every character at the Location with access to the room who is **able to act** and not already Thanati; leaders first, **Pious last** — and the **leader must be among the chanters** | **Waits.** Parks on AWAITING and DMs the circle a picker; the pick writes the `Offer` — see §4a |
 | Sacrifice | a Bound character with access | pins the living sacrifice-* objectives, **gibs** them (`killByRite`, `gib: true`), 2–7 remains + 1–2 Flesh + 2–5 ⬢ on the floor. No corpse is minted at all — see `CORPSES.md` §1a |
 | Scrying | 15 ⬢ | a `scrying-eye` on the floor |
 | Possession | a weapon stack on the floor, 15 ⬢ | one unit becomes a custom "<Name> (Animated)" copy, indestructible |
@@ -510,7 +516,8 @@ blast would otherwise kill the snapshot leader and cancel the rite. By the time
 the bomb runs there is nobody left alive for it to find, and the epilogue is the
 cult's, because `endGameInDb` is a no-op once the state is ENDED.
 
-Fulfillment's "leader must be present" and "once a game", and Ascension's
+Conversion's and Fulfillment's "leader must be present" (the `leaderPresent`
+flag), Fulfillment's "once a game", and Ascension's
 "not while one is already running", are checked in `riteIngredients.js` with
 the Pious and hallowed-ground rules — **not** in the handlers. The sweep eats
 the floor before it runs an effect, so a refusal from inside one would have

@@ -4,7 +4,7 @@
 // get into this room, leaders first; convert-candidate: the opposite — every living non-cultist there who is ABLE TO ACT, handed over as a list
 // because a cultist picks one by hand; corpse: a corpse tag with the dead character it's a handle to; photograph: on the floor first or in a
 // participant's hands, resolved to who it pictures; weapon: a random weapon stack). Per-rite constraints (Conversion/Judgement/Madness/Fulfillment/
-// Ascension) live here too, since the sweep consumes the floor BEFORE the handler runs — a refusal from inside an effect would already have eaten it.
+// Ascension, and the leader that Conversion and Fulfillment need among the chanters) live here too, since the sweep consumes the floor BEFORE the handler runs — a refusal from inside an effect would already have eaten it.
 const { floorIngredients } = require("./rites");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
@@ -251,6 +251,18 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
     if (slugs.has(PIOUS_SLUG) || onHallowedGround(at)) missing.push("target");
   }
 
+  // "Your leader must be present!" — Conversion and Fulfillment. Present means CHANTING: a leader who is in the room but silent is not in the
+  // circle. The leader may walk in later, so a missing one is a rearm, not a failure.
+  if (rite.leaderPresent) {
+    const leaders = await db.character.count({
+      where: {
+        id: { in: participants.map((p) => p.characterId) },
+        tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_LEADER_SLUG } } },
+      },
+    });
+    if (leaders === 0) missing.push("leader");
+  }
+
   // Fulfillment and Ascension have conditions the floor cannot express, checked HERE rather than in the handler since the sweep eats the floor
   // before the handler runs — a refusal upstairs rearms the attempt for free; a refusal downstairs would have swallowed the ingredients for nothing.
   if (rite.key === "fulfillment" || rite.key === "ascension") {
@@ -264,15 +276,7 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
       },
     });
     if (rite.key === "fulfillment") {
-      // The leader may walk in later, so a missing one is a rearm, not a failure.
       if (state?.fulfillmentFiredAt != null) missing.push("already-performed");
-      const leaders = await db.character.count({
-        where: {
-          id: { in: participants.map((p) => p.characterId) },
-          tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_LEADER_SLUG } } },
-        },
-      });
-      if (leaders === 0) missing.push("leader");
     } else {
       // The world can only end once PER GAME. The fired stamp comes off the Game row, not GameState, or a restart would leave the rite refusing
       // itself forever because the PREVIOUS world had already burned.
