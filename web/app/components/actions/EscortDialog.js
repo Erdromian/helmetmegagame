@@ -66,10 +66,11 @@ export default function EscortDialog({ mode, presets, onDone, onClose }) {
         emptyLabel="There's nobody here."
       />
       {blocked ? <p className="text-xs text-muted">{blocked}</p> : null}
+      {/* Bascinet's words (the Escort copy sheet, 2026-09-30). */}
       <p className="text-xs text-muted">
-        You follow them when they travel, spending your own travel, then your Move if you haven&apos;t used it. If you
-        can&apos;t follow, you stay behind until you catch up. If they are attacked, you join the fight on their side.
-        Needs combat mode, and ends when it goes off.
+        You will follow your target to the best of your ability, and continue escorting them if they return after being
+        separated. If they are attacked, you will automatically join their side as a defender. You must have combat
+        mode enabled.
       </p>
       {current ? (
         <button type="button" className="btn-quiet" disabled={busy} onClick={() => submit(() => endEscort(), (res) => onDone(res.line))}>

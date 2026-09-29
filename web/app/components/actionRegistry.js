@@ -148,8 +148,8 @@ export const ACTION_HELP = {
   // pools.seatVerbs (see the section below).
   // Bascinet's words, verbatim.
   intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
-  guard:
-    "Guard somebody standing here. You follow them when they travel, and join the fight on their side if they're attacked. Needs combat mode.",
+  // Bascinet's words (the Escort copy sheet, 2026-09-30).
+  guard: "Escort your target, following and protecting them if they come under threat. Requires combat mode.",
   // Rewritten for the Combat Overhaul (docs/systemdocs/ATTACK.md): a fight now has sides, a call-off every
   // attacker must agree to, and no longer lasts the whole turn by default.
   attack:

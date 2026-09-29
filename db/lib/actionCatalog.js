@@ -93,7 +93,7 @@ const ACTIONS = [
   { mode: "attack", label: "Attack", section: "others", command: "attack", sub: null, description: "Attack people here, or join a fight. Everyone in it is held until it's over.", run: "native", web: true },
   { mode: "intercept", label: "Intercept", section: "others", command: "intercept", sub: "set", description: "Lie in wait here for someone.", run: "native", web: true },
   { mode: "interceptstop", label: "Stop intercepting", section: "others", show: "isIntercepting", command: "intercept", sub: "stop", description: "Stop lying in wait.", run: "native" },
-  { mode: "guard", label: "Escort", section: "others", command: "escort", sub: "guard", description: "Guard someone here: follow them as they travel, and defend them if attacked. Needs combat mode.", run: "native", web: true },
+  { mode: "guard", label: "Escort", section: "others", command: "escort", sub: "guard", description: "Escort your target, following and protecting them if they come under threat. Requires combat mode.", run: "native", web: true },
   { mode: "guardstop", label: "Stop escorting", section: "others", show: "isGuarding", command: "escort", sub: "stop", description: "Stop escorting someone.", run: "native" },
   { mode: "bring", label: "Pick someone up", section: "others", command: "escort", sub: "bring", description: "Take someone here along with you when you travel.", run: "native" },
   { mode: "putdown", label: "Put someone down", section: "others", show: "hasParty", command: "escort", sub: "putdown", description: "Stop taking someone along with you.", run: "native" },

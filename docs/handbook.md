@@ -185,8 +185,6 @@ Enabling combat mode **after** entering combat will have no effect on your perfo
 
 Combat can be called off by those who initiate it, and combat actions altered as long as the turn has not yet locked. The defenders will still receive a chance to go on the counterattack in such a scenario.
 
-You can **Escort** somebody standing with you while you are in combat mode. You follow them wherever they travel, using your own travel and then your Move, and if they are attacked you join the fight on their side. If they go somewhere you can't follow, you stay behind until you catch up with them. The escort ends when your combat mode does.
-
 Reinforcing an ongoing conflict requires you to have been within 3 locations distance of it when it began. Otherwise, you will arrive too late to intervene. The further you had to travel to get there, the worse you will perform in battle.
 
 Once Moves lock, nobody can start a fight, join one, or travel anywhere until the next turn.
