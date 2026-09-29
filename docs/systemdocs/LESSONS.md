@@ -20,10 +20,10 @@ the student's **Gambit** — the die after its modifier (Hunger, Afraid, Panic;
 | The teacher | Student needs | Costs the teacher | Students a turn |
 |---|---|---|---|
 | anybody | **6** | their whole **Routine** | 1 |
-| holds **Teaching** (4 pt) | **5 or 6** | **nothing** | 3 |
+| holds **Teaching** (3 pt) | **5 or 6** | **nothing** | 3 |
 | holds **Teaching (Drill Instructor)**, fighting skill | **4, 5 or 6** | nothing | 3 |
 
-- **Teaching** (4 pt, a standalone `skills` tag) buys three things at once: the
+- **Teaching** (3 pt, a standalone `skills` tag) buys three things at once: the
   Routine back, the threshold down a pip, and a cap of `TEACHING_CAPACITY`
   students a turn. A holder's Move slot is **never read** — they can mine,
   travel or run a Gambit and still teach three people the same day.
