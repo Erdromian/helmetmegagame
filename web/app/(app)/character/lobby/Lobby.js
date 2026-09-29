@@ -53,6 +53,14 @@ export function PriorityControl({ slug, level, onChange }) {
   );
 }
 
+// The role's difficulty, as the creation wizard's card shows it. The words
+// live lowercase in docs/roles.yaml; capitalized for display only. A role
+// without one draws nothing.
+export function DifficultyChip({ difficulty }) {
+  if (!difficulty) return null;
+  return <span className="chip">{difficulty.charAt(0).toUpperCase() + difficulty.slice(1)}</span>;
+}
+
 export default function Lobby({ groups, initial, entry, readyCount, antagonistBlurb, canSkip }) {
   const [priorities, setPriorities] = useState(initial.rolePriorities ?? {});
   const [optIn, setOptIn] = useState(initial.antagonists === true);
@@ -280,6 +288,7 @@ export default function Lobby({ groups, initial, entry, readyCount, antagonistBl
                           {role.requiresWhitelist ? <span title="Reserved seat"> ★</span> : null}
                         </button>
                         <span className="text-xs text-muted">{role.startingZoneName}</span>
+                        <DifficultyChip difficulty={role.difficulty} />
                       </div>
                       {openIntro === role.id && role.intro ? (
                         <p className="mt-1 text-sm text-muted">{role.intro}</p>
