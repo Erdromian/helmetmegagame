@@ -121,6 +121,56 @@ test("an unskilled draw defaults to the plain column", () => {
   assert.ok(TIERS.includes(drawn.tier));
 });
 
+// Lucky's two draws (MINING.md §3b). Math.random is fed by hand, two numbers a
+// draw: the first lands the tier, the second picks inside it.
+function withRandoms(values, fn) {
+  const real = Math.random;
+  const queue = [...values];
+  Math.random = () => {
+    assert.ok(queue.length > 0, "drew more often than expected");
+    return queue.shift();
+  };
+  try {
+    return fn();
+  } finally {
+    Math.random = real;
+    assert.equal(queue.length, 0, "drew fewer times than expected");
+  }
+}
+
+test("a Lucky draw keeps the rarer of two, whichever came first", () => {
+  // 0.0 lands ultracommon, 0.999 lands nearly-impossible, on any column.
+  assert.equal(withRandoms([0, 0, 0.999, 0], () => drawProspectingLoot("depths", { lucky: true })).tier, "nearly-impossible");
+  assert.equal(withRandoms([0.999, 0, 0, 0], () => drawProspectingLoot("depths", { lucky: true })).tier, "nearly-impossible");
+  assert.equal(withRandoms([0, 0, 0.999, 0], () => drawProspectingLoot("hills", { lucky: true })).tier, "nearly-impossible");
+});
+
+test("a Lucky tie keeps the first draw", () => {
+  const drawn = withRandoms([0, 0, 0, 0.99], () => drawProspectingLoot("caves", { lucky: true }));
+  assert.equal(drawn.slug, PROSPECTING_TABLE.ultracommon[0]);
+});
+
+test("without Lucky there is one draw, and a zone with no column draws none", () => {
+  withRandoms([0.999, 0], () => drawProspectingLoot("depths"));
+  withRandoms([], () => drawProspectingLoot("town", { lucky: true }));
+});
+
+test("Lucky makes the good tiers likelier", () => {
+  const N = 20000;
+  const rareOrBetter = (lucky) => {
+    let hits = 0;
+    for (let i = 0; i < N; i++) {
+      if (TIERS.indexOf(drawProspectingLoot("depths", { prospecting: true, lucky }).tier) >= TIERS.indexOf("rare")) hits++;
+    }
+    return hits / N;
+  };
+  // 38% plain against 1 − 0.62² ≈ 61.6% Lucky; the margins are many standard errors wide.
+  const plain = rareOrBetter(false);
+  const lucky = rareOrBetter(true);
+  assert.ok(plain > 0.34 && plain < 0.42, `plain ${plain}`);
+  assert.ok(lucky > 0.57 && lucky < 0.66, `lucky ${lucky}`);
+});
+
 // gathering.js is what says a zone gathers; the draw asks it rather than reading
 // the weight map's keys. A gathering zone somebody forgot to weight draws
 // nothing (never a stone), and the boot check refuses it outright.
@@ -146,4 +196,37 @@ test("a gathered stack prints its size on the desk; a single find does not", () 
   assert.equal(describeMoveEffects({ miningDrop: { kind: "TAG", tagName: "Onion", quantity: 2 } }), "found Onion ×2");
   assert.equal(describeMoveEffects({ miningDrop: { kind: "TAG", tagName: "Honey", quantity: 1 } }), "found Honey");
   assert.equal(describeMoveEffects({ miningDrop: { kind: "TAG", tagName: "Opal" } }), "found Opal");
+});
+
+// The Mine press reads Lucky off the character and hands it to the draw. A fake
+// tx is enough: the found tag is non-stackable and already held, so addToStack
+// returns before it writes anything.
+test("a Mine press draws twice for a Lucky holder and once for anybody else", async () => {
+  const { MOVE_EFFECTS } = require("../lib/moveEffects");
+  const fakeTx = (heldSlugs) => ({
+    zone: { findUnique: async () => ({ slug: "depths" }) },
+    characterTag: {
+      findMany: async ({ where }) => heldSlugs.filter((s) => where.tag.slug.in.includes(s)).map((slug) => ({ tag: { slug } })),
+      findUnique: async () => ({ id: "held" }),
+    },
+    tag: { findUnique: async ({ where }) => ({ id: where.slug, slug: where.slug, name: where.slug, stackable: false, defaultDurationTurns: null }) },
+  });
+  const action = { zoneId: "z", characterId: "c", turnId: "t" };
+  // withRandoms is synchronous, and apply awaits before it draws, so the queue is fed by hand here.
+  const press = async (heldSlugs, randoms) => {
+    const real = Math.random;
+    const queue = [...randoms];
+    Math.random = () => queue.shift();
+    try {
+      return await MOVE_EFFECTS.miningDrop.apply(fakeTx(heldSlugs), action);
+    } finally {
+      Math.random = real;
+      assert.equal(queue.length, 0, "drew a different number of times than expected");
+    }
+  };
+
+  const lucky = await press(["lucky"], [0, 0, 0.999, 0]);
+  assert.equal(lucky.tier, "nearly-impossible");
+  const plain = await press(["prospecting"], [0, 0]);
+  assert.equal(plain.tier, "ultracommon");
 });

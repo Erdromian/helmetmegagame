@@ -13,9 +13,10 @@
 // value depends on a roll that has not happened yet.
 //
 // Every d6 a CHARACTER rolls goes through here: the Gambit itself, the Caving
-// Die, the mining drop die, and the Gambit-shaped rolls that Confession,
-// Lessons and Torture make. A die nobody in particular rolls (a resource
-// range, a loot draw) keeps using rollDie.
+// Die, and the Gambit-shaped rolls that Confession, Lessons and Torture make.
+// A die nobody in particular rolls (a resource range, a loot draw) keeps using
+// rollDie. The Mine press's loot draw has no die, so Lucky reaches it as a
+// second draw instead (db/lib/cavingLoot.js#drawProspectingLoot).
 //
 // No prisma import, so bot/ and web/ both require it by subpath.
 const { LUCKY_SLUG } = require("./constants");

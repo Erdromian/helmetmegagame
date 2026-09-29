@@ -260,21 +260,31 @@ only once smelted into Iron, Copper or Nickel at a forge (`SMITHING.md`). A
 metal also Consumes straight into ⬢, free and instant, so a prospector with no
 buyer to hand still eats.
 
-### Lucky does not touch this
+### Lucky draws twice
 
-The old mining drop die was a 1d6 and **Lucky bent it** (`rollWithAdvantage`).
-The prospecting table has no die to bend: every press by a holder of
-Prospecting draws, and the draw is a weighted pick, not a roll to beat. So
-Lucky is worth nothing to a prospector now, where it used to be worth a little.
+**A Lucky miner draws twice and keeps the rarer tier.** A tie keeps the first
+draw. It is `drawProspectingLoot`'s `lucky` option, read off the character's
+tags in `db/lib/moveEffects.js`'s `miningDrop`. It is the loot-table shape of
+Lucky's two dice: there is no face to roll again, so the draw itself is what
+gets a second go.
 
-That is a real change and it was not asked for — it fell out of dropping the
-d6. If Lucky should matter here, the honest way is to give it a second draw and
-keep the better tier, not to re-introduce a face nobody reads. Left alone for
-now rather than invented.
+The old mining drop die was a 1d6 that Lucky bent. When the d6 went on
+2026-09-18, Lucky stopped reaching mining at all, and nobody had asked for
+that. This puts it back. Re-introducing a die nobody reads was the wrong way to
+do it.
 
-The Caving Die still honours Lucky, and there it decides **whether** you find
-rather than **what**: `cavingPass` rolls 1d6 with advantage and only a 6 draws
-(`CAVING.md` §2).
+Two draws keeping the better one means a tier-or-better chance of `p` becomes
+`1 − (1 − p)²`. On the Depths' skilled column, a nearly-impossible find goes from
+3% to about 6%, and rare or better goes from 38% to about 62%.
+
+It reaches the gathering table too (§3c), because the Black Hills' draw comes off
+the same Mine press. It does **not** touch the ⬢ half of a press: the yield
+range is a resource roll, not a die a character throws (`db/lib/advantage.js`).
+Misfortune stays out, since it reaches the Gambit die alone (`TAGS.md` §4a).
+
+The Caving Die honours Lucky separately, and there it decides **whether** you
+find rather than **what**: `cavingPass` rolls 1d6 with advantage and only a 6
+draws (`CAVING.md` §2).
 
 ### Validation
 
