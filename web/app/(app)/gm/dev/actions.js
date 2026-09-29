@@ -25,6 +25,7 @@ import {
   syncDocumentsFromYaml,
 } from "@lifeweb/db";
 import { runChannelDoctor } from "@lifeweb/db/lib/channelDoctor";
+import { rollStartingTerminalObols, bookStartingTerminalObols } from "@lifeweb/db/lib/merchantTerminal";
 import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
 import { seedAuthoredWorld } from "@lifeweb/db/lib/worldSeed";
 import { syncZonesFromYaml, summarizeZonesSync } from "@lifeweb/db/lib/zonesSync";
@@ -386,6 +387,8 @@ export async function wipeGameData(formData) {
     // would answer it are about to be deleted, and a leftover seat would let an ex-player read and
     // talk in the NEW game's Deadchat. It is one channel fetch now instead of a guild member scan.
     const deadchatMemberIds = await deadchatSeatHolders(prisma).catch(() => []);
+    // The Merchant's Terminal opens each game with 100 ¢, give or take 10%.
+    const terminalObols = rollStartingTerminalObols();
 
     // Ordered so dependents (Request, Desire, StagedMessage/Effect — required
     // FKs to Character/Turn) go before character/turn.deleteMany, or a
@@ -513,8 +516,9 @@ export async function wipeGameData(formData) {
       // that game having armed it. Same delete-and-recreate for the same
       // reason — loadDepot upserts id 1, so a read before this lands is fine.
       prisma.depot.deleteMany({}),
-      prisma.depot.create({ data: { id: 1 } }),
+      prisma.depot.create({ data: { id: 1, terminalObols } }),
     ]);
+    await bookStartingTerminalObols(prisma, terminalObols, nextGame.id);
     forgetGameId();
     // Chat reads past a finished game by seq (db/lib/feedWipe.js); drop
     // the memo so it empties now rather than in half a minute.
