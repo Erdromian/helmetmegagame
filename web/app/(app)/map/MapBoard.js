@@ -228,9 +228,16 @@ function placeLabels(nodes, marks, cell, rank) {
 // crawl the character cannot use, or a way their scrambled memory lost, never
 // arrived, so it draws no stair either. Keyed by node id, the far side's
 // nodes in name order.
-function stairsOf(nodes, edges, plateId) {
+//
+// `stairsAt` adds the stairs whose far side they do not know yet: loadMap
+// sends the near place's id and the far side's name, and no node for it.
+function stairsOf(nodes, edges, plateId, stairsAt = []) {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const out = new Map();
+  const add = (id, far) => {
+    if (!out.has(id)) out.set(id, []);
+    out.get(id).push(far);
+  };
   for (const e of edges) {
     for (const [near, far] of [
       [e.a, e.b],
@@ -239,9 +246,11 @@ function stairsOf(nodes, edges, plateId) {
       const n = byId.get(near);
       const f = byId.get(far);
       if (!n || !f || n.plate !== plateId || !f.plate || f.plate === plateId) continue;
-      if (!out.has(n.id)) out.set(n.id, []);
-      out.get(n.id).push(f);
+      add(n.id, f);
     }
+  }
+  for (const s of stairsAt) {
+    if (byId.get(s.at)?.plate === plateId) add(s.at, { name: s.name });
   }
   for (const list of out.values()) list.sort((a, b) => a.name.localeCompare(b.name));
   return out;
@@ -961,7 +970,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
     return <OffMapBoard data={data} />;
   }
 
-  const { nodes, edges, travel } = data;
+  const { nodes, edges, stairsAt, travel } = data;
   const plate = plateBox;
   const cell = plate.cell;
   // The two marks, as paths in cell units. Made once per plate and cached on
@@ -999,7 +1008,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
   // The staircases on this plate, and where every name goes (placeLabels).
   // Worked out per render rather than memoised: a render is a pick, a fetch or
   // a plate switch, never a pan, and forty boxes is nothing.
-  const stairs = stairsOf(nodes, edges, plate.id);
+  const stairs = stairsOf(nodes, edges, plate.id, stairsAt);
   const named = drawn.filter((n) => labels || sel === n.id || n.state === "here");
   const rank = (n) => (n.state === "here" ? 0 : sel === n.id ? 1 : n.state === "stood" ? 2 : 3);
   const spots = placeLabels(named, drawn, cell, rank);
@@ -1364,7 +1373,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
             note={note}
             // The card's own plate, not the one on screen: with nothing picked
             // on a wide screen it is where you stand, whichever plate that is.
-            stairs={card.plate ? { heading: stairsHeading(card.plate), far: stairsOf(nodes, edges, card.plate).get(card.id) ?? [] } : null}
+            stairs={card.plate ? { heading: stairsHeading(card.plate), far: stairsOf(nodes, edges, card.plate, stairsAt).get(card.id) ?? [] } : null}
             onCancel={() => setSel(null)}
             onGo={() => go(card)}
             onExert={() => go(card, { exert: true })}
