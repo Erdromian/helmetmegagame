@@ -11,3 +11,5 @@ CREATE TABLE "EconomyReportShare" (
 );
 
 CREATE UNIQUE INDEX "EconomyReportShare_token_key" ON "EconomyReportShare"("token");
+
+CREATE UNIQUE INDEX "EconomyReportShare_page_key" ON "EconomyReportShare"("page");

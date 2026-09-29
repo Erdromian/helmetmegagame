@@ -1,7 +1,7 @@
 import { Suspense } from "react";
 import { prisma } from "@lifeweb/db";
 import { getEconomyReportFiles } from "@/lib/economyReport";
-import { reportPageTitle } from "@/lib/economyShareHtml";
+import { namesSecrets, reportPageTitle } from "@/lib/economyShareHtml";
 import EconomyReportView from "./EconomyReportView";
 
 // The economy report page, shared by /gm/economy and /econ/economy. Each of those sits behind its own
@@ -34,13 +34,16 @@ async function EconomyFrame() {
     );
   }
   // Page titles for the share bar, off each page's own <title>, so the bar never keeps a second copy of
-  // report.js's section list.
+  // report.js's section list. The same pass notes which pages name something secret, for the dialog.
   const titles = {};
+  const secretPages = [];
   for (const [name, file] of built) {
-    if (name.endsWith(".html")) titles[name] = reportPageTitle(file.content) ?? name;
+    if (!name.endsWith(".html")) continue;
+    titles[name] = reportPageTitle(file.content) ?? name;
+    if (namesSecrets(file.content)) secretPages.push(name);
   }
   const shares = rows.map((r) => ({ ...r, createdAt: r.createdAt.toISOString() }));
-  return <EconomyReportView shares={shares} titles={titles} />;
+  return <EconomyReportView shares={shares} titles={titles} secretPages={secretPages} />;
 }
 
 export default function EconomyReport() {

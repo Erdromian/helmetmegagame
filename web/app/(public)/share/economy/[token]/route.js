@@ -1,6 +1,6 @@
 import { prisma } from "@lifeweb/db";
 import { getEconomyReportFile, getEconomyReportFiles } from "@/lib/economyReport";
-import { sharedPageHtml } from "@/lib/economyShareHtml";
+import { isShareablePage, sharedPageHtml } from "@/lib/economyShareHtml";
 
 // GET /share/economy/<token> — one page of the economy report, for anyone holding the link, signed in
 // or not (ECONOMY.md §7a). A GM or Economist mints the token from the Share button above the report
@@ -8,7 +8,8 @@ import { sharedPageHtml } from "@/lib/economyShareHtml";
 //
 // **This serves the share's one page and nothing else.** The report is gated because some of it is
 // not for players — the Secret recipes page most of all — so the lock is here: the token names one
-// filename, and no path from the URL ever reaches getEconomyReportFile. The nav coming out of the page
+// filename, and no path from the URL ever reaches getEconomyReportFile. The Secret recipes page itself
+// is never served, even to a token that names it (isShareablePage). The nav coming out of the page
 // (economyShareHtml.js) is courtesy, not the lock.
 //
 // The token is looked up BEFORE the report is touched. The first read in a fresh process builds the
@@ -38,7 +39,7 @@ export async function GET(_request, { params }) {
   if (typeof token !== "string" || !TOKEN.test(token)) return text(404, "This link does not exist, or it was revoked.");
 
   const share = await prisma.economyReportShare.findUnique({ where: { token }, select: { page: true } });
-  if (!share) return text(404, "This link does not exist, or it was revoked.");
+  if (!share || !isShareablePage(share.page)) return text(404, "This link does not exist, or it was revoked.");
 
   const [page, css, js] = await Promise.all([
     getEconomyReportFile(share.page),

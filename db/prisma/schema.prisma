@@ -6120,7 +6120,8 @@ model EconomyReportShare {
   id        String   @id @default(cuid())
   token     String   @unique
   // A filename out of the built report, e.g. "wages.html" (db/scripts/analysis/economy/report.js SECTIONS).
-  page      String
+  // Unique: a page has one link, so two people sharing it at once both get the same one.
+  page      String   @unique
   createdBy String
   createdAt DateTime @default(now())
 }

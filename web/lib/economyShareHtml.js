@@ -1,6 +1,7 @@
 // Turns one page of the built economy report into the page a public share link serves
-// (web/app/share/economy/[token]/route.js, ECONOMY.md §7a). Pure string work, no imports, so
-// db/test/economyShareHtml.test.js can load it by path.
+// (web/app/(public)/share/economy/[token]/route.js, ECONOMY.md §7a), and says which pages may be
+// shared at all. Pure string work, no imports, so db/test/economyShareHtml.test.js can load it by path
+// and the share bar can import it on the client.
 //
 // Two changes, and only the first matters for what a stranger can read:
 //
@@ -11,6 +12,25 @@
 // - **The CSS and the sort script go inline.** The page asks for report.css and report-client.js by
 //   relative path, which from /share/economy/<token> would mean two more public routes. Inlining
 //   them (about 5 KB together) keeps the share one self-contained response.
+
+// Never shared, whoever asks: the Secret recipes page is nothing but the list the report is gated to
+// keep. The action refuses to make a link to one, and the public route refuses to serve one.
+export const NEVER_SHARED = new Set(["secrets.html"]);
+
+// A filename the share may name: one report page, never a path, and never the CSS/JS beside the pages.
+export function isShareablePage(name) {
+  return typeof name === "string" && /^[a-z0-9-]+\.html$/.test(name) && !NEVER_SHARED.has(name);
+}
+
+// Whether a page names something kept from players, so the share dialog can say so plainly. The marks are
+// what report.js prints in a cell or a filter option: secretMark()'s three words for a recipe, and
+// combat.js's reasons for setting a piece of armour aside. Read off the built page rather than kept as a
+// list of pages, so a section that grows a Secret column is caught without anybody updating this.
+const SECRET_MARK = />(?:Secret|Secret, and hidden|Hidden until held|secret catalogue|GM catalogue|antagonist kit)</;
+
+export function namesSecrets(html) {
+  return SECRET_MARK.test(html ?? "");
+}
 
 const NAV = /<nav class="report-nav">[\s\S]*?<\/nav>/;
 const STYLESHEET = /<link rel="stylesheet" href="report\.css">/;

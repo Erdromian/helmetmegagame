@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useConfirm } from "./ConfirmProvider";
 import { actionThrowMessage } from "./actionThrow";
 import { createEconomyShare, revokeEconomyShare } from "@/app/economyShareActions";
+import { isShareablePage } from "@/lib/economyShareHtml";
 
 // The economy report's frame, with the bar above it that makes and revokes public links to one page
 // (ECONOMY.md §7a). Mounted by EconomyReport.js for both /gm/economy and /econ/economy.
@@ -17,7 +18,7 @@ function shareUrl(token) {
   return `${window.location.origin}/share/economy/${token}`;
 }
 
-export default function EconomyReportView({ shares, titles }) {
+export default function EconomyReportView({ shares, titles, secretPages }) {
   const confirm = useConfirm();
   const [page, setPage] = useState("index.html");
   const [listOpen, setListOpen] = useState(false);
@@ -67,10 +68,12 @@ export default function EconomyReportView({ shares, titles }) {
   }
 
   async function share() {
+    const secret = secretPages.includes(page)
+      ? "This page names secret recipes or GM-only kit, and anyone with the link will see them. "
+      : "";
     const ok = await confirm({
       title: `Share "${titleOf(page)}"?`,
-      message:
-        "Anyone with the link can read this one page without signing in, secret recipes included if the page has any. They can't reach the rest of the report. The page follows the report as it changes, and you can revoke the link at any time.",
+      message: `${secret}Anyone with the link can read this one page without signing in. They can't reach the rest of the report. The page follows the report as it changes, and you can revoke the link at any time.`,
       confirmLabel: "Make link",
     });
     if (!ok) return;
@@ -133,10 +136,12 @@ export default function EconomyReportView({ shares, titles }) {
                 Revoke
               </button>
             </>
-          ) : (
+          ) : isShareablePage(page) ? (
             <button type="button" className="btn-secondary" disabled={busy} onClick={share}>
               Share this page
             </button>
+          ) : (
+            <span className="text-muted text-xs">This page can&apos;t be shared</span>
           )}
         </div>
       </div>

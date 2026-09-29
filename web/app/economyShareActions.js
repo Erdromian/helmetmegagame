@@ -6,7 +6,7 @@ import { prisma } from "@lifeweb/db";
 import { getEconSession } from "@/lib/discordGuild";
 import { isSuperadmin } from "@/lib/superadmin";
 import { getEconomyReportFile } from "@/lib/economyReport";
-import { reportPageTitle } from "@/lib/economyShareHtml";
+import { isShareablePage, NEVER_SHARED, reportPageTitle } from "@/lib/economyShareHtml";
 import { guarded, UserError } from "@/lib/actionResult";
 
 // Making and revoking a public link to one page of the economy report (ECONOMY.md §7a). Shared by
@@ -29,22 +29,35 @@ async function requireReportReader() {
 
 // Share one page. Hands back the page's existing link when it already has one, so pressing Share twice
 // gives one link to revoke rather than two. `page` is a filename the report actually built, e.g.
-// "wages.html" — never a path, and never one of the CSS/JS files beside the pages.
+// "wages.html" — never a path, never one of the CSS/JS files beside the pages, and never the Secret
+// recipes page (economyShareHtml.js NEVER_SHARED).
 export async function createEconomyShare(page) {
   return guarded(async () => {
     const actor = await requireReportReader();
-    if (typeof page !== "string" || !/^[a-z0-9-]+\.html$/.test(page)) throw new UserError("That is not a page of the report.");
+    if (NEVER_SHARED.has(page)) throw new UserError("The Secret recipes page can't be shared.");
+    if (!isShareablePage(page)) throw new UserError("That is not a page of the report.");
     const file = await getEconomyReportFile(page);
     if (!file) throw new UserError("That page is not in the report.");
 
-    const existing = await prisma.economyReportShare.findFirst({ where: { page }, select: { id: true, token: true } });
+    const select = { id: true, token: true };
+    const existing = await prisma.economyReportShare.findUnique({ where: { page }, select });
     if (existing) return { share: existing };
 
     const title = reportPageTitle(file.content);
-    const share = await prisma.economyReportShare.create({
-      data: { token: crypto.randomBytes(18).toString("base64url"), page, createdBy: actor },
-      select: { id: true, token: true },
-    });
+    let share;
+    try {
+      share = await prisma.economyReportShare.create({
+        data: { token: crypto.randomBytes(18).toString("base64url"), page, createdBy: actor },
+        select,
+      });
+    } catch (err) {
+      // Two people shared the same page at the same moment. `page` is unique, so the second create
+      // lost, and the first one's link is the page's one link.
+      if (err?.code !== "P2002") throw err;
+      const won = await prisma.economyReportShare.findUnique({ where: { page }, select });
+      if (!won) throw err;
+      return { share: won };
+    }
     await prisma.auditLog.create({
       data: { actorDiscordUserId: actor, actionType: "gm_economy_share_created", details: { shareId: share.id, page, title } },
     });
