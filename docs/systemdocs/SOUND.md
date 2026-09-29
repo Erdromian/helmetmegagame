@@ -609,10 +609,11 @@ state to drug: a drug is on while every tag it leaves is held, and Bliss — ref
 which leaves the same High with Euphoric on top — hides Cave Fungus rather than playing
 beside it. Its test holds the table to each item's `consumesInto` in `docs/tags.yaml`.
 
-The dose is heard from the tag's `acquiredAt`, not from the Consume button, so a drug taken
-on Discord, or given by somebody else, cuts in too — on the next poll, or at once when this
-page's own Consume dialog nudges it. Taking a second dose while still high adds no new tag,
-so it is not heard again.
+The dose is heard from the tag's `acquiredAt`, not from the Consume button, so a drug given
+by somebody else cuts in too — on the next poll, or at once when this page's own Consume
+dialog or the sheet's Consume button nudges it. Taking a second dose while still high adds
+no new tag, so Consume restamps the drug's states itself (`misc.js#consumeTagRequestImpl`),
+and every dose is heard, not only the first.
 
 **A ghost is not anywhere.** `GHOST` is its own place: "Ambience while a ghost",
 "Ambience for ghosts", and `geist.ogg`, which is both that and the interrupter for

@@ -23,6 +23,7 @@ import TagPointsValue from "./TagPointsValue";
 import TagRow from "./TagRow";
 import { useRequestActions } from "./RequestActionsProvider";
 import { useNotice } from "./NoticeProvider";
+import { nudgePhase } from "./PhaseProvider";
 import { actionFor, labelFor } from "./actionRegistry";
 import useSoundItem, { soundLabel } from "./useSoundItem";
 import { playSfx } from "@/app/components/sfx";
@@ -102,7 +103,12 @@ export default function TagRail({
     startTransition(async () => {
       const res = await consumeTagRequest({ tagId });
       if (!res?.ok) setError(res?.error ?? "Something went wrong.");
-      else if (res.line) notice(res.line);
+      else {
+        // A drug is heard the moment it is taken (MusicDirector.js), the same
+        // as through the Consume dialog, not at the next minute's poll.
+        nudgePhase();
+        if (res.line) notice(res.line);
+      }
     });
   }
 
