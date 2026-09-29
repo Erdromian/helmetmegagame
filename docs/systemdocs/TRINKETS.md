@@ -83,9 +83,44 @@ carries no `requirement:` block at all. It exists
 purely as a base SHAPE (category, group, weight, stackability…) for
 `mintCustomCraft` (`db/lib/customCraftMint.js`) to clone once the die is cast.
 The actual gate — Smithing, a forge in reach, the 4 ⬢ cost, a whole Move —
-lives as plain constants in
-`web/app/(app)/character/trinketActions.js`, the recipe's own bespoke request
-action, rather than being read off that row.
+is enforced by `web/app/(app)/character/trinketActions.js`, the recipe's own
+bespoke request action, rather than read off that row. Its numbers
+(`SMITHING_SLUG`, `TRINKET_RESOURCE_COST`, `TRINKET_INLAY_SLOTS`) are in
+`db/lib/constants.js`, and its sentences in `db/lib/trinket.js`, because the
+button reads them too (§2a).
+
+### 2a. The button
+
+**Make a Trinket** sits beside Craft in the sheet's Things group
+(`actionRegistry.js`), with a gem for an icon. **It had no button until
+2026-09-28.** The request action, the pass and this doc all shipped on
+2026-09-11 with nothing on either face that called `trinketRequest`, so no
+smith could make one.
+
+It is **hidden from anyone who isn't a smith** — Smithing or any tier above it,
+the same tier-walk the request makes — because the recipe is `catalog: secret`
+and a dead button on every sheet would advertise it. A smith sees it **greyed
+with the reason** when there is no forge in reach, no open turn, a Move already
+filed, or fewer than 4 ⬢ on them. `db/lib/trinket.js#trinketRefusalFor` is
+that sentence, read by the sheet (`character/page.js`), by the bot's Actions
+menu (`db/lib/actionPools.js`, where `/item trinket` links back to the sheet's
+dialog) and by the request itself, so a tooltip and a refusal never disagree.
+The request's other sentences (no Smithing, not a stone) live in the same file.
+
+**Discord can't hide it the same way.** Slash commands are registered
+globally, so `/item trinket` shows in every player's command picker; only the
+Actions menu leaves it out for a non-smith, and typing it gets the generic
+"That isn't something you can do right now." This is the same trade `/blood`,
+`/smell` and `/thanati` already make. It gives little away in practice: every
+`items-mining` stone's own description already says it can be smithed into a
+Trinket.
+
+The dialog (`components/actions/TrinketDialog.js`) takes up to two stones on
+the cooking bench's slots (`IngredientSlots.js`), an optional name and an
+optional description. It shows the stones by name and count only. **It never
+shows a stone's inlay value or any price**: what the Trinket is worth is the
+turn's surprise, and the dialog saying it would be the Craft dialog's spoiler
+all over again.
 
 One consequence worth being explicit about: `Tag.requirementGambit` (the
 `requirement.gambit` key in the YAML) is a **different, unrelated flag** —
@@ -288,11 +323,14 @@ before; only the implementation moved.
 | `db/lib/customCraftMint.js` | The shared mint (`mintCustomCraft`/`unmintCustomCraft`), moved here so both faces can reach it |
 | `db/lib/tagShapes.js` | `normalizeInlayValue` — the validation on `Tag.inlayValue` |
 | `db/lib/syncTags.js` | Writes `inlayValue` from `docs/tags.yaml` |
-| `db/lib/constants.js` | `SMITHING_SKILLED_SLUG`, `WORKSHOP_EQUIPMENT_SLUG` |
+| `db/lib/constants.js` | `SMITHING_SLUG`, `SMITHING_SKILLED_SLUG`, `TRINKET_RESOURCE_COST`, `TRINKET_INLAY_SLOTS`, `WORKSHOP_EQUIPMENT_SLUG` |
+| `db/lib/trinket.js` | Who sees the button and why it greys (§2a) — shared by the sheet, the bot and the request |
 | `db/lib/advantage.js` | `rollWithAdvantage` — the shared Gambit d6, Lucky included |
 | `web/app/(app)/character/trinketActions.js` | The request action: the gate, the charge, the filed Gambit |
+| `web/app/components/actions/TrinketDialog.js` | The dialog behind Make a Trinket (§2a) |
 | `web/app/(app)/character/requestActions.js` | `resolveIngredientSlots` (now exported, shared with Trinket's own `inlayValue` pool), `resolveCraftPayer`, the `mintCustomCraft` wrapper |
 | `docs/tags.yaml` | `{tag:trinket}` (the base shape) and the whole `items-mining` group |
 | `db/lib/cavingLoot.js` | `PROSPECTING_TABLE` — where every inlay ingredient turns up |
 | `db/lib/gambitModifier.js` | Reads `gambitBonus` back off a held Trinket |
 | `db/test/trinketPass.test.js` | The pure half — the tier table and the skilled floor |
+| `db/test/trinket.test.js` | The button's gate — who is a smith, the refusal order, which tags are stones |

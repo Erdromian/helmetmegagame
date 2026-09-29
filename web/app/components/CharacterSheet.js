@@ -98,6 +98,8 @@ export default function CharacterSheet({
   // The build this render came from, for the self-refresh poll.
   deployVersion = null,
   hasWorkshop = false,
+  // Make a Trinket (character/page.js): null for anyone who isn't a smith.
+  trinket = null,
   atKitchen = false,
   eatMax = {},
   tagCatalog,
@@ -264,6 +266,7 @@ export default function CharacterSheet({
         transferParties={transferParties}
         carry={carry}
         hasWorkshop={hasWorkshop}
+        trinket={trinket}
         atKitchen={atKitchen}
         eatMax={eatMax}
         canHeal={canHeal}

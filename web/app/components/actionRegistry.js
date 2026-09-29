@@ -30,6 +30,7 @@
 // something exists which you cannot have.
 import {
   HammerIcon,
+  TrinketIcon,
   TortureIcon,
   ShearsIcon,
   TrashIcon,
@@ -75,6 +76,8 @@ export const ACTION_HELP = {
   examine:
     "Look at someone.",
   craft: "Smith, craft, brew, or cook.",
+  trinket:
+    "Spend your Move at the forge on a Trinket, with up to two stones set in. You find out how well it came out when the turn ends.",
   play: "Play music with your instrument.",
   destroy: "Destroy an item.",
   transfer: "Exchange resources or tags.",
@@ -169,6 +172,19 @@ export const ACTION_SECTIONS = [
         label: "Craft",
         gate: "canCraft",
         gateReason: "You know no recipe you could make right now.",
+      },
+      // The forge's own Gambit (TRINKETS.md). HIDDEN from anyone who isn't a
+      // smith — the recipe is `catalog: secret`, and a dead button on every
+      // sheet would advertise it. A smith sees it greyed with the reason
+      // (no forge, no Move, not enough ⬢) through pools.gateReason.trinket,
+      // the same db/lib/trinket.js sentence trinketRequest refuses with.
+      {
+        mode: "trinket",
+        icon: TrinketIcon,
+        label: "Make a Trinket",
+        show: "canSeeTrinket",
+        gate: "canTrinket",
+        gateReason: "You can't work the forge right now.",
       },
       {
         mode: "destroy",
@@ -630,7 +646,7 @@ export const STRIP_GROUPS = [
   {
     key: "things",
     label: "Things",
-    modes: ["craft", "consume", "transfer", "destroy", "poison", "play", "package", "disguise", "stepstone"],
+    modes: ["craft", "trinket", "consume", "transfer", "destroy", "poison", "play", "package", "disguise", "stepstone"],
   },
   // Only where the Location allows it (each is a `canSee…` show), so this
   // group appears and disappears as you walk.

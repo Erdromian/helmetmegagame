@@ -548,7 +548,7 @@ link would spend a Move on page load.
 
 The link verbs, for now:
 
-- `/item craft|consume|transfer|package`
+- `/item craft|trinket|consume|transfer|package`
 - `/take steal|loot|pickpocket`
 - `/medic heal`
 - `/captive torture|mutilate|harm`

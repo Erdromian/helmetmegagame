@@ -57,6 +57,7 @@ const ACTIONS = [
 
   // --- Yourself ---------------------------------------------------------------
   { mode: "craft", label: "Craft", section: "self", gate: "canCraft", gateReason: "You know no recipe you could make right now.", command: "item", sub: "craft", description: "Smith, craft, brew or cook.", run: "link", web: true },
+  { mode: "trinket", label: "Make a Trinket", section: "self", show: "canSeeTrinket", gate: "canTrinket", gateReason: "You can't work the forge right now.", command: "item", sub: "trinket", description: "Spend your Move at the forge on a Trinket. You see what you made when the turn ends.", run: "link", web: true },
   { mode: "destroy", label: "Destroy", section: "self", gate: "canDestroy", gateReason: "You're carrying nothing you could destroy.", command: "item", sub: "destroy", description: "Destroy something you're carrying.", run: "native" },
   { mode: "consume", label: "Consume", section: "self", gate: "canConsume", gateReason: "Nothing you're carrying can be used up.", command: "item", sub: "consume", description: "Eat, drink or use something up.", run: "link", web: true },
   { mode: "poison", label: "Poison", section: "self", show: "canPoison", command: "item", sub: "poison", description: "Lace a meal or drink you're holding with poison.", run: "native" },

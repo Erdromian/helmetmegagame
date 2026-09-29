@@ -5,11 +5,13 @@
 // resolves it at turn end. DELIBERATELY NOT the normal Craft dialog path — a
 // Trinket's whole point is that the smith doesn't know what they'll get, and
 // the Craft dialog would spoil the die before it's rolled. {tag:trinket} in
-// docs/tags.yaml is `catalog: none`, `craftable: false` — only the base
+// docs/tags.yaml is `catalog: secret`, `craftable: false` — only the base
 // shape mintCustomCraft clones from, not something crafted through the usual
-// door, so the recipe's gate (smithing, forge, cost) is re-implemented here
-// as plain constants rather than read off a `requirement` block it doesn't
-// carry. `requirement.gambit`/`requirementGambit` is the CURE-only flag
+// door, so the recipe's gate (smithing, forge, cost) is enforced here rather
+// than read off a `requirement` block it doesn't carry. Its numbers are in
+// db/lib/constants.js and its sentences in db/lib/trinket.js, which the
+// sheet's Make a Trinket button reads too (TRINKETS.md §2a), so a greyed
+// button and a refusal say the same thing. `requirement.gambit`/`requirementGambit` is the CURE-only flag
 // (CRAFTING.md: "gambit is ignored") — Trinket never touches it.
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
@@ -19,7 +21,16 @@ import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
 import { blockerFor, ACT } from "@lifeweb/db/lib/incapacitation";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
-import { WORKSHOP_EQUIPMENT_SLUG } from "@lifeweb/db/lib/constants";
+import { WORKSHOP_EQUIPMENT_SLUG, TRINKET_RESOURCE_COST, TRINKET_INLAY_SLOTS } from "@lifeweb/db/lib/constants";
+import {
+  isSmith,
+  trinketCostRefusal,
+  TRINKET_NEEDS_SMITHING,
+  TRINKET_NO_FORGE,
+  TRINKET_NO_TURN,
+  TRINKET_MOVED,
+  TRINKET_NOT_A_STONE,
+} from "@lifeweb/db/lib/trinket";
 import { rollWithAdvantage } from "@lifeweb/db/lib/advantage";
 import { dropCharacterTag, debitResources } from "@/lib/tagEffects";
 import { buildSkillAncestry, satisfiedSkillIds } from "@lifeweb/db/lib/medicalVision";
@@ -27,10 +38,8 @@ import { cleanCustomText, CUSTOM_NAME_MAX, CUSTOM_DESCRIPTION_MAX } from "@/lib/
 import { resolveIngredientSlots, resolveCraftPayer } from "./actions/crafting";
 import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
 
-// The recipe's own numbers (TRINKETS.md §1), authored as constants (see file header).
-const TRINKET_RESOURCE_COST = 4;
-const SMITHING_SLUG = "smithing";
-const INGREDIENT_SLOTS = { min: 0, max: 2 };
+// The recipe's own numbers (TRINKETS.md §1) live in db/lib/constants.js, where the sheet's button reads them too.
+const INGREDIENT_SLOTS = { min: 0, max: TRINKET_INLAY_SLOTS };
 const GMNOTES = "auto:trinket";
 
 const TRINKET_SELECT = {
@@ -65,23 +74,17 @@ async function me() {
 // Smithing, or a higher tier — same tier-walk every other recipe skill gate uses.
 async function requireSmithing(character) {
   const catalog = await prisma.tag.findMany({ select: { id: true, slug: true, parentTagId: true } });
-  const bySlug = new Map(catalog.map((t) => [t.slug, t]));
-  const smithing = bySlug.get(SMITHING_SLUG);
-  if (!smithing) throw new UserError("Making a Trinket needs Smithing.");
-  const ancestry = buildSkillAncestry(catalog);
-  const satisfied = satisfiedSkillIds(character.tags.map((ct) => ct.tagId), ancestry);
-  if (!satisfied.has(smithing.id)) throw new UserError("Making a Trinket needs Smithing.");
+  const satisfied = satisfiedSkillIds(character.tags.map((ct) => ct.tagId), buildSkillAncestry(catalog));
+  if (!isSmith(catalog, satisfied)) throw new UserError(TRINKET_NEEDS_SMITHING);
 }
 
 async function requireWorkshop(character) {
   if (await hasEquipmentInReach(prisma, character, WORKSHOP_EQUIPMENT_SLUG)) return;
-  throw new UserError(
-    "Making a Trinket is smith's work: hold Workshop Equipment, or stand somewhere a set is already put up.",
-  );
+  throw new UserError(TRINKET_NO_FORGE);
 }
 
 async function requireFreeMoveForGambit(character, openTurn) {
-  if (!openTurn) throw new UserError("No turn is open.");
+  if (!openTurn) throw new UserError(TRINKET_NO_TURN);
   // One gate, one sentence — db/lib/turnGate.js. The `auto` half: this verb settles itself with no GM, so the Move lock
   // does not stop it, but the game being out of session still does.
   const gate = await autoMovesOpen(prisma, { turn: openTurn });
@@ -90,7 +93,7 @@ async function requireFreeMoveForGambit(character, openTurn) {
     where: { characterId: character.id, turnId: openTurn.id },
     select: { id: true },
   });
-  if (acted) throw new UserError("You've already used your Move this turn.");
+  if (acted) throw new UserError(TRINKET_MOVED);
 }
 
 async function trinketRequestImpl({ name, description, ingredientSlugs }) {
@@ -116,6 +119,8 @@ async function trinketRequestImpl({ name, description, ingredientSlugs }) {
       })
     : [];
   const inlayBySlug = new Map(inlayRows.map((t) => [t.slug, t]));
+  // Refused here rather than in resolveIngredientSlots, whose sentence is cooking's ("…cook with").
+  if (posted.some((slug) => !inlayBySlug.has(slug))) throw new UserError(TRINKET_NOT_A_STONE);
   // resolveIngredientSlots normally reads { min, max } off the recipe's own row; Trinket has none, so { min: 0, max: 2 } stands in.
   const slotPlan = await resolveIngredientSlots(
     character,
@@ -126,7 +131,10 @@ async function trinketRequestImpl({ name, description, ingredientSlugs }) {
   );
 
   const cost = TRINKET_RESOURCE_COST;
-  const payer = await resolveCraftPayer(character, `character:${character.id}`, cost);
+  // Resolved at 0 so the shortfall is the button's own sentence, not the Craft payer's "<name> only has N ⬢".
+  const payer = await resolveCraftPayer(character, `character:${character.id}`, 0);
+  const short = trinketCostRefusal(payer.balance);
+  if (short) throw new UserError(short);
 
   const trinketAdvantage = rollWithAdvantage(character.tags, 6);
   const diceRoll = trinketAdvantage.die;
@@ -185,7 +193,7 @@ async function trinketRequestImpl({ name, description, ingredientSlugs }) {
       return created;
     });
   } catch (err) {
-    if (err?.code === "P2002") throw new UserError("You've already used your Move this turn.");
+    if (err?.code === "P2002") throw new UserError(TRINKET_MOVED);
     throw err;
   }
 

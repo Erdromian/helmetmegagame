@@ -19,6 +19,8 @@ export default function IngredientSlots({
   // How many of each the batch will spend, so a stack of one cannot fill two
   // meals' worth of a slot.
   quantity = 1,
+  // What the pantry says when there is nothing to pick. Trinket's stones reuse this bench.
+  emptyLabel = "You don't have any ingredients.",
 }) {
   const picked = Array.isArray(value) ? value : [];
   const bySlug = new Map(options.map((o) => [o.slug, o]));
@@ -78,7 +80,7 @@ export default function IngredientSlots({
         onChange={(slug) => {
           if (slug && !full && !picked.includes(slug)) onChange([...picked, slug]);
         }}
-        emptyLabel="You don't have any ingredients."
+        emptyLabel={emptyLabel}
       />
       </div>
     </>

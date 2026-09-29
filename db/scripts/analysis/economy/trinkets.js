@@ -3,8 +3,8 @@
 // A smith spends a whole Move and 4 ⬢, slots up to two stones, and rolls a d6. The face is a tier and
 // the tier sets the price: round(base + mult × the stones' summed inlay). The price is what the Merchant
 // pays. Everything here is read from the game: the tier table and the skilled floor from
-// db/lib/trinketPass.js, the gate constants from the request action's source (and this fails loud if
-// they move), the stones from docs/tags.yaml, and where each stone drops from the loot tables.
+// db/lib/trinketPass.js, the gate constants from db/lib/constants.js, the stones from docs/tags.yaml, and
+// where each stone drops from the loot tables.
 //
 // Money is ¢. The 4 ⬢ is spent at the Depot's import price. A stone a smith mined is valued at what it
 // would have sold for raw (the forgone sale); a stone bought is valued at the shelf price.
@@ -14,21 +14,19 @@ const path = require("path");
 const trinketPass = require("../../../lib/trinketPass");
 const { taxOn } = require("../../../lib/trainDeparturePass");
 const { trinketTaxOn } = require("./trinketPick");
+const { TRINKET_RESOURCE_COST, TRINKET_INLAY_SLOTS } = require("../../../lib/constants");
 
 const REPO = path.resolve(__dirname, "../../../..");
 
-// The gate lives in the request action as plain constants, so it is read out of the file. If the
-// pattern stops matching, the report stops with a message rather than quietly using a stale number.
+// The cost and the slots are db/lib/constants.js's, the same numbers the request action and the
+// sheet's button read. The skilled floor still lives in the pass as a literal, so it is read out of
+// the file; if that pattern stops matching, the report stops rather than quietly using a stale number.
 function readGate() {
-  const rel = "web/app/(app)/character/trinketActions.js";
-  const text = fs.readFileSync(path.join(REPO, rel), "utf8");
-  const cost = /const TRINKET_RESOURCE_COST = (\d+);/.exec(text);
-  const slots = /const INGREDIENT_SLOTS = \{ min: (\d+), max: (\d+) \};/.exec(text);
-  if (!cost || !slots) throw new Error(`trinkets.js: could not read the gate constants out of ${rel}; the file has changed shape.`);
+  const rel = "db/lib/constants.js";
   const passText = fs.readFileSync(path.join(REPO, "db/lib/trinketPass.js"), "utf8");
   const floor = /face < (\d)/.exec(passText);
   if (!floor) throw new Error("trinkets.js: could not find the skilled floor in db/lib/trinketPass.js#clampFace.");
-  return { resources: Number(cost[1]), slotsMin: Number(slots[1]), slotsMax: Number(slots[2]), floorFace: Number(floor[1]), source: rel };
+  return { resources: TRINKET_RESOURCE_COST, slotsMin: 0, slotsMax: TRINKET_INLAY_SLOTS, floorFace: Number(floor[1]), source: rel };
 }
 
 const round1 = (n) => (n == null || !Number.isFinite(n) ? null : Math.round(n * 10) / 10);

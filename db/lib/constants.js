@@ -62,6 +62,10 @@ const BUTCHER_SLUG = "butcher";
 const WORKSHOP_EQUIPMENT_SLUG = "workshop-equipment";
 // Trinket's skilled floor (TRINKETS.md): can't roll below Normal, read straight off the sheet by db/lib/trinketPass.js.
 const SMITHING_SKILLED_SLUG = "smithing-skilled";
+// Making a Trinket (TRINKETS.md §2): Smithing or any tier above it, 4 ⬢ up front, and 0–2 inlay stones.
+const SMITHING_SLUG = "smithing";
+const TRINKET_RESOURCE_COST = 4;
+const TRINKET_INLAY_SLOTS = 2;
 // The third standing kit, turning on the Package button. Not craftable — exactly two exist.
 const PACKAGING_EQUIPMENT_SLUG = "packaging-equipment";
 // What one crate holds. 150 lb is the number the Squeeze economy is balanced on (FACTORY.md).
@@ -319,6 +323,9 @@ module.exports = {
   BUTCHER_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
   SMITHING_SKILLED_SLUG,
+  SMITHING_SLUG,
+  TRINKET_RESOURCE_COST,
+  TRINKET_INLAY_SLOTS,
   PACKAGING_EQUIPMENT_SLUG,
   PACKAGE_MAX_LBS,
   PACKAGE_MAX_UNITS,

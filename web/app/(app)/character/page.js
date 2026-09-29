@@ -65,6 +65,7 @@ import {
 import { resolveMiningRate } from "@lifeweb/db/lib/mining";
 import { workVerbFor } from "@lifeweb/db/lib/gathering";
 import { hasEquipmentInReach } from "@lifeweb/db/lib/equipmentReach";
+import { isSmith, trinketRefusalFor, inlayStonesOf } from "@lifeweb/db/lib/trinket";
 import { carryStatus } from "@lifeweb/db/lib/carry";
 import { resourcesOf, readRoomResources } from "@lifeweb/db/lib/resourceStack";
 import { isPaper, paperDescription, paperView } from "@lifeweb/db/lib/paper";
@@ -786,6 +787,20 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
     character,
     WORKSHOP_EQUIPMENT_SLUG,
   );
+  // Make a Trinket (TRINKETS.md §2): null hides the button from anyone who isn't a smith, the way the
+  // secret recipe is hidden from them; a smith gets the stones they could set and why it's greyed, if it is.
+  // trinketRequest re-checks every gate.
+  const trinket = isSmith(tierRows, satisfied)
+    ? {
+        blocked: trinketRefusalFor({
+          hasOpenTurn: Boolean(openTurn),
+          hasWorkshop,
+          hasMoved: Boolean(currentAction),
+          resources: resourcesOf(character),
+        }),
+        stones: inlayStonesOf(character.tags),
+      }
+    : null;
   // A kitchen where you stand: a Lavish meal needs one (COOKING.md). craftRequest re-checks it.
   const atKitchen = hasAttribute(character.location, KITCHEN_ATTRIBUTE);
   // The Consume slider's top end per item (web/lib/eatLimits.js): counts only, never the meter.
@@ -1363,6 +1378,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       zoneMovesBreakdown: zoneMovesBreakdown,
       examineBlocked: examineBlocked,
       hasWorkshop: hasWorkshop,
+      trinket: trinket,
       atKitchen: atKitchen,
       eatMax: eatMax,
       tagCatalog: clientTagCatalog,
