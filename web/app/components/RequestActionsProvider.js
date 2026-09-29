@@ -15,6 +15,7 @@ import { RECOVERABLE_SLUGS } from "@lifeweb/db/lib/thanati";
 import { MUSICIAN_SLUG } from "@lifeweb/db/lib/constants";
 import { playSfx } from "@/app/components/sfx";
 import { actionThrowMessage } from "@/app/components/actionThrow";
+import { bumpLanded } from "./landedStore";
 
 // Every player action on the character sheet: the mode that is open, what
 // the grid greys each button on, and the one place a result is spoken.
@@ -289,10 +290,6 @@ export default function RequestActionsProvider({
   // row was clicked, the stack, the two ends of a move — handed to the dialog
   // component for the mode (components/actions/*).
   const [presets, setPresets] = useState(null);
-  // How many dialogs have landed. A panel that shows something a dialog can
-  // change — chat's room Storage strip — re-reads when this moves, since the
-  // dialog itself knows nothing about who else is on the page.
-  const [landed, setLanded] = useState(0);
 
   const heldIds = useMemo(
     () => characterTags.map((ct) => ct.tagId),
@@ -468,6 +465,9 @@ export default function RequestActionsProvider({
             return;
           }
           playSfx(res.sfx);
+          // No dialog closes on this path, so it bumps the count itself: a
+          // Recover or an Extract puts things in your pockets just the same.
+          bumpLanded();
           notice({
             text: noticeLine(next, res, ctx),
             rows: Array.isArray(res.roster)
@@ -693,8 +693,8 @@ export default function RequestActionsProvider({
   // the Transfer presets take without being handed the id a second way. The
   // Chat's room panel is the one that needs it (Drop and Take name both ends).
   const value = useMemo(
-    () => (enabled ? { open, pools, selfId, busy, landed } : null),
-    [enabled, open, pools, selfId, busy, landed],
+    () => (enabled ? { open, pools, selfId, busy } : null),
+    [enabled, open, pools, selfId, busy],
   );
 
   // The dialog for the open mode (components/actions/index.js).
@@ -714,7 +714,9 @@ export default function RequestActionsProvider({
   const done = useCallback(
     (line) => {
       closeDialog();
-      setLanded((n) => n + 1);
+      // Whatever is on the page showing what this dialog changed re-reads it
+      // (./landedStore.js).
+      bumpLanded();
       if (line) notice(line);
     },
     [notice, closeDialog],

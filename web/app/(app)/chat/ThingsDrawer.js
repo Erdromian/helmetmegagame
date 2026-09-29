@@ -9,6 +9,7 @@ import TagDetails from "@/app/components/TagDetails";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
+import { useLanded } from "@/app/components/landedStore";
 import ActionButton from "@/app/components/ActionButton";
 import { actionFor, helpFor, labelFor, reasonFor } from "@/app/components/actionRegistry";
 import useSoundItem, { soundLabel } from "@/app/components/useSoundItem";
@@ -248,12 +249,16 @@ export default function Things({ groups: initialGroups = [], framed = false }) {
   // is open — a closed one is not worth a query a minute.
   useVisiblePoll(refresh, POLL_MS, { enabled: open });
 
-  // A dialog that just landed — Take, Drop, Give, Eat — has most likely changed
-  // what you carry, so the drawer re-reads then rather than a minute later.
-  // Skipped at zero, since the page already handed this render its groups.
-  const landed = useRequestActions()?.landed ?? 0;
+  // An action that just landed — Take, Drop, Give, Eat, Recover — has most
+  // likely changed what you carry, so the drawer re-reads then rather than a
+  // minute later. Only on a CHANGE from the count it mounted with, since the
+  // page already handed this render its groups (@/app/components/landedStore.js).
+  const landed = useLanded();
+  const seenLanded = useRef(landed);
   useEffect(() => {
-    if (landed) refresh();
+    if (landed === seenLanded.current) return;
+    seenLanded.current = landed;
+    refresh();
   }, [landed, refresh]);
 
   // Equipping is instant and answers { equipped } or { error } rather than the

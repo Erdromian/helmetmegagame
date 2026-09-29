@@ -15,6 +15,7 @@ import { SEARCH_MOVE_LABEL } from "@lifeweb/db/lib/roomSearchCost";
 import { TONE_CLASS } from "./PlacePanel";
 import { roomIdOf, roomFixtures } from "./fixtures";
 import useVisiblePoll from "./useVisiblePoll";
+import { useLanded } from "@/app/components/landedStore";
 
 // THIS ROOM: storage and fixtures of the room whose feed is OPEN, and no
 // other — affordancesFor() otherwise returns every room's buttons at once.
@@ -130,27 +131,41 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
   // Bumped when the fingerprint says the rooms here changed under us.
   const [moved, setMoved] = useState(0);
   const fingerprint = useRef(null);
-  // Your own Take, Drop or Steal: the dialog lands and this count moves.
-  const landed = actions?.landed ?? 0;
+  // Your own Take, Drop or Steal — or anything else that lands, from any
+  // provider on the page (@/app/components/landedStore.js).
+  const landed = useLanded();
 
   // Answer is stamped with the room it came from, so a slow reply for a room
   // already left renders for nobody rather than under the wrong name. The
   // stash is kept on screen while a re-read is in flight, so a refresh never
-  // flickers the strip back to empty. The fingerprint is taken with it, so the
-  // poll below compares against the moment this stash was read.
+  // flickers the strip back to empty.
+  //
+  // The fingerprint is read FIRST and the stash after it. A take landing
+  // between the two is then newer than the fingerprint kept, and the next poll
+  // catches it; read side by side, the take could be baked into the kept
+  // fingerprint while the stash still showed the item, and nothing would ever
+  // redraw it.
   useEffect(() => {
     if (!roomId) return undefined;
     let cancelled = false;
-    readFingerprint().then((fp) => {
-      if (!cancelled && fp) fingerprint.current = fp;
-    });
-    readStash(roomId)
-      .then((res) => {
+    (async () => {
+      const fp = await readFingerprint();
+      if (cancelled) return;
+      if (fp) fingerprint.current = fp;
+      try {
+        const res = await readStash(roomId);
         if (!cancelled) setStash({ roomId, ...res });
-      })
-      .catch(() => {
-        if (!cancelled) setStash({ roomId, ok: false, error: "Couldn't see in there." });
-      });
+      } catch {
+        // A failed RE-read keeps the list already showing (and its Drop and
+        // Take buttons): one dropped request is a stale strip for a poll, not
+        // a room nobody can use. Only a room with nothing yet says why.
+        if (!cancelled) {
+          setStash((prev) =>
+            prev?.roomId === roomId && prev.ok ? prev : { roomId, ok: false, error: "Couldn't see in there." },
+          );
+        }
+      }
+    })();
     return () => {
       cancelled = true;
     };
@@ -163,7 +178,9 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
     fingerprint.current = fp;
     setMoved((n) => n + 1);
   }, []);
-  useVisiblePoll(checkForChange, STASH_POLL_MS, { enabled: Boolean(roomId) });
+  // Only for a living character: the endpoint answers nobody else (a GM or a
+  // ghost watching gets a 401 or 403), and neither does readStash.
+  useVisiblePoll(checkForChange, STASH_POLL_MS, { enabled: Boolean(roomId && actions?.selfId) });
 
   if (!roomId) return null;
 
