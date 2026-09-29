@@ -1,5 +1,6 @@
 // Every player verb's typed twin (bot/src/lib/commands.js, built from
 // db/lib/actionCatalog.js) and the handlers behind them (bot/src/lib/verbs/).
+// A secret seat's verbs are the exception: they have no typed twin at all.
 // Discord refuses a whole registration for one bad command, and a verb with a
 // command but no handler answers "That isn't something you can do." — both are
 // caught here rather than an hour after a deploy.
@@ -31,10 +32,16 @@ test("the command list fits Discord: unique names, a hundred at most, sane descr
 test("every catalog verb is registered, and every native one has a handler", () => {
   const registered = new Map(commandDefinitions.map((c) => [c.name, c]));
   for (const a of ACTIONS) {
+    if (a.run === "native") assert.ok(VERBS[a.mode], `${a.mode} is native but has no handler`);
+    // A secret seat's verb has no slash command on purpose: the picker would
+    // name it to everyone (COMMANDS.md §2g). The Actions menu is its only door.
+    if (a.command == null) {
+      assert.equal(a.sub, null, `${a.mode} has a subcommand but no command`);
+      continue;
+    }
     const cmd = registered.get(a.command);
     assert.ok(cmd, `/${a.command} is not registered`);
     if (a.sub) assert.ok(cmd.options?.some((o) => o.name === a.sub), `/${a.command} ${a.sub} is not registered`);
-    if (a.run === "native") assert.ok(VERBS[a.mode], `${a.mode} is native but has no handler`);
     assert.ok(VERB_COMMANDS.has(a.command));
   }
   for (const name of META_COMMANDS) assert.ok(registered.has(name), `/${name} is not registered`);
