@@ -198,7 +198,7 @@ keyed-way pattern (`MAP.md` §2b) applied to a person instead of a door.
 this file, and there are six values rather than two because a fight holds
 everybody in it and they must not read the same sentence — the jumped, the
 jumper, somebody asked to join, somebody withdrawing (`ATTACK.md` §3) — and because a
-thief who was caught (`caught`, five minutes) is held by nobody at all when the
+thief who was caught (`caught`: five minutes at a stash, an hour in a pocket) is held by nobody at all when the
 stash had no owner (`THEFT.md` §1e, no `heldById`, so only the clock ends it) and
 by the victim when there was one (§2g, a failed or noticed Pickpocket — `heldById` is the
 target, so every clear below works for them). Both are written by
@@ -216,7 +216,8 @@ leader reads *"X couldn't follow."* and not *"Somebody has hold of X."*
 the mover's gate and every picker read — so a surface can never draw a way the
 mover is about to refuse. Under five minutes it counts down; past that it says
 "until the end of the turn", because `43188s` would be worse than saying
-nothing.
+nothing. A caught thief is the exception: their hold has a known end, so past
+five minutes it counts down in minutes instead (`THEFT.md` §2g).
 
 **It is not the only thing that stops a walk.** A 1 on the Caving Die keeps a
 caver underground until the turn is pushed — `cavingRestrictionsFor`

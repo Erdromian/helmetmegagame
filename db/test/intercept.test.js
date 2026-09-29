@@ -108,6 +108,17 @@ test("a short hold counts down and a long one does not", () => {
   assert.doesNotMatch(ambush, /\ds\./);
 });
 
+test("a felt pickpocket's hour reads in minutes on the shut ways", () => {
+  const now = new Date("2026-09-14T12:00:00Z");
+  const { HELD_REASON, PICKPOCKET_CAUGHT_HOLD_MS } = require("../lib/intercept");
+  assert.equal(PICKPOCKET_CAUGHT_HOLD_MS, 60 * 60 * 1000);
+  const caught = heldReasonFor(
+    { heldUntil: new Date(now.getTime() + PICKPOCKET_CAUGHT_HOLD_MS), heldReason: HELD_REASON.CAUGHT, heldById: "victim" },
+    now,
+  );
+  assert.equal(caught, "You were caught stealing. You can't leave for another 60 min.");
+});
+
 test("a caught thief reads their own sentence, and nobody is named as holding them", () => {
   const now = new Date("2026-09-14T12:00:00Z");
   const { HELD_REASON, CAUGHT_HOLD_MS } = require("../lib/intercept");

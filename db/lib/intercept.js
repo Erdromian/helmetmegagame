@@ -18,6 +18,7 @@ const { SFX } = require("./sfx");
 // own catch line rather than a notice of its own, which is what `-#` is for
 // (CLAUDE.md, "Bot message style"). The helper is used for its per-line prefixing.
 const { ambientLine } = require("./ambientLine");
+const { caughtWait } = require("./pickpocket");
 
 // WHY somebody cannot move, written onto Character.heldReason beside the timestamp.
 // Four values, not two: a fight holds BOTH sides and they're not in the same position, so the jumped and the jumper must not read the same sentence. A frozen table rather than hand-written strings across files — db/lib/characterDeath.js's clear once lacked this guard, and a typo'd literal is how that happens twice.
@@ -49,8 +50,10 @@ const NOT_A_FIGHT = Object.freeze({
 // Two minutes, Bascinet's number — long enough to say something and be answered, short enough that walking into a checkpoint isn't a punishment.
 const SAFE_HOLD_MS = 2 * 60 * 1000;
 
-// Five minutes, Bascinet's number — how long a thief the room saw is stuck there. Longer than a Safe stop because the other side has to notice the line, read it and decide, and they weren't waiting for it the way an interceptor was. Under heldReasonFor's five-minute countdown ceiling on purpose, so the thief always sees seconds rather than "until the end of the turn".
+// Five minutes, Bascinet's number — how long a thief the room saw at a stash is stuck there. Longer than a Safe stop because the other side has to notice the line, read it and decide, and they weren't waiting for it the way an interceptor was.
 const CAUGHT_HOLD_MS = 5 * 60 * 1000;
+// An hour, Bascinet's number (2026-09-29) — how long a pickpocket their victim felt is stuck there (THEFT.md §2g). Far longer than a Steal's, because a pickpocket has a victim who was DM'd and has to come back to the game to answer, and five minutes was over before most of them had read it.
+const PICKPOCKET_CAUGHT_HOLD_MS = 60 * 60 * 1000;
 
 // What a watch may carry. The name cap is FULL_NAME_LIMIT's business; this is how MANY, a sanity bound not a design statement — wanting more than this means wanting "Any person".
 const MAX_NAMES = 12;
@@ -113,7 +116,7 @@ function heldReasonFor(character, now = new Date()) {
   }
   // Caught stealing. No "somebody" — a Steal's hold has nobody behind it, and a pickpocket's victim they already know.
   if (character.heldReason === HELD_REASON.CAUGHT) {
-    return `You were caught stealing. You can't leave for another ${seconds}s.`;
+    return `You were caught stealing. You can't leave for another ${caughtWait(seconds)}.`;
   }
   // Under five minutes it's worth counting down; a hold that runs to the end of the turn isn't — "43188s" would be worse than saying nothing.
   return seconds <= 300
@@ -602,6 +605,7 @@ module.exports = {
   NOT_A_FIGHT,
   SAFE_HOLD_MS,
   CAUGHT_HOLD_MS,
+  PICKPOCKET_CAUGHT_HOLD_MS,
   MAX_NAMES,
   MESSAGE_LIMIT,
   INTERCEPT_RELEASE_PREFIX,
