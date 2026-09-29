@@ -25,7 +25,7 @@ export default function ClickMenu({ triggerRef, onClose, ariaLabel, className = 
     const trigger = triggerRef.current;
     const panel = panelRef.current;
     if (!trigger || !panel) return;
-    setPos(placePanel(trigger, panel));
+    setPos(placePanel(trigger, panel, { keepTriggerClear: true }));
   }, [triggerRef]);
 
   useLayoutEffect(() => {

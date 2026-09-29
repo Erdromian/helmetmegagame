@@ -176,20 +176,6 @@ function HeldTagVerbs({ ct, busy, onSetQuantity, onRemove, onPatch }) {
 
   return (
     <span className="flex flex-wrap items-center gap-2">
-      {stackable ? (
-        <QuantityField
-          inline
-          min={0}
-          ariaLabel={`How many ${ct.tag.name} — 0 removes it`}
-          value={draft}
-          onChange={commit}
-          disabled={busy}
-        />
-      ) : (
-        <button type="button" className="btn-quiet" disabled={busy} onClick={onRemove}>
-          Remove
-        </button>
-      )}
       {ct.tag?.equippable && (
         // All-or-nothing for the whole holding, same as before: Equip puts
         // every unit out (each spending its own slot), Unequip clears all.
@@ -210,6 +196,23 @@ function HeldTagVerbs({ ct, busy, onSetQuantity, onRemove, onPatch }) {
           onClick={() => onPatch({ expiry: { mode: "never" } })}
         >
           Make permanent
+        </button>
+      )}
+      {/* The stepper (or Remove) goes LAST, so it sits at the same right edge
+          on every row. First, it was pushed left by whichever of Equip,
+          Unequip or neither came after it, and the column zigzagged. */}
+      {stackable ? (
+        <QuantityField
+          inline
+          min={0}
+          ariaLabel={`How many ${ct.tag.name} — 0 removes it`}
+          value={draft}
+          onChange={commit}
+          disabled={busy}
+        />
+      ) : (
+        <button type="button" className="btn-quiet" disabled={busy} onClick={onRemove}>
+          Remove
         </button>
       )}
     </span>

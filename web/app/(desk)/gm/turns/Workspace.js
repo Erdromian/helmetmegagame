@@ -714,7 +714,11 @@ export default function Workspace({
             <span title="Moves marked solved, of the Moves filed this turn">
               {solvedCount}/{moves.length} solved
             </span>
-            <span title="Push fires at midnight CT"> · {formatCountdown(pushMinutes)}</span>
+            {/* formatCountdown says nothing once the clock has run out, and
+                the separator used to stay behind: "0/0 solved ·". */}
+            {formatCountdown(pushMinutes) && (
+              <span title="Push fires at midnight CT"> · {formatCountdown(pushMinutes)}</span>
+            )}
             {lastRefreshedAt && (
               <> · updated {lastRefreshedAt.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</>
             )}

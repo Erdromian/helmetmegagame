@@ -29,64 +29,66 @@ export default function LocationsList({ zoneId, rows, canSuper }) {
   return (
     <Panel title="Locations">
       <FormError>{error}</FormError>
-      <table className="mono-table w-full">
-        <thead>
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Slug</th>
-            <th scope="col">Rooms</th>
-            <th scope="col">Discord</th>
-            <th scope="col">Status</th>
-            <th scope="col" aria-label="Reorder" />
-            <th scope="col" aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((l, i) => (
-            <tr key={l.id} className={l.retiredAt ? "text-muted" : undefined}>
-              <td>
-                <Link href={`/gm/dev/zones/locations/${l.id}`} className="menu-item">
-                  {l.name}
-                </Link>
-              </td>
-              <td className="mono">{l.slug}</td>
-              <td className="mono">{l.roomCount}</td>
-              <td>
-                <span className="chip">{l.mirrored ? "mirrored" : "pending"}</span>
-              </td>
-              <td>{l.retiredAt ? <span className="chip">retired</span> : "live"}</td>
-              <td className="whitespace-nowrap">
-                <ReorderButtons
-                  label={l.name}
-                  disabled={pending}
-                  first={i === 0}
-                  last={i === rows.length - 1}
-                  onUp={() => call(reorderLocation, zoneId, l.id, "up")}
-                  onDown={() => call(reorderLocation, zoneId, l.id, "down")}
-                />
-              </td>
-              <td className="whitespace-nowrap">
-                {canSuper && (
-                  <>
-                    {l.retiredAt ? (
-                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => call(unretireLocation, l.id)}>
-                        Unretire
-                      </button>
-                    ) : (
-                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => onRetire(l)}>
-                        Retire
-                      </button>
-                    )}
-                    <button type="button" className="btn-quiet" disabled={pending} onClick={() => onDelete(l)}>
-                      Delete
-                    </button>
-                  </>
-                )}
-              </td>
+      <div className="overflow-x-auto">
+        <table className="mono-table w-full">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Slug</th>
+              <th scope="col">Rooms</th>
+              <th scope="col">Discord</th>
+              <th scope="col">Status</th>
+              <th scope="col" aria-label="Reorder" />
+              <th scope="col" aria-label="Actions" />
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((l, i) => (
+              <tr key={l.id} className={l.retiredAt ? "text-muted" : undefined}>
+                <td>
+                  <Link href={`/gm/dev/zones/locations/${l.id}`} className="menu-item">
+                    {l.name}
+                  </Link>
+                </td>
+                <td className="mono">{l.slug}</td>
+                <td className="mono">{l.roomCount}</td>
+                <td>
+                  <span className="chip">{l.mirrored ? "mirrored" : "pending"}</span>
+                </td>
+                <td>{l.retiredAt ? <span className="chip">retired</span> : "live"}</td>
+                <td className="whitespace-nowrap">
+                  <ReorderButtons
+                    label={l.name}
+                    disabled={pending}
+                    first={i === 0}
+                    last={i === rows.length - 1}
+                    onUp={() => call(reorderLocation, zoneId, l.id, "up")}
+                    onDown={() => call(reorderLocation, zoneId, l.id, "down")}
+                  />
+                </td>
+                <td className="whitespace-nowrap">
+                  {canSuper && (
+                    <>
+                      {l.retiredAt ? (
+                        <button type="button" className="btn-quiet" disabled={pending} onClick={() => call(unretireLocation, l.id)}>
+                          Unretire
+                        </button>
+                      ) : (
+                        <button type="button" className="btn-quiet" disabled={pending} onClick={() => onRetire(l)}>
+                          Retire
+                        </button>
+                      )}
+                      <button type="button" className="btn-quiet" disabled={pending} onClick={() => onDelete(l)}>
+                        Delete
+                      </button>
+                    </>
+                  )}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
       <form
         className="flex flex-wrap items-end gap-2"

@@ -135,10 +135,7 @@ function EmptyCell({
   const ref = useRef(null);
   const [open, setOpen] = useState(false);
   return (
-    <div
-      className="equip-cell is-empty"
-      style={span > 1 ? { gridColumn: `span ${span}` } : undefined}
-    >
+    <div className="equip-cell is-empty" style={span > 1 ? { flexGrow: span } : undefined}>
       <button
         ref={ref}
         type="button"
@@ -190,7 +187,7 @@ function EmptyCell({
 function WornCell({ unit, onUnequip, pending, span = 1, canAct }) {
   const line = fact(unit.tag);
   return (
-    <div className="equip-cell" style={span > 1 ? { gridColumn: `span ${span}` } : undefined}>
+    <div className="equip-cell" style={span > 1 ? { flexGrow: span } : undefined}>
       <div className="equip-cell-face">
         <span className="equip-cell-name">{unit.tag.name}</span>
         {line && <span className="equip-cell-fact text-muted">{line}</span>}
@@ -466,13 +463,17 @@ export default function EquipBoard({
             {/* The slot's own cells, widened to whatever actually had to be
                 drawn — a stray layer on a layered row, or a second piece in an
                 unlayered slot somebody is over the limit of. WEAPON is the
-                exception and keeps its own count, because a two-hander's cell
-                SPANS two of them rather than adding one. */}
+                exception: a flex row where each cell grows by the hands it
+                takes (a two-hander twice a dagger), with a floor so a held
+                thing's name is readable. As four equal grid columns, a
+                one-handed item got a quarter of the row and read "Dag…". */}
             <div
-              className="equip-cells"
-              style={{
-                gridTemplateColumns: `repeat(${slot === "WEAPON" ? cells : Math.max(cells, drawn.length)}, minmax(0, 1fr))`,
-              }}
+              className={slot === "WEAPON" ? "equip-cells equip-cells-hands" : "equip-cells"}
+              style={
+                slot === "WEAPON"
+                  ? undefined
+                  : { gridTemplateColumns: `repeat(${Math.max(cells, drawn.length)}, minmax(0, 1fr))` }
+              }
             >
               {drawn}
             </div>

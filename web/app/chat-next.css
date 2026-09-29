@@ -434,6 +434,14 @@
   }
 }
 
+/* A 320px phone: six 44px buttons and five 8px gaps left the name 36px, and
+   "Square" read "SQU…". Half the gaps gives it 20px back. */
+@media (max-width: 360px) {
+  [data-chat-next] .chat-head {
+    gap: var(--sp-1);
+  }
+}
+
 /* 16px or more, or iOS zooms the whole page every time the box is tapped.
    --fs-base is 14px on a phone (globals.css), and `.field textarea`'s own
    16px floor there is outweighed by `.say` below (hence the `textarea`, to
@@ -443,6 +451,17 @@
 @media (max-width: 720px), (pointer: coarse) {
   [data-chat-next] textarea.say {
     font-size: max(16px, var(--fs-base));
+    /* The box has a 44px touch floor here, and with no padding one line of
+       text sat at its top while ⋯ and Send sat in the middle of theirs. */
+    padding-block: calc((var(--tap) - 1lh) / 2);
+  }
+
+  /* On a 320px phone the box is about 80px wide, and "Say something…"
+     wrapped into a second and third line that the box cut off. */
+  [data-chat-next] textarea.say::placeholder {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 

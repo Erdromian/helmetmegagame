@@ -14,33 +14,35 @@ export default function YieldPanel({ locationId, row }) {
   return (
     <Panel title="Mining yield">
       <FormError>{error}</FormError>
-      <table className="mono-table w-full">
-        <thead>
-          <tr>
-            <th scope="col" colSpan={2}>Base</th>
-            <th scope="col">Current (read-only)</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td colSpan={2}>
-              <form
-                className="flex items-center gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  call(updateLocationMining, locationId, new FormData(e.currentTarget).get("base"));
-                }}
-              >
-                <input name="base" type="number" step="any" defaultValue={row?.base ?? ""} className="control" />
-                <button type="submit" className="btn-quiet" disabled={pending}>
-                  Save
-                </button>
-              </form>
-            </td>
-            <td className="mono">{row ? row.current.toFixed(3) : "— (no row)"}</td>
-          </tr>
-        </tbody>
-      </table>
+      <div className="overflow-x-auto">
+        <table className="mono-table w-full">
+          <thead>
+            <tr>
+              <th scope="col" colSpan={2}>Base</th>
+              <th scope="col">Current (read-only)</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td colSpan={2}>
+                <form
+                  className="flex items-center gap-2"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    call(updateLocationMining, locationId, new FormData(e.currentTarget).get("base"));
+                  }}
+                >
+                  <input name="base" type="number" step="any" defaultValue={row?.base ?? ""} className="control" />
+                  <button type="submit" className="btn-quiet" disabled={pending}>
+                    Save
+                  </button>
+                </form>
+              </td>
+              <td className="mono">{row ? row.current.toFixed(3) : "— (no row)"}</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <p className="text-muted text-sm">
         No row at all means this place can&apos;t be mined — the Mine button never appears, and Examine
         leaves the line off entirely. A row drifted to 0 still shows both.

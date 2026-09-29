@@ -3,8 +3,9 @@
 // The Oracle desk. See docs/systemdocs/ORACLE.md.
 //
 // Three columns, the shape the other desks already use (.desk-body is a
-// 19rem / 1fr / 22rem grid): the zone rail, one page of prose, and the shared
-// inspector. Clicking a name in the prose is what fills the inspector, which is
+// 23rem / 1fr / 22rem grid): the zone rail, one page of prose, and the shared
+// inspector. Under 1024px the inspector becomes an overlay behind the header's
+// Inspector button, as on /gm/turns and /gm/players (.desk-body--oracle). Clicking a name in the prose is what fills the inspector, which is
 // the whole reason this is a desk and not a document page.
 //
 // The right-hand column is web/app/components/InspectorColumn.js — the SAME
@@ -19,6 +20,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import DiscordTime from "@/app/components/DiscordTime";
 import InspectorColumn from "@/app/components/InspectorColumn";
+import useInspectorOverlay, { InspectorToggle } from "@/app/components/useInspectorOverlay";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import usePins from "@/app/components/usePins";
@@ -91,6 +93,7 @@ export default function OracleDesk({
   const [cache, setCache] = useState(() => new Map());
   const [devPanel, setDevPanel] = useState(null);
   const [inspected, setInspected] = useState(null);
+  const { setOpen: setInspectorOpen } = useInspectorOverlay();
   const [tabRequest, setTabRequest] = useState(null);
   const [regenerating, startRegenerate] = useTransition();
   const [regenerateError, setRegenerateError] = useState(null);
@@ -146,9 +149,12 @@ export default function OracleDesk({
       const row = rosterById.get(characterId);
       if (!row) return;
       setInspected({ characterId: row.id, discordUserId: row.discordUserId, name: row.name });
+      // Under 1024px the inspector is a closed overlay (globals.css), so a name
+      // click has to open it, the way /gm/turns does.
+      setInspectorOpen(true);
       if (tab) setTabRequest((prev) => ({ tab, token: (prev?.token ?? 0) + 1 }));
     },
-    [rosterById],
+    [rosterById, setInspectorOpen],
   );
 
   const pinned = useMemo(
@@ -242,10 +248,12 @@ export default function OracleDesk({
               {regenerating ? "Regenerating…" : "Regenerate turn"}
             </button>
           )}
+          {/* Hidden by CSS above 1024px, where the inspector is a column. */}
+          <InspectorToggle />
         </div>
       </div>
 
-      <div className="desk-body">
+      <div className="desk-body desk-body--oracle">
         {/* .desk-queue-row, the same rail row /gm/turns and /gm/players use —
             this rail is the same tool as theirs and should look it. It used to
             reach for .desk-card, which is the WIDE READING CARD for the main

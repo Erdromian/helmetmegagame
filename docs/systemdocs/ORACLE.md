@@ -693,6 +693,11 @@ Archive / DMs tabs. Nothing about it is rebuilt. Clicking a name in the prose
 asks it for the Moves tab through `requestedTab`, exactly the way the
 adjudication desk's "Past moves" button does.
 
+Under 1024px the inspector becomes the same overlay `/gm/turns` and
+`/gm/players` use, behind an `Inspector` button in the header, and a name click
+opens it (`DESIGN-SYSTEM.md`, the desks' breakpoints). As a third column it
+left the page itself about 48px wide on a tablet.
+
 A name is a real `<button>`, not a styled span: it is a control, so it has to
 be reachable by keyboard and announced as one. It is drawn inline with a dotted
 underline rather than as a chip — a synopsis is prose, and a paragraph studded

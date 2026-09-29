@@ -61,33 +61,35 @@ export default function StashPanel({
           </>
         )}
       </p>
-      <table className="mono-table w-full">
-        <thead>
-          <tr>
-            <th scope="col">Item</th>
-            <th scope="col">Slug</th>
-            <th scope="col">Quantity</th>
-            <th scope="col">Hidden</th>
-          </tr>
-        </thead>
-        <tbody>
-          {stash.map((s) => (
-            <tr key={s.id}>
-              <td>{s.name}</td>
-              <td className="mono">{s.slug}</td>
-              <td className="mono">{s.quantity}</td>
-              <td className="mono">{s.hiddenQuantity || ""}</td>
-            </tr>
-          ))}
-          {stash.length === 0 && (
+      <div className="overflow-x-auto">
+        <table className="mono-table w-full">
+          <thead>
             <tr>
-              <td colSpan={4} className="text-muted">
-                Nothing stashed here.
-              </td>
+              <th scope="col">Item</th>
+              <th scope="col">Slug</th>
+              <th scope="col">Quantity</th>
+              <th scope="col">Hidden</th>
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {stash.map((s) => (
+              <tr key={s.id}>
+                <td>{s.name}</td>
+                <td className="mono">{s.slug}</td>
+                <td className="mono">{s.quantity}</td>
+                <td className="mono">{s.hiddenQuantity || ""}</td>
+              </tr>
+            ))}
+            {stash.length === 0 && (
+              <tr>
+                <td colSpan={4} className="text-muted">
+                  Nothing stashed here.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       {authored.length > 0 && (
         <p className="text-muted text-sm">

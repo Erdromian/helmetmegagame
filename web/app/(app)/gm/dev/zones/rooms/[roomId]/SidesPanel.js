@@ -58,62 +58,64 @@ export default function SidesPanel({ roomId, homeName, sides, locations }) {
         the others under Who&apos;s here, but can only act on people standing where they stand.
       </p>
       <FormError>{error}</FormError>
-      <table className="mono-table w-full">
-        <thead>
-          <tr>
-            <th scope="col">Location</th>
-            <th scope="col">Access tag slugs (blank for public)</th>
-            <th scope="col">Sort</th>
-            <th scope="col">Discord</th>
-            <th scope="col" aria-label="Actions" />
-          </tr>
-        </thead>
-        <tbody>
-          {sides.map((side) => (
-            <tr key={side.id}>
-              <td>{side.locationName}</td>
-              {/* One row, one form: the inputs sit in their own cells and join it by `form`. */}
-              <td>
-                <input
-                  form={`side-${side.id}`}
-                  name="accessTagSlugs"
-                  defaultValue={side.accessTagSlugs}
-                  className="control"
-                  aria-label={`Access tag slugs from ${side.locationName}`}
-                />
-              </td>
-              <td>
-                <input
-                  form={`side-${side.id}`}
-                  name="sortOrder"
-                  type="number"
-                  defaultValue={side.sortOrder}
-                  className="control"
-                  aria-label={`Sort order at ${side.locationName}`}
-                />
-              </td>
-              <td className="text-muted">{side.hasThread ? "thread" : "not yet"}</td>
-              <td>
-                <form id={`side-${side.id}`} className="flex gap-2" onSubmit={(e) => onSave(e, side)}>
-                  <button type="submit" className="btn-quiet" disabled={pending}>
-                    Save
-                  </button>
-                  <button type="button" className="btn-quiet" disabled={pending} onClick={() => onRemove(side)}>
-                    Remove
-                  </button>
-                </form>
-              </td>
-            </tr>
-          ))}
-          {sides.length === 0 && (
+      <div className="overflow-x-auto">
+        <table className="mono-table w-full">
+          <thead>
             <tr>
-              <td colSpan={5} className="text-muted">
-                Only {homeName}.
-              </td>
+              <th scope="col">Location</th>
+              <th scope="col">Access tag slugs (blank for public)</th>
+              <th scope="col">Sort</th>
+              <th scope="col">Discord</th>
+              <th scope="col" aria-label="Actions" />
             </tr>
-          )}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {sides.map((side) => (
+              <tr key={side.id}>
+                <td>{side.locationName}</td>
+                {/* One row, one form: the inputs sit in their own cells and join it by `form`. */}
+                <td>
+                  <input
+                    form={`side-${side.id}`}
+                    name="accessTagSlugs"
+                    defaultValue={side.accessTagSlugs}
+                    className="control"
+                    aria-label={`Access tag slugs from ${side.locationName}`}
+                  />
+                </td>
+                <td>
+                  <input
+                    form={`side-${side.id}`}
+                    name="sortOrder"
+                    type="number"
+                    defaultValue={side.sortOrder}
+                    className="control"
+                    aria-label={`Sort order at ${side.locationName}`}
+                  />
+                </td>
+                <td className="text-muted">{side.hasThread ? "thread" : "not yet"}</td>
+                <td>
+                  <form id={`side-${side.id}`} className="flex gap-2" onSubmit={(e) => onSave(e, side)}>
+                    <button type="submit" className="btn-quiet" disabled={pending}>
+                      Save
+                    </button>
+                    <button type="button" className="btn-quiet" disabled={pending} onClick={() => onRemove(side)}>
+                      Remove
+                    </button>
+                  </form>
+                </td>
+              </tr>
+            ))}
+            {sides.length === 0 && (
+              <tr>
+                <td colSpan={5} className="text-muted">
+                  Only {homeName}.
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
 
       <form className="flex flex-col gap-2" onSubmit={onAdd}>
         <label className="field">
