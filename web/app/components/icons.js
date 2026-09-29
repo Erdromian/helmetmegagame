@@ -62,6 +62,7 @@ import {
   Search,
   OctagonMinus,
   Swords,
+  ShieldUser,
   X,
   Menu,
   Plus,
@@ -210,6 +211,7 @@ export const StealIcon = lucide(Grab, "StealIcon");
 export const PickpocketIcon = lucide(VenetianMask, "PickpocketIcon");
 // Attack — crossed blades, distinct from Harm's Wound (damage done) and Intercept's halt sign (waiting) (ATTACK.md).
 export const AttackIcon = lucide(Swords, "AttackIcon");
+export const EscortIcon = lucide(ShieldUser, "EscortIcon");
 // Free — the key that opens it.
 export const KeyIcon = lucide(KeyRound, "KeyIcon");
 // Break Restraints — the lock coming undone, distinct from Free's own KeyRound.

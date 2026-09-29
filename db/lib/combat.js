@@ -28,6 +28,7 @@ const {
   SAFE_HOLD_MS,
   seenBy,
   seenByMany,
+  seenById,
   seenAs,
   identityOf,
 } = require("./intercept");
@@ -58,6 +59,7 @@ const { DM_KIND } = require("./dmKinds");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { stopPerformances } = require("./performance");
 const { SFX } = require("./sfx");
+const { GUARD_LINES, guardsOf } = require("./guard");
 const { capitalizeFirst: cap, withArticle, concealedAlias } = require("./concealedIdentity");
 
 // Thirty minutes, Bascinet's number (the doc): after a call-off the attackers stay where they are "in
@@ -463,6 +465,9 @@ function startCombat(
       select: { id: true, characterId: true, side: true, role: true, status: true, alert: true },
     });
     const dms = await startDms(db, { combat, parts, rowsById });
+    // Anybody escorting somebody it just attacked steps in on their side (§6a). After the DMs above, so the
+    // targets read "attacks you!" before "joins the fight on your side".
+    dms.push(...(await escortsStepIn(db, { combatId: combat.id, turn, now })).dms);
 
     // The doc: confirming "announces their attack". Told to everybody standing there in the names THEY
     // know the fighters by (db/lib/combatAnnounce.js): the face picks its own words per reader. An ambush
@@ -584,7 +589,7 @@ async function liveParticipants(db, combatId, turnId, { not = null } = {}) {
 // involved in combat may intervene and join the combat on either side"). Their roll carries the distance
 // they came from — 1, 2 or 3 Locations away when it started; 4 or more is too late. Their snapshot is
 // taken now, not when it started, and where they were is kept for the GM.
-function intervene(db, { character, combatId, side, turn, now = new Date() }) {
+function intervene(db, { character, combatId, side, turn, line = "You join the fight.", now = new Date() }) {
   return attempt(async () => {
     if (side !== "ATTACKER" && side !== "DEFENDER") refuse("Pick a side.");
     const row = await db.character.findUnique({ where: { id: character.id }, select: COMBAT_SELECT });
@@ -651,9 +656,88 @@ function intervene(db, { character, combatId, side, turn, now = new Date() }) {
       const name = await seenBy(db, other.character.id, row);
       dms.push(notice(other.character, other.side === side ? `${cap(name)} joins the fight on your side.` : `${cap(name)} joins the fight against you.`));
     }
-    dms.push(fightDm(row, mine, ["You join the fight."], { sfx: SFX.BLADE_DRAWN }));
-    return { ok: true, line: "You join the fight.", dms: dms.filter(Boolean), speak: [] };
+    dms.push(fightDm(row, mine, [line], { sfx: SFX.BLADE_DRAWN }));
+    return { ok: true, line, dms: dms.filter(Boolean), speak: [] };
   });
+}
+
+// ─── Escorts ────────────────────────────────────────────────────────────────
+
+// Somebody escorting a person who is attacked steps in on their side (ATTACK.md §6a; Bascinet, 2026-09-30).
+// It is an intervention like any other, through intervene() and every gate it asks — combat mode, the lock,
+// ACT, one fight at a time, the distance rule — so an escort who could not have pressed Join the defenders
+// is simply left out, and says nothing. Only the DEFENDERS pull their escorts in: a charge who attacks, or who
+// was asked along, is not being attacked.
+//
+// Two ways in. `escortsStepIn` is the fight's own: everybody escorting one of its defenders who is standing
+// here when it starts (or when an ambush adds somebody). `escortsArrive` is the escort's: they have just walked
+// in (following, or on their own) and find their charge defending here. Both return { dms }.
+async function escortsStepIn(db, { combatId, turn, now = new Date() }) {
+  const out = { dms: [] };
+  if (!combatId || !turn?.id || typeof db.character?.findMany !== "function") return out;
+  const combat = await db.combat.findUnique({ where: { id: combatId }, select: { locationId: true, endedAt: true } });
+  if (!combat || combat.endedAt) return out;
+  const defenders = await db.combatParticipant.findMany({
+    where: { combatId, activeTurnId: turn.id, side: "DEFENDER", status: "JOINED" },
+    select: { characterId: true },
+  });
+  const inFight = await db.combatParticipant.findMany({
+    where: { combatId, activeTurnId: turn.id },
+    select: { characterId: true },
+  });
+  const guards = await guardsOf(db, defenders.map((d) => d.characterId), combat.locationId, {
+    not: inFight.map((p) => p.characterId),
+  });
+  for (const guard of guards) {
+    const step = await stepIn(db, { guardId: guard.id, chargeId: guard.guardingId, combatId, turn, now });
+    out.dms.push(...step);
+  }
+  return out;
+}
+
+async function escortsArrive(db, { characterIds, locationId, turn, now = new Date() }) {
+  const out = { dms: [] };
+  const ids = [...new Set((characterIds ?? []).filter(Boolean))];
+  if (ids.length === 0 || !locationId || !turn?.id) return out;
+  const guards = await db.character.findMany({
+    where: { id: { in: ids }, status: "ALIVE", locationId, guardingId: { not: null } },
+    select: { id: true, guardingId: true },
+  });
+  for (const guard of guards) {
+    const charge = await db.combatParticipant.findFirst({
+      where: {
+        characterId: guard.guardingId,
+        activeTurnId: turn.id,
+        side: "DEFENDER",
+        status: "JOINED",
+        combat: { locationId, endedAt: null },
+      },
+      select: { combatId: true },
+    });
+    if (!charge) continue;
+    out.dms.push(...(await stepIn(db, { guardId: guard.id, chargeId: guard.guardingId, combatId: charge.combatId, turn, now })));
+  }
+  return out;
+}
+
+// One escort into one fight, on the defending side. A refusal is swallowed: an escort who can't fight right
+// now (bound, withdrawing, already in another fight, too far when it started) just isn't in it.
+async function stepIn(db, { guardId, chargeId, combatId, turn, now }) {
+  try {
+    const name = await seenById(db, guardId, chargeId);
+    const joined = await intervene(db, {
+      character: { id: guardId },
+      combatId,
+      side: "DEFENDER",
+      turn,
+      line: GUARD_LINES.STEP_IN(name),
+      now,
+    });
+    return joined.ok ? joined.dms : [];
+  } catch (err) {
+    console.error(`Combat: escort ${guardId} stepping in failed:`, err.message ?? err);
+    return [];
+  }
 }
 
 // ─── Writing, calling off ───────────────────────────────────────────────────
@@ -953,6 +1037,7 @@ async function springAmbush(db, { watch, arrivalId, turn, locationId, now = new 
         notice(other.character, other.side === "ATTACKER" ? `${cap(name)} walked into your ambush.` : `${cap(name)} walked into the ambush too.`),
       );
     }
+    dms.push(...(await escortsStepIn(db, { combatId: live.id, turn, now })).dms);
     return { ok: true, dms: dms.filter(Boolean), speak: [] };
   });
 }
@@ -1098,6 +1183,8 @@ module.exports = {
   sendCombatDms,
   closeCombatsAtPush,
   springAmbush,
+  escortsStepIn,
+  escortsArrive,
   combatViewFor,
   combatsHere,
   participantData,

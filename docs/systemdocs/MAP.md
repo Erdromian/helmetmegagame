@@ -1121,6 +1121,53 @@ and it is rare enough to cost a living arrival nothing.
 `db/test/locationArrival.test.js` is a source check that holds the seam — add a
 Discord call to the facts half and it fails by name.
 
+## 3d. Following somebody you escort
+
+**Escort** is the bodyguard verb (`ATTACK.md` §6a). It runs the other way round
+from §3a. There, a leader walks and the party is carried along for nothing. Here,
+the **escort walks after their charge, under their own power**, and pays for it.
+`Character.guardingId` is the whole state, and `db/lib/guard.js` owns it. It is
+called "guard" in code so it never gets confused with the party.
+
+**How it runs.** At the end of `performLocationMove`, after the move commits and
+after `fireWatches`, every row in `moved` (the mover and any party they carried)
+is asked who is escorting them and still standing where they set out from
+(`guard.js#guardsOf`). Each of those escorts is walked through
+`performLocationMove` itself (`locationTravel.js#followCharge`). That is the
+whole design: the same function every other walk uses, so nothing is special.
+
+- **Access** is judged against the escort's own keys, ring and feet
+  (`crossingCheck`).
+- **A crossing** spends the escort's own free travel and mount ride, then their
+  Move if they haven't acted this turn (Bascinet, 2026-09-30). It never pushes on
+  for them.
+- Holds, ACT, the Caving Die and the travel lock all refuse exactly as they would
+  if the escort had pressed the button.
+- **A same-zone step skips the breath cooldown** (`skipCooldown`, the walk's
+  position claim), because they are walking beside somebody. A crossing never
+  does.
+- The escort's own party comes with them, and an escort of the escort follows
+  too. `chain`, a Set of everybody this one press has moved, stops a circle.
+
+**An escort who can't follow waits** (Bascinet, 2026-09-30). They stay where they
+are, `guardingId` stays set, and they pick up again the next time the charge
+moves off from where they both stand. Nothing clears it on a raw relocation or on
+the escort's own walk. A stale row is inert, the §3a rule.
+
+**The telling.** The result gains `escortDms`: "You followed X to Y.", with
+"It cost you your Move." when it did, or "X left, and you couldn't follow."
+plus the reason when the reason is about the escort's own sheet (their travel,
+their Move, a hold). **A way refusing them is never explained** — the `edge`
+flag on that refusal — because naming a hidden way's refusal announces it
+(§2a). Each DM carries a `key`, and `locationWalk.js` keeps only the last one
+per escort, so a walk of eight hops tells them once. An escort's own left-behind
+party member is told directly, never handed up as the charge's party.
+
+**The callers** run the arrival over every `moved` row as before, which gives
+an escort their channel, fog and Caving Die. They send `escortDms`, and they
+skip the "brought you along" line and the "Bringing" list for rows flagged
+`followed`, since an escort was not carried.
+
 ## 4. The Discord half
 
 **`db/lib/locationMove.js#applyLocationMoveSideEffects(prisma, entry)`** is
@@ -1862,6 +1909,7 @@ second one needs no code.
 | `db/lib/locationTravel.js` | `performLocationMove` — validation, the cooldown or the Move, walking the party, the Caving roll; no Discord |
 | `db/lib/locationWalk.js` | `walkWithinZone` — several hops inside one zone on one press (§3c). NOT a mover: every hop is `performLocationMove` and then `applyLocationMoveSideEffects`, which is what makes the turrets and the ambushes real at every stop |
 | `db/lib/escort.js` | The escort authority, the party, and the consent handshake — §3a. The ONLY module that decides who follows whom |
+| `db/lib/guard.js` | Escort, the bodyguard verb: who is escorting whom (`Character.guardingId`), its gate and its sentences — §3d and `ATTACK.md` §6a |
 | `db/lib/travelArrivalPass.js` | a DRAIN. Nothing files work for it; it lands anybody left mid-journey by the removal of deferred travel (§3) |
 | `db/lib/intercept.js` | Laying in wait, and the hold it puts on somebody — [`INTERCEPT.md`](INTERCEPT.md). The ONLY module that decides who a watch catches |
 | `db/lib/locationMove.js` | `applyLocationMoveSideEffects` — the Discord half, shared by every caller |

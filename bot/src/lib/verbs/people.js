@@ -60,6 +60,9 @@ const {
   createEscortOffer,
 } = require("@lifeweb/db/lib/escort");
 const { syncPartyMembership } = require("@lifeweb/db/lib/partyChat");
+const { setEscort, stopEscort, escortPicker } = require("@lifeweb/db/lib/verbs/guard");
+const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
+const { sendDm } = require("@lifeweb/db/lib/dm");
 const { rosterHere, pickerName } = require("@lifeweb/db/lib/peopleHere");
 const { logAudit } = require("@lifeweb/db/lib/auditLog");
 const { afterInventoryChangeDb, notifyCharacterDb, sendOfferDm } = require("@lifeweb/db/lib/inventoryTail");
@@ -877,6 +880,53 @@ const putdown = {
   },
 };
 
+// --- Escort: guard somebody (ATTACK.md §6a, MAP.md §3d) -----------------------
+
+// The DMs setEscort / stopEscort built for the charge, sent after the write.
+async function sendGuardDms(dms) {
+  for (const dm of dms ?? []) {
+    await sendDm(prisma, dm.discordUserId, dm.content, { kind: dm.kind ?? DM_KIND.NOTICE }).catch((err) =>
+      console.error(`Escort DM to ${dm.discordUserId} failed:`, err.message ?? err),
+    );
+  }
+}
+
+// web: character/guardActions.js#startEscort. The picker is everybody here, a hood by its token;
+// db/lib/verbs/guard.js re-checks combat mode and the key on the pick.
+const guard = {
+  async start(interaction, { character }) {
+    const view = await escortPicker(prisma, { character });
+    if (view.blocked) return done(interaction, view.blocked);
+    return pickFrom(interaction, "guard", "pick", {
+      prompt: view.current ? `You're escorting ${view.current.name}. Who do you want to escort?` : "Who do you want to escort?",
+      options: view.people.filter((p) => !p.current).map((p) => ({ label: p.name, value: p.key })),
+      empty: "There's nobody here to escort.",
+    });
+  },
+  steps: {
+    async pick(interaction) {
+      await ackStep(interaction);
+      const actor = await actorOrRefuse(interaction);
+      if (!actor) return;
+      const result = await setEscort(prisma, { character: actor, discordUserId: actor.discordUserId, targetKey: picked(interaction).value });
+      if (!result.ok) return done(interaction, result.error);
+      await sendGuardDms(result.dms);
+      return done(interaction, result.line);
+    },
+  },
+};
+
+// web: character/guardActions.js#endEscort. Never gated.
+const guardstop = {
+  needs: null,
+  async start(interaction, { character }) {
+    const result = await stopEscort(prisma, { character, discordUserId: character.discordUserId });
+    if (!result.ok) return done(interaction, result.error);
+    await sendGuardDms(result.dms);
+    return done(interaction, result.line);
+  },
+};
+
 module.exports = {
   kiss,
   search,
@@ -891,4 +941,6 @@ module.exports = {
   examine,
   bring,
   putdown,
+  guard,
+  guardstop,
 };

@@ -233,6 +233,9 @@ const R = {
   // Attack (docs/systemdocs/ATTACK.md); an ambush that fired writes request_intercept_fired above.
   request_attack_filed: () => [actor(), t("attacked"), target()],
   request_attack_cancelled: () => [actor(), t("broke off from"), target()],
+  // Escort (ATTACK.md §6a): the guard is the actor, the charge the target.
+  request_escort_set: () => [actor(), t("started escorting"), target()],
+  request_escort_stopped: () => [actor(), t("stopped escorting"), target()],
   request_loot_resources: (d) => [actor(), t("looted"), res(d.amount ?? d.resources), t("from"), target()],
   // Verb and preposition read by direction, so pickup/deposit/hand-off/Spillway each say the true shape.
   request_transfer_resources: (d) => transferSegments(d, res(d.amount ?? d.resources)),

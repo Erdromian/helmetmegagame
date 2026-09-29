@@ -9,6 +9,8 @@ const { blockerFor, ACT } = require("../incapacitation");
 const { logAudit } = require("../auditLog");
 const { refuse, asResult } = require("./common");
 const { TOO_EXHAUSTED, LOCKED_ON, ALERT_TOO_LATE, holdsExhausted } = require("../combatMode");
+const { GUARD_LINES, endGuardsFor } = require("../guard");
+const { seenById } = require("../intercept");
 
 // `character` needs { id } — the column and the tags are read here, so neither face's select has
 // to carry them. `on` is the wanted state.
@@ -71,11 +73,20 @@ function setCombatMode(prisma, { character, discordUserId, on }) {
       tooLate = Boolean(fight);
     }
 
-    return {
-      line: on ? (tooLate ? `You feel alert. ${ALERT_TOO_LATE}` : "You feel alert.") : "You give yourself a chance to relax.",
-      on: Boolean(on),
-      changed: true,
-    };
+    // An escort needs combat mode, so coming out of it ends one (ATTACK.md §6a; Bascinet, 2026-09-30). The
+    // escort reads it in the reply below; the charge is told by DM, which the face sends.
+    let dms = [];
+    let line = on ? (tooLate ? `You feel alert. ${ALERT_TOO_LATE}` : "You feel alert.") : "You give yourself a chance to relax.";
+    if (!on) {
+      const guarding = await prisma.character.findUnique({ where: { id: character.id }, select: { guardingId: true } });
+      if (guarding?.guardingId) {
+        const name = await seenById(prisma, character.id, guarding.guardingId);
+        dms = await endGuardsFor(prisma, [character.id], { line: null, seenById });
+        line = `${line} ${GUARD_LINES.STOPPED(name)}`;
+      }
+    }
+
+    return { line, on: Boolean(on), changed: true, dms };
   });
 }
 

@@ -537,6 +537,10 @@ const combat = {
   async start(interaction, { character }) {
     if (inCombatMode(character)) {
       const result = await setCombatMode(prisma, { character, discordUserId: character.discordUserId, on: false });
+      // Coming out of combat mode ends an escort, and the charge is told.
+      for (const dm of result.dms ?? []) {
+        await sendDm(prisma, dm.discordUserId, dm.content, { kind: dm.kind }).catch(() => {});
+      }
       return done(interaction, result.ok ? result.line : result.error);
     }
     return confirm(interaction, "combat", null, {

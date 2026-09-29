@@ -26,7 +26,7 @@ const GROUP_DESCRIPTIONS = {
   captive: "What you can do to somebody tied up or helpless.",
   take: "Take from a room or from a person.",
   intercept: "Lie in wait for somebody, or stop.",
-  escort: "Take somebody along with you, or put them down.",
+  escort: "Take somebody along with you or put them down, or escort somebody.",
   medic: "Heal somebody.",
   collar: "The bomb collar.",
   body: "Deal with the dead.",

@@ -46,6 +46,9 @@ async function walkWithinZone(prisma, character, targetLocation) {
     interceptDms: [],
     cavingDms: [],
     dismounted: [],
+    // What each escort who followed along was told (MAP.md §3d), keyed so that a walk of eight hops tells
+    // an escort once, where they ended up, rather than once a hop.
+    escortDms: [],
     // Every hop's Discord half, in the order the hops happened. Handed back
     // unsent, the way interceptDms and cavingDms already are, so a walk of
     // eight hops does not hold a player's click open for eight arrivals' worth
@@ -113,6 +116,11 @@ async function walkWithinZone(prisma, character, targetLocation) {
     merged.leftBehind.push(...(hop.leftBehind ?? []));
     merged.interceptDms.push(...(hop.interceptDms ?? []));
     merged.dismounted.push(...(hop.dismounted ?? []));
+    for (const dm of hop.escortDms ?? []) {
+      const at = dm.key ? merged.escortDms.findIndex((m) => m.key === dm.key) : -1;
+      if (at >= 0) merged.escortDms.splice(at, 1);
+      merged.escortDms.push(dm);
+    }
     for (const entry of hop.moved) {
       if (entry.cavingDm) merged.cavingDms.push(entry.cavingDm);
     }

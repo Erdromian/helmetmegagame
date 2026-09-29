@@ -33,6 +33,9 @@ const { expiryForGrant } = require("./grantExpiry");
 const { addToStack, grantTagSlugs } = require("./tagWrites");
 const { sendDm } = require("./dm");
 const { logAudit } = require("./auditLog");
+const { GUARD_LINES, guardsOf } = require("./guard");
+const { DM_KIND } = require("./dmKinds");
+const { capitalizeFirst: cap } = require("./concealedIdentity");
 
 // Too hurt or too dazed to make a whole zone's walk for free. A Peg Leg is absent on
 // purpose (Bascinet's call: a wooden leg still walks); Pain Shock joins for the other reason: not injured enough to stop you, just too out of it to find your own way. An equipped mount cancels every one of these — the arelitz is doing the walking (or, for Pain Shock, the finding).
@@ -420,7 +423,10 @@ class MoveRefused extends Error {
 // occupies. NEVER pass it from a client, and never spread a caller's opts
 // object in here: it is refused below for anything but a same-zone hop, so it
 // can never be the hole that skips the free-crossing arithmetic.
-async function performLocationMove(prisma, character, targetLocation, { exert = false, skipCooldown = false } = {}) {
+//
+// `chain`: everybody already moved by this one press, so an escort following an escort (MAP.md §3d) can
+// never walk in a circle. Internal, like skipCooldown — the follow step below passes it to itself.
+async function performLocationMove(prisma, character, targetLocation, { exert = false, skipCooldown = false, chain = null } = {}) {
   if (!targetLocation?.zone) throw new Error("performLocationMove needs targetLocation.zone");
 
   // Shut between sittings (SESSIONS.md §5). This is the floor, not the policy — both faces refuse the button long
@@ -470,7 +476,9 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
       // for exactly this kind of question.
       onFootBlocked: blocksOnFoot(equippedSlugs(character.tags ?? [])),
     });
-    if (!gate.passable) return { ok: false, reason: gate.refusal };
+    // `edge` marks the one refusal an escort following them must never be told the reason for (§3d):
+    // naming a hidden way's refusal would announce the way is there (MAP.md §2a).
+    if (!gate.passable) return { ok: false, reason: gate.refusal, edge: true };
   }
 
   // A first placement (no current location) is free — it isn't travel, it's arrival. A walk inside the zone is free on the cooldown. Only a hop whose edge crosses into another zone files the Move.
@@ -790,8 +798,8 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   // Anybody laying in wait here (INTERCEPT.md). Hooked HERE, not on applyLocationMoveSideEffects
   // (the writer every relocation runs) — an intercept is one person acting on another, stopped ON THE ROAD, so a GM teleport, Bulk Move, staged Relocate to, rite or first placement must not trip somebody's ambush. The whole party goes in at once, mover first, making "if several people come up together they all get stopped" free. Sends nothing; the caller sends `interceptDms` like it sends `cavingDm`, after this returns and outside any transaction.
   let interceptDms = [];
+  const turnForWatches = moved.length > 0 ? openTurn ?? (await prisma.turn.findFirst({ where: { status: "OPEN" } })) : null;
   if (moved.length > 0) {
-    const turnForWatches = openTurn ?? (await prisma.turn.findFirst({ where: { status: "OPEN" } }));
     // Wrapped: a watch that throws must never wedge a move that has already committed. The mover is standing at the destination either way.
     try {
       ({ dms: interceptDms } = await fireWatches(prisma, {
@@ -807,9 +815,56 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     }
   }
 
+  // ESCORTS FOLLOW (MAP.md §3d). Everybody escorting somebody who just moved, and standing where that
+  // somebody set out from, walks after them — AFTER the watches, so an ambush on the road catches the charge
+  // first and the escort walks into the fight behind them. Each follows through this same function under
+  // their own power, so the way judges their own keys and their own feet, and a crossing spends their own
+  // travel and then their Move (Bascinet, 2026-09-30). A guard who can't follow is left standing and the
+  // escort waits. Wrapped: a follower going wrong must never make a move that has committed look refused.
+  const follow = { moved: [], leftBehind: [], interceptDms: [], escortDms: [] };
+  if (moved.length > 0 && currentLocation) {
+    const seen = chain ?? new Set();
+    for (const entry of moved) seen.add(entry.character.id);
+    for (const entry of moved) {
+      if (entry.character.status !== "ALIVE" || !entry.fromLocationId) continue;
+      try {
+        const guards = await guardsOf(prisma, [entry.character.id], entry.fromLocationId, { select: ESCORT_SELECT, not: [...seen] });
+        for (const guard of guards) {
+          if (seen.has(guard.id)) continue;
+          seen.add(guard.id);
+          await followCharge(prisma, { guard, chargeId: entry.character.id, targetLocation, crossedZone, seen, into: follow });
+        }
+      } catch (err) {
+        console.error(`Escort: following ${entry.character.id} failed:`, err.message ?? err);
+      }
+    }
+  }
+  const allMoved = [...moved, ...follow.moved];
+
+  // An escort who has just arrived — following, or on their own feet — and finds their charge defending in a
+  // fight here steps in (ATTACK.md §6a). Only the top of a chain asks: a nested follow's own call has none of
+  // this press's escorts in its list yet. The DMs ride interceptDms, which both faces already send with a
+  // fight DM's buttons.
+  if (!chain && turnForWatches && allMoved.length > 0) {
+    try {
+      const { escortsArrive } = require("./combat");
+      const arrived = await escortsArrive(prisma, {
+        characterIds: allMoved.map((entry) => entry.character.id),
+        locationId: targetLocation.id,
+        turn: turnForWatches,
+      });
+      follow.interceptDms.push(...arrived.dms);
+    } catch (err) {
+      console.error(`Escort: stepping in at ${targetLocation.id} failed:`, err.message ?? err);
+    }
+  }
+
   return {
     ok: true,
-    interceptDms,
+    interceptDms: [...interceptDms, ...follow.interceptDms],
+    // One line per escort who followed or was left behind (MAP.md §3d). Each carries a `key`, so a walk of
+    // several hops keeps only the last one per escort (locationWalk.js).
+    escortDms: follow.escortDms,
     oldLocation: currentLocation,
     oldZone: currentLocation?.zone ?? null,
     targetLocation,
@@ -819,10 +874,13 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     usedFreeMove: outcome.usedFreeMove,
     dismounted: outcome.dismounted,
     // Followers the way wouldn't take. Detached and still standing where they were; the caller owes them and their leader a line. The reason is deliberately NOT the edge's own refusal — "the way is locked" on a hidden crawl would announce the crawl is there (MAP.md §2a).
-    leftBehind: outcome.leftBehind.map((e) => ({
-      character: { id: e.row.id, name: e.row.name, discordUserId: e.row.discordUserId, status: e.row.status },
-      reason: e.reason,
-    })),
+    leftBehind: [
+      ...outcome.leftBehind.map((e) => ({
+        character: { id: e.row.id, name: e.row.name, discordUserId: e.row.discordUserId, status: e.row.status },
+        reason: e.reason,
+      })),
+      ...follow.leftBehind,
+    ],
     freeMovesLeft: outcome.freeMovesLeft,
     // The two halves of that for the result line (travelSentence); null on a
     // paid crossing or a walk, where there is nothing to split.
@@ -830,8 +888,56 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     // The push on's die and what it cost, or null. Said by the caller in
     // exertResultLine's words; the AuditLog row already exists.
     exert: outcome.exert ?? null,
-    moved,
+    // The mover and their party, then every escort who followed (flagged `followed`, the charge's id) —
+    // a caller runs the arrival over all of them, but tells only the party "brought you along".
+    moved: allMoved,
   };
+}
+
+// One escort walks after their charge (MAP.md §3d). Same-zone steps skip the breath cooldown (the walk's
+// position claim), since they are walking beside somebody rather than pressing a button; a crossing never
+// does, and pays. Everything this move owes is merged into `into` for the charge's caller to send.
+async function followCharge(prisma, { guard, chargeId, targetLocation, crossedZone, seen, into }) {
+  const hop = await performLocationMove(prisma, guard, targetLocation, { skipCooldown: !crossedZone, chain: seen });
+  const { seenById } = require("./intercept");
+  const name = await seenById(prisma, guard.id, chargeId);
+  const tell = (content) => {
+    if (guard.discordUserId) into.escortDms.push({ key: `follow:${guard.id}`, discordUserId: guard.discordUserId, content: `*${content}*`, kind: DM_KIND.QUIET });
+  };
+  if (!hop.ok) {
+    // Already there (carried along by the charge's own party) or moved by something else mid-walk: nothing to say.
+    if (hop.reason === "You're already there." || hop.reason === "Somebody moved you before you got there.") return;
+    // The reason is about their own sheet (their travel, their Move, a hold on them) — except a way refusing
+    // them, which is never explained.
+    tell(hop.edge || !hop.reason ? GUARD_LINES.LOST(name) : `${GUARD_LINES.LOST(name)} ${hop.reason}`);
+    return;
+  }
+  for (const entry of hop.moved) {
+    into.moved.push(entry.character.id === guard.id ? { ...entry, followed: chargeId } : entry);
+  }
+  // Somebody the ESCORT was carrying whom the way would not take. Told here rather than handed up with the
+  // charge's own leftBehind, which every caller reads as the charge's party — the charge was never their leader.
+  // The same words the bot's travel already uses, and still never why (MAP.md §2a).
+  for (const entry of hop.leftBehind ?? []) {
+    const follower = await seenById(prisma, guard.id, entry.character.id);
+    if (guard.discordUserId) {
+      into.escortDms.push({
+        discordUserId: guard.discordUserId,
+        content: entry.reason === "edge" ? `*You can't move ${follower} through here. You left them behind.*` : `*${cap(follower)} isn't with you any more.*`,
+        kind: DM_KIND.QUIET,
+      });
+    }
+    if (entry.character.status === "ALIVE" && entry.character.discordUserId) {
+      into.escortDms.push({
+        discordUserId: entry.character.discordUserId,
+        content: `*${cap(await seenById(prisma, entry.character.id, guard.id))} went on without you.*`,
+        kind: DM_KIND.QUIET,
+      });
+    }
+  }
+  into.interceptDms.push(...(hop.interceptDms ?? []));
+  into.escortDms.push(...(hop.escortDms ?? []));
+  tell(hop.spentTurn ? `${GUARD_LINES.FOLLOWED(name, targetLocation.name)} ${GUARD_LINES.FOLLOW_COST_MOVE}` : GUARD_LINES.FOLLOWED(name, targetLocation.name));
 }
 
 module.exports = {

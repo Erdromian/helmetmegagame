@@ -91,6 +91,7 @@ const PEOPLE_ACTIONS = [
   // person is the FROM end, not a target.
   { mode: "loot", label: "Loot", preset: "fromKey", group: BAND.theft, self: false, ...HOOD_KEYS },
   { mode: "attack", label: "Attack", preset: "targetId", group: BAND.fight, self: false, ...HOOD_KEYS },
+  { mode: "guard", label: "Escort", preset: "targetId", group: BAND.fight, self: false, ...HOOD_KEYS },
   { mode: "bind", label: "Bind", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
   { mode: "free", label: "Free", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
   { mode: "harm", label: "Harm", preset: "targetId", group: BAND.captives, self: false, ...HOOD_KEYS },
