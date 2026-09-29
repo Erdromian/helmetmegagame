@@ -175,10 +175,33 @@ async function hardDeletePlace(prisma, kind, id) {
   return { ok: true };
 }
 
+// Closes one side of a room (MAP.md §2d). A side has no soft retire, so this
+// is a real delete, but a quiet one: passes given at that side open nothing
+// any more, and the membership records naming its thread would point at
+// nothing (db/lib/roomSides.js#membershipKey). Two callers: the place
+// editor's Remove button and the zones sync (db/lib/zonesSync.js) when
+// docs/zones.yaml drops a side. The caller writes its own audit row and
+// enqueues the mirror.
+async function removeRoomSide(prisma, side) {
+  const key = `${side.roomId}@${side.locationId}`;
+  await prisma.$transaction([
+    prisma.roomGuest.deleteMany({ where: { roomId: side.roomId, locationId: side.locationId } }),
+    prisma.$executeRaw`UPDATE "Character" SET "roomThreadRoomIds" = array_remove("roomThreadRoomIds", ${key}) WHERE ${key} = ANY("roomThreadRoomIds")`,
+    prisma.roomSide.delete({ where: { id: side.id } }),
+  ]);
+  // Best-effort: the mirror never deletes a thread, so this is the one chance to take it down.
+  if (side.discordThreadId) {
+    await discordRest.deleteThread(side.discordThreadId).catch((err) =>
+      console.error(`Room side thread delete failed (${side.discordThreadId}):`, err?.message ?? err),
+    );
+  }
+}
+
 module.exports = {
   hasLivingOccupant,
   retirePlace,
   unretirePlace,
   hardDeleteBlockers,
   hardDeletePlace,
+  removeRoomSide,
 };

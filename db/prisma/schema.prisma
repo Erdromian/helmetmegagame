@@ -7553,9 +7553,16 @@ model CharonLaunch {
 // pushes touch no YAML, and a full tag sync is thousands of round trips.
 // Not game state: Restart Game leaves it alone, and deleting the row just
 // forces the next deploy to sync.
+//
+// The "zones" row is the other kind of stamp: `snapshot` holds what
+// docs/zones.yaml said the last time db/lib/zonesSync.js applied it, so the
+// next run can tell a field the YAML changed from one a GM edited by hand at
+// /gm/dev/zones. Deleting that row makes the next sync a first run again:
+// the YAML wins every field, and nothing is retired.
 model SyncStamp {
   key      String   @id
   hash     String
+  snapshot Json?
   syncedAt DateTime @default(now())
 }
 

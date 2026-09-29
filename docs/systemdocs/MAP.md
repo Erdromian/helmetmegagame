@@ -21,10 +21,11 @@ channel doctor's `character-place` check flags a mismatch (`CHANNELS.md`
 Geography is authored live at `/gm/dev/zones` now — a GM edits a Zone,
 Location or Room's fields directly, and the change lands in the database
 immediately, with Discord catching up behind it (`db/lib/discordMirror/`).
-`docs/zones.yaml` survives only as the one-shot **importer** for a fresh
-game's starting layout (`npm run db:import-zones -- --apply`): it's additive,
-never updates an existing row and never deletes one — see `SYNC.md` for the
-format and `DEV-PANEL.md` for the editor. That includes which zone a
+`docs/zones.yaml` is the other author: Restart Game and Start Game bring
+every place up to it, but only the fields the YAML has changed since the last
+run, so a GM's edit here survives a restart unless the YAML moves that same
+field (`SYNC.md` §1a, `npm run db:sync-zones` to look first). See `SYNC.md`
+for the format and `DEV-PANEL.md` for the editor. That includes which zone a
 Location is in: the Zone control on its form moves it, taking everyone
 standing there along and making the ways in from the old zone the crossings
 that cost — which is how the Undercroft came up out of the Undertown into
@@ -348,9 +349,9 @@ The handler re-checks only that the clicker is standing at the gate — the room
 they clicked in is the authority for the rest. The flip is a row lock and a
 re-read carrying the state the clicker saw, so two watchmen clicking at once
 means one close and one "somebody just did." Both endpoints are redrawn, since
-either may have a tower. **A re-sync never reopens a gate somebody shut in
-play** — `modular.open` in the YAML is the value a link is *born* with, not one
-the sync re-asserts.
+either may have a tower. **A sync never reopens a gate somebody shut in
+play** — `modular.open` in the YAML is the value a link starts each game with
+(`LocationLink.authoredOpen`), and only Restart Game resets `isOpen` to it.
 
 ### Tight squeeze
 
@@ -423,12 +424,13 @@ rail tunnel was taken out: the only other way in was the `climbing`-locked
 drop from the Grand Ravine, so a Giant without `climbing` could not reach the
 Crystal Chambers or the Chasm at all. Both are plain ways now.
 
-**Flagging or unflagging an edge that already exists takes more than a YAML
-edit.** `db:import-zones` never updates an edge that's already there (§2, it
-only adds). So the original three squeezes were set by a migration
-(`20261022010000_tight_squeeze_existing_edges`), and the two above were
-cleared by another (`20261112000000_widen_giant_squeezes`), for any database
-that already had those edges. To flag any other existing edge, a GM ticks it
+**Flagging or unflagging an edge that already exists is a YAML edit now, and
+lands at the next Restart Game** (the zones sync, `SYNC.md` §1a). Before that
+sync existed the importer only ever added edges, so the original three squeezes
+were set by a migration (`20261022010000_tight_squeeze_existing_edges`), and
+the two above were cleared by another (`20261112000000_widen_giant_squeezes`).
+To change an edge in a game already running, `npm run db:sync-zones -- --apply`
+or the editor. To flag any other existing edge, a GM ticks it
 in `/gm/dev/zones/links`, and whoever does that needs to check what a Giant
 loses by it first.
 

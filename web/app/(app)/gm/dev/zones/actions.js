@@ -5,12 +5,11 @@ import { prisma } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
 import { requireDev } from "@/lib/devAccess";
 import { validateNewSlug, validateUniqueName } from "@lifeweb/db/lib/placeValidation";
-import { retirePlace, unretirePlace, hardDeleteBlockers, hardDeletePlace } from "@lifeweb/db/lib/placeDeletable";
+import { retirePlace, unretirePlace, hardDeleteBlockers, hardDeletePlace, removeRoomSide as closeRoomSide } from "@lifeweb/db/lib/placeDeletable";
 import { enqueueMirror } from "@lifeweb/db/lib/discordMirror/queue";
 import { ATTRIBUTES, attributesFromInput } from "@lifeweb/db/lib/locationAttributes";
 import { seedRoomStashRows } from "@lifeweb/db/lib/roomStashSeed";
 import { rehomeStandingCharacters } from "@lifeweb/db/lib/locationMove";
-import { deleteThread } from "@lifeweb/db/lib/discordRest";
 import { roomLocationIds } from "@lifeweb/db/lib/roomSides";
 
 // /gm/dev/zones — the GM place editor. Every writer here re-validates
@@ -511,20 +510,7 @@ export async function removeRoomSide(sideId) {
     const side = await prisma.roomSide.findUnique({ where: { id: sideId }, include: { room: { select: { locationId: true } } } });
     if (!side) throw new UserError("That side no longer exists.");
 
-    // Passes given at this side open nothing any more, and the membership
-    // records naming its thread would point at nothing (db/lib/roomSides.js#membershipKey).
-    const key = `${side.roomId}@${side.locationId}`;
-    await prisma.$transaction([
-      prisma.roomGuest.deleteMany({ where: { roomId: side.roomId, locationId: side.locationId } }),
-      prisma.$executeRaw`UPDATE "Character" SET "roomThreadRoomIds" = array_remove("roomThreadRoomIds", ${key}) WHERE ${key} = ANY("roomThreadRoomIds")`,
-      prisma.roomSide.delete({ where: { id: sideId } }),
-    ]);
-    // Best-effort: the mirror never deletes a thread, so this is the one chance to take it down.
-    if (side.discordThreadId) {
-      await deleteThread(side.discordThreadId).catch((err) =>
-        console.error(`Room side thread delete failed (${side.discordThreadId}):`, err?.message ?? err),
-      );
-    }
+    await closeRoomSide(prisma, side);
     await audit(session, "gm_room_side_removed", { roomId: side.roomId, sideId, locationId: side.locationId });
     await enqueueMirror(prisma, "room", side.roomId, "a side closed from /gm/dev/zones");
     await enqueueMirror(prisma, "location", side.locationId, "a room no longer opens onto here");

@@ -64,6 +64,8 @@ const MACHINE_TYPES = new Set([
   "combat_saved",
   "combat_solved",
   "combat_unsolved",
+  // docs/zones.yaml reaching the places at Restart or Start Game (db/lib/zonesSync.js).
+  "zones_synced_from_yaml",
 ]);
 
 // What the GM and the engine did TO a character as the result of something they
