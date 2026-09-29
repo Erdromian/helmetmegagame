@@ -228,7 +228,11 @@ function placeLabels(nodes, marks, cell, rank) {
 // crawl the character cannot use, or a way their scrambled memory lost, never
 // arrived, so it draws no stair either. Keyed by node id, the far side's
 // nodes in name order.
-function stairsOf(nodes, edges, plateId) {
+//
+// `stairsAt` adds the stairs whose far side they do not know yet (loadMap
+// sends only the near place's id). Each gets one nameless entry, last in the
+// list, which `stairNames` words as somewhere unknown.
+function stairsOf(nodes, edges, plateId, stairsAt = []) {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const out = new Map();
   for (const e of edges) {
@@ -244,7 +248,17 @@ function stairsOf(nodes, edges, plateId) {
     }
   }
   for (const list of out.values()) list.sort((a, b) => a.name.localeCompare(b.name));
+  for (const id of stairsAt) {
+    if (byId.get(id)?.plate !== plateId) continue;
+    if (!out.has(id)) out.set(id, []);
+    out.get(id).push({ name: null });
+  }
   return out;
+}
+
+// The far side's names, for the hover and the card.
+function stairNames(far) {
+  return far.map((f) => f.name ?? "somewhere you don't know");
 }
 
 // "Down to" from the Barony, "Up to" from under it. Plate ids rather than a
@@ -961,7 +975,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
     return <OffMapBoard data={data} />;
   }
 
-  const { nodes, edges, travel } = data;
+  const { nodes, edges, stairsAt, travel } = data;
   const plate = plateBox;
   const cell = plate.cell;
   // The two marks, as paths in cell units. Made once per plate and cached on
@@ -999,7 +1013,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
   // The staircases on this plate, and where every name goes (placeLabels).
   // Worked out per render rather than memoised: a render is a pick, a fetch or
   // a plate switch, never a pan, and forty boxes is nothing.
-  const stairs = stairsOf(nodes, edges, plate.id);
+  const stairs = stairsOf(nodes, edges, plate.id, stairsAt);
   const named = drawn.filter((n) => labels || sel === n.id || n.state === "here");
   const rank = (n) => (n.state === "here" ? 0 : sel === n.id ? 1 : n.state === "stood" ? 2 : 3);
   const spots = placeLabels(named, drawn, cell, rank);
@@ -1188,7 +1202,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
                       key={n.id}
                       className="map-stair map-tip-target"
                       transform={`translate(${n.x * cell + cell * 0.62} ${n.y * cell - cell * 0.38}) scale(0.6)`}
-                      {...tipHandlers(`stairs:${n.id}`, `${heading}:`, far.map((f) => f.name))}
+                      {...tipHandlers(`stairs:${n.id}`, `${heading}:`, stairNames(far))}
                     >
                       <rect className="map-stair-hit" x="-2" y="-2" width={cell + 4} height={cell + 4} />
                       <path className="map-stair-halo" transform="translate(1 1)" d={marks.stairs} />
@@ -1364,7 +1378,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
             note={note}
             // The card's own plate, not the one on screen: with nothing picked
             // on a wide screen it is where you stand, whichever plate that is.
-            stairs={card.plate ? { heading: stairsHeading(card.plate), far: stairsOf(nodes, edges, card.plate).get(card.id) ?? [] } : null}
+            stairs={card.plate ? { heading: stairsHeading(card.plate), far: stairsOf(nodes, edges, card.plate, stairsAt).get(card.id) ?? [] } : null}
             onCancel={() => setSel(null)}
             onGo={() => go(card)}
             onExert={() => go(card, { exert: true })}
@@ -1503,7 +1517,7 @@ function MapCard({ node, here, travel, pending, error, note, stairs = null, onCa
           would rather read than point. */}
       {stairs?.far.length > 0 && (
         <p className="chat-quiet-line">
-          Stairs {stairs.heading.toLowerCase()} {stairs.far.map((f) => f.name).join(", ")}.
+          Stairs {stairs.heading.toLowerCase()} {stairNames(stairs.far).join(", ")}.
         </p>
       )}
 

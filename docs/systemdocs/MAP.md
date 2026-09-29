@@ -1712,10 +1712,18 @@ staircase (glyph 194, `uiGlyphs.stairs` in `nodes.yaml`), at the top right of
 the place's cell. Hover or tap names the far side ("Down to:" from the Barony,
 "Up to:" from under it), and the place's card says the same in a line, for a
 phone. It is worked out from the edges already in the payload (`stairsOf`), so
-a stair is exactly as visible as the way it stands for. A hidden crawl you
+a stair follows the same rules as the way it stands for. A hidden crawl you
 cannot use draws no stair, and neither does a way your scrambled memory has
 lost. It is keyed on plates, not zones, so the Undercroft (a Fortress place
 drawn on the Undertown plate) takes the stair up to the Court.
+
+**A stair needs only one end.** A way draws its line only when you know both
+places, but a stair belongs to the place it leaves from: knowing the Square is
+knowing it has a stair down. So when you know one end and not the other,
+loadMap still sends that stair, as the near place's id in `stairsAt`. No line,
+and no id or name for the far side. The hover and the card then say
+"somewhere you don't know". Before this, a character who knew every town place
+but none of the Undertown saw no stairs in the town at all.
 
 `Zone.mapPolygon` / `mapLabelX` / `mapLabelY` stay as dead as §6d leaves them;
 none of this reads them.
