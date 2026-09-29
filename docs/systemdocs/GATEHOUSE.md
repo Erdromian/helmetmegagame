@@ -58,6 +58,9 @@ asks to pass from inside the gatehouse.
 Incarn's Chambers had no description in the doc; the one in `docs/zones.yaml`
 was drafted.
 
+**The Incarn starts here** (`starting_location: town-1` in `docs/roles.yaml`),
+not in the Garrison, so his Discord zone at creation is Town.
+
 ## 3. Request Passage
 
 `db/lib/gatehouse.js#requestPassage`. A request is some text plus anything the
