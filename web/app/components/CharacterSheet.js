@@ -78,10 +78,11 @@ export default function CharacterSheet({
   hasPointerDevice = false,
   hasStepstone = false,
   stepstoneTargets = [],
-  // The THANATI section (docs/systemdocs/THANATI.md), resolved in
-  // character/page.js and handed straight through to the dialogs.
-  isThanati = false,
-  isThanatiLeader = false,
+  // A secret seat's section (docs/systemdocs/THANATI.md), resolved in
+  // character/page.js and handed straight through to the dialogs. Neutral
+  // names: RequestActionsProvider.js says why.
+  seatVerbs = null,
+  seatLead = false,
   isCerberon = false,
   isSkinless = false,
   canWarrant = false,
@@ -92,7 +93,7 @@ export default function CharacterSheet({
   atHideout = false,
   hideoutRooms = [],
   hideoutStock = null,
-  thanatiWares = [],
+  hideoutWares = [],
   // Same fate: BioForm's conceal toggle reads it, and it never arrived.
   concealGear = null,
   // The build this render came from, for the self-refresh poll.
@@ -217,7 +218,7 @@ export default function CharacterSheet({
   // The Blood menu (docs/systemdocs/VAMPIRE.md §6) — same posture as the
   // store props above: server-resolved, null on someone else's sheet or a
   // non-vampire's own.
-  vampireBlood = null,
+  bloodMenu = null,
   // The turn card's first paint: { turn, move } from play/actions.js#myMove,
   // read by character/page.js beside everything else.
   moveState = null,
@@ -351,8 +352,8 @@ export default function CharacterSheet({
         hasPointerDevice={hasPointerDevice}
         hasStepstone={hasStepstone}
         stepstoneTargets={stepstoneTargets}
-        isThanati={isThanati}
-        isThanatiLeader={isThanatiLeader}
+        seatVerbs={seatVerbs}
+        seatLead={seatLead}
         isCerberon={isCerberon}
         isSkinless={isSkinless}
         canWarrant={canWarrant}
@@ -362,7 +363,7 @@ export default function CharacterSheet({
         atHideout={atHideout}
         hideoutRooms={hideoutRooms}
         hideoutStock={hideoutStock}
-        thanatiWares={thanatiWares}
+        hideoutWares={hideoutWares}
       >
         <LedgerBand
           character={character}
@@ -404,7 +405,7 @@ export default function CharacterSheet({
               storeTags={storeTags}
               storeHeldTags={storeHeldTags}
               storeRoleSlug={storeRoleSlug}
-              vampireBlood={vampireBlood}
+              bloodMenu={bloodMenu}
             />
 
             {isSelf ? (

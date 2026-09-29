@@ -356,6 +356,16 @@ Four things make a category actually hidden rather than merely empty:
   *open* a gate (both are `purchasable: false`, GM-assigned) aren't in it —
   without the fold, the chain walk dead-ends and the category stays shut for
   the one person meant to see it.
+- **The point-buy catalog withholds secret gates on the server.** The
+  wizard and `/store` get their menu from
+  `web/lib/pointBuyCatalog.js#loadPointBuyCatalog`, and the browser's
+  `unlockedTags()` only hides what already arrived. Every Demoness ability
+  and Vampire boon is `purchasable`, so for a while all of them — with their
+  descriptions and "Requires: Demoness" — reached every player's page.
+  `web/lib/secretTags.js#withoutSecrets` now drops a SECRET tag, or a tag whose own or group gate is
+  SECRET, unless the reader holds it (or the gate) or it is the kit of a role
+  the wizard is offering. Only secret gates: a Courtier's or a Cerberon's
+  group is not a secret, and the browser still gates it the old way.
 - **`getVisibleTags` withholds them.** That loader
   (`web/lib/referenceData.js`, streamed through `TagsProvider` from
   `layout.js`) is the app-wide tag catalog `RichText`/`TagChip` read, and
@@ -365,16 +375,6 @@ Four things make a category actually hidden rather than merely empty:
   is on the **group** gate only, never a tag's own `requiredTag`: Ranged
   (Archer) isn't a secret, and hiding it would break `{tag:ranged-archer}`
   in public documents for everyone who hasn't bought it.
-- **The point-buy catalog withholds secret gates on the server.** The
-  wizard and `/store` get their menu from
-  `web/lib/pointBuyCatalog.js#loadPointBuyCatalog`, and the browser's
-  `unlockedTags()` only hides what already arrived. Every Demoness ability
-  and Vampire boon is `purchasable`, so for a while all of them — with their
-  descriptions and "Requires: Demoness" — reached every player's page.
-  `hiddenFrom()` now drops a SECRET tag, or a tag whose own or group gate is
-  SECRET, unless the reader holds it (or the gate) or it is the kit of a role
-  the wizard is offering. Only secret gates: a Courtier's or a Cerberon's
-  group is not a secret, and the browser still gates it the old way.
 
 ## 4. The point economy
 

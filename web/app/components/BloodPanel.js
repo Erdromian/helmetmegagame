@@ -3,17 +3,17 @@
 import { useState, useTransition } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
 import FormError from "@/app/components/FormError";
-import { castBloodAbility } from "@/app/(app)/character/actions/bloodAbility";
+import { castMenuAbility } from "@/app/(app)/character/actions/bloodAbility";
 
 // The Blood menu (docs/systemdocs/VAMPIRE.md §6) — mounts as the body of a
 // Modal opened from TagRail.js, StorePanel.js's own shape: a list, one row
 // per ability, each with its own "Use" button and (for the four abilities
-// that need one) an inline input. `vampireBlood` is fully server-resolved —
+// that need one) an inline input. `bloodMenu` is fully server-resolved —
 // web/app/(app)/character/page.js computes each ability's current
 // availability so this component only renders what the server already
 // decided; the action itself re-checks everything regardless (a server
 // action is a public endpoint, actions/bloodAbility.js's own header).
-export default function BloodPanel({ vampireBlood, onDone }) {
+export default function BloodPanel({ bloodMenu, onDone }) {
   const [error, setError] = useState("");
   const [pending, startTransition] = useTransition();
   const [locationId, setLocationId] = useState("");
@@ -22,13 +22,13 @@ export default function BloodPanel({ vampireBlood, onDone }) {
   const [nourishTarget, setNourishTarget] = useState("");
   const [refresh] = useRefresh();
 
-  const { bloodLevel, urgencyLabel, abilities, locations = [], incapacitatedHere = [], thrallsHere = [] } =
-    vampireBlood;
+  const { bloodLevel, urgencyLabel, abilities, locations = [], incapacitatedHere = [], boundHere = [] } =
+    bloodMenu;
 
   function use(ability, extra = {}) {
     setError("");
     startTransition(async () => {
-      const result = await castBloodAbility({ abilityKey: ability.key, ...extra });
+      const result = await castMenuAbility({ abilityKey: ability.key, ...extra });
       if (!result.ok) {
         setError(result.error);
         return;
@@ -95,7 +95,7 @@ export default function BloodPanel({ vampireBlood, onDone }) {
                 <input
                   type="text"
                   className="field"
-                  placeholder="Message to every vampire…"
+                  placeholder={bloodMenu.copy?.messagePlaceholder ?? ""}
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
                   maxLength={500}
@@ -143,8 +143,8 @@ export default function BloodPanel({ vampireBlood, onDone }) {
                   value={nourishTarget}
                   onChange={(e) => setNourishTarget(e.target.value)}
                 >
-                  <option value="">Choose a thrall here…</option>
-                  {thrallsHere.map((c) => (
+                  <option value="">{bloodMenu.copy?.boundPlaceholder ?? ""}</option>
+                  {boundHere.map((c) => (
                     <option key={c.id} value={c.id}>
                       {c.name}
                     </option>

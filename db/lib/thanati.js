@@ -86,6 +86,39 @@ async function hideoutRoom(db) {
   });
 }
 
+// The words on a cultist's own THANATI buttons, sent by the server to a
+// cultist and to nobody else. web/app/components/actionRegistry.js is in every
+// player's browser bundle, so it carries the four buttons (under the neutral
+// pool keys seatVerbs / seatLead) but none of their words: the section's name,
+// the labels and the help lines all ride on this. The help is Bascinet's words,
+// verbatim; Purchase Gear carries none on purpose.
+const RECOVER_WORDS = Object.freeze({
+  [BLACK_ROBES_SLUG]: { label: "Robes", noun: "the robes" },
+  [THANATI_MASK_SLUG]: { label: "Mask", noun: "the mask" },
+});
+
+function thanatiVerbCopy(heldSlugs) {
+  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
+  const missing = RECOVERABLE_SLUGS.filter((slug) => !held.has(slug)).map((slug) => RECOVER_WORDS[slug]);
+  return {
+    section: "THANATI",
+    labels: {
+      recall: "Recall comrades",
+      // Worded for what it would actually hand back: "Recover Mask" when the robes are on.
+      recover: missing.length ? `Recover ${missing.map((w) => w.label).join(" & ")}` : "Recover equipment",
+      hideout: "Set hideout",
+      purchase: "Purchase gear",
+    },
+    help: {
+      recall: "Remember the other Thanati cultists in Ravenheart.",
+      recover: "Recover your mask and robes from where you left them.",
+      hideout: "Set your hideout room, determining where you can purchase things from.",
+    },
+    canRecover: missing.length > 0,
+    recoverAsk: missing.length ? `You get ${missing.map((w) => w.noun).join(" and ")} back.` : "You get them back.",
+  };
+}
+
 // Robed AND Inspired: the two facts that make a chant count. One query.
 async function chanterReady(db, characterId) {
   const rows = await db.characterTag.findMany({
@@ -115,4 +148,5 @@ module.exports = {
   listComrades,
   hideoutRoom,
   chanterReady,
+  thanatiVerbCopy,
 };

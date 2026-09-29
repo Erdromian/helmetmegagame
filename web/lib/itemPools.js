@@ -1,6 +1,7 @@
 import "server-only";
 import { isPointerDeviceSlug } from "@lifeweb/db/lib/pointerMint";
-import { BUTCHER_SLUG, MUTILATE_GATE_SLUGS } from "@lifeweb/db/lib/constants";
+import { BUTCHER_SLUG } from "@lifeweb/db/lib/constants";
+import { MUTILATE_GATE_SLUGS } from "@lifeweb/db/lib/secretSlugs";
 import { isLooseCollarSlug } from "@lifeweb/db/lib/collarGlyphs";
 import { canWorkRemote, canUnlockCollar } from "@lifeweb/db/lib/collar";
 import { wornRingTokens } from "@lifeweb/db/lib/roomAccess";

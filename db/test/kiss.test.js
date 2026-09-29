@@ -7,7 +7,7 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 const { kissAuthority, kissBlock, KISS_SELECT, KISS_COOLDOWN_MS } = require("../lib/kiss");
 const { blockerFor, KISS, ACT, INCAPACITATING_SLUGS } = require("../lib/incapacitation");
-const { KISS_BLOCKING_SLUGS } = require("../lib/constants");
+const { KISS_BLOCKING_SLUGS } = require("../lib/secretSlugs");
 
 const HERE = "loc-1";
 

@@ -20,9 +20,6 @@ const {
   AMOR_FATI_SLUG,
   WOUND_TAG_GROUPS,
 } = require("./constants");
-// db/lib/thanati.js requires nothing, so this stays loadable from web/lib and
-// the tests without the Prisma client.
-const { isThanati } = require("./thanati");
 
 
 // Ecstatic mirrors Afraid (same width/distance from Fine), Panicking has no twin.
@@ -412,15 +409,8 @@ function woundMoodFor(tag) {
   return WOUND_MOOD_BY_RUNG[rung] ?? 0;
 }
 
-// What one witness takes when somebody dies where they stand: { kind, base }.
-// Everybody takes DEATH_SEEN — except a Thanati, who is lifted by
-// DEATH_RELISHED instead of frightened. Who died and how does not come into
-// it: a death cult is as pleased by a comrade's death as by a sacrifice's.
-function deathWitnessTerm(heldSlugs) {
-  const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);
-  if (isThanati(held)) return { kind: "DEATH_RELISHED", base: EVENTS.DEATH_RELISHED };
-  return { kind: "DEATH_SEEN", base: EVENTS.DEATH_SEEN };
-}
+// What a witness to a death takes is db/lib/deathWitness.js — server-only, since it
+// has to know a secret seat and this module is in the browser bundle.
 
 // The product of every applicable factor. A 0 anywhere wins, whatever else is
 // held — Outsider means the wilderness costs nothing, full stop.
@@ -924,7 +914,6 @@ module.exports = {
   arrivalTermFor,
   woundRungOf,
   woundMoodFor,
-  deathWitnessTerm,
   multiplierFor,
   resolveDelta,
   moodBandDm,

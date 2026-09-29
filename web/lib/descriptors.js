@@ -8,6 +8,7 @@
 // as its Hunger (or Blood) tile.
 import { hungerDescriptorFor } from "@lifeweb/db/lib/hunger";
 import { bloodDescriptorFor } from "@lifeweb/db/lib/vampire";
+import { BLOOD_URGENCY_SLUGS } from "@lifeweb/db/lib/secretSlugs";
 
 function heldSlugsOf(tags) {
   return (tags ?? []).map((ct) => ct.tag?.slug ?? ct.slug).filter(Boolean);
@@ -28,7 +29,9 @@ export function bloodOf({ tags, vampireBloodLevel }) {
 // everybody else, null for the Hungerless.
 export function appetiteOf(character) {
   const blood = bloodOf(character);
-  if (blood) return { key: "blood", label: "Blood", ...blood };
+  // `tileSlugs`: the band tags the tile already shows, which the rail leaves out. Sent
+  // from here because the slugs are secret — the browser must not carry the list.
+  if (blood) return { key: "blood", label: "Blood", ...blood, tileSlugs: BLOOD_URGENCY_SLUGS };
   const hunger = hungerOf(character);
   return hunger ? { key: "hunger", label: "Hunger", ...hunger } : null;
 }

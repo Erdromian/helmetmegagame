@@ -2,7 +2,7 @@
 // tag, docs/tags.yaml's hidden `demoness` category) buys automatic read access to a sheet's last
 // fulfilled Desire; Mindreading reads the same fact only via a GM-adjudicated Gambit. No Prisma
 // import; imported by subpath from both bot/ and web/ so the rule can't drift.
-const { SEDUCTIVE_DEMONESS_SLUG } = require("./constants");
+const { SEDUCTIVE_DEMONESS_SLUG } = require("./secretSlugs");
 
 // A list, not a bare slug, so another tag can be added without touching the check below.
 const DESIRE_SIGHT_SLUGS = [SEDUCTIVE_DEMONESS_SLUG];

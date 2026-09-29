@@ -23,7 +23,7 @@
 // `noCorpse` death doesn't do on its own.
 //
 // Takes `prisma`/`tx` as a parameter — db/lib/dm.js's reason.
-const { VAMPIRE_SLUG, PILE_OF_ASH_SLUG } = require("./constants");
+const { VAMPIRE_SLUG, PILE_OF_ASH_SLUG } = require("./secretSlugs");
 const { applyDeathToRow } = require("./characterDeath");
 const { pickRandomPublicRoom } = require("./roomStash");
 const { addToRoomStack } = require("./tagWrites");

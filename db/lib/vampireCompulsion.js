@@ -18,7 +18,7 @@
 // this step (it isn't in Turn.resolvedPasses), which is fine: a crash
 // mid-loop just means some vampires miss one turn's compulsion, logged and
 // moved on.
-const { BLOODCRAZED_SLUG, WIGHT_SLUG } = require("./constants");
+const { BLOODCRAZED_SLUG, WIGHT_SLUG } = require("./secretSlugs");
 const { alivePassCharacters } = require("./aliveCharacters");
 const { IDENTITY_SELECT, seenBy } = require("./intercept");
 const { startCombat, sendCombatDms } = require("./combat");

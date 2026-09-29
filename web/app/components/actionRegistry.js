@@ -143,11 +143,8 @@ export const ACTION_HELP = {
     "Pack up to 150 lb of what you're carrying into one crate. The crate weighs half what went into it, and you write the line on the side yourself. Anyone holding it can open it again.",
   bird: "Send a letter you're holding to someone, by bird. You have to guess their zone — guess wrong and the bird comes back with it still on.",
   seal: RING_TEXT.sealHint,
-  // The Thanati's three, Bascinet's words verbatim (docs/systemdocs/THANATI.md).
-  // Purchase Gear carries none on purpose.
-  recall: "Remember the other Thanati cultists in Ravenheart.",
-  recover: "Recover your mask and robes from where you left them.",
-  hideout: "Set your hideout room, determining where you can purchase things from.",
+  // The secret seat's help lines are not here: they reach a cultist on
+  // pools.seatVerbs (see the section below).
   // Bascinet's words, verbatim.
   intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
   // Rewritten for the Combat Overhaul (docs/systemdocs/ATTACK.md): a fight now has sides, a call-off every
@@ -361,28 +358,35 @@ export const ACTION_SECTIONS = [
   // fact, and a dead row on everybody else's would only teach them the cult
   // exists. Purchase Gear then GREYS on whether you are standing at the
   // hideout's Location, which is your own ground.
+  //
+  // NO WORDS HERE, and neutral pool keys. This file is in every player's
+  // browser bundle, so a "THANATI" heading or a "Remember the other Thanati
+  // cultists" line in it told anybody with DevTools which opt-in seat is real.
+  // The heading, the labels and the help ride on `pools.seatVerbs`, which the
+  // server fills for a cultist only (db/lib/thanati.js#thanatiVerbCopy) — read
+  // them through sectionLabelFor / labelFor / helpFor, never off these rows.
   {
-    key: "thanati",
-    label: "THANATI",
+    key: "seat",
+    label: null,
     actions: [
-      { mode: "recall", icon: SpeakerIcon, label: "Recall comrades", show: "isThanati", instant: true },
-      // The label is derived from what is missing — see labelFor() below — and
-      // the button greys once both are held, which is your own sheet's fact.
+      { mode: "recall", icon: SpeakerIcon, label: null, show: "seatVerbs", instant: true },
+      // Its label names what is missing ("Recover Mask"), worked out on the
+      // server; the button greys once both are held, your own sheet's fact.
       {
         mode: "recover",
         icon: CharacterIcon,
-        label: "Recover equipment",
-        show: "isThanati",
+        label: null,
+        show: "seatVerbs",
         gate: "canRecover",
         gateReason: "You have both.",
         instant: true,
       },
-      { mode: "hideout", icon: KeyIcon, label: "Set hideout", show: "isThanatiLeader" },
+      { mode: "hideout", icon: KeyIcon, label: null, show: "seatLead" },
       {
         mode: "purchase",
         icon: CrateIcon,
-        label: "Purchase gear",
-        show: "isThanati",
+        label: null,
+        show: "seatVerbs",
         gate: "atHideout",
         gateReason: "You aren't standing at the hideout.",
       },
@@ -716,26 +720,25 @@ export function actionFor(mode) {
   return BY_MODE.get(mode) ?? null;
 }
 
-// Names for the two things Recover Equipment hands back, keyed by slug. The
-// slugs are db/lib/thanati.js#RECOVERABLE_SLUGS; the names are what the
-// button says, so it reads "Recover mask" when the robes are already on.
-const RECOVER_NAMES = { "black-robes": "Robes", "thanati-mask": "Mask" };
-
-// The button's label, given the pools — the same word for every action but
-// Recover, whose label is what it would actually do.
+// The button's label, given the pools. A secret seat's verbs carry none of
+// their own (the section's note above) and take the server's.
 export function labelFor(action, pools) {
+  if (action.label == null) return pools?.seatVerbs?.labels?.[action.mode] ?? "";
   // Mine underground, Gather in the Black Hills — the same button, worded for
   // the ground stood on (db/lib/gathering.js). The page keys pools.workVerb.
   if (action.mode === "mine") return workVerbByKey(pools?.workVerb).label;
-  if (action.mode !== "recover") return action.label;
-  const missing = (pools?.recoverMissing ?? []).map((slug) => RECOVER_NAMES[slug]).filter(Boolean);
-  if (missing.length === 0) return action.label;
-  return `Recover ${missing.join(" & ")}`;
+  return action.label;
+}
+
+// A section's heading, given the pools — the secret seat's comes from the server.
+export function sectionLabelFor(section, pools) {
+  return section.label ?? pools?.seatVerbs?.section ?? "";
 }
 
 // The sentence under the label: ACTION_HELP's, except where the verb itself
 // depends on where you stand.
 export function helpFor(action, pools) {
+  if (action.label == null) return pools?.seatVerbs?.help?.[action.mode] ?? null;
   if (action.mode === "mine") return workVerbByKey(pools?.workVerb).help;
   return ACTION_HELP[action.mode] ?? null;
 }

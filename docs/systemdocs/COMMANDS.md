@@ -538,6 +538,17 @@ player. So a verb that doesn't apply to you gives a reason when you type it:
 the catalog's greyed reason, or "That isn't something you can do right now."
 for a hidden verb.
 
+**So a secret seat's verbs have no command at all.** The Thanati's four and
+the Vampire's Blood abilities are `command: null` in the catalog: they are in
+the Actions menu, which lists only what the reader can do, and nowhere else.
+They used to be `/thanati recall|recover|hideout|gear` and `/blood`, and
+the command picker showed every member of the guild that the "Cultist" and
+"Vampire" opt-ins were real seats and not decoys. `commandGroups()` skips a
+verb with no command, and `db/test/actionCatalog.test.js` fails if a verb that
+hides behind a secret seat's pool (`seatVerbs`, `seatLead`, `isVampire`)
+ever gets one back. An open invader's verbs (`/reinforcements`, `/smell`)
+keep theirs: those seats are no secret.
+
 **Native or link.** A verb runs on Discord when its rule already lives in
 `db/lib` or was small enough to move there. The moved rules are in
 `db/lib/verbs/*.js`, and each web `…Impl` now calls the same function. The rest
@@ -553,9 +564,9 @@ The link verbs, for now:
 - `/medic heal`
 - `/captive torture|mutilate|harm`
 - `/body butcher`
-- `/thanati gear`
 - `/paper bird`
-- `/mulligan`, `/desire` and `/blood`
+- `/mulligan` and `/desire`
+- Blood abilities and Purchase gear, from the Actions menu only (above)
 
 What keeps most of these on the web is how much of their dialog there is. For
 Harm, Mutilate and Mulligan it is two helpers that still live only in `web/lib`

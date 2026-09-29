@@ -94,7 +94,7 @@ function startFromCommand(interaction) {
 }
 
 // Commands this module answers.
-const VERB_COMMANDS = new Set(ACTIONS.map((a) => a.command));
+const VERB_COMMANDS = new Set(ACTIONS.map((a) => a.command).filter(Boolean));
 
 // Everything a verb draws. The Cancel on a confirm is every verb's for free.
 async function handleVerbComponent(interaction) {

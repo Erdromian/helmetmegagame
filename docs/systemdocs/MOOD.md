@@ -112,7 +112,7 @@ key on.
 | Tortured, broke or held | TORTURED | −40 | `tortureCharacterRequestImpl` (TORTURE.md) |
 | A piece cut off you | MUTILATED | −50 | `mutilateRequestImpl` (TORTURE.md §6). A corpse takes no hit — a dead row's dial is read by nobody. |
 | Branded | BRANDED | −40 | `brandCharacterRequestImpl` (TORTURE.md §8). Same two ×0 immunities as TORTURED. |
-| Someone dies in your Location | DEATH_SEEN | −15 to each witness — **except a Thanati**, who takes `DEATH_RELISHED` (§6) instead | `characterDeath.js#frightenWitnesses`, the term picked by `mood.js#deathWitnessTerm` |
+| Someone dies in your Location | DEATH_SEEN | −15 to each witness — **except a Thanati**, who takes `DEATH_RELISHED` (§6) instead | `characterDeath.js#frightenWitnesses`, the term picked by `deathWitness.js#deathWitnessTerm` (out of `mood.js`, which ships to the browser and must not know a secret seat) |
 | An unburied body in your Location at turn end | CORPSE | −5 | mood pass |
 | Shot at by a turret and alive, hit or graze, either gun | TURRET | −25 | `turretPass.js#applyTurretShot` |
 | Holds `hungry` at turn end | HUNGER | −5 | mood pass |
@@ -518,7 +518,7 @@ hooks in the same tick cannot race a stale read past either end.
   `DESIRE_RELIEF_PER_POINT`; the consume relief
   map), the pure functions (`bandOf`, `placeClassOf`, `placeTermFor`,
   `driftTermFor`, `restorativeRoom`, `woundRungOf`, `woundMoodFor`,
-  `deathWitnessTerm`, `multiplierFor`,
+  `multiplierFor`,
   `resolveDelta`, `moodBandDm`, `clampMood`), and the Prisma surface
   (`applyMood`, `applyMoodTerms`, `applyWoundMood`, `applyArrivalMood`,
   `setMood`, `consumeReliefFor`, `setMoodDmSender`, `loadIntensity`). Off the

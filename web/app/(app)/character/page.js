@@ -29,6 +29,7 @@ import {
   THANATI_WARES,
   OBOL_SLUG,
   hideoutRoom,
+  thanatiVerbCopy,
 } from "@lifeweb/db/lib/thanati";
 import { CERBERON_SLUG, WARRANT_BADGE_SLUGS } from "@lifeweb/db/lib/wanted";
 import { SKINLESS_TAG_SLUG, SKINLESS_ROLE_SLUG } from "@lifeweb/db/lib/skinless";
@@ -96,7 +97,7 @@ import { getOpenTurn } from "@/lib/turn";
 import { myMove } from "../chat/actions";
 import { loadDesireView, loadLettersView } from "@/lib/selfPools";
 import { loadVampireBlood } from "@/lib/vampireBloodView";
-import { VAMPIRE_SLUG } from "@lifeweb/db/lib/constants";
+import { VAMPIRE_SLUG } from "@lifeweb/db/lib/secretSlugs";
 import { craftFreeUnits } from "@/lib/requests";
 import { summarizeCraftBudget } from "@/lib/craftBudget";
 import {
@@ -114,7 +115,8 @@ import {
   DEFAULT_MAX_DRAWBACK_TAGS,
   DEFAULT_MAX_DRAWBACK_POINTS,
 } from "@/lib/characterCreation";
-import { loadPointBuyCatalog, loadSecretTagIds, withoutSecrets } from "@/lib/pointBuyCatalog";
+import { loadPointBuyCatalog, loadSecretTagIds } from "@/lib/pointBuyCatalog";
+import { withoutSecrets } from "@/lib/secretTags";
 import { ANTAGONIST_BLURB } from "@lifeweb/db/lib/threats";
 import { cookedTasteOnly } from "@/lib/referenceData";
 import { eatLimitsFor } from "@/lib/eatLimits";
@@ -710,7 +712,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // the only gate left is holding the seat tag itself. `here` is already
   // loaded above (loadPeoplePools), so Enthral/Nourish's target lists cost
   // no extra query, the same roster bindTargets/kissTargets already read.
-  const vampireBlood = character.tags.some((ct) => ct.tag.slug === VAMPIRE_SLUG)
+  const bloodMenu = character.tags.some((ct) => ct.tag.slug === VAMPIRE_SLUG)
     ? await loadVampireBlood(character, { here, openTurn })
     : null;
 
@@ -1020,7 +1022,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
   // The server reasons over the whole catalog; the browser gets it less the secrets this sheet
   // does not hold the key to — the Demoness's abilities and the Vampire's boons are purchasable,
-  // so they used to cross to every sheet (web/lib/pointBuyCatalog.js#withoutSecrets). A secret
+  // so they used to cross to every sheet (web/lib/secretTags.js). A secret
   // recipe this sheet has found (knownRecipeIds) stays: the Craft menu has to be able to draw it.
   const secretIds = await loadSecretTagIds();
   const clientTagCatalog = withoutSecrets(tagCatalog, secretIds, [...heldIds, ...knownRecipeIds]).map((t) => {
@@ -1475,8 +1477,10 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       canUnlockCollar: canUnlockCollar,
       canDetonateCollar: canDetonateCollar,
       canBreakRestraints: canBreakRestraints,
-      isThanati: isThanati,
-      isThanatiLeader: isThanatiLeader,
+      // The Thanati's buttons carry no words of their own (actionRegistry.js): a
+      // cultist is sent them here, everybody else null.
+      seatVerbs: isThanati ? thanatiVerbCopy(heldSlugs) : null,
+      seatLead: isThanatiLeader,
       isCerberon: isCerberon,
       isSkinless: isSkinless,
       canWarrant: canWarrant,
@@ -1486,7 +1490,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       atHideout: atHideout,
       hideoutRooms: hideoutRooms,
       hideoutStock: hideoutStock,
-      thanatiWares: thanatiWares,
+      hideoutWares: thanatiWares,
       hasPointerDevice: hasPointerDevice,
       hasStepstone: hasStepstone,
       stepstoneTargets: stepstoneTargets,
@@ -1502,7 +1506,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       storeTags: storeTags,
       storeHeldTags: storeHeldTags,
       storeRoleSlug: character.role?.slug ?? null,
-      vampireBlood: vampireBlood,
+      bloodMenu: bloodMenu,
     },
   });
 }

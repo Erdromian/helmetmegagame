@@ -7,7 +7,7 @@
 import { prisma } from "@lifeweb/db";
 import { pickerName } from "@/lib/peopleHere";
 import { INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
-import { THRALL_SLUG } from "@lifeweb/db/lib/constants";
+import { THRALL_SLUG } from "@lifeweb/db/lib/secretSlugs";
 import { clampBlood, bloodUrgencyBand } from "@lifeweb/db/lib/vampire";
 import { ABILITIES, abilityCooldownTurns, isOnCooldown } from "@lifeweb/db/lib/vampireBloodAbilities";
 
@@ -64,7 +64,7 @@ export async function loadVampireBlood(character, { here, openTurn }) {
   const incapacitatedHere = (here ?? [])
     .filter((c) => c.tags.some((ct) => INCAPACITATING_SLUGS.has(ct.tag.slug)))
     .map((c) => ({ id: c.id, name: pickerName(c) }));
-  const thrallsHere = (here ?? [])
+  const boundHere = (here ?? [])
     .filter((c) => c.tags.some((ct) => ct.tag.slug === THRALL_SLUG))
     .map((c) => ({ id: c.id, name: pickerName(c) }));
   const locations = await prisma.location.findMany({
@@ -78,6 +78,12 @@ export async function loadVampireBlood(character, { here, openTurn }) {
     abilities,
     locations,
     incapacitatedHere,
-    thrallsHere,
+    boundHere,
+    // The two prompts that name the seat. Sent from here, to a vampire only:
+    // BloodPanel.js is in every player's bundle and so says nothing of it itself.
+    copy: {
+      messagePlaceholder: "Message to every vampire…",
+      boundPlaceholder: "Choose a thrall here…",
+    },
   };
 }

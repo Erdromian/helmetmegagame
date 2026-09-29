@@ -86,6 +86,17 @@ test("commands fit Discord: names, descriptions, and no command both bare and gr
   }
 });
 
+// Discord shows every global command to every member, so a command for a
+// secret seat's verb tells the whole guild that seat is real (COMMANDS.md §2g).
+test("no secret seat's verb has a slash command", () => {
+  const SECRET_POOLS = new Set(["seatVerbs", "seatLead", "isVampire"]);
+  const secret = ACTIONS.filter((a) => SECRET_POOLS.has(a.show));
+  assert.ok(secret.length >= 5, `found ${secret.length} secret-seat verbs — did a pool key change?`);
+  for (const a of secret) assert.equal(a.command, null, `${a.mode} must not have a slash command`);
+  const names = commandGroups().flatMap(({ command, actions }) => [command, ...actions.map((a) => a.sub ?? ""), ...actions.map((a) => a.description)]);
+  for (const text of names) assert.doesNotMatch(text, /thanati|cult|vampire|blood abilit/i, `"${text}" names a secret seat`);
+});
+
 test("a web link only names a dialog the web can open", () => {
   // The DIALOGS keys web/app/components/actions/index.js mounts; an INSTANT
   // verb is deliberately not linkable (opening it would run it).

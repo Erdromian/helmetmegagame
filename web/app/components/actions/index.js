@@ -51,8 +51,6 @@ import TrinketDialog from "./TrinketDialog";
 // does not. The result comes back as a notice (NoticeProvider.js), never a
 // dialog — these used to open an empty RequestDialog whose only field was
 // the Confirm button.
-const RECOVER_NAMES = { "black-robes": "the robes", "thanati-mask": "the mask" };
-
 export const INSTANT = {
   recall: { run: () => recallComrades(), confirm: () => null },
   // A free read, like Recall and the pointer — nothing to ask first.
@@ -61,11 +59,11 @@ export const INSTANT = {
   smellskin: { run: () => smellSkin(), confirm: () => null },
   recover: {
     run: () => recoverEquipment(),
+    // What comes back is worded on the server (db/lib/thanati.js#thanatiVerbCopy).
     confirm: (pools) => {
-      const missing = (pools?.recoverMissing ?? []).map((s) => RECOVER_NAMES[s]).filter(Boolean);
       return {
         title: "Recover your things?",
-        message: `${missing.length ? `You get ${missing.join(" and ")} back.` : "You get them back."} It takes your Move for the turn.`,
+        message: `${pools?.seatVerbs?.recoverAsk ?? "You get them back."} It takes your Move for the turn.`,
         confirmLabel: "Recover",
       };
     },

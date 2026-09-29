@@ -34,7 +34,7 @@
 // { snapshot, notices }: `snapshot` is { [key]: { from, to, … } | { skipped } }
 // for the row's appliedEffect, `notices` is [{ discordUserId, content }] — at
 // most one, every line the row has for them in a single DM.
-const { BESTIAL_SLUG, WIGHT_SLUG } = require("./constants");
+const { BESTIAL_SLUG, WIGHT_SLUG } = require("./secretSlugs");
 const { clampHunger, crossings, hungerDm } = require("./hunger");
 const { applyMoodTerms, bandOf: moodBandOf, clampMood, moodBandDm, EVENTS } = require("./mood");
 const {

@@ -33,6 +33,7 @@ const { isDayLongTurn } = require("./turnClock");
 const { letInAtPush } = require("./roomGuests");
 const { logAudit } = require("./auditLog");
 const { applyStagedScalesInTx } = require("./stagedScalesApply");
+const { describeAppliedScales } = require("./stagedScales");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -381,6 +382,9 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
             targetCharacterId: row.targetCharacterId,
             details: {
               scales: moved,
+              // The sentence, written here: the audit's renderer is in the browser bundle and must not
+              // load stagedScales.js, which carries the vampire's meters (web/lib/auditNarrative.js).
+              scalesText: describeAppliedScales(moved).join(", "),
               stagedByDiscordUserId: row.createdByDiscordUserId,
               resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? null,
               gambitCharacterName: row.move?.character?.name ?? null,

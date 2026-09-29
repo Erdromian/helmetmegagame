@@ -60,7 +60,7 @@ export default function TagRail({
   // The Blood menu (docs/systemdocs/VAMPIRE.md §6) — same posture as
   // storeTags above: server-resolved, null on someone else's sheet or a
   // non-vampire's own.
-  vampireBlood = null,
+  bloodMenu = null,
 }) {
   const actions = useRequestActions();
   const open = actions?.open ?? null;
@@ -237,7 +237,7 @@ export default function TagRail({
         <button type="button" className="tag-points-spend" onClick={() => setStoreOpen(true)}>
           Spend Tag Points
         </button>
-        {vampireBlood && (
+        {bloodMenu && (
           <>
             {" · "}
             <button type="button" className="tag-points-spend" onClick={() => setBloodOpen(true)}>
@@ -376,9 +376,9 @@ export default function TagRail({
           />
         </Modal>
       )}
-      {isSelf && vampireBlood && (
+      {isSelf && bloodMenu && (
         <Modal open={bloodOpen} onClose={() => setBloodOpen(false)} title="Blood" width="widest">
-          <BloodPanel vampireBlood={vampireBlood} onDone={() => setBloodOpen(false)} />
+          <BloodPanel bloodMenu={bloodMenu} onDone={() => setBloodOpen(false)} />
         </Modal>
       )}
       {isSelf && choiceTag && (

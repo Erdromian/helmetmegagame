@@ -10,7 +10,7 @@ const {
   THIRSTY_SLUG,
   FAMISHED_SLUG,
   BLOODCRAZED_SLUG,
-} = require("./constants");
+} = require("./secretSlugs");
 
 const { turnsInGameDay } = require("./turnClock");
 

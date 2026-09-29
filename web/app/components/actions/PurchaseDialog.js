@@ -15,7 +15,7 @@ import { purchaseGear } from "@/app/(app)/character/thanatiActions";
 // runs out, then the rest covers it. No line of explanation, by ruling.
 export default function PurchaseDialog({ mode, onDone, onClose }) {
   const pools = useActionPools();
-  const wares = pools.thanatiWares ?? [];
+  const wares = pools.hideoutWares ?? [];
   const stock = pools.hideoutStock ?? null;
   const [picks, setPicks] = useState({});
   const [currency, setCurrency] = useState("obols");
