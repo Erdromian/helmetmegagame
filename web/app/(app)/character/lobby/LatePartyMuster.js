@@ -6,7 +6,7 @@ import PageShell from "@/app/components/PageShell";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
 import { setPriority, pickedNothing } from "@lifeweb/db/lib/playerPreferences";
-import { PriorityControl } from "./Lobby";
+import { DifficultyChip, PriorityControl } from "./Lobby";
 import { saveMusterEntry, leaveMuster } from "../musterActions";
 import SkinlessRespawn from "../SkinlessRespawn";
 
@@ -128,6 +128,7 @@ export default function LatePartyMuster({ fates, entry, entered, skinless = null
                         {fate.requiresWhitelist ? <span title="Reserved seat"> ★</span> : null}
                       </button>
                       <span className="text-xs text-muted">{fate.startingZoneName}</span>
+                      <DifficultyChip difficulty={fate.difficulty} />
                       <span className="text-xs text-muted mono">
                         {fate.left === null ? "∞ left" : `${fate.left} left`}
                       </span>

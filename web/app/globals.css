@@ -1993,9 +1993,9 @@ input[type="radio"]:disabled {
 
 /* --- The pregame lobby (docs/systemdocs/LOBBY.md) ------------------------- */
 
-/* One role per row: the name and its starting zone on the left, the four-level
-   control on the right. A locked row (whitelist) is greyed and inert but
-   stays readable — nothing is hidden. */
+/* One role per row: the name, its starting zone and its difficulty on the
+   left, the four-level control on the right. A locked row (whitelist) is
+   greyed and inert but stays readable — nothing is hidden. */
 .lobby-role {
   display: flex;
   align-items: center;
