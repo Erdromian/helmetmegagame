@@ -217,6 +217,46 @@ Their snapshot is taken when they join, and the desk shows where they came
 from (`fromLocationName`). Everybody already in the fight is told who joined,
 and on which side, by the name they know them by.
 
+## 6a. Escorts step in
+
+**Escort** is a verb of its own (the Escort dialog on the web, `/escort guard`
+and `/escort stop` on Discord, `db/lib/verbs/guard.js` for both). You pick one
+person standing with you, and you guard them: you follow them when they travel
+(`MAP.md` §3d), and **if they are attacked you join the fight on their side**.
+`Character.guardingId` is the state, one charge at a time, and `db/lib/guard.js`
+owns the rule and the words.
+
+- **It needs combat mode** to set (Bascinet, 2026-09-30), and it **ends when
+  combat mode goes off** — pressed off (`verbs/combatMode.js`, the escort reads
+  it in the reply) or switched off at the push (`combatModePass.js`, a notice).
+  The charge is told either way.
+- **The charge is told, and has no say** (Bascinet, 2026-09-30): a DM names the
+  escort the way the charge knows them. They can shake an escort off by going
+  where the escort can't follow.
+- Setting one asks for an open turn and a game in session, not the Move lock: it
+  acts on nobody until somebody moves or is attacked, and the lock already shuts
+  both. Stopping is never gated. A new charge replaces the old, who is told.
+- Leaving play clears both halves (`characterDeath.js#releaseEntanglements`).
+
+**Stepping in is an intervention** (§6), through `combat.js#intervene` and every
+gate it asks: combat mode, the lock, ACT, one fight at a time, the distance rule.
+So an escort who could not have pressed Join the defenders is left out, silently.
+They join as an `INTERVENER` on the `DEFENDER` side, and read "You step in to
+defend X." instead of "You join the fight." Two ways in:
+
+- **`escortsStepIn`** — the fight's own. When a fight starts (`startCombat`, so
+  an Attack, an ambush's first catch and a Vampire's compulsion alike) or an
+  ambush adds a target, everybody escorting one of its defenders who is standing
+  there steps in. Distance 0, no penalty.
+- **`escortsArrive`** — the escort's. An escort who has just arrived (following,
+  or on their own feet) and finds their charge defending in a live fight here
+  joins it, from `performLocationMove`. Distance comes off the fight's snapshot,
+  so a late escort pays the usual −1/−2/−3, and one 4 or more away when it
+  started is too late.
+
+**Only a charge who is attacked** pulls an escort in. A charge who attacks, or
+who is asked along as a collaborator, is not being attacked.
+
 ## 7. How a fight ends
 
 - **Call off.** Only the attacking side may, and only once **every** attacker
@@ -381,10 +421,12 @@ reads.
 | `db/lib/combatAnnounce.js`, `db/lib/peopleLine.js` | The announcement: one lensed row on the web, a DM relay on Discord, and the per-reader renderer |
 | `db/lib/locationGraph.js` | `distancesFrom` |
 | `db/lib/intercept.js` | The hold and its sentences; ambushes fire here |
+| `db/lib/guard.js`, `db/lib/verbs/guard.js` | Escort: the rule, the words, set and stop (§6a); `combat.js#escortsStepIn` / `escortsArrive` put an escort in the fight |
 | `db/lib/turnGate.js` | `travelLockReason` |
 | `db/lib/attack.js` | Legacy shim (§12) |
 | `web/app/(app)/character/attackActions.js` | The web's server actions |
 | `web/app/components/actions/AttackDialog.js`, `FightPanel.js`, `FightLine.js` | The player's surfaces |
+| `web/app/components/actions/EscortDialog.js`, `web/app/(app)/character/guardActions.js` | The Escort dialog and its server actions (§6a) |
 | `web/app/(desk)/gm/turns/CombatDesk.js`, `QuickPicks.js`, `SnapshotBody.js` | The GM's desk |
 | `web/lib/moveRows.js#combatRow` | The lens row |
 | `bot/src/lib/verbs/people.js`, `bot/src/lib/combatButtons.js` | Discord |

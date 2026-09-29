@@ -409,10 +409,11 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
   const hideout = isThanati ? await hideoutRoom(prisma) : null;
 
   const consumable = consumableTags(tags);
-  const [performing, intercepting, party] = await Promise.all([
+  const [performing, intercepting, party, guarding] = await Promise.all([
     prisma.performance.findFirst({ where: { characterId: character.id, stoppedAt: null }, select: { id: true } }),
     prisma.interceptWatch.findUnique({ where: { characterId: character.id }, select: { id: true } }),
     partyOf(prisma, character.id),
+    prisma.character.findUnique({ where: { id: character.id }, select: { guardingId: true } }),
   ]);
 
   const flags = {
@@ -443,6 +444,7 @@ async function actionPoolsFor(prisma, character, { openTurn: givenTurn, currentA
     canExamine: !gateReason.examine,
     canKiss: !gateReason.kiss,
     isIntercepting: Boolean(intercepting),
+    isGuarding: Boolean(guarding?.guardingId),
     hasParty: party.length > 0,
     canHeal: Boolean(healSkillId && satisfied.has(healSkillId)),
     canMiracle: isSaint,

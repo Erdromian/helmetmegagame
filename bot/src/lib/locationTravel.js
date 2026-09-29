@@ -313,9 +313,17 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
     }).catch((err) => console.error(`Intercept DM to ${dm.discordUserId} failed:`, err.message ?? err));
   }
 
-  // Being carried off happens without the player pressing anything, so it has to be told.
+  // Escorts who walked after them, or couldn't (MAP.md §3d). Their own words, built in performLocationMove.
+  for (const dm of result.escortDms ?? []) {
+    await sendDm(prisma, dm.discordUserId, dm.content, { kind: dm.kind ?? DM_KIND.QUIET }).catch((err) =>
+      console.error(`Escort DM to ${dm.discordUserId} failed:`, err.message ?? err),
+    );
+  }
+
+  // Being carried off happens without the player pressing anything, so it has to be told. An escort who
+  // followed was not carried, and was told above.
   for (const entry of result.moved) {
-    if (entry.character.id === character.id) continue;
+    if (entry.character.id === character.id || entry.followed) continue;
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
     await sendDm(
       prisma,

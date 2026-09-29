@@ -909,7 +909,13 @@ export async function travelTo({ locationId, exert = false } = {}) {
   // below names this rather than the destination they picked.
   const landed = result.arrivedAt ?? target;
 
-  const passengers = result.moved.filter((entry) => entry.character.id !== me.character.id);
+  // Escorts who walked after them, or couldn't (MAP.md §3d). Their own words, built in performLocationMove.
+  for (const dm of result.escortDms ?? []) {
+    tell.push(() => sendDm(dm.discordUserId, dm.content, { kind: dm.kind }));
+  }
+
+  // An escort who followed was not carried, so they are neither "brought along" nor in the Bringing line.
+  const passengers = result.moved.filter((entry) => entry.character.id !== me.character.id && !entry.followed);
   const brought = await seenByIdMany(prisma, me.character.id, passengers.map((entry) => entry.character.id));
   for (const entry of passengers) {
     if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
@@ -2773,6 +2779,13 @@ export async function setCombatMode({ on } = {}) {
   if (me.error) return { ok: false, error: me.error };
   const result = await setCombatModeInDb(prisma, { character: me.character, discordUserId: me.discordUserId, on: on === true });
   if (!result.ok) return { ok: false, error: result.error };
+  // Coming out of combat mode ends an escort, and the charge is told.
+  const dms = result.dms ?? [];
+  if (dms.length) {
+    after(async () => {
+      for (const dm of dms) await sendDm(dm.discordUserId, dm.content, { kind: dm.kind }).catch(() => {});
+    });
+  }
   return { ok: true, on: result.on, line: result.line };
 }
 

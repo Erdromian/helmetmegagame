@@ -9,6 +9,7 @@ const { TIRED_SLUG, EXHAUSTED_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { nextFatigueSlug } = require("./fatigue");
 const { alivePassCharacters } = require("./aliveCharacters");
+const { GUARD_LINES, endGuardsFor } = require("./guard");
 
 const NOTICE = {
   [TIRED_SLUG]: "You were alert and on edge all of last turn. You're **Tired**.",
@@ -86,6 +87,16 @@ async function runCombatModeFatiguePass(prisma, turn) {
     if (turnsOff) switchedOff += 1;
     if (character.discordUserId) {
       notices.push({ discordUserId: character.discordUserId, content: NOTICE[targetSlug ?? "already"] });
+    }
+    // Combat mode off ends an escort (ATTACK.md §6a). Lazily required: intercept.js reaches back into the
+    // turn machinery, and this pass runs from db/index.js.
+    if (turnsOff) {
+      const { seenById } = require("./intercept");
+      const ended = await endGuardsFor(prisma, [character.id], { line: GUARD_LINES.COMBAT_OFF, seenById }).catch((err) => {
+        console.error(`runCombatModeFatiguePass: ending the escort failed for ${character.id}:`, err.message ?? err);
+        return [];
+      });
+      for (const dm of ended) notices.push({ discordUserId: dm.discordUserId, content: dm.content });
     }
   }
 

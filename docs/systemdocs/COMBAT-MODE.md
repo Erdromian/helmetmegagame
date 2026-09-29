@@ -101,6 +101,11 @@ The involuntary attacks stay ungated: a Vampire's compulsion
 (`vampireCompulsion.js`) is nobody's choice, and an Ambush firing is governed by
 the watch rule below.
 
+**Escort** (`ATTACK.md` §6a). Setting one needs combat mode, and combat mode
+going off ends it — pressed off, or switched off at the push. The escort is told
+(in the reply, or with the push notice), and so is the person they were
+escorting.
+
 **Intercept — an Ambush only.** Setting an Ambush needs combat mode
 (`combatGate.js#interceptBlock`, inside `db/lib/verbs/watch.js#setWatch`, so both
 faces get it). A Safe watch never does (Combat Overhaul.docx). Stopping one never
@@ -178,7 +183,7 @@ The prompt an alert caver gets is the part not built yet.
 | `db/lib/combatMode.js` | State, timing rule, sentences. Import-free |
 | `db/lib/verbs/combatMode.js` | `setCombatMode`, both faces |
 | `db/lib/combatGate.js` | `combatBlock`, `interceptBlock` |
-| `db/lib/combatModePass.js` | The push: Tired, then Exhausted and off |
+| `db/lib/combatModePass.js` | The push: Tired, then Exhausted and off, which ends an escort |
 | `db/lib/intercept.js` | Dormant watches in `fireWatches` |
 | `db/lib/examineSnapshot.js`, `db/lib/examine.js` | `m` on the line, `alert` on the readout |
 | `web/app/components/CombatModeButton.js` | The button |

@@ -2398,6 +2398,20 @@ model Character {
   escortConsentToId      String?
   escortConsentUntilTurn Int?
 
+  // ESCORTING SOMEBODY — the bodyguard verb players call Escort
+  // (docs/systemdocs/ATTACK.md §6a, MAP.md §3d). The opposite direction to
+  // escortedById above: the guard follows their charge under their own power
+  // (their own travel, then their Move), and steps into a fight on the
+  // charge's side when the charge is attacked. One charge at a time, so a
+  // column. Needs combat mode to set, and ends when combat mode goes off.
+  // A stale row is inert: a guard not standing with their charge neither
+  // follows nor defends, and picks up again once they are together. The
+  // rule lives in db/lib/guard.js. Called "guard" in code so it never gets
+  // confused with the party above.
+  guardingId String?
+  guarding   Character?  @relation("Guarding", fields: [guardingId], references: [id], onDelete: SetNull)
+  guardedBy  Character[] @relation("Guarding")
+
   // The conceal toggle (/conceal, or the switch on /character). While on,
   // every message proxies under the concealedAlias with the unknown avatar,
   // and Who's here? lists the alias instead of the name.
@@ -2945,6 +2959,7 @@ model Character {
   @@index([status, lastActivityTurn])
   // The one query an escort party ever runs: everyone following this leader.
   @@index([escortedById])
+  @@index([guardingId])
   // The one query a release ever runs: everyone this character is holding.
   @@index([heldById])
   // A late party's slot count: the characters it made (db/lib/lateParty.js).

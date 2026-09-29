@@ -58,6 +58,7 @@ import {
   CharacterIcon,
   SkullIcon,
   InterceptIcon,
+  EscortIcon,
   AttackIcon,
   KissIcon,
   SearchPersonIcon,
@@ -147,6 +148,8 @@ export const ACTION_HELP = {
   // pools.seatVerbs (see the section below).
   // Bascinet's words, verbatim.
   intercept: "Lay in wait at your location, intercepting a chosen target whenever they come.",
+  guard:
+    "Guard somebody standing here. You follow them when they travel, and join the fight on their side if they're attacked. Needs combat mode.",
   // Rewritten for the Combat Overhaul (docs/systemdocs/ATTACK.md): a fight now has sides, a call-off every
   // attacker must agree to, and no longer lasts the whole turn by default.
   attack:
@@ -513,6 +516,10 @@ export const ACTION_SECTIONS = [
       // dialog instead, because a Safe watch needs neither and Stop watching lives down there
       // too — a dead icon would strand anyone whose combat mode ran out with a watch still set.
       { mode: "intercept", icon: InterceptIcon, label: "Intercept" },
+      // NO gate and NO show, the Intercept reasoning: combat mode being off refuses it inside the dialog,
+      // where Stop escorting also lives — a dead icon would strand an escort whose combat mode ran out
+      // (docs/systemdocs/ATTACK.md §6a). Who is here to escort is the dialog's answer, never the button's.
+      { mode: "guard", icon: EscortIcon, label: "Escort" },
       // NO gate and NO show. Combat mode being off, the turn lock, or already
       // being in a fight refuses this one (combatGate.js#combatBlock), and it
       // greys inside the dialog rather than here: the fight you are in — your
@@ -658,7 +665,7 @@ export const STRIP_GROUPS = [
   { key: "lessons", label: "Learn & confess", modes: ["learn", "teach", "confess"] },
   { key: "people", label: "People", modes: ["examine", "heal", "miracle", "kiss", "search"] },
   { key: "theft", label: "Theft", modes: ["steal", "pickpocket"] },
-  { key: "fight", label: "Fight", modes: ["attack", "intercept"] },
+  { key: "fight", label: "Fight", modes: ["attack", "intercept", "guard"] },
   {
     key: "captives",
     label: "Captives",

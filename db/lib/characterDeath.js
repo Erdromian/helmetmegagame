@@ -14,6 +14,7 @@ const { THANATI_SLUG } = require("./thanati");
 const { NOT_A_FIGHT } = require("./intercept");
 const { closeFightsFor } = require("./attack");
 const { leaveCombatsFor, sendCombatDms } = require("./combat");
+const { releaseGuards } = require("./guard");
 const { stopPerformances } = require("./performance");
 const { teardownPartyThread } = require("./partyChat");
 const { CONCEALMENT_TAG_FIELDS, concealmentFrom } = require("./presentedIdentity");
@@ -102,6 +103,11 @@ async function releaseEntanglements(prisma, characterId) {
       data: { escortedById: null },
     })
     .catch((err) => console.error(`Failed to release the party leaving play for ${characterId}:`, err));
+
+  // Nobody escorts somebody out of the game, and somebody out of the game escorts nobody (ATTACK.md §6a).
+  await releaseGuards(prisma, characterId).catch((err) =>
+    console.error(`Failed to release escorts leaving play for ${characterId}:`, err),
+  );
 
   // The party chat (db/lib/partyChat.js) is keyed on this character as its
   // creator. Leaving play dissolves the party, so the thread and the row go with it.
