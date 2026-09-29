@@ -798,9 +798,11 @@ groups:
       bank_account: treasury
       starting_account: 23
       multiple: false
-      starting_zone: fortress
+      # The Town Gatehouse, where his Chambers are and the gate is worked
+      # (docs/systemdocs/GATEHOUSE.md).
+      starting_zone: town
       knows: *townsfolk
-      starting_location: fortress-1
+      starting_location: town-1
       ring:
         spawns: true
         opens: [armory-key, cerberus-key, incarns-key, gatehouse-key]
