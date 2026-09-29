@@ -243,3 +243,26 @@ test("the Merchant can buy neither Pack Mule nor Strong, and starts with Soft Ha
   assert.ok(business.merchant.starting_tags.includes("Soft Hands"));
   assert.ok(business.docker.starting_tags.includes("Pack Mule"));
 });
+
+test("the terminal opens each game with 100 obols, give or take 10%", async () => {
+  const { STARTING_TERMINAL_OBOLS, rollStartingTerminalObols, bookStartingTerminalObols } = require("../lib/merchantTerminal");
+  assert.equal(STARTING_TERMINAL_OBOLS, 100);
+  assert.equal(rollStartingTerminalObols(() => 0), 90);
+  assert.equal(rollStartingTerminalObols(() => 0.9999999), 110);
+  for (let i = 0; i < 200; i++) {
+    const n = rollStartingTerminalObols();
+    assert.ok(Number.isInteger(n) && n >= 90 && n <= 110, `rolled ${n}`);
+  }
+
+  // Booked as minted into the terminal, on the new game.
+  const rows = [];
+  const prisma = { $transaction() {}, economyEntry: { create: async ({ data }) => rows.push(data) } };
+  await bookStartingTerminalObols(prisma, 104, "game-2");
+  assert.equal(rows.length, 1);
+  assert.equal(rows[0].gameId, "game-2");
+  assert.equal(rows[0].fromId, "mint");
+  assert.equal(rows[0].toId, "merchant-terminal");
+  assert.equal(rows[0].form, "COIN");
+  assert.equal(rows[0].amount, 104);
+  assert.equal(rows[0].reason, "OPENING");
+});

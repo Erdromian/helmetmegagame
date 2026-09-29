@@ -28,7 +28,8 @@ const { OBOL_SLUG, loadDepot } = require("./depotState");
 const { accessSlugsOf, wornRingAccess } = require("./rings");
 const { blockerFor, ACT } = require("./incapacitation");
 const { addToStack, dropCharacterTag } = require("./tagWrites");
-const { characterParty, machineParty, turnStamp } = require("./economyLedger");
+const { MINT, characterParty, machineParty, record, turnStamp } = require("./economyLedger");
+const { varyStarting } = require("./startingVariance");
 const { holdLimitRefusal } = require("./mounts");
 const { SFX } = require("./sfx");
 const { logAudit } = require("./auditLog");
@@ -40,6 +41,23 @@ const {
 
 // The terminal's coin as a ledger party: one box, like a vending machine's.
 const TERMINAL_PARTY = machineParty({ id: "merchant-terminal", name: "The Merchant's Terminal" });
+
+// What the terminal holds when a game starts. The middle of a range, like every
+// other starting figure: Restart Game rolls it within 10% (90–110 ¢,
+// db/lib/startingVariance.js), so nobody can count on the exact sum.
+const STARTING_TERMINAL_OBOLS = 100;
+
+function rollStartingTerminalObols(rng = Math.random) {
+  return varyStarting(STARTING_TERMINAL_OBOLS, rng);
+}
+
+// The opening coin comes from nowhere, so the ledger books it as minted — the
+// Opening balance faucet — rather than letting it appear unexplained. Called
+// after the wipe commits, with the new game's id, because the wipe's own
+// transaction is a batch and cannot run the ledger's savepoint.
+async function bookStartingTerminalObols(prisma, amount, gameId) {
+  return record(prisma, { from: MINT, to: TERMINAL_PARTY, form: "COIN", amount }, { gameId, reason: "OPENING" });
+}
 
 // So a fat-fingered cart can't file for ten thousand vials — the Depot's cap.
 const MAX_ORDER_LINES = 40;
@@ -449,6 +467,9 @@ async function removeOrder(prisma, discordUserId, { orderId, turn = null } = {})
 module.exports = {
   TERMINAL_PARTY,
   MAX_ORDER_LINES,
+  STARTING_TERMINAL_OBOLS,
+  rollStartingTerminalObols,
+  bookStartingTerminalObols,
   unlocksTerminal,
   terminalShelf,
   priceCart,

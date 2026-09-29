@@ -178,6 +178,11 @@ How the game does it:
   your hand; **Withdraw** puts them back into it, up to whatever no pending
   order is waiting on. Both are ledgered to one party, `machine:merchant-terminal`
   (`ECONOMY.md` §2).
+- **It opens each game holding 100 ¢, give or take 10%** (90–110 ¢).
+  Restart Game rolls it when it recreates the Depot row
+  (`merchantTerminal.js#rollStartingTerminalObols`, the same roll as every
+  other starting figure in `db/lib/startingVariance.js`) and books it to the
+  terminal as minted, reason `OPENING`.
 - **An order.** A cart off the shelf becomes one `MerchantOrder` on the pending
   list, priced off the catalog there and then. **Nothing is charged.** It is
   refused if the pending list, this order included, would cost more with the

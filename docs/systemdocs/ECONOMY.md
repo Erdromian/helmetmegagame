@@ -79,7 +79,8 @@ Every entry has two ends, and each is one of:
   in and out of a hand (`TERMINAL_INSERT` / `TERMINAL_WITHDRAW`), the train pays
   for imports out of it (`TRAIN_IMPORT`, to the Company) and pays exports into
   it (`TRAIN_EXPORT`, from the Company), and the Meister's cut on either goes to
-  the Vault (`IMPORT_TAX` / `EXPORT_TAX`)
+  the Vault (`IMPORT_TAX` / `EXPORT_TAX`). Its opening 100 ¢ ± 10% is minted
+  into it at Restart Game (`OPENING`)
 - `depot:debt` and `depot:account` are retired but still named by old rows
 - `offworld:company` — the shuttle. The only door off-world
 - `world:mint` and `world:burn`
