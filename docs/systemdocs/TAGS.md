@@ -366,6 +366,22 @@ Three things make a category actually hidden rather than merely empty:
   (Archer) isn't a secret, and hiding it would break `{tag:ranged-archer}`
   in public documents for everyone who hasn't bought it.
 
+  **It also withholds `catalog: secret`, for everyone but a GM.** The root
+  layout streams this list into every page, signed in or not, so a secret
+  left in it is readable by anybody with DevTools. Until 2026-09-29 it was:
+  the Judge, Demoness, Vampire and Thanati seat tags, every vampire status,
+  the Tribunal's and the cult's gear, and the Desires those tags open. A
+  player now gets a secret row only when they hold it, hold the gate that
+  opens it (`web/lib/secretTags.js#withoutSecrets`, the same rule the store
+  and wizard use), or can read a paper that names it with `{tag:…}`: a
+  document they can open, the handbook, or the description of a **catalog**
+  tag they hold. Minted rows don't count — a crate's label and a corpse's
+  name are a player's words, and `{tag:demoness}` written on one would hand
+  them the row. That paper rule is what keeps a cultist's own documents
+  drawing chips for the Grimoire and the Black Robes. An unnamed secret in a
+  text nobody entitled them to prints as its raw token, which only happens in
+  a GM-flagged paper today.
+
 ## 4. The point economy
 
 `pointCost` is the price in the point-buy menu, and it is **signed**:
