@@ -2845,6 +2845,21 @@ hands: nothing here drops, takes, transfers or travels. Every panel is a
 readout, plus the one thing a GM does to a place, which is say something into
 it.
 
+### Only a GM's page carries it
+
+A player's `/chat` never downloads the GM's pieces. Every component the page
+imports goes into one set of files that every reader loads, and `GmAside` opens
+the character panel (`DevPanelModal`), whose Identity tab carries the Vampire
+fields and, through `db/lib/vampire.js`, the secret seats' slugs. So neither
+chat imports `GmAside`, `next/GmAside`, `GmSystemComposer` or `DecreeDialog`.
+`chat/layout.js` wraps a GM's page in `GmToolsProvider.js`, the one file that
+imports them, and `Chat.js` and `ChatNext.js` take them off `useGmTools()`
+(`gmTools.js`). A layout is bundled apart from its page, so a player's page
+never names those files. Anybody else gets stand-ins that draw nothing.
+
+A new GM-only piece in chat goes in the provider too. Importing it straight
+into `ChatNext.js`, or anything under it, ships it to every player again.
+
 ### Where the data comes from
 
 One server action, `gmPlaceView(placeKey)` in `chat/actions.js`, called on the
