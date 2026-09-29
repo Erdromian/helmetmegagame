@@ -24,6 +24,7 @@ registerHooks({
 });
 
 const { appetiteOf, descriptorsFor } = await import("../descriptors.js");
+const { BLOOD_URGENCY_SLUGS } = await import("@lifeweb/db/lib/secretSlugs");
 
 const tags = (...slugs) => slugs.map((slug) => ({ tag: { slug } }));
 
@@ -45,6 +46,8 @@ test("a vampire is told their Blood instead, never the number", () => {
     word: "Satiated",
     line: "Your thirst for human blood is satisfied.",
     tone: "muted",
+    // The band chips the tile already shows, so the sheet leaves them off its strip.
+    tileSlugs: BLOOD_URGENCY_SLUGS,
   });
   assert.equal(JSON.stringify(blood).includes("80"), false);
   // No urgency tag held yet: read off the level.
