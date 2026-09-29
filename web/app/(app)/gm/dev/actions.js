@@ -29,7 +29,7 @@ import { runDiscordMirror } from "@lifeweb/db/lib/discordMirror";
 import { seedAuthoredWorld } from "@lifeweb/db/lib/worldSeed";
 import { drainMirrorQueue } from "@lifeweb/db/lib/discordMirror/queue";
 import { clearTurnsConsole } from "@lifeweb/db/lib/turnAnnouncement";
-import { normalizeTurnLength, nextBoundaryAfter } from "@lifeweb/db/lib/turnClock";
+import { normalizeTurnLength, nextBoundaryAfter, turnOriginHour } from "@lifeweb/db/lib/turnClock";
 import { requireDev } from "@/lib/devAccess";
 import {
   deleteCharacterRole,
@@ -158,12 +158,13 @@ export async function updateCurrentTurn(formData) {
     const turnLengthHours = normalizeTurnLength(
       (await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnLengthHours: true } }))?.turnLengthHours,
     );
+    const gameStartedAt = (await prisma.gameState.findUnique({ where: { id: 1 }, select: { startedAt: true } }))?.startedAt;
     await prisma.turn.create({
       data: {
         number,
         dayNumber: day,
         turnLengthHours,
-        endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours)),
+        endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours, turnOriginHour(gameStartedAt))),
         status: "OPEN",
         startedAt,
       },

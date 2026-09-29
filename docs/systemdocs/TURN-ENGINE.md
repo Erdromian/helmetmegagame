@@ -6,17 +6,25 @@ pass it calls or a side effect it hands back.
 
 A turn is **6, 8, 12 or 24 hours**, set by `GameConfig.turnLengthHours`, and
 ends on a clean **America/Chicago** boundary — every `turnLengthHours` from
-00:00, so a 6-hour game ends turns at 00:00, 06:00, 12:00 and 18:00 local. That
-is the game's clock and the only one it quotes; the header of every web page
-carries it (`web/app/components/BascinetClock.js`).
+**the hour the game started**, rounded to the nearest hour
+(`turnClock.js#turnOriginHour`, off `GameState.startedAt`). Start Game at 5:14
+and a 24-hour game pushes at 05:00 every day, a 6-hour one at 05:00, 11:00,
+17:00 and 23:00. Turn 1 runs one whole length from that hour, so it is never a
+stub: 5:14 ends at 05:00 tomorrow, and 5:45 (rounded up) at 06:00 tomorrow. It
+used to count from 00:00 for every game, which gave a game started in the
+evening a first turn a few hours long that locked almost at once. With no game
+start — the lobby, and the placeholder turn Restart Game leaves — the origin is
+00:00. That is the game's clock and the only one it quotes; the header of every
+web page carries it (`web/app/components/BascinetClock.js`).
 
 **There are no Dawn and Dusk halves any more.** A turn is a turn, and
 `Turn.dayNumber` — stamped when the turn opens — says which in-game day it
-belongs to. By default the day rolls at Chicago midnight whatever the length, so
-24 hours is one turn a day and 6 hours is four. **Turns per in-game day**
+belongs to. By default the day rolls at the game's origin hour whatever the
+length, so 24 hours is one turn a day and 6 hours is four, even when a grid
+like 20:00 / 02:00 / 08:00 / 14:00 crosses midnight. **Turns per in-game day**
 (`GameConfig.turnsPerDay`, in the Turn clock knobs on `/gm/dev`) overrides that:
 set it to N and the day rolls after every N turns, whatever the clock says, so
-24-hour turns can run two to a day. 0 is the midnight rule. `advanceTurn` counts
+24-hour turns can run two to a day. 0 is the clock rule. `advanceTurn` counts
 the turns already carrying the closing turn's day and hands the count to
 `turnClock.js#nextDayNumber`; the floor-settle pass asks the same question the
 same way, so it measures against the day the next turn will really open on.
@@ -933,15 +941,18 @@ property of how much there is to read, not a preference.
 
 **The end time is stored, not derived.** `turnEndsAt(turn)` returns
 `turn.endsAt`, stamped at open as the first Chicago grid boundary strictly
-after `startedAt`, and `moveCutoffAt(turn)` is that minus the window for
+after `startedAt` on the game's own grid (the one Turn 1 exception: Start Game
+counts from the origin hour instead, so a start at 5:45 is not a fifteen-minute
+turn), and `moveCutoffAt(turn)` is that minus the window for
 `turn.turnLengthHours`. The derivation survives only as the fallback for rows
-written before the column. Reading live config instead would let a GM's knob
+written before the column, and knows no game, so it stays on the midnight grid.
+Reading live config instead would let a GM's knob
 move a deadline under somebody mid-action, and would make ~20 synchronous
 callers async for the privilege.
 
 **A boundary is strictly after the start, so a manual advance SNAPS FORWARD.**
-End a 6-hour turn by hand at 15:00 and the next one runs to 18:00 — three
-hours, not six — and the grid never moves. That is what keeps every turn landing
+End a 6-hour turn by hand at 15:00 on a game started at midnight and the next
+one runs to 18:00 — three hours, not six — and the grid never moves. That is what keeps every turn landing
 on a clean local time no matter how many times a GM intervenes.
 
 `moveWindow(turn, { now, clockFrozen })` returns

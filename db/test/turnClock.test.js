@@ -22,7 +22,16 @@ const {
   turnsInGameDay,
   isDaylight,
   isDayLongTurn,
+  turnOriginAt,
+  turnOriginHour,
 } = require("../lib/turnClock");
+
+// The local Chicago hour of an instant, for the grid assertions below.
+function chicagoHour(ms) {
+  return Number(
+    new Intl.DateTimeFormat("en-US", { timeZone: "America/Chicago", hourCycle: "h23", hour: "2-digit" }).format(new Date(ms)),
+  );
+}
 
 // 2026-09-16 is CDT (UTC-5); 2026-01-16 is CST (UTC-6). Both appear below on purpose.
 const CDT_NOON = new Date("2026-09-16T17:00:00Z"); // 12:00 Chicago
@@ -41,7 +50,7 @@ test("only the four offered lengths are accepted; anything else reads as the def
   assert.equal(normalizeTurnLength("12"), 12);
 });
 
-test("the boundary grid divides the day evenly, always starting at midnight", () => {
+test("with no game origin, the boundary grid divides the day evenly from midnight", () => {
   assert.deepEqual(boundaryHours(6), [0, 6, 12, 18]);
   assert.deepEqual(boundaryHours(8), [0, 8, 16]);
   assert.deepEqual(boundaryHours(12), [0, 12]);
@@ -196,6 +205,90 @@ test("turnsPerDay 0 keeps the midnight rule", () => {
   const last = { startedAt: new Date("2026-09-16T17:00:00Z"), dayNumber: 5 };
   assert.equal(nextDayNumber(last, new Date("2026-09-16T23:00:00Z"), { turnsPerDay: 0, turnsInDay: 9 }), 5);
   assert.equal(nextDayNumber(last, new Date("2026-09-17T05:30:00Z"), { turnsPerDay: 0, turnsInDay: 1 }), 6);
+});
+
+test("the game's origin is the hour nearest its start, on the Chicago clock", () => {
+  assert.equal(turnOriginHour(new Date("2026-09-16T10:14:00Z")), 5, "5:14 is 05:00");
+  assert.equal(turnOriginHour(new Date("2026-09-16T10:45:00Z")), 6, "5:45 is 06:00");
+  assert.equal(turnOriginHour(new Date("2026-09-17T04:40:00Z")), 0, "23:40 rounds up to midnight");
+  assert.equal(turnOriginHour(new Date("2026-01-16T11:14:00Z")), 5, "the same in winter, six hours off UTC");
+  assert.equal(turnOriginHour(null), 0, "no game start is the old midnight grid");
+  assert.equal(turnOriginAt(new Date("2026-09-16T10:14:00Z")).toISOString(), "2026-09-16T10:00:00.000Z");
+  assert.equal(turnOriginAt(null), null);
+});
+
+test("the grid starts at the origin hour and still divides the day evenly", () => {
+  assert.deepEqual(boundaryHours(24, 5), [5]);
+  assert.deepEqual(boundaryHours(12, 5), [5, 17]);
+  assert.deepEqual(boundaryHours(8, 5), [5, 13, 21]);
+  assert.deepEqual(boundaryHours(6, 5), [5, 11, 17, 23]);
+  assert.deepEqual(boundaryHours(6, 20), [2, 8, 14, 20], "a grid that crosses midnight wraps round");
+  assert.deepEqual(boundaryHours(6, 0), boundaryHours(6), "origin 0 is the midnight grid");
+});
+
+test("Turn 1 runs one whole length from the origin hour, however far past it the game started", () => {
+  // What Start Game stamps (db/lib/lobby.js): the first boundary strictly after the ORIGIN, not after now.
+  const turnOneEnd = (startedAt, hours) =>
+    new Date(nextBoundaryAfter(turnOriginAt(startedAt).getTime(), hours, turnOriginHour(startedAt))).toISOString();
+
+  const fourteenPast = new Date("2026-09-16T10:14:00Z"); // 5:14 Chicago
+  assert.equal(turnOneEnd(fourteenPast, 24), "2026-09-17T10:00:00.000Z", "05:00 tomorrow");
+  assert.equal(turnOneEnd(fourteenPast, 6), "2026-09-16T16:00:00.000Z", "11:00 today");
+
+  // Rounded UP: the origin is ahead of the start, and the turn is a little over a day rather than fifteen minutes.
+  const quarterTo = new Date("2026-09-16T10:45:00Z"); // 5:45 Chicago
+  assert.equal(turnOneEnd(quarterTo, 24), "2026-09-17T11:00:00.000Z", "06:00 tomorrow");
+  assert.equal(turnOneEnd(quarterTo, 6), "2026-09-16T17:00:00.000Z", "12:00 today");
+});
+
+test("every later turn lands on the origin hour, across the autumn DST change too", () => {
+  // A 24-hour game started at 05:00 Chicago on 2026-10-30. Clocks go back on 2026-11-01.
+  let at = Date.parse("2026-10-30T10:00:00Z");
+  for (let i = 0; i < 4; i++) {
+    at = nextBoundaryAfter(at, 24, 5);
+    assert.equal(chicagoHour(at), 5, `turn ${i + 2} ends at ${new Date(at).toISOString()}`);
+  }
+  assert.equal(new Date(at).toISOString(), "2026-11-03T11:00:00.000Z", "05:00 CST is six hours off UTC");
+
+  // And a 6-hour game keeps to its own grid all the way round the day.
+  for (const origin of [5, 20]) {
+    const grid = new Set(boundaryHours(6, origin));
+    at = Date.parse("2026-09-16T10:00:00Z");
+    for (let i = 0; i < 10; i++) {
+      at = nextBoundaryAfter(at, 6, origin);
+      assert.ok(grid.has(chicagoHour(at)), `origin ${origin} produced ${chicagoHour(at)}:00`);
+    }
+  }
+});
+
+test("the day rolls at the origin hour, so a grid that crosses midnight still gets whole days", () => {
+  // A 6-hour game started at 20:05 Chicago: turns open at 20:05, 02:00, 08:00, 14:00, then 20:00 rolls the day.
+  const gameStartedAt = new Date("2026-09-17T01:05:00Z");
+  let last = { startedAt: gameStartedAt, dayNumber: 1 };
+  for (const at of ["2026-09-17T07:00:00Z", "2026-09-17T13:00:00Z", "2026-09-17T19:00:00Z"]) {
+    assert.equal(nextDayNumber(last, new Date(at), { gameStartedAt }), 1, `${at} is still day 1`);
+    last = { startedAt: new Date(at), dayNumber: 1 };
+  }
+  assert.equal(nextDayNumber(last, new Date("2026-09-18T01:00:00Z"), { gameStartedAt }), 2, "20:00 rolls it");
+  // The midnight rule, for contrast, would have rolled at 02:00 and left day 1 one turn long.
+  assert.equal(nextDayNumber({ startedAt: gameStartedAt, dayNumber: 1 }, new Date("2026-09-17T07:00:00Z")), 2);
+
+  // A 24-hour game rolls every turn, Turn 1 included.
+  const fiveFourteen = new Date("2026-09-16T10:14:00Z");
+  assert.equal(
+    nextDayNumber({ startedAt: fiveFourteen, dayNumber: 1 }, new Date("2026-09-17T10:00:00Z"), { gameStartedAt: fiveFourteen }),
+    2,
+  );
+});
+
+test("Turn 1 opened just before its origin hour belongs to the grid's first day", () => {
+  // 5:45 Chicago rounds to a 06:00 origin. On a 6-hour game Turn 2 opens at 12:00 the same day, and is still day 1.
+  const quarterTo = new Date("2026-09-16T10:45:00Z");
+  const turnOne = { startedAt: quarterTo, dayNumber: 1 };
+  assert.equal(nextDayNumber(turnOne, new Date("2026-09-16T17:00:00Z"), { gameStartedAt: quarterTo }), 1);
+  // ...and the day rolls at 06:00 the next morning.
+  const turnFour = { startedAt: new Date("2026-09-17T05:00:00Z"), dayNumber: 1 }; // 00:00 Chicago
+  assert.equal(nextDayNumber(turnFour, new Date("2026-09-17T11:00:00Z"), { gameStartedAt: quarterTo }), 2);
 });
 
 test("only a 24-hour turn is a day, for the wording that says so", () => {
