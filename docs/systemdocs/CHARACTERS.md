@@ -743,7 +743,8 @@ out by two other seats, so nothing lost a route into the Sanctuary.
 
 ```
 budget = GameConfig.startingTagPoints      (default 8, live on /gm/dev)
-       + role.extra_starting_points        (Baron, Heir and Hand +5, Courtier +7,
+       + role.extra_starting_points        (Hand +10, Baron +9, Heir +8,
+                                            Courtier +7, Successor +5,
                                             Migrant +3, the Bastard +2, Bum −3;
                                             docs/roles.yaml is the list)
 ```
