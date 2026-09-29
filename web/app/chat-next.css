@@ -115,6 +115,38 @@
   padding: 0 var(--sp-3) var(--sp-3);
 }
 
+/* Everything in the right column wraps to its width. Chips and buttons are
+   `nowrap` everywhere else (globals.css), which is right in a toolbar, but
+   this column is 252px and locked on the x axis, so a long item name, a
+   fixture's label or Move… beside Combat ran past its edge and was cut off
+   rather than scrolled to. Here they break onto a second line instead. The
+   right drawer on a phone holds the same children, so it gets the same. */
+[data-chat-next] :is(.chat-aside, .chat-drawer--right) :is(.chip, .btn, .btn-secondary, .btn-danger, .btn-combat, .btn-quiet) {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+[data-chat-next] :is(.chat-aside, .chat-drawer--right) .chip {
+  text-align: start;
+}
+
+/* The name is what wraps. A chip's tail (×60, · smells wrong, · 2t) stays in
+   one piece beside it — left to shrink, ×60 came out as a column of one
+   character a line. */
+[data-chat-next] :is(.chat-aside, .chat-drawer--right) .chip > .text-muted {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+/* The wrappers around a chip (the pocket's menu anchor, its hover card) and
+   the Move/Combat pair's grid have to give way too, or the chip inside is
+   only allowed as wide as they already are. */
+[data-chat-next] :is(.chat-aside, .chat-drawer--right) :is(.chat-thing-wrap, .tag-hover, .chat-buttons--even) {
+  max-width: 100%;
+  min-width: 0;
+}
+
 /* Both side columns wear the scene's red girder shadow UNDER their head bar,
    the way the feed wears it under the chat head. Without this the page's own
    shadow showed through the columns' top padding, ABOVE their heads, so the
