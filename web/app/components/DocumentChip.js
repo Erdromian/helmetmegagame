@@ -11,7 +11,8 @@ import HoverCard from "./HoverCard";
 //
 // `doc` comes from useDocuments(), already resolved — see DocumentsProvider.
 // An inaccessible doc renders as an inert chip (no link) rather than plain
-// text, so its existence stays visible without exposing GM-only content.
+// text, so its existence stays visible without exposing GM-only content —
+// and the index only names one to a reader whose prose already names it.
 export default function DocumentChip({ doc }) {
   const face = (
     <span className="chip doc-chip" data-locked={!doc.accessible || undefined}>

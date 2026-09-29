@@ -41,13 +41,13 @@ export {
 // {tag:…} tokens and getDocumentIndex lists them, and the root layout calls both.
 const allDocuments = cache(() => prisma.document.findMany({ orderBy: { sortOrder: "asc" } }));
 
-// The tags named by a {tag:…} token in these texts, as ids or slugs — the token
-// takes either (RichText.js#TagToken).
-function tokenTagKeys(texts) {
+// The payloads of every `{kind:…}` token in these texts: for "tag", ids or
+// slugs — the token takes either (RichText.js#TagToken); for "document", keys.
+function tokenKeys(wanted, texts) {
   const keys = new Set();
   for (const text of texts) {
     for (const [, kind, payload] of String(text ?? "").matchAll(new RegExp(TOKEN_SOURCE, "g"))) {
-      if (kind === "tag") keys.add(payload.trim());
+      if (kind === wanted) keys.add(payload.trim());
     }
   }
   return keys;
@@ -67,6 +67,25 @@ function tokenTagKeys(texts) {
 // what keeps a cultist's own papers drawing their chips. A GM's list is
 // unchanged. Session-dependent, so it must never be cached across callers.
 export async function getVisibleTags() {
+  const { shipped, ctx, tags, held } = await visibleTagRows();
+
+  // A recipe line must not print an ingredient this viewer has no path to (web/lib/recipeCatalog.js).
+  const readableSlugs = new Set(
+    tags
+      .filter((t) => t.catalogVisibility === "ALL" || held.has(t.id))
+      .map((t) => t.slug),
+  );
+  const shippedSlugs = new Set(shipped.map((t) => t.slug));
+  return redactWithheldRecipes(
+    shipped.map(({ custom, ...tag }) => composeChipTag(withoutHiddenUnlocks(tag, shippedSlugs), ctx)),
+    { visibleSlugs: readableSlugs },
+  );
+}
+
+// The rows getVisibleTags ships, before they are shaped into chips. Once per
+// request (React cache): getDocumentIndex reads the same rows' descriptions
+// for {document:…} tokens.
+const visibleTagRows = cache(async () => {
   const { session, isGm } = await getGmSession();
   const character = session?.discordUserId
     ? await prisma.character.findFirst({
@@ -98,7 +117,7 @@ export async function getVisibleTags() {
   const reader = readerFromCharacter(character);
   const named = isGm
     ? new Set()
-    : tokenTagKeys([
+    : tokenKeys("tag", [
         getHandbookBody(),
         ...documents
           .filter((d) => isWritten(d) && documentSource(d, { character: reader, isGm: false, isMasterGm: false }))
@@ -116,19 +135,8 @@ export async function getVisibleTags() {
   );
   const secretIds = new Set(tags.filter((t) => t.catalogVisibility === "SECRET").map((t) => t.id));
   const shipped = isGm ? ungated : withoutSecrets(ungated, secretIds, allowed);
-  const shippedSlugs = new Set(shipped.map((t) => t.slug));
-
-  // A recipe line must not print an ingredient this viewer has no path to (web/lib/recipeCatalog.js).
-  const readableSlugs = new Set(
-    tags
-      .filter((t) => t.catalogVisibility === "ALL" || held.has(t.id))
-      .map((t) => t.slug),
-  );
-  return redactWithheldRecipes(
-    shipped.map(({ custom, ...tag }) => composeChipTag(withoutHiddenUnlocks(tag, shippedSlugs), ctx)),
-    { visibleSlugs: readableSlugs },
-  );
-}
+  return { shipped, ctx, tags, held };
+});
 
 // A Desire that needs ALL of several tags is listed under each of them, so a
 // public tag's list could name a Desire whose other half is a withheld secret.
@@ -180,13 +188,23 @@ function excerptOf(description) {
   return `${flat.slice(0, flat.lastIndexOf(" ", EXCERPT_CHARS))}…`;
 }
 
-// `name` ships for every written document, `source`/`excerpt` only when the reader may read it.
-// Session-dependent — must never be cached across callers.
+// The index behind every {document:key} chip, streamed into DocumentsProvider by
+// the root layout on every page. `source`/`excerpt` ship only for a paper the
+// reader may open. It used to ship every written paper's `name` too, so every
+// player could read in DevTools that papers called "Vampire", "Thanati",
+// "Underground Thanati Network", "Cult Leader" and "Demoness" existed.
+//
+// A player now gets a paper they cannot open only when something they can read
+// names it with a {document:…} token: the handbook, a paper they can open, a
+// catalog tag they are sent (its description is a TagChip tooltip), or their
+// role's charter. That is the one place its inert chip draws (DOCUMENTS.md §5),
+// so it tells them nothing the prose in front of them doesn't. A GM's index is
+// unchanged. Session-dependent — must never be cached across callers.
 export async function getDocumentIndex() {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId) return [];
 
-  const [documents, characterRow] = await Promise.all([
+  const [documents, characterRow, tagRows] = await Promise.all([
     allDocuments(),
     prisma.character.findFirst({
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
@@ -195,12 +213,13 @@ export async function getDocumentIndex() {
         tags: { include: { tag: { select: { slug: true, name: true } } } },
       },
     }),
+    isGm ? null : visibleTagRows(),
   ]);
 
   const character = readerFromCharacter(characterRow);
   const isMasterGm = isGm && isSuperadmin(session.discordUserId);
 
-  return documents.filter(isWritten).map((d) => {
+  const index = documents.filter(isWritten).map((d) => {
     const source = documentSource(d, { character, isGm, isMasterGm });
     return {
       key: d.key,
@@ -210,4 +229,18 @@ export async function getDocumentIndex() {
       excerpt: source ? excerptOf(d.description) : null,
     };
   });
+  if (isGm) return index;
+
+  const readable = new Set(index.filter((d) => d.accessible).map((d) => d.key));
+  const named = tokenKeys("document", [
+    getHandbookBody(),
+    ...documents.filter((d) => readable.has(d.key)).map((d) => d.description),
+    // Catalog rows only, as in getVisibleTags: a minted row's words can be a
+    // player's, and one who wrote {document:vampire} on a scrap of paper
+    // would be handed the name.
+    ...tagRows.shipped.filter((t) => !t.custom).map((t) => t.description),
+    characterRow?.role?.intro,
+    ...(characterRow?.role?.description ?? []),
+  ]);
+  return index.filter((d) => d.accessible || named.has(d.key));
 }

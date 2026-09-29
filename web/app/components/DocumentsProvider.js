@@ -16,7 +16,8 @@ export function useDocuments() {
 // in a tag's description surfaces inside a TagChip tooltip, which can appear
 // on almost any page.
 //
-// The index carries names for everything but bodies for nothing — see
+// The index carries bodies only for papers the reader may open, and names
+// only for those or ones named in prose they can read — see
 // getDocumentIndex in web/lib/referenceData.js for what is withheld and why.
 export default function DocumentsProvider({ children, docsPromise }) {
   const [docs, setDocs] = useState([]);

@@ -14,10 +14,8 @@ import {
   markHistoryLoaded,
 } from "../feedStore";
 import NoticeCards from "../NoticeCards";
-import GmSystemComposer from "../GmSystemComposer";
 import LookReadout from "@/app/components/LookReadout";
 import { ConverseDialog, usePlaceActions } from "../PlacePanel";
-import DecreeDialog from "../DecreeDialog";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { lookAt, lookAtRow } from "../actions";
 import { PlusIcon, SearchIcon } from "@/app/components/icons";
@@ -57,7 +55,7 @@ import Composer from "./Composer";
 import { useChatTextSize } from "@/app/components/chatTextStore";
 import ChatAside from "./ChatAside";
 import TravelNodes from "../TravelNodes";
-import GmAside from "./GmAside";
+import { useGmTools } from "../gmTools";
 import FixtureStrip from "./FixtureStrip";
 import DmPane from "./DmPane";
 import { actionThrowMessage } from "@/app/components/actionThrow";
@@ -127,6 +125,9 @@ export default function ChatNext(props) {
     // as. A hint — db/lib/conceal.js asks its own three questions.
     conceal = null,
   } = props;
+
+  // The GM's pieces, off the context ../layout.js fills for a GM alone (../gmTools.js).
+  const { NextGmAside: GmAside, GmSystemComposer, DecreeDialog } = useGmTools();
 
   // Seed the store DURING render, not in an effect, and exactly once. The
   // first paint has to show the scene the server already sent — an effect

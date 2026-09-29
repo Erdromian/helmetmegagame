@@ -18,9 +18,8 @@ import Feed from "./Feed";
 import DmPane, { DM_PLACE_KEY } from "./DmPane";
 import { useDmState, seedNewestOutbound } from "./dmStore";
 import NoticeCards from "./NoticeCards";
-import GmAside from "./GmAside";
+import { useGmTools } from "./gmTools";
 import { ConverseDialog } from "./PlacePanel";
-import DecreeDialog from "./DecreeDialog";
 import { addMember, setChatViewAs } from "./actions";
 import { useSeen, markSeen, markAllSeen, seedSeenIfFresh, isUnread } from "./seenStore";
 import { usePushState, initPush, togglePush } from "./pushStore";
@@ -123,6 +122,8 @@ export default function Chat({
   // (web/lib/navItems.js#loadNavItems, the list the rail itself draws).
   navItems = [],
 }) {
+  // The GM's pieces, off the context ./layout.js fills for a GM alone (./gmTools.js).
+  const { GmAside, DecreeDialog } = useGmTools();
   // The server's list is the first paint; the stream replaces it whole from
   // its first `places` event onward.
   const router = useRouter();

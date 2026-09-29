@@ -187,7 +187,7 @@ signed-in reader, same as everywhere else in the app.
 ## 3. Assignment
 
 Resolves server-side, in `web/lib/documentAccess.js`. That module is shared
-with `/api/documents` **on purpose**: the API decides whether a
+with `getDocumentIndex` **on purpose**: the index decides whether a
 `{document:key}` chip is a working link or an inert one, and two copies of a
 visibility rule drift. The failure it prevents is telling a player they can
 open a Gamemaster brief.
@@ -234,18 +234,24 @@ becomes a chip that links to the paper it names. The payload is
 `Document.key`, the same identifier `doc_elements` uses; documents have no
 separate slug. See `TAGS.md` §7 for the token system as a whole.
 
-The chip is access-aware, which is the only interesting part. `/api/documents`
-ships every written document's **name**, but its source and excerpt only to a
-reader who may open it:
+The chip is access-aware, which is the only interesting part. The index behind
+it (`getDocumentIndex`, streamed to every page by the root layout) ships a
+paper's source and excerpt only to a reader who may open it:
 
 - **Readable** → a hoverable chip showing name, source and an excerpt, linking
   to `?doc=<key>`.
 - **Not readable** → the same chip, muted and inert.
 
 Inert rather than plain text so the reference still reads as a reference — you
-can see a paper exists and that it is not yours. The name is not a leak: the
-token sits in prose the reader is already looking at, and it is what lets the
-chip say *which* paper it is.
+can see a paper exists and that it is not yours. The name is not a leak
+because the token sits in prose the reader is already looking at — so the
+index sends a player the name of a paper they cannot open **only when**
+something they can read names it: the handbook, a paper they can open, a
+catalog tag they are sent, or their role's charter. It used to send every
+written paper's name, which told every player that "Vampire", "Thanati" and
+"Demoness" papers existed. A `{document:…}` naming a paper outside that set
+renders as its raw text, like any unresolved token. A GM's index lists every
+paper.
 
 Inside a tooltip or a card preview the chip is always the flat, inert form —
 those render through `ChipText.js`, where a link would be invalid markup
