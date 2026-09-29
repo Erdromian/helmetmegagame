@@ -88,7 +88,7 @@ clicking the speaker has to stay a one-click mute.
 
 ## 3. The music bus
 
-Six layers. The **highest one holding a track is the one you hear**.
+Seven layers. The **highest one holding a track is the one you hear**.
 
 ```
 ambient   what the PLACE sounds like — wind outside, a drone in the Depths, the
@@ -99,11 +99,18 @@ music     the LOBBY's track, and nothing else — the one place a track simply
 event     a siren, an alarm, a thing arriving. Loud and brief
 room      a jukebox, a gramophone: something switched on in the room
 player    somebody playing an instrument — one voice per performance (§6b)
+dose      a drug's song, the moment it is taken (§4b)
 ```
 
 Player beats room because a person playing an instrument in front of you is
 nearer than furniture in the corner, and because it is something somebody is
 *doing*.
+
+Dose beats everything, because it is inside your own head. While a drug's song
+plays, the place's bed, its spots, the Den's jukebox and anybody's lute all go
+silent for the person who took it, and come back when the song ends — the
+jukebox or the lute at wherever its performance has got to. Nothing coexists
+under it. Everybody else in the room goes on hearing the jukebox as before.
 
 A layer under the top one does **not stop** — it ducks to silence, so when the
 thing above it ends it is still where you left it. Takeover is a 1.2-second
@@ -429,8 +436,10 @@ long track; it just belongs somewhere now.
     passengers once per launch (`standing.charonLaunchedAt`, a 10-minute window, and a
     `bascinet:music:charon` stamp so a reload does not play it twice), and a drug's song
     the moment it is taken (`standing.drugs[].takenAt`, the same window, and a
-    `bascinet:music:dose` stamp; §4b). Asked for before the conductor starts, an
-    interrupter is the first thing it plays.
+    `bascinet:music:dose` stamp; §4b). A drug's song plays on the `dose` layer
+    rather than `ambient` (`interrupt(item, { layer: "dose" })`), so a jukebox or a
+    lute cannot cover it (§3). Asked for before the conductor starts, an interrupter
+    is the first thing it plays.
   - `setPlace(next)` fades the piece over 4 s if `next` could never have picked it
     (`placeAmbience.js#placeHas`). Town to Undertown keeps a general or fortress track
     going, because it can play in both; Town to space does not. A spot is held to the
@@ -438,7 +447,8 @@ long track; it just belongs somewhere now.
   - A characterless GM follows the same rule, with Chat's open place as where they
     stand. Going to a GM panel is not a move, so it fades nothing.
   A performance — a jukebox or somebody playing — still covers a piece rather than
-  ending it, and §3's rules handle that.
+  ending it, and §3's rules handle that. A drug's song is the exception: it covers
+  the performance.
 - **`setHold(true)` holds the timeline** — MusicDirector's, for a characterless GM on a
   `/gm/` page. A piece or spot that comes due while held waits, and one already playing
   finishes. Let go, whatever waited starts after the same 5–20 s as a first visit; a
@@ -915,7 +925,8 @@ a 2.8 kHz lowpass (500 Hz behind a soundproof wall). As the top of the bus it du
 place's ambience to silence while it plays, and the bed comes back when it stops. An
 instrument beats it: while anybody here is playing, `room` is not issued, and it comes
 back at wherever its loop has got to when the last of them stops (a song running out on
-its own is caught by a timer, since it raises no frame).
+its own is caught by a timer, since it raises no frame). A drug's song beats it too, for
+the one who took the drug: the jukebox goes silent for them until the song ends (§3).
 
 **Sound effects play over it**, because they are the other engine (§1). While a one-shot
 cue is sounding (`sfx.js#onCuesSounding`) the jukebox drops to 0.15 of its level in
