@@ -74,10 +74,17 @@ test("a run that should not match, does not", async () => {
   );
   assert.equal(await run(paragraph(text('"" empty'))), 'paragraph["\\"" "\\"" " empty"]');
   assert.equal(await run(paragraph(text('"two\nlines"'))), 'paragraph["\\"" "two\\nlines\\""]');
-  const long = "x".repeat(420); // past the 400-character cap, a quote gives up rather than reaching further
+});
+
+test("speech has no length cap, but a spoiler still does", async () => {
+  const long = "x".repeat(5000);
   assert.equal(
     await run(paragraph(text(`"${long}"`))),
-    `paragraph["\\"" ${JSON.stringify(`${long}"`)}]`,
+    `paragraph[span.speech[${JSON.stringify(`"${long}"`)}]]`,
+  );
+  assert.equal(
+    await run(paragraph(text(`||${long}||`))),
+    `paragraph["||" ${JSON.stringify(`${long}||`)}]`,
   );
 });
 

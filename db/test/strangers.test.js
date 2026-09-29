@@ -43,8 +43,8 @@ test("the browser's rules for a quote hold here too", () => {
   assert.equal(hasSpeech('"one\ntwo"'), false);
   // Two marks with nothing between are not a quote.
   assert.equal(hasSpeech('""'), false);
-  // Past the 400-character cap, a quote gives up.
-  assert.equal(hasSpeech(`"${"x".repeat(420)}"`), false);
+  // No length cap: a long speech is still speech.
+  assert.equal(hasSpeech(`"${"x".repeat(5000)}"`), true);
   // Code is literal.
   assert.equal(hasSpeech('`"not speech"`'), false);
 });
