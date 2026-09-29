@@ -33,8 +33,8 @@ const MOBILE = { width: 390, height: 844 };
 // path: a string, or a function of the fixture ids for a URL only the
 // database knows.
 const SCREENS = [
-  // The front door. (/handbook would be the other public screen, but it is
-  // switched off in web/lib/handbook.js for now and answers 404.)
+  // The front door. /handbook is the other public screen, but it is left out:
+  // its text changes too often for a golden of it to stay useful.
   { name: "signin", as: "public", path: "/" },
 
   { name: "character-full", as: "full", path: "/character" },
