@@ -15,6 +15,7 @@ import { RECOVERABLE_SLUGS } from "@lifeweb/db/lib/thanati";
 import { MUSICIAN_SLUG } from "@lifeweb/db/lib/constants";
 import { playSfx } from "@/app/components/sfx";
 import { actionThrowMessage } from "@/app/components/actionThrow";
+import { bumpLanded } from "./landedStore";
 
 // Every player action on the character sheet: the mode that is open, what
 // the grid greys each button on, and the one place a result is spoken.
@@ -464,6 +465,9 @@ export default function RequestActionsProvider({
             return;
           }
           playSfx(res.sfx);
+          // No dialog closes on this path, so it bumps the count itself: a
+          // Recover or an Extract puts things in your pockets just the same.
+          bumpLanded();
           notice({
             text: noticeLine(next, res, ctx),
             rows: Array.isArray(res.roster)
@@ -710,6 +714,9 @@ export default function RequestActionsProvider({
   const done = useCallback(
     (line) => {
       closeDialog();
+      // Whatever is on the page showing what this dialog changed re-reads it
+      // (./landedStore.js).
+      bumpLanded();
       if (line) notice(line);
     },
     [notice, closeDialog],
