@@ -65,7 +65,7 @@ const RITES = [
     leaderPresent: true,
     ingredients: [{ kind: "convert-candidate" }],
     ingredientsText: "1 person in the same location who is able to act, not {tag:bound} and not already Thanati. They must have room access to wherever you are chanting at",
-    description: "Reveal the wicked truth of this reality, so they might join in its destruction! After fulfilling, you will be asked which of them to call. They must be added to whatever room or conversation you chant at. They may refuse your offer, causing no malus to you or themselves. Your leader must be present!",
+    description: "Reveal the wicked truth of this reality, so they might join in its destruction! After fulfilling, you will be asked which of them to call. They must be added to whatever room or conversation you chant at. They may refuse your offer, causing no malus to you or themselves. Your leader must be present.",
   },
   {
     key: "sacrifice",

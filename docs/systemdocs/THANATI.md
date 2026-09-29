@@ -190,7 +190,7 @@ cultist is enough to ask it, but the leader has to be in the circle** — a
 can convert; a circle of ten without one cannot. A leader standing silently in
 the room does not count, and a leaderless circle's attempt stays OPEN, so the
 leader can walk in and chant inside the twelve hours. The Grimoire says so at
-the end of the rite's description: *"Your leader must be present!"*
+the end of the rite's description: *"Your leader must be present."*
 
 **The target must be able to walk away from the question.** Not bound, not
 shackled, not dying, catatonic, crucified, paralyzed, unconscious or in
