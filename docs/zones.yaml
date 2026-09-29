@@ -2667,8 +2667,12 @@ connections:
   #
   # The Cliffs keep their cave-mouth prose and no longer have anything behind
   # it. That is deliberate.
+  #
+  # On foot, like every other climb or swim into the deep: nobody takes a cart
+  # or an arelitz down a cliff.
   - pair: [depths/depths-7, hills/grand-ravine]
     locked: climbing
+    on_foot: true
 
   # The walkways hang over the water the river runs into (hills/east-river's
   # own description: "Ravenheart's river rushes east into the caves").
