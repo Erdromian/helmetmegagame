@@ -114,7 +114,8 @@ import {
   DEFAULT_MAX_DRAWBACK_TAGS,
   DEFAULT_MAX_DRAWBACK_POINTS,
 } from "@/lib/characterCreation";
-import { loadPointBuyCatalog } from "@/lib/pointBuyCatalog";
+import { loadPointBuyCatalog, loadSecretTagIds, withoutSecrets } from "@/lib/pointBuyCatalog";
+import { ANTAGONIST_BLURB } from "@lifeweb/db/lib/threats";
 import { cookedTasteOnly } from "@/lib/referenceData";
 import { eatLimitsFor } from "@/lib/eatLimits";
 import { appraise } from "@/lib/appraisal";
@@ -206,14 +207,15 @@ async function loadLobbyData(discordUserId, { leaderWhitelisted }) {
       .filter((g) => g.roles.length > 0),
     initial: {
       rolePriorities: preference?.rolePriorities ?? {},
-      antagonistOptIns: normalizeAntagonistSlugs(preference?.antagonistOptIns ?? [], {
+      // A yes or no, never the slugs: they name the real seats (THREATS.md §1).
+      antagonists: normalizeAntagonistSlugs(preference?.antagonistOptIns ?? [], {
         whitelisted: leaderWhitelisted,
-      }),
+      }).length > 0,
       joblessRole: preference?.joblessRole ?? "MIGRANT",
     },
     entry: entry?.status === "READY" ? { readyAt: entry.readyAt.toISOString() } : null,
     readyCount,
-    whitelisted: leaderWhitelisted,
+    antagonistBlurb: ANTAGONIST_BLURB,
   };
 }
 
@@ -278,12 +280,11 @@ async function skinlessSpawnOf(party) {
 // the client, so the numbers aren't stale-rendered from a cached page. Takes
 // loadCreationGate's answer rather than reading the same three rows again.
 async function loadCreationData(discordUserId, { gate, config, state, leaderWhitelisted }) {
-  const [roleRows, tags, dynastyName, preference] = await Promise.all([
+  const [roleRows, dynastyName, preference] = await Promise.all([
     prisma.role.findMany({
       orderBy: { sortOrder: "asc" },
       include: { startingLocation: { include: { zone: true } } },
     }),
-    loadPointBuyCatalog([], { includeRoleStartingTags: true }),
     dynastyLastName(),
     prisma.playerPreference.findUnique({ where: { discordUserId }, select: { antagonistOptIns: true } }),
   ]);
@@ -383,6 +384,12 @@ async function loadCreationData(discordUserId, { gate, config, state, leaderWhit
   const lockedRole =
     seat && onACard(seat.assignedRoleId) ? { id: seat.assignedRoleId, expiresAt: seat.expiresAt.toISOString() } : null;
 
+  // The catalog waits for the cards: it carries the kit of the roles on offer and no others, so a
+  // hidden fate's gear (the Tribunal's, the Bastard's host's) never reaches a page that cannot pick it.
+  const tags = await loadPointBuyCatalog([], {
+    roleStartingTagSlugs: [...specialGroup.roles, ...groups.flatMap((g) => g.roles)].flatMap((r) => r.startingTagSlugs),
+  });
+
   return {
     cursed,
     lockedRole,
@@ -392,10 +399,10 @@ async function loadCreationData(discordUserId, { gate, config, state, leaderWhit
     // neither the wizard's "only fates open" line nor the curse lift is theirs.
     lateParty: partyOnly,
     dynastyName,
-    whitelisted: leaderWhitelisted,
-    initialAntagonists: normalizeAntagonistSlugs(preference?.antagonistOptIns ?? [], {
-      whitelisted: leaderWhitelisted,
-    }),
+    // A yes or no, never the slugs: they name the real seats (THREATS.md §1).
+    initialAntagonists:
+      normalizeAntagonistSlugs(preference?.antagonistOptIns ?? [], { whitelisted: leaderWhitelisted }).length > 0,
+    antagonistBlurb: ANTAGONIST_BLURB,
     playerCount,
     startingTagPoints: config?.startingTagPoints ?? 0,
     playPanelEnabled: config?.playPanelEnabled ?? true, // same gate the Bio card's switch uses (AvatarField.js)
@@ -1011,7 +1018,12 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // RESOLVED, not as authored — the dialog reads it as "you may put your
   // name on this", decided against Tag.customizableSkillSlug.
   const heldSlugs = new Set(character.tags.map((ct) => ct.tag.slug));
-  const clientTagCatalog = tagCatalog.map((t) => {
+  // The server reasons over the whole catalog; the browser gets it less the secrets this sheet
+  // does not hold the key to — the Demoness's abilities and the Vampire's boons are purchasable,
+  // so they used to cross to every sheet (web/lib/pointBuyCatalog.js#withoutSecrets). A secret
+  // recipe this sheet has found (knownRecipeIds) stays: the Craft menu has to be able to draw it.
+  const secretIds = await loadSecretTagIds();
+  const clientTagCatalog = withoutSecrets(tagCatalog, secretIds, [...heldIds, ...knownRecipeIds]).map((t) => {
     const skills = t.requirementSkills ?? [];
     const customizable = mayCustomize(t, heldSlugs);
     const hidden = skills.some(

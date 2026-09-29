@@ -7,7 +7,6 @@ import {
   fateCapacity,
   isDynastyHead,
   isDynastyMember,
-  normalizeAntagonistSlugs,
   parseStartingTag,
   isMerchantRole,
   setMerchantFace,
@@ -23,6 +22,7 @@ import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
 import { seedStartingMap } from "@lifeweb/db/lib/mapMemory";
 import { seedAcquaintances } from "@lifeweb/db/lib/acquaintances";
 import { seedNukeBriefing } from "@lifeweb/db/lib/nukeBriefing";
+import { takeableAntagonistSlugs } from "@lifeweb/db/lib/threats";
 import { issueSlaveContract } from "@lifeweb/db/lib/slaveContract";
 import { stampBlankCollars, COLLAR_LOCKED_SLUG } from "@lifeweb/db/lib/collar";
 import {
@@ -121,9 +121,9 @@ export async function createCharacter(formData) {
     Number.isInteger(rawAge) && rawAge >= AGE_MIN && rawAge <= AGE_MAX ? rawAge : null;
   const postedRoleId = formData.get("roleId")?.toString();
   const tagIds = formData.getAll("tagIds").map((t) => t.toString()).filter(Boolean);
-  // Consent for secretly-assigned antagonist seats; normalizeAntagonistSlugs
-  // keeps junk slugs out. Whitelisted boxes are dropped below.
-  const postedOptIns = formData.getAll("antagonistOptIns");
+  // Consent for secretly-assigned antagonist seats: one box, posted as "on".
+  // The seat list it stands for is built below, never in the browser.
+  const antagonistsOn = formData.get("antagonists") === "on";
 
   if (!firstName) return { error: "Your character needs a first name." };
   // One word each — the wizard gates this too, but the form can be hand-posted.
@@ -233,7 +233,8 @@ export async function createCharacter(formData) {
     return { error: "That role isn't available to you." };
   }
 
-  const antagonistOptIns = normalizeAntagonistSlugs(postedOptIns, { whitelisted: leaderWhitelisted });
+  // Every seat this player may take, or none. Whitelisted seats only for the whitelisted.
+  const antagonistOptIns = antagonistsOn ? takeableAntagonistSlugs({ whitelisted: leaderWhitelisted }) : [];
 
   // Dynasty seats wear the Baron's last name, never what was typed. Null until a Baron exists.
   if (isDynastyMember(role.slug)) lastName = await dynastyLastName();

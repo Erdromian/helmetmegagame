@@ -70,10 +70,11 @@ The wizard has five steps:
    uses. A GM reads it on `/gm/dev?s=assignments`, which is the only surface
    that shows it. The catalog is `db/lib/threats.js` (alphabetized, so catalog
    order *is* display order — which is also what hides the real seats among the
-   decoys), and `normalizeAntagonistSlugs` is the server-side allowlist —
-   a server action is a public endpoint, so the checkboxes are UX and that
-   function is the boundary. It drops a slug the catalog no longer carries,
-   which is why renaming one needs no data migration.
+   decoys). The box posts `antagonists=on` and nothing else; `createCharacter`
+   builds the list with `takeableAntagonistSlugs`, so the page never holds a
+   seat's slug. `normalizeAntagonistSlugs` still reads the stored preference —
+   it drops a slug the catalog no longer carries, which is why renaming one
+   needs no data migration.
 5. **Confirm** — a summary, then `createCharacter`.
 
 **The browser's Back button steps back through the wizard.** All five steps

@@ -8,7 +8,6 @@ import CheckField from "@/app/components/CheckField";
 import Select from "@/app/components/Select";
 import FormError from "@/app/components/FormError";
 import useActionRunner from "@/app/components/useActionRunner";
-import { takeableAntagonistSlugs, ANTAGONIST_BLURB } from "@/lib/threats";
 import { LEVELS, setPriority, pickedNothing } from "@lifeweb/db/lib/playerPreferences";
 import { savePreferences, setReady, setUnready } from "../lobbyActions";
 
@@ -54,9 +53,9 @@ export function PriorityControl({ slug, level, onChange }) {
   );
 }
 
-export default function Lobby({ groups, initial, entry, readyCount, whitelisted, canSkip }) {
+export default function Lobby({ groups, initial, entry, readyCount, antagonistBlurb, canSkip }) {
   const [priorities, setPriorities] = useState(initial.rolePriorities ?? {});
-  const [optIns, setOptIns] = useState(initial.antagonistOptIns ?? []);
+  const [optIn, setOptIn] = useState(initial.antagonists === true);
   const [jobless, setJobless] = useState(initial.joblessRole ?? "MIGRANT");
   const [readyAt, setReadyAt] = useState(entry?.readyAt ?? null);
   // The chip's count comes from the server every 30 s. Between those, the
@@ -82,7 +81,7 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   // old priorities with it.
   const draft = useRef({
     priorities: initial.rolePriorities ?? {},
-    antagonistOptIns: initial.antagonistOptIns ?? [],
+    antagonists: initial.antagonists === true,
     joblessRole: initial.joblessRole ?? "MIGRANT",
   });
   // Bumped by every edit, captured when a save goes out. The other half of
@@ -104,14 +103,14 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
     draft.current = next;
     revision.current += 1;
     setPriorities(next.priorities);
-    setOptIns(next.antagonistOptIns);
+    setOptIn(next.antagonists);
     setJobless(next.joblessRole);
     queueSave();
   }
 
   // Debounced: a player sweeping down the list fires one save, not thirty.
   // Whatever the server normalized comes back and replaces the local copy —
-  // it has to, because the server is the one that drops a whitelisted slug
+  // it has to, because the server is the one that drops a whitelisted role
   // and enforces the single High. But only while the answer still fits the
   // question: if the player has edited since this request went out, the reply
   // is stale and the newer save already queued will bring its own.
@@ -129,11 +128,11 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
             if (revision.current !== sent) return;
             draft.current = {
               priorities: res.saved.rolePriorities,
-              antagonistOptIns: res.saved.antagonistOptIns,
+              antagonists: res.saved.antagonists,
               joblessRole: res.saved.joblessRole,
             };
             setPriorities(res.saved.rolePriorities);
-            setOptIns(res.saved.antagonistOptIns);
+            setOptIn(res.saved.antagonists);
             setJobless(res.saved.joblessRole);
           }
         } catch {
@@ -148,10 +147,11 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
   }
 
   // One question, not a list. A tick means every seat this player may take;
-  // an untick means none. The column stays a list of slugs, so the assignment
-  // roll and the GM surfaces never learn that the UI changed.
+  // an untick means none. Only the yes or no crosses the wire: the server
+  // turns it into the list of seats (lobbyActions.js), so the page never
+  // holds a seat's slug.
   function toggleOptIn(on) {
-    edit({ ...draft.current, antagonistOptIns: on ? takeableAntagonistSlugs({ whitelisted }) : [] });
+    edit({ ...draft.current, antagonists: on });
   }
 
   function changeJobless(value) {
@@ -246,10 +246,10 @@ export default function Lobby({ groups, initial, entry, readyCount, whitelisted,
 
           <section className="panel flex flex-col gap-2 p-4">
             <h2 className="panel-header">Antagonists</h2>
-            <CheckField checked={optIns.length > 0} onChange={(e) => toggleOptIn(e.target.checked)}>
+            <CheckField checked={optIn} onChange={(e) => toggleOptIn(e.target.checked)}>
               Enable antagonist roles
             </CheckField>
-            <p className="text-sm text-muted">{ANTAGONIST_BLURB}</p>
+            <p className="text-sm text-muted">{antagonistBlurb}</p>
           </section>
         </aside>
 
