@@ -724,7 +724,7 @@ model GameConfig {
   // #abilityCooldownTurns does the multiply-and-round; each ability's own
   // constant (4 for Blood Strength, 2 for Regeneration, etc) lives in that
   // file's catalog, not here — this is the one number a GM actually tunes.
-  vampireBloodAbilityCooldownVariable Int @default(5)
+  vampireBloodAbilityCooldownVariable Int @default(1)
 }
 
 /// Where a game is in its life. The turn cron and the force-advance button

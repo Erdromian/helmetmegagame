@@ -24,7 +24,7 @@ async function resolveCooldownVariable() {
     where: { id: 1 },
     select: { vampireBloodAbilityCooldownVariable: true },
   });
-  return config?.vampireBloodAbilityCooldownVariable ?? 5;
+  return config?.vampireBloodAbilityCooldownVariable ?? 1;
 }
 
 export async function loadVampireBlood(character, { here, openTurn }) {
