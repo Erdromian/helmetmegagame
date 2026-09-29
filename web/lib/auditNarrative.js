@@ -465,6 +465,10 @@ const R = {
     ...ringTail(d),
   ],
   documentation_denied: () => [actor(), t("denied documents to"), target()],
+  // Public links to one page of the economy report (web/app/economyShareActions.js, ECONOMY.md §7a).
+  // The actor may be an Economist rather than a GM; gm_ is the prefix for "the staff did it".
+  gm_economy_share_created: (d) => [actor(), t("made a public link to the economy report's"), em(d.title ?? d.page ?? "?"), t("page")],
+  gm_economy_share_revoked: (d) => [actor(), t("revoked the public link to the economy report's"), em(d.title ?? d.page ?? "?"), t("page")],
   // The Meister's Terminal (docs/systemdocs/MEISTERY.md).
   sell_tax_rate_set: (d) => [
     actor(), t("set the tax to"), em(`${d.after ?? "?"}%`),

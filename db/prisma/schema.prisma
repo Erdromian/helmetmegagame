@@ -6147,6 +6147,23 @@ model AuditLog {
   @@index([roomId, createdAt])
 }
 
+// A public link to ONE page of the economy report (ECONOMY.md §7a). The report itself is gated to GMs and
+// the Economist, and it names secret recipes, so a share never opens the whole thing: /share/economy/<token>
+// serves only `page`, with the report's nav taken out. It serves the page as the CURRENT deploy builds it,
+// not a snapshot. Revoking deletes the row, and the link 404s from then on.
+//
+// `createdBy` is a Discord user id snapshot rather than a relation, same as AuditLog's actor: there is no
+// user table, and a GM or Economist is not a Character.
+model EconomyReportShare {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  // A filename out of the built report, e.g. "wages.html" (db/scripts/analysis/economy/report.js SECTIONS).
+  // Unique: a page has one link, so two people sharing it at once both get the same one.
+  page      String   @unique
+  createdBy String
+  createdAt DateTime @default(now())
+}
+
 // --- The economy ledger -------------------------------------------------
 //
 // One row per economic event, double-entry: `amount` is always POSITIVE and

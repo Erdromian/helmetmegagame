@@ -79,9 +79,10 @@ export async function getEconomyReportFiles() {
   return files;
 }
 
-// One named file from the built set, or null if generation failed or the name does not exist —
-// web/app/api/economy/report/[[...path]]/route.js is the one caller, and it turns either kind of null
-// into a 404/503 of its own.
+// One named file from the built set, or null if generation failed or the name does not exist. The
+// callers are the report's own route (web/app/api/economy/report/[[...path]]/route.js) and the public
+// share (web/app/(public)/share/economy/[token]/route.js), which each turn either kind of null into a
+// 404/503 of their own, and the share actions (web/app/economyShareActions.js).
 export async function getEconomyReportFile(name) {
   const files = await getEconomyReportFiles();
   return files?.get(name) ?? null;
