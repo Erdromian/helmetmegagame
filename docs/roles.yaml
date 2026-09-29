@@ -1183,6 +1183,7 @@ groups:
         spawns: true
         opens: [factory-key]
       starting_tags:
+        - Rough Camper
         - Hatchet
         - Cleaning Powder
         - Armored Gloves
@@ -1327,6 +1328,7 @@ groups:
       starting_tags:
         - Ravenhearter
         - Prospecting
+        - Spelunker
         - Ration Box x2
         - Pickaxe
         - Appraisal
