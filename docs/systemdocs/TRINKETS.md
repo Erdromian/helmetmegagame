@@ -104,8 +104,16 @@ with the reason** when there is no forge in reach, no open turn, a Move already
 filed, or fewer than 4 ⬢ on them. `db/lib/trinket.js#trinketRefusalFor` is
 that sentence, read by the sheet (`character/page.js`), by the bot's Actions
 menu (`db/lib/actionPools.js`, where `/item trinket` links back to the sheet's
-dialog) and by the request itself for the forge line, so a tooltip and a
-refusal never disagree.
+dialog) and by the request itself, so a tooltip and a refusal never disagree.
+The request's other sentences (no Smithing, not a stone) live in the same file.
+
+**Discord can't hide it the same way.** Slash commands are registered
+globally, so `/item trinket` shows in every player's command picker; only the
+Actions menu leaves it out for a non-smith, and typing it gets the generic
+"That isn't something you can do right now." This is the same trade `/blood`,
+`/smell` and `/thanati` already make. It gives little away in practice: every
+`items-mining` stone's own description already says it can be smithed into a
+Trinket.
 
 The dialog (`components/actions/TrinketDialog.js`) takes up to two stones on
 the cooking bench's slots (`IngredientSlots.js`), an optional name and an

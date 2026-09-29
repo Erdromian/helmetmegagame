@@ -2,7 +2,15 @@
 // and which held tags are offered as stones.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { isSmith, trinketRefusalFor, inlayStonesOf, TRINKET_NO_FORGE } = require("../lib/trinket");
+const {
+  isSmith,
+  trinketRefusalFor,
+  trinketCostRefusal,
+  inlayStonesOf,
+  TRINKET_NO_FORGE,
+  TRINKET_NO_TURN,
+  TRINKET_MOVED,
+} = require("../lib/trinket");
 
 const tierRows = [
   { id: "s", slug: "smithing" },
@@ -24,10 +32,16 @@ test("trinketRefusalFor: null when everything is in place", () => {
 
 test("trinketRefusalFor: the forge, the turn, the Move, then the ⬢", () => {
   assert.equal(trinketRefusalFor({ ...ready, hasWorkshop: false, hasMoved: true }), TRINKET_NO_FORGE);
-  assert.equal(trinketRefusalFor({ ...ready, hasOpenTurn: false }), "No turn is open.");
-  assert.equal(trinketRefusalFor({ ...ready, hasMoved: true }), "You've already used your Move this turn.");
+  assert.equal(trinketRefusalFor({ ...ready, hasOpenTurn: false }), TRINKET_NO_TURN);
+  assert.equal(trinketRefusalFor({ ...ready, hasMoved: true }), TRINKET_MOVED);
   assert.equal(trinketRefusalFor({ ...ready, resources: 3 }), "A Trinket costs 4 ⬢, and you have 3 ⬢.");
   assert.equal(trinketRefusalFor({ ...ready, resources: undefined }), "A Trinket costs 4 ⬢, and you have 0 ⬢.");
+});
+
+test("trinketCostRefusal: the request and the button share the shortfall sentence", () => {
+  assert.equal(trinketCostRefusal(4), null);
+  assert.equal(trinketCostRefusal(9), null);
+  assert.equal(trinketCostRefusal(2), trinketRefusalFor({ ...ready, resources: 2 }));
 });
 
 test("inlayStonesOf: only held tags with an inlay value, by name", () => {

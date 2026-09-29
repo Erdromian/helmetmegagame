@@ -3,7 +3,8 @@
 // A smith spends a whole Move and 4 ⬢, slots up to two stones, and rolls a d6. The face is a tier and
 // the tier sets the price: round(base + mult × the stones' summed inlay). The price is what the Merchant
 // pays. Everything here is read from the game: the tier table and the skilled floor from
-// db/lib/trinketPass.js, the gate constants from db/lib/constants.js, the stones from docs/tags.yaml, and where each stone drops from the loot tables.
+// db/lib/trinketPass.js, the gate constants from db/lib/constants.js, the stones from docs/tags.yaml, and
+// where each stone drops from the loot tables.
 //
 // Money is ¢. The 4 ⬢ is spent at the Depot's import price. A stone a smith mined is valued at what it
 // would have sold for raw (the forgone sale); a stone bought is valued at the shelf price.

@@ -7568,8 +7568,9 @@ tags:
   # a Trinket's whole point is that its quality is unknown until the turn
   # ends, and the normal Craft dialog shows you exactly what you are about to
   # get. `web/app/(app)/character/trinketActions.js` is the recipe's real
-  # gate (smithing + a forge + a whole Move, priced there as constants, not
-  # read off this row's `requirement`) — this row exists only so
+  # gate (smithing + a forge + a whole Move, priced in db/lib/constants.js,
+  # not read off this row's `requirement`) and the sheet's Make a Trinket
+  # button is its only door (TRINKETS.md §2a) — this row exists only so
   # `mintCustomCraft` has a base shape (category, group, weight, sellable…)
   # to clone when the die comes up. `craftable` stays false and `pointCost` 0
   # so nothing anywhere ever offers it for purchase or for the Craft button.
