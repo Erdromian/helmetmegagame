@@ -231,6 +231,7 @@ import {
   formatCharacterName,
 } from "@/lib/characterName";
 import { propagateDynastyLastName } from "@/lib/dynasty";
+import { DRUG_STATE_SLUGS } from "@/lib/drugHighs";
 import { autoMovesOpen } from "@lifeweb/db/lib/turnGate";
 import {
   requireCharacter,
@@ -1149,6 +1150,18 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
       allGrantDurations,
     );
     grantedNames = granted.map((g) => g.tagName);
+    // A dose taken while the last one is still on grants nothing new — the
+    // state is already held — so its acquiredAt would stay where the first
+    // dose left it, and the song for taking a drug (MusicDirector.js), which
+    // waits for that stamp to move, would never play again. Every drug state
+    // this swallow granted is restamped, fresh or not.
+    const dosed = allGrantSlugs.filter((slug) => DRUG_STATE_SLUGS.includes(slug));
+    if (dosed.length) {
+      await tx.characterTag.updateMany({
+        where: { characterId: target.id, tag: { slug: { in: dosed } } },
+        data: { acquiredAt: new Date() },
+      });
+    }
     if (dined) {
       const dinedName = await grantDined(tx, target.id, openTurn, dinedConfig);
       if (dinedName) grantedNames.push(dinedName);

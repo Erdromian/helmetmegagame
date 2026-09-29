@@ -55,7 +55,8 @@ let running = false;
 let here = null;
 let lastSrc = null;
 let lastSpot = null;
-// An interrupter asked for before start(): the first thing played once it does.
+// An interrupter asked for before start(): the first thing played once it does, as
+// `{ item, layer }`.
 let pending = null;
 // While held, a piece or a spot that comes due is not played; the flag remembers that it
 // came due, so lifting the hold can start it.
@@ -181,8 +182,7 @@ function playNext() {
   play(item, here.id);
 }
 
-function play(item, label) {
-  const layer = "ambient";
+function play(item, label, layer = "ambient") {
   lastSrc = item.src;
 
   // The file's measured level times the piece's own trim, and nothing else. The tier in
@@ -224,9 +224,9 @@ export function start() {
   if (running || typeof window === "undefined") return;
   running = true;
   if (pending) {
-    const item = pending;
+    const { item, layer } = pending;
     pending = null;
-    play(item, "interrupt");
+    play(item, "interrupt", layer);
   } else {
     wait(roll(FIRST_WAIT_MS), playNext);
   }
@@ -292,20 +292,24 @@ export function setPlace(next) {
  * "An ambience interrupting SFX": the piece in the air fades out, and `item` (a
  * placeAmbience.js piece) plays in its place, to its own end, followed by the ordinary gap.
  * Asked for before start(), it is the first thing start() plays.
+ *
+ * `layer` is where it plays. A drug's song goes on `dose`, the top of the bus, so a
+ * jukebox or a lute goes silent under it rather than covering it (music.js); everything
+ * else stays on `ambient`.
  */
-export function interrupt(item) {
+export function interrupt(item, { layer = "ambient" } = {}) {
   if (!item || typeof window === "undefined") return;
   if (!running) {
-    pending = item;
+    pending = { item, layer };
     return;
   }
   clearTimer();
   if (piece) {
-    const layer = piece.layer;
+    const old = piece.layer;
     dropPiece();
-    stopLayer(layer, { fadeMs: INTERRUPT_FADE_MS });
-    wait(INTERRUPT_FADE_MS, () => play(item, "interrupt"));
+    stopLayer(old, { fadeMs: INTERRUPT_FADE_MS });
+    wait(INTERRUPT_FADE_MS, () => play(item, "interrupt", layer));
   } else {
-    play(item, "interrupt");
+    play(item, "interrupt", layer);
   }
 }

@@ -10,7 +10,7 @@ import { soundSetting } from "./soundStore";
 // next ordinary cue and capped by `maxMs`. Every one of those rules is right for a rite
 // and fatal for a soundtrack.
 //
-// SIX LAYERS, lowest priority first. The highest layer holding a track is the one you
+// SEVEN LAYERS, lowest priority first. The highest layer holding a track is the one you
 // hear; every layer under it ducks to SILENCE rather than stopping, so when the thing
 // above ends, the thing below is still where you left it.
 //
@@ -21,9 +21,13 @@ import { soundSetting } from "./soundStore";
 //   event     a siren, an alarm, a thing arriving. Loud and brief
 //   room      a jukebox, a gramophone: something switched on in the room
 //   player    somebody playing an instrument, one voice each
+//   dose      the song of a drug, the moment it is taken (musicConductor.js#interrupt)
 //
 // Player beats room because a person playing an instrument in front of you is nearer than
-// furniture in the corner, and because it is something somebody is DOING.
+// furniture in the corner, and because it is something somebody is DOING. A dose beats
+// everything because it is inside your own head: while it plays, the place's bed, its
+// spots, the Den's jukebox and anybody's lute all go silent for the one who took it, and
+// come back when the song ends. Nothing coexists under it.
 //
 // THREE RULES ON TOP OF THAT:
 //
@@ -43,7 +47,7 @@ import { soundSetting } from "./soundStore";
 //   that tier was always for. If a spot gets lost in a bed, that number is the one to
 //   change, not this rule.
 //
-// `ambient` and `spot` are driven by musicConductor.js, `music` by musicProgram.js, both
+// `ambient`, `spot` and `dose` are driven by musicConductor.js, `music` by musicProgram.js, both
 // through MusicDirector.js, and `player` by InstrumentListener.js, one voice per
 // performance (see VOICES below). InstrumentListener.js drives `room` too: the Den's
 // jukebox, on loop, through a lowpass of its own (TONED below). `event` is wired in and
@@ -67,7 +71,7 @@ import { soundSetting } from "./soundStore";
 // through decodeAudioData, and the element hands over `duration`, `currentTime` (this is
 // how the 0:18 resume works) and `ended` for nothing.
 
-export const LAYERS = ["ambient", "spot", "music", "event", "room", "player"];
+export const LAYERS = ["ambient", "spot", "music", "event", "room", "player", "dose"];
 
 // What a layer does while something above it is playing. The bed keeps rolling, because a
 // wind loop restarted at 0:00 under a jukebox is audible; everything else pauses, because
@@ -83,6 +87,7 @@ const LAYER_MODE = {
   event: "continue",
   room: "pause",
   player: "pause",
+  dose: "pause",
 };
 
 // The two extra rules, as data rather than as branches — a sixth bus is a line here.

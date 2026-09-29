@@ -142,7 +142,8 @@ export default function MusicDirector() {
     if (!doseKey) return;
     const id = doseKey.slice(0, doseKey.lastIndexOf("@"));
     if (heardDose(doseKey)) return;
-    interrupt(BY_DRUG[id]);
+    // On its own layer, over the place, the Den's jukebox and anybody's lute (music.js).
+    interrupt(BY_DRUG[id], { layer: "dose" });
   }, [doseKey]);
 
   return null;
