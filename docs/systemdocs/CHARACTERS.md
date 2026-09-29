@@ -48,7 +48,7 @@ The wizard has five steps:
    the character sheet shows it disabled with a "make your case to a GM"
    tooltip. `Character.name` remains as a denormalized mirror of the join.
    See §1b.
-4. **Antagonists** — one checkbox, off, "Enable antagonist roles", over the
+4. **Villains** — one checkbox, off, "Enable villain roles", over the
    line that says what an antagonist actually signs up for. Pure consent data:
    nothing in the game grants from `Character.antagonistOptIns` or gates on it
    — it exists so a GM choosing who receives one can tell who is willing. Also

@@ -13,7 +13,7 @@ Desires and purchasable tags.
 
 ## 1. Becoming a Vampire
 
-Opt-in is the same single "Enable antagonist roles" checkbox every other
+Opt-in is the same single "Enable villain roles" checkbox every other
 Threat shares (`THREATS.md` §1) — there is no separate Vampire box. A GM hands
 the seat to an opted-in, already-existing character with `assignThreat` on
 `/gm/dev?s=assignments`, the same as Judge or Demoness. A Vampire is never

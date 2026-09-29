@@ -132,7 +132,7 @@ If you want to remember something, use the ⭐ reaction on the message before th
 ## Character Creation
 The first thing you will do is open the **Character** page on the website, from the button at the top of the sidebar.
 
-**Before the game starts** that page is the lobby. Set how much you want each role — Off, Low, Med or High, with only one High at a time — say what should happen if none of them is free (spawn as a Bum, spawn as a Migrant, or sit it out and join by hand later), tick any antagonist you are open to being handed, and press **Ready**. If you are allotted a seat, you will get a DM with your seat, a link, and a deadline. Build your character before it, or the seat opens to anyone.
+**Before the game starts** that page is the lobby. Set how much you want each role — Off, Low, Med or High, with only one High at a time — say what should happen if none of them is free (spawn as a Bum, spawn as a Migrant, or sit it out and join by hand later), tick any villain you are open to being handed, and press **Ready**. If you are allotted a seat, you will get a DM with your seat, a link, and a deadline. Build your character before it, or the seat opens to anyone.
 
 **After the game starts**, or if you missed the roll, you join by hand: pick from whatever seats are open. Character creation takes place in 5 steps:
 
@@ -145,8 +145,8 @@ Tags represent your character's skills, assets, injuries, and other attributes. 
 **Identity**  
 Your identity is your character's name, gender, age, and title. Names must be a single word, and titles must be earned or granted by your role.
 
-**Antagonists**  
-Antagonists are secret villain roles that may be granted by a GM. You will be expected to commit yourself to whatever evil scheme you end up being a part of.
+**Villains**  
+Villains are secret roles that may be granted by a GM. You will be expected to commit yourself to whatever evil scheme you end up being a part of.
 
 **Confirm**  
 Once you've made your selections and reviewed your character details, clicking Confirm will create the character and assign it to your Discord account. It will also take you to the Character page, which is your full character sheet.
