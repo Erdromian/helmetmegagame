@@ -70,7 +70,7 @@ debounced on the client):
 - **If none are available** — Spawn as Bum, Spawn as Migrant (the default)
   or Return to lobby (`PlayerPreference.joblessRole`: `BUM`, `MIGRANT`,
   `RETURN_TO_LOBBY`).
-- **Antagonist opt-in** — one box, "Enable antagonist roles". Ticking it
+- **Antagonist opt-in** — one box, "Enable villain roles". Ticking it
   stores every opt-in seat the player may take (`takeableAntagonistSlugs`),
   whitelisted ones included only for a player who holds the Whitelist role;
   unticking stores none. The column is still a list of slugs, so the roll and
@@ -86,7 +86,7 @@ returning player only has to press Ready. A player who was already readied
 does not even have to do that — the READY row survives the wipe too (§8). Priorities are keyed by role slug, so
 a role that leaves `docs/roles.yaml` drops out silently. Opt-ins copy onto
 `Character.antagonistOptIns` at creation and lock there; the wizard's
-Antagonists step opens prefilled from the preference row and writes back to
+Villains step opens prefilled from the preference row and writes back to
 it.
 
 Two columns: the roles down the left, and on the right (sticky) the Ready

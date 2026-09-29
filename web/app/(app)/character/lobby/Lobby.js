@@ -253,9 +253,9 @@ export default function Lobby({ groups, initial, entry, readyCount, antagonistBl
           </label>
 
           <section className="panel flex flex-col gap-2 p-4">
-            <h2 className="panel-header">Antagonists</h2>
+            <h2 className="panel-header">Villains</h2>
             <CheckField checked={optIn} onChange={(e) => toggleOptIn(e.target.checked)}>
-              Enable antagonist roles
+              Enable villain roles
             </CheckField>
             <p className="text-sm text-muted">{antagonistBlurb}</p>
           </section>

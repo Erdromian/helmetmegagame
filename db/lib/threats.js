@@ -335,12 +335,12 @@ function antagonistNames(slugs) {
   return OPT_IN_THREATS.filter((t) => held.has(t.slug)).map(optInName);
 }
 
-// The one line under the "Enable antagonist roles" box, on both the lobby and
+// The one line under the "Enable villain roles" box, on both the lobby and
 // the creation wizard. It lives here so the two surfaces can never drift.
 const ANTAGONIST_BLURB =
-  "Antagonist roles are randomly selected at game start, or become available later on. " +
-  "An antagonist is expected to drop their roleplay to focus on completing their objectives, " +
-  "but gets unique gameplay styles and mechanics.";
+  "Villains are randomly selected and given unique additional tasks, responsibilities and mechanics. " +
+  "When playing a villain it is important you be willing to actively pursue your goals and drive the story forward. " +
+  "Give the other players something to fear, and make the story your own!";
 
 // Every opt-in seat the player may actually take. The lobby and the wizard ask
 // one question now — "antagonist roles: yes or no" — so a yes means all of

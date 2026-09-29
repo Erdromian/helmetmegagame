@@ -37,7 +37,7 @@ import { randomCharacterName, cultureForRole } from "@/lib/nameCorpus";
 // to offer until both are picked. It also fixes the dynasty last name, which
 // is locked by the role and so could never be applied while Identity ran
 // first.
-const STEPS = ["Role", "Tags", "Identity", "Antagonists", "Confirm"];
+const STEPS = ["Role", "Tags", "Identity", "Villains", "Confirm"];
 // Derived rather than written out: a hardcoded index for the footer's
 // "is this the last step?" test would go stale the moment a step is
 // inserted in the middle.
@@ -747,9 +747,9 @@ export default function CreateCharacterWizard({
 
       {step === 3 && (
         <div className="panel flex flex-col gap-4 p-4">
-          <h2 className="panel-header">Antagonists (optional)</h2>
+          <h2 className="panel-header">Villains</h2>
           <CheckField checked={antagonists} onChange={(e) => toggleAntagonist(e.target.checked)}>
-            Enable antagonist roles
+            Enable villain roles
           </CheckField>
           <p className="text-sm text-muted">{antagonistBlurb}</p>
         </div>
@@ -774,7 +774,7 @@ export default function CreateCharacterWizard({
               </dd>
             </div>
             <div>
-              <dt className="text-muted">Antagonist roles</dt>
+              <dt className="text-muted">Villain roles</dt>
               <dd>{antagonists ? "Enabled" : <span className="text-muted">Off</span>}</dd>
             </div>
           </dl>
