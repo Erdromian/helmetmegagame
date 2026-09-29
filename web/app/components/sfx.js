@@ -123,9 +123,11 @@ const CUES = {
   // The telephone. The library's own phone sounds, plus two borrowed: the
   // cradle is the UI click, because OpenSourceWeb never recorded one, and a
   // number that goes nowhere is the terminal's warble. `phone-ring-far` is the
-  // same bell as `phone-ring`, one Location away and much quieter.
+  // same bell one Location away, heard through the walls: its own file, the bell
+  // run through a lowpass (scripts/audio/build-assets.sh), so it is muffled and
+  // not merely quieter.
   "phone-ring": "phone_ring",
-  "phone-ring-far": "phone_ring",
+  "phone-ring-far": "phone_ring_far",
   "phone-error": "console_error",
   "phone-calling": "phone_calling",
   "phone-pickup": "phone_pickup",
@@ -160,6 +162,7 @@ const LOOPS = {
 //   -20  the world, heard by the room. A gate, a gun, a body coming apart.
 //   -16  made to be heard. The alarm, the bell, the horn.
 //   -32  the drone.
+//   -40  somewhere else. A phone ringing a Location over, through the walls.
 //
 // The number is the file's K-weighted level (BS.1770 pre-filter, peak 50ms window) and the
 // gain is 10^((target - measured)/20) — for a cue with several files, off their average, so
@@ -216,9 +219,11 @@ const GAIN = {
   "coin-insert": 0.1,
   // The terminal's warble, at the level console-refuse already measured it at.
   "phone-error": 0.17,
-  // The bell through a wall: the ring's own gain, 16dB down, so it sits under
-  // the drone rather than over the furniture.
-  "phone-ring-far": 0.063,
+  // The bell through a wall, and barely: -40, under everything on this list and
+  // eight below the drone, 24dB under the ring it comes from. Somebody listening
+  // for it catches it in a quiet moment; nobody else notices it at all. The
+  // lowpass already took the file to -35.6 against the bell's -8.4.
+  "phone-ring-far": 0.6,
 
   // A thing you did.
   success: 0.16,
