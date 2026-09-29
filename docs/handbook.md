@@ -36,7 +36,7 @@
 
 ## About Bascinet
 
-Bascinet is an online megagame played across Discord and the website, found [here](https://ravenheart.quest/). You will spend most of your time in Discord, where you interact with the game world and other players. The website holds various game tools such as your character details, the world map, and documents about the world.
+Bascinet is an online megagame played across Discord and the website, found [here](https://ravenheart.quest/). You can play either through a combination of the website and discord or the website alone, many features of the website sadly cannot be ported to the discord.
 
 ## How Do I Play?
 
@@ -99,21 +99,21 @@ General questions can be asked in the `#general` channel or by creating a thread
 | **Handbook** | A full page version of this document. |
 
 ## The Game Clock
-Bascinet runs on real time, in US Central. That is simply what time it is in Ravenheart, and every deadline the game gives you is in it — the clock in the corner of every page is the game's own.
+Bascinet runs on real time, in US Central.
 
-A turn is 6, 8, 12 or 24 hours long, and the GMs set which. Turns always end on a clean hour, counted from the hour the game started unless the GMs pick another: start at 5:14 and a 24-hour turn ends at 5:00 every day, a 6-hour one at 5:00, 11:00, 17:00 and 23:00. An in-game day is however many turns fit in a real day, so on the longest setting one turn is one day.
+Turn length may vary in real life hours between games, however it will remain constant in the context of an individual game.
 - **Your sheet and the `#turns` channel both say when the current turn ends.**
 - **Written Moves lock a few hours before the turn ends**, so the GMs have time to read them. Anything that needs no GM — crafting, mining, farming, healing and the like — keeps working right up to the end of the turn.
 
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the two main controls:  
-- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. You get some free travel each turn — a crossing between the town Zones costs ½ of it, anywhere further costs 1 — and an **equipped mount** carries you across more borders on top of that, near or far: 1 a turn on an arelitz (2 with a saddle fitted), 2 on a motorcycle. The mount's rides are on the animal itself: its name on your sheet says how many it has left, and it is fresh again every turn. You can keep one mount at a time, and up to 3 unruly or young arelitz. Past all that, crossing spends your Move, and once you've acted you can't cross at all. Your sheet shows what you have left, travel and rides apart. Either way you arrive immediately, and the picker always lets you bring along anyone you could carry: someone bound or helpless, or a body. Anyone else has to agree to come.  
+- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. Traveling is locked during turn lock.  
 - **Move** is used to submit your character's Move for the turn.  
 
 ### The Wipe
 
-At the start of every turn all roleplay channels are cleared and their contents are sent to the Archive, the Game Masters' record of the game. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
+At the start of every turn all roleplay channels are cleared. This keeps scenes focused on the day at hand, rather than becoming long-running conversations. A scene lives for one turn.
 
 The one exception is your Zone's Summary channel, which is only cleared once an in-game day — so what is posted there has longer to be read than a scene does.
 
@@ -121,17 +121,17 @@ What survives:
 - Every Room keeps its thread and its description; the messages in it are archived.
 - Conversations do not survive. Open a new one after the wipe.
 
-If you want to remember something, use the ⭐ reaction on the message before the turn ends to save it to your [Notes](https://ravenheart.quest/notes) page.
+If you want to remember something, use the ⭐ reaction on the message before the turn ends to save it to your [Memories](https://ravenheart.quest/memories) .
 
 ## Character Creation
 The first thing you will do is open the **Character** page on the website, from the button at the top of the sidebar.
 
-**Before the game starts** that page is the lobby. Set how much you want each role — Off, Low, Med or High, with only one High at a time — say what should happen if none of them is free (spawn as a Bum, spawn as a Migrant, or sit it out and join by hand later), tick any antagonist you are open to being handed, and press **Ready**. Everything saves as you go and is remembered for the next game. When the GMs start the game, the roll hands out seats: players who wanted a role more get it before players who wanted it less, and a role's seats fill until they run out. You get a DM with your seat, a link, and a deadline. Build your character before it, or the seat opens to anyone.
+**Before the game starts** that page is the lobby. Set how much you want each role — Off, Low, Med or High, with only one High at a time — say what should happen if none of them is free (spawn as a Bum, spawn as a Migrant, or sit it out and join by hand later), tick any antagonist you are open to being handed, and press **Ready**. If you are allotted a seat, you will get a DM with your seat, a link, and a deadline. Build your character before it, or the seat opens to anyone.
 
 **After the game starts**, or if you missed the roll, you join by hand: pick from whatever seats are open. Character creation takes place in 5 steps:
 
 **Choose Your Role**  
-Your role determines your character's starting location. Roles may come with responsibilities, authority, or benefits. The difficulty shown on the role (easy/normal/hard) is a rough indication of how much effort the role requires to play properly. Most roles have a maximum number allowed in the game, and the roles marked ★ can only be selected if you have been explicitly whitelisted.
+Roles may come with responsibilities, authority, or benefits. The difficulty shown on the role (easy/normal/hard) is a rough indication of how much effort the role requires to play properly. Most roles have a maximum number allowed in the game, and the roles marked ★ can only be selected if you have been explicitly whitelisted.
 
 **Tags**  
 Tags represent your character's skills, assets, injuries, and other attributes. You may have some initial tags provided by your role, and you can purchase new tags using Tag Points. In general, beneficial tags will cost points while harmful/negative tags (drawbacks) will grant points. Any unused points are saved to use later.
@@ -140,7 +140,7 @@ Tags represent your character's skills, assets, injuries, and other attributes. 
 Your identity is your character's name, gender, age, and title. Names must be a single word, and titles must be earned or granted by your role.
 
 **Antagonists**  
-Antagonists are secret villain roles that may be granted by a GM. You can select one or more of these options to indicate you're open to receiving one. A few need the whitelist, like the leader roles do.
+Antagonists are secret villain roles that may be granted by a GM. You will be expected to commit yourself to whatever evil scheme you end up being a part of.
 
 **Confirm**  
 Once you've made your selections and reviewed your character details, clicking Confirm will create the character and assign it to your Discord account. It will also take you to the Character page, which is your full character sheet.
@@ -171,9 +171,9 @@ Sometimes turns will have consequences that impact your character. If you were b
 
 ## Talking & Roleplay
 
-As a roleplay game, conversation is at the heart of Bascinet, and the bot is designed to maintain separation between a player's identity and their character. When you send a message to a roleplay channel, the bot will automatically delete your message and post it again under your character name. No special commands or formatting is needed to speak in character.
+As a roleplay game, conversation is at the heart of Bascinet, and the bot is designed to maintain separation between a player's identity and their character. When you send a message to a roleplay channel, the bot will automatically delete your message and post it again under your character name.
 
-Sometimes Discord may take a few seconds to update your message with the bot's version, and your username is also visible at the bottom of the channel when typing directly. If you want to ensure neither of these can be used to connect you to your character, use the `/message` slash command in the room you want to speak in. It opens a box to type into, so nothing you write appears under your own name and nobody sees you typing.
+To prevent people connecting your character to your discord account, you can use the /message command or chat through the webpage.
 
 ### Channels And Locations
 
@@ -185,35 +185,27 @@ There are six Zones in Bascinet:
 - The Caves
 - The Depths
 
-Every Zone is made of Locations — the Courtyard, the Keep and the Garrison in the Fortress, say. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are connected like a map: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs your Move.
+Every Zone is made of Locations. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are all interconnected: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs movement points. Some crossings between locations are locked or hidden behind certain requirements.
 
-A Location goes by what it is: the Gullies, the Grand Ravine, the Keep, the Cathedral, the Factory. Inside the walls a Location is addressed by its code off the map instead — town-2, fortress-5 — which is the same place said a shorter way.
-
-Not every way is simply open. A **gate** announces you in the Zone's Summary when you cross it — a manned one names you outright, an unmanned one only reports what a passer-by would have seen. A **locked** way appears in your Travel list but refuses you until you carry the right thing. Some ways can be **opened and closed** by the people who hold them, with a button on the Location's pinned message; while shut, nobody passes. And some ways you will not see listed at all.
-
-Some ways are too tight, too steep or too enclosed for an arelitz or a cart — a crawl, a cliff path, a lift, a culvert. Cross one of those mounted and you leave the animal behind and go through on your own two feet — you can take it up again once you're through. Anywhere else, indoors and underground included, you can stay in the saddle.
-
-If you have the key to one of those, you may be asked in a DM whether to leave it open for the next 24 hours. Say yes and anyone can see it and use it until the day is out — which is how somebody without a key follows you through. Say no and it falls shut behind you.
+Some ways are too tight, too steep or too enclosed for mounts and carts to pass, you will be ejected from them if you attempt to cross.
 
 Each Location's channel has a pinned message at the top with its description, the list of its public Rooms, and three buttons.
 | Channel | What it's for |
 |---|---|
 | **Summary** (text channel) | Describing, in broad terms, what other players would see your character doing. This channel has a 5-minute slowmode and is not meant for conversations. |
 | **A Location** (text channel) | The open street. You can see what happens here, but talk belongs in its Rooms — step into one to speak. |
-| **Rooms** (threads under the Location) | The places inside a Location — the Old Cock Inn on the Square, the Throne Room in the Keep. Public Rooms are open to everyone here. Private Rooms are hidden: you only see one if you hold the right tag, such as a key, or wear the signet ring that opens it. |
+| **Rooms** (threads under the Location) | The places inside a Location. Public Rooms are open to everyone here. Private Rooms are hidden and require certain tags or circumstances to be accessed. |
 
 The three buttons on the pinned message:
 - **Who's here?** — the characters standing in this Location. Anyone concealed shows up as "a young man" or the like.
 - **Secret rooms?** — the private Rooms you can enter here, and the Conversations you're part of.
 - **Converse** — open a private Conversation, linked to one of the Rooms.
 
-You may also gain access to unique roleplay channels by other means, such as acquiring a specific tag.
-
 - **Important:** Roleplaying outside of the server or in DMs is not allowed. If it didn't happen inside the Bascinet server, then it didn't happen at all.
 
 ### Public Scenes
 
-Use the Location's channel or one of its public Rooms when you want to play out a scene or conversation visible to everyone in the area. It could be a meeting, a conversation or argument, starting a confrontation, or anything else your character might do that involves others.
+Use a public room when you want to play out a scene or conversation visible to everyone in the area. It could be a meeting, a conversation or argument, starting a confrontation, or anything else your character might do that involves others.
 
 If you see someone post a description of their Character in the Summary channel and want to interact with them, walk to where they are and do so there.
 
@@ -241,15 +233,13 @@ While you're concealed, everything you say posts under a vague descriptor such a
 
 Other players can still 🔎 you and see any visible wounds or gear, but your name and face remain hidden.
 
-Some transformations take the choice away. A tag like Apex Form fixes your name and face to what you have become, and `/conceal` stops working while you hold it.
-
 ### Talking OOC
 
-OOC discussion should be kept out of roleplay channels as much as possible. If you need to add a brief OOC comment, you can bracket the message like this: "[OOC: Have to step away, be back soon]".
+OOC discussion should be kept out of roleplay channels as much as possible. If you need to add a brief OOC comment, use the OOC command for example letting someone know "I need to be right back irl".
 
-Non-roleplay conversation should take place in `#general`, keeping in mind that you should not reveal who you're playing.
+Non-roleplay conversation should take place in `#general`, keeping in mind that you should not reveal who you're playing or anything going on inside the current game as a whole.
 
-**Do not reveal game information in `#general`.** Discussing the game overall is fine, discussing what just happened inside the Inn or who you saw at the Gatehouse is not.
+**Do not reveal game information in `#general`.** Discussing the game overall is fine, discussing the things which are happening is not.
 
 ### Reactions
 
@@ -258,19 +248,29 @@ You can interact with messages posted in roleplay channels by adding a Reaction.
 | React | Used By | What It Does |
 |---|---|---|
 | 🔍 / 🔎 | Anyone | DMs you their appearance and visible gear or wounds. A doctor will also see afflictions they can treat. |
-| ⭐ | Anyone | Saves the message to your personal [Notes](https://ravenheart.quest/notes) page. |
+| ⭐ | Anyone | Saves the message to your personal [Memories](https://ravenheart.quest/memories) . |
 | ✏️ / 📝 | The author | Edit your message (the bot DMs you). |
 | ❌ | The author | Delete your message. |
 
+## Memories
+
+Your character possesses memories throughout the game, these are what allow them to recognize those they know as well as remember their way around town.
+
+Learning new faces and making new friends is mostly automatic, you character will make note of names as well as people's jobs.
+
 ## Resources & Hunger
 
-Resources in Bascinet are shown with the ⬢ symbol. They are bulk material — the stuff a smith forges with, a cook cooks with and a doctor patches you up with.
+Resources in Bascinet are shown with the ⬢ symbol. They are bulk material — and are used for crafting.
 
-**⬢ are a thing you carry, not a number on your sheet.** Each one weighs a pound, they sit in your pack beside everything else you own, and they can be put down in a room, handed over, stolen, pickpocketed and looted off your body exactly like any other item. A large fortune is a genuinely heavy load, and somewhere to keep it is a real problem.
+Foodstuffs are the basic unit of food, and can be consumed to sate your appetite. Eating raw food is not very pleasant, and yields significantly less hunger than if you had cooked it first, or bought a cooked meal.
+
+Obols are the universal currency within the game, they have no weight or carrying limit and can be safely stored and withdrawn with infoterminals.
+
+**⬢, foodstuffs and obols are things you carry, not a number on your sheet.** Each one weighs a pound except obols, they sit in your pack beside everything else you own, and they can be put down in a room, handed over, stolen, pickpocketed and looted off your body exactly like any other item.
 
 ### Transferring & Storage
 
-**Transfer** on your [Character](https://ravenheart.quest/character) page moves ⬢ and items in one go: from you or a **room** stash you're standing in, to a person standing with you or to a room stash. Every room is a stash. Put things down, come back for them later. The room's thread hears about it, without names.
+**Transfer** on your [Character](https://ravenheart.quest/character) page moves items in one go: from you or a **room** stash you're standing in, to a person standing with you or to a room stash. Every room is a stash. Put things down, come back for them later. The room's thread hears about it, without names.
 
 Transfer is give-only, both ways — you can never take ⬢ or an item from another character with it. The only way to take something from someone is **Loot**, and only if they're dead or helpless; a mugging plays out that way, not through Transfer.
 
@@ -278,31 +278,29 @@ A few rooms open onto two places at once — a counter, a window, a gate. If you
 
 The **Storage** button on a room's first post lists what's there.
 
-Not everything in a room is on the shelf. **Search** (beside Storage on the room's first post, and on the room's panel in [Chat](https://ravenheart.quest/chat)) goes through the place for what's hidden. It costs **0.33 of your Move** — three searches fill a turn, or a search shares the turn with work at the bench — and you can only search one room a turn, though you can go through that same room up to three times. Whatever you turn up lands on the floor, where anyone can take it; you'll want to be quick. The room's thread hears that somebody rummaged, not what they found.
+Not everything in a room is on the shelf. **Search** (beside Storage on the room's first post, and on the room's panel in [Chat](https://ravenheart.quest/chat)) goes through the place for what's hidden. It costs **0.33 of your Move** and you can only search a singular room a turn, up to three times. Whatever you turn up lands on the floor, where anyone can take it; you'll want to be quick. 
 
-Storage also tells you how many things are hidden in a room, so you know before you search whether there is anything to find. A room with nothing hidden can't be searched.
-
-Don't leave things lying around in a cluttered public room. Once three or more things are lying about, small things you set down and walk away from slip out of sight after a full day, one at a time, and only a Search will turn them up again. Animals, carts, buildings, bodies and anything of 40 lb or more never go missing, and neither does anything in a locked room (one that needs a key).
+Leaving things in public places is a bad idea, and they will either be stolen or hidden under whatever else is piled up there. Animals, carts, buildings, bodies and anything of 40 lb or more never go missing, and neither does anything in a locked room.
 
 ### Hunger
 
-**You have to actually eat.** Your character is always one of three things: {tag:full}, {tag:hungry} or {tag:starving}. Your sheet says which in its Hunger box, and so does the corner of [Chat](https://ravenheart.quest/chat) under your name. You are never shown a number.
+**Food is important.** Your character is always one of three things: {tag:full}, {tag:hungry} or {tag:starving}. The better prepared a meal is, the more of your hunger it will fill. You may need to eat more than one meal to actually sate your appetite.
 
-Hunger comes on slowly, over days, and you are told when you become Hungry — not before. Eating fills you back up. Raw {tag:foodstuffs} keep you going, but they are dull and do your mood no favours; a cooked meal fills you more and lifts your spirits. When you eat, you can eat several of a thing at once, up to what it takes to fill you.
+Becoming hungry or starving will cause a notable drop in your mood.
 
-Being Starving costs you −1 on Gambit rolls. If you do not eat soon, you will die: stay starved with nothing left in you and you receive the {tag:dying} tag, and a GM will review your situation to determine what happens next.
+Being Starving costs you −1 on Gambit rolls and will quickly result in your death. Try to stay on top of your hunger to avoid this.
 
-If a turn would leave you Starving and you are carrying Foodstuffs, you eat enough of them to stay only Hungry, and you are told that you did. Anything better you carry, a meal or a raw ingredient, you eat only when you would otherwise starve to death, and then the tastiest thing first. Nobody eats something that would make them sick, or that they would never touch.
+Your character will automatically eat foot to avoid starving, but only as a last resort. It is recommended you keep them fed yourself so you have a say in what they eat and when.
 
-Once you are Full to the brim you cannot eat any more food, unless you are a {tag:glutton}. A character with {tag:hungerless} never goes hungry, and food does nothing for them.
+After a certain point of eating, your character will have no room left for another bite.
 
 ### Mood
 
 Your character has a mood, and there is a box for it on your sheet that says it in one word. From best to worst: Ecstatic, Happy, Pleased, Content, **Fine**, Uncomfortable, Stressed, Anxious, Afraid, Panicking. Most people sit at Fine.
 
-Things wear on a character — nights spent out in the wilderness or down in the caves, a wound, going hungry, being tied up, seeing somebody die, worse. Shelter mends that: a roof over your head, and the Inn, the Keep or the Sanctuary more so than an ordinary room. But shelter only ever brings you back up to Fine. A bed will not make you happy, however long you lie in it — for that you need something you actually wanted: a drink, a meal, a treat, a pot of tea, a coffee, a smoke, hearing a Musician play, a confession, or getting what you asked for from a Desire. Nothing stays extreme for long — every night your mood slides a little back toward Fine, from either direction.
+You mood is constantly in flux, with different conditions and situations having different gradual effects on it over time. The best ways to boost your mood are with the consumption of luxuries such as fine food, drink, drugs and all manner of other vices.
 
-Only the three at the ends do anything to the dice. **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2 — and at the other end, **Ecstatic** gives you +1. The five in the middle are their own reward and change no roll. You are told when you reach any of those three, and otherwise the box on your sheet is the only place your mood is written down.
+Only the most extreme moods affect your character significantly. **Afraid** costs you −1 on Gambit rolls and **Panicking** costs −2 and at the other end, **Ecstatic** gives you +1.
 
 
 ## Submitting A Move
@@ -316,9 +314,9 @@ You submit a Move by pressing the Move button in `#turns` or using the `/move` s
 **Your Move**  
 A paragraph describing your character's objective, where it's happening, who else is involved, etc.
 
-Moves are collectively adjudicated by the GMs at the end of every turn. If the Baron's intent was to stay in his castle then the Bandit's intent to rob him won't succeed. If the Baron was wandering out in the Black Hills, the Bandit may very well get him. Adjudication results are messaged to players at the end of every turn.
+Moves are collectively adjudicated by the GMs at the end of every turn. Adjudication results are messaged to players at the end of every turn.
 
-Choose **Gambit** when the results may affect the overall narrative and are uncertain or up to chance. Fighting a duel, stealing something, spying on someone, and similar actions would all be Gambits.
+Choose **Gambit** when the results may affect the overall narrative and are uncertain or up to chance. Stealing something, spying on someone, and similar actions would all be Gambits.
 
 When you submit a Gambit, the bot rolls a d6 immediately — but doesn't tell you the result yet. The GMs adjudicating your action can see it and take it into account when determining the results, with the number rolled helping determine your Move results. The die result is not an outright indicator of success/failure, but rather a measure of how fortunate your character was while attempting it.  
 **Roll a 1:** Things went worse than you feared.  
@@ -330,7 +328,7 @@ You'll find out how your die fell when the turn ends — the bot DMs you the num
 
 You cannot edit or cancel a Move after submitting it. Double check each part of your submission before confirming it.
 
-Moves must also be sent **three hours before the turn ends** — 9:00 AM and 9:00 PM US Central — so the Gamemasters have time to read and resolve them. After that the Move button will refuse you until the next turn opens. Traveling, Speaking, and requests are not affected.
+Moves must also be sent **three hours before the turn ends** — so the Gamemasters have time to read and resolve them. After that the Move button will refuse you until the next turn opens. Speaking, and requests are not affected.
 
 ## Tags & Tag Points
 
@@ -364,11 +362,11 @@ Tags are gained, used, and removed via options on your [Character](https://raven
 
 **Stacks:** Some tags can stack, such as meals or ammunition. A stacked chip will show the count, such as `×4`.
 
-**Carrying:** Everything you own has a weight, and you can carry 71 lb of it to start. That includes your ⬢, at a pound each — there is one cap, and your savings compete with your armour for room in it. Skills and wounds weigh nothing, and neither do your **Assets** — an arelitz carries itself, and a house doesn't move. Being **Strong**, being a **Pack Mule**, or pulling an equipped **Cart** raises the cap.
+**Carrying:** Everything you own has a weight, and you can carry 71 lb of it to start. That includes your ⬢ and foodstuffs, at a pound each — there is one cap, and your savings compete with your armour for room in it.
 
-You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, though, it simply can't be yours: someone handing it to you is refused, and anything that arrives on its own (a day's harvest, a cave's loot) lands on the floor of a random public room where you stand.
+You can go over. Past the cap you're **Overburdened**, which costs you your free Zone moves — you can still travel, you just spend your Move to do it. Past *half again* the cap, and you will no longer be able to take new items, you are also liable to drop things as a result.
 
-**Carts and arelitz have to be equipped to do anything**, and they take up an equipment slot like anything else. You can ride and push them anywhere, indoors and underground included. The one thing that stops them is a way too narrow for them, where you go on foot: they're unequipped and stay with you, and you can put them back on from your equipment. The Travel list marks those ways "on foot" before you pick one.
+**Carts and arelitz have to be equipped to do anything**, and they take up an equipment slot like anything else. Some areas require you to unequip them before moving through. The Travel list marks those ways "on foot" before you pick one.
 
 **Equipment:** Weapons and armor must be **equipped** to use them in a fight. You have 10 slots for equippable tags. Click a tag to equip or unequip it instantly.
 
@@ -382,13 +380,13 @@ Your sheet carries a **Combat** box, and it says two words: how you do up close,
 
 The words run **Pitiful · Weak · Mediocre · Capable · Seasoned · Dangerous · Lethal · Legendary**, and they are coloured to match, red through grey to green.
 
-**Almost everyone in Ravenheart is Weak.** Most people have never been trained to fight, and that is the honest word for it. One rung of Melee or Ranged makes you Mediocre, and each rung after that moves you one word along. Pitiful is not where you start — it is where you end up, with a hangover, a bad wound, or a limb missing. Legendary is real but very nearly out of reach: it takes the top of a specialism *and* the right weapon in your hands.
+**Almost everyone in Ravenheart is Weak.** Most people have never been trained to fight, and that is the honest word for it. One rung of Melee or Ranged makes you Mediocre, and each rung after that moves you one word along.
 
 Three kinds of thing move the number, and the box tells you which is which when you hover it:
 
 - **What you are.** Being Strong, being Old, having a hand that no longer closes properly. These always count.
 - **What you are holding.** A sword in your hand is worth something on its own, and a great deal more if you have trained with swords. **You only ever swing one weapon**, so carrying a sword *and* an axe is not worth more than carrying the better of the two — but the weapon, your training, and the specialism for that weapon all stack.
-- **The moment.** Duelling, a shield wall, a surprise in rough ground, a shot at long range, something inhuman across from you. No system can know whether this fight is one of those, so these are **listed rather than counted** — bring them up with your GM when they apply.
+- **The moment.** Dueling, a shield wall, a surprise in rough ground, a shot at long range, something inhuman across from you. No system can know whether this fight is one of those, so these are **listed rather than counted** — bring them up with your GM when they apply.
 
 You will never be shown this for anybody else, and nobody will be shown it for you. Working out how dangerous somebody is, is meant to be something you do by watching them, asking around, or finding out the hard way.
 
@@ -396,19 +394,19 @@ You will never be shown this for anybody else, and nobody will be shown it for y
 
 ### Attacking Somebody
 
-Press **Attack** and pick who you are attacking — one person or several — and anybody standing with you that you want at your side. You need to be in combat mode to do it. Everybody in the fight is held where they are until it is over, so nobody starts a fight and then wanders off to have a nice afternoon. The people you asked along get to choose whether to join, and can't leave until they answer.
+Combat occurs separately to gambits, and is dependent on numerous factors all of which are considered by the GMs when adjudicating fights.
 
-It costs nothing, and it doesn't use your Move. Instead, everybody in the fight who was in combat mode when it reached them **writes what they do** — from the Attack panel, from the line under your Turn box, or from the button on the DM — and can change it until Moves lock. Anybody who wasn't in combat mode is caught by surprise: they can't choose how they fight, and it goes worse for them. A Gamemaster reads the whole fight and rules on it as one.
+To engage in combat, you must have combat mode enabled. This essentially indicates that your character is anticipating a fight and allows you to explain how your character will respond to the fight. Being attacked without combat mode enabled is the equivalent of being caught completely off guard, you won't be defenseless, but you will not have any initiative or control over how the fight progresses. Once enabled, combat mode cannot be turned off until the end of your turn and having it enabled will tire you out.
 
-If a fight is already going on where you are, Attack lets you **join a side** instead. You can join a fight you came to from elsewhere, but the further away you were when it started, the worse it goes for you, and from four places away or more you're simply too late.
+Enabling combat mode **after** entering combat will have no effect on your performance in the ongoing fight, it will only influence fights which start after it is enabled.
 
-A fight is **called off** only when everybody on the attacking side has pressed Call off. The defenders go free straight away; the attackers stay where they are for another 30 minutes, in case the other side wants to answer.
+Combat can be called off by those who initiate it, and combat actions altered as long as the turn has not yet locked. The defenders will still receive a chance to go on the counterattack in such a scenario.
 
-An **ambush** is a fight sprung from cover: set an Intercept to Ambush, and whoever walks into it is attacked the moment they arrive — you included, since you are in the fight too — and anybody else it catches that turn joins the same fight. When the fight ends, so does the ambush; set it again if you still want to lie in wait.
+Reinforcing an ongoing conflict requires you to have been within 3 locations distance of it when it began. Otherwise, you will arrive too late to intervene. The further you had to travel to get there, the worse you will perform in battle.
 
 Once Moves lock, nobody can start a fight, join one, or travel anywhere until the next turn.
 
-**Teaching:** Most skills can be taught by someone standing with you who holds them, and anybody can teach — you don't need a tag for it. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. If they do, learning becomes your Gambit. How hard it is depends on who's teaching you: an ordinary person spends their whole turn on it and you succeed on a 6; someone with the Teaching tag spends no Move at all, can take up to three students a turn, and you succeed on a 5 or 6; and you succeed on a 4, 5, or 6 if the teacher has the Drill Instructor tag and it's a fighting skill.
+**Teaching:** Most skills can be taught by someone standing with you who holds them, and anybody can teach — you don't need a tag for it. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. Characters with the teacher or drill instructor tags are far better suited to teaching skills than others.
 
 ### Examining Tags
 
@@ -437,7 +435,6 @@ Press **Craft** on your [Character](https://ravenheart.quest/character) page, pi
 - **Smithing I**, **Smithing II**, and **Smithing (Gunpowder)** — proper metalwork, each rung opening heavier and more expensive gear than the last. Anything past Dead Simple metalwork needs a **forge**: Workshop Equipment held, sitting in a room you can get into where you stand, or a forge standing at the place. Work you can do with your hands alone needs nothing.
 - **Cooking I** and **Cooking II** — meals. Every dish is made from ingredients you are holding, crops, meat, eggs and the like, and costs no ⬢. Cooking I makes the plain dishes and Cooking II the fancier ones. A plain dish takes a twentieth of a Move, so a turn of cooking is about twenty of them; the fancier ones take longer each.
 - **Brewing I**, **Brewing II**, and **Brewing III** — alcohol, tonics, poisons, and now the medicines too: three plain remedies brew at Skilled, the rest — five more, including the field's rarest recipes — brew at Expert. Nearly every brew spends a real ingredient you have to be holding, used up in the making unless its own recipe says otherwise.
-- **Medical II** and **Medical III** — no medicine-making left in this trade. Heal treats a patient, and fitting a prosthetic onto a maiming (even your own) still needs Medical III, whoever crafted the prosthetic itself.
 
 **Make it your own.** Plenty of crafts — a badge, a hat, a painting, and every piece of arms and armor — can be made as truly YOURS: pay 1 ⬢ extra and give it your own name and description. A named piece always still plainly shows what it is underneath, so a "Dockers' Mark (Badge)" reads as a badge regardless of what you called it.
 
@@ -461,91 +458,23 @@ A destroyed structure leaves a ruin standing until somebody clears it away.
 
 ## The Depot
 
-The Depot, down in the Caves, is where the cargo train stops, every other turn. It's the Merchant's business: he orders goods on the Merchant's Terminal there, and the train brings them. The way through from the Storefront to the Depot is locked to the Merchant and his Dockers, so everybody else deals with them across the **Merchant's Counter** — you stand in the Storefront, they stand in the Depot, and you can talk, and hand things across, over the counter.
+The Depot, in the underfort, is Ravenheart's only connection to the rest of Evergreen. Here imports and exports are all processed and delivered, making a tidy profit for the merchant and those with things to sell.
 
-You have an account, opened for you when you were made. Most accounts are a claim on real coin in the treasury — if the treasury runs dry, withdrawing is refused rather than shorted. An infoterminal reads the ring on your finger; there's one at the Depot, one on the Merchant's Counter, and one each in the Inn and the Den.
+The Storefront also has a vendor, allowing you to buy things from the merchant, even when they are not there in person. The merchant has to stock it with things themselves.
 
-**Crates are heavy.** Nobody carries more than one crate at a time, or three with a Cart on — take the Cart off and two of them fall to the floor. Picking one up costs you mood, and the first one you haul in a turn tires you out, unless you're a Pack Mule or Strong.
 
-The Merchant's Counter also has a vendor, on the Storefront side, and that one works whether or not he's awake. Press Vendor, feed obols into the slot, and click whatever you can afford. Only one person can be at it at a time and you get five minutes, so nobody can stand behind you and pocket what you put in. Everyone in the room sees what you buy.
+## Desires
 
-**Take your change.** Press Take your change, or Step away, before your time runs out. Coins left in the slot stay in the vendor, and the next person to open it can spend them or keep them.
-
-**Header:** Your name, title (if present), role, and portrait.
-
-**Status** (top-left):
-
-| Row | Meaning |
-|---|---|
-| **Location** | The Location you're standing in, and its Zone. |
-| **Resources** | The ⬢ you are carrying. A pound each, counted against your weight cap. |
-| **Gambit** | The modifier for your Gambit die. |
-| **Tag Points** | Points available to spend on new tags. |
-| **This turn** | Displays whether you've submitted a Move for this turn. |
-
-**Actions:** This is the grid of buttons next to your Status. Each button opens a dialog that asks for your reason and applies immediately. These operate on a system of trust and verification. Your changes take effect when you submit, but are reviewed by GMs to ensure proper use.
-
-**You**
-
-| Button | Effect | When You Can Use |
-|---|---|---|
-| **Craft** | Pick a recipe you know the skills for and pay its ⬢ cost right away, from your own purse, a Room stash you're in, or someone standing with you who agrees to pay (they get a DM naming what it's for). Files as your Routine. A long recipe becomes a project you can keep working on turn after turn from the same button (Continue), or cancel — no refund. A Dead Simple recipe needs no Move at all, just a cap per turn. | Always, but ensure you use your Move accordingly. |
-| **Destroy** | Drops a tag you're allowed to throw away. Health tags aren't on this list — a wound gets healed, not destroyed. | When holding something you could reasonably drop or remove. |
-| **Consume** | Consumes an item tag (drinking alcohol, eating food). Clicking the tag performs the same action. | When holding a consumable item. |
-| **Transfer** | Give ⬢ or a tag from yourself or a Room stash you're in, to someone standing with you, someone on the other side of a room that opens onto two places, or a Room stash. Giving only — the only way to take something from someone else is Loot, and only if they're dead or helpless. Not everything can change hands — a house isn't portable, and some things are part of you. | When holding something you can transfer. |
-| **Learn Skill** | Ask someone standing with you who teaches a skill to teach it to you. Files as your Gambit if they accept. | Always. |
-| **Teach Skill** | Offer to teach a skill to someone standing with you. Files as your Routine if they accept, unless you hold Teaching — then it costs you nothing. | When holding the skill. |
-
-**People here**
-
-| Button | Effect | When You Can Use |
-|---|---|---|
-| **Heal** | Treat an affliction on yourself or another person within reach, based on your medical skill. | {tag:medical-basic} or better. |
-| **Loot** | Search a dead or incapacitated person standing with you and take their ⬢ and whatever they were carrying that can be carried off. Their property, and anything grafted or bound to them, stays with them. | Always; the game rejects invalid targets. |
-| **Bind** | Tie up someone within reach. They must agree, unless they're dead or already helpless. | Always. |
-| **Free** | Cut loose someone within reach. | Always. |
-| **Harm** | Injure a helpless person within reach, or finish off a Dying or bound person. This never kills instantly; a GM verifies first. | Always. |
-| **Move Player** | Carry a dead or bound person to a connected Location. This doesn't spend their Move or yours. The Travel picker on Discord offers the same thing as you go. | Always. |
-| **Bury Person** | Lift a body's Curse by burying it — type the character's first name to confirm. | Always. |
-
-**Letters**
-
-| Button | Effect | When You Can Use |
-|---|---|---|
-| **Send Bird** | Send a letter by Bird. | Always. |
-| **Read** | Read a letter you've received. | Always. |
-
-The menus list the people standing where you are who haven't hidden their face, and the rooms you can get into. Act on information your character actually has, don't guess.
-
-**Tags:** Every tag your character currently has, grouped by category. Hover over them for details, and click on an item tag to consume it.
-
-In the header:
-- **Spend Tag Points:** Opens the Tag Store to spend unused points.
-- **Equipment:** Tags that you can wear. Click up to 6 equippable tags (weapons, armor, etc.) to don them, click them again to unequip.
-
-**Desires:** Goals you claim *after* the fact. Do the thing, then open a Desire slot, pick it out of the catalog, and tell the GMs how you pulled it off — the points land immediately. There is nothing to set up in advance and nothing to cancel.
+Small goals which can be used to guide your character's motivations. These should only really be used as a fallback for when your character lacks a more defined purpose, what your character truly desires is up to you, and it is up to you to make that happen.
 
 Claiming shuts that slot for a couple of turns, and puts that specific Desire on its own cooldown before anyone can claim it again. If you have an Addiction, your bottom slot only accepts Desires about the thing you're addicted to; your other slot is untouched.
 
-A Desire arranged purely to claim a Desire doesn't count — asking someone for a hug so you can tick off "Get a hug" is not a hug.
-
-**Bio:** Your character details.
-- **Name:** Your title (if present), name, and age. Click the **Change name** button to submit a GM request.
-- **Appearance:** The description shown to anyone who 🔍s you.
-- **Profile picture:** Your character's image. **Customize Appearance** opens the portrait maker, **Clear** removes the current portrait.
-- **Ping me when the turn advances:** Receive DMs for every turn change.
-
 ## Death
 
-Your character may die. Several of your characters may die. Luckily, that doesn't mean it's the end of your time in Bascinet.
+Death is a regular and common occurrence within Bascinet, and should be anticipated. Only the luckiest, or most boring characters survive to the end of the round.
+Dying is not the end of your time in the story. While your character may no longer play an active role, you can respawn as a new one either when your character is put to rest, or a late party is required.
 
-When your character dies:
-
-- Their body drops somewhere public where they died, as something anyone can pick up and carry off. Their ⬢ and anything portable they carried can be **looted** from wherever the body currently is, and the body can be carried elsewhere, buried, or cut up. What can't be carried off a corpse — a house, a manor, something grafted into them — stays with them.
-- Your Discord account becomes **Cursed** as you now exist as a ghost. You can read what's going on in every Zone, but you can no longer interact with the world of the living.
-- As a ghost you have no voice at all. What speaks for you is your body: while it lies unburied it stinks, and every few hours the Location it is in is told so.
-- While Cursed you cannot create a new character. Once the curse lifts you can make one at any time, from whatever roles still have a seat; **Bum** and **Migrant** always do.
-- The curse lifts the moment somebody buries your body (traditionally the Mortii's or the Church's job, but anyone who has your body in hand can do so). A buried body can no longer be looted or moved. If nobody can find you, someone can **engrave** a headstone with your name instead — it costs them, but it frees you the same way. Being cut up is not a burial, and does not free you.
+**Important**; When you respawn as a new character you must retain no memories or grudges of your previous character.
 
 ## Credits
 
