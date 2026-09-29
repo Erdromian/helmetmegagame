@@ -301,6 +301,6 @@ images into `test-results/visual/` — expected, actual and the diff — plus an
 HTML report in `test-results/visual-report/`. Look at the diff. If the change
 was the point, re-baseline; if it was not, that is the regression.
 
-Also **`/handbook` is switched off** (`web/lib/handbook.js`) and answers 404,
-which is why the public screen is the sign-in page and `dev:check`'s first
-line currently fails. When it comes back, put it in both.
+`/handbook` is checked by `dev:check` but has no golden: it renders
+`docs/handbook.md`, whose text changes too often for a screenshot of it to
+stay useful. The public screen in the goldens is the sign-in page.

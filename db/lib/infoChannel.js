@@ -88,9 +88,8 @@ async function findInfoChannel() {
   return channel;
 }
 
-// The Handbook link is TEMPORARILY OFF with HANDBOOK_HIDDEN (web/lib/handbook.js),
-// which makes /handbook a 404. Put it back when that flag goes.
-const LINKS_LINE = "[Website](http://ravenheart.quest/)";
+const LINKS_LINE =
+  "[Website](http://ravenheart.quest/) | [Handbook](http://ravenheart.quest/handbook)";
 
 function buildDirectoryMessage(mainMessage, linksByCategory) {
   const sections = linksByCategory.map((category) => {

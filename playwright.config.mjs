@@ -76,8 +76,7 @@ export default defineConfig({
 
   webServer: {
     command: `npm run dev --workspace=web -- --port ${PORT}`,
-    // The front door, signed out. Not /handbook: that one is switched off in
-    // web/lib/handbook.js and answers 404 until Bascinet turns it back on.
+    // The front door, signed out.
     url: `${BASE}/`,
     reuseExistingServer: true,
     timeout: 240_000,
