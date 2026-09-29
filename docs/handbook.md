@@ -11,6 +11,7 @@
 4. [Character Creation](#character-creation)  
 5. [Playing A Turn](#playing-a-turn)  
     - [Don't Ignore The Previous Turn's Results](#dont-ignore-the-previous-turns-results)  
+    - [Combat](#combat)  
 6. [Talking & Roleplay](#talking--roleplay)  
     - [Channels And Locations](#channels-and-locations)  
     - [Public Scenes](#public-scenes)  
@@ -29,7 +30,6 @@
 10. [Tags & Tag Points](#tags--tag-points)  
     - [Gaining, Using, and Losing Tags](#gaining-using-and-losing-tags)  
     - [How Good You Are In A Fight](#how-good-you-are-in-a-fight)  
-    - [Attacking Somebody](#attacking-somebody)  
     - [Examining Tags](#examining-tags)  
     - [Health Tags](#health-tags)  
 11. [Crafting](#crafting)  
@@ -174,6 +174,20 @@ Keep in mind that submitting a Move doesn't end your ability to speak and intera
 ### Don't Ignore The Previous Turn's Results
 
 Sometimes turns will have consequences that impact your character. If you were bested in a duel, that becomes canon the moment the turn changes over. You can describe exactly how it played out in a roleplay channel, filling in flavor and giving the result its own scene, or you can continue on and simply take it into account during future roleplay and interactions, but you cannot ignore that the result occurred.
+
+### Combat
+
+Combat occurs separately to gambits, and is dependent on numerous factors all of which are considered by the GMs when adjudicating fights.
+
+To engage in combat, you must have combat mode enabled. This essentially indicates that your character is anticipating a fight and allows you to explain how your character will respond to the fight. Being attacked without combat mode enabled is the equivalent of being caught completely off guard, you won't be defenseless, but you will not have any initiative or control over how the fight progresses. Once enabled, combat mode cannot be turned off until the end of your turn and having it enabled will tire you out.
+
+Enabling combat mode **after** entering combat will have no effect on your performance in the ongoing fight; it will only influence fights which start after it is enabled.
+
+Combat can be called off by those who initiate it, and combat actions altered as long as the turn has not yet locked. The defenders will still receive a chance to go on the counterattack in such a scenario.
+
+Reinforcing an ongoing conflict requires you to have been within 3 locations distance of it when it began. Otherwise, you will arrive too late to intervene. The further you had to travel to get there, the worse you will perform in battle.
+
+Once Moves lock, nobody can start a fight, join one, or travel anywhere until the next turn.
 
 ## Talking & Roleplay
 
@@ -377,20 +391,6 @@ Three kinds of thing move the number, and the box tells you which is which when 
 You will never be shown this for anybody else, and nobody will be shown it for you. Working out how dangerous somebody is, is meant to be something you do by watching them, asking around, or finding out the hard way.
 
 **Armor is separate**, and rides in the same box underneath. It does not make you better at fighting; it decides what happens when you are hit. Both numbers are there because the two things that hurt you in Ravenheart are nothing alike — a breastplate is excellent against a sword and paper against a rifle.
-
-### Attacking Somebody
-
-Combat occurs separately to gambits, and is dependent on numerous factors all of which are considered by the GMs when adjudicating fights.
-
-To engage in combat, you must have combat mode enabled. This essentially indicates that your character is anticipating a fight and allows you to explain how your character will respond to the fight. Being attacked without combat mode enabled is the equivalent of being caught completely off guard, you won't be defenseless, but you will not have any initiative or control over how the fight progresses. Once enabled, combat mode cannot be turned off until the end of your turn and having it enabled will tire you out.
-
-Enabling combat mode **after** entering combat will have no effect on your performance in the ongoing fight; it will only influence fights which start after it is enabled.
-
-Combat can be called off by those who initiate it, and combat actions altered as long as the turn has not yet locked. The defenders will still receive a chance to go on the counterattack in such a scenario.
-
-Reinforcing an ongoing conflict requires you to have been within 3 locations distance of it when it began. Otherwise, you will arrive too late to intervene. The further you had to travel to get there, the worse you will perform in battle.
-
-Once Moves lock, nobody can start a fight, join one, or travel anywhere until the next turn.
 
 **Teaching:** Most skills can be taught by someone standing with you who holds them, and anybody can teach — you don't need a tag for it. Press Learn Skill (or have them press Teach Skill), and they get a DM asking to accept. Characters with the teacher or drill instructor tags are far better suited to teaching skills than others.
 
