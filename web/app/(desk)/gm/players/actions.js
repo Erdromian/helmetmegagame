@@ -70,6 +70,23 @@ export async function getDmThreadPage({ discordUserId, characterId, beforeMs, be
 
 const ALLOWED_SEND_SOURCES = new Set(["gm_reply", "gm_inspector", "gm_dev_panel"]);
 
+// Discord's JSON codes for a DM it will never deliver, however often it is retried.
+const NO_MUTUAL_GUILDS = 50278; // the player has left the server (or never joined it)
+const CANNOT_DM_USER = 50007; // DMs closed, or the bot is blocked
+
+// What a failed Discord POST tells the GM. The request reached the server, so
+// "you may be offline" (the composer's line for a thrown action) was never true.
+function dmRefusal(err) {
+  console.error("GM DM failed:", err);
+  if (err?.discordCode === NO_MUTUAL_GUILDS) {
+    return new UserError("That didn't send — this player isn't in the Discord server, so the bot can't DM them.");
+  }
+  if (err?.discordCode === CANNOT_DM_USER) {
+    return new UserError("That didn't send — this player has DMs closed or has blocked the bot.");
+  }
+  return new UserError("That didn't send — Discord refused it. Try again in a moment.");
+}
+
 export async function sendGmDm({ discordUserId, characterId, content, source = "gm_reply", clientNonce }) {
   return guarded(async () => {
     const session = await requireGm();
@@ -106,13 +123,18 @@ export async function sendGmDm({ discordUserId, characterId, content, source = "
     }
 
     // The Discord POST stays awaited: a GM has to know if the send itself
-    // failed.
-    const sent = await sendDm(playerDiscordUserId, message, {
-      authorDiscordUserId: session.discordUserId,
-      source: resolvedSource,
-      kind: DM_KIND.CONVERSATION,
-      clientNonce: nonce,
-    });
+    // failed, and why — see dmRefusal.
+    let sent;
+    try {
+      sent = await sendDm(playerDiscordUserId, message, {
+        authorDiscordUserId: session.discordUserId,
+        source: resolvedSource,
+        kind: DM_KIND.CONVERSATION,
+        clientNonce: nonce,
+      });
+    } catch (err) {
+      throw dmRefusal(err);
+    }
 
     // The row sendDm just wrote, read back by the nonce this send carried —
     // never "the newest outbound row", which under two GMs replying at once
