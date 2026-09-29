@@ -417,7 +417,7 @@ const RESUME_LEASE_MS = 30 * 60 * 1000;
 
 // The day a turn opening after `lastTurn` will carry. The count is only needed
 // when GameConfig.turnsPerDay is set; the default rule, which rolls the day at
-// the game's origin hour, needs the game's start instead.
+// the game's origin hour, needs the game's start (or the GM's push hour) instead.
 async function nextDayFor(lastTurn, startedAt, config) {
   const turnsPerDay = config?.turnsPerDay ?? 0;
   const turnsInDay =
@@ -425,7 +425,8 @@ async function nextDayFor(lastTurn, startedAt, config) {
       ? await prisma.turn.count({ where: { dayNumber: lastTurn.dayNumber ?? 1 } })
       : 0;
   const gameStartedAt = (await readGameState(prisma, { startedAt: true }))?.startedAt ?? null;
-  return nextDayNumber(lastTurn, startedAt, { turnsPerDay, turnsInDay, gameStartedAt });
+  const pushHour = config?.turnPushHour ?? -1;
+  return nextDayNumber(lastTurn, startedAt, { turnsPerDay, turnsInDay, gameStartedAt, pushHour });
 }
 
 async function resolveNeeds(turn, config) {
@@ -1495,8 +1496,10 @@ async function advanceTurn() {
       number: (lastTurn?.number ?? 0) + 1,
       dayNumber: await nextDayFor(lastTurn, startedAt, config),
       turnLengthHours,
-      // On the grid that starts at the game's own start hour (turnClock.js#turnOriginHour).
-      endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours, turnOriginHour(state.startedAt))),
+      // On the grid that starts at the game's own start hour, or the GM's push hour (turnClock.js#turnOriginHour).
+      endsAt: new Date(
+        nextBoundaryAfter(startedAt.getTime(), turnLengthHours, turnOriginHour(state.startedAt, config.turnPushHour)),
+      ),
       startedAt,
       status: "OPEN",
     },

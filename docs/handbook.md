@@ -101,7 +101,7 @@ General questions can be asked in the `#general` channel or by creating a thread
 ## The Game Clock
 Bascinet runs on real time, in US Central. That is simply what time it is in Ravenheart, and every deadline the game gives you is in it — the clock in the corner of every page is the game's own.
 
-A turn is 6, 8, 12 or 24 hours long, and the GMs set which. Turns always end on a clean hour, counted from the hour the game started: start at 5:14 and a 24-hour turn ends at 5:00 every day, a 6-hour one at 5:00, 11:00, 17:00 and 23:00. An in-game day is however many turns fit in a real day, so on the longest setting one turn is one day.
+A turn is 6, 8, 12 or 24 hours long, and the GMs set which. Turns always end on a clean hour, counted from the hour the game started unless the GMs pick another: start at 5:14 and a 24-hour turn ends at 5:00 every day, a 6-hour one at 5:00, 11:00, 17:00 and 23:00. An in-game day is however many turns fit in a real day, so on the longest setting one turn is one day.
 - **Your sheet and the `#turns` channel both say when the current turn ends.**
 - **Written Moves lock a few hours before the turn ends**, so the GMs have time to read them. Anything that needs no GM — crafting, mining, farming, healing and the like — keeps working right up to the end of the turn.
 

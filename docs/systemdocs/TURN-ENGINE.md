@@ -14,7 +14,19 @@ stub: 5:14 ends at 05:00 tomorrow, and 5:45 (rounded up) at 06:00 tomorrow. It
 used to count from 00:00 for every game, which gave a game started in the
 evening a first turn a few hours long that locked almost at once. With no game
 start — the lobby, and the placeholder turn Restart Game leaves — the origin is
-00:00. That is the game's clock and the only one it quotes; the header of every
+00:00.
+
+**A GM can pin the hour instead.** **Turn push hour** (`GameConfig.turnPushHour`,
+in the Turn clock knobs on `/gm/dev`) is 0–23 on the Chicago clock, or -1, "When
+the game started", which is the rule above and the default. Set, it wins over the
+start: turns end on that hour and every length after it, and the in-game day
+rolls there. Like the length it is read only when a turn opens, so a change moves
+the next deadline and never the open one, and the turn after a change may run
+short or long to reach the new grid. At Start Game Turn 1 runs to the first push
+**at least half a turn away** (`turnClock.js#firstTurnEndsAt`): pushing at 19:00,
+a 24-hour game started at 10:00 runs to 19:00 tomorrow (33 hours), not 19:00 the
+same day. From the game's own origin that rule gives exactly one length, so it is
+the one rule for both. That is the game's clock and the only one it quotes; the header of every
 web page carries it (`web/app/components/BascinetClock.js`).
 
 **There are no Dawn and Dusk halves any more.** A turn is a turn, and
@@ -942,8 +954,8 @@ property of how much there is to read, not a preference.
 **The end time is stored, not derived.** `turnEndsAt(turn)` returns
 `turn.endsAt`, stamped at open as the first Chicago grid boundary strictly
 after `startedAt` on the game's own grid (the one Turn 1 exception: Start Game
-counts from the origin hour instead, so a start at 5:45 is not a fifteen-minute
-turn), and `moveCutoffAt(turn)` is that minus the window for
+takes the first boundary at least half a turn away, so a start at 5:45 is not a
+fifteen-minute turn), and `moveCutoffAt(turn)` is that minus the window for
 `turn.turnLengthHours`. The derivation survives only as the fallback for rows
 written before the column, and knows no game, so it stays on the midnight grid.
 Reading live config instead would let a GM's knob

@@ -155,16 +155,20 @@ export async function updateCurrentTurn(formData) {
     });
   } else {
     const startedAt = new Date();
-    const turnLengthHours = normalizeTurnLength(
-      (await prisma.gameConfig.findUnique({ where: { id: 1 }, select: { turnLengthHours: true } }))?.turnLengthHours,
-    );
+    const clock = await prisma.gameConfig.findUnique({
+      where: { id: 1 },
+      select: { turnLengthHours: true, turnPushHour: true },
+    });
+    const turnLengthHours = normalizeTurnLength(clock?.turnLengthHours);
     const gameStartedAt = (await prisma.gameState.findUnique({ where: { id: 1 }, select: { startedAt: true } }))?.startedAt;
     await prisma.turn.create({
       data: {
         number,
         dayNumber: day,
         turnLengthHours,
-        endsAt: new Date(nextBoundaryAfter(startedAt.getTime(), turnLengthHours, turnOriginHour(gameStartedAt))),
+        endsAt: new Date(
+          nextBoundaryAfter(startedAt.getTime(), turnLengthHours, turnOriginHour(gameStartedAt, clock?.turnPushHour)),
+        ),
         status: "OPEN",
         startedAt,
       },

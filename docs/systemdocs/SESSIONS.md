@@ -52,7 +52,7 @@ button in the same second cannot both open — and only one posts the line.
 
 **Opening restamps the open turn's clock.** `startedAt` moves to now and
 `endsAt` to the next boundary after it on the game's grid, which counts from the
-hour the game started (`TURN-ENGINE.md`, top). A session that opens at
+hour the game started, or from the push hour a GM set (`TURN-ENGINE.md`, top). A session that opens at
 15:00 must not hand players the tail end of a turn that has been sitting frozen
 since Tuesday, whose cutoff is already in the past. Snapping to the boundary
 rather than running a full length is the same rule a manual advance follows
