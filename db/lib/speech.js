@@ -28,11 +28,13 @@ function withoutCode(text) {
   return text.replace(/`[^`\n]*`/g, (run) => "x".repeat(run.length));
 }
 
-// The quoted spans of `text`, marks stripped, in order.
-function spokenSpans(text) {
+// Where each quote sits in `text`, marks included: `{ start, end }` offsets, in
+// order. The chat's edit box tints these while a line is being changed
+// (web/app/components/chatEditRuns.js), so it finds speech by this same rule.
+function spokenRanges(text) {
   if (typeof text !== "string" || !text) return [];
   const source = withoutCode(text);
-  const spans = [];
+  const ranges = [];
   let from = 0;
   while (from < source.length) {
     MARKS.lastIndex = from;
@@ -52,10 +54,15 @@ function spokenSpans(text) {
       from = start;
       continue;
     }
-    spans.push(text.slice(start, close.index));
+    ranges.push({ start: open.index, end: close.index + 1 });
     from = close.index + 1;
   }
-  return spans;
+  return ranges;
+}
+
+// The quoted spans of `text`, marks stripped, in order.
+function spokenSpans(text) {
+  return spokenRanges(text).map(({ start, end }) => text.slice(start + 1, end - 1));
 }
 
 // The spoken words alone, one span per line so a sentence never runs from one
@@ -68,4 +75,4 @@ function hasSpeech(text) {
   return spokenSpans(text).some((span) => span.trim().length > 0);
 }
 
-module.exports = { spokenSpans, spokenText, hasSpeech };
+module.exports = { spokenRanges, spokenSpans, spokenText, hasSpeech };

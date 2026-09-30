@@ -3,6 +3,7 @@
 import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useRefresh } from "@/app/components/useRefresh";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
+import ChatEditBox from "@/app/components/ChatEditBox";
 import TranscriptLine from "@/app/components/TranscriptLine";
 import EmptyState from "@/app/components/EmptyState";
 import FormError from "@/app/components/FormError";
@@ -341,9 +342,9 @@ const FeedRow = memo(function FeedRow({
       }
     >
       {editing ? (
-        <div className="field">
-          <textarea
-            rows={2}
+        <div className="field chat-edit-field">
+          {/* Drawn the way the line is: emotes in italics, speech tinted. */}
+          <ChatEditBox
             value={draft}
             autoFocus
             onChange={(e) => setDraft(e.target.value)}

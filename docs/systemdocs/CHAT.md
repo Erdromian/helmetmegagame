@@ -1383,7 +1383,7 @@ a 48px head and a one-line composer:
 
   | Row | Buttons |
   |---|---|
-  | Yours | ✎ **Change** · ✕ **Delete**. The five-minute window is checked when the button is pressed, not while the page sits open, and again by `deleteSpeech`. Delete goes through the shared `useConfirm()`. |
+  | Yours | ✎ **Change** · ✕ **Delete**. The five-minute window is checked when the button is pressed, not while the page sits open, and again by `deleteSpeech`. Delete goes through the shared `useConfirm()`. Change opens the line in place in `ChatEditBox`, which draws the words the way the line draws them while you type: the feed's face and weight, an emote in italics, quoted speech in the speech tint. Speech is found by `db/lib/speech.js#spokenRanges`, the server's rule, and emphasis by remark (`chatEditRuns.js`). |
   | Somebody else's | 🔍 **Look at**, on every line including a hooded one; and 📷 **Photograph**, only while the sheet holds an `instant-camera`. |
   | Any row, viewer is a GM with no character | ✕ **Remove**, confirmed, through the same `/api/feed/delete` route with `{ gm: true }`. |
   | Any row that has a `seq` | ★ **Save to Notes** — the web twin of Discord's ⭐ (`PROXYING.md` §7), writing the same `Note` row through `starRow`. Offered on your own lines too, exactly as the reaction is, which is why the bar is now drawn on every row rather than only on one somebody can act against. |
