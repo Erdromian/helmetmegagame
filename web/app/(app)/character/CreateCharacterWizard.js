@@ -455,8 +455,6 @@ export default function CreateCharacterWizard({
     lastName: effectiveLastName,
   });
 
-  // Same gate as createCharacter: one word each.
-  const oneWord = (s) => s.trim().length > 0 && !/\s/.test(s.trim());
   const canAdvance =
     (step === 0 && role !== null) ||
     (step === 1 &&
@@ -466,8 +464,7 @@ export default function CreateCharacterWizard({
     // Gender is required and has no default, so it gates alongside the name.
     // A locked seat supplies it, so those players only have the name to fill.
     (step === 2 &&
-      oneWord(firstName) &&
-      (lastNameLocked || !lastName.trim() || oneWord(lastName)) &&
+      firstName.trim().length > 0 &&
       Boolean(effectiveGender)) ||
     // Antagonists is optional: leaving the box clear is a real answer, not an
     // unfinished one.
@@ -715,7 +712,6 @@ export default function CreateCharacterWizard({
               />
             </label>
           </div>
-          <p className="text-sm text-muted">One word each.</p>
           {lastNameLocked && (
             <p className="text-sm text-muted">
               You take the Baron&apos;s last name.
