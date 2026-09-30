@@ -57,7 +57,8 @@ async function seatDesireTemplates(tx, seatTagIds) {
 }
 
 // Would holding this tag lock any of them? Slot-agnostic scope is right here:
-// Addictions (the only scoped shape) are taken wholesale above.
+// Addictions (bottom-slot scoped) are taken wholesale above, and the one
+// top-slot claim is a seat tag's own (Thanati), never a held tag in the way.
 function blocksSeatDesires(tag, templates) {
   if (!Array.isArray(tag.desireLocks) || tag.desireLocks.length === 0) return false;
   const pairs = unionLockClauses([tag]);

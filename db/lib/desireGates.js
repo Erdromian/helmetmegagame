@@ -42,15 +42,23 @@ function evaluateDesireCatalog({
   const allClauses = unionLockClauses(heldTags || []);
   const globalClauses = allClauses.filter(({ clause }) => clause.slot == null);
   const scopedClauses = allClauses.filter(({ clause }) => clause.slot != null);
+  // A `slot: top` clause claims the first slot outright: it is the only lock
+  // read there, so every other clause — whole-catalog ones included — only
+  // reaches the slots after it. The Thanati's (DESIRES.md §3).
+  const topClauses = allClauses.filter(({ clause }) => clause.slot === "top");
+  const topClaimed = topClauses.length > 0 && desireSlots > 0;
   const hist = history || [];
   // Manic (TAGS.md 4a): ~40% of the catalog locks at random each turn, re-rolled
   // every turn — a trade for never waiting out a slot's own cooldown (below).
   const manic = (heldTags || []).some((t) => t.slug === MANIC_SLUG);
 
-  const slotLocksFor = (template) =>
-    Array.from({ length: desireSlots }, (_, slotIndex) =>
-      lockedReasonForTemplate(template, scopedClauses, { slotIndex, desireSlots }),
-    );
+  const slotLocksFor = (template, globalReason) =>
+    Array.from({ length: desireSlots }, (_, slotIndex) => {
+      const scope = { slotIndex, desireSlots };
+      if (!topClaimed) return lockedReasonForTemplate(template, scopedClauses, scope);
+      if (slotIndex === 0) return lockedReasonForTemplate(template, topClauses, scope);
+      return globalReason ?? lockedReasonForTemplate(template, scopedClauses, scope);
+    });
 
   const visible = [];
   const hidden = [];
@@ -65,7 +73,8 @@ function evaluateDesireCatalog({
       continue;
     }
 
-    const slotLocks = slotLocksFor(template);
+    const lockReason = lockedReasonForTemplate(template, globalClauses, { slotIndex: null, desireSlots });
+    const slotLocks = slotLocksFor(template, lockReason);
     const push = (state, reason, availableFromTurn) =>
       visible.push({ template, state, reason, availableFromTurn, slotLocks });
 
@@ -74,8 +83,9 @@ function evaluateDesireCatalog({
       continue;
     }
 
-    const lockReason = lockedReasonForTemplate(template, globalClauses, { slotIndex: null, desireSlots });
-    if (lockReason) {
+    // Under a top claim a whole-catalog lock is already in `slotLocks` for
+    // every other slot, so it only shuts the Desire when the first slot does too.
+    if (lockReason && (!topClaimed || slotLocks[0])) {
       push("locked", lockReason, null);
       continue;
     }
@@ -177,11 +187,12 @@ function unionLockClauses(heldTags) {
   return pairs;
 }
 
-// `slot: "bottom"` binds the last slot only; `slotIndex: null` is the slot-agnostic pass, where a scoped clause must never fire.
+// `slot: "bottom"` binds the last slot only, `slot: "top"` the first; `slotIndex: null` is the slot-agnostic pass, where a scoped clause must never fire.
 function clauseAppliesToSlot(clause, { slotIndex, desireSlots }) {
   if (clause.slot == null) return true;
   if (slotIndex == null) return false;
   if (clause.slot === "bottom") return slotIndex === desireSlots - 1;
+  if (clause.slot === "top") return slotIndex === 0;
   return false;
 }
 
@@ -229,23 +240,34 @@ function describeDesireLocks(heldTags, familyNames) {
   const name = (key) => familyNames?.get?.(key) ?? familyNames?.[key] ?? key;
   const list = (keys) => keys.map(name).join(", ");
   const notes = [];
-  for (const { clause, sourceName } of unionLockClauses(heldTags || [])) {
+  const pairs = unionLockClauses(heldTags || []);
+  // A top claim keeps every other lock out of the first slot, so a
+  // whole-catalog lock says which slots it still reaches.
+  const topClaimed = pairs.some(({ clause }) => clause.slot === "top");
+  for (const { clause, sourceName } of pairs) {
     const except = Array.isArray(clause.exceptFamilies) ? ` outside ${list(clause.exceptFamilies)}` : "";
-    if (clause.slot === "bottom") {
+    if (clause.slot === "bottom" || clause.slot === "top") {
+      const slot = clause.slot === "top" ? "first" : "bottom";
+      // Nothing else can shut the first slot, and the sentence says so.
+      const end = clause.slot === "top" ? ", whatever else you hold" : "";
       if (clause.all) {
-        notes.push(`${sourceName} shuts your bottom Desire slot to everything${except}.`);
+        notes.push(`${sourceName} shuts your ${slot} Desire slot to everything${except}${end}.`);
       } else if (Array.isArray(clause.families)) {
-        notes.push(`${sourceName} shuts ${list(clause.families)} in your bottom Desire slot.`);
+        notes.push(`${sourceName} shuts ${list(clause.families)} in your ${slot} Desire slot${end}.`);
       } else if (Array.isArray(clause.tiers)) {
         const tiers = clause.tiers.length === 1 ? `tier ${clause.tiers[0]}` : `tiers ${formatTiers(clause.tiers)}`;
-        notes.push(`${sourceName} shuts your bottom Desire slot${except} at ${tiers}.`);
+        notes.push(`${sourceName} shuts your ${slot} Desire slot${except} at ${tiers}${end}.`);
       }
       continue;
     }
     if (clause.all) {
-      notes.push(`${sourceName} shuts every Desire${except}.`);
+      notes.push(
+        topClaimed
+          ? `${sourceName} shuts your other Desire slots to everything${except}.`
+          : `${sourceName} shuts every Desire${except}.`,
+      );
     } else if (Array.isArray(clause.families)) {
-      notes.push(`${sourceName} shuts ${list(clause.families)}.`);
+      notes.push(`${sourceName} shuts ${list(clause.families)}${topClaimed ? " outside your first Desire slot" : ""}.`);
     }
     // A whole-catalog TIER lock, and a `named` list, both say nothing here on
     // purpose — every row either one shuts already reads "Locked by <tag>", so

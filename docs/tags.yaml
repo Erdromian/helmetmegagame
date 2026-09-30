@@ -486,6 +486,12 @@ tags:
     description: "The most senior and wicked member of the cult. You have spent many years nurturing it, now the time to strike approaches… View the Cult Leader document for more information."
     pointCost: 0
     purchasable: false
+    # The leader stays wholly the cult's: {tag:thanati}'s lock only claims
+    # the first slot, and this one shuts every other slot the same way.
+    desires:
+      locks:
+        - all: true
+          exceptFamilies: [thanati, cruelty, violence, feud, betrayal]
 
   # Price is cosmetic (role-granted, not purchasable) — do not "fix" it. The
   # `all + food at tiers 1-2` intent from the design spec isn't expressible
@@ -2498,14 +2504,18 @@ tags:
     # off a Pious target, at the pick and again at Join, so this only bites on
     # a GM's Assign.
     conflictsWith: [pacifist, charitable, saint, pilgrim, pious]
-    # A cultist wants what the cult wants, and past that only the ugly things.
-    # The blood families stay open because hurting people is most of what a
-    # Thanati actually does; everything else — dinner, romance, a promotion —
-    # stops being a thing they can be rewarded for. Shaped like {tag:rage}'s.
+    # A cultist's FIRST Desire slot wants what the cult wants, and past that
+    # only the ugly things: the blood families stay open because hurting people
+    # is most of what a Thanati actually does. `slot: top` makes it the only
+    # lock read in that slot, so no Addiction or Depressed can take the cult's
+    # slot away — and it leaves every other slot to the rest of their life, so
+    # an operative is not pure mayhem. The leader is locked in every slot, by
+    # {tag:thanati-leader}'s own lock.
     desires:
       locks:
         - all: true
           exceptFamilies: [thanati, cruelty, violence, feud, betrayal]
+          slot: top
 
   # --- The Cerberon ---------------------------------------------------------
   cerberon:

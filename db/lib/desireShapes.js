@@ -5,8 +5,10 @@
 // Input from YAML is `desires: { locks: [ ...clauses ] }` — an ARRAY with
 // union semantics, each clause exactly one of { all: true }, { families: [...] },
 // { tiers: [...] } or { named: [...] }, plus an optional `exceptFamilies: [...]`
-// (meaningful only alongside `tiers` or `all`) and an optional `slot: bottom`,
-// which narrows the clause to the character's last Desire slot.
+// (meaningful only alongside `tiers` or `all`) and an optional `slot`:
+// `bottom` narrows the clause to the character's last Desire slot, and `top`
+// to their first — where it is also the ONLY lock read, so no other held tag
+// can shut that slot too (the Thanati's, DESIRES.md §3).
 //
 // `named` is an exact list of Desire slugs, and it exists because the other
 // three all describe a SHAPE. Nobility is the case that needs naming instead:
@@ -17,7 +19,7 @@
 // checks them against docs/desires.yaml instead.
 
 const TIER_WHITELIST = new Set([1, 2, 3, 4, 5]);
-const SLOT_SCOPES = new Set(["bottom"]);
+const SLOT_SCOPES = new Set(["bottom", "top"]);
 
 function isNonEmptyArray(value) {
   return Array.isArray(value) && value.length > 0;
@@ -86,7 +88,7 @@ function validateClause(clause, { slug, index, families }) {
   }
 
   if ("slot" in clause && !SLOT_SCOPES.has(clause.slot)) {
-    throw new Error(`${label} has slot "${clause.slot}" — the only supported scope is "bottom"`);
+    throw new Error(`${label} has slot "${clause.slot}" — the only supported scopes are "bottom" and "top"`);
   }
 
   if ("tiers" in clause) {
