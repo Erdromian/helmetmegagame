@@ -1902,6 +1902,50 @@ The Charon in orbit is the only place carrying it today
 ([`CHARON.md`](CHARON.md)). It is an attribute rather than a slug check so the
 second one needs no code.
 
+## 6j. Headcounts
+
+A place you are **watching** carries a small count on the board: a dark plate
+over the top-left corner of its crosshair, a figure and a number. It is there
+so that finding people does not mean walking into each street in turn to read
+its "Here" list.
+
+**Which places** is the chat column's answer, narrowed. Where you stand, plus
+every street you walked out of this turn that is still lit
+(`db/lib/vantages.js`, §4a) — and of those, only the ones in the zone you are
+standing in. So it is the one-step rule again: walk on past a street and its
+number goes with its light, and the turn shifting clears the rest.
+
+**The number** is the one "Here · N" prints for somebody standing there: every
+ALIVE character at the Location, you included. Hoods and strangers count,
+since a hood hides who somebody is and never that they are there. A watched
+street with nobody on it reads `0`, in a quieter colour, because no badge at
+all already means "not watching".
+
+Three things keep it from being a leak:
+
+- **It is a count and nothing else.** No name, no face and no token leaves
+  `db/lib/mapHeadcounts.js`.
+- **A place you are not watching gets no number**, not a zero. The map
+  remembers a place for ever (§6a), and a count on a remembered place would be
+  a live look at a street the character cannot see. `loadMap` leaves
+  `headcount` off those nodes entirely, the way it leaves unknown places out of
+  the payload (§6b).
+- **A GM's Show all does not widen it.** That lifts the fog. The numbers stay
+  the character's own.
+
+The card says the same in words — "3 people here." — which is what a phone
+reads, since the badge is a few pixels there.
+
+**The numbers refresh on their own clock.** People walk in and out of a watched
+street without the watcher moving, and nothing else on the board changes when
+they do. So the board asks `loadHeadcounts()` every 30 seconds while it is in
+front of somebody and folds the answer into the nodes it already has. That is
+deliberately not a bump of the board's `nonce`, which re-asks the whole map and
+re-frames it. A move still does that, and brings fresh numbers with it.
+
+`db/test/mapHeadcounts.test.js` pins both halves: which places get a number,
+and that an empty watched street reads 0 while a dark one reads nothing.
+
 ## 7. Where the code lives
 
 | File | Role |
@@ -1924,6 +1968,7 @@ second one needs no code.
 | `db/lib/locationVisits.js` | The fog: what one character knows of the map. The ONLY module that reads or writes `LocationVisit` |
 | `db/lib/mapMemory.js` | The map everybody but the outsiders starts knowing, and `seedStartingMap`, which every creation path calls — §6a |
 | `db/lib/startingMemories.js` | The places a seat starts having STOOD in — role slug to Location slugs — §6a |
+| `db/lib/mapHeadcounts.js` | How many people are at each place a character is watching, for the count on the board — §6j |
 | `web/app/(app)/map/` | `loadMap()`, the board, and the route — §6 |
 | `web/app/(app)/map/plateRender.js` | The plate, drawn: channels, the stipple, the light, and the crosshair paths — §6f. Client-side, React-free, and the ONLY thing that turns a plate into pixels |
 | `web/lib/mapPlates.js` | Server-only: which plate places a slug, and where on it. The place table never reaches the browser — §6b |

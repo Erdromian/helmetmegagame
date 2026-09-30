@@ -27,6 +27,7 @@ import { plateOf, plates } from "@/lib/mapPlates";
 import { zoneKey } from "@/lib/zones";
 import { RING_SLUG } from "@lifeweb/db/lib/rings";
 import { scrambleState, scrambleFields, scrambleText } from "@lifeweb/db/lib/memoryScramble";
+import { mapHeadcounts } from "@lifeweb/db/lib/mapHeadcounts";
 
 // The map's one loader (/map and the /chat overlay both call it). THE FOG IS
 // REAL, NOT CSS: an unknown Location is absent from the payload entirely,
@@ -67,6 +68,23 @@ export async function loadMap({ revealAll = false } = {}) {
   // writes and a graph read in front of every single map load. It moved inside
   // buildMap, where the neighbour list it needs already exists (MAP.md §4).
   return buildMap({ character, unfogged: Boolean(isGm && revealAll), canReveal: Boolean(isGm) });
+}
+
+// The headcounts alone, for the board's slow re-read (MAP.md §6j). People walk
+// in and out of a watched street without the watcher moving, and nothing else
+// about the board changes when they do, so asking for the whole map again
+// would be ten queries to move one digit. `at` is where the character stood
+// when this was answered: the board drops an answer for a place it has since
+// been walked out of.
+export async function loadHeadcounts() {
+  const session = await auth();
+  if (!session?.discordUserId) return { ok: false };
+  const character = await prisma.character.findFirst({
+    where: { discordUserId: session.discordUserId, status: "ALIVE" },
+    select: { id: true, locationId: true },
+  });
+  const counts = await mapHeadcounts(prisma, character);
+  return { ok: true, at: character?.locationId ?? null, counts: Object.fromEntries(counts) };
 }
 
 // TWO WAVES, not a queue of awaits. Everything here used to be awaited one at
@@ -137,6 +155,7 @@ async function buildMap({ character, unfogged, canReveal }) {
           x: null,
           y: null,
           state: "here",
+          headcount: (await mapHeadcounts(prisma, character, standing)).get(standing.id),
           description: standing.description || null,
           inside: (await roomsInside(prisma, character, unfogged, new Set([standing.id]), { keys, conversations })).get(standing.id) ?? null,
           adjacent: false,
@@ -171,7 +190,7 @@ async function buildMap({ character, unfogged, canReveal }) {
   // The tags that open a gated way, by name, for the hover on its line
   // (Map.docx). Only the slugs some way actually names — a dozen rows.
   const gateSlugs = [...new Set(links.map((l) => l.requiredTagSlug).filter(Boolean))];
-  const [neighbours, walks, inside, gateTags, ringRoles] = await Promise.all([
+  const [neighbours, walks, inside, gateTags, ringRoles, headcounts] = await Promise.all([
     // Same call the Travel panel makes, so the two never disagree about a hop.
     character?.locationId ? travelOptions(prisma, character, character.locationId, { graph }) : [],
     // Everywhere in their own zone they could WALK to (MAP.md §3c). Fed the very
@@ -188,6 +207,10 @@ async function buildMap({ character, unfogged, canReveal }) {
     gateSlugs.length
       ? prisma.role.findMany({ where: { ringAccessSlugs: { hasSome: gateSlugs } }, select: { ringAccessSlugs: true } })
       : [],
+    // How many people are at the places this character is watching — where they
+    // stand and the lit streets in this zone, and nowhere else (MAP.md §6j).
+    // Theirs even on a GM's Show all: that lifts the fog, not the rule here.
+    mapHeadcounts(prisma, character, standing),
   ]);
   const gateNames = new Map(gateTags.map((t) => [t.slug, t.name]));
   const ringTokens = new Set(ringRoles.flatMap((r) => r.ringAccessSlugs ?? []));
@@ -271,6 +294,8 @@ async function buildMap({ character, unfogged, canReveal }) {
       x: at?.x ?? null,
       y: at?.y ?? null,
       state: here ? "here" : stood ? "stood" : "seen",
+      // Absent, not 0, for a place they are not watching.
+      headcount: headcounts.get(location.id),
       // `near.passable`, NOT `near`: a locked/shut way is visible but blocked,
       // and its description stays hidden until it's actually open.
       description: stood || near?.passable ? memory.description || null : null,
