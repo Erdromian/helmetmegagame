@@ -14,6 +14,7 @@ import {
   setPerformanceVolumeRequest,
   stopPerformanceRequest,
 } from "@/app/(app)/character/requestActions";
+import { saveLocal } from "@/lib/localSave";
 
 // The Play Instrument panel (docs/systemdocs/SOUND.md, "Performances"). Pick a song and it
 // starts at once for everyone standing in your Location; the slider is how loud you play,
@@ -44,7 +45,7 @@ function subscribeVolume(cb) {
 
 function writeVolume(key, value) {
   try {
-    window.localStorage.setItem(key, String(value));
+    saveLocal(key, String(value));
   } catch {
     // A private window: the slider still works for this song, it is just not remembered.
   }

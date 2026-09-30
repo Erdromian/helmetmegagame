@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { saveLocal } from "../../../../lib/localSave.js";
 
 // WHICH BLOCKS OF THE PLAYER'S RIGHT COLUMN THIS BROWSER HAS SHUT (./ChatAside.js
 // and PartyRack.js's `framed` mode). Every block starts OPEN; a player shuts the
@@ -63,7 +64,7 @@ function write(next) {
   cached = next;
   try {
     if (next.size === 0) window.localStorage.removeItem(KEY);
-    else window.localStorage.setItem(KEY, JSON.stringify([...next]));
+    else saveLocal(KEY, JSON.stringify([...next]));
   } catch {
     // Still folds this page load; it just forgets on reload.
   }

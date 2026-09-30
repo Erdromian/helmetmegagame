@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useSyncExternalStore } from "react";
+import { saveLocal } from "../../lib/localSave.js";
 
 // One pin list, shared by both desks. Pin someone while adjudicating and they
 // are pinned when you go talk to them. An entry carries both characterId and
@@ -57,7 +58,7 @@ function migrateLegacy() {
     seen.add(id);
     merged.push(entry);
   }
-  window.localStorage.setItem(KEY, JSON.stringify(merged));
+  saveLocal(KEY, JSON.stringify(merged));
   return merged;
 }
 
@@ -80,7 +81,7 @@ function readServer() {
 
 function write(pins) {
   try {
-    window.localStorage.setItem(KEY, JSON.stringify(pins));
+    saveLocal(KEY, JSON.stringify(pins));
     // The storage event doesn't fire in the tab that wrote it — nudge the
     // subscriber manually so the pin reflects immediately here too.
     window.dispatchEvent(new Event("storage"));

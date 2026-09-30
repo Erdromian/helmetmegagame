@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useSyncExternalStore } from "react";
 import { reportDeskReset } from "./blackBox";
+import { saveLocal } from "../../../../lib/localSave.js";
 
 // What a GM typed into a desk row but hasn't saved (Move desk's Result box/Kind switch, Caving desk's Result box). Same shape as dmDraft.js: memory is the source of truth, localStorage a best-effort mirror only. Keyed by row ("move:<id>" / "caving:<id>"); DRAFT WINS over the saved row until its save/solve/reject/resolve clears its key.
 // Stamped with turn + last-touched time so pruneDeskDrafts (via seedDesk) can drop it on turn rollover or when its row leaves the desk; stops holding the backstop poll down past DRAFT_FRESH_MS untouched; buffers live stream frames only while an editor holding it is MOUNTED.
@@ -85,7 +86,7 @@ export function writeDeskDraft(key, value) {
   drafts.set(key, entry);
   emit();
   try {
-    if (entry) window.localStorage.setItem(storageKey(key), JSON.stringify(entry));
+    if (entry) saveLocal(storageKey(key), JSON.stringify(entry));
     else window.localStorage.removeItem(storageKey(key));
   } catch {
     /* full, private, or blocked; the draft still survives in memory for this tab */

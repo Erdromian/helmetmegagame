@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { saveLocal } from "../../../lib/localSave.js";
 
 // Which place is open in Chat, per tab — the module store that is the source
 // of truth for the URL hash (CHAT.md §5). Same shape as typingStore.js:
@@ -31,7 +32,7 @@ function readLast() {
 
 function remember(key) {
   try {
-    window.localStorage.setItem(LAST_KEY, key);
+    saveLocal(LAST_KEY, key);
   } catch {
     // A private window forgets; the hash still carries the place this session.
   }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { saveLocal } from "../../lib/localSave.js";
 
 // What is being played where this character stands, and whose playing this browser has
 // muted (docs/systemdocs/SOUND.md, "Performances"). A module store, the shape
@@ -166,7 +167,7 @@ export function toggleMutedPerformer(key) {
   if (next.has(key)) next.delete(key);
   else next.add(key);
   try {
-    window.localStorage.setItem(MUTED_KEY, JSON.stringify([...next]));
+    saveLocal(MUTED_KEY, JSON.stringify([...next]));
   } catch {
     // A private window: the mute lasts as long as this page does.
     mutedRaw = JSON.stringify([...next]);

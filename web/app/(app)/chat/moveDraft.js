@@ -1,5 +1,7 @@
 "use client";
 
+import { saveLocal } from "../../../lib/localSave.js";
+
 // The Move a player is part-way through typing, kept in this browser until filed — the
 // server must not hold half a Move that was never filed. Keyed by character AND turn.
 // Every accessor is wrapped: a private window or blocked site data throws on the accessor itself.
@@ -25,7 +27,7 @@ export function writeDraft(characterId, turnNumber, text) {
   const key = keyFor(characterId, turnNumber);
   if (!key) return;
   try {
-    if (text) window.localStorage.setItem(key, text);
+    if (text) saveLocal(key, text);
     else window.localStorage.removeItem(key);
   } catch {
     // The box still holds the words for this session; it just forgets.

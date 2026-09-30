@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { saveLocal } from "../../../lib/localSave.js";
 
 // How far this reader has read in each place, per browser. localStorage via
 // useSyncExternalStore, never in an effect (react-hooks/set-state-in-effect is an error here).
@@ -76,7 +77,7 @@ function read() {
 
 function persist(placeKey, value) {
   try {
-    window.localStorage.setItem(`${PREFIX}${placeKey}`, value);
+    saveLocal(`${PREFIX}${placeKey}`, value);
   } catch {
     memoryOnly = true;
   }

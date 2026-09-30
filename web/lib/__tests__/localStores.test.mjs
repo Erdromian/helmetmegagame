@@ -46,10 +46,19 @@ registerHooks({
 // `writable: false` is the reported failure — Firefox with site data blocked answers reads
 // and throws on every write. `readable: false` is the harsher one a private window can give,
 // where touching the store at all throws.
-function makeStorage({ writable = true, readable = true } = {}) {
+//
+// `quota` is the third way, and the one players actually hit: a store that works until it is
+// full, counted the way browsers count it (key plus value, in characters), then refuses any
+// write that would grow it with a QuotaExceededError.
+function makeStorage({ writable = true, readable = true, quota = Infinity } = {}) {
   const data = new Map();
   const deny = () => {
     throw new Error("The operation is insecure.");
+  };
+  const used = () => {
+    let total = 0;
+    for (const [key, value] of data) total += key.length + value.length;
+    return total;
   };
   return {
     data,
@@ -68,7 +77,15 @@ function makeStorage({ writable = true, readable = true } = {}) {
       },
       setItem(key, value) {
         if (!writable) deny();
-        data.set(key, String(value));
+        const next = String(value);
+        const before = data.has(key) ? key.length + data.get(key).length : 0;
+        const after = key.length + next.length;
+        if (after > before && used() - before + after > quota) {
+          const err = new Error("The quota has been exceeded.");
+          err.name = "QuotaExceededError";
+          throw err;
+        }
+        data.set(key, next);
       },
       removeItem(key) {
         if (!writable) deny();
@@ -218,6 +235,30 @@ for (const item of CASES) {
     item.mount(reopened);
     assert.deepEqual(item.value(reopened), item.after, "and survives a reload");
   });
+
+  // The reported bug: page snapshots had filled localStorage, so the setting lived only in
+  // memory and a reload brought back the old one.
+  test(`${item.name}: a storage full of cached pages makes room and still persists`, async () => {
+    const storage = makeStorage({ quota: 2000 });
+    storage.data.set("bascinet:snap:2:u1:play", "x".repeat(1970));
+    storage.data.set("bascinet:snap:index", "{}");
+    const store = await loadStore(item.path, storage);
+
+    item.mount(store);
+    attach();
+    item.act(store);
+
+    assert.deepEqual(item.value(store), item.after);
+    assert.ok(
+      [...storage.data.keys()].every((key) => !key.startsWith("bascinet:snap:")),
+      "the cached page went",
+    );
+    assert.ok(storage.data.size > 0, "and the setting took its place");
+
+    const reopened = await loadStore(item.path, storage);
+    item.mount(reopened);
+    assert.deepEqual(item.value(reopened), item.after, "so it survives a reload");
+  });
 }
 
 // The rules that are specific to one store, and that the loop above cannot see.
@@ -274,4 +315,68 @@ test("notifiedStore: counts accumulate to the cap, and clearing empties them", a
 
   store.clearAllNotified();
   assert.equal(store.useNotified().size, 0, "the tick in the column's foot clears the rest");
+});
+
+// The page snapshots (lib/snapshot/snapshotStore.js) are what filled storage in the first place.
+
+const SNAPSHOTS = "lib/snapshot/snapshotStore.js";
+const big = (n) => ({ body: "x".repeat(n) });
+
+test("snapshotStore: the oldest snapshots go once the budget is spent", async () => {
+  const storage = makeStorage();
+  const store = await loadStore(SNAPSHOTS, storage);
+
+  store.writeSnapshot("gm-audit:1", "u1", big(1_000_000));
+  store.writeSnapshot("gm-audit:2", "u1", big(1_000_000));
+  store.writeSnapshot("gm-audit:3", "u1", big(1_000_000));
+
+  assert.equal(storage.data.has("bascinet:snap:2:u1:gm-audit:1"), false, "the oldest went");
+  assert.equal(storage.data.has("bascinet:snap:2:u1:gm-audit:2"), true);
+  assert.equal(storage.data.has("bascinet:snap:2:u1:gm-audit:3"), true);
+  assert.deepEqual(
+    Object.keys(JSON.parse(storage.data.get("bascinet:snap:index"))).sort(),
+    ["bascinet:snap:2:u1:gm-audit:2", "bascinet:snap:2:u1:gm-audit:3"],
+    "and the index says what is left",
+  );
+  assert.deepEqual(store.peekSnapshot("gm-audit:1", "u1"), big(1_000_000), "this tab still has it in memory");
+});
+
+test("snapshotStore: rewriting one scope does not count its old copy against it", async () => {
+  const storage = makeStorage();
+  const store = await loadStore(SNAPSHOTS, storage);
+
+  store.writeSnapshot("chat", "u1", big(1_200_000));
+  store.writeSnapshot("character", "u1", big(1_200_000));
+  store.writeSnapshot("chat", "u1", big(1_200_000));
+
+  assert.equal(storage.data.has("bascinet:snap:2:u1:chat"), true);
+  assert.equal(storage.data.has("bascinet:snap:2:u1:character"), true, "both fit, so neither went");
+});
+
+test("snapshotStore: keys an older version left behind are swept on the next write", async () => {
+  const storage = makeStorage();
+  storage.data.set("bascinet:snap:1:u1:play", "{}");
+  storage.data.set("bascinet:snap:2:u1:unindexed", "{}");
+  storage.data.set("hall:seen:room:1", "50");
+  const store = await loadStore(SNAPSHOTS, storage);
+
+  store.writeSnapshot("play", "u1", { a: 1 });
+
+  assert.equal(storage.data.has("bascinet:snap:1:u1:play"), false, "the old version went");
+  assert.equal(storage.data.has("bascinet:snap:2:u1:unindexed"), false, "so did a key nothing indexed");
+  assert.equal(storage.data.get("hall:seen:room:1"), "50", "a read mark is not a snapshot");
+  assert.equal(storage.data.get("bascinet:snap:2:u1:play"), '{"a":1}');
+});
+
+test("snapshotStore: a storage full of other things drops the other snapshots before giving up", async () => {
+  const storage = makeStorage({ quota: 3000 });
+  const store = await loadStore(SNAPSHOTS, storage);
+
+  store.writeSnapshot("character", "u1", big(1000));
+  storage.data.set("hall:seen:room:1", "y".repeat(1400));
+  store.writeSnapshot("play", "u1", big(1000));
+
+  assert.equal(storage.data.has("bascinet:snap:2:u1:character"), false);
+  assert.ok(storage.data.get("bascinet:snap:2:u1:play"), "the new page was stored");
+  assert.equal(storage.data.get("hall:seen:room:1").length, 1400, "and nothing else was touched");
 });

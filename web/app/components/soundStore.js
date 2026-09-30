@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { saveLocal } from "../../lib/localSave.js";
 
 // Whether this BROWSER plays sound, and how loud. Same shape as
 // (app)/chat/seenStore.js and notifiedStore.js: one localStorage key, read through
@@ -130,7 +131,7 @@ function write(next) {
   // out of it afterwards. Unwritable storage then costs only the remembering.
   cached = snapshot;
   try {
-    window.localStorage.setItem(KEY, snapshot);
+    saveLocal(KEY, snapshot);
   } catch {
     memoryOnly = true;
   }
