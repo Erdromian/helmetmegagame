@@ -62,6 +62,17 @@ function witnessesFrom(row, present = []) {
   return [...out].map(([id, name]) => ({ id, name }));
 }
 
+// Who would witness a line said right now in a Conversation or a Room, as a Set
+// of ids — the same rule as the row's own witnesses. Any other kind of place
+// answers null. A mention DMs its target on Discord only when they are in this
+// set (PROXYING.md §6): a street is too loud a place to be DM'd from.
+async function privateWitnessIds(prisma, placeKey, speakerId = null) {
+  const kind = typeof placeKey === "string" ? placeKey.split(":")[0] : null;
+  if (kind !== "conv" && kind !== "room") return null;
+  const present = await presentAt(prisma, placeKey, speakerId);
+  return new Set(witnessesFrom({ characterId: speakerId }, present).map((w) => w.id));
+}
+
 // The two columns, kept in step: the same person at the same index in both.
 function witnessColumns(people = []) {
   const seen = new Set();
@@ -93,4 +104,4 @@ async function archiveWitnessOptions(prisma, gameId) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-module.exports = { presentAt, witnessesFrom, witnessColumns, archiveWitnessOptions, NO_WITNESS_KINDS };
+module.exports = { presentAt, witnessesFrom, privateWitnessIds, witnessColumns, archiveWitnessOptions, NO_WITNESS_KINDS };

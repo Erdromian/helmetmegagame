@@ -13,19 +13,21 @@ const { sendDm } = require("../lib/dm");
 const { maybeSendGmAutoReply } = require("@lifeweb/db/lib/gmAutoReply");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { splitAttachments, buildInboundContent } = require("@lifeweb/db/lib/dmAttachments");
-const { addConversationMember } = require("@lifeweb/db/lib/conversations");
-const { placeKeyForChannel } = require("@lifeweb/db/lib/placeKey");
+const { conversationMemberIds } = require("@lifeweb/db/lib/conversations");
+const { privateWitnessIds } = require("@lifeweb/db/lib/archiveWitnesses");
+const { placeKeyForChannel, parsePlaceKey } = require("@lifeweb/db/lib/placeKey");
 const { isDeadchatChannel } = require("@lifeweb/db/lib/deadchat");
 const { ghostCharacterFor } = require("@lifeweb/db/lib/ghost");
 const { charactersNamedNearby } = require("@lifeweb/db/lib/characterMentions");
 const {
   canHearPing,
+  messageLink,
   notifyMentioned,
   resolveMentionedCharacters,
 } = require("../lib/mentions");
 
 // How many character-role mentions one message may relay. Each one is a
-// database write and a browser push, strictly serial — so an uncapped list is a
+// database read, a browser push and sometimes a DM, strictly serial — so an uncapped list is a
 // fan-out anyone can trigger by pasting mentions.
 const MAX_MENTION_RELAYS = 10;
 
@@ -157,7 +159,7 @@ module.exports = {
     // anybody. Same precedence as before — a hood beats everything.
     if (ghost || identity.concealed) return;
 
-    await handleMentions({ message, channel, mentionedRoleIds, speakerId: character.id }).catch((err) =>
+    await handleMentions({ message, channel, proxied, mentionedRoleIds, speakerId: character.id }).catch((err) =>
       console.error("Failed to handle mentions:", err),
     );
   },
@@ -179,9 +181,11 @@ async function touchThreadActivity(threadId) {
   if (updated.count > 0 && turnNumber !== null) activityWritten.set(threadId, turnNumber); // only threads we actually track
 }
 
-// Two independent things a character-role mention does: notify the player, and — in a
-// Conversation — let them in.
-async function handleMentions({ message, channel, mentionedRoleIds, speakerId = null }) {
+// What a character mention does: a browser push for anybody in earshot, and a
+// Discord DM for a role mention (somebody @'d on purpose) whose target witnesses
+// the Conversation or Room it was said in. It never lets anybody IN — only /add
+// does that (COMMANDS.md §2b).
+async function handleMentions({ message, channel, proxied, mentionedRoleIds, speakerId = null }) {
   const context = resolveChannelContext(channel);
   const mentioned = await resolveMentionedCharacters(mentionedRoleIds);
 
@@ -195,9 +199,8 @@ async function handleMentions({ message, channel, mentionedRoleIds, speakerId = 
   // web's send path asks both the same way (bot/src/lib/feedOutbox.js), so one
   // rule answers on both faces.
   //
-  // NOTIFY-ONLY, and kept apart from `mentioned` for exactly that reason: a role
-  // mention inside a Conversation is also an invite, and a bare name must never
-  // be, or saying "Marrow told me" in a private conversation would pull her in.
+  // PUSH-ONLY, and kept apart from `mentioned` for exactly that reason: a name,
+  // a title or a word said in passing is not an @, and must never DM anybody.
   // The message text is untouched either way — nothing is rewritten into a ping.
   const named = placeKey
     ? await charactersNamedNearby(prisma, {
@@ -217,15 +220,15 @@ async function handleMentions({ message, channel, mentionedRoleIds, speakerId = 
   );
   if (mentioned.length === 0 && named.length === 0) return;
 
-  // Each target costs a DB write and a browser push, all serialized. Ten is well
+  // Each target costs a DB read, a browser push and sometimes a DM, all serialized. Ten is well
   // past any legitimate ping, and the refusal names who was dropped.
-  // Token targets first, so a name that is BOTH tokened and typed keeps its
-  // invite; deduped, then capped across the pair.
+  // Role targets first, so a name that is BOTH @'d and typed keeps its DM;
+  // deduped, then capped across the pair.
   const wanted = [];
   const seenIds = new Set();
   for (const entry of [
-    ...mentioned.map((target) => ({ target, invite: true })),
-    ...named.map((target) => ({ target, invite: false })),
+    ...mentioned.map((target) => ({ target, tagged: true })),
+    ...named.map((target) => ({ target, tagged: false })),
   ]) {
     if (!entry.target?.id || seenIds.has(entry.target.id)) continue;
     seenIds.add(entry.target.id);
@@ -243,59 +246,26 @@ async function handleMentions({ message, channel, mentionedRoleIds, speakerId = 
     ).catch(() => { });
   }
 
-  // A mention only becomes an invite inside a Conversation — a private Room is gated on a key tag
-  // instead (db/lib/roomAccess.js); a ping would route straight around that lock.
-  const conversation = await prisma.playerThread
-    .findUnique({ where: { threadId: channel.id }, select: { id: true, locationId: true } })
-    .catch((err) => {
-      console.error("Conversation lookup failed for a mention:", err);
-      return null;
-    });
+  // In a Conversation the ping reaches its members and nobody else: nobody else
+  // can open it, and a mention no longer adds them.
+  const parsed = placeKey ? parsePlaceKey(placeKey) : null;
+  const memberIds = parsed?.kind === "conv" ? await conversationMemberIds(prisma, parsed.id) : null;
+  // Who witnesses this line, when it was said in a Conversation or a Room. Only
+  // they can be DM'd; everywhere else a mention is a push and nothing more.
+  const witnessIds = relayed.some((entry) => entry.tagged)
+    ? await privateWitnessIds(prisma, placeKey, speakerId).catch(() => null)
+    : null;
+  const link = proxied?.id ? messageLink(message.guildId, channel.id, proxied.id) : null;
 
-  const notHere = []; // collected, so the author gets one DM instead of one per absent person named
-
-  for (const { target, invite } of relayed) {
-    if (conversation && invite) {
-      // Same contract as /add: recorded, applied now if the target already stands here, replayed
-      // by applyPendingInvites otherwise. Membership is a DB row; Discord's list is its projection.
-      await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
-      await prisma.playerThreadInvite
-        .upsert({
-          where: { threadId_characterId: { threadId: channel.id, characterId: target.id } },
-          update: {},
-          create: { threadId: channel.id, characterId: target.id },
-        })
-        .catch((err) => console.error("Failed to record thread invite:", err));
-      if (target.locationId === conversation.locationId && target.discordMirrored) { // not-mirrored has no Discord presence to add (CHAT.md §6)
-        await channel.members.add(target.discordUserId).catch((err) =>
-          console.error(`Failed to add ${target.discordUserId} to thread ${channel.id}:`, err),
-        );
-        await notifyMentioned(target, context, { placeKey });
-      } else {
-        console.log(`[mentions] ${target.name}: not in ${context.locationName ?? "this location"}, invite recorded`);
-        notHere.push(target.name);
-      }
-      continue;
-    }
-
+  for (const { target, tagged } of relayed) {
     // A bare-name target came out of the earshot query itself, so it has already
     // passed this; a role target has not, and a ping must not carry further than
     // a voice would (PROXYING.md §6).
-    const heard = !invite || (await canHearPing(target, context));
-    console.log(`[mentions] ${target.name}: ${heard ? "notified" : "out of earshot, not notified"}`);
+    const heard = (!tagged || (await canHearPing(target, context))) && (!memberIds || memberIds.includes(target.id));
+    const dm = heard && tagged && Boolean(link) && Boolean(witnessIds?.has(target.id));
+    console.log(`[mentions] ${target.name}: ${heard ? (dm ? "DM'd" : "notified") : "out of earshot, not notified"}`);
     if (heard) {
-      await notifyMentioned(target, context, { placeKey });
+      await notifyMentioned(target, context, { placeKey, dm: dm ? { client: message.client, link } : null });
     }
-  }
-
-  if (notHere.length > 0) {
-    const where = context.locationName ?? context.zoneName ?? "this place";
-    await sendDm(
-      message.author,
-      notHere.length === 1
-        ? `» *${notHere[0]} isn't in ${where}. They'll see this conversation when they arrive.*`
-        : `» *${notHere.join(", ")} aren't in ${where}. They'll see this conversation when they arrive.*`,
-      { kind: DM_KIND.QUIET },
-    ).catch(() => { });
   }
 }

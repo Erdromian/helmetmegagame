@@ -1,8 +1,10 @@
 const { prisma, buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUGS } = require("@lifeweb/db");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
+const { MENTION_SOURCE } = require("@lifeweb/db/lib/dmKinds");
+const { sendDm } = require("./dm");
 
-// Character-role mentions: who was pinged, may they hear it, and (in a private thread) letting
-// them in. Character.discordRoleId is @unique, so a mentioned role resolves to one character.
+// Character-role mentions: who was pinged, and may they hear it. Character.discordRoleId is
+// @unique, so a mentioned role resolves to one character.
 
 // A ping must not carry further than a voice would: Location gates on location, zone's #summary
 // on zone, special channels on db/lib/specialChannels.js.
@@ -30,16 +32,28 @@ function messageLink(guildId, channelId, messageId) {
   return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
 }
 
-// A browser notification only — a mention sends no Discord DM. Carries where, never the message
-// text: a private thread the target hasn't joined would otherwise leak its content.
-async function notifyMentioned(character, context, { placeKey = null } = {}) {
+// A browser notification, plus a Discord DM when `dm` is given ({ client, link }) — the caller
+// decides that: only a role mention (an @, never a bare name) whose target witnesses the
+// Conversation or Room it was said in (db/lib/archiveWitnesses.js#privateWitnessIds). Carries
+// where and a link, never the message text. `placeKey` rides in meta so /chat can open the place.
+async function notifyMentioned(character, context, { placeKey = null, dm = null } = {}) {
   const place = context.locationName ?? context.zoneName ?? null;
   const nowhere = context.channelKind ? `#${context.channelKind}` : "somewhere"; // special channel has no place
   const where = context.threadName
     ? `${place ?? "somewhere"} · ${context.threadName}`
     : (place ?? nowhere);
 
-  await pushToUser(prisma, character.discordUserId, {
+  if (dm?.client && dm.link) {
+    const user = await dm.client.users.fetch(character.discordUserId).catch(() => null);
+    if (user) {
+      await sendDm(user, `» *You were mentioned in ${where}.*\n${dm.link}`, {
+        source: MENTION_SOURCE,
+        meta: { placeKey, where },
+      }).catch(() => {});
+    }
+  }
+
+  await pushToUser(prisma, character.discordUserId, { // browser notification, after the DM, never affects it
     title: `${character.name} was named`,
     body: `in ${where}`,
     url: placeKey ? `/chat#${encodeURIComponent(placeKey)}` : "/chat",

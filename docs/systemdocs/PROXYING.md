@@ -897,7 +897,8 @@ of translations, and neither face ever sees the other's:
   way.
 - **Out.** `bot/src/lib/feedOutbox.js` rewrites tokens back to `<@&roleId>`
   when it posts or edits a WEB row, and sends the relay — the same "where,
-  never the text" push this section describes (no DM). Same earshot rule, same
+  never the text" push this section describes, and the same witness-only DM for
+  a token (§6, "The relay"). Same earshot rule, same
   ten-target cap, and a **concealed** send still relays nothing at all. Only a
   token frozen under the person's OWN name goes back as the role: Discord draws
   a role mention as the role's title, their real name, for the whole channel,
@@ -1004,11 +1005,30 @@ deletes the original, taking `message.mentions` with it. So the order is
 
 ### The relay
 
-**A mention sends no Discord DM.** The relay is a browser push
-(`db/lib/webPush.js#pushToUser`) and, inside a Conversation, the invite — and
-on the web, the feed's own mention count. It used to DM "You were mentioned
-in …" with a jump link as well; that was taken out on request, because players
-did not want a DM every time somebody said their name. Do not add it back.
+**Every mention gets a browser push** (`db/lib/webPush.js#pushToUser`) and, on
+the web, the feed's own mention count. **An `@` can also DM**, and nothing else
+can. The Discord DM — "You were mentioned in …" with a jump link, never the
+words — goes out only when both of these hold:
+
+- it is a **real `@`**: a character role typed on Discord, or a `{char:…}` token
+  picked from the `@` menu on `/chat`. A bare name, a title or a word said in
+  passing is a mention for the push, never for a DM.
+- the target **witnesses** the place: it was said in a **Conversation or a
+  Room**, and they are in the set the row's own witnesses come from
+  (`db/lib/archiveWitnesses.js#privateWitnessIds` — a member standing in the
+  Conversation's Location, or somebody standing at a side of the Room and let
+  through its gate; never somebody asleep or deaf). An `@` on a street or in a
+  zone summary gets the push and no DM.
+
+History, so nobody undoes it by accident: the DM once went out for every
+mention, bare names included, and players did not want one every time somebody
+said their name, so PR #359 took it out entirely. It came back narrowed to the
+two rules above.
+
+**A mention never adds anybody to a Conversation.** Only `/add` does
+(`COMMANDS.md` §2b). Inside one, the push and the DM reach its **members** and
+nobody else — nobody else can open it, so a ping to them would be a link to a
+door they cannot open.
 
 **Pinging your own character does relay.** There used to be a filter dropping
 the sender's own characters — nobody needs telling they pinged themselves —
@@ -1059,13 +1079,13 @@ reading `{char:cl9…|Ada}`, braces and all.
 
 ### Adding to a conversation
 
-In a Conversation (a `PlayerThread` row, `CHANNELS.md` §4), a mention also
-**adds that character's player to it**.
-Discord does this for free today by auto-adding a mentioned role's members, but
-that stops working the moment the roles have zero members, so the bot takes it
-over.
+In a Conversation (a `PlayerThread` row, `CHANNELS.md` §4), **`/add` is the
+only way in.** A mention used to add its target too, on the same contract; it
+was taken out on request, so that an `@` in a private conversation notifies and
+nothing more (§6, "The relay"). Discord will not do it on its own either: a
+character role is held by nobody, so a role mention has no members to auto-add.
 
-`/add` and `/remove` are the same operation by command, both taking a **role
+`/add` and `/remove` both take a **role
 option** rather than a user option on purpose: the picker then names
 characters, never Discord accounts, so inviting someone can't reveal who plays
 them. Anyone already in the thread may add or remove, plus GMs.
@@ -1113,19 +1133,6 @@ same breath, and two identical queries would be two answers to one question.
 
 A forced name is not hiding, so a Beast is named openly with their id intact,
 and loses only their portrait for the letter plaque.
-
-**A mention is an invite, on the same contract as `/add`** (`COMMANDS.md` §2b),
-and it reads the same typed into `/chat` as typed into Discord — the web half
-lives in `bot/src/lib/feedOutbox.js#relayWebMentions`, which used to send the
-notification and stop there:
-a `PlayerThreadInvite` row is recorded, the Discord add is attempted now, and
-if the target is standing somewhere else `applyPendingInvites` replays it the
-moment they arrive in that Location. Discord still requires a thread member to
-be able to view the parent channel — that view is the location role now — so
-an add from elsewhere would put a thread in their sidebar they can't open. The pinger is told who was
-invited rather than notified (collected into one DM, not one per target), since
-a proxied message has no interaction to reply to and silence would read as a
-bug.
 
 One thing worth knowing rather than fixing: removing a member the bot didn't
 add needs `MANAGE_THREADS`, which comes from the bot's own role and is not

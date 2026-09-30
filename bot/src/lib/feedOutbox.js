@@ -13,9 +13,11 @@ const {
   ensureChannelWebhook,
   editWebhookMessage,
   deleteWebhookMessage,
-  addThreadMember,
 } = require("@lifeweb/db/lib/discordRest");
-const { addConversationMember } = require("@lifeweb/db/lib/conversations");
+const { conversationMemberIds } = require("@lifeweb/db/lib/conversations");
+const { privateWitnessIds } = require("@lifeweb/db/lib/archiveWitnesses");
+const { sendDm } = require("@lifeweb/db/lib/dm"); // by path, never the barrel — three exports share the name (CLAUDE.md)
+const { MENTION_SOURCE } = require("@lifeweb/db/lib/dmKinds");
 const { loadForcedName, loadConcealment, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
 const { FEED_CHANNEL } = require("@lifeweb/db/lib/feedNotify");
@@ -83,62 +85,65 @@ async function identityPiecesFor(characterId) {
 // Caps how many people one web-sent line can notify; bot/src/events/messageCreate.js caps the Discord path the same way.
 const MAX_MENTION_RELAYS = 10;
 
+function messageLink(channelId, messageId) {
+  const guildId = process.env.DISCORD_GUILD_ID;
+  if (!guildId || !channelId || !messageId) return null;
+  return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+}
+
 // The mention relay for a WEB-origin row — same shape as a Discord-origin mention
 // (bot/src/lib/mentions.js#notifyMentioned): a browser push saying where, never the
-// words, and no Discord DM. Concealed sends relay nothing.
-async function relayWebMentions({ row, characters, named = [], concealed, channelId }) {
+// words. Concealed sends relay nothing.
+//
+// Two lists, and only the first can DM. `characters` are the `{char:…}` tokens —
+// somebody picked out of the @ menu on purpose — and one of those DMs its target
+// on Discord when they witness the Conversation or Room it was said in
+// (db/lib/archiveWitnesses.js#privateWitnessIds). `named` are bare names, a title
+// or a name said in passing, and those only ever get the push.
+//
+// A mention never lets anybody IN: only /add does that (COMMANDS.md §2b). So in a
+// Conversation the ping reaches its members and nobody else, since nobody else
+// can open it.
+async function relayWebMentions({ row, characters, named = [], concealed, channelId, messageId }) {
   if (concealed || (characters.length === 0 && named.length === 0)) return;
 
-  // Two lists, and the difference is whether a Conversation lets the person IN.
-  // An explicit `{char:…}` is an invite as well as a ping — that is what /add
-  // does, in one keystroke — and a BARE NAME must never be, or saying "Marrow
-  // told me" in a private conversation would pull Marrow into it. Token targets
-  // first, so a name that is BOTH tokened and typed keeps its invite.
+  // Token targets first, so a name that is both picked and typed keeps its DM.
   const wanted = [];
   const seen = new Set();
-  for (const entry of [...characters.map((c) => ({ target: c, invite: true })), ...named.map((c) => ({ target: c, invite: false }))]) {
+  for (const entry of [
+    ...characters.map((target) => ({ target, tagged: true })),
+    ...named.map((target) => ({ target, tagged: false })),
+  ]) {
     if (!entry.target?.id || seen.has(entry.target.id)) continue;
     seen.add(entry.target.id);
     wanted.push(entry);
   }
 
-  const [earshot, context, conversation] = await Promise.all([
+  const parsed = parsePlaceKey(row.placeKey);
+  const [earshot, context, memberIds, witnessIds] = await Promise.all([
     earshotForPlaceKey(prisma, row.placeKey),
     archiveContextForPlaceKey(prisma, row.placeKey), // same zone/thread names /archive uses
-    // Only a Conversation turns a mention into an invite (bot/src/events/messageCreate.js);
-    // a private Room is gated on a key tag instead (db/lib/roomAccess.js).
-    prisma.playerThread
-      .findUnique({ where: { threadId: channelId }, select: { id: true, locationId: true } })
-      .catch((err) => {
-        console.error("Conversation lookup failed for a web mention:", err);
-        return null;
-      }),
+    parsed?.kind === "conv" ? conversationMemberIds(prisma, parsed.id) : null,
+    wanted.some((entry) => entry.tagged) ? privateWitnessIds(prisma, row.placeKey, row.characterId) : null,
   ]);
   const place = context.zoneName ?? "somewhere";
   const where = context.threadName ? `${place} · ${context.threadName}` : place;
+  const link = messageLink(channelId, messageId);
 
-  for (const { target, invite } of wanted.slice(0, MAX_MENTION_RELAYS)) {
-    if (conversation && invite) {
-      // Same contract as /add: membership row, then an invite row (db/lib/threadInvites.js
-      // replays it on arrival). A "web only" target has no Discord presence to add (CHAT.md §6).
-      await addConversationMember(prisma, { playerThreadId: conversation.id, characterId: target.id });
-      await prisma.playerThreadInvite
-        .upsert({
-          where: { threadId_characterId: { threadId: channelId, characterId: target.id } },
-          update: {},
-          create: { threadId: channelId, characterId: target.id },
-        })
-        .catch((err) => console.error("Failed to record a web thread invite:", err?.message ?? err));
-      if (target.locationId === conversation.locationId && target.discordMirrored && target.discordUserId) {
-        await addThreadMember(channelId, target.discordUserId).catch(() => { });
-      }
-    }
+  for (const { target, tagged } of wanted.slice(0, MAX_MENTION_RELAYS)) {
     if (!target.discordUserId) continue;
     // A bare-name target came out of the earshot query itself, so it has already
     // passed this; a token target has not, and a ping must not carry further
     // than a voice would (PROXYING.md §6).
-    if (!(conversation && invite) && !inEarshot(target, earshot)) continue;
-    // Browser notification for a closed /chat tab. No Discord DM: a mention never sends one.
+    if (!inEarshot(target, earshot)) continue;
+    if (memberIds && !memberIds.includes(target.id)) continue;
+    if (tagged && link && witnessIds?.has(target.id)) {
+      await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.*\n${link}`, {
+        source: MENTION_SOURCE,
+        meta: { placeKey: row.placeKey, where },
+      }).catch((err) => console.error(`Feed outbox couldn't DM a mention to ${target.name}:`, err?.message ?? err));
+    }
+    // Browser notification for a closed /chat tab; wrapped so a failed push never costs the DM.
     await pushToUser(prisma, target.discordUserId, {
       title: `${target.name} was named`,
       body: `in ${where}`,
@@ -278,6 +283,7 @@ async function pushRow(row) {
       named,
       concealed: Boolean(identity.alias),
       channelId: target.threadId ?? target.channelId,
+      messageId: posted.id,
     }).catch((err) => console.error("Feed outbox mention relay failed:", err));
   }
 

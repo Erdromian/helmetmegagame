@@ -274,8 +274,6 @@ Every writer records the row first and then adds the account:
 |---|---|
 | Converse | `handleConverseCreate`, the creator |
 | `/add` on a conversation | `bot/src/events/interactionCreate.js` |
-| A mention into a conversation, typed in Discord | `bot/src/events/messageCreate.js` |
-| A mention into a conversation, typed on /chat | `bot/src/lib/feedOutbox.js#relayWebMentions` |
 | The invite replay on arrival | `db/lib/threadInvites.js#applyPendingInvites` |
 | `/remove` | deletes the row |
 
@@ -1278,16 +1276,15 @@ a 48px head and a one-line composer:
   - **Two call sites**, and both relay through the shape that already existed:
     `bot/src/events/messageCreate.js` for a Discord-origin line, and
     `bot/src/lib/feedOutbox.js#relayWebMentions` for a web-origin one. So Discord
-    gets the same push a token mention gets (no DM), and the web gets a
-    notified count.
+    gets the same push a token mention gets, and the web gets a notified count.
 
-  **Notify-only, and that is load-bearing.** A `{char:…}` mention inside a
-  Conversation is *also an invite* — it adds the person to the thread, the same
-  contract `/add` has. A bare name must never be, or "Marrow told me the bell had
-  gone" typed in a private conversation would pull Marrow into it. Both call sites
-  keep the two lists apart and only the token list takes the invite arm; a name
-  that is both tokened and typed keeps its invite. The cap (10) applies across the
-  pair.
+  **Push-only, and that is load-bearing.** A `{char:…}` token (or a role `@` on
+  Discord) can also DM its target, when they witness the Conversation or Room it
+  was said in (PROXYING.md §6, "The relay"). A bare name never does, or "Marrow
+  told me the bell had gone" would DM Marrow. Both call sites keep the two lists
+  apart and only the token list can DM; a name that is both tokened and typed
+  keeps its DM. The cap (10) applies across the pair. Neither list adds anybody to
+  a Conversation any more — only `/add` does.
 
   **The text is never rewritten.** Nothing turns a bare name into `<@&roleId>`, so
   Discord reads the words the room read. The relay push is the ping.
@@ -1329,19 +1326,11 @@ a 48px head and a one-line composer:
   head on a phone): `seenStore.js#markAllSeen` over every place's own
   `newest`, forward-only per place and one repaint for the lot, then
   `notifiedStore.js#clearAllNotified` for the red counts.
-- **A ping in a conversation adds them to it**, the way Discord does when you
-  @ a stranger in a thread. `POST /api/feed/say` calls
-  `db/lib/conversations.js#pullMentionedIntoConversation` after the row is
-  written: it reads the `{char:…}` tokens, re-checks each against the DB
-  (a token is player-typed text), and for anyone living and not already a
-  member writes the `PlayerThreadMember` row plus the `PlayerThreadInvite`
-  beside it. The route then does the Discord half — `addThreadMember` for
-  somebody standing in the Location and mirrored to Discord (`discordMirrored`), and a DM either way.
-  It can never fail the send: the words are the point.
-
-  Conversations only. A room is opened by a key or a guest row and a mention
-  is neither; the street is already open to everyone standing in it. And the
-  web path only — a mention typed into Discord is Discord's own to handle.
+- **A ping in a conversation never adds anybody to it.** It used to — `POST
+  /api/feed/say` pulled every `{char:…}` target in, and the bot did the same for
+  a role `@` typed on Discord — and that was taken out on request: `/add` is the
+  only way into a Conversation (`COMMANDS.md` §2b). A ping there reaches the
+  members and nobody else.
 
 - **`Feed.js`** (phase 0's `PlayFeed.js`, generalised) draws one place: its
   name, its own words under the name, a search button, the runs, and the
@@ -2315,10 +2304,12 @@ so it is left out and counted in the foot's link to `/character` instead.
 Two things can tell a player something happened, and they are deliberately
 different sizes.
 
-**The DM** is unchanged and is still the record: every mention relay writes a
-`DirectMessage` row, on both faces (`bot/src/lib/mentions.js` for a
-Discord-origin mention, `bot/src/lib/feedOutbox.js#relayWebMentions` for a web
-one). It carries where and a link and never the text, and since 2026-09-07 it
+**The DM** goes out only for an `@` whose target witnesses the Conversation or
+Room it was said in (PROXYING.md §6, "The relay") — never for a bare name, and
+never from a street. Each one writes a `DirectMessage` row, on both faces
+(`bot/src/lib/mentions.js` for a Discord-origin mention,
+`bot/src/lib/feedOutbox.js#relayWebMentions` for a web one). It carries where
+and a link and never the text, and since 2026-09-07 it
 also shows in the player's Bascinet thread on `/chat` (§2b) — before that the
 plumbing classification hid it there, which read as "pinging from the web does
 nothing".
@@ -2345,7 +2336,7 @@ end them.
   url the payload carries. It caches nothing: `/chat` is a live feed, and a
   worker serving it out of a cache would be showing yesterday's scene.
 - **What is sent.** Two things, and only two. A **mention** — at
-  both call sites (a mention sends no DM), `"{name} was named"` / `"in {place}"`, pointing at
+  both call sites, whether or not a DM went too, `"{name} was named"` / `"in {place}"`, pointing at
   `/chat` (the web-origin one at `/chat#<placeKey>`, which is the same hash the
   places column round-trips). And the **turn opening**
   (`db/lib/turnAnnouncement.js`), after the announcement is posted, to every
