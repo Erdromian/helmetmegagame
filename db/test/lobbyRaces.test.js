@@ -13,7 +13,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { declineAssignment, claimNotification, commitAssignment } = require("../lib/lobby");
+const { declineAssignment, claimNotification, commitAssignment, startProblems } = require("../lib/lobby");
 const { runLobbySweep } = require("../lib/lobbySweep");
 
 // ---- the fake ---------------------------------------------------------------
@@ -181,6 +181,23 @@ test("only one sender claims an assignment DM", async () => {
   assert.equal(await claimNotification(db, "e1"), false);
 });
 
+test("a resend that fails hands its claim back, so the next sweep tries again", async () => {
+  const entries = [assigned({ notifiedAt: null })];
+  const { db } = makeDb({ entries });
+  const refused = async () => {
+    throw new Error("Cannot send messages to this user");
+  };
+  const first = await runLobbySweep(db, { send: refused });
+  assert.equal(first.resent, 0);
+  assert.equal(entries[0].notifiedAt, null);
+
+  const sent = [];
+  const second = await runLobbySweep(db, { send: async (_db, userId) => sent.push(userId) });
+  assert.equal(second.resent, 1);
+  assert.deepEqual(sent, ["u1"]);
+  assert.ok(entries[0].notifiedAt instanceof Date);
+});
+
 test("a settled seat is never claimed for an assignment DM", async () => {
   const entries = [assigned({ notifiedAt: null, status: "CREATED" })];
   const { db } = makeDb({ entries });
@@ -214,4 +231,25 @@ test("an unready mid-commit is 'the lobby changed', not a crash", async () => {
     assert.deepEqual(err.problems, ["Somebody in the preview is no longer ready."]);
     return true;
   });
+});
+
+test("Start's best-effort steps report what they could not do", () => {
+  // A clean run, with the YAML notes the sync prints every time: nothing to report.
+  const clean = {
+    zonesSynced: { created: 0, changed: 2, warnings: ['location "space/space-1" appears in no connections entry — it is unreachable'] },
+    worldSeeded: { structures: {}, stashes: {}, unknown: [] },
+  };
+  assert.deepEqual(startProblems(clean), []);
+  const problems = startProblems({
+    zonesSynced: { error: "connection reset" },
+    worldSeeded: {
+      structures: { error: "no such tag" },
+      stashes: { rooms: 3 },
+      unknown: ["town-1-2: lantern"],
+    },
+  });
+  assert.equal(problems.length, 3);
+  assert.match(problems[0], /connection reset/);
+  assert.match(problems[1], /structures could not be raised: no such tag/);
+  assert.match(problems[2], /town-1-2: lantern/);
 });

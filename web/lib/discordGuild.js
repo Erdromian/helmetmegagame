@@ -68,6 +68,11 @@ function ttlCache(ttlMs) {
       const entry = store.get(key);
       return entry ? entry.value : undefined;
     },
+    // How long ago the value was fetched, stale or not.
+    age(key) {
+      const entry = store.get(key);
+      return entry ? Date.now() - entry.fetchedAt : undefined;
+    },
     set(key, value) {
       store.set(key, { value, expiresAt: Date.now() + ttlMs, fetchedAt: Date.now() });
     },
@@ -264,6 +269,17 @@ export const listGuildMembers = cache(async (maxAgeMs) => {
     return stale ?? [];
   }
 });
+
+// The roster, or null when Discord could not be read within maxAgeMs. For a
+// caller that must not act on the failure path's answer — an empty list, or a
+// stale one — because it decides something for good off a role, the way the
+// lobby roll's whitelist check does. Everyone else wants listGuildMembers,
+// which never withholds.
+export async function listGuildMembersFresh(maxAgeMs) {
+  const members = await listGuildMembers(maxAgeMs);
+  const age = memberListCache.age("all");
+  return memberListReachable && age !== undefined && age <= maxAgeMs ? members : null;
+}
 
 // Either GM seat counts (db/lib/roleIds.js#gmRoleIds; GAMEMASTERS.md).
 export function isGm(member) {

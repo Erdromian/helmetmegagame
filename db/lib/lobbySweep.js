@@ -2,7 +2,9 @@
 // every fifteen minutes beside the whisper poll:
 //
 //   * an assignment DM that never went out (a redeploy mid-Start, a closed
-//     DM) is sent again once the entry is five minutes old and unstamped;
+//     DM) is sent again once the entry is five minutes old and unstamped —
+//     and a resend that fails hands its claim back, so every tick tries once
+//     more until the seat expires (a player may open their DMs later);
 //   * six hours before a seat expires, one reminder DM;
 //   * past expiry, the entry flips to EXPIRED — which is what frees the seat,
 //     since capacity only counts ASSIGNED rows — and the player is told.
@@ -13,13 +15,21 @@
 const { sendDm } = require("./dm");
 const { WEB_ORIGIN } = require("./constants");
 const { DM_ACTION, dmAction } = require("./dmActions");
-const { assignmentMessage, reminderMessage, expiredMessage, declineComponents, claimNotification } = require("./lobby");
+const {
+  assignmentMessage,
+  reminderMessage,
+  expiredMessage,
+  declineComponents,
+  claimNotification,
+  releaseNotification,
+} = require("./lobby");
 const { offerFreedSeat } = require("./latePartyRaffle");
 
 const REMINDER_BEFORE_MS = 6 * 60 * 60 * 1000;
 const RESEND_AFTER_MS = 5 * 60 * 1000;
 
-async function runLobbySweep(prisma, { origin = WEB_ORIGIN, now = new Date() } = {}) {
+// `send` is sendDm unless a test passes a stand-in.
+async function runLobbySweep(prisma, { origin = WEB_ORIGIN, now = new Date(), send = sendDm } = {}) {
   let resent = 0;
   let reminded = 0;
   let expired = 0;
@@ -36,12 +46,22 @@ async function runLobbySweep(prisma, { origin = WEB_ORIGIN, now = new Date() } =
       zoneName: entry.assignedRole?.startingLocation?.zone?.name ?? null,
       expiresAt: entry.expiresAt,
     };
-    await sendDm(prisma, entry.discordUserId, assignmentMessage(seat, origin), {
+    const sent = await send(prisma, entry.discordUserId, assignmentMessage(seat, origin), {
       source: "lobby_assignment",
       components: declineComponents(entry.id),
       meta: dmAction(DM_ACTION.LOBBY_SEAT, entry.id),
-    }).catch((err) => console.error(`Assignment resend failed for ${entry.discordUserId}:`, err));
-    resent += 1;
+    }).then(
+      () => true,
+      async (err) => {
+        console.error(`Assignment resend failed for ${entry.discordUserId}:`, err);
+        // Handed back, the way Start Game's own loop does, so the next tick
+        // tries again. Stamped for good, one failure was the player's last
+        // word about their seat until it expired.
+        await releaseNotification(prisma, entry.id);
+        return false;
+      },
+    );
+    if (sent) resent += 1;
   }
 
   const dueReminder = await prisma.lobbyEntry.findMany({
