@@ -281,6 +281,28 @@ async function commitAssignment(db, draft, { actorDiscordUserId } = {}) {
   return result;
 }
 
+// What went wrong in the two best-effort steps around the commit — the zones
+// sync before it and the world seed after it — as sentences for the
+// superadmin who pressed Start. Neither step stops the game starting, so
+// without this a failure reached nobody but the server log. Empty when both
+// landed cleanly.
+function startProblems({ zonesSynced, worldSeeded } = {}) {
+  const problems = [];
+  if (zonesSynced?.error) {
+    problems.push(`The places could not be brought up to docs/zones.yaml: ${zonesSynced.error}`);
+  }
+  for (const w of zonesSynced?.warnings ?? []) problems.push(`Zones sync: ${w}`);
+  for (const r of zonesSynced?.reportOnly ?? []) problems.push(`Zones sync left ${r} as it was.`);
+  if (worldSeeded?.structures?.error) {
+    problems.push(`The authored structures could not be raised: ${worldSeeded.structures.error}`);
+  }
+  if (worldSeeded?.stashes?.error) {
+    problems.push(`The authored stashes could not be filled: ${worldSeeded.stashes.error}`);
+  }
+  for (const u of worldSeeded?.unknown ?? []) problems.push(`World seed skipped ${u}`);
+  return problems;
+}
+
 // --- The DMs ----------------------------------------------------------------
 
 function epoch(date) {
@@ -406,6 +428,7 @@ module.exports = {
   seatsAllocated,
   buildDraft,
   commitAssignment,
+  startProblems,
   assignmentMessage,
   returnedMessage,
   reminderMessage,

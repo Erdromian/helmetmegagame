@@ -9,6 +9,7 @@ import { DM_ACTION, dmAction } from "@lifeweb/db/lib/dmActions";
 import {
   buildDraft,
   commitAssignment,
+  startProblems,
   assignmentMessage,
   returnedMessage,
   startedLine,
@@ -29,7 +30,7 @@ import { speakIntoTurns } from "@lifeweb/db/lib/sessionNotice";
 import { zonedTimeToUtc, TIME_ZONE } from "@lifeweb/db/lib/turnClock";
 import { auth, CANONICAL_ORIGIN } from "@/lib/auth";
 import { isSuperadmin } from "@/lib/superadmin";
-import { listGuildMembers, sendDm } from "@/lib/discordGuild";
+import { listGuildMembersFresh, sendDm } from "@/lib/discordGuild";
 
 // Lifecycle: CLOSED -> LOBBY -> RUNNING -> ENDED. Every transition is
 // superadmin-only and checks the phase it is leaving. See docs/systemdocs/LOBBY.md §1.
@@ -97,10 +98,16 @@ export async function closeLobby() {
   return { ok: true };
 }
 
-// Discord roles of every guild member, for the roll's whitelist check.
+const ROSTER_MAX_AGE_MS = 60_000;
+
+// Discord roles of every guild member, for the roll's whitelist check. At most
+// a minute old, so a Leader Whitelist role handed out just before Preview
+// counts. Null when Discord could not be read: an empty or stale roster reads
+// every player as not whitelisted, and the roll would quietly hand out no
+// leader seat at all.
 async function memberRoleMap() {
-  const members = await listGuildMembers();
-  return new Map(members.map((m) => [m.id, m.roles]));
+  const members = await listGuildMembersFresh(ROSTER_MAX_AGE_MS);
+  return members ? new Map(members.map((m) => [m.id, m.roles])) : null;
 }
 
 // Rolls the lobby and stores the result as the draft Start will commit
@@ -110,7 +117,14 @@ export async function previewAssignment() {
   await requireSuperadmin();
   const state = await getGameState(prisma);
   if (!ROLL_PHASES.has(state.phase)) return { ok: false, error: "Preview needs a lobby, open or frozen." };
-  const draft = await buildDraft(prisma, await memberRoleMap(), { seed: newSeed() });
+  const roles = await memberRoleMap();
+  if (!roles) {
+    return {
+      ok: false,
+      error: "Discord's member list could not be read, so nobody's Leader Whitelist role can be checked. Try again in a minute.",
+    };
+  }
+  const draft = await buildDraft(prisma, roles, { seed: newSeed() });
   await prisma.gameState.update({ where: { id: 1 }, data: { assignmentDraft: draft } });
   refresh();
   return { ok: true };
@@ -162,6 +176,14 @@ export async function startGame() {
     throw err;
   }
 
+  // The zones sync and the world seed are best-effort (lobby.js#commitAssignment), so the game has started either way.
+  // What they could not do is handed back to the superadmin and kept in the audit log, not left in the server log.
+  const problems = startProblems(outcome);
+  if (problems.length > 0) {
+    console.error("Start Game problems:", problems);
+    await audit(session, "game_start_problems", { problems });
+  }
+
   // Start Game rolled a new bomb (db/lib/nuke.js#rollNuke): its button moves
   // from last game's room post, if there was one, to this game's.
   const bomb = await prisma.gameState.findUnique({ where: { id: 1 }, select: { nukeRoomId: true } });
@@ -206,7 +228,7 @@ export async function startGame() {
       console.error("Game started: the Game channel write failed:", err),
     );
   });
-  return { ok: true, assigned: outcome.assigned.length, returned: outcome.returned.length };
+  return { ok: true, assigned: outcome.assigned.length, returned: outcome.returned.length, problems };
 }
 
 // Stops the clock, opens the archive, writes the reveal (db/lib/gameEnd.js)

@@ -1077,7 +1077,13 @@ export default async function DevPanelPage({ searchParams }) {
                     <span className="text-xs text-muted">Player count {state.playerCount}</span>
                   ) : null}
                 </div>
-                <GameControls phase={state.phase} readyCount={readyCount} hasDraft={Boolean(state.assignmentDraft)} />
+                <GameControls
+                  phase={state.phase}
+                  readyCount={readyCount}
+                  hasDraft={Boolean(state.assignmentDraft)}
+                  outOfSession={sessionsOn && !sessionOpen}
+                  sessionNextLabel={sessionNextLabel}
+                />
                 {state.closingNote ? (
                   <p className="ops-lede">
                     » <em>{state.closingNote}</em>
