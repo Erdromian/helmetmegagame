@@ -1389,7 +1389,7 @@ export async function gmPlaceView(placeKey) {
   // The place-only half of the affordance catalog (db/lib/placeAffordances.js). Travel and Who's here? dropped, same reason ChatAside drops them.
   const fixtures = locationAffordances(location, { web: true })
     .filter((entry) => entry.id !== "travel" && entry.id !== "whosHere" && entry.id !== "examine")
-    .map((entry) => ({ id: entry.id, label: entry.label, tone: entry.tone }));
+    .map((entry) => ({ id: entry.id, kind: "place", label: entry.label, tone: entry.tone }));
 
   // Every modular way out, read through the graph rather than off a button — same reason examineLines reads it that way.
   const ways = (links ?? [])
@@ -1408,9 +1408,18 @@ export async function gmPlaceView(placeKey) {
 
   const openRoom = roomId ? rooms.find((room) => room.id === roomId) ?? null : null;
   // Where the bomb is lives on GameState, not the room (docs/systemdocs/NUKE.md).
-  const nukeRoomId = openRoom
-    ? (await prisma.gameState.findUnique({ where: { id: 1 }, select: { nukeRoomId: true } }))?.nukeRoomId ?? null
-    : null;
+  // And who is in a private room on a pass: the player's members strip, read
+  // by a GM with no hood hiding anybody.
+  const [nukeRoomId, guests] = openRoom
+    ? await Promise.all([
+        prisma.gameState
+          .findUnique({ where: { id: 1 }, select: { nukeRoomId: true } })
+          .then((state) => state?.nukeRoomId ?? null),
+        openRoom.kind === "PRIVATE"
+          ? roomGuests(prisma, openRoom.id, null, { gm: true })
+          : null,
+      ])
+    : [null, null];
 
   return {
     ok: true,
@@ -1453,10 +1462,42 @@ export async function gmPlaceView(placeKey) {
             label: entry.label,
             tone: entry.tone,
           })),
+          guests,
         }
       : null,
     members,
   };
+}
+
+// Who said one line, for a GM's "Look at" on it: the speaker's character
+// panel rather than the player's readout, which is built for a body looking at
+// a body. Pressed against a SEQ like the player's eye, so a hooded line can be
+// looked at without the page ever having been told who was under the hood.
+export async function gmSpeakerOf(seq) {
+  const { session, isGm } = await getGmSession();
+  if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
+
+  let key;
+  try {
+    key = BigInt(String(seq ?? ""));
+  } catch {
+    return { ok: false, error: "That line is gone." };
+  }
+  const row = await prisma.archiveEntry.findUnique({
+    where: { seq: key },
+    select: { kind: true, characterId: true, placeKey: true, deletedAt: true },
+  });
+  if (!row || row.deletedAt || row.kind !== "MESSAGE" || !row.characterId || !row.placeKey) {
+    return { ok: false, error: "Nobody said that." };
+  }
+  // The same zones this GM's feed shows (GmZoneView), so a guessed seq opens nobody from elsewhere.
+  const place = await findPlaceInFeed(prisma, null, row.placeKey, {
+    gm: true,
+    ghost: false,
+    discordUserId: session.discordUserId,
+  });
+  if (!place) return { ok: false, error: "That is not one of the zones you are watching." };
+  return { ok: true, characterId: row.characterId };
 }
 
 // ------------------------------------------------------------- conversation

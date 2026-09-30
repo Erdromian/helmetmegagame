@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import FormError from "@/app/components/FormError";
 import IconButton from "@/app/components/IconButton";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
@@ -13,6 +13,7 @@ import useComposerCommands from "./useComposerCommands";
 import useComposerAutosize from "./useComposerAutosize";
 import { textArgOf } from "./commands";
 import { gmSystemPost } from "./actions";
+import { readDraft, writeDraft } from "./draftStore";
 
 // Lifted out of ./Feed.js (CHAT-REBUILD.md) unchanged, so both composers
 // mount the SAME one — a GM reading a place they cannot speak in gets the
@@ -30,7 +31,12 @@ import { gmSystemPost } from "./actions";
 // composer runs (./useComposerCommands.js), minus the four entries that need a
 // body standing somewhere (commands.js#commandsFor).
 export default function GmSystemComposer({ placeKey, placeKind, placeName, hasCharacter, people, members, ctx }) {
-  const [draft, setDraft] = useState("");
+  // The player's per-place drafts (./draftStore.js): walking to another place
+  // and back puts back what was typed there, rather than losing it to the remount.
+  const [draft, setDraft] = useState(() => readDraft(placeKey));
+  useEffect(() => {
+    writeDraft(placeKey, draft);
+  }, [placeKey, draft]);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(null);
   const textareaRef = useRef(null);

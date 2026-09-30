@@ -605,10 +605,12 @@ export default function Feed({
           realName: gm && row.alias && row.speakerKey ? (speakers?.[row.speakerKey] ?? null) : null,
           guards: {
             mine: mine && !system,
-            // Looking needs a living character, and a watcher of either kind
-            // has none. `canLook` is also why a hooded row offers nothing:
-            // it carries an alias rather than a name.
-            canLook: !mine && !system && !gm && !ghost && !row.alias,
+            // Looking needs a living character, and a ghost has none.
+            // `canLook` is also why a hooded row offers a player nothing: it
+            // carries an alias rather than a name. A GM's look is the
+            // speaker's character panel instead (../GmSpeakerPanel.js), which
+            // a hood does not stop.
+            canLook: gm ? !system && row.seq != null && !row.pending : !mine && !system && !ghost && !row.alias,
             canPhoto: !mine && !system && !gm && !ghost && hasCamera,
             // A GM with no living character may take any line down — no
             // ownership, no five-minute window.

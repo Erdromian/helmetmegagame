@@ -8,6 +8,7 @@ import DevPanelModal, { prefetchDevPanel } from "@/app/components/DevPanelModal"
 import TagChip from "@/app/components/TagChip";
 import PlaceCard from "../PlaceCard";
 import GmPlaceBox from "../GmPlaceBox";
+import { locationFixtures } from "../fixtures";
 import { useAsideTab } from "../asideTabStore";
 import { setPlaces } from "../feedStore";
 import { gmPlaceView } from "../actions";
@@ -82,7 +83,7 @@ function GmHereList({ people, onOpen }) {
   );
 }
 
-export default function GmAside({ selected, gmZones }) {
+export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardChanged = null }) {
   const placeKey = selected?.placeKey ?? null;
   // The left column, re-read after the zone picker has been answered. Silent
   // on a failure: the picker has already said whether the write landed, and a
@@ -121,6 +122,9 @@ export default function GmAside({ selected, gmZones }) {
 
   const fresh = view?.placeKey === placeKey ? view : null;
   const kind = fresh?.ok ? fresh.kind : null;
+  // The Location's fixtures by the player's own filter (../fixtures.js), so
+  // a GM is told of the same things a player gets a button for.
+  const fixtures = locationFixtures(fresh?.fixtures ?? []);
 
   // A zone summary or radio net has no Location, so gets neither Room nor Travel.
   const placed = kind === "loc" || kind === "room" || kind === "conv";
@@ -194,12 +198,23 @@ export default function GmAside({ selected, gmZones }) {
               </div>
             </section>
             {/* The player's own card, unchanged; `fixtures`/`onFixture` omitted
-                since those buttons need a body standing there. showTitle false
-                because the block's head already says the name. */}
+                since those buttons need a body standing there, so the fixtures
+                are named in a line instead, the way the Room tab names a
+                room's. The Map button is the player's. showTitle false because
+                the block's head already says the name. */}
             <section className="block">
               <h3 className="bar">{fresh.place?.name ?? "Place"}</h3>
               <div className="body">
-                <PlaceCard place={fresh.place} zone={fresh.zone} lines={fresh.lines} showTitle={false} />
+                <PlaceCard
+                  place={fresh.place}
+                  zone={fresh.zone}
+                  lines={fresh.lines}
+                  onOpenMap={onOpenMap}
+                  showTitle={false}
+                />
+                {fixtures.length > 0 && (
+                  <p className="chat-quiet-line">On the wall: {fixtures.map((f) => f.label).join(", ")}</p>
+                )}
               </div>
             </section>
 
@@ -268,6 +283,20 @@ export default function GmAside({ selected, gmZones }) {
             </div>
           </section>
         )}
+        {/* Who is in a private room on a pass: the player's members strip,
+            read-only. Key-holders are not on it, as on the player's. */}
+        {openTab === "room" && fresh?.ok && fresh.openRoom?.guests && (
+          <section className="block">
+            <h3 className="bar">In this room · {fresh.openRoom.guests.length}</h3>
+            <div className="body">
+              {fresh.openRoom.guests.length === 0 ? (
+                <p className="chat-quiet-line">Nobody is in on a pass.</p>
+              ) : (
+                <GmHereList people={fresh.openRoom.guests} onOpen={setOpen} />
+              )}
+            </div>
+          </section>
+        )}
 
         {openTab === "travel" && fresh?.ok && (
           <section className="block chat-travel">
@@ -290,7 +319,7 @@ export default function GmAside({ selected, gmZones }) {
           </section>
         )}
 
-        {openTab === "gm" && <GmPlaceBox selected={selected} />}
+        {openTab === "gm" && <GmPlaceBox selected={selected} onBoardChanged={onBoardChanged} />}
       </div>
 
       {/* Bottom-pinned by .chat-aside-tabs > .desk-inspector-zones.

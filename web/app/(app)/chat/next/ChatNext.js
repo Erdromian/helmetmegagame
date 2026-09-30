@@ -124,10 +124,12 @@ export default function ChatNext(props) {
     // Whether there is anything over this character's face, and what it reads
     // as. A hint — db/lib/conceal.js asks its own three questions.
     conceal = null,
+    // The open turn, for a GM or a ghost, who have no `aside.turn` (page.js).
+    openTurn = null,
   } = props;
 
   // The GM's pieces, off the context ../layout.js fills for a GM alone (../gmTools.js).
-  const { NextGmAside: GmAside, GmSystemComposer, DecreeDialog } = useGmTools();
+  const { NextGmAside: GmAside, GmSystemComposer, DecreeDialog, GmNoticeCards, GmSpeakerPanel } = useGmTools();
 
   // Seed the store DURING render, not in an effect, and exactly once. The
   // first paint has to show the scene the server already sent — an effect
@@ -451,7 +453,17 @@ export default function ChatNext(props) {
       .catch(() => setLook({ error: "You can't see them." }));
   }, []);
   const onLookUp = useCallback((ref) => readLook(() => lookAt(ref)), [readLook]);
-  const onLookRow = useCallback((seq) => (seq ? readLook(() => lookAtRow(seq)) : undefined), [readLook]);
+  // A GM's eye on a row opens the speaker's character panel instead
+  // (../GmSpeakerPanel.js): the readout above is what a BODY can see.
+  const [gmLookSeq, setGmLookSeq] = useState(null);
+  const onLookRow = useCallback(
+    (seq) => {
+      if (!seq) return undefined;
+      if (gm) return setGmLookSeq(String(seq));
+      return readLook(() => lookAtRow(seq));
+    },
+    [gm, readLook],
+  );
 
   // `/conceal` changes the name every row this composer writes will wear, and
   // that name is a SERVER prop, so the page has to re-read itself.
@@ -485,7 +497,10 @@ export default function ChatNext(props) {
   // end (../typingStore.js).
   // The guest list for the open place, fetched ONCE here: the feed's strip
   // draws it and `/remove`'s picker is the same list.
-  const members = usePlaceMembers(selected, placesVersion);
+  // Not in the GM seat: placeMembers() answers for a body standing in the
+  // room, so a GM got "You have no living character." over the scene. Their
+  // column lists the same people (GmAside's "In this room" and conversation blocks).
+  const members = usePlaceMembers(gm ? null : selected, placesVersion);
   const lastTypedAt = useRef(0);
   // The open place's rows, for the composer's slowmode: how long ago THIS
   // character last spoke here is a fact about the feed, not about the box.
@@ -710,7 +725,7 @@ export default function ChatNext(props) {
   // The drawer titles are where the app header's turn chip went: the header
   // is hidden on a phone to give the scene its 60px back.
   const placesTitle =
-    [aside?.zone?.name ?? (gm ? "Gamemaster" : null), describeTurn(aside?.turn ?? null).label]
+    [aside?.zone?.name ?? (gm ? "Gamemaster" : null), describeTurn(aside?.turn ?? openTurn).label]
       .filter(Boolean)
       .join(" · ") || "Places";
   const worldPlace = selected && ["loc", "room", "zone"].includes(selected.kind);
@@ -728,7 +743,7 @@ export default function ChatNext(props) {
               placeActions={fixtureBag}
             />
   ) : gmZones ? (
-    <GmAside selected={selected} gmZones={gmZones} />
+    <GmAside selected={selected} gmZones={gmZones} onOpenMap={openMap} onBoardChanged={bumpBoard} />
   ) : null;
 
   return (
@@ -745,7 +760,10 @@ export default function ChatNext(props) {
         <div className="chat-centre" ref={centreRef}>
           <ChatHead
             name={selected?.name ?? null}
-            crumb={[aside?.zone?.name, aside?.place?.name].filter((n) => n && n !== selected?.name)}
+            // A watcher stands nowhere, so their crumb is the zone of what they have open.
+            crumb={(aside ? [aside.zone?.name, aside.place?.name] : [selected?.zoneName]).filter(
+              (n) => n && n !== selected?.name,
+            )}
             {...drawers}
             trailing={
               <>
@@ -835,9 +853,14 @@ export default function ChatNext(props) {
                 // a room, a conversation and the zone summary have none, and
                 // a street you are only WATCHING is not one you can walk up
                 // to and put your hands on (db/lib/vantages.js).
+                //
+                // A GM gets the same cards on any street they watch that has
+                // a board, over their own board actions (../GmNoticeCards.js).
                 notices={
                   aside?.hasBoard && selected?.kind === "loc" && !selected?.vantage ? (
                     <NoticeCards version={boardVersion} onChanged={bumpBoard} />
+                  ) : gm && selected?.kind === "loc" && selected.hasBoard ? (
+                    <GmNoticeCards placeKey={selected.placeKey} version={boardVersion} onChanged={bumpBoard} />
                   ) : null
                 }
               />
@@ -939,6 +962,7 @@ export default function ChatNext(props) {
           strip — here so shutting the drawer never takes a keypad with it. */}
       {placeActions.dialogs}
       {look && <LookReadout state={look} onClose={() => setLook(null)} />}
+      {gm && gmLookSeq && <GmSpeakerPanel seq={gmLookSeq} onClose={() => setGmLookSeq(null)} />}
       {mapOpen && (
         <Modal open title="Map" onClose={() => setMapOpen(false)} panelClassName="modal-panel map-panel">
           <MapBoard onClose={() => setMapOpen(false)} />
