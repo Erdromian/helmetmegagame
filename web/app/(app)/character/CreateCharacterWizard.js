@@ -796,7 +796,9 @@ export default function CreateCharacterWizard({
         </div>
       )}
 
-      <div className="flex items-center justify-between gap-3">
+      {/* Pinned to the foot of the window (.wizard-nav), so moving on never
+          means scrolling past every role card or tag first. */}
+      <div className="wizard-nav flex items-center justify-between gap-3">
         {/* A real button, not btn-quiet: small grey underlined text under a
             long role or tag list was easy to miss, and on a phone it never
             got the tap-sized floor. */}
