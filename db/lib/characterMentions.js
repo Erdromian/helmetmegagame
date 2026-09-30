@@ -199,8 +199,8 @@ function inEarshot(character, earshot) {
 // which asks no database; this is the query that hands it its candidates.
 //
 // PUSH-ONLY, and the callers must keep it that way. An explicit `{char:…}` or
-// role `@` can also DM its target, when they witness the Conversation or Room it
-// was said in (PROXYING.md §6) — and a bare name must never, or "Marrow said the
+// role `@` can also DM its target, when they witness the place it was said in
+// (PROXYING.md §6) — and a bare name must never, or "Marrow said the
 // bell had gone" would DM Marrow.
 //
 // Earshot is the same rule a role ping obeys (PROXYING.md §6): a Location, Room

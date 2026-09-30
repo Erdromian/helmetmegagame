@@ -1013,17 +1013,19 @@ words — goes out only when both of these hold:
 - it is a **real `@`**: a character role typed on Discord, or a `{char:…}` token
   picked from the `@` menu on `/chat`. A bare name, a title or a word said in
   passing is a mention for the push, never for a DM.
-- the target **witnesses** the place: it was said in a **Conversation or a
-  Room**, and they are in the set the row's own witnesses come from
-  (`db/lib/archiveWitnesses.js#privateWitnessIds` — a member standing in the
-  Conversation's Location, or somebody standing at a side of the Room and let
-  through its gate; never somebody asleep or deaf). An `@` on a street or in a
-  zone summary gets the push and no DM.
+- the target **witnesses** the place it was said in: they are in the set the
+  row's own witnesses come from (`db/lib/archiveWitnesses.js#witnessIdsAt`).
+  On a street that is everybody standing in the Location, in a zone summary
+  everybody in the zone, in a Room somebody standing at one of its sides and let
+  through its gate, and in a Conversation a member standing in its Location.
+  Never somebody asleep or deaf. A special channel has no witnesses, so an `@`
+  there gets the push and no DM.
 
 History, so nobody undoes it by accident: the DM once went out for every
 mention, bare names included, and players did not want one every time somebody
 said their name, so PR #359 took it out entirely. It came back narrowed to the
-two rules above.
+two rules above — first for Conversations and Rooms only, then for streets and
+zone summaries too.
 
 **A mention never adds anybody to a Conversation.** Only `/add` does
 (`COMMANDS.md` §2b). Inside one, the push and the DM reach its **members** and

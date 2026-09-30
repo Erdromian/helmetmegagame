@@ -34,7 +34,7 @@ function messageLink(guildId, channelId, messageId) {
 
 // A browser notification, plus a Discord DM when `dm` is given ({ client, link }) — the caller
 // decides that: only a role mention (an @, never a bare name) whose target witnesses the
-// Conversation or Room it was said in (db/lib/archiveWitnesses.js#privateWitnessIds). Carries
+// place it was said in (db/lib/archiveWitnesses.js#witnessIdsAt). Carries
 // where and a link, never the message text. `placeKey` rides in meta so /chat can open the place.
 async function notifyMentioned(character, context, { placeKey = null, dm = null } = {}) {
   const place = context.locationName ?? context.zoneName ?? null;

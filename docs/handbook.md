@@ -221,7 +221,7 @@ A Conversation isn't silent. Every fifteen minutes, the Room it's linked to hear
 
 ### Character Mentions
 
-Every character has a unique Discord role that you can mention by typing `@` followed by their character name. They get a notification in their browser if they have them turned on. If you mention them in a Conversation or a Room they are in with you, the bot also DMs them saying where. Just saying their name, or their title, never sends a DM.
+Every character has a unique Discord role that you can mention by typing `@` followed by their character name. They get a notification in their browser if they have them turned on. If they are there to hear it — in the same Location, zone summary, Room or Conversation — the bot also DMs them saying where. Just saying their name, or their title, never sends a DM.
 
 Mentions only work within the same Location — you can't mention characters standing elsewhere in the game world. Mentioning someone never brings them into a Conversation; use `/add` for that.
 

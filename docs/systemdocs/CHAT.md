@@ -1279,8 +1279,8 @@ a 48px head and a one-line composer:
     gets the same push a token mention gets, and the web gets a notified count.
 
   **Push-only, and that is load-bearing.** A `{char:…}` token (or a role `@` on
-  Discord) can also DM its target, when they witness the Conversation or Room it
-  was said in (PROXYING.md §6, "The relay"). A bare name never does, or "Marrow
+  Discord) can also DM its target, when they witness the place it was said in
+  (PROXYING.md §6, "The relay"). A bare name never does, or "Marrow
   told me the bell had gone" would DM Marrow. Both call sites keep the two lists
   apart and only the token list can DM; a name that is both tokened and typed
   keeps its DM. The cap (10) applies across the pair. Neither list adds anybody to
@@ -2304,9 +2304,8 @@ so it is left out and counted in the foot's link to `/character` instead.
 Two things can tell a player something happened, and they are deliberately
 different sizes.
 
-**The DM** goes out only for an `@` whose target witnesses the Conversation or
-Room it was said in (PROXYING.md §6, "The relay") — never for a bare name, and
-never from a street. Each one writes a `DirectMessage` row, on both faces
+**The DM** goes out only for an `@` whose target witnesses the place it was
+said in (PROXYING.md §6, "The relay") — never for a bare name. Each one writes a `DirectMessage` row, on both faces
 (`bot/src/lib/mentions.js` for a Discord-origin mention,
 `bot/src/lib/feedOutbox.js#relayWebMentions` for a web one). It carries where
 and a link and never the text, and since 2026-09-07 it

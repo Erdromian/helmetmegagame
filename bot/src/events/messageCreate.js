@@ -14,7 +14,7 @@ const { maybeSendGmAutoReply } = require("@lifeweb/db/lib/gmAutoReply");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { splitAttachments, buildInboundContent } = require("@lifeweb/db/lib/dmAttachments");
 const { conversationMemberIds } = require("@lifeweb/db/lib/conversations");
-const { privateWitnessIds } = require("@lifeweb/db/lib/archiveWitnesses");
+const { witnessIdsAt } = require("@lifeweb/db/lib/archiveWitnesses");
 const { placeKeyForChannel, parsePlaceKey } = require("@lifeweb/db/lib/placeKey");
 const { isDeadchatChannel } = require("@lifeweb/db/lib/deadchat");
 const { ghostCharacterFor } = require("@lifeweb/db/lib/ghost");
@@ -183,8 +183,8 @@ async function touchThreadActivity(threadId) {
 
 // What a character mention does: a browser push for anybody in earshot, and a
 // Discord DM for a role mention (somebody @'d on purpose) whose target witnesses
-// the Conversation or Room it was said in. It never lets anybody IN — only /add
-// does that (COMMANDS.md §2b).
+// the place it was said in. It never lets anybody IN — only /add does that
+// (COMMANDS.md §2b).
 async function handleMentions({ message, channel, proxied, mentionedRoleIds, speakerId = null }) {
   const context = resolveChannelContext(channel);
   const mentioned = await resolveMentionedCharacters(mentionedRoleIds);
@@ -250,10 +250,10 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds, spe
   // can open it, and a mention no longer adds them.
   const parsed = placeKey ? parsePlaceKey(placeKey) : null;
   const memberIds = parsed?.kind === "conv" ? await conversationMemberIds(prisma, parsed.id) : null;
-  // Who witnesses this line, when it was said in a Conversation or a Room. Only
-  // they can be DM'd; everywhere else a mention is a push and nothing more.
+  // Who witnesses this line where it was said — a street, a zone summary, a Room
+  // or a Conversation. Only they can be DM'd; anybody else gets the push alone.
   const witnessIds = relayed.some((entry) => entry.tagged)
-    ? await privateWitnessIds(prisma, placeKey, speakerId).catch(() => null)
+    ? await witnessIdsAt(prisma, placeKey, speakerId).catch(() => null)
     : null;
   const link = proxied?.id ? messageLink(message.guildId, channel.id, proxied.id) : null;
 

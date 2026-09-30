@@ -33,7 +33,7 @@ const { stampMentionNames, rolesToTokens, tokensToRoles, canHearPing } = require
 const { pushToUser } = require("./webPush");
 const { sendDm } = require("./dm"); // by path, never the barrel — three exports share the name (CLAUDE.md)
 const { MENTION_SOURCE } = require("./dmKinds");
-const { privateWitnessIds } = require("./archiveWitnesses");
+const { witnessIdsAt } = require("./archiveWitnesses");
 
 // The same cap bot/src/lib/feedOutbox.js puts on a web mention: a line naming half the room is one line, not
 // twenty notifications.
@@ -278,8 +278,8 @@ async function deliverOoc(
 
 // Somebody's name was in an OOC line. Same contract as every other relay in the game
 // (bot/src/lib/mentions.js#notifyMentioned, bot/src/lib/feedOutbox.js#relayWebMentions): a browser push saying
-// where, never the words, and a Discord DM with a jump link when the target witnesses the Conversation or Room it
-// was said in (PROXYING.md §6). Every target here is an `@` — `characters` are tokens, never bare names.
+// where, never the words, and a Discord DM with a jump link when the target witnesses the place it was said
+// in (PROXYING.md §6). Every target here is an `@` — `characters` are tokens, never bare names.
 // It has to live here rather than in the outbox, because an OOC row is
 // a SYSTEM row (db/lib/scene.js) and the outbox only carries WEB ones — which is why an OOC mention used to notify
 // nobody at all even once it resolved.
@@ -291,7 +291,7 @@ async function relayOocMentions(prisma, { placeKey, characters = [], channelId =
 
   const guildId = process.env.DISCORD_GUILD_ID;
   const link = guildId && channelId && messageId ? `https://discord.com/channels/${guildId}/${channelId}/${messageId}` : null;
-  const witnessIds = link ? await privateWitnessIds(prisma, placeKey).catch(() => null) : null;
+  const witnessIds = link ? await witnessIdsAt(prisma, placeKey).catch(() => null) : null;
 
   const context = await archiveContextForPlaceKey(prisma, placeKey).catch(() => null);
   const place = context?.zoneName ?? (context?.channelKind ? `#${context.channelKind}` : "somewhere");

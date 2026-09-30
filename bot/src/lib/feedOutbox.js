@@ -15,7 +15,7 @@ const {
   deleteWebhookMessage,
 } = require("@lifeweb/db/lib/discordRest");
 const { conversationMemberIds } = require("@lifeweb/db/lib/conversations");
-const { privateWitnessIds } = require("@lifeweb/db/lib/archiveWitnesses");
+const { witnessIdsAt } = require("@lifeweb/db/lib/archiveWitnesses");
 const { sendDm } = require("@lifeweb/db/lib/dm"); // by path, never the barrel — three exports share the name (CLAUDE.md)
 const { MENTION_SOURCE } = require("@lifeweb/db/lib/dmKinds");
 const { loadForcedName, loadConcealment, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
@@ -97,8 +97,8 @@ function messageLink(channelId, messageId) {
 //
 // Two lists, and only the first can DM. `characters` are the `{char:…}` tokens —
 // somebody picked out of the @ menu on purpose — and one of those DMs its target
-// on Discord when they witness the Conversation or Room it was said in
-// (db/lib/archiveWitnesses.js#privateWitnessIds). `named` are bare names, a title
+// on Discord when they witness the place it was said in
+// (db/lib/archiveWitnesses.js#witnessIdsAt). `named` are bare names, a title
 // or a name said in passing, and those only ever get the push.
 //
 // A mention never lets anybody IN: only /add does that (COMMANDS.md §2b). So in a
@@ -124,7 +124,7 @@ async function relayWebMentions({ row, characters, named = [], concealed, channe
     earshotForPlaceKey(prisma, row.placeKey),
     archiveContextForPlaceKey(prisma, row.placeKey), // same zone/thread names /archive uses
     parsed?.kind === "conv" ? conversationMemberIds(prisma, parsed.id) : null,
-    wanted.some((entry) => entry.tagged) ? privateWitnessIds(prisma, row.placeKey, row.characterId) : null,
+    wanted.some((entry) => entry.tagged) ? witnessIdsAt(prisma, row.placeKey, row.characterId) : null,
   ]);
   const place = context.zoneName ?? "somewhere";
   const where = context.threadName ? `${place} · ${context.threadName}` : place;
