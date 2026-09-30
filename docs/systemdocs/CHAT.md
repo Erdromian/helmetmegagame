@@ -1194,6 +1194,13 @@ a 48px head and a one-line composer:
   unread row and the row being read, like a collapsed Discord category; a shut
   zone lists them flat under its divider. Once read and left, a row goes back
   into its fold. An empty section still draws nothing at all, fold or not.
+
+  **In the GM seat, Locations, Rooms and Conversations start shut**; the zones,
+  Summary and Elsewhere start open. A GM hears every place in the game, and
+  with every section open the zone dividers were lost in the rows. The store
+  keeps only what differs from the default, so for those three sections a GM's
+  stored key is the one they opened (`<zone>:rooms:open`). A player's column,
+  and a GM viewing as Player, start with everything open as before.
 - **The foot of the column** carries the You plate (§0). The sound cluster,
   the bell and Mark all read moved to the top bar, and on a phone to the chat
   head. See `SOUND.md` §2.

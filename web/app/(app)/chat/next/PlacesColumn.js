@@ -33,6 +33,16 @@ import { useFolds } from "./foldStore";
 // a GM can put a whole zone away and sort the rest. Its divider says what is
 // waiting inside instead: it brightens, and carries the count of lines
 // addressed to you, or a dot when there are none.
+//
+// A GM STARTS WITH LOCATIONS, ROOMS AND CONVERSATIONS SHUT. A GM hears every
+// place in the game, so with everything open the column is a wall of rows and
+// the zone dividers are lost in it. Zones stay open: the GM sees every zone and
+// opens the sections they want. The fold store holds whatever differs from the
+// default, so for these three sections the GM's stored key is the one they
+// OPENED (`…:open`), never the one they shut. A player's column is unchanged.
+
+// The sections a GM's column starts with shut.
+const GM_SHUT_BY_DEFAULT = new Set(["here", "rooms", "conversations"]);
 
 function Row({ place, onSelect }) {
   const button = (
@@ -107,6 +117,8 @@ export default function PlacesColumn({
   notified = null,
   newest,
   onSelect,
+  // True in the GM seat, where Locations, Rooms and Conversations start shut.
+  gm = false,
   // A GM who also plays somebody: `{ mode, onChange }`. Null for everybody
   // else — a plain player has no second seat.
   viewAs = null,
@@ -176,6 +188,9 @@ export default function PlacesColumn({
       const k = group.zoneId ?? "loose-zone";
       keys.add(k);
       for (const s of ["summary", "here", "rooms", "conversations", "elsewhere"]) keys.add(`${k}:${s}`);
+      // Both seats' keys, so a GM who flips to Player and back keeps what they
+      // opened as a GM in the zones both seats share.
+      for (const s of GM_SHUT_BY_DEFAULT) keys.add(`${k}:${s}:open`);
     }
 
     return { pinned: pinnedRows, radio: radioRows, other: otherRows, groups: out, liveKeys: keys };
@@ -190,6 +205,12 @@ export default function PlacesColumn({
   const divided = groups.length > 1;
   const onToggle = (key) => toggle(key, liveKeys);
   const shut = (key) => collapsed.has(key);
+  // A section's fold key, and whether it is shut. In the GM seat, the three
+  // shut-by-default sections store the opposite: the key means "opened".
+  const sectionFold = (zoneKey, slug) =>
+    gm && GM_SHUT_BY_DEFAULT.has(slug)
+      ? { foldKey: `${zoneKey}:${slug}:open`, shut: !collapsed.has(`${zoneKey}:${slug}:open`) }
+      : { foldKey: `${zoneKey}:${slug}`, shut: collapsed.has(`${zoneKey}:${slug}`) };
 
   return (
     <nav className="chat-places" aria-label="Places">
@@ -264,8 +285,7 @@ export default function PlacesColumn({
                   key={slug}
                   title={title}
                   places={rows}
-                  foldKey={`${key}:${slug}`}
-                  shut={shut(`${key}:${slug}`)}
+                  {...sectionFold(key, slug)}
                   onToggle={onToggle}
                   onSelect={onSelect}
                 />
