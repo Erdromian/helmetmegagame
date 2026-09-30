@@ -29,6 +29,7 @@ import {
   Mail,
   Skull,
   RotateCcw,
+  RotateCw,
   SkipForward,
   HeartCrack,
   Bandage,
@@ -160,6 +161,8 @@ export const SkullIcon = lucide(Skull, "SkullIcon");
 export const UncurseIcon = lucide(Sparkles, "UncurseIcon");
 // Restore turn — counter-clockwise arrow, "give it back".
 export const RestoreIcon = lucide(RotateCcw, "RestoreIcon");
+// Reload the page — clockwise, the browser's own refresh arrow. Not SyncIcon, which re-pushes Discord state.
+export const ReloadIcon = lucide(RotateCw, "ReloadIcon");
 // Spend turn — skip to the end, mirror of RestoreIcon.
 export const SkipIcon = lucide(SkipForward, "SkipIcon");
 // Inflict wound.

@@ -6,7 +6,7 @@ import ClickMenu from "./ClickMenu";
 import IconButton from "./IconButton";
 import SoundControls from "./SoundControls";
 import VolumeSlider from "./VolumeSlider";
-import { BellIcon, BellOffIcon, BellRingIcon, CheckIcon, MoreIcon } from "./icons";
+import { BellIcon, BellOffIcon, BellRingIcon, CheckIcon, MoreIcon, ReloadIcon } from "./icons";
 import { useChatBar } from "./chatBarStore";
 import { togglePush, usePushState } from "@/app/(app)/chat/pushStore";
 
@@ -60,6 +60,10 @@ export default function ChatBarControls() {
 // size, which is what the top bar's caret opens). The tick used to stay out
 // on its own; with ≡, Actions, Search and 👥 beside it, that left the place's
 // name "B…" on a 390px screen.
+//
+// Refresh leads the row. Chat never bounces, so a phone cannot pull down to
+// refresh here (globals.css, "the document behind those three"); this is that
+// gesture as a button. A full reload, so the stream comes back fresh too.
 export function ChatPhoneControls() {
   const bar = useChatBar();
   const moreRef = useRef(null);
@@ -74,16 +78,17 @@ export function ChatPhoneControls() {
         type="button"
         className="icon-btn"
         data-size="lg"
-        aria-label="Sound and notifications"
+        aria-label="More"
         aria-expanded={open}
         onClick={() => setOpen((was) => !was)}
       >
         <MoreIcon width={20} height={20} />
       </button>
       {open && (
-        <ClickMenu triggerRef={moreRef} ariaLabel="Sound and notifications" onClose={() => setOpen(false)}>
+        <ClickMenu triggerRef={moreRef} ariaLabel="More" onClose={() => setOpen(false)}>
           <div className="sound-panel">
             <div className="sound-controls">
+              <IconButton icon={ReloadIcon} label="Refresh" onClick={() => window.location.reload()} />
               <Bell />
               <IconButton icon={CheckIcon} label="Mark all read" onClick={bar.onMarkAllSeen} />
               <SoundControls layout="stack" />
