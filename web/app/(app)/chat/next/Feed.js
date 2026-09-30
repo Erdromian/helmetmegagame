@@ -145,7 +145,7 @@ function useLongPress(onHold) {
 // memo'd, and the whole reason the store is keyed by seq: a line arriving
 // re-renders one of these, not the run of a hundred above it.
 const Row = memo(function Row({ line, handlers, editing = false }) {
-  const { row, realName, startsRun, stacked, mine, live, guards } = line;
+  const { row, realName, startsRun, mine, live, guards } = line;
   const [draft, setDraft] = useState(row.content ?? "");
 
   // WHETHER the bar exists is decided here; whether it is SEEN is decided in
@@ -173,13 +173,11 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
       // is worse than watching it sit there marked unsent.
       failed={row.failed}
       live={live}
-      // The GM's log names EVERY line, not just the first of a run: a desk is
-      // read a name at a time. A player's stacked scene names a speaker once,
-      // over their run. The real name behind an alias is printed in the
+      // A speaker is named once, over their run, and the words always sit
+      // under the name. The real name behind an alias is printed in the
       // parentheses and nowhere else.
-      layout={stacked ? "stacked" : "log"}
       name={
-        stacked && !startsRun ? null : realName ? (
+        !startsRun ? null : realName ? (
           `${row.name} (${realName})`
         ) : line.canCard ? (
           // What you can see on them and what you remember of them, on hover (NameCard.js).
@@ -592,16 +590,13 @@ export default function Feed({
         const dayBreak = Boolean(prev) && row.turnNumber != null && row.turnNumber !== prev?.turnNumber;
         return {
           row,
-          // A run is one speaker talking: a change of speaker or a system line
-          // starts a new one, and the portrait heads it (@/lib/feedRuns). A GM
-          // reads the log shape, where seven minutes of silence also starts
-          // one. A player reads the stacked shape, where a run is what
-          // decides whether a line is named at all — so there it is the
-          // speaker alone, plus a new turn, never the clock (Chat
-          // Overhaul.docx: the name is omitted when the same character posts
-          // twice in a row).
-          startsRun: gm ? startsRun(prev, row) : startsRun(prev, row, Infinity) || dayBreak,
-          stacked: !gm,
+          // A run is one speaker talking: a change of speaker, a system line
+          // or a new turn starts a new one, and the portrait and the name head
+          // it (@/lib/feedRuns; Chat Overhaul.docx: the name is omitted when
+          // the same character posts twice in a row). A GM's desk also starts
+          // one after seven minutes of silence, so a long scene is re-named
+          // now and then; a player's run is the speaker alone.
+          startsRun: (gm ? startsRun(prev, row) : startsRun(prev, row, Infinity)) || dayBreak,
           mine,
           system,
           live: Boolean(row.seq && paintedAt && BigInt(row.seq) > BigInt(paintedAt)),

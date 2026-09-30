@@ -61,10 +61,15 @@ disagrees with this section, this section is right.
   well as the unread marks.
 - **The log's ground is plain `--bg`**, the player desk's. The top bar wears
   the ground tile instead (`shell.css`).
-- **A player reads names above the words.** The name sits on its own line
-  with the clock beside it, and a speaker's following lines carry no name
-  (`TranscriptLine`'s `layout="stacked"`). A new turn or a line from the game
-  names the speaker again. A GM keeps the one-line `Name: said` log.
+- **Everybody reads names above the words, always.** The name sits on its
+  own line with the clock beside it (`.tline-head`), and what was said is a
+  block of its own under it (`.tline-said`), so no formatting in a message can
+  pull the words up beside the name. A speaker's following lines carry no
+  name; their clock shows in the face's column on hover. A new turn or a line
+  from the game names the speaker again, and a GM's desk also re-names after
+  seven minutes of silence. There used to be a GM-only one-line `Name: said`
+  shape; it was removed on 2026-09-30 because names kept landing to the left
+  of the words.
 - **The log's type** is Bascinet's pick from the Chat Type Bench: 13px Verdana
   at 1.35, the words at weight 600 in `--chat-said`, names at 800, quoted
   speech in `--chat-speech`, and the game's own lines bold in
@@ -733,7 +738,9 @@ like everything else.
 
 ### Feed and composer details worth knowing
 
-- **A feed row is a LOG line, not a Discord message.** `TranscriptLine.js`'s
+- **A feed row is a LOG line, not a Discord message.** (History: the shape
+  below has since gone. A feed row now has the portrait and the name over the
+  words — see "Everybody reads names above the words" above.) `TranscriptLine.js`'s
   `density="feed"` draws no face and no per-row clock: one line —
   `Marrow Vance: Second tithe. They say that like it costs them something.` —
   a name in its estate's colour, a colon, then the words in `--text`, with only
@@ -753,8 +760,9 @@ like everything else.
 
   `ChatMarkdown`'s `.markdown-content` is a block element built for a
   thread's own paragraph — `.tline[data-density="feed"] .markdown-content` is
-  forced `display: inline` so the words run on from `"Name: "` on the same
-  line instead of dropping to one of their own.
+  forced `display: inline` so "(edited)" sits at the end of the words' last
+  line. The words still start under the name, because `.tline-said` around
+  them is a block.
 - **The feed row lights up under pointer AND keyboard** via `:hover` /
   `:focus-within`. The row action bar is always in the DOM and revealed by
   CSS, which is what makes it reachable by tab — a keyboard fires no
