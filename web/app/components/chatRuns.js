@@ -1,6 +1,8 @@
-// Finding a delimited run that has FORMATTING inside it — e.g. `he said
-// "*get out*"` — by scanning a parent's CHILD LIST rather than one string, so
-// sibling nodes between opener and closer pass through untouched. A tiny walk
+// Finding a delimited run that has FORMATTING inside it — e.g. `||the
+// *password*||` — by scanning a parent's CHILD LIST rather than one string, so
+// sibling nodes between opener and closer pass through untouched. Spoilers use
+// it; speech has its own pass (speechRuns.js), since a quote can cross from
+// one paragraph into the next and a spoiler never does. A tiny walk
 // of our own rather than unist-util-visit, for the reason remarkSubtext.js
 // gives — this file imports NOTHING, which is also what lets
 // db/test/chatFormatting.test.js load it with no build step.
@@ -12,7 +14,7 @@ const text = (value) => ({ type: "text", value });
 
 // How much text a sibling contributes, so a nested emphasis still counts against the length cap. Inline code or
 // raw html carries its text in `value`; a token, emoji or mention with nothing inside still counts as one thing,
-// so a quote holding only one of them is not "nothing between the marks".
+// so a run holding only one of them is not "nothing between the marks".
 function textLength(node) {
   if (typeof node.value === "string") return node.value.length;
   if (!Array.isArray(node.children) || node.children.length === 0) return 1;
@@ -22,7 +24,7 @@ function textLength(node) {
 }
 
 // The first closer at or after `startOffset` in child `from`, or null. Gives
-// up on a forbidden character, a hard break, or the cap, so one unmatched quote can't swallow the rest.
+// up on a forbidden character, a hard break, or the cap, so one unmatched opener can't swallow the rest.
 function findClose(children, from, startOffset, spec) {
   const close = new RegExp(spec.close.source, "g");
   let inner = 0;
@@ -55,18 +57,10 @@ function findClose(children, from, startOffset, spec) {
   return null;
 }
 
-// Speech wants the mark followed by a real character, possibly in the NEXT sibling (never whitespace).
-function opensHere(children, index, end, spec) {
-  if (!spec.openTight) return true;
-  const value = children[index].value;
-  if (end < value.length) return !/\s/.test(value[end]);
-  return index + 1 < children.length;
-}
-
-// The wrapper's children. `keepDelimiters` decides whether the marks go in — speech keeps quotes, a spoiler drops bars.
-function runChildren(children, from, open, close, spec) {
-  const start = spec.keepDelimiters ? open.start : open.end;
-  const end = spec.keepDelimiters ? close.end : close.start;
+// The wrapper's children: what sits between the marks, the marks themselves left out.
+function runChildren(children, from, open, close) {
+  const start = open.end;
+  const end = close.start;
 
   if (from === close.index) {
     const only = children[from].value.slice(start, end);
@@ -110,7 +104,7 @@ function scan(children, spec) {
       continue;
     }
 
-    const close = opensHere(children, i, hit.end, spec) ? findClose(children, i, hit.end, spec) : null;
+    const close = findClose(children, i, hit.end, spec);
 
     // An opener with no partner is just a character; carry on looking.
     if (!close) {
@@ -121,7 +115,7 @@ function scan(children, spec) {
 
     const before = node.value.slice(from, hit.start);
     if (before) out.push(text(before));
-    out.push(spec.build(runChildren(children, i, hit, close, spec)));
+    out.push(spec.build(runChildren(children, i, hit, close)));
 
     i = close.index;
     from = close.end;
@@ -136,7 +130,7 @@ function scan(children, spec) {
 
 // Walk and wrap every run of `spec` in place. Depth first, children before the parent, so a run built here is never scanned again.
 export default function wrapRuns(tree, spec) {
-  const full = { maxInner: 400, keepDelimiters: false, openTight: false, ...spec };
+  const full = { maxInner: 400, ...spec };
 
   (function walk(node) {
     if (!node || !Array.isArray(node.children) || node.children.length === 0) return;

@@ -35,10 +35,15 @@ test("spokenRanges covers each quote with its marks, and spokenSpans still strip
   assert.deepEqual(spokenSpans(text), ["get out", "go"]);
 });
 
-test("spokenRanges keeps the server's rules: no quote opening onto a space, none across a line, none in code", () => {
+test("spokenRanges keeps the server's rules: no quote opening onto a space, none in code", () => {
   assert.deepEqual(spokenRanges('a 6" board " and more'), []);
-  assert.deepEqual(spokenRanges('"one\ntwo"'), []);
   assert.deepEqual(spokenRanges('`"not"` but "yes"'), [{ start: 12, end: 17 }]);
+  assert.deepEqual(spokenRanges('he said "\nno'), []);
+});
+
+test("a quote runs over line breaks and blank lines", () => {
+  assert.deepEqual(spokenRanges('"one\ntwo"'), [{ start: 0, end: 9 }]);
+  assert.deepEqual(spokenSpans('*turns* "First.\n\nSecond." *leaves*'), ["First.\n\nSecond."]);
 });
 
 test("an emote and a quote each get their own look", async () => {

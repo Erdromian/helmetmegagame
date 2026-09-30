@@ -1,28 +1,16 @@
-// The extension is spelled out, unlike every other import here, so plain node
+// The extensions are spelled out, unlike every other import here, so plain node
 // can load this file: db/test/chatFormatting.test.js runs the two passes with
 // no bundler and no build step.
 import wrapRuns from "./chatRuns.js";
+import wrapSpeech from "./speechRuns.js";
 
 // The two things a chat line does that a document never does, as one remark plugin alongside remark-gfm,
 // remarkTokens and remarkDiscord in ChatMarkdown.js — `||like this||` a spoiler, `"like this"` quoted speech
 // (tinted with --speech, since the words somebody SAID are what a reader scans a wall of narration for).
-// BOTH PASSES SCAN SIBLINGS, not one text node — chatRuns.js says why (so `he said "*get out*"` still tints).
+// BOTH PASSES SEE PAST ONE TEXT NODE, so `he said "*get out*"` still tints — chatRuns.js says why.
 
-// Not greedy and no newlines: an unmatched quote must not swallow the rest of a long message looking for a
-// partner. No length cap, though — a speech runs as long as the speaker keeps talking, and the next mark or
-// line break already stops a stray one. Any double quote mark opens and any closes, straight or curly: which way
-// a curly one faces is the phone keyboard's guess, and it guesses “ after a dash, so `"Wait-“` must still close.
-// Nothing else between the marks can stop a quote. `openTight`: a quote opens on a real character, since
-// `he said " ` mid-sentence is punctuation, not speech. db/lib/speech.js is the server's copy of this rule.
-const SPEECH = {
-  open: /["“”„‟]/,
-  close: /["“”„‟]/,
-  forbidden: /\n/,
-  maxInner: Infinity,
-  openTight: true,
-  keepDelimiters: true,
-  build: (children) => element("span", "speech", children),
-};
+// Speech is found by db/lib/speech.js, the rule the server hears by, over the whole line read as text
+// (speechRuns.js). A quote runs over line breaks and blank lines, holds any formatting, and has no length cap.
 
 // Discord's own delimiter. Double pipes, nothing empty inside, and the bars
 // themselves are not part of what is hidden.
@@ -45,6 +33,6 @@ export default function remarkChat() {
   return (tree) => {
     // Spoilers before speech, so a quote inside a hidden line is still a quote once revealed.
     wrapRuns(tree, SPOILER);
-    wrapRuns(tree, SPEECH);
+    wrapSpeech(tree, (children) => element("span", "speech", children));
   };
 }

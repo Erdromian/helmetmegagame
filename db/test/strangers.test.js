@@ -39,8 +39,9 @@ test("the browser's rules for a quote hold here too", () => {
   assert.equal(hasSpeech('he said " and left'), false);
   // An opening mark must sit against a word.
   assert.equal(hasSpeech('" spaced"'), false);
-  // No line break inside a quote.
-  assert.equal(hasSpeech('"one\ntwo"'), false);
+  // A quote runs over line breaks, blank lines too.
+  assert.equal(spokenText('"one\ntwo"'), "one\ntwo");
+  assert.equal(spokenText('"one\n\ntwo" she says'), "one\n\ntwo");
   // Two marks with nothing between are not a quote.
   assert.equal(hasSpeech('""'), false);
   // No length cap: a long speech is still speech.
