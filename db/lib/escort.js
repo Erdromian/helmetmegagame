@@ -83,7 +83,13 @@ async function escortView(prisma, leader, { includeDead = true } = {}) {
   });
   const view = new Map();
   for (const row of room.named) {
-    view.set(row.characterId, { hidden: false, name: row.name, key: `character:${row.characterId}` });
+    view.set(row.characterId, {
+      hidden: false,
+      name: row.name,
+      key: `character:${row.characterId}`,
+      // The face the room draws them with, exactly as the Here list gets it.
+      face: { characterId: row.characterId, avatarPath: row.avatarPath ?? null, avatarVersion: row.avatarVersion ?? null },
+    });
   }
   const aliasByToken = new Map(room.concealed.filter((c) => c.token).map((c) => [c.token, c.alias]));
   for (const [token, id] of room.hoodIds ?? []) {
@@ -109,6 +115,13 @@ function escortKey(row, view = null) {
   const seen = view?.get(row?.id);
   if (seen) return seen.key;
   return view ? null : `character:${row.id}`;
+}
+
+// The face a list may draw: { characterId, avatarPath, avatarVersion }, or
+// null for a hood or anybody the view does not know. Never built from the key —
+// "character:<id>" is not an id, so /api/avatar answered it with a 404.
+function escortFace(row, view = null) {
+  return view?.get(row?.id)?.face ?? null;
 }
 
 // Is this row hidden from the viewer the view was built for?
@@ -431,6 +444,7 @@ module.exports = {
   escortView,
   escortName,
   escortKey,
+  escortFace,
   escortHidden,
   byShownName,
   partyOf,

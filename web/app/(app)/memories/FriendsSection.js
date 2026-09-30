@@ -42,6 +42,7 @@ function FriendCard({ friend, onEdit, onDelete }) {
         <div className="flex items-center gap-2" style={{ minWidth: 0 }}>
           <CharacterAvatar
             characterId={friend.faceId}
+            version={friend.faceVersion ?? undefined}
             name={friend.name}
             unknown={!friend.faceId}
             size={24}
