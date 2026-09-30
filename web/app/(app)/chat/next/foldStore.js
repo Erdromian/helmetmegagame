@@ -5,6 +5,10 @@ import { useCallback, useSyncExternalStore } from "react";
 // WHICH SECTIONS OF THE PLACES COLUMN THIS BROWSER HAS SHUT, and unlike the
 // column this replaces, it remembers across a reload.
 //
+// Strictly, the keys that differ from the default: a section that starts shut
+// (a GM's Locations, Rooms and Conversations, ./PlacesColumn.js) stores
+// `<key>:open` when opened. This store does not care; it only flips strings.
+//
 // It was session-only (a plain useState in ../PlacesColumn.js) and the comment
 // above it said why: folding used to break the column, because `.bar` took a
 // flex shorthand that set flex-grow: 1, and the one growing item in a flex

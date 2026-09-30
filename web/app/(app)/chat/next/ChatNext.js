@@ -672,6 +672,7 @@ export default function ChatNext(props) {
       notified={notified}
       newest={newest}
       onSelect={narrow ? onSelectFromDrawer : onSelect}
+      gm={gm}
       viewAs={viewAs ? { mode: viewAs.mode, onChange: onChangeViewAs } : null}
       you={
         aside ? (
