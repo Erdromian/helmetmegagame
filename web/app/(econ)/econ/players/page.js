@@ -11,11 +11,12 @@
 // Fields shown: obols and resources on hand, the bank claim, hunger, and
 // every held tag isEconomicTag() (web/lib/economicTags.js) allows through —
 // Items, Assets, and the Crafting/Brewing/Medical/Work skill groups. Health,
-// Status, General, Meta, Demoness and anything catalog:secret never reach
-// this page at all; they aren't even selected off the database.
+// Status, General, Meta, Demoness, anything catalog:secret or behind a secret
+// gate, and every written sheet or photograph never reach this page at all;
+// the rows are cut here on the server, so the browser is never sent them.
 
 import { prisma } from "@lifeweb/db";
-import { isEconomicTag } from "@/lib/economicTags";
+import { isEconomicTag, ECONOMIC_TAG_RULE_SELECT } from "@/lib/economicTags";
 import EconRosterTable from "./EconRosterTable";
 
 export const metadata = {
@@ -46,11 +47,9 @@ export default async function EconPlayersPage() {
             select: {
               slug: true,
               name: true,
-              category: true,
-              catalogVisibility: true,
               sprite: true,
               mastery: true,
-              group: { select: { slug: true, name: true } },
+              ...ECONOMIC_TAG_RULE_SELECT,
             },
           },
         },
@@ -65,7 +64,21 @@ export default async function EconPlayersPage() {
     // The Baron's CROWN account is the Vault, not money of their own; showing
     // the pile here would count the whole treasury as one person's funds.
     const banked = c.bankAccount?.class === "CROWN" ? 0 : (c.bankAccount?.balanceObols ?? 0);
-    const tags = c.tags.filter((ct) => !MONEY_SLUGS.has(ct.tag.slug) && isEconomicTag(ct.tag));
+    // Only the chip's own fields cross to the browser: the gate columns the
+    // rule read stay on the server.
+    const tags = c.tags
+      .filter((ct) => !MONEY_SLUGS.has(ct.tag.slug) && isEconomicTag(ct.tag))
+      .map(({ quantity, tag }) => ({
+        quantity,
+        tag: {
+          slug: tag.slug,
+          name: tag.name,
+          category: tag.category,
+          sprite: tag.sprite,
+          mastery: tag.mastery,
+          group: tag.group ? { slug: tag.group.slug, name: tag.group.name } : null,
+        },
+      }));
     return {
       id: c.id,
       name: c.name,

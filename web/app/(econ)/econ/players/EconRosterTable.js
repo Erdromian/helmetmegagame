@@ -11,9 +11,13 @@ import ChipLabel from "@/app/components/ChipLabel";
 const COLS = 7;
 
 export default function EconRosterTable({ rows }) {
+  // The search runs over every row the page loaded — the whole ALIVE roster —
+  // and the pager cuts the matches afterwards, so a hit on page three is
+  // found from page one. A tag's name is a search field too: "pickaxe" lists
+  // everyone holding one, which is the question this page is for.
   const { pageRows, query, setQuery, sort, toggleSort, page, totalPages, total, setPage } = useTableState({
     rows,
-    searchFields: [(r) => r.name, (r) => r.location, (r) => r.zone],
+    searchFields: [(r) => r.name, (r) => r.location, (r) => r.zone, (r) => r.tags.map((ct) => ct.tag.name).join(" ")],
     filterDefs: [],
     initialSort: { key: "name", dir: "asc" },
     pageSize: 50,
@@ -29,7 +33,7 @@ export default function EconRosterTable({ rows }) {
         query={query}
         setQuery={setQuery}
         searchLabel="Search"
-        searchPlaceholder="Name, zone, location…"
+        searchPlaceholder="Name, zone, location, tag…"
       />
       <TableScroll>
         <thead>
