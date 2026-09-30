@@ -1060,21 +1060,6 @@
   margin-bottom: 1px;
 }
 
-/* WHAT WAS SAID, always a block under the name (TranscriptLine.js). A line
-   that runs out of room carries on indented by --sp-2, the same gap the name
-   keeps from the portrait, so a wrapped line reads as more of the same line.
-   `each-line` keeps a line the writer broke with Enter (a <br>, or the blank
-   line between paragraphs below) flush with the first: only a WRAPPED line
-   indents. Nested blocks inside a message (the edit box, a list, a quote)
-   start over at zero. */
-.tline[data-density="feed"] .tline-said {
-  text-indent: var(--sp-2) hanging each-line;
-}
-
-.tline[data-density="feed"] .tline-said :is(div, ul, ol, blockquote, pre, textarea) {
-  text-indent: 0;
-}
-
 /* THE BODY OF A ROW, in the ordinary text colour. It used to be painted
    --speech wholesale, which made the salmon mean nothing: narration and the
    words somebody actually said came out the same colour, and the quote tint

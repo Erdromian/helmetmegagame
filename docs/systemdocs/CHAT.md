@@ -69,9 +69,7 @@ disagrees with this section, this section is right.
   from the game names the speaker again, and a GM's desk also re-names after
   seven minutes of silence. There used to be a GM-only one-line `Name: said`
   shape; it was removed on 2026-09-30 because names kept landing to the left
-  of the words. A line that wraps carries on indented by `--sp-2`, the gap
-  between the portrait and the name; a line the writer broke with Enter stays
-  flush (`text-indent: … hanging each-line`).
+  of the words.
 - **The log's type** is Bascinet's pick from the Chat Type Bench: 13px Verdana
   at 1.35, the words at weight 600 in `--chat-said`, names at 800, quoted
   speech in `--chat-speech`, and the game's own lines bold in
