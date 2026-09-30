@@ -29,7 +29,9 @@ import { gmReadBoard, gmReadNotice, gmTearNotice, gmPostNotice } from "./actions
 // What does NOT differ is the line the room hears. A GM's pin and a GM's tear
 // raise the same anonymous ambient a player's does — it names the paper and
 // never the person — so nobody standing there can tell one from the other.
-export default function GmNoticeboardDialog({ placeKey, onClose }) {
+// `onChanged` tells the notice cards at the top of the street to re-read
+// (./GmNoticeCards.js), the way the player's dialog and cards share a counter.
+export default function GmNoticeboardDialog({ placeKey, onClose, onChanged = null }) {
   const [board, setBoard] = useState(null);
   const [reading, setReading] = useState(null);
   const [title, setTitle] = useState("");
@@ -101,6 +103,7 @@ export default function GmNoticeboardDialog({ placeKey, onClose }) {
                 onOk: () => {
                   setReading(null);
                   load();
+                  onChanged?.();
                 },
               });
             }}
@@ -152,6 +155,7 @@ export default function GmNoticeboardDialog({ placeKey, onClose }) {
                 setTitle("");
                 setBody("");
                 load();
+                onChanged?.();
               },
             })
           }

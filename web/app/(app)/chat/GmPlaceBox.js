@@ -10,7 +10,7 @@ import GmNoticeboardDialog from "./GmNoticeboardDialog";
 // scene is a box a GM can already type into, and two writing boxes on one
 // screen is one too many. A GM with a line of scenery to lay down types it
 // there, or on /gm/dev, which still carries the full ambient form.
-export default function GmPlaceBox({ selected }) {
+export default function GmPlaceBox({ selected, onBoardChanged = null }) {
   const [board, setBoard] = useState(false);
   const placeKey = selected?.placeKey ?? null;
 
@@ -25,7 +25,9 @@ export default function GmPlaceBox({ selected }) {
           Noticeboard
         </button>
       </div>
-      {board && <GmNoticeboardDialog placeKey={placeKey} onClose={() => setBoard(false)} />}
+      {board && (
+        <GmNoticeboardDialog placeKey={placeKey} onClose={() => setBoard(false)} onChanged={onBoardChanged} />
+      )}
     </div>
   );
 }

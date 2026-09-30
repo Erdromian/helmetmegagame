@@ -488,8 +488,9 @@ async function FreshChat({ userId }) {
   //
   // `playing` as well as `character`: the thread belongs to the ACCOUNT, not
   // the body (Chat.js draws the row off `self.discordUserId`), so a GM sitting
-  // in the GM seat still has their own mail and still wants the dot on it.
-  const newestDm = viewer.character || viewer.playing || viewer.ghost
+  // in the GM seat still has their own mail and still wants the dot on it —
+  // and so does a GM who plays nobody, whose row is drawn all the same.
+  const newestDm = viewer.character || viewer.playing || viewer.ghost || viewer.gm
     ? await prisma.directMessage.findFirst({
         where: withoutDmNoise(
           { discordUserId: viewer.discordUserId, direction: "OUTBOUND" },
@@ -599,6 +600,11 @@ async function FreshChat({ userId }) {
         }
       : null,
     dmNewestMs: newestDm?.createdAt?.getTime?.() ?? null,
+    // The open turn for a seat with no column to carry it: the phone drawer's
+    // title says the day, and a GM's read "NO TURN OPEN" every day of the game.
+    openTurn: aside
+      ? null
+      : await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true, dayNumber: true } }),
     navItems: await navItemsPromise,
     // Not a control any more — only what the composer CALLS itself while a
     // hood is up.

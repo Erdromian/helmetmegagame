@@ -18,6 +18,8 @@ export const NO_GM_TOOLS = {
   NextGmAside: nothing,
   GmSystemComposer: nothing,
   DecreeDialog: nothing,
+  GmNoticeCards: nothing,
+  GmSpeakerPanel: nothing,
 };
 
 export const GmToolsContext = createContext(NO_GM_TOOLS);
