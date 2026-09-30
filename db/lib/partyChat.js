@@ -12,6 +12,13 @@
 // each escort mutation and after each leader move. `teardownPartyThread`
 // deletes the Discord thread and the row when the party dissolves.
 //
+// The web reads the same rows (db/lib/feedAccess.js#partyPlacesFor), but only
+// re-reads them when a presence NOTIFY says this character's places changed.
+// So every seat added or taken away here, and every teardown, notifies the
+// people it touched. Without that, /chat never showed a party until a reload
+// or a walk, and after Leave and a second Bring it kept showing the first,
+// deleted party instead of the new one.
+//
 // Bleed: the whisper poll picks a random public Room in the leader's current
 // Location and drops a fragment there. This module owns the room-picker; the
 // poll (bot/src/lib/whisperPoll.js) walks the rows and does the aliasing.
@@ -29,6 +36,7 @@ const {
 const { concealedAlias } = require("./concealedIdentity");
 const { formatBareName } = require("./characterName");
 const { partyOf } = require("./escort");
+const { notifyPresence } = require("./presenceNotify");
 
 // Per-member overwrites on the #party parent channel, Deadchat-style
 // (db/lib/deadchat.js#openDeadchatTo). The parent denies @everyone VIEW, so a
@@ -120,10 +128,43 @@ async function loadLeader(prisma, leaderId) {
       age: true,
       gender: true,
       locationId: true,
+      escortedById: true,
       discordUserId: true,
       discordMirrored: true,
     },
   });
+}
+
+// Tell each character's open /chat tabs to re-read their places.
+async function notifyPlaces(prisma, ids) {
+  for (const id of new Set(ids)) await notifyPresence(prisma, id);
+}
+
+// Seats somebody still holds in a party they are no longer part of. A
+// follower who walks off under their own power clears escortedById
+// (locationTravel.js), and the move then syncs THEM, not the leader they left,
+// so the old leader's thread kept them as a member. The same happens when a
+// FORCED pick-up takes somebody off another leader. A seat is stale when its
+// thread belongs to neither the character nor the leader they ride with now;
+// syncing that thread's leader drops it. `rows` need `id` and `escortedById`.
+async function releaseStaleSeats(prisma, rows, visited) {
+  if (rows.length === 0) return;
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const seats = await prisma.partyThreadMember.findMany({
+    where: { characterId: { in: [...byId.keys()] } },
+    select: { characterId: true, partyThread: { select: { creatorCharacterId: true } } },
+  });
+  const leaders = new Set();
+  for (const seat of seats) {
+    const row = byId.get(seat.characterId);
+    const creator = seat.partyThread.creatorCharacterId;
+    if (creator === row.id || creator === row.escortedById) continue;
+    leaders.add(creator);
+  }
+  for (const other of leaders) {
+    if (visited.has(other)) continue;
+    await syncPartyMembership(prisma, other, { visited });
+  }
 }
 
 // Idempotent: returns the PartyThread row for a leader, opening one on Discord
@@ -174,19 +215,24 @@ async function ensurePartyThreadFor(prisma, leader) {
 // Reconcile PartyThreadMember rows and the Discord thread's member list
 // against the current escort chain. Call this after every escort mutation
 // (attach, detach, releaseParty) and after the leader moves.
-async function syncPartyMembership(prisma, leader) {
+// `visited` is internal: the leaders already synced by this call, so the
+// stale-seat pass below never walks back into one.
+async function syncPartyMembership(prisma, leader, { visited = new Set() } = {}) {
   const leaderId = typeof leader === "string" ? leader : leader?.id;
   if (!leaderId) return null;
+  visited.add(leaderId);
 
-  const party = await partyOf(prisma, leaderId);
+  const [party, leaderRow] = await Promise.all([partyOf(prisma, leaderId), loadLeader(prisma, leaderId)]);
   if (party.length === 0) {
-    return teardownPartyThread(prisma, leaderId);
+    await teardownPartyThread(prisma, leaderId);
+    // Leading nobody, but maybe still seated in a party they walked out of.
+    if (leaderRow) await releaseStaleSeats(prisma, [leaderRow], visited);
+    return null;
   }
 
-  const thread = await ensurePartyThreadFor(prisma, leader);
+  const thread = await ensurePartyThreadFor(prisma, leaderRow ?? leader);
   if (!thread) return null;
 
-  const leaderRow = await loadLeader(prisma, leaderId);
   if (leaderRow && leaderRow.locationId !== thread.currentLocationId) {
     await prisma.partyThread.update({
       where: { id: thread.id },
@@ -214,11 +260,15 @@ async function syncPartyMembership(prisma, leader) {
   });
   const discord = new Map(discordRows.map((r) => [r.id, r]));
 
+  // Whose place list this call changes: everyone seated or unseated below.
+  const moved = [];
+
   // Add newcomers. Order matters: the per-member overwrite on #party lands
   // BEFORE the thread invite, since Discord checks the parent's view bit when
   // the invite is issued. Without it, addThreadMember 403s (Missing Access).
   for (const [id, _row] of wanted) {
     if (existingIds.has(id)) continue;
+    moved.push(id);
     await prisma.partyThreadMember
       .create({ data: { partyThreadId: thread.id, characterId: id } })
       .catch((err) => console.error(`Party: member row for ${id} failed:`, err.message ?? err));
@@ -237,6 +287,7 @@ async function syncPartyMembership(prisma, leader) {
   // seat closed.
   for (const id of existingIds) {
     if (wanted.has(id)) continue;
+    moved.push(id);
     await prisma.partyThreadMember
       .deleteMany({ where: { partyThreadId: thread.id, characterId: id } })
       .catch((err) => console.error(`Party: removing member row for ${id} failed:`, err.message ?? err));
@@ -249,6 +300,9 @@ async function syncPartyMembership(prisma, leader) {
     }
   }
 
+  await notifyPlaces(prisma, moved);
+  // Anybody just seated here may still hold a seat in the party they came from.
+  await releaseStaleSeats(prisma, [...wanted.values()], visited);
   return thread;
 }
 
@@ -289,6 +343,7 @@ async function teardownPartyThread(prisma, leader) {
   await prisma.partyThread
     .delete({ where: { id: row.id } })
     .catch((err) => console.error(`Party row delete for ${row.id} failed:`, err.message ?? err));
+  await notifyPlaces(prisma, [leaderId, ...memberIds]);
   return null;
 }
 

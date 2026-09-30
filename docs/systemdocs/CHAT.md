@@ -578,13 +578,15 @@ or changed while the tab was away.
 **Presence.** `db/lib/presenceNotify.js#notifyPresence(prisma, characterId)`
 carries a character id and nothing else, because "which places may they see
 now" is a query the listener has to run again anyway — and running it on the
-reader's side is what keeps a notification from being an authorisation. Five
+reader's side is what keeps a notification from being an authorisation. Six
 things fire it: the feet (`applyLocationMoveSideEffects`), a key
 (`syncCharacterRoomAccess`, only when the entitled set actually changes),
 being let into or out of a conversation (`db/lib/conversations.js`), a room
-guest being added or shown out (`web/app/(app)/chat/actions.js`), and the
-Discord opt-in switch (`db/lib/discordMirroring.js` — the place list is
-unchanged, the chip in the column is not). The stream re-reads the character (its Location moved, and the viewer it
+guest being added or shown out (`web/app/(app)/chat/actions.js`), a seat in a
+party chat given or taken, or the party closed (`db/lib/partyChat.js`, for
+everyone it touched), and the Discord opt-in switch
+(`db/lib/discordMirroring.js` — the place list is unchanged, the chip in the
+column is not). The stream re-reads the character (its Location moved, and the viewer it
 opened with is stale), recomputes the place list, moves its subscriptions,
 sends `places` with `reason: "presence"`, and catches the newly visible places
 up from its own high-water mark rather than from zero — so walking into a room
