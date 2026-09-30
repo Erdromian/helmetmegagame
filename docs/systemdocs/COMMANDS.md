@@ -144,8 +144,9 @@ endpoint is used rather than `channel.members.add`, which would ping-mention
 them in the channel. The target is DM'd instead — where they were let in, and
 a link, never the content. Discord's own "added to a thread" notice is easy to
 miss and says nothing about where.
-Mentions into a Conversation follow the same contract — a character-role
-mention there is also an invite (`bot/src/events/messageCreate.js`).
+**`/add` is the only way in.** A mention into a Conversation — an `@` on
+Discord or a pick from the `@` menu on `/chat` — used to invite as well, and no
+longer does: it notifies the members and nobody else (`PROXYING.md` §6).
 
 **`/remove`** deletes the invite row and then removes the thread member. If the
 bot is missing `Manage Threads` the caller is told so, rather than seeing "the

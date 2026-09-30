@@ -31,6 +31,9 @@ const { checkSpeechBucket, OOC_CAPACITY, OOC_REFILL_MS } = require("./speechRate
 const { loadPresentedIdentity } = require("./presentedIdentity");
 const { stampMentionNames, rolesToTokens, tokensToRoles, canHearPing } = require("./characterMentions");
 const { pushToUser } = require("./webPush");
+const { sendDm } = require("./dm"); // by path, never the barrel — three exports share the name (CLAUDE.md)
+const { MENTION_SOURCE } = require("./dmKinds");
+const { witnessIdsAt } = require("./archiveWitnesses");
 
 // The same cap bot/src/lib/feedOutbox.js puts on a web mention: a line naming half the room is one line, not
 // twenty notifications.
@@ -266,8 +269,8 @@ async function deliverOoc(
     // parse: ["users"] — a player pinging another player is exactly what OOC
     // is for. Role and @everyone/@here mentions stay blocked: character roles
     // are empty, and an @everyone from a player-typed line is a footgun.
-    await postMessage(channelId, line, undefined, { parse: ["users"] });
-    await relayOocMentions(prisma, { placeKey, characters });
+    const posted = await postMessage(channelId, line, undefined, { parse: ["users"] });
+    await relayOocMentions(prisma, { placeKey, characters, channelId, messageId: posted?.id ?? null });
   } catch (err) {
     console.error(`OOC into ${placeKey} failed:`, err?.message ?? err);
   }
@@ -275,14 +278,20 @@ async function deliverOoc(
 
 // Somebody's name was in an OOC line. Same contract as every other relay in the game
 // (bot/src/lib/mentions.js#notifyMentioned, bot/src/lib/feedOutbox.js#relayWebMentions): a browser push saying
-// where, never the words, and no Discord DM. It has to live here rather than in the outbox, because an OOC row is
+// where, never the words, and a Discord DM with a jump link when the target witnesses the place it was said
+// in (PROXYING.md §6). Every target here is an `@` — `characters` are tokens, never bare names.
+// It has to live here rather than in the outbox, because an OOC row is
 // a SYSTEM row (db/lib/scene.js) and the outbox only carries WEB ones — which is why an OOC mention used to notify
 // nobody at all even once it resolved.
 //
 // Best-effort like everything else past the rate-limit claim: a failed push is one player un-nudged, never a
 // thrown send.
-async function relayOocMentions(prisma, { placeKey, characters = [] }) {
+async function relayOocMentions(prisma, { placeKey, characters = [], channelId = null, messageId = null }) {
   if (characters.length === 0) return;
+
+  const guildId = process.env.DISCORD_GUILD_ID;
+  const link = guildId && channelId && messageId ? `https://discord.com/channels/${guildId}/${channelId}/${messageId}` : null;
+  const witnessIds = link ? await witnessIdsAt(prisma, placeKey).catch(() => null) : null;
 
   const context = await archiveContextForPlaceKey(prisma, placeKey).catch(() => null);
   const place = context?.zoneName ?? (context?.channelKind ? `#${context.channelKind}` : "somewhere");
@@ -292,6 +301,12 @@ async function relayOocMentions(prisma, { placeKey, characters = [] }) {
     if (!person?.discordUserId) continue;
     // A ping must not carry further than the place it was typed in, the same rule a spoken one follows.
     if (!(await canHearPing(prisma, person, placeKey).catch(() => false))) continue;
+    if (witnessIds?.has(person.id)) {
+      await sendDm(prisma, person.discordUserId, `*You were mentioned in ${where}.*\n${link}`, {
+        source: MENTION_SOURCE,
+        meta: { placeKey, where },
+      }).catch((err) => console.error(`OOC mention DM to ${person.name} failed:`, err?.message ?? err));
+    }
     // Browser notification for a closed /chat tab, wrapped so a failed push never costs the send.
     await pushToUser(prisma, person.discordUserId, {
       title: `${person.name} was named`,

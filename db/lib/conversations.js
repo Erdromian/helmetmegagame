@@ -1,8 +1,7 @@
 // Conversation (PlayerThread) membership: the row is truth, Discord is its
 // projection. Takes `prisma` as a param (db/lib/dm.js convention — db/index.js imports this).
 
-const { mentionedIdsIn } = require("./characterMentions");
-const { presentedMembers, presentedNameOf } = require("./presentedMembers");
+const { presentedMembers } = require("./presentedMembers");
 const { notifyPresence } = require("./presenceNotify");
 
 // Writers work from a Discord THREAD id; PlayerThread.id is the row's own cuid.
@@ -106,57 +105,10 @@ async function conversationMembers(prisma, playerThreadId, viewer, options) {
   return presentedMembers(prisma, rows.map((row) => row.characterId), viewer, options);
 }
 
-// Pinging pulls someone IN, like Discord. Follows the returned-side-effects
-// pattern (ARCHITECTURE.md): writes PlayerThreadMember + PlayerThreadInvite; caller does Discord adds/DMs. Speaker can't pull themselves in.
-async function pullMentionedIntoConversation(prisma, { conversation, content, speakerId } = {}) {
-  if (!conversation?.id || typeof content !== "string") return [];
-
-  const wanted = mentionedIdsIn(content).filter((id) => id !== speakerId);
-  if (wanted.length === 0) return [];
-
-  const members = await prisma.playerThreadMember.findMany({
-    where: { playerThreadId: conversation.id, characterId: { in: wanted } },
-    select: { characterId: true },
-  });
-  const inside = new Set(members.map((row) => row.characterId));
-  const outside = wanted.filter((id) => !inside.has(id));
-  if (outside.length === 0) return [];
-
-  // Living only, re-read from the DB rather than trusted off the token ({char:…} is player-typed text).
-  const targets = await prisma.character.findMany({
-    where: { id: { in: outside }, status: "ALIVE" },
-    select: { id: true, name: true, locationId: true, discordUserId: true, discordMirrored: true },
-  });
-
-  const added = [];
-  for (const target of targets) {
-    const isNew = await addConversationMember(prisma, {
-      playerThreadId: conversation.id,
-      characterId: target.id,
-    });
-    if (!isNew) continue;
-
-    if (conversation.threadId) {
-      await prisma.playerThreadInvite
-        .upsert({
-          where: { threadId_characterId: { threadId: conversation.threadId, characterId: target.id } },
-          update: {},
-          create: { threadId: conversation.threadId, characterId: target.id },
-        })
-        .catch((err) => console.error("Failed to record thread invite:", err?.message ?? err));
-    }
-    // `name` is for the Discord half; `shownName` is what belongs in a sentence.
-    const shownName = await presentedNameOf(prisma, target.id, { id: speakerId });
-    added.push({ ...target, shownName });
-  }
-  return added;
-}
-
 module.exports = {
   conversationMemberIds,
   isConversationMember,
   addConversationMember,
-  pullMentionedIntoConversation,
   removeConversationMember,
   conversationsFor,
   conversationMembers,

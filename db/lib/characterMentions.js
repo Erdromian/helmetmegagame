@@ -198,10 +198,10 @@ function inEarshot(character, earshot) {
 // mention on both faces (REDESIGN.md §2, §6). The predicate is db/lib/mentions.js,
 // which asks no database; this is the query that hands it its candidates.
 //
-// NOTIFY-ONLY, and the callers must keep it that way. An explicit `{char:…}`
-// mention inside a Conversation is also an INVITE — it adds the person to the
-// thread — and a bare name must never be, or "Marrow said the bell had gone"
-// typed in a private conversation would pull Marrow into it.
+// PUSH-ONLY, and the callers must keep it that way. An explicit `{char:…}` or
+// role `@` can also DM its target, when they witness the place it was said in
+// (PROXYING.md §6) — and a bare name must never, or "Marrow said the
+// bell had gone" would DM Marrow.
 //
 // Earshot is the same rule a role ping obeys (PROXYING.md §6): a Location, Room
 // or Conversation gates on the Location around it, a zone summary on the zone. So

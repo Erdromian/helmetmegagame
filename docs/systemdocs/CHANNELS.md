@@ -459,8 +459,8 @@ Discord half), the mirror and channel doctor (`location-occupancy`, the zone
 exclude them), `db/lib/roomAccess.js#syncCharacterRoomAccess` (entitlement is
 empty, so the diff evicts rather than adds), the invite replay
 (`db/lib/threadInvites.js` writes the membership row and skips the Discord add,
-keeping the invite for the day the switch comes on), the three Conversation
-thread-adds (`/add`, a mention, Converse — the row yes, the account no), the
+keeping the invite for the day the switch comes on), the two Conversation
+thread-adds (`/add` and Converse — the row yes, the account no), the
 guest add in a private Room, and the rejoin restore in
 `bot/src/lib/locationTravel.js#restoreStandingRoles`. Miss one and an overnight mirror or doctor pass quietly un-hides
 somebody who believes they are hidden.
@@ -635,9 +635,9 @@ whispering is heard in, §below).
 
 **Membership is a database row now, and Discord's thread member list is its
 projection.** `PlayerThreadMember (playerThreadId, characterId)` is written
-first by all four writers — Converse (the creator), `/add`, a mention into the
-conversation, and the invite replay — and `/remove` deletes it; the Discord
-add follows. All four go through `db/lib/conversations.js`, so there is one
+first by all three writers — Converse (the creator), `/add`, and the invite
+replay — and `/remove` deletes it; the Discord add follows. A mention is not a
+writer: it used to be, and now only notifies (`PROXYING.md` §6). All three go through `db/lib/conversations.js`, so there is one
 answer to "who is in this". The reason is `CHAT.md` §2a: the web feed could
 not read a Discord member list without a REST call per conversation, and a
 player whose account is out of the channels entirely (the coming "web only"

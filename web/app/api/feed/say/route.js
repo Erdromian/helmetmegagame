@@ -1,9 +1,7 @@
 import { prisma, feedRowShape } from "@lifeweb/db";
 import { sayInPieces } from "@lifeweb/db/lib/say";
 import { touchCharacterActivity } from "@lifeweb/db/lib/characterActivity";
-import { archiveContextForPlaceKey, parsePlaceKey } from "@lifeweb/db/lib/placeKey";
-import { pullMentionedIntoConversation } from "@lifeweb/db/lib/conversations";
-import { addThreadMember } from "@lifeweb/db/lib/discordRest";
+import { archiveContextForPlaceKey } from "@lifeweb/db/lib/placeKey";
 import { loadFeedCharacter } from "@/lib/feedAccess";
 import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
@@ -96,22 +94,6 @@ export async function POST(request) {
   // the thing that report is looking for.
   if (!ghost) await touchCharacterActivity(prisma, character.id).catch(() => {});
 
-  // Pinging somebody in a conversation puts them in it, the way Discord does
-  // when you @ a stranger in a thread. Only here, on the web path: a mention
-  // typed into Discord is already handled by Discord itself.
-  //
-  // AFTER the row is written, never before, and never able to fail the send —
-  // the words are the point, and a Discord hiccup must not cost them.
-  //
-  // Never from Deadchat. `pullIntoConversation` no-ops on a non-conv: key anyway, but a ghost
-  // @-ing a living player into a thread would be the dead reaching into the world, which is the one
-  // thing this seat must not do — so it is refused by name rather than by accident.
-  if (!ghost) {
-    await pullIntoConversation(character, place, said.rows.map((r) => r.content).join("\n") || content).catch((err) =>
-      console.error("Mention thread-add failed:", err?.message ?? err),
-    );
-  }
-
   // The FIRST row is the one the sending tab already drew, so it is the one
   // that comes back — it carries the clientId and replaces the pending twin.
   // Any pieces after it arrive on the stream like anybody else's message.
@@ -124,40 +106,4 @@ export async function POST(request) {
     }),
     pieces: said.pieces,
   });
-}
-
-// The membership rows are written in db/lib (returned-side-effects, so the
-// same helper serves either face); what is left here is the Discord half, with
-// the REST client this face holds.
-async function pullIntoConversation(character, placeKey, content) {
-  const parsed = parsePlaceKey(placeKey);
-  if (parsed?.kind !== "conv") return;
-
-  const conversation = await prisma.playerThread.findUnique({
-    where: { id: parsed.id },
-    select: { id: true, threadId: true, locationId: true },
-  });
-  if (!conversation) return;
-
-  const added = await pullMentionedIntoConversation(prisma, {
-    conversation,
-    content,
-    speakerId: character.id,
-  });
-
-  for (const target of added) {
-    // A character not mirrored to Discord is out of every Discord channel on
-    // purpose (CHAT.md §6), and somebody standing elsewhere gets the invite
-    // row instead — it replays when they reach the Location. No DM: the
-    // outbox's mention relay sends the browser push, and a mention sends no
-    // Discord DM.
-    if (
-      conversation.threadId &&
-      target.locationId === conversation.locationId &&
-      target.discordMirrored &&
-      target.discordUserId
-    ) {
-      await addThreadMember(conversation.threadId, target.discordUserId).catch(() => {});
-    }
-  }
 }

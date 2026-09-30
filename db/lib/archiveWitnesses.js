@@ -62,6 +62,17 @@ function witnessesFrom(row, present = []) {
   return [...out].map(([id, name]) => ({ id, name }));
 }
 
+// Who would witness a line said right now at this place, as a Set of ids — the
+// same rule as the row's own witnesses: a street or a zone summary is everyone
+// standing in it, a Room everyone let through its gate, a Conversation its
+// members standing there. A place nobody stands in (a special channel) answers
+// an empty set. An @ DMs its target on Discord only when they are in this set
+// (PROXYING.md §6).
+async function witnessIdsAt(prisma, placeKey, speakerId = null) {
+  const present = await presentAt(prisma, placeKey, speakerId);
+  return new Set(witnessesFrom({ characterId: speakerId }, present).map((w) => w.id));
+}
+
 // The two columns, kept in step: the same person at the same index in both.
 function witnessColumns(people = []) {
   const seen = new Set();
@@ -93,4 +104,4 @@ async function archiveWitnessOptions(prisma, gameId) {
     .sort((a, b) => a.name.localeCompare(b.name));
 }
 
-module.exports = { presentAt, witnessesFrom, witnessColumns, archiveWitnessOptions, NO_WITNESS_KINDS };
+module.exports = { presentAt, witnessesFrom, witnessIdsAt, witnessColumns, archiveWitnessOptions, NO_WITNESS_KINDS };
