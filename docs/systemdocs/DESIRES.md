@@ -232,9 +232,9 @@ catches a Desire being renamed or deleted out from under a lock.
 ### `slot: bottom`
 
 A clause may also carry `slot: bottom`, which narrows it to the character's
-**last** slot and leaves every other slot untouched. `bottom` is the only
-accepted value: the rule is "your last slot", not "slot N", and `desireSlots`
-is live-editable, so the grammar deliberately can't name an index.
+**last** slot and leaves every other slot untouched. `bottom` and `top` (below)
+are the only accepted values: the rule is "your last slot", not "slot N", and
+`desireSlots` is live-editable, so the grammar deliberately can't name an index.
 
 That is what an Addiction is now (§5) — five of the six read:
 
@@ -270,6 +270,36 @@ whole of a creation budget. Two things follow from the shape. It is not a
 it is. And the `heroin` family exists solely to hold the one Desire it leaves
 standing — a lock reaches a FAMILY and never a single slug, so a Desire that
 has to stand alone needs a family to itself.
+
+### `slot: top`
+
+`slot: top` narrows a clause to the **first** slot, and it does one more thing
+`bottom` does not: it **claims** that slot. Where a held tag has a top clause,
+it is the only lock read in the first slot — every other clause, a
+whole-catalog one like Depressed or Rage included, reaches only the slots after
+it. With one Desire slot, top and bottom are the same slot, and top wins.
+
+The Thanati's is the one in use:
+
+```yaml
+desires:
+  locks:
+    - all: true
+      exceptFamilies: [thanati, cruelty, violence, feud, betrayal]
+      slot: top
+```
+
+So an operative's first slot always wants what the cult wants, whatever else
+they carry, and their other slots are left to the rest of their life. The
+Thanati Leader is still locked in every slot: `thanati-leader` carries the same
+clause with no `slot`, which shuts every slot after the first.
+
+In `evaluateDesireCatalog`, a whole-catalog lock under a top claim is written
+into `slotLocks` for every slot but the first, and only turns the template's
+`state` to `locked` when the first slot is shut as well.
+`describeDesireLocks` says so: *"Thanati shuts your first Desire slot to
+everything outside …, whatever else you hold."*, and a whole-catalog lock beside
+it reads *"… shuts your other Desire slots …"*.
 
 Because the same template can be claimable in one slot and shut in another,
 this half does NOT collapse into a template's `state`. `evaluateDesireCatalog`
@@ -933,7 +963,7 @@ The section number is kept rather than renumbering everything below it.
 | `docs/desires.yaml` | Sole master for the `DesireTemplate` catalog — families header + desire entries |
 | `db/lib/syncDesires.js` | `docs/desires.yaml` → DB. Four-pass soft-retire sync, `npm run db:sync-desires` / `db/scripts/sync/sync-desires.js` |
 | `db/lib/desireFamilies.js` | Reads only the `families:` / `familyGroups:` headers — `desireFamilyKeys` for `db/lib/syncTags.js` to validate a tag's `desires.locks` families against, `desireFamilies` (key/name/group/colour) and `desireFamilyGroups` for the picker. Tolerates a missing `desires.yaml` |
-| `db/lib/desireShapes.js` | Normalizes/validates `Tag.desires.locks` (the clause grammar in §3, `slot: bottom` included) — shared by `syncTags.js` and, eventually, a GM tag-form editor |
+| `db/lib/desireShapes.js` | Normalizes/validates `Tag.desires.locks` (the clause grammar in §3, `slot: bottom` and `slot: top` included) — shared by `syncTags.js` and, eventually, a GM tag-form editor |
 | `db/lib/desireGates.js` | Pure gate evaluator, no DB. `evaluateDesireCatalog` (visible/hidden catalog per character, plus per-entry `slotLocks`), `slotStates` (per-slot lock + last claim), `describeDesireLocks`, `bottomSlotAddiction` |
 | `web/lib/desireProjection.js` | `projectDesireTemplateForGates` — the one path that resolves a `DesireTemplate`'s role-slug arrays into `{ slug, name }` for `desireGates.js`; every caller must go through it |
 | `web/app/components/DesireCatalog.js` | Player-facing catalog picker modal, on the Point Buy layout: search + sort, a tab per family group, one scroller with sticky coloured family headers and `.select-card` rows, your slots in the side pane. Only ever sees what `character/page.js` leaves after dropping `locked`, and re-filters on `slotLocks` for the target slot. Posts nothing — it hands the pick back to `DesirePanel` |
