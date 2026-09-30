@@ -244,7 +244,7 @@ groups:
       starting_location: fortress-4
       ring:
         spawns: true
-        opens: [baroness-key]
+        opens: [baroness-key, portcullis-key]
       starting_tags:
         - Ravenhearter
         - Courtier
@@ -279,7 +279,7 @@ groups:
       extra_starting_points: 8
       ring:
         spawns: true
-        opens: [heirs-key]
+        opens: [heirs-key, portcullis-key]
       starting_tags:
         - Ravenhearter
         - Courtier
@@ -311,7 +311,7 @@ groups:
       extra_starting_points: 5
       ring:
         spawns: true
-        opens: [successors-key]
+        opens: [successors-key, portcullis-key]
       starting_tags:
         - Ravenhearter
         - Courtier
@@ -818,7 +818,7 @@ groups:
       starting_location: town-1
       ring:
         spawns: true
-        opens: [armory-key, cerberus-key, incarns-key, gatehouse-key]
+        opens: [armory-key, cerberus-key, incarns-key, gatehouse-key, portcullis-key]
       starting_tags:
         - Ravenhearter
         - Melee II

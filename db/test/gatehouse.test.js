@@ -124,7 +124,9 @@ test("the two tokens are on exactly the rings the doc names (the Squire's too)",
       .map(([slug]) => slug)
       .sort();
   assert.deepEqual(carrying(GATEHOUSE_KEY), ["baron", "censor", "cerberus", "hand", "incarn", "squire"]);
-  assert.deepEqual(carrying(PORTCULLIS_KEY), ["baron", "censor", "cerberus", "hand", "meister", "squire"]);
+  assert.deepEqual(carrying(PORTCULLIS_KEY), [
+    "baron", "baroness", "censor", "cerberus", "hand", "heir", "incarn", "meister", "squire", "successor",
+  ]);
   // Each token is also a tag, so db:doctor and the room/way checks know it.
   const tags = fs.readFileSync(path.join(DOCS, "tags.yaml"), "utf8");
   for (const token of [GATEHOUSE_KEY, PORTCULLIS_KEY]) assert.match(tags, new RegExp(`\n  ${token}:`));
