@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { saveLocal } from "../../lib/localSave.js";
 
 // How big chat's lines are drawn, per browser. The same shape as soundStore.js:
 // one localStorage key, read through useSyncExternalStore, never an effect.
@@ -51,7 +52,7 @@ export function useChatTextSize() {
 export function setChatTextSize(value) {
   if (!VALID.has(value)) return;
   try {
-    window.localStorage.setItem(KEY, value);
+    saveLocal(KEY, value);
   } catch {
     // Not remembered, but still applied for this page load.
   }

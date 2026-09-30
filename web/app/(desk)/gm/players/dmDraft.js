@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { saveLocal } from "../../../../lib/localSave.js";
 
 // Conversation composer draft. Memory (module Map) is the source of truth, localStorage a best-effort mirror only — a throwing setItem must never freeze typing. useSyncExternalStore, not useState+effect (react-hooks/set-state-in-effect); shared here, not pane-private, because the Canon tab's "Insert into reply" writes into it across the desk tree.
 
@@ -45,7 +46,7 @@ export function writeDmDraft(discordUserId, value) {
   else writtenAt.delete(discordUserId);
   emit();
   try {
-    if (next) window.localStorage.setItem(dmDraftKey(discordUserId), next);
+    if (next) saveLocal(dmDraftKey(discordUserId), next);
     else window.localStorage.removeItem(dmDraftKey(discordUserId));
   } catch {
     // Full, private, or blocked; the draft still survives in memory for this tab.

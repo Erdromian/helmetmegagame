@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { saveLocal } from "../../../lib/localSave.js";
 
 // WHETHER CHAT'S THINGS SECTION IS OPEN (ThingsDrawer.js), remembered by this
 // browser.
@@ -59,7 +60,7 @@ function readServer() {
 function write(open) {
   cached = open;
   try {
-    window.localStorage.setItem(KEY, open ? "1" : "0");
+    saveLocal(KEY, open ? "1" : "0");
   } catch {
     // Still moves this page load; it just forgets on reload.
   }

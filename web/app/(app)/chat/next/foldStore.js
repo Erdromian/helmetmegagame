@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { saveLocal } from "../../../../lib/localSave.js";
 
 // WHICH SECTIONS OF THE PLACES COLUMN THIS BROWSER HAS SHUT, and unlike the
 // column this replaces, it remembers across a reload.
@@ -102,7 +103,7 @@ function write(next, live) {
   cached = new Set(keep);
   try {
     if (keep.length === 0) window.localStorage.removeItem(KEY);
-    else window.localStorage.setItem(KEY, JSON.stringify(keep));
+    else saveLocal(KEY, JSON.stringify(keep));
   } catch {
     // Nothing to persist: the column still folds this session, it just
     // forgets on reload.

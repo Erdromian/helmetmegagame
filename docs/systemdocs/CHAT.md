@@ -2500,6 +2500,19 @@ when it lands. `web/lib/snapshot/`:
   snapshot is ignored, never handed to a renderer expecting the new shape.
   1.5 MB per scope, every read and write try/caught — a refused localStorage
   just means the page paints from the server, as before.
+  **All snapshots together share a 2.5 M-character budget**, oldest written
+  first out, kept in one small index key (`bascinet:snap:index`); a key from
+  an older `VERSION`, or one the index does not know, is dropped on the next
+  write. Before the budget they piled up for good — one key per `/gm/audit`
+  entry and per dev-panel character ever opened, plus every bumped version's
+  leftovers — until localStorage (about 5 M characters a site) was full.
+  Every read mark and sound setting after that failed to save, so a refresh
+  lit every place unread and put the volume back.
+- **`web/lib/localSave.js`** — why a snapshot can never do that again. Every
+  store that REMEMBERS something (read marks, the sound switches and slider,
+  folds, pins, drafts) writes through `saveLocal`, which on a refused write
+  drops every stored snapshot and tries once more. A remembered setting
+  outranks a cached page; the page just paints from the server next time.
 - **`SnapshotPage`** — the shell. `page.js` reads only the session, mounts
   `<SnapshotPage scope userId render={View} fallback={<Loading />}>`, and
   streams the old async body in behind it inside `<Suspense fallback={null}>`.

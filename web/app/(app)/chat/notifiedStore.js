@@ -1,6 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { saveLocal } from "../../../lib/localSave.js";
 
 // The second of Chat's two levels (REDESIGN.md §6, Discord's shape):
 //
@@ -132,7 +133,7 @@ export function noteNotified(placeKey, notice = null) {
   const next = Math.min(NOTIFIED_CAP, (map.get(placeKey) ?? 0) + 1);
   map.set(placeKey, next);
   try {
-    window.localStorage.setItem(`${PREFIX}${placeKey}`, String(next));
+    saveLocal(`${PREFIX}${placeKey}`, String(next));
   } catch {
     memoryOnly = true;
   }

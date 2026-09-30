@@ -11,6 +11,7 @@ import {
 } from "./music";
 import { fileGain } from "./musicGain";
 import { musicIsAudible } from "./soundStore";
+import { saveLocal } from "../../lib/localSave.js";
 
 // What plays, and when. See docs/systemdocs/SOUND.md §4 for the full step table.
 //
@@ -169,7 +170,7 @@ function spend(step) {
 function remember(step) {
   if (!step.cooldownMs) return;
   try {
-    window.localStorage.setItem(playedKey(step.id), String(Date.now()));
+    saveLocal(playedKey(step.id), String(Date.now()));
   } catch {
     // Storage blocked — the page-load rule above still holds.
   }

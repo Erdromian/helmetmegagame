@@ -51,7 +51,10 @@ One localStorage key, `bascinet:sound`, read through `useSyncExternalStore` in
 `web/app/components/soundStore.js`. The snapshot is a **string**, `sfx|music|volume`,
 because `useSyncExternalStore` compares by identity and a fresh object every read
 is an infinite render loop. A two-field value is the older `on|volume` shape and
-parses in place with music defaulting on; nothing rewrites it.
+parses in place with music defaulting on; nothing rewrites it. It is written through
+`web/lib/localSave.js`, so a localStorage filled by page snapshots makes room rather
+than quietly failing to save — which is how the volume used to "reset" on a refresh
+(`CHAT.md` §5c).
 
 **With no key at all, the speaker starts on — except under `next dev`**, where it
 starts off, so a pile of test browsers on a local server stays quiet. Clicking it

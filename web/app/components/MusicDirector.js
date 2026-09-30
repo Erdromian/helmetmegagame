@@ -16,6 +16,7 @@ import {
 } from "./musicConductor";
 import { usePhase, useStanding } from "./PhaseProvider";
 import { musicIsAudible, useSound } from "./soundStore";
+import { saveLocal } from "../../lib/localSave.js";
 
 // The one thing that decides what is playing. Mounted once, in the root layout, renders
 // nothing. Phase, place and the two switches in; up to two running programs out.
@@ -159,7 +160,7 @@ function heardDose(key) {
   doseHeard = key;
   try {
     if (window.localStorage.getItem(DOSE_KEY) === key) return true;
-    window.localStorage.setItem(DOSE_KEY, key);
+    saveLocal(DOSE_KEY, key);
   } catch {
     // Storage blocked: once per page load, which the module variable already is.
   }
@@ -175,7 +176,7 @@ function heardLaunch(at) {
   launchHeard = at;
   try {
     if (window.localStorage.getItem(LAUNCH_KEY) === String(at)) return true;
-    window.localStorage.setItem(LAUNCH_KEY, String(at));
+    saveLocal(LAUNCH_KEY, String(at));
   } catch {
     // Storage blocked: once per page load, which the module variable already is.
   }

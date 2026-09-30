@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
+import { saveLocal } from "../../../lib/localSave.js";
 
 // Which tab of the right-hand column this browser had open — a per-viewer localStorage
 // convenience, read through useSyncExternalStore, never in an effect (react-hooks/set-state-in-effect
@@ -63,7 +64,7 @@ function setAsideTab(id) {
   // back out of it afterwards. Unwritable storage then costs only the remembering.
   cached = next;
   try {
-    window.localStorage.setItem(KEY, next);
+    saveLocal(KEY, next);
   } catch {
     memoryOnly = true;
   }
