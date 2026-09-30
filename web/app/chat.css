@@ -926,13 +926,13 @@
 }
 
 /* ---- density: feed (/chat) ----
-   THE LOG SHAPE (docs/design/mockups/chat/index.html, `.row`/`.who`/`.said`):
-   one line per utterance, no face, no per-row clock — `Marrow Vance: Second
-   tithe…` — never Discord's name-and-time row over a second line with an
-   avatar beside it. TranscriptLine.js draws this density as a flat run of
-   inline children (name, ": ", the body) rather than the gutter/head/body
-   shape "thread" and "thread-compact" still use below, so there is no
-   `.tline-gutter` or `.tline-body` here to style at all. */
+   THE NAME OVER THE WORDS (Chat Overhaul.docx), for a player and a GM alike.
+   A run's first row is the portrait, then the name and the clock on a line of
+   their own (.tline-head), then what was said (.tline-said); a run's later
+   rows are the words alone. Both are BLOCKS, so no formatting inside a message
+   can ever pull the words up beside the name. There used to be a second, GM
+   shape that ran `Name: said` along one line, and that is how names kept
+   turning up to the left of the words. Don't bring it back. */
 
 .tline[data-density="feed"] {
   display: block;
@@ -940,12 +940,12 @@
      Chat Overhaul.docx asked for type that does not strain the eyes, and the
      mockup's 11px row was the strain. */
   font-size: var(--fs-chat);
-  line-height: 1.35;
+  /* A little leading and a clear gap between messages, so a long exchange of
+     emotes from one speaker doesn't read as one wall of text. A new run stands
+     off further (below), so a change of speaker reads at a glance. */
+  line-height: 1.45;
   letter-spacing: -0.01em;
-  /* The mockup's `.row { margin: 0 0 3px }` — the distance between two lines
-     from the same speaker. A new run stands off further (below), so a change
-     of speaker reads at a glance even though the log names every line. */
-  margin: 0 0 3px;
+  margin: 0 0 7px;
   /* The row is the positioning context for the action bar that floats at its
      top-right. */
   position: relative;
@@ -1008,24 +1008,33 @@
   line-height: 0;
 }
 
-/* A fixed box, right-aligned, so "1:00 PM" and "10:37 AM" start the line in
-   the same place — the words never ride on how wide the hour is. */
+/* The clock beside the name. */
 .tline[data-density="feed"] .tline-clock {
-  display: inline-block;
-  width: 8ch;
-  text-align: right;
   white-space: nowrap;
-  margin-right: var(--sp-1);
+  margin-left: var(--sp-2);
   font-size: var(--fs-3xs);
   color: var(--muted);
 }
 
-.tline[data-density="feed"]:not([data-run="start"]) .tline-clock {
+/* A run's later rows have no head, so their clock waits in the face's column,
+   level with the words' first line, and shows only under the pointer or the
+   keyboard — Discord's hover time. It inherits the row's font size and
+   leading, so the small clock sits on the words' baseline at any text size. */
+.tline[data-density="feed"] .tline-gutter-clock {
+  position: absolute;
+  left: var(--sp-2);
+  top: 1px;
+  width: var(--chat-face);
+  text-align: right;
   visibility: hidden;
 }
 
-.tline[data-density="feed"]:not([data-run="start"]):hover .tline-clock,
-.tline[data-density="feed"]:not([data-run="start"]):focus-within .tline-clock {
+.tline[data-density="feed"] .tline-gutter-clock .tline-clock {
+  margin-left: 0;
+}
+
+.tline[data-density="feed"]:hover .tline-gutter-clock,
+.tline[data-density="feed"]:focus-within .tline-gutter-clock {
   visibility: visible;
 }
 
@@ -1044,34 +1053,26 @@
   font-weight: 800;
 }
 
-.tline[data-density="feed"] .tline-sep {
-  color: var(--text);
-}
-
-/* A player's log has room to breathe where a GM's dense log does not. With the
-   name printed once per run, two messages in a row from one speaker were 3px
-   apart, and a long exchange of emotes read as one wall of text. A little more
-   leading and a clear gap between messages keep each one its own. */
-.tline[data-density="feed"][data-layout="stacked"] {
-  line-height: 1.45;
-  margin-bottom: 7px;
-}
-
-/* THE STACKED SHAPE — /chat as a player reads it (Chat Overhaul.docx). The
-   name sits on a line of its own above what was said, with the clock beside
-   it, and a speaker's later lines carry no head at all (next/Feed.js passes
-   name={null} for them). The body still runs inline under the head, exactly
-   as it does in the log shape, so "(edited)" stays on the words' own line. */
-.tline[data-density="feed"][data-layout="stacked"] .tline-head {
+/* The name's own line. A block, not a flex row: .tline-head is flex for the
+   DM thread, and a block is all this needs. */
+.tline[data-density="feed"] .tline-head {
   display: block;
   margin-bottom: 1px;
 }
 
-.tline[data-density="feed"][data-layout="stacked"] .tline-head .tline-clock {
-  width: auto;
-  text-align: left;
-  margin: 0 0 0 var(--sp-2);
-  visibility: visible;
+/* WHAT WAS SAID, always a block under the name (TranscriptLine.js). A line
+   that runs out of room carries on indented by --sp-2, the same gap the name
+   keeps from the portrait, so a wrapped line reads as more of the same line.
+   `each-line` keeps a line the writer broke with Enter (a <br>, or the blank
+   line between paragraphs below) flush with the first: only a WRAPPED line
+   indents. Nested blocks inside a message (the edit box, a list, a quote)
+   start over at zero. */
+.tline[data-density="feed"] .tline-said {
+  text-indent: var(--sp-2) hanging each-line;
+}
+
+.tline[data-density="feed"] .tline-said :is(div, ul, ol, blockquote, pre, textarea) {
+  text-indent: 0;
 }
 
 /* THE BODY OF A ROW, in the ordinary text colour. It used to be painted
@@ -1081,10 +1082,9 @@
    inside quotation marks is tinted, and everything around it reads as prose.
 
    ChatMarkdown wraps every row in `.markdown-content`, a block element built
-   for a thread's own paragraphs — forced inline here so it runs on from
-   "Name: " on the same line rather than dropping to one of its own, which is
-   what made a feed row read as two stacked lines even after the avatar and the
-   per-row clock were gone. */
+   for a thread's own paragraphs — forced inline here so "(edited)" still sits
+   at the end of the words' last line. That is safe now that .tline-said is a
+   block of its own: inline or not, the words start under the name. */
 .tline[data-density="feed"] .markdown-content,
 .tline[data-density="feed"] .markdown-content p {
   display: inline;
@@ -1093,9 +1093,9 @@
   font-weight: 600;
 }
 
-/* ...but only the FIRST paragraph runs on from the name. A blank line in what
-   somebody typed starts a new paragraph, and drawing every paragraph inline ran
-   a long emote into one wall of text. The generated newlines keep each later
+/* ...but a blank line in what somebody typed starts a new paragraph, and
+   drawing every paragraph inline ran a long emote into one wall of text. The
+   generated newlines keep each later
    paragraph inline, so "(edited)" still sits on the words' last line, and the
    blank line between them is the one the writer typed. A single newline is a
    <br> (remarkLineBreaks.js), as in Discord. */

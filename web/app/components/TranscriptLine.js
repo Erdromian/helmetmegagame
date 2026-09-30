@@ -20,12 +20,10 @@
 // before the numbers do; phase 5 re-solves them and collapses the variants. A
 // variant here is a staging post, not drift.
 //
-// "feed" draws the mockup's LOG shape instead
-// (docs/design/mockups/chat/index.html): one line, no face —
-// `Name: what they said` — never a name/time row over a second line with an
-// avatar beside it. It has its own branch below rather than sharing the
-// gutter/head/body markup the other two densities use, because that shape has
-// nothing in this one: no gutter, no per-row clock, no separate head.
+// "feed" is /chat's shape: the name on a line of its own, with what was said
+// UNDER it, always — for a player and a GM alike, whatever the words are made
+// of. It has its own branch below because its face hangs in the row's padding
+// rather than in a gutter column, and a run's later lines carry no head.
 //
 // /archive is the one log that does NOT come through here. Its row is a
 // four-column CSS grid whose children are the columns (clock, who, what, cite),
@@ -63,17 +61,11 @@
  *   branch on it.
  * @param {"feed"|"thread"|"thread-compact"} [p.density="feed"]
  *   Geometry only. Lands on data-density.
- * @param {"log"|"stacked"} [p.layout="log"]
- *   density="feed" only. "log" runs the name and the body on one line,
- *   `Name: said`. "stacked" puts the name (and the clock) on a line of its own
- *   ABOVE the body, and the caller passes name={null} on a run's later lines so
- *   the same speaker is named once (/chat as a player sees it, Chat
- *   Overhaul.docx). Lands on data-layout.
  * @param {import("react").ReactNode} [p.avatar=null]
  *   The face, already built by the caller with that surface's own size and
  *   zoomable choices. Null leaves the gutter empty, which is what a run
  *   continuation wants — the column keeps its width so the text stays aligned.
- *   IGNORED for density="feed" — the mockup's log has no face at all.
+ *   For density="feed" it hangs in the row's left padding on a run's first line.
  * @param {boolean} [p.gutter=true]
  *   False drops the gutter element entirely, for a surface that has no faces
  *   at all (the inspector's Archive tab). The body then takes the full width.
@@ -82,7 +74,9 @@
  *   What the gutter shows instead of a face — the DM thread's hover-revealed
  *   clock.
  * @param {import("react").ReactNode} [p.name=null]
- *   The shown speaker. Null hides the head.
+ *   The shown speaker. Null hides the head — for density="feed", the caller
+ *   passes null on a run's later lines so a speaker is named once (Chat
+ *   Overhaul.docx).
  * @param {boolean} [p.alias=false] tints the name (data-alias)
  * @param {string|null} [p.roleGroup=null]
  *   The speaker's estate — one of the six coloured role groups
@@ -120,7 +114,6 @@ export default function TranscriptLine({
   byline = null,
   channelKind = null,
   density = "feed",
-  layout = "log",
   avatar = null,
   gutter = true,
   gutterAside = null,
@@ -181,14 +174,9 @@ export default function TranscriptLine({
     );
   }
 
-  // "feed" is the mockup's LOG shape, not Discord's message shape (CHAT.md):
-  // one line, no face, the name and the body run on together —
-  // `Marrow Vance: Second tithe…` — rather than a name/time row over a
-  // second line with an avatar beside it. "thread" and "thread-compact" keep
-  // the gutter/head/body shape below exactly as they were; only this branch
-  // changed.
+  // "feed": the name and its clock on one line, what was said under it.
+  // "thread" and "thread-compact" keep the gutter/head/body shape below.
   if (density === "feed") {
-    const stacked = layout === "stacked";
     const clock = time ? (
       <time className="tline-clock mono" title={timeTitle ?? undefined} suppressHydrationWarning>
         {time}
@@ -204,7 +192,6 @@ export default function TranscriptLine({
       <Tag
         className={`tline${className ? ` ${className}` : ""}`}
         data-density={density}
-        data-layout={stacked ? "stacked" : undefined}
         data-kind={channelKind ?? undefined}
         data-run={startsRun ? "start" : undefined}
         data-pending={pending ? "true" : undefined}
@@ -218,25 +205,24 @@ export default function TranscriptLine({
         {...pressHandlers}
       >
         {/* The portrait heads a run only; later lines in the run indent under
-            it. The clock shows on a run's first line, and on hover for the rest. */}
+            it. A named row carries its clock beside the name; a run's later
+            lines show theirs in the face's column, on hover. */}
         {avatar && startsRun ? <span className="tline-face">{avatar}</span> : null}
-        {stacked ? (
-          // The head is its own line; a nameless row has no head and no clock.
-          nameEl ? (
-            <span className="tline-head">
-              {nameEl}
-              {clock}
-            </span>
-          ) : null
-        ) : (
-          <>
-            {clock}
+        {nameEl ? (
+          <div className="tline-head">
             {nameEl}
-            {nameEl ? <span className="tline-sep">: </span> : null}
-          </>
-        )}
-        {children}
-        {edited ? <span className="tline-edited"> (edited)</span> : null}
+            {clock}
+          </div>
+        ) : avatar && clock ? (
+          <span className="tline-gutter-clock">{clock}</span>
+        ) : null}
+        {/* The words are a block of their own, so they can only ever start on
+            the line UNDER the name — never beside it, whatever the markdown
+            inside makes of them. */}
+        <div className="tline-said">
+          {children}
+          {edited ? <span className="tline-edited"> (edited)</span> : null}
+        </div>
         {actions ? <div className="tline-actions">{actions}</div> : null}
         {trailing}
       </Tag>
