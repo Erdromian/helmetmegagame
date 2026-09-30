@@ -1278,7 +1278,7 @@ a 48px head and a one-line composer:
   - **Two call sites**, and both relay through the shape that already existed:
     `bot/src/events/messageCreate.js` for a Discord-origin line, and
     `bot/src/lib/feedOutbox.js#relayWebMentions` for a web-origin one. So Discord
-    gets the same relay DM and push a token mention gets, and the web gets a
+    gets the same push a token mention gets (no DM), and the web gets a
     notified count.
 
   **Notify-only, and that is load-bearing.** A `{char:…}` mention inside a
@@ -1290,7 +1290,7 @@ a 48px head and a one-line composer:
   pair.
 
   **The text is never rewritten.** Nothing turns a bare name into `<@&roleId>`, so
-  Discord reads the words the room read. The relay DM is the ping.
+  Discord reads the words the room read. The relay push is the ping.
 
   Notable means **somebody spoke**: the row is not yours, and its `source` is
   not `SYSTEM`. That is the whole predicate,
@@ -2334,8 +2334,8 @@ end them.
   notification and, on a click, focuses an open tab and navigates it to the
   url the payload carries. It caches nothing: `/chat` is a live feed, and a
   worker serving it out of a cache would be showing yesterday's scene.
-- **What is sent.** Two things, and only two. A **mention** — after the DM, at
-  both call sites, `"{name} was named"` / `"in {place}"`, pointing at
+- **What is sent.** Two things, and only two. A **mention** — at
+  both call sites (a mention sends no DM), `"{name} was named"` / `"in {place}"`, pointing at
   `/chat` (the web-origin one at `/chat#<placeKey>`, which is the same hash the
   places column round-trips). And the **turn opening**
   (`db/lib/turnAnnouncement.js`), after the announcement is posted, to every

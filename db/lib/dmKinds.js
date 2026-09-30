@@ -23,7 +23,8 @@ const GM_LETTER_REPLY_SOURCE = "gm_letter_reply";
 // A player-to-player letter via the Bird — draws as one row, not collapsed into "N automated messages".
 const BIRD_SOURCE = "bird";
 
-// A mention relay. The one NOTICE the two chairs disagree about: the GM desk hides it, the player's
+// A mention relay. Nothing writes one any more — a mention sends no DM (PROXYING.md §6) — but the rows
+// already logged still draw this way. The one NOTICE the two chairs disagree about: the GM desk hides it, the player's
 // Chat pane shows it. Row's meta carries { placeKey, where } so the pane can open where it happened.
 const MENTION_SOURCE = "mention";
 
