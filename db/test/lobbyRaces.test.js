@@ -234,7 +234,12 @@ test("an unready mid-commit is 'the lobby changed', not a crash", async () => {
 });
 
 test("Start's best-effort steps report what they could not do", () => {
-  assert.deepEqual(startProblems({ zonesSynced: { created: 0, changed: 2 }, worldSeeded: { structures: {}, stashes: {}, unknown: [] } }), []);
+  // A clean run, with the YAML notes the sync prints every time: nothing to report.
+  const clean = {
+    zonesSynced: { created: 0, changed: 2, warnings: ['location "space/space-1" appears in no connections entry — it is unreachable'] },
+    worldSeeded: { structures: {}, stashes: {}, unknown: [] },
+  };
+  assert.deepEqual(startProblems(clean), []);
   const problems = startProblems({
     zonesSynced: { error: "connection reset" },
     worldSeeded: {
