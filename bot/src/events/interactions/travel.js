@@ -466,6 +466,10 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
 
   const links = await arrivalLinks(character.id, landed.id);
   await respond(interaction, { content: [parts.join(" "), links].filter(Boolean).join("\n"), components: [] });
+
+  // The rest of what the move owes Discord, now the player has their answer
+  // (bot/src/lib/locationTravel.js#performMove). Their channel is already open.
+  await result.tell?.().catch((err) => console.error("Move: telling Discord failed:", err.message ?? err));
 }
 
 // Links to where they landed, for a character who plays on Discord — for

@@ -373,6 +373,20 @@ Conversation invites there (`db/lib/threadInvites.js#applyPendingInvites`).
 Every call inside it is individually catch-logged, never thrown — the channel
 doctor is the safety net for whatever one call misses.
 
+**The overwrites are written from where the character stands now, not from
+the move.** `syncLocationAccess` in the same file re-reads `Character.locationId`
+and the live vantages, then sets each channel the move touched to Here,
+watched or closed, and the zone role likewise when the move crossed a zone.
+So a move whose Discord half runs late — two quick clicks on the web each get
+their own `after()` queue — writes the truth instead of undoing the newer
+move. Before this, walking A → B and straight back to A could leave A mute
+under the player's feet. It runs one character at a time in each process, goes
+round again if they moved while it was writing, and runs **first**, ahead of
+every DM and thread call. A walk or a party calls it once up front
+(`syncArrivalAccess`) with everything the hops touched, so the place they end
+up opens before the streets they passed through, and the bot answers the Travel
+press before doing the rest.
+
 It's pure REST, so the Travel button on `#turns`, `/location`, the web's
 writers (creation, GM raw edit, GM Bulk Move) and the staged
 "Relocate to" applied at the turn push all call it after their own DB write

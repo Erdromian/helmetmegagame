@@ -135,7 +135,7 @@ import { disguiseNameFrom } from "@lifeweb/db/lib/disguises";
 import { syncPartyMembership } from "@lifeweb/db/lib/partyChat";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { loadRoomsAt, roomAt, WITH_SIDES } from "@lifeweb/db/lib/roomSides";
-import { applyArrivalFacts, applyArrivalDiscord } from "@lifeweb/db/lib/locationMove";
+import { applyArrivalFacts, applyArrivalDiscord, syncArrivalAccess } from "@lifeweb/db/lib/locationMove";
 import { dismountedMessage } from "@lifeweb/db/lib/indoors";
 import {
   boardFor,
@@ -880,8 +880,15 @@ export async function travelTo({ locationId, exert = false } = {}) {
   // connection for the better part of two minutes, and there are dozens of them
   // in a dressed arrival. So the player is told they moved and Discord catches
   // up behind them, which is the latency MAP.md §3 already tolerates.
+  //
+  // The channel they can SEE goes to the very front of the queue, once for the
+  // whole walk: everybody's Location overwrite and zone role, written from where
+  // they stand now. Before, it waited behind the left-behind DMs and then behind
+  // every earlier hop's full arrival, so the street a player had walked into
+  // opened last.
+  if (arrivalFacts.length > 0) tell.unshift(() => syncArrivalAccess(prisma, arrivalFacts));
   for (const facts of arrivalFacts) {
-    tell.push(() => applyArrivalDiscord(prisma, facts));
+    tell.push(() => applyArrivalDiscord(prisma, facts, { access: false }));
   }
   // The Caving Die's "on arrival" trigger (CAVING.md). A walk collected one per
   // hop, so it hands them over already gathered.
