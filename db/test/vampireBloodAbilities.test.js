@@ -67,3 +67,24 @@ test("Bat Form is the one ability gated on capacity (ACT)", () => {
   const abilitiesRequiringAct = ABILITIES.filter((a) => a.requiresAct === true);
   assert.deepEqual(abilitiesRequiringAct.map((a) => a.key), ["bat-form"]);
 });
+
+test("Bat Form reaches the Keep, Town, Undertown, the Black Hills, the Caves and the Depths — nowhere else", () => {
+  const { batFormDestinationWhere } = require("../lib/vampireBloodAbilities");
+  const where = batFormDestinationWhere();
+  assert.deepEqual([...where.zone.slug.in].sort(), ["caves", "depths", "fortress", "hills", "town", "undertown"]);
+  assert.ok(!where.zone.slug.in.includes("space"));
+  // Live places only, and only one with a road at either end (the Charon has none).
+  assert.equal(where.retiredAt, null);
+  assert.equal(where.zone.retiredAt, null);
+  assert.deepEqual(where.OR, [{ linksA: { some: {} } }, { linksB: { some: {} } }]);
+});
+
+test("requiredTagName names each purchasable tag, and nothing for an ungated ability", () => {
+  const { requiredTagName } = require("../lib/vampireBloodAbilities");
+  assert.equal(requiredTagName(abilityByKey("bat-form")), "Bat Form");
+  assert.equal(requiredTagName(abilityByKey("corrupt")), "Corruptor");
+  assert.equal(requiredTagName(abilityByKey("blood-strength")), null);
+  for (const ability of ABILITIES.filter((a) => a.requiredTagSlug)) {
+    assert.notEqual(requiredTagName(ability), ability.requiredTagSlug, `${ability.key} needs a display name`);
+  }
+});

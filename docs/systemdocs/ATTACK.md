@@ -268,7 +268,8 @@ who is asked along as a collaborator, is not being attacked.
   attack meanwhile (Bascinet, 2026-09-27), and everybody is DMed. A defender
   may counterattack them; that is a new fight. Refused once Moves lock.
 - **A side empties.** Somebody relocated (a GM's teleport, a Bulk Move, a
-  staged Relocate to, a rite — walking never, since they are held) or dead
+  staged Relocate to, a rite — walking never, since they are held, and Bat
+  Form never, since it reads the same hold and the fight row: `VAMPIRE.md` §6) or dead
   leaves the fight (`leaveCombatsFor`, off `locationMove.js` and
   `characterDeath.js`). If that leaves either side with nobody fighting, the
   fight ends (`SIDE_EMPTY`) and everybody else goes free and is told

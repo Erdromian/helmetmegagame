@@ -13,16 +13,22 @@ import { seenName } from "@/lib/hereTarget";
 import { resolveTargetKey, splitTargetKey } from "@lifeweb/db/lib/targetKey";
 import { getOpenTurn } from "@/lib/turn";
 import { logAudit } from "@/lib/requests";
-import { blockerFor, ACT, INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
+import { INCAPACITATING_SLUGS } from "@lifeweb/db/lib/incapacitation";
 import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { HEART_SLUG } from "@lifeweb/db/lib/constants";
 import { VAMPIRE_SLUG, THRALL_SLUG, VAMPIRE_BLOOD_ADDICT_SLUG } from "@lifeweb/db/lib/secretSlugs";
 import { clampBlood } from "@lifeweb/db/lib/vampire";
 import { syncVampireBandsNow } from "@lifeweb/db/lib/vampireBands";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
-import { abilityByKey, abilityCooldownTurns, isOnCooldown } from "@lifeweb/db/lib/vampireBloodAbilities";
+import {
+  abilityByKey,
+  abilityCooldownTurns,
+  isOnCooldown,
+  requiredTagName,
+  batFormDestinationWhere,
+} from "@lifeweb/db/lib/vampireBloodAbilities";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import { cavingRestrictionsFor, standingZoneKind } from "@lifeweb/db/lib/cavingPass";
+import { batFormRefusal, batFormHeldReason } from "@lifeweb/db/lib/batForm";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { sendDm } from "@/lib/discordGuild";
 import { requireCharacter, revalidateAll, lockCharacter } from "./shared.js";
@@ -37,17 +43,6 @@ const REGENERATION_GROUP_SLUGS = ["health-wounds", "health-illness", "health-inf
 // docs/tags.yaml) — burns are two ordinary health-wounds slugs, so the "not
 // related to burns" carve-out is a slug list, hand-kept, not a group check.
 const BURN_SLUGS = new Set(["burned", "severe-burns"]);
-
-function requiredTagLabel(ability) {
-  const map = {
-    corruptor: "Corruptor",
-    celerity: "Celerity",
-    "bat-form": "Bat Form",
-    solidarity: "Solidarity",
-    obfuscate: "Obfuscate",
-  };
-  return map[ability.requiredTagSlug] ?? ability.requiredTagSlug;
-}
 
 // Public entry point — StorePanel.js/buyTags's own shape: an Impl that
 // throws UserError for a refusal, guarded() into { ok, error } data so a
@@ -71,14 +66,7 @@ async function castMenuAbilityImpl({
   const heldSlugs = new Set((character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
   if (!heldSlugs.has(VAMPIRE_SLUG)) throw new UserError("You aren't a Vampire.");
   if (ability.requiredTagSlug && !heldSlugs.has(ability.requiredTagSlug)) {
-    throw new UserError(`You need ${requiredTagLabel(ability)} to use ${ability.name}.`);
-  }
-  // The one ability the design doc itself conditions on capacity — see
-  // db/lib/vampireBloodAbilities.js's own header for why the other nine
-  // deliberately skip this (Regeneration must work while Dying).
-  if (ability.requiresAct) {
-    const blocker = blockerFor(character.tags, ACT);
-    if (blocker) throw new UserError(`You're in no state to do that — you're ${blocker.name}.`);
+    throw new UserError(`You need ${requiredTagName(ability)} to use ${ability.name}.`);
   }
 
   const openTurn = await getOpenTurn();
@@ -104,34 +92,25 @@ async function castMenuAbilityImpl({
     }
   }
 
-  // Bat Form's destination — validated, not trusted; a live Location, not
-  // gated on travel links since this is flight, not walking (VAMPIRE.md §6:
-  // "quickly fly to ANY region").
+  // Bat Form: travel, so everything that holds a walk holds it — between
+  // sittings, the pre-push lock, incapacitated, held in a fight or an ambush,
+  // the Caving Die (db/lib/batForm.js). Then the destination — validated, not
+  // trusted: somewhere a flock of bats can reach
+  // (vampireBloodAbilities.js#batFormDestinationWhere). It ignores whether the
+  // roads are open, since this is flight, not walking. All of it before any
+  // blood is spent.
   let destination = null;
   if (ability.effect === "teleport") {
-    destination = locationId
-      ? await prisma.location.findUnique({
-          where: { id: locationId },
-          select: { id: true, name: true, zoneId: true },
-        })
-      : null;
-    if (!destination) throw new UserError("Choose where to fly to.");
+    const refusal = await batFormRefusal(prisma, character, { turn: openTurn });
+    if (refusal) throw new UserError(refusal);
 
-    // A Caving 1 this turn keeps you underground until the push
-    // (docs/systemdocs/CAVING.md §2c), and flight is the one way out that
-    // never crosses a link — so without this, Bat Form flies a vampire out of
-    // their own unadjudicated encounter, the hole the Stepstone closed.
-    // Refused outright rather than only for a flight to the surface: a flight
-    // never rolls the Die, so a hop inside the caves would be a free walk past
-    // it. A result of severity 10 refuses it in the stop's own words. Checked
-    // before any blood is spent.
-    const caving = await cavingRestrictionsFor(prisma, character.id, await standingZoneKind(prisma, character));
-    if (caving.stuck) throw new UserError(caving.stuck);
-    if (caving.hold) {
-      throw new UserError(
-        "You rolled a 1 on the Caving Die, so you can't take Bat Form until the turn ends and you receive the results of your caving die.",
-      );
-    }
+    if (typeof locationId !== "string" || !locationId) throw new UserError("Choose where to fly to.");
+    destination = await prisma.location.findFirst({
+      where: { id: locationId, ...batFormDestinationWhere() },
+      select: { id: true, name: true, zoneId: true },
+    });
+    if (!destination) throw new UserError("Bat Form can't take you there.");
+    if (destination.id === character.locationId) throw new UserError("You're already there.");
   }
 
   // Solidarity's message — required, and length-capped the way any
@@ -192,9 +171,30 @@ async function castMenuAbilityImpl({
 
     const fresh = await tx.character.findUnique({
       where: { id: character.id },
-      select: { vampireBloodLevel: true, vampireBloodAbilityCooldowns: true, locationId: true },
+      select: {
+        vampireBloodLevel: true,
+        vampireBloodAbilityCooldowns: true,
+        locationId: true,
+        heldUntil: true,
+        heldReason: true,
+        tags: { select: { tag: { select: { slug: true, name: true } } } },
+      },
     });
     if (!fresh) throw new UserError("Character not found.");
+    // The seat and the skill again, under the lock: the roster above was read
+    // when the request came in, and a tag can go between then and now.
+    const freshSlugs = new Set(fresh.tags.map((ct) => ct.tag?.slug).filter(Boolean));
+    if (!freshSlugs.has(VAMPIRE_SLUG)) throw new UserError("You aren't a Vampire.");
+    if (ability.requiredTagSlug && !freshSlugs.has(ability.requiredTagSlug)) {
+      throw new UserError(`You need ${requiredTagName(ability)} to use ${ability.name}.`);
+    }
+    // …and a hold that landed after the checks above (an ambush sprung, a
+    // fight started) still stops the flight.
+    if (ability.effect === "teleport") {
+      const held = batFormHeldReason(fresh);
+      if (held) throw new UserError(held);
+      if (fresh.locationId === destination.id) throw new UserError("You're already there.");
+    }
     const freshCooldowns = fresh.vampireBloodAbilityCooldowns ?? {};
     if (isOnCooldown(freshCooldowns, ability.key, openTurn.number)) {
       throw new UserError(`${ability.name} is still recovering.`);

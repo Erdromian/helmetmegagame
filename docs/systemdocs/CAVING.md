@@ -217,7 +217,7 @@ Five gates read it, and all five are player paths:
 | the same function's escort loop | A held follower is detached and left standing, `leftBehind` reason `caving` |
 | `db/lib/locationGraph.js#resolveNeighbors` | Draws every way up to the surface **shut** with the same sentence, so no picker offers a hop the mover will refuse |
 | the Stepstone (`db/lib/verbs/self.js#stepstone`) | The stone only lands on the SURFACE, so from underground it is exactly this way up |
-| Bat Form (`web/app/(app)/character/actions/bloodAbility.js`) | Flight crosses no link, so it is refused outright while held — even a flight inside the caves, since it never rolls the Die |
+| Bat Form (`db/lib/batForm.js`) | Flight crosses no link, so it is refused outright while held — even a flight inside the caves, since it never rolls the Die |
 
 Every GM path is untouched on purpose — the Dev Panel's Teleport and Bulk
 Move and the staged **Relocate to** never call `performLocationMove`, and a GM
