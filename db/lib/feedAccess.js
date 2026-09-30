@@ -524,7 +524,20 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
           rooms: {
             where: { retiredAt: null, ...(privateRooms ? {} : { kind: "PUBLIC" }) },
             orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
-            select: { id: true, name: true, description: true, kind: true },
+            select: { id: true, name: true, description: true, kind: true, sortOrder: true },
+          },
+          // The rooms whose home is next door but open onto here as well — the
+          // Gate onto the Bridge (db/lib/roomSides.js). Gated as seen from THIS side.
+          roomSides: {
+            where: {
+              room: { retiredAt: null, location: { retiredAt: null } },
+              ...(privateRooms ? {} : { kind: "PUBLIC" }),
+            },
+            select: {
+              kind: true,
+              sortOrder: true,
+              room: { select: { id: true, name: true, description: true, location: { select: { zoneId: true } } } },
+            },
           },
           playerThreads: conversations
             ? { orderBy: { createdAt: "asc" }, select: { id: true, name: true } }
@@ -564,7 +577,18 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
           ...zoneStamp,
         }),
       );
-      for (const room of location.rooms) {
+      // A room that opens onto a Location in ANOTHER zone is listed there too,
+      // under that Location's name, as a player standing there sees it — a GM
+      // watching only the Black Hills still has the Gate under the Bridge. One
+      // in the same zone is already in this zone's Rooms, so it is left alone
+      // there: listing it twice would draw one placeKey twice in one section.
+      const sideRooms = (location.roomSides ?? [])
+        .filter((side) => side.room.location?.zoneId !== zone.id)
+        .map((side) => ({ ...side.room, kind: side.kind, sortOrder: side.sortOrder }));
+      const rooms = [...location.rooms, ...sideRooms].sort(
+        (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0) || String(a.name).localeCompare(String(b.name)),
+      );
+      for (const room of rooms) {
         list.push(
           place({
             placeKey: placeKeyForRoom(room.id),

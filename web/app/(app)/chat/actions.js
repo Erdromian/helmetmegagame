@@ -1356,9 +1356,10 @@ export async function gmPlaceView(placeKey) {
   const [examined, people, rooms, links, structures, members] = await Promise.all([
     examineLines(prisma, locationId),
     whosHereGm(prisma, locationId),
-    prisma.room.findMany({
-      where: { locationId },
-      orderBy: [{ sortOrder: "asc" }, { name: "asc" }],
+    // Every room that opens onto here, a counter whose home is next door
+    // included, each gated as seen from THIS side (db/lib/roomSides.js) — the
+    // Bridge lists the Gate, the way a player standing on it sees it.
+    loadRoomsAt(prisma, locationId, {
       select: {
         id: true,
         name: true,
