@@ -45,6 +45,10 @@ item handed the ship to whoever spent one. It skips a Location with no
 check: you cannot walk to the Charon, so a picture of the roads has nothing to
 draw, and the orbit above it is the same shape.
 
+**Bat Form was a second one**: it flew a vampire to any Location, the ship
+and its orbit included. It uses the same no-road test now
+(`vampireBloodAbilities.js#batFormDestinationWhere`, `VAMPIRE.md` §6).
+
 ## 3. Getting aboard
 
 **Enter the Charon**, on the Panic Room, for anybody who can get into the Panic

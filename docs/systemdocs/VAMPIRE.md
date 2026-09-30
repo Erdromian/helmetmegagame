@@ -257,7 +257,7 @@ one server action every "Use" button calls, dispatched by ability key.
 | Corrupt | Corruptor tag, 1 Heart | 70 | 6v | Consumes the Heart, grants Black Heart |
 | Celerity | Celerity tag | 25 | 2v | +1 fighting both trees, 1 turn (`agility` tag) |
 | Resilience | — | 30 | 2v | +0.3 melee/ballistic armor, 1 turn (`resilient` tag) |
-| Bat Form | Bat Form tag | 50 | 4v | Instant free travel to any Location |
+| Bat Form | Bat Form tag | 50 | 4v | Instant free travel to any Location in the Keep, Town, Undertown, the Black Hills, the Caves or the Depths |
 | Solidarity | Solidarity tag | 30 | 2v | A DM to every other ALIVE vampire |
 | Obfuscate | Obfuscate tag | 40 | 4v | Grants Hidden, 1 turn — hides every other tag on inspection |
 | Enthral | — | 50 | 4v | Target must be incapacitated and at your Location; grants them Thrall + Vampire Blood Addict |
@@ -280,9 +280,34 @@ column.
 ability the design doc itself conditions on capacity: "You must not be
 incapacitated"). Everything else — most pointedly Regeneration — has to work
 while Dying, because §7 below leans on exactly that to let a vampire save
-themselves. A GM who judges a particular cast absurd (Bat Form mid-fight,
-say) still adjudicates it by hand, the same posture Feeding's own lethality
-gets.
+themselves. A GM who judges a particular cast absurd still adjudicates it by
+hand, the same posture Feeding's own lethality gets.
+
+**Bat Form is travel, so whatever stops a walk stops it**
+(`db/lib/batForm.js#batFormRefusal`, the same order as
+`locationTravel.js#performLocationMove`): between sittings (`SESSIONS.md` §5),
+once Moves lock before the push, incapacitated, held where you stand
+(`heldReasonFor` — a fight, an invitation to one, a withdrawal, an intercept or
+ambush, caught stealing: `INTERCEPT.md`), a live fight row
+(`CombatParticipant.activeTurnId`, `ATTACK.md`), and the Caving Die below. Each
+refuses in the sentence a walk would get, before any blood is spent. Before
+this, a vampire in a fight could fly out of it, and arriving quietly took them
+out of the fight (`leaveCombatsFor`).
+
+**Where it can land** is `db/lib/vampireBloodAbilities.js#batFormDestinationWhere`:
+a Location in one of the catalog's `destinationZoneSlugs` — `fortress` (the
+Keep), `town`, `undertown`, `hills`, `caves` and `depths` — never a retired
+zone or Location, and only one with a road at either end. Space, and any zone
+added later, is out until it is put on that list. The road rule keeps out the
+Charon docked above the Keep, whose only door is the Panic Room's button
+(`CHARON.md`); it is the same test `revealSurface` uses. It asks only that a
+road exists, not that it is open, since this is flight. The menu lists with it,
+minus the Location you stand in, and the action looks the destination up with
+it again, since a server action is a public endpoint.
+
+**The seat and the skill are checked twice**: once against the roster the
+request loaded, and again under the Character row lock inside the
+transaction, so a tag lost in between cannot still be spent.
 
 **Bat Form is also refused while the Caving Die holds you** (`CAVING.md` §2c):
 a 1 on the Die in your zone this turn means no flight at all until the push,

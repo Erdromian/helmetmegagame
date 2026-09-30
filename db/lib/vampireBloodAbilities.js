@@ -29,9 +29,10 @@
 // the design doc explicitly has a Dying vampire (ACT-blocked) casting
 // Regeneration to save themselves ("not dying until they are... finished off
 // or use regeneration") — a uniform ACT gate would make that impossible. So
-// none of the ten abilities check it; a GM who judges a specific use absurd
-// (Bat Form while bound, say) adjudicates it by hand the same way a Gambit
-// is adjudicated, not by a code refusal.
+// nine of the ten abilities skip it, and a GM who judges a specific use absurd
+// adjudicates it by hand the same way a Gambit is adjudicated. Bat Form is the
+// exception: it is travel, so it obeys everything that stops a walk
+// (db/lib/batForm.js).
 const ABILITIES = Object.freeze([
   {
     key: "blood-strength",
@@ -93,8 +94,13 @@ const ABILITIES = Object.freeze([
     // The one ability the design doc itself conditions on capacity ("You
     // must not be incapacitated") — the only ACT check among the ten,
     // because it names the condition explicitly rather than leaving it to
-    // GM judgment like every other line in this table.
+    // GM judgment like every other line in this table. It is also held by
+    // everything that holds a walk (db/lib/batForm.js#batFormRefusal).
     requiresAct: true,
+    // The regions a flock of bats can reach: the Keep (the Fortress zone),
+    // Town, Undertown, the Black Hills, the Caves and the Depths. Anything
+    // else — Space above all — is out of reach (Bascinet, 2026-10-01).
+    destinationZoneSlugs: ["fortress", "town", "undertown", "hills", "caves", "depths"],
   },
   {
     key: "solidarity",
@@ -143,6 +149,36 @@ function abilityByKey(key) {
   return ABILITIES_BY_KEY.get(key) ?? null;
 }
 
+// The purchasable tags' display names, for a refusal or the menu's reason
+// line ("Needs Bat Form."). Each tag is named after its ability on purpose
+// (docs/tags.yaml), except Corrupt's.
+const REQUIRED_TAG_NAMES = Object.freeze({
+  corruptor: "Corruptor",
+  celerity: "Celerity",
+  "bat-form": "Bat Form",
+  solidarity: "Solidarity",
+  obfuscate: "Obfuscate",
+});
+
+function requiredTagName(ability) {
+  return REQUIRED_TAG_NAMES[ability?.requiredTagSlug] ?? ability?.requiredTagSlug ?? null;
+}
+
+// Every Location Bat Form can land in, as a Prisma `where`: a live Location in
+// a live zone on the list, with at least one road at either end. The road is
+// the honest test for somewhere nobody is meant to arrive unannounced — the
+// Charon docked above the Keep has none (its only door is the Panic Room's
+// button, six seats, docs/systemdocs/CHARON.md), and neither does the ship in
+// orbit. The same test locationVisits.js#revealSurface uses. The menu lists
+// with it and the action looks the destination up with it, so they agree.
+function batFormDestinationWhere() {
+  return {
+    retiredAt: null,
+    zone: { slug: { in: abilityByKey("bat-form").destinationZoneSlugs }, retiredAt: null },
+    OR: [{ linksA: { some: {} } }, { linksB: { some: {} } }],
+  };
+}
+
 // Rounded the way db/lib/vampire.js#perTurnRate rounds —
 // a GM's `v` change takes effect on the next cast, never retroactively
 // resizes a cooldown already running (nothing stores the multiplier used;
@@ -177,4 +213,6 @@ module.exports = {
   abilityCooldownTurns,
   cooldownReadyTurn,
   isOnCooldown,
+  requiredTagName,
+  batFormDestinationWhere,
 };

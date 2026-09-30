@@ -214,7 +214,8 @@ leader reads *"X couldn't follow."* and not *"Somebody has hold of X."*
 
 `heldReasonFor(character, now)` is the one predicate, pure, and it is what both
 the mover's gate and every picker read — so a surface can never draw a way the
-mover is about to refuse. Under five minutes it counts down; past that it says
+mover is about to refuse. Bat Form reads it too (`db/lib/batForm.js`): flight
+crosses no link, but it is still a way out (`VAMPIRE.md` §6). Under five minutes it counts down; past that it says
 "until the end of the turn", because `43188s` would be worse than saying
 nothing. A caught thief is the exception: their hold has a known end, so past
 five minutes it counts down in minutes instead (`THEFT.md` §2g).
