@@ -10,13 +10,14 @@ import wrapRuns from "./chatRuns.js";
 
 // Not greedy and no newlines: an unmatched quote must not swallow the rest of a long message looking for a
 // partner. No length cap, though — a speech runs as long as the speaker keeps talking, and the next mark or
-// line break already stops a stray one. Both curly and straight marks (phone keyboards produce the curly pair
-// without asking). `openTight`: a quote opens on a real character, since `he said " ` mid-sentence is
-// punctuation, not speech.
+// line break already stops a stray one. Any double quote mark opens and any closes, straight or curly: which way
+// a curly one faces is the phone keyboard's guess, and it guesses “ after a dash, so `"Wait-“` must still close.
+// Nothing else between the marks can stop a quote. `openTight`: a quote opens on a real character, since
+// `he said " ` mid-sentence is punctuation, not speech. db/lib/speech.js is the server's copy of this rule.
 const SPEECH = {
-  open: /["“]/,
-  close: /["”]/,
-  forbidden: /["“”\n]/,
+  open: /["“”„‟]/,
+  close: /["“”„‟]/,
+  forbidden: /\n/,
   maxInner: Infinity,
   openTight: true,
   keepDelimiters: true,
