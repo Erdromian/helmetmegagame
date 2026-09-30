@@ -160,15 +160,19 @@ export default function PartyRack({ framed = false }) {
               // seats is 0 and there is no bonus to lose.
               data-overflow={seats > 0 && index + 1 >= seats ? "true" : undefined}
             >
-              {/* A hood row is keyed by token, never by id — /api/avatar/<id>
-                  answers with a face, so shipping one IS the unmasking
-                  (PROXYING.md §5). `unknown` draws the question-mark plate. */}
+              {/* `face` is null for a hood: its row is keyed by token, never by
+                  id — /api/avatar/<id> answers with a face, so shipping one IS
+                  the unmasking (PROXYING.md §5). `unknown` draws the
+                  question-mark plate. `person.id` is a picker key
+                  ("character:<id>"), never an avatar id. */}
               <CharacterAvatar
-                characterId={person.hooded ? null : person.id}
-                unknown={Boolean(person.hooded)}
+                characterId={person.face?.characterId ?? null}
+                src={person.face?.avatarPath ?? undefined}
+                version={person.face?.avatarVersion ?? undefined}
+                unknown={!person.face}
                 name={person.name}
                 size={24}
-                zoomable={!person.hooded}
+                zoomable={Boolean(person.face)}
               />
               <span className="party-slot-name">{person.name}</span>
               {person.reason && <span className="party-slot-why">{person.reason}</span>}

@@ -71,6 +71,7 @@ export default function StarredList({ notes }) {
               <div className="flex items-center gap-2">
                 <CharacterAvatar
                   characterId={note.characterId}
+                  version={note.avatarVersion ?? undefined}
                   name={note.characterName}
                   src={note.avatarPath ?? undefined}
                   unknown={note.unknownFace}

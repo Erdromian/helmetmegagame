@@ -126,6 +126,7 @@ import {
   escortView,
   escortName,
   escortKey,
+  escortFace,
   escortHidden,
   byShownName,
 } from "@lifeweb/db/lib/escort";
@@ -708,6 +709,8 @@ export async function loadParty() {
       // could not draw the face even if it tried — this is what makes it draw
       // the question-mark plate instead of nothing.
       hooded: escortHidden(row, view),
+      // Null for a hood, so the rack draws the question-mark plate.
+      face: escortFace(row, view),
       reason: escortReason(row, escortAuthority(character, row, openTurn?.number ?? null)),
     }))),
     incoming: incoming.map((offer) => ({ id: offer.id, from: askerNames.get(offer.initiatorId) ?? "Somebody" })),

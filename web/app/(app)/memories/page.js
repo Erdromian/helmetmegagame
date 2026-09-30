@@ -86,7 +86,7 @@ async function FreshMemories() {
     prisma.note.findMany({
       where: { discordUserId },
       orderBy: { sentAt: "desc" },
-      include: { zone: { select: { name: true } }, character: { select: { name: true } } },
+      include: { zone: { select: { name: true } }, character: { select: { name: true, updatedAt: true } } },
     }),
     // The player's own notes, plus any the game wrote into THIS character's
     // memory (JournalEntry.characterId — the bomb's note, docs/systemdocs/NUKE.md).
@@ -104,7 +104,18 @@ async function FreshMemories() {
       ? prisma.acquaintance.findMany({
           where: { ownerId: character.id },
           orderBy: [{ name: "asc" }],
-          select: { id: true, subjectId: true, name: true, roleText: true, roleSlug: true, notes: true, source: true },
+          select: {
+            id: true,
+            subjectId: true,
+            name: true,
+            roleText: true,
+            roleSlug: true,
+            notes: true,
+            source: true,
+            // The face's ?v=: /api/avatar/<id> is cached for a year, so without
+            // it a changed portrait never reached this list.
+            subject: { select: { updatedAt: true } },
+          },
         })
       : [],
     prisma.role.findMany({ select: { slug: true, groupSlug: true } }),
@@ -129,6 +140,7 @@ async function FreshMemories() {
       // A face for somebody they can put a name to. Never for a scrambled
       // name — a face would give away who the nonsense is.
       faceId: entry.subjectId && !shown.scrambled.name ? entry.subjectId : null,
+      faceVersion: entry.subject?.updatedAt?.getTime?.() ?? null,
       scrambled: shown.anyScrambled,
       handMade: entry.source === "MANUAL",
     };
@@ -203,6 +215,7 @@ async function FreshMemories() {
       characterName: shown.characterName,
       avatarPath: shown.scrambled ? null : (n.presentedAvatarPath ?? null),
       characterId: !shown.scrambled && ownFace ? n.characterId : null,
+      avatarVersion: ownFace ? (n.character.updatedAt?.getTime?.() ?? null) : null,
       unknownFace: shown.scrambled || (!n.presentedAvatarPath && !ownFace),
       zoneName: n.zone?.name ?? null,
       content: shown.content,
