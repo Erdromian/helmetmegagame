@@ -658,7 +658,7 @@ tags:
     description: "Your family has been around a long time."
     pointCost: 1
     purchasable: true
-    purchasableAfterStart: true
+    purchasableAfterStart: false
 
   dancer:
     catalog: gm
