@@ -1096,6 +1096,83 @@
   color: var(--chat-speech);
 }
 
+/* The box a line is changed in (ChatEditBox.js): the words drawn the way the
+   line draws them, under a textarea holding the same words in clear ink. The
+   two layers share every rule that moves a glyph — face, size, weight,
+   leading, spacing, padding, border width, wrapping — or the caret drifts off
+   the letters it sits between. The drawn layer is in the flow and sets the
+   height; the textarea is stretched over it, so neither ever scrolls. */
+.chat-edit {
+  position: relative;
+}
+
+/* .field sets its own smaller size; the row's editor keeps the line's, which
+   the chat's text-size switch scales. */
+.field.chat-edit-field {
+  font-size: inherit;
+}
+
+.chat-edit .chat-edit-drawn,
+.chat-edit .chat-edit-input {
+  box-sizing: border-box;
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 2px var(--sp-1);
+  border: 1px solid transparent;
+  border-radius: var(--r);
+  font: inherit;
+  font-weight: 600;
+  letter-spacing: inherit;
+  word-spacing: normal;
+  text-indent: 0;
+  text-transform: none;
+  white-space: pre-wrap;
+  overflow-wrap: break-word;
+  word-break: normal;
+  tab-size: 4;
+}
+
+.chat-edit .chat-edit-drawn {
+  /* Two lines tall at rest, the height the plain box had. */
+  min-height: calc(2lh + 6px);
+  background: var(--field-bg);
+  border-color: var(--border-lo) var(--border-hi) var(--border-hi) var(--border-lo);
+  color: var(--chat-said);
+}
+
+.chat-edit .chat-edit-input {
+  position: absolute;
+  inset: 0;
+  height: 100%;
+  background: transparent;
+  color: transparent;
+  caret-color: var(--text);
+  resize: none;
+  overflow: hidden;
+}
+
+.chat-edit .chat-edit-input::selection {
+  background: color-mix(in srgb, var(--accent-text) 30%, transparent);
+  color: transparent;
+}
+
+.chat-edit-drawn .speech {
+  color: var(--chat-speech);
+}
+
+.chat-edit-drawn .emote {
+  font-style: italic;
+}
+
+/* Under 16px iOS zooms the page when the box is tapped (globals.css says why).
+   Set on the wrapper so the drawn layer grows with the textarea. */
+@media (max-width: 720px), (pointer: coarse) {
+  .chat-edit {
+    font-size: max(16px, var(--fs-base));
+  }
+}
+
 /* The row lights up under the pointer, and under the keyboard: without this
    there was no indication at all of which line the action bar belonged to.
    Kept to a fill, no border and no movement — a hundred of these scroll past

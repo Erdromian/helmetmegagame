@@ -13,6 +13,7 @@ import CharacterAvatar from "@/app/components/CharacterAvatar";
 import NameCard from "@/app/components/NameCard";
 import { startsRun } from "@/lib/feedRuns";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
+import ChatEditBox from "@/app/components/ChatEditBox";
 import { CameraIcon, EditIcon, EyeIcon, NotesIcon, TrashIcon } from "@/app/components/icons";
 import { formatTurnLabel } from "@/lib/turnFormat";
 import BlockRow, { BLOCK_KINDS } from "../blockRows";
@@ -239,9 +240,9 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
            because that is what the box it replaced does — and the row swaps
            back in from the stream rather than from here, so the server stays
            the one that decides what the line now says. */
-        <div className="field">
-          <textarea
-            rows={2}
+        <div className="field chat-edit-field">
+          {/* Drawn the way the line is: emotes in italics, speech tinted. */}
+          <ChatEditBox
             value={draft}
             autoFocus
             onChange={(e) => setDraft(e.target.value)}
