@@ -40,9 +40,10 @@ import { musicIsAudible, useSound } from "./soundStore";
 //   Nothing, otherwise: a GM desk outside a running game.
 //
 // It does NOT re-run on a route change — `pathname` is read only to ask "is this a GM desk?",
-// which keeps the phase tapes off them (musicProgram.js#resolveProgram) and holds a
-// characterless GM's timeline there. The effects depend on the ANSWER to that question, not
-// the path, so walking between ordinary pages never restarts a track.
+// which stops a phase tape STARTING on one (musicProgram.js#resolveProgram; one already
+// playing carries on) and holds a characterless GM's timeline there. The effects depend on
+// the ANSWER to that question, not the path, so walking between pages, GM desks included,
+// never cuts or restarts a track.
 //
 // Nor on the mute switch, and that is the other half of the same rule. The program keeps
 // running while muted; muting only silences the bus (music.js#setMusicMuted), so unmuting

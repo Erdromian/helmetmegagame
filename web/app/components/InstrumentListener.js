@@ -6,9 +6,11 @@ import { jukeboxSongByKey } from "@lifeweb/db/lib/jukeboxSongs";
 import { duckLayer, isWanted, playOn, setTone, stopLayer, voicesOn } from "./music";
 import { onCuesSounding } from "./sfx";
 import { fileGain } from "./musicGain";
-import { useFramedJukebox, useMutedPerformers, usePerformances } from "./performanceStore";
+import { JUKEBOX_LOCATION_SLUGS } from "@lifeweb/db/lib/jukeboxText";
+import { useFramedDenJukebox, useFramedJukebox, useMutedPerformers, usePerformances } from "./performanceStore";
 import { usePhase, useStanding } from "./PhaseProvider";
-import { useHeardPlace } from "./heardPlace";
+import { useHeardPlace, useLastHeardPlace } from "./heardPlace";
+import { standingForKey, useGmPlaces } from "./gmPlaces";
 
 // Plays what the people around you are playing (docs/systemdocs/SOUND.md,
 // "Performances"), and the Den's jukebox ("The Den's jukebox"). Mounted once beside
@@ -29,6 +31,12 @@ import { useHeardPlace } from "./heardPlace";
 // one is sounding the jukebox drops very low and comes back after (DUCK_* below).
 // Where it comes from: Chat's feed frame while the stream is open, the phase poll's
 // `standing.jukebox` otherwise. In a soundproof room it is heard through the wall.
+//
+// A GM with no character hears it too, while the place they have open in Chat — or had
+// open last — is in the Den or the Den Interior. That is the same place their ambience
+// follows (MusicDirector.js), and like the ambience it goes on playing on every page,
+// a GM desk included. Theirs comes off the stream's `den` frame, and the phase poll's
+// `denJukebox` once Chat is closed.
 //
 // `room` and `player` are mutually exclusive (music.js), and a lute in front of you beats
 // a box in the corner: while anybody here is playing, the jukebox is not issued at all,
@@ -60,13 +68,30 @@ export default function InstrumentListener() {
   const phase = usePhase();
   const standing = useStanding();
   const framed = useFramedJukebox();
+  const framedDen = useFramedDenJukebox();
   const heardKey = useHeardPlace();
+  const lastKey = useLastHeardPlace();
   const living = Boolean(phase?.hasCharacter) && phase?.phase !== "CLOSED";
-  const jukebox = living ? (framed !== undefined ? framed : (standing?.jukebox ?? null)) : null;
+  // The same test as MusicDirector.js: a GM with no character, in a running game.
+  const gmMode = !living && phase?.phase === "RUNNING" && Boolean(phase?.gm);
+  const gmPlaces = useGmPlaces(gmMode);
+
+  let jukebox = null;
+  // Which room decides "through the wall": the one Chat has open for a character, the one
+  // open or last open for a GM (the same key their ambience follows).
+  let wallKey = heardKey;
+  if (living) {
+    jukebox = framed !== undefined ? framed : (standing?.jukebox ?? null);
+  } else if (gmMode) {
+    const den = framedDen !== undefined ? framedDen : (phase?.denJukebox ?? null);
+    const lookingAt = standingForKey(gmPlaces, lastKey)?.locationSlug;
+    if (den && JUKEBOX_LOCATION_SLUGS.includes(lookingAt)) jukebox = den;
+    wallKey = lastKey;
+  }
   const jukeboxKey = jukebox?.songKey ?? null;
   const jukeboxStartedAt = jukebox?.startedAt ?? null;
   const behindWall = Boolean(
-    jukebox && heardKey?.startsWith("room:") && jukebox.quietRoomIds?.includes(heardKey.slice("room:".length)),
+    jukebox && wallKey?.startsWith("room:") && jukebox.quietRoomIds?.includes(wallKey.slice("room:".length)),
   );
 
   useEffect(() => {

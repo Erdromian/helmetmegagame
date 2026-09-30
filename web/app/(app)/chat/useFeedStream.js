@@ -10,7 +10,12 @@ import { noteNotified } from "./notifiedStore";
 import { noteStreamUp, noteStreamDown, noteStreamFatal } from "./streamStore";
 import { setPlaces, applyRow, removeRow, isOwnRow, resetHistory, placeKind } from "./feedStore";
 import { playSfx, stopSfxLoops } from "@/app/components/sfx";
-import { setPerformances, setFramedJukebox } from "@/app/components/performanceStore";
+import {
+  releaseFramedJukeboxes,
+  setFramedDenJukebox,
+  setFramedJukebox,
+  setPerformances,
+} from "@/app/components/performanceStore";
 import { setPhoneFrame, clearPhones } from "@/app/components/phoneStore";
 import { nudgePhase } from "@/app/components/PhaseProvider";
 
@@ -301,6 +306,16 @@ export default function useFeedStream({
           // Same.
         }
       });
+      // A GM's stream only: what the Den's jukebox has on, wherever they are looking.
+      // InstrumentListener.js plays it while the place open in Chat is in the Den.
+      source.addEventListener("den", (event) => {
+        try {
+          const frame = JSON.parse(event.data);
+          if (frame && "jukebox" in frame) setFramedDenJukebox(frame.jukebox ?? null);
+        } catch {
+          // Same.
+        }
+      });
       // The telephone near here: a bell ringing in this Location or the next, and the
       // handset in this character's hand (PHONES.md §8). phoneStore.js holds the loops.
       source.addEventListener("phones", (event) => {
@@ -410,9 +425,10 @@ export default function useFeedStream({
       // A tab that is not listening for the frame must not go on ringing.
       clearPhones();
       // The jukebox goes back to the phase poll's word, which keeps up without a stream —
-      // asked again now, so a song changed while Chat was open is not a minute behind.
-      setFramedJukebox(undefined);
-      nudgePhase();
+      // asked again now, so a song changed while Chat was open is not a minute behind. The
+      // stream's word stands until that answer is in, so leaving Chat never drops the song
+      // for the second an old poll would have said "off".
+      releaseFramedJukeboxes(nudgePhase());
       document.removeEventListener("visibilitychange", wake);
       window.removeEventListener("online", wake);
       window.removeEventListener("pageshow", wake);

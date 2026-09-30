@@ -17,6 +17,7 @@ import {
   subscribeToPhones,
 } from "@/lib/feedHub";
 import { phoneFrameFor } from "@lifeweb/db/lib/phoneFrame";
+import { denJukebox, denLocationIds } from "@lifeweb/db/lib/jukebox";
 
 // GET /api/feed?since=<seq> — ONE server-sent event stream per open tab,
 // carrying every place the viewer may read.
@@ -339,7 +340,8 @@ export async function GET(request) {
 
       // The sixth event: what is being played where the character stands (SOUND.md,
       // "Performances"). Only their OWN Location — a performance is heard by the people in
-      // the room, not by everyone who may read it — so a GM or a ghost hears nothing. The
+      // the room, not by everyone who may read it — so a GM or a ghost hears nothing here
+      // (a GM hears the Den's jukebox by the eighth event instead). The
       // frame is the whole live list every time, and it is sent on arrival too, which is
       // how somebody walking in halfway through a song lands at the right place in it.
       let musicLocationId = null;
@@ -400,6 +402,30 @@ data: ${frame}
         unsubscribePhones = characterId ? subscribeToPhones(locationId, refreshPhones) : () => {};
         if (characterId) await sendPhones();
       };
+
+      // The eighth event, a GM's only: the Den's jukebox, whichever place they have open
+      // (SOUND.md, "The Den's jukebox"). A GM stands nowhere, so the music above never
+      // reaches them; the browser plays this while the place open in Chat is in the Den.
+      // It follows the Den itself, whose music notify fires on every change of song, and
+      // reads the box again each time rather than trusting that Location's frame, which
+      // only knows its own soundproof rooms.
+      let unsubscribeDen = () => {};
+      if (viewer.gm) {
+        const sendDen = async () => {
+          if (closed) return;
+          try {
+            const jukebox = await denJukebox(prisma);
+            if (!closed) write(`event: den\ndata: ${JSON.stringify({ jukebox })}\n\n`);
+          } catch (err) {
+            console.error("Feed den frame failed:", err);
+          }
+        };
+        const [denId] = await denLocationIds(prisma).catch(() => []);
+        if (denId) {
+          unsubscribeDen = subscribeToMusic(denId, () => void sendDen());
+          await sendDen();
+        }
+      }
 
       // The list first, so a client that reconnects knows what it is looking
       // at before any row lands. Then the catch-up, then the subscriptions —
@@ -489,6 +515,7 @@ data: ${frame}
         unsubscribePresence();
         unsubscribeDm();
         unsubscribeMusic();
+        unsubscribeDen();
         for (const entry of subscriptions.values()) {
           entry.rows();
           entry.typing();

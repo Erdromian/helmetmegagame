@@ -199,14 +199,22 @@ const SILENCE_FADE_MS = 400;
 // as it would have anyway — so this only makes it visible.
 const owners = new Map();
 
+// The tape runProgram is walking right now, or null. Read by resolveProgram, so a GM desk
+// can keep one going without ever starting one.
+let current = null;
+
 /** Which tape, if any, this state should be playing. */
 export function resolveProgram(phase, pathname = "") {
   if (!phase) return null;
-  // No phase tape on a GM desk: a GM adjudicating has no character of their own, which would
-  // otherwise start the character-creation loop under the audit desk. What a desk DOES hear
-  // in a running game is ambience — "Ambience is universal across all pages, including GM
-  // ones" — and that is MusicDirector's, not a tape.
-  if (pathname.startsWith("/gm/")) return null;
+  // A GM desk never STARTS a phase tape: a GM adjudicating has no character of their own,
+  // which would otherwise start the lobby loop under the audit desk the moment they loaded
+  // it. But a tape already playing when they walk onto one plays on — music does not cut out
+  // for a change of page — until the phase itself wants something else. What a desk hears
+  // in a running game is ambience, and that is MusicDirector's, not a tape.
+  if (pathname.startsWith("/gm/")) {
+    const wanted = resolveProgram(phase, "/");
+    return wanted && wanted === current ? wanted : null;
+  }
   // The shut door keeps its own soundtrack whatever else is true. CLOSED is the game not
   // being open, the wind behind it is the point, and white_waking lives on the `ambient`
   // layer there — which the place tape would otherwise be fighting it for.
@@ -289,6 +297,7 @@ export function runProgram(program, { onStep } = {}) {
     );
   }
   owners.set(layer, token);
+  current = program;
   let index = 0;
   let timer = null;
   let warmTimer = null;
@@ -434,6 +443,7 @@ export function runProgram(program, { onStep } = {}) {
   return () => {
     live = false;
     if (owners.get(layer) === token) owners.delete(layer);
+    if (current === program) current = null;
     // Cut off before anybody really heard it — give the hour back. Only here, never in
     // clear(), which runs on every ordinary step change. A hard tab close runs no React
     // cleanup at all, so closing the page two seconds in keeps the hour: being foolproof
