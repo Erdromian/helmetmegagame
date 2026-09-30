@@ -295,8 +295,15 @@ admit Turns/Audit/Oracle/Dev too. What it gets:
   messaging): obols on hand, resources on hand, the bank claim, hunger, and
   whatever `web/lib/economicTags.js#isEconomicTag` lets through — Items,
   Assets, and the Crafting/Brewing/Medical/Work skill groups. Health, Status,
-  General, Meta, Demoness, and anything `catalogVisibility: SECRET` are never
-  selected off the database for this page at all.
+  General, Meta and Demoness stay out. So does anything
+  `catalogVisibility: SECRET` **or standing behind a SECRET gate** (its own
+  `requiredTag` or its group's — the Grimoire, Black Robes and the rest of
+  the cult's kit), and so does every written sheet, book, envelope, set of
+  Documents (`Tag.paperKind`) or photograph, whose name is a title somebody
+  wrote rather than a thing they own. The cut is made on the server, before
+  the rows cross to the browser. The search box covers the whole ALIVE
+  roster — name, zone, location and every listed tag's name — and the pager
+  cuts the matches afterwards.
 
 **Any future economy page or tab should gate through `isEconomist`
 (`web/lib/discordGuild.js`) and live in `(econ)`**, so this stays the one
