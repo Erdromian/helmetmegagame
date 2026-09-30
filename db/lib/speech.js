@@ -6,22 +6,26 @@
 // speech with (web/app/components/remarkChat.js, SPEECH), so what a reader
 // sees coloured as speech is what the game counts as speech:
 //
-//   - straight or curly marks, opening on " or “ and closing on " or ”;
+//   - any double quote mark opens and any closes: " “ ” „ ‟. Which way round
+//     a curly mark faces is the keyboard's guess, not the writer's, and a
+//     phone types “ after a dash, so "Wait-“ has to close on it;
 //   - the opening mark must be followed by a real character, since a lone "
 //     mid-sentence is punctuation;
 //   - no line break inside, so one unmatched quote cannot swallow the rest of
 //     a message. There is no length cap: a speech is as long as it is;
 //   - two marks with nothing between them are not a quote.
 //
-// Inline `code` is literal text, the same as in the browser.
+// Nothing else between the marks matters: every other character, a dash, an
+// emoji, a token or a run of `code`, is part of the speech.
 
-const OPEN = /["“]/g;
-const CLOSE = /["”]/g;
-const FORBIDDEN = /["“”\n]/;
+const MARKS = /["“”„‟]/g;
+const FORBIDDEN = /\n/;
 
-// Backtick runs blanked to spaces of the same length, so indexes still line up.
+// Backtick runs are literal, so a mark inside one neither opens nor closes.
+// Each is filled with a stand-in of the same length, so indexes still line up
+// and the run still counts as words when it sits inside a quote.
 function withoutCode(text) {
-  return text.replace(/`[^`\n]*`/g, (run) => " ".repeat(run.length));
+  return text.replace(/`[^`\n]*`/g, (run) => "x".repeat(run.length));
 }
 
 // The quoted spans of `text`, marks stripped, in order.
@@ -31,8 +35,8 @@ function spokenSpans(text) {
   const spans = [];
   let from = 0;
   while (from < source.length) {
-    OPEN.lastIndex = from;
-    const open = OPEN.exec(source);
+    MARKS.lastIndex = from;
+    const open = MARKS.exec(source);
     if (!open) break;
     const start = open.index + 1;
     // Must open onto a real character.
@@ -40,8 +44,8 @@ function spokenSpans(text) {
       from = start;
       continue;
     }
-    CLOSE.lastIndex = start;
-    const close = CLOSE.exec(source);
+    MARKS.lastIndex = start;
+    const close = MARKS.exec(source);
     const inner = close ? source.slice(start, close.index) : "";
     if (!close || FORBIDDEN.test(inner) || inner.length < 1) {
       // An opener with no partner is just a character; carry on looking.

@@ -49,6 +49,19 @@ test("the browser's rules for a quote hold here too", () => {
   assert.equal(hasSpeech('`"not speech"`'), false);
 });
 
+test("no character inside a quote stops it being speech", () => {
+  // A phone types an opening “ after a dash, so a cut-off line ends on one.
+  assert.equal(spokenText("“Wait-“ he said"), "Wait-");
+  assert.equal(spokenText('"Wait-" he said'), "Wait-");
+  assert.equal(spokenText("”Backwards”"), "Backwards");
+  assert.equal(spokenText("„Hallo“"), "Hallo");
+  for (const ch of "-—–…!?*_~|#>+=.,:;'`\\/()[]{}<>@&%$^😀") {
+    assert.equal(hasSpeech(`"Wait${ch}"`), true, `ends on ${ch}`);
+    assert.equal(hasSpeech(`"${ch}wait"`), true, `starts on ${ch}`);
+  }
+  assert.equal(spokenText('"`code`"'), "`code`");
+});
+
 test("a name said only in narration teaches nothing", () => {
   const marrow = { id: "m", firstName: "Marrow", lastName: "Kell", name: "Marrow Kell", roleTitle: "Sheriff", role: { slug: "sheriff", name: "Sheriff" } };
   const lessons = (content) => lessonsFrom({ content: spokenText(content), speaker: marrow, candidates: [marrow] });

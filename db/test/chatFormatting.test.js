@@ -63,6 +63,23 @@ test("plain text still matches, and a curly pair counts", async () => {
   assert.equal(await run(paragraph(text("||secret||"))), 'paragraph[chatspoiler.chat-spoiler["secret"]]');
 });
 
+test("any quote mark closes a quote, whichever way it faces", async () => {
+  // A phone types an opening “ after a dash, so a cut-off line ends on one.
+  assert.equal(await run(paragraph(text("“Wait-“ he said"))), 'paragraph[span.speech["“Wait-“"] " he said"]');
+  assert.equal(await run(paragraph(text('"Wait-" he said'))), 'paragraph[span.speech["\\"Wait-\\""] " he said"]');
+  assert.equal(await run(paragraph(text("”Backwards”"))), 'paragraph[span.speech["”Backwards”"]]');
+  assert.equal(await run(paragraph(text("„Hallo“"))), 'paragraph[span.speech["„Hallo“"]]');
+});
+
+test("a quote holding only a token or code is still a quote", async () => {
+  const token = { type: "richToken", data: { hName: "richtoken", hProperties: { kind: "char", payload: "cmtt1|Ada" } }, children: [] };
+  assert.equal(await run(paragraph(text('"'), token, text('"'))), 'paragraph[span.speech["\\"" richtoken[] "\\""]]');
+  assert.equal(
+    await run(paragraph(text('"'), { type: "inlineCode", value: "x" }, text('"'))),
+    'paragraph[span.speech["\\"" code("x") "\\""]]',
+  );
+});
+
 test("a run that should not match, does not", async () => {
   assert.equal(
     await run(paragraph(text('he said " nothing here'))),

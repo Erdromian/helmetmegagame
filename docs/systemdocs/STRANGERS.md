@@ -170,8 +170,10 @@ reaches each hearer already wearing their number.
   gives no voice.
 - **Only speech counts.** `db/lib/speech.js#spokenText` finds the words inside
   quotation marks by the same rules the browser uses to tint speech
-  (`web/app/components/remarkChat.js`): straight or curly marks, opening onto a
-  word, no line break, any length. "*nods*" gives nothing.
+  (`web/app/components/remarkChat.js`): any double quote mark opens and any
+  closes, straight or curly, whichever way it faces (a phone types “ after a
+  dash); opening onto a word, no line break, any length, and no other
+  character inside can stop it. "*nods*" gives nothing.
 - **Numbering:** a new voice gets the hearer's next number. A voice heard before
   keeps its number and goes live again. Numbers are per observer and never
   change.

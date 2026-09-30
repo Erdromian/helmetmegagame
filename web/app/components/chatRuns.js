@@ -10,10 +10,12 @@ const OPAQUE = new Set(["code", "inlineCode"]);
 
 const text = (value) => ({ type: "text", value });
 
-// How much text a sibling contributes, so a nested emphasis still counts against the length cap.
+// How much text a sibling contributes, so a nested emphasis still counts against the length cap. Inline code or
+// raw html carries its text in `value`; a token, emoji or mention with nothing inside still counts as one thing,
+// so a quote holding only one of them is not "nothing between the marks".
 function textLength(node) {
-  if (node.type === "text") return node.value.length;
-  if (!Array.isArray(node.children)) return 0;
+  if (typeof node.value === "string") return node.value.length;
+  if (!Array.isArray(node.children) || node.children.length === 0) return 1;
   let total = 0;
   for (const child of node.children) total += textLength(child);
   return total;
