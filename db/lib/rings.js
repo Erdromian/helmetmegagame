@@ -10,7 +10,6 @@
 // rewiring to take a ring instead of a key.
 
 const { fillRingText, tidyStops } = require("./ringText");
-const { formatBareName } = require("./characterName");
 
 // The Tag columns accessSlugsOf reads. Select these (with CharacterTag.equipped
 // beside them) anywhere a door is decided from a hand-picked select, or a worn
@@ -41,23 +40,21 @@ function isRegistered(tag) {
 }
 
 // "Aurel Vane" -> "A.V." · "Gribb" -> "G." Given a character, only the first
-// and last name are engraved: `Sir Aurel "the Bold" Vane` is still "A.V.", as
-// the honorific and the quoted title are not part of who the ring is for. A
-// bare string (or a row with no firstName) is split on whitespace, so a
-// three-part name still produces something.
+// and last name are engraved, one letter each: `Sir Aurel "the Bold" Vane` is
+// still "A.V.", as the honorific and the quoted title are not part of who the
+// ring is for, and "Mary Anne" "de Vere" is "M.D.", as a first or last name may
+// hold a space. A bare string (or a row with no firstName) is split on
+// whitespace, so a three-part name still produces something.
 function initialsOf(nameOrCharacter) {
-  const name =
-    nameOrCharacter && typeof nameOrCharacter === "object"
-      ? nameOrCharacter.firstName
-        ? formatBareName(nameOrCharacter)
-        : nameOrCharacter.name
-      : nameOrCharacter;
-  const parts = String(name ?? "")
-    .split(/\s+/)
-    .map((part) => part.replace(/[^\p{L}\p{N}]/gu, ""))
+  const character = nameOrCharacter && typeof nameOrCharacter === "object" ? nameOrCharacter : null;
+  const parts = character?.firstName
+    ? [character.firstName, character.lastName]
+    : String((character ? character.name : nameOrCharacter) ?? "").split(/\s+/);
+  const letters = parts
+    .map((part) => String(part ?? "").replace(/[^\p{L}\p{N}]/gu, ""))
     .filter(Boolean);
-  if (parts.length === 0) return null;
-  return parts.map((part) => `${part[0].toUpperCase()}.`).join("");
+  if (letters.length === 0) return null;
+  return letters.map((part) => `${part[0].toUpperCase()}.`).join("");
 }
 
 // The ring a character is wearing, or null. The FINGER slot holds one

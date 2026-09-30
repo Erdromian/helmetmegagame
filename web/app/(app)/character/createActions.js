@@ -109,7 +109,9 @@ export async function createCharacter(formData) {
   if (!session?.discordUserId) redirect("/");
   const discordUserId = session.discordUserId;
 
-  const part = (key, limit) => formData.get(key)?.toString().trim().slice(0, limit) || null;
+  // A name may hold spaces ("Mary Anne"), but never a run of them.
+  const part = (key, limit) =>
+    formData.get(key)?.toString().trim().replace(/\s+/g, " ").slice(0, limit).trim() || null;
   // `title` is GM-granted only — not read here.
   const rawHonorific = formData.get("honorific");
   const postedGender = formData.get("gender")?.toString();
@@ -126,10 +128,6 @@ export async function createCharacter(formData) {
   const antagonistsOn = formData.get("antagonists") === "on";
 
   if (!firstName) return { error: "Your character needs a first name." };
-  // One word each — the wizard gates this too, but the form can be hand-posted.
-  if (/\s/.test(firstName) || /\s/.test(lastName ?? "")) {
-    return { error: "First and last names are one word each." };
-  }
 
   if (await prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" } })) {
     redirect("/character");
