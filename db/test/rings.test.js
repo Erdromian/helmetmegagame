@@ -93,9 +93,13 @@ test("a character's initials leave out the honorific and the title", () => {
   const knight = { name: 'Sir Aurel "the Bold" Vane', honorific: "Sir", firstName: "Aurel", title: "the Bold", lastName: "Vane" };
   assert.equal(initialsOf(knight), "A.V.");
   assert.equal(initialsOf({ name: 'Lady Gribb "Ironhand"', honorific: "Lady", firstName: "Gribb", title: "Ironhand", lastName: null }), "G.");
-  // A first or last name with a space in it still gives one letter each.
-  assert.equal(initialsOf({ name: "Mary Anne de Vere", firstName: "Mary Anne", lastName: "de Vere" }), "M.D.");
+  // A first or last name with a space in it still gives one letter each: its
+  // first capital, or its first letter when it has none.
+  assert.equal(initialsOf({ name: "Mary Anne de Vere", firstName: "Mary Anne", lastName: "de Vere" }), "M.V.");
   assert.equal(initialsOf({ name: "Jean Luc", firstName: "Jean Luc", lastName: null }), "J.");
+  assert.equal(initialsOf({ name: "ada o'Neill", firstName: "ada", lastName: "o'Neill" }), "A.N.");
+  assert.equal(initialsOf({ name: "ada lovelace", firstName: "ada", lastName: "lovelace" }), "A.L.");
+  assert.equal(initialsOf("Ludwig van Beethoven"), "L.V.B.");
   // A row selected without the name parts falls back to the whole name.
   assert.equal(initialsOf({ name: "Aurel Vane" }), "A.V.");
 });

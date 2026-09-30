@@ -42,9 +42,11 @@ function isRegistered(tag) {
 // "Aurel Vane" -> "A.V." · "Gribb" -> "G." Given a character, only the first
 // and last name are engraved, one letter each: `Sir Aurel "the Bold" Vane` is
 // still "A.V.", as the honorific and the quoted title are not part of who the
-// ring is for, and "Mary Anne" "de Vere" is "M.D.", as a first or last name may
-// hold a space. A bare string (or a row with no firstName) is split on
-// whitespace, so a three-part name still produces something.
+// ring is for. Each name gives its first CAPITAL letter, so a name that holds a
+// space or a lowercase particle still gives one: "Mary Anne" "de Vere" is
+// "M.V.". A name with no capital at all falls back to its first letter. A bare
+// string (or a row with no firstName) is split on whitespace, so a three-part
+// name still produces something.
 function initialsOf(nameOrCharacter) {
   const character = nameOrCharacter && typeof nameOrCharacter === "object" ? nameOrCharacter : null;
   const parts = character?.firstName
@@ -52,9 +54,10 @@ function initialsOf(nameOrCharacter) {
     : String((character ? character.name : nameOrCharacter) ?? "").split(/\s+/);
   const letters = parts
     .map((part) => String(part ?? "").replace(/[^\p{L}\p{N}]/gu, ""))
-    .filter(Boolean);
+    .filter(Boolean)
+    .map((part) => (part.match(/\p{Lu}/u)?.[0] ?? part[0]).toUpperCase());
   if (letters.length === 0) return null;
-  return letters.map((part) => `${part[0].toUpperCase()}.`).join("");
+  return letters.map((letter) => `${letter}.`).join("");
 }
 
 // The ring a character is wearing, or null. The FINGER slot holds one

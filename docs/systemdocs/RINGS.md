@@ -62,7 +62,7 @@ person and registered to its own doors and account:
 | Column | What it holds |
 |---|---|
 | `ringOfCharacterId` | Who it was engraved for. Snapshot id, no FK. Non-null is what makes a row a ring. |
-| `ringInitials` | The engraving, "A.V." — one letter for the first name and one for the last, never the honorific or a quoted title, and never a second letter for a name with a space in it ("Mary Anne" "de Vere" is "M.D."; `initialsOf`). Kept on its own because the name need not carry it. |
+| `ringInitials` | The engraving, "A.V." — one letter for the first name and one for the last, never the honorific or a quoted title. Each is the name's first capital letter, or its first letter when it has no capital, so a name with a space or a lowercase particle still gives one ("Mary Anne" "de Vere" is "M.V."; `initialsOf`). Kept on its own because the name need not carry it. |
 | `ringRoleSlugs` | The seats whose doors it was registered to. |
 | `ringAccessSlugs` | The union of those seats' `Role.ringAccessSlugs`, copied here so every door check reads it off the worn row. `db:sync-roles` refreshes it when a seat's list changes. |
 | `ringRegisteredAt` | Nothing opens until this is set. |
