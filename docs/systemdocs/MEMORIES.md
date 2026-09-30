@@ -262,14 +262,21 @@ next character. The player can still edit or delete it.
 `db/lib/memoryScramble.js` is pure, and **nothing is stored**. A character
 holding `concussed` or `amnesiac` gets a seed built from their id, when the
 earliest of those tags arrived, and which 3-day stretch of the game it is.
-Each item (an entry's name, role and notes separately, a journal entry, a
-highlight, a day's line, a line of "Who am I?") rolls on its own: 3 in 4 come
-out as letters of the same shape. The tag coming off restores everything on
+**Every word rolls on its own**, in every item (an entry's name, role and
+notes, a journal entry, a highlight, a day's line, a line of "Who am I?"): 3 in
+4 come out as letters of the same shape, so about a quarter of the words stay
+legible, scattered through each memory. A word is a run of letters and digits
+("they'll" is one). The **PIN rolls digit by digit**, so a concussion
+usually leaves one digit of the four. The tag coming off restores everything on
 the next read, and none of the ~130 places that grant tags needs to know.
 
 The page scrambles on the **server**, so the real words never reach the
-browser. A scrambled item cannot be edited or starred, and loses its face and
-its group colour, which would otherwise give it away.
+browser. An item that lost **any** word is a scrambled item: it cannot be
+edited or starred, and loses its face and its group colour, which would
+otherwise give it away. An item that kept every word looks exactly as it
+would without the tag. The edit and ★ guards garble the same real words the
+page did (`web/lib/memories.js#scrambleJournal`, `#scrambleLine`), so what they
+refuse is exactly what the page drew with nonsense in it.
 
 ### 6a. The map is a memory too
 
@@ -283,11 +290,12 @@ is shipped to the player whether it is drawn or not.
 What makes it a memory is that the same scramble reaches it. `/map`'s loader
 asks `scrambleState` for the character, then:
 
-- **A place** rolls once on `place:<locationId>`, and its name and description
-  are garbled together. The board draws the garbled name in a faint italic, and
-  the card, Ways out and a walk's stops all read the garbled one. The real name
-  is never sent.
-- **A way** rolls once on `way:<linkId>`. A scrambled way comes off the board,
+- **A place** rolls word by word on `place:<locationId>`, across its name and
+  description. The board draws the name of a place that lost any word in a
+  faint italic, and the card, Ways out and a walk's stops all read the garbled
+  one. The real name is never sent.
+- **A way** has no words, so it rolls once on `way:<linkId>`, 3 in 4. A
+  scrambled way comes off the board,
   **unless one end is where the character stands**, because what is next door
   is in front of them rather than remembered. Only the drawing changes: Ways
   out, walking and every travel check are untouched.

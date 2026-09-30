@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { UserError, guarded } from "@/lib/actionResult";
-import { loadMemoryViewer, journalScrambled } from "@/lib/memories";
+import { loadMemoryViewer, scrambleJournal } from "@/lib/memories";
 import {
   JOURNAL_TITLE_MAX_LENGTH,
   JOURNAL_BODY_MAX_LENGTH,
@@ -74,8 +74,14 @@ async function updateEntryImpl(id, input) {
   // A Concussed player sees this entry as nonsense (db/lib/memoryScramble.js),
   // and saving over it would write the nonsense in. The Edit button is hidden
   // for it; this is the lock.
+  // The guard asks about the entry's real words, which roll one by one.
   const { state } = await loadMemoryViewer(session.discordUserId);
-  if (journalScrambled(state, id ?? "")) throw new UserError("You can't make sense of that entry right now.");
+  const entry = await prisma.journalEntry.findFirst({
+    where: { id: id ?? "", discordUserId: session.discordUserId },
+    select: { id: true, title: true, body: true },
+  });
+  if (!entry) throw new UserError("That entry is gone.");
+  if (scrambleJournal(state, entry).scrambled) throw new UserError("You can't make sense of that entry right now.");
   // `?? ""` is not cosmetic: Prisma strips an `undefined` field from a where
   // clause entirely, so an omitted id would turn this into "update every
   // entry this user has" — same trap memories/actions.js#unstarNote guards

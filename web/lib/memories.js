@@ -57,7 +57,16 @@ export const journalKey = (id) => `journal:${id}`;
 export const starKey = (id) => `star:${id}`;
 export const lineKey = (seq) => `line:${seq}`;
 
-// Whether a journal entry is unreadable today — the edit guard's question.
-export function journalScrambled(state, id) {
-  return scrambleFields(state, journalKey(id), { title: "x" }).scrambled;
+// A journal entry as its writer reads it today. Words roll one by one, so the
+// guard has to ask about the real words the page drew, not a stand-in.
+export function scrambleJournal(state, entry) {
+  return scrambleFields(state, journalKey(entry.id), { title: entry.title, body: entry.body });
+}
+
+// A day's line as the rememberer reads it: `row` has already been through
+// their own lens (the name they heard it under, STRANGERS.md). The page and
+// the ★ guard both ask this, so the line that cannot be starred is exactly the
+// one the page drew with nonsense in it.
+export function scrambleLine(state, seq, row) {
+  return scrambleFields(state, lineKey(seq), { name: row.name ?? "", content: row.content ?? "" });
 }

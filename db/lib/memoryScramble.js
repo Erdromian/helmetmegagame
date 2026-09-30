@@ -10,11 +10,12 @@
 // write, and every one of the ~130 places that grant or remove a tag is covered
 // without any of them knowing this file exists.
 //
-// "Roughly 75%": each item — an entry's name, its role, its notes, a line of the
-// day, a journal entry — is scrambled or not on its own roll, three in four.
-// What is scrambled comes out as letters of the same length, digits for
-// digits, with spaces and punctuation left standing, so it still looks like
-// the thing it used to be.
+// "Roughly 75%": every WORD rolls on its own, three in four — so a memory comes
+// back with about a quarter of its words still legible, scattered through it,
+// rather than whole memories lost and whole memories kept. A PIN rolls digit
+// by digit. What is scrambled comes out as letters of the same length, digits
+// for digits, with spaces and punctuation left standing, so it still looks
+// like the thing it used to be.
 
 const SCRAMBLING_TAG_SLUGS = ["concussed", "amnesiac"];
 
@@ -23,7 +24,7 @@ const SCRAMBLING_TAG_SLUGS = ["concussed", "amnesiac"];
 // Amnesiac's clock.
 const RESCRAMBLE_DAYS = 3;
 
-// The share of items scrambled, out of 100.
+// The share of words scrambled, out of 100.
 const SCRAMBLE_PERCENT = 75;
 
 // FNV-1a, 32-bit. Not cryptographic and does not need to be: it only has to be
@@ -92,27 +93,41 @@ function flattenTokens(text) {
     .replace(/\{[a-z]+:([^{}|\n]*)(?:\|([^{}\n]*))?\}/g, (_, a, b) => b ?? a);
 }
 
+// A word: letters and digits, with an apostrophe inside it ("don't") kept as
+// part of it. Everything between words stands as it is.
+const WORD = /[\p{L}\p{N}]+(?:['’][\p{L}\p{N}]+)*/gu;
+// With `eachChar`, every letter or digit is a word of its own — a PIN.
+const CHAR = /[\p{L}\p{N}]/gu;
+
 // One item, as the remembering character sees it: `{ text, scrambled }`.
-// `key` names the item ("friend:<id>:name", "line:<seq>"), so each part of an
-// entry rolls on its own. Empty text is never scrambled — there is nothing to
-// lose.
-function scrambleText(state, key, text) {
+// `key` names the item ("friend:<id>:name", "line:<seq>"), and each word in it
+// rolls on its own key under that. `scrambled` is true when ANY word was lost:
+// that is the item a player cannot edit or star, because saving it would
+// write the nonsense in. An item that kept every word comes back untouched,
+// chips and all. Empty text is never scrambled — there is nothing to lose.
+function scrambleText(state, key, text, { eachChar = false } = {}) {
   if (!state?.active || typeof text !== "string" || !text.trim()) return { text, scrambled: false };
-  const roll = hash32(`${state.seed}|${key}|roll`) % 100;
-  if (roll >= SCRAMBLE_PERCENT) return { text, scrambled: false };
-  return { text: garble(state.seed, key, flattenTokens(text)), scrambled: true };
+  let i = 0;
+  let scrambled = false;
+  const out = flattenTokens(text).replace(eachChar ? CHAR : WORD, (word) => {
+    const at = i++;
+    if (hash32(`${state.seed}|${key}|w${at}|roll`) % 100 >= SCRAMBLE_PERCENT) return word;
+    scrambled = true;
+    return garble(state.seed, `${key}:w${at}`, word);
+  });
+  return scrambled ? { text: out, scrambled: true } : { text, scrambled: false };
 }
 
-// One item with several fields that are lost TOGETHER — a journal entry's title
-// and body, a line of the day's speaker and words. One roll for the item, each
-// field garbled on its own key. `fields` is `{ name: text }`; returns the same
-// shape plus `scrambled`.
+// One item with several fields — a journal entry's title and body, a line of
+// the day's speaker and words. Each field rolls word by word on its own key;
+// the item is scrambled if any word in any field was lost. `fields` is
+// `{ name: text }`; returns the same shape plus `scrambled`.
 function scrambleFields(state, key, fields) {
-  const probe = scrambleText(state, key, "x");
-  if (!probe.scrambled) return { ...fields, scrambled: false };
-  const out = { scrambled: true };
+  const out = { scrambled: false };
   for (const [field, text] of Object.entries(fields)) {
-    out[field] = typeof text === "string" && text.trim() ? garble(state.seed, `${key}:${field}`, flattenTokens(text)) : text;
+    const shown = scrambleText(state, `${key}:${field}`, text);
+    out[field] = shown.text;
+    if (shown.scrambled) out.scrambled = true;
   }
   return out;
 }

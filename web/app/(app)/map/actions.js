@@ -215,9 +215,10 @@ async function buildMap({ character, unfogged, canReveal }) {
 
   // THE MAP IS A MEMORY (Map.docx; db/lib/mapMemory.js), so Concussed and
   // Amnesiac scramble it the way they scramble /memories (MEMORIES.md §6) —
-  // same seed, same three-in-four roll, nothing stored. A scrambled place
-  // loses its name and its description together; the real ones are never
-  // sent. A GM's Show all is not a memory and is never scrambled.
+  // same seed, same three-in-four roll for every word, nothing stored. A
+  // place's name and description come out with most of their words garbled;
+  // the real ones are never sent. A GM's Show all is not a memory and is
+  // never scrambled.
   const scramble = character && !unfogged
     ? scrambleState({ characterId: character.id, tags: character.tags, dayNumber: openTurn?.dayNumber ?? 0 })
     : { active: false };
@@ -340,7 +341,8 @@ async function buildMap({ character, unfogged, canReveal }) {
     // A scrambled way comes off the board, except one touching where they
     // stand: what is next door is in front of them, not remembered (Map.docx).
     // The Ways out list and every travel check are untouched — this is only
-    // what is DRAWN.
+    // what is DRAWN. A way has no words, so it rolls as one: the stand-in "x"
+    // is a single word, lost three times in four.
     const touchesHere = link.aId === character?.locationId || link.bId === character?.locationId;
     if (!touchesHere && scrambleText(scramble, `way:${link.id}`, "x").scrambled) continue;
     if (oneEnd) {

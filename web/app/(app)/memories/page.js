@@ -11,7 +11,7 @@ import { scrambleEntry, scrambleFields, scrambleText } from "@lifeweb/db/lib/mem
 import { ROLE_GROUPS } from "@lifeweb/db/lib/roleGroups";
 import { createLens } from "@lifeweb/db/lib/strangers";
 import { getGmSession } from "@/lib/discordGuild";
-import { loadMemoryViewer, journalKey, starKey, lineKey } from "@/lib/memories";
+import { loadMemoryViewer, starKey, scrambleJournal, scrambleLine } from "@/lib/memories";
 import { loadMentionDirectory, loadOfferableMentions } from "@/lib/mentionDirectory";
 
 // A character's memories (docs/systemdocs/MEMORIES.md) — five sections, and
@@ -138,7 +138,9 @@ async function FreshMemories() {
   const self = character
     ? {
         name: scrambleText(state, "self:name", character.name ?? "").text,
-        pin: scrambleText(state, "self:pin", character.pin ?? "").text || null,
+        // Every digit of the PIN is a word of its own, so a concussion leaves
+        // about one digit in four.
+        pin: scrambleText(state, "self:pin", character.pin ?? "", { eachChar: true }).text || null,
         roleTitle: scrambleText(state, "self:role", character.roleTitle ?? character.role?.name ?? "").text || null,
         intro: scrambleText(state, "self:intro", character.role?.intro ?? "").text || null,
         charter: (character.role?.description ?? []).map((line, i) => scrambleText(state, `self:charter:${i}`, line).text),
@@ -167,7 +169,7 @@ async function FreshMemories() {
     // A line with no speaker is the world talking — a shout from next door,
     // a door slamming, a GM's scene. It reads as scenery, not as a person.
     const narrated = !raw.characterId || raw.source === "SYSTEM";
-    const shown = scrambleFields(state, lineKey(raw.seq), { name: row.name ?? "", content: row.content ?? "" });
+    const shown = scrambleLine(state, raw.seq, row);
     return {
       seq: row.seq,
       name: narrated ? null : shown.name,
@@ -212,7 +214,7 @@ async function FreshMemories() {
 
   // ---- Notes (the Journal) ---------------------------------------------------
   const journal = journalEntries.map((e) => {
-    const shown = scrambleFields(state, journalKey(e.id), { title: e.title, body: e.body });
+    const shown = scrambleJournal(state, e);
     return {
       id: e.id,
       title: shown.title,

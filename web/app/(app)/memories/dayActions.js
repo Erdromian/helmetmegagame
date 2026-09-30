@@ -4,9 +4,10 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
 import { UserError, guarded } from "@/lib/actionResult";
-import { loadMemoryViewer, lineKey } from "@/lib/memories";
+import { loadMemoryViewer, scrambleLine } from "@/lib/memories";
 import { STAR_ROW_SELECT, saveStarredRow } from "@/lib/starNote";
-import { scrambleFields } from "@lifeweb/db/lib/memoryScramble";
+import { FEED_ROW_SELECT } from "@lifeweb/db/lib/archive";
+import { createLens } from "@lifeweb/db/lib/strangers";
 
 // ★ on a line in "Memories of the day" — a Highlight, the same Note a ★ in
 // /chat makes (web/lib/starNote.js). The gate is different, and has to be:
@@ -32,8 +33,13 @@ export async function starMemory(seq) {
     });
     if (!heard || heard.dayNumber !== dayNumber) throw new UserError("That line is gone.");
     // A line you cannot make sense of is not one you can keep: the Highlight
-    // would hold the real words behind the nonsense.
-    if (scrambleFields(state, lineKey(key), { content: "x" }).scrambled) {
+    // would hold the real words behind the nonsense. Words roll one by one, so
+    // the guard reads the line the way the page drew it — through this
+    // character's own lens, then scrambled.
+    const feedRow = await prisma.archiveEntry.findFirst({ where: { seq: key, deletedAt: null }, select: FEED_ROW_SELECT });
+    const [seen] = feedRow ? await createLens(prisma, { characterId: character.id }).all([feedRow]) : [];
+    if (!seen) throw new UserError("That line is gone.");
+    if (scrambleLine(state, key, seen).scrambled) {
       throw new UserError("You can't make sense of that line right now.");
     }
 
