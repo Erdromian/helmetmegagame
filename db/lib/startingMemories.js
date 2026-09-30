@@ -87,7 +87,7 @@ const UNDERTOWN_TRADE = ["undertown-5", "undertown-6", "undertown-a"];
 // NEVER put one of these in a table, each for its own reason.
 //
 //   undertown-f  Hole in the Wall — `hidden: tunnel-rat` off the Poorhouse, and
-//                a caving climb up out of the Depths. The one place down here a
+//                a Tunnel Rat climb up out of the Depths. The one place down here a
 //                table could really leak, since a hidden way is the only thing
 //                omission actually protects.
 //   undertown-h  Island — across the water behind Strong Swimmer. A hideaway

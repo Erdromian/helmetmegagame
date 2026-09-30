@@ -2623,11 +2623,14 @@ connections:
     hidden: tunnel-rat
     on_foot: true
 
-  # …and out the far side of that hole, into the deep. LOCKED rather than
+  # …and out the far side of that hole, into the deep. The same Tunnel Rat as
+  # the wall above, on purpose: this used to be `caving`, which let a caver
+  # climb up out of Last Chance — a far crossing, the whole day's travel — into
+  # a room whose only other way out was hidden from them. LOCKED rather than
   # hidden: standing in the Dark Entrance you can see perfectly well where it
-  # goes, and the question is whether you can make the descent.
+  # goes, and from Last Chance the bored tunnel is no secret either.
   - pair: [undertown/undertown-f, depths/depths-3]
-    locked: caving
+    locked: tunnel-rat
     on_foot: true
 
   # The Den's other back door, up into the shelter. Behind the same Den Key
