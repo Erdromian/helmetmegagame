@@ -5,7 +5,7 @@ import { trainHere } from "@lifeweb/db/lib/train";
 import { bandOf } from "@lifeweb/db/lib/mood";
 import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
 import { CHARON_SPACE_SLUG } from "@lifeweb/db/lib/charonPlaces";
-import { jukeboxAt } from "@lifeweb/db/lib/jukebox";
+import { denJukebox, jukeboxAt } from "@lifeweb/db/lib/jukebox";
 import { JUKEBOX_LOCATION_SLUGS } from "@lifeweb/db/lib/jukeboxText";
 import { getGmSession } from "@/lib/discordGuild";
 import { DRUG_STATE_SLUGS, drugsHeld } from "@/lib/drugHighs";
@@ -122,7 +122,12 @@ export const getMusicPhase = cache(async (discordUserId) => {
     ]);
   }
 
-  return { phase, hasCharacter: Boolean(character), standing, ghost, gm };
+  // A GM hears the Den's jukebox while the place they have open in Chat, or had open last,
+  // is in the Den — on every page, a GM desk included. Which place that is only the browser
+  // knows, so this sends what is on and InstrumentListener.js decides.
+  const denJukeboxNow = gm ? await denJukebox(prisma).catch(() => null) : null;
+
+  return { phase, hasCharacter: Boolean(character), standing, ghost, gm, denJukebox: denJukeboxNow };
 });
 
 // How long after a turn opens the train still counts as having just pulled in. It rolls

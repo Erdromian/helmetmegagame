@@ -139,17 +139,39 @@ async function jukeboxAt(prisma, locationId) {
   });
   if (!location || !JUKEBOX_LOCATION_SLUGS.includes(location.slug)) return null;
 
+  const on = await songOn(prisma);
+  if (!on) return null;
+  return { ...on, quietRoomIds: (location.rooms ?? []).map((room) => room.id) };
+}
+
+// What the Bar's box has on, as { songKey, startedAt }, or null while it is off.
+async function songOn(prisma) {
   const bar = await prisma.room.findUnique({
     where: { slug: JUKEBOX_ROOM_SLUG },
     select: { jukeboxSongKey: true, jukeboxStartedAt: true },
   });
   const song = bar?.jukeboxSongKey ? jukeboxSongByKey(bar.jukeboxSongKey) : null;
   if (!song || !bar.jukeboxStartedAt) return null;
-  return {
-    songKey: song.key,
-    startedAt: bar.jukeboxStartedAt.getTime(),
-    quietRoomIds: (location.rooms ?? []).map((room) => room.id),
-  };
+  return { songKey: song.key, startedAt: bar.jukeboxStartedAt.getTime() };
+}
+
+/**
+ * The jukebox as a GM hears it: not from where a character stands, but from whichever
+ * place they have open in Chat (SOUND.md, "The Den's jukebox"). The same { songKey,
+ * startedAt, quietRoomIds } as jukeboxAt, with `quietRoomIds` covering the soundproof
+ * rooms of BOTH Den Locations, since a GM can be looking at either. Null while it is off.
+ * The browser decides whether the place on screen is in the Den.
+ */
+async function denJukebox(prisma) {
+  if (!prisma?.room) return null;
+  const on = await songOn(prisma);
+  if (!on) return null;
+  const rooms = await prisma.room.findMany({
+    where: { soundproof: true, location: { slug: { in: [...JUKEBOX_LOCATION_SLUGS] } } },
+    select: { id: true },
+    orderBy: { id: "asc" },
+  });
+  return { ...on, quietRoomIds: rooms.map((room) => room.id) };
 }
 
 module.exports = {
@@ -159,4 +181,6 @@ module.exports = {
   jukeboxActor,
   setJukebox,
   jukeboxAt,
+  denJukebox,
+  denLocationIds,
 };

@@ -4,7 +4,10 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 const PhaseContext = createContext(null);
 
-/** `{ phase, hasCharacter, standing, ghost, gm }`, or null until the first read lands. */
+/**
+ * `{ phase, hasCharacter, standing, ghost, gm, denJukebox }`, or null until the first read
+ * lands. `denJukebox` is set for a GM only (gamePhase.js).
+ */
 export function usePhase() {
   return useContext(PhaseContext);
 }
@@ -45,6 +48,7 @@ const POLL_MS = 60_000;
 function sameAnswer(a, b) {
   if (a.phase !== b.phase || a.hasCharacter !== b.hasCharacter) return false;
   if (a.ghost !== b.ghost || a.gm !== b.gm) return false;
+  if (!sameJukebox(a.denJukebox, b.denJukebox)) return false;
   const x = a.standing;
   const y = b.standing;
   if (!x || !y) return x === y;
@@ -82,10 +86,13 @@ function sameJukebox(a, b) {
 //
 // Module scope rather than context, so a server action's continuation can reach it
 // without the caller holding a hook. A no-op before the provider mounts.
+//
+// Returns a promise that settles once the answer is in, for a caller that has to hand
+// something over to the poll without a gap (useFeedStream.js, leaving Chat).
 let pokePoll = null;
 
 export function nudgePhase() {
-  pokePoll?.();
+  return Promise.resolve(pokePoll?.());
 }
 
 export default function PhaseProvider({ children, phasePromise }) {

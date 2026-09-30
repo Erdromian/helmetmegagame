@@ -240,8 +240,8 @@ ramp on `element.volume`. One branch inside one function — not a second engine
    `musicArmed()` says. There is deliberately no "click to enable sound" dialog.
 2. **Is the master off?** `soundSetting()` in the console.
 3. **Is there a program for this state at all?** `resolveProgram` returns `null`
-   for a living character, a ghost or a GM in a running game, and for every `/gm/`
-   path — and then it is the conductor's turn (§4a), which is silent between pieces
+   for a living character, a ghost or a GM in a running game, and for a `/gm/` path
+   unless that tape was already playing — and then it is the conductor's turn (§4a), which is silent between pieces
    about three quarters of the time.
 4. **On iOS**, the silent switch mutes Web Audio whatever the volume says. That
    is not a bug in this code.
@@ -259,7 +259,7 @@ program from the phase and runs it.
 
 | state | who | program |
 |---|---|---|
-| any `/gm/` path | anyone | no phase tape. The conductor still runs for the three rows at the bottom, but for a GM with no character it is **held** there: a track already playing finishes, and nothing new starts (below) |
+| any `/gm/` path | anyone | no phase tape **starts** here, but one already playing when they walk onto the desk plays on until the phase wants something else — music does not cut out for a change of page. The conductor still runs for the three rows at the bottom, but for a GM with no character it is **held** there: a track already playing finishes, and nothing new starts (below) |
 | `CLOSED` | anyone | wind beds for about a minute, then, **at most once an hour per browser profile**, `white_waking` fading in over 3 s and out over 4, then the wind again, forever |
 | anything but `CLOSED` | a living character | no phase tape — the conductor plays where they stand (§4a) |
 | `RUNNING` | a **ghost** | no phase tape — the conductor plays the dead's own ambience (§4b) |
@@ -286,7 +286,8 @@ switches Chat to a place the piece could not have been picked in — the same ru
 living character's piece follows when they walk (§4a). Other pages (Map, Documents…)
 are not desks, so new pieces keep coming there off the last place. A GM with a living
 character of their own is not held: they hear where that character stands, desks
-included.
+included. The Den's jukebox is not held either: it plays wherever the last place is in
+the Den (§6c).
 
 `ghost` and `gm` ride the phase payload (§5), asked only when there is no living
 character in a running game, so a player's poll never pays for either.
@@ -918,7 +919,19 @@ carries `jukebox` beside `performances` (`web/lib/feedHub.js`), so Chat hears a 
 at once. Every other page reads `standing.jukebox` off the phase poll
 (`web/lib/gamePhase.js`), a minute late at worst; this is why the jukebox, unlike an
 instrument, is heard off Chat too. `performanceStore.js#useFramedJukebox` is the frame's
-word, `undefined` while no stream is open, and closing the stream nudges the poll.
+word, `undefined` while no stream is open. Closing the stream nudges the poll, and the
+frame's word stands until that answer is in (`releaseFramedJukeboxes`): letting go at once
+fell back on a poll that might not know the song yet, and leaving Chat cut it out for a
+second.
+
+**A GM hears it too**, with no character, in a running game, while the place open in Chat
+— or last open, the key their ambience follows (§4) — is in the Den or the Den Interior.
+It plays on every page, GM desks included, and a song put on while they sit on a desk
+starts there. Their stream carries a separate `den` event (`api/feed/route.js`), sent on
+open and on every Den music notify, with `db/lib/jukebox.js#denJukebox`: the same shape
+as `jukeboxAt`, with `quietRoomIds` covering both Den Locations. Off Chat it is the phase
+poll's `denJukebox`, asked for GMs only. The browser decides whether the place on screen is
+in the Den (`gmPlaces.js`). A GM still hears no instrument.
 
 **How it sounds.** `InstrumentListener.js` plays it on `room`: looped, anchored, through
 a 2.8 kHz lowpass (500 Hz behind a soundproof wall). As the top of the bus it ducks the
