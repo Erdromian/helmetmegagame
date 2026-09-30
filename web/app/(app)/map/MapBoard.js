@@ -11,10 +11,11 @@ import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, WALK_HINT, affordsCrossing } from "@/lib/travelCost";
 import SqueezeChip from "@/app/components/SqueezeChip";
-import { loadMap } from "./actions";
+import { loadMap, loadHeadcounts } from "./actions";
 import { renderPlate, glyphPath } from "./plateRender";
 import useMapNarrow from "./useMapNarrow";
 import { travelTo } from "../chat/actions";
+import useVisiblePoll from "../chat/useVisiblePoll";
 import { nudgePhase } from "../../components/PhaseProvider";
 
 // The map. Every Location this character knows, drawn on the plate it was
@@ -66,6 +67,31 @@ const FIT_MAX = 4;
 const FIT_PAD = 64;
 
 const POLL_MS = 10_000;
+// How often the headcounts are re-read while the board is in front of somebody.
+// People walk in and out of a watched street without the watcher moving, so
+// nothing else tells the board a number went stale.
+const HEADCOUNT_MS = 30_000;
+
+// The headcount beside a place you are watching (MAP.md §6j): a dark plate, a
+// figure and a number, sitting over the top-left corner of the mark — the
+// staircase has the top-right. Drawn in the units of a 16px cell and scaled to
+// the plate's own, so it keeps its size against the crosshair on any plate.
+const BADGE = { unit: 16, h: 7, pad: 1.5, figure: 4, gap: 1, digit: 3.4, right: 7, top: -7.5 };
+// Four pixels wide by six tall, made of pixels the way every other mark on the
+// board is: a head over a pair of shoulders.
+const BADGE_FIGURE = "M1 0h2v2h-2zM0 3h4v3h-4z";
+function badgeBox(count) {
+  const w = BADGE.pad * 2 + BADGE.figure + BADGE.gap + String(count).length * BADGE.digit;
+  return { x: BADGE.right - w, y: BADGE.top, w, h: BADGE.h };
+}
+// The same number in words, for the card. Where you stand the count includes
+// you, the way "Here · N" does, so it says so rather than leaving 1 to read as
+// company.
+function headcountLine(count, isHere) {
+  if (isHere) return count <= 1 ? "Nobody else is here." : `${count} people here, you included.`;
+  if (count === 0) return "Nobody is here.";
+  return count === 1 ? "1 person here." : `${count} people here.`;
+}
 
 // Whether Go is on offer for a node. THE one predicate the card's confirm strip
 // reads, so a place can never offer Go while its own card is showing a refusal.
@@ -178,10 +204,17 @@ function overlap(a, b) {
 }
 
 // `nodes` are the drawn nodes whose name is showing; `marks` every drawn node
-// (a name must not sit on anybody's crosshair). Returns id -> { x, y, anchor }
-// for the <text>: `y` is the baseline, `anchor` its text-anchor.
+// (a name must not sit on anybody's crosshair, or on its headcount). Returns
+// id -> { x, y, anchor } for the <text>: `y` is the baseline, `anchor` its
+// text-anchor.
 function placeLabels(nodes, marks, cell, rank) {
   const blocked = marks.map((n) => ({ x: n.x * cell + 1, y: n.y * cell + 1, w: cell - 2, h: cell - 2 }));
+  const scale = cell / BADGE.unit;
+  for (const n of marks) {
+    if (n.headcount == null) continue;
+    const box = badgeBox(n.headcount);
+    blocked.push({ x: n.x * cell + box.x * scale, y: n.y * cell + box.y * scale, w: box.w * scale, h: box.h * scale });
+  }
   const placed = [];
   const out = new Map();
   const order = [...nodes].sort((a, b) => rank(a) - rank(b) || a.y - b.y || a.x - b.x);
@@ -590,6 +623,33 @@ export default function MapBoard({ onClose = null, initial = null }) {
     }, POLL_MS);
     return () => clearInterval(id);
   }, []);
+
+  // The headcounts, re-read on their own slow clock and folded into the nodes
+  // already on the board. NOT a bump of `nonce`: that re-asks the whole map and
+  // re-frames the board, which is right for a move and wrong for one digit.
+  // An answer for a place the character has since left is dropped — the
+  // location poll above is already fetching the map that replaces it.
+  const refreshHeadcounts = useCallback(() => {
+    loadHeadcounts()
+      .then((res) => {
+        if (!res?.ok) return;
+        setData((held) => {
+          if (!held?.ok || (held.you?.locationId ?? null) !== res.at) return held;
+          let moved = false;
+          const nodes = held.nodes.map((n) => {
+            const next = res.counts[n.id];
+            if (next === n.headcount) return n;
+            moved = true;
+            return { ...n, headcount: next };
+          });
+          return moved ? { ...held, nodes } : held;
+        });
+      })
+      .catch(() => {
+        // A skipped tick. The numbers on the board stand until the next one.
+      });
+  }, []);
+  useVisiblePoll(refreshHeadcounts, HEADCOUNT_MS);
 
   // The art, fetched once per plate and drawn once per plate.
   //
@@ -1210,6 +1270,35 @@ export default function MapBoard({ onClose = null, initial = null }) {
               </g>
             )}
 
+            {/* How many people are at each place you are watching — where you
+                stand and the streets still lit behind you in this zone, which
+                is all the server sends a number for (MAP.md §6j). Inert: a tap
+                goes through to the place, whose card says the same in words. */}
+            <g className="map-headcounts">
+              {drawn.map((n) => {
+                if (n.headcount == null) return null;
+                const box = badgeBox(n.headcount);
+                return (
+                  <g
+                    key={n.id}
+                    className="map-headcount"
+                    data-empty={n.headcount === 0 ? "true" : undefined}
+                    transform={`translate(${n.x * cell} ${n.y * cell}) scale(${cell / BADGE.unit}) translate(${box.x} ${box.y})`}
+                  >
+                    <rect className="map-headcount-plate" width={box.w} height={box.h} rx="1" />
+                    <path
+                      className="map-headcount-figure"
+                      transform={`translate(${BADGE.pad} ${(BADGE.h - 6) / 2})`}
+                      d={BADGE_FIGURE}
+                    />
+                    <text className="map-headcount-num mono" x={BADGE.pad + BADGE.figure + BADGE.gap} y={BADGE.h - 1.6}>
+                      {n.headcount}
+                    </text>
+                  </g>
+                );
+              })}
+            </g>
+
             <g className="map-labels">
               {named.map((n) => {
                 const spot = spots.get(n.id);
@@ -1519,6 +1608,12 @@ function MapCard({ node, here, travel, pending, error, note, stairs = null, onCa
       )}
 
       {isHere && <p className="chat-quiet-line">You are standing here.</p>}
+      {/* The badge on the board, in words — for a phone, where the badge is a
+          few pixels, and for anybody reading the card rather than the plate.
+          Only ever set for a place they are watching. */}
+      {node.headcount != null && (
+        <p className="chat-quiet-line">{headcountLine(node.headcount, isHere)}</p>
+      )}
       {isHere && note && <p className="text-sm">{note}</p>}
       {!isHere && node.state === "seen" && (
         <p className="chat-quiet-line">You have not been here.</p>

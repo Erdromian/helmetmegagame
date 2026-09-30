@@ -7122,6 +7122,41 @@ label.gate-request {
   pointer-events: none;
 }
 
+/* ------------------------------------------------------ /map · headcounts */
+
+/* How many people are at a place you are watching (MAP.md §6j): a dark plate
+   over the top-left corner of the mark, a figure and a number. The plate is
+   there because a bare digit beside a crosshair read as part of the art, and
+   the halo a name wears would make it read as a name.
+
+   Inert, like .map-node-label: a tap goes through to the place under it. */
+.map-headcount {
+  pointer-events: none;
+}
+
+.map-headcount-plate {
+  fill: var(--map-halo);
+  fill-opacity: 0.9;
+  stroke: var(--border);
+  stroke-width: 0.4;
+}
+
+.map-headcount-figure {
+  fill: var(--muted);
+}
+
+.map-headcount-num {
+  fill: var(--text);
+  font-size: 5.5px;
+  font-weight: 600;
+}
+
+/* A watched street with nobody on it. The 0 stays, since no badge at all means
+   "not watching" — it just stops asking to be looked at. */
+.map-headcount[data-empty] .map-headcount-num {
+  fill: var(--muted);
+}
+
 /* The hover card for a staircase or a gated way. Opaque, for the reason the
    HUD boxes give: it floats over the art. Offset from the pointer so the thing
    it describes stays in view. */
