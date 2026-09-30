@@ -81,16 +81,9 @@ test("a quote holding only a token or code is still a quote", async () => {
 });
 
 test("a run that should not match, does not", async () => {
-  assert.equal(
-    await run(paragraph(text('he said " nothing here'))),
-    'paragraph["he said \\"" " nothing here"]',
-  );
-  assert.equal(
-    await run(paragraph(text('an unclosed " quote'))),
-    'paragraph["an unclosed \\"" " quote"]',
-  );
-  assert.equal(await run(paragraph(text('"" empty'))), 'paragraph["\\"" "\\"" " empty"]');
-  assert.equal(await run(paragraph(text('"two\nlines"'))), 'paragraph["\\"" "two\\nlines\\""]');
+  assert.equal(await run(paragraph(text('he said " nothing here'))), 'paragraph["he said \\" nothing here"]');
+  assert.equal(await run(paragraph(text('an unclosed " quote'))), 'paragraph["an unclosed \\" quote"]');
+  assert.equal(await run(paragraph(text('"" empty'))), 'paragraph["\\"\\" empty"]');
 });
 
 test("speech has no length cap, but a spoiler still does", async () => {
@@ -144,24 +137,107 @@ test("a token's payload is escaped, not parsed", async () => {
   assert.equal(escape("`{char:cmtt1|Ada}` shown as syntax"), "`{char:cmtt1|Ada}` shown as syntax"); // bar stays bare
 });
 
-test("a newline is a line break, and a quote still stops at it", async () => {
+test("a newline is a line break, and a quote runs over it", async () => {
   const { default: remarkLineBreaks } = await load("remarkLineBreaks.js");
   const { default: remarkChat } = await load("remarkChat.js");
+  const lines = (tree) => {
+    remarkLineBreaks()(tree);
+    remarkChat()(tree);
+    return shape(tree.children[0]);
+  };
 
   // What remark hands over for `*draws her knife*\n"Get out."`: the newline sits in a text node.
-  const tree = paragraph(emphasis("draws her knife"), text('\n"Get out."'));
-  remarkLineBreaks()(tree);
-  remarkChat()(tree);
-  assert.equal(shape(tree.children[0]), 'paragraph[emphasis["draws her knife"] break[] span.speech["\\"Get out.\\""]]');
+  assert.equal(
+    lines(paragraph(emphasis("draws her knife"), text('\n"Get out."'))),
+    'paragraph[emphasis["draws her knife"] break[] span.speech["\\"Get out.\\""]]',
+  );
 
-  // A quote opened on one line never swallows the next.
-  const open = paragraph(text('she said "wait\nand left'));
-  remarkLineBreaks()(open);
-  remarkChat()(open);
-  assert.equal(shape(open.children[0]), 'paragraph["she said \\"" "wait" break[] "and left"]');
+  // Shift+Enter in the middle of a speech keeps it one speech.
+  assert.equal(
+    lines(paragraph(text('"Wait.\nCome back." she calls'))),
+    'paragraph[span.speech["\\"Wait." break[] "Come back.\\""] " she calls"]',
+  );
+
+  // With no mark to close it, an opener is still just a character.
+  assert.equal(lines(paragraph(text('she said "wait\nand left'))), 'paragraph["she said \\"wait" break[] "and left"]');
 
   // Inline code keeps its newline; it is not a text node.
   const code = paragraph({ type: "inlineCode", value: "a\nb" });
   remarkLineBreaks()(code);
   assert.equal(shape(code.children[0]), 'paragraph[code("a\\nb")]');
+});
+
+test("a quote runs from one paragraph into the next, one wrapper in each", async () => {
+  const { default: remarkChat } = await load("remarkChat.js");
+  const block = (...children) => ({ type: "paragraph", children });
+
+  const two = { type: "root", children: [block(text('"First.')), block(text('Second." she says'))] };
+  remarkChat()(two);
+  assert.equal(shape(two), 'root[paragraph[span.speech["\\"First."]] paragraph[span.speech["Second.\\""] " she says"]]');
+
+  // A paragraph with no mark in it, wholly inside the speech, is tinted all through.
+  const three = { type: "root", children: [block(text('"One.')), block(emphasis("Two.")), block(text('Three."'))] };
+  remarkChat()(three);
+  assert.equal(
+    shape(three),
+    'root[paragraph[span.speech["\\"One."]] paragraph[span.speech[emphasis["Two."]]] paragraph[span.speech["Three.\\""]]]',
+  );
+
+  // A mark at the very end of a paragraph opens onto the blank line, so it is not a quote.
+  const end = { type: "root", children: [block(text('he said "')), block(text('Hello"'))] };
+  remarkChat()(end);
+  assert.equal(shape(end), 'root[paragraph["he said \\""] paragraph["Hello\\""]]');
+});
+
+test("a quote may open inside emphasis and close outside it, as the server reads it", async () => {
+  const tree = paragraph(emphasis('she says "wait'), text(' for me" and goes'));
+  assert.equal(
+    await run(tree),
+    'paragraph[emphasis["she says " span.speech["\\"wait"]] span.speech[" for me\\""] " and goes"]',
+  );
+});
+
+test("a real parse tints the same words the server hears", async () => {
+  const { unified } = await import("unified");
+  const { default: remarkParse } = await import("remark-parse");
+  const { default: remarkGfm } = await import("remark-gfm");
+  const { default: remarkLineBreaks } = await load("remarkLineBreaks.js");
+  const { default: remarkChat } = await load("remarkChat.js");
+  const { spokenSpans } = require("../lib/speech");
+  const processor = unified().use(remarkParse).use(remarkGfm).use(remarkLineBreaks).use(remarkChat);
+
+  // The tinted text, one entry per quote: wrappers that sit back to back across
+  // a break or a paragraph belong to one quote, and are joined back up.
+  function tinted(line) {
+    const tree = processor.runSync(processor.parse(line));
+    const out = [];
+    let last = null;
+    (function walk(node) {
+      if (node.data?.hProperties?.className === "speech") {
+        const words = [];
+        (function collect(n) {
+          if (n.type === "text" || n.type === "inlineCode") words.push(n.value);
+          else if (n.type === "break") words.push("\n");
+          for (const c of n.children ?? []) collect(c);
+        })(node);
+        const joined = words.join("");
+        if (last !== null && !/["“”„‟]$/.test(last)) out[out.length - 1] += `\n${joined}`;
+        else out.push(joined);
+        last = out[out.length - 1];
+        return;
+      }
+      for (const c of node.children ?? []) walk(c);
+    })(tree);
+    return out.map((q) => q.slice(1, -1).replace(/\n+/g, "\n"));
+  }
+  // The server reads the raw line, so its spans still hold the formatting marks.
+  const heard = (line) => spokenSpans(line).map((q) => q.replace(/[*`]/g, "").replace(/\n+/g, "\n"));
+
+  const lines = [
+    '*draws her knife* "Get out.\nNow." *waits*',
+    '"This is the first part.\n\nAnd this is the second." He sits.',
+    '"One *two*\n\nthree `four` five" and "six"',
+    'Unclosed " here\nand "a real one"',
+  ];
+  for (const line of lines) assert.deepEqual(tinted(line), heard(line), line);
 });

@@ -1440,15 +1440,25 @@ a 48px head and a one-line composer:
   `mdast-util-find-and-replace`, which sees one text node at a time. So
   `he said "*get out*"` was never tinted and `||a *hidden* word||` was never
   hidden. Players write with emphasis constantly, so that was most quotes and
-  most spoilers, for as long as the tint has existed. `chatRuns.js` is the fix:
-  it scans a parent's **child list** rather than one string, an opener and a
-  closer still have to sit in text nodes, and everything between them — an
-  emphasis, a link, a resolved mention, a `<t:…>` — goes inside the wrapper
-  whole. The old refusals all survive it: no newline or hard break inside, a
-  quote opens only on a real character, and an opener with no partner is left
-  as a character rather than swallowing the rest of the line. A spoiler is
-  capped at 400 characters; speech has no cap, so a long speech is tinted and
-  heard whole.
+  most spoilers, for as long as the tint has existed. `chatRuns.js` is the
+  spoilers' fix: it scans a parent's **child list** rather than one string, an
+  opener and a closer still have to sit in text nodes, and everything between
+  them — an emphasis, a link, a resolved mention, a `<t:…>` — goes inside the
+  wrapper whole. A spoiler takes no newline or hard break, and is capped at
+  400 characters.
+
+  **Speech goes further, and runs over line breaks and blank lines.** A speech
+  typed over several lines with Shift+Enter, or over two paragraphs, is one
+  speech, so its marks can sit in different paragraphs, or one inside an
+  emphasis and one outside it. `speechRuns.js` reads the whole line back as
+  text (a stand-in for each token, mention or bit of code, a blank line before
+  each paragraph), finds the quotes with `db/lib/speech.js#quoteRanges` — the
+  same function the server hears by, so the tint and the voice cannot drift —
+  and wraps each quote where it lies, one wrapper per paragraph it covers. A
+  quote still opens only on a real character, an opener with no partner is
+  left as a character, and there is no length cap. The price of the line
+  breaks: one stray mark now pairs with the next mark anywhere later in the
+  message, not just later on its line.
   `db/test/chatFormatting.test.js` is the guard.
 
   **A token is the opposite case, and gets the opposite fix.** A

@@ -2,24 +2,25 @@
 // (docs/systemdocs/STRANGERS.md §4). Everything else in a line is narration,
 // an emote like *nods at the door*, and nobody hears a voice in that.
 //
-// Pure, no requires. It is the server's copy of the rule the browser tints
-// speech with (web/app/components/remarkChat.js, SPEECH), so what a reader
-// sees coloured as speech is what the game counts as speech:
+// Pure, no requires. It is the one rule for speech: the browser tints speech
+// by it too (web/app/components/speechRuns.js runs quoteRanges over the
+// rendered line), so what a reader sees coloured as speech is what the game
+// counts as speech:
 //
 //   - any double quote mark opens and any closes: " “ ” „ ‟. Which way round
 //     a curly mark faces is the keyboard's guess, not the writer's, and a
 //     phone types “ after a dash, so "Wait-“ has to close on it;
 //   - the opening mark must be followed by a real character, since a lone "
 //     mid-sentence is punctuation;
-//   - no line break inside, so one unmatched quote cannot swallow the rest of
-//     a message. There is no length cap: a speech is as long as it is;
+//   - a quote runs over line breaks, blank lines included, so a speech typed
+//     as several lines or paragraphs is one speech. There is no length cap
+//     either: a speech is as long as it is;
 //   - two marks with nothing between them are not a quote.
 //
 // Nothing else between the marks matters: every other character, a dash, an
 // emoji, a token or a run of `code`, is part of the speech.
 
 const MARKS = /["“”„‟]/g;
-const FORBIDDEN = /\n/;
 
 // Backtick runs are literal, so a mark inside one neither opens nor closes.
 // Each is filled with a stand-in of the same length, so indexes still line up
@@ -28,12 +29,10 @@ function withoutCode(text) {
   return text.replace(/`[^`\n]*`/g, (run) => "x".repeat(run.length));
 }
 
-// Where each quote sits in `text`, marks included: `{ start, end }` offsets, in
-// order. The chat's edit box tints these while a line is being changed
-// (web/app/components/chatEditRuns.js), so it finds speech by this same rule.
-function spokenRanges(text) {
-  if (typeof text !== "string" || !text) return [];
-  const source = withoutCode(text);
+// The pairing itself, on text whose code is already out of the way: every
+// quote as `{ start, end }` offsets, marks included, in order. The browser
+// calls this on a line it has already parsed, where code is its own node.
+function quoteRanges(source) {
   const ranges = [];
   let from = 0;
   while (from < source.length) {
@@ -48,8 +47,7 @@ function spokenRanges(text) {
     }
     MARKS.lastIndex = start;
     const close = MARKS.exec(source);
-    const inner = close ? source.slice(start, close.index) : "";
-    if (!close || FORBIDDEN.test(inner) || inner.length < 1) {
+    if (!close || close.index === start) {
       // An opener with no partner is just a character; carry on looking.
       from = start;
       continue;
@@ -60,13 +58,21 @@ function spokenRanges(text) {
   return ranges;
 }
 
+// Where each quote sits in `text`, marks included: `{ start, end }` offsets, in
+// order. The chat's edit box tints these while a line is being changed
+// (web/app/components/chatEditRuns.js), so it finds speech by this same rule.
+function spokenRanges(text) {
+  if (typeof text !== "string" || !text) return [];
+  return quoteRanges(withoutCode(text));
+}
+
 // The quoted spans of `text`, marks stripped, in order.
 function spokenSpans(text) {
   return spokenRanges(text).map(({ start, end }) => text.slice(start + 1, end - 1));
 }
 
-// The spoken words alone, one span per line so a sentence never runs from one
-// quote into the next. Empty when nothing was said.
+// The spoken words alone, each span on a line of its own so a sentence never
+// runs from one quote into the next. Empty when nothing was said.
 function spokenText(text) {
   return spokenSpans(text).join("\n");
 }
@@ -75,4 +81,4 @@ function hasSpeech(text) {
   return spokenSpans(text).some((span) => span.trim().length > 0);
 }
 
-module.exports = { spokenRanges, spokenSpans, spokenText, hasSpeech };
+module.exports = { quoteRanges, spokenRanges, spokenSpans, spokenText, hasSpeech };
