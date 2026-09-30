@@ -102,10 +102,12 @@ function routeOf(node) {
   };
 }
 
-// One parse of each plate per page, however many boards mount.
+// One parse of each plate per page, however many boards mount. Keyed by URL,
+// which carries the art's hash (web/lib/mapPlates.js#plateUrl), so a tab open
+// across a deploy that redrew the plate fetches the new drawing.
 const PLATES = new Map();
 function fetchPlate(id, url) {
-  const held = PLATES.get(id);
+  const held = PLATES.get(url);
   if (held) return held;
   const job = fetch(url, { cache: "force-cache" })
     .then((res) => {
@@ -115,10 +117,10 @@ function fetchPlate(id, url) {
     .catch((err) => {
       // Don't cache a failure — a flaky network should not brick the map for
       // the rest of the session.
-      PLATES.delete(id);
+      PLATES.delete(url);
       throw err;
     });
-  PLATES.set(id, job);
+  PLATES.set(url, job);
   return job;
 }
 

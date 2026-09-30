@@ -1,5 +1,6 @@
 import "server-only";
 import fs from "node:fs";
+import { createHash } from "node:crypto";
 import { cache } from "react";
 import { docsPath, repoPath } from "@lifeweb/db/lib/repoPaths";
 
@@ -18,8 +19,13 @@ import { docsPath, repoPath } from "@lifeweb/db/lib/repoPaths";
 // Drawing order, and the order the plate switch offers them in.
 const PLATE_IDS = ["barony1", "barony2"];
 
-export function plateUrl(id) {
-  return `/assets/maps/${id}.json`;
+// The art's URL carries a hash of the file, so a new drawing is a new URL.
+// The board fetches it with `cache: "force-cache"`, which hands back ANY copy
+// the browser holds, however old. Without the hash, a browser that opened the
+// map before the stair glyph was added kept the stairless art for good, and
+// drew no stairs at all (the GMs, who had the map open earliest).
+export function plateUrl(id, version) {
+  return `/assets/maps/${id}.json?v=${version}`;
 }
 
 const readPlates = cache(() => {
@@ -30,14 +36,17 @@ const readPlates = cache(() => {
     const artPath = repoPath("web", "public", "assets", "maps", `${id}.json`);
     if (!nodesPath || !artPath) continue;
     let table;
+    let raw;
     let art;
     try {
       table = JSON.parse(fs.readFileSync(nodesPath, "utf8"));
-      art = JSON.parse(fs.readFileSync(artPath, "utf8"));
+      raw = fs.readFileSync(artPath, "utf8");
+      art = JSON.parse(raw);
     } catch {
       continue;
     }
-    plates.push({ id, name: table.name ?? id, w: art.w, h: art.h, cell: art.cell, url: plateUrl(id) });
+    const version = createHash("sha1").update(raw).digest("hex").slice(0, 10);
+    plates.push({ id, name: table.name ?? id, w: art.w, h: art.h, cell: art.cell, url: plateUrl(id, version) });
     for (const n of table.nodes ?? []) {
       if (typeof n.x !== "number" || typeof n.y !== "number") continue;
       bySlug.set(n.slug, { plate: id, x: n.x, y: n.y, code: n.code });
