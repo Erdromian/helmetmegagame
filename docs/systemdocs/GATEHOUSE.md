@@ -11,8 +11,9 @@ Yard, Watchtower). The portcullis between it and the Residences (`town-8`) is
 still the one way up into the Fortress, still manned (`announce: true_name`),
 and now worked from **both Locations**: a gate button on each anchor and on
 each place card in `/chat`, drawn for everybody. It moves only for a worn,
-registered ring carrying `portcullis-key` — the Baron's, the Hand's, the
-Meister's, the Cerberi's, the Squires' and the Censor's. Anybody else who
+registered ring carrying `portcullis-key` — the Baron's, the Baroness's, the
+Heir's, the Successor's, the Hand's, the Meister's, the Incarn's, the
+Cerberi's, the Squires' and the Censor's. Anybody else who
 presses it reads "Nothing happens." The Watchtower no longer works it.
 
 **The Town Gatehouse** (`town-1`) keeps its name and stops being the road out.
@@ -165,6 +166,12 @@ documents only), so the migration also writes what `docs/roles.yaml` changed
 onto a running game: `gatehouse-key` and `portcullis-key` on the seats' Role
 rows and on every registered ring already carrying one of those seats, and no
 `bankAccountClass` on the Migrant's Role row.
+
+The Baron's family (the Baroness, the Heir, the Successor) and the Incarn were
+given `portcullis-key` later, the same way:
+`20261206000000_portcullis_royal_family` adds it to those four Role rows and
+refreshes every registered ring already carrying one of those seats. Nothing
+else on the Role rows or the rings moves.
 
 ## 6. What is recorded
 

@@ -26,8 +26,8 @@ const GATEHOUSE_WINDOW_ROOM_SLUG = "town-1-4";
 
 // The ring tokens (docs/roles.yaml `ring: opens:`, docs/tags.yaml).
 // gatehouse-key: the Baron's, the Hand's, the Incarn's, the Censor's, the
-// Cerberi's and the Squires' rings. portcullis-key: the same, with the
-// Meister's in place of the Incarn's — the doc's two lists.
+// Cerberi's and the Squires' rings. portcullis-key: the same, plus the
+// Meister's, the Baroness's, the Heir's and the Successor's.
 const GATEHOUSE_KEY = "gatehouse-key";
 const PORTCULLIS_KEY = "portcullis-key";
 
