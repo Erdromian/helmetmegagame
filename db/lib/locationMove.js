@@ -114,6 +114,136 @@ async function closeLocationTo(discordUserId, channelId) {
   );
 }
 
+// One access write at a time per character, in this process. Two moves made
+// close together each hand their Discord half to a queue of their own (the web
+// runs each in its own after()), and before this the two queues interleaved: the
+// OLDER move's writes could land last and undo the newer one. Walk A -> B, then
+// straight back to A, and the late first move re-opened B as Here and set A
+// mute — the player stood in A and could read it but not talk in it.
+const accessChains = new Map();
+function oneAtATime(characterId, work) {
+  const run = (accessChains.get(characterId) ?? Promise.resolve()).then(work, work);
+  const tail = run.catch(() => {});
+  accessChains.set(characterId, tail);
+  tail.then(() => {
+    if (accessChains.get(characterId) === tail) accessChains.delete(characterId);
+  });
+  return run;
+}
+
+// A move's Location overwrites and zone role, written from where the character
+// stands NOW rather than from the move that asked. `channelIds` and
+// `zoneRoleIds` are what the move(s) touched, and they bound the work: each one
+// is set to what the database says it should be — Here, watched, or closed —
+// so a late or repeated call writes the truth and never an old snapshot of it.
+//
+// Here goes FIRST, ahead of every other call a move makes, because it is the
+// one a player notices: until it lands they cannot see the street they walked
+// into. Grant before revoke, as everywhere in this file.
+//
+// If they move again while this is writing, it goes round again with the new
+// place, so the last write is always where they actually are. The channel
+// doctor is still the net for anything a failed call leaves.
+async function syncLocationAccess(prisma, characterId, { channelIds = [], zoneRoleIds = [] } = {}) {
+  if (!process.env.DISCORD_TOKEN || !characterId) return;
+  return oneAtATime(characterId, async () => {
+    const touched = new Set(channelIds.filter(Boolean));
+    const roles = new Set(zoneRoleIds.filter(Boolean));
+
+    for (let pass = 0; pass < 3; pass++) {
+      const character = await prisma.character.findUnique({
+        where: { id: characterId },
+        select: {
+          id: true,
+          discordUserId: true,
+          locationId: true,
+          status: true,
+          discordMirrored: true,
+          location: { select: { discordChannelId: true, zone: { select: { discordRoleId: true } } } },
+        },
+      });
+      // Not mirrored holds no Discord access at all (CHAT.md §6), so there is nothing to write.
+      if (!character?.discordUserId || !character.discordMirrored) return;
+      const discordUserId = character.discordUserId;
+      // Nor does anybody who isn't alive: a turret that killed them on arrival
+      // has already had applyDeathTeardown take everything off, and re-opening
+      // the street here would let a corpse go on reading the room it died in.
+      // What the move touched is closed and nothing is opened.
+      if (character.status !== "ALIVE") {
+        for (const channelId of touched) await closeLocationTo(discordUserId, channelId);
+        return;
+      }
+      const hereChannelId = character.location?.discordChannelId ?? null;
+
+      // A failed lookup opens Here and touches nothing else, rather than reading
+      // as "watching nothing" and putting out every street they can still see.
+      const watched = await vantagesFor(prisma, character).catch((err) => {
+        console.error(`Move: vantage lookup failed for ${characterId}:`, err.message ?? err);
+        return null;
+      });
+      const watchedChannelIds = new Set((watched ?? []).map((v) => v.location?.discordChannelId).filter(Boolean));
+
+      await openLocationTo(discordUserId, hereChannelId, LOCATION_MEMBER_ALLOW);
+      for (const channelId of watched ? touched : []) {
+        if (channelId === hereChannelId) continue;
+        if (watchedChannelIds.has(channelId)) {
+          await openLocationTo(discordUserId, channelId, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY);
+        } else {
+          await closeLocationTo(discordUserId, channelId);
+        }
+      }
+
+      // Only when the move crossed a zone — a role write is a call on the guild's
+      // busiest bucket, and nothing about it changed otherwise.
+      if (roles.size > 0) {
+        const hereRoleId = character.location?.zone?.discordRoleId ?? null;
+        await swapRole(discordUserId, null, hereRoleId, "zone");
+        for (const roleId of roles) {
+          if (roleId !== hereRoleId) await swapRole(discordUserId, roleId, null, "zone");
+        }
+        await reconcileNarrowcastAccess(prisma, characterId, discordUserId).catch((err) =>
+          console.error(`Move: narrowcast reconcile failed for ${characterId}:`, err.message ?? err),
+        );
+      }
+
+      // Still standing where we just wrote? Done. Moved on in the meantime? The
+      // place we just opened is now one more thing to set right.
+      const now = await prisma.character.findUnique({ where: { id: characterId }, select: { locationId: true } });
+      if (!now || now.locationId === character.locationId) return;
+      if (hereChannelId) touched.add(hereChannelId);
+      const hereRoleId = character.location?.zone?.discordRoleId ?? null;
+      if (roles.size > 0 && hereRoleId) roles.add(hereRoleId);
+    }
+  });
+}
+
+// What a run of arrivals touched, per character, for syncLocationAccess: every
+// street they left, entered or stopped watching, and the zone roles either side
+// of any crossing that changed zone. A walk of eight hops is one call per
+// character with the lot, so the place they ended up opens first instead of
+// after seven streets they have already walked out of.
+async function syncArrivalAccess(prisma, factsList) {
+  const byCharacter = new Map();
+  for (const facts of factsList ?? []) {
+    if (!facts?.characterId) continue;
+    if (!byCharacter.has(facts.characterId)) byCharacter.set(facts.characterId, { channelIds: [], zoneRoleIds: [] });
+    const into = byCharacter.get(facts.characterId);
+    into.channelIds.push(
+      facts.toLocation?.discordChannelId,
+      facts.fromLocation?.discordChannelId,
+      ...(facts.droppedVantages ?? []).map((v) => v.location?.discordChannelId),
+    );
+    if (facts.fromLocation?.zoneId !== facts.toLocation?.zoneId) {
+      into.zoneRoleIds.push(facts.fromLocation?.zone?.discordRoleId, facts.toLocation?.zone?.discordRoleId);
+    }
+  }
+  for (const [characterId, touched] of byCharacter) {
+    await syncLocationAccess(prisma, characterId, touched).catch((err) =>
+      console.error(`Move: access sync failed for ${characterId}:`, err.message ?? err),
+    );
+  }
+}
+
 // Everything Discord needs to know to put a character back where they already stand: the Location overwrite, zone role, narrowcast, private-room threads, conversations, and standing invites. This is the "Play on Discord too" switch turning ON (db/lib/discordMirroring.js, CHAT.md §6), built on the SAME four helpers a move uses — swapLocationOverwrite, swapRole, reconcileNarrowcastAccess, syncCharacterRoomAccess — rather than a second copy; there's no origin, so every call is a pure grant. Best-effort throughout, like every other call in this file — anything that fails is the channel doctor's next pass to repair, which it can now do because it knows the flag.
 async function materializeDiscordPresence(prisma, character) {
   if (!process.env.DISCORD_TOKEN) return;
@@ -479,20 +609,20 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
 // Every call in here is sequential and never Promise.all'd: Discord bans an IP
 // for an hour after ten thousand invalid responses (ARCHITECTURE.md §5).
 // Deferring this work moved WHEN it runs, never how fast.
-async function applyArrivalDiscord(prisma, facts) {
+//
+// `access: false` is for a caller that already ran syncArrivalAccess over the
+// whole list up front — a walk, or a party — so each arrival here skips it.
+async function applyArrivalDiscord(prisma, facts, { access = true } = {}) {
   if (!facts) return;
   const {
     characterId,
     fromLocationId,
     toLocationId,
-    walked,
     character,
-    fromLocation,
     toLocation,
     droppedWatch,
     searchesOff,
     dismountedNames,
-    droppedVantages,
   } = facts;
 
   // The presence notify already went out with the facts, so a box with no token
@@ -501,7 +631,13 @@ async function applyArrivalDiscord(prisma, facts) {
   if (!character?.discordUserId) return;
   const discordUserId = character.discordUserId;
 
-  // The watch this move just ended, told plainly — the delete happened above the guard, only the letter waits for a token. FIRST of the DMs, ahead of the channel work below, because swapLocationOverwrite/swapRole are unguarded and every caller swallows this function's throw — a Discord 5xx down there and the owner would never hear their watch was gone.
+  // The Location channel and the zone role, FIRST — before any DM, because a
+  // player who has moved and cannot see where they are notices that before
+  // anything else. syncLocationAccess catches its own failures, so nothing
+  // after this line is lost to a Discord 5xx in it.
+  if (access) await syncArrivalAccess(prisma, [facts]);
+
+  // The watch this move just ended, told plainly — the delete happened above the guard, only the letter waits for a token.
   if (droppedWatch?.cancelled) {
     await sendDm(prisma, discordUserId, INTERCEPT_CANCELLED_DM).catch((err) =>
       console.error(`Move: intercept-cancelled DM to ${discordUserId} failed:`, err.message ?? err),
@@ -518,27 +654,7 @@ async function applyArrivalDiscord(prisma, facts) {
     );
   }
 
-  // Not mirrored to Discord holds this account out of every channel, so the Discord half of standing somewhere is simply not done for them (CHAT.md §6). Everything else below still runs: the gate crossing is scenery the rest of the zone reads, the keyed-door offer and parked-mount note are DMs, and the carry, corpse and presence work is the database.
-  // Grant BEFORE revoke, deliberately: an interrupted swap leaves the player seeing two streets for a moment (harmless, self-healing) rather than none (a lockout a player can't diagnose).
-  if (character.discordMirrored) {
-    await openLocationTo(discordUserId, toLocation.discordChannelId ?? null, LOCATION_MEMBER_ALLOW);
-
-    if (fromLocation && fromLocation.discordChannelId !== toLocation.discordChannelId) {
-      if (walked) {
-        // They walked: the street behind them stays open, mute — one step back is always still next door, whichever side of a zone boundary it sits on. A DOWNGRADE, not a delete: the same one REST call the old revoke cost.
-        await openLocationTo(discordUserId, fromLocation.discordChannelId ?? null, LOCATION_VANTAGE_ALLOW, LOCATION_VANTAGE_DENY);
-      } else {
-        // Carried, teleported or relocated: they never walked out of it, so it closes.
-        await closeLocationTo(discordUserId, fromLocation.discordChannelId ?? null);
-      }
-    }
-
-    // Everything this step put out of range, told to Discord. One call per light; a character carries a handful at most, since a turn buys a handful of Moves.
-    for (const vantage of droppedVantages) {
-      await closeLocationTo(discordUserId, vantage.location?.discordChannelId ?? null);
-    }
-  }
-
+  // Not mirrored to Discord holds this account out of every channel (CHAT.md §6), which syncLocationAccess above knows. Everything below still runs: the gate crossing is scenery the rest of the zone reads, the keyed-door offer and parked-mount note are DMs, and the carry, corpse and presence work is the database.
   await announceGateCrossing(prisma, character, fromLocationId, toLocation).catch((err) =>
     console.error(`Move: gate announcement failed for ${characterId}:`, err.message ?? err),
   );
@@ -546,13 +662,6 @@ async function applyArrivalDiscord(prisma, facts) {
   await offerToHoldKeyed(prisma, character, fromLocationId, toLocation).catch((err) =>
     console.error(`Move: keyed-door offer failed for ${characterId}:`, err.message ?? err),
   );
-
-  if (character.discordMirrored && fromLocation?.zoneId !== toLocation.zoneId) {
-    await swapRole(discordUserId, fromLocation?.zone?.discordRoleId ?? null, toLocation.zone?.discordRoleId ?? null, "zone");
-    await reconcileNarrowcastAccess(prisma, characterId, discordUserId).catch((err) =>
-      console.error(`Move: narrowcast reconcile failed for ${characterId}:`, err.message ?? err),
-    );
-  }
 
   if (dismountedNames.length > 0) {
     await sendDm(prisma, discordUserId, dismountedMessage(dismountedNames)).catch((err) =>
@@ -610,6 +719,8 @@ module.exports = {
   applyLocationMoveSideEffects,
   applyArrivalFacts,
   applyArrivalDiscord,
+  syncArrivalAccess,
+  syncLocationAccess,
   materializeDiscordPresence,
   rehomeStandingCharacters,
   reconcileNarrowcastAccess,

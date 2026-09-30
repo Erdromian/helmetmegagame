@@ -28,7 +28,7 @@ const { syncPartyMembership } = require("@lifeweb/db/lib/partyChat");
 const { linkBetween } = require("@lifeweb/db/lib/locationGraph");
 const { walkWithinZone } = require("@lifeweb/db/lib/locationWalk");
 const { stowedMounts } = require("@lifeweb/db/lib/mounts");
-const { applyLocationMoveSideEffects, applyArrivalDiscord } = require("@lifeweb/db/lib/locationMove");
+const { applyArrivalFacts, applyArrivalDiscord, syncArrivalAccess } = require("@lifeweb/db/lib/locationMove");
 const { putChannelOverwrite } = require("@lifeweb/db/lib/discordRest");
 const { LOCATION_MEMBER_ALLOW } = require("@lifeweb/db/lib/zoneChannelSpec");
 const { sendDm } = require("@lifeweb/db/lib/dm");
@@ -218,6 +218,9 @@ function buildConfirmRow(locationId, { exert = false, go = true } = {}) {
 // caller, run per moved character and never allowed to throw — a failed role
 // swap must not make a committed move look refused. The channel doctor
 // reconciles whatever a miss here leaves.
+//
+// Channel access is done before this returns; the rest comes back as
+// `result.tell`, which the caller runs once it has answered the player.
 async function performMove(character, targetLocation, { exert = false } = {}) {
   // Next door, or a walk of several hops across this zone (MAP.md §3c)? The
   // route is worked out server-side from the id that came back on the select;
@@ -236,104 +239,116 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
   // Where they ACTUALLY got to — a walk can be stopped on the road.
   const landed = result.arrivedAt ?? targetLocation;
 
-  // Followers the way wouldn't take, already detached. The leader's message must not say WHY —
-  // naming a hidden crawl's refusal would announce that the crawl is there (MAP.md §2a).
-  // Leader and follower each name the other as they know them
-  // (intercept.js#seenBy) — the web face's rule (chat/actions.js#travel).
-  for (const entry of result.leftBehind ?? []) {
-    if (character.discordUserId) {
-      const follower = await seenById(prisma, character.id, entry.character.id);
-      await sendDm(
-        prisma,
-        character.discordUserId,
-        entry.reason === "edge"
-          ? `*You can't move ${follower} through here. You left them behind.*`
-          : `*${capitalizeFirst(follower)} isn't with you any more.*`,
-        { kind: DM_KIND.QUIET },
-      ).catch(() => { });
-    }
-    if (entry.character.status === "ALIVE" && entry.character.discordUserId) {
-      await sendDm(
-        prisma,
-        entry.character.discordUserId,
-        `*${capitalizeFirst(await seenById(prisma, entry.character.id, character.id))} went on without you.*`,
-        { kind: DM_KIND.QUIET },
-      ).catch(() => { });
-    }
-  }
-
-  // Sequential: firing a whole dragged party's REST calls at once trips the invalid-response breaker (db/lib/discordRest.js).
-  // SKIPPED on a walk: locationWalk.js already ran this once per hop, and
-  // running it again over the merged list would fire every turret a second time
-  // and re-roll every Caving Die (MAP.md §3c).
+  // The arrival's GAME half, awaited, per moved character: the fog, a
+  // narrow-way dismount, a turret. SKIPPED on a walk: locationWalk.js already
+  // ran it once per hop, and running it again would fire every turret a second
+  // time and re-roll every Caving Die (MAP.md §3c). A walk hands back its hops'
+  // Discord halves instead, already in road order.
+  const arrivalFacts = [...(result.arrivalFacts ?? [])];
   if (!result.sideEffectsApplied) {
+    // Sequential: a whole dragged party at once trips the invalid-response breaker (db/lib/discordRest.js).
     for (const entry of result.moved) {
-      await applyLocationMoveSideEffects(prisma, {
+      const facts = await applyArrivalFacts(prisma, {
         characterId: entry.character.id,
         fromLocationId: entry.fromLocationId,
         toLocationId: entry.toLocationId,
         dismounted: entry.character.id === character.id ? result.dismounted : undefined, // mover only, never a dragged passenger's
         walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
-      }).catch((err) =>
-        console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err),
-      );
+      }).catch((err) => {
+        console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err);
+        return null;
+      });
+      if (facts) arrivalFacts.push(facts);
     }
   }
 
-  // A WALK ran only the game half per hop and handed the telling back, one entry
-  // per arrival in road order (db/lib/locationWalk.js). The web runs these in
-  // after(), because a player is waiting on the response; the bot has no
-  // response to hold open, so it simply does them here — sequentially, like
-  // everything else in this file that talks to Discord in a loop. Empty for a
-  // single hop, which did its own telling above.
-  for (const facts of result.arrivalFacts ?? []) {
-    await applyArrivalDiscord(prisma, facts).catch((err) =>
-      console.error("Move: telling Discord about a walked arrival failed:", err.message ?? err),
-    );
-  }
+  // The channel they can SEE, before anything else is said: everybody's
+  // Location overwrite and zone role, once for the whole walk, written from
+  // where they stand now. It used to wait behind the DMs below and behind every
+  // earlier hop's full arrival, so the street a player had walked into opened last.
+  await syncArrivalAccess(prisma, arrivalFacts);
 
-  // Caving Die "on arrival" trigger (db/lib/locationTravel.js, CAVING.md). Null off a cave level.
-  // A walk gathered one per hop and hands them over already collected.
-  const cavingDms = result.cavingDms ?? result.moved.map((entry) => entry.cavingDm).filter(Boolean);
-  for (const dm of cavingDms) {
-    await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
-      console.error(`Caving arrival DM to ${dm.discordUserId} failed:`, err.message ?? err),
-    );
-  }
+  // Everything else this move owes Discord — the gate lines, room threads, the
+  // DMs — handed back as `tell` for the caller to run AFTER it has answered the
+  // player, the way the web runs the same list in after(). The Travel reply no
+  // longer waits on a dozen rate-limited calls to say "Moved to".
+  result.tell = async () => {
+    // Followers the way wouldn't take, already detached. The leader's message must not say WHY —
+    // naming a hidden crawl's refusal would announce that the crawl is there (MAP.md §2a).
+    // Leader and follower each name the other as they know them
+    // (intercept.js#seenBy) — the web face's rule (chat/actions.js#travel).
+    for (const entry of result.leftBehind ?? []) {
+      if (character.discordUserId) {
+        const follower = await seenById(prisma, character.id, entry.character.id);
+        await sendDm(
+          prisma,
+          character.discordUserId,
+          entry.reason === "edge"
+            ? `*You can't move ${follower} through here. You left them behind.*`
+            : `*${capitalizeFirst(follower)} isn't with you any more.*`,
+          { kind: DM_KIND.QUIET },
+        ).catch(() => { });
+      }
+      if (entry.character.status === "ALIVE" && entry.character.discordUserId) {
+        await sendDm(
+          prisma,
+          entry.character.discordUserId,
+          `*${capitalizeFirst(await seenById(prisma, entry.character.id, character.id))} went on without you.*`,
+          { kind: DM_KIND.QUIET },
+        ).catch(() => { });
+      }
+    }
 
-  // Anybody laying in wait here (INTERCEPT.md). Built inside performLocationMove, sent from here.
-  for (const dm of result.interceptDms ?? []) {
-    await sendDm(prisma, dm.discordUserId, dm.content, {
-      kind: dm.kind,
-      authorDiscordUserId: dm.authorDiscordUserId ?? null,
-      components: dm.components,
-      meta: dm.meta,
-      sfx: dm.sfx,
-      allowedMentions: { parse: [] }, // belt-and-braces: cleanMessage() already stripped broadcast pings
-    }).catch((err) => console.error(`Intercept DM to ${dm.discordUserId} failed:`, err.message ?? err));
-  }
+    // Each arrival's Discord half, in road order, access already done above.
+    for (const facts of arrivalFacts) {
+      await applyArrivalDiscord(prisma, facts, { access: false }).catch((err) =>
+        console.error("Move: telling Discord about an arrival failed:", err.message ?? err),
+      );
+    }
 
-  // Escorts who walked after them, or couldn't (MAP.md §3d). Their own words, built in performLocationMove.
-  for (const dm of result.escortDms ?? []) {
-    await sendDm(prisma, dm.discordUserId, dm.content, { kind: dm.kind ?? DM_KIND.QUIET }).catch((err) =>
-      console.error(`Escort DM to ${dm.discordUserId} failed:`, err.message ?? err),
-    );
-  }
+    // Caving Die "on arrival" trigger (db/lib/locationTravel.js, CAVING.md). Null off a cave level.
+    // A walk gathered one per hop and hands them over already collected.
+    const cavingDms = result.cavingDms ?? result.moved.map((entry) => entry.cavingDm).filter(Boolean);
+    for (const dm of cavingDms) {
+      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+        console.error(`Caving arrival DM to ${dm.discordUserId} failed:`, err.message ?? err),
+      );
+    }
 
-  // Being carried off happens without the player pressing anything, so it has to be told. An escort who
-  // followed was not carried, and was told above.
-  for (const entry of result.moved) {
-    if (entry.character.id === character.id || entry.followed) continue;
-    if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
-    await sendDm(
-      prisma,
-      entry.character.discordUserId,
-      `*${capitalizeFirst(await seenById(prisma, entry.character.id, character.id))} brought you along to ${landed.name}.*`,
-      { kind: DM_KIND.QUIET },
-    ).catch((err) =>
-      console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),
-    );
-  }
+    // Anybody laying in wait here (INTERCEPT.md). Built inside performLocationMove, sent from here.
+    for (const dm of result.interceptDms ?? []) {
+      await sendDm(prisma, dm.discordUserId, dm.content, {
+        kind: dm.kind,
+        authorDiscordUserId: dm.authorDiscordUserId ?? null,
+        components: dm.components,
+        meta: dm.meta,
+        sfx: dm.sfx,
+        allowedMentions: { parse: [] }, // belt-and-braces: cleanMessage() already stripped broadcast pings
+      }).catch((err) => console.error(`Intercept DM to ${dm.discordUserId} failed:`, err.message ?? err));
+    }
+
+    // Escorts who walked after them, or couldn't (MAP.md §3d). Their own words, built in performLocationMove.
+    for (const dm of result.escortDms ?? []) {
+      await sendDm(prisma, dm.discordUserId, dm.content, { kind: dm.kind ?? DM_KIND.QUIET }).catch((err) =>
+        console.error(`Escort DM to ${dm.discordUserId} failed:`, err.message ?? err),
+      );
+    }
+
+    // Being carried off happens without the player pressing anything, so it has to be told. An escort who
+    // followed was not carried, and was told above.
+    for (const entry of result.moved) {
+      if (entry.character.id === character.id || entry.followed) continue;
+      if (entry.character.status !== "ALIVE" || !entry.character.discordUserId) continue;
+      await sendDm(
+        prisma,
+        entry.character.discordUserId,
+        `*${capitalizeFirst(await seenById(prisma, entry.character.id, character.id))} brought you along to ${landed.name}.*`,
+        { kind: DM_KIND.QUIET },
+      ).catch((err) =>
+        console.error(`Drag DM to ${entry.character.discordUserId} failed:`, err.message ?? err),
+      );
+    }
+  };
 
   return result;
 }
