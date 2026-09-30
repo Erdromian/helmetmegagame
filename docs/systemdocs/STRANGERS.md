@@ -309,7 +309,7 @@ the game is meant to say.
   viewer. A `{char:…}` chip only goes to Discord as the person's role when it
   was frozen under their own name (`characterMentions.js#tokensToRoles`): a role
   prints the real name to the whole channel, so a chip frozen as a hood's
-  "Young Woman" or a forced "Beast" goes out as that text instead. The relay DM
+  "Young Woman" or a forced "Beast" goes out as that text instead. The relay push
   to the person named still goes.
 - **Baked scenery lines.** Lines that bake a name into their text can't be
   relabelled per reader without storing who each line is about:

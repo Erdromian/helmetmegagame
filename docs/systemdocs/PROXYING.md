@@ -45,7 +45,8 @@ at a time, so there is nothing to disambiguate.
 
 `sendAsCharacter` sets `allowedMentions: { parse: ["users"] }`. That is
 load-bearing for §6: a role mention still *renders* as a chip but notifies
-nobody, so the relay DM is the single notification path.
+nobody, so the relay (a browser push, never a DM) is the single notification
+path.
 
 `bot/src/lib/proxy.js#postAsCharacterTo(channel, character, {content, files,
 discordUserId, conceal})` is the **core send** — webhook, tracking, no source
@@ -895,15 +896,13 @@ of translations, and neither face ever sees the other's:
   `editSpeech` runs the same rewrite, so a ✏️ that adds a mention lands the same
   way.
 - **Out.** `bot/src/lib/feedOutbox.js` rewrites tokens back to `<@&roleId>`
-  when it posts or edits a WEB row, and DMs the relay — the same "where and a
-  jump link, never the text" DM this section describes, through
-  `db/lib/dm.js#sendDm` rather than the gateway twin, because the outbox is a
-  pg listener with no discord.js client. Same earshot rule, same ten-target
-  cap, and a **concealed** send still relays nothing at all. Only a token
-  frozen under the person's OWN name goes back as the role: Discord draws a
-  role mention as the role's title, their real name, for the whole channel, so
-  a token frozen as a hood's "Young Woman" or a forced "Beast" goes out as
-  that text instead (`STRANGERS.md` §7). The relay DM goes either way.
+  when it posts or edits a WEB row, and sends the relay — the same "where,
+  never the text" push this section describes (no DM). Same earshot rule, same
+  ten-target cap, and a **concealed** send still relays nothing at all. Only a
+  token frozen under the person's OWN name goes back as the role: Discord draws
+  a role mention as the role's title, their real name, for the whole channel,
+  so a token frozen as a hood's "Young Woman" or a forced "Beast" goes out as
+  that text instead (`STRANGERS.md` §7). The relay goes either way.
 
 Only a role id that IS a character's name token is ever rewritten —
 `Character.discordRoleId` is `@unique`, so the lookup answers with one
@@ -996,20 +995,26 @@ is what gets muffled. Run a token through `muffle()` and it comes out as broken
 braces with the named person's name sitting perfectly legible inside a redacted
 sentence, which is the one word the distance was there to take away.
 
-A shout gets no relay DM: everyone the mention could reach already heard it,
+A shout gets no relay: everyone the mention could reach already heard it,
 and the widest broadcast in the game is not a place to open a new ping path.
 
 **Mentions must be read before the message is proxied** — `sendAsCharacter`
-deletes the original, taking `message.mentions` with it — but the jump link
-needs the *proxied* message's id. So the order is **capture → proxy → relay**.
+deletes the original, taking `message.mentions` with it. So the order is
+**capture → proxy → relay**.
 
-### The relay DM
+### The relay
+
+**A mention sends no Discord DM.** The relay is a browser push
+(`db/lib/webPush.js#pushToUser`) and, inside a Conversation, the invite — and
+on the web, the feed's own mention count. It used to DM "You were mentioned
+in …" with a jump link as well; that was taken out on request, because players
+did not want a DM every time somebody said their name. Do not add it back.
 
 **Pinging your own character does relay.** There used to be a filter dropping
 the sender's own characters — nobody needs telling they pinged themselves —
 but because the proxy suppresses the ping itself (§2), a self-ping was the one
 case that looked exactly like a broken relay while working as intended, and it
-is the first thing anyone reaches for to test the feature. A redundant DM to
+is the first thing anyone reaches for to test the feature. A redundant push to
 yourself is much cheaper than a feature nobody can verify.
 
 Every rejection on this path is a bare return. `handleMentions` logs one
@@ -1029,21 +1034,18 @@ kinds of channel mean different things by "in earshot":
   `db/lib/specialChannels.js`, keyed on `NARROWCAST_SLUGS` rather than a
   hardcoded pair, so a future entry is covered by adding it to the registry.
 
-The DM carries **where and a jump link, never the message text**. A ping into a
-private thread the target hasn't joined would otherwise leak the room's
-content, and a `DirectMessage` row outlives the ❌ that deletes the message it
-quoted.
+The push carries **where, never the message text**. A ping into a private
+thread the target hasn't joined would otherwise leak the room's content.
 
 **A concealed message relays nothing at all** — the room isn't meant to know
-who spoke, and a DM naming the place would hand the target a thread to pull
-on.
+who spoke, and a notification naming the place would hand the target a thread
+to pull on.
 
 **An OOC line relays too, and it has to do it itself.** An OOC row is a
 `SYSTEM` row (`db/lib/scene.js`) and the outbox carries `WEB` ones only, so
 `relayWebMentions` never saw it and a name in an OOC line notified nobody at
-all — the character role it points at is held by nobody, so the DM is the whole
-notification. `db/lib/ooc.js#relayOocMentions` sends it, same contract as the
-two above: where and a jump link, never the words. The gate is
+all. `db/lib/ooc.js#relayOocMentions` sends the push, same contract as the
+two above: where, never the words. The gate is
 `canHearPing(prisma, character, placeKey)` in `db/lib/characterMentions.js`,
 which answers for a place key of any kind — earshot for a Location, Room,
 Conversation or zone, `computeNarrowcastAccess` for a special channel. Deadchat

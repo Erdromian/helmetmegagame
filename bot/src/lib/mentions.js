@@ -1,5 +1,4 @@
 const { prisma, buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUGS } = require("@lifeweb/db");
-const { sendDm } = require("./dm");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
 
 // Character-role mentions: who was pinged, may they hear it, and (in a private thread) letting
@@ -31,22 +30,16 @@ function messageLink(guildId, channelId, messageId) {
   return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
 }
 
-// Carries where and a link, never the message text — a private thread the target hasn't joined
-// would otherwise leak its content. `placeKey` rides in meta so /chat can open the place.
-async function notifyMentioned(client, character, context, link, { placeKey = null } = {}) {
+// A browser notification only — a mention sends no Discord DM. Carries where, never the message
+// text: a private thread the target hasn't joined would otherwise leak its content.
+async function notifyMentioned(character, context, { placeKey = null } = {}) {
   const place = context.locationName ?? context.zoneName ?? null;
   const nowhere = context.channelKind ? `#${context.channelKind}` : "somewhere"; // special channel has no place
   const where = context.threadName
     ? `${place ?? "somewhere"} · ${context.threadName}`
     : (place ?? nowhere);
 
-  const user = await client.users.fetch(character.discordUserId).catch(() => null);
-  if (!user) return;
-  await sendDm(user, `» *You were mentioned in ${where}.*\n${link}`, {
-    source: "mention",
-    meta: { placeKey, where },
-  }).catch(() => {});
-  await pushToUser(prisma, character.discordUserId, { // browser notification, after the DM, never affects it
+  await pushToUser(prisma, character.discordUserId, {
     title: `${character.name} was named`,
     body: `in ${where}`,
     url: placeKey ? `/chat#${encodeURIComponent(placeKey)}` : "/chat",

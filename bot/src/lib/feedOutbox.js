@@ -32,7 +32,6 @@ const {
   inEarshot,
   charactersNamedNearby,
 } = require("@lifeweb/db/lib/characterMentions");
-const { sendDm } = require("@lifeweb/db/lib/dm");
 const { currentGameId } = require("@lifeweb/db/lib/archive");
 const { discordTextFor, relayWordsToSkinless, isSkinless } = require("@lifeweb/db/lib/skinless");
 
@@ -81,22 +80,14 @@ async function identityPiecesFor(characterId) {
   return { forcedName, concealment };
 }
 
-// Caps DMs one web-sent line can fan out; bot/src/events/messageCreate.js caps the Discord path the same way.
+// Caps how many people one web-sent line can notify; bot/src/events/messageCreate.js caps the Discord path the same way.
 const MAX_MENTION_RELAYS = 10;
 
-function messageLink(channelId, messageId) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  if (!guildId) return null;
-  return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
-}
-
-// The relay DM for a WEB-origin row — same shape as a Discord-origin mention
-// (bot/src/lib/mentions.js#notifyMentioned): where + jump link, never the words.
-// Uses db/lib/dm.js (REST) since the outbox has no discord.js client. Concealed sends relay nothing.
-async function relayWebMentions({ row, characters, named = [], concealed, channelId, messageId }) {
+// The mention relay for a WEB-origin row — same shape as a Discord-origin mention
+// (bot/src/lib/mentions.js#notifyMentioned): a browser push saying where, never the
+// words, and no Discord DM. Concealed sends relay nothing.
+async function relayWebMentions({ row, characters, named = [], concealed, channelId }) {
   if (concealed || (characters.length === 0 && named.length === 0)) return;
-  const link = messageLink(channelId, messageId);
-  if (!link) return;
 
   // Two lists, and the difference is whether a Conversation lets the person IN.
   // An explicit `{char:…}` is an invite as well as a ping — that is what /add
@@ -147,11 +138,7 @@ async function relayWebMentions({ row, characters, named = [], concealed, channe
     // passed this; a token target has not, and a ping must not carry further
     // than a voice would (PROXYING.md §6).
     if (!(conversation && invite) && !inEarshot(target, earshot)) continue;
-    await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.*\n${link}`, {
-      source: "mention",
-      meta: { placeKey: row.placeKey, where },
-    }).catch((err) => console.error(`Feed outbox couldn't relay a mention to ${target.name}:`, err));
-    // Browser notification for a closed /chat tab; after the DM and wrapped so a failed push never costs it.
+    // Browser notification for a closed /chat tab. No Discord DM: a mention never sends one.
     await pushToUser(prisma, target.discordUserId, {
       title: `${target.name} was named`,
       body: `in ${where}`,
@@ -291,7 +278,6 @@ async function pushRow(row) {
       named,
       concealed: Boolean(identity.alias),
       channelId: target.threadId ?? target.channelId,
-      messageId: posted.id,
     }).catch((err) => console.error("Feed outbox mention relay failed:", err));
   }
 
