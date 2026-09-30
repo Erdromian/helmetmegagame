@@ -8,6 +8,7 @@ import ClockBlock from "./ClockBlock";
 import SoundControls from "./SoundControls";
 import ChatBarControls from "./ChatBarControls";
 import SignOutButton from "./SignOutButton";
+import ReloadButton from "./ReloadButton";
 import CommandPalette from "./CommandPalette";
 
 // The universal top bar every page wears now, replacing the left nav rail
@@ -32,6 +33,10 @@ export default function AppBar({ discordUserId, fallback = PLAYER_NAV }) {
   return (
     <>
       <div className="top-bar scroll-fade-x">
+        {/* First, not beside Sign out: on a phone the bar scrolls sideways and
+            its right end starts off screen. Only drawn on a phone on the map
+            or a GM desk (ReloadButton.js). */}
+        <ReloadButton />
         <Suspense fallback={<NavLinks items={fallback} />}>
           <NavLinksAsync itemsPromise={loadNavItems(discordUserId)} />
         </Suspense>

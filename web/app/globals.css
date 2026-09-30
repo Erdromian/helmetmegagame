@@ -442,7 +442,6 @@
 html,
 body {
   height: 100%;
-  overscroll-behavior: none;
   /* iOS Safari enlarges text it judges too small when a phone is turned
      sideways, one block at a time, so type grew out of the boxes it was
      measured for and spilled over its neighbours. The sizes here are chosen;
@@ -3761,7 +3760,13 @@ body:has(.map-shell) .app-shell {
    scrolling, but the page was still free to move: `height: 100%` on html is
    iOS's LARGE viewport, taller than 100dvh while the toolbar shows, and a tap
    that focused a tag chip had Safari scroll the whole document to "reveal" it,
-   which shifted the entire screen off by that much and left it there. */
+   which shifted the entire screen off by that much and left it there.
+
+   They don't bounce either. On a phone that also switches off pull-to-refresh,
+   so the Refresh button stands in for it here (ReloadButton.js, and the ⋯ menu
+   in chat's head). Every other page is an ordinary page: it bounces, and pulls
+   down to refresh, the way a phone's browser always does. That used to be off
+   everywhere, and players could not refresh the lobby or the handbook at all. */
 html:has(.chat-shell),
 html:has(.desk-shell),
 html:has(.map-shell),
@@ -3769,6 +3774,7 @@ body:has(.chat-shell),
 body:has(.desk-shell),
 body:has(.map-shell) {
   overflow: hidden;
+  overscroll-behavior: none;
 }
 
 .app-main {
@@ -7830,6 +7836,23 @@ label.gate-request {
   display: flex;
   align-items: center;
   flex-shrink: 0;
+}
+
+/* Refresh (ReloadButton.js): only on a phone, and only on the two pinned pages
+   that still wear the top bar there. Chat hides the bar on a phone and has its
+   own in the ⋯ menu; an ordinary page pulls down to refresh. */
+.top-bar-reload {
+  display: none;
+}
+
+@media (max-width: 720px) {
+  body:has(.desk-shell) .top-bar-reload,
+  body:has(.map-shell) .top-bar-reload {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+  }
 }
 
 .sound-controls {

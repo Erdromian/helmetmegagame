@@ -1115,8 +1115,11 @@ a 48px head and a one-line composer:
 - **The keyboard.** `web/app/layout.js` exports `viewport.interactiveWidget:
   "resizes-content"`: Chrome on Android otherwise leaves the layout viewport
   alone when the keys come up and the composer sits under them. The three
-  scrollers carry `overscroll-behavior: contain`, so the end of the feed is
-  not pull-to-refresh.
+  scrollers carry `overscroll-behavior: none`, and so does the page behind
+  them, so the end of the feed is not pull-to-refresh — scrolling back to
+  the top of a scene must never reload it. **Refresh** in the head's ⋯ menu
+  (`ChatBarControls.js`) is the pull-down as a button. Every page that isn't
+  Chat, a GM desk or the map pulls down to refresh as normal.
 
 ### The parts
 
