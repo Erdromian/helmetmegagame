@@ -92,6 +92,10 @@ guard found on top after a reload holds no step, so the first Back carries on
 out of the page. And Back does nothing while Next is holding the seat or Begin
 is creating the character, since the request landing would undo it.
 
+**The on-page Back and Next row stays on screen.** It is pinned to the bottom
+of the window on every step (`.wizard-nav` in `globals.css`), so a player never
+has to scroll past every role card or tag to move on.
+
 ## 1b. Names
 
 A displayed name is **four fields**, joined by

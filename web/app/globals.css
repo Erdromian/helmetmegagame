@@ -3106,6 +3106,20 @@ input[type="radio"]:disabled {
   z-index: 1;
 }
 
+/* The creation wizard's Back / Next row (CreateCharacterWizard.js), pinned to
+   the foot of the window so moving on never means scrolling past forty role
+   cards first. It settles back into place at the end of the page. The 16px
+   bleed is .page's own side padding (shell.css), so the bar spans the column. */
+.wizard-nav {
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+  margin-inline: -16px;
+  padding: var(--sp-3) 16px calc(var(--sp-3) + env(safe-area-inset-bottom, 0px));
+  background: var(--bg);
+  border-top: 1px solid var(--border);
+}
+
 .section-title {
   margin: 0 0 4px;
   font-size: var(--fs-2xs);
