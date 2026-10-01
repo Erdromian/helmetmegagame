@@ -54,6 +54,9 @@ const RESTRICTIONS = {
 // A living character who can't defend themselves or flee — target class for LOOT_CHARACTER,
 // HARM_CHARACTER and the "or helpless" escort branch (db/lib/escort.js, REQUESTS.md, TAGS.md §5c).
 // Slugs must exist in docs/tags.yaml. Derived from the ACT column, not hand-maintained.
+// A database trigger copies this list to write the `character_incapacitated` audit row
+// (db/prisma/migrations/20261208000000_incapacitation_audit); changing it needs a migration
+// too, and db/test/incapacitationAudit.test.js fails until there is one.
 const INCAPACITATING_SLUGS = new Set(
   Object.entries(RESTRICTIONS)
     .filter(([, caps]) => caps.includes(ACT))

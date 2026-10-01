@@ -442,6 +442,10 @@ const R = {
   system_tag_turret: systemTagLine("A turret"),
   system_tag_xom: systemTagLine("Xom's favor"),
   system_tag_rite: systemTagLine("A Thanati rite"),
+  // Written by a database trigger whenever an INCAPACITATING tag lands on a
+  // character, Bound included, however it got there
+  // (db/prisma/migrations/20261208000000_incapacitation_audit).
+  character_incapacitated: (d) => [target(), t("became"), chip(d.tagName), ...(d.locationName ? [t("at"), em(d.locationName)] : [])],
   // A gib's tag wipe (db/lib/characterDeath.js#applyDeathToRow), branched by
   // who/what caused the death — see the `cause` parameter each caller passes.
   request_tag_wipe_gib: (d) => [actor(), t("gibbed"), target(), t("— every tag wiped"), ...(d.tagCount ? [em(`(${d.tagCount})`)] : [])],
