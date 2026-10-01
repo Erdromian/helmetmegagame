@@ -179,6 +179,12 @@ different paths. A stamp would have to survive all of them; `acquiredAt` already
 does. An honest gift waits a day too. A Rookery's flights are the building's
 birds and skip this check.
 
+A bird the character was **made with** never rests. Characters are built after
+Start, inside Day 1, so a point-bought bird's row is stamped today and used to
+read as a handoff: players lost both Day 1 turns of a bird they had never sent.
+The creation write puts the character and its tags in one transaction, so a bird
+stamped within a minute of `Character.createdAt` is the one they started with.
+
 ## 7. What a GM sees
 
 A `BIRD_MESSAGE` Request naming the letter that went and carrying a

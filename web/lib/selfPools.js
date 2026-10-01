@@ -226,6 +226,7 @@ export async function loadLettersView(character, { openTurn = null } = {}) {
               select: { startedAt: true },
             })
           )?.startedAt,
+          character.createdAt,
         )
       : false;
   const birdSentToday =

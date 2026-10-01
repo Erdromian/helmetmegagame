@@ -284,6 +284,8 @@ async function FreshChat({ userId }) {
               // day's flights are spent — a Rookery is worth several
               // (db/lib/rookery.js). (docs/systemdocs/PAPERWORK.md §Bird.)
               birdTurnId: true,
+              // A bird bought at creation never rests (db/lib/bird.js#birdRestingToday).
+              createdAt: true,
               birdDaySends: true,
               // Which in-game DAY they last cut Godflesh. Extract costs no
               // Move, so this is its whole cooldown (FACTORY.md §3).

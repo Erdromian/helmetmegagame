@@ -2923,7 +2923,7 @@ export async function birdMessageRequestImpl({
       orderBy: { startedAt: "asc" },
       select: { startedAt: true },
     });
-    if (birdRestingToday(bird?.acquiredAt, dayStart?.startedAt)) {
+    if (birdRestingToday(bird?.acquiredAt, dayStart?.startedAt, character.createdAt)) {
       throw new UserError(BIRD_RESTING);
     }
   }
