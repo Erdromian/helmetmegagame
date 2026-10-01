@@ -3,6 +3,7 @@
 const { TORTURER_SLUG, TORTURING_EQUIPMENT_SLUG } = require("./constants");
 const { formatAdvantage } = require("./advantage");
 const { HEALTH_CATEGORY } = require("./medicalVision");
+const { rollTotal } = require("./rollDie");
 
 // die + bonuses must reach this. A 1 on the die always fails, whatever the bonuses add up to.
 const TORTURE_BASE_THRESHOLD = 4;
@@ -52,7 +53,7 @@ function tortureBonuses({ torturerSlugs = [], equipmentInReach = false } = {}) {
 // `gambitMods` is gambitModifiers(torturerTags, { mood }) — computed by the caller since mood reads a Character column this file never sees.
 function resolveTorture({ die, rolls = null, torturerSlugs = [], targetSlugs = [], equipmentInReach = false, gambitMods = [] }) {
   const modifiers = [...tortureBonuses({ torturerSlugs, equipmentInReach }), ...gambitMods];
-  const total = die + modifiers.reduce((sum, m) => sum + m.value, 0);
+  const total = rollTotal(die, modifiers.reduce((sum, m) => sum + m.value, 0));
   const threshold = thresholdFor(targetSlugs);
   return { die, rolls, total, threshold, success: die !== 1 && total >= threshold, modifiers };
 }

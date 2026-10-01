@@ -1,4 +1,6 @@
 // The Move enums as prose. No Prisma import: RecordTab is a client component.
+import { rollTotal } from "@lifeweb/db/lib/rollDie";
+
 export const MOVE_PIPELINE_LABELS = {
   PENDING_TYPE: "Setting up Move",
   // Legacy value, never written; kept for old rows. See ActionStatus.PENDING_OPPOSED.
@@ -122,5 +124,5 @@ export function rollLabel(a) {
   if (a.diceRoll == null) return "";
   const mod = a.diceModifier ?? 0;
   if (!mod) return `rolled ${a.diceRoll}`;
-  return `rolled ${a.diceRoll} (${mod > 0 ? `+${mod}` : mod}) = ${a.diceRoll + mod}`;
+  return `rolled ${a.diceRoll} (${mod > 0 ? `+${mod}` : mod}) = ${rollTotal(a.diceRoll, mod)}`;
 }

@@ -4,6 +4,7 @@
 // refusal text can never drift from what actually blocks the request.
 // Pure and Prisma-free, modelled on soilery.js.
 const { ARELITZ_MASTERY_SLUG, BREAK_IN_TARGET } = require("./constants");
+const { rollTotal } = require("./rollDie");
 
 function holds(characterTags, slug) {
   return (characterTags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === slug);
@@ -24,7 +25,7 @@ function breakInRefusalFor(characterTags, hasOpenAction) {
 // roughly 1-in-3 before mood/hunger modifiers). Bascinet's chosen difficulty;
 // the design doc names no threshold.
 function breakInSucceeded(diceRoll, diceModifier) {
-  return diceRoll + (diceModifier ?? 0) >= BREAK_IN_TARGET;
+  return rollTotal(diceRoll, diceModifier) >= BREAK_IN_TARGET;
 }
 
 // The turn-close DM for a break-in attempt — read off the `brokeIn`

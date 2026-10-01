@@ -147,7 +147,7 @@ dead character's offers stay readable.
    free Move slot.
 3. **Resolve**, in the same transaction as the accept (`db/lib/lessons.js`).
    `lessonOutcome` is the pure half — `total = diceRoll + diceModifier +
-   charmBonus`, `succeeded = learner is ALIVE && total >= threshold` — and is
+   charmBonus`, never below 1, `succeeded = learner is ALIVE && total >= threshold` — and is
    unit-tested on its own, the way `torture.js` and `breakRestraints.js` split.
    On success the skill is granted and lower tiers are replaced; either way the
    learner's Action is filed **PASSED** with a `resultMessage` and

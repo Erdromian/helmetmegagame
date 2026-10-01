@@ -310,6 +310,11 @@ rule).
   **Between submit and the lock the desk says `rolled 4 · modifiers at
   lock-in`**, because the total on screen is still going to move and a GM should
   not write a ruling against a number that changes under them.
+- **A total never goes below 1.** The die plus its modifier stops at 1, so a 2
+  with Starving and Panicking reads `2 (-3) → 1`, not `-1`. That holds for every
+  roll that adds modifiers — Gambits, fights, torture, Steal, Pickpocket, lessons,
+  confessions, heals and break-ins — through one helper,
+  `db/lib/rollDie.js#rollTotal`.
 - **Reject is still the GM-side escape hatch**, and still the only way to
   return a Move that is not a pending Gambit: deletes the Action, frees the
   turn, DMs the player "Your Move

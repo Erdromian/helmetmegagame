@@ -14,6 +14,7 @@
 // folds Expert into "holds Skilled and Basic too", so the caller passes
 // whichever slugs the medic is SATISFIED for and this reads the highest one.
 const { DYING_SLUG } = require("./constants");
+const { rollTotal } = require("./rollDie");
 
 const MEDICAL_TIER = Object.freeze({
   "medical-basic": 1,
@@ -108,7 +109,7 @@ function floorFor(severityRung) {
 // whether it cleared the threshold, and — when it didn't — which rung of the
 // complication table (db/lib/healComplications.js) the failure lands on.
 function healOutcome({ die, diceModifier = 0, threshold, severityRung }) {
-  const total = (die ?? 0) + (diceModifier ?? 0);
+  const total = rollTotal(die, diceModifier);
   const succeeded = total >= threshold;
   if (succeeded) return { total, succeeded, margin: 0, complicationRung: null };
   const margin = threshold - total;

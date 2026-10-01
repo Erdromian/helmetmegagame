@@ -12,6 +12,7 @@ const { rollWithEdge } = require("./advantage");
 const { gambitModifiers } = require("./gambitModifier");
 const { GAMBIT_BETTER, GAMBIT_WORSE } = require("./gambitDie");
 const { LUCKY_SLUG, MISFORTUNE_SLUG } = require("./constants");
+const { rollTotal } = require("./rollDie");
 
 // Caught by surprise: out of combat mode when the fight reached you. Bascinet's number.
 const SURPRISE_PENALTY = -3;
@@ -39,7 +40,7 @@ function rollCombat(tags, opts = {}) {
     rolls: roll.rolls,
     advantageSource: roll.edge === "better" ? LUCKY_SLUG : roll.edge === "worse" ? MISFORTUNE_SLUG : null,
     modifiers,
-    total: roll.die + modifiers.reduce((sum, m) => sum + m.value, 0),
+    total: rollTotal(roll.die, modifiers.reduce((sum, m) => sum + m.value, 0)),
   };
 }
 

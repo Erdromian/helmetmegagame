@@ -18,10 +18,11 @@
 const { dropCharacterTag } = require("./tagWrites");
 const { CONFESSION_THRESHOLD } = require("./constants");
 const { applyMood } = require("./mood");
+const { rollTotal } = require("./rollDie");
 
 function rollLine(turn, action) {
   const mod = action.diceModifier ?? 0;
-  const total = (action.diceRoll ?? 0) + mod;
+  const total = rollTotal(action.diceRoll, mod);
   const die = mod
     ? `**${action.diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${total}**`
     : `**${action.diceRoll}**`;

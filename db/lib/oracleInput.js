@@ -14,6 +14,7 @@ const { PARTIES } = require("./threats");
 const { listObjectives, membersByParty } = require("./objectives");
 const { sampleChat } = require("./oracleChatSample");
 const { describeAppliedScales } = require("./stagedScales");
+const { rollTotal } = require("./rollDie");
 
 // The game's clock — turnClock.js's TIME_ZONE. Every row in every
 // tense-bucketed section carries a stamp built from it, because the window
@@ -100,7 +101,7 @@ function moveLine(action, name, { turnNumberById } = {}) {
   const prefix = stamp(action.createdAt, turnNumberById?.get(action.turnId));
   const bits = [`${prefix} ${name} | ${action.moveKind ?? "MOVE"}`];
   if (action.diceRoll != null) {
-    const modified = action.diceRoll + (action.diceModifier ?? 0);
+    const modified = rollTotal(action.diceRoll, action.diceModifier);
     bits.push(
       action.diceModifier ? `die ${action.diceRoll} -> ${modified} (${action.diceModifier})` : `die ${action.diceRoll}`,
     );

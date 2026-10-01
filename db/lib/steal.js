@@ -12,6 +12,7 @@
 // The [{ label, value }] return shape is deliberately db/lib/gambitModifier.js's,
 // so formatGambitModifiers() renders the breakdown for the audit row with no
 // second formatter, and a new contributor is one append to the table below.
+const { rollTotal } = require("./rollDie");
 
 // 4, 5 or 6 on a d6 goes unnoticed. An average person is seen a third of the time.
 const STEAL_TARGET = 4;
@@ -71,13 +72,14 @@ function stealModifierTotal(characterTags = []) {
 }
 
 // The die as the rules read it. `modifiers` is the list, not the sum, so a
-// caller that already built it for the audit row does not rebuild it.
+// caller that already built it for the audit row does not rebuild it. Never
+// below 1, like every roll (db/lib/rollDie.js#rollTotal).
 function stealTotal(die, modifiers = []) {
-  return (Number(die) || 0) + modifiers.reduce((sum, m) => sum + m.value, 0);
+  return rollTotal(die, modifiers.reduce((sum, m) => sum + m.value, 0));
 }
 
 // Did the room fail to notice? Clumsy (-2) needs a 6; Stealth (+2) fails only
-// on a 1. Nothing floors or caps this on purpose — Clumsy and Stealth cannot
+// on a 1. The total stops at 1 but nothing caps it — Clumsy and Stealth cannot
 // be held together (docs/tags.yaml, `conflictsWith`), and the drink ladder
 // stacking with Clumsy to unreachable is the point of being that drunk.
 function stealSucceeds(die, modifiers = []) {

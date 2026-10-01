@@ -180,6 +180,9 @@ does not need combat mode.
 - **Surprised −3** if not in combat mode
 - **Arrived late −1/−2/−3** for an intervener (§6)
 
+The total never goes below 1 (`rollDie.js#rollTotal`), so a surprised fighter
+who rolls a 1 totals 1, the same as anyone else at the bottom.
+
 Read at the snapshot, not at the Move cutoff: a GM adjudicates the fight off
 the moment it started, so the roll answers for the same moment.
 
