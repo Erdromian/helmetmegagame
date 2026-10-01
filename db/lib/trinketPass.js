@@ -2,10 +2,12 @@
 // db/index.js#resolveNeeds() alongside Lessons/Confessions — order
 // doesn't matter, they share no state.
 //
-// Every OPEN Trinket Gambit is rolled here: the stored die face, clamped up
-// by the skilled floor, mapped to a tier and base sell price (TRINKETS.md
-// §1). Ingredient value is added, the Trinket is minted with mintCustomCraft
-// (db/lib/customCraftMint.js), and the Action marked SOLVED with a reveal DM.
+// Every Trinket Gambit on the closing turn is rolled here: the stored die
+// face, clamped up by the skilled floor, mapped to a tier and base sell price
+// (TRINKETS.md §1). Ingredient value is added, the Trinket is minted with
+// mintCustomCraft (db/lib/customCraftMint.js), and the Action gets its result
+// line and a reveal DM. It was filed SOLVED and the smith has already paid, so
+// nothing a GM does on the desk short of Reject stops it (db/lib/autoGambits.js).
 //
 // DELIBERATELY does not touch db/lib/gambitModifier.js — the skilled floor
 // is a flat promise ("a trained smith never rolls worse than Normal"), and
@@ -17,6 +19,7 @@
 const { SMITHING_SKILLED_SLUG } = require("./constants");
 const { mintCustomCraft } = require("./customCraftMint");
 const { addToStack } = require("./tagWrites");
+const { isSettled, withSettled } = require("./autoGambits");
 
 const TRINKET_GMNOTES = "auto:trinket";
 
@@ -53,8 +56,8 @@ async function runTrinketPass(prisma, turn) {
   const actions = await prisma.action.findMany({
     where: {
       turnId: turn.id,
-      moveKind: "GAMBIT",
-      moveReviewStatus: "OPEN",
+      // Not the review status: a GM's Solve or Reopen used to hide a row from
+      // this pass (it read only OPEN), and the smith's paid-for Trinket never came.
       gmNotes: { contains: TRINKET_GMNOTES },
     },
   });
@@ -74,6 +77,9 @@ async function runTrinketPass(prisma, turn) {
   for (const action of actions) {
     try {
       const outcome = await prisma.$transaction(async (tx) => {
+        // Gone (a GM Reject) or already minted by an earlier run of this close.
+        const fresh = await tx.action.findUnique({ where: { id: action.id }, select: { gmNotes: true } });
+        if (!fresh || isSettled(fresh.gmNotes)) return null;
         const character = await tx.character.findUnique({
           where: { id: action.characterId },
           select: {
@@ -135,7 +141,7 @@ async function runTrinketPass(prisma, turn) {
         const resultMessage = `Made ${minted.name} at the forge (${tier.name}, worth ${price} ¢).`;
         await tx.action.update({
           where: { id: action.id },
-          data: { moveReviewStatus: "SOLVED", reviewedAt: new Date(), resultMessage },
+          data: { moveReviewStatus: "SOLVED", gmNotes: withSettled(fresh.gmNotes), reviewedAt: new Date(), resultMessage },
         });
 
         return { character, tier, price, itemName: minted.name, face, gambitBonus };

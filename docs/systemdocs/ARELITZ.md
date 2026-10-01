@@ -254,7 +254,7 @@ lock if the target is stashed), the target is re-checked under the lock,
 `rollWithAdvantage(character.tags, 6)` rolls the die
 immediately (Lucky applies the same as on any other Gambit), and an
 `Action` row is created directly — `moveKind: "GAMBIT"`,
-`moveReviewStatus: "OPEN"`, `diceRoll`/`diceModifier` stamped,
+`moveReviewStatus: "SOLVED"`, `diceRoll`/`diceModifier` stamped,
 `gmNotes: "auto:break_arelitz"`, and a `breakInPlan` —
 `{ v, kind: "room"|"character", roomId|characterId, tagId, tagName }` —
 riding along the same way `farmPlan` does. `appliedEffects` stays null, so
@@ -272,9 +272,12 @@ chosen difficulty; the design doc names no threshold) swaps
 `unruly-arelitz` → `arelitz` wherever the plan points. The target is
 re-checked once more at apply time (sold, transferred or butchered between
 filing and push reads as `gone`, not a crash) so nothing is granted from
-nothing. The `Action` row still carries `moveReviewStatus: "OPEN"`, so a GM
-can still see and override it at the desk — auto-resolution doesn't remove
-that door, it just stops the animal waiting on it.
+nothing. The `Action` row files `SOLVED`, so it never sits on the desk as
+waiting on a GM. It never could be overridden there anyway — Solve applies
+nothing, and the push settles the row whatever its status — so the one door
+is Reject, and a GM who disagrees with the outcome stages an effect. The
+desk shuts the row's Kind switch, because a flip to Routine wiped the die
+this entry reads (`db/lib/autoGambits.js`, `ADJUDICATION.md` §2).
 
 `stagedPush.js` carries the same narrow `"auto:"` close-DM carve-out
 `farmPlan` has (`db/lib/arelitz.js#breakInDm`), and is excluded from the

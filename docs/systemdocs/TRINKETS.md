@@ -134,12 +134,18 @@ flag is not the door to open; a bespoke action like this one is.
 
 The filing side is otherwise the same shape as a lesson's learner half
 (`db/lib/lessons.js`) or a confession (`db/lib/confession.js`): a whole-Move
-`Action` with `moveKind: "GAMBIT"`, `moveReviewStatus: "OPEN"`,
+`Action` with `moveKind: "GAMBIT"`, `moveReviewStatus: "SOLVED"`,
 `gmNotes: "auto:trinket"`, and the roll already stored on it
 (`rollWithAdvantage`, so Lucky still applies). Filing charges the 4 ⬢ and
 spends any inlay ingredient up front, the same "pay when the work starts"
 rule every other recipe in `CRAFTING.md` follows — nothing about not knowing
 the OUTCOME changes when the COST is paid.
+
+Because the smith has already paid, **nothing a GM does on the desk stops the
+mint** short of Reject (`db/lib/autoGambits.js`, `ADJUDICATION.md` §2). The
+pass used to read only `OPEN` rows, so a GM who staged something and pressed
+Solve on one hid it from the pass, and the paid-for Trinket never came. It now
+finds its rows by the marker and stamps `auto:settled` once minted.
 
 ## 3. Ingredients: inlay value, a second pool beside `cooked`
 

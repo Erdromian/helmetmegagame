@@ -6,8 +6,8 @@
 // into a result. docs/systemdocs/MEDICAL.md §3a, docs/systemdocs/TAGS.md §5c.
 //
 // Every Action carrying an `auto:heal_gambit` gmNotes marker on the closing
-// turn is resolved here, unless a GM has ruled on it first (see
-// gmHasRuled): total = diceRoll + diceModifier against the
+// turn is resolved here, whatever a GM did to it on the desk
+// (db/lib/autoGambits.js): total = diceRoll + diceModifier against the
 // threshold frozen on its own request_heal_character audit row at file time
 // (db/lib/healGambit.js#healThreshold). Clearing it cures the affliction, the
 // same aftermath a routine cure grants; missing it leaves the affliction on
@@ -28,22 +28,13 @@ const { pickComplication } = require("./healComplications");
 const { seenById } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
 const { logAudit } = require("./auditLog");
+const { isSettled, withSettled } = require("./autoGambits");
 
 const HEAL_AUDIT_ACTION = "request_heal_character";
 const RESOLVED_AUDIT_ACTION = "heal_gambit_resolved";
 
 function lockCharacter(tx, characterId) {
   return tx.$queryRaw`SELECT "id" FROM "Character" WHERE "id" = ${characterId} FOR UPDATE`;
-}
-
-// A heal Gambit is filed SOLVED (medical.js), so the status can't say whether
-// a GM got to it first. A Result line can: a GM's own (Save or Solve on the
-// desk), or this pass's from an earlier, interrupted run. A GM's Solve also
-// leaves its reviewer's id. Either way theirs stands, the same guard
-// researchPass.js and confessionPass.js both run. A Reopen clears the
-// reviewer, so a reopened row with no Result is settled here as usual.
-function gmHasRuled(action) {
-  return Boolean(action.reviewedByDiscordUserId) || Boolean((action.resultMessage ?? "").trim());
 }
 
 async function runHealGambitPass(prisma, turn) {
@@ -74,11 +65,11 @@ async function runHealGambitPass(prisma, turn) {
 
     try {
       const outcome = await prisma.$transaction(async (tx) => {
-        const fresh = await tx.action.findUnique({
-          where: { id: action.id },
-          select: { reviewedByDiscordUserId: true, resultMessage: true },
-        });
-        if (!fresh || gmHasRuled(fresh)) return null;
+        // Only a Reject (the row is gone) or this pass's own earlier run stops
+        // it. A GM's Result, Solve or Reopen does not (autoGambits.js).
+        const fresh = await tx.action.findUnique({ where: { id: action.id }, select: { gmNotes: true } });
+        if (!fresh || isSettled(fresh.gmNotes)) return null;
+        const gmNotes = withSettled(fresh.gmNotes);
 
         // The frozen quote from file time: which tag, on whom, and the
         // threshold the roll has to clear (db/lib/healGambit.js#healThreshold,
@@ -102,6 +93,7 @@ async function runHealGambitPass(prisma, turn) {
             where: { id: action.id },
             data: {
               moveReviewStatus: "SOLVED",
+              gmNotes,
               resultMessage: "Could not be resolved automatically — its own record was incomplete.",
               reviewedAt: new Date(),
             },
@@ -140,7 +132,7 @@ async function runHealGambitPass(prisma, turn) {
           const resultMessage = `${total} → nothing to resolve — ${!target ? "the patient is gone" : target.status !== "ALIVE" ? `${targetName} is no longer living` : `${targetName} no longer holds it`}.`;
           await tx.action.update({
             where: { id: action.id },
-            data: { moveReviewStatus: "SOLVED", resultMessage, reviewedAt: new Date() },
+            data: { moveReviewStatus: "SOLVED", gmNotes, resultMessage, reviewedAt: new Date() },
           });
           return {
             resolved: true,
@@ -210,7 +202,7 @@ async function runHealGambitPass(prisma, turn) {
 
         await tx.action.update({
           where: { id: action.id },
-          data: { moveReviewStatus: "SOLVED", resultMessage, reviewedAt: new Date() },
+          data: { moveReviewStatus: "SOLVED", gmNotes, resultMessage, reviewedAt: new Date() },
         });
 
         await logAudit(tx, {

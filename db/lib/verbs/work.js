@@ -267,7 +267,8 @@ function breakInArelitz(prisma, { character, discordUserId, tagId, sourceKey, op
             status: "CONFIRMED",
             confirmedAt: new Date(),
             moveKind: "GAMBIT",
-            moveReviewStatus: "OPEN",
+            // Settled by the push's `brokeIn` entry, never by a GM (db/lib/autoGambits.js).
+            moveReviewStatus: "SOLVED",
             description: `Breaking in ${target.tagName}.`,
             diceRoll: advantage.die,
             diceModifier: gambitModifierTotal(character.tags, { mood: character.mood }),

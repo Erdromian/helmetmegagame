@@ -3,9 +3,9 @@
 //
 // Every ACCEPTED confession on the closing turn is rolled here: the
 // penitent's stored Gambit die plus its modifier against the offer's
-// threshold. A pass drops the tag; either way the penitent's Action is SOLVED
-// with a result line, so the staged push closes it as adjudicated rather than
-// silently.
+// threshold. A pass drops the tag; either way the penitent's Action gets its
+// result line. It was filed SOLVED (db/lib/confession.js), so it never waits
+// on a GM, and a GM's Save or Solve on the desk doesn't stop the roll.
 //
 // PENDING confessions are NOT expired here — db/lib/offerExpiryPass.js already
 // expires every PENDING offer on the turn regardless of kind, and running two
@@ -88,18 +88,10 @@ async function runConfessionPass(prisma, turn) {
           });
           return null;
         }
-        // A GM already wrote a result. Theirs stands; the die does not lift.
-        if (action.moveReviewStatus === "SOLVED") {
-          await tx.offer.update({
-            where: { id: offer.id },
-            data: {
-              status: "RESOLVED",
-              resolvedAt: new Date(),
-              outcome: { gmDecided: true },
-            },
-          });
-          return null;
-        }
+        // No "a GM already ruled" skip: the Gambit is filed SOLVED, and nothing
+        // done on the desk short of Reject (above) stops the die
+        // (db/lib/autoGambits.js). The offer going RESOLVED below is what stops
+        // a re-run close settling it twice.
         const penitent = people.get(offer.learnerId);
         const { text, total } = rollLine(turn, action);
         const threshold = offer.threshold ?? CONFESSION_THRESHOLD;

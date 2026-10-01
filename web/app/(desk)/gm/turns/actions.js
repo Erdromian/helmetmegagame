@@ -6,6 +6,7 @@ import { after } from "next/server";
 import { prisma, Prisma, revertMoveEffects } from "@lifeweb/db";
 import { ensureGambitDie } from "@lifeweb/db/lib/gambitDie";
 import { gambitModifierTotal } from "@lifeweb/db/lib/gambitModifier";
+import { isSelfResolving } from "@lifeweb/db/lib/autoGambits";
 import { TagOpError, validateTagOps } from "@lifeweb/db/lib/tagOps";
 import { validateRoomTagOps } from "@lifeweb/db/lib/roomTagOps";
 import { resolveParty, partyLabel } from "@lifeweb/db/lib/parties";
@@ -1189,6 +1190,12 @@ async function normalizeEdits(tx, action, edits, characterTags, mood) {
   // fact that matters and every such row is a ROUTINE now.
   let revertPayout = false;
   if (kind !== action.moveKind) {
+    // A Gambit the game settles itself reads its die at the close. A flip to
+    // Routine wipes that die and a flip back throws a new one, so the switch
+    // is shut on those rows (db/lib/autoGambits.js, MoveDesk.js).
+    if (isSelfResolving(action.gmNotes)) {
+      throw new UserError("The game settles this Move itself, so its kind can't change. Reject it to call it off.");
+    }
     data.moveKind = kind;
     if (action.appliedEffects) {
       revertPayout = true;

@@ -307,7 +307,8 @@ async function acceptConfession(prisma, offer, responder) {
 
       // Penitent's Gambit. @@unique([characterId, turnId]) is the real gate; slot checks above were
       // the polite version. Lucky/Inspired keeps the better of two dice (db/lib/advantage.js);
-      // Inspired is spent the instant it wins one.
+      // Inspired is spent the instant it wins one. Filed SOLVED: the pass rolls it at the close
+      // whatever a GM does on the desk (db/lib/autoGambits.js).
       const penitentAdvantage = rollWithAdvantage(penitent.tags, 6);
       const penitentAction = await tx.action.create({
         data: {
@@ -317,7 +318,7 @@ async function acceptConfession(prisma, offer, responder) {
           status: "CONFIRMED",
           confirmedAt: new Date(),
           moveKind: "GAMBIT",
-          moveReviewStatus: "OPEN",
+          moveReviewStatus: "SOLVED",
           description: `Confessing ${tag.name} to ${chaplainSeen}.`,
           diceRoll: penitentAdvantage.die,
           diceModifier: gambitModifierTotal(penitent.tags, { mood: penitent.mood }),
