@@ -44,7 +44,13 @@ async function mortusTargets(character) {
   const { named, hooded } = await rosterHere(character, {
     select: { id: true, name: true, tags: BLOOD_TIER_TAGS },
   });
-  const own = await prisma.characterTag.findMany({ where: { characterId: character.id, ...BLOOD_TIER_TAGS } });
+  // BLOOD_TIER_TAGS is a relation filter, `{ where, select }`, so its halves go
+  // in their own places here. Spread whole into `where`, Prisma refused the
+  // query and the page crashed for every Mortus standing at the Web.
+  const own = await prisma.characterTag.findMany({
+    where: { characterId: character.id, ...BLOOD_TIER_TAGS.where },
+    select: BLOOD_TIER_TAGS.select,
+  });
   return [
     { key: `character:${character.id}`, name: character.name, worth: bloodValueForTags(own) },
     ...named.map((row) => ({ key: pickerKey(row), name: pickerName(row), worth: bloodValueForTags(row.tags) })),
