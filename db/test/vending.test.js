@@ -8,7 +8,7 @@
 // is the migration's job and an end-to-end check's, not a unit test's.
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { heldBy, secondsLeftOn, unlockedNow, validPrice, timeLeftLine } = require("../lib/vending");
+const { heldBy, secondsLeftOn, unlockedNow, validPrice, timeLeftLine, countOf, oneOf } = require("../lib/vending");
 const { roomAffordances } = require("../lib/placeAffordances");
 const { VENDING_HOLD_MS, VENDING_MAX_PRICE, VENDING_TEXT } = require("../lib/vendingText");
 
@@ -167,10 +167,10 @@ test("every price and pool is written in coin, never in Resources", () => {
     VENDING_TEXT.notEnough(40, 8),
     VENDING_TEXT.youInserted(5, 13),
     VENDING_TEXT.youWithdrew(8),
-    VENDING_TEXT.youBought("Bone Saw", 40, 3),
-    VENDING_TEXT.youBoughtFree("Tea", 8),
+    VENDING_TEXT.youBought("A Bone Saw", 40, 3),
+    VENDING_TEXT.youBoughtFree("A Tea", 8),
     VENDING_TEXT.youCollected(12),
-    VENDING_TEXT.youStockedIn(2, "Tea", 6),
+    VENDING_TEXT.youStockedIn("2 × Tea", 6),
   ];
   for (const line of moneyLines) {
     assert.ok(line.includes("¢"), `"${line}" should price in ¢`);
@@ -178,10 +178,37 @@ test("every price and pool is written in coin, never in Resources", () => {
   }
 });
 
+// ⬢ go on the shelf like any ware, and the glyph replaces the word rather than
+// sitting beside it (CLAUDE.md): "5 ⬢ on the shelf", never "5 × Resources".
+test("a shelf of Resources is counted in ⬢ and priced in ¢", () => {
+  const resources = { slug: "resources", name: "Resources" };
+  const tea = { slug: "tea", name: "Tea" };
+  assert.equal(countOf(resources, 5), "5 ⬢");
+  assert.equal(countOf(tea, 2), "2 × Tea");
+  assert.equal(oneOf(resources), "1 ⬢");
+  assert.equal(oneOf(tea), "a Tea");
+  assert.equal(VENDING_TEXT.youStockedIn(countOf(resources, 5), 2), "5 ⬢ on the shelf, at 2 ¢ each.");
+  assert.equal(VENDING_TEXT.youStockedOut(countOf(resources, 3)), "3 ⬢ back in your hands.");
+  assert.equal(VENDING_TEXT.youBought(oneOf(resources), 2, 0), "1 ⬢, for 2 ¢. 0 ¢ left.");
+  assert.equal(VENDING_TEXT.roomBoughtNamed("Ada", oneOf(resources)), "Ada takes 1 ⬢ out of the vendor.");
+  assert.equal(VENDING_TEXT.dontHave(countOf(resources, 3, { markdown: false })), "You're carrying 3 ⬢.");
+  // Every other ware reads exactly as it did.
+  assert.equal(VENDING_TEXT.roomBoughtNamed("Ada", oneOf(tea)), "Ada takes a Tea out of the vendor.");
+  assert.equal(VENDING_TEXT.youStockedIn(countOf(tea, 2), 6), "2 × Tea on the shelf, at 6 ¢ each.");
+});
+
+// A refusal is drawn as plain text, so it keeps a Lavish name's asterisks raw;
+// a line is Markdown, so it escapes them (db/lib/markdownName.js).
+test("a refusal counts with the raw name and a line with the escaped one", () => {
+  const caviar = { slug: "caviar", name: "*Caviar*" };
+  assert.equal(countOf(caviar, 2, { markdown: false }), "2 × *Caviar*");
+  assert.notEqual(countOf(caviar, 2), "2 × *Caviar*");
+});
+
 test("a free line says free rather than 0 ¢", () => {
   assert.ok(VENDING_TEXT.slotRowFree("Tea", 3).includes("free"));
-  assert.ok(VENDING_TEXT.youBoughtFree("Tea", 3).includes("free"));
-  assert.ok(VENDING_TEXT.youStockedInFree(2, "Tea").includes("free"));
+  assert.ok(VENDING_TEXT.youBoughtFree("A Tea", 3).includes("free"));
+  assert.ok(VENDING_TEXT.youStockedInFree("2 × Tea").includes("free"));
   assert.ok(VENDING_TEXT.youPricedFree("Tea").includes("free"));
 });
 
@@ -204,7 +231,7 @@ test("the expiry line is about the clock, so it says so", () => {
 });
 
 test("the room IS told what was bought", () => {
-  assert.ok(VENDING_TEXT.roomBoughtNamed("Ada", "Bone Saw").includes("Bone Saw"));
+  assert.ok(VENDING_TEXT.roomBoughtNamed("Ada", "a Bone Saw").includes("Bone Saw"));
   // The anonymous line is kept for if that is ever reversed, and must stay
   // anonymous while it sits there unused.
   assert.equal(VENDING_TEXT.roomBought("Ada").includes("Bone Saw"), false);

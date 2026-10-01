@@ -91,6 +91,24 @@ function validPrice(n) {
   return v;
 }
 
+/**
+ * How many of a ware, the way a line prints it: "2 × Tea", or "5 ⬢". The glyph
+ * replaces the word and never sits beside it (CLAUDE.md), so a shelf of
+ * Resources never reads "5 × Resources". `markdown: false` for a refusal, which
+ * is drawn as plain text and keeps the raw name (db/lib/markdownName.js).
+ */
+function countOf(tag, n, { markdown = true } = {}) {
+  if (tag?.slug === RESOURCES_SLUG) return `${n} ⬢`;
+  const name = tag?.name ? (markdown ? markdownName(tag.name) : tag.name) : "thing";
+  return `${n} × ${name}`;
+}
+
+/** One unit of a ware, for a purchase: "a Bone Saw", or "1 ⬢". */
+function oneOf(tag) {
+  if (tag?.slug === RESOURCES_SLUG) return "1 ⬢";
+  return `a ${tag?.name ? markdownName(tag.name) : "thing"}`;
+}
+
 // ------------------------------------------------------------- the machine
 
 /**
@@ -643,13 +661,13 @@ async function buySlot(prisma, discordUserId, { roomId, tagId, turn = null } = {
   // alternative, kept for if that is ever reversed.
   // A `line` and the room's `text` are Markdown (ChatMarkdown, Discord), so a Lavish "*Caviar*" is escaped to keep
   // its asterisks (db/lib/markdownName.js). A refusal is drawn as plain text (FormError) and keeps the raw name.
-  const what = tag ? markdownName(tag.name) : "thing";
-  const text = T.roomBoughtNamed(who, what);
+  const one = oneOf(tag);
+  const text = T.roomBoughtNamed(who, one);
   await sayInRoom(prisma, room, text);
 
   return {
     ok: true,
-    line: price > 0 ? T.youBought(what, price, leftInSlot) : T.youBoughtFree(what, leftInSlot),
+    line: price > 0 ? T.youBought(capitalizeFirst(one), price, leftInSlot) : T.youBoughtFree(capitalizeFirst(one), leftInSlot),
     text,
     sfx: SFX.COIN,
   };
@@ -784,12 +802,13 @@ async function stockMachine(
   const n = Math.trunc(Number(quantity));
   const tag = holding?.tag;
   if (!tag) return fail(T.notInMachine);
-  if (!Number.isFinite(n) || n <= 0 || n > carried) return fail(T.dontHave(tag.name, carried));
+  if (!Number.isFinite(n) || n <= 0 || n > carried) return fail(T.dontHave(countOf(tag, carried, { markdown: false })));
   if (!isTradeable(tag)) return fail(T.untradeable(tag.name));
-  // Coin goes in the slot, not on the shelf. This is also what keeps the
-  // machine off form BALANCE entirely — ⬢ is the one tag whose movement the
-  // reconciliation actually covers (docs/systemdocs/ECONOMY.md §3).
-  if (tag.slug === OBOL_SLUG || tag.slug === RESOURCES_SLUG) return fail(T.noMoneyOnShelf);
+  // Coin goes in the slot, not on the shelf. ⬢ are a ware like any other: the
+  // tag hook books them as BALANCE at par to machine:<id>, an end the
+  // reconciliation never reads, so a shelf of them cannot show up as drift
+  // (docs/systemdocs/ECONOMY.md §3, VENDING.md §6).
+  if (tag.slug === OBOL_SLUG) return fail(T.noMoneyOnShelf);
 
   const existing = (machine.slots ?? []).find((s) => s.tagId === tagId);
   if (!existing && (machine.slots ?? []).length >= VENDING_SHELF_CAP) {
@@ -854,7 +873,7 @@ async function stockMachine(
   await sayInRoom(prisma, room, text);
   return {
     ok: true,
-    line: price > 0 ? T.youStockedIn(n, markdownName(tag.name), price) : T.youStockedInFree(n, markdownName(tag.name)),
+    line: price > 0 ? T.youStockedIn(countOf(tag, n), price) : T.youStockedInFree(countOf(tag, n)),
     text,
     // Goods onto a shelf, not coin into a slot.
     sfx: SFX.OK_QUIET,
@@ -944,7 +963,7 @@ async function unstockMachine(prisma, discordUserId, { roomId, tagId, quantity, 
   const text = T.roomRestocked(who);
   await sayInRoom(prisma, room, text);
   // Goods off a shelf. SFX.COIN here said a sale had happened when none had.
-  return { ok: true, line: T.youStockedOut(take, tag ? markdownName(tag.name) : "thing"), text, sfx: SFX.OK_QUIET };
+  return { ok: true, line: T.youStockedOut(countOf(tag, take)), text, sfx: SFX.OK_QUIET };
 }
 
 /** Re-price a line that is already on the shelf. */
@@ -1090,6 +1109,8 @@ module.exports = {
   secondsLeftOn,
   unlockedNow,
   validPrice,
+  countOf,
+  oneOf,
   timeLeftLine,
   ensureMachine,
   vendingActor,

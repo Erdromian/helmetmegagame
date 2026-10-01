@@ -145,10 +145,16 @@ and neither is the audit row's narrative — a warning is itself the tell
 
 ## 6. The money
 
-`⬢` never enters the machine. Obols and `resources` are both refused as wares:
-coin goes in the slot, not on the shelf. That is a rule about the fiction and
-also the thing that keeps the machine off form `BALANCE`, which is the one form
-the repo's only reconciliation code actually covers.
+Obols are refused as wares: coin goes in the slot, not on the shelf.
+
+`⬢` are a ware like any other. The merchant stocks them, prices them in ¢, and
+they sell one at a time like a pie. A line counts them as `5 ⬢` rather than
+`5 × Resources` (`vending.js#countOf` / `#oneOf`). Their legs are `BALANCE` at
+par between a character and `machine:<id>`, booked by the same tag hook as any
+ware. The reconciliation only reads characters and rooms, so a shelf of ⬢
+cannot show up as drift, and each character's end of every leg is still
+correct. Until 2026-10 ⬢ were refused as well, which kept the machine off
+`BALANCE` altogether.
 
 The machine is one ledger party, `machine:<id>` (`economyLedger.js#machineParty`),
 covering **both** pools — the float and the till are two trays in one box, so a
@@ -161,8 +167,8 @@ the game.
 |---|---|
 | Insert | `character → machine`, `COIN`, `VENDING_INSERT` |
 | Withdraw | `machine → character`, `COIN`, `VENDING_WITHDRAW` |
-| Buy | `machine → character`, `GOODS` at catalog value, `VENDING_SALE`. **No coin leg** |
-| Stock in / out | `character ↔ machine`, `GOODS`, `VENDING_STOCK` |
+| Buy | `machine → character`, `GOODS` at catalog value (`BALANCE` at par for ⬢), `VENDING_SALE`. **No coin leg** |
+| Stock in / out | `character ↔ machine`, `GOODS` (`BALANCE` at par for ⬢), `VENDING_STOCK` |
 | Empty the till | `machine → character`, `COIN`, `VENDING_TILL` |
 
 The goods legs ride the `econ` option on the ordinary `tagWrites.js` primitives.

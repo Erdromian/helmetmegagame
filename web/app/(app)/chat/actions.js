@@ -68,7 +68,6 @@ import {
 } from "@lifeweb/db/lib/merchantTerminal";
 import { isTradeable } from "@lifeweb/db/lib/tradeable";
 import { OBOL_SLUG } from "@lifeweb/db/lib/depotState";
-import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
 import { searchRoom as searchRoomInDb } from "@lifeweb/db/lib/roomSearch";
 import { countHiddenStacks, hiddenCountLine } from "@lifeweb/db/lib/roomStash";
@@ -2087,8 +2086,9 @@ export async function merchantTerminalRemoveOrder({ orderId } = {}) {
 }
 
 // What the merchant may put in: whatever they are carrying that is cargo and
-// isn't money. Read here rather than in the engine because it is a question
-// about the PRESSER's pockets, not about the machine.
+// isn't coin — ⬢ included, since they are a ware like any other. Read here
+// rather than in the engine because it is a question about the PRESSER's
+// pockets, not about the machine.
 export async function vendStockables({ roomId } = {}) {
   const me = await actor();
   if (me.error) return { ok: false, error: me.error };
@@ -2104,7 +2104,7 @@ export async function vendStockables({ roomId } = {}) {
   return {
     ok: true,
     rows: held
-      .filter((ct) => isTradeable(ct.tag) && ct.tag.slug !== OBOL_SLUG && ct.tag.slug !== RESOURCES_SLUG)
+      .filter((ct) => isTradeable(ct.tag) && ct.tag.slug !== OBOL_SLUG)
       .map((ct) => ({ tagId: ct.tag.id, name: ct.tag.name, held: ct.quantity })),
   };
 }
