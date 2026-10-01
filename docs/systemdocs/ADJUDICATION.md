@@ -271,7 +271,10 @@ rule).
   right up to the push (`db/lib/turnGate.js#autoMovesOpen`, `SESSIONS.md` §4).
   Expect crafts, burials, mining and the like to keep landing on the desk after
   the lock, as PASSED rows or as rows a turn-end pass settles (a Trinket, a heal
-  Gambit). None of them asks for a ruling.
+  Gambit). None of them asks for a ruling. Healing lands **Solved** rather than
+  Passed or Open: a cure's Routine (any row whose ledger holds a `medical`
+  entry, `db/lib/moveLedger.js#spendLedgerMove`) and a heal Gambit both file
+  `SOLVED`, so the desk never lists a cure as waiting on a GM.
 - **The Gambit's die is thrown at submit, and it belongs to the character and
   the turn rather than to the Move.** `db/lib/gambitDie.js`, called from
   `moveConfirm.js` inside the confirming transaction. One row per character per
@@ -353,11 +356,15 @@ rule).
   (`MEDICAL.md` §3a, `TAGS.md` §5c) is the same shape now:
   `db/lib/healGambitPass.js` reads its die against a threshold set by the skill
   gap and either cures the affliction or adds a scaled complication, DMing the
-  medic and the patient a line each. So by the time either shows up here it is
-  already `SOLVED`, `resultMessage` filled in, and the DM already sent. The row
-  still surfaces between file and close like any other Move; a GM overwriting
-  `resultMessage` on it is a real edit, not a no-op, and the written line
-  stands — the same guard a Lesson's own GM-authored result gets.
+  medic and the patient a line each. A heal Gambit is filed `SOLVED` the moment
+  the medic starts (`medical.js#healCharacterRequestImpl`), with no Result yet,
+  so between file and close it sits on the desk as Solved rather than Open; the
+  pass fills the Result and sends the DMs at the close. Because the status no
+  longer says whether a GM got there first, the pass asks the row instead
+  (`healGambitPass.js#gmHasRuled`): a Result line or a reviewer means a GM has
+  ruled, and their line stands. So writing a Result and pressing Save is
+  how a GM overrides one. Reopen clears the reviewer, so a reopened row with
+  an empty Result is still settled by the pass.
 - **One auto-filed craft Routine can hold several crafts.** Still one Action
   per character per turn — that does not move — but a craft may cost a
   *fraction* of it, so the row reads "Crafting this turn: 2× Alcohol, 1× Cat.

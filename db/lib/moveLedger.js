@@ -135,6 +135,9 @@ function lockCharacter(tx, characterId) {
 // its dice at push time. `farmPlan` rides along for that same later
 // resolution.
 //
+// `moveReviewStatus` overrides the PASSED it files as. Only the ledger passes
+// one: a row carrying a cure files SOLVED (see spendLedgerMove).
+//
 // Returns { ok: true, action } or { ok: false, reason }.
 async function fileAutoRoutine(
   tx,
@@ -143,7 +146,7 @@ async function fileAutoRoutine(
   description,
   gmNotes,
   craftBudget = null,
-  { deferEffects = false, farmPlan = null } = {},
+  { deferEffects = false, farmPlan = null, moveReviewStatus = "PASSED" } = {},
 ) {
   // The floor under the session gate (SESSIONS.md §5). Every caller is refused
   // long before here, but nothing may write an Action row between sittings,
@@ -163,7 +166,7 @@ async function fileAutoRoutine(
         status: "CONFIRMED",
         confirmedAt: new Date(),
         moveKind: "ROUTINE",
-        moveReviewStatus: "PASSED",
+        moveReviewStatus,
         description,
         ...(deferEffects ? {} : { appliedEffects: {} }),
         ...(farmPlan ? { farmPlan } : {}),
@@ -188,13 +191,20 @@ async function fileAutoRoutine(
 // this budget appends its own marker rather than replacing it
 // ("auto:craft auto:search").
 //
+// A cure on the row (a "medical" entry: a medic's cure, or an item only a
+// medic may administer) makes it SOLVED rather than PASSED. The cure already
+// happened, so there is nothing left for a GM to do with it, and the desk
+// shouldn't present it as waiting on one. Only ever PASSED -> SOLVED: a row a
+// GM reopened stays as they left it.
+//
 // Returns { ok: true, action, budget } or { ok: false, reason }.
 async function spendLedgerMove(tx, { character, turn, need, entry, description = null, notes = LEDGER_MARKER }) {
   await lockCharacter(tx, character.id);
   const existing = await tx.action.findFirst({
     where: { characterId: character.id, turnId: turn.id },
-    select: { id: true, gmNotes: true, craftBudget: true },
+    select: { id: true, gmNotes: true, craftBudget: true, moveReviewStatus: true },
   });
+  const curing = entry?.family === "medical";
   const check = checkLedgerMove(existing, need);
   if (!check.ok) return check;
   const ledger = check.ledger;
@@ -208,13 +218,16 @@ async function spendLedgerMove(tx, { character, turn, need, entry, description =
   const budget = { usedNum: used.num, usedDen: used.den, entries };
   const line = description ?? craftLedgerDescription(entries);
   if (!existing) {
-    const filed = await fileAutoRoutine(tx, character, turn, line, notes, budget);
+    const filed = await fileAutoRoutine(tx, character, turn, line, notes, budget, {
+      moveReviewStatus: curing ? "SOLVED" : "PASSED",
+    });
     return filed.ok ? { ok: true, action: filed.action, budget } : filed;
   }
+  const solve = curing && existing.moveReviewStatus === "PASSED";
   // `updateMany` + count, not `update`: racing a GM Reject should read as "your turn was just reset", not a raw P2025.
   const { count } = await tx.action.updateMany({
     where: { id: existing.id },
-    data: { craftBudget: budget, description: line },
+    data: { craftBudget: budget, description: line, ...(solve ? { moveReviewStatus: "SOLVED" } : {}) },
   });
   if (count === 0) return { ok: false, reason: TURN_RESET };
   return { ok: true, action: existing, budget };

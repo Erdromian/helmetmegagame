@@ -70,8 +70,8 @@ function isAutoLesson(gmNotes) {
 }
 
 // A medical Gambit (db/lib/healGambitPass.js): resolved the same way a
-// lesson is, at the turn's close rather than by a GM — it arrives SOLVED
-// with its own result line already written.
+// lesson is, at the turn's close rather than by a GM. It is filed SOLVED,
+// and the pass writes its result line at the close.
 const AUTO_HEAL_GAMBIT = "auto:heal_gambit";
 
 function isAutoHealGambit(gmNotes) {
