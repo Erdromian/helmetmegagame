@@ -17,6 +17,9 @@ const INCLUDED = new Set([
   "move_rejected",
   "caving_roll_resolved",
   "caving_loot_granted",
+  // Somebody went down or was tied up, by any route (the trigger in
+  // db/prisma/migrations/20261208000000_incapacitation_audit).
+  "character_incapacitated",
 
   // One person acting on another.
   "request_heal_character",
