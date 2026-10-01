@@ -13,6 +13,7 @@ const {
   HUNGER_SLUG,
   STARVING_SLUG,
 } = require("./constants");
+const { markdownName } = require("./markdownName");
 
 const HUNGER_MAX = 100;
 const HUNGER_MIN = 0;
@@ -323,7 +324,8 @@ function rawFoodMoodTerms(cookedMood) {
 // is already plural.
 function ateWord({ slug, name, count }) {
   if (slug === FOODSTUFFS_SLUG) return count === 1 ? "1 Foodstuff" : `${count} Foodstuffs`;
-  return count === 1 ? `your ${name}` : `${count} of your ${name}`;
+  const shown = markdownName(name); // the DM is Markdown — keeps a Lavish meal's "*" marks
+  return count === 1 ? `your ${shown}` : `${count} of your ${shown}`;
 }
 
 function ateList(ate = []) {

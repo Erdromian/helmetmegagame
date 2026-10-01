@@ -20,6 +20,7 @@ const { seenAs, seenBy, identityOf, IDENTITY_SELECT } = require("./intercept");
 const { searchButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
 const { logAudit } = require("./auditLog");
+const { markdownName } = require("./markdownName");
 
 // The ask writes this; the ration counts SearchAttempt rows, not these. Kept
 // apart the way KISS.md §3 keeps `kiss` and `kiss_accepted` apart: if the
@@ -111,8 +112,9 @@ function pickRevealed(hidden = [], count, rng = Math.random) {
   return pool.slice(0, take);
 }
 
+// The readout is a DM (Markdown): a Lavish "*Caviar*" keeps its asterisks.
 function nameList(rows) {
-  return rows.map((r) => (r.quantity > 1 ? `${r.name} ×${r.quantity}` : r.name)).join(", ");
+  return rows.map((r) => (r.quantity > 1 ? `${markdownName(r.name)} ×${r.quantity}` : markdownName(r.name))).join(", ");
 }
 
 // Both sides' words come out of ONE call, so the two readouts cannot drift.

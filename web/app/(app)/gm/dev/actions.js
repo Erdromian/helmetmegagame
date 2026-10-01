@@ -48,6 +48,7 @@ import { grantTagSlugs, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { addCharacterResources, resourcesByCharacterIds } from "@lifeweb/db/lib/resourceStack";
 import { mintLetterFor, sealWithMark } from "@lifeweb/db/lib/paperMint";
 import { dmAction, DM_ACTION } from "@lifeweb/db/lib/dmActions";
+import { markdownName } from "@lifeweb/db/lib/markdownName";
 import {
   canReadLetters,
   deliveryDm,
@@ -1199,7 +1200,7 @@ async function bulkTag(session, characters, input) {
 
   for (const c of characters) {
     if (!touched.includes(c.id)) continue;
-    notifyCharacter(c, remove ? `You have lost ${tag.name}.` : `You have gained ${tag.name}.`);
+    notifyCharacter(c, remove ? `You have lost ${markdownName(tag.name)}.` : `You have gained ${markdownName(tag.name)}.`);
   }
 
   revalidatePath("/gm/dev");

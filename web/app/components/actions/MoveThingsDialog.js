@@ -9,6 +9,7 @@ import useRoster from "./useRoster";
 import useSubmit from "./useSubmit";
 import { useActionPools } from "./poolsContext";
 import { transferableTags } from "@/lib/tagRequests";
+import { markdownName } from "@lifeweb/db/lib/markdownName";
 import { transferRequest, lootCharacterRequest, stealRequest } from "@/app/(app)/character/requestActions";
 
 // Moving things: one dialog for Transfer, Loot, Take, Drop and Give.
@@ -44,8 +45,10 @@ function weightNote(each, quantity = 1) {
   return n === 1 ? `${per} lb` : `${per} lb each · ${total} lb`;
 }
 
+// For the notice line, which is Markdown: a Lavish "*Caviar*" keeps its asterisks.
 function stackLabel(name, quantity) {
-  return quantity > 1 ? `${name} ×${quantity}` : name;
+  const shown = markdownName(name);
+  return quantity > 1 ? `${shown} ×${quantity}` : shown;
 }
 
 export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {

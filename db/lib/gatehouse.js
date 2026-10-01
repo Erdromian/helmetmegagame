@@ -46,6 +46,7 @@ const { sendDm } = require("./dm");
 const { SFX } = require("./sfx");
 const { recordArchiveEvent } = require("./archive");
 const { logAudit } = require("./auditLog");
+const { markdownName } = require("./markdownName");
 
 function fail(error, extra = {}) {
   return { ok: false, error, ...extra };
@@ -339,9 +340,10 @@ function ringName(tags) {
   return wornRing(tags)?.name ?? null;
 }
 
-// "Dagger, Obol ×8" — what moved, for the archive line.
+// "Dagger, Obol ×8" — what moved, for the archive line. The archive draws it as Markdown, so a Lavish
+// "*Caviar*" is escaped to keep its asterisks.
 function itemList(lines) {
-  return (lines ?? []).map(({ name, quantity }) => (quantity > 1 ? `${name} ×${quantity}` : name)).join(", ");
+  return (lines ?? []).map(({ name, quantity }) => (quantity > 1 ? `${markdownName(name)} ×${quantity}` : markdownName(name))).join(", ");
 }
 
 // One line in the archive for something done at the controls. No placeKey, so

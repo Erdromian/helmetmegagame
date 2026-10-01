@@ -17,6 +17,7 @@ const { rollWithAdvantage } = require("./advantage");
 const { revealCount, pickRevealed } = require("./search");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { RESOURCES_SLUG } = require("./resourceStack");
+const { markdownName } = require("./markdownName");
 const { autoMovesOpen } = require("./turnGate");
 const { checkLedgerMove, spendLedgerMove, lockCharacter } = require("./moveLedger");
 const { SEARCH_MOVE } = require("./roomSearchCost");
@@ -116,7 +117,7 @@ function roomSearchOutcome({ die, modifiers = [], hidden = [], rng = Math.random
 }
 
 function formatStack(row) {
-  const name = row.tag?.name ?? row.name ?? row.tag?.slug ?? row.slug;
+  const name = markdownName(row.tag?.name ?? row.name ?? row.tag?.slug ?? row.slug);
   const n = row.hiddenQuantity ?? row.quantity ?? 1;
   if ((row.tag?.slug ?? row.slug) === RESOURCES_SLUG) return `${n} ⬢`;
   return n > 1 ? `${name} ×${n}` : name;

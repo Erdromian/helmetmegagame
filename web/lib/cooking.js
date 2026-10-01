@@ -1,3 +1,5 @@
+import { markdownName } from "@lifeweb/db/lib/markdownName";
+
 // Cooking (docs/systemdocs/COOKING.md): derived AT THE MOMENT SOMEBODY EATS IT, not baked in when
 // cooked, so a later catalog edit applies to every dish already made, no re-mint.
 function ingredientEntries(tag) {
@@ -78,7 +80,9 @@ export function mergeDishCures(mealTag, ingredientTags = []) {
 //
 // `count` is how many were eaten at once (the Consume slider): "You eat 3
 // Foodstuffs, they taste bland."
-export function tasteLine(mealName, entries = [], count = 1) {
+export function tasteLine(rawName, entries = [], count = 1) {
+  // The notice is Markdown: a Lavish "*Caviar*" keeps its asterisks (db/lib/markdownName.js).
+  const mealName = markdownName(rawName);
   const fragments = entries
     .filter((e) => e && typeof e.taste === "string" && e.taste.trim())
     .map((e) => (e.adjective ? e.taste.trim() : `like ${e.taste.trim()}`));
