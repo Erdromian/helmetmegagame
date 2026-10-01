@@ -24,7 +24,7 @@ const { rollWithEdge, edgeFor } = require("./advantage");
 const { nextFatigueSlug } = require("./fatigue");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
 const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
-const { linkBetween, crossingCheck } = require("./locationGraph");
+const { linkBetween, crossingCheck, partyKeyFor } = require("./locationGraph");
 const { withRingTokens } = require("./roomAccess");
 const { crossingCost, FAR_CROSSING_COST, formatTravel } = require("./crossingCost");
 const { dismountForNarrowWay } = require("./indoors");
@@ -535,6 +535,8 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   // follower inside the transaction. Null on a first placement, which has no
   // edge to check.
   const followerLink = currentLocation ? await linkBetween(prisma, currentLocation.id, targetLocation.id) : null;
+  // The leader's key, if a key is what opens this way — lent to every follower below, since the leader unlocks the door for the people they bring (MAP.md §3a). Null for a skill lock or when nobody here holds the key.
+  const partyKey = await partyKeyFor(prisma, followerLink, character);
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -575,10 +577,12 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
             outcome.leftBehind.push({ row, reason: "gone" });
             continue;
           }
-          // The edge, judged against the FOLLOWER's own tags and mount, not the leader's — a crawl the leader has the Caving for is still a crawl their unskilled companion can't follow, and a rider can't be led through an onFoot gap.
+          // The edge, judged against the FOLLOWER's own tags and mount — a crawl the leader has the Caving for is still a crawl their unskilled companion can't follow, and a rider can't be led through an onFoot gap. The one thing the leader lends is a KEY (partyKey above): a locked door the leader opens lets their party through behind them.
           if (currentLocation) {
+            const followerSlugs = await withRingTokens(prisma, row.id, row.tags);
+            if (partyKey) followerSlugs.add(partyKey);
             const gate = crossingCheck(followerLink, {
-              tagSlugs: await withRingTokens(prisma, row.id, row.tags),
+              tagSlugs: followerSlugs,
               onFootBlocked: blocksOnFoot(equippedSlugs(row.tags ?? [])),
             });
             if (!gate.passable) {

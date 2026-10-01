@@ -870,7 +870,19 @@ being taken along is an invitation and refusing one is not a refusal.
 run through `crossingCheck` with **their own** tags and their own mount — a
 crawl the leader has the Caving for is still a crawl their companion cannot
 follow them down. One who fails is detached and left standing, and the mover
-goes on. Dragging used to throw the whole hop away instead. **The leader's DM
+goes on.
+
+**The one thing the leader lends is a key.** A locked or hidden way whose tag
+is a **key** — an Items tag the leader holds, or a door token on their worn
+ring — opens for the whole party: the leader unlocks the door and brings their
+people through, so each follower is judged as if they held it too
+(`locationGraph.js#partyKeyFor`). Until 2026-10-01 a follower needed their own
+key, so a leader could not bring a guest through any door the guest could not
+open. A **skill or trait** in the lock (`caving`, `climbing`, `strong-swimmer`,
+`tunnel-rat`) is never lent, and neither is the rest of the edge: a Giant is
+still refused a tight squeeze, and a rider still dismounts at an on-foot way.
+An escort following their charge (§3d) walks under their own power and borrows
+nothing. Dragging used to throw the whole hop away instead. **The leader's DM
 must never say why**: naming a hidden edge's refusal would announce that the
 edge is there (§2a). It says only "You can't move X through here."
 
