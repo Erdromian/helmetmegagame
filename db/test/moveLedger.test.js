@@ -15,6 +15,7 @@ const {
   checkLedgerMove,
   craftLedgerDescription,
   isLedgerAction,
+  spendLedgerMove,
 } = require("../lib/moveLedger");
 
 const quarter = { num: 1, den: 4, family: "search" };
@@ -65,4 +66,68 @@ test("the desk line groups by family with its own verb", () => {
     craftLedgerDescription(entries),
     "Crafting this turn: 2× Work Knife. Treating this turn: Splint. Searching this turn: Fishing Hut.",
   );
+});
+
+// The writer half, against a fake transaction: just enough of Prisma for
+// spendLedgerMove to file or extend one row. A cure on the row files it
+// SOLVED, so the GM desk never lists healing as waiting on a ruling
+// (ADJUDICATION.md §2).
+function fakeTx(existing = null) {
+  const writes = { created: null, updated: null };
+  const tx = {
+    $queryRaw: async () => [],
+    gameConfig: { findUnique: async () => ({ gameMode: "PERSISTENT" }) },
+    gameState: { findUnique: async () => ({}) },
+    action: {
+      findFirst: async () => existing,
+      create: async ({ data }) => {
+        writes.created = data;
+        return { id: "a1", ...data };
+      },
+      updateMany: async ({ data }) => {
+        writes.updated = data;
+        return { count: 1 };
+      },
+    },
+  };
+  return { tx, writes };
+}
+
+const spend = (tx, family) =>
+  spendLedgerMove(tx, {
+    character: { id: "c1", zoneId: null, locationId: null },
+    turn: { id: "t1" },
+    need: { num: 1, den: 4, family },
+    entry: { tagId: "g1", name: family === "medical" ? "Splint" : "Work Knife", family, qty: 1, num: 1, den: 4 },
+  });
+
+test("a cure on a fresh turn files its Routine SOLVED", async () => {
+  const { tx, writes } = fakeTx();
+  const out = await spend(tx, "medical");
+  assert.equal(out.ok, true);
+  assert.equal(writes.created.moveReviewStatus, "SOLVED");
+});
+
+test("a craft on a fresh turn still files PASSED", async () => {
+  const { tx, writes } = fakeTx();
+  await spend(tx, "smithing");
+  assert.equal(writes.created.moveReviewStatus, "PASSED");
+});
+
+test("a cure joining a craft's PASSED row turns it SOLVED", async () => {
+  const { tx, writes } = fakeTx({ id: "a1", moveReviewStatus: "PASSED", ...ledgerAt(1, 4) });
+  await spend(tx, "medical");
+  assert.equal(writes.updated.moveReviewStatus, "SOLVED");
+});
+
+test("a craft joining a row leaves its status alone", async () => {
+  const { tx, writes } = fakeTx({ id: "a1", moveReviewStatus: "SOLVED", ...ledgerAt(1, 4) });
+  await spend(tx, "smithing");
+  assert.equal("moveReviewStatus" in writes.updated, false);
+});
+
+test("a cure never overrides a row a GM reopened", async () => {
+  const { tx, writes } = fakeTx({ id: "a1", moveReviewStatus: "OPEN", ...ledgerAt(1, 4) });
+  await spend(tx, "medical");
+  assert.equal("moveReviewStatus" in writes.updated, false);
 });

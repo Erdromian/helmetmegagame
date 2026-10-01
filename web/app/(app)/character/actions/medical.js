@@ -357,6 +357,9 @@ export async function healCharacterRequestImpl({
       // CONFIRMED with the die already rolled, revealed at turn close by the
       // staged push. Patient's tag untouched: an unread roll can't have
       // cured anything, and a failed one can leave them worse (TAGS.md §5c).
+      // Filed SOLVED: db/lib/healGambitPass.js settles it at the close with
+      // no GM needed, so the desk shouldn't list it as waiting on one. The
+      // pass still reads it unless a GM writes a Result of their own.
       // requireFreeMove() ran above, but the P2002 catch is what actually
       // holds — @@unique([characterId, turnId]) rations two racing tabs to one gambit heal a turn.
       let action;
@@ -371,7 +374,7 @@ export async function healCharacterRequestImpl({
             status: "CONFIRMED",
             confirmedAt: new Date(),
             moveKind: "GAMBIT",
-            moveReviewStatus: "OPEN",
+            moveReviewStatus: "SOLVED",
             description: `Treating ${self ? "their own" : `${patientSeen}'s`} ${held.tag.name}.`,
             diceRoll: healGambitAdvantage.die,
             diceModifier:

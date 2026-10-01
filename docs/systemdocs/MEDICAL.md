@@ -118,7 +118,10 @@ that bills a heal or an administer fee. As of 2026-09-15 a Routine's Move can
 hold any mix of families in one turn, so a Choking cure and a Broadsword can
 land in the same turn's Routine now, as long as the two costs together
 still fit in one Move — `family` labels what an entry was, it no longer
-gates what else the turn may hold.
+gates what else the turn may hold. It does decide one thing on the desk: a
+row holding a `medical` entry files `SOLVED` instead of `PASSED`
+(`db/lib/moveLedger.js#spendLedgerMove`), because the cure has already
+happened and nothing is left for a GM to rule on (`ADJUDICATION.md` §2).
 
 **The free pool.** Every cure priced at `turnsCost: 0` on the cure ladder —
 first aid, bandaging, setting a simple break — is a free action, shared
@@ -156,7 +159,8 @@ ladder holds both, at the same 13 ⬢ — tier 6 (`appendicitis`, `disfigured`,
 routine work, and tier 7 carries `requirementGambit` on top of it, which is
 the only thing separating the two rungs now that they share a price. A
 Gambit heal never reaches the pool question at all: it files a
-`MOVE`/`GAMBIT` Action, and
+`MOVE`/`GAMBIT` Action, already `SOLVED` so it never waits on a GM (the turn-end
+pass settles it, §3a), and
 `Action @@unique([characterId, turnId])` is what rations it to one a turn,
 the same shape a learner's Lesson Gambit uses.
 
