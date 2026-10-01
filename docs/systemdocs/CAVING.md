@@ -320,20 +320,22 @@ staged **Relocate to** are the adjudication, and a GM moving a stuck caver is
 the one way they move before the push. There is no switch for the number;
 ten is `CAVING_TROUBLE_CAP` in `db/lib/cavingPass.js`.
 
-### 2f. No walking into the caves in the turn lock
+### 2f. No walking in the caves in the turn lock
 
 Caving.docx: *"Characters are not allowed to move into caves/depths locations
 when the turn is locked to give the GMs time to adjudicate all failed rolls."*
 The refusal is the doc's own sentence: *"It is too close to the turn push, wait
 till next turn to move in the caves."*
 
-The lock already shuts **all** travel (Combat Overhaul.docx,
-`db/lib/turnGate.js#travelLockReason`, `ATTACK.md`), so the caves are closed in
-the lock with or without this rule. What this adds is the sentence: a way whose
-far end is a `CAVE_LEVEL` Location is refused with the caving line, and every
-other way keeps the plain *"Moves are locked for this turn…"*.
-`travelLockReason(db, { intoZoneKind })` picks it for the mover, and
-`lockedTravelSentence(kind)` for a picker drawing many ways off one answer.
+This is now the **only** travel the lock shuts. The Combat Overhaul had shut
+every walk in the lock, and Bascinet opened the surface again on 2026-10-01 but
+kept the caves shut. A way with **either** end in a `CAVE_LEVEL` zone (the Caves
+or the Depths) is refused: walking in, walking out, and walking about inside,
+Bat Form too. Every other way stays open through the lock.
+`travelLockReason(db, { fromZoneKind, intoZoneKind })` answers for the mover.
+A picker drawing many ways off one answer asks `travelLocked(db)` once, and
+only when some way there touches a cave, then `lockedTravelSentence(from, into)`
+for each way.
 
 The refusal is said where the move is refused — the way drawn shut in the web
 picker and on the map, the server's refusal, and the bot's ephemeral reply —
@@ -667,7 +669,7 @@ now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
 | The loot table | `db/lib/cavingLoot.js` |
 | The one trigger | `db/lib/cavingPass.js#rollCavingOnArrival` |
 | The hold a 1 puts on the way up, and the stop at severity 10 | `db/lib/cavingPass.js#cavingRestrictionsFor`, `#cavingRefusalFor` (§2c, §2e) |
-| The turn lock's sentence for a way into the caves | `db/lib/turnGate.js#travelLockReason`, `#lockedTravelSentence` (§2f) |
+| The turn lock on a way into, out of or inside the caves | `db/lib/turnGate.js#travelLockReason`, `#lockedTravelSentence` (§2f) |
 | The trigger's callers | `db/lib/locationTravel.js#performLocationMove` (mover + dragged), the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#applyBulkAction` (its Move verb) |
 | Arrival DM senders | whichever face's location-move caller runs `performLocationMove` sends `moved[].cavingDm`; the two GM paths send their own |
 | Kind labels, the fold, the severity label, the failures-only filter | `web/lib/cavingLabels.js` |

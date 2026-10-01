@@ -32,7 +32,6 @@ const { wornRing, wornRingAccess } = require("./rings");
 const { isTradeable } = require("./tradeable");
 const { isResourcesRow } = require("./resourceStack");
 const { seenByIdMany, heldReasonFor } = require("./intercept");
-const { travelLockReason } = require("./turnGate");
 const { dropCharacterTag } = require("./tagWrites");
 const { characterParty, turnStamp } = require("./economyLedger");
 const { openAccount, bumpBankAccount } = require("./bankAccounts");
@@ -378,10 +377,9 @@ async function approvePassage(prisma, discordUserId, { passageId, keep = [], giv
   const asker = row.character;
   if (asker.id === clerk.id) return fail(T.requestGone);
   // Through the gate is still a move: not out of a fight or an ambush, not
-  // while they are bound or out cold, and not once Moves have locked.
+  // while they are bound or out cold. The turn lock only shuts the caves
+  // (turnGate.js#travelLockReason), and the gate is all surface.
   if (heldReasonFor(asker) || blockerFor(asker.tags, ACT)) return fail(T.approveHeld);
-  const locked = await travelLockReason(prisma);
-  if (locked) return fail(locked);
 
   const offer = liveOffer(row.offered, asker.tags);
   const kept = pickLines(keep, offer, { strict: true });

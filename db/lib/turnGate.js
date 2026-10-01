@@ -15,11 +15,10 @@
 // `autoMovesOpen` instead, which is the same gate without the window. No GM reads those rows, so there is nothing for the
 // lock to protect, and a player can keep working right up to the push. Being out of session still refuses both.
 // Two things a GM also reads off the picture are shut by the lock as well, since the Combat Overhaul: starting
-// or joining a fight and laying in wait (db/lib/combatGate.js), and walking anywhere (travelLockReason below).
+// or joining a fight and laying in wait (db/lib/combatGate.js), and walking in the caves (travelLockReason below).
 
 const { moveWindow } = require("./turnClock");
 const { clockStatus } = require("./gameState");
-const { TRAVEL_LOCKED } = require("./combatMode");
 
 // Keyed by the same vocabulary db/lib/gameState.js#frozenReason speaks, plus the two this gate adds of its own.
 const GATE_MESSAGES = {
@@ -71,40 +70,49 @@ function refusal(reason, turn, window) {
   return { ok: false, reason, message: gateMessage(reason), turn, window };
 }
 
-// TRAVEL IS SHUT BY THE LOCK TOO (Bascinet's Combat Overhaul.docx: "Movement between locations is locked
-// during turn lock henceforth"). The one exception to the header's rule above, and a deliberate one: a
-// fight is adjudicated off where everybody stood, so nobody may walk in or out of the picture while the
-// desk reads it. Only the lock's own refusal — whether the game is in session is sessionGate's question,
-// asked first by the mover (db/lib/locationTravel.js). Null means they may walk. A GM's relocation never
-// comes this way. A client with no Turn model (the unit tests' fakes) is never locked.
+// TRAVEL IS SHUT BY THE LOCK ONLY UNDERGROUND. The Combat Overhaul shut every walk in the lock ("Movement
+// between locations is locked during turn lock henceforth"); Bascinet opened the surface again on 2026-10-01
+// and kept the caves shut. The lock is what gives the desk time to answer every failed Caving roll before the
+// push, so a walk with either end in a CAVE_LEVEL zone (the Caves and the Depths) is refused, in Caving.docx's
+// own words: walking in, walking out, and walking about inside. Anywhere else the lock lets them walk.
 //
-// A walk INTO the caves is refused in Caving.docx's own words, since the lock is also what gives the desk
-// time to answer every failed Caving roll before the push. `intoZoneKind` is the destination zone's kind;
-// leave it out and the plain sentence comes back.
-async function travelLockReason(db, { now = new Date(), turn = null, intoZoneKind = null } = {}) {
-  if (!turn && typeof db?.turn?.findFirst !== "function") return null;
+// Only the lock's own refusal — whether the game is in session is sessionGate's question, asked first by the
+// mover (db/lib/locationTravel.js). Null means they may walk. A GM's relocation never comes this way. A client
+// with no Turn model (the unit tests' fakes) is never locked.
+//
+// `fromZoneKind` is the zone kind the walker stands in, `intoZoneKind` the destination's. A walk that touches
+// no cave asks no query at all.
+async function travelLockReason(db, { now = new Date(), turn = null, fromZoneKind = null, intoZoneKind = null } = {}) {
+  const sentence = lockedTravelSentence(fromZoneKind, intoZoneKind);
+  if (!sentence) return null;
+  return (await travelLocked(db, { now, turn })) ? sentence : null;
+}
+
+// Has the lock shut this turn? The one question under travelLockReason, for a caller drawing many ways off
+// one answer (db/lib/locationGraph.js) and pairing it with lockedTravelSentence per way.
+async function travelLocked(db, { now = new Date(), turn = null } = {}) {
+  if (!turn && typeof db?.turn?.findFirst !== "function") return false;
   try {
     const out = await gate(db, { now, turn, lockApplies: true });
-    if (out.reason !== "LOCKED") return null;
-    return lockedTravelSentence(intoZoneKind);
+    return out.reason === "LOCKED";
   } catch {
-    return null;
+    return false;
   }
 }
 
 // Caving.docx, verbatim.
 const CAVING_TRAVEL_LOCKED = "It is too close to the turn push, wait till next turn to move in the caves.";
 
-// The lock's sentence for a walk into a zone of this kind — for a caller that has already asked
-// travelLockReason once and is drawing many ways off the one answer (db/lib/locationGraph.js).
-function lockedTravelSentence(intoZoneKind) {
-  return intoZoneKind === "CAVE_LEVEL" ? CAVING_TRAVEL_LOCKED : TRAVEL_LOCKED;
+// The lock's sentence for a walk between zones of these kinds, or null when the lock does not reach it.
+function lockedTravelSentence(fromZoneKind, intoZoneKind) {
+  return fromZoneKind === "CAVE_LEVEL" || intoZoneKind === "CAVE_LEVEL" ? CAVING_TRAVEL_LOCKED : null;
 }
 
 module.exports = {
   movesOpen,
   autoMovesOpen,
   travelLockReason,
+  travelLocked,
   lockedTravelSentence,
   gateMessage,
   GATE_MESSAGES,

@@ -100,7 +100,8 @@ the asker as the clerk sees them (`intercept.js#seenByIdMany` — a stranger is
   gate's would be. What is left in the offer was never taken, which is the
   doc's "given back". The asker is DM'd. It is still a move, though: refused
   while the asker is held (a fight, an ambush, caught stealing), bound or out
-  cold, and once Moves have locked (`turnGate.js#travelLockReason`).
+  cold. The turn lock does not refuse it: the lock only shuts the caves
+  (`CAVING.md` §2f), and the gate is all surface.
 - A request whose asker is no longer where they asked is never listed,
   approved or poured on, even if a move skipped the withdrawal (a GM's, a
   revive).

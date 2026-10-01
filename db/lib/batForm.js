@@ -28,13 +28,15 @@ function batFormHeldReason(character, now = new Date()) {
 
 // The sentence refusing Bat Form, or null. In performLocationMove's order.
 // `character` needs id, zoneId, tags (with tag.slug), heldUntil and heldReason;
-// `turn` is the open turn.
-async function batFormRefusal(db, character, { turn = null } = {}) {
+// `turn` is the open turn; `intoZoneKind` is the destination zone's kind.
+async function batFormRefusal(db, character, { turn = null, intoZoneKind = null } = {}) {
   // Shut between sittings (SESSIONS.md §5), and once Moves lock before the
-  // push (turnGate.js) — the same two stops every walk obeys.
+  // push for a flight into or out of the caves (turnGate.js) — the same two
+  // stops every walk obeys.
   const session = await sessionGate(db);
   if (!session.ok) return session.message;
-  const locked = await travelLockReason(db);
+  const fromZoneKind = await standingZoneKind(db, character);
+  const locked = await travelLockReason(db, { fromZoneKind, intoZoneKind });
   if (locked) return locked;
 
   const held = batFormHeldReason(character);
@@ -47,7 +49,7 @@ async function batFormRefusal(db, character, { turn = null } = {}) {
   // A Caving 1 this turn keeps you underground until the push (CAVING.md §2c).
   // Refused outright, not only for a flight to the surface: a flight never
   // rolls the Die, so a hop inside the caves would be a free walk past it.
-  const caving = await cavingRestrictionsFor(db, character.id, await standingZoneKind(db, character));
+  const caving = await cavingRestrictionsFor(db, character.id, fromZoneKind);
   if (caving.stuck) return caving.stuck;
   if (caving.hold) return CAVING_HOLD;
 

@@ -356,12 +356,13 @@ At the Move cutoff (`turnClock.js#moveWindow`), and until the push:
 - nothing written can be changed
 - no fight can be called off
 - no watch can be set (`combatGate.js#interceptBlock`)
-- **nobody walks anywhere** — "Movement between locations is locked during
-  turn lock henceforth" (`turnGate.js#travelLockReason`, checked by
+- **nobody walks into, out of or about the caves** (`CAVING.md` §2f,
+  `turnGate.js#travelLockReason`, checked by
   `locationTravel.js#performLocationMove` and drawn on every way by
-  `resolveNeighbors` and `routesWithinZone`). A first placement is not a walk.
-  A GM's relocation never comes this way. A way into the caves is refused in
-  Caving.docx's own sentence instead (`CAVING.md` §2f).
+  `resolveNeighbors` and `routesWithinZone`). The Combat Overhaul shut every
+  walk in the lock; Bascinet opened the surface again on 2026-10-01, so anywhere
+  else people may walk right up to the push. A first placement is not a walk.
+  A GM's relocation never comes this way.
 
 Two exceptions, neither a player's choice: a Vampire's compulsion, which opens
 its fight at turn open (`vampireCompulsion.js`), and an ambush springing, which

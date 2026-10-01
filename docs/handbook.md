@@ -114,7 +114,7 @@ Turn length may vary in real life hours between games, however it will remain co
 At the end of each turn the game resolves what happened during it. Move results are posted, Resources are adjusted, and travel takes effect. You can enable turn pings on your [Character](https://ravenheart.quest/character) page if you want the bot to tell you whenever a new turn begins.
 
 You can find information on the current turn in the `#turns` channel, in addition to the two main controls:  
-- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. Traveling is locked during turn lock.  
+- **Travel** walks you to a connected Location. Walking inside your Zone is free, with a short cooldown between steps. Traveling in the Caves and the Depths is locked during turn lock.  
 - **Move** is used to submit your character's Move for the turn.  
 
 ### The Wipe
@@ -187,7 +187,7 @@ Combat can be called off by those who initiate it, and combat actions altered as
 
 Reinforcing an ongoing conflict requires you to have been within 3 locations distance of it when it began. Otherwise, you will arrive too late to intervene. The further you had to travel to get there, the worse you will perform in battle.
 
-Once Moves lock, nobody can start a fight, join one, or travel anywhere until the next turn.
+Once Moves lock, nobody can start a fight or join one until the next turn, and nobody can travel into, out of or around the Caves and the Depths.
 
 ## Talking & Roleplay
 
