@@ -3,6 +3,7 @@
 import { useState, useTransition } from "react";
 import { playSfx } from "@/app/components/sfx";
 import { actionThrowMessage } from "@/app/components/actionThrow";
+import { usePreview } from "@/app/components/previewContext";
 
 // The one shape a button that calls a { ok, error } server action needs: a
 // pending flag, the last refusal, and a runner that turns a transport failure
@@ -18,6 +19,9 @@ import { actionThrowMessage } from "@/app/components/actionThrow";
 export default function useActionRunner({ refuseSfx = "refuse" } = {}) {
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
+  // Inside a GM's preview of a dialog (./previewContext.js) nothing is sent:
+  // the dialog greys its own buttons, and this is the catch for one it missed.
+  const preview = usePreview();
 
   // `onFail` is for a caller that cleared something optimistically and has to
   // put it back — the chat composer empties its box the moment Enter lands, so
@@ -25,6 +29,7 @@ export default function useActionRunner({ refuseSfx = "refuse" } = {}) {
   // them. It fires for BOTH failure shapes: an { ok: false } answer and a
   // thrown one, which are the same thing from the caller's side.
   function exec(action, args, { onOk, onFail } = {}) {
+    if (preview) return;
     setError(null);
     startTransition(async () => {
       let message = null;

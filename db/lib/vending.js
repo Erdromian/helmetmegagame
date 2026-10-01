@@ -214,16 +214,48 @@ async function machineView(prisma, discordUserId, roomId) {
     tillObols: unlocked ? machine.tillObols : null,
     licensed,
     unlocked,
-    slots: (machine.slots ?? [])
-      .filter((s) => s.quantity > 0)
-      .map((s) => ({
-        tagId: s.tagId,
-        name: s.tag?.name ?? "Something",
-        quantity: s.quantity,
-        priceObols: s.priceObols,
-        weightLbs: s.tag?.weightLbs ?? 0,
-        stackable: Boolean(s.tag?.stackable),
-      })),
+    slots: shelfOf(machine),
+  };
+}
+
+// The shelf as the dialog draws it: what is in stock, at its price.
+function shelfOf(machine) {
+  return (machine?.slots ?? [])
+    .filter((s) => s.quantity > 0)
+    .map((s) => ({
+      tagId: s.tagId,
+      name: s.tag?.name ?? "Something",
+      quantity: s.quantity,
+      priceObols: s.priceObols,
+      weightLbs: s.tag?.weightLbs ?? 0,
+      stackable: Boolean(s.tag?.stackable),
+    }));
+}
+
+/**
+ * The machine as a GM previews it from /chat: the customer's screen, plus the
+ * till and the holder's real name, which a customer is never shown. A plain
+ * READ — a GM opening the dialog takes no hold, and a machine nobody has used
+ * yet is drawn empty rather than created (ensureMachine would upsert it).
+ */
+async function machineGmView(prisma, roomId) {
+  const machine = await prisma.vendingMachine.findUnique({ where: { roomId }, include: MACHINE_INCLUDE });
+  const holder = machine ? heldBy(machine) : null;
+  const holderRow = holder
+    ? await prisma.character.findUnique({ where: { id: holder }, select: { name: true } })
+    : null;
+  return {
+    ok: true,
+    mode: "customer",
+    holderName: holderRow?.name ?? null,
+    secondsLeft: 0,
+    holderId: null,
+    holderSince: null,
+    floatObols: machine?.floatObols ?? 0,
+    tillObols: machine?.tillObols ?? 0,
+    licensed: true,
+    unlocked: false,
+    slots: shelfOf(machine),
   };
 }
 
@@ -1058,6 +1090,7 @@ module.exports = {
   ensureMachine,
   vendingActor,
   machineView,
+  machineGmView,
   takeMachine,
   releaseMachine,
   insertCoins,

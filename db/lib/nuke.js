@@ -319,6 +319,28 @@ async function nukePress(prisma, discordUserId, roomId, digits, { turn = null } 
   );
 }
 
+/**
+ * The keypad as a GM previews it from /chat: armed or not, gone or not, and
+ * nothing else. Never the code — a GM's preview keys locally and checks
+ * nothing, so it has no use for it, and it is the one secret the bomb has.
+ */
+async function nukeGmView(prisma, roomId) {
+  const state = await prisma.gameState.findUnique({
+    where: { id: 1 },
+    select: { nukeRoomId: true, nukeArmedTurn: true, game: { select: { nukeDetonatedTurn: true } } },
+  });
+  if (!state?.nukeRoomId || !roomId || state.nukeRoomId !== roomId) return fail(NUKE_TEXT.noBomb);
+  return {
+    ok: true,
+    roomId,
+    armed: state.nukeArmedTurn != null,
+    firesOn: state.nukeArmedTurn ?? null,
+    gone: state.game?.nukeDetonatedTurn != null,
+    lockedOut: false,
+    triesLeft: NUKE_MAX_STRIKES,
+  };
+}
+
 module.exports = {
   NUKE_FUSE_TURNS,
   NUKE_ZONE_SLUGS,
@@ -329,6 +351,7 @@ module.exports = {
   markNukeRoom,
   nukePlace,
   nukeView,
+  nukeGmView,
   nukeCheck,
   nukePress,
 };

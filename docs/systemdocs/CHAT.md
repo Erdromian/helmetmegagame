@@ -2867,9 +2867,9 @@ should be reading the player's own place card, not a GM-flavoured copy of it.
 
 | Tab | Drawn for | What is in it |
 |---|---|---|
-| **Place** | a Location, room or conversation | who is standing here, the place card (description + `examineLines`), the conversation's members, what is standing on the ground, and every room with its stash and the keys that open it |
+| **Place** | a Location, room or conversation | who is standing here, the place card (description + `examineLines`) with the Location's buttons, the conversation's members, what is standing on the ground, and every room with its stash, the keys that open it and its buttons |
 | **Place** | a zone summary | the zone's own words and the Locations under it — nobody stands in a `#summary` |
-| **Room** | a room | that room's stash, its keys, its fixtures |
+| **Room** | a room | that room's stash, its keys, its buttons |
 | **Travel** | a Location, room or conversation | every way out, and whether it is open, shut, keyed or held |
 | **GM** | always | one box that says a line into this place, and the board |
 
@@ -2877,6 +2877,37 @@ should be reading the player's own place card, not a GM-flavoured copy of it.
 hands: nothing here drops, takes, transfers or travels. Every panel is a
 readout, plus the one thing a GM does to a place, which is say something into
 it.
+
+**A GM sees every button a place has, and can open each one to look.**
+`gmPlaceView` returns `db/lib/placeAffordances.js#gmAffordancesAt`: the same
+list `affordancesFor` builds for a player, with nothing locked. It includes
+every room's fixtures whatever key the door asks for, every gate whether or not
+anybody can reach its winch, and every keyed door. The column splits that list
+with the player's own filters (`fixtures.js`) and draws real buttons. Each
+button opens a **preview** (`GmFixturePreview.js`), which is the dialog a
+player standing there would get, with these limits:
+
+- **One read, when it opens.** `gmFixtureSnapshot` sends only which button was
+  pressed, and checks it against the place's own list. It answers from read-only
+  GM lenses beside each player view (`web/lib/gmFixtureSnapshot.js`). These take
+  no hold on the vending machine, lift no receiver and count no keypad try. A
+  dialog that is only a form (the bell, the intercom, a quest's Interact) reads
+  nothing.
+- **Nothing after that reaches the server.** Typing, picking, keying a number
+  and changing screens all stay in the browser. Every button that would change
+  the game is greyed out.
+- **Two layers hold that shut.** `components/previewContext.js` tells each
+  dialog it is a preview, so the dialog starts from the snapshot, skips its own
+  reads and greys its commit buttons. `useActionRunner` reads the same context,
+  and inside a preview its runner calls nothing. So a button that a dialog forgot
+  to grey still sends nothing.
+- **A fixture that is only a question previews as that question.** This covers
+  a gate, the Gate's finger-prick, the Charon and Search. The question is the
+  same one the player is asked (`PlacePanel.js#fixtureConfirm`,
+  `RoomPanel.js#searchConfirm`), with its answer greyed out.
+
+The GM tab's own tools are not previews. The board there still pins and tears,
+and the box still speaks.
 
 ### Only a GM's page carries it
 

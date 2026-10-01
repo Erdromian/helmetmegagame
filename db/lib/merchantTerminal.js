@@ -231,6 +231,25 @@ async function terminalState(prisma, discordUserId, { unlock = false } = {}) {
     obolTag(prisma),
     pendingOrders(prisma),
   ]);
+  return unlockedScreen({ depot, shelf, orders, carrying: coin ? coinHeld(actor.character, coin.id) : 0 });
+}
+
+/**
+ * The unlocked terminal as a GM previews it from /chat: the shelf, the coin
+ * it holds and the orders on it, with nobody's purse behind it. A plain read
+ * — no actor, and the Depot row is read rather than loadDepot's upsert.
+ */
+async function terminalGmView(prisma) {
+  const [depot, shelf, orders] = await Promise.all([
+    prisma.depot.findUnique({ where: { id: 1 } }),
+    terminalShelf(prisma),
+    pendingOrders(prisma),
+  ]);
+  return unlockedScreen({ depot: depot ?? {}, shelf, orders, carrying: 0 });
+}
+
+// The unlocked screen, from what either caller above loaded.
+function unlockedScreen({ depot, shelf, orders, carrying }) {
   const rate = depot.sellTaxRate ?? 0;
   const committed = withTax(pendingSubtotal(orders), rate);
   const holds = depot.terminalObols ?? 0;
@@ -259,7 +278,7 @@ async function terminalState(prisma, discordUserId, { unlock = false } = {}) {
     committed,
     free: Math.max(0, holds - committed),
     taxRate: rate,
-    carrying: coin ? coinHeld(actor.character, coin.id) : 0,
+    carrying,
     groups: [...groups.entries()]
       .sort(([a], [b]) => (a === UNGROUPED) - (b === UNGROUPED) || a.localeCompare(b))
       .map(([name, wares]) => ({ name, wares })),
@@ -476,6 +495,7 @@ module.exports = {
   orderSummary,
   pendingSubtotal,
   terminalState,
+  terminalGmView,
   insertObols,
   withdrawObols,
   placeOrder,

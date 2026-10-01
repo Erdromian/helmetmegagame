@@ -8,6 +8,7 @@ import EmptyState from "@/app/components/EmptyState";
 import { NoticeText } from "./NoticeCards";
 import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
+import { usePreview, PreviewNote } from "@/app/components/previewContext";
 import { INTERACT_PROMPT, INTENTION_MAX, QUEST_INTERACT_PREFIX } from "@lifeweb/db/lib/questText";
 import { SLOT_PROMPT } from "@lifeweb/db/lib/slotText";
 import { JUKEBOX_TEXT } from "@lifeweb/db/lib/jukeboxText";
@@ -116,6 +117,38 @@ import {
 // room's should never be able to look different.
 export const TONE_CLASS = { go: "btn", danger: "btn-danger", plain: "btn-secondary" };
 
+// The shared confirm a fixture with no dialog of its own asks before it acts,
+// or null for one that just acts (Enter the Charon, Leave, a keyed door).
+// Exported for a GM's preview, which shows the same question with its answer
+// greyed out (GmFixturePreview.js).
+export function fixtureConfirm(entry) {
+  if (entry.kind === "gate" || entry.id === "gateLever") {
+    // A room that named its control is asked about that ("The shutters
+    // come down"), not about a way to somewhere — db/lib/placeAffordances.js.
+    const thing = controlThing(entry.control) ?? `The way to ${entry.farName}`;
+    return entry.isOpen
+      ? { title: "Shut it?", message: `${thing} closes.`, confirmLabel: "Shut it" }
+      : { title: "Open it?", message: `${thing} opens.`, confirmLabel: "Open it" };
+  }
+  if (entry.id === "submitDocumentation") {
+    return {
+      title: GATEHOUSE_TEXT.documentTitle,
+      message: GATEHOUSE_TEXT.documentConfirm,
+      confirmLabel: GATEHOUSE_TEXT.documentConfirmLabel,
+    };
+  }
+  if (entry.id === "charonLaunch") {
+    return { message: "Launch the Charon? This is irreversible.", confirmLabel: "Launch" };
+  }
+  if (entry.id === "charonSleep") {
+    return {
+      message: "Go to sleep and await the shuttle's docking, allowing you to respawn. This is irreversible.",
+      confirmLabel: "Sleep",
+    };
+  }
+  return null;
+}
+
 // ONE instance of this, in ChatAside.js. The affordance list, the notice and
 // the open dialog are shared by every section of the column, so a gate opened
 // from the place card relabels itself and a room's Intercom and the card's
@@ -168,15 +201,9 @@ export function usePlaceActions(initialAffordances, onChanged) {
       // The Town Gatehouse's lever (db/lib/gateControls.js) is a gate button
       // drawn in its room rather than on the place card; it flips the same way.
       if (entry.kind === "gate" || entry.id === "gateLever") {
-        // A room that named its control is asked about that ("The shutters
-        // come down"), not about a way to somewhere — db/lib/placeAffordances.js.
-        const thing = controlThing(entry.control) ?? `The way to ${entry.farName}`;
-        const ask = entry.isOpen
-          ? { title: "Shut it?", message: `${thing} closes.`, confirmLabel: "Shut it" }
-          : { title: "Open it?", message: `${thing} opens.`, confirmLabel: "Open it" };
         // Confirm first, transition second — never inside startTransition
         // (DESIGN-SYSTEM.md §8).
-        if (!(await confirm(ask))) return;
+        if (!(await confirm(fixtureConfirm(entry)))) return;
         run(flipGate, entry.linkId, { onOk: say });
         return;
       }
@@ -191,12 +218,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
       // The Gate's finger-prick (docs/systemdocs/GATEHOUSE.md): the shared
       // confirm says what it does, and there is nothing else to ask.
       if (entry.id === "submitDocumentation") {
-        const ask = {
-          title: GATEHOUSE_TEXT.documentTitle,
-          message: GATEHOUSE_TEXT.documentConfirm,
-          confirmLabel: GATEHOUSE_TEXT.documentConfirmLabel,
-        };
-        if (!(await confirm(ask))) return;
+        if (!(await confirm(fixtureConfirm(entry)))) return;
         run(gateSubmitDocumentation, undefined, { onOk: say });
         return;
       }
@@ -214,18 +236,12 @@ export function usePlaceActions(initialAffordances, onChanged) {
       if (entry.id === "charonLaunch") {
         // Confirm first, transition second — never inside startTransition
         // (DESIGN-SYSTEM.md §8), same as the gate above.
-        if (!(await confirm({ message: "Launch the Charon? This is irreversible.", confirmLabel: "Launch" }))) {
-          return;
-        }
+        if (!(await confirm(fixtureConfirm(entry)))) return;
         run(launchTheCharon, { roomId: entry.roomId }, { onOk: say });
         return;
       }
       if (entry.id === "charonSleep") {
-        const ask = {
-          message: "Go to sleep and await the shuttle's docking, allowing you to respawn. This is irreversible.",
-          confirmLabel: "Sleep",
-        };
-        if (!(await confirm(ask))) return;
+        if (!(await confirm(fixtureConfirm(entry)))) return;
         run(sleepInTheCharon, { roomId: entry.roomId }, { onOk: say });
         return;
       }
@@ -261,34 +277,7 @@ export function usePlaceActions(initialAffordances, onChanged) {
     setError(null);
   }, [setError]);
 
-  const dialogs = (
-    <>
-      {dialog?.kind === "noticeboard" && <NoticeboardDialog onClose={close} onDone={say} />}
-      {dialog?.kind === "converse" && (
-        <ConverseDialog person={dialog.person} onClose={close} onDone={say} />
-      )}
-      {dialog?.kind === "bell" && <BellDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "pray" && <PrayDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "slots" && <SlotDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "jukebox" && <JukeboxDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "vending" && <VendingDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "blackMarket" && <BlackMarketDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "requestPassage" && <PassageDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "processRequests" && <ProcessRequestsDialog onClose={close} onDone={say} />}
-      {dialog?.kind === "createDocuments" && <DocumentsDialog onClose={close} onDone={say} />}
-      {dialog?.kind === "merchantTerminal" && <MerchantTerminalDialog onClose={close} onDone={say} />}
-      {dialog?.kind === "meisterTerminal" && <MeisterTerminalDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "turret" && <TurretDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "infoterminal" && <InfoterminalDialog onClose={close} onDone={say} />}
-      {dialog?.kind === "depotTurret" && <DepotTurretDialog onClose={close} onDone={say} />}
-      {dialog?.kind === "phone" && <PhoneDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "nuke" && <NukeDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "intercom" && <IntercomDialog entry={dialog.entry} onClose={close} onDone={say} />}
-      {dialog?.kind === "questInteract" && (
-        <QuestInteractDialog entry={dialog.entry} onClose={close} onDone={say} />
-      )}
-    </>
-  );
+  const dialogs = dialog ? <FixtureDialog {...dialog} onClose={close} onDone={say} /> : null;
 
   // The phone in this character's hand, if any — drawn under the place card by
   // both asides, so the keypad is one click away after its dialog is closed.
@@ -297,19 +286,75 @@ export function usePlaceActions(initialAffordances, onChanged) {
   return { affordances, openFixture, openConverse, say, notice, error, pending, dialogs, phoneBar };
 }
 
+// The dialog behind one fixture, by its affordance id. The player's hook
+// above draws it, and so does a GM's preview (GmFixturePreview.js), which
+// wraps it in ../../components/previewContext.js so nothing in it is sent.
+// The Gate's finger-prick, the gates and the Charon have no dialog of their
+// own: they are a confirm, and openFixture asks it.
+export function FixtureDialog({ kind, entry = null, person = null, onClose, onDone }) {
+  switch (kind) {
+    case "noticeboard":
+      return <NoticeboardDialog onClose={onClose} onDone={onDone} />;
+    case "converse":
+      return <ConverseDialog person={person} onClose={onClose} onDone={onDone} />;
+    case "bell":
+      return <BellDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "pray":
+      return <PrayDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "slots":
+      return <SlotDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "jukebox":
+      return <JukeboxDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "vending":
+      return <VendingDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "blackMarket":
+      return <BlackMarketDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "requestPassage":
+      return <PassageDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "processRequests":
+      return <ProcessRequestsDialog onClose={onClose} onDone={onDone} />;
+    case "createDocuments":
+      return <DocumentsDialog onClose={onClose} onDone={onDone} />;
+    case "merchantTerminal":
+      return <MerchantTerminalDialog onClose={onClose} onDone={onDone} />;
+    case "meisterTerminal":
+      return <MeisterTerminalDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "turret":
+      return <TurretDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "infoterminal":
+      return <InfoterminalDialog onClose={onClose} onDone={onDone} />;
+    case "depotTurret":
+      return <DepotTurretDialog onClose={onClose} onDone={onDone} />;
+    case "phone":
+      return <PhoneDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "nuke":
+      return <NukeDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "intercom":
+      return <IntercomDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    case "questInteract":
+      return <QuestInteractDialog entry={entry} onClose={onClose} onDone={onDone} />;
+    default:
+      return null;
+  }
+}
+
 // ------------------------------------------------------------- noticeboard
 
 function NoticeboardDialog({ onClose, onDone }) {
-  const [board, setBoard] = useState(null);
+  // A GM's preview opens on the board it was handed, every notice's text with
+  // it, so Read is answered here rather than asked of the server.
+  const preview = usePreview();
+  const [board, setBoard] = useState(() => preview?.snapshot ?? null);
   const [reading, setReading] = useState(null);
   const [pinId, setPinId] = useState("");
   const { run, pending, error } = useActionRunner();
 
   const load = useCallback(() => {
+    if (preview) return;
     readBoard()
       .then(setBoard)
       .catch(() => setBoard({ ok: false, error: "Couldn't read the board." }));
-  }, []);
+  }, [preview]);
 
   useEffect(() => {
     load();
@@ -332,6 +377,7 @@ function NoticeboardDialog({ onClose, onDone }) {
 
   return (
     <Modal open title="Noticeboard" onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">{board.heading}</p>
 
       {board.notices.length === 0 && <EmptyState>Nothing is up.</EmptyState>}
@@ -342,14 +388,14 @@ function NoticeboardDialog({ onClose, onDone }) {
             type="button"
             className="menu-item"
             disabled={pending}
-            onClick={() => run(readNotice, notice.id, { onOk: setReading })}
+            onClick={() => (preview ? setReading(notice.reading) : run(readNotice, notice.id, { onOk: setReading }))}
           >
             Read
           </button>
           <button
             type="button"
             className="menu-item"
-            disabled={pending}
+            disabled={pending || Boolean(preview)}
             onClick={() =>
               run(tearNotice, notice.id, {
                 onOk: (res) => {
@@ -394,7 +440,7 @@ function NoticeboardDialog({ onClose, onDone }) {
           <button
             type="button"
             className="btn"
-            disabled={!pinId || pending}
+            disabled={!pinId || pending || Boolean(preview)}
             onClick={() =>
               run(pinNotice, pinId, {
                 onOk: (res) => {
@@ -420,7 +466,8 @@ function NoticeboardDialog({ onClose, onDone }) {
 // mounted (Chat.js). One dialog either way — a second copy of the room picker
 // and the invite list would be two answers to one question.
 export function ConverseDialog({ person = null, onClose, onDone }) {
-  const [rooms, setRooms] = useState(null);
+  const preview = usePreview();
+  const [rooms, setRooms] = useState(() => preview?.snapshot ?? null);
   const [roomId, setRoomId] = useState("");
   const [name, setName] = useState("");
   // Opened from somebody's row: they are in it unless you untick them. The
@@ -430,6 +477,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
   const { run, pending, error } = useActionRunner();
 
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     converseRooms()
       .then((res) => {
@@ -441,10 +489,11 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [preview]);
 
   return (
     <Modal open title="Converse" onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">Speak privately with someone.</p>
       {!rooms && <p className="text-sm text-muted">Looking for a corner…</p>}
       {rooms && !rooms.ok && <FormError>{rooms.error}</FormError>}
@@ -496,7 +545,7 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
             <button
               type="button"
               className="btn"
-              disabled={!roomId || !name.trim() || pending}
+              disabled={!roomId || !name.trim() || pending || Boolean(preview)}
               onClick={() =>
                 run(openConversation, { roomId, name, inviteRefs: invited && person?.ref ? [person.ref] : [] }, {
                   onOk: (res) => {
@@ -523,8 +572,11 @@ export function ConverseDialog({ person = null, onClose, onDone }) {
 // the word is the place to say in plain words what is about to happen.
 function WordDialog({ title, word, help, danger, onClose, onSubmit, pending, error }) {
   const [typed, setTyped] = useState("");
+  // In a GM's preview the word can be typed and the button stays grey.
+  const locked = Boolean(usePreview());
   return (
     <Modal open title={title} onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">{help}</p>
       <div className="field">
         <label className="field-label" htmlFor="chat-word">
@@ -537,7 +589,7 @@ function WordDialog({ title, word, help, danger, onClose, onSubmit, pending, err
         <button
           type="button"
           className={danger ? "btn-danger" : "btn"}
-          disabled={!typed.trim() || pending}
+          disabled={!typed.trim() || pending || locked}
           onClick={() => onSubmit(typed)}
         >
           {title}
@@ -575,8 +627,10 @@ function BellDialog({ entry, onClose, onDone }) {
 // that fits is being TOLD that, which is all this dialog is.
 function PrayDialog({ entry, onClose, onDone }) {
   const { run, pending, error } = useActionRunner();
+  const locked = Boolean(usePreview());
   return (
     <Modal open title="Pray" onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">
         The face is waiting. Praying here is permanent, it takes whatever you believed in now, and
         what happens to you afterwards is not up to you.
@@ -586,7 +640,7 @@ function PrayDialog({ entry, onClose, onDone }) {
         <button
           type="button"
           className="btn-danger"
-          disabled={pending}
+          disabled={pending || locked}
           onClick={() =>
             run(pray, { roomId: entry.roomId }, {
               onOk: (res) => {
@@ -608,15 +662,17 @@ function PrayDialog({ entry, onClose, onDone }) {
 // tells the room what it did (db/lib/slotMachine.js).
 function SlotDialog({ entry, onClose, onDone }) {
   const { run, pending, error } = useActionRunner();
+  const locked = Boolean(usePreview());
   return (
     <Modal open title="The slot machine" onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">{SLOT_PROMPT}</p>
       <FormError>{error}</FormError>
       <div className="modal-actions">
         <button
           type="button"
           className="btn"
-          disabled={pending}
+          disabled={pending || locked}
           onClick={() =>
             run(playSlots, { roomId: entry.roomId }, {
               onOk: (res) => {
@@ -643,6 +699,7 @@ function JukeboxDialog({ entry, onClose, onDone }) {
   const standing = useStanding();
   const current = framed !== undefined ? framed : (standing?.jukebox ?? null);
   const playing = current?.songKey ? jukeboxSongByKey(current.songKey) : null;
+  const locked = Boolean(usePreview());
 
   const choose = (songKey) =>
     run(setJukebox, { roomId: entry.roomId, songKey }, {
@@ -654,6 +711,7 @@ function JukeboxDialog({ entry, onClose, onDone }) {
 
   return (
     <Modal open title={T.title} onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">{playing ? T.nowPlaying(jukeboxSongLabel(playing)) : T.silent}</p>
       <p className="text-sm text-muted">{T.pickPrompt}</p>
       {JUKEBOX_SONGS.map((song) => {
@@ -665,7 +723,7 @@ function JukeboxDialog({ entry, onClose, onDone }) {
             <button
               type="button"
               className="btn-secondary"
-              disabled={pending || on}
+              disabled={pending || on || locked}
               aria-label={`${T.play} — ${jukeboxSongLabel(song)}`}
               onClick={() => choose(song.key)}
             >
@@ -676,7 +734,7 @@ function JukeboxDialog({ entry, onClose, onDone }) {
       })}
       <FormError>{error}</FormError>
       <div className="modal-actions">
-        <button type="button" className="btn-secondary" disabled={pending || !playing} onClick={() => choose(null)}>
+        <button type="button" className="btn-secondary" disabled={pending || !playing || locked} onClick={() => choose(null)}>
           {T.turnOff}
         </button>
       </div>
@@ -697,7 +755,9 @@ function songLength(seconds) {
 // db/lib/blackMarket.js; this is the shape of the page.
 function BlackMarketDialog({ entry, onClose, onDone }) {
   const T = BLACK_MARKET_TEXT;
-  const [state, setState] = useState(null);
+  const preview = usePreview();
+  const locked = Boolean(preview);
+  const [state, setState] = useState(() => preview?.snapshot ?? null);
   const [amount, setAmount] = useState(1);
   // tagId -> the quantity typed on its row. Empty means not in the cart.
   const [cart, setCart] = useState({});
@@ -705,6 +765,7 @@ function BlackMarketDialog({ entry, onClose, onDone }) {
   const roomId = entry.roomId;
 
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     blackMarketView({ roomId })
       .then((res) => {
@@ -716,7 +777,7 @@ function BlackMarketDialog({ entry, onClose, onDone }) {
     return () => {
       cancelled = true;
     };
-  }, [roomId]);
+  }, [roomId, preview]);
 
   if (!state) {
     return (
@@ -754,6 +815,7 @@ function BlackMarketDialog({ entry, onClose, onDone }) {
 
   return (
     <Modal open title={T.title} onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">
         <span className="mono">{T.credit(state.credit)}</span> · {T.carrying(state.carrying)}
       </p>
@@ -819,7 +881,7 @@ function BlackMarketDialog({ entry, onClose, onDone }) {
         <button
           type="button"
           className="btn"
-          disabled={pending || items.length === 0 || total > state.credit}
+          disabled={pending || items.length === 0 || total > state.credit || locked}
           onClick={() =>
             act(
               blackMarketBuy,
@@ -843,7 +905,11 @@ function BlackMarketDialog({ entry, onClose, onDone }) {
 // rule is in db/lib/merchantTerminal.js; this is the shape of the page.
 function MerchantTerminalDialog({ onClose, onDone }) {
   const T = MERCHANT_TERMINAL_TEXT;
-  const [state, setState] = useState(null);
+  // A GM's preview opens on the same locked screen, and Unlock shows the
+  // unlocked one it was handed — the screen changes, nothing is asked.
+  const preview = usePreview();
+  const locked = Boolean(preview);
+  const [state, setState] = useState(() => (preview ? { ok: true, unlocked: false } : null));
   const [tab, setTab] = useState("order");
   const [amount, setAmount] = useState(1);
   // tagId -> the quantity typed on its row. Empty means not in the cart.
@@ -853,6 +919,7 @@ function MerchantTerminalDialog({ onClose, onDone }) {
   const { run, pending, error } = useActionRunner();
 
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     merchantTerminalView({ unlock: false })
       .then((res) => {
@@ -864,7 +931,7 @@ function MerchantTerminalDialog({ onClose, onDone }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [preview]);
 
   // Every write re-reads the terminal unlocked: its coin and its pending list
   // are shared, and somebody else may have changed either since this opened.
@@ -898,6 +965,7 @@ function MerchantTerminalDialog({ onClose, onDone }) {
   if (!state.unlocked) {
     return (
       <Modal open title={T.title} onClose={onClose}>
+        <PreviewNote />
         <p className="mono terminal-locked">{T.locked}</p>
         <p className="text-sm text-muted">{T.lockedPrompt}</p>
         <FormError>{error}</FormError>
@@ -906,7 +974,9 @@ function MerchantTerminalDialog({ onClose, onDone }) {
             type="button"
             className="btn"
             disabled={pending}
-            onClick={() => run(merchantTerminalView, { unlock: true }, { onOk: setState })}
+            onClick={() =>
+              preview ? setState(preview.snapshot) : run(merchantTerminalView, { unlock: true }, { onOk: setState })
+            }
           >
             {T.unlockButton}
           </button>
@@ -928,6 +998,7 @@ function MerchantTerminalDialog({ onClose, onDone }) {
 
   return (
     <Modal open title={T.title} onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">
         <span className="mono">{T.holds(state.holds)}</span> {T.committed(state.committed)} {T.carrying(state.carrying)}
       </p>
@@ -949,7 +1020,7 @@ function MerchantTerminalDialog({ onClose, onDone }) {
           <button
             type="button"
             className="btn-secondary"
-            disabled={pending || state.carrying <= 0}
+            disabled={pending || state.carrying <= 0 || locked}
             onClick={() => act(merchantTerminalInsert, { amount: coinAmount })}
           >
             {T.insertButton}
@@ -957,7 +1028,7 @@ function MerchantTerminalDialog({ onClose, onDone }) {
           <button
             type="button"
             className="btn-secondary"
-            disabled={pending || state.free <= 0}
+            disabled={pending || state.free <= 0 || locked}
             onClick={() => act(merchantTerminalWithdraw, { amount: coinAmount })}
           >
             {T.withdrawButton}
@@ -1021,7 +1092,7 @@ function MerchantTerminalDialog({ onClose, onDone }) {
             <button
               type="button"
               className="btn"
-              disabled={pending || items.length === 0 || overBudget}
+              disabled={pending || items.length === 0 || overBudget || locked}
               onClick={() =>
                 act(
                   merchantTerminalOrder,
@@ -1069,7 +1140,7 @@ function MerchantTerminalDialog({ onClose, onDone }) {
                     <button
                       type="button"
                       className="btn-secondary"
-                      disabled={pending || !changed}
+                      disabled={pending || !changed || locked}
                       onClick={() =>
                         act(
                           merchantTerminalEditOrder,
@@ -1089,7 +1160,7 @@ function MerchantTerminalDialog({ onClose, onDone }) {
                     <button
                       type="button"
                       className="btn-danger"
-                      disabled={pending}
+                      disabled={pending || locked}
                       onClick={() => act(merchantTerminalRemoveOrder, { orderId: order.id })}
                     >
                       {T.removeButton}
@@ -1118,7 +1189,11 @@ function MerchantTerminalDialog({ onClose, onDone }) {
 // uses (@lifeweb/db/lib/vendingText), so the seconds on screen and the refusal
 // behind them can never disagree.
 function VendingDialog({ entry, onClose, onDone }) {
-  const [state, setState] = useState(null);
+  // A GM's preview takes no hold: it opens on the customer's side of the
+  // machine it was handed, and Unlock and Lock only swap which side is drawn.
+  const preview = usePreview();
+  const locked = Boolean(preview);
+  const [state, setState] = useState(() => preview?.snapshot ?? null);
   const [amount, setAmount] = useState(1);
   const [now, setNow] = useState(() => Date.now());
   // The merchant's side: what is in his pockets that could go on the shelf, and
@@ -1140,6 +1215,7 @@ function VendingDialog({ entry, onClose, onDone }) {
   );
 
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     openMachine({ roomId })
       .then((res) => {
@@ -1151,12 +1227,13 @@ function VendingDialog({ entry, onClose, onDone }) {
     return () => {
       cancelled = true;
     };
-  }, [roomId]);
+  }, [roomId, preview]);
 
   // What the merchant could put on the shelf, loaded only once the front is
   // open — it is a question about HIS pockets, and a customer never asks it.
+  // A GM has no pockets.
   useEffect(() => {
-    if (state?.mode !== "merchant") return undefined;
+    if (preview || state?.mode !== "merchant") return undefined;
     let cancelled = false;
     vendStockables({ roomId })
       .then((res) => {
@@ -1168,7 +1245,7 @@ function VendingDialog({ entry, onClose, onDone }) {
     return () => {
       cancelled = true;
     };
-  }, [state?.mode, state?.slots, roomId]);
+  }, [state?.mode, state?.slots, roomId, preview]);
 
   // One ticker for the clock. It re-reads the machine when the hold runs out,
   // so the dialog turns itself back into the closed view rather than sitting
@@ -1249,6 +1326,8 @@ function VendingDialog({ entry, onClose, onDone }) {
 
   return (
     <Modal open title={VENDING_TEXT.title} onClose={onClose}>
+      <PreviewNote />
+      {preview && state.holderName && <p className="text-sm text-muted">{VENDING_TEXT.holderIs(state.holderName)}</p>}
       <p className="text-sm text-muted">{merchant ? VENDING_TEXT.promptMerchant : VENDING_TEXT.prompt}</p>
       <p className="text-sm text-muted">
         <span className="mono">{held > 0 ? VENDING_TEXT.floatLine(held) : VENDING_TEXT.floatNone}</span>{" "}
@@ -1273,7 +1352,7 @@ function VendingDialog({ entry, onClose, onDone }) {
           <button
             type="button"
             className="menu-item"
-            disabled={pending || row.priceObols > held}
+            disabled={pending || row.priceObols > held || locked}
             onClick={() => act(vendBuy, { tagId: row.tagId })}
           >
             {VENDING_TEXT.btnBuy}
@@ -1288,7 +1367,7 @@ function VendingDialog({ entry, onClose, onDone }) {
               <button
                 type="button"
                 className="menu-item"
-                disabled={pending}
+                disabled={pending || locked}
                 onClick={() => act(vendStockOut, { tagId: row.tagId, quantity: 1 })}
               >
                 {VENDING_TEXT.btnStockOut}
@@ -1308,7 +1387,7 @@ function VendingDialog({ entry, onClose, onDone }) {
               <button
                 type="button"
                 className="menu-item"
-                disabled={pending}
+                disabled={pending || locked}
                 onClick={() => act(vendSetPrice, { tagId: row.tagId, priceObols: prices[row.tagId] ?? row.priceObols })}
               >
                 {VENDING_TEXT.btnSetPrice}
@@ -1369,7 +1448,7 @@ function VendingDialog({ entry, onClose, onDone }) {
             <button
               type="button"
               className="btn-secondary"
-              disabled={pending || !putTagId}
+              disabled={pending || !putTagId || locked}
               onClick={() =>
                 act(vendStockIn, {
                   tagId: putTagId,
@@ -1408,7 +1487,7 @@ function VendingDialog({ entry, onClose, onDone }) {
         <button
           type="button"
           className="btn"
-          disabled={pending}
+          disabled={pending || locked}
           onClick={() => act(vendInsert, { amount: Math.max(1, Number(amount) || 0) })}
         >
           {VENDING_TEXT.btnInsert}
@@ -1416,13 +1495,18 @@ function VendingDialog({ entry, onClose, onDone }) {
         <button
           type="button"
           className="btn-secondary"
-          disabled={pending || held <= 0}
+          disabled={pending || held <= 0 || locked}
           onClick={() => act(vendWithdraw)}
         >
           {VENDING_TEXT.btnWithdraw}
         </button>
         {state.licensed && !merchant && (
-          <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(vendUnlock)}>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={pending}
+            onClick={() => (preview ? setState({ ...state, mode: "merchant", unlocked: true }) : act(vendUnlock))}
+          >
             {VENDING_TEXT.btnUnlock}
           </button>
         )}
@@ -1431,12 +1515,17 @@ function VendingDialog({ entry, onClose, onDone }) {
             <button
               type="button"
               className="btn-secondary"
-              disabled={pending || !(state.tillObols > 0)}
+              disabled={pending || !(state.tillObols > 0) || locked}
               onClick={() => act(vendCollect)}
             >
               {VENDING_TEXT.btnCollect}
             </button>
-            <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(vendLock)}>
+            <button
+              type="button"
+              className="btn-secondary"
+              disabled={pending}
+              onClick={() => (preview ? setState({ ...state, mode: "customer", unlocked: false }) : act(vendLock))}
+            >
               {VENDING_TEXT.btnLock}
             </button>
           </>
@@ -1444,7 +1533,7 @@ function VendingDialog({ entry, onClose, onDone }) {
         <button
           type="button"
           className="btn-quiet"
-          disabled={pending}
+          disabled={pending || locked}
           onClick={() =>
             run(leaveMachine, { roomId }, {
               onOk: (res) => {
@@ -1462,13 +1551,15 @@ function VendingDialog({ entry, onClose, onDone }) {
 }
 
 function TurretDialog({ entry, onClose, onDone }) {
-  const [state, setState] = useState(null);
+  const preview = usePreview();
+  const [state, setState] = useState(() => preview?.snapshot ?? null);
   const { run, pending, error } = useActionRunner();
 
   // Read on open, so the confirm asks for the word that matches which way the
   // switch is thrown right now — and re-read on the server, because two
   // people in the office can open this in the same moment.
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     turretState(entry.roomId)
       .then((res) => {
@@ -1480,7 +1571,7 @@ function TurretDialog({ entry, onClose, onDone }) {
     return () => {
       cancelled = true;
     };
-  }, [entry.roomId]);
+  }, [entry.roomId, preview]);
 
   if (!state) {
     return (
@@ -1537,7 +1628,13 @@ function TurretDialog({ entry, onClose, onDone }) {
 // dialog's state alone and rides along with each call; the server checks it
 // every time (db/lib/depotCounter.js#terminalAccount).
 function InfoterminalDialog({ onClose, onDone }) {
-  const [state, setState] = useState(null);
+  // A GM wears no ring, so their preview is the PIN screen a borrowed ring
+  // meets: the PIN can be typed, and Enter stays grey. Nothing is read for it.
+  const preview = usePreview();
+  const locked = Boolean(preview);
+  const [state, setState] = useState(() =>
+    preview ? { ok: true, account: null, pinNeeded: true, pinPrompt: RING_TEXT.infoterminalPinStranger } : null,
+  );
   const [pinDraft, setPinDraft] = useState("");
   const [pin, setPin] = useState(null);
   const [direction, setDirection] = useState("WITHDRAW");
@@ -1545,11 +1642,15 @@ function InfoterminalDialog({ onClose, onDone }) {
   // Send's recipient: an account id, or VAULT for handing the claim back.
   const [sendTo, setSendTo] = useState("");
   const { run, pending, error } = useActionRunner();
-  const reload = useCallback((withPin) => {
-    depotCounterState(withPin ? { pin: withPin } : undefined)
-      .then((res) => setState(res))
-      .catch(() => setState({ ok: false, error: "The terminal is dead." }));
-  }, []);
+  const reload = useCallback(
+    (withPin) => {
+      if (preview) return;
+      depotCounterState(withPin ? { pin: withPin } : undefined)
+        .then((res) => setState(res))
+        .catch(() => setState({ ok: false, error: "The terminal is dead." }));
+    },
+    [preview],
+  );
   useEffect(() => {
     reload(null);
   }, [reload]);
@@ -1573,6 +1674,7 @@ function InfoterminalDialog({ onClose, onDone }) {
   if (!state.account && state.pinNeeded) {
     return (
       <Modal open title={title} onClose={onClose}>
+        <PreviewNote />
         <p className="text-sm text-muted">{state.pinPrompt}</p>
         <div className="field">
           <label className="field-label" htmlFor="chat-infoterminal-pin">
@@ -1593,7 +1695,7 @@ function InfoterminalDialog({ onClose, onDone }) {
           <button
             type="button"
             className="btn"
-            disabled={!pinDraft}
+            disabled={!pinDraft || locked}
             onClick={() => {
               setPin(pinDraft);
               reload(pinDraft);
@@ -1678,7 +1780,7 @@ function InfoterminalDialog({ onClose, onDone }) {
         <button
           type="button"
           className="btn"
-          disabled={pending || !valid}
+          disabled={pending || !valid || locked}
           onClick={() =>
             sending
               ? run(
@@ -1711,10 +1813,12 @@ function InfoterminalDialog({ onClose, onDone }) {
 }
 
 function DepotTurretDialog({ onClose, onDone }) {
-  const [state, setState] = useState(null);
+  const preview = usePreview();
+  const [state, setState] = useState(() => preview?.snapshot ?? null);
   const { run, pending, error } = useActionRunner();
 
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     depotTurretRead()
       .then((res) => {
@@ -1726,7 +1830,7 @@ function DepotTurretDialog({ onClose, onDone }) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [preview]);
 
   if (!state) {
     return (
@@ -1783,10 +1887,12 @@ function DepotTurretDialog({ onClose, onDone }) {
 function QuestInteractDialog({ entry, onClose, onDone }) {
   const [intention, setIntention] = useState("");
   const { run, pending, error } = useActionRunner();
+  const locked = Boolean(usePreview());
   const questId = entry?.customId?.slice(QUEST_INTERACT_PREFIX.length) ?? "";
 
   return (
     <Modal open title={entry?.roomName || "Interact"} onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">{INTERACT_PROMPT}</p>
       <div className="field">
         <label className="field-label" htmlFor="quest-intention">
@@ -1805,7 +1911,7 @@ function QuestInteractDialog({ entry, onClose, onDone }) {
         <button
           type="button"
           className="btn"
-          disabled={!intention.trim() || pending}
+          disabled={!intention.trim() || pending || locked}
           onClick={() =>
             run(interactWithQuest, { questId, intention }, {
               onOk: (res) => {
@@ -1881,11 +1987,17 @@ function PaidTime({ handset, now }) {
 }
 
 function PhoneDialog({ entry, onClose, onDone }) {
-  const [state, setState] = useState(null);
+  // A GM's preview lifts nothing: it says who has the receiver and what the
+  // line is doing, and keys a number on a handset of its own that stays idle
+  // and never reaches the phone store, so no tone plays and no call goes out.
+  const preview = usePreview();
+  const locked = Boolean(preview);
+  const [state, setState] = useState(() => preview?.snapshot ?? null);
   const [digits, setDigits] = useState("");
   const { run, pending, error } = useActionRunner();
 
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     openPhone({ roomId: entry.roomId })
       .then((res) => {
@@ -1904,9 +2016,10 @@ function PhoneDialog({ entry, onClose, onDone }) {
     // onDone is the panel's notice setter; re-running the pick-up because it
     // changed identity would pick the phone up twice.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.roomId]);
+  }, [entry.roomId, preview]);
 
-  const handset = useHandset(entry.roomId);
+  const heldHandset = useHandset(entry.roomId);
+  const handset = preview ? (preview.snapshot?.handset ?? null) : heldHandset;
   const now = useSecondTick(Boolean(handset?.paidUntil));
   const title = state?.phone ? `The phone — ${state.phone}` : "The phone";
 
@@ -1982,7 +2095,7 @@ function PhoneDialog({ entry, onClose, onDone }) {
     else setDigits((d) => (d.length >= PHONE_DIGITS ? d : d + key));
   };
   const dial = () => {
-    if (!canDial || digits.length !== PHONE_DIGITS || pending) return;
+    if (!canDial || digits.length !== PHONE_DIGITS || pending || locked) return;
     // The long tone starts now, not when the exchange answers: a number that goes
     // nowhere rings out for a few seconds on the server before it says so.
     setDialling(true);
@@ -2001,6 +2114,14 @@ function PhoneDialog({ entry, onClose, onDone }) {
     <Modal open title={title} onClose={onClose}>
       {/* The keypad listens for the number keys while the dialog has focus. */}
       <div className="phone" onKeyDown={onKey} role="group" aria-label={title}>
+        <PreviewNote />
+        {/* The line as it really is, which the preview's own idle handset is not. */}
+        {preview ? (
+          <p className="text-sm text-muted">
+            {STATE_LINE[state.lineState] ?? PHONE_TEXT.stateIdle}
+            {state.holderName ? ` · ${state.holderName} has the receiver.` : ""}
+          </p>
+        ) : null}
         {handset.number != null ? <p className="text-sm text-muted">{PHONE_TEXT.ownNumber(handset.number)}</p> : null}
         <p className={`phone-state is-${phase}`}>{STATE_LINE[phase] ?? PHONE_TEXT.stateIdle}</p>
         <PaidTime handset={handset} now={now} />
@@ -2028,23 +2149,33 @@ function PhoneDialog({ entry, onClose, onDone }) {
         <FormError>{error}</FormError>
         <div className="modal-actions phone-actions">
           {phase === "ringing" ? (
-            <button type="button" className="btn" disabled={pending} onClick={() => act(answerPhone)}>
+            <button type="button" className="btn" disabled={pending || locked} onClick={() => act(answerPhone)}>
               {answerLabel(handset)}
             </button>
           ) : (
-            <button type="button" className="btn" disabled={!canDial || digits.length !== PHONE_DIGITS || pending} onClick={dial}>
+            <button
+              type="button"
+              className="btn"
+              disabled={!canDial || digits.length !== PHONE_DIGITS || pending || locked}
+              onClick={dial}
+            >
               {PHONE_TEXT.dial}
             </button>
           )}
           {handset.payphone && handset.needsCoin && handset.paidUntil ? (
-            <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(insertPhoneObol)}>
+            <button type="button" className="btn-secondary" disabled={pending || locked} onClick={() => act(insertPhoneObol)}>
               {PHONE_TEXT.insertCoin}
             </button>
           ) : null}
-          <button type="button" className="btn-secondary" disabled={canDial || pending} onClick={() => act(hangUpPhone)}>
+          <button
+            type="button"
+            className="btn-secondary"
+            disabled={canDial || pending || locked}
+            onClick={() => act(hangUpPhone)}
+          >
             {PHONE_TEXT.hangUp}
           </button>
-          <button type="button" className="btn-secondary" disabled={pending} onClick={() => act(walkAwayPhone)}>
+          <button type="button" className="btn-secondary" disabled={pending || locked} onClick={() => act(walkAwayPhone)}>
             {PHONE_TEXT.walkAway}
           </button>
         </div>
@@ -2065,13 +2196,18 @@ function PhoneDialog({ entry, onClose, onDone }) {
 const NUKE_KEYS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "clear", "0", "back"];
 
 function NukeDialog({ entry, onClose, onDone }) {
-  const [state, setState] = useState(null);
+  // A GM's preview keys the pad in the browser and checks nothing: the eighth
+  // digit asks no server, so no try is counted and the button never lights.
+  const preview = usePreview();
+  const previewing = Boolean(preview);
+  const [state, setState] = useState(() => preview?.snapshot ?? null);
   const [digits, setDigits] = useState("");
   const [green, setGreen] = useState(false);
   const [miss, setMiss] = useState(0);
   const { run, pending, error, setError } = useActionRunner();
 
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     nukeState({ roomId: entry.roomId })
       .then((res) => {
@@ -2083,7 +2219,7 @@ function NukeDialog({ entry, onClose, onDone }) {
     return () => {
       cancelled = true;
     };
-  }, [entry.roomId]);
+  }, [entry.roomId, preview]);
 
   // After a refusal, the keypad as it now stands — the refusal itself is only
   // words, and a third strike has to grey the pad out.
@@ -2100,6 +2236,7 @@ function NukeDialog({ entry, onClose, onDone }) {
 
   // The eighth digit goes straight to the server; nothing is pressed after it.
   const check = (full) => {
+    if (previewing) return;
     run(
       nukeCheckCode,
       { roomId: entry.roomId, digits: full },
@@ -2140,7 +2277,7 @@ function NukeDialog({ entry, onClose, onDone }) {
   };
 
   const pressButton = () => {
-    if (!green || pending) return;
+    if (!green || pending || previewing) return;
     run(
       nukePressButton,
       { roomId: entry.roomId, digits },
@@ -2177,6 +2314,7 @@ function NukeDialog({ entry, onClose, onDone }) {
 
   return (
     <Modal open title={NUKE_TEXT.title} onClose={onClose}>
+      <PreviewNote />
       <div className="nuke" role="group" aria-label={NUKE_TEXT.title}>
         <p className={`nuke-state${state.armed ? " is-armed" : ""}`}>
           <span className="nuke-lamp" aria-hidden="true" />
@@ -2207,7 +2345,7 @@ function NukeDialog({ entry, onClose, onDone }) {
         <button
           type="button"
           className={`nuke-button${green ? " is-green" : ""}`}
-          disabled={!green || pending || closed}
+          disabled={!green || pending || closed || previewing}
           onClick={pressButton}
         >
           {state.armed ? NUKE_TEXT.disarm : NUKE_TEXT.arm}
@@ -2279,8 +2417,10 @@ export function PhoneHandsetBar({ affordances, onOpen, onDone }) {
 function IntercomDialog({ entry, onClose, onDone }) {
   const [body, setBody] = useState("");
   const { run, pending, error } = useActionRunner();
+  const locked = Boolean(usePreview());
   return (
     <Modal open title="Intercom" onClose={onClose}>
+      <PreviewNote />
       <p className="text-sm text-muted">
         Heard in every zone that has a speaker, and everyone is pinged. Nobody is told who spoke.
       </p>
@@ -2295,7 +2435,7 @@ function IntercomDialog({ entry, onClose, onDone }) {
         <button
           type="button"
           className="btn"
-          disabled={!body.trim() || pending}
+          disabled={!body.trim() || pending || locked}
           onClick={() =>
             run(speakOnIntercom, { roomId: entry.roomId, body }, {
               onOk: (res) => {

@@ -10,8 +10,9 @@ import { after } from "next/server";
 import { refresh } from "next/cache";
 import { prisma } from "@lifeweb/db";
 import { auth } from "@/lib/auth";
-import { affordancesFor, locationAffordances, roomAffordances } from "@lifeweb/db/lib/placeAffordances";
-import { markNukeRoom, nukeView, nukeCheck, nukePress } from "@lifeweb/db/lib/nuke";
+import { affordancesFor, gmAffordancesAt } from "@lifeweb/db/lib/placeAffordances";
+import { fixtureSnapshot } from "@/lib/gmFixtureSnapshot";
+import { nukeView, nukeCheck, nukePress } from "@lifeweb/db/lib/nuke";
 import {
   phoneView,
   answerPhone as answerPayphone,
@@ -1363,7 +1364,7 @@ export async function gmPlaceView(placeKey) {
     };
   }
 
-  const [examined, people, rooms, links, structures, members] = await Promise.all([
+  const [examined, people, rooms, links, structures, members, affordances] = await Promise.all([
     examineLines(prisma, locationId),
     whosHereGm(prisma, locationId),
     // Every room that opens onto here, a counter whose home is next door
@@ -1376,13 +1377,7 @@ export async function gmPlaceView(placeKey) {
         slug: true,
         kind: true,
         accessTagSlugs: true,
-        // roomAffordances reads this to decide the Phone button is there at
-        // all (docs/systemdocs/PHONES.md) — without it the GM aside draws
-        // every fixture in the room except the phone.
-        phone: true,
-        // And this one for the vending machine, for the same reason
-        // (docs/systemdocs/VENDING.md).
-        vendingMachine: true,
+        _count: { select: { tags: { where: { hiddenQuantity: { gt: 0 } } } } },
         tags: {
           where: { quantity: { gt: 0 } },
           orderBy: { tag: { name: "asc" } },
@@ -1394,12 +1389,12 @@ export async function gmPlaceView(placeKey) {
     linksFor(prisma, locationId),
     structuresAt(prisma, locationId),
     conversationId ? conversationMembers(prisma, conversationId, null, { gm: true }) : Promise.resolve(null),
+    // EVERY button this place has, with nothing locked: each room's fixtures
+    // whatever its door asks for, every gate and keyed door. The column draws
+    // them through the player's own filters (fixtures.js) as buttons that open
+    // a preview and send nothing (GmFixturePreview.js).
+    gmAffordancesAt(prisma, locationId),
   ]);
-
-  // The place-only half of the affordance catalog (db/lib/placeAffordances.js). Travel and Who's here? dropped, same reason ChatAside drops them.
-  const fixtures = locationAffordances(location, { web: true })
-    .filter((entry) => entry.id !== "travel" && entry.id !== "whosHere" && entry.id !== "examine")
-    .map((entry) => ({ id: entry.id, kind: "place", label: entry.label, tone: entry.tone }));
 
   // Every modular way out, read through the graph rather than off a button — same reason examineLines reads it that way.
   const ways = (links ?? [])
@@ -1417,19 +1412,9 @@ export async function gmPlaceView(placeKey) {
     .sort((a, b) => a.farName.localeCompare(b.farName));
 
   const openRoom = roomId ? rooms.find((room) => room.id === roomId) ?? null : null;
-  // Where the bomb is lives on GameState, not the room (docs/systemdocs/NUKE.md).
-  // And who is in a private room on a pass: the player's members strip, read
-  // by a GM with no hood hiding anybody.
-  const [nukeRoomId, guests] = openRoom
-    ? await Promise.all([
-        prisma.gameState
-          .findUnique({ where: { id: 1 }, select: { nukeRoomId: true } })
-          .then((state) => state?.nukeRoomId ?? null),
-        openRoom.kind === "PRIVATE"
-          ? roomGuests(prisma, openRoom.id, null, { gm: true })
-          : null,
-      ])
-    : [null, null];
+  // Who is in a private room on a pass: the player's members strip, read by a
+  // GM with no hood hiding anybody.
+  const guests = openRoom?.kind === "PRIVATE" ? await roomGuests(prisma, openRoom.id, null, { gm: true }) : null;
 
   return {
     ok: true,
@@ -1439,7 +1424,7 @@ export async function gmPlaceView(placeKey) {
     zone: { name: location.zone?.name ?? "", description: location.zone?.description ?? "" },
     // examineLines returns { ok, name, lines } or { ok: false, error }.
     lines: examined?.ok ? examined.lines : [],
-    fixtures,
+    affordances,
     people,
     ways,
     // typeName is a snapshot column, same reasoning as every other log column.
@@ -1458,6 +1443,8 @@ export async function gmPlaceView(placeKey) {
       resources: resourcesOf(room),
       // ⬢ is drawn as its own chip (GmAside.js's Things()), not among the things.
       things: withoutResources(room.tags).map((t) => toChipRow(t, GM_CHIP_CTX)),
+      // What a Search would be told is under the floor, for the GM's preview of its confirm.
+      hiddenLine: hiddenCountLine(room._count?.tags ?? 0),
     })),
     openRoom: openRoom
       ? {
@@ -1467,16 +1454,33 @@ export async function gmPlaceView(placeKey) {
           keys: openRoom.accessTagSlugs ?? [],
           resources: resourcesOf(openRoom),
           things: withoutResources(openRoom.tags).map((t) => toChipRow(t, GM_CHIP_CTX)),
-          fixtures: roomAffordances(markNukeRoom([openRoom], nukeRoomId)[0], null, { web: true }).map((entry) => ({
-            id: entry.id,
-            label: entry.label,
-            tone: entry.tone,
-          })),
+          hiddenLine: hiddenCountLine(openRoom._count?.tags ?? 0),
           guests,
         }
       : null,
     members,
   };
+}
+
+// The ONE read behind a GM's preview of a fixture (GmFixturePreview.js): what
+// the dialog shows a player standing there, read when it opens. Nothing the GM
+// does in the dialog afterwards reaches the server. `pick` only says which
+// button was pressed — { id, roomId, linkId } — and is matched against the
+// place's own list, so a GM can only open what is at a place they watch.
+// Never writes (web/lib/gmFixtureSnapshot.js).
+export async function gmFixtureSnapshot(placeKey, pick = {}) {
+  const ctx = await gmPlace(placeKey);
+  if (ctx.error) return { ok: false, error: ctx.error };
+  if (!ctx.locationId) return { ok: false, error: "There's nothing on the walls here." };
+  const id = String(pick?.id ?? "");
+  const roomId = pick?.roomId ? String(pick.roomId) : null;
+  const linkId = pick?.linkId ? String(pick.linkId) : null;
+  const entry = (await gmAffordancesAt(prisma, ctx.locationId)).find(
+    (a) => a.id === id && (a.roomId ?? null) === roomId && (a.linkId ?? null) === linkId,
+  );
+  if (!entry) return { ok: false, error: "That isn't here any more." };
+  const location = await prisma.location.findUnique({ where: { id: ctx.locationId }, select: { id: true, slug: true } });
+  return fixtureSnapshot(prisma, location, entry);
 }
 
 // Who said one line, for a GM's "Look at" on it: the speaker's character
