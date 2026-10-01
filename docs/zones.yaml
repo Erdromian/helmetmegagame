@@ -2583,7 +2583,8 @@ connections:
 
   # The maintenance tunnels the Lifeweb's description promises, out into the
   # sewers. Locked for the same reason the graveyard stair is: the way is no
-  # secret, the key is.
+  # secret, the key is. A Mortus's ring carries it, so the Mortii can work
+  # the tunnels behind their own Tower.
   - pair: [undertown/undertown-3, undertown/undertown-4]
     locked: sewer-key
     on_foot: true
