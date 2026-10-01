@@ -130,7 +130,7 @@ const BLOOD_DESCRIPTOR_BY_SLUG = Object.fromEntries(Object.values(BLOOD_DESCRIPT
 
 // Mirrors db/lib/hunger.js#hungerDescriptorFor: the urgency tag they hold
 // wins, and the blood level is the fallback when they hold none (a sheet read
-// before the turn pass first ran, or between a tag's expiry and its regrant).
+// before the turn pass first ran, or after a GM took the tag off by hand).
 // Null for anybody who is not a vampire — they get the hunger descriptor.
 function bloodDescriptorFor({ heldSlugs, bloodLevel }) {
   const held = heldSlugs instanceof Set ? heldSlugs : new Set(heldSlugs ?? []);

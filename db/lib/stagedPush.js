@@ -368,7 +368,7 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
     // skipped, not as a failure.
     const scales = row.payload?.scales ?? null;
     if (scales && row.targetCharacterId) {
-      const applied = await applyStagedScalesInTx(tx, { characterId: row.targetCharacterId, scales, turn });
+      const applied = await applyStagedScalesInTx(tx, { characterId: row.targetCharacterId, scales });
       if (applied.snapshot) {
         snapshot.scales = applied.snapshot;
         scaleNotices.push(...applied.notices);

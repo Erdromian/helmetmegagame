@@ -46,7 +46,11 @@ over the turns in one in-game day (`turnClock.js#turnsInGameDay`), rounded:
 Either way "3 days to empty" means 3 in-game days.
 
 Two independent tag tracks ride off the blood level, both recomputed every
-turn close:
+turn close. A band tag has **no expiry**: it stays until the meter leaves its
+band, and the pass (or `db/lib/vampireBands.js`, §2b) takes it off then. The
+same goes for the humanity bands (§3). They used to carry a one-turn expiry,
+so the sweep took them off every close and the pass put them straight back,
+which re-sent the humanity band DM every turn.
 
 **Urgency** — hidden, mutually exclusive, exactly one held at all times:
 
@@ -134,7 +138,7 @@ left off the sheet's status strip, since the tile already says it.
 Regenerates **+10 an in-game day**, split over the day's turns the same way
 as blood decay
 (`vampireHumanityRegenPerDay`, dev-panel configurable). Four hidden, mutually
-exclusive bands:
+exclusive bands, each held with no expiry until humanity leaves it:
 
 | Tag | Humanity | Says |
 |---|---|---|
