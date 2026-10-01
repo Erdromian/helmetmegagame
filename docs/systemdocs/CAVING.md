@@ -346,12 +346,37 @@ refusal already works.
 |---|---|---|
 | 1 | `TROUBLE` | Nothing auto-applies. The row lands **unresolved** on the Caving lens for a GM to adjudicate — monsters are a GM call, briefed by the GM-only `cavingmonsters` document (`documents.yaml`). The player gets one short DM immediately: *"Caving Die: 1 — Something is wrong down here. A GM has been notified."* The caver also takes −10 mood, tripled by Teratophobia (`MOOD.md`), **and cannot go up to the surface until the turn ends** (§2c). Each 1 adds one to the severity of the caver's one result for the turn (§5a). |
 | 2–5 | `QUIET` | Stamped resolved at creation. No GM attention — the row exists as a record, hidden from the Caving lens until a GM ticks **Show other rolls** (§5). The player still gets one line: *"Caving Die: 3 — Nothing happens."* |
-| 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. |
+| 6 | `FIND` | Draws a loot tier and a tag (below), grants it, and DMs the player what they found. Also resolved at creation — the grant already landed. A **non-stackable** tag the caver already holds goes into a room instead (§2g). |
 
 Every DM leads with the face — *"Caving Die: 6 — You found something: Padded
 Armor."* — so a player reads their own roll and not just its outcome. A
 `QUIET` used to send nothing, but players could not tell a quiet roll from
 a die that never rolled, so it now says so in one line.
+
+### 2g. A second of something that does not stack
+
+A non-stackable tag is one row on the sheet, so granting a second copy does
+nothing — and a find of one the caver already held used to vanish, with the DM
+still saying *"You found something"*. Now a **tradeable** one is left in a
+room: `rollCaving` picks one at random from the rooms at the Location the
+caver just walked into that they can get into — the same `accessibleRooms()` every
+door reads, so a key or the worn ring's tokens count, never a retired room and
+never one that destroys what is put in it. The tag goes onto that room's stash,
+not stamped as left on the floor, so it does not sink. The DM says so:
+*"Caving Die: 6 — You found something: Mining Helmet. You already have one,
+so you leave it in Old Mineshaft."*
+
+`CavingRoll.lootAlreadyHeld` marks the roll, `CavingRoll.lootRoomId` records
+the room, and the audit row's `roomId` / `roomName` say the same. Every cave Location has a public room, so there is
+always somewhere; if a map edit ever left one with none, the find goes the old
+way and is lost.
+
+A doubled tag that is **not** tradeable — Smithing (Gunpowder), Convoy
+Directions — is not put in a room, because nobody could take it back out
+(Transfer refuses anything that cannot change hands). Nothing changes, as
+before, and the DM now says so: *"… You found something: Convoy Directions.
+You already have it."* The same line is sent in the no-room case above, and
+the Caving lens offers no Undo for either, since nothing was added.
 
 ## 3. The loot table
 
@@ -443,7 +468,9 @@ Taking a find back lives **on the Caving lens and nowhere else**, which is
 what the loot is: a caving correction belongs in the caving log, not in a
 general review queue. `undoCavingFind({ rollId })`
 (`web/app/(desk)/gm/turns/actions.js`) drops the granted tag and stamps
-`CavingRoll.lootUndoneAt`. The roll itself stands — a GM is undoing the loot,
+`CavingRoll.lootUndoneAt`. A find left in a room (§2g) comes back out of that
+room, never off the caver's own copy, and the Undo refuses if somebody has
+already picked it up. The roll itself stands — a GM is undoing the loot,
 not the die.
 
 The stamp is the claim, not a flag read beforehand: the update matches only
@@ -645,6 +672,7 @@ now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
 | Arrival DM senders | whichever face's location-move caller runs `performLocationMove` sends `moved[].cavingDm`; the two GM paths send their own |
 | Kind labels, the fold, the severity label, the failures-only filter | `web/lib/cavingLabels.js` |
 | Loot grant, and taking it back | `db/lib/cavingPass.js`, `web/app/(desk)/gm/turns/actions.js#undoCavingFind` |
+| Where a doubled non-stackable find is left | `db/lib/cavingPass.js#roomToLeaveIn` (§2g) |
 | Consume mechanics | `web/lib/consumeGrants.js`, `db/lib/syncTags.js` |
 | The Caving lens | `web/app/(desk)/gm/turns/QueueRail.js`, `CavingDesk.js` |
 | The document | `docs/documents.yaml` (key `caving`) |

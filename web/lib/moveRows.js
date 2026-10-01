@@ -63,6 +63,7 @@ export const CAVING_ROLL_INCLUDE = {
   // The Die rolls once per LOCATION, so the zone alone no longer tells rolls apart — matters for TROUBLE rows a GM narrates.
   location: { select: { name: true } },
   lootTag: { select: { name: true } },
+  lootRoom: { select: { name: true } },
 };
 
 function isConfirmed(a) {
@@ -433,6 +434,9 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
     lootTier: c.lootTier ?? null,
     lootTagId: c.lootTagId ?? null,
     lootTagName: c.lootTag?.name ?? null,
+    // The caver already had one (CAVING.md §2g): left in a room, or nothing added.
+    lootAlreadyHeld: Boolean(c.lootAlreadyHeld),
+    lootRoomName: c.lootRoomId ? (c.lootRoom?.name ?? "a room") : null,
     lootUndoneAt: c.lootUndoneAt ? c.lootUndoneAt.getTime() : null,
     statusLabel: c.resolvedAt ? "Resolved" : "Needs attention",
     // Resolved with no resolver means the turn-end push let it go (db/lib/cavingPass.js#releaseUnresolvedCavingRolls).

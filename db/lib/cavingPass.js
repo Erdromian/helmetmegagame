@@ -7,7 +7,10 @@
 // (cavingRestrictionsFor, below). Takes `prisma` as a parameter — see
 // db/lib/dm.js for why.
 const { drawLoot } = require("./cavingLoot");
-const { addToStack } = require("./tagWrites");
+const { addToStack, addToRoomStack } = require("./tagWrites");
+const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
+const { loadRoomsAt } = require("./roomSides");
+const { isTradeable } = require("./tradeable");
 const { applyMood } = require("./mood");
 const { rollWithAdvantage } = require("./advantage");
 const { LUCKY_SLUG } = require("./constants");
@@ -31,6 +34,33 @@ function stuckDm(die) {
 
 function findDm(die, tagName) {
   return `Caving Die: ${die} — You found something: ${tagName}.`;
+}
+
+// A second of something that does not stack, set down where the caver stands.
+function leftDm(die, tagName, roomName) {
+  return `${findDm(die, tagName)} You already have one, so you leave it in ${roomName}.`;
+}
+
+// A second of something that is not a thing (a skill, directions) — or a
+// thing with nowhere to put it down. Nothing changes; the DM says so.
+function alreadyDm(die, tagName) {
+  return `${findDm(die, tagName)} You already have it.`;
+}
+
+// Where a doubled find goes: one of the rooms at this Location the caver can
+// get into, picked at random — the same doors accessibleRooms() opens for
+// everything else. Never a retired room, and never one that eats what is put
+// in it. Null when there is none (every cave Location has a public room
+// today, so that would be a map edit).
+async function roomToLeaveIn(tx, characterId, locationId) {
+  const rooms = await loadRoomsAt(tx, locationId, {
+    where: { retiredAt: null, destroysContents: false },
+    select: { id: true, name: true, kind: true, accessTagSlugs: true },
+  });
+  if (!rooms.length) return null;
+  const keys = await roomAccessKeys(tx, characterId);
+  const open = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
+  return open.length ? open[Math.floor(Math.random() * open.length)] : null;
 }
 
 // The caver as they stood at this 1 — tags with equipped flags, and combat mode — for the GM who
@@ -94,7 +124,7 @@ async function rollCaving(prisma, character, turn, location) {
     const { tier, slug } = drawLoot(zone.slug);
     const tag = await tx.tag.findUnique({
       where: { slug },
-      select: { id: true, name: true, stackable: true, defaultDurationTurns: true },
+      select: { id: true, name: true, stackable: true, tradeable: true, defaultDurationTurns: true },
     });
     if (!tag) {
       // Catalog out of sync with cavingLoot.js — refuse the phantom tag, recorded TROUBLE-shaped so a GM notices it on the Caving lens.
@@ -118,18 +148,44 @@ async function rollCaving(prisma, character, turn, location) {
     }
 
     // `turn.number`, NOT +1: unlike hungerPass/tagExpiryPass/moveEffects, `turn` here IS already the first live turn.
-    await addToStack(tx, character.id, tag.id, 1, {
-      source: "EVENT",
-      stackable: tag.stackable,
-      expiresTurn: expiryFrom(turn.number, tag.defaultDurationTurns),
-    });
+    const expiresTurn = expiryFrom(turn.number, tag.defaultDurationTurns);
+
+    // A non-stackable tag the caver already holds would be a no-op on the
+    // sheet, so the find used to vanish. A THING goes into a room here
+    // instead, for them to come back for or leave to whoever finds it next.
+    // Only a tradeable one: nobody can take anything else back out of a room
+    // (Transfer refuses it), so a second skill or set of directions stays the
+    // no-op it always was.
+    const doubled =
+      !tag.stackable &&
+      Boolean(
+        await tx.characterTag.findUnique({
+          where: { characterId_tagId: { characterId: character.id, tagId: tag.id } },
+          select: { id: true },
+        }),
+      );
+    const leftIn = doubled && isTradeable(tag) ? await roomToLeaveIn(tx, character.id, location.id) : null;
+
+    if (leftIn) {
+      await addToRoomStack(tx, leftIn.id, tag.id, 1, { expiresTurn });
+    } else {
+      await addToStack(tx, character.id, tag.id, 1, { source: "EVENT", stackable: tag.stackable, expiresTurn });
+    }
 
     await logAudit(tx, {
       actorDiscordUserId: character.discordUserId ?? "system",
       actionType: "caving_loot_granted",
       targetCharacterId: character.id,
       turnId: turn.id,
-      details: { tagId: tag.id, tagName: tag.name, added: 1, zoneId: zone.id, tier, die },
+      details: {
+        tagId: tag.id,
+        tagName: tag.name,
+        added: 1,
+        zoneId: zone.id,
+        tier,
+        die,
+        ...(leftIn ? { roomId: leftIn.id, roomName: leftIn.name } : {}),
+      },
     });
 
     const row = await tx.cavingRoll.create({
@@ -143,11 +199,23 @@ async function rollCaving(prisma, character, turn, location) {
         kind: "FIND",
         lootTier: tier,
         lootTagId: tag.id,
+        lootAlreadyHeld: doubled,
+        lootRoomId: leftIn?.id ?? null,
         resolvedAt: new Date(),
       },
     });
 
-    return { roll: row, dm: { discordUserId: character.discordUserId, content: findDm(die, tag.name) } };
+    return {
+      roll: row,
+      dm: {
+        discordUserId: character.discordUserId,
+        content: leftIn
+          ? leftDm(die, tag.name, leftIn.name)
+          : doubled
+            ? alreadyDm(die, tag.name)
+            : findDm(die, tag.name),
+      },
+    };
   });
 }
 
@@ -323,6 +391,7 @@ async function releaseUnresolvedCavingRolls(prisma, turn) {
 }
 
 module.exports = {
+  rollCaving,
   rollCavingOnArrival,
   cavingRestrictionsFor,
   cavingRefusalFor,
