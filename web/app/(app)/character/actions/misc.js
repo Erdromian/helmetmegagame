@@ -165,6 +165,7 @@ import {
   tasteLine,
 } from "@/lib/cooking";
 import { formatStack, pickRandomPublicRoom } from "@lifeweb/db/lib/roomStash";
+import { markdownName } from "@lifeweb/db/lib/markdownName";
 import { rollTagChain } from "@lifeweb/db/lib/tagShapes";
 import {
   BASE_BIRD_SENDS_PER_DAY,
@@ -1309,7 +1310,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
   });
   await afterInventoryChange([character.id, administered ? target.id : null]);
   if (administered) {
-    notifyCharacter(target, `${await seenName(target, character.id)} used ${held.tag.name} on you.`);
+    notifyCharacter(target, `${await seenName(target, character.id)} used ${markdownName(held.tag.name)} on you.`);
   }
   // Corpse Salts answers straight away rather than waiting up to a minute for
   // the sweep to notice (db/lib/corpseSense.js). Keyed on the CONSUMED tag's

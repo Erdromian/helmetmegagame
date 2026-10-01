@@ -20,6 +20,7 @@ import {
 import { heldSlugsOf } from "@/lib/consumeGrants";
 import { customCraftFor } from "@/lib/customCraft";
 import { cleanMealName, needsKitchen } from "@lifeweb/db/lib/meals";
+import { markdownName } from "@lifeweb/db/lib/markdownName";
 import {
   craftRequest,
   continueCraft,
@@ -394,8 +395,8 @@ export default function CraftAction({ presets, onDone, onClose }) {
             ? "The work is given up."
             : res.made
               ? res.staged
-                ? `${res.made} made — it arrives when the turn pushes.`
-                : `${res.made} made.`
+                ? `${markdownName(res.made)} made — it arrives when the turn pushes.`
+                : `${markdownName(res.made)} made.`
               : working
                 ? "Another turn goes into it."
                 : `${chosen?.name ?? "The work"} is begun.`,

@@ -1,6 +1,7 @@
 // A Room's stash — the ⬢ and tag stacks lying in it (docs/systemdocs/CARRY.md). Takes `prisma` (or a tx), stays off the @lifeweb/db barrel.
 const { record, recordDelta, BURN } = require("./economyLedger");
 const { addRoomResources: bumpRoomStack, resourcesOf, RESOURCES_SLUG, withoutResources } = require("./resourceStack");
+const { markdownName } = require("./markdownName");
 
 // findMany + a JS pick rather than ORDER BY random(): a Location has a handful of rooms at most. A room that eats what is put into it
 // (Room.destroysContents — the Godard Factory's Spillway) is NEVER eligible — tipping into the trough must stay on purpose (docs/systemdocs/FACTORY.md §9).
@@ -43,8 +44,10 @@ async function addRoomResources(tx, roomId, amount, ctx = {}) {
   return moved;
 }
 
+// Every caller prints this into Markdown (a room line, a DM, /storage), so the name is escaped here.
 function formatStack(name, quantity) {
-  return (quantity ?? 1) > 1 ? `${name} ×${quantity}` : name;
+  const shown = markdownName(name);
+  return (quantity ?? 1) > 1 ? `${shown} ×${quantity}` : shown;
 }
 
 // "a, b and c" — no Oxford comma, matching the whisper poll's joiner.

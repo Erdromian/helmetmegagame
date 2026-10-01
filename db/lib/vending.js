@@ -28,6 +28,7 @@ const { seenById } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
 const { postMessage } = require("./discordRest");
 const { sceneLineAt } = require("./scene");
+const { markdownName } = require("./markdownName");
 const { placeKeyForRoom } = require("./placeKey");
 const { isTradeable } = require("./tradeable");
 const { carryAdmits } = require("./carry");
@@ -608,12 +609,15 @@ async function buySlot(prisma, discordUserId, { roomId, tagId, turn = null } = {
   // named nobody's purchase. It makes the shelf worth watching and the buyer
   // worth following, which is the trade. T.roomBought is the anonymous
   // alternative, kept for if that is ever reversed.
-  const text = T.roomBoughtNamed(who, tag?.name ?? "thing");
+  // A `line` and the room's `text` are Markdown (ChatMarkdown, Discord), so a Lavish "*Caviar*" is escaped to keep
+  // its asterisks (db/lib/markdownName.js). A refusal is drawn as plain text (FormError) and keeps the raw name.
+  const what = tag ? markdownName(tag.name) : "thing";
+  const text = T.roomBoughtNamed(who, what);
   await sayInRoom(prisma, room, text);
 
   return {
     ok: true,
-    line: price > 0 ? T.youBought(tag?.name ?? "thing", price, leftInSlot) : T.youBoughtFree(tag?.name ?? "thing", leftInSlot),
+    line: price > 0 ? T.youBought(what, price, leftInSlot) : T.youBoughtFree(what, leftInSlot),
     text,
     sfx: SFX.COIN,
   };
@@ -818,7 +822,7 @@ async function stockMachine(
   await sayInRoom(prisma, room, text);
   return {
     ok: true,
-    line: price > 0 ? T.youStockedIn(n, tag.name, price) : T.youStockedInFree(n, tag.name),
+    line: price > 0 ? T.youStockedIn(n, markdownName(tag.name), price) : T.youStockedInFree(n, markdownName(tag.name)),
     text,
     // Goods onto a shelf, not coin into a slot.
     sfx: SFX.OK_QUIET,
@@ -908,7 +912,7 @@ async function unstockMachine(prisma, discordUserId, { roomId, tagId, quantity, 
   const text = T.roomRestocked(who);
   await sayInRoom(prisma, room, text);
   // Goods off a shelf. SFX.COIN here said a sale had happened when none had.
-  return { ok: true, line: T.youStockedOut(take, tag?.name ?? "thing"), text, sfx: SFX.OK_QUIET };
+  return { ok: true, line: T.youStockedOut(take, tag ? markdownName(tag.name) : "thing"), text, sfx: SFX.OK_QUIET };
 }
 
 /** Re-price a line that is already on the shelf. */
@@ -934,7 +938,7 @@ async function setSlotPrice(prisma, discordUserId, { roomId, tagId, priceObols, 
     place: { locationId: null, roomId: room.id },
   });
 
-  const name = slot.tag?.name ?? "It";
+  const name = slot.tag ? markdownName(slot.tag.name) : "It";
   return {
     ok: true,
     line: price > 0 ? T.youPriced(name, price) : T.youPricedFree(name),

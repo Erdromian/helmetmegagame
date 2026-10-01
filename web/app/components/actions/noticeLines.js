@@ -9,8 +9,11 @@
 // Never for a failure. A refusal stays { ok: false, error } and is shown as a
 // bad-toned notice or the dialog's own error line.
 
+import { markdownName } from "@lifeweb/db/lib/markdownName";
+
+// Escaped: a notice is Markdown, and a Lavish meal is named "*Caviar*" (db/lib/markdownName.js).
 function named(ctx, fallback = "them") {
-  return ctx?.name ?? fallback;
+  return ctx?.name != null ? markdownName(ctx.name) : fallback;
 }
 
 function collar(res) {
@@ -59,7 +62,7 @@ const LINES = {
   write: () => `Written.`,
   seal: () => `Sealed.`,
   bird: () => `The bird is away.`,
-  craft: (res, ctx) => (res.made ? `${res.made} made.` : ctx?.line ?? `The work is filed.`),
+  craft: (res, ctx) => (res.made ? `${markdownName(res.made)} made.` : ctx?.line ?? `The work is filed.`),
   recall: () => `Your comrades.`,
   // Both server actions return their own `line`, which noticeLine prefers.
   // These are the fallbacks.
