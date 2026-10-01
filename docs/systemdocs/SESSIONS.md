@@ -111,11 +111,12 @@ near-identical private helpers collapsed into it), the four
 `bot/src/events/interactions/actions.js#moveLockNotice`.
 
 **The lock window is for Moves a GM has to rule on — and, since the Combat
-Overhaul, for fights and travel.** It exists to give the desk a quiet stretch to
+Overhaul, for fights and the caves.** It exists to give the desk a quiet stretch to
 adjudicate what players wrote, and a fight is adjudicated off where everybody
 stood, so the lock also refuses starting, joining, writing or calling off a
-fight, setting a watch (`db/lib/combatGate.js`), and every walk
-(`turnGate.js#travelLockReason`, `ATTACK.md` §10). So
+fight, setting a watch (`db/lib/combatGate.js`), and every walk into, out of or
+about the caves (`turnGate.js#travelLockReason`, `CAVING.md` §2f). The surface
+stays open to walkers. So
 `movesOpen` — the whole gate — guards the written Move alone: `db/lib/moves.js`
 (`fileMove`, `moveIsEditable`) and the bot's `moveLockNotice`. Every verb that
 settles itself asks `autoMovesOpen`, which runs the same checks in the same

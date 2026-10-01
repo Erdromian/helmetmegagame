@@ -621,11 +621,11 @@ The two columns stay in the schema, unwritten, beside `missedMealStreak` and
 **Being HELD, or the turn being LOCKED, stops a move outright.** Somebody laid
 in wait where you walked in and stopped you, or you are in a fight — see
 [`INTERCEPT.md`](INTERCEPT.md) and [`ATTACK.md`](ATTACK.md). And once Moves lock
-nobody walks anywhere until the push (`turnGate.js#travelLockReason`, Combat
-Overhaul.docx), checked after the session gate and drawn on every way by
-`resolveNeighbors` and `routesWithinZone`; a first placement is not a walk, and a
-way into the caves says Caving.docx's sentence rather than the plain one
-(`CAVING.md` §2f). `performLocationMove` refuses with the hold's
+nobody walks into, out of or about the caves until the push
+(`turnGate.js#travelLockReason`, `CAVING.md` §2f), checked by the mover once it
+knows where they stand, and drawn on every way by `resolveNeighbors` and
+`routesWithinZone`; a first placement is not a walk. The surface stays open
+through the lock (Bascinet, 2026-10-01). `performLocationMove` refuses with the hold's
 own sentence, beside its incapacitation gate, and `travelOptions` draws every
 way shut and says why. A held follower is left behind rather than carried out
 (§3a).
@@ -1141,7 +1141,7 @@ whole design: the same function every other walk uses, so nothing is special.
 - **A crossing** spends the escort's own free travel and mount ride, then their
   Move if they haven't acted this turn (Bascinet, 2026-09-30). It never pushes on
   for them.
-- Holds, ACT, the Caving Die and the travel lock all refuse exactly as they would
+- Holds, ACT, the Caving Die and the caves' travel lock all refuse exactly as they would
   if the escort had pressed the button.
 - **A same-zone step skips the breath cooldown** (`skipCooldown`, the walk's
   position claim), because they are walking beside somebody. A crossing never

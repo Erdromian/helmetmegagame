@@ -17,7 +17,6 @@ const ALERT_LINE = "They look alert.";
 // db/lib/combat.js so the web's client components read the same words the server refuses with.
 const ATTACK_LOCKED = "Moves are locked for this turn, so nobody can start or join a fight.";
 const INTERCEPT_LOCKED = "Moves are locked for this turn, so you can't lie in wait.";
-const TRAVEL_LOCKED = "Moves are locked for this turn. Nobody can travel until the next turn starts.";
 const CALL_OFF_LOCKED = "Moves are locked for this turn, so the fight can't be called off now.";
 const DESCRIBE_LOCKED = "Moves are locked for this turn, so your attack can't be changed now.";
 const ALREADY_FIGHTING = "You're already in a fight.";
@@ -105,7 +104,6 @@ module.exports = {
   ALERT_LINE,
   ATTACK_LOCKED,
   INTERCEPT_LOCKED,
-  TRAVEL_LOCKED,
   CALL_OFF_LOCKED,
   DESCRIBE_LOCKED,
   ALREADY_FIGHTING,

@@ -6,8 +6,7 @@ const assert = require("node:assert/strict");
 const { batFormRefusal, batFormHeldReason, IN_A_FIGHT, CAVING_HOLD } = require("../lib/batForm");
 const { HELD_REASON } = require("../lib/intercept");
 const { CAVING_STUCK_REASON } = require("../lib/cavingPass");
-const { GATE_MESSAGES } = require("../lib/turnGate");
-const { TRAVEL_LOCKED } = require("../lib/combatMode");
+const { GATE_MESSAGES, CAVING_TRAVEL_LOCKED } = require("../lib/turnGate");
 
 const HOUR = 60 * 60 * 1000;
 const OPEN_TURN = { id: "turn1", number: 3 };
@@ -66,7 +65,7 @@ test("between sittings refuses it", async () => {
   assert.equal(await batFormRefusal(db, vampire(), { turn: OPEN_TURN }), GATE_MESSAGES.NOT_IN_SESSION);
 });
 
-test("the pre-push travel lock refuses it", async () => {
+test("the pre-push travel lock refuses a flight into or out of the caves, and nothing else", async () => {
   const now = Date.now();
   const lockedTurn = {
     id: "turn1",
@@ -75,7 +74,11 @@ test("the pre-push travel lock refuses it", async () => {
     startedAt: new Date(now - 23 * HOUR),
     endsAt: new Date(now + HOUR),
   };
-  assert.equal(await batFormRefusal(fakeDb({ turn: lockedTurn }), vampire(), { turn: lockedTurn }), TRAVEL_LOCKED);
+  const surface = fakeDb({ turn: lockedTurn });
+  assert.equal(await batFormRefusal(surface, vampire(), { turn: lockedTurn, intoZoneKind: "SURFACE" }), null);
+  assert.equal(await batFormRefusal(surface, vampire(), { turn: lockedTurn, intoZoneKind: "CAVE_LEVEL" }), CAVING_TRAVEL_LOCKED);
+  const caves = fakeDb({ turn: lockedTurn, zoneKind: "CAVE_LEVEL" });
+  assert.equal(await batFormRefusal(caves, vampire(), { turn: lockedTurn, intoZoneKind: "SURFACE" }), CAVING_TRAVEL_LOCKED);
 });
 
 test("the Caving Die: a 1 holds, severity 10 stops, and only underground", async () => {

@@ -5,7 +5,7 @@ const { blocksOnFoot, equippedSlugs } = require("./mounts");
 const { heldReasonFor } = require("./intercept");
 const { cavingRestrictionsFor, cavingRefusalFor } = require("./cavingPass");
 const { crossingCost } = require("./crossingCost");
-const { travelLockReason, lockedTravelSentence } = require("./turnGate");
+const { travelLockReason, travelLocked, lockedTravelSentence } = require("./turnGate");
 const { shutRefusalFor } = require("./gateControls");
 
 // The two endpoints of a link, oriented so `near` is the side you're standing on. Callers only ever want `far`.
@@ -170,10 +170,13 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
   const now = new Date();
 
   // Somebody has hold of them (docs/systemdocs/INTERCEPT.md). Pure — one comparison against Character.heldUntil, no query — so every picker draws the refusal the mover is about to give, instead of the server refusing after a click.
-  // …and so is everybody once Moves lock (turnGate.js#travelLockReason), the same way: every way drawn
-  // shut, with the sentence the mover is about to refuse with — Caving.docx's own for a way into the caves.
+  // …and so is every way into, out of or about the caves once Moves lock (turnGate.js#travelLockReason),
+  // drawn shut the same way, with Caving.docx's sentence the mover is about to refuse with. The lock is
+  // only asked when some way here touches a cave, so a picker on the surface pays no query for it.
   const interceptHold = heldReasonFor(character, now);
-  const locked = interceptHold ? null : await travelLockReason(prisma, { now });
+  const standingKind = endpoints(links[0], locationId).near?.zone?.kind ?? null;
+  const touchesCaves = links.some((link) => lockedTravelSentence(standingKind, endpoints(link, locationId).far?.zone?.kind));
+  const locked = !interceptHold && touchesCaves && (await travelLocked(prisma, { now }));
 
   const rows = links
     .map((link) => {
@@ -194,9 +197,10 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
       // don't have.
       if (row.openedBy && !heldPlain.has(row.openedBy)) row.openedBy = RING_SLUG;
       // Being held shuts every way out, not just zone crossings — an ambush is a hand on your shoulder (INTERCEPT.md). `listed` is deliberately left alone: the way still draws, just SHUT with why, rather than vanishing and reading like it never existed.
-      if (interceptHold || locked) {
+      const lockRefusal = locked ? lockedTravelSentence(standingKind, far.zone?.kind) : null;
+      if (interceptHold || lockRefusal) {
         row.passable = false;
-        row.refusal = interceptHold ?? lockedTravelSentence(far.zone?.kind);
+        row.refusal = interceptHold ?? lockRefusal;
       }
       return row;
     })
@@ -209,7 +213,6 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
     );
 
   // A 1 on the Caving Die this turn shuts the ways UP to the surface, leaving the Caves and the Depths open to each other (CAVING.md §2c) — the whole difference from being held, and why it's applied here rather than above. A result of severity 10 shuts every way (§2e), the next room included, in its own words. One query, and only underground, so a picker anywhere on the surface pays nothing.
-  const standingKind = links.length > 0 ? endpoints(links[0], locationId).near?.zone?.kind : null;
   if (character?.id && standingKind === "CAVE_LEVEL") {
     const caving = await cavingRestrictionsFor(prisma, character.id, standingKind);
     if (caving.stuck || caving.hold) {
@@ -346,7 +349,6 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
   const zoneId = character?.zoneId ?? null;
   if (!from || !zoneId) return [];
   if (heldReasonFor(character)) return [];
-  if (await travelLockReason(prisma)) return [];
 
   const knownIds = known instanceof Set ? known : new Set(known ?? []);
 
@@ -405,6 +407,9 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
     const caving = await cavingRestrictionsFor(prisma, character.id, standingKind);
     if (caving.stuck) return [];
   }
+  // A walk never leaves its zone, so the turn lock (turnGate.js#travelLockReason) reaches it only when that
+  // zone is the Caves or the Depths — and then it shuts every hop of it.
+  if (await travelLockReason(prisma, { fromZoneKind: standingKind, intoZoneKind: standingKind })) return [];
 
   // Equip-shaped, not the flat set: heldTagSlugs returns bare slugs and a stowed
   // an arelitz would read as one you are riding (MAP.md §2c).

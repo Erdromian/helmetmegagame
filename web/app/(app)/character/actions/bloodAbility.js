@@ -93,22 +93,27 @@ async function castMenuAbilityImpl({
   }
 
   // Bat Form: travel, so everything that holds a walk holds it — between
-  // sittings, the pre-push lock, incapacitated, held in a fight or an ambush,
-  // the Caving Die (db/lib/batForm.js). Then the destination — validated, not
-  // trusted: somewhere a flock of bats can reach
+  // sittings, the pre-push lock into or out of the caves, incapacitated, held
+  // in a fight or an ambush, the Caving Die (db/lib/batForm.js). Then the
+  // destination — validated, not trusted: somewhere a flock of bats can reach
   // (vampireBloodAbilities.js#batFormDestinationWhere). It ignores whether the
   // roads are open, since this is flight, not walking. All of it before any
-  // blood is spent.
+  // blood is spent. The destination is looked up first only so the lock can
+  // see whether it is underground; it is refused after the holds.
   let destination = null;
   if (ability.effect === "teleport") {
-    const refusal = await batFormRefusal(prisma, character, { turn: openTurn });
+    destination =
+      typeof locationId === "string" && locationId
+        ? await prisma.location.findFirst({
+            where: { id: locationId, ...batFormDestinationWhere() },
+            select: { id: true, name: true, zoneId: true, zone: { select: { kind: true } } },
+          })
+        : null;
+
+    const refusal = await batFormRefusal(prisma, character, { turn: openTurn, intoZoneKind: destination?.zone?.kind });
     if (refusal) throw new UserError(refusal);
 
     if (typeof locationId !== "string" || !locationId) throw new UserError("Choose where to fly to.");
-    destination = await prisma.location.findFirst({
-      where: { id: locationId, ...batFormDestinationWhere() },
-      select: { id: true, name: true, zoneId: true },
-    });
     if (!destination) throw new UserError("Bat Form can't take you there.");
     if (destination.id === character.locationId) throw new UserError("You're already there.");
   }

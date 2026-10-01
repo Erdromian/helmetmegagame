@@ -1003,9 +1003,10 @@ staged push runs it again as the backstop. See `ADJUDICATION.md`.
 Enforced in the bot at both `move:open` (the `#turns` button and `/move`) and
 on modal submit — a modal can sit open on screen across the cutoff — with an
 ephemeral refusal naming both times. **Since the Combat Overhaul the lock also
-shuts travel, fighting and laying in wait** (`turnGate.js#travelLockReason`,
-`combatGate.js`, `ATTACK.md` §10): the desk adjudicates fights off where
-everybody stood, so nobody walks in or out of the picture while it reads. **Speak,
+shuts fighting and laying in wait** (`combatGate.js`, `ATTACK.md` §10), since
+the desk adjudicates fights off where everybody stood, **and travel in the caves**
+(`turnGate.js#travelLockReason`, `CAVING.md` §2f), so the desk can answer every
+failed Caving roll. Walking on the surface stays open. **Speak,
 requests and GM edits are not
 affected**: the cutoff is about the Move queue a GM has to read.
 

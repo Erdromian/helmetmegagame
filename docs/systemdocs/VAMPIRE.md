@@ -290,7 +290,8 @@ hand, the same posture Feeding's own lethality gets.
 **Bat Form is travel, so whatever stops a walk stops it**
 (`db/lib/batForm.js#batFormRefusal`, the same order as
 `locationTravel.js#performLocationMove`): between sittings (`SESSIONS.md` §5),
-once Moves lock before the push, incapacitated, held where you stand
+once Moves lock before the push for a flight into or out of the caves
+(`CAVING.md` §2f), incapacitated, held where you stand
 (`heldReasonFor` — a fight, an invitation to one, a withdrawal, an intercept or
 ambush, caught stealing: `INTERCEPT.md`), a live fight row
 (`CombatParticipant.activeTurnId`, `ATTACK.md`), and the Caving Die below. Each

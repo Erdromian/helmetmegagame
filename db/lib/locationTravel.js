@@ -436,13 +436,6 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   const session = await sessionGate(prisma);
   if (!session.ok) return { ok: false, reason: session.message };
 
-  // Nobody walks once Moves lock (Combat Overhaul.docx; turnGate.js#travelLockReason), and a walk into
-  // the caves says so in Caving.docx's words. A first placement is not a walk, so it is let through.
-  if (character.locationId) {
-    const locked = await travelLockReason(prisma, { intoZoneKind: targetLocation.zone.kind });
-    if (locked) return { ok: false, reason: locked };
-  }
-
   // The MOVER's own state — escorting asks whether the TARGET is helpless, but "can this
   // character walk at all" was never asked before this gate existed, so a bound, paralyzed or unconscious character could stroll out of the room they were held in. Every crossing funnels through here (locationGraph.js), so this one gate covers the bot's picker, /location, and the staged push alike.
   const stuck = blockerFor(character.tags, ACT);
@@ -465,6 +458,14 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     if (!currentLocation) {
       return { ok: false, reason: "You can't get there directly from here." };
     }
+
+    // Once Moves lock, nobody walks into, out of or about the caves (turnGate.js#travelLockReason,
+    // Caving.docx). The surface stays open. A first placement is not a walk, so it never gets here.
+    const locked = await travelLockReason(prisma, {
+      fromZoneKind: currentLocation.zone?.kind,
+      intoZoneKind: targetLocation.zone.kind,
+    });
+    if (locked) return { ok: false, reason: locked };
 
     // The edge, and what it lets this character do — a missing, hidden (no key), locked or
     // shut-modular edge all refuse here; the picker filters the same verdict, but a client can post any location id, so this is the check that counts.
