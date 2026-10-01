@@ -1,5 +1,6 @@
 // The travel graph — the ONE place that reads LocationLink, so no caller has to remember an edge is a single undirected row that could have this location on either side. Every surface offering a destination and every crossing check comes through here: db/lib/locationTravel.js#performLocationMove, the bot's Travel picker, the escort per-follower check (MAP.md §3a), and the modular gate button — gating is not cosmetic: a hidden edge must be genuinely absent from a list, and a locked one must refuse server-side even when a client sends its id directly. Deliberately NOT on the @lifeweb/db barrel; require it by path.
-const { heldTagSlugs, withRingTokens } = require("./roomAccess");
+const { heldTagSlugs, withRingTokens, wornRingTokens } = require("./roomAccess");
+const { TAG_CATEGORY } = require("./constants");
 const { RING_SLUG } = require("./rings");
 const { blocksOnFoot, equippedSlugs } = require("./mounts");
 const { heldReasonFor } = require("./intercept");
@@ -94,6 +95,16 @@ function shouldPromptKeyed(link, { tagSlugs, now = new Date() } = {}) {
   if (isHeldOpen(link, now)) return false;
   const held = tagSlugs instanceof Set ? tagSlugs : new Set(tagSlugs ?? []);
   return held.has(link.requiredTagSlug);
+}
+
+// The lock a party leader opens for everybody they bring along (MAP.md §3a). A key is a door: whoever holds it walks their party through, so the follower is judged as if they held it too. Only a KEY is lent — a held tag the catalog files under Items, or a worn ring's door token (RINGS.md). A skill or trait in the lock (caving, climbing, strong-swimmer, tunnel-rat) is the follower's own body, never lent: a climb the leader can make is still a climb their companion can't. Returns the slug to add to each follower's tags, or null. `leader.tags` is CHARACTER_SELECT's shape.
+async function partyKeyFor(prisma, link, leader) {
+  const slug = link?.requiredTagSlug;
+  if (!slug || !leader?.id) return null;
+  if ((await wornRingTokens(prisma, leader.id)).includes(slug)) return slug;
+  if (!(leader.tags ?? []).some((ct) => ct.tag?.slug === slug)) return null;
+  const tag = await prisma.tag.findUnique({ where: { slug }, select: { category: true } });
+  return tag?.category === TAG_CATEGORY.ITEMS ? slug : null;
 }
 
 // TIGHT SQUEEZE: fixed to the one tag it blocks, unconditionally — see the
@@ -615,6 +626,7 @@ module.exports = {
   gateOperable,
   isHeldOpen,
   shouldPromptKeyed,
+  partyKeyFor,
   resolveNeighbors,
   travelOptions,
 };
