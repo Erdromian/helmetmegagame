@@ -19,6 +19,7 @@ import { HEART_SLUG } from "@lifeweb/db/lib/constants";
 import { VAMPIRE_SLUG, THRALL_SLUG, VAMPIRE_BLOOD_ADDICT_SLUG } from "@lifeweb/db/lib/secretSlugs";
 import { clampBlood } from "@lifeweb/db/lib/vampire";
 import { syncVampireBandsNow } from "@lifeweb/db/lib/vampireBands";
+import { compelAttack } from "@lifeweb/db/lib/vampireCompulsion";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
 import {
   abilityByKey,
@@ -318,6 +319,11 @@ async function castMenuAbilityImpl({
       walked: false,
     }).catch((err) => console.error(`Bat Form: side effects failed for ${character.id}:`, err));
   }
+
+  // The blood this cost can tip them into Bloodcrazed: the compulsion takes hold now, not at the next turn
+  // (db/lib/vampireCompulsion.js — a no-op unless they hold it). After Bat Form's arrival above, which has
+  // already tried it at the new Location.
+  await compelAttack(prisma, { characterId: character.id });
 
   if (ability.effect === "broadcast") {
     const vampires = await prisma.character.findMany({

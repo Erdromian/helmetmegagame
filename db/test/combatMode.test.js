@@ -65,13 +65,30 @@ function fakeDb({ since = null, slugs = [], openTurn = turn(5), action = null, p
 
 test("the button's state: off, on, locked on the turn it went on, and Exhausted", () => {
   const open = { number: 5 };
-  assert.deepEqual(combatModeState({ combatModeSinceTurn: null }, open, []), { on: false, locked: false, onBlock: null });
-  assert.deepEqual(combatModeState({ combatModeSinceTurn: 5 }, open, []), { on: true, locked: true, onBlock: null });
-  assert.deepEqual(combatModeState({ combatModeSinceTurn: 4 }, open, []), { on: true, locked: false, onBlock: null });
+  assert.deepEqual(combatModeState({ combatModeSinceTurn: null }, open, []), { on: false, locked: false, onBlock: null, lockedNote: null });
+  assert.deepEqual(combatModeState({ combatModeSinceTurn: 5 }, open, []), { on: true, locked: true, onBlock: null, lockedNote: null });
+  assert.deepEqual(combatModeState({ combatModeSinceTurn: 4 }, open, []), { on: true, locked: false, onBlock: null, lockedNote: null });
   assert.deepEqual(
     combatModeState({ combatModeSinceTurn: null }, open, [{ tag: { slug: EXHAUSTED_SLUG } }]),
-    { on: false, locked: false, onBlock: TOO_EXHAUSTED },
+    { on: false, locked: false, onBlock: TOO_EXHAUSTED, lockedNote: null },
   );
+});
+
+test("the button's state: something the server says holds it on locks it, with the server's words", () => {
+  const open = { number: 5 };
+  assert.deepEqual(combatModeState({ combatModeSinceTurn: 2 }, open, [], { heldBy: "Held." }), {
+    on: true,
+    locked: true,
+    onBlock: null,
+    lockedNote: "Held.",
+  });
+  // Nothing to hold while it is off.
+  assert.deepEqual(combatModeState({ combatModeSinceTurn: null }, open, [], { heldBy: "Held." }), {
+    on: false,
+    locked: false,
+    onBlock: null,
+    lockedNote: null,
+  });
 });
 
 test("a number left by Restart Game never locks anyone for good", () => {
@@ -106,6 +123,19 @@ test("it cannot come off on the turn it went on, and can on the next", async () 
   assert.equal(off.ok, true);
   assert.equal(off.on, false);
   assert.equal(next.row.combatModeSinceTurn, null);
+});
+
+test("a Bloodcrazed or Wight Vampire can't come out of it, on any turn", async () => {
+  const { COMPELLED_LOCKED_ON } = require("../lib/compulsionLines");
+  for (const slug of ["bloodcrazed", "wight"]) {
+    const db = fakeDb({ since: 2, slugs: ["vampire", slug] });
+    const refused = await setCombatMode(db, { character: { id: "ada" }, discordUserId: "u1", on: false });
+    assert.deepEqual(refused, { ok: false, error: COMPELLED_LOCKED_ON }, slug);
+    assert.equal(db.row.combatModeSinceTurn, 2);
+  }
+  // Once it lifts, the ordinary rule is back.
+  const calm = fakeDb({ since: 2, slugs: ["vampire", "famished"] });
+  assert.equal((await setCombatMode(calm, { character: { id: "ada" }, discordUserId: "u1", on: false })).ok, true);
 });
 
 test("Exhausted refuses turning it on", async () => {

@@ -39,6 +39,7 @@ import { HUNGER_MAX, hungerDm } from "@lifeweb/db/lib/hunger";
 import { syncHungerDescriptor } from "@lifeweb/db/lib/hungerDescriptor";
 import { HUNGERLESS_SLUG } from "@lifeweb/db/lib/constants";
 import { syncVampireBandsNow } from "@lifeweb/db/lib/vampireBands";
+import { compelAttack } from "@lifeweb/db/lib/vampireCompulsion";
 import { DesireRevokeRefused, revokeDesireCore } from "@lifeweb/db/lib/desireReview";
 import { findOpenTurnAction, lockIsLive, deleteActionRestoringTurn } from "@/lib/moveEconomy";
 import { gmTransferResources } from "@/lib/gmTransfer";
@@ -202,6 +203,14 @@ async function applyCharacterEditsImpl({ characterId, expectedUpdatedAt, core, t
       },
     });
   });
+
+  // A GM's blood, humanity or tag edit can make them Bloodcrazed or a Wight
+  // this minute: the compulsion takes hold now rather than at the next turn
+  // (db/lib/vampireCompulsion.js — a no-op for anybody else). Post-commit, so
+  // the fight it may start never holds the Apply button.
+  if (ops.length || "vampireBloodLevel" in data || "vampireHumanity" in data) {
+    after(() => compelAttack(prisma, { characterId }));
+  }
 
   // Discord effects run in after(), post-commit: none of these REST calls may
   // hold the transaction or the Apply button.

@@ -58,7 +58,9 @@ export default function FightPanel({ view, onChanged }) {
 
       {joined && view.alert ? (
         <label className="field">
-          <span className="field-label">What do you do?</span>
+          {/* `prompt` is a compelled Vampire's own words, sent by the server only to them (combat.js#combatViewFor). */}
+          <span className="field-label">{view.prompt?.label ?? "What do you do?"}</span>
+          {view.prompt ? <span className="text-sm">{view.prompt.line}</span> : null}
           <textarea
             rows={4}
             value={text}
@@ -89,7 +91,9 @@ export default function FightPanel({ view, onChanged }) {
 
       {joined && view.side === "ATTACKER" ? (
         <div className="field">
-          {view.calledOff ? (
+          {view.prompt ? (
+            <p className="text-xs text-muted">{view.prompt.noCallOff}</p>
+          ) : view.calledOff ? (
             <p className="text-sm text-muted">
               You want to call it off. Waiting on {view.waitingOn === 1 ? "1 more person" : `${view.waitingOn} more people`} on your side.
             </p>

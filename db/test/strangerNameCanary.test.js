@@ -244,28 +244,48 @@ test("a fight's opening DMs name him by what he looks like", async () => {
   assertUnnamed(mine, "startCombat");
 });
 
-// A Move description is stored on the Action row and shown to the vampire on
-// their own sheet.
-test("a bloodcrazed vampire's Move names the victim as the vampire knows them", async () => {
-  const { runVampireCompulsion } = require("../lib/vampireCompulsion");
+// The compulsion files no Move of its own any more — the feeding is the fight's
+// attack (db/lib/vampireCompulsion.js) — so what it hands the vampire is the
+// fight's DM, and nothing it writes may name him.
+test("a bloodcrazed vampire's compulsion attacks a young man and stores nothing naming him", async () => {
+  const { compelAttack } = require("../lib/vampireCompulsion");
   const vampire = reader({ tags: [{ equipped: false, tag: { slug: "bloodcrazed", name: "Bloodcrazed" } }] });
   const db = fakeDb({
     rows: { Z: zzyzx(), R: vampire },
     answers: {
-      tag: { findMany: async () => [{ id: "t-bc", slug: "bloodcrazed" }] },
       character: {
-        findMany: async ({ where }) => (where.locationId ? [zzyzx()] : [vampire]),
+        findMany: async ({ where }) =>
+          where?.id?.in ? where.id.in.map((id) => ({ Z: zzyzx(), R: vampire })[id]).filter(Boolean) : where?.locationId ? [{ id: "Z" }] : [],
         findUnique: async ({ where }) => ({ Z: zzyzx(), R: vampire })[where.id] ?? null,
         findFirst: async () => null,
         update: async () => ({}),
         updateMany: async () => ({ count: 1 }),
       },
+      combat: { create: async ({ data }) => ({ id: "c1", ...data }) },
+      combatParticipant: {
+        findFirst: async () => null,
+        createMany: async ({ data }) => ({ count: data.length }),
+        findMany: async ({ where }) =>
+          where?.combatId
+            ? [
+                { id: "p1", characterId: "R", side: "ATTACKER", role: "INITIATOR", status: "JOINED", alert: true, compelled: true },
+                { id: "p2", characterId: "Z", side: "DEFENDER", role: "TARGET", status: "JOINED", alert: false },
+              ]
+            : [],
+      },
+      location: { findUnique: async () => ({ id: HERE, name: "Square", zoneId: "zone-1" }), findMany: async () => [] },
+      locationLink: { findMany: async () => [] },
     },
   });
-  await runVampireCompulsion(db, TURN);
-  const move = db.written.find((row) => typeof row?.description === "string" && row.description.startsWith("Blood-crazed"));
-  assert.ok(move, "no Move was filed");
-  assert.equal(move.description, "Blood-crazed, Rhea Reed ravenously feeds on a young man.");
+  const out = await compelAttack(db, { characterId: "R", turn: TURN });
+  assert.equal(out.started, true, out.reason);
+  assert.equal(out.targetId, "Z");
+  assert.ok(!db.written.some((row) => row?.moveKind), "a Move was filed");
+  // What is stored as text for a reader: the DMs and the room's line. (The room line's `subjects` carry
+  // real names on purpose — each reader's face renders its own words from them, combatAnnounce.js.)
+  const texts = db.written.map((row) => row?.content).filter((c) => typeof c === "string");
+  assert.ok(texts.some((c) => /You attack a young man\./.test(c)), "the vampire was not told who they attack");
+  assertUnnamed(texts, "the compulsion's DMs and room line");
 });
 
 // ─── What leaves for Discord and what is kept ────────────────────────────────

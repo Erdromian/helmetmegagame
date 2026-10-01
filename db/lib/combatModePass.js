@@ -10,6 +10,9 @@ const { expiryFrom } = require("./turnFormat");
 const { nextFatigueSlug } = require("./fatigue");
 const { alivePassCharacters } = require("./aliveCharacters");
 const { GUARD_LINES, endGuardsFor } = require("./guard");
+const { BLOODCRAZED_SLUG, WIGHT_SLUG } = require("./secretSlugs");
+
+const COMPULSION_SLUGS = [BLOODCRAZED_SLUG, WIGHT_SLUG];
 
 const NOTICE = {
   [TIRED_SLUG]: "You were alert and on edge all of last turn. You're **Tired**.",
@@ -29,8 +32,13 @@ async function runCombatModeFatiguePass(prisma, turn) {
   }
   const tagBySlug = { [TIRED_SLUG]: tiredTag, [EXHAUSTED_SLUG]: exhaustedTag };
 
+  // A Bloodcrazed or Wight Vampire is held in combat mode by the compulsion, not by choice, so it never
+  // tires them and is never switched off here (vampireCompulsion.js; Bascinet, 2026-10-01).
   const characters = await alivePassCharacters(prisma, {
-    where: { combatModeSinceTurn: { not: null } },
+    where: {
+      combatModeSinceTurn: { not: null },
+      tags: { none: { quantity: { gt: 0 }, tag: { slug: { in: [...COMPULSION_SLUGS] } } } },
+    },
     select: {
       id: true,
       discordUserId: true,

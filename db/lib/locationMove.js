@@ -577,6 +577,18 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
   // NOW instead of whenever Discord has finished being told.
   await notifyPresence(prisma, characterId);
 
+  // The Vampire's compulsion (db/lib/vampireCompulsion.js, VAMPIRE.md §4): a Bloodcrazed or Wight Vampire
+  // walking in on somebody to feed on, or somebody to feed on walking in on one, starts the fight now. After
+  // the presence NOTIFY, so the room already shows them standing here when the attack is announced. Not on a
+  // first placement (`fromLocationId` null — creation, a revive, a GM resync): turn open catches those. A
+  // turret may have killed them above; compelOnArrival re-reads them and skips the dead.
+  if (fromLocationId && character?.status === "ALIVE") {
+    const { compelOnArrival } = require("./vampireCompulsion");
+    await compelOnArrival(prisma, { characterId, locationId: toLocationId }).catch((err) =>
+      console.error(`Move: vampire compulsion failed for ${characterId}:`, err.message ?? err),
+    );
+  }
+
   // Everything above this line is the game: where they stand, what they can
   // see, what let go of them, what shot at them. It is committed and durable.
   //

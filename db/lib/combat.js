@@ -54,6 +54,7 @@ const {
   AMBUSH_ENDED,
   listNames,
 } = require("./combatMode");
+const { COMPELLED_WRITE_PROMPT, COMPELLED_FIELD_LABEL, COMPELLED_NO_CALL_OFF } = require("./compulsionLines");
 const { blockerFor, ACT } = require("./incapacitation");
 const { DM_KIND } = require("./dmKinds");
 const { DM_ACTION, dmAction } = require("./dmActions");
@@ -291,14 +292,15 @@ function joinDeclineRow(participantId) {
   ];
 }
 
-// "Write your attack" for anyone alert; "Call off" for anyone on the attacking side. Either may be
-// missing, and a DM with neither carries no row at all.
+// "Write your attack" for anyone alert; "Call off" for anyone on the attacking side — except a compelled
+// Vampire, whose hunger won't let them (vampireCompulsion.js). Either may be missing, and a DM with neither
+// carries no row at all.
 function fightRow(participant) {
   const buttons = [];
   if (participant.alert) {
     buttons.push({ type: 2, style: 1, custom_id: `${COMBAT_WRITE_PREFIX}${participant.id}`, label: "Write your attack" });
   }
-  if (participant.side === "ATTACKER") {
+  if (participant.side === "ATTACKER" && !participant.compelled) {
     buttons.push({ type: 2, style: 4, custom_id: `${COMBAT_CALL_OFF_PREFIX}${participant.id}`, label: "Call off" });
   }
   return buttons.length ? [{ type: 1, components: buttons }] : [];
@@ -309,6 +311,7 @@ const WRITE_PROMPT = "Write what you do in this fight. You can change it until M
 // The line under anybody's fight DM: the prompt to write, or the surprise. The doc: "Characters who did not
 // have combat mode enabled are informed that they are caught by surprise."
 function promptLine(participant) {
+  if (participant.compelled) return COMPELLED_WRITE_PROMPT;
   return participant.alert ? WRITE_PROMPT : SURPRISED;
 }
 
@@ -393,11 +396,23 @@ async function startDms(db, { combat, parts, rowsById }) {
 // Opens a fight. `initiatorId` and every id in the two lists must be standing at `locationId`, alive, and
 // in no other fight; the caller has already checked the gates (combatBlock) unless this is involuntary (a
 // Vampire's compulsion) or an ambush springing, neither of which a player chose at this moment.
+// `compelled` marks the initiator's row as a Vampire's compulsion (vampireCompulsion.js): no Call off, and
+// the GM desk's "MUST feed" line.
 // Returns { ok, combat, dms, announce } or { ok: false, error }. `announce` is for the face to hand to
 // combatAnnounce.js#announceFight after the commit.
 function startCombat(
   db,
-  { initiatorId, targetIds, collaboratorIds = [], turn, locationId, fromAmbush = false, openingMessage = null, now = new Date() },
+  {
+    initiatorId,
+    targetIds,
+    collaboratorIds = [],
+    turn,
+    locationId,
+    fromAmbush = false,
+    openingMessage = null,
+    compelled = false,
+    now = new Date(),
+  },
 ) {
   return attempt(async () => {
     if (!turn) refuse("No turn is open.");
@@ -429,7 +444,7 @@ function startCombat(
     const distances = await distanceSnapshot(db, locationId, now);
     const data = (row, side, role, status) => participantData(row, { side, role, status, turnId: turn.id, now });
     const partRows = [
-      data(rowsById.get(initiatorId), "ATTACKER", "INITIATOR", "JOINED"),
+      { ...data(rowsById.get(initiatorId), "ATTACKER", "INITIATOR", "JOINED"), ...(compelled ? { compelled: true } : {}) },
       ...targets.map((id) => data(rowsById.get(id), "DEFENDER", "TARGET", "JOINED")),
       ...collabs.map((id) => data(rowsById.get(id), "ATTACKER", "COLLABORATOR", "INVITED")),
     ];
@@ -462,7 +477,7 @@ function startCombat(
     await stopPerformances(db, ids, "attack").catch(() => {});
     const parts = await db.combatParticipant.findMany({
       where: { combatId: combat.id },
-      select: { id: true, characterId: true, side: true, role: true, status: true, alert: true },
+      select: { id: true, characterId: true, side: true, role: true, status: true, alert: true, compelled: true },
     });
     const dms = await startDms(db, { combat, parts, rowsById });
     // Anybody escorting somebody it just attacked steps in on their side (§6a). After the DMs above, so the
@@ -781,11 +796,12 @@ function callOff(db, { participantId, characterId, turn, now = new Date() }) {
       await lockCombat(tx, combatId);
       const p = await tx.combatParticipant.findUnique({
         where: { id: participantId },
-        select: { id: true, characterId: true, side: true, status: true, activeTurnId: true, callOffAt: true },
+        select: { id: true, characterId: true, side: true, status: true, activeTurnId: true, callOffAt: true, compelled: true },
       });
       if (!p || p.characterId !== characterId) refuse("That isn't yours to call off.");
       if (!p.activeTurnId) refuse("That fight is over.");
       if (p.side !== "ATTACKER" || p.status !== "JOINED") refuse("Only the attackers can call a fight off.");
+      if (p.compelled) refuse(COMPELLED_NO_CALL_OFF);
       if (!p.callOffAt) await tx.combatParticipant.update({ where: { id: p.id }, data: { callOffAt: now } });
       const waiting = await tx.combatParticipant.count({
         where: { combatId, activeTurnId: turn.id, side: "ATTACKER", status: "JOINED", callOffAt: null },
@@ -1058,6 +1074,7 @@ async function combatViewFor(db, viewerId, turn) {
       alert: true,
       description: true,
       callOffAt: true,
+      compelled: true,
       combat: {
         select: {
           id: true,
@@ -1107,7 +1124,10 @@ async function combatViewFor(db, viewerId, turn) {
     locked,
     canAnswer: mine.status === "INVITED" && !locked,
     canDescribe: mine.alert && mine.status === "JOINED" && !locked,
-    canCallOff: mine.side === "ATTACKER" && mine.status === "JOINED" && !mine.callOffAt && !locked,
+    canCallOff: mine.side === "ATTACKER" && mine.status === "JOINED" && !mine.callOffAt && !mine.compelled && !locked,
+    // Only ever the viewer's OWN compulsion, and as the words to show rather than a flag: nobody else's
+    // view says it, and no client bundle carries the sentence (compulsionLines.js).
+    prompt: mine.compelled ? { label: COMPELLED_FIELD_LABEL, line: COMPELLED_WRITE_PROMPT, noCallOff: COMPELLED_NO_CALL_OFF } : null,
     waitingOn,
     attackers: listed.filter(({ p }) => p.side === "ATTACKER").map(({ view }) => view),
     defenders: listed.filter(({ p }) => p.side === "DEFENDER").map(({ view }) => view),

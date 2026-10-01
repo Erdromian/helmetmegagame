@@ -84,14 +84,19 @@ function holdsExhausted(tags) {
   return (tags ?? []).some((ct) => (ct?.tag?.slug ?? ct?.slug) === EXHAUSTED);
 }
 
-// What the button draws: { on, locked, onBlock }. `onBlock` is the sentence refusing "on", or
+// What the button draws: { on, locked, onBlock, lockedNote }. `onBlock` is the sentence refusing "on", or
 // null — only Exhausted, since an ACT blocker is the verb's to say and the button names none.
-function combatModeState(row, openTurn, tags) {
+// `heldBy` is a sentence the SERVER worked out for something else holding it on: passed in rather than
+// decided here, because this file ships to every browser and must not name what does the holding (a secret
+// seat's rule — chat/actions.js#myMove says which). It locks the button and is what the button says.
+function combatModeState(row, openTurn, tags, { heldBy = null } = {}) {
   const on = inCombatMode(row);
+  const held = Boolean(heldBy) && on;
   return {
     on,
-    locked: lockedOn(row, openTurn),
+    locked: held || lockedOn(row, openTurn),
     onBlock: !on && holdsExhausted(tags) ? TOO_EXHAUSTED : null,
+    lockedNote: held ? heldBy : null,
   };
 }
 
