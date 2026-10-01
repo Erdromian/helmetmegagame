@@ -7,7 +7,8 @@ import {
   prisma,
   MORTUS_SLUG,
   DRAINED_SLUG,
-  FORTRESS_SLUG,
+  LIFEWEB_ATTRIBUTE,
+  hasAttribute,
   bloodValueForTags,
   bumpBlood,
   FEED_PERSON_AMOUNT,
@@ -30,21 +31,22 @@ import { resolveHereTarget, seenName } from "@/lib/hereTarget";
 // the only number an Undo can safely reverse (docs/systemdocs/REQUESTS.md §2).
 
 // The /lifeweb gate is advisory — a server action is a public endpoint, so
-// Mortus is re-checked here, plus standing in the Fortress (MAP.md §3).
+// Mortus is re-checked here, plus standing at the Lifeweb — the Location with
+// the `lifeweb` attribute, in the Undertown (MAP.md §5).
 async function requireMortusCharacter() {
   const session = await auth();
   if (!session?.discordUserId) redirect("/");
 
   const character = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE" },
-    include: { tags: { include: { tag: true } }, zone: { select: { slug: true } } },
+    include: { tags: { include: { tag: true } }, location: { select: { attributes: true } } },
   });
   if (!character) throw new UserError("You need a living character to do that.");
   if (!character.tags.some((ct) => ct.tag.slug === MORTUS_SLUG)) {
     throw new UserError("Only the Mortii may touch the Lifeweb.");
   }
-  if (character.zone?.slug !== FORTRESS_SLUG) {
-    throw new UserError("The Lifeweb is in the Fortress. You have to be standing there.");
+  if (!hasAttribute(character.location, LIFEWEB_ATTRIBUTE)) {
+    throw new UserError("The Lifeweb is in the Undertown. You have to be standing there.");
   }
   return { session, character };
 }

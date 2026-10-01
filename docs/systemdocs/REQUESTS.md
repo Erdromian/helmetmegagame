@@ -463,16 +463,24 @@ read-only regardless.
 `/lifeweb` is gated on the `mortus` tag. Its two buttons are Requests like any
 other — they land immediately and a GM reviews afterwards — with three wrinkles.
 
-**Both of you have to be in the Fortress.** The tower is up the Keep stairs, so
-tending the Web is the same reach rule as every other person-touching Request
-(`MAP.md` §3): `requireMortusCharacter()` refuses a Mortus standing anywhere
-else, and the target lookup folds `zone: { slug: FORTRESS_SLUG }` into its WHERE
-clause, so a person elsewhere on the map simply isn't found. Getting a victim to
-the tower is a journey somebody physically makes. The page stays readable from
-anywhere — a Mortus in Town sees the gauge with both buttons disabled and the
-reason underneath — and the picker only offers people already at the tower. The
-**GM panel on the same page is not gated**; that's host access, not game
-permission.
+**Both of you have to be at the Lifeweb.** The Web is a Location in the
+Undertown (`undertown-3`), marked by the `lifeweb` attribute in
+`docs/zones.yaml` (`db/lib/locationAttributes.js`), so tending it is the same
+reach rule as every other person-touching Request (`MAP.md` §3):
+`requireMortusCharacter()` refuses a Mortus standing anywhere without that
+attribute, and the target has to be standing in the same Location
+(`resolveHereTarget`), so a person elsewhere on the map simply isn't found.
+Getting a victim to the Web is a journey somebody physically makes. The page
+stays readable from anywhere — a Mortus in Town sees the gauge with both
+buttons disabled and the reason underneath — and the picker only offers people
+already at the Web. The **GM panel on the same page is not gated**; that's host
+access, not game permission.
+
+It used to be a check on the Fortress zone, from when the Web was there. The
+Lifeweb moved into the Undertown on 2026-09-19 and the check did not follow,
+so every Mortus saw both buttons grey wherever they stood. An attribute rather
+than a zone or a slug, so the next move is a `docs/zones.yaml` edit (plus a
+migration for a running game, as `20261211000000_lifeweb_undertown` was).
 
 **Whose blood it is decides what it's worth.** Keyed on the *target's* tags,
 not the Mortus doing the bleeding: Nobility 40, Courtier 30, anyone else 20;
@@ -494,7 +502,7 @@ What that bought in practice was a character everyone had watched be fed to
 the Tower still walking around until someone worked the queue.
 
 The gates are what protect a player, not the delay, and every one of them is
-still checked server-side: a living **Mortus**, standing in the **Fortress**,
+still checked server-side: a living **Mortus**, standing at the **Lifeweb**,
 against a living target standing there too, with a **reason** that is required
 and logged. A GM reads it afterwards rather than before.
 

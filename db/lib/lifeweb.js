@@ -16,6 +16,10 @@ const BLOOD_MAX = 100;
 const LIFEWEB_SPUTTER_THRESHOLD = 20;
 const FEED_PERSON_AMOUNT = 100;
 
+// The Location attribute (db/lib/locationAttributes.js) that marks where the
+// Web can be tended — the Lifeweb location in the Undertown, today.
+const LIFEWEB_ATTRIBUTE = "lifeweb";
+
 // Whose blood decides what it's worth: noble > courtier > commoner. Keyed on the bled character's
 // tags, not the Mortus doing the bleeding.
 const DONATE_BLOOD_BASE = 20;
@@ -74,6 +78,7 @@ async function bumpBlood(tx, amount) {
 module.exports = {
   BLOOD_MAX,
   LIFEWEB_SPUTTER_THRESHOLD,
+  LIFEWEB_ATTRIBUTE,
   bumpBlood,
   FEED_PERSON_AMOUNT,
   DONATE_BLOOD_BY_TAG,
