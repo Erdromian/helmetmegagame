@@ -64,7 +64,8 @@ Hardest wins when several apply, which in practice means Relentless over Brave
 
 Then the ordinary Gambit penalties — Hungry, Afraid, Panic from
 `db/lib/gambitModifier.js` — count exactly as they would on any Gambit. Learn
-and Confess already apply them; this is the third roll that does.
+and Confess already apply them; this is the third roll that does. The total
+never goes below 1.
 
 **A natural 1 always fails**, whatever the arithmetic says. Without that rule a
 Cruel torturer with a knife in an equipped chamber would break anyone but a

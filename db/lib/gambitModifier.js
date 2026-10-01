@@ -14,6 +14,7 @@
 // No prisma import, so both bot/ and web/ import it by subpath.
 const { STARVING_SLUG } = require("./constants");
 const { bandOf } = require("./mood");
+const { rollTotal } = require("./rollDie");
 
 // The Soilery Rework doc: Starving is -1 to Gambits. Full and Hungry cost nothing.
 const HUNGER_PENALTY = Object.freeze({ starving: -1 });
@@ -75,7 +76,7 @@ function formatGambitModifiers(modifiers = []) {
 // to define it first.
 function rollLine(turn, action, bonus = 0) {
   const mod = (action.diceModifier ?? 0) + bonus;
-  const total = (action.diceRoll ?? 0) + mod;
+  const total = rollTotal(action.diceRoll, mod);
   const die = mod
     ? `**${action.diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${total}**`
     : `**${action.diceRoll}**`;

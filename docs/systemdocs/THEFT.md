@@ -440,7 +440,8 @@ a tag is on the sheet or it isn't — so the ceiling is 4, and nothing else on
 either sheet moves it: Stealth, Clumsy and the drink are Steal's table (§1b),
 not this one, and Lucky is the thief's die (§1c).
 
-The band is `die + bonus − defense`, so each point of defense shifts the whole
+The band is `die + bonus − defense` (never below 1, which is already the
+failed band), so each point of defense shifts the whole
 table up one face. What that does to the odds, in faces out of 6:
 
 | defense | plain thief: clean / noticed / failed | master (+1): clean / noticed / failed |

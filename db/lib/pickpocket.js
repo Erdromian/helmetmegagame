@@ -6,10 +6,11 @@
 // or failed harmlessly would be a free action with no reason not to press it.
 //
 // Pure: no prisma, no I/O, so db/test/pickpocket.test.js covers all of it. The
-// two requires below are both zero-require leaves themselves, for the same
+// requires below are all zero-require leaves themselves, for the same
 // reason — this is reachable from a client component.
 const { isTradeable } = require("./tradeable");
 const { WEIGHTLESS_CATEGORY, rowWeight } = require("./tagWeight");
+const { rollTotal } = require("./rollDie");
 
 // The tag the verb needs at all, and the second rung on top of it.
 const PICKPOCKET_SLUG = "pickpocket";
@@ -95,9 +96,11 @@ function pickpocketDefense(characterTags = []) {
 }
 
 // -> "clean" | "noticed" | "failed", off the die PLUS the thief's bonus MINUS
-// the mark's defense.
+// the mark's defense. The total never goes below 1, like every roll
+// (db/lib/rollDie.js#rollTotal) — a 1 is already the failure band, so the
+// floor changes no outcome.
 function pickpocketOutcome(total) {
-  const n = Number(total) || 0;
+  const n = rollTotal(total);
   if (n >= 4) return CLEAN;
   if (n >= 2) return NOTICED;
   return FAILED;

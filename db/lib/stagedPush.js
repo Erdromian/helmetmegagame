@@ -35,6 +35,7 @@ const { logAudit } = require("./auditLog");
 const { applyStagedScalesInTx } = require("./stagedScalesApply");
 const { describeAppliedScales } = require("./stagedScales");
 const { isSelfResolving } = require("./autoGambits");
+const { rollTotal } = require("./rollDie");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -75,7 +76,7 @@ function formatGambitRollDm(turn, action) {
   const { diceRoll, diceModifier } = action;
   const mod = diceModifier ?? 0;
   const roll = mod
-    ? `**${diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${diceRoll + mod}**`
+    ? `**${diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${rollTotal(diceRoll, mod)}**`
     : `**${diceRoll}**`;
   return `🎲 Your Gambit for turn ${turn.number}: ${roll}.`;
 }

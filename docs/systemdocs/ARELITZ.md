@@ -266,7 +266,7 @@ Heal Gambit rolls immediately and leaves the outcome entirely to a GM
 reading `/gm/turns` at their own pace — fine for a single patient, but a
 stable's worth of break-in attempts sitting unresolved for days doesn't
 scale to 100+ players. So `db/lib/moveEffects.js`'s `brokeIn` entry
-**auto-resolves at push**: `diceRoll + diceModifier >= BREAK_IN_TARGET`
+**auto-resolves at push**: `diceRoll + diceModifier >= BREAK_IN_TARGET` (the total never below 1)
 (5, roughly 1-in-3 base success before mood/hunger modifiers — Bascinet's
 chosen difficulty; the design doc names no threshold) swaps
 `unruly-arelitz` → `arelitz` wherever the plan points. The target is

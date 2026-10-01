@@ -19,6 +19,7 @@
 // NOT on the @lifeweb/db barrel; require it by path. Web files the offer and
 // the bot answers the click, so everything both sides check lives here.
 const { rollWithAdvantage } = require("./advantage");
+const { rollTotal } = require("./rollDie");
 const { addToStack, replaceLowerTiers } = require("./tagWrites");
 const { gambitModifierTotal, rollLine } = require("./gambitModifier");
 const { isHere, notHereMessage } = require("./presence");
@@ -461,7 +462,7 @@ function confirmLines(action) {
 // A dead learner never learns, whatever the die said: the roll is thrown when the offer is
 // accepted, and somebody can be killed between the offer and the answer.
 function lessonOutcome({ die, diceModifier = 0, charmBonus = 0, threshold, learnerStatus }) {
-  const total = (die ?? 0) + diceModifier + charmBonus;
+  const total = rollTotal(die, diceModifier + charmBonus);
   return { total, succeeded: learnerStatus === "ALIVE" && total >= threshold };
 }
 
