@@ -127,6 +127,9 @@ opens nothing.
   `portcullis-key`, on the same rings plus the Meister's, the Baroness's, the
   Heir's and the Successor's, works the portcullis between the Residences and the Courtyard, ring
   only (`GATEHOUSE.md`, `MAP.md` §2a).
+- `sewer-key`, on the Mortus's ring beside `mortus-key`, opens the Lifeweb's
+  maintenance tunnels into the Sewer and the Toilets room above them. The
+  Sewer Key item still opens the same doors for anybody who holds one.
 
 Putting a ring on or taking it off re-runs `syncCharacterRoomAccess` through the
 ordinary equip tail, so the private threads follow.

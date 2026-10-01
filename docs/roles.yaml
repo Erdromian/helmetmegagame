@@ -1397,7 +1397,7 @@ groups:
       starting_location: town-a
       ring:
         spawns: true
-        opens: [mortus-key]
+        opens: [mortus-key, sewer-key]
       starting_tags:
         - Ravenhearter
         - Mortus
