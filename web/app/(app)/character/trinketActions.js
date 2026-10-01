@@ -161,7 +161,8 @@ async function trinketRequestImpl({ name, description, ingredientSlugs }) {
           status: "CONFIRMED",
           confirmedAt: new Date(),
           moveKind: "GAMBIT",
-          moveReviewStatus: "OPEN",
+          // Never waits on a GM: db/lib/trinketPass.js mints it at the close (db/lib/autoGambits.js).
+          moveReviewStatus: "SOLVED",
           description: "Working at the forge on a Trinket.",
           diceRoll, // no gambitModifier — see db/lib/trinketPass.js header
           zoneId: character.zoneId ?? null,

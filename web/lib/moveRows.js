@@ -6,6 +6,7 @@ import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, 
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { desireIsAutoRejected, desireIsAutoUnchecked } from "@lifeweb/db/lib/desireReview";
+import { isSelfResolving } from "@lifeweb/db/lib/autoGambits";
 
 // The DTO mappers the adjudication desk's queue is built from, one place so the RSC and server-action callers can't drift.
 export const MOVE_INCLUDE = {
@@ -146,6 +147,8 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     // through fileMove and is never confirmed.
     confirmed: a.status === "CONFIRMED",
     isTravel: isTravelMove(a.gmNotes),
+    // A Gambit the game settles itself: MoveDesk shuts its Kind switch (db/lib/autoGambits.js).
+    selfResolving: isSelfResolving(a.gmNotes),
     gmNotes: a.gmNotes ?? "",
     rollLabel: rollLabel(a),
     // The die lands at submit, the Hunger/mood modifier only at the lock (db/lib/gambitCutoff.js),

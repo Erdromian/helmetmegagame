@@ -271,10 +271,11 @@ rule).
   right up to the push (`db/lib/turnGate.js#autoMovesOpen`, `SESSIONS.md` §4).
   Expect crafts, burials, mining and the like to keep landing on the desk after
   the lock, as PASSED rows or as rows a turn-end pass settles (a Trinket, a heal
-  Gambit). None of them asks for a ruling. Healing lands **Solved** rather than
-  Passed or Open: a cure's Routine (any row whose ledger holds a `medical`
-  entry, `db/lib/moveLedger.js#spendLedgerMove`) and a heal Gambit both file
-  `SOLVED`, so the desk never lists a cure as waiting on a GM.
+  Gambit, a confession). None of them asks for a ruling. Healing lands
+  **Solved** rather than Passed or Open: a cure's Routine (any row whose ledger
+  holds a `medical` entry, `db/lib/moveLedger.js#spendLedgerMove`) files
+  `SOLVED`, and so does every Gambit the game settles itself (below), so the
+  desk never lists one as waiting on a GM.
 - **The Gambit's die is thrown at submit, and it belongs to the character and
   the turn rather than to the Move.** `db/lib/gambitDie.js`, called from
   `moveConfirm.js` inside the confirming transaction. One row per character per
@@ -349,22 +350,33 @@ rule).
   `db/lib/stagedPush.js`) — landing beside the staged private messages that
   say what it actually did. Nothing else shows a player their own roll: not
   the confirm DM, not `/character`. Every confirmed Gambit gets the DM
-  regardless of what else the push sent them.
-- **Some Gambits never reach a GM at all.** A Lesson doesn't: it is resolved
-  entirely by its own turn pass, which rolls, grants and DMs a learner before
-  this desk ever sees the row (`TURN-ENGINE.md` §2). A heal Gambit
-  (`MEDICAL.md` §3a, `TAGS.md` §5c) is the same shape now:
-  `db/lib/healGambitPass.js` reads its die against a threshold set by the skill
-  gap and either cures the affliction or adds a scaled complication, DMing the
-  medic and the patient a line each. A heal Gambit is filed `SOLVED` the moment
-  the medic starts (`medical.js#healCharacterRequestImpl`), with no Result yet,
-  so between file and close it sits on the desk as Solved rather than Open; the
-  pass fills the Result and sends the DMs at the close. Because the status no
-  longer says whether a GM got there first, the pass asks the row instead
-  (`healGambitPass.js#gmHasRuled`): a Result line or a reviewer means a GM has
-  ruled, and their line stands. So writing a Result and pressing Save is
-  how a GM overrides one. Reopen clears the reviewer, so a reopened row with
-  an empty Result is still settled by the pass.
+  regardless of what else the push sent them, except one the game settles
+  itself ("Some Gambits never reach a GM", below), whose own DM carries the die.
+- **Some Gambits never reach a GM at all.** The game rolls and settles five
+  kinds itself, listed in `db/lib/autoGambits.js` by their `gmNotes` marker:
+  a **lesson** (settled the moment it is accepted, `LESSONS.md`), a **heal
+  Gambit** (`db/lib/healGambitPass.js`, `MEDICAL.md` §3a), a **confession**
+  (`db/lib/confessionPass.js`, `CONFESSION.md`), a **Trinket**
+  (`db/lib/trinketPass.js`, `TRINKETS.md`) and a **break-in**
+  (`moveEffects.js`'s `brokeIn` entry at the push, `ARELITZ.md` §6). Each is
+  filed with its die already thrown and lands on the desk **Solved** (a lesson
+  Passed), so it never waits on a GM; its pass writes the Result and sends the
+  DMs at the close.
+  **Nothing a GM does on the desk stops one.** Save, Solve and Reopen all leave
+  it to its pass, and a Result a GM typed is replaced by the pass's own line.
+  This used to go the other way: the heal, confession and Trinket passes read
+  a Solved row (or, since PR #376, a heal row with a Result) as "a GM ruled",
+  so the ordinary desk habit of staging something and pressing Solve quietly
+  cancelled the roll — a confession that never lifted, a Trinket the smith had
+  already paid for that never came. The **Kind** switch is shut on these rows
+  too (`MoveDesk.js`, refused again in `resolveMoveImpl`), because a flip to
+  Routine wipes the die the pass reads. **Reject is the only way to call one
+  off**; a GM who disagrees with an outcome stages an effect to change it.
+  A pass stamps `auto:settled` into `gmNotes` once it has settled a row, so a
+  close re-run after a crash never settles it twice (the confession pass uses
+  its offer going RESOLVED instead). These rows also skip the bare "🎲 Your
+  Gambit" reveal above, because their own DM already says the die and what it
+  did.
 - **One auto-filed craft Routine can hold several crafts.** Still one Action
   per character per turn — that does not move — but a craft may cost a
   *fraction* of it, so the row reads "Crafting this turn: 2× Alcohol, 1× Cat.

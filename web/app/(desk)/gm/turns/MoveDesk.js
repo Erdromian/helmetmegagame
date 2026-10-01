@@ -299,6 +299,11 @@ export default function MoveDesk({
               <span className="field-label">Kind</span>
               <span className="text-sm text-muted">Travel — auto-filed, no Routine/Gambit to pick</span>
             </div>
+          ) : move.selfResolving ? (
+            <div className="flex flex-col gap-1">
+              <span className="field-label">Kind</span>
+              <span className="text-sm text-muted">Settled by the game, not by the desk</span>
+            </div>
           ) : (
             <Switch
               label="Kind"

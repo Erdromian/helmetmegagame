@@ -109,8 +109,14 @@ speak — the character's own drawback shuts the surface, not a GM decision.
 
 ## 6. Edges
 
-- **A GM who writes a result before the push wins.** An Action already
-  `SOLVED` resolves the offer with `outcome.gmDecided` and lifts nothing.
+- **The penitent's Gambit files `SOLVED`, and the die always lands.** It
+  never waits on a GM, and nothing done on the desk short of Reject stops the
+  pass: a GM's Save, Solve or Reopen leaves it alone, and a Result they typed
+  is replaced by the pass's line (`db/lib/autoGambits.js`, `ADJUDICATION.md`
+  §2). It used to be the other way — a Solved row read as "a GM decided" and
+  lifted nothing, so a GM clearing the desk silently cancelled confessions.
+  Old resolved offers may still carry `outcome.gmDecided` from then. A GM who
+  disagrees with the outcome stages an effect.
 - **A GM Reject** of either Move cancels the confession; rejecting the
   chaplain's Routine deletes the penitent's stranded Gambit and DMs them that
   their Move is free again.

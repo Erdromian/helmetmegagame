@@ -34,6 +34,7 @@ const { letInAtPush } = require("./roomGuests");
 const { logAudit } = require("./auditLog");
 const { applyStagedScalesInTx } = require("./stagedScalesApply");
 const { describeAppliedScales } = require("./stagedScales");
+const { isSelfResolving } = require("./autoGambits");
 
 // The tail on a Routine nothing else spoke for. Left off when a GM staged a
 // message or an effect on the Move — that IS the adjudication, and "no notes"
@@ -607,21 +608,14 @@ async function runStagedPushPass(prisma, turn) {
   // Independent of the routine-closing logic below: the die was already
   // decided at submit, this pass just delivers the news. Every CONFIRMED
   // Gambit still unpaid this turn qualifies.
-  // A lesson's Gambit is excluded: it is settled the moment the lesson is
-  // accepted (db/lib/lessons.js), which already told the learner the die AND
-  // what it did, in one line. A settled lesson carries appliedEffects and never
-  // reaches `unapplied` anyway — the marker check still earns its place for a
-  // lesson accepted BEFORE that change shipped, which is OPEN with no effects.
-  // A heal Gambit is excluded too: db/lib/healGambitPass.js already told both the
-  // medic and the patient the die and the outcome, in one line each.
+  // The Gambits the game settles itself are excluded (db/lib/autoGambits.js):
+  // each one's own DM already says the die AND what it did, in one line — the
+  // lesson at accept, the heal, confession and Trinket passes before this one,
+  // a break-in in breakInDm below. The bare "you rolled X" notice would be a
+  // contextless second message beside it.
   const gambitRollNotices = [];
   for (const action of unapplied) {
-    if ((action.gmNotes ?? "").includes("auto:lesson")) continue;
-    // A break-in Gambit resolves automatically and tells the player the
-    // outcome (breakInDm below) — the bare "you rolled X" notice would just
-    // be a confusing, contextless second message ahead of it.
-    if ((action.gmNotes ?? "").includes("auto:break_arelitz")) continue;
-    if ((action.gmNotes ?? "").includes("auto:heal_gambit")) continue;
+    if (isSelfResolving(action.gmNotes)) continue;
     if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
       gambitRollNotices.push({
         discordUserId: action.character.discordUserId,

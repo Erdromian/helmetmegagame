@@ -78,6 +78,20 @@ function isAutoHealGambit(gmNotes) {
   return typeof gmNotes === "string" && gmNotes.includes(AUTO_HEAL_GAMBIT);
 }
 
+// A penitent's Gambit and a forge's Trinket (db/lib/confessionPass.js,
+// db/lib/trinketPass.js): the same shape as the heal Gambit, filed SOLVED and
+// settled at the close (db/lib/autoGambits.js).
+const AUTO_CONFESSION = "auto:confession";
+const AUTO_TRINKET = "auto:trinket";
+
+function isAutoConfession(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_CONFESSION);
+}
+
+function isAutoTrinket(gmNotes) {
+  return typeof gmNotes === "string" && gmNotes.includes(AUTO_TRINKET);
+}
+
 // gmNotes can carry more than one marker, so check for the substring, not equality.
 export function isTravelMove(gmNotes) {
   return typeof gmNotes === "string" && gmNotes.includes(AUTO_ZONE_CHANGE);
@@ -99,6 +113,8 @@ export function moveKindLabel(moveKind, gmNotes) {
   if (isAutoFarm(gmNotes)) return "Farming";
   if (isAutoBreakArelitz(gmNotes)) return "Breaking in an arelitz";
   if (isAutoHealGambit(gmNotes)) return "Heal (auto)";
+  if (isAutoConfession(gmNotes)) return moveKind === "GAMBIT" ? "Confession (auto)" : "Hearing confession";
+  if (isAutoTrinket(gmNotes)) return "Trinket (auto)";
   return MOVE_KIND_LABELS[moveKind] ?? "Move";
 }
 
