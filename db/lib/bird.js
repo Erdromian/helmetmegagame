@@ -56,10 +56,14 @@ function canSendBird(tags) {
 }
 
 // The day's limit follows the BIRD, not the sender: passing one bird round a circle of friends used to send a letter each. A bird has no identity across a handoff (non-stackable, so every move deletes one CharacterTag row and creates another, stamped acquiredAt = now), so a stamp carried on the bird would leak through the ~30 paths a tag moves by. Instead a bird that reached you today won't fly until tomorrow. `dayStartedAt` is when the first turn of today's in-game day opened.
+// A bird the character was MADE with never rests: characters are built after Start, inside Day 1, so a point-bought bird's row is stamped today and read as a handoff — players lost both Day 1 turns of their bird having never sent it. The creation write lands the character and its tags in one transaction, so the bird's stamp sits within moments of `characterCreatedAt`; a bird handed over later is stamped well after it.
 const BIRD_RESTING = "Your bird is still getting used to you. It will fly tomorrow.";
-function birdRestingToday(acquiredAt, dayStartedAt) {
+const CREATION_GRACE_MS = 60_000;
+function birdRestingToday(acquiredAt, dayStartedAt, characterCreatedAt = null) {
   if (!acquiredAt || !dayStartedAt) return false;
-  return new Date(acquiredAt).getTime() >= new Date(dayStartedAt).getTime();
+  const at = new Date(acquiredAt).getTime();
+  if (characterCreatedAt && at - new Date(characterCreatedAt).getTime() < CREATION_GRACE_MS) return false;
+  return at >= new Date(dayStartedAt).getTime();
 }
 
 // The letter as the recipient sees it. The DM no longer holds the words — the PAPER does, now in their hands — so an illiterate recipient can walk the object to someone who can read instead of being handed runes and a footnote. Deliberately does NOT say whether it's sealed or what's on it — both are facts about the object, on their sheet. And deliberately does NOT say who sent it (BIRD.md §8): a bird carries paper, not a name, so whatever the letter says about its writer is all the reader gets. The `»` prefix is added by sendDm itself; the sender's line is written bare here.

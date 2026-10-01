@@ -273,6 +273,7 @@ async function paperFlags(prisma, character, { openTurn, canReadNow }) {
                 select: { startedAt: true },
               })
             )?.startedAt,
+            character.createdAt,
           )
         : false;
     birdSentToday = resting || (sameDay && (character.birdDaySends ?? 0) >= allowance);
