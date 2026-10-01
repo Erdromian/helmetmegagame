@@ -12,6 +12,7 @@ import TagEditor from "./TagEditor";
 import TurnTab from "./TurnTab";
 import GoalsTab from "./GoalsTab";
 import RecordTab from "./RecordTab";
+import DevPanelPoller from "./DevPanelPoller";
 import AdminNotes from "@/app/components/AdminNotes";
 import { applyCharacterEdits } from "./actions";
 import { getDevPanelRecord } from "@/app/components/devPanelActions";
@@ -223,6 +224,10 @@ export default function DevPanel({
 
   const body = (
     <>
+      {/* Repaints the panel when a turn close (or another GM) moves the
+          sheet under it, so the meters below never sit a turn behind. */}
+      <DevPanelPoller characterId={character.id} ownOverlays={frame === "modal" ? 1 : 0} onChange={refresh} />
+
       <DevBand
         character={character}
         staged={staged}

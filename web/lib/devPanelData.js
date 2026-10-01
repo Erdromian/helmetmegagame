@@ -364,7 +364,14 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       // above already is.
       hungerValue: character.hungerValue,
       starvingSinceTurn: character.starvingSinceTurn,
+      // The Vampire section's two meters (docs/systemdocs/VAMPIRE.md). They
+      // were missing, the same way `mood` once was, so the boxes fell back to
+      // 100 and read Flush however far the turns had drained them.
+      vampireBloodLevel: character.vampireBloodLevel,
+      vampireHumanity: character.vampireHumanity,
       turnPingOptIn: character.turnPingOptIn,
+      // The Block avatar uploads switch read off whenever it was on.
+      avatarUploadBlocked: character.avatarUploadBlocked,
       // The two switches on /character a GM could not see. Both matter when a
       // player reports being visible, or unhidden, when they expect otherwise
       // — and `concealed` alone answers half the question, because the column
