@@ -209,10 +209,9 @@ test("staged scales apply with their knock-ons, skips and notices", { skip: SKIP
   if (!env) return;
   const { prisma, person, heldSlugs } = env;
   const { applyStagedScalesInTx } = require("../lib/stagedScalesApply");
-  const turn = { number: 1 };
-  const apply = (characterId, raw) =>
+  const apply =(characterId, raw) =>
     prisma.$transaction((tx) =>
-      applyStagedScalesInTx(tx, { characterId, scales: normalizeStagedScales(raw).scales, turn }),
+      applyStagedScalesInTx(tx, { characterId, scales: normalizeStagedScales(raw).scales }),
     );
 
   // Hunger, dropped straight from Full into Starving: the descriptor moves at

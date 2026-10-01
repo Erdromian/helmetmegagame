@@ -57,7 +57,7 @@ function worse(order, from, to) {
   return to !== from && order.indexOf(to) > order.indexOf(from);
 }
 
-async function applyStagedScalesInTx(tx, { characterId, scales, turn }) {
+async function applyStagedScalesInTx(tx, { characterId, scales }) {
   const notices = [];
   const keys = SCALES.map((s) => s.key).filter((key) => scales?.[key]);
   if (!keys.length) return { snapshot: null, notices };
@@ -178,9 +178,7 @@ async function applyStagedScalesInTx(tx, { characterId, scales, turn }) {
         skipDuplicates: true,
       });
     }
-    // The next turn is the one these tags land in, the same clock the push's
-    // tag grants use.
-    await syncVampireBandsNow(tx, characterId, bloodTo, humanityTo, { openTurnNumber: turn.number + 1 });
+    await syncVampireBandsNow(tx, characterId, bloodTo, humanityTo);
 
     if (want.blood) snapshot.blood = { from: bloodFrom, to: bloodTo };
     if (want.humanity || humanityTo !== humanityFrom) {

@@ -31,7 +31,6 @@ const {
   BESTIAL_SLUG,
   WIGHT_SLUG,
 } = require("./secretSlugs");
-const { expiryFrom } = require("./turnFormat");
 const { alivePassCharacters } = require("./aliveCharacters");
 const { logBatchSystemTagChange } = require("./tagAudit");
 const {
@@ -65,7 +64,7 @@ async function runVampirePass(prisma, turn, config, { hold = {} } = {}) {
   const holdHumanity = hold.humanity ?? new Set();
   const tags = await prisma.tag.findMany({
     where: { slug: { in: [VAMPIRE_SLUG, ...ALL_TRACKED_SLUGS] } },
-    select: { id: true, slug: true, name: true, defaultDurationTurns: true },
+    select: { id: true, slug: true, name: true },
   });
   const bySlug = new Map(tags.map((t) => [t.slug, t]));
 
@@ -185,8 +184,10 @@ async function runVampirePass(prisma, turn, config, { hold = {} } = {}) {
     }
   }
 
-  const expiresTurnFor = (slug) => expiryFrom(turn.number + 1, bySlug.get(slug).defaultDurationTurns ?? 1);
-
+  // Every grant here is permanent: a band tag stays until this pass (or
+  // db/lib/vampireBands.js) drops it because the meter moved out of the band.
+  // With a one-turn expiry the sweep took every band off each close and this
+  // pass put it straight back, re-sending the humanity band DM every turn.
   await prisma.$transaction([
     ...characterUpdates.map(({ id, data }) => prisma.character.updateMany({ where: { id }, data })),
     ...CYCLIC_SLUGS.flatMap((slug) => {
@@ -199,7 +200,6 @@ async function runVampirePass(prisma, turn, config, { hold = {} } = {}) {
             characterId,
             tagId: tag.id,
             source: "EVENT",
-            expiresTurn: expiresTurnFor(slug),
           })),
           skipDuplicates: true,
         }),

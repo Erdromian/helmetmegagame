@@ -3664,8 +3664,9 @@ tags:
   # mutually exclusive — always exactly one held. Appearance (pale, reused
   # from above; black-sclera) is visible and additive. Humanity
   # (humane/estranged/disturbed/warped) is hidden and mutually exclusive;
-  # bestial/wight are its permanent terminal state at 0 and carry no
-  # durationTurns. All are role-granted only, never bought.
+  # bestial/wight are its permanent terminal state at 0. None carries
+  # durationTurns: a band tag stays until the pass drops it because the
+  # meter left the band. All are role-granted only, never bought.
   flush:
     catalog: secret
     name: Flush
@@ -3676,7 +3677,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   satiated:
     catalog: secret
@@ -3687,7 +3687,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   thirsty:
     catalog: secret
@@ -3698,7 +3697,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   famished:
     catalog: secret
@@ -3709,7 +3707,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   # Not visible itself, per the design doc — the visible tell at 0 blood is
   # Pale + Black Sclera, already held by the time this grants. Forces the
@@ -3723,7 +3720,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   black-sclera:
     catalog: secret
@@ -3735,7 +3731,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   humane:
     catalog: secret
@@ -3746,7 +3741,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   estranged:
     catalog: secret
@@ -3757,7 +3751,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   disturbed:
     catalog: secret
@@ -3768,7 +3761,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   warped:
     catalog: secret
@@ -3779,7 +3771,6 @@ tags:
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
-    durationTurns: 1
 
   # Permanent — no durationTurns. Disables vampireHumanity regen for as long
   # as this is held, checked by the tag rather than the number, so a GM
