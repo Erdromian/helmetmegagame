@@ -69,6 +69,8 @@ function ParticipantCard({ person, snapshot, onInspect, onMessage, readOnly }) {
         </p>
       )}
       {person.leftReason ? <p className="text-xs text-muted">Left the fight: {person.leftReason}.</p> : null}
+      {/* Always first, whatever they wrote: the game started this fight for a hungry Vampire (moveRows.js#combatRow). */}
+      {person.compelledLine ? <p className="text-sm font-bold">{person.compelledLine}</p> : null}
       <p className="text-sm">
         {person.description ? (
           <span className="quote">» {person.description}</span>

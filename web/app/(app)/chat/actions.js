@@ -79,6 +79,8 @@ import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
 import { clockStatus } from "@lifeweb/db/lib/gameState";
 import { combatModeState } from "@lifeweb/db/lib/combatMode";
+import { holdsCompulsion } from "@lifeweb/db/lib/vampireCompulsion";
+import { COMPELLED_LOCKED_ON } from "@lifeweb/db/lib/compulsionLines";
 import { combatViewFor } from "@lifeweb/db/lib/combat";
 import { setCombatMode as setCombatModeInDb } from "@lifeweb/db/lib/verbs/combatMode";
 import { sessionGate } from "@lifeweb/db/lib/betweenSessions";
@@ -2403,7 +2405,10 @@ export async function myMove() {
     move: action
       ? { id: action.id, kind: action.moveKind, description: action.description, editable }
       : null,
-    combatMode: combatModeState(me.character, openTurn, me.character.tags),
+    // A Bloodcrazed or Wight Vampire can't come out of it; the sentence is only ever sent to them.
+    combatMode: combatModeState(me.character, openTurn, me.character.tags, {
+      heldBy: holdsCompulsion(me.character.tags) ? COMPELLED_LOCKED_ON : null,
+    }),
     fight: fight
       ? {
           locationName: fight.locationName,

@@ -106,3 +106,16 @@ test("a missing catalog tag bails without touching anyone", async () => {
   }
   assert.deepEqual(slugs(db, "ada"), []);
 });
+
+test("a Bloodcrazed or Wight Vampire is never tired by it: the query leaves them out", async () => {
+  let asked = null;
+  const db = fakeDb([{ id: "ada", since: 4 }]);
+  const realMany = db.character.findMany;
+  db.character.findMany = async (args) => {
+    asked = args;
+    return realMany(args);
+  };
+  await runCombatModeFatiguePass(db, { number: 5 });
+  assert.deepEqual([...asked.where.tags.none.tag.slug.in].sort(), ["bloodcrazed", "wight"]);
+  assert.deepEqual(asked.where.tags.none.quantity, { gt: 0 });
+});

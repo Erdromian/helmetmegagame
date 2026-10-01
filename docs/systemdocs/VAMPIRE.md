@@ -60,7 +60,7 @@ which re-sent the humanity band DM every turn.
 | Satiated | 99-67 | "Your thirst for human blood is satisfied." | — |
 | Thirsty | 66-34 | "Your appetite for blood is growing, it would be wise to find a victim soon..." | — |
 | Famished | 33-1 | "You can barely contain your insatiable urge for blood! If you do not find a victim soon, you will lose all control." | — |
-| Bloodcrazed | 0 | "You have lost all control of yourself and will prey upon the first person you see!" | Forces a feeding Gambit + an Attack — §4 |
+| Bloodcrazed | 0 | "You have lost all control of yourself and will prey upon the first person you see!" | Forced into combat mode and an attack to feed — §4 |
 
 The design doc's printed ranges for these overlap at their edges (100 /
 100-67 / 66-34 / 33-1 / 0); `db/lib/vampire.js#bloodUrgencyBand` reads them as
@@ -194,47 +194,61 @@ enforced in code; it's a rule for the GM applying these by hand to follow.
 ## 4. The forced compulsion
 
 Bloodcrazed and Wight share one behavior, coded because it's system-
-triggered rather than player-written: "the vampire's action to be
-automatically submitted as feeding on a random other character in their
-current location. It will also cause them to automatically submit an attack
-action on a random character in their current location."
+triggered rather than player-written: the vampire attacks somebody near them
+and must feed on them. Reworked on 2026-10-01 (Bascinet): **the feeding is the
+attack.** There is no separate feeding Move any more, and the vampire's own
+Move is theirs to file.
 
-Every turn a character holds either tag, `db/lib/vampireCompulsion.js`:
+All of it is `db/lib/vampireCompulsion.js`:
 
-1. Picks a random other ALIVE character at the vampire's Location and
-   auto-files a Gambit-kind Move on the vampire's behalf describing the
-   feeding (`gmNotes: "auto:bloodcrazed"`/`"auto:wight"`, no `playerFiled` —
-   the same auto-authored-Gambit shape `db/lib/confession.js` and
-   `db/lib/lessons.js` use). **The GM still adjudicates this Gambit exactly
-   like a player-written one** — §2b's manual-restore-blood rule applies
-   here too, with no automatic effect just because the game filed it.
-2. Independently picks a (possibly different) random other ALIVE character
-   at the same Location and starts a real fight against them
-   (`db/lib/combat.js#startCombat`, `ATTACK.md`) — holding both until it is
-   over, same as a player pressing the button. Deliberately **not** gated
-   (`combatGate.js#combatBlock`): this is an involuntary compulsion, not a fight
-   the character chose, so neither combat mode nor the turn lock applies. The
-   victim is DMed like anybody attacked, and asked to write what they do, and
-   the room is told.
+1. **Combat mode, forced on and held.** The game puts them in it
+   (`forceCombatMode`) — Exhausted or not — and they can't turn it off while
+   either tag lasts, which for a Wight is for good. The push's fatigue step
+   leaves them out, so it never tires them (`COMBAT-MODE.md` §1a, §4).
+2. **A fight, started for them** (`compelAttack` → `combat.js#startCombat`,
+   `ATTACK.md`). The target is a random **suitable** person at their Location:
+   alive, not another Vampire, not a Thrall (anybody's — no Thrall records its
+   master, §6), and not already in a fight. If a fight can't start on the
+   first one, the next is tried, in random order, until one does. The
+   vampire's participant row is marked `compelled`.
+3. **The feeding is written as the attack.** Being in combat mode, they are
+   alert, so they write their attack the ordinary way. Their prompt reads
+   "The hunger has you. Write how you attack and feed on them." and on the
+   GM's Combat desk their card always opens with "This character is
+   bloodcrazed and MUST feed this turn." (the same line for a Wight), whatever
+   they wrote. **The GM still adjudicates it like any fight** — §2b's
+   manual-restore-blood rule applies, and nothing restores blood
+   automatically.
+4. **No backing out.** A compelled vampire can't call the fight off
+   (`ATTACK.md` §7). Neither face offers the button.
 
-If nobody else is at the vampire's Location, both are skipped for that turn
-(logged, not an error) — there's nobody to prey on. If the vampire somehow
-already has an Action row for the newly-opened turn (a defensive check, not
-a real race — nothing could plausibly beat this), the whole step is skipped
-for them that turn rather than colliding with `Action`'s one-per-turn unique
-constraint.
+**When it fires: as many tries as it takes for one fight to start, once a
+turn.** Once a compelled fight has started this turn there is no second, even
+if that one ends early; a vampire already in a fight is never compelled into
+another (and can't start one of their own, `ALREADY_FIGHTING`). It is tried:
 
-**This step runs outside the normal turn-pass machinery on purpose.** It has
-to file against the turn that's just *opening*, not the one that just
-closed — `stagedPush` only ever resolves Action rows stamped with the
-closing turn's own id, and an Attack's hold length is measured against the
-turn still running, so filing either one against an already-closing turn
-would give it a meaningless near-zero duration. `db/index.js#advanceTurn()`
-calls it once, right after the new `Turn` row is created, reading whichever
-vampires the blood/humanity pass's own close (§2, §3) just left holding
-either tag. It is not a `TURN_PASSES` entry and carries no resume — a crash
-mid-loop just means some vampires miss one turn's compulsion, logged and
-moved on.
+- **at turn open** — `runVampireCompulsion`, from `db/index.js#advanceTurn()`
+  right after the new `Turn` row is created. Outside the turn-pass machinery
+  on purpose: a fight's hold is measured against the turn still running, so
+  starting one against the turn that is closing would give it a near-zero
+  hold. Not a `TURN_PASSES` entry and no resume — a crash mid-loop just means
+  some vampires miss one turn's attack, logged and moved on.
+- **on an arrival** — `compelOnArrival`, from `locationMove.js#applyArrivalFacts`,
+  which every writer of `Character.locationId` runs: a compelled vampire
+  walking into a Location with somebody suitable in it, or somebody suitable
+  walking in on one. A Vampire or Thrall walking in wakes nobody. Not on a
+  first placement (creation, a revive).
+- **the moment they become Bloodcrazed mid-turn** — after a blood ability's
+  cost, or a GM's blood, humanity or tag edit on `/gm/dev`.
+
+A vampire who can't act (out cold, bound…) is still held in combat mode but
+attacks nobody until they can. If nobody suitable is there, nothing happens
+until somebody is.
+
+The fight looks like any other to everybody but the vampire and the GM: the
+victim is DMed like anybody attacked, the room is told "X attacks Y!", and the
+`compelled` flag is never in `PUBLIC_PARTICIPANT_SELECT`. The sentences live
+in `db/lib/compulsionLines.js`, server-only, so no client bundle carries them.
 
 ## 5. Config
 
@@ -487,7 +501,8 @@ ash death).
 |---|---|
 | `db/lib/vampire.js` | The pure meters — bands, the appearance track, turn-length scaling, the one coded humanity loss. No Prisma import |
 | `db/lib/vampirePass.js` | The turn pass — decay/regen, grant/drop every checkpoint tag, the Bloodcrazed-crossing loss, the zero-humanity crossing into Bestial/Wight |
-| `db/lib/vampireCompulsion.js` | §4 — the forced Gambit + Attack, run outside `TURN_PASSES` |
+| `db/lib/vampireCompulsion.js` | §4 — forced combat mode and the compelled attack: at turn open (outside `TURN_PASSES`), on an arrival, on becoming Bloodcrazed mid-turn |
+| `db/lib/compulsionLines.js` | §4 — the compulsion's sentences, server-only (the GM line, the prompt, the two refusals) |
 | `db/lib/vampireBands.js` | Immediate re-sync for the GM edit screen (and for a Blood Ability spend, §6) — a changed blood level clears the chips at once, not at next close |
 | `db/lib/vampireBloodAbilities.js` | §6 — the pure ability catalog: cost, cooldown constant, required tag, effect. No Prisma import |
 | `db/lib/vampireDeath.js` | §7 — the ash death override, intercepting every death path |

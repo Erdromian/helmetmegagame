@@ -5905,6 +5905,13 @@ model CombatParticipant {
   description String?
   describedAt DateTime?
 
+  // The game started this fight for them: a Bloodcrazed or Wight Vampire's
+  // compulsion (db/lib/vampireCompulsion.js), the initiator's row only. They
+  // can't call it off, and the desk heads their card with "MUST feed". A
+  // Vampire secret: never in PUBLIC_PARTICIPANT_SELECT, and only the
+  // Vampire's own view says it.
+  compelled Boolean @default(false)
+
   callOffAt  DateTime?
   answeredAt DateTime?
   leftAt     DateTime?

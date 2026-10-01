@@ -25,7 +25,7 @@ with:
 |---|---|
 | `inCombatMode(row)` | on or off |
 | `lockedOn(row, openTurn)` | turned on this turn, so it can't come off yet |
-| `combatModeState(row, openTurn, tags)` | `{ on, locked, onBlock }`, what the button draws |
+| `combatModeState(row, openTurn, tags, { heldBy })` | `{ on, locked, onBlock, lockedNote }`, what the button draws. `heldBy` is a sentence the server passes when something else holds it on (a Bloodcrazed or Wight Vampire, §1a); it locks the button and is what the button says |
 
 **The timing rule** (the design doc): it can be turned on at any time of the
 turn, but it can't be turned off on the turn it went on — only on a later one.
@@ -38,7 +38,22 @@ and a game in session.
 
 **Exhausted refuses turning it on.** So does anything that takes ACT (bound,
 paralysed…). Turning it off is never gated — it is the way down, the same rule
-Break off and Stop watching follow.
+Break off and Stop watching follow — with the one exception below.
+
+### 1a. A hungry Vampire is held in it
+
+A Vampire holding **Bloodcrazed** or **Wight** is put in combat mode by the game
+and can't turn it off for as long as the tag lasts — for good, for a Wight
+(Bascinet, 2026-10-01; `VAMPIRE.md` §4). It goes on whatever they hold, Exhausted
+and ACT blockers included, since it is not their choice
+(`vampireCompulsion.js#forceCombatMode`, audited as `character_combat_mode_set`
+with `forced: "compulsion"`). `verbs/combatMode.js` refuses Off with "The hunger
+won't let you relax.", and the push's fatigue step leaves them out (§4).
+
+That sentence and the rule live server-side (`db/lib/compulsionLines.js`), never
+in `combatMode.js`: this file ships to every browser, and a Vampire's words in it
+would tell anybody with DevTools the seat is real. `db/test/vampireCompulsion.test.js`
+holds that line.
 
 ## 2. The button
 
@@ -98,7 +113,8 @@ afterwards counts only for fights that start later, and the button says so:
 the one you're already in."
 
 The involuntary attacks stay ungated: a Vampire's compulsion
-(`vampireCompulsion.js`) is nobody's choice, and an Ambush firing is governed by
+(`vampireCompulsion.js`) is nobody's choice — though it puts them in combat mode
+first (§1a), so they are always alert in it — and an Ambush firing is governed by
 the watch rule below.
 
 **Escort** (`ATTACK.md` §6a). Setting one needs combat mode, and combat mode
@@ -135,6 +151,10 @@ combat mode when a turn pushes climbs the Tired → Exhausted ladder
 
 The last row is a reading, not the doc's words: the doc says it can't be *turned
 on* while Exhausted, so the two should never stand together.
+
+**A Bloodcrazed or Wight Vampire is skipped entirely** (§1a): the query leaves out
+anybody holding either tag, so they are never made Tired or Exhausted by it and
+never switched off (Bascinet, 2026-10-01).
 
 The fatigue is granted at N+1, the mining clock, so it lasts the whole next turn.
 Each person gets a DM saying what happened.

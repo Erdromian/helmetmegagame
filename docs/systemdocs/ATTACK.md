@@ -270,6 +270,9 @@ who is asked along as a collaborator, is not being attacked.
   "in case the defenders wish to counterattack" and may not start another
   attack meanwhile (Bascinet, 2026-09-27), and everybody is DMed. A defender
   may counterattack them; that is a new fight. Refused once Moves lock.
+  **A compelled Vampire can never call it off** (`CombatParticipant.compelled`,
+  `VAMPIRE.md` §4): `callOff` refuses with "The hunger won't let you call this
+  off.", and neither face offers the button.
 - **A side empties.** Somebody relocated (a GM's teleport, a Bulk Move, a
   staged Relocate to, a rite — walking never, since they are held, and Bat
   Form never, since it reads the same hold and the fight row: `VAMPIRE.md` §6) or dead
@@ -309,6 +312,12 @@ answer, their roll line, what they wrote (or that they were surprised), a
 fighting band, what they wore, their wounds), and **Message them**, which
 stages a private message to that one person — the doc's "a message on attack
 actions which are only forwarded to a specific character".
+
+A **compelled Vampire's card** (`CombatParticipant.compelled`, `VAMPIRE.md` §4)
+always opens with "This character is bloodcrazed and MUST feed this turn." above
+whatever they wrote, a Wight's too (Bascinet, 2026-10-01). `moveRows.js#combatRow`
+sends the sentence as `compelledLine`, so the desk bundle carries no copy of it;
+nobody else in the fight is ever told.
 
 Then one result for the whole fight, the Caving desk's shape:
 
@@ -368,8 +377,8 @@ At the Move cutoff (`turnClock.js#moveWindow`), and until the push:
   A GM's relocation never comes this way.
 
 Two exceptions, neither a player's choice: a Vampire's compulsion, which opens
-its fight at turn open (`vampireCompulsion.js`), and an ambush springing, which
-cannot happen once nobody can arrive.
+its fight at turn open or on an arrival (`vampireCompulsion.js`), and an ambush
+springing, which cannot happen once nobody can arrive.
 
 ## 11. Discord
 

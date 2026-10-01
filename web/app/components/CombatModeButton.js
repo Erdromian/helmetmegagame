@@ -22,8 +22,8 @@ export default function CombatModeButton({ state, onChanged, children }) {
   const [error, setError] = useState(null);
 
   if (!state) return children(null);
-  const { on, locked, onBlock } = state;
-  const stuck = locked ? LOCKED_ON : onBlock;
+  const { on, locked, onBlock, lockedNote } = state;
+  const stuck = locked ? (lockedNote ?? LOCKED_ON) : onBlock;
 
   async function press() {
     setError(null);

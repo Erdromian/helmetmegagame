@@ -7,6 +7,7 @@ import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { desireIsAutoRejected, desireIsAutoUnchecked } from "@lifeweb/db/lib/desireReview";
 import { isSelfResolving } from "@lifeweb/db/lib/autoGambits";
+import { COMPELLED_GM_LINE } from "@lifeweb/db/lib/compulsionLines";
 
 // The DTO mappers the adjudication desk's queue is built from, one place so the RSC and server-action callers can't drift.
 export const MOVE_INCLUDE = {
@@ -506,6 +507,8 @@ export function combatRow(c, { usernameById }) {
       distance: p.distance,
       fromLocationName: p.fromLocationName ?? null,
       description: p.description ?? "",
+      // A Vampire's compulsion (db/lib/vampireCompulsion.js): the line heads their card whatever they wrote.
+      compelledLine: p.compelled ? COMPELLED_GM_LINE : null,
       calledOff: Boolean(p.callOffAt),
       leftReason: p.leftReason ?? null,
       joinedAtMs: p.joinedAt.getTime(),

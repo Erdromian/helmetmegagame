@@ -307,6 +307,7 @@ function fightReply(interaction, view) {
       buttons.push({ type: 2, style: 2, custom_id: `${COMBAT_DECLINE_PREFIX}${view.participantId}`, label: "Decline" });
     }
   } else {
+    if (view.prompt) lines.push(view.prompt.line);
     lines.push(view.alert ? (view.description ? `» ${view.description}` : "You haven't written what you do yet.") : SURPRISED);
     if (view.canDescribe) buttons.push({ type: 2, style: 1, custom_id: `${COMBAT_WRITE_PREFIX}${view.participantId}`, label: "Write your attack" });
     if (view.calledOff) lines.push(`-# You wish to call off the attack. Waiting on ${view.waitingOn} more on your side to cancel the fight.`);
