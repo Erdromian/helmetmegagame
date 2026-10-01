@@ -45,7 +45,6 @@ const {
 } = require("@lifeweb/db/lib/vendingText");
 const { isTradeable } = require("@lifeweb/db/lib/tradeable");
 const { OBOL_SLUG } = require("@lifeweb/db/lib/depotState");
-const { RESOURCES_SLUG } = require("@lifeweb/db/lib/resourceStack");
 
 // Every sub-prefix starts with the open prefix "room:vending:", so
 // interactionCreate.js must test these BEFORE it — the lesson Pray and Slots
@@ -257,7 +256,7 @@ async function handleVendingCollect(interaction, roomId) {
   await verb(interaction, roomId, collectTill);
 }
 
-/** What is in his pockets that could go on the shelf — cargo, and not money. */
+/** What is in his pockets that could go on the shelf — cargo, ⬢ included, and not coin. */
 async function stockables(discordUserId) {
   const character = await prisma.character.findFirst({
     where: { discordUserId, status: "ALIVE" },
@@ -270,7 +269,7 @@ async function stockables(discordUserId) {
     orderBy: { tag: { name: "asc" } },
   });
   return held
-    .filter((ct) => isTradeable(ct.tag) && ct.tag.slug !== OBOL_SLUG && ct.tag.slug !== RESOURCES_SLUG)
+    .filter((ct) => isTradeable(ct.tag) && ct.tag.slug !== OBOL_SLUG)
     .slice(0, VENDING_SHELF_CAP)
     .map((ct) => ({ tagId: ct.tag.id, name: ct.tag.name, held: ct.quantity }));
 }

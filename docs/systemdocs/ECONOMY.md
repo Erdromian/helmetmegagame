@@ -73,7 +73,9 @@ Every entry has two ends, and each is one of:
   both of its pools**, because the loose float in the slot and the locked till
   are two trays in one box: a purchase moving coin between them has not changed
   hands, so it books nothing. Its live balance is `floatObols + tillObols`, and
-  anybody who ever writes a `COIN` reconcile must read both
+  anybody who ever writes a `COIN` reconcile must read both. It also holds
+  `BALANCE` legs when ⬢ are stocked on its shelf; their live balance is the
+  `resources` row in `VendingSlot`, not a coin column
 - `machine:merchant-terminal` — the Merchant's Terminal's coin, `Depot.terminalObols`
   (`DEPOT.md` §0c). One box, the same posture as a vending machine's: obols go
   in and out of a hand (`TERMINAL_INSERT` / `TERMINAL_WITHDRAW`), the train pays
@@ -105,7 +107,10 @@ all** — the only code that compares legs against live balances is
 not a new exception to a live rule; it is the second citizen of a form nothing
 checks. A machine sitting on 8 ¢ cannot read as drift today, and the honest way
 to close that gap is a `COIN` audit of its own rather than widening the `IN`
-list to a party whose live balance that query cannot read. The bank half holds because every balance
+list to a party whose live balance that query cannot read. The same goes for ⬢
+on a vending shelf: those legs are `BALANCE`, but their end is `machine`, which
+the `IN` list leaves out, so they cannot read as drift either. Each
+character's end of every one of them is still checked. The bank half holds because every balance
 move is one conditional `UPDATE` paired with exactly one `ACCOUNT` row inside
 the same transaction (`db/lib/bankAccounts.js#bumpBankAccount`); `bank:clearing`
 is skipped as a book account.

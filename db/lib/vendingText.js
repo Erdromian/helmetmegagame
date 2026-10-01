@@ -90,7 +90,8 @@ const VENDING_TEXT = {
   tillEmpty: "The till is empty.",
   untradeable: (name) => `A ${name} isn't something you can put in a machine.`,
   noMoneyOnShelf: "Coin goes in the slot, not on the shelf.",
-  dontHave: (name, held) => `You're carrying ${held} × ${name}.`,
+  // `count` arrives already counted — "3 × Tea", or "3 ⬢" (db/lib/vending.js#countOf).
+  dontHave: (count) => `You're carrying ${count}.`,
   notInMachine: "That isn't in the machine.",
   priceRange: (max) => `A price is a whole number of obols, up to ${max}.`,
   shelfFull: (cap) => `The machine holds ${cap} kinds of thing and no more.`,
@@ -111,7 +112,8 @@ const VENDING_TEXT = {
   // The default does NOT name the ware: the Depot's counter is not public and
   // neither is this. roomBoughtNamed is the alternative, for Bascinet to pick.
   roomBought: (who) => `${who} buys something from the vendor.`,
-  roomBoughtNamed: (who, what) => `${who} takes a ${what} out of the vendor.`,
+  // `one` is "a Bone Saw", or "1 ⬢" (db/lib/vending.js#oneOf).
+  roomBoughtNamed: (who, one) => `${who} takes ${one} out of the vendor.`,
   roomUnlocked: (who) => `${who} unlocks the front of the vending machine.`,
   roomLocked: (who) => `${who} locks the vendor.`,
   roomRestocked: (who) => `${who} moves things around inside the machine.`,
@@ -121,16 +123,18 @@ const VENDING_TEXT = {
   youHold: (seconds) => `The machine is yours for ${seconds} seconds.`,
   youInserted: (n, total) => `You feed ${n} ¢ in. ${total} ¢ in the slot.`,
   youWithdrew: (n) => `You withdraw ${n} ¢.`,
-  youBought: (what, price, left) => `A ${what}, for ${price} ¢. ${left} ¢ left.`,
-  youBoughtFree: (what, left) => `A ${what}, free. ${left} ¢ left.`,
+  // The ware arrives already worded and capitalised: "A Bone Saw", or "1 ⬢".
+  youBought: (one, price, left) => `${one}, for ${price} ¢. ${left} ¢ left.`,
+  youBoughtFree: (one, left) => `${one}, free. ${left} ¢ left.`,
   youLeft: "You step away.",
   youLeftEmpty: "You step away.",
   youUnlocked: "The vendor's maintenance panel swings open.",
   youLocked: "The vending machine locks closed.",
   youCollected: (n) => `You empty the vendor — ${n} ¢.`,
-  youStockedIn: (n, what, price) => `${n} × ${what} on the shelf, at ${price} ¢ each.`,
-  youStockedInFree: (n, what) => `${n} × ${what} on the shelf, free.`,
-  youStockedOut: (n, what) => `${n} × ${what} back in your hands.`,
+  // `count` arrives already counted: "2 × Tea", or "5 ⬢" (db/lib/vending.js#countOf).
+  youStockedIn: (count, price) => `${count} on the shelf, at ${price} ¢ each.`,
+  youStockedInFree: (count) => `${count} on the shelf, free.`,
+  youStockedOut: (count) => `${count} back in your hands.`,
   youPriced: (what, price) => `${what} — ${price} ¢.`,
   youPricedFree: (what) => `${what} — free.`,
   // A DM, and only when there was something to lose. Being told you walked
