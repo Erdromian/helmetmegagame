@@ -1245,8 +1245,8 @@ somebody physically makes, checked against `Character.zoneId` exactly as
 before.
 
 The Lifeweb is the same rule with a fixed address: bleeding or feeding
-someone to the Web needs the Mortus standing in the Fortress zone, because
-that is where the tower is (`REQUESTS.md` §5a). The target is anyone
+someone to the Web needs the Mortus standing at the Lifeweb — the Undertown
+Location carrying the `lifeweb` attribute (`REQUESTS.md` §5a). The target is anyone
 standing in the same Location as the Mortus, or the Mortus themselves — the
 ordinary people-picker roster, so a hood or a stranger is offered by token
 under what they look like (`STRANGERS.md` §6). It used to be every living

@@ -2,7 +2,8 @@ import { redirect } from "next/navigation";
 import {
   prisma,
   MORTUS_SLUG,
-  FORTRESS_SLUG,
+  LIFEWEB_ATTRIBUTE,
+  hasAttribute,
   LIFEWEB_SPUTTER_THRESHOLD,
   DONATE_BLOOD_BY_TAG,
   bloodValueForTags,
@@ -68,11 +69,15 @@ export default async function LifewebPage() {
   // whosHere does.
   const mortusCharacter = await prisma.character.findFirst({
     where: { discordUserId: session.discordUserId, status: "ALIVE", tags: { some: { tag: { slug: MORTUS_SLUG } } } },
-    include: { zone: { select: { slug: true } } },
+    include: { location: { select: { attributes: true } } },
   });
   if (!mortusCharacter && !superadmin) redirect("/character");
 
-  const atFortress = mortusCharacter?.zone?.slug === FORTRESS_SLUG;
+  // Standing at the Web itself — the Location carrying the `lifeweb`
+  // attribute (docs/zones.yaml), not anywhere in a zone. It used to be the
+  // Fortress zone, which kept every button grey once the Web moved down into
+  // the Undertown.
+  const atLifeweb = hasAttribute(mortusCharacter?.location, LIFEWEB_ATTRIBUTE);
   const [state, aliveCharacters, targets] = await Promise.all([
     // findUnique, not upsert: this is a page render, and the row is created by
     // the bot on ready and by every write path that touches it. Upserting here
@@ -90,7 +95,7 @@ export default async function LifewebPage() {
           select: { id: true, name: true, firstName: true, lastName: true, tags: BLOOD_TIER_TAGS },
         })
       : [],
-    mortusCharacter && atFortress ? mortusTargets(mortusCharacter) : [],
+    mortusCharacter && atLifeweb ? mortusTargets(mortusCharacter) : [],
   ]);
 
   const blood = state?.lifewebBlood ?? 0;
@@ -122,11 +127,11 @@ export default async function LifewebPage() {
       {mortusCharacter && (
         <section className="panel p-5">
           <h2 className="panel-header">Tend the Web</h2>
-          <LifewebRequestButtons targets={targets} disabled={!atFortress} />
+          <LifewebRequestButtons targets={targets} disabled={!atLifeweb} />
           <p className="mt-3 text-xs text-muted">
-            {atFortress
+            {atLifeweb
               ? "These actions take effect immediately, but are reviewed by a GM later."
-              : "The Web is in the Fortress. You can watch it from here, but you have to be standing at the tower to tend it."}
+              : "The Web is in the Undertown. You can watch it from here, but you have to be standing at the Lifeweb to tend it."}
           </p>
         </section>
       )}

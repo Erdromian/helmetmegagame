@@ -119,7 +119,7 @@ export default function LifewebRequestButtons({ targets, disabled = false }) {
         onConfirm={submit}
       >
         {targets.length === 0 ? (
-          <p className="text-sm text-muted">Nobody is at the tower.</p>
+          <p className="text-sm text-muted">Nobody is at the Lifeweb.</p>
         ) : (
           <label className="field">
             <span className="field-label">Who?</span>

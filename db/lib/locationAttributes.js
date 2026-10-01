@@ -84,6 +84,17 @@ const ATTRIBUTES = {
     type: "boolean",
     describe: () => null,
   },
+
+  // Where the Web's own seat is: the one place a Mortus can bleed or feed
+  // somebody to it (web/app/(app)/lifeweb, REQUESTS.md §5a). An attribute, not
+  // a zone check, because the Lifeweb has moved once already — out of the
+  // Fortress into the Undertown — and the zone check it used to be kept
+  // pointing at the Fortress, so no Mortus could tend it. Examine says
+  // nothing; the place's own description is the Web.
+  lifeweb: {
+    type: "boolean",
+    describe: () => null,
+  },
 };
 
 function authoredLines(location, ctx = {}) {
