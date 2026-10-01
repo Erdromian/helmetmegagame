@@ -6,9 +6,12 @@ import EmptyState from "@/app/components/EmptyState";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import DevPanelModal, { prefetchDevPanel } from "@/app/components/DevPanelModal";
 import TagChip from "@/app/components/TagChip";
+import FormError from "@/app/components/FormError";
 import PlaceCard from "../PlaceCard";
 import GmPlaceBox from "../GmPlaceBox";
-import { locationFixtures } from "../fixtures";
+import { TONE_CLASS } from "../PlacePanel";
+import { useGmFixturePreview } from "../GmFixturePreview";
+import { locationFixtures, roomFixtures } from "../fixtures";
 import { useAsideTab } from "../asideTabStore";
 import { setPlaces } from "../feedStore";
 import { gmPlaceView } from "../actions";
@@ -83,6 +86,30 @@ function GmHereList({ people, onOpen }) {
   );
 }
 
+// One room's buttons, as the player's RoomPanel draws them, plus Search, which
+// RoomPanel draws beside the stash. Each opens a preview (../GmFixturePreview.js).
+function RoomButtons({ affordances, room, preview }) {
+  const entries = roomFixtures(affordances, room.id);
+  const search = affordances.find((entry) => entry.id === "search" && entry.roomId === room.id);
+  if (search) entries.push({ ...search, label: "Search", hiddenLine: room.hiddenLine });
+  if (entries.length === 0) return null;
+  return (
+    <div className="chat-buttons">
+      {entries.map((entry) => (
+        <button
+          key={preview.keyOf(entry)}
+          type="button"
+          className={TONE_CLASS[entry.tone] ?? "btn-secondary"}
+          disabled={Boolean(preview.opening)}
+          onClick={() => preview.open(entry)}
+        >
+          {entry.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardChanged = null }) {
   const placeKey = selected?.placeKey ?? null;
   // The left column, re-read after the zone picker has been answered. Silent
@@ -122,9 +149,14 @@ export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardCh
 
   const fresh = view?.placeKey === placeKey ? view : null;
   const kind = fresh?.ok ? fresh.kind : null;
-  // The Location's fixtures by the player's own filter (../fixtures.js), so
-  // a GM is told of the same things a player gets a button for.
-  const fixtures = locationFixtures(fresh?.fixtures ?? []);
+  // EVERY button this place has, keys or none (db/lib/placeAffordances.js#
+  // gmAffordancesAt), split by the player's own filters (../fixtures.js) so a
+  // GM gets a button wherever a player standing there could. Each opens a
+  // preview that sends nothing (../GmFixturePreview.js).
+  const affordances = fresh?.affordances ?? [];
+  const fixtures = locationFixtures(affordances);
+  const converse = affordances.find((entry) => entry.id === "converse") ?? null;
+  const preview = useGmFixturePreview(placeKey);
 
   // A zone summary or radio net has no Location, so gets neither Room nor Travel.
   const placed = kind === "loc" || kind === "room" || kind === "conv";
@@ -166,6 +198,7 @@ export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardCh
         aria-labelledby={`chat-aside-tab-${openTab}`}
       >
         {fresh && !fresh.ok && <EmptyState>{fresh.error}</EmptyState>}
+        <FormError>{preview.error}</FormError>
 
         {/* A zone summary: the zone and its Locations, not people or stash. */}
         {openTab === "place" && fresh?.ok && kind === "zone" && (
@@ -197,11 +230,10 @@ export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardCh
                 <GmHereList people={fresh.people} onOpen={setOpen} />
               </div>
             </section>
-            {/* The player's own card, unchanged; `fixtures`/`onFixture` omitted
-                since those buttons need a body standing there, so the fixtures
-                are named in a line instead, the way the Room tab names a
-                room's. The Map button is the player's. showTitle false because
-                the block's head already says the name. */}
+            {/* The player's own card, with the Location's own buttons — the
+                noticeboard, the gates, the keyed doors, Converse — each opening
+                a preview. The Map button is the player's. showTitle false
+                because the block's head already says the name. */}
             <section className="block">
               <h3 className="bar">{fresh.place?.name ?? "Place"}</h3>
               <div className="body">
@@ -209,12 +241,13 @@ export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardCh
                   place={fresh.place}
                   zone={fresh.zone}
                   lines={fresh.lines}
+                  fixtures={fixtures}
+                  onFixture={preview.open}
+                  onConverse={converse ? () => preview.open(converse) : null}
+                  pending={Boolean(preview.opening)}
                   onOpenMap={onOpenMap}
                   showTitle={false}
                 />
-                {fixtures.length > 0 && (
-                  <p className="chat-quiet-line">On the wall: {fixtures.map((f) => f.label).join(", ")}</p>
-                )}
               </div>
             </section>
 
@@ -259,6 +292,7 @@ export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardCh
                       <p className="chat-quiet-line">opened by {room.keys.join(", ")}</p>
                     )}
                     <Things things={room.things} resources={room.resources} />
+                    <RoomButtons affordances={affordances} room={room} preview={preview} />
                   </div>
                 ))}
                 </div>
@@ -275,11 +309,7 @@ export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardCh
                 <p className="chat-quiet-line">opened by {fresh.openRoom.keys.join(", ")}</p>
               )}
               <Things things={fresh.openRoom.things} resources={fresh.openRoom.resources} />
-              {fresh.openRoom.fixtures.length > 0 && (
-                <p className="chat-quiet-line">
-                  On the wall: {fresh.openRoom.fixtures.map((f) => f.label).join(", ")}
-                </p>
-              )}
+              <RoomButtons affordances={affordances} room={fresh.openRoom} preview={preview} />
             </div>
           </section>
         )}
@@ -345,6 +375,7 @@ export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardCh
       )}
 
       {open && <DevPanelModal characterId={open} onClose={() => setOpen(null)} />}
+      {preview.node}
     </div>
   );
 }

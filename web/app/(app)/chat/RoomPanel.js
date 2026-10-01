@@ -116,6 +116,16 @@ function StashChips({ stash, showAll, onToggle, onTake }) {
   );
 }
 
+// What Search asks before it spends the Move. Exported for a GM's preview of
+// it, which shows the same question with its answer greyed out (GmFixturePreview.js).
+export function searchConfirm(roomName, hiddenLine) {
+  return {
+    title: `Search the ${roomName ?? "room"}?`,
+    message: `${hiddenLine ? `${hiddenLine} ` : ""}Searching takes ${SEARCH_MOVE_LABEL} of your Move. Anything you turn up lands on the floor, where you can take it.`,
+    confirmLabel: "Search",
+  };
+}
+
 export default function RoomPanel({ selected, affordances = [], onFixture, pending = false }) {
   const roomId = roomIdOf(selected);
   const [stash, setStash] = useState(null);
@@ -224,13 +234,7 @@ export default function RoomPanel({ selected, affordances = [], onFixture, pendi
   // The confirm repeats how many things are hidden, which the panel already
   // shows under the stash, so the price and the prize are read together.
   async function doSearch() {
-    const cost = SEARCH_MOVE_LABEL;
-    const ask = {
-      title: `Search the ${here?.name ?? "room"}?`,
-      message: `${here?.hiddenLine ? `${here.hiddenLine} ` : ""}Searching takes ${cost} of your Move. Anything you turn up lands on the floor, where you can take it.`,
-      confirmLabel: "Search",
-    };
-    if (!(await confirm(ask))) return;
+    if (!(await confirm(searchConfirm(here?.name, here?.hiddenLine)))) return;
     search.run(searchRoom, roomId, {
       onOk: (res) => {
         setSearched({ roomId, line: res.line });

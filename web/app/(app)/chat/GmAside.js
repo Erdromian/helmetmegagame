@@ -8,6 +8,7 @@ import DevPanelModal, { prefetchDevPanel } from "@/app/components/DevPanelModal"
 import TagChip from "@/app/components/TagChip";
 import PlaceCard from "./PlaceCard";
 import GmPlaceBox from "./GmPlaceBox";
+import { roomFixtures } from "./fixtures";
 import { useAsideTab } from "./asideTabStore";
 import { setPlaces } from "./feedStore";
 import { gmPlaceView } from "./actions";
@@ -232,9 +233,9 @@ export default function GmAside({ selected, gmZones }) {
               <p className="chat-quiet-line">opened by {fresh.openRoom.keys.join(", ")}</p>
             )}
             <Things things={fresh.openRoom.things} resources={fresh.openRoom.resources} />
-            {fresh.openRoom.fixtures.length > 0 && (
+            {roomFixtures(fresh.affordances, fresh.openRoom.id).length > 0 && (
               <p className="chat-quiet-line">
-                On the wall: {fresh.openRoom.fixtures.map((f) => f.label).join(", ")}
+                On the wall: {roomFixtures(fresh.affordances, fresh.openRoom.id).map((f) => f.label).join(", ")}
               </p>
             )}
           </div>

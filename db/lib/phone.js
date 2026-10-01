@@ -834,6 +834,34 @@ async function tickPhones(prisma) {
   return { rang, expired, ejected };
 }
 
+/**
+ * The phone as a GM previews it from /chat. Nobody picks it up: the line as it
+ * is — who holds the receiver, and what the line is doing — beside a keypad
+ * handset of the GM's own that only ever sits idle, so the keys can be pressed
+ * in the browser. A phone added since Start Game shows no number rather than
+ * being numbered here (ensurePhoneNumbers writes).
+ */
+async function phoneGmView(prisma, roomId) {
+  const room = roomId ? await prisma.room.findUnique({ where: { id: roomId }, select: PHONE_ROOM }) : null;
+  if (!room || !room.phone || room.retiredAt) return fail(PHONE_TEXT.noPhone);
+  const [call, holder] = await Promise.all([
+    callInRoom(prisma, room.id),
+    room.phoneHolderId
+      ? prisma.character.findUnique({ where: { id: room.phoneHolderId }, select: { name: true } })
+      : null,
+  ]);
+  const live = handsetFrame(room, call);
+  return {
+    ok: true,
+    mode: "holding",
+    phone: room.phone,
+    payphone: Boolean(room.payphone),
+    holderName: holder?.name ?? null,
+    lineState: live.state,
+    handset: { ...live, state: "idle", paidUntil: null, needsCoin: false, idleEjectAt: null },
+  };
+}
+
 module.exports = {
   LIVE,
   PHONE_ROOM,
@@ -841,6 +869,7 @@ module.exports = {
   callInRoom,
   phoneActor,
   phoneView,
+  phoneGmView,
   handsetView,
   answerPhone,
   insertObol,

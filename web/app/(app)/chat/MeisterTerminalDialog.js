@@ -11,6 +11,7 @@ import Pager from "@/app/components/Pager";
 import { FilterBar, TableScroll, SortHeader, useTableState } from "@/app/components/DataTable";
 import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
+import { usePreview, PreviewNote } from "@/app/components/previewContext";
 import { MEISTER_TERMINAL_TEXT as T, fillMeisterText, signedObols } from "@lifeweb/db/lib/meisterTerminalText";
 import {
   meisterTerminalView,
@@ -44,12 +45,18 @@ function wageLabel(wage) {
 
 export default function MeisterTerminalDialog({ entry, onClose, onDone }) {
   const roomId = entry.roomId;
-  const [state, setState] = useState(null);
+  // A GM's preview opens on the books it was handed. Every setter below is
+  // greyed out by folding the preview into `pending`, which is what each of
+  // them is already disabled by; the tabs, the search and the drafts stay live.
+  const preview = usePreview();
+  const [state, setState] = useState(() => preview?.snapshot ?? null);
   const [tab, setTab] = useState("accounts");
   const [taxDraft, setTaxDraft] = useState(null);
-  const { run, pending, error, setError } = useActionRunner({ refuseSfx: "refuse-money" });
+  const { run, pending: running, error, setError } = useActionRunner({ refuseSfx: "refuse-money" });
+  const pending = running || Boolean(preview);
 
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     meisterTerminalView({ roomId })
       .then((res) => {
@@ -61,7 +68,7 @@ export default function MeisterTerminalDialog({ entry, onClose, onDone }) {
     return () => {
       cancelled = true;
     };
-  }, [roomId]);
+  }, [roomId, preview]);
 
   const reread = () =>
     meisterTerminalView({ roomId })
@@ -101,6 +108,7 @@ export default function MeisterTerminalDialog({ entry, onClose, onDone }) {
 
   return (
     <Modal open title={T.title} onClose={onClose} width="widest">
+      <PreviewNote />
       <dl className="depot-totals">
         <div className={state.short ? "text-danger" : undefined}>
           <dt>{T.totalVault}</dt>
@@ -636,11 +644,17 @@ const LEDGER_FILTERS = [
   { key: "class", label: T.colClass, value: (r) => classLabel(r.accountClass) },
 ];
 
+// A GM's preview reads the books once, when it opens. The ledger is read per
+// account as one is picked, which would send the pick, so it is not read there.
+const PREVIEW_LEDGER = { ok: false, error: "The ledger isn't read in a GM preview." };
+
 function LedgerTab({ roomId, accounts }) {
+  const preview = usePreview();
   const [accountId, setAccountId] = useState("");
-  const [ledger, setLedger] = useState(null);
+  const [ledger, setLedger] = useState(() => (preview ? PREVIEW_LEDGER : null));
 
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     meisterTerminalLedger({ roomId, accountId: accountId || null })
       .then((res) => {
@@ -652,7 +666,7 @@ function LedgerTab({ roomId, accounts }) {
     return () => {
       cancelled = true;
     };
-  }, [roomId, accountId]);
+  }, [roomId, accountId, preview]);
 
   const table = useTableState({
     rows: ledger?.ok ? ledger.rows : [],

@@ -321,6 +321,33 @@ async function blackMarketOrder(prisma, discordUserId, { items, turn = null } = 
   };
 }
 
+/**
+ * The terminal as a GM previews it from /chat: the shelf and the room's
+ * credit, with nobody's purse behind it. A plain read, and it takes no
+ * character — a GM has no ring to unlock it with.
+ */
+async function blackMarketGmView(prisma) {
+  const [room, shelf] = await Promise.all([
+    prisma.room.findUnique({ where: { slug: BLACK_MARKET_ROOM_SLUG }, select: { id: true, blackMarketObols: true } }),
+    blackMarketShelf(prisma),
+  ]);
+  if (!room) return fail(T.noTerminal);
+  return {
+    ok: true,
+    roomId: room.id,
+    credit: room.blackMarketObols ?? 0,
+    carrying: 0,
+    wares: shelf.map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+      description: tag.description ?? "",
+      price: tag.depotPrice,
+      stackable: Boolean(tag.stackable),
+      owned: false,
+    })),
+  };
+}
+
 module.exports = {
   BLACK_MARKET_ROOM_SLUG,
   BLACK_MARKET_TOKEN,
@@ -330,6 +357,7 @@ module.exports = {
   orderSummary,
   blackMarketShelf,
   blackMarketState,
+  blackMarketGmView,
   insertObols,
   blackMarketOrder,
 };

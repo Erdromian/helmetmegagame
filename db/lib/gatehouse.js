@@ -267,8 +267,14 @@ async function processView(prisma, discordUserId) {
   const actor = await clerkActor(prisma, discordUserId);
   if (!actor.ok) return actor;
   const { character } = actor;
+  const lists = await processLists(prisma, (ids) => seenByIdMany(prisma, character.id, ids));
+  return { ok: true, ...lists, yours: handable(character.tags) };
+}
+
+// The requests, both ways, with each asker named by `namesOf(ids)`.
+async function processLists(prisma, namesOf) {
   const rows = await pendingPassages(prisma);
-  const names = await seenByIdMany(prisma, character.id, rows.map((r) => r.characterId));
+  const names = await namesOf(rows.map((r) => r.characterId));
   const shaped = rows.map((row, i) => ({
     id: row.id,
     direction: row.direction,
@@ -278,11 +284,31 @@ async function processView(prisma, discordUserId) {
     createdAt: row.createdAt.toISOString(),
   }));
   return {
-    ok: true,
     into: shaped.filter((r) => r.direction === "IN"),
     outOf: shaped.filter((r) => r.direction === "OUT"),
-    yours: handable(character.tags),
   };
+}
+
+// Real names, for a GM's read: nobody is a stranger to the host, the GM
+// column's posture everywhere else. Same order as `ids`; a missing id reads
+// as "somebody", the history's own word for a resolver it cannot name.
+async function realNames(prisma, ids) {
+  const wanted = [...new Set(ids.filter(Boolean))];
+  const rows = wanted.length
+    ? await prisma.character.findMany({ where: { id: { in: wanted } }, select: { id: true, name: true } })
+    : [];
+  const byId = new Map(rows.map((r) => [r.id, r.name]));
+  return ids.map((id) => byId.get(id) ?? "somebody");
+}
+
+/**
+ * Grant Passage as a GM previews it from /chat: both lists and the history,
+ * read once, in real names. No clerk, so nothing of theirs to hand over.
+ */
+async function processGmView(prisma) {
+  const namesOf = (ids) => realNames(prisma, ids);
+  const [lists, history] = await Promise.all([processLists(prisma, namesOf), historyRows(prisma, namesOf)]);
+  return { ok: true, ...lists, yours: [], history };
 }
 
 // One stack from one hand to another, inside the caller's transaction. ONE
@@ -577,29 +603,31 @@ async function passageHistory(prisma, discordUserId) {
   const actor = await clerkActor(prisma, discordUserId);
   if (!actor.ok) return actor;
   const { character } = actor;
+  return { ok: true, rows: await historyRows(prisma, (ids) => seenByIdMany(prisma, character.id, ids)) };
+}
+
+// The history's rows, newest first, each name read through `namesOf(ids)`.
+async function historyRows(prisma, namesOf) {
   const rows = await prisma.gatePassage.findMany({
     where: { status: { not: "PENDING" } },
     orderBy: { resolvedAt: "desc" },
     take: 100,
   });
   const ids = rows.flatMap((r) => [r.characterId, r.resolvedById]);
-  const names = await seenByIdMany(prisma, character.id, ids);
-  return {
-    ok: true,
-    rows: rows.map((row, i) => ({
-      id: row.id,
-      direction: row.direction,
-      asked: row.direction === "IN" ? T.historyIn : T.historyOut,
-      who: names[i * 2],
-      text: row.text,
-      outcome: T.outcome[row.status] ?? row.status,
-      status: row.status,
-      by: T.historyBy(row.resolvedById ? names[i * 2 + 1] : (row.resolvedByName ?? "somebody"), row.resolvedByRing),
-      kept: row.moved?.kept ?? [],
-      given: row.moved?.given ?? [],
-      resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
-    })),
-  };
+  const names = await namesOf(ids);
+  return rows.map((row, i) => ({
+    id: row.id,
+    direction: row.direction,
+    asked: row.direction === "IN" ? T.historyIn : T.historyOut,
+    who: names[i * 2],
+    text: row.text,
+    outcome: T.outcome[row.status] ?? row.status,
+    status: row.status,
+    by: T.historyBy(row.resolvedById ? names[i * 2 + 1] : (row.resolvedByName ?? "somebody"), row.resolvedByRing),
+    kept: row.moved?.kept ?? [],
+    given: row.moved?.given ?? [],
+    resolvedAt: row.resolvedAt ? row.resolvedAt.toISOString() : null,
+  }));
 }
 
 // ─── Documentation ────────────────────────────────────────────────────────
@@ -637,13 +665,22 @@ async function documentsView(prisma, discordUserId) {
   const actor = await gateActor(prisma, discordUserId, GATE_CONTROLS_ROOM_SLUG);
   if (!actor.ok) return actor;
   const { character } = actor;
+  return { ok: true, ...(await documentsLists(prisma, (ids) => seenByIdMany(prisma, character.id, ids))) };
+}
 
+/** The Documents terminal as a GM previews it from /chat: a read, in real names. */
+async function documentsGmView(prisma) {
+  return { ok: true, ...(await documentsLists(prisma, (ids) => realNames(prisma, ids))) };
+}
+
+// New submissions, each named through `namesOf(ids)`, and the register.
+async function documentsLists(prisma, namesOf) {
   const pendingRows = await prisma.gateDocumentation.findMany({
     where: { status: "PENDING", character: { status: "ALIVE" } },
     orderBy: { createdAt: "asc" },
     select: { id: true, characterId: true, createdAt: true },
   });
-  const pendingNames = await seenByIdMany(prisma, character.id, pendingRows.map((r) => r.characterId));
+  const pendingNames = await namesOf(pendingRows.map((r) => r.characterId));
 
   const [rings, documented, roles] = await Promise.all([
     prisma.tag.findMany({
@@ -696,7 +733,6 @@ async function documentsView(prisma, discordUserId) {
   register.sort((a, b) => a.name.localeCompare(b.name));
 
   return {
-    ok: true,
     pending: pendingRows.map((row, i) => ({ id: row.id, who: pendingNames[i], createdAt: row.createdAt.toISOString() }),
     ),
     register,
@@ -849,12 +885,14 @@ module.exports = {
   passageView,
   requestPassage,
   processView,
+  processGmView,
   approvePassage,
   denyPassage,
   pourMagma,
   passageHistory,
   submitDocumentation,
   documentsView,
+  documentsGmView,
   approveDocumentation,
   denyDocumentation,
   finishGatehouse,

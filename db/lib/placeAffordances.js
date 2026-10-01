@@ -495,6 +495,19 @@ function gateLabel({ isOpen, farName, control = null }) {
   return control ? `${verb} ${control}` : `${verb} the way to ${farName}`;
 }
 
+// What a room's buttons are decided from: the slug for most, and the quest,
+// the phone and the vending machine for the ones resolved off a column.
+const AFFORDANCE_ROOM_SELECT = {
+  id: true,
+  name: true,
+  slug: true,
+  kind: true,
+  accessTagSlugs: true,
+  questId: true,
+  phone: true,
+  vendingMachine: true,
+};
+
 // EVERYTHING this character can do where they are standing, one ordered
 // list; Chat's place panel is a render of this and nothing else. Each entry
 // is { id, label, tone, kind, roomId?, linkId?, roomName? } — `kind` is
@@ -509,18 +522,7 @@ async function affordancesFor(prisma, character) {
       select: { id: true, name: true, slug: true, attributes: true },
     }),
     // Every room that opens onto here, each as seen from this side.
-    loadRoomsAt(prisma, character.locationId, {
-      select: {
-        id: true,
-        name: true,
-        slug: true,
-        kind: true,
-        accessTagSlugs: true,
-        questId: true,
-        phone: true,
-        vendingMachine: true,
-      },
-    }),
+    loadRoomsAt(prisma, character.locationId, { select: AFFORDANCE_ROOM_SELECT }),
     roomAccessKeys(prisma, character.id),
     linksFor(prisma, character.locationId),
     ensureNuke(prisma),
@@ -528,10 +530,48 @@ async function affordancesFor(prisma, character) {
   if (!location) return [];
   const rooms = markNukeRoom(rawRooms, bomb?.roomId ?? null);
 
-  const out = locationAffordances(location, { web: true }).map((entry) => ({ ...entry, kind: "place" }));
-
   // A room's buttons, for every room this character can actually get into — a locked door offers nothing.
   const open = accessibleRooms(rooms, keys.heldSlugs, keys.guestRoomIds, keys.allowedRoomIds);
+  // A keyed door is not a gate: no winch, no anchor button. Only the key holder gets it.
+  const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
+  return buildAffordances(prisma, {
+    location,
+    open,
+    links,
+    keyedAllowed: (link) => tagSlugs.includes(link.requiredTagSlug),
+  });
+}
+
+// What a GM is shown at one Location: the same list, with nothing locked. Every
+// room's fixtures whatever key its door asks for, every gate whether or not
+// anybody could reach its winch, every keyed door whether or not the GM holds
+// the tag. The GM column draws these as buttons that open a preview and send
+// nothing (web/app/(app)/chat/GmFixturePreview.js).
+//
+// Read-only, all the way down: the bomb's room is READ off GameState rather
+// than through ensureNuke, which rolls one when there is none.
+async function gmAffordancesAt(prisma, locationId) {
+  if (!locationId) return [];
+  const [location, rawRooms, links, state] = await Promise.all([
+    prisma.location.findUnique({
+      where: { id: locationId },
+      select: { id: true, name: true, slug: true, attributes: true },
+    }),
+    loadRoomsAt(prisma, locationId, { select: AFFORDANCE_ROOM_SELECT }),
+    linksFor(prisma, locationId),
+    prisma.gameState.findUnique({ where: { id: 1 }, select: { nukeRoomId: true } }),
+  ]);
+  if (!location) return [];
+  const rooms = markNukeRoom(rawRooms, state?.nukeRoomId ?? null);
+  return buildAffordances(prisma, { location, open: rooms, links, keyedAllowed: () => true });
+}
+
+// The list itself, from what the two callers above have loaded. `open` is the
+// rooms whose buttons are drawn — and whose winches and levers count — and
+// `keyedAllowed` says which keyed doors are offered.
+async function buildAffordances(prisma, { location, open, links, keyedAllowed }) {
+  const out = locationAffordances(location, { web: true }).map((entry) => ({ ...entry, kind: "place" }));
+
   for (const room of open) {
     for (const entry of roomAffordances(room, location, { web: true })) {
       out.push({ ...entry, kind: "room", roomName: room.name });
@@ -541,14 +581,13 @@ async function affordancesFor(prisma, character) {
   // Reaching the room IS the permission — anyone its `access:` list lets in may work the gate.
   const gateRoom = open.find((room) => !room.sideId && GATE_CONTROL_ROOMS.has(room.slug)) ?? null;
   const control = gateRoom ? gateControlIn(gateRoom.slug) : null;
-  const tagSlugs = (character.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean);
   for (const link of links ?? []) {
     if (!gateOperable(link)) continue;
     // The portcullis: a button on this Location's own card, for everybody. The
     // ring is asked for when it is pressed (db/lib/gates.js).
     const anchor = anchorGateFor(link);
     if (anchor) {
-      const farName = endpoints(link, character.locationId).far.name;
+      const farName = endpoints(link, location.id).far.name;
       out.push({
         id: "gate",
         kind: "gate",
@@ -563,7 +602,7 @@ async function affordancesFor(prisma, character) {
     }
     if (workedElsewhere(link)) continue;
     if (!gateRoom) continue;
-    const farName = endpoints(link, character.locationId).far.name;
+    const farName = endpoints(link, location.id).far.name;
     out.push({
       id: "gate",
       kind: "gate",
@@ -596,12 +635,12 @@ async function affordancesFor(prisma, character) {
     });
   }
 
-  // A keyed door is not a gate: no winch, no anchor button. Only the key
-  // holder gets it, and already-held ways are listed rather than offering a click that refuses.
+  // A keyed door is not a gate: no winch, no anchor button. Only those
+  // `keyedAllowed` lets in get it, and already-held ways are listed rather than offering a click that refuses.
   for (const link of links ?? []) {
     if (!link.keyed) continue;
-    if (!tagSlugs.includes(link.requiredTagSlug)) continue;
-    const farName = endpoints(link, character.locationId).far.name;
+    if (!keyedAllowed(link)) continue;
+    const farName = endpoints(link, location.id).far.name;
     out.push({
       id: "keyed",
       kind: "keyed",
@@ -663,4 +702,5 @@ module.exports = {
   gateLabel,
   remoteLink,
   affordancesFor,
+  gmAffordancesAt,
 };

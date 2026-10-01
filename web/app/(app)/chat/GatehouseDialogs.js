@@ -8,6 +8,7 @@ import { TableScroll } from "@/app/components/DataTable";
 import StackPicker, { pickedLines } from "@/app/components/StackRow";
 import useActionRunner from "@/app/components/useActionRunner";
 import { useConfirm } from "@/app/components/ConfirmProvider";
+import { usePreview, PreviewNote } from "@/app/components/previewContext";
 import {
   GATEHOUSE_TEXT as T,
   REQUEST_TEXT_MAX,
@@ -34,10 +35,15 @@ import {
 // trusted — the server re-reads who is standing where on every press.
 
 // Loads a view once, and again on demand. `load` must be a stable server action.
-function useView(load, arg) {
-  const [state, setState] = useState(null);
+// Inside a GM's preview (@/app/components/previewContext.js) nothing is loaded:
+// the view is `fromSnapshot` of the snapshot the preview opened with, and a
+// reload does nothing.
+function useView(load, arg, fromSnapshot = (snapshot) => snapshot) {
+  const preview = usePreview();
+  const [state, setState] = useState(() => (preview ? fromSnapshot(preview.snapshot) : null));
   const key = JSON.stringify(arg ?? null);
   const reload = useCallback(() => {
+    if (preview) return;
     load(arg)
       .then((res) =>
         setState(res ?? { ok: false, error: "Something went wrong." }),
@@ -45,8 +51,9 @@ function useView(load, arg) {
       .catch(() => setState({ ok: false, error: "Something went wrong." }));
     // `key` stands in for `arg`, which is a fresh object every render.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [load, key]);
+  }, [load, key, preview]);
   useEffect(() => {
+    if (preview) return undefined;
     let cancelled = false;
     load(arg)
       .then((res) => {
@@ -60,7 +67,7 @@ function useView(load, arg) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [load, key]);
+  }, [load, key, preview]);
   return [state, reload];
 }
 
@@ -95,6 +102,7 @@ export function PassageDialog({ entry, onClose, onDone }) {
   const [text, setText] = useState(null);
   const [picks, setPicks] = useState(null);
   const { run, pending, error } = useActionRunner();
+  const locked = Boolean(usePreview());
 
   if (!state) return <Loading title={T.requestTitle} onClose={onClose} />;
   if (!state.ok)
@@ -118,6 +126,7 @@ export function PassageDialog({ entry, onClose, onDone }) {
   return (
     <Modal open title={T.requestTitle} onClose={onClose}>
       <div className="gate-dialog">
+        <PreviewNote />
         <p className="text-sm text-muted">{state.intro}</p>
         {state.pending && <p className="text-sm">{T.requestWaiting}</p>}
         <label className="field">
@@ -145,7 +154,7 @@ export function PassageDialog({ entry, onClose, onDone }) {
         <button
           type="button"
           className="btn"
-          disabled={pending || !draft.trim()}
+          disabled={pending || !draft.trim() || locked}
           onClick={() =>
             run(
               gateRequestPassage,
@@ -217,6 +226,7 @@ function ApproveScreen({ request, yours, onBack, onApproved }) {
   const [take, setTake] = useState({});
   const [give, setGive] = useState({});
   const { run, pending, error } = useActionRunner();
+  const locked = Boolean(usePreview());
   const offerRows = request.offered.map((l) => ({
     id: l.tagId,
     name: l.name,
@@ -272,7 +282,7 @@ function ApproveScreen({ request, yours, onBack, onApproved }) {
         <button
           type="button"
           className="btn"
-          disabled={pending}
+          disabled={pending || locked}
           onClick={() =>
             run(
               gateApprove,
@@ -293,7 +303,8 @@ function ApproveScreen({ request, yours, onBack, onApproved }) {
 }
 
 function HistoryScreen({ onBack }) {
-  const [state] = useView(gateHistory, null);
+  // A GM's preview carries the history in its snapshot, read with the list.
+  const [state] = useView(gateHistory, null, (snapshot) => ({ ok: true, rows: snapshot?.history ?? [] }));
   return (
     <>
       {!state && <p className="text-sm text-muted">The screen flickers on…</p>}
@@ -354,6 +365,7 @@ export function ProcessRequestsDialog({ onClose, onDone }) {
   const [screen, setScreen] = useState("list");
   const { run, pending, error } = useActionRunner();
   const confirm = useConfirm();
+  const locked = Boolean(usePreview());
 
   if (!state) return <Loading title={T.processTitle} onClose={onClose} />;
   if (!state.ok)
@@ -391,6 +403,7 @@ export function ProcessRequestsDialog({ onClose, onDone }) {
   }
 
   async function magma() {
+    if (locked) return;
     const ok = await confirm({
       title: T.magma,
       message: T.magmaConfirm,
@@ -417,6 +430,7 @@ export function ProcessRequestsDialog({ onClose, onDone }) {
         </button>
       }
     >
+      <PreviewNote />
       <div className="gate-list">
         <RequestGroup
           title={T.groupIn}
@@ -436,7 +450,7 @@ export function ProcessRequestsDialog({ onClose, onDone }) {
         <button
           type="button"
           className="btn-danger mr-auto"
-          disabled={pending}
+          disabled={pending || locked}
           onClick={magma}
         >
           {T.magma}
@@ -444,7 +458,7 @@ export function ProcessRequestsDialog({ onClose, onDone }) {
         <button
           type="button"
           className="btn-secondary"
-          disabled={pending || !request}
+          disabled={pending || !request || locked}
           onClick={() =>
             run(gateDeny, { passageId: request?.id }, { onOk: done })
           }
@@ -470,6 +484,7 @@ function SubmissionRow({ row, onDone }) {
   const [name, setName] = useState("");
   const [occupation, setOccupation] = useState("");
   const { run, pending, error } = useActionRunner();
+  const locked = Boolean(usePreview());
   return (
     <div className="gate-request">
       <span className="gate-request-body">
@@ -497,7 +512,7 @@ function SubmissionRow({ row, onDone }) {
           <button
             type="button"
             className="btn-secondary"
-            disabled={pending}
+            disabled={pending || locked}
             onClick={() =>
               run(gateDenyDocuments, { submissionId: row.id }, { onOk: onDone })
             }
@@ -507,7 +522,7 @@ function SubmissionRow({ row, onDone }) {
           <button
             type="button"
             className="btn"
-            disabled={pending || !name.trim() || !occupation.trim()}
+            disabled={pending || !name.trim() || !occupation.trim() || locked}
             onClick={() =>
               run(
                 gateApproveDocuments,
@@ -539,6 +554,7 @@ export function DocumentsDialog({ onClose, onDone }) {
   return (
     <Modal open title={T.createTitle} onClose={onClose} width="wide">
       <div className="gate-dialog">
+        <PreviewNote />
         <section className="gate-group">
           <p className="group-label">{T.pendingTitle}</p>
           {state.pending.length === 0 ? (
