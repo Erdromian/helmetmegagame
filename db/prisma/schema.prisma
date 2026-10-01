@@ -1905,6 +1905,7 @@ model Room {
   guests        RoomGuest[]
   auditLogs     AuditLog[]
   searches      RoomSearchAttempt[]
+  cavingFinds   CavingRoll[]
 
   // The other Locations this room opens onto — a window, a counter. Empty for
   // nearly every room. See RoomSide and docs/systemdocs/MAP.md §2d.
@@ -6380,6 +6381,15 @@ model CavingRoll {
   lootTier  String?
   lootTagId String?
   lootTag   Tag?    @relation(fields: [lootTagId], references: [id])
+
+  // A non-stackable tag the caver already held (CAVING.md §2g). A tradeable
+  // one is left in a room at the Location they can get into, and lootRoomId
+  // says which; anything else changed nothing, and lootRoomId stays null.
+  // The Undo reads both: out of the room, or nothing to take back — never
+  // the caver's own copy. SET NULL if the room is ever hard-deleted.
+  lootAlreadyHeld Boolean @default(false)
+  lootRoomId      String?
+  lootRoom        Room?   @relation(fields: [lootRoomId], references: [id], onDelete: SetNull)
 
   // Set when a GM takes the find back off the sheet. The roll itself stands —
   // only the loot comes off — and this is what stops a second click dropping

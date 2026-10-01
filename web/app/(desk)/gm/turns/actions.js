@@ -41,7 +41,7 @@ import {
 } from "@lifeweb/db/lib/desireReview";
 import { getGmProfiles } from "@/lib/gmProfiles";
 import { turnAt } from "@/lib/auditQuery";
-import { dropCharacterTag } from "@/lib/tagEffects";
+import { dropCharacterTag, dropRoomTag } from "@/lib/tagEffects";
 import { UserError, guarded } from "@/lib/actionResult";
 import { muteDurationLabel, oocMuteFor } from "@lifeweb/db/lib/ooc";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
@@ -1948,15 +1948,19 @@ export async function rejectMove(input) {
 // Taking a Caving find back off the sheet. The roll itself stands — a GM is
 // undoing the loot, not the die. lootUndoneAt is the claim: the update only
 // matches while it is still null, so two clicks drop one tag (CAVING.md §4).
+// A find left in a room (lootRoomId) comes back out of that room, never off
+// the caver's own copy; if somebody has already picked it up, it refuses. A
+// doubled find that went nowhere (lootAlreadyHeld, no room) has nothing to undo.
 async function undoCavingFindImpl({ rollId }) {
   const session = await requireGm();
   const roll = await prisma.cavingRoll.findUnique({
     where: { id: rollId ?? "" },
-    include: { lootTag: { select: { name: true } } },
+    include: { lootTag: { select: { name: true } }, lootRoom: { select: { name: true } } },
   });
   if (!roll) throw new UserError("That roll is gone.");
   if (!roll.lootTagId) throw new UserError("That roll found nothing.");
   if (roll.lootUndoneAt) throw new UserError("That find has already been taken back.");
+  if (roll.lootAlreadyHeld && !roll.lootRoomId) throw new UserError("They already had one, so nothing was added.");
 
   await prisma.$transaction(async (tx) => {
     const claimed = await tx.cavingRoll.updateMany({
@@ -1964,14 +1968,26 @@ async function undoCavingFindImpl({ rollId }) {
       data: { lootUndoneAt: new Date() },
     });
     if (claimed.count === 0) throw new UserError("That find has already been taken back.");
-    await dropCharacterTag(tx, roll.characterId, roll.lootTagId, 1);
+    if (roll.lootRoomId) {
+      const taken = await dropRoomTag(tx, roll.lootRoomId, roll.lootTagId, 1);
+      if (!taken.ok) {
+        throw new UserError(`It isn't in ${roll.lootRoom?.name ?? "that room"} any more — somebody has picked it up.`);
+      }
+    } else {
+      await dropCharacterTag(tx, roll.characterId, roll.lootTagId, 1);
+    }
     await tx.auditLog.create({
       data: {
         actorDiscordUserId: session.discordUserId,
         actionType: "caving_loot_undone",
         targetCharacterId: roll.characterId,
         turnId: roll.turnId,
-        details: { rollId: roll.id, tagId: roll.lootTagId, tagName: roll.lootTag?.name ?? null },
+        details: {
+          rollId: roll.id,
+          tagId: roll.lootTagId,
+          tagName: roll.lootTag?.name ?? null,
+          ...(roll.lootRoomId ? { roomId: roll.lootRoomId, roomName: roll.lootRoom?.name ?? null } : {}),
+        },
       },
     });
   });

@@ -143,7 +143,9 @@ export default function CavingDesk({
     setError(null);
     const ok = await confirm({
       title: `Take back ${roll.lootTagName ?? "this find"}?`,
-      message: `${roll.characterName} keeps the roll — only the loot comes off the sheet.`,
+      message: roll.lootRoomName
+        ? `${roll.characterName} keeps the roll — only the loot comes out of ${roll.lootRoomName}.`
+        : `${roll.characterName} keeps the roll — only the loot comes off the sheet.`,
       confirmLabel: "Take it back",
       cancelLabel: "Leave it",
     });
@@ -216,12 +218,18 @@ export default function CavingDesk({
           <p className="text-sm">
             Rolled a {roll.die} and found <strong>{roll.lootTagName ?? "—"}</strong> ({roll.lootTier ?? "—"}).{" "}
             {roll.lootUndoneAt
-              ? "That find was taken back — the tag is off the sheet."
-              : roll.lootTagId
-                ? "Already on their sheet."
-                : "Already granted, but the tag is no longer on record — take it off by hand from the Dev Panel."}
+              ? roll.lootRoomName
+                ? `That find was taken back out of ${roll.lootRoomName}.`
+                : "That find was taken back — the tag is off the sheet."
+              : roll.lootRoomName
+                ? `They already had one, so it was left in ${roll.lootRoomName}.`
+                : roll.lootAlreadyHeld
+                  ? "They already had one, so nothing was added."
+                  : roll.lootTagId
+                    ? "Already on their sheet."
+                    : "Already granted, but the tag is no longer on record — take it off by hand from the Dev Panel."}
           </p>
-          {roll.lootTagId && !roll.lootUndoneAt && (
+          {roll.lootTagId && !roll.lootUndoneAt && (!roll.lootAlreadyHeld || roll.lootRoomName) && (
             <button type="button" className="btn-quiet" onClick={undoFind} disabled={pending}>
               {pending ? "Working…" : "Undo this find"}
             </button>
