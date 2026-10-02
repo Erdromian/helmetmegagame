@@ -96,6 +96,7 @@ function thanatiLines(subjectTags = []) {
 }
 
 // Built BEFORE normal field logic. Hood hides identity not inventory; no appearance/name/Desire regardless of viewer gates.
+// The hood covers the face too, so a FACE tag (Disfigured, a missing eye) drops here — `false` hides both NAMED and FACE.
 function concealedReadout(identity, subject) {
   const seen = (subject.tags ?? []).filter((ct) => seenByBystander(ct.tag, ct, false));
   const isHealth = (ct) => ct.tag.category === HEALTH_CATEGORY;
@@ -162,6 +163,7 @@ function examineReadout({
   if (identity.concealed) return concealedReadout(identity, subject);
 
   // A Disguise Kit is a false name over an unhidden face — the NAMED tag comes off here too, or a wanted man could wear it and still show as Wanted.
+  // The face is still uncovered, so a FACE tag (Disfigured, a missing eye) stays; only a hood takes those, in concealedReadout above.
   const identityVisible = !identity.forced;
 
   const { canSeeDesire } = inspectVision(viewerTags);
@@ -192,7 +194,7 @@ function examineReadout({
       // the catalog hides ⬢. It stays because it is what stops a reader seeing
       // a "Resources" chip at all the day somebody makes the stack visible
       // again — what somebody is holding is nobody else's to count.
-      ...medicallyVisibleTags(subject.tags, satisfied, identityVisible)
+      ...medicallyVisibleTags(subject.tags, satisfied, identityVisible, true)
         .filter((entry) => !isResourcesRow(entry.characterTag))
         .map((entry) => describeTag(entry, openTurnNumber)),
       ...(viewerIsThanati ? thanatiLines(subject.tags) : []),

@@ -865,7 +865,7 @@ has since been deleted outright along with the channel it opened.
   public by omission.
 - `visible` (`Tag.inspectVisibility`) — whether another player who 🔍-reacts
   to this character's proxied messages sees the tag
-  (`bot/src/events/messageReactionAdd.js`). **Four states**, and the YAML
+  (`bot/src/events/messageReactionAdd.js`). **Five states**, and the YAML
   says them in words:
 
   | `visible:` | Column | Means |
@@ -874,6 +874,7 @@ has since been deleted outright along with the channel it opened.
   | `true` | `ALWAYS` | Seen whether it is equipped or not. |
   | `worn` | `WORN` | Seen **only while `CharacterTag.equipped`**. |
   | `named` | `NAMED` | Seen **only while the subject is under their own name**. |
+  | `face` | `FACE` | Seen **only while the subject's face shows**. |
 
   **THE RULE, and it is catalog-wide.** `visible: true` means *a stranger
   looking you over would notice*: your body, your face, your gait; your
@@ -923,6 +924,29 @@ has since been deleted outright along with the channel it opened.
   Knighted is `true` and stays `true` for now — whether a hooded knight should
   still read as Knighted is Bascinet's call, and it is now a one-word change.
 
+  `face` is the thing-on-your-face case: Disfigured, Ugly, Pretty, Beautiful,
+  Otherworldly Beauty, a missing eye or a glass one, a broken, wired or locked
+  jaw, blood at the mouth, and one antagonist tell. Under `true` a hooded
+  stranger came back as "an unknown young woman" who was Disfigured, which
+  hands back the face the hood was hiding. So a `face` tag drops from the read
+  while the subject is **concealed** — a hood, a mask, a closed helm — and
+  behaves exactly like `true` the rest of the time.
+
+  It is **not** `named`. A Disguise Kit is a false name over a face nobody
+  covered, so a `face` tag stays on the read under one, and under Apex Form,
+  while `named` goes. In code that is the fourth argument to
+  `seenByBystander()`, `faceVisible`. It defaults to `identityVisible`, so every
+  caller that says "this subject is hooded" by passing `false` hides the face
+  too, without having to know `face` exists. Only the forced-name branch of
+  `db/lib/examine.js` passes the two apart. The doctor's eye still works: a
+  medic who could treat a Broken Jaw as routine sees it under the mask (§5c).
+  `db/test/faceVisibility.test.js` holds it down, and checks that the catalog's
+  `face` list matches the migration that moved the live rows
+  (`20261212000100_face_tags_hidden_under_hood`).
+
+  A `face` tag is never gear. A face piece you put on is `worn`, like any other
+  hat or mask.
+
   Read it through `seenByBystander()` (`db/lib/medicalVision.js`), never by
   comparing the enum at a call site: both of the bot's embeds route through
   that one predicate so they can't drift on what "visible" means. The column
@@ -932,14 +956,17 @@ has since been deleted outright along with the channel it opened.
   the day the migration ran. Under a new name a missed read site gets
   `undefined` and the tag stays hidden. A vision gate should fail closed.
 
-  **One other predicate reads this column, and it is not a wrapper around that
+  **Two other predicates read this column, and neither is a wrapper around that
   one.** `hideableFromSearch()` (same file) answers "could this be palmed before
-  a Search?" — `HIDDEN` or `WORN`, never `ALWAYS` ([`SEARCH.md`](SEARCH.md) §2).
+  a Search?" — `HIDDEN` or `WORN`, never `ALWAYS`, `NAMED` or `FACE`
+  ([`SEARCH.md`](SEARCH.md) §2).
   It has to be separate because an equipped `WORN` dagger **is** seen by a
   bystander and is still hideable from a search, so the two questions genuinely
   differ. Note that it fails closed in the OPPOSITE direction: it is an
   allowlist, so an unknown value comes out searchable-but-unhideable rather than
-  concealable. A new `TagVisibility` value has to visit both functions.
+  concealable. `onShowWhateverCarried()` answers the Search readout's "in plain
+  sight" line — `ALWAYS`, plus `FACE` while the face shows. A new
+  `TagVisibility` value has to visit all three functions.
 
   Note it is a property of the tag being *seen*. The tag that widens what an
   inspect shows is read off the **inspector** instead: Seductive reveals the
@@ -1932,9 +1959,11 @@ detail sheet both show the chain as a **Treated** row beside **Becomes**.
 a bystander tell? That is the catalog-wide rule in §5, applied here — the
 addition is the doctor's eye below. A gaping wound, a missing arm, Paralyzed and Severe Burns
 are obvious. Appendicitis, cracked ribs, parasites, chronic pain and Shell
-Shocked are not, and are `visible: false`. Only `true` or `false` here —
+Shocked are not, and are `visible: false`. Mostly `true` or `false` here —
 nobody wears appendicitis, so no Health tag is `equippable` and `worn` never
-applies to the category.
+applies to the category. The exception is `face`, for a wound that is ON the
+face (Disfigured, Missing Eye, Broken Jaw, Wired Jaw, Lockjaw): a hood hides it
+from a bystander, and the doctor's eye below still finds it.
 
 That would make the internal cases invisible to the one person who should
 notice them, so there is a second rule: **if you could treat it as routine,
@@ -2441,8 +2470,8 @@ robe in somebody's bag showed on a look.)
 A concealed character's 🔍 embed applies the same gate through the same
 predicate, so a hidden cuirass stays hidden even while worn, and a stowed
 dagger stays hidden even from someone standing next to it. What conceal takes
-away is the *identity* — name, appearance, Desire, Resources — not the
-inventory.
+away is the *identity* — name, appearance, Desire, Resources, and whatever is
+on the face (`visible: face`, §5) — not the inventory.
 
 ## `melee` / `ballistic`: what a piece of gear turns aside
 

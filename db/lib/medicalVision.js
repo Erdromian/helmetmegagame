@@ -40,22 +40,40 @@ function satisfiedSkillIds(heldTagIds, ancestry) {
 const HEALTH_CATEGORY = "Health";
 
 // Can a bystander see this tag on this character at all? The plain vision
-// gate, before medical reasoning layers exceptions on top. Four states
-// (Tag.inspectVisibility): never, always, only while equipped, or only while
-// the subject is going under their own name. NAMED is a reputation rather
-// than a thing — a hood or false name takes it off the read.
+// gate, before medical reasoning layers exceptions on top. Five states
+// (Tag.inspectVisibility): never, always, only while equipped, only while
+// the subject is going under their own name, or only while their face shows.
+// NAMED is a reputation rather than a thing — a hood or false name takes it
+// off the read. FACE is a thing ON the face (Disfigured, a missing eye): a
+// hood covers it, and a Disguise Kit's false name does not.
 // `identityVisible` defaults TRUE so no existing caller changes behaviour by
-// not passing it. `tag` needs inspectVisibility; `characterTag` needs equipped.
-function seenByBystander(tag, characterTag, identityVisible = true) {
+// not passing it. `faceVisible` defaults to `identityVisible`, so a caller
+// that says "this subject is hooded" hides the face with it, without having to
+// know FACE exists — only examine.js's forced-name path (a name hidden, a face
+// not) passes the two apart. `tag` needs inspectVisibility; `characterTag`
+// needs equipped.
+function seenByBystander(tag, characterTag, identityVisible = true, faceVisible = identityVisible) {
   if (tag?.inspectVisibility === "ALWAYS") return true;
   if (tag?.inspectVisibility === "NAMED") return Boolean(identityVisible);
+  if (tag?.inspectVisibility === "FACE") return Boolean(faceVisible);
   if (tag?.inspectVisibility === "WORN") return Boolean(characterTag?.equipped);
   return false;
 }
 
+// "What is plainly on this person, whatever they carry?" — the context line on
+// a Search readout (db/lib/search.js#onShowTags): ALWAYS, plus FACE while the
+// face shows. Not seenByBystander, which also counts an equipped WORN item and
+// a NAMED reputation — the search lists the first as cargo and never the
+// second. Here rather than in search.js for the reason given below.
+function onShowWhateverCarried(tag, faceVisible = true) {
+  if (tag?.inspectVisibility === "ALWAYS") return true;
+  if (tag?.inspectVisibility === "FACE") return Boolean(faceVisible);
+  return false;
+}
+
 // "Could this be palmed before a Search?" (docs/systemdocs/SEARCH.md §2) —
-// HIDDEN or WORN, never ALWAYS. It sits beside seenByBystander because it is
-// the same column read for a related question, and putting it in search.js
+// HIDDEN or WORN, never ALWAYS, NAMED or FACE. It sits beside seenByBystander
+// because it is the same column read for a related question, and putting it in search.js
 // would be the call-site enum comparison TAGS.md §5 forbids. It is genuinely a
 // SECOND predicate rather than a wrapper: an equipped WORN item IS seen by a
 // bystander and is still hideable from a search, so seenByBystander cannot
@@ -63,9 +81,10 @@ function seenByBystander(tag, characterTag, identityVisible = true) {
 //
 // Note the direction, because it is the opposite of the one above and the trap
 // is real. A VISION gate fails closed by HIDING. This one is an allowlist, so
-// it fails closed by REVEALING — a fifth TagVisibility value would arrive
-// searchable and unhideable, quietly. That is the safer of the two wrong
-// answers, but it is a wrong answer, so a new enum value has to come back here.
+// it fails closed by REVEALING — a new TagVisibility value arrives searchable
+// and unhideable, quietly. That is the safer of the two wrong answers, but it
+// is a wrong answer, so a new enum value has to come back here. FACE did, and
+// unhideable is right for it: nobody palms their own face.
 function hideableFromSearch(tag) {
   return tag?.inspectVisibility === "HIDDEN" || tag?.inspectVisibility === "WORN";
 }
@@ -85,13 +104,13 @@ function canTreatAsRoutine(tag, satisfied) {
 // as { characterTag, viaSkill } — `viaSkill` true when shown ONLY because the
 // inspector is qualified, so callers can avoid repeating it as common
 // knowledge. `satisfied` is satisfiedSkillIds() for the INSPECTOR;
-// `identityVisible` passes straight through to seenByBystander.
-function medicallyVisibleTags(characterTags = [], satisfied = new Set(), identityVisible = true) {
+// `identityVisible` and `faceVisible` pass straight through to seenByBystander.
+function medicallyVisibleTags(characterTags = [], satisfied = new Set(), identityVisible = true, faceVisible = identityVisible) {
   const out = [];
   for (const ct of characterTags) {
     const tag = ct?.tag;
     if (!tag) continue;
-    if (seenByBystander(tag, ct, identityVisible)) {
+    if (seenByBystander(tag, ct, identityVisible, faceVisible)) {
       out.push({ characterTag: ct, viaSkill: false });
       continue;
     }
@@ -142,6 +161,7 @@ module.exports = {
   satisfiedSkillIds,
   canTreatAsRoutine,
   seenByBystander,
+  onShowWhateverCarried,
   hideableFromSearch,
   medicallyVisibleTags,
 };

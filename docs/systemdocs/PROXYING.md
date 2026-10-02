@@ -660,7 +660,9 @@ direction. Three handlers read it:
   the concealed line, plus only the visible ailments and the visible gear —
   the same `seenByBystander()` gate the ordinary embed uses, so a `visible:
   worn` dagger shows here exactly when it is drawn (`TAGS.md` §5). Concealment
-  hides the *identity*, not the inventory. No appearance, name, Desire, or
+  hides the *identity*, not the inventory — but it does hide the face, so a
+  `visible: face` tag (Disfigured, Pretty, a missing eye) drops here while a
+  wound elsewhere on the body still shows. No appearance, name, Desire, or
   Resources, even for a viewer whose gates are open. "Ailments" resolves as
   `tag.category === "Health"` — Health is its own category now (`TAGS.md` §5c)
   and so *is* the ailment set, which is what this used to reach for the

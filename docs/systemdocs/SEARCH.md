@@ -57,7 +57,12 @@ The readout carries a second line, *"In plain sight"*, and it holds the
 `ALWAYS` rows that are **not** cargo: scars, statuses, a visible affliction.
 That is the half a search was never about. An `ALWAYS` row that IS cargo — a
 longbow over the shoulder — belongs in the pockets list and appears there once;
-printing it in both read as the search finding the same bow twice.
+printing it in both read as the search finding the same bow twice. A
+`visible: face` row (Disfigured, Pretty) is in plain sight too, but only while
+the target's face shows — patting down somebody in a hood does not show you
+what is under it (`medicalVision.js#onShowWhateverCarried`).
+
+**`visible: face` cannot be hidden.** Nobody palms their own face.
 
 **`visible: named` cannot be hidden either**, and it is not in the spec because
 it is not really an item property: `NAMED` means "seen while you are under your
@@ -66,8 +71,9 @@ second hood.
 
 **The allowlist fails open, and that is the deliberate half of a real trap.**
 `seenByBystander` is a *vision* gate, so it fails closed by **hiding**;
-`hideableFromSearch` fails closed by **revealing**. A fifth `TagVisibility`
-value would therefore arrive searchable and unhideable, quietly. That is the
+`hideableFromSearch` fails closed by **revealing**. A new `TagVisibility`
+value therefore arrives searchable and unhideable, quietly (`FACE` did, and
+that answer is the right one for it). That is the
 safer of the two wrong answers — a new tag leaking is a bug somebody notices,
 a new tag being secretly unfindable is not — but it is still a wrong answer, so
 a new enum value has to come back to that function.

@@ -9,9 +9,9 @@
 // answer — and it rolls a d6 nobody is ever shown.
 //
 // Takes `prisma` first, NOT on the @lifeweb/db barrel — require by path.
-const { isHere } = require("./presence");
+const { isHere, concealedNow } = require("./presence");
 const { blockerFor, ACT } = require("./incapacitation");
-const { hideableFromSearch } = require("./medicalVision");
+const { hideableFromSearch, onShowWhateverCarried } = require("./medicalVision");
 const { isTradeable } = require("./tradeable");
 const { rollWithAdvantage } = require("./advantage");
 const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
@@ -89,6 +89,18 @@ function searchableHoldings(characterTags = []) {
       equipped: Boolean(ct.equipped),
       weightLbs: ct.tag.weightLbs ?? 0,
     }));
+}
+
+// Context, never at stake: what a bystander sees on them anyway. NOT cargo —
+// an ALWAYS item in their pockets is already in the found list, and printing it
+// in both lists read as the search finding the same longbow twice. What is
+// left is the half a search was never about: scars, statuses, a visible
+// affliction. A FACE tag (Disfigured, a missing eye) is on that list only while
+// the face is uncovered — a searcher patting down a hood has not seen under it.
+function onShowTags(characterTags = [], faceVisible = true) {
+  return (characterTags ?? [])
+    .filter((ct) => ct?.tag && !isTradeable(ct.tag) && onShowWhateverCarried(ct.tag, faceVisible))
+    .map((ct) => ({ name: ct.tag.name, quantity: ct.quantity ?? 1 }));
 }
 
 // The whole rule, in one line. A 6 takes the lot; a 1 against five hidden
@@ -317,14 +329,8 @@ async function acceptSearch(prisma, offer, responder) {
   const open = pockets.filter((r) => !hiddenIds.has(r.tagId));
   const givenUp = pickRevealed(hidden, revealCount(die, hidden.length));
 
-  // Context, never at stake: what a bystander sees on them anyway. NOT cargo —
-  // an ALWAYS item in their pockets is already in `open` above and printing it
-  // in both lists read as the search finding the same longbow twice. What is
-  // left is the half a search was never about: scars, statuses, a visible
-  // affliction.
-  const onShow = (target.tags ?? [])
-    .filter((ct) => ct?.tag?.inspectVisibility === "ALWAYS" && !isTradeable(ct.tag))
-    .map((ct) => ({ name: ct.tag.name, quantity: ct.quantity ?? 1 }));
+  // What a bystander sees on them anyway (onShowTags above).
+  const onShow = onShowTags(target.tags, !concealedNow(target));
 
   const found = [...open, ...givenUp];
   const { searcherLines, targetLines } = searchReadout({
@@ -466,6 +472,7 @@ module.exports = {
   MENU_OPTION_LIMIT,
   hideableHoldings,
   searchableHoldings,
+  onShowTags,
   revealCount,
   pickRevealed,
   searchReadout,

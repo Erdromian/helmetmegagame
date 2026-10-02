@@ -159,6 +159,10 @@ enum TagVisibility {
   // a face, so it goes under a hood and under a Disguise Kit's false name —
   // db/lib/examine.js passes the identity in, db/lib/medicalVision.js decides.
   NAMED
+  // Seen only while the subject's face shows: a thing ON the face (Disfigured,
+  // Pretty, a missing eye). A hood covers it; a Disguise Kit's false name
+  // does not, so unlike NAMED it stays under one.
+  FACE
 }
 
 // Where on the body an equippable tag sits. Every equippable tag names one
@@ -3107,11 +3111,11 @@ model Tag {
 
   // Whether other players who 🔍-react to this character's proxied messages
   // see this tag, alongside Character.appearance (see
-  // bot/src/events/messageReactionAdd.js). Three states, authored in
-  // docs/tags.yaml as `visible: true | false | worn | named` — WORN means the
-  // tag is shown only while CharacterTag.equipped, so a stowed dagger stays
-  // hidden and a drawn one doesn't, and NAMED only while the subject is going
-  // under their own name. Defaults closed so identity/status tags (Mortus,
+  // bot/src/events/messageReactionAdd.js). Five states, authored in
+  // docs/tags.yaml as `visible: true | false | worn | named | face` — WORN
+  // means the tag is shown only while CharacterTag.equipped, so a stowed dagger
+  // stays hidden and a drawn one doesn't, NAMED only while the subject is going
+  // under their own name, and FACE only while they are not hooded. Defaults closed so identity/status tags (Mortus,
   // Drained, ...) stay hidden unless explicitly opened up.
   //
   // This replaced a `visibleOnInspect Boolean`, and the RENAME was the point:
