@@ -41,6 +41,14 @@ const ROOMS = [
     accessTagSlugs: ["gatehouse-key"],
     sides: [{ id: "side-gate", locationId: BRIDGE.id, kind: "PUBLIC", accessTagSlugs: [] }],
   }),
+  // The Gatehouse Window, homed on the Gatehouse and opening onto the Square.
+  room({
+    id: "r-window",
+    name: "Gatehouse Window",
+    slug: "town-1-4",
+    locationId: GATEHOUSE.id,
+    sides: [{ id: "side-window", locationId: SQUARE.id, kind: "PUBLIC", accessTagSlugs: [] }],
+  }),
   // A private room with a phone, and a GM-staged quest room.
   room({ id: "r-office", name: "Office", slug: "town-1-9", locationId: GATEHOUSE.id, kind: "PRIVATE", accessTagSlugs: ["nobody-has-this"], phone: "Office" }),
   room({ id: "r-quest", name: "Odd Door", slug: "quest-1", locationId: GATEHOUSE.id, questId: "q-1" }),
@@ -71,6 +79,13 @@ function stubPrisma({ nukeRoomId = null } = {}) {
         const at = where.AND[0].OR[0].locationId;
         return ROOMS.filter((r) => r.locationId === at || r.sides.some((s) => s.locationId === at));
       },
+    },
+    // The other sides of the rooms homed at one Location.
+    roomSide: {
+      findMany: async ({ where }) =>
+        ROOMS.filter((r) => r.locationId === where.room.locationId).flatMap((r) =>
+          r.sides.map((s) => ({ roomId: r.id, locationId: s.locationId })),
+        ),
     },
     locationLink: {
       findMany: async ({ where }) => {
@@ -118,6 +133,33 @@ test("from the Bridge, a GM sees Request Passage on the Gate's outside", async (
   assert.ok(got.includes("submitDocumentation@r-gate"), got.join(", "));
   // The lever is on the Gatehouse's wall, not the Bridge's.
   assert.ok(!got.some((id) => id.startsWith("gateLever")), got.join(", "));
+});
+
+// A GM's room is always read at its home, the Gatehouse, where Request Passage
+// never is — so the Gate and the Window borrow it from their outsides.
+test("at the Gatehouse, a GM sees Request Passage on the Gate and the Window, read from outside", async () => {
+  const list = await gmAffordancesAt(stubPrisma(), GATEHOUSE.id);
+  for (const [roomId, outside] of [
+    ["r-gate", BRIDGE],
+    ["r-window", SQUARE],
+  ]) {
+    const passage = list.filter((entry) => entry.id === "requestPassage" && entry.roomId === roomId);
+    assert.equal(passage.length, 1, ids(list).join(", "));
+    assert.equal(passage[0].atLocationId, outside.id);
+  }
+  // The Gate's terminal is on both sides of it: listed once, from home.
+  const docs = list.filter((entry) => entry.id === "submitDocumentation");
+  assert.equal(docs.length, 1);
+  assert.equal(docs[0].atLocationId, undefined);
+  // Only the far side's ROOM buttons come back, never its Location's.
+  const borrowed = list.filter((entry) => entry.atLocationId);
+  assert.deepEqual(ids(borrowed).sort(), ["requestPassage@r-gate", "requestPassage@r-window"]);
+});
+
+test("the far side's own list borrows nothing back", async () => {
+  const got = ids(await gmAffordancesAt(stubPrisma(), BRIDGE.id));
+  assert.equal(got.filter((id) => id === "requestPassage@r-gate").length, 1, got.join(", "));
+  assert.ok(!got.includes("search@r-gate"), got.join(", "));
 });
 
 test("a watchtower's gate shows with nobody holding the key to the tower", async () => {

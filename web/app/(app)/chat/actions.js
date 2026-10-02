@@ -1393,7 +1393,8 @@ export async function gmPlaceView(placeKey) {
     // EVERY button this place has, with nothing locked: each room's fixtures
     // whatever its door asks for, every gate and keyed door. The column draws
     // them through the player's own filters (fixtures.js) as buttons that open
-    // a preview and send nothing (GmFixturePreview.js).
+    // a preview and send nothing (GmFixturePreview.js). A room homed here also
+    // carries what it has only from its other sides — Request Passage on the Gate.
     gmAffordancesAt(prisma, locationId),
   ]);
 
@@ -1480,7 +1481,11 @@ export async function gmFixtureSnapshot(placeKey, pick = {}) {
     (a) => a.id === id && (a.roomId ?? null) === roomId && (a.linkId ?? null) === linkId,
   );
   if (!entry) return { ok: false, error: "That isn't here any more." };
-  const location = await prisma.location.findUnique({ where: { id: ctx.locationId }, select: { id: true, slug: true } });
+  // A button borrowed from a room's other side reads as seen from there.
+  const location = await prisma.location.findUnique({
+    where: { id: entry.atLocationId ?? ctx.locationId },
+    select: { id: true, slug: true },
+  });
   return fixtureSnapshot(prisma, location, entry);
 }
 
