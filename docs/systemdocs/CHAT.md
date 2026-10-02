@@ -2887,6 +2887,14 @@ with the player's own filters (`fixtures.js`) and draws real buttons. Each
 button opens a **preview** (`GmFixturePreview.js`), which is the dialog a
 player standing there would get, with these limits:
 
+- **A room carries its other sides' buttons too.** A GM's room always opens at
+  its home Location, and some buttons are only on a room's far side (MAP.md
+  §2d): Request Passage is on the Gate from the Bridge and on the Gatehouse
+  Window from the Square, never from inside the Gatehouse. So a room homed at
+  a Location also gets the room buttons its other sides have, each marked with
+  the side it came from (`atLocationId`). Its preview reads from that side, so
+  the Gate's asks to come in and the Window's asks to go out.
+
 - **One read, when it opens.** `gmFixtureSnapshot` sends only which button was
   pressed, and checks it against the place's own list. It answers from read-only
   GM lenses beside each player view (`web/lib/gmFixtureSnapshot.js`). These take

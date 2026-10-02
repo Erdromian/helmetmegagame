@@ -550,7 +550,11 @@ async function affordancesFor(prisma, character) {
 //
 // Read-only, all the way down: the bomb's room is READ off GameState rather
 // than through ensureNuke, which rolls one when there is none.
-async function gmAffordancesAt(prisma, locationId) {
+//
+// A room homed here also carries the buttons it has only from another
+// Location it opens onto (withOtherSides below). `borrowSides: false` is that
+// pass's own read of the far side, so it never borrows back.
+async function gmAffordancesAt(prisma, locationId, { borrowSides = true } = {}) {
   if (!locationId) return [];
   const [location, rawRooms, links, state] = await Promise.all([
     prisma.location.findUnique({
@@ -563,7 +567,35 @@ async function gmAffordancesAt(prisma, locationId) {
   ]);
   if (!location) return [];
   const rooms = markNukeRoom(rawRooms, state?.nukeRoomId ?? null);
-  return buildAffordances(prisma, { location, open: rooms, links, keyedAllowed: () => true });
+  const own = await buildAffordances(prisma, { location, open: rooms, links, keyedAllowed: () => true });
+  return borrowSides ? withOtherSides(prisma, location.id, own) : own;
+}
+
+// A GM's room always resolves to its home Location (web/app/(app)/chat/
+// actions.js#gmPlace), so a button a room has only as seen from ANOTHER
+// Location it opens onto (db/lib/roomSides.js) was one no GM could see.
+// Request Passage is exactly that: it hangs on the Gate from the Bridge and on
+// the Gatehouse Window from the Square, never on their home side. So each room
+// homed here also gets what its other sides have, stamped with the side it was
+// read from (`atLocationId`) so its preview reads as a player standing there.
+async function withOtherSides(prisma, locationId, own) {
+  const sides = await prisma.roomSide.findMany({
+    where: { room: { locationId } },
+    select: { roomId: true, locationId: true },
+  });
+  if (sides.length === 0) return own;
+  const key = (entry) => `${entry.id}@${entry.roomId}`;
+  const have = new Set(own.map(key));
+  const out = [...own];
+  for (const sideLocationId of new Set(sides.map((side) => side.locationId))) {
+    const roomIds = new Set(sides.filter((side) => side.locationId === sideLocationId).map((side) => side.roomId));
+    for (const entry of await gmAffordancesAt(prisma, sideLocationId, { borrowSides: false })) {
+      if (entry.kind !== "room" || !roomIds.has(entry.roomId) || have.has(key(entry))) continue;
+      have.add(key(entry));
+      out.push({ ...entry, atLocationId: sideLocationId });
+    }
+  }
+  return out;
 }
 
 // The list itself, from what the two callers above have loaded. `open` is the
