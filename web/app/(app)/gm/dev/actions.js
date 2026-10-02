@@ -1070,7 +1070,7 @@ async function bulkMove(session, characters, input) {
           { ...c, locationId: location.id, zoneId: location.zoneId },
           location,
         );
-        if (cavingDm) await sendDm(cavingDm.discordUserId, cavingDm.content);
+        if (cavingDm) await sendDm(cavingDm.discordUserId, cavingDm.content, { components: cavingDm.components, meta: cavingDm.meta });
       } catch (err) {
         failures.push({ step: "caving", target: c.name, message: err.message });
         console.error(`Bulk move: caving arrival DM failed for ${c.name}:`, err);

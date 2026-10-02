@@ -412,7 +412,7 @@ const stepstoneVerb = {
       try {
         const moved = await prisma.character.findUnique({ where: { id: character.id } });
         const cavingDm = await rollCavingOnArrival(prisma, moved, location);
-        if (cavingDm) await sendDm(prisma, cavingDm.discordUserId, cavingDm.content).catch(() => {});
+        if (cavingDm) await sendDm(prisma, cavingDm.discordUserId, cavingDm.content, { components: cavingDm.components, meta: cavingDm.meta }).catch(() => {});
       } catch (err) {
         console.error("Stepstone: caving roll failed:", err);
       }

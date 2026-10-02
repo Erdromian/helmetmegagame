@@ -607,7 +607,7 @@ async function teleportCharacterImpl({ characterId, locationId }) {
     // the die speaks, not the GM.
     const cavingDm = await rollCavingOnArrival(prisma, updated, location);
     if (cavingDm) {
-      await sendDm(cavingDm.discordUserId, cavingDm.content).catch((err) =>
+      await sendDm(cavingDm.discordUserId, cavingDm.content, { components: cavingDm.components, meta: cavingDm.meta }).catch((err) =>
         console.error("Dev Panel teleport: caving arrival DM failed:", err),
       );
     }

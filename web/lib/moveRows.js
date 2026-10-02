@@ -453,6 +453,12 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
       : null,
     resolvedAtLabel: c.resolvedAt ? c.resolvedAt.toISOString().slice(0, 16).replace("T", " ") : null,
     gmNotes: c.gmNotes ?? "",
+    // Whether they were in combat mode at this 1, and what they wrote about it — the response lives on the
+    // result's oldest row (COMBAT-MODE.md §6, CAVING.md §5b).
+    alert: Boolean(c.alert),
+    response: c.response ?? "",
+    respondedAtMs: c.respondedAt ? c.respondedAt.getTime() : null,
+    respondedAtLabel: c.respondedAt ? c.respondedAt.toISOString().slice(0, 16).replace("T", " ") : null,
     createdAtMs: c.createdAt.getTime(),
   };
 }

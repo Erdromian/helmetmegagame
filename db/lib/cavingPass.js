@@ -17,6 +17,8 @@ const { LUCKY_SLUG } = require("./constants");
 const { expiryFrom } = require("./turnFormat");
 const { loadPresentedState } = require("./examineSnapshot");
 const { logAudit } = require("./auditLog");
+const { inCombatMode } = require("./combatMode");
+const { troubleDmParts } = require("./cavingResponse");
 
 function quietDm(die) {
   return `Caving Die: ${die} — Nothing happens.`;
@@ -91,6 +93,11 @@ async function rollCaving(prisma, character, turn, location) {
   return await prisma.$transaction(async (tx) => {
     if (kind !== "FIND") {
       const rowKind = kind;
+      // Whether they were on guard at this 1, read in the roll's own transaction rather than off the
+      // snapshot, so a snapshot that fails to write never loses it (COMBAT-MODE.md §6).
+      const alert =
+        rowKind === "TROUBLE" &&
+        inCombatMode(await tx.character.findUnique({ where: { id: character.id }, select: { combatModeSinceTurn: true } }));
       const row = await tx.cavingRoll.create({
         data: {
           turnId: turn.id,
@@ -102,20 +109,26 @@ async function rollCaving(prisma, character, turn, location) {
           kind: rowKind,
           resolvedAt: rowKind === "QUIET" ? new Date() : null,
           presentedState: rowKind === "TROUBLE" ? await troubleSnapshot(tx, character.id) : undefined,
+          alert,
         },
       });
-      let stuck = false;
-      if (rowKind === "TROUBLE") {
-        await applyMood(tx, character.id, { kind: "CAVE_TROUBLE" });
-        // Counted INSIDE the transaction, after the row lands, so the DM that
-        // says "that's ten" is written by the same roll that made it ten.
-        stuck = (await tx.cavingRoll.count({ where: troubleWhere(character.id) })) >= CAVING_TROUBLE_CAP;
+      if (rowKind !== "TROUBLE") {
+        return { roll: row, dm: { discordUserId: character.discordUserId, content: quietDm(die) } };
       }
+      await applyMood(tx, character.id, { kind: "CAVE_TROUBLE" });
+      // Counted INSIDE the transaction, after the row lands, so the DM that
+      // says "that's ten" is written by the same roll that made it ten.
+      const troubles = await tx.cavingRoll.findMany({ where: troubleWhere(character.id), select: { alert: true } });
+      const stuck = troubles.length >= CAVING_TROUBLE_CAP;
+      // The prompt to write (COMBAT-MODE.md §6): this 1 or any earlier one this turn found them on guard.
+      const { line, components, meta } = troubleDmParts(row.id, troubles.some((t) => t.alert));
       return {
         roll: row,
         dm: {
           discordUserId: character.discordUserId,
-          content: kind !== "TROUBLE" ? quietDm(die) : stuck ? stuckDm(die) : troubleDm(die),
+          content: `${stuck ? stuckDm(die) : troubleDm(die)}\n${line}`,
+          components,
+          meta,
         },
       };
     }

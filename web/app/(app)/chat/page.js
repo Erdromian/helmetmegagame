@@ -444,6 +444,7 @@ async function FreshChat({ userId }) {
           combatMode: mine.ok ? (mine.combatMode ?? null) : null,
           // The fight they are in, for the line under the card (docs/systemdocs/ATTACK.md §4).
           fight: mine.ok ? (mine.fight ?? null) : null,
+          caving: mine.ok ? (mine.caving ?? null) : null,
           desires,
           letters,
           // What is in this character's pockets, for the Things drawer under

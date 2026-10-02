@@ -9,8 +9,8 @@ how the code does what that doc asks, and where it had to choose.
 **The defensive response is built now**, as the Combat Overhaul's attack
 description (`ATTACK.md` §4): anybody alert when a fight reaches them — attacker,
 defender, collaborator — writes what they do, Move spent or not; anybody who was
-not is caught by surprise, cannot write, and rolls at −3. **Still not built:** the
-prompt an alert caver gets on a failed Caving roll.
+not is caught by surprise, cannot write, and rolls at −3. The prompt an alert
+caver gets on a failed Caving roll is built too (§6).
 
 ## 1. The state
 
@@ -193,8 +193,15 @@ The design doc's cave half (`CAVING.md` §5):
 - The Caving lens folds a caver's 1s on one turn into **one result**, whose
   severity is how many there were (Caving.docx). The GM adjudicates it once, off
   the snapshot from the **most recent** failed roll.
-
-The prompt an alert caver gets is the part not built yet.
+- **The prompt** (`CAVING.md` §5b): a 1 freezes combat mode on
+  `CavingRoll.alert`. If any 1 in the result found them on guard, the trouble
+  DM asks how they respond and carries **Write your response**, and the web
+  asks under the turn card. The response is one per result, on its oldest row,
+  rewritable until Moves lock. Off guard at every 1, they are told they can't
+  choose, and that turning combat mode on gives them the chance if it happens
+  again this turn.
+- The desk counts combat mode at every 1 of the result, not just the newest,
+  and shows the response.
 
 ## 7. Where the code lives
 
@@ -205,6 +212,7 @@ The prompt an alert caver gets is the part not built yet.
 | `db/lib/combatGate.js` | `combatBlock`, `interceptBlock` |
 | `db/lib/combatModePass.js` | The push: Tired, then Exhausted and off, which ends an escort |
 | `db/lib/intercept.js` | Dormant watches in `fireWatches` |
+| `db/lib/cavingResponse.js`, `bot/src/lib/cavingButtons.js`, `web/app/components/CavingLine.js`, `CavingResponseDialog.js` | The failed-cave-roll prompt (§6) |
 | `db/lib/examineSnapshot.js`, `db/lib/examine.js` | `m` on the line, `alert` on the readout |
 | `web/app/components/CombatModeButton.js` | The button |
 | `web/app/(app)/chat/actions.js` | `setCombatMode`, and `myMove`'s `combatMode` |

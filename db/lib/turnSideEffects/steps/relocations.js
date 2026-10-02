@@ -51,7 +51,7 @@ async function applyRelocations({ prisma, p, list, step }) {
           landed,
         );
         if (dm) {
-          await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+          await sendDm(prisma, dm.discordUserId, dm.content, { components: dm.components, meta: dm.meta }).catch((err) =>
             console.error(`Arrival caving DM to ${dm.discordUserId} failed:`, err),
           );
         }

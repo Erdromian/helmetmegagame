@@ -38,6 +38,15 @@ const INVITE_SURPRISED = "You aren't on guard, so if you join you'll be caught b
 const DESCRIPTION_LIMIT = 2000;
 const ALERT_TOO_LATE = "You're alert now, but it only counts for fights that start from here on — not the one you're already in.";
 
+// A failed Caving roll (Combat Mode.docx: "a character who has combat mode enabled when failing a cave roll is
+// given a prompt as to how they might respond to any threats"; COMBAT-MODE.md §6). One response per caving result,
+// capped at DESCRIPTION_LIMIT like an attack. Here so the web's write box says what the server refuses with.
+const CAVING_PROMPT = "You're on guard. Write how you respond to it. You can change it until Moves lock.";
+// Out of combat mode at every 1 so far. The doc's way back in: turn it on, and the next failed roll asks.
+const CAVING_SURPRISED = "You weren't on guard, so you can't choose how you respond. If you're in combat mode when it happens again this turn, you can.";
+const CAVING_LOCKED = "Moves are locked for this turn, so your response can't be changed now.";
+const CAVING_WRITTEN = "Your response is written. You can change it until Moves lock.";
+
 // An invitation, naming who asked (combat.js#combatViewFor's `inviter`, already the name the reader knows
 // them by). Both faces' fight readouts and the line under the Turn box say it the same way. `inviter` may be
 // null — the one who asked has left the fight — and then nobody is named.
@@ -120,6 +129,10 @@ module.exports = {
   SURPRISED,
   INVITE_SURPRISED,
   ALERT_TOO_LATE,
+  CAVING_PROMPT,
+  CAVING_SURPRISED,
+  CAVING_LOCKED,
+  CAVING_WRITTEN,
   DESCRIPTION_LIMIT,
   invitedLine,
   invitedShortLine,

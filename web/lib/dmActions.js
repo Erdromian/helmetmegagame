@@ -108,7 +108,20 @@ async function liveCombatRows(ids, viewer, status) {
   return rows.map((r) => r.id);
 }
 
+// A failed Caving roll's "Write your response" (COMBAT-MODE.md §6). Live while the roll is this viewer's own
+// and its turn is still open; only a result that found them on guard ever carries the descriptor
+// (db/lib/cavingResponse.js#troubleDmParts), and the writer refuses after the Move cutoff.
+async function liveCavingRolls(ids, viewer) {
+  if (!viewer.characterId) return [];
+  const rows = await prisma.cavingRoll.findMany({
+    where: { id: { in: ids }, characterId: viewer.characterId, kind: "TROUBLE", turn: { status: "OPEN" } },
+    select: { id: true },
+  });
+  return rows.map((r) => r.id);
+}
+
 const RESOLVERS = {
+  [DM_ACTION.CAVING]: liveCavingRolls,
   [DM_ACTION.COMBAT_INVITE]: (ids, viewer) => liveCombatRows(ids, viewer, "INVITED"),
   [DM_ACTION.COMBAT]: (ids, viewer) => liveCombatRows(ids, viewer, "JOINED"),
   [DM_ACTION.OFFER]: liveOffers,

@@ -599,6 +599,50 @@ there either — a pushed turn's narration is settled. A
 `/gm/turns/caving/<id>` link naming a past roll deep-links straight to it
 (`page.js`'s `initialCaving`, the Caving twin of `initialHistory`).
 
+### 5b. An alert caver writes how they respond
+
+Combat Mode.docx: *"a character who has combat mode enabled when failing a cave
+roll is given a prompt as to how they might respond to any threats. If a
+character fails cave rolls without combat mode enabled, they can enable combat
+mode and fail more rolls to be given the chance to respond to the threat."*
+Built the attack description's way (`ATTACK.md` §4), in
+`db/lib/cavingResponse.js`:
+
+- **Every 1 freezes combat mode** on `CavingRoll.alert`, read off
+  `Character.combatModeSinceTurn` in the roll's own transaction. It is its own
+  column, beside the snapshot's `m`, so a snapshot that fails to write never
+  loses it. Migration `20261214000000_caving_alert_response` copied `m` onto it
+  for every 1 rolled before.
+- **One alert 1 is enough.** If any 1 in the result found the caver in combat
+  mode, they may write. A later 1 out of combat mode does not take that back.
+- **The trouble DM says which.** On guard: "You're on guard. Write how you
+  respond to it. You can change it until Moves lock." and a **Write your
+  response** button (`cav:write:<rollId>`, a modal on Discord; on the web the
+  DM's descriptor, `DM_ACTION.CAVING`, draws the same button into the thread).
+  Off guard: "You weren't on guard, so you can't choose how you respond. If
+  you're in combat mode when it happens again this turn, you can." Every sender
+  of a caving DM passes the DM's `components` and `meta` through.
+- **The web asks under the turn card** on `/chat` and the sheet
+  (`CavingLine.js`, off `myMove`'s `caving`), until they have written. Both
+  open `CavingResponseDialog.js`.
+- **One response per result**, on its oldest row (`CavingRoll.response`,
+  `respondedAt`), beside the Result box. Capped at 2000 characters, rewritable
+  until Moves lock — the same gate as an attack description. No audit row: the
+  words are on the row the GM reads.
+
+**On the desk** a TROUBLE result opens with a **Combat mode** panel: On guard
+or Off guard, how many of its 1s were in combat mode ("In combat mode at 1 of
+the 2 failed rolls"), and the response or "They haven't written a response
+yet." The snapshot panel below it still answers for the newest 1 alone, and
+its pill now reads the row's column. The rail adds "on guard" or "responded"
+to the row.
+
+**A response written after a GM resolved the result reopens it**, the way a
+fresh 1 does — the ruling was made without it. The desk says "They changed
+their response since this was resolved." and offers Mark resolved again, which
+restamps every 1 in the result. A result the push let go is not reopened: the
+turn is over, and the write refuses anyway.
+
 ## 6. `sellable` / `sellablePrice`
 
 Two `Tag` columns, the seller's half of `purchasable`/`purchasableAfterStart`

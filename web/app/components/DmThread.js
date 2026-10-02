@@ -19,6 +19,7 @@ import { DM_ACTION, dmActionOf } from "@lifeweb/db/lib/dmActions";
 import DmActionRow from "./DmActionRow";
 import { pickConversionTarget } from "@/app/(app)/chat/dmActions";
 import { useRequestActions } from "./RequestActionsProvider";
+import CavingResponseDialog from "./CavingResponseDialog";
 import { deskSpeakerName } from "@/lib/deskSpeaker";
 
 // The one shared thread — the player desk's conversation pane and the
@@ -140,6 +141,23 @@ function FightOpen({ message }) {
       <button type="button" className="btn" onClick={() => actions.open("attack")}>
         Open the fight
       </button>
+    </div>
+  );
+}
+
+// A failed Caving roll's DM to a caver on guard (docs/systemdocs/COMBAT-MODE.md §6): "Write your response" on
+// Discord, the same write box here. Its own dialog rather than one the sheet mounts, so it works wherever the
+// thread is drawn for its player; `actionable` is the server's say that the roll is theirs and still open.
+function CavingWrite({ message }) {
+  const [open, setOpen] = useState(false);
+  const action = message.actionable ? dmActionOf(message) : null;
+  if (action?.kind !== DM_ACTION.CAVING) return null;
+  return (
+    <div className="dm-action-row">
+      <button type="button" className="btn" onClick={() => setOpen(true)}>
+        Write your response
+      </button>
+      {open ? <CavingResponseDialog rollId={action.id} onClose={() => setOpen(false)} /> : null}
     </div>
   );
 }
@@ -466,6 +484,7 @@ function Row({ item, gmProfileById, character, compact, now, perspective, onRetr
       {perspective === "player" && liveAction(message) && <DmActionRow action={liveAction(message)} />}
       {perspective === "player" && <ConversionPick message={message} />}
       {perspective === "player" && <FightOpen message={message} />}
+      {perspective === "player" && <CavingWrite message={message} />}
     </TranscriptLine>
   );
 }

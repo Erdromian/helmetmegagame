@@ -38,6 +38,10 @@ const DM_ACTION = Object.freeze({
   // row, the BIRD_REPLY shape — writing is a dialog, not an Accept, and which of the two buttons shows
   // depends on the person — so DmThread.js draws its own. The id is their CombatParticipant.
   COMBAT: "COMBAT",
+  // A failed Caving roll, to a caver who was in combat mode: "Write your response" (COMBAT-MODE.md §6). The
+  // COMBAT shape — writing is a dialog, so no generic row, and DmThread.js draws its own. The id is any
+  // CavingRoll of the caver's result; the writer works the result out from it.
+  CAVING: "CAVING",
 });
 
 // Every family reads as one of these even where Discord labels differ (escort "Cancel", keyed way "No").

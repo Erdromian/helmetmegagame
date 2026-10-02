@@ -7,6 +7,7 @@ import useMyMove from "@/app/(app)/chat/useMyMove";
 import { useRefresh } from "./useRefresh";
 import CombatModeButton from "./CombatModeButton";
 import FightLine from "./FightLine";
+import CavingLine from "./CavingLine";
 
 // The turn card the Chat's YOU column carries, on the sheet's band: when it
 // is, whether Moves have locked, and the Move you filed — with the same File
@@ -95,6 +96,7 @@ export default function SheetTurn({ moveState, pendingOffers = [] }) {
         )}
       </CombatModeButton>
       <FightLine fight={state.fight} />
+      <CavingLine caving={state.caving} />
       {waiting}
       {dialog === "move" && (
         <MoveDialog

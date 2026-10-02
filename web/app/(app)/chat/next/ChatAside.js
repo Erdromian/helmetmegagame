@@ -15,6 +15,7 @@ import Things from "../ThingsDrawer";
 import TurnCard from "../TurnCard";
 import CombatModeButton from "@/app/components/CombatModeButton";
 import FightLine from "@/app/components/FightLine";
+import CavingLine from "@/app/components/CavingLine";
 import { locationFixtures } from "../fixtures";
 import { waitingOnYou, answerWaiting } from "../actions";
 import useVisiblePoll from "../useVisiblePoll";
@@ -124,6 +125,7 @@ export default function ChatAside({
   moveCharacterId,
   combatMode = null,
   fight = null,
+  caving = null,
   move,
   things,
   canSeeExtract = false,
@@ -144,7 +146,7 @@ export default function ChatAside({
 
   const fixtures = locationFixtures(live);
 
-  const moveState = useMyMove({ turn, move, combatMode, fight, characterId: moveCharacterId });
+  const moveState = useMyMove({ turn, move, combatMode, fight, caving, characterId: moveCharacterId });
   const [dialog, setDialog] = useState(null);
   const [waiting, setWaiting] = useState(initialWaiting);
 
@@ -212,6 +214,7 @@ export default function ChatAside({
           )}
         </CombatModeButton>
         <FightLine fight={moveState.fight} />
+        <CavingLine caving={moveState.caving} />
       </Block>
 
       {/* No card at all when nothing is waiting — an empty box saying it is

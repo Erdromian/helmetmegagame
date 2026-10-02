@@ -66,6 +66,45 @@ function LastFailSnapshot({ rollId, latestId }) {
   return <SnapshotBody snap={snap} />;
 }
 
+// Combat mode across the whole result, and what the caver wrote (Combat Mode.docx; COMBAT-MODE.md §6). The
+// snapshot below answers for the newest 1 alone, and a caver may have turned combat mode on between two of them —
+// so this counts every one, off the column each roll froze. One on guard is what let them write.
+function guardLine(alertCount, count) {
+  if (alertCount === 0) {
+    return count === 1
+      ? "Not in combat mode at this roll, so they were caught off guard and couldn't respond."
+      : `Not in combat mode at any of the ${count} failed rolls, so they were caught off guard and couldn't respond.`;
+  }
+  if (count === 1) return "In combat mode at this roll.";
+  if (alertCount === count) return `In combat mode at all ${count} failed rolls.`;
+  return `In combat mode at ${alertCount} of the ${count} failed rolls.`;
+}
+
+function OnGuard({ roll }) {
+  const count = roll.count ?? 1;
+  const alertCount = roll.alertCount ?? (roll.alert ? 1 : 0);
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="flex flex-wrap items-center gap-2 text-sm">
+        <StatusPill tone={alertCount > 0 ? "bad" : "neutral"}>{alertCount > 0 ? "On guard" : "Off guard"}</StatusPill>
+        <span>{guardLine(alertCount, count)}</span>
+      </p>
+      {alertCount > 0 &&
+        (roll.response ? (
+          <>
+            <blockquote className="quote whitespace-pre-wrap text-sm">{roll.response}</blockquote>
+            <p className="text-xs text-muted">
+              Written {roll.respondedAtLabel ?? ""}
+              {roll.respondedSinceResolved ? " · changed since this was resolved" : ""}
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-muted">They haven&apos;t written a response yet. They can until Moves lock.</p>
+        ))}
+    </div>
+  );
+}
+
 export default function CavingDesk({
   roll,
   staged,
@@ -193,6 +232,7 @@ export default function CavingDesk({
             </p>
           )}
           {/* A fresh failure after a GM resolved the group reopens it. */}
+          {roll.respondedSinceResolved && <p className="mt-1 text-sm">They changed their response since this was resolved.</p>}
           {roll.newSinceResolved > 0 && (
             <p className="mt-1 text-sm">
               {roll.newSinceResolved === 1
@@ -234,6 +274,13 @@ export default function CavingDesk({
               {pending ? "Working…" : "Undo this find"}
             </button>
           )}
+        </div>
+      )}
+
+      {roll.kind === "TROUBLE" && (
+        <div className="mt-4 flex flex-col gap-2 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+          <h3 className="field-label">Combat mode</h3>
+          <OnGuard roll={roll} />
         </div>
       )}
 

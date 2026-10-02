@@ -1383,7 +1383,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       currentAction: sheetAction,
       // Same server action Chat's YOU column reads (play/actions.js#myMove).
       moveState: mine.ok
-        ? { turn: mine.turn, move: mine.move, combatMode: mine.combatMode ?? null, fight: mine.fight ?? null, characterId: mine.characterId }
+        ? { turn: mine.turn, move: mine.move, combatMode: mine.combatMode ?? null, fight: mine.fight ?? null, caving: mine.caving ?? null, characterId: mine.characterId }
         : { turn: null, move: null, combatMode: null, fight: null, characterId: null },
       avatarSrc: avatarSrc,
       forcedIdentity: forcedIdentity,
