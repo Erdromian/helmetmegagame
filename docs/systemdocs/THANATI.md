@@ -480,7 +480,7 @@ words where a room or a player hears anything:
 | Conversion | every character at the Location with access to the room who is **able to act** and not already Thanati; leaders first, **Pious last** — and the **leader must be among the chanters** | **Waits.** Parks on AWAITING and DMs the circle a picker; the pick writes the `Offer` — see §4a |
 | Sacrifice | a Bound character with access | pins the living sacrifice-* objectives, **gibs** them (`killByRite`, `gib: true`), 2–7 remains + 1–2 Flesh + 2–5 ⬢ on the floor. No corpse is minted at all — see `CORPSES.md` §1a |
 | Scrying | 15 ⬢ | a `scrying-eye` on the floor |
-| Possession | a weapon stack on the floor, 15 ⬢ | one unit becomes a custom "<Name> (Animated)" copy, indestructible |
+| Possession | a weapon stack on the floor, 15 ⬢ | one unit becomes a custom "<Name> (Animated)" copy, indestructible. The copy keeps the weapon's `fighting` block and sprite (`animatedWeaponShape`), so it is still that weapon in a fight |
 | Reanimation | a corpse on the floor, 1 heart, 5 ⬢ | `reviveByRite`: ALIVE in this Location with `ghoul`, `servant-of-tzchernobog`, `hungerless`; role, Cursed and placement restored |
 | Stupidity | 1 squeeze, a photograph (floor first, then hands), 5 ⬢ | target gets `stupid`; the print is spent |
 | Omniscience | 1 skinless-brain, a photograph | every participant is DMed the target's full tag list; print spent |
