@@ -853,8 +853,9 @@ instance is a change to the hub, not a slider.
   pieces a GM gets and a player does not (COMBAT.md §5). All three route through the same `createStagedEffects` the tray
   uses, so they land at the push like any other staged effect. `EffectComposer`'s
   own tag browser carries a "+ Custom tag" door too (`CustomTagDialog.js`,
-  `DEV-PANEL.md` §8a) for inventing a one-off tag against the composer's
-  current targets without leaving the modal.
+  `DEV-PANEL.md` §8a) for inventing a one-off tag without leaving the modal.
+  It only creates the tag, then drops it into the composer's Tag changes, so
+  "Stage it" stages it once with everything else.
 - **Tray** — the push, honestly: counts (including how many open Moves will
   silently close), every staged row with edit/delete, batches as one line,
   unattached and detached rows, and the composers for staging outside any

@@ -531,6 +531,14 @@ target in one gesture. Either way it's **one transaction, one audit row**
 the tag's creation and its assignment together. The server half is
 `createCustomTagAndAssign` in `web/app/(app)/gm/dev/tags/actions.js`.
 
+**The composer's door passes no character list, so it creates and nothing
+else.** `EffectComposer` is already a staging form: the new tag goes into its
+own Tag changes as an add, and "Stage it" stages it once, on the composer's
+row and its Move. It used to stage a row of its own as well, and nothing in the
+composer showed it, so a GM who then added the new tag there (it looked
+unstaged) got two at the push. On 2026-10-01 a stackable custom armour landed
+twice that way.
+
 The Dev Panel's own door (`TagEditor.js`) commits a custom-tag assignment
 through the dialog's own transaction, in the same gesture that creates the tag
 — the same posture Bulk tagging (§9) takes. This used to be an exception to

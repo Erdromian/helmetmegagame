@@ -673,33 +673,21 @@ export default function EffectComposer({
         </section>
 
         {creatingTag && (
+          // Create-only: no `characters`, so the dialog assigns nothing and
+          // stages nothing of its own. The new tag lands in this composer's
+          // own Tag changes instead, and "Stage it" stages it once, on this
+          // row and this Move. It used to stage a second row of its own
+          // server-side, which nothing here showed, so a GM who then added
+          // the tag again (it looked unstaged) got two at the push: a
+          // stackable Unnerving Brigandine landed twice on 2026-10-01.
           <CustomTagDialog
             categories={tagCategories}
             tags={allTagCatalog}
-            characters={targets}
-            defaultAssignIds={targets.map((t) => t.id)}
-            mode="stage"
-            allowStage
             onClose={() => setCreatingTag(false)}
-            onCreated={(tag, { assignedIds, staged } = {}) => {
-              // A staged assignment already wrote its own StagedEffect row
-              // server-side (see createCustomTagAndAssign) — it does NOT go
-              // into this composer's own `ops`, which would double it up the
-              // next time "Stage it" is pressed. An "apply now" assignment
-              // is a live grant, same story. Either way the new tag just
-              // needs to be visible in the browser and pickable from here on.
+            onCreated={(tag) => {
               setExtraTags((prev) => [...prev, tag]);
               setCreatingTag(false);
-              // An "apply now" grant changed a target's actual held tags —
-              // drop the cached "Their tags" entry so the next render
-              // refetches instead of showing the pre-grant snapshot.
-              if (!staged && assignedIds?.length) {
-                setHeldByCharacter((prev) => {
-                  const next = new Map(prev);
-                  for (const id of assignedIds) next.delete(id);
-                  return next;
-                });
-              }
+              stageOp(tag.id, "add");
             }}
           />
         )}
