@@ -9,8 +9,8 @@ how the code does what that doc asks, and where it had to choose.
 **The defensive response is built now**, as the Combat Overhaul's attack
 description (`ATTACK.md` §4): anybody alert when a fight reaches them — attacker,
 defender, collaborator — writes what they do, Move spent or not; anybody who was
-not is caught by surprise, cannot write, and rolls at −3. **Still not built:** the
-prompt an alert caver gets on a failed Caving roll.
+not is caught by surprise, cannot write, and rolls at −3. The prompt an alert
+caver gets on a failed Caving roll is built too (§6).
 
 ## 1. The state
 
@@ -25,7 +25,7 @@ with:
 |---|---|
 | `inCombatMode(row)` | on or off |
 | `lockedOn(row, openTurn)` | turned on this turn, so it can't come off yet |
-| `combatModeState(row, openTurn, tags, { heldBy })` | `{ on, locked, onBlock, lockedNote }`, what the button draws. `heldBy` is a sentence the server passes when something else holds it on (a Bloodcrazed or Wight Vampire, §1a); it locks the button and is what the button says |
+| `combatModeState(row, openTurn, tags, { heldBy })` | `{ on, locked, onBlock, lockedNote }`, what the button draws. `heldBy` is a sentence the server passes when something else holds it on (a Bloodcrazed or Wight Vampire, §1a, or a failed Caving roll this turn, §6); it locks the button and is what the button says |
 
 **The timing rule** (the design doc): it can be turned on at any time of the
 turn, but it can't be turned off on the turn it went on — only on a later one.
@@ -38,7 +38,9 @@ and a game in session.
 
 **Exhausted refuses turning it on.** So does anything that takes ACT (bound,
 paralysed…). Turning it off is never gated — it is the way down, the same rule
-Break off and Stop watching follow — with the one exception below.
+Break off and Stop watching follow — with two exceptions: the one below, and a
+caver who failed a Caving roll this turn, who stays on guard until the turn is
+over (§6).
 
 ### 1a. A hungry Vampire is held in it
 
@@ -193,8 +195,21 @@ The design doc's cave half (`CAVING.md` §5):
 - The Caving lens folds a caver's 1s on one turn into **one result**, whose
   severity is how many there were (Caving.docx). The GM adjudicates it once, off
   the snapshot from the **most recent** failed roll.
-
-The prompt an alert caver gets is the part not built yet.
+- **The prompt** (`CAVING.md` §5b): a 1 freezes combat mode on
+  `CavingRoll.alert`. The 1 that first finds them on guard asks how they
+  respond and carries **Write your response**; later 1s in the same result
+  don't ask again. The web asks under the turn card until they've written. The
+  response is one per result, on its oldest row, covers every 1 in it, and is
+  rewritable until Moves lock. Off guard at every 1, they are told they can't
+  choose, and that turning combat mode on gives them the chance if it happens
+  again this turn.
+- **A failed roll holds them in it** for the rest of the turn (Bascinet,
+  2026-10-02): with any 1 on the open turn, Off is refused with "Something is
+  wrong down here. You can't let your guard down until the turn is over." and
+  the button is locked with the same words (`heldBy`). Turning it on is never
+  held back.
+- The desk says only whether they were in combat mode (at any 1 of the
+  result), and shows the response.
 
 ## 7. Where the code lives
 
@@ -205,6 +220,7 @@ The prompt an alert caver gets is the part not built yet.
 | `db/lib/combatGate.js` | `combatBlock`, `interceptBlock` |
 | `db/lib/combatModePass.js` | The push: Tired, then Exhausted and off, which ends an escort |
 | `db/lib/intercept.js` | Dormant watches in `fireWatches` |
+| `db/lib/cavingResponse.js`, `bot/src/lib/cavingButtons.js`, `web/app/components/CavingLine.js`, `CavingResponseDialog.js` | The failed-cave-roll prompt (§6) |
 | `db/lib/examineSnapshot.js`, `db/lib/examine.js` | `m` on the line, `alert` on the readout |
 | `web/app/components/CombatModeButton.js` | The button |
 | `web/app/(app)/chat/actions.js` | `setCombatMode`, and `myMove`'s `combatMode` |

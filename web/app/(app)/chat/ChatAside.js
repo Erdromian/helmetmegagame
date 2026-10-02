@@ -20,6 +20,7 @@ import TravelNodes from "./TravelNodes";
 import TurnCard from "./TurnCard";
 import CombatModeButton from "@/app/components/CombatModeButton";
 import FightLine from "@/app/components/FightLine";
+import CavingLine from "@/app/components/CavingLine";
 import { usePlaceActions } from "./PlacePanel";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
 import { waitingOnYou, answerWaiting } from "./actions";
@@ -118,6 +119,7 @@ export default function ChatAside({
   moveCharacterId,
   combatMode = null,
   fight = null,
+  caving = null,
   move,
   sheet,
   carry,
@@ -162,7 +164,7 @@ export default function ChatAside({
   );
 
   // The Move half of the poll, shared with the sheet's own band (SheetTurn.js).
-  const moveState = useMyMove({ turn, move, combatMode, fight, characterId: moveCharacterId });
+  const moveState = useMyMove({ turn, move, combatMode, fight, caving, characterId: moveCharacterId });
   const [dialog, setDialog] = useState(null);
   const [waiting, setWaiting] = useState(initialWaiting);
 
@@ -253,6 +255,7 @@ export default function ChatAside({
             )}
           </CombatModeButton>
           <FightLine fight={moveState.fight} />
+          <CavingLine caving={moveState.caving} />
         </div>
       </div>
 

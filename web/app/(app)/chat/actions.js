@@ -78,10 +78,11 @@ import { fileMove, editMove, withdrawMove, moveIsEditable } from "@lifeweb/db/li
 import { confirmMove } from "@lifeweb/db/lib/moveConfirm";
 import { moveWindow, isDaylight } from "@lifeweb/db/lib/turnClock";
 import { clockStatus } from "@lifeweb/db/lib/gameState";
-import { combatModeState } from "@lifeweb/db/lib/combatMode";
+import { combatModeState, CAVING_LOCKED_ON } from "@lifeweb/db/lib/combatMode";
 import { holdsCompulsion } from "@lifeweb/db/lib/vampireCompulsion";
 import { COMPELLED_LOCKED_ON } from "@lifeweb/db/lib/compulsionLines";
 import { combatViewFor } from "@lifeweb/db/lib/combat";
+import { cavingResultFor } from "@lifeweb/db/lib/cavingResponse";
 import { setCombatMode as setCombatModeInDb } from "@lifeweb/db/lib/verbs/combatMode";
 import { sessionGate } from "@lifeweb/db/lib/betweenSessions";
 import { loadDesireView } from "@/lib/selfPools";
@@ -899,7 +900,7 @@ export async function travelTo({ locationId, exert = false } = {}) {
   // hop, so it hands them over already gathered.
   const cavingDms = result.cavingDms ?? result.moved.map((entry) => entry.cavingDm).filter(Boolean);
   for (const dm of cavingDms) {
-    tell.push(() => sendDm(dm.discordUserId, dm.content));
+    tell.push(() => sendDm(dm.discordUserId, dm.content, { components: dm.components, meta: dm.meta }));
   }
   // Anybody laying in wait here (INTERCEPT.md), built inside performLocationMove.
   for (const dm of result.interceptDms ?? []) {
@@ -2365,9 +2366,9 @@ export async function myMove() {
     where: { status: "OPEN" },
     select: { id: true, number: true, dayNumber: true, turnLengthHours: true, endsAt: true, startedAt: true },
   });
-  if (!openTurn) return { ok: true, turn: null, move: null, combatMode: null, fight: null, characterId: me.character.id };
+  if (!openTurn) return { ok: true, turn: null, move: null, combatMode: null, fight: null, caving: null, characterId: me.character.id };
 
-  const [clock, action, fight] = await Promise.all([
+  const [clock, action, fight, caving] = await Promise.all([
     clockStatus(prisma),
     prisma.action.findFirst({
       where: { characterId: me.character.id, turnId: openTurn.id },
@@ -2388,6 +2389,8 @@ export async function myMove() {
     }),
     // The fight they are in, for the line under the card (docs/systemdocs/ATTACK.md §4). Never a roll.
     combatViewFor(prisma, me.character.id, openTurn),
+    // Their caving result, for the prompt under the card when it found them on guard (COMBAT-MODE.md §6).
+    cavingResultFor(prisma, me.character.id, openTurn),
   ]);
   const { cutoffAt, locked, hasLock } = moveWindow(openTurn, { clockFrozen: clock.frozen });
   const { editable } = moveIsEditable(action, openTurn, { clockFrozen: clock.frozen, inSession: clock.inSession });
@@ -2410,9 +2413,10 @@ export async function myMove() {
     move: action
       ? { id: action.id, kind: action.moveKind, description: action.description, editable }
       : null,
-    // A Bloodcrazed or Wight Vampire can't come out of it; the sentence is only ever sent to them.
+    // A Bloodcrazed or Wight Vampire can't come out of it; the sentence is only ever sent to them. Nor can
+    // anybody who failed a Caving roll this turn (any row of `caving` is one), until the turn is over.
     combatMode: combatModeState(me.character, openTurn, me.character.tags, {
-      heldBy: holdsCompulsion(me.character.tags) ? COMPELLED_LOCKED_ON : null,
+      heldBy: holdsCompulsion(me.character.tags) ? COMPELLED_LOCKED_ON : caving ? CAVING_LOCKED_ON : null,
     }),
     fight: fight
       ? {
@@ -2422,6 +2426,8 @@ export async function myMove() {
           needsWriting: fight.canDescribe && !fight.description,
         }
       : null,
+    // Only a result they can write for: out of combat mode at every 1, the DM already said so.
+    caving: caving?.alert ? { locationName: caving.locationName, needsWriting: !caving.response } : null,
     // The dialog keys its unfiled draft on it, so two characters don't inherit each other's day.
     characterId: me.character.id,
   };

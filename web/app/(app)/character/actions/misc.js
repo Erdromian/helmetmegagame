@@ -3134,7 +3134,7 @@ export async function stepstoneRequestImpl({ locationId }) {
       const moved = await prisma.character.findUnique({ where: { id: character.id } });
       const cavingDm = await rollCavingOnArrival(prisma, moved, location);
       if (cavingDm) {
-        await sendDm(cavingDm.discordUserId, cavingDm.content).catch((err) =>
+        await sendDm(cavingDm.discordUserId, cavingDm.content, { components: cavingDm.components, meta: cavingDm.meta }).catch((err) =>
           console.error("Stepstone: caving arrival DM failed:", err),
         );
       }

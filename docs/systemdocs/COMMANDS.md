@@ -696,6 +696,8 @@ parsed by literal `startsWith` + `slice`.
 | `cbt:write:{participantId}` | Button | Show the Write-your-attack modal, prefilled after an 800 ms read (`ATTACK.md` §11) |
 | `cbt:desc:{participantId}` | Modal | Save what you do in the fight |
 | `cbt:calloff:{participantId}` | Button | Call off a fight — ends it once every attacker has pressed it |
+| `cav:write:{cavingRollId}` | Button | Show the Write-your-response modal for a failed Caving roll, prefilled after an 800 ms read (`CAVING.md` §5b) |
+| `cav:resp:{cavingRollId}` | Modal | Save how an alert caver responds |
 | `act:open` | Button | The Actions menu (§2g) — on the anchors and the `#turns` console |
 | `act:menu:{section}:{n}` | Select | Start the verb picked from one section of the menu |
 | `act:start:{mode}` | Button | Start one verb — the place buttons (`act:start:sendmoney`, and the retired `…credit` and `…selltax`) |

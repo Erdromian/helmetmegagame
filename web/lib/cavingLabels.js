@@ -48,6 +48,17 @@ export function foldCavingRolls(rows) {
     // The newest resolved member says who resolved it and how (by hand, or the push).
     const lastResolved = resolved[resolved.length - 1] ?? null;
     const count = members.length;
+    // Combat mode at each 1 (COMBAT-MODE.md §6): one on guard is enough to let them write, and the desk says
+    // how many were. The response lives on the oldest; a group from before the fold may have it on a later one.
+    const alertCount = members.filter((m) => m.alert).length;
+    const responder = oldest.response ? oldest : ([...members].reverse().find((m) => m.response) ?? null);
+    const respondedAtMs = responder?.respondedAtMs ?? null;
+    const resolvedMs = Math.max(0, ...resolved.map((m) => (m.resolvedAt ? Date.parse(m.resolvedAt) : 0)));
+    // A response written or changed after a GM resolved the result reopens it, the way a fresh 1 does — the
+    // ruling was made without it. Not after the push: the turn is over and nothing can change it.
+    const respondedSinceResolved =
+      open === 0 && !lastResolved?.autoResolved && respondedAtMs != null && resolvedMs > 0 && respondedAtMs > resolvedMs;
+    const undecided = open > 0 || respondedSinceResolved;
     for (const m of members) groupOf.set(m.id, oldest.id);
     out.push({
       ...oldest,
@@ -62,12 +73,18 @@ export function foldCavingRolls(rows) {
       createdAtMs: latest.createdAtMs,
       // Needs attention while ANY 1 in it is undecided — a fresh failure after a GM resolved the
       // group reopens it, and says how many are new.
-      statusLabel: open > 0 ? "Needs attention" : "Resolved",
-      resolvedAt: open > 0 ? null : (lastResolved?.resolvedAt ?? null),
-      resolvedAtLabel: open > 0 ? null : (lastResolved?.resolvedAtLabel ?? null),
-      resolvedByUsername: open > 0 ? null : (lastResolved?.resolvedByUsername ?? null),
-      autoResolved: open === 0 && Boolean(lastResolved?.autoResolved),
+      statusLabel: undecided ? "Needs attention" : "Resolved",
+      resolvedAt: undecided ? null : (lastResolved?.resolvedAt ?? null),
+      resolvedAtLabel: undecided ? null : (lastResolved?.resolvedAtLabel ?? null),
+      resolvedByUsername: undecided ? null : (lastResolved?.resolvedByUsername ?? null),
+      autoResolved: !undecided && Boolean(lastResolved?.autoResolved),
       newSinceResolved: resolved.length > 0 ? open : 0,
+      alertCount,
+      latestAlert: Boolean(latest.alert),
+      response: responder?.response ?? "",
+      respondedAtMs,
+      respondedAtLabel: responder?.respondedAtLabel ?? null,
+      respondedSinceResolved,
       // The Result box lives on the oldest roll. A group from before the fold may have notes on a
       // later one, so the newest non-empty note stands in for an empty first.
       gmNotes: oldest.gmNotes || [...members].reverse().find((m) => m.gmNotes)?.gmNotes || "",

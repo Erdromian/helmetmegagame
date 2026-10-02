@@ -6426,6 +6426,20 @@ model CavingRoll {
   // rows written before this existed.
   presentedState Json?
 
+  // A TROUBLE row only: whether the caver was in combat mode at this 1, read
+  // off Character.combatModeSinceTurn in the roll's own transaction. Its own
+  // column rather than only `presentedState.m`, so the desk can say how many
+  // of a result's 1s were alert without unpacking every snapshot, and so a
+  // snapshot that failed to write never loses it (COMBAT-MODE.md §6).
+  alert Boolean @default(false)
+
+  // What an alert caver says they do about it (Combat Mode.docx: "given a
+  // prompt as to how they might respond to any threats"). ONE per result, on
+  // the result's OLDEST row — the id the desk keys the folded group by, where
+  // gmNotes lives too (CAVING.md §5b). Rewritable until Moves lock.
+  response    String?
+  respondedAt DateTime?
+
   createdAt DateTime @default(now())
 
   stagedMessages StagedMessage[]

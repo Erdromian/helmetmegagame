@@ -310,7 +310,7 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
     // A walk gathered one per hop and hands them over already collected.
     const cavingDms = result.cavingDms ?? result.moved.map((entry) => entry.cavingDm).filter(Boolean);
     for (const dm of cavingDms) {
-      await sendDm(prisma, dm.discordUserId, dm.content).catch((err) =>
+      await sendDm(prisma, dm.discordUserId, dm.content, { components: dm.components, meta: dm.meta }).catch((err) =>
         console.error(`Caving arrival DM to ${dm.discordUserId} failed:`, err.message ?? err),
       );
     }

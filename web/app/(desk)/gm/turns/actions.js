@@ -1365,8 +1365,12 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "
   await prisma.$transaction(async (tx) => {
     await tx.cavingRoll.update({ where: { id: notesId }, data: { gmNotes } });
     if (mode === "resolve") {
+      // Every member already resolved means the result was reopened by a response the caver wrote after the
+      // ruling (web/lib/cavingLabels.js#foldCavingRolls): resolving again restamps them all, so the response is
+      // no longer newer than the ruling. Otherwise only the undecided ones are stamped.
+      const reopened = members.every((m) => m.resolvedAt);
       await tx.cavingRoll.updateMany({
-        where: { id: { in: ids }, resolvedAt: null },
+        where: { id: { in: ids }, ...(reopened ? {} : { resolvedAt: null }) },
         data: { resolvedAt: new Date(), resolvedByDiscordUserId: session.discordUserId },
       });
     }
@@ -1478,7 +1482,7 @@ async function getCavingSnapshotImpl({ cavingRollId }) {
   const latest = await prisma.cavingRoll.findFirst({
     where: { ...troubleGroupWhere(roll), NOT: { presentedState: { equals: Prisma.DbNull } } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: { id: true, createdAt: true, presentedState: true, location: { select: { name: true } } },
+    select: { id: true, createdAt: true, presentedState: true, alert: true, location: { select: { name: true } } },
   });
   const state = readPresentedState(latest?.presentedState);
   if (!state) return { snapshot: null };
@@ -1497,7 +1501,9 @@ async function getCavingSnapshotImpl({ cavingRollId }) {
   return {
     snapshot: {
       rollId: latest.id,
-      combatMode: state.alert,
+      // The row's own column, read in the roll's transaction (COMBAT-MODE.md §6). The same answer as the
+      // snapshot's `m` for every row with one; the migration copied it across for rows rolled before.
+      combatMode: Boolean(latest.alert),
       locationName: latest.location?.name ?? null,
       atLabel: latest.createdAt.toISOString().slice(0, 16).replace("T", " "),
       tags,

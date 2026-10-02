@@ -66,6 +66,33 @@ function LastFailSnapshot({ rollId, latestId }) {
   return <SnapshotBody snap={snap} />;
 }
 
+// Combat mode, and what the caver wrote (Combat Mode.docx; COMBAT-MODE.md §6). The snapshot below answers for the
+// newest 1 alone, and a caver may have turned combat mode on between two of them, so this reads every 1 of the
+// result off the column each froze. In combat mode at any of them is what let them write, and the desk says only
+// that much (Bascinet, 2026-10-02).
+function OnGuard({ roll }) {
+  const alertCount = roll.alertCount ?? (roll.alert ? 1 : 0);
+  return (
+    <div className="flex flex-col gap-2">
+      <p className="flex flex-wrap items-center gap-2 text-sm">
+        <StatusPill tone={alertCount > 0 ? "bad" : "neutral"}>{alertCount > 0 ? "In combat mode" : "Not in combat mode"}</StatusPill>
+      </p>
+      {alertCount > 0 &&
+        (roll.response ? (
+          <>
+            <blockquote className="quote whitespace-pre-wrap text-sm">{roll.response}</blockquote>
+            <p className="text-xs text-muted">
+              Written {roll.respondedAtLabel ?? ""}
+              {roll.respondedSinceResolved ? " · changed since this was resolved" : ""}
+            </p>
+          </>
+        ) : (
+          <p className="text-xs text-muted">They haven&apos;t written a response yet. They can until Moves lock.</p>
+        ))}
+    </div>
+  );
+}
+
 export default function CavingDesk({
   roll,
   staged,
@@ -193,6 +220,7 @@ export default function CavingDesk({
             </p>
           )}
           {/* A fresh failure after a GM resolved the group reopens it. */}
+          {roll.respondedSinceResolved && <p className="mt-1 text-sm">They changed their response since this was resolved.</p>}
           {roll.newSinceResolved > 0 && (
             <p className="mt-1 text-sm">
               {roll.newSinceResolved === 1
@@ -234,6 +262,13 @@ export default function CavingDesk({
               {pending ? "Working…" : "Undo this find"}
             </button>
           )}
+        </div>
+      )}
+
+      {roll.kind === "TROUBLE" && (
+        <div className="mt-4 flex flex-col gap-2 border-t pt-4" style={{ borderColor: "var(--border)" }}>
+          <h3 className="field-label">Combat mode</h3>
+          <OnGuard roll={roll} />
         </div>
       )}
 

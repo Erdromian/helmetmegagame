@@ -38,6 +38,22 @@ const INVITE_SURPRISED = "You aren't on guard, so if you join you'll be caught b
 const DESCRIPTION_LIMIT = 2000;
 const ALERT_TOO_LATE = "You're alert now, but it only counts for fights that start from here on — not the one you're already in.";
 
+// A failed Caving roll (Combat Mode.docx: "a character who has combat mode enabled when failing a cave roll is
+// given a prompt as to how they might respond to any threats"; COMBAT-MODE.md §6). One response per caving result,
+// capped at DESCRIPTION_LIMIT like an attack. Here so the web's write box says what the server refuses with.
+// Asked once per result: the response covers every 1 of the turn, so the prompt says so (Bascinet, 2026-10-02).
+const CAVING_PROMPT =
+  "You're on guard. Write how you respond — it covers anything else that goes wrong down here this turn. You can change it until Moves lock.";
+// A later 1 once they have written. No button: it is the same result, and they already answered it.
+const CAVING_STANDS = "What you wrote still stands for this. You can change it until Moves lock.";
+// Out of combat mode at every 1 so far. The doc's way back in: turn it on, and the next failed roll asks.
+const CAVING_SURPRISED = "You weren't on guard, so you can't choose how you respond. If you're in combat mode when it happens again this turn, you can.";
+const CAVING_LOCKED = "Moves are locked for this turn, so your response can't be changed now.";
+const CAVING_WRITTEN = "Your response is written. You can change it until Moves lock.";
+// A caver who failed a Caving roll this turn can't come out of combat mode themselves until the turn is over
+// (Bascinet, 2026-10-02). The push's own Tired/Exhausted step still can (combatModePass.js).
+const CAVING_LOCKED_ON = "Something is wrong down here. You can't let your guard down until the turn is over.";
+
 // An invitation, naming who asked (combat.js#combatViewFor's `inviter`, already the name the reader knows
 // them by). Both faces' fight readouts and the line under the Turn box say it the same way. `inviter` may be
 // null — the one who asked has left the fight — and then nobody is named.
@@ -120,6 +136,12 @@ module.exports = {
   SURPRISED,
   INVITE_SURPRISED,
   ALERT_TOO_LATE,
+  CAVING_PROMPT,
+  CAVING_SURPRISED,
+  CAVING_LOCKED,
+  CAVING_WRITTEN,
+  CAVING_STANDS,
+  CAVING_LOCKED_ON,
   DESCRIPTION_LIMIT,
   invitedLine,
   invitedShortLine,
