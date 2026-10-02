@@ -1221,6 +1221,12 @@ async function normalizeEdits(tx, action, edits, characterTags, mood) {
   }
 
   data.resultMessage = edits.resultMessage?.toString().trim() || null;
+  // "Roll to player": whether the push DMs them their die. Only a real boolean
+  // writes, so a client that never sent the switch leaves the saved value alone.
+  // A Gambit the game settles itself has no switch: its own DM carries the die.
+  if (typeof edits.revealRoll === "boolean" && !isSelfResolving(action.gmNotes)) {
+    data.revealRoll = edits.revealRoll;
+  }
   return { data, revertPayout };
 }
 
@@ -1310,7 +1316,14 @@ async function resolveMoveImpl({ actionId, mode, edits = {} }) {
     actorDiscordUserId: session.discordUserId,
     actionType: `move_${mode}`,
     targetCharacterId: action.characterId,
-    details: { actionId, note: result.note },
+    details: {
+      actionId,
+      note: result.note,
+      // Who withheld a die is a question /gm/audit should be able to answer.
+      ...(typeof edits.revealRoll === "boolean" && edits.revealRoll !== action.revealRoll && !isSelfResolving(action.gmNotes)
+        ? { revealRoll: edits.revealRoll }
+        : {}),
+    },
   });
 
   return { ...result, patch: await deskPatchFor({ moveIds: [actionId] }) };
@@ -1798,7 +1811,7 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
       turnLabel: a.turn ? `${a.turn.number} · Day ${a.turn.dayNumber}` : "—",
       kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
       reviewLabel: MOVE_REVIEW_LABELS[a.moveReviewStatus] ?? "Open",
-      rollLabel: rollLabel(a),
+      rollLabel: rollLabel(a) && a.revealRoll === false ? `${rollLabel(a)} · not shown to them` : rollLabel(a),
       declaredLabel: declaredLabel(a),
       paidLabel: paidLabel(a.appliedEffects),
       description: a.description ?? "",

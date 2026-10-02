@@ -70,7 +70,8 @@ function formatRoutineCloseDm(turn, action, applied, adjudicated) {
 // The Gambit reveal. The die is thrown at submit (db/lib/gambitDie.js) and the modifier
 // settled at the lock (db/lib/gambitCutoff.js), but BOTH are withheld from the player
 // until the turn closes — this DM is where they find out, and it is the only place. The
-// desk sees the die all day; the player does not. Raw + modifier + total only, no
+// desk sees the die all day; the player does not, and never will if a GM switched the
+// Move's "Roll to player" to Withhold (Action.revealRoll). Raw + modifier + total only, no
 // per-contributor breakdown (that needs tags this pass doesn't load).
 function formatGambitRollDm(turn, action) {
   const { diceRoll, diceModifier } = action;
@@ -79,6 +80,27 @@ function formatGambitRollDm(turn, action) {
     ? `**${diceRoll}** (${mod > 0 ? `+${mod}` : mod}) → **${rollTotal(diceRoll, mod)}**`
     : `**${diceRoll}**`;
   return `🎲 Your Gambit for turn ${turn.number}: ${roll}.`;
+}
+
+// Who is told their die at this push. Every CONFIRMED Gambit still unpaid this turn
+// qualifies (the caller's query), unless a GM withheld it on the desk. The Gambits the
+// game settles itself are excluded (db/lib/autoGambits.js): each one's own DM already says
+// the die AND what it did, in one line — the lesson at accept, the heal, confession and
+// Trinket passes before this one, a break-in in breakInDm below. The bare "you rolled X"
+// notice would be a contextless second message beside it.
+function gambitRollNoticesFor(turn, actions) {
+  const notices = [];
+  for (const action of actions) {
+    if (isSelfResolving(action.gmNotes)) continue;
+    if (action.revealRoll === false) continue;
+    if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
+      notices.push({
+        discordUserId: action.character.discordUserId,
+        content: formatGambitRollDm(turn, action),
+      });
+    }
+  }
+  return notices;
 }
 
 // Mirrors TagOpError for the zone half of a staged effect: thrown inside
@@ -607,23 +629,8 @@ async function runStagedPushPass(prisma, turn) {
   });
   const routineNotices = [...craftNotices];
   // Independent of the routine-closing logic below: the die was already
-  // decided at submit, this pass just delivers the news. Every CONFIRMED
-  // Gambit still unpaid this turn qualifies.
-  // The Gambits the game settles itself are excluded (db/lib/autoGambits.js):
-  // each one's own DM already says the die AND what it did, in one line — the
-  // lesson at accept, the heal, confession and Trinket passes before this one,
-  // a break-in in breakInDm below. The bare "you rolled X" notice would be a
-  // contextless second message beside it.
-  const gambitRollNotices = [];
-  for (const action of unapplied) {
-    if (isSelfResolving(action.gmNotes)) continue;
-    if (action.moveKind === "GAMBIT" && action.diceRoll != null && action.character?.discordUserId) {
-      gambitRollNotices.push({
-        discordUserId: action.character.discordUserId,
-        content: formatGambitRollDm(turn, action),
-      });
-    }
-  }
+  // decided at submit, this pass just delivers the news.
+  const gambitRollNotices = gambitRollNoticesFor(turn, unapplied);
   for (const action of unapplied) {
     // Decided inside the transaction, queued outside it: a commit that fails
     // after the eligibility check must not leave a "your Routine passed" DM
@@ -803,4 +810,4 @@ async function runStagedPushPass(prisma, turn) {
   };
 }
 
-module.exports = { runStagedPushPass };
+module.exports = { runStagedPushPass, gambitRollNoticesFor };

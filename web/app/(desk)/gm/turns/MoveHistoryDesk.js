@@ -111,7 +111,9 @@ export default function MoveHistoryDesk({
           </div>
           <div className="flex flex-col gap-1">
             <span className="field-label">Dice</span>
-            <span className="mono text-sm">{move.rollLabel || "—"}</span>
+            <span className="mono text-sm">
+              {move.rollLabel ? `${move.rollLabel}${move.revealRoll ? "" : " · not shown to them"}` : "—"}
+            </span>
           </div>
           <div className="flex flex-col gap-1">
             <span className="field-label">Declared</span>
