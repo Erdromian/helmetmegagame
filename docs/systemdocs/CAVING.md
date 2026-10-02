@@ -615,13 +615,20 @@ Built the attack description's way (`ATTACK.md` §4), in
   for every 1 rolled before.
 - **One alert 1 is enough.** If any 1 in the result found the caver in combat
   mode, they may write. A later 1 out of combat mode does not take that back.
-- **The trouble DM says which.** On guard: "You're on guard. Write how you
-  respond to it. You can change it until Moves lock." and a **Write your
+- **The trouble DM asks once per result** (Bascinet, 2026-10-02: the response
+  is for the whole result, so it must not ask again every time the severity
+  climbs). The 1 that FIRST finds them on guard says "You're on guard. Write
+  how you respond — it covers anything else that goes wrong down here this
+  turn. You can change it until Moves lock." and carries a **Write your
   response** button (`cav:write:<rollId>`, a modal on Discord; on the web the
   DM's descriptor, `DM_ACTION.CAVING`, draws the same button into the thread).
-  Off guard: "You weren't on guard, so you can't choose how you respond. If
-  you're in combat mode when it happens again this turn, you can." Every sender
-  of a caving DM passes the DM's `components` and `meta` through.
+  Every later 1 in that result asks nothing and carries no button. Once they
+  have written, it adds one line: "What you wrote still stands for this. You
+  can change it until Moves lock." Until then it adds nothing, since the first
+  DM's button and the turn card are still asking. Off guard at every 1 so far:
+  "You weren't on guard, so you can't choose how you respond. If you're in
+  combat mode when it happens again this turn, you can." Every sender of a
+  caving DM passes the DM's `components` and `meta` through.
 - **The web asks under the turn card** on `/chat` and the sheet
   (`CavingLine.js`, off `myMove`'s `caving`), until they have written. Both
   open `CavingResponseDialog.js`.

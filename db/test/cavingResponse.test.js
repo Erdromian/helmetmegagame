@@ -19,23 +19,37 @@ const advantage = require("../lib/advantage");
 advantage.rollWithAdvantage = () => ({ die: 1 });
 const { rollCaving } = require("../lib/cavingPass");
 const { troubleDmParts, respondToCaving, cavingResultFor, CAVING_WRITE_PREFIX } = require("../lib/cavingResponse");
-const { CAVING_PROMPT, CAVING_SURPRISED, DESCRIPTION_LIMIT } = require("../lib/combatMode");
+const { CAVING_PROMPT, CAVING_SURPRISED, CAVING_STANDS, DESCRIPTION_LIMIT } = require("../lib/combatMode");
 const { DM_ACTION, dmActionOf } = require("../lib/dmActions");
 
 const loadLabels = () => import(pathToFileURL(path.join(__dirname, "..", "..", "web", "lib", "cavingLabels.js")).href);
 
 test("an alert caver's trouble DM carries the prompt and its button; anybody else's says they were caught off guard", () => {
-  const alert = troubleDmParts("roll1", true);
+  const alert = troubleDmParts("roll1", { alert: true });
   assert.equal(alert.line, CAVING_PROMPT);
   assert.equal(alert.components[0].components[0].custom_id, `${CAVING_WRITE_PREFIX}roll1`);
   assert.equal(alert.components[0].components[0].label, "Write your response");
   // The web draws its own button off the descriptor, the COMBAT shape.
   assert.deepEqual(dmActionOf({ meta: alert.meta }), { kind: DM_ACTION.CAVING, id: "roll1" });
 
-  const surprised = troubleDmParts("roll1", false);
+  const surprised = troubleDmParts("roll1", { alert: false });
   assert.equal(surprised.line, CAVING_SURPRISED);
   assert.deepEqual(surprised.components, []);
   assert.equal(surprised.meta, undefined, "nothing to write, so nothing for the web to draw");
+});
+
+test("the prompt goes out once per result, not again every time the severity climbs", () => {
+  // An earlier 1 already asked: no prompt, no button, nothing for the web to draw.
+  const unwritten = troubleDmParts("roll2", { alert: true, asked: true });
+  assert.equal(unwritten.line, null, "the first DM's button and the turn card are still asking");
+  assert.deepEqual(unwritten.components, []);
+  assert.equal(unwritten.meta, undefined);
+
+  // Once they have written, a later 1 only says their answer still covers it.
+  const written = troubleDmParts("roll3", { alert: true, asked: true, written: true });
+  assert.equal(written.line, CAVING_STANDS);
+  assert.deepEqual(written.components, []);
+  assert.equal(written.meta, undefined);
 });
 
 const row = (id, createdAtMs, extra = {}) => ({
@@ -156,20 +170,33 @@ test("a failed roll freezes combat mode, and only an alert result can be written
   assert.equal(second.dm.components[0].components[0].custom_id, `${CAVING_WRITE_PREFIX}${second.roll.id}`);
   assert.deepEqual(second.dm.meta, { action: { kind: DM_ACTION.CAVING, id: second.roll.id } });
 
-  // Combat mode off again, a third 1: the result already found them on guard, so the prompt stays.
-  await prisma.character.update({ where: { id: caver.id }, data: { combatModeSinceTurn: null } });
-  const third = await rollCaving(prisma, caver, turn, location);
-  assert.equal(third.roll.alert, false);
-  assert.ok(third.dm.content.endsWith(CAVING_PROMPT));
+  assert.ok(second.dm.content.endsWith(CAVING_PROMPT));
 
-  // Whichever roll the button names, the words land on the result's oldest.
-  const ok = await respondToCaving(prisma, { characterId: caver.id, rollId: third.roll.id, text: "  I douse the lamp.  ", turn });
+  // Still on guard, a third 1: the same result, already asked — no second prompt, no second button.
+  const third = await rollCaving(prisma, caver, turn, location);
+  assert.equal(third.roll.alert, true);
+  assert.equal(third.dm.content, "Caving Die: 1 — Something is wrong down here. A GM has been notified.");
+  assert.deepEqual(third.dm.components, []);
+  assert.equal(third.dm.meta, undefined);
+
+  // The second roll's button still writes, and the words land on the result's oldest.
+  const ok = await respondToCaving(prisma, { characterId: caver.id, rollId: second.roll.id, text: "  I douse the lamp.  ", turn });
   if (!ok.ok) return t.skip(`the local game refuses Moves right now: ${ok.error}`);
   assert.equal((await prisma.cavingRoll.findUnique({ where: { id: first.roll.id } })).response, "I douse the lamp.");
+
+  // Combat mode off, a fourth 1: an earlier one gave the chance, so they aren't told they missed it — only that
+  // what they wrote still covers this.
+  await prisma.character.update({ where: { id: caver.id }, data: { combatModeSinceTurn: null } });
+  const fourth = await rollCaving(prisma, caver, turn, location);
+  assert.equal(fourth.roll.alert, false);
+  assert.ok(fourth.dm.content.endsWith(CAVING_STANDS));
+  assert.deepEqual(fourth.dm.components, []);
+
   const result = await cavingResultFor(prisma, caver.id, turn);
   assert.equal(result.rollId, first.roll.id);
-  assert.equal(result.severity, 3);
+  assert.equal(result.severity, 4);
   assert.equal(result.alert, true);
+  assert.equal(result.response, "I douse the lamp.", "one response for the whole result");
 
   // Somebody else's roll, or too many words, is refused.
   const theirs = await respondToCaving(prisma, { characterId: stranger.id, rollId: second.roll.id, text: "Mine now.", turn });

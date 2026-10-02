@@ -8,7 +8,7 @@
 //
 // Takes `db` as a parameter (db/lib/dm.js convention). Not on the @lifeweb/db barrel; require by path.
 const { movesOpen } = require("./turnGate");
-const { DESCRIPTION_LIMIT, CAVING_PROMPT, CAVING_SURPRISED, CAVING_LOCKED, CAVING_WRITTEN } = require("./combatMode");
+const { DESCRIPTION_LIMIT, CAVING_PROMPT, CAVING_SURPRISED, CAVING_LOCKED, CAVING_WRITTEN, CAVING_STANDS } = require("./combatMode");
 const { DM_ACTION, dmAction } = require("./dmActions");
 
 // The Discord button and its modal's submit. Each names a CavingRoll, never a character.
@@ -66,10 +66,15 @@ async function respondToCaving(db, { characterId, rollId = null, text, turn, now
   return { ok: true, line: CAVING_WRITTEN };
 }
 
-// The line and buttons a trouble DM carries. `canWrite` is the RESULT's alert, not just this roll's: a later 1
-// out of combat mode doesn't take back the chance an earlier one gave.
-function troubleDmParts(rollId, canWrite) {
-  if (!canWrite) return { line: CAVING_SURPRISED, components: [], meta: undefined };
+// The line and buttons a trouble DM carries, off the caver's whole result this turn (the 1s fold into one, and so
+// does the response). `alert`: any 1 in it found them on guard — a later 1 out of combat mode doesn't take that
+// back. `asked`: an EARLIER 1 already did, so its DM already asked. The prompt and its button go out once, on the
+// 1 that first gives the chance; every 1 after that adds to the same result and asks nothing. `written` only
+// changes what a later 1 says: one quiet line that what they wrote still covers it, or nothing at all, since the
+// first DM's button and the line under the turn card are still asking.
+function troubleDmParts(rollId, { alert = false, asked = false, written = false } = {}) {
+  if (!alert) return { line: CAVING_SURPRISED, components: [], meta: undefined };
+  if (asked) return { line: written ? CAVING_STANDS : null, components: [], meta: undefined };
   return {
     line: CAVING_PROMPT,
     components: [

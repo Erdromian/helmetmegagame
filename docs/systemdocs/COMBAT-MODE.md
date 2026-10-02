@@ -194,9 +194,10 @@ The design doc's cave half (`CAVING.md` §5):
   severity is how many there were (Caving.docx). The GM adjudicates it once, off
   the snapshot from the **most recent** failed roll.
 - **The prompt** (`CAVING.md` §5b): a 1 freezes combat mode on
-  `CavingRoll.alert`. If any 1 in the result found them on guard, the trouble
-  DM asks how they respond and carries **Write your response**, and the web
-  asks under the turn card. The response is one per result, on its oldest row,
+  `CavingRoll.alert`. The 1 that first finds them on guard asks how they
+  respond and carries **Write your response**; later 1s in the same result
+  don't ask again. The web asks under the turn card until they've written. The
+  response is one per result, on its oldest row, covers every 1 in it, and is
   rewritable until Moves lock. Off guard at every 1, they are told they can't
   choose, and that turning combat mode on gives them the chance if it happens
   again this turn.

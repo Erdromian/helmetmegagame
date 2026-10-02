@@ -75,7 +75,8 @@ export default function CavingResponseDialog({ rollId = null, onClose, onSaved }
               onChange={(e) => setText(e.target.value)}
             />
             <span className="text-xs text-muted">
-              You can change this until Moves lock. {text.length}/{DESCRIPTION_LIMIT}
+              It covers everything that goes wrong down here this turn. You can change it until Moves lock.{" "}
+              {text.length}/{DESCRIPTION_LIMIT}
             </span>
           </label>
         )}

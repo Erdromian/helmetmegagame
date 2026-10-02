@@ -118,15 +118,24 @@ async function rollCaving(prisma, character, turn, location) {
       await applyMood(tx, character.id, { kind: "CAVE_TROUBLE" });
       // Counted INSIDE the transaction, after the row lands, so the DM that
       // says "that's ten" is written by the same roll that made it ten.
-      const troubles = await tx.cavingRoll.findMany({ where: troubleWhere(character.id), select: { alert: true } });
+      const troubles = await tx.cavingRoll.findMany({
+        where: troubleWhere(character.id),
+        select: { id: true, alert: true, response: true },
+      });
       const stuck = troubles.length >= CAVING_TROUBLE_CAP;
-      // The prompt to write (COMBAT-MODE.md §6): this 1 or any earlier one this turn found them on guard.
-      const { line, components, meta } = troubleDmParts(row.id, troubles.some((t) => t.alert));
+      // The prompt to write (COMBAT-MODE.md §6), once per result: asked on the 1 that first found them on guard,
+      // never again as the severity climbs — the one response covers every 1 of the turn.
+      const earlier = troubles.filter((t) => t.id !== row.id);
+      const { line, components, meta } = troubleDmParts(row.id, {
+        alert: alert || earlier.some((t) => t.alert),
+        asked: earlier.some((t) => t.alert),
+        written: troubles.some((t) => t.response),
+      });
       return {
         roll: row,
         dm: {
           discordUserId: character.discordUserId,
-          content: `${stuck ? stuckDm(die) : troubleDm(die)}\n${line}`,
+          content: [stuck ? stuckDm(die) : troubleDm(die), line].filter(Boolean).join("\n"),
           components,
           meta,
         },
