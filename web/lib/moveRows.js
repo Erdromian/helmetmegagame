@@ -152,6 +152,8 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     selfResolving: isSelfResolving(a.gmNotes),
     gmNotes: a.gmNotes ?? "",
     rollLabel: rollLabel(a),
+    // The desk's "Roll to player" switch: false means the push won't DM them their die.
+    revealRoll: a.revealRoll !== false,
     // The die lands at submit, the Hunger/mood modifier only at the lock (db/lib/gambitCutoff.js),
     // so between the two the desk is showing a number whose TOTAL will still move. Say so rather
     // than let it change under a GM mid-adjudication.

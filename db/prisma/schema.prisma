@@ -4661,6 +4661,10 @@ model Action {
   // The Result box — the GM-facing canon of what happened, never auto-sent
   // (players are told through StagedMessages at the push; ADJUDICATION.md).
   resultMessage      String?
+  // The desk's "Roll to player" switch on a Gambit. True (the default) sends
+  // the die DM at the push; false withholds it (stagedPush.js#gambitRollNoticesFor).
+  // A Gambit the game settles itself ignores it — its own DM carries the die.
+  revealRoll         Boolean         @default(true)
   // Machine markers only since the staged-arbitration rework — the "auto:*"
   // family (auto:mine, auto:zone_change, auto:silent_close…). No GM UI
   // renders or edits it any more.

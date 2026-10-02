@@ -357,6 +357,13 @@ rule).
   the confirm DM, not `/character`. Every confirmed Gambit gets the DM
   regardless of what else the push sent them, except one the game settles
   itself ("Some Gambits never reach a GM", below), whose own DM carries the die.
+  **A GM can withhold it.** The desk's **Roll to player** switch (Send /
+  Withhold, beside Dice, shown only on a Gambit) writes `Action.revealRoll`;
+  Withhold means the push sends no die DM for that Move, and the player never
+  learns the number. It defaults to Send, Save and Solve both keep it, a change
+  is written to the audit log, and the inspector's Moves tab marks the roll
+  "not shown to them". The self-settling Gambits get no switch — their own DM is
+  the outcome, die and all (`stagedPush.js#gambitRollNoticesFor`).
 - **Some Gambits never reach a GM at all.** The game rolls and settles five
   kinds itself, listed in `db/lib/autoGambits.js` by their `gmNotes` marker:
   a **lesson** (settled the moment it is accepted, `LESSONS.md`), a **heal

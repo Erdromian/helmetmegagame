@@ -86,9 +86,16 @@ export default function MoveDesk({
   // the saved row takes back over.
   const draftKey = `move:${move.id}`;
   const draft = useDeskDraft(draftKey);
+  // The saved row underneath, so a draft from before the "Roll to player"
+  // switch existed still reads the saved value for it.
   const edits = useMemo(
-    () => draft ?? { moveKind: move.moveKind, resultMessage: move.resultMessage ?? "" },
-    [draft, move.moveKind, move.resultMessage],
+    () => ({
+      moveKind: move.moveKind,
+      resultMessage: move.resultMessage ?? "",
+      revealRoll: move.revealRoll,
+      ...draft,
+    }),
+    [draft, move.moveKind, move.resultMessage, move.revealRoll],
   );
   // A cold draft is still guarded on close and on unload; it just stops
   // standing the desk's backstop poll down (useDirtyGuard, deskDraft.js).
@@ -333,6 +340,20 @@ export default function MoveDesk({
                   : "—"}
             </span>
           </div>
+          {/* Whether the push DMs them their die. A Gambit the game settles
+              itself has no switch: its own DM says the die and the outcome. */}
+          {edits.moveKind === "GAMBIT" && !move.isTravel && !move.selfResolving && (
+            <Switch
+              label="Roll to player"
+              value={edits.revealRoll}
+              disabled={disabled}
+              onChange={(v) => setEdit("revealRoll", v)}
+              options={[
+                { value: true, label: "Send" },
+                { value: false, label: "Withhold" },
+              ]}
+            />
+          )}
           <div className="flex flex-col gap-1">
             <span className="field-label">Declared</span>
             <span className="mono text-sm">{declared ?? "—"}</span>
