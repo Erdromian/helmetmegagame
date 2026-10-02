@@ -26,9 +26,11 @@ export function tagDurationFor({ tag, expiresTurn = null, currentTurn = null }) 
 
 // Tag.inspectVisibility as a sentence. NAMED needs saying out loud rather than reading as
 // a plain "Yes": it is why a hood or Disguise Kit is worth buying when Wanted (db/lib/medicalVision.js).
+// FACE likewise: a hood or mask hides it, a Disguise Kit does not.
 const SEEN_BY_OTHERS = {
   WORN: "Only while worn",
   NAMED: "Only under your own name",
+  FACE: "Only while your face shows",
   ALWAYS: "Yes",
 };
 

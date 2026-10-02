@@ -93,6 +93,9 @@ const VISIBILITY_BY_YAML = new Map([
   // A reputation rather than a thing: seen only while the subject is going
   // under their own name, so a hood or a Disguise Kit takes it off the read.
   ["named", "NAMED"],
+  // A thing on the face (Disfigured, a missing eye): seen like `true` until a
+  // hood covers it. A Disguise Kit's false name does not.
+  ["face", "FACE"],
 ]);
 
 // `catalog:` in docs/tags.yaml -> Tag.catalogVisibility. Required on every
@@ -474,10 +477,10 @@ async function syncTagsFromYaml(prisma) {
         `docs/tags.yaml: tag "${t.slug}" has catalog: ${JSON.stringify(t.catalog)} — say secret (cave/antagonist, nobody sees it), gm (GMs, plus players whose character relates to it), or all (fully public)`,
       );
     }
-    // `visible` is four-state: true, false, "worn" or "named".
+    // `visible` is five-state: true, false, "worn", "named" or "face".
     if (!VISIBILITY_BY_YAML.has(t.visible ?? false)) {
       throw new Error(
-        `docs/tags.yaml: tag "${t.slug}" has visible: ${JSON.stringify(t.visible)} — say true, false, worn, or named`,
+        `docs/tags.yaml: tag "${t.slug}" has visible: ${JSON.stringify(t.visible)} — say true, false, worn, named, or face`,
       );
     }
     // Same pairing guard as concealsIdentity: visible: worn needs equippable.

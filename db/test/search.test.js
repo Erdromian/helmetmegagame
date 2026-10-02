@@ -110,11 +110,12 @@ test("pickRevealed can reach every item, so hiding order steers nothing", () => 
 
 // ── What may be hidden ─────────────────────────────────────────────────────
 
-test("HIDDEN and WORN may be hidden; ALWAYS and NAMED may not", () => {
+test("HIDDEN and WORN may be hidden; ALWAYS, NAMED and FACE may not", () => {
   assert.equal(hideableFromSearch({ inspectVisibility: "HIDDEN" }), true);
   assert.equal(hideableFromSearch({ inspectVisibility: "WORN" }), true);
   assert.equal(hideableFromSearch({ inspectVisibility: "ALWAYS" }), false);
   assert.equal(hideableFromSearch({ inspectVisibility: "NAMED" }), false);
+  assert.equal(hideableFromSearch({ inspectVisibility: "FACE" }), false);
 });
 
 // The allowlist fails closed by REVEALING rather than by hiding, which is the

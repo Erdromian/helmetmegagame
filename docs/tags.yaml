@@ -68,8 +68,8 @@
 #   durationTurns   - default turns-to-expire once granted, for tags that
 #                     auto-expire (e.g. Drained: 3). Omit for tags that don't
 #                     expire on their own.
-#   visible         - who sees this tag on a 🔍 inspect. true | false | worn,
-#                     default false. THE RULE, and it is catalog-wide: `true`
+#   visible         - who sees this tag on a 🔍 inspect. true | false | worn |
+#                     named | face, default false. THE RULE, and it is catalog-wide: `true`
 #                     means a stranger looking you over would notice — your
 #                     body, your face, your gait, your clothes, anything large
 #                     enough that you are visibly hauling it, and a reputation
@@ -79,7 +79,12 @@
 #                     Eunuch, every Belief and every Skill are `false`, and a
 #                     temper is a thing you find out about someone rather than
 #                     a thing you see. `worn` is the concealable middle and
-#                     requires `equippable` (the sync throws otherwise). When
+#                     requires `equippable` (the sync throws otherwise).
+#                     `named` is a reputation: gone under a hood or a false
+#                     name (Wanted). `face` is a thing ON the face — Disfigured,
+#                     Ugly, Pretty, a missing eye, a wired jaw: like `true`
+#                     until a hood or mask covers it. A Disguise Kit does not
+#                     hide it, since the face under one is uncovered. When
 #                     in doubt, check the neighbours — if a tag of identical
 #                     severity two rows away disagrees with you, one of the two
 #                     is wrong. Health carries a second rule on top of this
@@ -1582,7 +1587,7 @@ tags:
     group: general-traits
     description: "You are very pretty."
     pointCost: 3
-    visible: true
+    visible: face
     purchasable: true
     purchasableAfterStart: true
 
@@ -1594,7 +1599,7 @@ tags:
     description: "Your face and figure are divine, drawing all attention to you, for better or for worse."
     pointCost: 3
     parentTag: pretty
-    visible: true
+    visible: face
     purchasable: true
     purchasableAfterStart: true
 
@@ -2201,7 +2206,7 @@ tags:
     description: "People wonder if you were dropped on your face as a child."
     pointCost: -1
     conflictsWith: [pretty, beautiful, disfigured]
-    visible: true
+    visible: face
     purchasable: true
     purchasableAfterStart: false
 
@@ -3727,7 +3732,7 @@ tags:
     category: status
     group: status-vampire
     description: "The whites of their eyes look like bottomless black pits!"
-    visible: true
+    visible: face
     pointCost: 0
     purchasable: false
     purchasableAfterStart: false
@@ -4622,7 +4627,7 @@ tags:
     group: status-buffs
     description: "You are peerless in your beauty."
     pointCost: 0
-    visible: true
+    visible: face
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 3
@@ -5263,7 +5268,7 @@ tags:
     description: "The swelling makes it hard to eat or speak."
     fighting: { tree: both, tiers: -0.3 }
     pointCost: 0
-    visible: true
+    visible: face
     purchasable: false
     purchasableAfterStart: false
     removesInto: [wired-jaw]
@@ -5742,7 +5747,7 @@ tags:
     description: "Your face scares children."
     pointCost: -2
     conflictsWith: [pretty, beautiful]
-    visible: true
+    visible: face
     purchasable: true
     purchasableAfterStart: false
     removesInto: [scarred]
@@ -5889,7 +5894,7 @@ tags:
     fighting: { tree: ranged, tiers: -0.7 }
     pointCost: -5
     conflictsWith: [eagle-eyes, blind]
-    visible: true
+    visible: face
     purchasable: true
     purchasableAfterStart: false
 
@@ -5904,7 +5909,7 @@ tags:
     cureRung: 0
     description: "A painted glass eye."
     pointCost: 0
-    visible: true
+    visible: face
     purchasable: false
     purchasableAfterStart: false
 
@@ -6070,7 +6075,7 @@ tags:
     description: "Your body is rapidly shutting down, but you're clear-headed. Blood is dripping from your mouth."
     fighting: { tree: both, tiers: -1.5 }
     pointCost: 0
-    visible: true
+    visible: face
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1
@@ -6193,7 +6198,7 @@ tags:
     group: health-recovery
     description: "You can barely speak."
     pointCost: 0
-    visible: true
+    visible: face
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 3
@@ -15012,7 +15017,7 @@ tags:
     cureRung: 4
     description: "Your jaw is seizing shut. You can't breathe."
     pointCost: 0
-    visible: true
+    visible: face
     purchasable: false
     purchasableAfterStart: false
     durationTurns: 1

@@ -105,6 +105,7 @@ const VISIBILITY_CHIP = {
   ALWAYS: "Visible on 🔍",
   WORN: "Visible on 🔍 while worn",
   NAMED: "Visible on 🔍 under your own name",
+  FACE: "Visible on 🔍 unless your face is covered",
 };
 
 export default function TagDetailSheet({ tag, tags, onOpen, onClose }) {

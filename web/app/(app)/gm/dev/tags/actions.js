@@ -150,9 +150,9 @@ function scalarsFrom(input) {
     );
   }
 
-  // Four states, not a checkbox (Tag.inspectVisibility). A missing or unknown
+  // Five states, not a checkbox (Tag.inspectVisibility). A missing or unknown
   // value reads as HIDDEN, which is the safe direction for a vision gate.
-  const inspectVisibility = ["HIDDEN", "ALWAYS", "WORN", "NAMED"].includes(input.inspectVisibility)
+  const inspectVisibility = ["HIDDEN", "ALWAYS", "WORN", "NAMED", "FACE"].includes(input.inspectVisibility)
     ? input.inspectVisibility
     : "HIDDEN";
   // Same pairing as concealsIdentity above, and as syncTags.js enforces on the

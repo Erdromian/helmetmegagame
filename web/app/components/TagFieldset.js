@@ -19,12 +19,14 @@ import { TAG_CATEGORY } from "@lifeweb/db/lib/constants";
 // Tag.inspectVisibility. WORN needs the tag to be equippable; the server
 // re-checks it (actions.js#scalarsFrom). NAMED is the reputation case — seen
 // only while the wearer is going under their own name, so a hood or a
-// Disguise Kit takes it off the read (db/lib/medicalVision.js).
+// Disguise Kit takes it off the read (db/lib/medicalVision.js). FACE is a
+// thing on the face — seen until a hood or mask covers it.
 const VISIBILITY_OPTIONS = [
   ["HIDDEN", "Never"],
   ["ALWAYS", "Always"],
   ["WORN", "Only while equipped"],
   ["NAMED", "Only under their own name"],
+  ["FACE", "Only while their face shows"],
 ];
 
 const BEHAVIOUR_FIELDS = [
