@@ -42,6 +42,15 @@ async function cavingResultFor(db, characterId, turn) {
   };
 }
 
+// Whether the caver has failed a Caving roll on `turn`. While they have, they can't take themselves out of
+// combat mode (Bascinet, 2026-10-02): db/lib/verbs/combatMode.js refuses, and chat/actions.js#myMove locks the
+// button. It lifts with the turn, when the result does.
+async function failedCavingThisTurn(db, characterId, turn) {
+  if (!characterId || !turn?.id || typeof db.cavingRoll?.findFirst !== "function") return false;
+  const row = await db.cavingRoll.findFirst({ where: resultWhere(characterId, turn.id), select: { id: true } });
+  return Boolean(row);
+}
+
 // What they do about it. `rollId` is optional — the DM's button names one roll of the result, the web's line
 // names none — and when given it must be the caver's own roll on this turn. Refuses after the Move cutoff,
 // like an attack description. Writes no audit row: the words are on the row the GM reads (ATTACK.md §13).
@@ -91,6 +100,7 @@ module.exports = {
   CAVING_WRITE_PREFIX,
   CAVING_RESPOND_PREFIX,
   cavingResultFor,
+  failedCavingThisTurn,
   respondToCaving,
   troubleDmParts,
 };

@@ -138,6 +138,29 @@ test("a Bloodcrazed or Wight Vampire can't come out of it, on any turn", async (
   assert.equal((await setCombatMode(calm, { character: { id: "ada" }, discordUserId: "u1", on: false })).ok, true);
 });
 
+test("a caver who failed a Caving roll this turn can't come out of it until the turn is over", async () => {
+  const { CAVING_LOCKED_ON } = require("../lib/combatMode");
+  const caving = (turnId) => ({
+    findFirst: async ({ where }) =>
+      where.characterId === "ada" && where.turnId === turnId && where.kind === "TROUBLE" ? { id: "roll1" } : null,
+  });
+  const failed = fakeDb({ since: 2 });
+  failed.cavingRoll = caving("turn-5");
+  const refused = await setCombatMode(failed, { character: { id: "ada" }, discordUserId: "u1", on: false });
+  assert.deepEqual(refused, { ok: false, error: CAVING_LOCKED_ON });
+  assert.equal(failed.row.combatModeSinceTurn, 2);
+
+  // Turning it ON is never held back by it.
+  const off = fakeDb();
+  off.cavingRoll = caving("turn-5");
+  assert.equal((await setCombatMode(off, { character: { id: "ada" }, discordUserId: "u1", on: true })).ok, true);
+
+  // A failed roll on an earlier turn holds nothing.
+  const later = fakeDb({ since: 2, openTurn: turn(6) });
+  later.cavingRoll = caving("turn-5");
+  assert.equal((await setCombatMode(later, { character: { id: "ada" }, discordUserId: "u1", on: false })).ok, true);
+});
+
 test("Exhausted refuses turning it on", async () => {
   const db = fakeDb({ slugs: [EXHAUSTED_SLUG] });
   const res = await setCombatMode(db, { character: { id: "ada" }, discordUserId: "u1", on: true });

@@ -50,6 +50,9 @@ const CAVING_STANDS = "What you wrote still stands for this. You can change it u
 const CAVING_SURPRISED = "You weren't on guard, so you can't choose how you respond. If you're in combat mode when it happens again this turn, you can.";
 const CAVING_LOCKED = "Moves are locked for this turn, so your response can't be changed now.";
 const CAVING_WRITTEN = "Your response is written. You can change it until Moves lock.";
+// A caver who failed a Caving roll this turn can't come out of combat mode themselves until the turn is over
+// (Bascinet, 2026-10-02). The push's own Tired/Exhausted step still can (combatModePass.js).
+const CAVING_LOCKED_ON = "Something is wrong down here. You can't let your guard down until the turn is over.";
 
 // An invitation, naming who asked (combat.js#combatViewFor's `inviter`, already the name the reader knows
 // them by). Both faces' fight readouts and the line under the Turn box say it the same way. `inviter` may be
@@ -138,6 +141,7 @@ module.exports = {
   CAVING_LOCKED,
   CAVING_WRITTEN,
   CAVING_STANDS,
+  CAVING_LOCKED_ON,
   DESCRIPTION_LIMIT,
   invitedLine,
   invitedShortLine,

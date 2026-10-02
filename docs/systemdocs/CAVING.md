@@ -636,13 +636,20 @@ Built the attack description's way (`ATTACK.md` §4), in
   `respondedAt`), beside the Result box. Capped at 2000 characters, rewritable
   until Moves lock — the same gate as an attack description. No audit row: the
   words are on the row the GM reads.
+- **A failed roll holds them on guard for the rest of the turn** (Bascinet,
+  2026-10-02). With any 1 on the open turn, `verbs/combatMode.js` refuses Off
+  with "Something is wrong down here. You can't let your guard down until the
+  turn is over." (`cavingResponse.js#failedCavingThisTurn`), and `myMove` locks
+  the button with the same words. Turning it ON is never held back, and the
+  push's own Tired/Exhausted step can still take it off. It lifts with the
+  turn, when the result does.
 
-**On the desk** a TROUBLE result opens with a **Combat mode** panel: On guard
-or Off guard, how many of its 1s were in combat mode ("In combat mode at 1 of
-the 2 failed rolls"), and the response or "They haven't written a response
-yet." The snapshot panel below it still answers for the newest 1 alone, and
-its pill now reads the row's column. The rail adds "on guard" or "responded"
-to the row.
+**On the desk** a TROUBLE result opens with a **Combat mode** panel that says
+only "In combat mode" or "Not in combat mode" (Bascinet, 2026-10-02): in combat
+mode at any 1 of the result. Under it, the response or "They haven't written a
+response yet." The snapshot panel below it still answers for the newest 1
+alone, and its pill reads the row's column. The rail adds "in combat mode", and
+"responded" once they have, to the row.
 
 **A response written after a GM resolved the result reopens it**, the way a
 fresh 1 does — the ruling was made without it. The desk says "They changed

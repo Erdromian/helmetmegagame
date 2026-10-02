@@ -66,28 +66,16 @@ function LastFailSnapshot({ rollId, latestId }) {
   return <SnapshotBody snap={snap} />;
 }
 
-// Combat mode across the whole result, and what the caver wrote (Combat Mode.docx; COMBAT-MODE.md §6). The
-// snapshot below answers for the newest 1 alone, and a caver may have turned combat mode on between two of them —
-// so this counts every one, off the column each roll froze. One on guard is what let them write.
-function guardLine(alertCount, count) {
-  if (alertCount === 0) {
-    return count === 1
-      ? "Not in combat mode at this roll, so they were caught off guard and couldn't respond."
-      : `Not in combat mode at any of the ${count} failed rolls, so they were caught off guard and couldn't respond.`;
-  }
-  if (count === 1) return "In combat mode at this roll.";
-  if (alertCount === count) return `In combat mode at all ${count} failed rolls.`;
-  return `In combat mode at ${alertCount} of the ${count} failed rolls.`;
-}
-
+// Combat mode, and what the caver wrote (Combat Mode.docx; COMBAT-MODE.md §6). The snapshot below answers for the
+// newest 1 alone, and a caver may have turned combat mode on between two of them, so this reads every 1 of the
+// result off the column each froze. In combat mode at any of them is what let them write, and the desk says only
+// that much (Bascinet, 2026-10-02).
 function OnGuard({ roll }) {
-  const count = roll.count ?? 1;
   const alertCount = roll.alertCount ?? (roll.alert ? 1 : 0);
   return (
     <div className="flex flex-col gap-2">
       <p className="flex flex-wrap items-center gap-2 text-sm">
-        <StatusPill tone={alertCount > 0 ? "bad" : "neutral"}>{alertCount > 0 ? "On guard" : "Off guard"}</StatusPill>
-        <span>{guardLine(alertCount, count)}</span>
+        <StatusPill tone={alertCount > 0 ? "bad" : "neutral"}>{alertCount > 0 ? "In combat mode" : "Not in combat mode"}</StatusPill>
       </p>
       {alertCount > 0 &&
         (roll.response ? (

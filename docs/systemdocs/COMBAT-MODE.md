@@ -25,7 +25,7 @@ with:
 |---|---|
 | `inCombatMode(row)` | on or off |
 | `lockedOn(row, openTurn)` | turned on this turn, so it can't come off yet |
-| `combatModeState(row, openTurn, tags, { heldBy })` | `{ on, locked, onBlock, lockedNote }`, what the button draws. `heldBy` is a sentence the server passes when something else holds it on (a Bloodcrazed or Wight Vampire, §1a); it locks the button and is what the button says |
+| `combatModeState(row, openTurn, tags, { heldBy })` | `{ on, locked, onBlock, lockedNote }`, what the button draws. `heldBy` is a sentence the server passes when something else holds it on (a Bloodcrazed or Wight Vampire, §1a, or a failed Caving roll this turn, §6); it locks the button and is what the button says |
 
 **The timing rule** (the design doc): it can be turned on at any time of the
 turn, but it can't be turned off on the turn it went on — only on a later one.
@@ -38,7 +38,9 @@ and a game in session.
 
 **Exhausted refuses turning it on.** So does anything that takes ACT (bound,
 paralysed…). Turning it off is never gated — it is the way down, the same rule
-Break off and Stop watching follow — with the one exception below.
+Break off and Stop watching follow — with two exceptions: the one below, and a
+caver who failed a Caving roll this turn, who stays on guard until the turn is
+over (§6).
 
 ### 1a. A hungry Vampire is held in it
 
@@ -201,8 +203,13 @@ The design doc's cave half (`CAVING.md` §5):
   rewritable until Moves lock. Off guard at every 1, they are told they can't
   choose, and that turning combat mode on gives them the chance if it happens
   again this turn.
-- The desk counts combat mode at every 1 of the result, not just the newest,
-  and shows the response.
+- **A failed roll holds them in it** for the rest of the turn (Bascinet,
+  2026-10-02): with any 1 on the open turn, Off is refused with "Something is
+  wrong down here. You can't let your guard down until the turn is over." and
+  the button is locked with the same words (`heldBy`). Turning it on is never
+  held back.
+- The desk says only whether they were in combat mode (at any 1 of the
+  result), and shows the response.
 
 ## 7. Where the code lives
 

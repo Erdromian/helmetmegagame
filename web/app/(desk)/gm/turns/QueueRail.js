@@ -372,7 +372,7 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
           {row.zoneName} · {row.kindLabel}
           {severityText && <> · {severityText}</>}
           {row.newSinceResolved > 0 && <> · {row.newSinceResolved} new since resolved</>}
-          {row.alertCount > 0 && <> · {row.response ? "responded" : "on guard"}</>}
+          {row.alertCount > 0 && <> · in combat mode{row.response ? " · responded" : ""}</>}
           {row.respondedSinceResolved && <> · response changed</>}
         </span>
         {row.lootTagName && <span className="block truncate text-xs text-muted">{row.lootTier} → {row.lootTagName}</span>}

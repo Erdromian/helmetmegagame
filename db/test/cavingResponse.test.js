@@ -19,7 +19,7 @@ const advantage = require("../lib/advantage");
 advantage.rollWithAdvantage = () => ({ die: 1 });
 const { rollCaving } = require("../lib/cavingPass");
 const { troubleDmParts, respondToCaving, cavingResultFor, CAVING_WRITE_PREFIX } = require("../lib/cavingResponse");
-const { CAVING_PROMPT, CAVING_SURPRISED, CAVING_STANDS, DESCRIPTION_LIMIT } = require("../lib/combatMode");
+const { CAVING_PROMPT, CAVING_SURPRISED, CAVING_STANDS, CAVING_LOCKED_ON, DESCRIPTION_LIMIT } = require("../lib/combatMode");
 const { DM_ACTION, dmActionOf } = require("../lib/dmActions");
 
 const loadLabels = () => import(pathToFileURL(path.join(__dirname, "..", "..", "web", "lib", "cavingLabels.js")).href);
@@ -184,7 +184,12 @@ test("a failed roll freezes combat mode, and only an alert result can be written
   if (!ok.ok) return t.skip(`the local game refuses Moves right now: ${ok.error}`);
   assert.equal((await prisma.cavingRoll.findUnique({ where: { id: first.roll.id } })).response, "I douse the lamp.");
 
-  // Combat mode off, a fourth 1: an earlier one gave the chance, so they aren't told they missed it — only that
+  // Failed down here this turn, so the caver can't take themselves out of combat mode.
+  const { setCombatMode } = require("../lib/verbs/combatMode");
+  const held = await setCombatMode(prisma, { character: { id: caver.id }, discordUserId: caver.discordUserId, on: false });
+  assert.deepEqual(held, { ok: false, error: CAVING_LOCKED_ON });
+
+  // Combat mode off (as a GM or the push could), a fourth 1: an earlier one gave the chance, so they aren't told they missed it — only that
   // what they wrote still covers this.
   await prisma.character.update({ where: { id: caver.id }, data: { combatModeSinceTurn: null } });
   const fourth = await rollCaving(prisma, caver, turn, location);

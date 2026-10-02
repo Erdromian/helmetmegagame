@@ -8,11 +8,12 @@ const { autoMovesOpen } = require("../turnGate");
 const { blockerFor, ACT } = require("../incapacitation");
 const { logAudit } = require("../auditLog");
 const { refuse, asResult } = require("./common");
-const { TOO_EXHAUSTED, LOCKED_ON, ALERT_TOO_LATE, holdsExhausted } = require("../combatMode");
+const { TOO_EXHAUSTED, LOCKED_ON, ALERT_TOO_LATE, CAVING_LOCKED_ON, holdsExhausted } = require("../combatMode");
 const { GUARD_LINES, endGuardsFor } = require("../guard");
 const { seenById } = require("../intercept");
 const { holdsCompulsion } = require("../vampireCompulsion");
 const { COMPELLED_LOCKED_ON } = require("../compulsionLines");
+const { failedCavingThisTurn } = require("../cavingResponse");
 
 // `character` needs { id } — the column and the tags are read here, so neither face's select has
 // to carry them. `on` is the wanted state.
@@ -49,6 +50,8 @@ function setCombatMode(prisma, { character, discordUserId, on }) {
       if (since == null) return { line: "You're not in combat mode.", on: false, changed: false };
       // A Bloodcrazed or Wight Vampire is held in it for as long as the tag lasts (vampireCompulsion.js).
       if (holdsCompulsion(row.tags)) refuse(COMPELLED_LOCKED_ON);
+      // Something went wrong down in the caves this turn: they stay on guard until it is over (CAVING.md §5b).
+      if (await failedCavingThisTurn(prisma, character.id, turn)) refuse(CAVING_LOCKED_ON);
       // Never gated on ACT: coming out of it is the way down, the Call off and Stop watching rule.
       if (since === turn.number) refuse(LOCKED_ON);
       const won = await prisma.character.updateMany({
