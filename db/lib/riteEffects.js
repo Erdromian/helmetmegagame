@@ -70,6 +70,39 @@ const JUDGEMENT_DEATH_REASON =
   "Something looked at your likeness and decided against you. You exploded into mist.";
 const ANIMATED_LINE = "This weapon is animated! It is indestructible, it cuts through armor, and it heals its targets whenever it harms someone.";
 
+// The Animated copy's row, less its slug. Like customCraftMint.js's clone, it
+// must carry every "what this does while held" field: without `fighting` the
+// copy has no weaponClass, and fightingSkill.js#bestArmed then reads a
+// possessed sword as no weapon at all.
+function animatedWeaponShape(source) {
+  return {
+    name: `${source.name} (Animated)`,
+    description: `${source.description ?? ""} ${ANIMATED_LINE}`.trim(),
+    category: source.category,
+    groupId: source.groupId,
+    pointCost: 0,
+    custom: true,
+    ephemeral: true,
+    tradeable: source.tradeable,
+    weightLbs: source.weightLbs,
+    equippable: source.equippable,
+    equipSlot: source.equipSlot,
+    equipLayer: source.equipLayer,
+    twoHanded: source.twoHanded,
+    requiredTagId: source.requiredTagId,
+    fighting: source.fighting ?? undefined,
+    sprite: source.sprite,
+    miningBonus: source.miningBonus ?? undefined,
+    inspectVisibility: source.inspectVisibility,
+    meleeArmor: source.meleeArmor,
+    ballisticArmor: source.ballisticArmor,
+    stackable: false,
+    removable: false,
+    purchasable: false,
+    purchasableAfterStart: false,
+  };
+}
+
 const log = (what) => (err) => console.error(`Rite: ${what} failed:`, err?.message ?? err);
 const rand = (min, max) => min + Math.floor(Math.random() * (max - min + 1));
 
@@ -275,28 +308,7 @@ const EFFECTS = {
     const source = resolved.weapon;
     const animated = await createWithRetry(db, (attempt) => ({
       slug: `custom-animated-${source.slug}-${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 6)}${attempt ? `-${attempt}` : ""}`,
-      name: `${source.name} (Animated)`,
-      description: `${source.description ?? ""} ${ANIMATED_LINE}`.trim(),
-      category: source.category,
-      groupId: source.groupId,
-      pointCost: 0,
-      custom: true,
-      ephemeral: true,
-      tradeable: source.tradeable,
-      weightLbs: source.weightLbs,
-      equippable: source.equippable,
-      equipSlot: source.equipSlot,
-      equipLayer: source.equipLayer,
-      twoHanded: source.twoHanded,
-      requiredTagId: source.requiredTagId,
-      miningBonus: source.miningBonus ?? undefined,
-      inspectVisibility: source.inspectVisibility,
-      meleeArmor: source.meleeArmor,
-      ballisticArmor: source.ballisticArmor,
-      stackable: false,
-      removable: false,
-      purchasable: false,
-      purchasableAfterStart: false,
+      ...animatedWeaponShape(source),
     }));
     if (!animated) throw new Error("could not name the animated weapon");
     // Checked drop: without it a player who grabbed the weapon during the grace window keeps the original AND gets an indestructible copy.
@@ -555,6 +567,7 @@ async function answerPanic(db, { attempt, content }) {
 
 module.exports = {
   EFFECTS,
+  animatedWeaponShape,
   roomLine,
   locationLine,
   killByRite,

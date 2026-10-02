@@ -330,3 +330,33 @@ test("an attempt whose room is gone is cancelled, not fired", async () => {
   assert.equal(outcome.fired, false);
   assert.equal(attempt.status, "CANCELLED");
 });
+
+test("an Animated weapon is still the weapon it was made from", () => {
+  // The Rite of Possession's copy used to list its columns by hand and leave
+  // `fighting` out. bestArmed() skips any equipped row with no weaponClass, so
+  // a possessed sword paid nothing itself and switched off every "while using
+  // swords" bonus — the rite made a weapon worse and nobody could see why.
+  const { animatedWeaponShape } = require("../lib/riteEffects");
+  const { fightingSkillFor } = require("../lib/fightingSkill");
+
+  const sword = {
+    slug: "broadsword",
+    name: "Broadsword",
+    description: "A broad blade.",
+    category: "items",
+    equippable: true,
+    equipSlot: "WEAPON",
+    sprite: "broadsword",
+    fighting: { weaponClass: "sword", points: 5 },
+  };
+  const animated = animatedWeaponShape(sword);
+
+  assert.deepEqual(animated.fighting, sword.fighting);
+  assert.equal(animated.sprite, "broadsword", "it keeps its picture too");
+  assert.equal(animated.removable, false, "and it is still indestructible");
+
+  const swords = { equipped: false, tag: { slug: "melee-swords", name: "Swords", fighting: { tree: "melee", points: 20, when: { weaponClass: ["sword"] } } } };
+  const armedWith = (tag) => fightingSkillFor([{ equipped: true, tag }, swords], "melee").score;
+  assert.equal(armedWith({ slug: "custom-animated-broadsword", ...animated }), armedWith(sword));
+  assert.ok(armedWith(sword) > fightingSkillFor([swords], "melee").score, "the sword is what the specialism pays on");
+});
