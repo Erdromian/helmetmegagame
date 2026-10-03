@@ -26,7 +26,8 @@ const { stampLeftOnFloor } = require("./floorSettle");
 const { expiryForGrant } = require("./grantExpiry");
 const { applyTransfer, InsufficientResourcesError } = require("./resourceTransfer");
 const { ensureDeliveries } = require("./stagedDelivery");
-const { applyDeathWithVampireOverride, announceVampireAsh } = require("./vampireDeath");
+// A vampire's ash (VAMPIRE.md §7) happens inside applyDeathToRow itself, whichever path kills them.
+const { applyDeathToRow } = require("./characterDeath");
 const { farmDm } = require("./soilery");
 const { breakInDm } = require("./arelitz");
 const { isDayLongTurn } = require("./turnClock");
@@ -143,7 +144,7 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
           ? row.payload.reason.trim()
           : "died.";
       const target = row.targetCharacter;
-      const { claimed, corpse, ash } = await applyDeathWithVampireOverride(
+      const { claimed, corpse, ash } = await applyDeathToRow(
         tx,
         {
           id: row.targetCharacterId,
@@ -158,21 +159,11 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
           cause: { kind: "gm", actorDiscordUserId: row.createdByDiscordUserId },
         },
       );
-      snapshot.death = claimed ? { claimed: true, gib, reason, corpse } : { claimed: false, gib, reason };
-      // The GM's Gib checkbox is overridden for a vampire (applyDeathWithVampireOverride's own
-      // header) — `ash` comes back non-null only then, so posting the public line is
-      // conditioned on the override having actually fired, not on `gib` itself.
-      if (claimed && ash) {
-        const location = target?.locationId
-          ? await tx.location.findUnique({
-              where: { id: target.locationId },
-              select: { id: true, name: true, discordChannelId: true },
-            })
-          : null;
-        await announceVampireAsh(tx, target?.name ?? "Someone", location).catch((err) =>
-          console.error(`Vampire ash announcement failed for ${row.targetCharacterId}:`, err),
-        );
-      }
+      // A vampire is ashed whatever the Gib box said (db/lib/characterDeath.js), line and all;
+      // `ash` is non-null only then.
+      snapshot.death = claimed
+        ? { claimed: true, gib, reason, corpse, ash: ash ?? null }
+        : { claimed: false, gib, reason };
       await tx.stagedEffect.update({ where: { id: row.id }, data: { appliedEffect: snapshot } });
       return snapshot;
     }

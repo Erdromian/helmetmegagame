@@ -11,7 +11,8 @@ const { applyMood } = require("./mood");
 const { deathWitnessTerm } = require("./deathWitness");
 const { GIBBED_SLUG, METEMPSYCHOSIS_SLUG, HEIGHTENED_PSYCHOSIS_SLUG } = require("./constants");
 const { THANATI_SLUG } = require("./thanati");
-const { NOT_A_FIGHT } = require("./intercept");
+const { NOT_A_FIGHT, seenByPlace } = require("./intercept");
+const { VAMPIRE_SLUG } = require("./secretSlugs");
 const { closeFightsFor } = require("./attack");
 const { leaveCombatsFor, sendCombatDms } = require("./combat");
 const { releaseGuards } = require("./guard");
@@ -60,8 +61,8 @@ async function maskWornNow(prisma, characterId) {
 // `corpse: { tag, room }` alongside `claimed`; `room` null means it stayed on
 // the sheet for want of a public room.
 // Vaporised rather than killed: every tag deleted, one "Gibbed" row replaces
-// them, no corpse minted. Called with `gib: true` from the two Thanati rites
-// and the bomb. SEAT_TAG_SLUGS is the one load-bearing exception: the
+// them, no corpse minted. Called for every `gib: true` death (CORPSES.md §1a)
+// and for every Vampire's, after their goods have gone on the floor. SEAT_TAG_SLUGS is the one load-bearing exception: the
 // end-of-game reveal reads antagonist seats off live Character rows
 // (db/lib/epilogue.js), and the bomb gibs everyone then ends the game.
 // Returns how many rows it actually wiped, so the caller can decide whether
@@ -156,8 +157,20 @@ async function releaseEntanglements(prisma, characterId) {
 async function applyDeathToRow(
   prisma,
   character,
-  { turn = null, content = null, expectStatus = "ALIVE", gib = false, noCorpse = false, cause = null } = {},
+  { turn = null, content = null, expectStatus = "ALIVE", gib: requestedGib = false, cause = null } = {},
 ) {
+  // A Vampire never leaves a body, whichever path killed them (VAMPIRE.md §7): their goods go on the
+  // floor beside a Pile of Ash (db/lib/vampireDeath.js#ashBody) and the sheet is gibbed, overriding
+  // whatever the caller asked for. Decided HERE, not by a wrapper, because a wrapper only covers the
+  // paths that remember to call it — two of eleven did. Read before the claim, off the database.
+  const vampire = await prisma.characterTag
+    .count({ where: { characterId: character.id, tag: { slug: VAMPIRE_SLUG } } })
+    .then((n) => n > 0)
+    .catch(() => false);
+  const gib = requestedGib || vampire;
+  // What the room saw them as, read while the mask is still on: the ash line names a hood as a hood.
+  const seenName = vampire ? await seenByPlace(prisma, character.id).catch(() => null) : null;
+
   // Read BEFORE the claim, off the database not `character` (callers pass varying shapes, and a
   // gib deletes the rows outright below).
   const reborn = await prisma.characterTag
@@ -202,8 +215,18 @@ async function applyDeathToRow(
   });
   if (claimed.count === 0) return { claimed: false };
 
+  // The ash goes down BEFORE the gib below, or the goods would go up with the rest of the sheet.
+  // Lazy: vampireDeath -> placeLine -> ... must not load while this file is half-built.
+  const ash = vampire
+    ? await require("./vampireDeath").ashBody(prisma, character, { turn, seenName })
+    : null;
+
   // A gib deletes the tags outright; an ordinary death only drops them out of their slots.
   if (gib) {
+    // Nobody carries a body that is not there (db/lib/escort.js lets a corpse be escorted).
+    await prisma.character
+      .updateMany({ where: { id: character.id, escortedById: { not: null } }, data: { escortedById: null } })
+      .catch((err) => console.error(`Failed to drop the carried body of ${character.id}:`, err));
     const wiped = await vaporizeTags(prisma, character.id).catch((err) => {
       console.error(`Failed to vaporize tags for ${character.id}:`, err);
       return 0;
@@ -239,11 +262,8 @@ async function applyDeathToRow(
 
   // One Tag row in a random public Room (CORPSES.md) — a HANDLE to this sheet, so the sheet
   // follows the tag. Wrapped: a missing corpse is recoverable by hand, a half-applied death isn't.
-  // `noCorpse` skips ONLY this mint, unlike `gib` — db/lib/vampireDeath.js is the one caller: a
-  // vampire's ash death keeps the plain unequip above (items survive, lootable) but leaves
-  // nothing bury-able, so there is no body for a corpse tag to represent.
   const corpse =
-    gib || noCorpse
+    gib
       ? { tag: null, room: null }
       : await mintCorpse(prisma, character, turn).catch((err) => {
           console.error(`Failed to mint a corpse for ${character.id}:`, err);
@@ -276,7 +296,7 @@ async function applyDeathToRow(
     );
   }
 
-  return { claimed: true, corpse };
+  return { claimed: true, corpse, ash };
 }
 
 // Frightens everybody but the Thanati, whom a death lifts (deathWitness.js).

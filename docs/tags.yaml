@@ -3946,7 +3946,8 @@ tags:
 
   # The vampire's own ash death (db/lib/vampireDeath.js) — a room drop, not a
   # corpse: "immediately gibbed, turning into ash... items dropped on the
-  # ground as well as a pile of ash tag." Deliberately NOT items-corpse —
+  # ground as well as a pile of ash tag." Their goods land in the same room,
+  # then the sheet is gibbed (VAMPIRE.md §7). Deliberately NOT items-corpse —
   # that group slug is CORPSE_GROUP_SLUG, the thing db/lib/corpses.js
   # #isCorpseTag matches on (docs/taggroups.yaml's own warning), so filing
   # ash there would make it answer a Butcher/Bury picker as if it were a

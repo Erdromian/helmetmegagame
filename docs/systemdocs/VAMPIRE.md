@@ -377,30 +377,53 @@ who judges a vampire's death-blow to actually qualify finishes them off the
 normal way (HARM_CHARACTER's lethal half, or a GM-staged death on the turn
 push) — same as any other character.
 
-**However they're finished off, a vampire's death is never ordinary.**
-`db/lib/vampireDeath.js#applyDeathWithVampireOverride` intercepts every death
-path (`web/lib/discordGuild.js#killCharacter`, and the GM-staged/turn-push
-path in `db/lib/stagedPush.js`) and overrides whatever Gib choice the GM
-made: "they are immediately gibbed, turning into ash. A message will be sent
-publicly to the location they are in... their items will be dropped on the
-ground as well as a pile of ash tag." This is a third death shape, neither of
-`db/lib/characterDeath.js`'s existing two — an ordinary death mints a
-buryable corpse; `gib: true` wipes every tag, items included, and mints
-nothing. A vampire's ash keeps neither: no buryable body (there is nothing
-left to bury or butcher), but the items survive, unequipped and lootable off
-the ground, same as an ordinary death leaves them. `applyDeathToRow`'s new
-`noCorpse` option is what gets this — skip minting a corpse, keep the plain
-unequip — and `vampireDeath.js` then mints a static `pile-of-ash` item into a
-random public Room at the vampire's Location (`docs/tags.yaml`, `items-remains`
-group, deliberately NOT `items-corpse` — that group slug is what
-`db/lib/corpses.js#isCorpseTag` matches on, and ash is not a buryable body)
-and posts `"{name} disintegrates into a pile of ash!"` to the Location's own
-channel.
+**The turret can't kill them either.** "Or from the turret": a killing shot
+from either gun (`db/lib/turretPass.js#applyTurretShot`, which both the
+turn-end sweep and the arrival roll go through) leaves a vampire **Dying**
+instead of dead. They then stay there the same way, since the Dying pass
+never runs a vampire down.
 
-**Not exempted**: `catatonicDeathPass.js` (AFK inactivity is an OOC admin
-concern, not an in-fiction injury, so it's left untouched) and the ash
-override itself never refuses a death — it only changes what happens to the
-body once one lands.
+**However they're finished off, a vampire's death is never ordinary.** "They
+are immediately gibbed, turning into ash. A message will be sent publicly to
+the location they are in... their items will be dropped on the ground as well
+as a pile of ash tag." The rule lives inside
+`db/lib/characterDeath.js#applyDeathToRow`, the one function every death path
+goes through: a GM's Kill, Finish them off, Mutilate, feeding to the Lifeweb, a
+staged death at the push, the bomb collar, the Magma, the Thanati rites, Xom,
+Ascension, the bomb and catatonia. Whatever the caller asked for (a corpse, or
+a gib), a `vampire` holder gets this instead, in this order
+(`db/lib/vampireDeath.js#ashBody`):
+
+1. **Their goods drop.** Every tradeable holding, ⬢ included and equipped or
+   not, moves onto the floor of one random public Room at their Location. It
+   goes through the same moves the Overburdened shed uses
+   (`dropCharacterTag` then `addToRoomStack`), so the ledger is written on both
+   sides and the floor clock starts (`CARRY.md` §6a). A Location with no public
+   room keeps nothing: the goods go with the gib, the way a gib's always did.
+2. **A Pile of Ash** lands in the same room: a static `pile-of-ash` item
+   (`docs/tags.yaml`, `items-remains` group, deliberately NOT `items-corpse` —
+   that group slug is what `db/lib/corpses.js#isCorpseTag` matches on, and ash
+   is not a buryable body). One `vampire_ashed` audit row records what fell.
+3. **The line** `"{name} disintegrates into a pile of ash!"` goes to the
+   Location. `{name}` is what the room saw, read before the hood came off, so a
+   hooded vampire stays hooded here too ("A person disintegrates…").
+4. **The sheet is gibbed** (`CORPSES.md` §1a): everything left is wiped except
+   the antagonist seat, one Gibbed tag goes on, and no corpse is minted. A gib
+   is what takes the dead sheet out of the room
+   (`db/lib/presence.js#UNBURIED_BODY_WHERE`), so nobody can loot, carry,
+   mutilate or bury a vampire who has turned to ash. The player waits the curse
+   out like any gibbed player.
+
+This used to be a wrapper, `applyDeathWithVampireOverride`, that only
+`killCharacter` and the staged push called. A vampire killed by a collar or the
+Magma mid-turn left an ordinary corpse. Even when the wrapper did fire, it
+left the sheet lying in the room as a lootable body. Migration
+`20261218000000_vampire_ash_repair` put every vampire who had already died
+into the state above.
+
+**Not exempted**: catatonia (AFK inactivity is an OOC admin concern, so it
+still kills a vampire, and they still turn to ash). The ash never refuses a
+death. It only changes what happens to the body once one lands.
 
 ## 8. Feeding's fallout: tag exclusivity and hunger
 
@@ -505,7 +528,8 @@ ash death).
 | `db/lib/compulsionLines.js` | §4 — the compulsion's sentences, server-only (the GM line, the prompt, the two refusals) |
 | `db/lib/vampireBands.js` | Immediate re-sync for the GM edit screen (and for a Blood Ability spend, §6) — a changed blood level clears the chips at once, not at next close |
 | `db/lib/vampireBloodAbilities.js` | §6 — the pure ability catalog: cost, cooldown constant, required tag, effect. No Prisma import |
-| `db/lib/vampireDeath.js` | §7 — the ash death override, intercepting every death path |
+| `db/lib/vampireDeath.js` | §7 — the ash: goods onto the floor, the Pile of Ash, the line. Called by `characterDeath.js#applyDeathToRow` for every vampire death, which then gibs the sheet |
+| `db/lib/turretPass.js` | §7 — a turret's killing shot leaves a vampire Dying |
 | `web/app/(app)/character/actions/bloodAbility.js` | §6 — the one server action every "Use" button calls |
 | `web/app/components/BloodPanel.js` / `TagRail.js` | The Blood menu's UI — a Modal off the sheet header, StorePanel.js's own shape |
 | `web/lib/vampireBloodView.js` | Server-resolves what BloodPanel.js needs to draw — availability, cooldowns, who's here to target |

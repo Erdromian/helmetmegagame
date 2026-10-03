@@ -44,6 +44,8 @@ const MACHINE_TYPES = new Set([
   "carry_drop_deferred",
   "carry_overflow_dropped",
   "hold_limit_dropped",
+  // A dead vampire's goods falling beside their ash (db/lib/vampireDeath.js); the death is its own DEATH row.
+  "vampire_ashed",
   "grant_expiry_deferred",
   "vending_hold_expired",
   "caving_auto_resolved",
