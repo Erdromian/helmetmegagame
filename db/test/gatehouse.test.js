@@ -28,7 +28,7 @@ const {
 const { crossingCheck } = require("../lib/locationGraph");
 const { roomAffordances, gateLabel } = require("../lib/placeAffordances");
 const { findGateBypasses } = require("../lib/gateBypass");
-const { pickLines, liveOffer } = require("../lib/gatehouse");
+const { pickLines, liveOffer, swapRefusal } = require("../lib/gatehouse");
 const {
   GATEHOUSE_TEXT: T,
   GATEHOUSE_KEY,
@@ -211,6 +211,31 @@ test("an offer is cut down to what is still held", () => {
   ]);
 });
 
+test("Approve keeps both sides inside the hold limits, counted after the swap", () => {
+  const row = (tagId, slug, quantity = 1, extra = {}) => ({ tagId, quantity, tag: { slug, name: slug }, ...extra });
+  const packed = row("c1", "custom-crate-a1-x");
+  const cargo = row("c2", "cargo-crate");
+  const knife = row("k", "work-knife");
+  const cartOn = row("cart", "cart", 1, { equipped: true });
+  const line = (r, quantity = 1) => ({ tagId: r.tagId, quantity });
+
+  // A clerk already carrying a crate can't take a second off the offer.
+  assert.match(swapRefusal([packed], [], [line(cargo)], [cargo]), /one crate/);
+  // Unless they hand theirs over in the same Approve.
+  assert.equal(swapRefusal([packed], [line(packed)], [line(cargo)], [cargo]), null);
+  // A Cart on carries three.
+  assert.equal(swapRefusal([packed, cartOn], [], [line(cargo)], [cargo]), null);
+  // Handing the Cart over takes the extra room with it.
+  assert.match(swapRefusal([packed, cartOn], [line(cartOn)], [line(cargo)], [cargo]), /one crate/);
+  // Nothing limited coming in, nothing refused.
+  assert.equal(swapRefusal([packed], [], [line(knife)], [knife]), null);
+  // The asker's side reads as theirs.
+  assert.equal(
+    T.approveTheyCantTake("You can only carry one crate at a time, or three with a Cart."),
+    "They can't take that. They can only carry one crate at a time, or three with a Cart.",
+  );
+});
+
 // ─── The whole flow, against Postgres ───────────────────────────────────
 
 test("asking, approving, denying, magma and documents, end to end", { skip: SKIP }, async (t) => {
@@ -331,6 +356,18 @@ test("asking, approving, denying, magma and documents, end to end", { skip: SKIP
   await prisma.character.update({ where: { id: inbound.id }, data: { heldUntil: new Date(Date.now() + 60_000) } });
   assert.equal((await G.approvePassage(prisma, uid(clerk), { passageId: inRow.id, turn })).error, T.approveHeld);
   await prisma.character.update({ where: { id: inbound.id }, data: { heldUntil: null } });
+
+  // ── Nobody is handed past a hold limit: a second crate is refused ──
+  const crate = await prisma.tag.findUnique({ where: { slug: "cargo-crate" } });
+  if (crate) {
+    const crateOf = (c) => prisma.characterTag.create({ data: { characterId: c.id, tagId: crate.id, quantity: 1, source: "EVENT" } });
+    await crateOf(clerk);
+    await crateOf(inbound);
+    const tooMany = await G.approvePassage(prisma, uid(clerk), { passageId: inRow.id, give: [{ tagId: crate.id, quantity: 1 }], turn });
+    assert.match(tooMany.error ?? "", /^They can't take that\. They can only carry one crate/);
+    assert.equal(await prisma.gatePassage.count({ where: { id: inRow.id, status: "PENDING" } }), 1, "still waiting");
+    await prisma.characterTag.deleteMany({ where: { characterId: { in: [clerk.id, inbound.id] }, tagId: crate.id } });
+  }
 
   // ── Approve, with a bribe taken and a coin given back ──
   const approved = await G.approvePassage(prisma, uid(clerk), {

@@ -754,7 +754,9 @@ inside, which is always heavier. A sealed one wants the Depot Keycard.
 
 - **One crate at a time, three with a Cart on.** A hold limit beside the
   mount's (`db/lib/mounts.js#HOLD_LIMITS`), so every deliberate way in — a
-  Transfer, a Take, a Loot, a Package — is refused past it with "You can only
+  Transfer, a Take, a Loot, a Pickpocket, a Package, the vending machine, the
+  Gatehouse clerk's Approve (on both sides, counted after the swap) — is
+  refused past it with "You can only
   carry one crate at a time, or three with a Cart." The Cart has to be
   **equipped**; one stowed in a pocket does not count.
 - **Dismounting drops the extras.** Taking the Cart off leaves its holder over

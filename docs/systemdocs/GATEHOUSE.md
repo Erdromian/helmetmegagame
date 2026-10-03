@@ -101,7 +101,10 @@ the asker as the clerk sees them (`intercept.js#seenByIdMany` — a stranger is
   doc's "given back". The asker is DM'd. It is still a move, though: refused
   while the asker is held (a fight, an ambush, caught stealing), bound or out
   cold. The turn lock does not refuse it: the lock only shuts the caves
-  (`CAVING.md` §2f), and the gate is all surface.
+  (`CAVING.md` §2f), and the gate is all surface. It is refused, too, if
+  either side would end up past a hold limit (one crate or three with a Cart,
+  one mount, three young arelitz: `CARRY.md` §10), counted on what each will
+  hold after the swap, so a clerk who hands a crate out may take one in.
 - A request whose asker is no longer where they asked is never listed,
   approved or poured on, even if a move skipped the withdrawal (a GM's, a
   revive).

@@ -118,6 +118,8 @@ const GATEHOUSE_TEXT = Object.freeze({
   approveTheyLackIt: (name) => `They no longer have ${name}.`,
   approveYouLackIt: (name) => `You no longer have ${name}.`,
   approveNotTradeable: (name) => `${name} can't be handed over.`,
+  // `why` is a db/lib/mounts.js hold-limit refusal, written to "You".
+  approveTheyCantTake: (why) => `They can't take that. ${why.replace(/^You/, "They")}`,
   approveHeld: "They can't move right now, so they can't be let through.",
   approvedLine: (who, where) => `You let ${who} through the gate to the ${where}.`,
   approvedDm: (where) => `Your request was approved. You are let through the gate to the ${where}.`,
