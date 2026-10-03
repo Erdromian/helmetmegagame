@@ -37,6 +37,7 @@ const { slotList } = require("./peopleLine");
 const { CONCEALMENT_TAG_FIELDS } = require("./presentedIdentity");
 const { rollCombat, MAX_INTERVENE_DISTANCE } = require("./combatRoll");
 const { loadGraph, distancesFrom, GIANT_TAG_SLUG } = require("./locationGraph");
+const { STOWABLE_SLUGS } = require("./mounts");
 const { accessSlugsOf, RING_ACCESS_TAG_FIELDS } = require("./rings");
 const { turnEndsAt } = require("./turnClock");
 const { movesOpen } = require("./turnGate");
@@ -171,7 +172,7 @@ async function lockCombat(tx, combatId) {
 // through the ways each of them could actually walk (locationGraph.js#distancesFrom). Stored on the fight
 // as { [characterId]: [hops, fromLocationId] }, hops capped at 4, which means too far to intervene.
 // One read for the graph and one for everybody's door tokens — only the tags that can change an edge's
-// verdict (a slug some way requires, `giant`, or a worn ring) are loaded.
+// verdict (a slug some way requires, `giant`, a mount or a Cart, or a worn ring) are loaded.
 async function distanceSnapshot(db, locationId, now = new Date()) {
   const graph = await loadGraph(db);
   const required = [...new Set((graph.links ?? []).map((l) => l.requiredTagSlug).filter(Boolean))];
@@ -184,7 +185,7 @@ async function distanceSnapshot(db, locationId, now = new Date()) {
         where: {
           quantity: { gt: 0 },
           OR: [
-            { tag: { slug: { in: [...required, GIANT_TAG_SLUG] } } },
+            { tag: { slug: { in: [...required, GIANT_TAG_SLUG, ...STOWABLE_SLUGS] } } },
             { equipped: true, tag: { ringOfCharacterId: { not: null } } },
           ],
         },

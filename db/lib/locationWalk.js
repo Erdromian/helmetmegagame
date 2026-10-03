@@ -45,7 +45,6 @@ async function walkWithinZone(prisma, character, targetLocation) {
     leftBehind: [],
     interceptDms: [],
     cavingDms: [],
-    dismounted: [],
     // What each escort who followed along was told (MAP.md §3d), keyed so that a walk of eight hops tells
     // an escort once, where they ended up, rather than once a hop.
     escortDms: [],
@@ -87,7 +86,7 @@ async function walkWithinZone(prisma, character, targetLocation) {
     }
 
     // Per moved character, exactly as a single hop's caller does it. The GAME
-    // half only, and awaited: a turret's kill, a wound, a narrow-way dismount and a
+    // half only, and awaited: a turret's kill, a wound and a
     // hand on a shoulder all land here, and the next hop is not allowed to
     // start until they have (MAP.md 3c - a walk is a shortcut through the
     // clicking, not past the game). It is also what the re-read below reads,
@@ -102,8 +101,6 @@ async function walkWithinZone(prisma, character, targetLocation) {
         characterId: entry.character.id,
         fromLocationId: entry.fromLocationId,
         toLocationId: entry.toLocationId,
-        // Only ever the mover's own mount.
-        dismounted: entry.character.id === character.id ? hop.dismounted : undefined,
         walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js)
       }).catch((err) => {
         console.error(`Walk: arrival facts failed for ${entry.character.id}:`, err.message ?? err);
@@ -115,7 +112,6 @@ async function walkWithinZone(prisma, character, targetLocation) {
     merged.moved.push(...hop.moved);
     merged.leftBehind.push(...(hop.leftBehind ?? []));
     merged.interceptDms.push(...(hop.interceptDms ?? []));
-    merged.dismounted.push(...(hop.dismounted ?? []));
     for (const dm of hop.escortDms ?? []) {
       const at = dm.key ? merged.escortDms.findIndex((m) => m.key === dm.key) : -1;
       if (at >= 0) merged.escortDms.splice(at, 1);

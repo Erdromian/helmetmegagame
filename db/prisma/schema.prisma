@@ -1478,7 +1478,7 @@ model Location {
   // JSON rather than a column per fact because these are sparse, additive and
   // player-facing prose triggers, not things anything queries or indexes on.
   // `indoors` stays a real column precisely because it IS queried
-  // (db/lib/indoors.js, db/lib/mounts.js); it is merely rendered alongside
+  // (examineVision.js, mood.js#placeClassOf); it is merely rendered alongside
   // these.
   attributes Json @default("{}")
 
@@ -1647,14 +1647,10 @@ model Vantage {
 ///                    the whole permission model: the room's access: list
 ///                    decides who may work the winch, so there is no opener
 ///                    list of its own.
-///   onFoot           Too tight, too steep or too enclosed for a horse or a
-///                    cart. A MOUNTED character is refused at the threshold —
-///                    which is the point, because Location.indoors only parks
-///                    a mount on ARRIVAL, and by then the rider has already
-///                    spent the extra free zone-crossing an equipped mount
-///                    buys (freeZoneMoves, db/lib/locationTravel.js). This is
-///                    the edge-level sibling of indoors: same effect, earlier
-///                    moment. Unequipping the horse is the way through.
+///   onFoot           Too tight, too steep or too enclosed for a mount or a
+///                    cart. Anyone HOLDING one, out or stowed, is listed the
+///                    way and refused at the threshold (MAP.md §2c). Leaving
+///                    it somewhere is the way through; unequipping is not.
 ///   keyed            On crossing, the key-holder is DM'd "Leave open for the
 ///                    next 24 hours?". Yes stamps openUntil, and until then
 ///                    the edge ignores requiredTagSlug AND is listed even when

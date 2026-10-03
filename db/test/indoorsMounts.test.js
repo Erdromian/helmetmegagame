@@ -2,10 +2,10 @@
 // §3). `indoors` used to answer two questions at once — is there a roof, and
 // do wheels stay outside — and the second went in two steps: first a surface
 // roof stopped parking mounts, then an underground one did too. What survives
-// is the roof itself, for the mood dial and for building, and the one thing
-// that still takes the reins is a way too narrow for a mount
-// (db/lib/indoors.js#dismountForNarrowWay), which is a fact about the
-// connection rather than the place.
+// is the roof itself, for the mood dial and for building. The one thing that
+// still keeps a mount out is a way too narrow for it, which is a fact about
+// the connection rather than the place, and refuses rather than dismounts
+// (MAP.md §2c, db/test/onFootWay.test.js).
 //
 // The `wheels` attribute used to except a place built to be driven into — the
 // Godard Factory, the Depot, and the cave mouth. It is gone, and the last test
@@ -18,7 +18,6 @@ const path = require("node:path");
 const yaml = require("js-yaml");
 
 const locationAttributes = require("../lib/locationAttributes");
-const indoors = require("../lib/indoors");
 const { describeLocation, ATTRIBUTES } = locationAttributes;
 const { placeClassOf } = require("../lib/mood");
 const { canBuildHere } = require("../lib/structures");
@@ -29,9 +28,9 @@ const CRYPT = { indoors: true, attributes: {}, zone: { kind: "CAVE_LEVEL" } };
 
 test("no door parks a mount any more, underground included", () => {
   assert.equal(locationAttributes.parksMounts, undefined);
-  assert.equal(indoors.parkMountsIndoors, undefined);
-  // The narrow way is the one dismount left.
-  assert.equal(typeof indoors.dismountForNarrowWay, "function");
+  // Nor does anything unequip one for you: db/lib/indoors.js went when the
+  // narrow way started refusing instead of dismounting.
+  assert.equal(fs.existsSync(path.join(__dirname, "..", "lib", "indoors.js")), false);
 });
 
 test("a roof is still a roof for everything but the mount", () => {

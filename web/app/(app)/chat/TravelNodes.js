@@ -18,7 +18,7 @@ import useNarrow from "./useNarrow";
 // TRAVEL: every way out of here as a node you can see. Loaded on mount and
 // after a move, never with the page — an exit's state moves under a player
 // standing still. Cost line follows MAP.md §3; travelFoot()
-// (web/lib/travelCost.js, shared with /map) marks a dismount as "· on foot".
+// (web/lib/travelCost.js) is shared with /map.
 // Nothing that refuses is hidden — a shut/locked way draws
 // dimmed with the reason, so a player can go find the winch.
 //
@@ -199,7 +199,7 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
                 {/* Where no Giant fits (MAP.md §2a) — on every player's list, so
                     a party can see where its Giant can't follow. */}
                 <SqueezeChip show={option.tightSqueeze} />
-                <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.mounted, data.moved, data.breakdown)}</span>
+                <span className="chat-node-foot mono">{travelFoot(option, option.freeLeft, data.moved, data.breakdown)}</span>
               </button>
               );
             })}

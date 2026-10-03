@@ -2,7 +2,7 @@
 
 What a character can hold, where they put the rest, and how it moves. This
 doc owns `db/lib/carry.js`, `db/lib/carryPass.js`, `db/lib/roomStash.js`,
-`db/lib/roomAnnounce.js`, `db/lib/mounts.js`, `db/lib/indoors.js`, the free
+`db/lib/roomAnnounce.js`, `db/lib/mounts.js`, the free
 zone move in `db/lib/locationTravel.js`, the `room:` party kind, the merged
 Transfer dialog and the Storage button. Related: `REQUESTS.md` (the two transfer request
 types), `CHANNELS.md` §4 (Rooms), `MAP.md` §3 (the travel gate),
@@ -209,8 +209,8 @@ crossing per *day*. Now:
   rung down — Motorcycle, then Motorcycle (1 ride left), then Motorcycle (Spent) — so
   whoever holds it can read what is left, and the turn pass rests it. It is
   **spent first**: the mount's ride goes before the base pool and stays with
-  the animal, so unequipping the arelitz later in the turn (a narrow way, or
-  by hand) cannot take back travel you never spent. **Only while your escort party
+  the animal, so unequipping the arelitz later in the turn cannot take back
+  travel you never spent. **Only while your escort party
   fits its seats**: go over `fastTravelCapacity` and the mount buys nothing
   this crossing (`MAP.md` §3a). On foot there are no seats and nothing to
   lose, so walking any number of people is free.
@@ -315,13 +315,12 @@ always did, and Examine still says **Indoors** or **Outdoors**.
 
 The one thing that still keeps a mount out is a **connection** marked
 `on_foot: true` in `docs/zones.yaml` — a way too tight, steep or enclosed for
-it (`MAP.md` §2c). Crossing one dismounts rather than refusing: the mount and
-the cart are unequipped and stay in the pack, and the player puts them back on
-from the equip board (an **Automatically ride my mount** switch used to do
-that; it was removed, and `Character.autoMount` is an orphan column now). The
-dismount runs *inside* the crossing's own transaction, before the free-move
-accounting reads it, or a rider could bank the mount's ride on a crossing it
-never survives. Nothing is dropped for it — see §4.
+it (`MAP.md` §2c). It refuses anyone **holding** a mount or a Cart, out or
+stowed, so the way through is to leave it somewhere first. It used to unequip
+them at the threshold and let them cross with it in the pack, which took a
+Cart and everything on it straight through. Nothing unequips a mount for you
+any more (an **Automatically ride my mount** switch went earlier, and
+`Character.autoMount` is an orphan column now).
 
 ## 4. Settlement: pull-based, post-commit
 
@@ -717,7 +716,7 @@ it out for a while, which made every stash in the game a one-way drop.
 | `{carry:slug}` | `web/lib/referenceData.js#getCarryReference`, `CarryProvider.js`, `RichText.js`, `ChipText.js` |
 | Free travel, travel gate | `db/lib/locationTravel.js#performLocationMove`, `freeZoneMoves`, `freeMovesLeft` |
 | Mounts: what counts while equipped | `db/lib/mounts.js` |
-| Dismounting on a narrow way | `db/lib/indoors.js`, `db/lib/locationTravel.js`, `db/lib/locationMove.js` |
+| The on-foot way's refusal | `db/lib/mounts.js#blocksOnFoot`, `db/lib/locationGraph.js#crossingCheck` |
 | Storage button | `db/lib/roomStarterRow.js`, `db/lib/syncZones.js`, `bot/src/lib/roomStorage.js` |
 | Caps on `/gm/dev` | `web/app/(desk)/gm/dev/page.js`, `web/app/(app)/gm/dev/actions.js` |
 | Constants | `OVERBURDENED_SLUG` in `db/lib/constants.js` |
@@ -762,8 +761,7 @@ inside, which is always heavier. A sealed one wants the Depot Keycard.
   the limit, and the carry settle (§4) sets the spare crates down in a public
   room at their Location, the newest first — the doc's "if dismounted, two of
   the three will fall onto the floor of a room the character is in". It is the
-  hold-limit drop every settle already runs, so a narrow way that unequips the
-  Cart does the same.
+  hold-limit drop every settle already runs.
 - **Hauling tires you.** The first Transfer (or Loot) in a turn that moves a
   crate at all — picking one up, handing one over, setting one down — climbs
   the Tired ladder one rung (`db/lib/fatigue.js`); `Character.crateHauledTurn`

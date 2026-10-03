@@ -61,7 +61,7 @@ test("the bonus is read off the rung, never off a rider's counter", () => {
   assert.equal(isMounted(equippedSlugs(held("arelitz", false))), false);
 });
 
-test("a spent mount is still a mount: seats, the narrow-way dismount and the cart all still apply", () => {
+test("a spent mount is still a mount: seats and the cart still apply", () => {
   const spent = equippedSlugs(held("arelitz-ridden-1"));
   assert.equal(isMounted(spent), true);
   assert.equal(fastTravelCapacity(spent), 2);

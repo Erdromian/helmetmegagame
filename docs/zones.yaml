@@ -199,9 +199,9 @@
 #                                  #   the winch. `open` is what the gate is
 #                                  #   BORN as — a re-sync never reopens one
 #                                  #   somebody shut in play.
-#     on_foot: true                # too tight, steep or enclosed for a horse
-#                                  #   or a cart. A MOUNTED character is
-#                                  #   dismounted at the threshold.
+#     on_foot: true                # too tight, steep or enclosed for a mount
+#                                  #   or a cart. Anyone HOLDING one, out or
+#                                  #   stowed, is refused at the threshold.
 #     keyed: true                 # on crossing, the KEY-HOLDER is DM'd "Leave
 #                                  #   it open for the next 24 hours?". Yes and
 #                                  #   the way ignores its tag and shows in

@@ -240,7 +240,7 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
   const landed = result.arrivedAt ?? targetLocation;
 
   // The arrival's GAME half, awaited, per moved character: the fog, a
-  // narrow-way dismount, a turret. SKIPPED on a walk: locationWalk.js already
+  // turret. SKIPPED on a walk: locationWalk.js already
   // ran it once per hop, and running it again would fire every turret a second
   // time and re-roll every Caving Die (MAP.md §3c). A walk hands back its hops'
   // Discord halves instead, already in road order.
@@ -252,7 +252,6 @@ async function performMove(character, targetLocation, { exert = false } = {}) {
         characterId: entry.character.id,
         fromLocationId: entry.fromLocationId,
         toLocationId: entry.toLocationId,
-        dismounted: entry.character.id === character.id ? result.dismounted : undefined, // mover only, never a dragged passenger's
         walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
       }).catch((err) => {
         console.error(`Move side effects failed for ${entry.character.name}:`, err.message ?? err);

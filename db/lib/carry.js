@@ -263,7 +263,7 @@ async function settleCarry(prisma, characterId, { drop = true } = {}) {
     let over = load > caps.weight;
 
     // The watermark is the whole of what distinguishes an ACQUISITION from a capacity
-    // SHRINK. A load that hasn't grown since the last settle sheds nothing, however far over the ceiling the cap has fallen — this is what lets a cart be unequipped at a narrow way without emptying it.
+    // SHRINK. A load that hasn't grown since the last settle sheds nothing, however far over the ceiling the cap has fallen — this is what lets a cart be unequipped without emptying it.
     const seenWeight = character.carryWeightSeen ?? 0;
     const weightGrew = load > seenWeight;
 

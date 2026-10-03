@@ -112,8 +112,8 @@ function authoredLines(location, ctx = {}) {
 // Whether there is a roof, said on every Location, since it is the one place
 // Examine says so. No roof takes the reins any more — not even underground,
 // which was the last (Bascinet's call, 2026-09-27; CARRY.md §3) — so both
-// halves say a mount comes in. What does still take it is a way too narrow for
-// it, which is a fact about the connection, not the place (db/lib/indoors.js).
+// halves say a mount comes in. What does still keep it out is a way too narrow
+// for it, which is a fact about the connection, not the place (MAP.md §2c).
 function placementLine(location) {
   if (!location?.indoors) return "**Outdoors**: you can use your arelitz or cart here.";
   return "**Indoors**: you can still bring an arelitz or cart in here.";

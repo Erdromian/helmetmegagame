@@ -107,7 +107,7 @@ import { visibleZoneIds } from "@lifeweb/db/lib/gmZoneView";
 import { heldReasonFor, seenByMany, seenById, seenByIdMany, seenByPlace, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { waitingLetter } from "@lifeweb/db/lib/bird";
-import { blocksOnFoot, equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
+import { equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
   performLocationMove,
   freeMovesLeft,
@@ -144,7 +144,6 @@ import { syncPartyMembership } from "@lifeweb/db/lib/partyChat";
 import { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } from "@lifeweb/db/lib/roomAccess";
 import { loadRoomsAt, roomAt, WITH_SIDES } from "@lifeweb/db/lib/roomSides";
 import { applyArrivalFacts, applyArrivalDiscord, syncArrivalAccess } from "@lifeweb/db/lib/locationMove";
-import { dismountedMessage } from "@lifeweb/db/lib/indoors";
 import {
   boardFor,
   boardText,
@@ -569,10 +568,6 @@ export async function loadTravel() {
     // locationTravel.js is not for the browser bundle.
     breakdown: freeMovesBreakdown(character, config, openTurn, party.length),
     travelLine: travelSentence(freeMovesBreakdown(character, config, openTurn, party.length)),
-    // Whether there's anything to dismount at all — the node list only
-    // marks a specific way or a specific destination as a consequence when
-    // this is true, since "on foot" means nothing to somebody already walking.
-    mounted: blocksOnFoot(equippedSlugs(character.tags ?? [])),
     // The Move already spent this turn: Go leaves the strip and the push on
     // is the only way across a zone with no travel left (MAP.md §3).
     moved: acted,
@@ -613,9 +608,6 @@ export async function loadTravel() {
         canExert: row.crossesZone && exertWhy === null,
         exertWhy,
         exertNote,
-        // A way too narrow to ride or push through — crossing it dismounts
-        // instead of refusing (db/lib/indoors.js#dismountForNarrowWay).
-        dismounts: Boolean(row.dismounts),
         // A hole no Giant fits through (MAP.md §2a). Drawn as a chip for
         // EVERYBODY, not only the Giant it refuses — so the rest of a party
         // can see where their Giant friend cannot follow.
@@ -859,7 +851,7 @@ export async function travelTo({ locationId, exert = false } = {}) {
     tell.push(() => sendDm(left, `*${leader} went on without you.*`));
   }
 
-  // The arrival's GAME half, AWAITED: the fog, a narrow-way dismount, a hand on a
+  // The arrival's GAME half, AWAITED: the fog, a hand on a
   // shoulder, a turret's kill. MAP.md §3 promises the character is standing at
   // the destination by the time this call returns, and the sentence built at
   // the bottom of this function reads the result of it.
@@ -874,8 +866,6 @@ export async function travelTo({ locationId, exert = false } = {}) {
         characterId: entry.character.id,
         fromLocationId: entry.fromLocationId,
         toLocationId: entry.toLocationId,
-        // Only ever the mover's own mount.
-        dismounted: entry.character.id === me.character.id ? result.dismounted : undefined,
         walked: true, // on foot, so the street behind them stays lit (db/lib/vantages.js) — a dragged passenger walked too
       }).catch((err) => {
         console.error(`Travel: arrival facts failed for ${entry.character.id}:`, err.message ?? err);
@@ -986,9 +976,6 @@ export async function travelTo({ locationId, exert = false } = {}) {
   // from a walk without its zone, so the slug's own prefix is the fallback: a Location is
   // `<zone>-<code>` by docs/zones.yaml's convention.
   const ground = groundSfx(landed.zone?.slug ?? String(landed.slug ?? "").split("-")[0]);
-  if (result.dismounted.length > 0) {
-    return { ok: true, line: `${parts.join(" ")} ${dismountedMessage(result.dismounted)}`, sfx: ground };
-  }
   return { ok: true, line: `${parts.join(" ")}`, sfx: ground };
 }
 

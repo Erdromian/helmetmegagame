@@ -18,7 +18,6 @@ const {
   fastTravelRides,
   fastTravelMountTag,
   mountLabel,
-  STOWABLE_SLUGS,
 } = require("./mounts");
 const { rideMount } = require("./mountRides");
 const { rollWithEdge, edgeFor } = require("./advantage");
@@ -28,7 +27,6 @@ const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
 const { linkBetween, crossingCheck, partyKeyFor } = require("./locationGraph");
 const { withRingTokens } = require("./roomAccess");
 const { crossingCost, FAR_CROSSING_COST, formatTravel } = require("./crossingCost");
-const { dismountForNarrowWay } = require("./indoors");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
 const { expiryForGrant } = require("./grantExpiry");
 const { addToStack, grantTagSlugs } = require("./tagWrites");
@@ -447,7 +445,6 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   if (held) return { ok: false, reason: held };
 
   let currentLocation = null;
-  let crossingLink = null;
   if (character.locationId) {
     if (character.locationId === targetLocation.id) {
       return { ok: false, reason: "You're already there." };
@@ -470,13 +467,12 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
 
     // The edge, and what it lets this character do — a missing, hidden (no key), locked or
     // shut-modular edge all refuse here; the picker filters the same verdict, but a client can post any location id, so this is the check that counts.
-    crossingLink = await linkBetween(prisma, currentLocation.id, targetLocation.id);
+    const crossingLink = await linkBetween(prisma, currentLocation.id, targetLocation.id);
     const gate = crossingCheck(crossingLink, {
       // Held tags plus the worn ring's doors (docs/systemdocs/RINGS.md).
       tagSlugs: await withRingTokens(prisma, character.id, character.tags),
-      // Equipped, not merely held — CHARACTER_SELECT already loads `equipped`
-      // for exactly this kind of question.
-      onFootBlocked: blocksOnFoot(equippedSlugs(character.tags ?? [])),
+      // Held at all, out or stowed (MAP.md §2c).
+      onFootBlocked: blocksOnFoot(character.tags),
     });
     // `edge` marks the one refusal an escort following them must never be told the reason for (§3d):
     // naming a hidden way's refusal would announce the way is there (MAP.md §2a).
@@ -524,8 +520,6 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     partyRows: [],
     // Followers the edge would not take. They are detached and left standing rather than failing the whole move (MAP.md §3a); the caller DMs them and their leader off this list.
     leftBehind: [],
-    // Mounts a too-narrow way made them leave behind — see the dismount step at the top of the transaction below.
-    dismounted: [],
   };
 
   // The party, read BEFORE the transaction so the free-move arithmetic below
@@ -541,15 +535,6 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
 
   try {
     await prisma.$transaction(async (tx) => {
-      // A way too narrow for what they had out dismounts them instead of refusing outright
-      // (indoors.js#dismountForNarrowWay) — but it must happen HERE, first, inside this same transaction, not as a post-commit side effect: it affects free-move accounting for THIS crossing. A mount buys an extra free crossing (freeZoneMoves below), so dismounting after the fact would let a rider bank that bonus on a ride that never survives the threshold — the exploit refusing at the threshold exists to close (MAP.md §2c). Mutating `character.tags` in memory is what makes freeZoneMoves see the dismount too, with no extra query.
-      outcome.dismounted = await dismountForNarrowWay(tx, character.id, crossingLink);
-      if (outcome.dismounted.length > 0) {
-        character.tags = (character.tags ?? []).map((ct) =>
-          STOWABLE_SLUGS.has(ct.tag?.slug) ? { ...ct, equipped: false } : ct,
-        );
-      }
-
       // The party is re-loaded and re-authorized INSIDE the transaction, and this copy is
       // the one that counts — everything above it is a preview. Two things drop a follower here, and NEITHER refuses the move (the change from dragging, where one bad passenger threw the whole hop away): somebody who wandered off, or somebody the edge won't take. Both are let go and left standing, and the caller tells them.
       const party = await partyOf(prisma, character.id, { tx });
@@ -578,13 +563,13 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
             outcome.leftBehind.push({ row, reason: "gone" });
             continue;
           }
-          // The edge, judged against the FOLLOWER's own tags and mount — a crawl the leader has the Caving for is still a crawl their unskilled companion can't follow, and a rider can't be led through an onFoot gap. The one thing the leader lends is a KEY (partyKey above): a locked door the leader opens lets their party through behind them.
+          // The edge, judged against the FOLLOWER's own tags and mount — a crawl the leader has the Caving for is still a crawl their unskilled companion can't follow, and nobody holding a mount or a Cart can be led through an onFoot gap. The one thing the leader lends is a KEY (partyKey above): a locked door the leader opens lets their party through behind them.
           if (currentLocation) {
             const followerSlugs = await withRingTokens(prisma, row.id, row.tags);
             if (partyKey) followerSlugs.add(partyKey);
             const gate = crossingCheck(followerLink, {
               tagSlugs: followerSlugs,
-              onFootBlocked: blocksOnFoot(equippedSlugs(row.tags ?? [])),
+              onFootBlocked: blocksOnFoot(row.tags),
             });
             if (!gate.passable) {
               outcome.leftBehind.push({ row, reason: "edge" });
@@ -879,7 +864,6 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     crossedZone,
     spentTurn: outcome.spentTurn,
     usedFreeMove: outcome.usedFreeMove,
-    dismounted: outcome.dismounted,
     // Followers the way wouldn't take. Detached and still standing where they were; the caller owes them and their leader a line. The reason is deliberately NOT the edge's own refusal — "the way is locked" on a hidden crawl would announce the crawl is there (MAP.md §2a).
     leftBehind: [
       ...outcome.leftBehind.map((e) => ({

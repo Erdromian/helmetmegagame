@@ -18,7 +18,6 @@ const { ambientLine } = require("./ambientLine");
 const { STEALTH_SLUG } = require("./constants");
 const { sceneLineAt } = require("./scene");
 const { settleCarry, deliverCarryDrop } = require("./carry");
-const { dismountForNarrowWay, dismountedMessage } = require("./indoors");
 const { applyArrivalMood } = require("./mood");
 const { recordArrival } = require("./locationVisits");
 const { dropCallsForCharacter } = require("./phone");
@@ -361,10 +360,9 @@ async function offerToHoldKeyed(prisma, character, fromLocationId, toLocation) {
   );
 }
 
-// Everything a location change must do in Discord once the DB write has landed: swap the location overwrite, announce a gate crossing, offer to hold a keyed way open, swap the zone role and reconcile narrowcast if the zone changed, then private-room membership and standing conversation invites wherever they now stand. `entry` is { characterId, fromLocationId, toLocationId, dismounted } — zones are read from the locations, and the character row is re-read so a stale caller can't swap the wrong account.
-// `dismounted` is optional: names db/lib/locationTravel.js#performLocationMove already unequipped for a way too narrow to ride or push through, if this move came from there — see the comment below on why that has to happen inside performLocationMove's own transaction rather than here.
+// Everything a location change must do in Discord once the DB write has landed: swap the location overwrite, announce a gate crossing, offer to hold a keyed way open, swap the zone role and reconcile narrowcast if the zone changed, then private-room membership and standing conversation invites wherever they now stand. `entry` is { characterId, fromLocationId, toLocationId } — zones are read from the locations, and the character row is re-read so a stale caller can't swap the wrong account.
 // `walked` says the character got here ON FOOT, and only a walk leaves the place behind them lit (db/lib/vantages.js). It defaults to FALSE and the two travel callers opt in, so a GM teleport, a rite, a threat spawn, a staged "Relocate to", Xom and a first placement all leave nothing behind — you cannot keep watching a street you never walked out of.
-async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocationId, dismounted, walked = false }) {
+async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocationId, walked = false }) {
   if (!characterId || !toLocationId) return null;
   if (fromLocationId === toLocationId) return null;
 
@@ -462,22 +460,7 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
       })
     : [];
 
-  // Mounts are no longer parked at any door, underground included (CARRY.md §3): the one thing
-  // that still takes the reins is a way too narrow for what they had out. `performLocationMove` already does this itself, inside its own transaction, so a mount that doesn't survive a crossing can never bank the extra free move it buys (MAP.md §2c) — the caller passes those names straight through as `dismounted`, skipping a redo that would only ever find nothing left to unequip. A caller with no such result (a GM teleport, a rite, a spawn — none of which cross a graph edge) leaves it undefined and gets the independent check below, a no-op unless there really is a matching onFoot link.
-  const dismountedNames =
-    dismounted ??
-    (fromLocationId
-      ? await linkBetween(prisma, fromLocationId, toLocationId)
-          .then((link) => dismountForNarrowWay(prisma, characterId, link))
-          .catch((err) => {
-            console.error(`Move: dismounting for a narrow way failed for ${characterId}:`, err.message ?? err);
-            return [];
-          })
-      : []);
-
-
-  // What walking in here does to the nerves is a DB fact too, same as the
-  // narrow-way dismount above — before the Discord guard, so it lands whether or not
+  // What walking in here does to the nerves is a DB fact too — before the Discord guard, so it lands whether or not
   // there's a token to talk to Discord with (docs/systemdocs/MOOD.md). No
   // per-turn ration on the arrival cost: a mount's two crossings are two real
   // arrivals. The Cathedral's relief rations itself inside.
@@ -485,7 +468,7 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     console.error(`Move: mood on arrival failed for ${characterId}:`, err.message ?? err);
   });
 
-  // Walking into an armed turret. Before the Discord guard and the early return, same reason a narrow-way dismount is: being shot is a database fact and must not depend on there being a token to announce it with. Wrapped, because a gun malfunctioning must never wedge a move.
+  // Walking into an armed turret. Before the Discord guard and the early return, same reason the mood on arrival is: being shot is a database fact and must not depend on there being a token to announce it with. Wrapped, because a gun malfunctioning must never wedge a move.
   // Both guns are asked, because a move only ever arrives in one place: each checks the destination slug first and costs a single indexed read to say no. See db/lib/turretPass.js on why the armed check is a thunk.
   const openTurn = await prisma.turn.findFirst({
     where: { status: "OPEN" },
@@ -611,7 +594,6 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
     toLocation,
     droppedWatch,
     searchesOff,
-    dismountedNames,
     droppedVantages,
   };
 }
@@ -636,7 +618,6 @@ async function applyArrivalDiscord(prisma, facts, { access = true } = {}) {
     toLocation,
     droppedWatch,
     searchesOff,
-    dismountedNames,
   } = facts;
 
   // The presence notify already went out with the facts, so a box with no token
@@ -676,12 +657,6 @@ async function applyArrivalDiscord(prisma, facts, { access = true } = {}) {
   await offerToHoldKeyed(prisma, character, fromLocationId, toLocation).catch((err) =>
     console.error(`Move: keyed-door offer failed for ${characterId}:`, err.message ?? err),
   );
-
-  if (dismountedNames.length > 0) {
-    await sendDm(prisma, discordUserId, dismountedMessage(dismountedNames)).catch((err) =>
-      console.error(`Move: dismount DM to ${discordUserId} failed:`, err.message ?? err),
-    );
-  }
 
   // Settle carry BEFORE room access: arriving somewhere with a public room is what lets a deferred overflow drop finally land (db/lib/carry.js), and that drop can take a private-room key off the sheet, so membership has to be recomputed from the post-drop holdings.
   const carry = await settleCarry(prisma, characterId).catch((err) => {

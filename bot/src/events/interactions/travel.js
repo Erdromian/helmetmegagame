@@ -33,6 +33,7 @@ const {
   gateOperable,
   isHeldOpen,
   KEYED_OPEN_MS,
+  ON_FOOT_REFUSAL,
 } = require("@lifeweb/db/lib/locationGraph");
 const { knownLocations } = require("@lifeweb/db/lib/locationVisits");
 const { crossingCost, formatTravel, FAR_CROSSING_COST } = require("@lifeweb/db/lib/crossingCost");
@@ -117,7 +118,14 @@ async function handleTravelOpen(interaction) {
   const shutLine =
     shut.length > 0
       ? `-# Closed to you right now: ${shut
-          .map((row) => (squeezeIds.has(row.location.id) ? `${row.location.name} (tight squeeze)` : row.location.name))
+          .map((row) =>
+            // Too narrow for the mount or Cart they hold (MAP.md §2c) — the one shut way they can open themselves, by leaving it behind.
+            row.refusal === ON_FOOT_REFUSAL
+              ? `${row.location.name} (too narrow for a mount or a cart)`
+              : squeezeIds.has(row.location.id)
+                ? `${row.location.name} (tight squeeze)`
+                : row.location.name,
+          )
           .join(", ")}.`
       : null;
   // Not fleeting: this message becomes the Bring/Confirm step when a place is
@@ -306,7 +314,7 @@ async function handleTravelPick(interaction) {
       : null;
   const walkLine =
     walk?.ok && walk.hops > 1
-      ? `-# ${walk.hops} moves, through ${listNames(walk.path.slice(0, -1).map((l) => l.name))}. Nothing to pay.${walk.dismounts ? " One of the ways is too narrow for what you're riding." : ""}`
+      ? `-# ${walk.hops} moves, through ${listNames(walk.path.slice(0, -1).map((l) => l.name))}. Nothing to pay.`
       : null;
 
   const costLine = !character.locationId
@@ -458,11 +466,6 @@ async function handleTravelConfirm(interaction, locationId, { exert = false } = 
   // "held" is the only reason given, since it's plain to see (INTERCEPT.md).
   const heldBack = leftNames.filter((_, i) => leftBehind[i].reason === "held");
   if (heldBack.length > 0) parts.push(`Somebody has hold of ${listNames(heldBack)}.`);
-  if (result.dismounted?.length > 0) { // dismounted, not refused (db/lib/indoors.js#dismountForNarrowWay)
-    parts.push(
-      `Too narrow for your ${listNames(result.dismounted)} — you leave ${result.dismounted.length === 1 ? "it" : "them"} and go on foot.`,
-    );
-  }
 
   const links = await arrivalLinks(character.id, landed.id);
   await respond(interaction, { content: [parts.join(" "), links].filter(Boolean).join("\n"), components: [] });

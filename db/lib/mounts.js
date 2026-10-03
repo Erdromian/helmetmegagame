@@ -2,8 +2,8 @@
 // mount seats. Lives in db/ so both faces read one set; web/lib/tagRequests.js
 // re-exports for page gates. See DEPOT.md §3, CARRY.md §2 and ARELITZ.md.
 // A mount only works while EQUIPPED (MOUNT slot, db/lib/equipSlots.js), indoors
-// or out, and is unequipped only on a way too narrow for it — helpers here take ACTIVE slugs
-// (`equippedSlugs` below), never a bare held-slug set.
+// or out — helpers here take ACTIVE slugs (`equippedSlugs` below), never a bare
+// held-slug set. The one exception is blocksOnFoot, which asks what is HELD.
 //
 // ZERO REQUIRES, EVER — bar ./crates, which is itself a zero-require leaf.
 // web/app/components/EquipBoard.js is a client component and imports this
@@ -244,13 +244,15 @@ function isMounted(activeSlugs) {
   return activeMountSlug(activeSlugs) !== null;
 }
 
-// STOWABLE_SLUGS a narrow way dismounts (db/lib/indoors.js), checked before
-// the crossing so it is said instead of spending the free move first (MAP.md
-// §2c). Wider than isMounted: a bare Cart buys no free move but still won't
-// fit where a horse can't.
-function blocksOnFoot(activeSlugs) {
-  for (const slug of STOWABLE_SLUGS) if (activeSlugs.has(slug)) return true;
-  return false;
+// Whether an on-foot way refuses this character (MAP.md §2c): they HOLD a
+// mount or a Cart, out or stowed. Held, not equipped — an arelitz does not fit
+// through a crawl any better for being in a pack, and unequipping at the
+// threshold used to walk a Cart and its whole load straight through. Takes the
+// character's tag rows, not equippedSlugs, which drops exactly the stowed ones.
+// Wider than isMounted: a bare Cart buys no free move but still won't fit
+// where an arelitz can't.
+function blocksOnFoot(characterTags = []) {
+  return (characterTags ?? []).some((ct) => STOWABLE_SLUGS.has(ct?.tag?.slug) && ct.quantity !== 0);
 }
 
 // Mounts held but not equipped, so Travel can warn before someone walks a

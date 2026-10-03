@@ -140,8 +140,8 @@ The registry maps each key to the sentence the **Examine** button prints
 "depot")` rather than comparing slugs — that is the point of the layer.
 
 Two things are deliberately *not* attributes. `indoors` stays a real column,
-because carts and mounts act on it (`db/lib/indoors.js`, `db/lib/mounts.js`)
-and a JSON field is not something to query on; Examine merely prints it
+because the mood dial and building read it (`db/lib/mood.js`,
+`db/lib/structures.js`) and a JSON field is not something to query on; Examine merely prints it
 alongside the attributes as though it were one. And gate state is never
 authored — it is read live off the `LocationLink` rows, since a GM can flip an
 edge at any time.
@@ -193,7 +193,7 @@ is why `LocationLink` carries fields rather than one enum.
 | Hidden | `requiredTagSlug` + `hidden` | needs the tag **and** is absent from every travel list. Refuses in the same words a nonexistent edge does, deliberately — a different refusal would tell a player the way is there |
 | Modular | `modular`, `isOpen` | an Open/Close button on the **watchtower** at the gate; impassable while shut. Anyone the tower admits may work it |
 | Keyed | `keyed`, `openUntil` | on crossing, DMs the key-holder "Leave open for the next 24 hours?" — yes and the way ignores its tag and becomes listed until the window lapses |
-| On foot | `onFoot` | too tight, steep or enclosed for a horse or a cart. A **mounted** character is dismounted crossing it. This is the only thing that dismounts anybody; an indoors Location does not |
+| On foot | `onFoot` | too tight, steep or enclosed for a mount or a cart. Listed and refused to anyone **holding** one, out or stowed (§2c). This is the only thing that keeps a mount out; an indoors Location does not |
 | Tight squeeze | `tightSqueeze` | a hole no **Giant** fits through, full stop. Listed and refused to anyone holding the `giant` tag — unconditional, not a skill check. **Marked for everybody**, Giant or not, so a party can see where its Giant cannot follow |
 
 **A modular gate on a zone boundary must be the only plain edge between those
@@ -319,29 +319,43 @@ wipe, not as part of importing or mirroring.
 
 ### 2c. On-foot ways
 
-`onFoot` is the one thing left that keeps a mount out
-(`db/lib/indoors.js#dismountForNarrowWay`). An indoors roof used to do it too,
-at the door on arrival; it no longer does anywhere (`CARRY.md` §3). `onFoot` used to refuse the crossing outright rather than dismount for
-it, on purpose — see the timing note below for why that mattered, and why
-dismounting works just as well now.
+`onFoot` is the one thing left that keeps a mount out. An indoors roof used to
+do it too, at the door on arrival; it no longer does anywhere (`CARRY.md` §3).
 
-**Timing is the whole reason it isn't done on arrival, the way the roof once was.**
-An equipped mount buys one extra free zone-crossing per turn (`freeZoneMoves`,
-`db/lib/locationTravel.js`), so dismounting only on arrival — after that
-crossing's own cost was already computed — would let a rider bank the bonus
-on a ride that never survives the threshold, which made every secret passage
-into the Fortress rideable for free. `performLocationMove` dismounts them
-*first*, inside its own transaction, before `freeZoneMoves` ever runs, so the
-crossing is costed as the walk it actually is. `applyLocationMoveSideEffects`
-never repeats the check itself when the caller already has the answer — see
-the comment on its `dismounted` parameter.
+**It refuses anyone holding a mount or a Cart, out or stowed.** That is every
+rung of the arelitz and Motorcycle ladders plus `cart` — `STOWABLE_SLUGS`, read
+by `db/lib/mounts.js#blocksOnFoot` off the character's tag rows. `crossingCheck`
+lists the way and refuses it with "Too narrow for a mount or a cart. You would
+have to leave yours behind." The way through is to leave it somewhere: hand it
+to somebody or set it down in a room.
 
-It is also the one gate that reads what a character has **equipped** rather than
-what they hold: `isMounted(equippedSlugs(tags))`, so a horse stowed in a pack is
-not a horse you are riding. `resolveNeighbors` therefore loads tags in
-equip-shape rather than through `heldTagSlugs`, which returns bare slugs and
-would have counted a stowed horse. The refusal is listed rather than hidden,
-because unequipping the horse is a fix the traveller can apply on the spot.
+It is **held**, not equipped, on purpose. From 2026-09-27 until this changed
+the way *dismounted* instead: the mount and the Cart were unequipped at the
+threshold, stayed in the pack, and went back on at the far side. That kept the
+mount's ride from being spent on the crossing and nothing else. A Cart and its
+whole load walked through every on-foot way on the map — nothing is shed when a
+cap shrinks, and the spare crates fell on the far side, where the Cart went
+straight back on. An arelitz does not fit through a crawl any better for being
+in a pack.
+
+**The check comes last in `crossingCheck`**, after the lock, the squeeze and
+the gate, so a holder hears about a shut door first, and a hidden way stays
+hidden whatever they are carrying.
+
+**Everything that asks "can they walk this" gives the same answer**, because
+they all call `crossingCheck` with `blocksOnFoot`: the pickers on both faces,
+the mover, the per-follower check in a party (a follower holding a Cart is left
+behind, §3a), the walk resolver (§3c), which routes round an on-foot way where
+it can, and a fight's distances (`ATTACK.md` §2). Travel that crosses no link
+is untouched: a GM's relocate, a rite, a spawn, Bat Form.
+
+**Because the block is unconditional, the map has to leave a wide way to
+everywhere a mount is meant to go.** With every on-foot way taken out, the map
+is still one piece except for five places at the end of a crawl: the Lifeweb,
+the Den Interior, the Order Chambers, the Hole in the Wall and the Island.
+The caves and the Depths stay reachable, so a Motorcycle found there can come
+out. `db/test/onFootWay.test.js` pins that list; marking a new way `on_foot`
+that cuts off anywhere else fails it.
 
 The **modular button** is `loc:gate:{linkId}` on the watchtower's starter post.
 The handler re-checks only that the clicker is standing at the gate — the room
@@ -370,7 +384,7 @@ character without the `giant` tag is never touched by it at all.
 
 **But everybody is shown it.** `crossingCheck` returns `tightSqueeze: true`
 on every listed verdict, passable or not, and the walk resolver carries the
-flag stickily down a route the way it carries `dismounts` — a three-hop walk
+flag stickily down a route — a three-hop walk
 whose second hop is a squeeze is a walk with a squeeze on it. That is the
 opposite of how `openedBy` behaves (passable branches only),
 and on purpose: the person who most needs to see a squeeze is the one it
@@ -696,8 +710,8 @@ the summed travel number each ride is worth `FAR_CROSSING_COST` so every
 "can I afford it" gate on the surfaces says yes while a ride is left. It
 refreshes every turn rather than once a day, so on a short turn length an
 arelitz carries you several times a day. Mounts only count while
-**equipped**, indoors or out, and only a way too narrow for them unequips
-them (§2c, `CARRY.md` §3).
+**equipped**, indoors or out. Nothing unequips one for you; a way too narrow
+for it refuses you while you hold it (§2c, `CARRY.md` §3).
 
 **The rides live on the mount, not on the rider** (`ARELITZ.md` §2a). Every
 ride charged to a mount swaps its tag one rung down a ladder inside the
@@ -722,10 +736,8 @@ hands over a **ridden** animal, and one from the stable is fresh.
 
 **The mount's ride is spent before the base travel.** It stays with the
 animal, so unequipping it later gives nothing back and takes
-nothing back — the base pool was never touched. The narrow-way case is
-untouched, because `dismountForNarrowWay` runs *inside* the transaction
-before any of this arithmetic — a rider who cannot get their animal through
-the gap never earns the ride to begin with (§2c).
+nothing back — the base pool was never touched. A narrow way never reaches
+this arithmetic at all: it refuses a rider before the crossing starts (§2c).
 
 The base pool is tracked on `Character.zoneMovesTurnId` / `zoneMovesUsed`,
 with `zoneMovesBonusUsed` recording how much of that travel went on a mount —
@@ -880,7 +892,8 @@ people through, so each follower is judged as if they held it too
 key, so a leader could not bring a guest through any door the guest could not
 open. A **skill or trait** in the lock (`caving`, `climbing`, `strong-swimmer`,
 `tunnel-rat`) is never lent, and neither is the rest of the edge: a Giant is
-still refused a tight squeeze, and a rider still dismounts at an on-foot way.
+still refused a tight squeeze, and anyone holding a mount or a Cart is still
+refused an on-foot way.
 An escort following their charge (§3d) walks under their own power and borrows
 nothing. Dragging used to throw the whole hop away instead. **The leader's DM
 must never say why**: naming a hidden edge's refusal would announce that the
@@ -1104,7 +1117,7 @@ those are gated on `crossedZone`.
 understand before touching the walk.** An arrival is two halves, split at the
 `DISCORD_TOKEN` guard that was always in `applyLocationMoveSideEffects`:
 
-- **`applyArrivalFacts`** is the game — the fog, a narrow-way dismount, a hand on a
+- **`applyArrivalFacts`** is the game — the fog, a hand on a
   shoulder, a turret's kill. Awaited, **per hop, in order**. The
   next hop does not start until a turret has had its say, which is what makes
   the paragraph above this one true.
