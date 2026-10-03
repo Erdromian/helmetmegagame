@@ -954,6 +954,7 @@ export default function Workspace({
         stagedEffects={stagedEffects}
         stagedMessages={stagedMessages}
         moves={moves}
+        combats={combats}
         roster={roster}
         presenceZones={presenceZones}
         stagingLocations={stagingLocations}

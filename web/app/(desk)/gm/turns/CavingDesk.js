@@ -336,6 +336,7 @@ export default function CavingDesk({
           stagingRooms={stagingRooms}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
+          readOnly={readOnly}
           empty="Nothing staged yet."
         />
       </div>

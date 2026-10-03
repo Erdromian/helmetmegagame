@@ -220,6 +220,30 @@ Their snapshot is taken when they join, and the desk shows where they came
 from (`fromLocationName`). Everybody already in the fight is told who joined,
 and on which side, by the name they know them by.
 
+**Coming back into a fight** (Bascinet, 2026-10-03). Somebody who left a fight
+— taken away by a GM, a rite or a staged Relocate to, and then back — may join
+it again, on either side, through the same gates and the same distance rule as
+anybody else. A person has one row per fight, so their old row becomes their
+new place in it: role `INTERVENER`, a fresh snapshot and roll, what they wrote
+before cleared, and `CombatParticipant.cameBackFrom` set to `LEFT` (or
+`DECLINED` for a decliner joining the defenders) so the desk can say so.
+"Already in a fight" is read off `activeTurnId`, the one-fight claim itself,
+never the row's status: a row whose holder is out of the fight is theirs to take
+over again.
+
+**Nobody intervenes once Moves lock**, by any of these ways in — pressing Join,
+an escort stepping in, or coming back into a fight. All of them go through
+`intervene`, and `combatBlock` refuses there first (§1, §10).
+
+**Joining a solved fight reopens it** (Bascinet, 2026-10-03). Anybody coming into
+a fight after a GM has pressed Solve — intervening, an escort stepping in, an
+ambush's later catch, an invitee pressing Join — takes the Solved stamp off it
+(`combat.js#reopenIfSolved`, in the same transaction that lets them in). The
+fight goes back to the top of the Combat lens marked **Reopened**
+(`Combat.reopenedAt`), so a GM looks the ruling over again. The Result box and
+everything staged on it stay as they were, to work from. The audit row of the
+join that did it carries `reopened: true`.
+
 ## 6a. Escorts step in
 
 **Escort** is a verb of its own (the Escort dialog on the web, `/escort guard`
@@ -250,7 +274,9 @@ defend X." instead of "You join the fight." Two ways in:
 - **`escortsStepIn`** — the fight's own. When a fight starts (`startCombat`, so
   an Attack, an ambush's first catch and a Vampire's compulsion alike) or an
   ambush adds a target, everybody escorting one of its defenders who is standing
-  there steps in. Distance 0, no penalty.
+  there steps in. Distance 0, no penalty — whatever the start-of-fight map said,
+  since an ambush's later catch can bring an escort who was far off when it
+  first sprang (`intervene`'s `standingHere`).
 - **`escortsArrive`** — the escort's. An escort who has just arrived (following,
   or on their own feet) and finds their charge defending in a live fight here
   joins it, from `performLocationMove`. Distance comes off the fight's snapshot,
@@ -259,6 +285,15 @@ defend X." instead of "You join the fight." Two ways in:
 
 **Only a charge who is attacked** pulls an escort in. A charge who attacks, or
 who is asked along as a collaborator, is not being attacked.
+
+**An escort's row says whose escort they are** (`CombatParticipant.escortOfId`):
+the desk's card reads "Escorting Bo — stepped in to defend them.", and the step-in
+writes the same `request_attack_intervened` audit row a press of Join does, with
+`escortOf` in its details (§13).
+
+An escort who walks in alongside their charge **into an ambush** is caught by it
+like anybody else in the party, as a target, if the watch would stop them
+(INTERCEPT.md). They are in the fight already then, so they don't also step in.
 
 ## 7. How a fight ends
 
@@ -274,12 +309,25 @@ who is asked along as a collaborator, is not being attacked.
   `VAMPIRE.md` §4): `callOff` refuses with "The hunger won't let you call this
   off.", and neither face offers the button.
 - **A side empties.** Somebody relocated (a GM's teleport, a Bulk Move, a
-  staged Relocate to, a rite — walking never, since they are held, and Bat
-  Form never, since it reads the same hold and the fight row: `VAMPIRE.md` §6) or dead
-  leaves the fight (`leaveCombatsFor`, off `locationMove.js` and
-  `characterDeath.js`). If that leaves either side with nobody fighting, the
-  fight ends (`SIDE_EMPTY`) and everybody else goes free and is told
-  (Bascinet, 2026-09-27).
+  staged Relocate to, a rite — Bat Form never, since it reads the same hold and
+  the fight row: `VAMPIRE.md` §6) or dead leaves the fight (`leaveCombatsFor`,
+  off `locationMove.js` and `characterDeath.js`). If that leaves either side
+  with nobody fighting, the fight ends (`SIDE_EMPTY`) and everybody else goes
+  free and is told (Bascinet, 2026-09-27). If it leaves the attackers with only
+  people who have already pressed Call off, the call-off they were waiting on is
+  complete, and the fight ends the way a call-off does (`CALLED_OFF`, the
+  thirty minutes, everybody told).
+- **Arriving never takes you out of the fight where you arrive.** Every
+  relocation runs `leaveCombatsFor` from `locationMove.js#applyArrivalFacts`,
+  and that includes a WALK — the person who walked into an ambush, and the
+  escort who walked in behind their charge, are put into the fight by
+  `performLocationMove` before the arrival's facts run. So the move hook passes
+  `unlessAt`, where they arrived, and a fight at that place is left alone. Until
+  2026-10-03 it was not: every ambush ended `SIDE_EMPTY` the moment it sprang,
+  and every escort who walked in was thrown straight back out, showing on the
+  desk as having left. Migration `20261216000100_combat_arrival_repair` put
+  those rows back on the record as fighters (record only: nobody was pulled back
+  into a fight, and no fight reopened).
 - **A GM ends it** — End fight on the desk (§8). Everybody free at once, no
   30 minutes, everybody told (`GM`).
 - **The push** closes every fight still open (`TURN_ENDED`), in the
@@ -297,8 +345,10 @@ A fight that ends stays on the desk, because the GM still rules on it.
 ## 8. The GM's Combat lens
 
 A tab on `/gm/turns` beside Moves and Caving, keyboard **f**. One row per
-fight on the open turn — its attackers against its defenders, where, how many
-are involved — unsolved first, live before finished. Search matches anybody in
+fight on the open turn — everybody fighting on each side, the people who stepped
+in named after the ones it started with ("Ada vs Bo, Gus"), where, how many are
+fighting and how many of them stepped in — unsolved first, live before finished.
+A fight somebody came into after it was solved wears **Reopened** (§6). Search matches anybody in
 it, and GmZoneView narrows it on the fight's own zone. The rows are
 store-backed (`deskStore.js`, `deskRows.js#deskPatchFor`), and two triggers
 keep a second GM's desk live: `Combat_notify`, and `CombatParticipant_notify`,
@@ -306,8 +356,10 @@ which announces its parent fight (the `Delivery_notify` shape).
 
 **The desk** (`web/app/(desk)/gm/turns/CombatDesk.js`) groups everybody the
 way the doc asks: Attackers, Defenders, and apart from them whoever joined
-either side, with where they came from. Each card carries their role and
-answer, their roll line, what they wrote (or that they were surprised), a
+either side, with where they came from, whose escort they are, and whether they
+turned the invitation down or left the fight before coming back (§6, §6a). Each
+card carries their role and answer, their roll line, what they wrote (or that
+they were surprised), a
 **Snapshot** (`SnapshotBody.js`, shared with the Caving desk: combat mode, the
 fighting band, what they wore, their wounds), and **Message them**, which
 stages a private message to that one person — the doc's "a message on attack
@@ -331,8 +383,16 @@ Then one result for the whole fight, the Caving desk's shape:
 Every composer opened here offers the fight's people one tap each, and "All of
 them" (`QuickPicks.js`), so nobody is searched for by name.
 
+The snapshots load together when the desk opens, and again whenever anybody's
+snapshot changes (`combatRow`'s `snapshotKey`) — somebody joining, or a
+declined row turning into somebody's place on the defenders, which adds nobody to
+the headcount. Save and Solve take only the open turn's fights
+(`resolveCombatImpl`); the push tray counts the fights not yet solved beside its
+open Moves.
+
 **A past turn's fights** are in the History lens: **Showing → Combat** lists
-them and opens the same desk read-only, with the turn in its header
+them and opens the same desk read-only — what was staged on it frozen too, no
+Delete or Resend — with the turn in its header
 (`ADJUDICATION.md`, History lens). Spectators read them too, on `/actions`
 (`CHAT.md` §5a): the sides, what each fighter wrote, how it ended, the Result
 box and every message the push sent off it — never a roll, a snapshot or a
@@ -383,9 +443,15 @@ At the Move cutoff (`turnClock.js#moveWindow`), and until the push:
   else people may walk right up to the push. A first placement is not a walk.
   A GM's relocation never comes this way.
 
+Intervening is shut with the rest, by every way in: a Join press, an escort
+stepping in (at a fight's start or on arriving), and coming back into a fight
+(§6). An escort who walks in during the lock is simply not in the fight.
+
 Two exceptions, neither a player's choice: a Vampire's compulsion, which opens
 its fight at turn open or on an arrival (`vampireCompulsion.js`), and an ambush
-springing, which cannot happen once nobody can arrive.
+springing. Since the surface opened to walkers in the lock (2026-10-01), an
+ambush set before the cutoff still springs on somebody who walks in after it,
+and adds them to its fight.
 
 ## 11. Discord
 
@@ -421,9 +487,9 @@ shim, its callers' lines and `DM_ACTION.ATTACK_HOLD` once a turn has pushed.
 | Type | Written by | `turnId` |
 |---|---|---|
 | `request_attack_filed` | starting a fight — the targets and helpers by the face the attacker saw | yes |
-| `request_attack_intervened` | joining a side | yes |
-| `request_attack_answered` | Join / Decline | yes |
-| `request_attack_cancelled` | pressing Call off | yes |
+| `request_attack_intervened` | joining a side, and an escort stepping in (`escortOf`); `reopened` when it reopened a solved fight | yes |
+| `request_attack_answered` | Join / Decline, from the dialog or a DM button; `reopened` as above | yes |
+| `request_attack_cancelled` | pressing Call off, from the dialog or a DM button | yes |
 | `combat_saved` / `combat_solved` / `combat_unsolved` | the desk | — |
 | `gm_combat_ended` | End fight | yes |
 

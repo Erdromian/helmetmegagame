@@ -519,11 +519,27 @@ export function combatRow(c, { usernameById }) {
       calledOff: Boolean(p.callOffAt),
       leftReason: p.leftReason ?? null,
       joinedAtMs: p.joinedAt.getTime(),
+      // An escort who stepped in for their charge (combat.js#stepIn). The charge's NAME is filled in below,
+      // off this same fight's people — they are a defender in it.
+      escortOfId: p.escortOfId ?? null,
+      // Back in a fight they had been out of: "DECLINED" (turned the invitation down, then joined the
+      // defenders) or "LEFT" (taken away, then came back and joined). combat.js#intervene writes it.
+      cameBackFrom: p.cameBackFrom ?? null,
+      snapshotAtMs: p.snapshotAt ? p.snapshotAt.getTime() : null,
     };
   });
+  const nameById = new Map(people.map((p) => [p.characterId, p.name]));
+  for (const p of people) p.escortOfName = p.escortOfId ? (nameById.get(p.escortOfId) ?? null) : null;
   const names = people.map((p) => p.name);
-  const attackers = people.filter((p) => p.side === "ATTACKER" && p.status === "JOINED" && p.role !== "INTERVENER");
-  const defenders = people.filter((p) => p.side === "DEFENDER" && p.status === "JOINED" && p.role !== "INTERVENER");
+  // Everybody FIGHTING on each side, the people who stepped in included (after the ones it started with): a
+  // title that left them out read "Ada vs Bo" while Cy was fighting beside Bo, and "Ada vs nobody" once Bo was
+  // gone and Cy carried on alone.
+  const fighting = (side) =>
+    people
+      .filter((p) => p.side === side && p.status === "JOINED")
+      .sort((a, b) => (a.role === "INTERVENER") - (b.role === "INTERVENER"));
+  const attackers = fighting("ATTACKER");
+  const defenders = fighting("DEFENDER");
   const title = `${attackers.map((p) => p.name).join(", ") || "Nobody"} vs ${defenders.map((p) => p.name).join(", ") || "nobody"}`;
   return {
     id: c.id,
@@ -539,6 +555,15 @@ export function combatRow(c, { usernameById }) {
     endReason: c.endReason ?? null,
     endLabel: c.endReason ? (COMBAT_END_LABELS[c.endReason] ?? c.endReason) : null,
     statusLabel: c.resolvedAt ? "Solved" : c.endedAt ? (COMBAT_END_LABELS[c.endReason] ?? "Ended") : "Live",
+    // Somebody came into it after it was solved (combat.js#reopenIfSolved): unsolved again, and flagged so a
+    // GM knows the ruling there needs another look. Only while it is unsolved — solving it again settles it.
+    reopened: Boolean(c.reopenedAt && !c.resolvedAt),
+    // Changes whenever anybody's snapshot does — somebody joining, or a declined row becoming their place on
+    // the defenders — so the desk reloads the snapshots then, and only then (CombatDesk.js).
+    snapshotKey: people.map((p) => `${p.id}:${p.snapshotAtMs ?? ""}`).join("|"),
+    // The people actually fighting, for the rail's count; `steppedIn` the ones of them who intervened.
+    fightingCount: attackers.length + defenders.length,
+    steppedInCount: [...attackers, ...defenders].filter((p) => p.role === "INTERVENER").length,
     resultMessage: c.resultMessage ?? "",
     resolvedAt: c.resolvedAt ? c.resolvedAt.toISOString() : null,
     resolvedByUsername: c.resolvedByDiscordUserId

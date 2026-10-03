@@ -122,7 +122,7 @@ async function interveneFight(prisma, { characterId, discordUserId, combatId, si
     actionType: "request_attack_intervened",
     targetCharacterId: character.id,
     turnId: turn.id,
-    details: { combatId, side },
+    details: { combatId, side, ...(out.reopened ? { reopened: true } : {}) },
   }).catch((err) => console.error("Attack: audit row failed:", err.message ?? err));
   return out;
 }
@@ -135,7 +135,7 @@ async function answerFightInvite(prisma, { characterId, discordUserId, participa
     actionType: "request_attack_answered",
     targetCharacterId: characterId,
     turnId: turn.id,
-    details: { participantId, join: Boolean(join) },
+    details: { participantId, join: Boolean(join), ...(out.reopened ? { reopened: true } : {}) },
   }).catch((err) => console.error("Attack: audit row failed:", err.message ?? err));
   return out;
 }

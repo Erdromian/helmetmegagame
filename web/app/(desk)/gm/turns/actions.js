@@ -1399,8 +1399,12 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "
 async function resolveCombatImpl({ combatId, resultMessage: raw, mode = "save" }) {
   const session = await requireGm();
   if (!["save", "solve", "unsolve"].includes(mode)) throw new UserError("Unknown mode.");
-  const combat = await prisma.combat.findUnique({ where: { id: combatId ?? "" }, select: { id: true, resolvedAt: true } });
+  const combat = await prisma.combat.findUnique({ where: { id: combatId ?? "" }, select: { id: true, resolvedAt: true, turnId: true } });
   if (!combat) throw new UserError("That fight is gone.");
+  // Only the open turn's fights are still being ruled on. A past turn's is read-only in History (its buttons
+  // are hidden there), and a direct call must not re-solve it, nor drop it onto the open desk's lens.
+  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true } });
+  if (!openTurn || combat.turnId !== openTurn.id) throw new UserError("That fight was on an earlier turn.");
   const resultMessage = raw?.toString().trim() || null;
   await prisma.combat.update({
     where: { id: combat.id },

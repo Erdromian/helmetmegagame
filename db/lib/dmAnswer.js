@@ -22,7 +22,7 @@ const { holdKeyedOpen } = require("./gates");
 const { settleCarry } = require("./carry");
 const { releaseHeldBy, seenBy, seenById, IDENTITY_SELECT } = require("./intercept");
 const { cancelAttack, ATTACK_CALLED_OFF_DM } = require("./attack");
-const { answerInvite, callOff } = require("./combat");
+const { answerFightInvite, callOffFight } = require("./verbs/combat");
 const { recordArchiveEvent } = require("./archive");
 
 const GONE = "That offer's gone.";
@@ -220,7 +220,8 @@ async function answerAttackHold(prisma, { id, discordUserId }) {
 
 // (docs/systemdocs/ATTACK.md) A fight's two buttons. `id` is the clicker's own CombatParticipant, and
 // combat.js checks it is theirs against the character resolved here from the clicker — never from the
-// button. The combat functions carry their own refusals in `error`.
+// button. The combat functions carry their own refusals in `error`. Through the verbs rather than combat.js
+// itself, so a press on a DM writes the same audit row as the same press in the Attack dialog (ATTACK.md §13).
 async function clickerCharacter(prisma, discordUserId) {
   return prisma.character.findFirst({ where: { discordUserId, status: "ALIVE" }, select: { id: true } });
 }
@@ -229,7 +230,13 @@ async function answerCombatInvite(prisma, { id, discordUserId, choice }) {
   const me = await clickerCharacter(prisma, discordUserId);
   if (!me) return { ok: false, line: NOT_YOURS, ...empty() };
   const turn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  const out = await answerInvite(prisma, { participantId: id, characterId: me.id, join: choice === DM_CHOICE.ACCEPT, turn });
+  const out = await answerFightInvite(prisma, {
+    characterId: me.id,
+    discordUserId,
+    participantId: id,
+    join: choice === DM_CHOICE.ACCEPT,
+    turn,
+  });
   if (!out.ok) return { ok: false, line: out.error, ...empty() };
   return { ok: true, line: out.line, ...empty(), dms: out.dms };
 }
@@ -238,7 +245,7 @@ async function answerCombatCallOff(prisma, { id, discordUserId }) {
   const me = await clickerCharacter(prisma, discordUserId);
   if (!me) return { ok: false, line: NOT_YOURS, ...empty() };
   const turn = await prisma.turn.findFirst({ where: { status: "OPEN" } });
-  const out = await callOff(prisma, { participantId: id, characterId: me.id, turn });
+  const out = await callOffFight(prisma, { characterId: me.id, discordUserId, participantId: id, turn });
   if (!out.ok) return { ok: false, line: out.error, ...empty() };
   return { ok: true, line: out.line, ...empty(), dms: out.dms };
 }

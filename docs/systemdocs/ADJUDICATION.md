@@ -720,6 +720,10 @@ instance is a change to the hub, not a slider.
   opened there offers the fight's people one tap each (`QuickPicks.js`), and
   "Message them" on a card stages a message to that one person. Store-backed,
   live through the `Combat_notify` and `CombatParticipant_notify` triggers.
+  A row's title names everybody fighting, the people who stepped in included,
+  and a fight somebody came into after it was solved comes back unsolved and
+  marked **Reopened** (`ATTACK.md` §6, §8). The push tray counts the fights
+  not yet solved beside its open Moves.
 - **Other lens** — everything else holding somebody in place this turn: Safe
   intercepts and caught thieves, plus any pre-overhaul `Attack` row still live
   on the turn the Combat Overhaul deployed (`ATTACK.md` §12). What follows
@@ -801,7 +805,8 @@ instance is a change to the hub, not a slider.
   `CAVING.md` §5. Setting it to **Combat** reads back that turn's fights,
   mapped by the same `combatRow` the live Combat lens uses and opening a
   **read-only `CombatDesk`** (the fight's sides, rolls, snapshots, Result and
-  everything staged on it; no End fight, no composers, no Solve) — see
+  everything staged on it, frozen; no End fight, no composers, no Solve, no
+  Delete or Resend on a staged row — the read-only `CavingDesk` likewise) — see
   `ATTACK.md` §8. On the open turn a fight opens the live desk, the way a Move
   does. A `?sel=combat/<id>` link to a fight on a pushed turn swings the rail
   onto History · Combat and that turn (`page.js#initialCombat`), the Caving
