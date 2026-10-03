@@ -1,5 +1,6 @@
 import "server-only";
 import { hoodToken } from "@lifeweb/db/lib/hoodToken";
+import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 
 // The directory that lets a gamemaster read a hood: `speakerKey` -> real name.
 //
@@ -17,15 +18,24 @@ import { hoodToken } from "@lifeweb/db/lib/hoodToken";
 //
 // No AUTH_SECRET means no tokens at all (hoodToken answers null), and the map
 // comes back empty rather than keyed on nothing.
-export async function speakerDirectory(prisma) {
+//
+// `names` is that map. `groups` beside it is speakerKey -> the estate the real
+// speaker's name is painted in (db/lib/roleGroups.js), or nothing for one that
+// wears none: what lets the GM seat's scene paint a hooded line the way it
+// paints a named one. One query for both.
+export async function speakerBook(prisma) {
   const people = await prisma.character.findMany({
     where: { status: "ALIVE" },
-    select: { id: true, name: true },
+    select: { id: true, name: true, role: { select: { groupSlug: true } } },
   });
-  const out = {};
+  const names = {};
+  const groups = {};
   for (const person of people) {
     const key = hoodToken(person.id);
-    if (key) out[key] = person.name;
+    if (!key) continue;
+    names[key] = person.name;
+    const group = roleGroupHue(person.role?.groupSlug);
+    if (group) groups[key] = group;
   }
-  return out;
+  return { names, groups };
 }

@@ -54,6 +54,10 @@ const FEED_ROW_SELECT = {
   disguised: true,
   // The estate of the job the disguise claimed, which IS on the wire: the colour every reader sees.
   disguiseGroup: true,
+  // MESSAGE, or one of the game's records (a death, an arrival). Names nobody, so it is safe on
+  // every row: what lets a GM's feed offer Remove on a line and not on a record
+  // (web/app/(app)/chat/next/Feed.js#SystemRow), the one the server would refuse.
+  kind: true,
 };
 
 // One archived row as the wire shape /chat and /api/feed speak.
@@ -94,6 +98,7 @@ function feedRowShape(row, extra = {}) {
     content: row.content ?? "",
     sentAt: row.sentAt ? new Date(row.sentAt).toISOString() : null,
     source: row.source ?? "DISCORD",
+    kind: row.kind ?? null,
     channelKind: row.channelKind ?? null,
     sfx: row.sfx ?? null,
     turnNumber: row.turnNumber ?? null,

@@ -85,8 +85,11 @@ async function looksKnown(prisma, viewer, subjectId, { memory, bystander }) {
 // read. They keep their old character's learned sight — a doctor who died still knows what a wound
 // looks like — but the vision BLOCKS are skipped below: a blindfold, spectacles left behind and the
 // dark are all things that happen to a body, and theirs is on the floor.
+//
+// `gm` may come with no `viewer.id`: a GM with no body (examineRowForGm below), whose only use for
+// a viewer is the zone gate, and that reads their Discord account.
 async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, ghost = false } = {}) {
-  if (!viewer?.id || seq === null || seq === undefined) return null;
+  if (!viewer || (!viewer.id && !gm) || seq === null || seq === undefined) return null;
 
   let key;
   try {
@@ -242,4 +245,14 @@ async function examineRow(prisma, viewer, seq, { bystander = false, gm = false, 
   };
 }
 
-module.exports = { VIEWER_SELECT, examineRow, memoryForLook };
+// WHAT THE ROOM SAW, for a GM's hover card on a line (web/app/(app)/chat/GmNameCard.js). A GM has
+// no body, so this is the camera's read (`bystander`: no doctor's eye, no memories) through the GM's
+// lens (`gm`: no stranger blank-out, no disguise guessing). It is still frozen at the line, and
+// still hooded where the room saw a hood, because "what could the room see" is the question. The
+// truth behind the hood is the caller's to add; nobody in the room could see it.
+async function examineRowForGm(prisma, discordUserId, seq) {
+  if (!discordUserId) return null;
+  return examineRow(prisma, { id: null, discordUserId, tags: [] }, seq, { gm: true, bystander: true });
+}
+
+module.exports = { VIEWER_SELECT, examineRow, examineRowForGm, memoryForLook };

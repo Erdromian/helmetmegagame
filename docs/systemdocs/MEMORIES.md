@@ -331,9 +331,19 @@ stranger's card says you don't know them, and a hood's card draws nothing
 from memory. Like the eye, it shows somebody as they were when that line was
 said. The Here list's card uses the last line you heard from them.
 
-No card appears on your own lines, on system lines or for a GM. It waits a
+No card appears on your own lines or on system lines. It waits a
 quarter-second before asking, so a pointer crossing the feed costs nothing,
 and it keeps each answer for a minute (`web/app/components/NameCard.js`).
+
+**A GM gets their own card** (`web/app/(app)/chat/GmNameCard.js`), on every
+spoken line in the GM seat and on the names in their Here, guest and
+conversation lists. A GM remembers nobody, so its first half is the truth:
+the real name, the real role in its estate colour, and "Showing as …" when
+the room had another name for them (a hood, a forced name, a disguise). The
+second half is "What the room could see". On a feed line that is a camera's
+look frozen at the line (`db/lib/examineRow.js#examineRowForGm`: no medical
+sight, no memories, the hood honoured). On a list name it is what anybody
+standing there could see now. Clicking still opens the character panel.
 
 ## 8. Where the code lives
 

@@ -20,6 +20,8 @@ export const NO_GM_TOOLS = {
   DecreeDialog: nothing,
   GmNoticeCards: nothing,
   GmSpeakerPanel: nothing,
+  // Wraps a name, so its stand-in hands the name back rather than nothing.
+  GmNameCard: ({ children }) => children,
 };
 
 export const GmToolsContext = createContext(NO_GM_TOOLS);

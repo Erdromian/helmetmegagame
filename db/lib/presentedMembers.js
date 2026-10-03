@@ -129,6 +129,8 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
           concealed: false,
           // What the room sees.
           presentedAs: forced ?? (hidden ? aliasRow(person, null) : null),
+          // Their own estate, the colour a GM's list paints the real name in.
+          roleGroup: roleGroupHue(person.role?.groupSlug),
         };
       }
 

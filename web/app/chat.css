@@ -829,6 +829,17 @@
   color: var(--muted);
   font-style: italic;
 }
+/* Except in the GM seat, where the alias is followed by the real name in
+   brackets and the colour is the real speaker's estate (chat/next/Feed.js,
+   web/lib/gmSpeakers.js#speakerBook). The italics still say "under an alias";
+   the colour says whose. Scoped to the GM's feed, because a player's disguised
+   row carries the claimed job's estate and must stay muted here. */
+.chat-feed[data-gm="true"] .tline-name[data-alias="true"][data-role-group="court"] { color: var(--role-court); }
+.chat-feed[data-gm="true"] .tline-name[data-alias="true"][data-role-group="clergy"] { color: var(--role-clergy); }
+.chat-feed[data-gm="true"] .tline-name[data-alias="true"][data-role-group="cerberon"] { color: var(--role-cerberon); }
+.chat-feed[data-gm="true"] .tline-name[data-alias="true"][data-role-group="saviors"] { color: var(--role-saviors); }
+.chat-feed[data-gm="true"] .tline-name[data-alias="true"][data-role-group="business"] { color: var(--role-business); }
+.chat-feed[data-gm="true"] .tline-name[data-alias="true"][data-role-group="soil"] { color: var(--role-soil); }
 
 .tline-time,
 .tline-edited {
@@ -1322,6 +1333,15 @@
   font-size: var(--fs-2xs);
   color: var(--muted);
   margin-top: var(--sp-2);
+}
+/* A world line with a verb bar (a GM's Remove, chat/next/Feed.js#SystemRow):
+   the row anchors the bar the way a spoken row does, and a tapped row's focus
+   draws no ring. */
+.tline--system[data-actions="true"] {
+  position: relative;
+}
+.tline--system[data-actions="true"]:focus {
+  outline: none;
 }
 
 /* In the chat feed a say row's words start past its face, so the world's

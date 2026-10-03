@@ -17,6 +17,7 @@ import ChatEditBox from "@/app/components/ChatEditBox";
 import { CameraIcon, EditIcon, EyeIcon, NotesIcon, TrashIcon } from "@/app/components/icons";
 import { formatTurnLabel } from "@/lib/turnFormat";
 import BlockRow, { BLOCK_KINDS } from "../blockRows";
+import { useGmTools } from "../gmTools";
 import MembersStrip from "../MembersStrip";
 import usePlaceMembers from "../usePlaceMembers";
 import FeedSearch from "../FeedSearch";
@@ -82,6 +83,8 @@ const ROW_VERBS = [
   { key: "photo", label: "Photograph", icon: CameraIcon, show: (g) => g.canPhoto, run: (h, r) => h.onPhotograph(r.seq) },
   { key: "star", label: "Save to Notes", icon: NotesIcon, show: (g) => g.canStar, run: (h, r) => h.onStar(r.seq) },
   { key: "remove", label: "Remove", icon: TrashIcon, show: (g) => g.canRemove, run: (h, r) => h.onRemove(r.seq) },
+  // A world line's own Remove, for the touch sheet SystemRow opens (a spoken row never carries the flag).
+  { key: "removeWorld", label: "Remove", icon: TrashIcon, show: (g) => g.canRemoveWorld, run: (h, r) => h.onRemoveWorld(r.seq) },
 ];
 
 // WHAT THE WORLD SAYS, rather than what a person said. Everything with no
@@ -93,12 +96,32 @@ const ROW_VERBS = [
 // like an emote. Rendering every row through the speech variant is the bug
 // this exists to prevent: ambient scenery came out at full weight, reading as
 // an interruption rather than as the room.
-const SystemRow = memo(function SystemRow({ row, zone = null }) {
+//
+// A GM may take one down — a /gm line posted in the wrong place, a fixture's
+// line that misfired — through the same Remove a spoken line has. Only a line
+// somebody's words made (`kind` MESSAGE): a death, an arrival or a Desire is a
+// record of the game, not a line, and the server refuses those anyway
+// (db/lib/say.js#loadEditable). Never a block: a decree or a turn has its own
+// counterpart on Discord that this would leave orphaned.
+const SystemRow = memo(function SystemRow({ row, zone = null, gm = false, handlers = null }) {
+  const removable = gm && Boolean(row.seq) && !row.pending && row.kind === "MESSAGE" && Boolean(handlers);
+  const press = useLongPress(removable ? () => handlers.onOpenMenu({ seq: row.seq, sentAt: row.sentAt, canRemoveWorld: true }) : null);
   // The intercom, a decree, a turn and a game ending draw as a bordered block
   // across the log; both feeds share that renderer (../blockRows.js).
   if (BLOCK_KINDS.has(row.channelKind)) return <BlockRow row={row} zone={zone} />;
   return (
-    <TranscriptLine variant="system" channelKind={row.channelKind} seq={row.seq}>
+    <TranscriptLine
+      variant="system"
+      channelKind={row.channelKind}
+      seq={row.seq}
+      tabIndex={removable ? -1 : undefined}
+      pressHandlers={press}
+      actions={
+        removable ? (
+          <IconButton icon={TrashIcon} label="Remove" onClick={() => handlers.onRemoveWorld(row.seq)} />
+        ) : null
+      }
+    >
       <ChatMarkdown content={row.content} />
     </TranscriptLine>
   );
@@ -148,6 +171,8 @@ function useLongPress(onHold) {
 const Row = memo(function Row({ line, handlers, editing = false }) {
   const { row, realName, startsRun, mine, live, guards } = line;
   const [draft, setDraft] = useState(row.content ?? "");
+  // A stand-in that hands the name back, anywhere but the GM seat (../gmTools.js).
+  const { GmNameCard } = useGmTools();
 
   // WHETHER the bar exists is decided here; whether it is SEEN is decided in
   // CSS, by :hover and :focus-within. It was a useState off mouseenter once,
@@ -178,7 +203,10 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
       // under the name. The real name behind an alias is printed in the
       // parentheses and nowhere else.
       name={
-        !startsRun ? null : realName ? (
+        !startsRun ? null : line.gmCard ? (
+          // The GM seat's card: who they really are and what the room saw (../GmNameCard.js).
+          <GmNameCard seq={row.seq}>{realName ? `${row.name} (${realName})` : row.name}</GmNameCard>
+        ) : realName ? (
           `${row.name} (${realName})`
         ) : line.canCard ? (
           // What you can see on them and what you remember of them, on hover (NameCard.js).
@@ -191,7 +219,8 @@ const Row = memo(function Row({ line, handlers, editing = false }) {
       // Decided on the server and withheld on a hooded row
       // (db/lib/archive.js#feedRowShape), so a line with no colour is one whose
       // speaker belongs to no estate, or one nobody can see the face of.
-      roleGroup={row.roleGroup ?? null}
+      // A GM reading a hood paints it in the real speaker's estate (`line.roleGroup`).
+      roleGroup={line.roleGroup ?? row.roleGroup ?? null}
       time={timeLabel(row.sentAt)}
       // The same three props the Here list draws a face with: a hooded row
       // carries no character id, so it can only ever show the mask or the
@@ -318,6 +347,8 @@ export default function Feed({
   // speakerKey -> real name, GM seat only (web/lib/gmSpeakers.js). It is what
   // lets a hooded line read as "A young man (Greeblus)".
   speakers = null,
+  // speakerKey -> estate, beside it, so a hooded line wears its real colour for a GM.
+  speakerGroups = null,
 
   // The guest list, loaded ONCE by the shell: the strip below draws it and
   // `/remove`'s picker is the same list, so two fetches would be two answers
@@ -506,6 +537,19 @@ export default function Feed({
     [removeLine],
   );
 
+  // A world line, GM seat only (SystemRow). No Discord copy goes with it: a
+  // GM's /gm post and the game's own lines are posted by the bot, not through
+  // the feed's webhook, so nothing records which Discord message to take down.
+  const onRemoveWorld = useCallback(
+    (seq) =>
+      removeLine(seq, {
+        title: "Remove this line?",
+        message: "It goes from the web feed. The copy on Discord stays; delete that one there by hand.",
+        confirmLabel: "Remove it",
+      }),
+    [removeLine],
+  );
+
   // The camera is not spent (db/lib/photoMint.js) and the print is deduped
   // per (photographer, row) server-side, so a second press on the same line
   // gives back the refusal the bot's 📸 does rather than a second Tag row.
@@ -543,10 +587,11 @@ export default function Feed({
       onPhotograph,
       onStar,
       onRemove,
+      onRemoveWorld,
       onOpenMenu: setMenuRow,
       onRetry,
     }),
-    [onEdit, onCancelEdit, onSaveEdit, onDelete, onLookRow, onPhotograph, onStar, onRemove, onRetry],
+    [onEdit, onCancelEdit, onSaveEdit, onDelete, onLookRow, onPhotograph, onStar, onRemove, onRemoveWorld, onRetry],
   );
   const historyState = useHistoryState(placeKey);
   const backlog = useBacklog(placeKey);
@@ -604,6 +649,10 @@ export default function Feed({
           // A GM reads the name behind an alias; a player never does, which is
           // the whole point of wearing one.
           realName: gm && row.alias && row.speakerKey ? (speakers?.[row.speakerKey] ?? null) : null,
+          // And the estate behind it. A hooded row carries none (feedRowShape
+          // withholds it) and a disguise carries the job it claimed; a GM
+          // reads the speaker's own, off the same key ring as the name.
+          roleGroup: gm && row.alias && row.speakerKey ? (speakerGroups?.[row.speakerKey] ?? null) : null,
           guards: {
             mine: mine && !system,
             // Looking needs a living character, and a ghost has none.
@@ -624,11 +673,14 @@ export default function Feed({
           // one too — the Here list already lets you look at them, and the
           // readout itself withholds what their face does not give away.
           canCard: !mine && !system && !gm && row.seq != null && !row.pending,
+          // The GM seat's card instead: the truth and the room's view, on every
+          // spoken line, hooded or not (../GmNameCard.js).
+          gmCard: gm && !system && row.seq != null && !row.pending,
           dayBreak,
           newLine: Boolean(row.seq) && String(row.seq) === String(newAt),
         };
       }),
-    [rows, self?.characterId, self?.speakerKey, gm, ghost, hasCamera, speakers, newAt, paintedAt],
+    [rows, self?.characterId, self?.speakerKey, gm, ghost, hasCamera, speakers, speakerGroups, newAt, paintedAt],
   );
 
   // One page further back, when the reader gets near the top.
@@ -819,7 +871,8 @@ export default function Feed({
           setPicking={setAdding}
         />
       )}
-      <ul className="chat-feed" ref={scrollerRef} onScroll={onScroll}>
+      {/* data-gm: the GM seat paints a hooded name in its real estate (chat.css). */}
+      <ul className="chat-feed" data-gm={gm ? "true" : undefined} ref={scrollerRef} onScroll={onScroll}>
         {/* The top edge, while a page is on the wire. Nothing when there is
             nothing more to fetch — a permanent "no more" line at the head of
             every scene says something nobody asked. */}
@@ -834,7 +887,7 @@ export default function Feed({
             {line.dayBreak && <li className="daybreak">{formatTurnLabel(line.row.turnNumber)}</li>}
             {line.newLine && <li className="chat-new-line" aria-hidden="true" />}
             {line.system ? (
-              <SystemRow row={line.row} zone={place?.zoneName ?? null} />
+              <SystemRow row={line.row} zone={place?.zoneName ?? null} gm={gm} handlers={gm ? rowHandlers : null} />
             ) : (
               <Row line={line} handlers={rowHandlers} editing={Boolean(line.row.seq) && line.row.seq === editingSeq} />
             )}
