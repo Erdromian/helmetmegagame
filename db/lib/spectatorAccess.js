@@ -1,4 +1,8 @@
-// The spectator role — an observer seat that sees every Location channel, #turns and the narrowcast channels, read-only, WHILE THE GAME IS ON.
+// The spectator role — an observer seat that sees every Location channel, #turns, the narrowcast channels and Deadchat, read-only, WHILE THE GAME IS ON.
+// It READS as well as sees: Read Message History is allowed explicitly, because a role holding View alone opens a channel with nothing in it
+// wherever the guild does not hand that bit to everyone — every other read seat here grants it by name (db/lib/deadchat.js, db/lib/partyChat.js).
+// Private Rooms, Conversations and party threads are private threads, which no role can be shown; a spectator reads those on the web
+// (db/lib/feedAccess.js#spectatorPlacesFor).
 // "On" is GameState.phase RUNNING or ENDED (docs/systemdocs/LOBBY.md §1); during CLOSED and LOBBY the seat is denied view outright, so a GM testing
 // the world before launch pings nobody who only came to watch. The overwrite is ALWAYS present on a managed channel and only its bits change with
 // the phase, so the ordinary reconcile can carry it without adding or stripping a target. Applied at provisioning, re-asserted by every spec-driven
@@ -16,8 +20,9 @@ const PERM_MANAGE_MESSAGES = 8192n;
 const PERM_CREATE_PUBLIC_THREADS = 34359738368n;
 const PERM_CREATE_PRIVATE_THREADS = 68719476736n;
 const PERM_SEND_MESSAGES_IN_THREADS = 274877906944n;
+const PERM_READ_MESSAGE_HISTORY = 65536n;
 
-const SPECTATOR_ALLOW = PERM_VIEW_CHANNEL;
+const SPECTATOR_ALLOW = PERM_VIEW_CHANNEL | PERM_READ_MESSAGE_HISTORY;
 const SPECTATOR_DENY =
   PERM_SEND_MESSAGES |
   PERM_ADD_REACTIONS |
@@ -64,6 +69,7 @@ async function managedSpectatorChannels(db) {
       where: { id: 1 },
       select: {
         turnsConsoleChannelId: true,
+        deadchatChannelId: true,
         ...Object.fromEntries(SPECIAL_CHANNELS.map((c) => [c.configKey, true])),
       },
     }),
@@ -80,6 +86,9 @@ async function managedSpectatorChannels(db) {
     const id = config?.[entry.configKey];
     if (id) out.push({ id, label: `#${entry.slug}` });
   }
+  // The channel only. Its "Beyond" category carries no overwrites at all (discordMirror/desired.js), and the channel's own
+  // @everyone deny is what keeps the living out.
+  if (config?.deadchatChannelId) out.push({ id: config.deadchatChannelId, label: "#deadchat" });
   return out;
 }
 

@@ -38,6 +38,7 @@
     "db:sync-deploy": "node db/scripts/sync/deploy.js",
     "db:rebuild-info-channel": "node db/scripts/sync/rebuild-info-channel.js",
     "db:doctor": "node db/scripts/ops/doctor.js",
+    "db:spectator-diag": "node db/scripts/ops/spectator-diag.js",
     "db:mirror": "node db/scripts/ops/mirror.js",
     "db:backfill-economy": "node db/scripts/ops/backfill-economy.js",
     "economy:report": "node db/scripts/analysis/economy/report.js",

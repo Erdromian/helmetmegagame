@@ -42,6 +42,8 @@ export default function Composer({
   place,
   self,
   gm = false,
+  // The Spectator seat (page.js): every place readable, none of them speakable.
+  spectator = false,
   // The real GM role, even in player view (./commands.js#commandsFor).
   gmAccount = false,
   roster = [],
@@ -396,12 +398,15 @@ export default function Composer({
 
   // What a place refuses, and why. A street is not speech and a vantage is
   // somewhere you are watching rather than standing.
+  // A spectator first: every place they have open is one they only watch, and
+  // the street's signpost would point them at rooms they cannot speak in either.
   const refusal = useMemo(() => {
     if (!place) return "Nowhere is open.";
+    if (spectator) return "You are spectating. You can read everything and say nothing.";
     if (place.vantage) return "You are watching this from somewhere else.";
     if (place.kind === "loc") return "Go into a room, the zone summary channel, or a conversation to speak.";
     return null;
-  }, [place]);
+  }, [place, spectator]);
 
   if (refusal) return <p className="chat-quiet-line">{refusal}</p>;
 

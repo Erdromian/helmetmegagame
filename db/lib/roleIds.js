@@ -8,8 +8,10 @@
 // phase says the doors are open, this role says who is on the list.
 const PLAYER_ROLE_ID = "1539805619903791219";
 
-// The standing read-only observer seat — sees every Location channel and both
-// narrowcast channels, can never contribute anything anywhere.
+// The standing read-only observer seat — on Discord every Location channel,
+// the narrowcast channels and Deadchat (db/lib/spectatorAccess.js); on the web
+// every place a GM reads, through a non-GM lens (db/lib/feedAccess.js
+// #spectatorPlacesFor). Can never contribute anything anywhere.
 const SPECTATOR_ROLE_ID = "1540054129752154292";
 
 // Who may pick a role flagged `whitelist:` in docs/roles.yaml, handed out by
@@ -78,6 +80,10 @@ function hasEconomistRole(roleIds) {
   return (roleIds ?? []).includes(ECONOMIST_ROLE_ID);
 }
 
+function hasSpectatorRole(roleIds) {
+  return (roleIds ?? []).includes(SPECTATOR_ROLE_ID);
+}
+
 module.exports = {
   PLAYER_ROLE_ID,
   SPECTATOR_ROLE_ID,
@@ -92,4 +98,5 @@ module.exports = {
   hasPlaytestRole,
   hasContributorRole,
   hasEconomistRole,
+  hasSpectatorRole,
 };

@@ -92,6 +92,9 @@ export default function ChatNext(props) {
     self = null,
     gm = false,
     ghost = false,
+    // The Spectator role with no seat of its own: a GM's list of places, a
+    // ghost's hands — nothing to act with, nowhere to speak (page.js).
+    spectator = false,
     hasCamera = false,
     // speakerKey -> real name, GM seat only (web/lib/gmSpeakers.js). It is
     // what lets a hooded line read as "A young man (Greeblus)" without the
@@ -500,7 +503,8 @@ export default function ChatNext(props) {
   // Not in the GM seat: placeMembers() answers for a body standing in the
   // room, so a GM got "You have no living character." over the scene. Their
   // column lists the same people (GmAside's "In this room" and conversation blocks).
-  const members = usePlaceMembers(gm ? null : selected, placesVersion);
+  // Nor for a spectator, who has no body for it to answer for either.
+  const members = usePlaceMembers(gm || spectator ? null : selected, placesVersion);
   const lastTypedAt = useRef(0);
   // The open place's rows, for the composer's slowmode: how long ago THIS
   // character last spoke here is a fact about the feed, not about the box.
@@ -567,7 +571,7 @@ export default function ChatNext(props) {
   // round trip. One at a time on purpose: firing six requests at once would
   // compete with the thing the reader is actually looking at.
   //
-  // NOT FOR A GM, AND NOT FOR A GHOST. A player's list is a Location, its
+  // NOT FOR A GM, A GHOST OR A SPECTATOR. A player's list is a Location, its
   // rooms, their conversations and a summary — small enough to walk. A GM's
   // is every zone, every Location and every Room they may watch, two hundred
   // and more, each a findMany of a hundred rows plus an avatar pass. Warming
@@ -575,7 +579,7 @@ export default function ChatNext(props) {
   // nobody sees. Even for a player it is CAPPED: past a dozen the warmth is
   // not worth the requests.
   useEffect(() => {
-    if (gm || ghost) return undefined;
+    if (gm || ghost || spectator) return undefined;
     let stopped = false;
     let timer = null;
     const queue = live
@@ -612,7 +616,7 @@ export default function ChatNext(props) {
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [live, gm, ghost, gapNonce]);
+  }, [live, gm, ghost, spectator, gapNonce]);
 
   // Letting somebody into the conversation or private room that is open. The
   // list is re-read on success, which is what the members strip redraws off.
@@ -687,7 +691,8 @@ export default function ChatNext(props) {
       notified={notified}
       newest={newest}
       onSelect={narrow ? onSelectFromDrawer : onSelect}
-      gm={gm}
+      // Folds only: a spectator's column is a GM's in size, so it starts shut the same way.
+      gm={gm || spectator}
       viewAs={viewAs ? { mode: viewAs.mode, onChange: onChangeViewAs } : null}
       you={
         aside ? (
@@ -835,7 +840,9 @@ export default function ChatNext(props) {
                 place={selected}
             self={self}
             gm={gm}
-            ghost={ghost}
+            // A spectator has a ghost's hands: nothing to look with, no camera,
+            // no notes to star into. Only the row actions read this.
+            ghost={ghost || spectator}
             hasCamera={hasCamera}
             speakers={speakers}
                 members={members}
@@ -893,6 +900,7 @@ export default function ChatNext(props) {
                 place={selected}
                 self={self}
                 gm={gm}
+                spectator={spectator}
                 gmAccount={gm || Boolean(viewAs)}
                 roster={roster}
                 rows={rows}

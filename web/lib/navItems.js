@@ -1,6 +1,7 @@
 import { prisma, MORTUS_SLUG } from "@lifeweb/db";
 import { readGameState } from "@lifeweb/db/lib/gameState";
-import { getGmSession, getGuildMember, isPlaytester, isEconomist } from "@/lib/discordGuild";
+import { getGmSession, getGuildMember, isPlaytester, isEconomist, onRoster } from "@/lib/discordGuild";
+import { loadFeedViewer } from "@/lib/feedAccess";
 import { isSuperadmin } from "@/lib/superadmin";
 import { railKindSql } from "@/lib/dmThread";
 
@@ -44,6 +45,18 @@ export const ECONOMIST_NAV = [
   { href: "/documents", label: "Documents", icon: "documents", section: "player" },
 ];
 
+// The Spectator's rail (web/lib/feedAccess.js#loadFeedViewer decides who is
+// one): what there is to watch, and the rules it is played by. No Memories —
+// those are a character's, and a spectator has none. Character only for one
+// who is also on the roster, since that is where they would roll one up.
+export const SPECTATOR_NAV = [
+  { href: "/chat", label: "Chat", icon: "play" },
+  { href: "/map", label: "Map", icon: "map" },
+  { href: "/documents", label: "Documents", icon: "documents" },
+  { href: "/handbook", label: "Handbook", icon: "help" },
+];
+const SPECTATOR_CHARACTER_ITEM = PLAYER_NAV[0];
+
 const DEV_NAV_ITEM = { href: "/gm/dev", label: "Dev", icon: "dev", section: "gm" };
 const LIFEWEB_NAV_ITEM = { href: "/lifeweb", label: "Lifeweb", icon: "lifeweb", section: "player" };
 const ARCHIVE_NAV_ITEM = { href: "/archive", label: "Archive", icon: "archive", section: "gm" };
@@ -74,7 +87,7 @@ async function loadUnreadConversationCount(discordUserId) {
 const CLOSED_NAV_HREFS = new Set(["/character", "/chat", "/memories", "/documents", "/handbook"]);
 
 export async function loadNavItems(discordUserId) {
-  const [{ isGm: gm }, member, hasMortusTag, gameConfig, state] =
+  const [{ isGm: gm }, member, hasMortusTag, gameConfig, state, viewer] =
     await Promise.all([
       getGmSession(),
       // Cached with in-flight dedup (web/lib/discordGuild.js), and getGmSession above
@@ -89,6 +102,8 @@ export async function loadNavItems(discordUserId) {
         select: { playPanelEnabled: true, oraclePlaytest: true },
       }),
       readGameState(prisma, { phase: true }),
+      // cache()d per request, and the header has usually asked already.
+      loadFeedViewer(),
     ]);
   const superadmin = isSuperadmin(discordUserId);
   // The Lifeweb item follows the Mortus tag, not the GM role — a superadmin keeps it, host access
@@ -105,7 +120,11 @@ export async function loadNavItems(discordUserId) {
   const econOnly = !gm && isEconomist(member);
   const crew = gm || superadmin || isPlaytester(member) || econOnly;
   const narrowed = state?.phase === "CLOSED" && !crew;
-  const baseNav = (gm ? GM_NAV : econOnly ? ECONOMIST_NAV : PLAYER_NAV)
+  // Only ever while the game is on, so `narrowed` never meets it.
+  const spectatorNav = viewer?.spectator && !econOnly
+    ? onRoster(member) ? [SPECTATOR_CHARACTER_ITEM, ...SPECTATOR_NAV] : SPECTATOR_NAV
+    : null;
+  const baseNav = (gm ? GM_NAV : econOnly ? ECONOMIST_NAV : spectatorNav ?? PLAYER_NAV)
     .filter((item) => playEnabled || item.href !== "/chat")
     .filter((item) => !oracleHidden || item.href !== "/gm/oracle")
     .filter((item) => !narrowed || CLOSED_NAV_HREFS.has(item.href))

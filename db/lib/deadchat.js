@@ -11,8 +11,8 @@
 //   - locationMove.js#reconcileNarrowcastAccess DELETES the member overwrite for every entry whose
 //     `member(ctx)` returns null. Deadchat's would be null for every living character, so every
 //     player's every move would fire a delete against this channel.
-//   - syncSpecialChannels.js applies the SPECTATOR overwrite unconditionally. A spectator reading
-//     Deadchat is the full death list at a glance — the same leak, one seat over.
+//   - syncSpecialChannels.js applies the SPECTATOR overwrite unconditionally. Deadchat carries it
+//     now too, but it was not always meant to, and it is set below rather than inherited.
 //   - its `member(ctx)` is built from a living character's zone and tags. A ghost has neither; the
 //     seat is keyed on the ACCOUNT, the way the DM thread is (CHAT.md §2b).
 //
@@ -29,6 +29,7 @@ const {
   getGuildMember,
 } = require("./discordRest");
 const { gmRoleIds } = require("./roleIds");
+const { applySpectatorOverwrite, spectatorsVisibleNow } = require("./spectatorAccess");
 
 const PERM_VIEW_CHANNEL = 1024n;
 const PERM_ADD_REACTIONS = 64n;
@@ -127,8 +128,11 @@ async function ensureDeadchatChannel(prisma, { fresh = false } = {}) {
       deny: GM_DENY.toString(),
     });
   }
-  // Deliberately NO spectator overwrite. A spectator seat reading this channel would be the full
-  // death list at a glance, which is the leak this whole room was rebuilt to close.
+  // The spectator seat reads this room, read-only, on the phase rule every other channel it reads
+  // follows (db/lib/spectatorAccess.js). The leak this room closed was the PROFILE CARD telling
+  // players who had died; a seat for people who came to watch the whole game, deaths and all, is not
+  // that. The mirror describes the same overwrite (discordMirror/desired.js).
+  await applySpectatorOverwrite(channelId, { visible: await spectatorsVisibleNow(prisma) });
 
   // Restart Game only: the ghosts of the last game are not the ghosts of this one, and the rows that
   // would say who they were are being deleted in the same flow. Stripping every member overwrite

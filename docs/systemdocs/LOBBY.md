@@ -36,7 +36,10 @@ paused*. A frozen clock means no Move cutoff, the same way a paused cron does.
 overwrite follows the phase (`db/lib/spectatorAccess.js`): allowed in RUNNING
 and ENDED, denied in CLOSED and LOBBY, so pre-launch testing pings nobody who
 only came to watch. Every transition sweeps it; the doctor's cheap scope
-repairs drift (`CHANNELS.md`).
+repairs drift (`CHANNELS.md`). Their seat on the web — every place, private
+Rooms and Conversations included, read-only — follows the same rule
+(`CHAT.md` §5a): in CLOSED and LOBBY a spectator is just somebody with no
+character.
 
 **The phase is audible, and it narrows the rail.** CLOSED, LOBBY and "running
 but you have no character yet" each have their own soundtrack, playing on every

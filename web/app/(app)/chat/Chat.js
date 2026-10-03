@@ -94,6 +94,9 @@ export default function Chat({
   // A dead player reading with no living character. Their list is every zone,
   // like a GM's, which is the one thing this component needs to know.
   ghost = false,
+  // The Spectator role with no seat of its own: a GM's list, a ghost's hands,
+  // and no voice anywhere (page.js).
+  spectator = false,
   // The GM's "Zones I see" picker, or null. It rides the right column rather
   // than the places list because it is a control, not a place — and because
   // that column is where the same picker sits on every GM desk.
@@ -523,7 +526,7 @@ export default function Chat({
   // a lot of conversations, and past a dozen the warmth is not worth the
   // requests.
   useEffect(() => {
-    if (gm || ghost) return undefined;
+    if (gm || ghost || spectator) return undefined;
     let stopped = false;
     let timer = null;
     const queue = places
@@ -562,7 +565,7 @@ export default function Chat({
       stopped = true;
       if (timer) clearTimeout(timer);
     };
-  }, [places, gm, ghost, gapNonce]);
+  }, [places, gm, ghost, spectator, gapNonce]);
 
   // Which of the open place's doors a person can be let through. Only a
   // conversation and a PRIVATE room have one; everywhere else there is nothing
@@ -756,6 +759,7 @@ export default function Chat({
           gmPlays={Boolean(viewAs)}
           gmSpeakers={gmSpeakers}
           ghost={ghost}
+          spectator={spectator}
           hasCamera={hasCamera}
           letters={letters}
           concealed={Boolean(conceal?.concealed)}

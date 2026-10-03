@@ -3,6 +3,7 @@ import { withAvatarVersions } from "@lifeweb/db/lib/archive";
 import { feedWipeFloors, floorForPlace, lowestFloor, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
 import { makeSeenSeqs } from "@lifeweb/db/lib/seenSeqs";
 import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
+import { spectatorsVisibleNow } from "@lifeweb/db/lib/spectatorAccess";
 import { loadFeedViewer, loadFeedCharacter, placesFor } from "@/lib/feedAccess";
 import { lensFor } from "@/lib/strangerLens";
 import { knownSubjects, lensTyping } from "@lifeweb/db/lib/strangers";
@@ -300,6 +301,7 @@ export async function GET(request) {
       // connection opened with. That object carries the Location they stood
       // in at open, and a stream now lives across their walks; computing the
       // list from it would list the street they left.
+      let lastListed = null;
       const refreshPlaces = async ({ announce = true, catchUpNew = false, reason = "open" } = {}) => {
         let places = [];
         let character = null;
@@ -334,7 +336,14 @@ export async function GET(request) {
           subscriptions.delete(key);
         }
 
-        if (announce) write(`event: places\ndata: ${JSON.stringify({ places, reason })}\n\n`);
+        // A spectator's beat (below) rebuilds the list every PING_MS; most beats
+        // change nothing, and a frame the client did not need still re-reads
+        // its members strip. So that one reason only speaks when a place came
+        // or went — the rows themselves arrive on their own subscriptions.
+        const listed = places.map((entry) => `${entry.placeKey}\u0000${entry.name}`).join("\n");
+        const news = reason !== "watch" || listed !== lastListed;
+        lastListed = listed;
+        if (announce && news) write(`event: places\ndata: ${JSON.stringify({ places, reason })}\n\n`);
         if (catchUpNew && added.length > 0) await catchUp(added, lastSeq);
       };
 
@@ -488,9 +497,29 @@ data: ${frame}
       // needs a character to hang off, so nothing else would tell this stream,
       // and somebody who rolls up mid-session would sit on a Game-channel-only
       // feed until they reloaded.
-      const waitingForASeat = !viewer.character && !viewer.gm && !viewer.options?.ghost;
+      //
+      // A SPECTATOR's stream does both on the beat. Their list is every
+      // Conversation and party in the game, and those open and close all turn
+      // with nothing to tell a stream that hangs off no character — so the list
+      // is rebuilt here, catching up whatever opened. And the seat itself is
+      // asked again: a character of their own, or the game leaving RUNNING/ENDED
+      // (db/lib/spectatorAccess.js), ends the stream, and the reconnect opens
+      // as whoever they now are.
+      const spectating = Boolean(viewer.options?.spectator);
+      const waitingForASeat = !viewer.character && !viewer.gm && !viewer.options?.ghost && !spectating;
       const ping = setInterval(() => {
         write(": ping\n\n");
+        if (spectating) {
+          Promise.all([loadFeedCharacter(viewer.discordUserId), spectatorsVisibleNow(prisma)])
+            .then(([character, visible]) => {
+              if (character || !visible) return finish();
+              queue = queue
+                .then(() => refreshPlaces({ announce: true, catchUpNew: true, reason: "watch" }))
+                .catch((err) => console.error("Feed spectator refresh failed:", err));
+            })
+            .catch(() => {});
+          return;
+        }
         if (waitingForASeat) {
           loadFeedCharacter(viewer.discordUserId)
             .then((character) => {

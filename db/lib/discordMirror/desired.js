@@ -318,8 +318,11 @@ function buildDesired({
 
   // --- Deadchat ---------------------------------------------------------
   //
-  // Deliberately NO spectator overwrite: a spectator reading this room is the
-  // full death list at a glance, which is the leak it was rebuilt to close.
+  // The channel carries the spectator overwrite, read-only, on the same phase
+  // rule as every other channel the seat reads (db/lib/spectatorAccess.js).
+  // It used to be left off on purpose, as the death list at a glance; the
+  // spectator seat was widened to the whole game, deaths included. The
+  // category stays bare — it carries no overwrites at all.
   targets.push({
     targetType: "channel",
     kind: "deadchat-category",
@@ -351,7 +354,7 @@ function buildDesired({
     overwrites: outsideZoneOverwrites(guildId, {
       gmAllow: DEADCHAT_GM_ALLOW,
       gmDeny: DEADCHAT_GM_DENY,
-      spectators: undefined,
+      spectators,
     }),
     currentId: config.deadchatChannelId ?? null,
     idColumn: { model: "gameConfig", id: 1, field: "deadchatChannelId" },

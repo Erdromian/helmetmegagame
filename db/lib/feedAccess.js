@@ -198,13 +198,15 @@ async function partyPlacesFor(prisma, characterId) {
 // draws them: where you are, the rooms off it, the conversations you are in,
 // then the zone's summary — and the radio nets, which are nowhere.
 //
-// `gm` and `ghost` are the two ways of reading with no living character at
-// all: a GM over the zones they watch, a dead player over every zone. Both
+// `gm`, `ghost` and `spectator` are the three ways of reading with no living
+// character at all: a GM over the zones they watch, a dead player over every
+// zone, a spectator over everything a GM reads and the parties too. All three
 // come from web/lib/feedAccess.js#loadFeedViewer and nothing here reads a
-// role to decide either — the ghost seat has no role left to read.
-async function placesFor(prisma, character, { gm = false, ghost = false, discordUserId = null } = {}) {
+// role to decide any of them.
+async function placesFor(prisma, character, { gm = false, ghost = false, spectator = false, discordUserId = null } = {}) {
   if (gm) return gmPlacesFor(prisma, discordUserId, { ghost });
   if (ghost) return ghostPlacesFor(prisma, discordUserId);
+  if (spectator) return spectatorPlacesFor(prisma);
   // Signed in, in the guild, and between characters — waiting on a seat, or
   // re-rolling. They have no scene to read, but the turn is not a secret: it is
   // what #turns tells the whole guild. So the Game channel is the one row they
@@ -484,11 +486,33 @@ async function ghostPlacesFor(prisma, discordUserId) {
   return [deadchatPlace({ canSpeak: true }), ...places, gamePlace()];
 }
 
-// The read-only list both watchers above draw from: every place inside
+// The SPECTATOR seat: somebody who came to watch, holding the Spectator role and no character
+// (web/lib/feedAccess.js#loadFeedViewer). They read the widest view short of a GM's — every zone,
+// every Room public or private, every Conversation, every party, every net, Deadchat — and speak
+// in none of it. What keeps it short of a GM's is everything that is NOT a place: the lens is a
+// stranger's (hoods stay hoods), and none of the GM's tools — who is under the hood, stash
+// contents, the Dev Panel — is reachable from here (web/app/(app)/chat/gmTools.js).
+//
+// The private ones are open here and not on Discord for the reason ghostPlacesFor gives in
+// reverse: on Discord a reader in a private thread is a member the room can see, and on the web
+// nobody is told a reader is there.
+async function spectatorPlacesFor(prisma) {
+  const places = await watchedPlacesFor(prisma, {
+    zoneIds: null,
+    privateRooms: true,
+    conversations: true,
+    channellessSummaries: true,
+    nets: SPECIAL_CHANNELS,
+    parties: true,
+  });
+  return [...places, deadchatPlace({ canSpeak: false }), gamePlace()];
+}
+
+// The read-only list the watchers above draw from: every place inside
 // `zoneIds` (null means every zone), flat, zone by zone. `privateRooms`,
-// `conversations` and `channellessSummaries` are what separates the GM's
-// seat from the ghost's.
-async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, channellessSummaries, nets }) {
+// `conversations`, `channellessSummaries` and `parties` are what separates
+// the seats.
+async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, channellessSummaries, nets, parties = false }) {
   // A CAVE_GROUP is a Discord category and a GM seat, never a place: it holds
   // no Locations and the sync gives it no #summary channel, so listing it
   // would draw a row that opens nothing. Its two levels carry the places.
@@ -629,6 +653,26 @@ async function watchedPlacesFor(prisma, { zoneIds, privateRooms, conversations, 
         canSpeak: false,
       }),
     );
+  }
+
+  // Every party, flat, after the nets — a party travels with its leader, not a
+  // zone, so like a net it draws above the zone dividers. Same row as a
+  // member's (partyPlacesFor) with the voice taken out.
+  if (parties) {
+    const threads = await prisma.partyThread.findMany({
+      orderBy: { createdAt: "asc" },
+      select: { id: true, name: true },
+    });
+    for (const thread of threads) {
+      list.push(
+        place({
+          placeKey: placeKeyForParty(thread.id),
+          kind: "party",
+          name: thread.name,
+          canSpeak: false,
+        }),
+      );
+    }
   }
 
   return list;

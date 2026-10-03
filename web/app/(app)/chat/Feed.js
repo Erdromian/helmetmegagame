@@ -582,6 +582,9 @@ export default function Feed({
   // A dead player watching with no living character. They speak nowhere and
   // act on nobody either, and may take nothing down.
   ghost = false,
+  // The Spectator seat: a ghost's hands over a GM's list (page.js). Nothing
+  // to act with, nowhere to speak, nobody's guest list to read.
+  spectator = false,
   // Whether this character's sheet holds an instant-camera
   // (db/lib/photoMint.js#CAMERA_SLUG). The row's 📷 is the web twin of the
   // 📸 reaction; the server re-checks the camera either way.
@@ -976,8 +979,9 @@ export default function Feed({
   // Only two kinds of place have a guest list at all: a conversation, and a
   // PRIVATE room. Asked about anywhere else, placeMembers() answers with a
   // null `members` rather than a refusal — but not asking is cheaper.
+  // A spectator never asks: placeMembers() answers for a body in the room.
   const hasMembers =
-    place?.kind === "conv" || (place?.kind === "room" && place?.roomKind === "PRIVATE");
+    !spectator && (place?.kind === "conv" || (place?.kind === "room" && place?.roomKind === "PRIVATE"));
 
   useEffect(() => {
     if (!hasMembers || !placeKey) return undefined;
@@ -1750,12 +1754,13 @@ export default function Feed({
         // Not the camera, though: a photograph freezes a reading onto a real Tag row that somebody
         // has to be holding a camera to take, and a ghost holds nothing. `!gm && !ghost` still means
         // "has a living character" there, and photographRow refuses a viewer without one.
-        const canLook = theirs && !gm;
-        const canPhoto = theirs && !gm && !ghost && hasCamera;
+        // A spectator has no body to look as, living or last (lookAtRow refuses them).
+        const canLook = theirs && !gm && !spectator;
+        const canPhoto = theirs && !gm && !ghost && !spectator && hasCamera;
         const canRemove = gm && Boolean(row.seq) && !system;
         // Same rule as canLook: a note is filed under a living character, and
-        // a watcher of either kind has none. It used to draw for every row.
-        const canStar = row.seq != null && !gm && !ghost;
+        // a watcher of any kind has none. It used to draw for every row.
+        const canStar = row.seq != null && !gm && !ghost && !spectator;
         // What the host reads behind the alias. Any row said under a name that
         // is not the speaker's own — a hood, or a forced name like Apex Form's
         // Beast — carries `alias` plus the `speakerKey` that names them in the
@@ -1784,7 +1789,7 @@ export default function Feed({
           dayBreak,
         };
       }),
-    [rows, self.characterId, self.speakerKey, newAt, gm, speakers, ghost, hasCamera],
+    [rows, self.characterId, self.speakerKey, newAt, gm, speakers, ghost, spectator, hasCamera],
   );
 
   if (!place) {
@@ -2240,6 +2245,10 @@ export default function Feed({
               </div>
               </div>
             </>
+          ) : spectator ? (
+            // Somebody who came to watch. Ahead of the street's signpost, which
+            // would point them at rooms they cannot speak in either.
+            <p className="chat-quiet">You are spectating. You can read everything and say nothing.</p>
           ) : place.vantage ? (
             // A street you walked out of earlier this turn and are still
             // watching (db/lib/vantages.js). Plain and factual — the reason
