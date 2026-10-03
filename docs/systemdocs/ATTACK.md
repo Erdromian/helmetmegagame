@@ -331,6 +331,13 @@ Then one result for the whole fight, the Caving desk's shape:
 Every composer opened here offers the fight's people one tap each, and "All of
 them" (`QuickPicks.js`), so nobody is searched for by name.
 
+**A past turn's fights** are in the History lens: **Showing → Combat** lists
+them and opens the same desk read-only, with the turn in its header
+(`ADJUDICATION.md`, History lens). Spectators read them too, on `/actions`
+(`CHAT.md` §5a): the sides, what each fighter wrote, how it ended, the Result
+box and every message the push sent off it — never a roll, a snapshot or a
+compelled line (`web/lib/spectatorActions.js`).
+
 The Other lens keeps Safe intercepts, caught thieves and portraits. Legacy
 `Attack` rows still draw there on the turn this deploys (§12).
 

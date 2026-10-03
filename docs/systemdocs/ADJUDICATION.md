@@ -771,7 +771,7 @@ instance is a change to the hub, not a slider.
   "who said that" actually has.
 - **History lens** — the same rail over any turn, the open one included.
   Its two parameters sit on **one line of selects** above the filters —
-  **Showing** (Moves or Caving) and **Turn** (the open turn first, marked
+  **Showing** (Moves, Caving or Combat) and **Turn** (the open turn first, marked
   `· open`, then the resolved ones newest first). The kind used to be a second
   `.segmented` stacked directly under the lens segmented: same control, same
   width, two of the same four words, eight pixels apart, so the pair read as
@@ -798,7 +798,14 @@ instance is a change to the hub, not a slider.
   **Showing** to Caving (`historyKind`) reads back
   that turn's Caving Die rolls instead, mapped by the same `cavingRollRow`
   the live Caving lens uses and opening a **read-only `CavingDesk`** — see
-  `CAVING.md` §5.
+  `CAVING.md` §5. Setting it to **Combat** reads back that turn's fights,
+  mapped by the same `combatRow` the live Combat lens uses and opening a
+  **read-only `CombatDesk`** (the fight's sides, rolls, snapshots, Result and
+  everything staged on it; no End fight, no composers, no Solve) — see
+  `ATTACK.md` §8. On the open turn a fight opens the live desk, the way a Move
+  does. A `?sel=combat/<id>` link to a fight on a pushed turn swings the rail
+  onto History · Combat and that turn (`page.js#initialCombat`), the Caving
+  link's shape.
 - **Desk** — the selected item. For a Move: situation, dice, declared
   numbers, the Result box, everything staged on it, and the three composers. The
   **effect composer** is the longest dialog on the desk, so it is drawn as

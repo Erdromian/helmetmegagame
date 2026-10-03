@@ -105,7 +105,9 @@ export default function CombatDesk({
   onClose,
   registerEscape,
   gmProfiles,
+  // A past turn's fight, opened from History: nothing on it may change, the CavingDesk rule.
   readOnly = false,
+  turnLabel = null,
 }) {
   const confirm = useConfirm();
   const draftKey = `combat:${combat.id}`;
@@ -199,6 +201,7 @@ export default function CombatDesk({
             {combat.locationName}
             {combat.zoneName ? ` · ${combat.zoneName}` : ""} · started <span className="mono">{new Date(combat.startedAtMs).toISOString().slice(11, 16)}</span>
             {combat.endLabel ? ` · ${combat.endLabel}` : ""}
+            {readOnly && turnLabel ? ` · ${turnLabel}` : ""}
           </p>
           <p className="mt-1 flex flex-wrap items-center gap-2">
             {combat.fromAmbush && <StatusPill tone="neutral">Ambush</StatusPill>}

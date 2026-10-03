@@ -56,6 +56,8 @@ import {
   STAGED_EFFECT_INCLUDE,
   STAGED_MESSAGE_INCLUDE,
   CAVING_ROLL_INCLUDE,
+  COMBAT_INCLUDE,
+  combatRow,
   declaredLabel,
   moveRow,
   paidLabel,
@@ -1730,9 +1732,11 @@ async function getMoveHistoryImpl({ turnId }) {
   if (!turn) throw new UserError("That turn no longer exists.");
   if (turn.status !== "RESOLVED") throw new UserError("That turn hasn't been pushed yet.");
 
-  const [actions, cavingRolls, members, stagingLocations, openTurn] = await Promise.all([
+  const [actions, cavingRolls, combats, members, stagingLocations, openTurn] = await Promise.all([
     prisma.action.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: MOVE_INCLUDE }),
     prisma.cavingRoll.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: CAVING_ROLL_INCLUDE }),
+    // Combat.turnId is a plain string, not a relation (schema.prisma), so this filters on it directly.
+    prisma.combat.findMany({ where: { turnId: id }, orderBy: { startedAt: "desc" }, include: COMBAT_INCLUDE }),
     listGuildMembers(),
     prisma.location.findMany({
       orderBy: [{ zone: { sortOrder: "asc" } }, { sortOrder: "asc" }],
@@ -1743,17 +1747,21 @@ async function getMoveHistoryImpl({ turnId }) {
 
   const moveIds = actions.map((a) => a.id);
   const cavingIds = cavingRolls.map((c) => c.id);
-  // Staged rows attach to either a Move or a Caving roll.
+  const combatIds = combats.map((c) => c.id);
+  // Staged rows attach to a Move, a Caving roll or a fight.
+  const stagedOn = {
+    OR: [{ moveId: { in: moveIds } }, { cavingRollId: { in: cavingIds } }, { combatId: { in: combatIds } }],
+  };
   const [stagedEffects, stagedMessages] =
-    moveIds.length || cavingIds.length
+    moveIds.length || cavingIds.length || combatIds.length
       ? await Promise.all([
           prisma.stagedEffect.findMany({
-            where: { OR: [{ moveId: { in: moveIds } }, { cavingRollId: { in: cavingIds } }] },
+            where: stagedOn,
             orderBy: { createdAt: "asc" },
             include: STAGED_EFFECT_INCLUDE,
           }),
           prisma.stagedMessage.findMany({
-            where: { OR: [{ moveId: { in: moveIds } }, { cavingRollId: { in: cavingIds } }] },
+            where: stagedOn,
             orderBy: { createdAt: "asc" },
             include: STAGED_MESSAGE_INCLUDE,
           }),
@@ -1770,6 +1778,7 @@ async function getMoveHistoryImpl({ turnId }) {
     // history desk renders no Standing-here line, so nothing is missing it.
     moves: actions.map((a) => moveRow(a, { usernameById, now })),
     cavingRolls: cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds: new Set() })),
+    combats: combats.map((c) => combatRow(c, { usernameById })),
     effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, locationNameById, openTurn })),
     messages: stagedMessages.map((m) => stagedMessageRow(m, { usernameById, openTurn })),
     tagsById: tagsByIdFor(actions),

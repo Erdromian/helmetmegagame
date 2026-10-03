@@ -69,10 +69,10 @@ function makeMoveSearchMap(tagsById) {
 export const RAIL_STORAGE_KEY = "gm-turns-rail";
 export const RAIL_STORAGE_DEFAULT = {
   lens: "moves",
-  filters: {}, // { moves, caving, other, desires, ooc, history, "history-caving" } — each an initialFilters-shaped object
+  filters: {}, // { moves, caving, other, desires, ooc, history, "history-caving", "history-combat" } — each an initialFilters-shaped object
   hideTravel: true,
   hideHistoryTravel: true,
-  historyKind: "moves", // "moves" | "caving"
+  historyKind: "moves", // "moves" | "caving" | "combat"
 };
 
 // KEYSTROKE/SCROLL-frequency state lives under a key nothing subscribes to
@@ -130,7 +130,7 @@ function combatRank(r) {
   return r.live ? 0 : 1;
 }
 
-function CombatRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
+function CombatRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "combat" }) {
   return rows.map((row) => (
     <button
       key={row.id}
@@ -138,7 +138,7 @@ function CombatRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens }) {
       className="desk-queue-row"
       data-active={selected?.type === "combat" && selected.id === row.id}
       data-urgent={!row.resolvedAt || undefined}
-      data-kbd={kbdLens === "combat" && kbdId === row.id ? "" : undefined}
+      data-kbd={kbdLens === lensKey && kbdId === row.id ? "" : undefined}
       data-row-key={row.id}
       onClick={() => onSelect({ type: "combat", id: row.id })}
     >
@@ -799,6 +799,7 @@ export default function QueueRail({
   historyKind,
   onHistoryKind,
   historyCavingRolls,
+  historyCombats,
   historyLoading,
   historyError,
 }) {
@@ -982,6 +983,20 @@ export default function QueueRail({
     pageSize: 1000,
     ...makeFiltersProps("history-caving"),
   });
+  // And its Combat twin: a past turn's fights, ranked the way the Combat lens ranks them.
+  const rankedHistoryCombats = useMemo(
+    () => inView(historyCombats ?? []).map((r) => ({ ...r, queueOrder: combatRank(r) * 1e15 - r.createdAtMs })),
+    [historyCombats, inView],
+  );
+  const historyCombatTable = useTableState({
+    rows: rankedHistoryCombats,
+    filterDefs: combatFilterDefs,
+    searchMap: combatSearchMap,
+    rankBySearch: true,
+    initialSort: { key: "queueOrder", dir: "asc" },
+    pageSize: 1000,
+    ...makeFiltersProps("history-combat"),
+  });
 
   // Restores persisted search text once, on the first post-hydration render
   // — a render-time one-shot (react-hooks/set-state-in-effect is an error
@@ -997,6 +1012,7 @@ export default function QueueRail({
     if (storedQuery.desires) desireTable.setQuery(storedQuery.desires);
     if (storedQuery.history) historyTable.setQuery(storedQuery.history);
     if (storedQuery["history-caving"]) historyCavingTable.setQuery(storedQuery["history-caving"]);
+    if (storedQuery["history-combat"]) historyCombatTable.setQuery(storedQuery["history-combat"]);
   }
 
   // Mirror search text back out, debounced with a pagehide flush. Gated on
@@ -1012,6 +1028,7 @@ export default function QueueRail({
           desires: desireTable.query,
           history: historyTable.query,
           "history-caving": historyCavingTable.query,
+          "history-combat": historyCombatTable.query,
         },
       });
     const id = setTimeout(write, 400);
@@ -1028,6 +1045,7 @@ export default function QueueRail({
     desireTable.query,
     historyTable.query,
     historyCavingTable.query,
+    historyCombatTable.query,
   ]);
 
   // Auto-filed travel Moves are already solved and hidden by default;
@@ -1070,9 +1088,10 @@ export default function QueueRail({
       </CheckField>
     );
 
-  // The History lens reads either past Moves or past Caving rolls, chosen
+  // The History lens reads past Moves, past Caving rolls or past fights, chosen
   // by its header switch (historyKind). Everything below branches on it.
   const historyIsCaving = lens === "history" && historyKind === "caving";
+  const historyIsCombat = lens === "history" && historyKind === "combat";
   const rowsForLens = useMemo(
     () => ({
       moves: movesShown,
@@ -1081,7 +1100,7 @@ export default function QueueRail({
       other: otherTable.visible,
       desires: desireTable.visible,
       ooc: oocTable.visible,
-      history: historyIsCaving ? historyCavingShown : historyShown,
+      history: historyIsCaving ? historyCavingShown : historyIsCombat ? historyCombatTable.visible : historyShown,
     }),
     [
       movesShown,
@@ -1092,11 +1111,20 @@ export default function QueueRail({
       oocTable.visible,
       historyIsCaving,
       historyCavingShown,
+      historyIsCombat,
+      historyCombatTable.visible,
       historyShown,
     ],
   );
   const visibleRows = rowsForLens[lens] ?? movesShown;
-  const historySelectionType = historyIsCaving ? "caving" : historyIsOpenTurn ? "move" : "history";
+  // A fight is "combat" on any turn: Workspace finds it live first, then in History, read-only.
+  const historySelectionType = historyIsCaving
+    ? "caving"
+    : historyIsCombat
+      ? "combat"
+      : historyIsOpenTurn
+        ? "move"
+        : "history";
   // Which Other row was last opened. Local rather than lifted into `selected`:
   // an Other row opens the INSPECTOR, not a desk, so it is not a selection the
   // workspace or the URL has any opinion about — it is just the row you last
@@ -1256,10 +1284,10 @@ export default function QueueRail({
       {lens === "history" ? (
         <>
           <RailFilters
-            table={historyIsCaving ? historyCavingTable : historyTable}
-            filterDefs={historyIsCaving ? cavingFilterDefs : moveFilterDefs}
+            table={historyIsCaving ? historyCavingTable : historyIsCombat ? historyCombatTable : historyTable}
+            filterDefs={historyIsCaving ? cavingFilterDefs : historyIsCombat ? combatFilterDefs : moveFilterDefs}
             searchPlaceholder={
-              historyIsCaving ? "name, @handle, tag:…" : "name, role, @handle, zone:…"
+              historyIsCaving ? "name, @handle, tag:…" : historyIsCombat ? "name, place…" : "name, role, @handle, zone:…"
             }
             header={
               /* Two selects on one line: WHAT of WHICH turn. The kind used to
@@ -1274,11 +1302,12 @@ export default function QueueRail({
                 <label className="field min-w-0" style={{ flex: "1 1 7rem" }}>
                   <span className="field-label">Showing</span>
                   <Select
-                    value={historyKind === "caving" ? "caving" : "moves"}
+                    value={historyKind === "caving" || historyKind === "combat" ? historyKind : "moves"}
                     onChange={(e) => onHistoryKind?.(e.target.value)}
                   >
                     <option value="moves">Moves</option>
                     <option value="caving">Caving</option>
+                    <option value="combat">Combat</option>
                   </Select>
                 </label>
                 <label className="field min-w-0" style={{ flex: "1 1 7rem" }}>
@@ -1302,7 +1331,7 @@ export default function QueueRail({
               </div>
             }
           >
-            {!historyIsCaving && hiddenHistoryTravelCount > 0 && (
+            {!historyIsCaving && !historyIsCombat && hiddenHistoryTravelCount > 0 && (
               <label className="field-label flex items-center gap-1.5" style={{ fontWeight: "normal" }}>
                 <input
                   type="checkbox"
@@ -1338,6 +1367,27 @@ export default function QueueRail({
                       : hiddenHistoryCavingCount > 0
                         ? `No failed Caving rolls on that turn match — ${hiddenHistoryCavingCount} other roll${hiddenHistoryCavingCount === 1 ? "" : "s"} hidden.`
                         : "No Caving rolls on that turn match."}
+                  </p>
+                )}
+              </>
+            ) : historyIsCombat ? (
+              <>
+                <CombatRows
+                  rows={historyCombatTable.visible}
+                  matchFor={historyCombatTable.matchFor}
+                  selected={selected}
+                  onSelect={onSelect}
+                  kbdId={kbdId}
+                  kbdLens={lens}
+                  lensKey="history"
+                />
+                {historyError && <p className="p-3 text-sm form-error">{historyError}</p>}
+                {!historyError && historyLoading && (
+                  <p className="p-3 text-sm text-muted">Loading that turn…</p>
+                )}
+                {!historyError && !historyLoading && historyCombatTable.visible.length === 0 && (
+                  <p className="p-3 text-sm text-muted">
+                    {historyTurnOptions?.length ? "No fights on that turn match." : "No turn to read back yet."}
                   </p>
                 )}
               </>

@@ -49,9 +49,12 @@ export const ECONOMIST_NAV = [
 // one): what there is to watch, and the rules it is played by. No Memories —
 // those are a character's, and a spectator has none. Character only for one
 // who is also on the roster, since that is where they would roll one up.
+// Actions is the spectator's alone: what came of every pushed turn
+// (web/lib/spectatorActions.js).
 export const SPECTATOR_NAV = [
   { href: "/chat", label: "Chat", icon: "play" },
   { href: "/map", label: "Map", icon: "map" },
+  { href: "/actions", label: "Actions", icon: "turns" },
   { href: "/documents", label: "Documents", icon: "documents" },
   { href: "/handbook", label: "Handbook", icon: "help" },
 ];

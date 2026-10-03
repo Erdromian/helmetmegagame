@@ -5,6 +5,7 @@ import { statusWord, WORKING_STATUSES } from "@lifeweb/db/lib/structures";
 import { MOVE_PIPELINE_LABELS, MOVE_REVIEW_LABELS, moveKindLabel, isTravelMove, rollLabel } from "@/lib/moves";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
+import { COMBAT_END_LABELS } from "@/lib/combatLabels";
 import { desireIsAutoRejected, desireIsAutoUnchecked } from "@lifeweb/db/lib/desireReview";
 import { isSelfResolving } from "@lifeweb/db/lib/autoGambits";
 import { COMPELLED_GM_LINE } from "@lifeweb/db/lib/compulsionLines";
@@ -481,13 +482,6 @@ export const COMBAT_INCLUDE = {
       character: { select: { id: true, name: true, discordUserId: true, updatedAt: true, roleTitle: true, status: true } },
     },
   },
-};
-
-const COMBAT_END_LABELS = {
-  CALLED_OFF: "Called off",
-  TURN_ENDED: "Ended at the push",
-  SIDE_EMPTY: "One side gone",
-  GM: "Ended by a GM",
 };
 
 function signed(n) {
