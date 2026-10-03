@@ -8,14 +8,20 @@ import { CAVING_KIND_LABELS } from "@/lib/cavingLabels";
 import { desireIsAutoRejected, desireIsAutoUnchecked } from "@lifeweb/db/lib/desireReview";
 import { isSelfResolving } from "@lifeweb/db/lib/autoGambits";
 import { COMPELLED_GM_LINE } from "@lifeweb/db/lib/compulsionLines";
+import { moveWhere, moveLocationId } from "./moveWhere";
+
+// Re-exported: the bulk loaders (deskRows.js, the /gm/turns page) take every desk-row helper from here.
+export { moveLocationId };
 
 // The DTO mappers the adjudication desk's queue is built from, one place so the RSC and server-action callers can't drift.
 export const MOVE_INCLUDE = {
+  // Where the Move was FILED — Action.zoneId / locationId, stamped at filing (db/lib/moves.js#fileMove). The desk labels a Move with these, never with where the character has walked since. Null on a row filed before the stamp existed, or by a writer that never set it; moveWhere() below falls back to the character for those.
+  zone: { select: { id: true, name: true } },
+  location: { select: { id: true, name: true } },
   character: {
     include: {
-      // `zone` is the PRESENCE zone the desk labels — where the character is standing.
+      // Where the character stands NOW (MAP.md §1). Only the fallback in moveWhere() — a Move is labelled by the place it was filed from.
       zone: true,
-      // Character.locationId is the authoritative "where they stand" (MAP.md §1), so the desk needs it too.
       location: { select: { id: true, name: true } },
       tags: {
         select: {
@@ -125,6 +131,7 @@ function standingHereLines(structures) {
 }
 
 export function moveRow(a, { usernameById, now, structuresByLocationId }) {
+  const where = moveWhere(a);
   const username = usernameById.get(a.character.discordUserId) ?? a.character.discordUserId;
   return {
     id: a.id,
@@ -137,8 +144,8 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     discordUserId: a.character.discordUserId,
     discordUsername: username,
     roleTitle: a.character.roleTitle ?? "",
-    // Where they are standing — the only zone a desk row has now.
-    zoneName: a.character.zone?.name ?? "",
+    // Where the Move was filed (moveWhere), not where they have walked to since.
+    zoneName: where.zoneName,
     description: a.description,
     kindLabel: moveKindLabel(a.moveKind, a.gmNotes),
     moveKind: a.moveKind ?? "ROUTINE",
@@ -162,13 +169,11 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
     // The enum itself, alongside the label — clients branch on this, not the string (MoveDesk.js).
     reviewStatus: a.moveReviewStatus,
     // Key name kept because MoveDesk/InspectorColumn still read `locationLabel` (MAP.md §1).
-    locationLabel: a.character.location
-      ? `${a.character.zone?.name ?? "?"} · ${a.character.location.name}`
-      : a.character.zone?.name || "Unassigned",
+    locationLabel: where.label,
     // PublicComposer needs the id to preselect the Move's own zone, not just its name.
-    zoneId: a.character.zone?.id ?? null,
+    zoneId: where.zoneId,
     // Per-structure "Standing here" line, bulk-loaded by the caller and keyed by locationId.
-    standingHere: standingHereLines(structuresByLocationId?.get(a.character.locationId ?? "")),
+    standingHere: standingHereLines(structuresByLocationId?.get(moveLocationId(a) ?? "")),
     // Off the tag rows MOVE_INCLUDE already loads — ⬢ are a stack, not a column.
     resources: resourcesOf(a.character),
     tags: a.character.tags.map((ct) => ({

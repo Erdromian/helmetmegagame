@@ -323,6 +323,7 @@ async function acceptConfession(prisma, offer, responder) {
           diceRoll: penitentAdvantage.die,
           diceModifier: gambitModifierTotal(penitent.tags, { mood: penitent.mood }),
           zoneId: penitent.zoneId ?? null,
+          locationId: penitent.locationId ?? null,
           gmNotes: "auto:confession",
         },
       });
@@ -340,6 +341,7 @@ async function acceptConfession(prisma, offer, responder) {
           description: `Hearing ${penitentSeen}'s confession.`,
           appliedEffects: {},
           zoneId: chaplain.zoneId ?? null,
+          locationId: chaplain.locationId ?? null,
           gmNotes: "auto:confession",
         },
       });

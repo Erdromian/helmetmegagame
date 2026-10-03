@@ -1069,6 +1069,20 @@ its clause. This is the siege licence in practice: the Battering Ram's note is
 what makes storming a shut gate adjudicable at all, and it stops being
 adjudicable the moment the Ram is a ruin.
 
+**Where a Move card says it happened.** The zone and Location on a Move card are the ones
+stamped on the Move at filing (`Action.zoneId` / `locationId`, written by `db/lib/moves.js#fileMove`),
+not wherever the character stands when the GM looks. A free zone move costs no Action
+(`CARRY.md` §2a), so a Gambit written about the Pub is often ruled on after its author has
+walked to the Hole, and a card that followed them contradicted its own description. The rule is
+`web/lib/moveWhere.js#moveWhere`, and the "Standing here:" structures are loaded for the same
+place. A row with no stamped Location — filed before 20260909120000, or by a game writer that
+never stamped one — falls back to the live pair **whole**, never one half from each. The
+Moves the game files for a player (confession, lessons, a heal Gambit, Spend turn) stamp a
+Location now; the travel stub still does not, because its zone is the *seat* zone. The Zones
+filter and the zone column read the same stamped zone, so a GM sees a Gambit under the zone it
+was filed in. Migration `20261215000000_gambit_location_backfill` filled the unstamped rows on
+the open turn it deployed into, only where the character's zone still matched the row's.
+
 ## 7. Where the code lives
 
 | File | Role |
@@ -1081,6 +1095,7 @@ adjudicable the moment the Ram is a ruin.
 | `.../OocDesk.js` | One OOC line in its scene, plus Message player and Mute OOC |
 | `web/app/components/ArchiveContext.js` | The "in context" slice itself — shared by that desk and `ArchiveContextModal.js`, which is only the frame now |
 | `web/lib/moveRows.js` | The Move / staged-effect / staged-message DTO mappers, shared by `page.js` and the History fetchers so they can't drift |
+| `web/lib/moveWhere.js` | Where a Move happened: the stamped Location and zone, else the live pair. Import-free so `web/lib/__tests__/moveWhere.test.mjs` can load it |
 | `.../deskStore.js` | The desk's client-owned rows: seed, patch, the newer-wins reconciliation rule |
 | `.../deskDraft.js` | What a GM has typed and not saved — the Result boxes and the Kind switch, keyed by row, mirrored to `localStorage`. Also the desk's record of WHICH rows are dirty, which is what `DeskStream.js` buffers against |
 | `db/lib/deskNotify.js` | `bascinet_desk` — the channel four Postgres triggers announce a changed desk row on (migration `20260921030000_desk_notify`) |

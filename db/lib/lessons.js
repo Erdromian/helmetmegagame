@@ -597,6 +597,7 @@ async function acceptLesson(prisma, offer, responder) {
           diceRoll: learnerAdvantage.die,
           diceModifier,
           zoneId: learner.zoneId ?? null,
+          locationId: learner.locationId ?? null,
           gmNotes: "auto:lesson",
         },
       });
@@ -629,6 +630,7 @@ async function acceptLesson(prisma, offer, responder) {
             description: `Teaching ${tag.name} to ${learnerSeen}.`,
             appliedEffects: {},
             zoneId: teacher.zoneId ?? null,
+            locationId: teacher.locationId ?? null,
             gmNotes: "auto:lesson",
           },
         });
