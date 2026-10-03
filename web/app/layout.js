@@ -23,6 +23,7 @@ import MoveWindowProvider from "./components/MoveWindowProvider";
 import PhaseProvider from "./components/PhaseProvider";
 import MusicDirector from "./components/MusicDirector";
 import InstrumentListener from "./components/InstrumentListener";
+import KeyboardSettle from "./components/KeyboardSettle";
 import ConfirmProvider from "./components/ConfirmProvider";
 import NoticeProvider from "./components/NoticeProvider";
 import { RefreshProvider } from "./components/useRefresh";
@@ -46,6 +47,8 @@ export const metadata = {
 // the keyboard comes up, so a 100dvh shell keeps its full height and the
 // composer at its foot sits UNDER the keys. With this the viewport shrinks
 // and the composer rides up above them, the way it already does on iOS.
+// iOS ignores this, and has its own trouble putting the page back when the
+// keyboard goes away: KeyboardSettle.js.
 export const viewport = {
   width: "device-width",
   initialScale: 1,
@@ -106,6 +109,7 @@ export default async function RootLayout({ children }) {
                       <PhaseProvider phasePromise={phasePromise}>
                         <MusicDirector />
                         <InstrumentListener />
+                        <KeyboardSettle />
                         {children}
                       </PhaseProvider>
                     </MoveWindowProvider>
