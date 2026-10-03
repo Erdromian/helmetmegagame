@@ -97,9 +97,11 @@ At the moment a fight starts, two things are frozen onto it:
   placed character, in Locations, counting only the ways each of them could
   walk. `locationGraph.js#distancesFrom` runs the mover's own `crossingCheck`
   on every edge, so a locked door counts only for whoever holds its key (or
-  wears the ring that opens it), and a hidden way, a shut gate or a squeeze a
-  Giant cannot fit through costs what it costs on foot. One BFS per *access
-  signature* — the subset of door slugs and `giant` somebody holds — so a
+  wears the ring that opens it), and a hidden way, a shut gate, a squeeze a
+  Giant cannot fit through or an on-foot way to somebody holding a mount or a
+  Cart costs what it costs on foot. One BFS per *access signature* — the
+  subset of door slugs and `giant` somebody holds, and whether they hold a
+  mount or a Cart — so a
   hundred characters is a handful of searches. Capped at 4, which means "4 or
   more, or no way at all".
 

@@ -219,7 +219,7 @@ function parseConnection(raw, locationByRef, problems) {
     entry.hidden = hides;
   }
 
-  // A way no arelitz or cart fits through — gates on what's EQUIPPED, dismounts at the threshold.
+  // A way no arelitz or cart fits through — refuses anyone HOLDING one, out or stowed (MAP.md §2c).
   if (spec.on_foot != null) {
     if (typeof spec.on_foot !== "boolean") {
       problems.push(`connections ${entry.a} <-> ${entry.b} has a non-boolean on_foot: ${JSON.stringify(spec.on_foot)}`);

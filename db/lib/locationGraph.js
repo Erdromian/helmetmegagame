@@ -2,7 +2,7 @@
 const { heldTagSlugs, withRingTokens, wornRingTokens } = require("./roomAccess");
 const { TAG_CATEGORY } = require("./constants");
 const { RING_SLUG } = require("./rings");
-const { blocksOnFoot, equippedSlugs } = require("./mounts");
+const { blocksOnFoot, STOWABLE_SLUGS } = require("./mounts");
 const { heldReasonFor } = require("./intercept");
 const { cavingRestrictionsFor, cavingRefusalFor } = require("./cavingPass");
 const { crossingCost } = require("./crossingCost");
@@ -111,7 +111,10 @@ async function partyKeyFor(prisma, link, leader) {
 // field-doc block on LocationLink.tightSqueeze in schema.prisma.
 const GIANT_TAG_SLUG = "giant";
 
-// The pure predicate: may a character holding `tagSlugs` cross this edge right now? Separated from the queries so the picker, mover and re-validation all reach the identical verdict from already-loaded data. `listed` is weaker than `passable`: a LOCKED edge is listed and refuses (so a player can see the door and learn they need the key), while a HIDDEN edge is not listed at all. A propped-open keyed edge satisfies its own tag requirement, which also makes a hidden one listed — deliberate: a door somebody held open must be visible to whoever is meant to follow them through it. `onFootBlocked` is the ONE input here about tags-you-have-out, not tags-you-hold — pass it from blocksOnFoot(equippedSlugs(tags)); an arelitz or cart in your pocket is not one you're riding or pushing.
+// ON FOOT: what somebody holding a mount or a Cart is told at a way too narrow for it.
+const ON_FOOT_REFUSAL = "Too narrow for a mount or a cart. You would have to leave yours behind.";
+
+// The pure predicate: may a character holding `tagSlugs` cross this edge right now? Separated from the queries so the picker, mover and re-validation all reach the identical verdict from already-loaded data. `listed` is weaker than `passable`: a LOCKED edge is listed and refuses (so a player can see the door and learn they need the key), while a HIDDEN edge is not listed at all. A propped-open keyed edge satisfies its own tag requirement, which also makes a hidden one listed — deliberate: a door somebody held open must be visible to whoever is meant to follow them through it. `onFootBlocked` is whether they hold a mount or a Cart at all, out or stowed — pass it from blocksOnFoot(tags) (db/lib/mounts.js).
 function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date() } = {}) {
   if (!link) {
     return { listed: false, passable: false, refusal: "You can't get there directly from here." };
@@ -145,11 +148,11 @@ function crossingCheck(link, { tagSlugs, onFootBlocked = false, now = new Date()
       tightSqueeze,
     };
   }
-  // Dismounts the traveller rather than refusing — db/lib/indoors.js's dismountForNarrowWay, called from applyLocationMoveSideEffects too, for a move that did not come through the mover. `dismounts` is surfaced so the picker can say so before anyone commits.
+  // Refused, not dismounted (MAP.md §2c): the mount or Cart has to be left somewhere before they can go through. Last, so a shut gate or a lock is what they hear about first.
   if (link.onFoot && onFootBlocked) {
-    return { listed: true, passable: true, refusal: null, dismounts: true, openedBy, tightSqueeze };
+    return { listed: true, passable: false, refusal: ON_FOOT_REFUSAL, tightSqueeze };
   }
-  return { listed: true, passable: true, refusal: null, dismounts: false, openedBy, tightSqueeze };
+  return { listed: true, passable: true, refusal: null, openedBy, tightSqueeze };
 }
 
 // Does this edge have a gate to work at all? Only a modular edge does. The gate button renders off this, on the WATCHTOWER at the gate (db/lib/roomStarterRow.js) — getting into that room is the whole permission model (anyone who can see the winch may pull it), so there's no second predicate here; toggleGate only re-checks the clicker is standing at the gate.
@@ -162,7 +165,6 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
   const links = graph ? linksAt(graph, locationId) : await linksFor(prisma, locationId);
   if (links.length === 0) return [];
 
-  // Loaded in the shape equippedSlugs expects, not the cheaper flat set: heldTagSlugs returns BARE slugs with no equip state, and a stowed arelitz must not read as a mount.
   const tags =
     character?.tags ??
     (character?.id
@@ -174,7 +176,7 @@ async function resolveNeighbors(prisma, character, locationId, { fromZoneId = nu
   // Plus the worn ring's doors (docs/systemdocs/RINGS.md) — a caller's own select never carries them.
   const tagSlugs = await withRingTokens(prisma, character?.id, tags);
   const heldPlain = new Set(tags.map((ct) => ct.tag?.slug).filter(Boolean));
-  const onFootBlocked = blocksOnFoot(equippedSlugs(tags));
+  const onFootBlocked = blocksOnFoot(tags);
 
   const zoneId = fromZoneId ?? character?.zoneId ?? null;
   // One clock for the whole list, so a propped-open way cannot lapse halfway down it and show as both open and shut in one render.
@@ -422,8 +424,6 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
   // zone is the Caves or the Depths — and then it shuts every hop of it.
   if (await travelLockReason(prisma, { fromZoneKind: standingKind, intoZoneKind: standingKind })) return [];
 
-  // Equip-shaped, not the flat set: heldTagSlugs returns bare slugs and a stowed
-  // an arelitz would read as one you are riding (MAP.md §2c).
   const tags =
     character?.tags ??
     (character?.id
@@ -434,7 +434,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
       : []);
   // Plus the worn ring's doors (docs/systemdocs/RINGS.md) — a caller's own select never carries them.
   const tagSlugs = await withRingTokens(prisma, character?.id, tags);
-  const onFootBlocked = blocksOnFoot(equippedSlugs(tags));
+  const onFootBlocked = blocksOnFoot(tags);
   // One clock for the whole traversal, the way resolveNeighbors takes one, so a
   // propped keyed way cannot lapse halfway down the search and be both open and
   // shut in a single route.
@@ -444,7 +444,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
   const adjacency = new Map();
   const join = (a, b, verdict) => {
     if (!adjacency.has(a)) adjacency.set(a, []);
-    adjacency.get(a).push({ id: b, dismounts: Boolean(verdict.dismounts), tightSqueeze: Boolean(verdict.tightSqueeze) });
+    adjacency.get(a).push({ id: b, tightSqueeze: Boolean(verdict.tightSqueeze) });
   };
   for (const link of links) {
     if (!usable(link.aId) || !usable(link.bId)) continue;
@@ -462,8 +462,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
   }
 
   const prev = new Map();
-  const dismountBy = new Map([[from, false]]);
-  // Same shape as dismountBy: a walk that goes through a tight squeeze at any hop is a walk a Giant companion cannot finish, and the party leader is told so before they commit rather than after the Giant is refused mid-road.
+  // A walk that goes through a tight squeeze at any hop is a walk a Giant companion cannot finish, and the party leader is told so before they commit rather than after the Giant is refused mid-road.
   const squeezeBy = new Map([[from, false]]);
   // Which hop first reached each place — a later road of the SAME length may
   // still take it over (below); a longer one never does.
@@ -473,9 +472,6 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
 
   const take = (nodeId, neighbor) => {
     prev.set(neighbor.id, nodeId);
-    // Sticky: a route that took your arelitz off you at hop 2 is still a
-    // route you finish on foot.
-    dismountBy.set(neighbor.id, Boolean(dismountBy.get(nodeId)) || neighbor.dismounts);
     squeezeBy.set(neighbor.id, Boolean(squeezeBy.get(nodeId)) || neighbor.tightSqueeze);
   };
 
@@ -518,7 +514,6 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
       location: byId.get(row.id),
       hops: row.hops,
       path: pathTo(row.id),
-      dismounts: Boolean(dismountBy.get(row.id)),
       tightSqueeze: Boolean(squeezeBy.get(row.id)),
     }))
     .sort((x, y) => x.hops - y.hops || x.location.slug.localeCompare(y.location.slug));
@@ -535,7 +530,7 @@ async function pathWithinZone(prisma, character, targetLocationId, { known } = {
   const routes = await routesWithinZone(prisma, character, { known });
   const hit = routes.find((row) => row.location.id === targetLocationId);
   if (!hit) return { ok: false, reason: NO_WALK };
-  return { ok: true, hops: hit.hops, path: hit.path, dismounts: hit.dismounts, tightSqueeze: hit.tightSqueeze };
+  return { ok: true, hops: hit.hops, path: hit.path, tightSqueeze: hit.tightSqueeze };
 }
 
 // How long a propped door stays propped. Real hours, not turns: a physical door somebody wedged, and the point is that people can follow within the day.
@@ -552,8 +547,8 @@ const KEYED_OPEN_MS = 24 * 60 * 60 * 1000;
 // `maxHops` — which means "that far or further, or no way at all".
 //
 // One BFS per ACCESS SIGNATURE, not per traveller: the only slugs that can change an edge's verdict are
-// the ones some edge requires, plus `giant`, so everybody holding the same subset of those walks the same
-// map. With a hundred characters that is a handful of searches. The edge rules are symmetric (a link is one
+// the ones some edge requires, plus `giant` and whether they hold a mount or a Cart, so everybody holding
+// the same subset of those walks the same map. With a hundred characters that is a handful of searches. The edge rules are symmetric (a link is one
 // undirected row), so searching outward from the fight is the same as each traveller searching toward it.
 function distancesFrom(graph, originLocationId, travellers, { maxHops = 4, now = new Date() } = {}) {
   const out = new Map();
@@ -575,7 +570,7 @@ function distancesFrom(graph, originLocationId, travellers, { maxHops = 4, now =
     if (link.requiredTagSlug) deciding.add(link.requiredTagSlug);
   }
 
-  const bfs = (slugs) => {
+  const bfs = (slugs, onFootBlocked) => {
     const dist = new Map([[originLocationId, 0]]);
     let frontier = [originLocationId];
     for (let hops = 1; hops < maxHops && frontier.length > 0; hops += 1) {
@@ -583,7 +578,7 @@ function distancesFrom(graph, originLocationId, travellers, { maxHops = 4, now =
       for (const at of frontier) {
         for (const { to, link } of adjacency.get(at) ?? []) {
           if (dist.has(to)) continue;
-          if (!crossingCheck(link, { tagSlugs: slugs, now }).passable) continue;
+          if (!crossingCheck(link, { tagSlugs: slugs, onFootBlocked, now }).passable) continue;
           dist.set(to, hops);
           next.push(to);
         }
@@ -597,8 +592,10 @@ function distancesFrom(graph, originLocationId, travellers, { maxHops = 4, now =
   for (const t of list) {
     const held = t.accessSlugs instanceof Set ? t.accessSlugs : new Set(t.accessSlugs ?? []);
     const subset = [...deciding].filter((slug) => held.has(slug)).sort();
-    const key = subset.join("|");
-    if (!bySignature.has(key)) bySignature.set(key, bfs(new Set(subset)));
+    // Holding a mount or a Cart shuts every on-foot way (MAP.md §2c), so it is part of the signature too.
+    const wide = [...held].some((slug) => STOWABLE_SLUGS.has(slug));
+    const key = `${subset.join("|")}${wide ? "#wide" : ""}`;
+    if (!bySignature.has(key)) bySignature.set(key, bfs(new Set(subset), wide));
     const hops = t.locationId ? bySignature.get(key).get(t.locationId) : undefined;
     out.set(t.id, { hops: hops == null ? maxHops : Math.min(hops, maxHops), fromLocationId: t.locationId ?? null });
   }
@@ -610,6 +607,7 @@ module.exports = {
   KEYED_OPEN_MS,
   distancesFrom,
   GIANT_TAG_SLUG,
+  ON_FOOT_REFUSAL,
   WALK_HOPS,
   NO_WALK,
   ALREADY_THERE,

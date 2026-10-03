@@ -192,16 +192,37 @@ test("two equally short roads always resolve to the same one, whatever order the
   assert.deepEqual([...roads], ["north>keep"]);
 });
 
-test("a narrow way does not change the road, but says the arelitz is coming off", async () => {
+test("a narrow way is no road at all to somebody holding a mount or a Cart", async () => {
   const links = [way("gate", "square"), way("market", "square", { onFoot: true }), way("keep", "market")];
   const prisma = fakePrisma(ROAD.locations, links);
 
   const walking = await pathWithinZone(prisma, walker(), "keep", { known: ALL_KNOWN });
-  assert.equal(walking.dismounts, false);
+  assert.equal(walking.hops, 3);
 
   const riding = await pathWithinZone(prisma, walker(["arelitz"]), "keep", { known: ALL_KNOWN });
-  assert.equal(riding.hops, 3, "the narrow way is still walked");
-  assert.equal(riding.dismounts, true, "and it is said before they commit");
+  assert.deepEqual(riding, { ok: false, reason: NO_WALK });
+
+  // Stowed is still held: putting the Cart in a pack is not a way through.
+  const stowed = { ...walker(), tags: [{ equipped: false, tag: { slug: "cart" } }] };
+  assert.deepEqual(await pathWithinZone(prisma, stowed, "keep", { known: ALL_KNOWN }), { ok: false, reason: NO_WALK });
+  assert.equal((await pathWithinZone(prisma, stowed, "square", { known: ALL_KNOWN })).hops, 1, "the road up to it is still theirs");
+});
+
+test("a mount takes the wide way round when there is one", async () => {
+  // gate -> square -> keep is two hops through a crawl; gate -> north -> east -> keep is three, and wide.
+  const locations = ["gate", "square", "keep", "north", "east"].map((s) => place(s));
+  const links = [
+    way("gate", "square"),
+    way("keep", "square", { onFoot: true }),
+    way("gate", "north"),
+    way("east", "north"),
+    way("east", "keep"),
+  ];
+  const prisma = fakePrisma(locations, links);
+  const known = new Set(locations.map((l) => l.slug));
+  assert.equal((await pathWithinZone(prisma, walker(), "keep", { known })).hops, 2);
+  const riding = await pathWithinZone(prisma, walker(["motorcycle"]), "keep", { known });
+  assert.deepEqual(riding.path.map((l) => l.slug), ["north", "east", "keep"]);
 });
 
 test("a tight squeeze on the road is said to everybody, sticky to the end of the walk", async () => {

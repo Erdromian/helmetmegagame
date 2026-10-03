@@ -107,15 +107,13 @@ function canTravelTo(node, here) {
 // What a GESTURE may do, and it is deliberately LESS than what Go may do.
 //
 // Double-click moved somebody across a zone they had not chosen once already,
-// and that is why it was taken out (MAP.md §6c). It is back under two limits
-// that answer exactly that: never across a zone — so nothing a gesture does
-// costs a travel, the Move, or anybody else's afternoon — and never down a road
-// that would take your horse off you several hops from here, which is the one
-// thing a walk does that cannot be undone for free. Everything else still wants
-// the strip, the confirm and a deliberate press.
+// and that is why it was taken out (MAP.md §6c). It is back under one limit
+// that answers exactly that: never across a zone — so nothing a gesture does
+// costs a travel, the Move, or anybody else's afternoon. Everything else still
+// wants the strip, the confirm and a deliberate press.
 function canGestureTo(node, here) {
   if (!canTravelTo(node, here)) return false;
-  return !node.crossesZone && !node.walkDismounts;
+  return !node.crossesZone;
 }
 
 // A walk's numbers in the shape travelCost's walk helpers read.
@@ -124,7 +122,6 @@ function routeOf(node) {
     name: node.name,
     hops: node.walkHops ?? 0,
     through: node.walkThrough ?? [],
-    dismounts: Boolean(node.walkDismounts),
   };
 }
 
@@ -1484,7 +1481,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
                 <ViaChip slug={n.openedBy} />
                 {/* Where no Giant fits (MAP.md §2a), on everybody's list. */}
                 <SqueezeChip show={n.tightSqueeze} className="map-via" />
-                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.mounted, travel?.moved, travel?.breakdown)}</span>
+                <span className="mono">{travelFoot(n, n.freeLeft ?? 0, travel?.moved, travel?.breakdown)}</span>
               </button>
             ))}
           </div>
@@ -1497,7 +1494,7 @@ export default function MapBoard({ onClose = null, initial = null }) {
               <button key={n.id} type="button" className="map-exit" onClick={() => setSel(n.id)}>
                 <span>{n.name}</span>
                 <SqueezeChip show={n.walkTightSqueeze} onWalk className="map-via" />
-                <span className="mono">{walkFoot(routeOf(n), travel?.mounted)}</span>
+                <span className="mono">{walkFoot(routeOf(n))}</span>
               </button>
             ))}
           </div>

@@ -31,14 +31,16 @@ export function affordsCrossing(option, freeLeft) {
 // `breakdown` (locationTravel.js#freeMovesBreakdown) says whether a mount's
 // ride is what this crossing would spend — one ride covers any crossing, so
 // the foot says "1 ride" rather than quoting travel the rider won't pay.
-export function travelFoot(option, freeLeft, mounted, moved = false, breakdown = null) {
+export function travelFoot(option, freeLeft, moved = false, breakdown = null) {
   if (!option.passable) {
     const reason = option.reason ?? "";
     if (/locked/i.test(reason)) return "locked";
     if (/shut/i.test(reason)) return "shut";
+    // An on-foot way, to somebody holding a mount or a Cart (MAP.md §2c).
+    if (/narrow/i.test(reason)) return "too narrow";
     return reason || "no way";
   }
-  const cost = !option.crossesZone
+  return !option.crossesZone
     ? "free"
     : affordsCrossing(option, freeLeft)
       ? (breakdown?.ridesLeft ?? 0) > 0
@@ -49,10 +51,6 @@ export function travelFoot(option, freeLeft, mounted, moved = false, breakdown =
         : option.canExert
           ? "exertion"
           : "next turn";
-  // Only worth saying when there's something to lose: a way too narrow to
-  // ride. No Location takes a mount at its door any more (CARRY.md §3).
-  if (option.dismounts) return `${cost} · on foot`;
-  return cost;
 }
 
 // The line over the buttons once a destination is picked, on both surfaces.
@@ -165,14 +163,11 @@ function listOf(names) {
 
 // What a WALK costs, in the words both surfaces print (MAP.md §3c). A walk is
 // inside your own zone and spends nothing at all — no travel, no Move — so the
-// only things worth saying are how far it is and whether the road is too narrow
-// for what you are riding. Here rather than in either component for the reason
-// travelFoot is here: /chat and /map both say it, and two copies would drift.
-export function walkFoot(route, mounted) {
-  const far = route.hops === 1 ? "1 away" : `${route.hops} away`;
-  // Same as travelFoot: a dismount is the one consequence worth the space.
-  if (route.dismounts) return `${far} · on foot`;
-  return far;
+// only thing worth saying is how far it is. Here rather than in either component
+// for the reason travelFoot is here: /chat and /map both say it, and two copies
+// would drift.
+export function walkFoot(route) {
+  return route.hops === 1 ? "1 away" : `${route.hops} away`;
 }
 
 // The line over Go once a walk is picked, and it NAMES THE STOPS.

@@ -199,7 +199,7 @@ To prevent people connecting your character to your Discord account, you can use
 
 Every Zone is made of Locations. Your character stands in exactly one Location at a time, and sees only that Location's channel (plus the Zone's Summary). Locations are all interconnected: use **Travel** to walk to a neighbouring one. Walking inside your Zone is free, with a short cooldown between steps; crossing into another Zone costs movement points. Some crossings between locations are locked or hidden behind certain requirements.
 
-Some ways are too tight, too steep or too enclosed for mounts and carts to pass; you will be ejected from them if you attempt to cross.
+Some ways are too tight, too steep or too enclosed for mounts and carts to pass; you cannot cross one while you have a mount or a cart with you, even stowed.
 
 - **Important:** Roleplaying outside of the server or in DMs is not allowed. If it didn't happen inside the Bascinet server, then it didn't happen at all.
 

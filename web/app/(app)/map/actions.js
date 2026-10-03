@@ -8,7 +8,7 @@ import { heldReasonFor } from "@lifeweb/db/lib/intercept";
 import { recordArrival, knownLocations } from "@lifeweb/db/lib/locationVisits";
 import { accessibleRooms, roomAccessKeys } from "@lifeweb/db/lib/roomAccess";
 import { conversationsFor } from "@lifeweb/db/lib/conversations";
-import { blocksOnFoot, equippedSlugs } from "@lifeweb/db/lib/mounts";
+import { blocksOnFoot } from "@lifeweb/db/lib/mounts";
 import { hasAttribute } from "@lifeweb/db/lib/locationAttributes";
 import {
   ESCORT_SELECT as MOVER_SELECT,
@@ -173,14 +173,12 @@ async function buildMap({ character, unfogged, canReveal, hiddenWays = unfogged 
           walkable: false,
           walkHops: null,
           walkThrough: null,
-          walkDismounts: false,
           crossesZone: false,
           cost: 0,
           freeLeft: null,
           canExert: false,
           exertWhy: null,
           exertNote: null,
-          dismounts: false,
           reason: null,
           openedBy: null,
         },
@@ -240,7 +238,7 @@ async function buildMap({ character, unfogged, canReveal, hiddenWays = unfogged 
   // roomAccessKeys' held set already counts the worn ring's doors (docs/systemdocs/RINGS.md).
   const heldPlain = new Set((character?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean));
   const tagSlugs = keys?.heldSlugs ?? heldPlain;
-  const onFootBlocked = blocksOnFoot(equippedSlugs(character?.tags ?? []));
+  const onFootBlocked = blocksOnFoot(character?.tags);
   // One clock for the whole graph, so a way can't lapse halfway through the loop.
   const now = new Date();
 
@@ -321,8 +319,6 @@ async function buildMap({ character, unfogged, canReveal, hiddenWays = unfogged 
       // The stops on the way, named before they commit — the guard that makes
       // the gesture safe (MAP.md §6c). Never the destination itself.
       walkThrough: walk ? walk.path.slice(0, -1).map((l) => remembered(l).name) : null,
-      // A narrow way somewhere along the road would take their horse off them.
-      walkDismounts: Boolean(walk?.dismounts),
       // A tight squeeze on the road, or AS the road (MAP.md §2a). Said to
       // everybody, not only the Giant it refuses, so a party can see where
       // its Giant friend cannot follow.
@@ -339,7 +335,6 @@ async function buildMap({ character, unfogged, canReveal, hiddenWays = unfogged 
       // Which way the push on's die leans, said before they commit. Null when
       // it doesn't; the same sentence the Travel panel carries.
       exertNote: near?.crossesZone ? exertEdgeSentence(exertEdgeFor(character?.tags ?? [])) : null,
-      dismounts: Boolean(near?.dismounts),
       reason: near?.refusal ?? null,
       // Same field the Travel panel draws a chip from; only ever set for a tag this character already holds.
       openedBy: near?.openedBy ?? null,
@@ -432,7 +427,6 @@ async function buildMap({ character, unfogged, canReveal, hiddenWays = unfogged 
           // line and the confirm (MAP.md §3a) — built here, MapBoard is a client.
           breakdown: freeMovesBreakdown(character, config, openTurn, party.length),
           travelLine: travelSentence(freeMovesBreakdown(character, config, openTurn, party.length)),
-          mounted: onFootBlocked,
           partySize: party.length,
           // The Move already spent this turn: Go leaves the card and the push
           // on is the only way across a zone with no travel left (MAP.md §3).
