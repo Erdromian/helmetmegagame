@@ -943,8 +943,10 @@ tags:
     purchasableAfterStart: false
 
   # The Rite of Rage. Permanent; nothing sinks a Raging character's mood
-  # (db/lib/mood.js MULTIPLIERS) and every Desire but cruelty is locked to
-  # them. Bascinet's wording.
+  # (db/lib/mood.js MULTIPLIERS) and every Desire but cruelty and violence is
+  # locked to them. The description says "killing people", and the kill
+  # Desires are the violence family — cruelty alone was whips and brands.
+  # Bascinet's wording.
   rage:
     catalog: secret
     name: Rage
@@ -959,7 +961,7 @@ tags:
     desires:
       locks:
         - all: true
-          exceptFamilies: [cruelty]
+          exceptFamilies: [cruelty, violence]
 
   insightful:
     catalog: all

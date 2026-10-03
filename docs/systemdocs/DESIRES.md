@@ -328,7 +328,7 @@ character holding two all-but-one locks has *everything* shut unless some one
 template sits in both exceptions. `cause-chaos` is the case to copy. It is the
 only Desire `{tag:old-ways-xom}` leaves open (`exceptFamilies: [chaos]`), and
 Xom's own turn table can hand its holder `{tag:rage}` (`exceptFamilies:
-[cruelty]`) and, through Seizure's `expiresInto`, `{tag:stupid}`
+[cruelty, violence]`) and, through Seizure's `expiresInto`, `{tag:stupid}`
 (`exceptFamilies: [alcohol, stupidity]`). So the template carries
 `families: [chaos, cruelty, stupidity]` — three families for a goal that is
 plainly one thing — and its `requires.anyTags: [old-ways-xom]` keeps it out of
