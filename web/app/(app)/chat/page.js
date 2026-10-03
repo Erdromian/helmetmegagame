@@ -99,7 +99,8 @@ async function FreshChat({ userId }) {
   // option they have. This used to return `empty` and draw a dead page. A
   // ghost falls through to the full Chat below, read-only over every zone,
   // the way a GM with no character does (db/lib/feedAccess.js#ghostPlacesFor).
-  if (!viewer.character && !viewer.gm && !viewer.ghost) {
+  // So does a spectator, over even more of it (#spectatorPlacesFor).
+  if (!viewer.character && !viewer.gm && !viewer.ghost && !viewer.spectator) {
     // Plus the Game channel, which is the one place with no seat behind it:
     // the turn opening is what #turns tells the whole guild, so somebody
     // waiting on a character can read it while they wait
@@ -493,7 +494,7 @@ async function FreshChat({ userId }) {
   // the body (Chat.js draws the row off `self.discordUserId`), so a GM sitting
   // in the GM seat still has their own mail and still wants the dot on it —
   // and so does a GM who plays nobody, whose row is drawn all the same.
-  const newestDm = viewer.character || viewer.playing || viewer.ghost || viewer.gm
+  const newestDm = viewer.character || viewer.playing || viewer.ghost || viewer.gm || viewer.spectator
     ? await prisma.directMessage.findFirst({
         where: withoutDmNoise(
           { discordUserId: viewer.discordUserId, direction: "OUTBOUND" },
@@ -580,6 +581,10 @@ async function FreshChat({ userId }) {
     // A dead player with no living character reads every zone, and speaks
     // nowhere (db/lib/feedAccess.js#ghostPlacesFor).
     ghost: Boolean(viewer.ghost),
+    // Somebody holding the Spectator role and no seat of their own reads every
+    // place a GM does and speaks nowhere (db/lib/feedAccess.js
+    // #spectatorPlacesFor). None of the GM's tools come with it.
+    spectator: Boolean(viewer.spectator),
     gmZones,
     // The 📷 on somebody else's line, only for a character actually
     // carrying one. photographRow() re-checks the sheet, so this is the

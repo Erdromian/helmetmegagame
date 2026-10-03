@@ -13,6 +13,7 @@ import {
   hasPlaytestRole,
   hasContributorRole,
   hasEconomistRole,
+  hasSpectatorRole,
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
 import { applyDeathWithVampireOverride, announceVampireAsh } from "@lifeweb/db/lib/vampireDeath";
@@ -304,6 +305,14 @@ export function isEconomist(member) {
   return hasEconomistRole(member.roles);
 }
 
+// The Spectator seat (db/lib/roleIds.js) — read-only, everywhere a GM reads,
+// and only while the holder has no character of their own
+// (web/lib/feedAccess.js#loadFeedViewer decides that, not this).
+export function isSpectator(member) {
+  if (!member) return false;
+  return hasSpectatorRole(member.roles);
+}
+
 // Role ID hardcoded rather than env-configured: this gate fails CLOSED, so a
 // missing env var would silently lock every player out.
 export function isApprovedPlayer(member) {
@@ -346,9 +355,9 @@ export async function listGmMembers() {
 // mean "confirmed gone" or, rarely, "lookup unreachable, nothing cached yet."
 export const getGmSession = cache(async () => {
   const session = await auth();
-  if (!session?.discordUserId) return { session: null, isGm: false, inGuild: false };
+  if (!session?.discordUserId) return { session: null, isGm: false, isSpectator: false, inGuild: false };
   const member = await getGuildMember(session.discordUserId);
-  return { session, isGm: isGm(member), inGuild: member !== null };
+  return { session, isGm: isGm(member), isSpectator: isSpectator(member), inGuild: member !== null };
 });
 
 // Same shape as getGmSession, for the (econ) route group's layout gate —

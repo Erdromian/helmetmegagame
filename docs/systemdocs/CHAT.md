@@ -2100,7 +2100,7 @@ a 48px head and a one-line composer:
 
 ### 5a. Who may read and speak where
 
-`db/lib/feedAccess.js#placesFor(prisma, character, { gm, ghost, discordUserId })` is
+`db/lib/feedAccess.js#placesFor(prisma, character, { gm, ghost, spectator, discordUserId })` is
 the **one** answer, and `mayReadPlace` / `mayWritePlace` derive from it rather
 than the other way round — a rule that only exists in the list could never
 disagree with the rule that guards a send. The web routes and `db/lib/say.js`
@@ -2172,6 +2172,38 @@ Four things are read-only:
   last — the left column's sections are fixed either way, so order only decides
   which place Chat opens on. Before this a dead player's Chat was the DM thread
   and an empty column.
+
+- **A spectator speaks nowhere, and reads more than anyone but a GM.** Somebody
+  holding the Spectator role (`db/lib/roleIds.js`) with **no other seat** — not a
+  GM, no living character, not a ghost — while `GameState.phase` is RUNNING or
+  ENDED (`spectatorsVisible`, the same rule as their Discord overwrite)
+  (`web/lib/feedAccess.js#loadFeedViewer`: `spectator`). Last in line on
+  purpose: a player who also holds the role reads as themselves, so nobody in
+  the game ever reads other people's private scenes through it.
+  `spectatorPlacesFor` gives them every zone summary, every Location, **every
+  Room public and private**, **every Conversation**, **every party**, every net,
+  Deadchat and the Game channel — all `canSpeak: false`. The private ones are
+  open here and not on Discord for the reverse of the ghost's reason: on Discord
+  a reader in a private thread is a member the room can see; on the web nobody
+  is told a reader is there.
+
+  What keeps it short of a GM's seat is everything that is **not a place**. The
+  lens is a stranger's (`createLens` with no character and `gm: false`): hoods
+  stay hoods, bare faces read by name, a row meant for one reader is dropped.
+  None of the GM's tools come with it — no hood directory, no GM aside, no Look →
+  Dev Panel, no stash contents, no system composer — because none of them is
+  reachable without `viewer.gm` (`chat/gmTools.js`, `chat/actions.js`'s `gm*`
+  actions). No composer either: the box says *"You are spectating."* No Look, no
+  photograph, no star: those all need a body.
+
+  Their list is every Conversation and party in the game, which open and close
+  all turn with nothing to tell a stream that hangs off no character, so the SSE
+  stream rebuilds it on every ping (`reason: "watch"`, announced only when a
+  place came or went) and ends the moment they get a character of their own or
+  the phase leaves RUNNING/ENDED. `/map` gives them the whole plate, every place
+  and room, but **never a hidden way** (`map/actions.js`, `hiddenWays: false`).
+  The rail is `SPECTATOR_NAV` (Chat, Map, Documents, Handbook), and `/` sends
+  them to `/chat`.
 
 - **A ghost may look, but not photograph.** The eye in the feed
   (`chat/actions.js#lookAtRow`) resolves them to their last body, so a doctor who

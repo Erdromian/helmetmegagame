@@ -4,7 +4,7 @@
 // superadmin id (db/lib/roleIds.js#SUPERADMIN_DISCORD_IDS) fakes the full
 // GM/Playtest/Leader-Whitelist bundle, the fixed LOCAL_ECONOMIST_DISCORD_ID
 // below fakes the Economist role alone (no GM role, so /gm/* still bounces
-// it), any other id gets only Player (so /gm/* and /econ/* both bounce it),
+// it), LOCAL_SPECTATOR_DISCORD_ID the Spectator role alone, any other id gets only Player (so /gm/* and /econ/* both bounce it),
 // and writes are appended to LOCAL_OUTBOX_PATH with a
 // stand-in so `.id` reads don't throw. Nothing else should grow its own
 // `if (isLocalMode())` Discord branch — extend localDiscordRequest/localMember
@@ -22,6 +22,7 @@ const {
   PLAYTEST_ROLE_ID,
   TRIAL_GM_ROLE_ID,
   ECONOMIST_ROLE_ID,
+  SPECTATOR_ROLE_ID,
   SUPERADMIN_DISCORD_IDS,
 } = require("./roleIds");
 
@@ -40,6 +41,12 @@ const LOCAL_ROLES = [TRIAL_GM_ROLE_ID, PLAYTEST_ROLE_ID, CONTRIBUTOR_ROLE_ID, PL
 // it. Nothing else should ever answer to this id.
 const LOCAL_ECONOMIST_DISCORD_ID = "1000000000000000001";
 
+// The same for the Spectator seat (`npm run dev:session -- --spectator`):
+// Spectator alone, no Player, so it can never be mistaken for somebody between
+// characters. Spectator is still absent from LOCAL_ROLES above — a superadmin
+// testing the game is not watching it.
+const LOCAL_SPECTATOR_DISCORD_ID = "1000000000000000002";
+
 // Only a recognized superadmin id fakes the full GM bundle; the local
 // Economist test id gets Economist + Player (no GM role, so /gm/* still
 // bounces it); anything else gets just Player.
@@ -48,7 +55,9 @@ function localMember(userId) {
     ? [...LOCAL_ROLES]
     : userId === LOCAL_ECONOMIST_DISCORD_ID
       ? [ECONOMIST_ROLE_ID, PLAYER_ROLE_ID]
-      : [PLAYER_ROLE_ID];
+      : userId === LOCAL_SPECTATOR_DISCORD_ID
+        ? [SPECTATOR_ROLE_ID]
+        : [PLAYER_ROLE_ID];
   return {
     user: { id: userId, username: "local-dev", global_name: "Local Tester", avatar: null },
     roles,
@@ -117,4 +126,5 @@ module.exports = {
   isLocalMode,
   localDiscordRequest,
   LOCAL_ECONOMIST_DISCORD_ID,
+  LOCAL_SPECTATOR_DISCORD_ID,
 };

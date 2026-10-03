@@ -28,6 +28,7 @@ import { zoneKey } from "@/lib/zones";
 import { RING_SLUG } from "@lifeweb/db/lib/rings";
 import { scrambleState, scrambleFields, scrambleText } from "@lifeweb/db/lib/memoryScramble";
 import { mapHeadcounts } from "@lifeweb/db/lib/mapHeadcounts";
+import { spectatorsVisibleNow } from "@lifeweb/db/lib/spectatorAccess";
 
 // The map's one loader (/map and the /chat overlay both call it). THE FOG IS
 // REAL, NOT CSS: an unknown Location is absent from the payload entirely,
@@ -50,7 +51,7 @@ export async function loadMap({ revealAll = false } = {}) {
   const session = await auth();
   if (!session?.discordUserId) return { ok: false, error: "You are not signed in." };
 
-  const [character, { isGm }] = await Promise.all([
+  const [character, { isGm, isSpectator }] = await Promise.all([
     prisma.character.findFirst({
       where: { discordUserId: session.discordUserId, status: "ALIVE" },
       select: MOVER_SELECT,
@@ -59,9 +60,16 @@ export async function loadMap({ revealAll = false } = {}) {
   ]);
 
   // A GM with no living character reads the whole plate, with nothing to switch.
+  // A SPECTATOR with none reads it too, while the game is on (the same phase
+  // rule as their Chat, web/lib/feedAccess.js#loadFeedViewer) — every place and
+  // every room, but never a hidden way: a secret crawl is a thing somebody in
+  // the game found, not a fact about the board.
   if (!character) {
-    if (!isGm) return { ok: false, error: "You have no living character." };
-    return buildMap({ character: null, unfogged: true, canReveal: false });
+    if (isGm) return buildMap({ character: null, unfogged: true, canReveal: false });
+    if (isSpectator && (await spectatorsVisibleNow(prisma))) {
+      return buildMap({ character: null, unfogged: true, canReveal: false, hiddenWays: false });
+    }
+    return { ok: false, error: "You have no living character." };
   }
 
   // The self-heal below used to run HERE, awaited, before anything else — two
@@ -95,7 +103,9 @@ export async function loadHeadcounts() {
 // that need wave A. Nothing below reads a table twice: `graph` is ONE read of
 // Location and LocationLink, handed to the two callers that used to fetch their
 // own (db/lib/locationGraph.js#loadGraph).
-async function buildMap({ character, unfogged, canReveal }) {
+// `hiddenWays` lifts the `listed` filter on top of the fog — a GM's Show all
+// does both, a spectator's whole plate only the first.
+async function buildMap({ character, unfogged, canReveal, hiddenWays = unfogged }) {
 
   const [graph, config, openTurn, known, party, keys, conversations, acted] = await Promise.all([
     loadGraph(prisma),
@@ -362,7 +372,7 @@ async function buildMap({ character, unfogged, canReveal }) {
     }
     const verdict = crossingCheck(link, { tagSlugs, onFootBlocked, now });
     // The GM sees every way; only the `listed` filter is lifted.
-    if (!unfogged && !verdict.listed) continue;
+    if (!hiddenWays && !verdict.listed) continue;
     // A scrambled way comes off the board, except one touching where they
     // stand: what is next door is in front of them, not remembered (Map.docx).
     // The Ways out list and every travel check are untouched — this is only
@@ -392,7 +402,7 @@ async function buildMap({ character, unfogged, canReveal }) {
         : null,
       // Only on Show all, where a hidden way is drawn for a GM who holds nothing:
       // without it a hidden crawl and a locked door looked the same.
-      hidden: unfogged && link.hidden ? true : undefined,
+      hidden: hiddenWays && link.hidden ? true : undefined,
     });
   }
 

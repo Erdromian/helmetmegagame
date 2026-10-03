@@ -7,6 +7,7 @@ const { getGuildChannels, deleteGuildRole } = require("../../discordRest");
 const { ghostUserIds } = require("../../ghost");
 const { deadchatSeatHolders, openDeadchatTo, closeDeadchatTo } = require("../../deadchat");
 const { managedSpectatorChannels, spectatorDrift, applySpectatorOverwrite } = require("../../spectatorAccess");
+const { SPECTATOR_ROLE_ID } = require("../../roleIds");
 const { looksLikeCharacterRole, standingRoleIds, reconcileRoleMembership } = require("../shared");
 const { runLocationOccupancySweep } = require("./locationOccupancy");
 
@@ -124,6 +125,18 @@ async function runRoleMembershipSweep({
         `${actions + notes} rows stamped with a cave-level zoneId instead of the Caves seat`,
       );
     }
+  }
+
+  // The spectator role itself. Its id is hardcoded (db/lib/roleIds.js), so a
+  // role deleted and made again in the guild leaves every overwrite below
+  // aimed at nobody — each one written faithfully, and every spectator still
+  // locked out of everything. Report only: the fix is the new id in code.
+  if (!rolesById.has(SPECTATOR_ROLE_ID)) {
+    await report(
+      "spectator-role",
+      SPECTATOR_ROLE_ID,
+      "the Spectator role id in db/lib/roleIds.js is not a role in this guild, so no spectator overwrite reaches anyone",
+    );
   }
 
   // The spectator seat's visibility on every managed channel — the backstop

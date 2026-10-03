@@ -147,11 +147,19 @@ test("the two radio nets and Deadchat are described, with their categories", () 
   assert.ok(byKind(targets, "special-channel").length >= 2);
   assert.equal(byKind(targets, "deadchat-category").length, 1);
   assert.equal(byKind(targets, "deadchat-channel").length, 1);
-  // Deliberately NO spectator seat on Deadchat: it would be the death list at
-  // a glance, which is the leak the room was rebuilt to close.
-  const dead = byKind(targets, "deadchat-channel")[0];
+  // The spectator seat reads Deadchat, read-only, and the bits follow the phase
+  // like every other channel it reads (db/lib/spectatorAccess.js).
   const { SPECTATOR_ROLE_ID } = require("../lib/roleIds");
-  assert.ok(!dead.overwrites.some((o) => o.id === SPECTATOR_ROLE_ID));
+  const { spectatorOverwrite } = require("../lib/spectatorAccess");
+  const seat = (list) => list.find((o) => o.id === SPECTATOR_ROLE_ID);
+  const dead = byKind(targets, "deadchat-channel")[0];
+  assert.deepEqual(seat(dead.overwrites), spectatorOverwrite({ visible: true })[0]);
+  const hidden = byKind(build({ spectators: false }), "deadchat-channel")[0];
+  assert.deepEqual(seat(hidden.overwrites), spectatorOverwrite({ visible: false })[0]);
+  // The category stays bare, and #party carries no seat: its threads are
+  // private, which no role can be shown, and the web covers them instead.
+  assert.deepEqual(byKind(targets, "deadchat-category")[0].overwrites, []);
+  for (const party of byKind(targets, "party-channel")) assert.equal(seat(party.overwrites), undefined);
 });
 
 test("a Room thread carries the same hash syncRoomThread composes", () => {

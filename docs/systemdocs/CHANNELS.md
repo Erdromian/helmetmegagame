@@ -262,13 +262,28 @@ The overwrites every target carries (`baseOverwrites`):
   everything that is not a zone — `#turns`, the narrowcast channels, the report
   channel.
 - **The spectator seat** (`db/lib/spectatorAccess.js`) — read-only, and
-  **phase-gated**: the overwrite is always present, but it allows View only
-  while `GameState.phase` is RUNNING or ENDED and denies it in CLOSED and
-  LOBBY, so pre-launch testing pings no spectator (`LOBBY.md` §1). Every
+  **phase-gated**: the overwrite is always present, but it allows View and
+  **Read Message History** only while `GameState.phase` is RUNNING or ENDED and
+  denies View in CLOSED and LOBBY, so pre-launch testing pings no spectator
+  (`LOBBY.md` §1). Read History is granted by name because View alone opens a
+  channel with nothing in it wherever the guild doesn't hand that bit to every
+  role (every other read seat here grants it by name too). It was added on
+  2026-10-03, after spectators reported they could open no chat at all. Every
   spec producer takes the flag from its caller (`spectatorsVisibleNow`);
   every phase transition runs `syncSpectatorAccess`, which PUTs only where
   the live bits differ; and the doctor's **cheap** scope carries a
-  `spectator-visibility` check as the backstop.
+  `spectator-visibility` check as the backstop, which compares the bits — so
+  every bot start rewrites an overwrite written before a bit was added. A
+  `spectator-role` check beside it reports when `SPECTATOR_ROLE_ID` is not a
+  role in the guild at all, which would leave every one of those overwrites
+  aimed at nobody.
+
+  The seat covers every zone category and `#summary`, every Location channel
+  (so every **public** Room thread), `#turns`, the narrowcast nets and
+  `#deadchat`. It cannot cover a **private** thread — private Rooms,
+  Conversations and party threads — because Discord shows one only to its
+  members and to Manage Threads, and neither is a thing to hand a watcher.
+  Spectators read those on the web (`CHAT.md` §5a).
 - **The ghost seat** (`db/lib/ghostAccess.js`) — see §5.
 
 On top of that: the zone role gets `ViewChannel` + `SendMessages` +
@@ -753,8 +768,12 @@ It is opened by **per-member permission overwrites**, the way a Location channel
 is (§3) and never by a role. That is the whole point: an overwrite is visible
 only inside the channel it opens, and everyone who can open this one is already
 dead. `@everyone` is denied view and send; the GM roles get view and are
-**denied** send; there is deliberately **no spectator overwrite**, because a
-spectator seat reading this channel would be the full death list at a glance.
+**denied** send; the spectator seat gets the same read-only, phase-gated
+overwrite as every other channel it reads (the spectator seat, above). That used to be left off
+on purpose, as "the death list at a glance"; the seat was widened to the whole
+game on 2026-10-03, deaths included. The leak this room closed was a *player's*
+profile card saying who had died, and a member overwrite still says nothing to
+anyone outside the room.
 
 A seat is written when a character dies (`deathTeardown.js`, the turn engine's
 death step, `killCharacter`) and taken back when the player lives again

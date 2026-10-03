@@ -8,6 +8,7 @@
 //
 //   node scripts/dev/session.mjs --gm
 //   node scripts/dev/session.mjs --economist
+//   node scripts/dev/session.mjs --spectator
 //   node scripts/dev/session.mjs --character "Jorren"
 //   node scripts/dev/session.mjs 262426987979735040
 
@@ -117,6 +118,13 @@ export async function resolveTarget(argv, env = loadEnv()) {
     const require = createRequire(import.meta.url);
     const { LOCAL_ECONOMIST_DISCORD_ID } = require(resolve(REPO_ROOT, "db/lib/localMode.js"));
     return { discordUserId: LOCAL_ECONOMIST_DISCORD_ID, label: "local economist (LOCAL_MODE only)" };
+  }
+
+  // The same shape for the Spectator seat: Spectator and nothing else.
+  if (argv.includes("--spectator")) {
+    const require = createRequire(import.meta.url);
+    const { LOCAL_SPECTATOR_DISCORD_ID } = require(resolve(REPO_ROOT, "db/lib/localMode.js"));
+    return { discordUserId: LOCAL_SPECTATOR_DISCORD_ID, label: "local spectator (LOCAL_MODE only)" };
   }
 
   const charIndex = argv.indexOf("--character");

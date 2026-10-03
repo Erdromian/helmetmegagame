@@ -776,7 +776,7 @@ state, plus one env-configured admin role.
 | **Personal character role** | `Character.discordRoleId`, one per `ALIVE` character, titled after the **bare** name | A mentionable **name token only** (`PROXYING.md` §6) — held by nobody and granting nothing. Channel access is the **zone role and the Location overwrite** instead (`CHANNELS.md` §3). |
 | **GM role** | `DISCORD_GM_ROLE_ID` env var, **or** `TRIAL_GM_ROLE_ID` in `db/lib/roleIds.js` | `/gm` pages, the `/gm` and `/message` slash commands, and the GM's standing channel overwrites. Checked via REST (`isGm`), not stored on any model. The two are access-identical — `gmRoleIds()` is the only list, and the roster on `/gm/dev?s=gamemasters` is the one surface that tells them apart. |
 | **Economist role** | `ECONOMIST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A limited admin subset, **not** a GM seat: the `(econ)` route group only — `/econ/economy` (the same catalog/pricing report as `/gm/economy`) and `/econ/players` (a read-only, funds-and-economic-tags-only player lookup; `web/lib/economicTags.js` decides what counts). No Turns, Audit, Oracle, Dev, or the messaging desk — `(econ)` is a separate route group from `(desk)` specifically so it can never reach that code (`ECONOMY.md` §7). |
-| **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, applied at provisioning time. See `CHANNELS.md`. |
+| **Spectator role** | `SPECTATOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A standing read-only observer seat, while the game is RUNNING or ENDED. On Discord: every zone, Location, public Room, `#turns`, net and `#deadchat`, View + Read History (`CHANNELS.md`). On the web, for a holder with no character and no ghost seat: every place a GM reads plus parties, through a stranger's lens, no GM tools (`CHAT.md` §5a). Private threads are web-only. |
 | **Player role** | `PLAYER_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Who may ready up in the lobby or create a character, paired with `GameState.phase` (`LOBBY.md` §1, `CHARACTERS.md` §4b). |
 | **Playtest role** | `PLAYTEST_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | Counts as on the roster without the Player role, and is on the playtest-mode allowlist (which only applies while the **Require Playtest role** switch is on). It does **not** skip the lobby or the phase gate — only a GM gets the Skip button (`LOBBY.md` §2). Testing access, nothing else. |
 | **Contributor role** | `CONTRIBUTOR_ROLE_ID`, hardcoded in `db/lib/roleIds.js` | A separate seat from Playtest: the people who work on Bascinet. Read by exactly one gate — `GameConfig.playtestModeEnabled`, which narrows the roster to GMs, playtesters and Contributors while `playtestRequiresRole` is on (`LOBBY.md` §2). Grants nothing else. |
@@ -874,8 +874,9 @@ role. A ghost speaks as `Solomon Baker (Pub Fries)` — their character's name a
 their account handle, composed at send time and frozen into
 `ArchiveEntry.characterName`, keeping the avatar the character had in game. It
 is **not** a `SPECIAL_CHANNELS` entry, and `db/lib/deadchat.js`'s header says
-why — three things in that registry are actively wrong for it, one of them a
-spectator overwrite that would publish the death list.
+why — three things in that registry are actively wrong for it. The spectator
+seat does read it (read-only, since 2026-10-03), but that overwrite is set by
+`deadchat.js` and the mirror on purpose rather than inherited.
 
 It persists across turns on both faces: `runMessageWipe` never walks it, and
 `db/lib/feedWipe.js#isPersistentPlace` is what stops the web disagreeing.

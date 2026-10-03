@@ -19,7 +19,7 @@ const MAX_QUERY = 80;
 export async function GET(request) {
   const viewer = await loadFeedViewer();
   if (!viewer.discordUserId) return Response.json({ error: "Sign in first." }, { status: 401 });
-  if (!viewer.character && !viewer.gm && !viewer.ghost) {
+  if (!viewer.character && !viewer.gm && !viewer.ghost && !viewer.spectator) {
     return Response.json({ error: "You have no living character." }, { status: 403 });
   }
 
@@ -58,7 +58,15 @@ export async function GET(request) {
            ae."sentAt",
            ae."source",
            ae."editedAt",
-           ae."deletedAt"
+           ae."deletedAt",
+           -- What the lens needs and FEED_ROW_SELECT carries (db/lib/archive.js): who a row is for, the
+           -- names a people-line renders per reader, and whether an alias is a disguise. Left out, a
+           -- telephone's one-reader line was found by everybody else in the room.
+           ae."onlyCharacterId",
+           ae."exceptCharacterId",
+           ae."subjects",
+           ae."disguised",
+           ae."disguiseGroup"
     FROM "ArchiveEntry" ae
     WHERE ae."placeKey" IN (${keys})
       AND ae."deletedAt" IS NULL

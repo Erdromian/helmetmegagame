@@ -4,6 +4,7 @@ import { prisma } from "@lifeweb/db";
 import { placesFor as placesForCharacter, findPlace, mayReadPlace, mayWritePlace } from "@lifeweb/db/lib/feedAccess";
 import { feedWipeFloors, placeSeqWhere } from "@lifeweb/db/lib/feedWipe";
 import { isPlayerGhost } from "@lifeweb/db/lib/ghost";
+import { spectatorsVisibleNow } from "@lifeweb/db/lib/spectatorAccess";
 import { getGmSession } from "@/lib/discordGuild";
 import { readChatViewAs } from "@/lib/viewAs";
 
@@ -131,18 +132,23 @@ export async function loadFeedCharacter(discordUserId) {
 // that penalty, also threw the player out of the game they were still watching. The two are separate
 // now and must stay separate: curse.js still decides points, and nothing but ghost.js decides seats.
 //
+// A SPECTATOR (the Discord role, with no character and no body) reads every
+// place a GM does, plus party threads, through a stranger's lens and with no
+// voice anywhere — see `spectator` below and db/lib/feedAccess.js
+// #spectatorPlacesFor.
+//
 // `options` is what every db/lib/feedAccess.js call needs:
-// `{ gm, ghost, discordUserId }`.
+// `{ gm, ghost, spectator, discordUserId }`.
 // cache()d because every page's header asks for it now (AppHeader -> TurnMeta)
 // and /chat asks again for its own load. One small indexed lookup either way,
 // but there is no reason for a page to run it twice in a request.
 export const loadFeedViewer = cache(async () => {
-  const { session, isGm, inGuild } = await getGmSession();
+  const { session, isGm, isSpectator, inGuild } = await getGmSession();
   // Departed the guild: no read (and, via /api/feed/say, no write) of Chat or
   // Deadchat — a session surviving OAuth is not the same as still having web
   // access (root CLAUDE.md "Web app auth"). Treated exactly like signed out.
   if (!session?.discordUserId || !inGuild) {
-    return { discordUserId: null, character: null, playing: null, canViewAsGm: false, gm: false, ghost: false, options: null };
+    return { discordUserId: null, character: null, playing: null, canViewAsGm: false, gm: false, ghost: false, spectator: false, options: null };
   }
 
   const playing = await loadFeedCharacter(session.discordUserId);
@@ -171,6 +177,15 @@ export const loadFeedViewer = cache(async () => {
   // draws no composer. `playing` rides alongside for anyone who needs to know
   // there is a body behind the seat.
   const character = gm ? null : playing;
+
+  // The SPECTATOR seat: the Spectator role, and no other seat at all. Last in
+  // line on purpose — somebody playing or dead reads as themselves, so a player
+  // who also holds the role never reads other people's private scenes, and a GM
+  // keeps the GM's view. It follows the phase exactly as the role's Discord
+  // overwrite does (db/lib/spectatorAccess.js): nothing while the game is
+  // CLOSED or in LOBBY, so pre-launch testing is watched by nobody.
+  const spectator =
+    !gm && !playing && !ghost && Boolean(isSpectator) && (await spectatorsVisibleNow(prisma));
   return {
     discordUserId: session.discordUserId,
     character,
@@ -178,6 +193,7 @@ export const loadFeedViewer = cache(async () => {
     canViewAsGm,
     gm,
     ghost,
-    options: { gm, ghost, discordUserId: session.discordUserId },
+    spectator,
+    options: { gm, ghost, spectator, discordUserId: session.discordUserId },
   };
 });
