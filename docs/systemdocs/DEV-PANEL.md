@@ -101,13 +101,17 @@ can't disagree about what an affliction is.
   **Drawbacks**, and the bare **This turn** answered questions nobody was
   asking and are gone; in their place:
 
-  - **Concealed** — a resolved answer that can disagree with what the player
-    set: `Character.concealed` is only a wish and takes effect solely while
-    something concealing is equipped, so it says **On, but nothing worn** for
-    the state that reads to a player as "my hood does not work". The
-    resolution happens in `web/lib/devPanelData.js`, through
-    `presentedIdentity` — the same function every send path asks — rather
-    than being restated on the client.
+  - **Seen as** — what the room sees of them: **Hooded**, **Disguised**,
+    **Public name** (Apex Form's Beast) or **Own face**, with the whole of it
+    underneath (the piece over the face, the name and job a disguise claims,
+    a disguise hidden under a hood). `Character.concealed` is only a wish and
+    takes effect solely while something concealing is equipped, so a hood
+    switched on with nothing worn reads **Own face** with "Hood wanted up, but
+    nothing worn" under it, the state that reads to a player as "my hood does
+    not work". Resolved in `web/lib/devPanelData.js` through
+    `db/lib/gmPresentation.js`, the one answer every GM surface reads
+    (`STRANGERS.md` §10a). It replaced a **Concealed** tile that read the chip
+    rows, which carry no `concealSprite`, so it never said Yes under a hood.
   - **This turn** — now the Move's own kind (`moveKindLabel`,
     `web/lib/moves.js`) when they've filed one, opening to its description —
     a fact about this character, never a rule.

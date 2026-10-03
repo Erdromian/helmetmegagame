@@ -6,6 +6,7 @@
 // there, and the db/lib module each names, is the rulebook; this is only the
 // writer. See ./common.js for the result shape.
 const { blockerFor, ACT } = require("../incapacitation");
+const { presentationStamp } = require("../gmPresentation");
 const { hasAttribute, SOILERY_ATTRIBUTE, GODFLESH_ATTRIBUTE } = require("../locationAttributes");
 const { resolveMiningRate, lazyYield, lazyExpression, formatMiningBonusNote } = require("../mining");
 const { rollResourceRange } = require("../resourceDelta");
@@ -72,6 +73,7 @@ function mineHere(prisma, { character, discordUserId, openTurn }) {
             resourceRollValue: value,
             zoneId: rate.zoneId ?? character.zoneId ?? null,
             locationId: character.locationId ?? null,
+            presentedAs: await presentationStamp(tx, character.id),
             gmNotes: AUTO_MINE_NOTE,
           },
         });
@@ -138,7 +140,7 @@ function farmHere(prisma, { character, discordUserId, openTurn }) {
         `Working the fields: planting ${planted} crops.`,
         "auto:farm",
         null,
-        { deferEffects: true, farmPlan },
+        { deferEffects: true, farmPlan, presentedAs: await presentationStamp(tx, character.id) },
       );
       await logAudit(tx, {
         actorDiscordUserId: discordUserId,
@@ -189,7 +191,7 @@ function refineHere(prisma, { character, discordUserId, openTurn }) {
         "Refining Godflesh on the Factory floor.",
         AUTO_REFINE_NOTE,
         null,
-        { deferEffects: true },
+        { deferEffects: true, presentedAs: await presentationStamp(tx, character.id) },
       );
       await logAudit(tx, {
         actorDiscordUserId: discordUserId,
@@ -274,6 +276,7 @@ function breakInArelitz(prisma, { character, discordUserId, tagId, sourceKey, op
             diceModifier: gambitModifierTotal(character.tags, { mood: character.mood }),
             zoneId: character.zoneId ?? null,
             locationId: character.locationId ?? null,
+            presentedAs: await presentationStamp(tx, character.id),
             gmNotes: "auto:break_arelitz",
             breakInPlan,
           },

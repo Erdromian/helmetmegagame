@@ -9,6 +9,7 @@ import StatusPill, { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusP
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import MatchHint from "@/app/components/MatchHint";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import DevPanelModal from "@/app/components/DevPanelModal";
 import Select from "@/app/components/Select";
 import { useTableState, SortHeader, FilterBar, TableScroll } from "@/app/components/DataTable";
@@ -272,6 +273,7 @@ export default function RosterTable({
                   <Link href={`/gm/players/${c.discordUserId}`} className="menu-item">
                     {c.name}
                   </Link>
+                  <GmLook now={c.look} compact />
                   <MatchHint
                     match={match}
                     values={{ role: c.roleTitle, zone: c.zoneName }}

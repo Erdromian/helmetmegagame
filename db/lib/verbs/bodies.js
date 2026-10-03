@@ -5,6 +5,7 @@
 // their watching seat alone (db/lib/curse.js, db/lib/ghost.js). See
 // ./common.js for the result shape.
 const { corpsesInReach } = require("../corpses");
+const { presentationStamp } = require("../gmPresentation");
 const { dropRoomTag, addToStack } = require("../tagWrites");
 const { checkLedgerMove, spendLedgerMove } = require("../moveLedger");
 const { autoMovesOpen } = require("../turnGate");
@@ -39,7 +40,8 @@ async function resolveCraftMove(prisma, character, openTurn, need) {
 }
 
 async function spendCraftMove(tx, { character, openTurn, need, entry, notes }) {
-  const out = await spendLedgerMove(tx, { character, turn: openTurn, need, entry, description: null, notes });
+  const presentedAs = await presentationStamp(tx, character.id); // for the GM desk (db/lib/gmPresentation.js)
+  const out = await spendLedgerMove(tx, { character, turn: openTurn, need, entry, description: null, notes, presentedAs });
   if (!out.ok) refuse(out.reason);
 }
 

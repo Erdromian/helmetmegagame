@@ -982,7 +982,10 @@ answers by DM for the same reason.
 ⚜️ applies **no** vision gates — every tag, the Desire, this
 turn's Action, and the real name even on a concealed message. It has **no
 channel fallback** when the DM bounces, unlike every other embed here:
-posting it in the channel would hand the room everything it hides.
+posting it in the channel would hand the room everything it hides. Its **On
+this line** and **Now** fields say what the room saw, a hood, a disguise or a
+public name told apart (`bot/src/lib/dossierLook.js`, `STRANGERS.md` §10a), and
+a GM's **Who's here?** lists every real name with the same beside it.
 
 ⚜️ is also the Move button's emoji. Buttons and reactions share no namespace,
 so this is not a collision.

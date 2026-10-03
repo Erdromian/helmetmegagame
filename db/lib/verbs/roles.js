@@ -11,6 +11,7 @@
 // a hint, not a lock. `character` needs id, name, locationId, discordUserId and
 // tags[].tag.slug.
 const { THANATI_SLUG, THANATI_LEADER_SLUG, RECOVERABLE_SLUGS, listComrades } = require("../thanati");
+const { presentationStamp } = require("../gmPresentation");
 const { accessibleRooms, roomAccessKeys } = require("../roomAccess");
 const { accessSlugsOf } = require("../rings");
 const { grantTagSlugs, dropCharacterTag } = require("../tagWrites");
@@ -93,7 +94,9 @@ function recoverEquipment(prisma, { character, discordUserId, openTurn }) {
     if (recent > 0) refuse("Not again so soon.");
     const granted = await prisma.$transaction(async (tx) => {
       const rows = await grantTagSlugs(tx, character.id, missing, openTurn.number);
-      await fileAutoRoutine(tx, character, openTurn, "Recovered equipment.", "auto:recover");
+      await fileAutoRoutine(tx, character, openTurn, "Recovered equipment.", "auto:recover", null, {
+        presentedAs: await presentationStamp(tx, character.id),
+      });
       await logAudit(tx, {
         actorDiscordUserId: discordUserId,
         actionType: RECOVER_ACTION,

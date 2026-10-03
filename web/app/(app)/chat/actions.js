@@ -92,6 +92,8 @@ import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, whosHereGm, resolveHoodToken, resolveCrossRoomRef } from "@lifeweb/db/lib/whosHere";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
 import { VIEWER_SELECT, examineRow, examineRowForGm } from "@lifeweb/db/lib/examineRow";
+import { loadPresentations } from "@lifeweb/db/lib/gmPresentation";
+import { lineLookKind } from "@lifeweb/db/lib/archive";
 import { EXAMINE_SUBJECT_SELECT, examineReadout } from "@lifeweb/db/lib/examine";
 import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { STAR_ROW_SELECT, saveStarredRow } from "@/lib/starNote";
@@ -1540,6 +1542,9 @@ export async function gmCardOf({ seq = null, characterId = null } = {}) {
 
   let subjectId = null;
   let readout = null;
+  // The look the LINE froze (hood, disguise, public name, and the name the room read), for a card on a
+  // line; undefined for a card on a person, which has no moment to freeze and shows only today's.
+  let then;
   if (seq != null) {
     const look = await examineRowForGm(prisma, session.discordUserId, String(seq));
     if (!look?.readout) return { ok: false, error: "Nobody said that." };
@@ -1550,17 +1555,25 @@ export async function gmCardOf({ seq = null, characterId = null } = {}) {
     } catch {
       return { ok: false, error: "That line is gone." };
     }
-    const row = await prisma.archiveEntry.findUnique({ where: { seq: key }, select: { characterId: true } });
+    const row = await prisma.archiveEntry.findUnique({
+      where: { seq: key },
+      select: { characterId: true, concealedAlias: true, disguised: true, presentedAvatarPath: true },
+    });
     subjectId = row?.characterId ?? null;
+    const kind = lineLookKind(row);
+    then = kind ? { kind, shownAs: row.concealedAlias } : null;
   } else if (characterId) {
     subjectId = String(characterId);
   }
   if (!subjectId) return { ok: false, error: "Nobody said that." };
 
-  const character = await prisma.character.findUnique({
-    where: { id: subjectId },
-    select: { ...EXAMINE_SUBJECT_SELECT, roleTitle: true, role: { select: { groupSlug: true } } },
-  });
+  const [character, looks] = await Promise.all([
+    prisma.character.findUnique({
+      where: { id: subjectId },
+      select: { ...EXAMINE_SUBJECT_SELECT, roleTitle: true, role: { select: { groupSlug: true } } },
+    }),
+    loadPresentations(prisma, [subjectId]),
+  ]);
   if (!character) return { ok: false, error: "They are gone." };
 
   if (!readout) {
@@ -1573,9 +1586,9 @@ export async function gmCardOf({ seq = null, characterId = null } = {}) {
     name: character.name,
     roleTitle: character.roleTitle ?? null,
     roleGroup: roleGroupHue(character.role?.groupSlug),
-    // The name the room had for them, when it was not their own: a hood, a forced name, a disguise.
-    showingAs: readout.name && readout.name !== character.name ? readout.name : null,
-    hooded: Boolean(readout.concealed),
+    // What the room had for them, when it was not their own face (GmLook.js): the line's frozen look
+    // (`then`, on a line only) and today's (`now`), a hood, a disguise and a public name told apart.
+    look: { then, now: looks.get(subjectId) ?? null },
     alert: Boolean(readout.alert),
     seen: [...(readout.ailments ?? []), ...(readout.equipment ?? []), ...(readout.tags ?? []).map((t) => t.name)],
   };

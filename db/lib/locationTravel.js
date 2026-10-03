@@ -3,6 +3,7 @@
 // EVERY crossing lands at once, paid or free — the Move is still spent, and you are there (MAP.md §3). Deliberately NOT on the @lifeweb/db barrel; require it by path.
 const { recordArchiveEvent } = require("./archive");
 const { sessionGate } = require("./betweenSessions");
+const { presentationStamp } = require("./gmPresentation");
 const { travelLockReason } = require("./turnGate");
 const { seatZoneIdFor } = require("./seatZone");
 const { rollCavingOnArrival, cavingRestrictionsFor, cavingRefusalFor, cavingPartyRestrictions } = require("./cavingPass");
@@ -677,6 +678,7 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
               // The SEAT zone, not the presence zone — a Move filed from the
               // Railroad belongs on the Caves GM's table.
               zoneId: seatZoneIdFor(targetLocation.zone),
+              presentedAs: await presentationStamp(tx, character.id),
               resultMessage: `» Travelled to ${targetLocation.name}.`,
               gmNotes: "auto:zone_change",
             },

@@ -6,13 +6,14 @@
 // the two buckets that are not coloured are exactly the ones holding every seat
 // a look may not read. Concealed characters come back separately. A forced
 // name (Tag.forcedName) outranks a real one and never joins the concealed list.
-const { CONCEALMENT_TAG_FIELDS, concealmentFrom, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
+const { CONCEALMENT_TAG_FIELDS, concealmentFrom, deathMaskPiece, forcedNameFrom, presentedIdentity } = require("./presentedIdentity");
 const { aliasRow, LOOK_SLUGS } = require("./concealedIdentity");
 const { lastSightings } = require("./sightings");
 const { UNBURIED_BODY_WHERE } = require("./presence");
 const { hoodToken, performerKey } = require("./hoodToken");
 const { hasEverPerformed } = require("./performance"); // leaf requires only; no cycle. // its own leaf to avoid a require cycle; re-exported below.
 const { roleGroupHue } = require("./roleGroups");
+const { presentationOf, withJobGroups } = require("./gmPresentation");
 const { knownSubjects, settlePresence, labelAliases } = require("./strangers");
 const {
   disguiseNameFrom,
@@ -69,21 +70,6 @@ const PRESENT_SELECT = {
 const ONLINE_WINDOW_MS = 60 * 60_000;
 function isOnline(lastSeenAt, now = Date.now()) {
   return Boolean(lastSeenAt) && now - lastSeenAt.getTime() < ONLINE_WINDOW_MS;
-}
-
-// What a dead body still has over its face, or null. The remembered tag has to
-// be BOTH stamped and still held — a dangling id (the catalog pruned it, or
-// somebody walked off with the helmet) reads as a bare face, which is the safe
-// direction and the one that makes looting a mask off mean something.
-function deathMaskPiece(row) {
-  if (!row?.deathMaskTagId || !Array.isArray(row.tags)) return null;
-  const held = row.tags.find((ct) => ct.tagId === row.deathMaskTagId);
-  const tag = held?.tag;
-  if (!tag?.concealsIdentity || !tag?.concealSprite) return null;
-  // No `forced`: it means "a sack you cannot take off", and the dead branch
-  // below decides hidden on the death mask's presence alone, so nothing would
-  // read it. A field nothing reads is a field somebody trusts wrongly later.
-  return { sprite: tag.concealSprite, name: tag.name ?? null, tagId: row.deathMaskTagId };
 }
 
 // The Disguise Kit name somebody alive is going by, or null (./disguises.js).
@@ -509,17 +495,20 @@ function concealedRows(rows, { withTokens, lookRefs = false }) {
 
 // WHO IS ACTUALLY STANDING THERE, for a GM: no sightings and no hood tokens.
 // The role title is here and nowhere else — a GM reads it, a player never does.
-// `presentedAs` is the alias the room sees, the one thing the player list can never tell them.
+// `look` is what the room sees, the one thing the player list can never tell them: hooded, disguised
+// or a public name, the piece over the face, the job a disguise claims (db/lib/gmPresentation.js).
 async function whosHereGm(prisma, locationId) {
   if (!locationId) return [];
   const rows = await presentRows(prisma, null, { locationId });
-  return rows.map((c) => ({
+  const looks = rows.map((c) => presentationOf(c));
+  await withJobGroups(prisma, looks.filter(Boolean));
+  return rows.map((c, i) => ({
     characterId: c.id,
     name: c.name,
     roleTitle: c.roleTitle ?? null,
     // The estate the real name is painted in — theirs, never a disguise's claim.
     roleGroup: roleGroupHue(c.role?.groupSlug),
-    presentedAs: c.forced ?? (c.hidden ? aliasRow(c, null) : null), // forced name is not a hood (PROXYING.md §5).
+    look: looks[i],
     avatarVersion: c.updatedAt?.getTime?.() ?? null,
     online: isOnline(c.lastSeenAt),
   }));

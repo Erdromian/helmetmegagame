@@ -28,6 +28,8 @@ import Select from "./Select";
 import useArchiveScroll from "./useArchiveScroll";
 import ArchiveActionSentence from "./ArchiveActionSentence";
 import Switch from "./Switch";
+import GmLook from "./GmLook";
+import { lineKindWord } from "@lifeweb/db/lib/gmLookText";
 import { archiveParamsToQuery } from "@/lib/archiveQuery";
 import { useVisibleZoneNames } from "./GmZoneViewProvider";
 import { getDmThreadPage, sendGmDm } from "@/app/(desk)/gm/players/actions";
@@ -408,6 +410,8 @@ function MovesView({ data }) {
               {r.paidLabel ? `paid ${r.paidLabel}` : ""}
             </p>
           )}
+          {/* How they looked when they filed it. */}
+          <GmLook then={r.look} frozen />
           <p className="text-sm">{r.description}</p>
           {r.resultMessage && <p className="text-sm text-muted">Result: {r.resultMessage}</p>}
           {r.messages.map((m) => (
@@ -561,7 +565,7 @@ function ArchiveRows({ query, onOpenContext }) {
             density="thread-compact"
             gutter={false}
             startsRun
-            name={r.alias ? `${r.alias} (${r.realName})` : r.realName}
+            name={r.alias ? `${r.alias} (${r.realName}${lineKindWord(r.presentedKind) ? `, ${lineKindWord(r.presentedKind)}` : ""})` : r.realName}
             alias={Boolean(r.alias)}
             meta={
               <>
@@ -842,6 +846,8 @@ export default function InspectorColumn({
   const inspectedRoster = roster?.find((c) => c.id === inspected?.characterId);
   const inspectedUsername = inspectedRoster?.username;
   const inspectedRole = inspectedRoster?.roleTitle;
+  // What the room sees of them now, off the Sheet payload (getCharacterInspector) when it is in hand.
+  const inspectedLook = inspected ? (cache.get(`${inspected.characterId}:Sheet`)?.data?.look ?? null) : null;
 
   // On the narrow tiers this column is an overlay the desk header toggles
   // open; on a wide screen `open` is not read at all and the column is simply
@@ -900,6 +906,7 @@ export default function InspectorColumn({
                 {inspectedUsername && <span className="ml-1.5 text-xs text-muted">@{inspectedUsername}</span>}
               </span>
               {inspectedRole && <span className="text-xs text-muted truncate">{inspectedRole}</span>}
+              <GmLook now={inspectedLook} />
             </span>
             <span className="flex items-center gap-1.5">
               <button

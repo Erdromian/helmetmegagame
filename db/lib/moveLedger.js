@@ -146,7 +146,10 @@ async function fileAutoRoutine(
   description,
   gmNotes,
   craftBudget = null,
-  { deferEffects = false, farmPlan = null, moveReviewStatus = "PASSED" } = {},
+  // `presentedAs`: how they looked as it was filed, for the GM desk (db/lib/gmPresentation.js#presentationStamp).
+  // The CALLER works it out and hands it in: this file reaches "use client" bundles through craftBudget.js,
+  // and gmPresentation's chain cannot go there, not even behind a require inside the function.
+  { deferEffects = false, farmPlan = null, moveReviewStatus = "PASSED", presentedAs = null } = {},
 ) {
   // The floor under the session gate (SESSIONS.md §5). Every caller is refused
   // long before here, but nothing may write an Action row between sittings,
@@ -172,6 +175,7 @@ async function fileAutoRoutine(
         ...(farmPlan ? { farmPlan } : {}),
         zoneId: character.zoneId ?? null,
         locationId: character.locationId ?? null,
+        ...(presentedAs ? { presentedAs } : {}),
         gmNotes,
       },
     });
@@ -198,7 +202,8 @@ async function fileAutoRoutine(
 // GM reopened stays as they left it.
 //
 // Returns { ok: true, action, budget } or { ok: false, reason }.
-async function spendLedgerMove(tx, { character, turn, need, entry, description = null, notes = LEDGER_MARKER }) {
+// `presentedAs` is fileAutoRoutine's, worked out by the caller for the same reason.
+async function spendLedgerMove(tx, { character, turn, need, entry, description = null, notes = LEDGER_MARKER, presentedAs = null }) {
   await lockCharacter(tx, character.id);
   const existing = await tx.action.findFirst({
     where: { characterId: character.id, turnId: turn.id },
@@ -210,7 +215,7 @@ async function spendLedgerMove(tx, { character, turn, need, entry, description =
   const ledger = check.ledger;
   // No family, no ledger: takes the whole Move, and the next verb that turn is refused by the Action's own existence.
   if (!need.family) {
-    const filed = await fileAutoRoutine(tx, character, turn, description, notes);
+    const filed = await fileAutoRoutine(tx, character, turn, description, notes, null, { presentedAs });
     return filed.ok ? { ok: true, action: filed.action, budget: null } : filed;
   }
   const entries = [...(ledger?.entries ?? []), entry];
@@ -220,6 +225,7 @@ async function spendLedgerMove(tx, { character, turn, need, entry, description =
   if (!existing) {
     const filed = await fileAutoRoutine(tx, character, turn, line, notes, budget, {
       moveReviewStatus: curing ? "SOLVED" : "PASSED",
+      presentedAs,
     });
     return filed.ok ? { ok: true, action: filed.action, budget } : filed;
   }

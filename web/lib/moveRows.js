@@ -10,6 +10,7 @@ import { desireIsAutoRejected, desireIsAutoUnchecked } from "@lifeweb/db/lib/des
 import { isSelfResolving } from "@lifeweb/db/lib/autoGambits";
 import { COMPELLED_GM_LINE } from "@lifeweb/db/lib/compulsionLines";
 import { moveWhere, moveLocationId } from "./moveWhere";
+import { lookPair } from "@lifeweb/db/lib/gmPresentation";
 
 // Re-exported: the bulk loaders (deskRows.js, the /gm/turns page) take every desk-row helper from here.
 export { moveLocationId };
@@ -131,13 +132,18 @@ function standingHereLines(structures) {
   });
 }
 
-export function moveRow(a, { usernameById, now, structuresByLocationId }) {
+// `looks` (every row builder below takes it) is deskRows.js#deskLooks's answer for the rows being built:
+// what the room saw of each person, frozen when they acted and as of now (db/lib/gmPresentation.js).
+// Optional, so a caller that never loaded them still builds a row, only without the look.
+export function moveRow(a, { usernameById, now, structuresByLocationId, looks }) {
   const where = moveWhere(a);
   const username = usernameById.get(a.character.discordUserId) ?? a.character.discordUserId;
   return {
     id: a.id,
     characterId: a.characterId,
     characterName: a.character.name,
+    // Hooded, disguised or a public name when they filed it, and now (GmLook.js).
+    look: lookPair(a.presentedAs, a.characterId, looks),
     avatarVersion: a.character.updatedAt.getTime(),
     // AFK marker for the queue row's avatar badge, read off the tags MOVE_INCLUDE already loads.
     catatonic: a.character.tags.some((ct) => ct.tag?.slug === CATATONIC_SLUG),
@@ -200,7 +206,7 @@ export function moveRow(a, { usernameById, now, structuresByLocationId }) {
   };
 }
 
-export function stagedEffectRow(e, { usernameById, locationNameById, openTurn }) {
+export function stagedEffectRow(e, { usernameById, locationNameById, openTurn, looks }) {
   return {
     id: e.id,
     moveId: e.moveId,
@@ -211,6 +217,7 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
     targetCharacterId: e.targetCharacterId,
     targetName: e.targetCharacterId ? (e.targetCharacter?.name ?? "(deleted)") : null,
     targetAvatarVersion: e.targetCharacter?.updatedAt ? e.targetCharacter.updatedAt.getTime() : null,
+    targetLook: e.targetCharacterId ? (looks?.now?.get(e.targetCharacterId) ?? null) : null,
     resources: e.payload?.resources ?? 0,
     tagPoints: e.payload?.tagPoints ?? 0,
     tagOps: e.payload?.tagOps ?? [],
@@ -246,7 +253,7 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn })
   };
 }
 
-export function stagedMessageRow(m, { usernameById, openTurn }) {
+export function stagedMessageRow(m, { usernameById, openTurn, looks }) {
   return {
     id: m.id,
     moveId: m.moveId,
@@ -261,6 +268,7 @@ export function stagedMessageRow(m, { usernameById, openTurn }) {
       characterId: r.character.id,
       name: r.character.name,
       avatarVersion: r.character.updatedAt.getTime(),
+      look: looks?.now?.get(r.character.id) ?? null,
     })),
     sent: Boolean(m.sentAt),
     deliveryFailures: m.deliveryFailures ?? null,
@@ -336,7 +344,7 @@ export const DESIRE_CLAIM_INCLUDE = {
 // (the claim found its own proof — reviewedAt stamped, no person behind it),
 // Reviewed by a GM, and Auto-rejected (the GM switch turned it down for want of
 // proof; nothing was paid). An auto row a GM then Keeps becomes Reviewed.
-export function desireClaimRow(d, { usernameById, catatonicIds } = {}) {
+export function desireClaimRow(d, { usernameById, catatonicIds, looks } = {}) {
   const c = d.character;
   const reviewed = Boolean(d.reviewedAt);
   const auto = desireIsAutoUnchecked(d);
@@ -345,6 +353,7 @@ export function desireClaimRow(d, { usernameById, catatonicIds } = {}) {
     id: d.id,
     characterId: c.id,
     characterName: c.name,
+    look: lookPair(undefined, c.id, looks),
     avatarVersion: c.updatedAt.getTime(),
     catatonic: catatonicIds?.has(c.id) ?? false,
     discordUsername: usernameById?.get?.(c.discordUserId) ?? "",
@@ -392,7 +401,7 @@ export const OOC_INCLUDE = {
   room: { select: { name: true } },
 };
 
-export function oocRow(a, { usernameById, catatonicIds, mutedUntilByUser } = {}) {
+export function oocRow(a, { usernameById, catatonicIds, mutedUntilByUser, looks } = {}) {
   const c = a.targetCharacter;
   const text = typeof a.details?.text === "string" ? a.details.text : "";
   // A Room is the more precise of the two and the one a GM recognises; the
@@ -403,6 +412,7 @@ export function oocRow(a, { usernameById, catatonicIds, mutedUntilByUser } = {})
     id: a.id,
     characterId: c?.id ?? null,
     characterName: c?.name ?? "Somebody",
+    look: c ? lookPair(undefined, c.id, looks) : { now: null },
     // The ACCOUNT, because both of the desk's verbs are about the player: the
     // DM goes to them, and an OOC mute is keyed on them (schema.prisma, OocMute).
     discordUserId: account,
@@ -425,12 +435,14 @@ export function oocRow(a, { usernameById, catatonicIds, mutedUntilByUser } = {})
   };
 }
 
-export function cavingRollRow(c, { usernameById, catatonicIds }) {
+export function cavingRollRow(c, { usernameById, catatonicIds, looks }) {
   const nameFor = usernameById.get(c.character.discordUserId) ?? c.character.discordUserId;
   return {
     id: c.id,
     characterId: c.characterId,
     characterName: c.character.name,
+    // Frozen at the 1 (a TROUBLE row only; QUIET and FIND carry none), and now.
+    look: lookPair(c.presentedAs, c.characterId, looks),
     avatarVersion: c.character.updatedAt.getTime(),
     catatonic: catatonicIds?.has(c.characterId) ?? false,
     discordUsername: nameFor,
@@ -472,7 +484,7 @@ export function cavingRollRow(c, { usernameById, catatonicIds }) {
 // The Combat lens (docs/systemdocs/ATTACK.md §8). One row per fight, everybody in it riding along with what
 // the GM adjudicates from: side, role, whether they were on guard, the roll, where an intervener came from,
 // and what they wrote. Real names throughout — this is the GM's desk, and the presented-face rule is about
-// players. The snapshots themselves are loaded on demand (actions.js#getCombatSnapshots), not shipped here.
+// players — with what the room saw beside each (`look`, frozen as they came in). The snapshots themselves are loaded on demand (actions.js#getCombatSnapshots), not shipped here.
 export const COMBAT_INCLUDE = {
   // The zone by NAME, which is what GmZoneView narrows every lens on (web/lib/zones.js#inVisibleZones).
   location: { select: { name: true, zone: { select: { name: true } } } },
@@ -488,13 +500,14 @@ function signed(n) {
   return n > 0 ? `+${n}` : n < 0 ? `−${Math.abs(n)}` : "0";
 }
 
-export function combatRow(c, { usernameById }) {
+export function combatRow(c, { usernameById, looks }) {
   const people = c.participants.map((p) => {
     const mods = Array.isArray(p.modifiers) ? p.modifiers : [];
     return {
       id: p.id,
       characterId: p.characterId,
       name: p.character?.name ?? "(deleted)",
+      look: lookPair(p.presentedAs ?? null, p.characterId, looks),
       avatarVersion: p.character?.updatedAt ? p.character.updatedAt.getTime() : null,
       roleTitle: p.character?.roleTitle ?? "",
       discordUsername: p.character?.discordUserId

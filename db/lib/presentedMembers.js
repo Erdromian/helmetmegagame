@@ -19,6 +19,7 @@ const { aliasRow, LOOK_SLUGS } = require("./concealedIdentity");
 const { hoodToken } = require("./hoodToken");
 const { knownSubjects, labelAliases } = require("./strangers");
 const { roleGroupHue } = require("./roleGroups");
+const { presentationOf, withJobGroups } = require("./gmPresentation");
 const {
   disguiseNameFrom,
   disguiseJobFrom,
@@ -62,8 +63,8 @@ const MEMBER_SELECT = {
 // unseen. The sighting rule is whosHere's, unchanged: it gates the FACE — a
 // mask is drawn only for somebody who watched them speak in it this turn
 // (PROXYING.md §5a). `gm` is the host's view: every row comes back under its
-// real name with `presentedAs` saying what the room actually sees, same
-// answer as db/lib/whosHere.js#whosHereGm.
+// real name with `look` saying what the room actually sees, same answer as
+// db/lib/whosHere.js#whosHereGm (db/lib/gmPresentation.js).
 //
 // A member the viewer has no Friends entry for is hidden the same way a hood
 // is, under an alias, but keeps their face (served by token) and estate
@@ -107,7 +108,7 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
   const labelled = labelAliases(hiddenMembers, aliasOf, (person) => person.presenceLabel);
   const shownAlias = new Map(hiddenMembers.map((person, i) => [person.id, labelled[i]]));
 
-  return members
+  const rows = members
     .map((person) => {
       const piece = concealmentFrom(person.tags);
       const forced = forcedNameFrom(person.tags, person);
@@ -127,8 +128,9 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
           avatarVersion: person.updatedAt?.getTime?.() ?? null,
           unknownFace: false,
           concealed: false,
-          // What the room sees.
-          presentedAs: forced ?? (hidden ? aliasRow(person, null) : null),
+          // What the room sees: hooded, disguised or a public name, the piece over the face, the job a
+          // disguise claims (db/lib/gmPresentation.js). Null for their own face.
+          look: presentationOf(person),
           // Their own estate, the colour a GM's list paints the real name in.
           roleGroup: roleGroupHue(person.role?.groupSlug),
         };
@@ -204,6 +206,9 @@ async function presentedMembers(prisma, characterIds, viewer, { sightings = null
         concealed: true,
       };
     });
+  // A GM's looks wear the estate of the job a disguise claims, painted in one query.
+  if (gm) await withJobGroups(prisma, rows.map((row) => row.look).filter(Boolean));
+  return rows;
 }
 
 // One name, for a sentence (`/add`/`/remove`'s "X was added"). Falls back to

@@ -16,6 +16,7 @@ import { useAsideTab } from "../asideTabStore";
 import { setPlaces } from "../feedStore";
 import { gmPlaceView } from "../actions";
 import GmNameCard from "../GmNameCard";
+import GmLook from "@/app/components/GmLook";
 
 // THE GM's RIGHT COLUMN, rebuilt (CHAT-REBUILD.md phase 6).
 //
@@ -56,7 +57,9 @@ function Things({ things, resources }) {
 // brackets: "a young man (Greeblus)". Same form the scene beside this column
 // prints on a hooded line (Feed.js), and the one /archive has always used.
 // It used to be the real name with "showing as a young man" on a second quiet
-// line under it, which read as two people until you looked twice.
+// line under it, which read as two people until you looked twice. One quiet word
+// beside it says which kind of hiding it is (hooded, disguised, public name),
+// with the whole of it in its tooltip (GmLook.js).
 function GmHereList({ people, onOpen }) {
   if (!people?.length) return <EmptyState>Nobody is standing here.</EmptyState>;
   return (
@@ -81,8 +84,11 @@ function GmHereList({ people, onOpen }) {
                 online={person.online}
               />
               <GmNameCard characterId={person.characterId} pinnable={false}>
-                {person.presentedAs ? `${person.presentedAs} (${person.name})` : person.name}
+                {person.look ? `${person.look.shownAs} (${person.name})` : person.name}
               </GmNameCard>
+              {/* Which kind of hiding, in one word: a hood, a disguise, a public name. The whole of it
+                  (the piece over the face, the job a disguise claims) is its tooltip. */}
+              <GmLook now={person.look} compact />
               {person.online ? <span className="chat-quiet-line"> · online</span> : null}
             </span>
             {person.roleTitle && <span className="chat-quiet-line">{person.roleTitle}</span>}
@@ -265,9 +271,9 @@ export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardCh
                   {fresh.members.map((member) => (
                     <span key={member.characterId} className="chip">
                       <GmNameCard characterId={member.characterId}>
-                        {member.name}
-                        {member.presentedAs ? ` (${member.presentedAs})` : ""}
+                        {member.look ? `${member.look.shownAs} (${member.name})` : member.name}
                       </GmNameCard>
+                      <GmLook now={member.look} compact />
                     </span>
                   ))}
                 </div>

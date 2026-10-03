@@ -5,6 +5,7 @@ import { bandOf } from "@lifeweb/db/lib/mood";
 import { bandOf as hungerBandOf, HUNGER_MAX } from "@lifeweb/db/lib/hunger";
 import { formatGambitModifiers } from "@lifeweb/db/lib/gambitModifier";
 import { moveKindLabel } from "@/lib/moves";
+import { lookText } from "@lifeweb/db/lib/gmLookText";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import CombatTile from "@/app/components/CombatReadout";
 import DetailTile from "@/app/components/DetailTile";
@@ -20,6 +21,10 @@ import TagPointsValue from "@/app/components/TagPointsValue";
 // read-only boxes with nothing to hover. Equipped/Drawbacks/the bare "This
 // turn" answered questions nobody was asking; they're gone, replaced below by
 // facts a GM actually glances at.
+
+// The "Seen as" tile's one word, per db/lib/gmPresentation.js look kind.
+const SEEN_AS = { hood: "Hooded", disguise: "Disguised", forced: "Public name", deathmask: "Masked" };
+
 export default function DevBand({
   character,
   staged,
@@ -151,9 +156,13 @@ export default function DevBand({
           one line — unlike the primary four above, there's no attempt to
           keep these on a single row. */}
       <div className="dev-band-tiles">
+        {/* What the room sees of them: hooded, disguised, a public name, or their own face, with the
+            whole of it (the piece over the face, the job a disguise claims) underneath. */}
         <DetailTile
-          label="Concealed"
-          value={character.concealedInEffect ? "Yes" : character.concealed ? "On, but nothing worn" : "No"}
+          label="Seen as"
+          value={character.look ? (SEEN_AS[character.look.kind] ?? "Hidden") : "Own face"}
+          word
+          sub={character.look ? lookText(character.look) : character.concealed ? "Hood wanted up, but nothing worn" : null}
         />
         <DetailTile
           label="This turn"

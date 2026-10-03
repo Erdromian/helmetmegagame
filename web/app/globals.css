@@ -4752,6 +4752,49 @@ body:has(.map-shell) {
   text-decoration-color: currentColor;
 }
 
+/* What the room sees, beside a real name on a GM surface (GmLook.js): hooded,
+   disguised, a public name, a masked body. Quiet on purpose, a note in the
+   margin of the name; the warning rule says "this face is not their own"
+   without competing with the name itself. Nothing at all for a bare face. */
+.gm-look {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0 var(--sp-2);
+  padding-left: var(--sp-2);
+  border-left: 2px solid var(--warning);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  font-weight: normal;
+  line-height: 1.35;
+}
+
+.gm-look-name {
+  color: var(--text-hi);
+  font-weight: 600;
+}
+
+.gm-look-now {
+  color: var(--muted);
+  font-style: italic;
+}
+
+/* One word for a crowded row; the whole sentence is its tooltip. */
+.gm-look-compact {
+  padding-left: var(--sp-1);
+  font-size: var(--fs-xs);
+  white-space: nowrap;
+}
+
+/* A name and its look stacked, where a row has the height for both. */
+.gm-named {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  min-width: 0;
+}
+
 .desk-staged-row {
   display: flex;
   align-items: flex-start;
@@ -8029,21 +8072,27 @@ label.gate-request {
 /* The role, in its estate's colour — the same six the feed paints a name in. */
 .memory-role[data-role-group="court"],
 .name-card-role[data-role-group="court"],
+.gm-look-job[data-role-group="court"],
 .memory-line-name[data-role-group="court"] { color: var(--role-court); }
 .memory-role[data-role-group="clergy"],
 .name-card-role[data-role-group="clergy"],
+.gm-look-job[data-role-group="clergy"],
 .memory-line-name[data-role-group="clergy"] { color: var(--role-clergy); }
 .memory-role[data-role-group="cerberon"],
 .name-card-role[data-role-group="cerberon"],
+.gm-look-job[data-role-group="cerberon"],
 .memory-line-name[data-role-group="cerberon"] { color: var(--role-cerberon); }
 .memory-role[data-role-group="saviors"],
 .name-card-role[data-role-group="saviors"],
+.gm-look-job[data-role-group="saviors"],
 .memory-line-name[data-role-group="saviors"] { color: var(--role-saviors); }
 .memory-role[data-role-group="business"],
 .name-card-role[data-role-group="business"],
+.gm-look-job[data-role-group="business"],
 .memory-line-name[data-role-group="business"] { color: var(--role-business); }
 .memory-role[data-role-group="soil"],
 .name-card-role[data-role-group="soil"],
+.gm-look-job[data-role-group="soil"],
 .memory-line-name[data-role-group="soil"] { color: var(--role-soil); }
 
 .memory-self-grid {

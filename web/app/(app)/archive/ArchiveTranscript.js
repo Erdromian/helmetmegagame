@@ -2,6 +2,7 @@
 
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import { lineKindWord } from "@lifeweb/db/lib/gmLookText";
 import ArchiveActionSentence from "@/app/components/ArchiveActionSentence";
 import { zoneKey } from "@/lib/zones";
 import { FOLD_MARK, dayLabel, sameScene, sceneOf } from "@/lib/archiveScenes";
@@ -25,7 +26,8 @@ const FOLD_LABEL = {
 // A concealed message keeps both halves: alias (what the room saw) and real
 // name, as two spans so the real name can be dimmed rather than merged.
 function speakerParts(row) {
-  if (row.alias) return { shown: row.alias, real: row.realName ?? null };
+  // `kind`: what the alias was, a hood, a disguise or a public name (db/lib/archive.js#lineLookKind).
+  if (row.alias) return { shown: row.alias, real: row.realName ?? null, kind: lineKindWord(row.presentedKind) };
   return { shown: row.realName ?? row.name ?? null, real: null };
 }
 
@@ -132,7 +134,10 @@ function Row({ row, showPlace, portraits, onPick, onCite }) {
               {speaker.shown}
             </button>
             {speaker.real && speaker.real !== speaker.shown ? (
-              <span className="archive-row-real">{speaker.real}</span>
+              <span className="archive-row-real">
+                {speaker.real}
+                {speaker.kind ? ` · ${speaker.kind}` : ""}
+              </span>
             ) : null}
           </>
         )}

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import EmptyState from "@/app/components/EmptyState";
 import GmZoneRail from "@/app/components/GmZoneRail";
 import DevPanelModal, { prefetchDevPanel } from "@/app/components/DevPanelModal";
@@ -61,7 +62,8 @@ function GmHereList({ people, onOpen }) {
                 version={person.avatarVersion}
                 online={person.online}
               />
-              {person.presentedAs ? `${person.presentedAs} (${person.name})` : person.name}
+              {person.look ? `${person.look.shownAs} (${person.name})` : person.name}
+              <GmLook now={person.look} compact />
               {person.online ? <span className="chat-quiet-line"> · online</span> : null}
             </span>
             {person.roleTitle && <span className="chat-quiet-line">{person.roleTitle}</span>}
@@ -187,8 +189,8 @@ export default function GmAside({ selected, gmZones }) {
                 <div className="chip-row">
                   {fresh.members.map((member) => (
                     <span key={member.characterId} className="chip">
-                      {member.name}
-                      {member.presentedAs ? ` (${member.presentedAs})` : ""}
+                      {member.look ? `${member.look.shownAs} (${member.name})` : member.name}
+                      <GmLook now={member.look} compact />
                     </span>
                   ))}
                 </div>

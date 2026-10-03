@@ -13,6 +13,7 @@
 //
 // Takes `prisma` first, NOT on the @lifeweb/db barrel — require by path.
 const { blockerFor, ACT } = require("./incapacitation");
+const { presentationStamp } = require("./gmPresentation");
 const { rollWithAdvantage } = require("./advantage");
 const { revealCount, pickRevealed } = require("./search");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
@@ -249,6 +250,7 @@ async function searchRoom(prisma, { character, roomId, turn, rng = Math.random }
         need: SEARCH_MOVE,
         entry: searchLedgerEntry(room),
         notes: SEARCH_LEDGER_NOTES,
+        presentedAs: await presentationStamp(tx, character.id),
       });
       if (!spent.ok) throw new Refused(spent.reason);
 

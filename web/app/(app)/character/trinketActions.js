@@ -15,6 +15,7 @@
 // (CRAFTING.md: "gambit is ignored") — Trinket never touches it.
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
+import { presentationStamp } from "@lifeweb/db/lib/gmPresentation";
 import { auth } from "@/lib/auth";
 import { acting, UserError } from "@/lib/actionResult";
 import { getOpenTurn } from "@/lib/turn";
@@ -167,6 +168,7 @@ async function trinketRequestImpl({ name, description, ingredientSlugs }) {
           diceRoll, // no gambitModifier — see db/lib/trinketPass.js header
           zoneId: character.zoneId ?? null,
           locationId: character.locationId ?? null,
+          presentedAs: await presentationStamp(tx, character.id),
           gmNotes: GMNOTES,
           // Reused for Trinket's own payload — moveSpend's craft ledger is
           // keyed off gmNotes containing "auto:craft", which "auto:trinket" never matches.

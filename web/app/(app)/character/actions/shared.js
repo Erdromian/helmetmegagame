@@ -2,6 +2,7 @@ import { revalidatePath } from "next/cache";
 import { TURNS_PATH } from "@/lib/routes";
 import { redirect } from "next/navigation";
 import { prisma } from "@lifeweb/db";
+import { presentationStamp } from "@lifeweb/db/lib/gmPresentation";
 import { resolveParty as dbResolveParty } from "@lifeweb/db/lib/parties";
 import { resolveHoodToken } from "@lifeweb/db/lib/whosHere";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
@@ -156,7 +157,9 @@ export async function spendCraftMove(
   tx,
   { character, openTurn, need, entry, description = null, notes = "auto:craft" },
 ) {
-  const out = await spendLedgerMove(tx, { character, turn: openTurn, need, entry, description, notes });
+  // How they look as it is filed, for the GM desk (db/lib/gmPresentation.js).
+  const presentedAs = await presentationStamp(tx, character.id);
+  const out = await spendLedgerMove(tx, { character, turn: openTurn, need, entry, description, notes, presentedAs });
   if (!out.ok) throw new UserError(out.reason);
   return { action: out.action, budget: out.budget };
 }

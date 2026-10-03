@@ -10,6 +10,7 @@
 // barrel, require it by path.
 const { rollWithAdvantage } = require("./advantage");
 const { gambitModifierTotal } = require("./gambitModifier");
+const { presentationStamp } = require("./gmPresentation");
 const { isHere, notHereMessage } = require("./presence");
 const { offerButtonRow } = require("./offerRow");
 const { DM_ACTION, dmAction } = require("./dmActions");
@@ -324,6 +325,7 @@ async function acceptConfession(prisma, offer, responder) {
           diceModifier: gambitModifierTotal(penitent.tags, { mood: penitent.mood }),
           zoneId: penitent.zoneId ?? null,
           locationId: penitent.locationId ?? null,
+          presentedAs: await presentationStamp(tx, penitent.id),
           gmNotes: "auto:confession",
         },
       });
@@ -342,6 +344,7 @@ async function acceptConfession(prisma, offer, responder) {
           appliedEffects: {},
           zoneId: chaplain.zoneId ?? null,
           locationId: chaplain.locationId ?? null,
+          presentedAs: await presentationStamp(tx, chaplain.id),
           gmNotes: "auto:confession",
         },
       });

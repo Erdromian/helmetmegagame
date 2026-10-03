@@ -66,7 +66,9 @@ import {
   cavingRollRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
-import { deskPatchFor } from "@/lib/deskRows";
+import { deskLooks, deskPatchFor } from "@/lib/deskRows";
+import { loadPresentations, readStamp } from "@lifeweb/db/lib/gmPresentation";
+import { lineLookKind } from "@lifeweb/db/lib/archive";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 // Required by path, not off the @lifeweb/db barrel: db/lib/attack.js is
 // deliberately not on it (the db/lib/dm.js convention).
@@ -1618,7 +1620,10 @@ async function getCharacterInspectorImpl({ characterId }) {
   });
   if (!character) throw new UserError("Character not found.");
 
-  const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } });
+  const [openTurn, looks] = await Promise.all([
+    prisma.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, number: true } }),
+    loadPresentations(prisma, [character.id]),
+  ]);
   const acted = openTurn
     ? Boolean(await prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id }, select: { id: true } }))
     : false;
@@ -1629,6 +1634,8 @@ async function getCharacterInspectorImpl({ characterId }) {
     status: character.status,
     discordUserId: character.discordUserId,
     roleTitle: character.roleTitle ?? null,
+    // What the room sees of them right now: hooded, disguised, a public name (GmLook.js). Null for a bare face.
+    look: looks.get(character.id) ?? null,
     isLeader: character.isLeader,
     // Zone · Location, because Character.locationId is where a ruling
     // actually happens — a placed structure, a stash, a fight are all
@@ -1717,6 +1724,8 @@ async function getArchiveContextImpl({ archiveEntryId }) {
     content: e.content,
     characterName: e.characterName,
     concealedAlias: e.concealedAlias,
+    // Hood, disguise or public name: what that alias was (db/lib/archive.js#lineLookKind).
+    presentedKind: lineLookKind(e),
     turnNumber: e.turnNumber,
     sentAt: e.sentAt.toISOString(),
   }));
@@ -1775,16 +1784,17 @@ async function getMoveHistoryImpl({ turnId }) {
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
   const locationNameById = new Map(stagingLocations.map((l) => [l.id, l.name]));
   const now = new Date();
+  const looks = await deskLooks({ actions, cavingRolls, combats, effects: stagedEffects, messages: stagedMessages });
 
   return {
     // structuresByLocationId is deliberately not passed: this lens shows a
     // PAST turn, and today's ground under a months-old Move would lie. The
     // history desk renders no Standing-here line, so nothing is missing it.
-    moves: actions.map((a) => moveRow(a, { usernameById, now })),
-    cavingRolls: cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds: new Set() })),
-    combats: combats.map((c) => combatRow(c, { usernameById })),
-    effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, locationNameById, openTurn })),
-    messages: stagedMessages.map((m) => stagedMessageRow(m, { usernameById, openTurn })),
+    moves: actions.map((a) => moveRow(a, { usernameById, now, looks })),
+    cavingRolls: cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds: new Set(), looks })),
+    combats: combats.map((c) => combatRow(c, { usernameById, looks })),
+    effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, locationNameById, openTurn, looks })),
+    messages: stagedMessages.map((m) => stagedMessageRow(m, { usernameById, openTurn, looks })),
     tagsById: tagsByIdFor(actions),
   };
 }
@@ -1834,6 +1844,8 @@ async function getCharacterMoveHistoryImpl({ characterId }) {
       declaredLabel: declaredLabel(a),
       paidLabel: paidLabel(a.appliedEffects),
       description: a.description ?? "",
+      // How they looked when they filed it (db/lib/gmPresentation.js); null for a bare face or an older row.
+      look: readStamp(a.presentedAs),
       resultMessage: truncateHistoryText(a.resultMessage),
       messages: a.stagedMessages.map((m) => ({
         id: m.id,

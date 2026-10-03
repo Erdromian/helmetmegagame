@@ -4577,6 +4577,13 @@ model Action {
   // before this existed still resolve.
   locationId             String?
   location               Location?   @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  // GM ONLY. How the character looked when this was filed: hooded, disguised
+  // or going by a public name, and what as (db/lib/gmPresentation.js, stamped
+  // by #presentationStamp in the filing transaction). A disguise lasts three
+  // turns and its tag is deleted once nobody holds it, so the desk could not
+  // work this out afterwards. Null is a bare face, or a row filed before this
+  // existed; the desk shows the live look for both. Never selected for a player.
+  presentedAs            Json?
   resourceDelta          Int?
   // A range like "5-12", rolled at ⚜ confirm. @map keeps the original column
   // names: this used to hold dice notation ("1d6*2"), which the payout
@@ -5896,6 +5903,11 @@ model CombatParticipant {
   // hunger and mood. Rehydrated against the live catalog on the desk.
   snapshot   Json
   snapshotAt DateTime @default(now())
+  // GM ONLY, frozen beside the snapshot: hooded, disguised or a public name,
+  // and what as (db/lib/gmPresentation.js#stampPresentation). The snapshot
+  // keeps tag ids, but a disguise's tag is deleted once nobody holds it, so its
+  // name has to be written down here. Null is a bare face, or an older row.
+  presentedAs Json?
 
   // THE ROLL — GM ONLY. Never selected by anything a player reads
   // (db/test/combatPrivacy.test.js holds that line). Gambit rules: a d6 with
@@ -6440,6 +6452,11 @@ model CavingRoll {
   // row's snapshot (docs/systemdocs/CAVING.md §5). Null on QUIET/FIND and on
   // rows written before this existed.
   presentedState Json?
+
+  // A TROUBLE row only, GM ONLY: hooded, disguised or a public name at this 1,
+  // and what as (db/lib/gmPresentation.js#stampPresentation). Null is a bare
+  // face, a QUIET/FIND row, or one written before this existed.
+  presentedAs Json?
 
   // A TROUBLE row only: whether the caver was in combat mode at this 1, read
   // off Character.combatModeSinceTurn in the roll's own transaction. Its own

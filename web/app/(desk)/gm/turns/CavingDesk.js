@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import EffectComposer from "./EffectComposer";
 import RoomEffectComposer from "./RoomEffectComposer";
@@ -204,6 +205,8 @@ export default function CavingDesk({
             </button>{" "}
             <span className="text-muted text-sm">({roll.discordUsername})</span>
           </h2>
+          {/* As they stood at the newest 1, and now if that changed. */}
+          <GmLook then={roll.look?.then} now={roll.look?.now} frozen />
           <p className="text-xs text-muted">
             {roll.roleTitle && <>{roll.roleTitle} · </>}
             {roll.locationName ? <>{roll.locationName} · </> : null}

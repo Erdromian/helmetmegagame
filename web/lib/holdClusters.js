@@ -23,10 +23,12 @@ export const CAUGHT_STEAL_INCLUDE = {
 export const caughtStealWhere = (turnId) => ({ actionType: "steal", turnId, details: { path: ["unseen"], equals: false } });
 
 // One person's line in a row's strip. REAL names, GM desk (COMBAT.md §5). `moves` comes from rows the page already built.
-function personLine(c, role, { usernameById, catatonicIds, movesByCharacterId }) {
+// `looks` is the page's deskRows.js#deskLooks answer: what the room sees of them now (GmLook.js).
+function personLine(c, role, { usernameById, catatonicIds, movesByCharacterId, looks }) {
   return {
     characterId: c.id,
     name: c.name,
+    look: looks?.now?.get(c.id) ?? null,
     avatarVersion: c.updatedAt.getTime(),
     catatonic: catatonicIds?.has(c.id) ?? false,
     roleTitle: c.roleTitle ?? "",
@@ -105,6 +107,7 @@ function attackClusterRow(edges, ctx) {
     kindLabel,
     characterId: seed.attackerId,
     characterName: seed.attacker.name,
+    look: { now: ctx.looks?.now?.get(seed.attackerId) ?? null },
     avatarVersion: seed.attacker.updatedAt.getTime(),
     catatonic: catatonicIds?.has(seed.attackerId) ?? false,
     discordUsername: usernameById.get(seed.attacker.discordUserId) ?? seed.attacker.discordUserId ?? "",
@@ -140,6 +143,7 @@ function interceptHitRow(h, ctx) {
     kindLabel: "Intercept",
     characterId: h.interceptorId,
     characterName: h.interceptor.name,
+    look: { now: ctx.looks?.now?.get(h.interceptorId) ?? null },
     avatarVersion: h.interceptor.updatedAt.getTime(),
     catatonic: catatonicIds?.has(h.interceptorId) ?? false,
     discordUsername: usernameById.get(h.interceptor.discordUserId) ?? h.interceptor.discordUserId ?? "",
@@ -177,6 +181,7 @@ function caughtStealRow(a, ctx) {
     kindLabel: "Caught stealing",
     characterId: thief.id,
     characterName: thief.name,
+    look: { now: ctx.looks?.now?.get(thief.id) ?? null },
     avatarVersion: thief.updatedAt.getTime(),
     catatonic: catatonicIds?.has(thief.id) ?? false,
     discordUsername: usernameById.get(thief.discordUserId) ?? thief.discordUserId ?? "",

@@ -131,6 +131,22 @@ async function loadConcealment(prisma, characterId) {
   return concealmentFrom(held);
 }
 
+// What a dead body still has over its face, or null. Needs `deathMaskTagId`, and the
+// tags with `tagId`. The remembered tag has to be BOTH stamped and still held — a
+// dangling id (the catalog pruned it, or somebody walked off with the helmet) reads
+// as a bare face, which is the safe direction and the one that makes looting a mask
+// off mean something. Shared by whosHere.js and gmPresentation.js.
+function deathMaskPiece(row) {
+  if (!row?.deathMaskTagId || !Array.isArray(row.tags)) return null;
+  const held = row.tags.find((ct) => ct.tagId === row.deathMaskTagId);
+  const tag = held?.tag;
+  if (!tag?.concealsIdentity || !tag?.concealSprite) return null;
+  // No `forced`: it means "a sack you cannot take off", and the dead branch of
+  // whosHere.js#presentRows decides hidden on the death mask's presence alone, so
+  // nothing would read it. A field nothing reads is a field somebody trusts wrongly later.
+  return { sprite: tag.concealSprite, name: tag.name ?? null, tagId: row.deathMaskTagId };
+}
+
 // The columns presentedIdentity() reads, plus the tags it resolves against. Modelled on db/lib/whosHere.js#PRESENT_SELECT minus the role title — hearing somebody yell tells you their name, not what they do.
 const PRESENTED_IDENTITY_SELECT = {
   id: true,
@@ -252,6 +268,7 @@ module.exports = {
   loadHeldForcedName,
   concealmentFrom,
   loadConcealment,
+  deathMaskPiece,
   letterPlaqueFile,
   presentedIdentity,
 };

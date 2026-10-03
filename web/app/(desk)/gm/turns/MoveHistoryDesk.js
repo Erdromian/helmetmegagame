@@ -5,6 +5,7 @@ import { useEffect } from "react";
 import TagChip from "@/app/components/TagChip";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import StagedItems from "./StagedItems";
 
@@ -52,6 +53,7 @@ export default function MoveHistoryDesk({
             </button>{" "}
             <span className="text-muted text-sm">({move.discordUsername})</span>
           </h2>
+          <GmLook then={move.look?.then} now={move.look?.now} frozen />
           <p className="text-xs text-muted">
             {move.roleTitle && <>{move.roleTitle} · </>}
             {move.locationLabel}

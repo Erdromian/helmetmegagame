@@ -35,7 +35,7 @@ import {
   oocRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
-import { deskRowContext, structuresByLocation } from "@/lib/deskRows";
+import { deskLooks, deskRowContext, structuresByLocation } from "@/lib/deskRows";
 import { troubleGroupWhere } from "@lifeweb/db/lib/cavingPass";
 import { foldCavingRolls } from "@/lib/cavingLabels";
 import { pgNowMs } from "@/lib/pgClock";
@@ -312,9 +312,25 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   const tagsById = tagsByIdFor(actions);
 
   // One bulk load for every Location on the queue, not one query per row — see deskRows.js#structuresByLocation.
-  const structuresByLocationId = await structuresByLocation(
-    actions.map(moveLocationId),
-  );
+  // Beside it, what the room sees of everybody the desk names: hooded, disguised, a public name, frozen when
+  // they acted and as of now (deskRows.js#deskLooks). Every row builder below takes it as `looks`.
+  const [structuresByLocationId, looks] = await Promise.all([
+    structuresByLocation(actions.map(moveLocationId)),
+    deskLooks({
+      actions,
+      cavingRolls,
+      combats,
+      effects: stagedEffects,
+      messages: stagedMessages,
+      characterIds: [
+        ...attacks.flatMap((a) => [a.attackerId, a.targetCharacterId]),
+        ...interceptHits.flatMap((h) => [h.interceptorId, h.targetCharacterId]),
+        ...caughtSteals.map((a) => a.targetCharacter?.id),
+        ...desireClaims.map((d) => d.character?.id),
+        ...oocLines.map((a) => a.targetCharacter?.id),
+      ],
+    }),
+  ]);
 
   // THE CLOCK IS READ LAST, and the order is load-bearing. Every row is
   // stamped with `asOfMs`, and the client desk store keeps the newer of two
@@ -324,10 +340,10 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   // stamp can only under-claim. Same order, same reason, in deskRows.js#deskPatchFor.
   const asOfMs = await pgNowMs();
 
-  const moves = actions.map((a) => moveRow(a, { usernameById, now, structuresByLocationId }));
+  const moves = actions.map((a) => moveRow(a, { usernameById, now, structuresByLocationId, looks }));
 
 
-  const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds }));
+  const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds, looks }));
 
   // What each person filed this turn, for the Other lens's Move chips. Built
   // off `moves`, not `actions` — a chip can then only exist for a Move the
@@ -341,14 +357,14 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   }
 
   // The Other lens's one merged list. Fights live on the Combat lens now (ATTACK.md §8); the Attack rows here are only pre-overhaul ones (§12).
-  const otherCtx = { usernameById, catatonicIds, movesByCharacterId, now, caughtHoldMs: CAUGHT_HOLD_MS };
+  const otherCtx = { usernameById, catatonicIds, movesByCharacterId, now, caughtHoldMs: CAUGHT_HOLD_MS, looks };
   const otherRows = [
     ...otherHoldRows(attacks, interceptHits, otherCtx, caughtSteals),
     ...avatarsToReview.map((c) => avatarReviewRow(c, otherCtx)),
   ];
 
   // The Desires lens' own row list — a fifth lens, not folded into Other: a claim isn't a hold on anyone.
-  const desireCtx = { usernameById, catatonicIds };
+  const desireCtx = { usernameById, catatonicIds, looks };
   const desireRows = desireClaims.map((d) => desireClaimRow(d, desireCtx));
 
   // The OOC lens. Live mutes for exactly the accounts on this lens, so the
@@ -365,10 +381,10 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       })
     : [];
   const mutedUntilByUser = new Map(oocMutes.map((m) => [m.discordUserId, m.until.toISOString()]));
-  const oocRows = oocLines.map((a) => oocRow(a, { usernameById, catatonicIds, mutedUntilByUser }));
+  const oocRows = oocLines.map((a) => oocRow(a, { usernameById, catatonicIds, mutedUntilByUser, looks }));
 
-  const effectCtx = { usernameById, locationNameById, openTurn };
-  const messageCtx = { usernameById, openTurn };
+  const effectCtx = { usernameById, locationNameById, openTurn, looks };
+  const messageCtx = { usernameById, openTurn, looks };
   const effects = stagedEffects.map((e) => stagedEffectRow(e, effectCtx));
   const messages = stagedMessages.map((m) => stagedMessageRow(m, messageCtx));
 
@@ -398,11 +414,12 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           include: STAGED_MESSAGE_INCLUDE,
         }),
       ]);
+      const pastLooks = await deskLooks({ actions: [past], effects: pastEffects, messages: pastMessages });
       initialHistory = {
         turnId: past.turnId,
-        move: moveRow(past, { usernameById, now }), // no structuresByLocationId: today's ground would lie about a past Move
-        effects: pastEffects.map((e) => stagedEffectRow(e, effectCtx)),
-        messages: pastMessages.map((m) => stagedMessageRow(m, messageCtx)),
+        move: moveRow(past, { usernameById, now, looks: pastLooks }), // no structuresByLocationId: today's ground would lie about a past Move
+        effects: pastEffects.map((e) => stagedEffectRow(e, { ...effectCtx, looks: pastLooks })),
+        messages: pastMessages.map((m) => stagedMessageRow(m, { ...messageCtx, looks: pastLooks })),
         tagsById: tagsByIdFor([past]),
       };
     }
@@ -433,11 +450,12 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           include: STAGED_MESSAGE_INCLUDE,
         }),
       ]);
+      const rollLooks = await deskLooks({ cavingRolls: members, effects: rollEffects, messages: rollMessages });
       initialCaving = {
         turnId: roll.turnId,
-        roll: foldCavingRolls(members.map((m) => cavingRollRow(m, { usernameById, catatonicIds }))).rows[0],
-        effects: rollEffects.map((e) => stagedEffectRow(e, effectCtx)),
-        messages: rollMessages.map((m) => stagedMessageRow(m, messageCtx)),
+        roll: foldCavingRolls(members.map((m) => cavingRollRow(m, { usernameById, catatonicIds, looks: rollLooks }))).rows[0],
+        effects: rollEffects.map((e) => stagedEffectRow(e, { ...effectCtx, looks: rollLooks })),
+        messages: rollMessages.map((m) => stagedMessageRow(m, { ...messageCtx, looks: rollLooks })),
       };
     }
   }
@@ -460,11 +478,12 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           include: STAGED_MESSAGE_INCLUDE,
         }),
       ]);
+      const fightLooks = await deskLooks({ combats: [fight], effects: fightEffects, messages: fightMessages });
       initialCombat = {
         turnId: fight.turnId,
-        combat: combatRow(fight, { usernameById }),
-        effects: fightEffects.map((e) => stagedEffectRow(e, effectCtx)),
-        messages: fightMessages.map((m) => stagedMessageRow(m, messageCtx)),
+        combat: combatRow(fight, { usernameById, looks: fightLooks }),
+        effects: fightEffects.map((e) => stagedEffectRow(e, { ...effectCtx, looks: fightLooks })),
+        messages: fightMessages.map((m) => stagedMessageRow(m, { ...messageCtx, looks: fightLooks })),
       };
     }
   }
@@ -518,7 +537,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         stagingRooms: stagingRooms,
         moves: moves,
         cavingRolls: cavingRows,
-        combats: combats.map((c) => combatRow(c, { usernameById })),
+        combats: combats.map((c) => combatRow(c, { usernameById, looks })),
         otherRows: otherRows,
         desireRows: desireRows,
         oocRows: oocRows,

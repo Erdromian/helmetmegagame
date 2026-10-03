@@ -521,6 +521,18 @@ a raised surface with an accent edge, because it is the thing a GM came here
 to fill in and it used to be the fourth of five identical hairline-ruled
 slabs. Staged rows come after it, then Reject / Save / Solve.
 
+**Whose face they wore.** Under the name, a quiet line says how they looked when
+they filed it: hooded ("hooded: a young man, under a Plague Mask"), disguised
+("disguised as Sir Aldric Vask (Steward)", the job in its estate's colour), a
+public name, or nothing at all for their own face. It is frozen onto the row as
+it is filed (`Action.presentedAs`, `db/lib/gmPresentation.js#presentationStamp`),
+because a disguise lasts three turns and its tag is gone once it wears off; a
+"now: …" follows when today's look differs. A row filed before the column, or
+filed bare-faced, shows only today's look, as "now: …". The queue row carries
+the same thing in one word (hooded, disguised, public name) with the sentence
+as its tooltip, and so do the Caving, Combat, Desire, OOC and Other rows and
+the staged rows' targets. The rule and every surface are `STRANGERS.md` §10a.
+
 The Kind switch's consequence line ("Saving rolls a fresh d6…") is always
 rendered, empty or not, so changing Kind no longer shoves the Result box down
 the screen mid-sentence.

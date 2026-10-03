@@ -8,6 +8,7 @@
 // `character` is the acting row as the web's requireCharacter loads it (tags
 // with their tag and group, location.indoors, role) — the bot's loads more.
 const { dropCharacterTag, grantTagSlugs } = require("../tagWrites");
+const { presentationStamp } = require("../gmPresentation");
 const { rollTagChain } = require("../tagShapes");
 const { lockCharacter } = require("../moveLedger");
 const { logAudit } = require("../auditLog");
@@ -102,6 +103,8 @@ function breakRestraints(prisma, { character, discordUserId, openTurn }) {
         openTurn,
         `Tried to break their restraints${rollLine ? `: ${rollLine}` : ""} — ${outcome}.`,
         "auto:breakRestraints",
+        null,
+        { presentedAs: await presentationStamp(tx, character.id) },
       );
       await logAudit(tx, {
         actorDiscordUserId: discordUserId,

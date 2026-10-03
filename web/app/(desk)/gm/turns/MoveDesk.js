@@ -8,6 +8,7 @@ import CombatTile from "@/app/components/CombatReadout";
 import Tooltip from "@/app/components/Tooltip";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import DeskRowMenu from "@/app/components/DeskRowMenu";
 import { prefetchDevPanel } from "@/app/components/DevPanelModal";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
@@ -231,6 +232,8 @@ export default function MoveDesk({
             </button>{" "}
             <span className="text-muted text-sm">({move.discordUsername})</span>
           </h2>
+          {/* Hooded or disguised when they filed it, and now if that changed (db/lib/gmPresentation.js). */}
+          <GmLook then={move.look?.then} now={move.look?.now} frozen />
           <p className="text-xs text-muted">
             {move.roleTitle && <>{move.roleTitle} · </>}
             {move.locationLabel} · {move.resources} ⬢ on hand
