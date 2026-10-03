@@ -1375,6 +1375,7 @@ a 48px head and a one-line composer:
   | Yours | ✎ **Change** · ✕ **Delete**. The five-minute window is checked when the button is pressed, not while the page sits open, and again by `deleteSpeech`. Delete goes through the shared `useConfirm()`. Change opens the line in place in `ChatEditBox`, which draws the words the way the line draws them while you type: the feed's face and weight, an emote in italics, quoted speech in the speech tint. Speech is found by `db/lib/speech.js#spokenRanges`, the server's rule, and emphasis by remark (`chatEditRuns.js`). |
   | Somebody else's | 🔍 **Look at**, on every line including a hooded one; and 📷 **Photograph**, only while the sheet holds an `instant-camera`. |
   | Any row, viewer is a GM with no character | ✕ **Remove**, confirmed, through the same `/api/feed/delete` route with `{ gm: true }`. |
+  | A world line (no speaker), viewer is a GM in the GM seat | ✕ **Remove** too, on any line somebody's words made (`kind` MESSAGE): a GM's own Bascinet post, a fixture's line. Never on a game record (a death, an arrival) or a block row (a decree, a turn). The web feed only: the bot posted the Discord copy, and nothing records which message it was, so the confirm says to delete that one by hand. |
   | Any row that has a `seq` | ★ **Save to Notes** — the web twin of Discord's ⭐ (`PROXYING.md` §7), writing the same `Note` row through `starRow`. Offered on your own lines too, exactly as the reaction is, which is why the bar is now drawn on every row rather than only on one somebody can act against. |
 
   **The eye is offered on every line somebody else said, hooded ones
@@ -3016,7 +3017,7 @@ every watcher of a place, so there is no per-reader decision to be made down
 there without making it for whoever happened to subscribe first.
 
 So the GM is handed the key ring instead of a different scene:
-`web/lib/gmSpeakers.js#speakerDirectory` is `speakerKey` → real name, built off
+`web/lib/gmSpeakers.js#speakerBook` is `speakerKey` → real name, built off
 `db/lib/hoodToken.js`'s HMAC, which is stable for as long as `AUTH_SECRET` is.
 Only a GM and the speaker themselves are ever handed that stable key now: every
 other reader's copy of a row goes through `db/lib/strangers.js#lensRow`, which
@@ -3024,8 +3025,10 @@ swaps it for a per-scene key and names strangers by alias (`STRANGERS.md` §5).
 One map resolves every row the page will ever hold — the first paint, the live
 stream, the history fetch and search alike — and it only ever goes to a GM.
 `page.js` seeds it when `viewer.gm`; `chat/actions.js#gmSpeakerNames` re-serves
-it, throttled, when `Feed.js` meets a key it does not know, which is somebody
-born since the page painted.
+it, throttled, when `ChatNext.js` (or the old `Feed.js`) meets a key it does
+not know, which is somebody born since the page painted. The book carries
+`groups` beside `names`, the real speaker's estate, so the GM seat paints a
+hooded line in the colour a named line by the same person wears.
 
 A forced name (Apex Form's "Beast") reads the same way. It is the same case:
 the room is not hearing the speaker's own name.

@@ -20,7 +20,7 @@ import { resourcesOf } from "@lifeweb/db/lib/resourceStack";
 import { canDetectPoison } from "@lifeweb/db/lib/poison";
 import { loadFeedViewer, placesFor } from "@/lib/feedAccess";
 import { lensRows } from "@/lib/strangerLens";
-import { speakerDirectory } from "@/lib/gmSpeakers";
+import { speakerBook } from "@/lib/gmSpeakers";
 import { loadNavItems } from "@/lib/navItems";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { loadPeoplePools, loadStashRooms } from "@/lib/peoplePools";
@@ -145,7 +145,8 @@ async function FreshChat({ userId }) {
   // here because `viewer.gm` is the gate and this is where it is already
   // answered; ./actions.js#gmSpeakerNames re-serves it for anybody born after
   // the page painted.
-  const gmSpeakers = viewer.gm ? await speakerDirectory(prisma) : null;
+  const gmBook = viewer.gm ? await speakerBook(prisma) : null;
+  const gmSpeakers = gmBook?.names ?? null;
 
   if (!first) {
     return <SnapshotFresh scope="play" userId={userId} data={{ kind: "nowhere" }} />;
@@ -578,6 +579,8 @@ async function FreshChat({ userId }) {
     // speakerKey -> real name, so a GM reads "A young man (Greeblus)" rather
     // than the alias alone. GM-only, and empty for everybody else.
     gmSpeakers,
+    // speakerKey -> estate, beside it, so that line wears the real speaker's colour.
+    gmSpeakerGroups: gmBook?.groups ?? null,
     // A dead player with no living character reads every zone, and speaks
     // nowhere (db/lib/feedAccess.js#ghostPlacesFor).
     ghost: Boolean(viewer.ghost),

@@ -17,7 +17,7 @@ import NoticeCards from "../NoticeCards";
 import LookReadout from "@/app/components/LookReadout";
 import { ConverseDialog, usePlaceActions } from "../PlacePanel";
 import { useRequestActions } from "@/app/components/RequestActionsProvider";
-import { lookAt, lookAtRow } from "../actions";
+import { lookAt, lookAtRow, gmSpeakerNames } from "../actions";
 import { PlusIcon, SearchIcon } from "@/app/components/icons";
 import ChatActions from "./ChatActions";
 import IconButton from "@/app/components/IconButton";
@@ -83,6 +83,10 @@ const TYPING_PING_MS = 4000;
 // How many places a player's chat warms in the background before it stops.
 const PREFETCH_LIMIT = 12;
 
+// How often, at most, the GM seat re-asks for the speaker key ring when a row
+// turns up under a hood it does not know (web/lib/gmSpeakers.js).
+const SPEAKER_REFRESH_MS = 60_000;
+
 export default function ChatNext(props) {
   // ../Chat.js's own prop names, verbatim — this exists to be swappable with it.
   const {
@@ -99,7 +103,9 @@ export default function ChatNext(props) {
     // speakerKey -> real name, GM seat only (web/lib/gmSpeakers.js). It is
     // what lets a hooded line read as "A young man (Greeblus)" without the
     // row ever carrying the name. Spelled `gmSpeakers` by page.js.
-    gmSpeakers: speakers = null,
+    gmSpeakers = null,
+    // speakerKey -> estate, so the same hooded line wears the real speaker's colour.
+    gmSpeakerGroups = null,
     roster = [],
     // The right column's whole bag, built server-side in page.js. Null for a
     // GM with no living character — their column is GmAside's, phase 6.
@@ -509,6 +515,35 @@ export default function ChatNext(props) {
   // The open place's rows, for the composer's slowmode: how long ago THIS
   // character last spoke here is a fact about the feed, not about the box.
   const rows = useFeed(selectedKey);
+
+  // Somebody born since the page painted is not in the key ring the server
+  // seeded, so a hood they put on would read as the bare alias until a reload.
+  // One re-ask, at most a minute apart, the first time a row turns up under a
+  // key the ring does not know — ../Feed.js's rule, which the rebuild had not
+  // carried over. GM seat only: nobody else is handed a ring.
+  // A re-asked ring wins over the one page.js seeded; until then the props
+  // are read straight, so flipping View as to the GM seat brings its ring along.
+  const [fetchedBook, setFetchedBook] = useState(null);
+  const speakers = fetchedBook?.names ?? gmSpeakers;
+  const speakerGroups = fetchedBook?.groups ?? gmSpeakerGroups;
+  const askedForSpeakersAt = useRef(0);
+  useEffect(() => {
+    if (!gm || !gmSpeakers) return undefined;
+    const missing = rows.some((row) => row.alias && row.speakerKey && !speakers?.[row.speakerKey]);
+    if (!missing) return undefined;
+    const now = Date.now();
+    if (now - askedForSpeakersAt.current < SPEAKER_REFRESH_MS) return undefined;
+    askedForSpeakersAt.current = now;
+    let cancelled = false;
+    gmSpeakerNames()
+      .then((res) => {
+        if (!cancelled && res?.ok) setFetchedBook({ names: res.speakers, groups: res.groups ?? null });
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [gm, gmSpeakers, rows, speakers]);
   const onTyping = useCallback(() => {
     if (!selectedKey || !selected?.canSpeak) return;
     const now = Date.now();
@@ -845,6 +880,7 @@ export default function ChatNext(props) {
             ghost={ghost || spectator}
             hasCamera={hasCamera}
             speakers={speakers}
+            speakerGroups={speakerGroups}
                 members={members}
                 adding={addingFor === selected?.placeKey}
                 setAdding={(open) => setAddingFor(open ? selected?.placeKey : null)}

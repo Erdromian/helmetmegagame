@@ -162,14 +162,20 @@ export default function TranscriptLine({
   }
 
   if (variant === "system") {
+    // A world line carries a verb bar only in the GM seat, where a GM may take
+    // one down (chat/next/Feed.js#SystemRow); everywhere else `actions` is null.
     return (
       <Tag
         className={`tline tline--system${className ? ` ${className}` : ""}`}
         data-kind={channelKind ?? undefined}
         data-seq={seq ?? undefined}
+        data-actions={actions ? "true" : undefined}
         id={id ?? undefined}
+        tabIndex={tabIndex}
+        {...pressHandlers}
       >
         {children}
+        {actions ? <div className="tline-actions">{actions}</div> : null}
       </Tag>
     );
   }

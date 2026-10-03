@@ -517,6 +517,8 @@ async function whosHereGm(prisma, locationId) {
     characterId: c.id,
     name: c.name,
     roleTitle: c.roleTitle ?? null,
+    // The estate the real name is painted in — theirs, never a disguise's claim.
+    roleGroup: roleGroupHue(c.role?.groupSlug),
     presentedAs: c.forced ?? (c.hidden ? aliasRow(c, null) : null), // forced name is not a hood (PROXYING.md §5).
     avatarVersion: c.updatedAt?.getTime?.() ?? null,
     online: isOnline(c.lastSeenAt),

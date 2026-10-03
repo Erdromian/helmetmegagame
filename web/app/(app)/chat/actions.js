@@ -91,7 +91,9 @@ import { resolveDmActions } from "@/lib/dmActions";
 import { PLAYER_DM_MAX_LENGTH } from "@/lib/constants";
 import { whosHere, whosHereGm, resolveHoodToken, resolveCrossRoomRef } from "@lifeweb/db/lib/whosHere";
 import { lastSightings } from "@lifeweb/db/lib/sightings";
-import { VIEWER_SELECT, examineRow } from "@lifeweb/db/lib/examineRow";
+import { VIEWER_SELECT, examineRow, examineRowForGm } from "@lifeweb/db/lib/examineRow";
+import { EXAMINE_SUBJECT_SELECT, examineReadout } from "@lifeweb/db/lib/examine";
+import { roleGroupHue } from "@lifeweb/db/lib/roleGroups";
 import { STAR_ROW_SELECT, saveStarredRow } from "@/lib/starNote";
 import { ghostCharacterFor } from "@lifeweb/db/lib/ghost";
 import { maybeSendGmAutoReply } from "@lifeweb/db/lib/gmAutoReply";
@@ -155,7 +157,9 @@ import { cleanCustomText } from "@lifeweb/db/lib/customText";
 import { getGmSession } from "@/lib/discordGuild";
 import { decreeZones } from "@lifeweb/db/lib/decree";
 import { writeChatViewAs } from "@/lib/viewAs";
-import { speakerDirectory } from "@/lib/gmSpeakers";
+import { speakerBook } from "@/lib/gmSpeakers";
+import { chunkMessage } from "@lifeweb/db/lib/chunkText";
+import { MAX_SAY_PIECES, tooManyPieces } from "@lifeweb/db/lib/sayLimits";
 import { readBlock } from "@lifeweb/db/lib/reading";
 import { addToStack, dropCharacterTag } from "@lifeweb/db/lib/tagWrites";
 import { expiryFrom } from "@lifeweb/db/lib/turnFormat";
@@ -1519,6 +1523,62 @@ export async function gmSpeakerOf(seq) {
   });
   if (!place) return { ok: false, error: "That is not one of the zones you are watching." };
   return { ok: true, characterId: row.characterId };
+}
+
+// The GM's hover card over a name (./GmNameCard.js): who they really are, then
+// what the room could see of them. The player's card is "what you remember" and
+// "what you can see"; a GM remembers nobody, so the first half is the truth.
+//
+// By SEQ for a line in the feed: the room's half is the look frozen at that
+// line, hood and all (db/lib/examineRow.js#examineRowForGm), and the zone gate
+// is the one the GM's feed uses. By CHARACTER for the GM's Here and guest
+// lists, which already carry ids: the room's half is what anybody standing
+// there could see right now.
+export async function gmCardOf({ seq = null, characterId = null } = {}) {
+  const { session, isGm } = await getGmSession();
+  if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
+
+  let subjectId = null;
+  let readout = null;
+  if (seq != null) {
+    const look = await examineRowForGm(prisma, session.discordUserId, String(seq));
+    if (!look?.readout) return { ok: false, error: "Nobody said that." };
+    readout = look.readout;
+    let key;
+    try {
+      key = BigInt(String(seq));
+    } catch {
+      return { ok: false, error: "That line is gone." };
+    }
+    const row = await prisma.archiveEntry.findUnique({ where: { seq: key }, select: { characterId: true } });
+    subjectId = row?.characterId ?? null;
+  } else if (characterId) {
+    subjectId = String(characterId);
+  }
+  if (!subjectId) return { ok: false, error: "Nobody said that." };
+
+  const character = await prisma.character.findUnique({
+    where: { id: subjectId },
+    select: { ...EXAMINE_SUBJECT_SELECT, roleTitle: true, role: { select: { groupSlug: true } } },
+  });
+  if (!character) return { ok: false, error: "They are gone." };
+
+  if (!readout) {
+    const openTurn = await prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } });
+    readout = examineReadout({ subject: character, openTurnNumber: openTurn?.number, memory: null });
+  }
+
+  return {
+    ok: true,
+    name: character.name,
+    roleTitle: character.roleTitle ?? null,
+    roleGroup: roleGroupHue(character.role?.groupSlug),
+    // The name the room had for them, when it was not their own: a hood, a forced name, a disguise.
+    showingAs: readout.name && readout.name !== character.name ? readout.name : null,
+    hooded: Boolean(readout.concealed),
+    alert: Boolean(readout.alert),
+    seen: [...(readout.ailments ?? []), ...(readout.equipment ?? []), ...(readout.tags ?? []).map((t) => t.name)],
+  };
 }
 
 // ------------------------------------------------------------- conversation
@@ -3436,7 +3496,8 @@ export async function setChatViewAs(mode) {
 export async function gmSpeakerNames() {
   const { session, isGm } = await getGmSession();
   if (!session?.discordUserId || !isGm) return { ok: false, error: "Not authorized." };
-  return { ok: true, speakers: await speakerDirectory(prisma) };
+  const book = await speakerBook(prisma);
+  return { ok: true, speakers: book.names, groups: book.groups };
 }
 
 // A GM in GM view posting a system line into any place they can see — the web
@@ -3446,7 +3507,10 @@ export async function gmSpeakerNames() {
 // feedOutbox skips SYSTEM rows so this can't be mirrored back to Discord —
 // the Discord post here is deliberate, alongside the archive write, matching
 // intercom.js's shape.
-const GM_SYSTEM_POST_MAX = 1800;
+//
+// A long post goes out in pieces, the way a player's long line does
+// (db/lib/say.js#sayInPieces): the same split, the same ceiling and the same
+// refusal past it. It used to stop at 1,800 characters with "That's too long."
 
 export async function gmSystemPost({ placeKey, content } = {}) {
   const { session, isGm } = await getGmSession();
@@ -3454,7 +3518,8 @@ export async function gmSystemPost({ placeKey, content } = {}) {
 
   const text = String(content ?? "").trim();
   if (!text) return { ok: false, error: "Say something." };
-  if (text.length > GM_SYSTEM_POST_MAX) return { ok: false, error: "That's too long." };
+  const pieces = chunkMessage(text);
+  if (pieces.length > MAX_SAY_PIECES) return { ok: false, error: tooManyPieces(pieces.length) };
   const key = String(placeKey ?? "").trim();
   if (!key) return { ok: false, error: "No place to post into." };
 
@@ -3471,16 +3536,21 @@ export async function gmSystemPost({ placeKey, content } = {}) {
   // throwing (db/lib/scene.js), so this always used to fall through and
   // answer { ok: true } even when nothing was written — the composer
   // cleared with no line ever landing. Check it.
-  const line = await sceneLine(prisma, { placeKey: key, text });
-  if (!line) return { ok: false, error: "Couldn't post that." };
-
-  // Best-effort: a dead channel is one audience short rather than a refusal.
+  // In order, each piece written before the next: a piece that fails stops
+  // the rest, so the scene never shows the end of a post without its start.
   const target = await discordTargetForPlaceKey(prisma, key).catch(() => null);
-  if (target?.channelId) {
-    const channelId = target.threadId ?? target.channelId;
-    await postMessage(channelId, text).catch((err) =>
-      console.error("gmSystemPost: Discord post failed:", err.message ?? err),
-    );
+  for (let i = 0; i < pieces.length; i += 1) {
+    const line = await sceneLine(prisma, { placeKey: key, text: pieces[i] });
+    if (!line) {
+      return { ok: false, error: i === 0 ? "Couldn't post that." : `Only ${i} of ${pieces.length} parts went out.` };
+    }
+    // Best-effort: a dead channel is one audience short rather than a refusal.
+    if (target?.channelId) {
+      const channelId = target.threadId ?? target.channelId;
+      await postMessage(channelId, pieces[i]).catch((err) =>
+        console.error("gmSystemPost: Discord post failed:", err.message ?? err),
+      );
+    }
   }
 
   await prisma.auditLog

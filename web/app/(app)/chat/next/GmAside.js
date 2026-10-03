@@ -15,6 +15,7 @@ import { locationFixtures, roomFixtures } from "../fixtures";
 import { useAsideTab } from "../asideTabStore";
 import { setPlaces } from "../feedStore";
 import { gmPlaceView } from "../actions";
+import GmNameCard from "../GmNameCard";
 
 // THE GM's RIGHT COLUMN, rebuilt (CHAT-REBUILD.md phase 6).
 //
@@ -68,14 +69,20 @@ function GmHereList({ people, onOpen }) {
             onPointerDown={() => prefetchDevPanel(person.characterId)}
             onClick={() => onOpen(person.characterId)}
           >
-            <span className="chat-person-name">
+            {/* Painted in their own estate, the way a player's Here list paints
+                the people it can name; hovering the name is the same card the
+                scene's names carry (../GmNameCard.js). Not pinnable: a click
+                on the row opens the character panel. */}
+            <span className="chat-person-name" data-role-group={person.roleGroup ?? undefined}>
               <CharacterAvatar
                 characterId={person.characterId}
                 name={person.name}
                 version={person.avatarVersion}
                 online={person.online}
               />
-              {person.presentedAs ? `${person.presentedAs} (${person.name})` : person.name}
+              <GmNameCard characterId={person.characterId} pinnable={false}>
+                {person.presentedAs ? `${person.presentedAs} (${person.name})` : person.name}
+              </GmNameCard>
               {person.online ? <span className="chat-quiet-line"> · online</span> : null}
             </span>
             {person.roleTitle && <span className="chat-quiet-line">{person.roleTitle}</span>}
@@ -257,8 +264,10 @@ export default function GmAside({ selected, gmZones, onOpenMap = null, onBoardCh
                 <div className="body chip-row">
                   {fresh.members.map((member) => (
                     <span key={member.characterId} className="chip">
-                      {member.name}
-                      {member.presentedAs ? ` (${member.presentedAs})` : ""}
+                      <GmNameCard characterId={member.characterId}>
+                        {member.name}
+                        {member.presentedAs ? ` (${member.presentedAs})` : ""}
+                      </GmNameCard>
                     </span>
                   ))}
                 </div>

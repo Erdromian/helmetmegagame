@@ -6,13 +6,14 @@ import GmSystemComposer from "./GmSystemComposer";
 import DecreeDialog from "./DecreeDialog";
 import GmNoticeCards from "./GmNoticeCards";
 import GmSpeakerPanel from "./GmSpeakerPanel";
+import GmNameCard from "./GmNameCard";
 import { GmToolsContext } from "./gmTools";
 
 // The only file that imports Chat's GM components (./gmTools.js says why).
 // ./layout.js renders it for GMs alone. The layout is its own bundle, apart
 // from the page's, so this file and everything under it reach the browser
 // only when the server has drawn it.
-const TOOLS = { GmAside, NextGmAside, GmSystemComposer, DecreeDialog, GmNoticeCards, GmSpeakerPanel };
+const TOOLS = { GmAside, NextGmAside, GmSystemComposer, DecreeDialog, GmNoticeCards, GmSpeakerPanel, GmNameCard };
 
 export default function GmToolsProvider({ children }) {
   return <GmToolsContext.Provider value={TOOLS}>{children}</GmToolsContext.Provider>;

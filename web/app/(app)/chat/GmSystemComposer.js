@@ -14,6 +14,8 @@ import useComposerAutosize from "./useComposerAutosize";
 import { textArgOf } from "./commands";
 import { gmSystemPost } from "./actions";
 import { readDraft, writeDraft } from "./draftStore";
+import { chunkMessage } from "@lifeweb/db/lib/chunkText";
+import { MAX_SAY_PIECES, tooManyPieces } from "@lifeweb/db/lib/sayLimits";
 
 // Lifted out of ./Feed.js (CHAT-REBUILD.md) unchanged, so both composers
 // mount the SAME one — a GM reading a place they cannot speak in gets the
@@ -57,6 +59,13 @@ export default function GmSystemComposer({ placeKey, placeKind, placeName, hasCh
   const submit = useCallback(async () => {
     const text = draft.trim();
     if (!text || pending) return;
+    // A long post goes out as several lines; past the ceiling it does not go
+    // at all, said here first in the server's own words (./actions.js#gmSystemPost).
+    const pieces = chunkMessage(text).length;
+    if (pieces > MAX_SAY_PIECES) {
+      setError(tooManyPieces(pieces));
+      return;
+    }
     setPending(true);
     setError(null);
     try {
