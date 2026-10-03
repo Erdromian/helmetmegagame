@@ -380,6 +380,7 @@ export async function healCharacterRequestImpl({
             diceModifier:
               gambitModifierTotal(character.tags, { mood: character.mood }) + (surgicalPenalty ? -1 : 0),
             zoneId: character.zoneId ?? null,
+            locationId: character.locationId ?? null,
             gmNotes: "auto:heal_gambit",
           },
         });

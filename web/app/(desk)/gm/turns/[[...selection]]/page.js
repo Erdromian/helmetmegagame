@@ -25,6 +25,7 @@ import {
   DESIRE_CLAIM_INCLUDE,
   OOC_INCLUDE,
   moveRow,
+  moveLocationId,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
@@ -312,7 +313,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
 
   // One bulk load for every Location on the queue, not one query per row — see deskRows.js#structuresByLocation.
   const structuresByLocationId = await structuresByLocation(
-    actions.map((a) => a.character.locationId),
+    actions.map(moveLocationId),
   );
 
   // THE CLOCK IS READ LAST, and the order is load-bearing. Every row is

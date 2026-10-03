@@ -11,6 +11,7 @@ import {
   CAVING_ROLL_INCLUDE,
   COMBAT_INCLUDE,
   moveRow,
+  moveLocationId,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
@@ -121,7 +122,7 @@ export async function deskPatchFor({
   const liveMessages = onDesk(messages, (m) => ofOpenTurn(m) || m.sentAt == null);
 
   const structuresByLocationId = await structuresByLocation(
-    liveActions.map((a) => a.character.locationId),
+    liveActions.map(moveLocationId),
   );
 
   // THE CLOCK IS READ LAST, load-bearing: read after every query resolves, so `asOfMs` can only under-claim freshness (deskStore.js).

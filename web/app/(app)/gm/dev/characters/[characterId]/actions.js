@@ -480,6 +480,7 @@ async function spendTurnImpl({ characterId, description }) {
       characterId,
       turnId: openTurn.id,
       zoneId: character.zoneId,
+      locationId: character.locationId ?? null,
       description: description?.trim() || "Turn spent (GM).",
       moveKind: "ROUTINE",
       moveReviewStatus: "PASSED",
