@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import ArchiveContext from "@/app/components/ArchiveContext";
 import ClickMenu from "@/app/components/ClickMenu";
 import FormError from "@/app/components/FormError";
@@ -79,6 +80,8 @@ export default function OocDesk({ row, onInspect, onClose, registerEscape }) {
           />
           <div className="min-w-0">
             <h2 className="section-title truncate">{row.characterName}</h2>
+            {/* Out of character, but a GM answering it may still want to know whose face is up. */}
+            <GmLook now={row.look?.now} />
             <p className="text-xs text-muted truncate">
               {row.placeName || "somewhere"}
               {row.discordUsername ? ` · @${row.discordUsername}` : ""}

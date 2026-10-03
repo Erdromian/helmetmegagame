@@ -7,6 +7,7 @@
 // (cavingRestrictionsFor, below). Takes `prisma` as a parameter — see
 // db/lib/dm.js for why.
 const { drawLoot } = require("./cavingLoot");
+const { presentationStamp } = require("./gmPresentation");
 const { addToStack, addToRoomStack } = require("./tagWrites");
 const { accessibleRooms, roomAccessKeys } = require("./roomAccess");
 const { loadRoomsAt } = require("./roomSides");
@@ -109,6 +110,8 @@ async function rollCaving(prisma, character, turn, location) {
           kind: rowKind,
           resolvedAt: rowKind === "QUIET" ? new Date() : null,
           presentedState: rowKind === "TROUBLE" ? await troubleSnapshot(tx, character.id) : undefined,
+          // GM only: hooded or disguised at this 1, and what as (gmPresentation.js).
+          presentedAs: rowKind === "TROUBLE" ? await presentationStamp(tx, character.id) : undefined,
           alert,
         },
       });
@@ -161,6 +164,7 @@ async function rollCaving(prisma, character, turn, location) {
           die,
           kind: "TROUBLE",
           presentedState: await troubleSnapshot(tx, character.id),
+          presentedAs: await presentationStamp(tx, character.id),
         },
       });
       return {

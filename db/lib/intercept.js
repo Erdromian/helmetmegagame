@@ -471,7 +471,9 @@ async function fireWatches(db, { arrivals, locationId, zoneId = null, openTurn }
             actionType: "request_intercept_fired",
             targetCharacterId: row.id,
             turnId: openTurn.id,
-            details: { mode: watch.mode, matchedBy, presented: presented.name, locationId },
+            // `hidden`: the face was not their own (a hood, a disguise, a public name), so a GM's audit line
+            // says what they were caught as beside who they were (web/lib/auditNarrative.js).
+            details: { mode: watch.mode, matchedBy, presented: presented.name, hidden: Boolean(presented.concealed || presented.forced), locationId },
           },
         })
         .catch((err) => console.error(`Intercept: audit row failed for ${row.id}:`, err.message ?? err));

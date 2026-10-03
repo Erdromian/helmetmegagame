@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import FormError from "@/app/components/FormError";
 import MarkdownContent from "@/app/components/MarkdownContent";
 import TranscriptLine from "@/app/components/TranscriptLine";
+import { lineKindWord } from "@lifeweb/db/lib/gmLookText";
 import { getArchiveContext } from "@/app/(desk)/gm/turns/actions";
 
 // "In context": the ~30 messages before and after one archived line, in the
@@ -80,7 +81,11 @@ export default function ArchiveContext({ archiveEntryId, maxHeight = null, onLoa
               density="thread-compact"
               gutter={false}
               startsRun
-              name={e.concealedAlias ? `${e.concealedAlias} (${e.characterName})` : e.characterName}
+              name={
+                e.concealedAlias
+                  ? `${e.concealedAlias} (${e.characterName}${lineKindWord(e.presentedKind) ? `, ${lineKindWord(e.presentedKind)}` : ""})`
+                  : e.characterName
+              }
               alias={Boolean(e.concealedAlias)}
               meta={e.turnNumber != null ? <span className="tline-place">turn {e.turnNumber}</span> : null}
               time={e.sentAt.slice(0, 16).replace("T", " ")}

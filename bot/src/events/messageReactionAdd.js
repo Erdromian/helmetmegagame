@@ -6,7 +6,8 @@ const { deleteSpeech, EDIT_WINDOW_MS, WINDOW_REFUSAL } = require("@lifeweb/db/li
 const { proxyRowFor } = require("../lib/proxy");
 const { findAliveCharacter } = require("../lib/interactionGuild");
 const { resolveChannelContext } = require("../lib/channels");
-const { forcedNameFrom, presentedIdentity } = require("@lifeweb/db/lib/presentedIdentity");
+const { loadPresentations } = require("@lifeweb/db/lib/gmPresentation");
+const { dossierLookFields } = require("../lib/dossierLook");
 const { photoCaption } = require("@lifeweb/db/lib/photo");
 const { CAMERA_SLUG, mintPhoto } = require("@lifeweb/db/lib/photoMint");
 
@@ -104,7 +105,7 @@ async function handleDossierReaction(reaction, proxy, user) {
   ]);
   if (!character) return;
 
-  const [action, desires] = await Promise.all([
+  const [action, desires, looks] = await Promise.all([
     openTurn
       ? prisma.action.findFirst({ where: { characterId: character.id, turnId: openTurn.id } })
       : null,
@@ -114,9 +115,8 @@ async function handleDossierReaction(reaction, proxy, user) {
       take: 1,
       select: { text: true, points: true },
     }),
+    loadPresentations(prisma, [character.id]),
   ]);
-
-  const identity = presentedIdentity(character, { forcedName: forcedNameFrom(character.tags, character) }); // GM eyes: real name/face, mask noted not worn
   const where = [character.location?.name, character.zone?.name].filter(Boolean).join(" · ") || "nowhere";
   const embed = new EmbedBuilder()
     .setTitle(character.name)
@@ -127,14 +127,13 @@ async function handleDossierReaction(reaction, proxy, user) {
         where,
         character.roleTitle ?? "No role",
         `${resourcesOf(character)} ⬢`,
-        proxy.concealed ? `concealed as ${proxy.alias ?? "Unknown"}` : null,
       ]
         .filter(Boolean)
         .join(" · "),
     });
-  if (identity.forced) {
-    embed.addFields({ name: "Presents as ", value: identity.name, inline: true });
-  }
+  // What the room saw on this line (a hood, a disguise, a public name) and what it sees now, told apart.
+  const lookFields = dossierLookFields(proxy, looks.get(character.id) ?? null);
+  if (lookFields.length) embed.addFields(...lookFields);
 
   // The ⬢ stack is left out: the Standing line above already gives the figure,
   // and listing it here too would show a GM "12 ⬢" and then "Resources x12"

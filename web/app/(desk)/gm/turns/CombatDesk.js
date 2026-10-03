@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState, useTransition } from "react";
 import FormError from "@/app/components/FormError";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import StatusPill from "@/app/components/StatusPill";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -75,6 +76,8 @@ function ParticipantCard({ person, snapshot, onInspect, onMessage, readOnly }) {
           ⚀ {person.rollLine}
         </span>
       </div>
+      {/* What the others in the fight saw of them as they came in, and now if that changed. */}
+      <GmLook then={person.look?.then} now={person.look?.now} frozen />
       {person.role === "INTERVENER" && <p className="text-xs text-muted">{intervenerLines(person).join(" ")}</p>}
       {person.leftReason ? <p className="text-xs text-muted">Left the fight: {person.leftReason}.</p> : null}
       {/* Always first, whatever they wrote: the game started this fight for a hungry Vampire (moveRows.js#combatRow). */}

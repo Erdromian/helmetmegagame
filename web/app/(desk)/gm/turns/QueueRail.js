@@ -8,6 +8,8 @@ import { foldCavingRolls, isCavingFailure, severityLabel } from "@/lib/cavingLab
 import Select from "@/app/components/Select";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
+import { lookText } from "@lifeweb/db/lib/gmLookText";
 import { useTableState } from "@/app/components/DataTable";
 import useSessionState, { readSession, writeSession } from "@/app/components/useSessionState";
 import { useIsCoarsePointer } from "@/app/components/useIsCoarsePointer";
@@ -130,6 +132,19 @@ function combatRank(r) {
   return r.live ? 0 : 1;
 }
 
+// How many of the people fighting were not showing their own face as they came in (a hood, a disguise, a
+// public name), each named in the tooltip: a fight title lists real names, which is not what the room saw.
+function HiddenFighters({ people }) {
+  const hidden = (people ?? []).filter((p) => p.status === "JOINED" && (p.look?.then?.kind || p.look?.now?.kind));
+  if (!hidden.length) return null;
+  const title = hidden.map((p) => `${p.name}: ${lookText(p.look.then ?? p.look.now)}`).join("\n");
+  return (
+    <span className="gm-look gm-look-compact" title={title}>
+      {hidden.length} hidden
+    </span>
+  );
+}
+
 function CombatRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "combat" }) {
   return rows.map((row) => (
     <button
@@ -145,6 +160,7 @@ function CombatRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
       <span className="flex items-center justify-between gap-2">
         <span className="flex items-center gap-1.5 truncate font-medium">
           <span className="truncate">{row.title}</span>
+          <HiddenFighters people={row.people} />
           <MatchHint match={matchFor(row)} />
         </span>
         <span className="flex shrink-0 items-center gap-1">
@@ -319,6 +335,7 @@ function MoveRows({
           <span className="flex items-center gap-1.5 truncate font-medium">
             <CharacterAvatar characterId={row.characterId} name={row.characterName} version={row.avatarVersion} catatonic={row.catatonic} />
             <span className="truncate">{row.characterName}</span>
+            <GmLook then={row.look?.then} now={row.look?.now} frozen compact />
             <MatchHint match={matchFor(row)} />
           </span>
           <span className="flex items-center gap-1.5">
@@ -365,6 +382,7 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
             <span className="truncate">
               ⚀ {row.die} — {row.characterName}
             </span>
+            <GmLook then={row.look?.then} now={row.look?.now} frozen compact />
             <MatchHint match={matchFor(row)} />
           </span>
           <span className="flex shrink-0 items-center gap-1">
@@ -450,6 +468,7 @@ function AvatarReviewRow({ row, matchFor, onInspect, active, kbd }) {
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5 truncate font-medium">
               <span className="truncate">{row.characterName}</span>
+              <GmLook now={row.look?.now} compact />
               <MatchHint match={matchFor(row)} />
             </span>
             <span className="block truncate text-xs text-muted">
@@ -554,6 +573,7 @@ function DesireClaimRow({ row, matchFor, onInspect, onSelect, active, kbd }) {
           <span className="min-w-0 flex-1">
             <span className="flex items-center gap-1.5 truncate font-medium">
               <span className="truncate">{row.characterName}</span>
+              <GmLook now={row.look?.now} compact />
               <MatchHint match={matchFor(row)} />
             </span>
             <span className="block truncate text-xs text-muted">
@@ -661,6 +681,7 @@ function HoldRow({ row, matchFor, onInspect, onOpenMove, active, kbd }) {
             >
               {p.name}
             </button>
+            <GmLook now={p.look} compact />
             <span className="text-xs text-muted">{HOLD_ROLE_LABELS[p.role] ?? p.role}</span>
             {p.moves.length > 0 ? (
               p.moves.map((m) => (
@@ -729,6 +750,7 @@ function OocRow({ row, matchFor, onSelect, active, kbd }) {
         <span className="min-w-0 flex-1">
           <span className="flex items-center gap-1.5 truncate font-medium">
             <span className="truncate">{row.characterName}</span>
+            <GmLook now={row.look?.now} compact />
             <MatchHint match={matchFor(row)} />
           </span>
           {/* The words, then where. Two lines rather than one: the sentence is

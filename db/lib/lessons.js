@@ -20,6 +20,7 @@
 // the bot answers the click, so everything both sides check lives here.
 const { rollWithAdvantage } = require("./advantage");
 const { rollTotal } = require("./rollDie");
+const { presentationStamp } = require("./gmPresentation");
 const { addToStack, replaceLowerTiers } = require("./tagWrites");
 const { gambitModifierTotal, rollLine } = require("./gambitModifier");
 const { isHere, notHereMessage } = require("./presence");
@@ -598,6 +599,7 @@ async function acceptLesson(prisma, offer, responder) {
           diceModifier,
           zoneId: learner.zoneId ?? null,
           locationId: learner.locationId ?? null,
+          presentedAs: await presentationStamp(tx, learner.id),
           gmNotes: "auto:lesson",
         },
       });
@@ -631,6 +633,7 @@ async function acceptLesson(prisma, offer, responder) {
             appliedEffects: {},
             zoneId: teacher.zoneId ?? null,
             locationId: teacher.locationId ?? null,
+            presentedAs: await presentationStamp(tx, teacher.id),
             gmNotes: "auto:lesson",
           },
         });

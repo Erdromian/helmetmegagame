@@ -67,6 +67,8 @@ export function foldCavingRolls(rows) {
       count,
       stuck: count >= CAVING_TROUBLE_CAP,
       die: latest.die,
+      // How they looked at the newest 1, the one whose snapshot the lens reads (CAVING.md §5).
+      look: latest.look,
       locationName: latest.locationName,
       zoneId: latest.zoneId,
       zoneName: latest.zoneName,

@@ -3,6 +3,7 @@
 import { useEffect, useState, useTransition } from "react";
 import DevCharacterButton from "@/app/components/DevCharacterButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import FormError from "@/app/components/FormError";
 import DesireRule from "@/app/components/DesireRule";
 import { useConfirm } from "@/app/components/ConfirmProvider";
@@ -134,6 +135,7 @@ export default function DesireDesk({ desire, onInspect, onClose, registerEscape,
               {desire.characterName}
             </button>
           </h2>
+          <GmLook now={desire.look?.now} />
           <p className="text-xs text-muted">
             {desire.desireName} · {desire.points} tag point{desire.points === 1 ? "" : "s"}
             {desire.tier != null ? ` (tier ${desire.tier})` : ""} · slot {desire.slotIndex + 1}

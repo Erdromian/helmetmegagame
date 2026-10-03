@@ -1,6 +1,7 @@
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { cursedUserIds } from "@lifeweb/db/lib/curse";
 import { resourcesByCharacterIds } from "@lifeweb/db/lib/resourceStack";
+import { loadPresentations } from "@lifeweb/db/lib/gmPresentation";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones, listSelectableZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
@@ -180,7 +181,11 @@ export default async function PlayerDeskLayout({ children }) {
   // ⬢ per character, in one batch query rather than one per row — this rail
   // lists everyone. Every status, not just ALIVE: a dead character's purse is
   // still shown here, so the tag rows above (ALIVE only) can't answer it.
-  const resourcesByCharacter = await resourcesByCharacterIds(prisma, characters.map((c) => c.id));
+  // What the room sees of each of them now (db/lib/gmPresentation.js): one query, beside the ⬢ one.
+  const [resourcesByCharacter, looks] = await Promise.all([
+    resourcesByCharacterIds(prisma, characters.map((c) => c.id)),
+    loadPresentations(prisma, characters.map((c) => c.id)),
+  ]);
 
   // Held-tag names per character, for the rail's fuzzy `tag` field.
   const tagNameById = new Map(allTags.map((t) => [t.id, t.name]));
@@ -227,6 +232,7 @@ export default async function PlayerDeskLayout({ children }) {
       characterId: c?.id ?? null,
       avatarVersion: c?.updatedAt ? c.updatedAt.getTime() : null,
       name: c?.name ?? username ?? discordUserId,
+      look: c ? (looks.get(c.id) ?? null) : null,
       roleTitle: c?.roleTitle ?? "",
       zoneName: c?.zone?.name ?? "",
       status: c?.status ?? null,

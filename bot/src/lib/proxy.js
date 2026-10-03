@@ -185,6 +185,8 @@ async function proxyRowFor(discordMessageId) {
     // a second time — ⭐ files it onto the Note (Note.presentedAvatarPath).
     avatarPath: row.presentedAvatarPath ?? null,
     concealed,
+    // Said in a Disguise Kit's name (ArchiveEntry.disguised), for the GM dossier's "On this line".
+    disguised: Boolean(row.disguised),
   };
 }
 

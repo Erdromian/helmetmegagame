@@ -553,7 +553,10 @@ panel reads the newest one that has a snapshot (`getCavingSnapshot` in
 `web/app/(desk)/gm/turns/actions.js`): combat mode on or off, the Combat tile,
 what they were wearing and their health tags. The tags are read against the
 live catalog, the snapshot rule everywhere. A roll from before this has no
-snapshot, and the panel says so.
+snapshot, and the panel says so. `CavingRoll.presentedAs` freezes beside it
+whether they were hooded or disguised at that 1, and as what
+(`db/lib/gmPresentation.js`, `STRANGERS.md` §10a); the desk header and the
+rail row show it, the newest 1's for a folded result.
 
 `CavingDesk.js` (modeled on `MoveDesk.js`, much thinner) is where a GM
 narrates a `TROUBLE` roll. It carries the same **Result** box and **Stage as

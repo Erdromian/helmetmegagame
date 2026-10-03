@@ -4,6 +4,7 @@ import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { placementOf } from "@lifeweb/db/lib/structures";
 import { listGuildMembers } from "./discordGuild";
 import { pgNowMs } from "./pgClock";
+import { loadLooks } from "@lifeweb/db/lib/gmPresentation";
 import {
   MOVE_INCLUDE,
   STAGED_EFFECT_INCLUDE,
@@ -41,6 +42,32 @@ export async function structuresByLocation(locationIds) {
     byLocationId.set(row.locationId, list);
   }
   return byLocationId;
+}
+
+// What the room sees of everybody on these raw rows, frozen and live, for the row builders' `looks`
+// (db/lib/gmPresentation.js). Takes the rows as Prisma returned them (the *_INCLUDE shapes), so a stamp
+// is read straight off its column; `characterIds` adds anybody else the payload names. Two or three
+// queries for a whole desk, however many rows.
+export async function deskLooks({ actions = [], cavingRolls = [], combats = [], effects = [], messages = [], characterIds = [] } = {}) {
+  const ids = [...characterIds];
+  const stamps = [];
+  for (const a of actions) {
+    ids.push(a.characterId);
+    stamps.push(a.presentedAs);
+  }
+  for (const c of cavingRolls) {
+    ids.push(c.characterId);
+    stamps.push(c.presentedAs);
+  }
+  for (const fight of combats) {
+    for (const p of fight.participants ?? []) {
+      ids.push(p.characterId);
+      stamps.push(p.presentedAs);
+    }
+  }
+  for (const e of effects) if (e.targetCharacterId) ids.push(e.targetCharacterId);
+  for (const m of messages) for (const r of m.recipients ?? []) if (r.character?.id) ids.push(r.character.id);
+  return loadLooks(prisma, { ids, stamps: stamps.filter(Boolean) });
 }
 
 // `openTurn` is passed by a caller that already has it; pass `null` for "genuinely no open turn". NO CLOCK HERE (see deskPatchFor).
@@ -121,9 +148,11 @@ export async function deskPatchFor({
   const liveEffects = onDesk(effects, (e) => ofOpenTurn(e) || e.appliedAt == null);
   const liveMessages = onDesk(messages, (m) => ofOpenTurn(m) || m.sentAt == null);
 
-  const structuresByLocationId = await structuresByLocation(
-    liveActions.map(moveLocationId),
-  );
+  const [structuresByLocationId, looks] = await Promise.all([
+    structuresByLocation(liveActions.map(moveLocationId)),
+    deskLooks({ actions: liveActions, cavingRolls: liveRolls, combats: liveCombats, effects: liveEffects, messages: liveMessages }),
+  ]);
+  const rowCtx = { ...ctx, looks };
 
   // THE CLOCK IS READ LAST, load-bearing: read after every query resolves, so `asOfMs` can only under-claim freshness (deskStore.js).
   const asOfMs = await pgNowMs();
@@ -138,11 +167,11 @@ export async function deskPatchFor({
     asOfMs,
     // Which turn this patch was showing; applyDeskPatch drops a mismatched patch.
     turnId: openTurnId,
-    moves: liveActions.map((a) => moveRow(a, { ...ctx, structuresByLocationId })),
-    cavingRolls: liveRolls.map((c) => cavingRollRow(c, ctx)),
-    combats: liveCombats.map((c) => combatRow(c, ctx)),
-    stagedEffects: liveEffects.map((e) => stagedEffectRow(e, ctx)),
-    stagedMessages: liveMessages.map((m) => stagedMessageRow(m, ctx)),
+    moves: liveActions.map((a) => moveRow(a, { ...rowCtx, structuresByLocationId })),
+    cavingRolls: liveRolls.map((c) => cavingRollRow(c, rowCtx)),
+    combats: liveCombats.map((c) => combatRow(c, rowCtx)),
+    stagedEffects: liveEffects.map((e) => stagedEffectRow(e, rowCtx)),
+    stagedMessages: liveMessages.map((m) => stagedMessageRow(m, rowCtx)),
     removed: {
       moveIds: [...(removed.moveIds ?? []), ...gone(moveIds, actions)],
       cavingRollIds: [...(removed.cavingRollIds ?? []), ...gone(cavingRollIds, rolls)],

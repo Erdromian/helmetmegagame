@@ -6,6 +6,7 @@ import { useConfirm } from "@/app/components/ConfirmProvider";
 import FormError from "@/app/components/FormError";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import EffectComposer from "./EffectComposer";
 import RoomEffectComposer from "./RoomEffectComposer";
 import DeathComposer from "./DeathComposer";
@@ -108,6 +109,7 @@ export function StagedEffectRow({
           ) : (
             <span className="desk-name">{effectTargetLabel(effect)}</span>
           )}{" "}
+          {effect.targetCharacterId ? <GmLook now={effect.targetLook} compact /> : null}{" "}
           <span className="mono">
             <EffectSegments segments={effectSegments(effect, tagsById)} />
           </span>
@@ -266,6 +268,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
                   >
                     <CharacterAvatar characterId={r.characterId} name={r.name} version={r.avatarVersion} size={16} />
                     {r.name}
+                    <GmLook now={r.look} compact />
                   </button>
                 ))
               ) : (

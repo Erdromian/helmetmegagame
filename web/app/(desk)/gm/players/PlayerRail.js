@@ -7,6 +7,7 @@ import { noteActionVersion } from "@/app/components/useDeskVersion";
 import Select from "@/app/components/Select";
 import usePins from "@/app/components/usePins";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
+import GmLook from "@/app/components/GmLook";
 import MatchHint from "@/app/components/MatchHint";
 import { EnumPill, CHARACTER_STATUS } from "@/app/components/StatusPill";
 import { scoreMatch } from "@/lib/fuzzySearch";
@@ -488,6 +489,7 @@ export default function PlayerRail({ rows: serverRows, rowsAsOfMs, visibleZoneNa
                     catatonic={row.catatonic}
                   />
                   <span className="desk-queue-name">{row.name}</span>
+                  <GmLook now={row.look} compact />
                   {row.username && <span className="text-xs text-muted">@{row.username}</span>}
                   {row.zoneName ? <ZoneChip zoneName={row.zoneName} /> : null}
                   {row.status && row.status !== "ALIVE" && (

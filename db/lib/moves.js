@@ -9,6 +9,7 @@ const { blockerFor, gambitBlockerFor, ACT } = require("./incapacitation");
 const { touchCharacterActivity } = require("./characterActivity");
 const { deleteActionRestoringTurn, lockIsLive, syncQuestIntention } = require("./moveEconomy");
 const { logAudit } = require("./auditLog");
+const { presentationStamp } = require("./gmPresentation");
 
 // What the modal and the Move dialog may submit. There is one: a Move IS a Gambit. The column's other
 // value, ROUTINE, is written by every button that spends a Move (Mine, Refine, Farm) and by a GM
@@ -53,6 +54,8 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
   }
 
   const resourceRollExpression = null;
+  // How they look as they file it, for the GM desk: a disguise may be gone by the time anybody reads this.
+  const presentedAs = await presentationStamp(prisma, character.id);
 
   // @@unique([characterId, turnId]) is the real gate; a retried submit at rollover must not become a second Move.
   let action;
@@ -72,6 +75,7 @@ async function fileMove(prisma, { character, actorDiscordUserId, moveKind, descr
         zoneId: character.zoneId ?? null,
         // Stamped at filing time — a free zone move costs no Action, so by turn close they may be standing somewhere else.
         locationId: character.locationId ?? null,
+        presentedAs,
       },
     });
   } catch (err) {
@@ -163,7 +167,9 @@ async function editMove(prisma, { character, actorDiscordUserId, actionId, descr
   if (raw === action.description) return { ok: true, action, unchanged: true };
 
   const updated = await prisma.$transaction(async (tx) => {
-    const row = await tx.action.update({ where: { id: action.id }, data: { description: raw } });
+    // A rewrite is filed again, so it carries the look they rewrote it in.
+    const presentedAs = await presentationStamp(tx, action.characterId);
+    const row = await tx.action.update({ where: { id: action.id }, data: { description: raw, presentedAs } });
     await syncQuestIntention(tx, action.id, raw);
     return row;
   });

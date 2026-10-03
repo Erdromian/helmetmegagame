@@ -2,6 +2,7 @@
 // only with itself.
 
 import { prisma } from "@lifeweb/db";
+import { presentationStamp } from "@lifeweb/db/lib/gmPresentation";
 import { getOpenTurn } from "@/lib/turn";
 import {
   logAudit,
@@ -381,6 +382,7 @@ export async function healCharacterRequestImpl({
               gambitModifierTotal(character.tags, { mood: character.mood }) + (surgicalPenalty ? -1 : 0),
             zoneId: character.zoneId ?? null,
             locationId: character.locationId ?? null,
+            presentedAs: await presentationStamp(tx, character.id),
             gmNotes: "auto:heal_gambit",
           },
         });

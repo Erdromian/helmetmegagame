@@ -27,7 +27,8 @@ const {
 const { loadRoomsAt } = require("@lifeweb/db/lib/roomSides");
 const { resolveActingMember, isGmMember, findAliveCharacter, actingCharacter } = require("../../lib/interactionGuild");
 const { toggleConceal } = require("@lifeweb/db/lib/conceal");
-const { whosHere, whosHereLines } = require("@lifeweb/db/lib/whosHere");
+const { whosHere, whosHereLines, whosHereGm } = require("@lifeweb/db/lib/whosHere");
+const { gmWhosHereLines } = require("../../lib/dossierLook");
 const { examineLines } = require("@lifeweb/db/lib/examineLocation");
 const { openConversationThread } = require("@lifeweb/db/lib/conversationOpen");
 const {
@@ -68,7 +69,16 @@ async function handleWhosHere(interaction, locationId) {
     await respond(interaction, NOT_HERE);
     return;
   }
+  // A GM gets the truth: every real name, with what the room sees beside it (a hood, a disguise, a public
+  // name), the way the web's GM aside lists them (db/lib/whosHere.js#whosHereGm).
   const rows = await whosHere(prisma, viewer, { locationId, withAcross: true });
+  if (isGmMember(interaction)) {
+    // The people across a gate or over a counter stay as they were: the far side, read as a player reads it.
+    const far = whosHereLines({ named: [], concealed: [], across: rows.across ?? [], rooms: rows.rooms ?? [] });
+    const lines = [...gmWhosHereLines(await whosHereGm(prisma, locationId)), ...far];
+    await respond(interaction, lines.length ? lines.join("\n") : "Nobody is here.");
+    return;
+  }
   const lines = whosHereLines(rows);
   if (lines.length === 0) {
     await respond(interaction, "Nobody is here.");

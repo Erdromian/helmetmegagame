@@ -366,7 +366,8 @@ the game is meant to say.
 | Faces without ids | `web/app/api/avatar/here/`, `web/app/api/avatar/line/`, `web/lib/avatarResponse.js` |
 | The lens on the web | `web/lib/strangerLens.js`, `web/app/api/feed/route.js` |
 | Who a disguise fools (§10) | `db/lib/disguises.js` |
-| Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory`, `Acquaintance.disguiseKey`, `ArchiveEntry.disguised` / `disguiseGroup`, `Tag.disguiseJob` / `disguiseJobSlug` |
+| What a GM is told about a face (§10a) | `db/lib/gmPresentation.js`, `db/lib/gmLookText.js`, `web/app/components/GmLook.js` |
+| Schema | `Character.presenceLabel` / `presenceNonce` / `presenceHidden`, `VoiceMemory`, `Acquaintance.disguiseKey`, `ArchiveEntry.disguised` / `disguiseGroup`, `Tag.disguiseJob` / `disguiseJobSlug`, `Action` / `CombatParticipant` / `CavingRoll.presentedAs` (§10a) |
 | Tests | `db/test/strangers.test.js`, `presentedMembers.test.js`, `roomGuests.test.js`, `verbFaces.test.js`, `seenByMany.test.js`, `disguises.test.js`, and `strangerNameCanary.test.js` — every builder that names somebody to one reader, run against a stranger called Zzyzx Quorble, who must never be named |
 
 ## 9. Switching it off
@@ -532,3 +533,48 @@ channel (§7), so on Discord a disguise still shows its name to everybody.
 Discord's per-viewer readouts (Who's here, the Look list, a fight's
 announcement) follow the rule. Place lines about somebody (`seenByPlace`) name
 the disguise, as they name a bare face.
+
+### 10a. What a GM sees
+
+Nobody is a stranger to a GM, and no disguise fools one (§9, §10), but a GM
+adjudicating still needs to know what the ROOM saw: a hooded stranger, a
+disguise, a public name. Every GM surface shows the real name with that beside
+it, worked out in one place, `db/lib/gmPresentation.js`:
+
+| Kind | Reads | Carries |
+|---|---|---|
+| `hood` | "hooded: a young man, under a Plague Mask" | the piece over the face, and `under`: a disguise the hood is hiding, which no reader in the room can see but a GM is told |
+| `disguise` | "disguised as Sir Aldric Vask (Steward)" | the job it claims, painted in its estate |
+| `forced` | "goes by Beast" | (Apex Form's public name) |
+| `deathmask` | "masked in death: an old woman, under a Sack Hood" | a body masked by what it died in (`presentedIdentity.js#deathMaskPiece`) |
+
+A bare face has no presentation at all, so nothing is drawn.
+
+**Frozen when they act.** A disguise lasts three turns and its tag is deleted
+once nobody holds it (`db/index.js`), so "what were they wearing when they did
+this" cannot be worked out afterwards. The look is stamped onto the row as it is
+written: `Action.presentedAs` (every Move, a player's Gambit and every Routine
+the game files), `CombatParticipant.presentedAs` (as they came into a fight) and
+`CavingRoll.presentedAs` (at a 1). A surface with a moment shows the frozen look
+and adds "now: …" when today's differs; one without (a roster, the inspector,
+the Dev Panel) shows today's. `moveLedger.js` takes the stamp from its caller
+rather than working it out, because it reaches "use client" bundles through
+`craftBudget.js` and this module's chain cannot go there, even behind a require
+inside a function: webpack follows those too.
+
+**Where it shows.** `/gm/turns` (every desk card, every queue row in one word,
+staged targets and recipients, the inspector, History), `/gm/players` (the rail
+and the roster), the Dev Panel's **Seen as** tile, the chat GM seat (the Here
+list and conversation members as "a young man (Real Name)" with the kind in one
+word; the name card's frozen line and now), `/archive` and the context view
+(each hooded line says hooded, in disguise or public name, read off what the
+line froze, `archive.js#lineLookKind`), the audit log ("put on a disguise as …",
+an intercept "seen as …"), and on Discord the ⚜️ dossier ("On this line" and
+"Now") and a GM's Who's here, which lists real names. Not `/actions`: that is a
+spectator page.
+
+**GM-only, and a tripwire holds it.** A look names what the room cannot see, so
+it is only ever loaded behind a GM gate. `web/lib/__tests__/gmLookPrivacy.test.mjs`
+fails when a web file outside its list reads one; add a reader there only after
+checking its page is GM-gated. The words are `db/lib/gmLookText.js`, zero
+requires, so client components can have them.

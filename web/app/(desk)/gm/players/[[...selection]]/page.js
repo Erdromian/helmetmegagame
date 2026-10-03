@@ -7,6 +7,7 @@ import Loading from "../Skeleton";
 import { prisma, CATATONIC_SLUG } from "@lifeweb/db";
 import { cursedUserIds } from "@lifeweb/db/lib/curse";
 import { RESOURCES_SLUG } from "@lifeweb/db/lib/resourceStack";
+import { loadPresentations } from "@lifeweb/db/lib/gmPresentation";
 import { getGmSession, listGuildMembers } from "@/lib/discordGuild";
 import { getVisibleZones } from "@/lib/gmZoneView";
 import { getOpenTurn } from "@/lib/turn";
@@ -94,6 +95,8 @@ async function FreshPlayerRoster({ userId }) {
   const resourcesByCharacter = new Map(
     heldTags.filter((ct) => ct.tagId === resourcesTagId).map((ct) => [ct.characterId, ct.quantity ?? 0]),
   );
+  // What the room sees of each of them now: hooded, disguised, a public name (db/lib/gmPresentation.js).
+  const looks = await loadPresentations(prisma, characters.map((c) => c.id));
   const cursed = cursedUserIds(characters, openTurn?.number ?? null); // a database question now (db/lib/curse.js), not a Discord role
   const memberById = new Map(members.map((m) => [m.id, m])); // same map PlayerRail builds, so the table finds a Discord handle without a second query
 
@@ -106,6 +109,7 @@ async function FreshPlayerRoster({ userId }) {
           id: c.id,
           discordUserId: c.discordUserId,
           name: c.name,
+          look: looks.get(c.id) ?? null,
           roleTitle: c.roleTitle,
           zoneName: c.zone?.name ?? "",
           status: c.status,

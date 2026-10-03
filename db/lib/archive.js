@@ -7,6 +7,7 @@ const { notifyFeed } = require("./feedNotify");
 const { hoodToken } = require("./whosHere");
 const { loadPresentedState } = require("./examineSnapshot");
 const { roleGroupHue } = require("./roleGroups");
+const { wasHooded } = require("./presentedIdentity");
 const { isSfx } = require("./sfx");
 const { attachSpeaker, attachAudience, attachSubjects, attachDisguised } = require("./strangers");
 const { locationNameForPlaceKey } = require("./placeKey");
@@ -156,6 +157,15 @@ const ARCHIVE_ROW_SELECT = {
   action: true,
 };
 
+// What a line's alias WAS, from what the row froze, for a GM reading it back: "disguise" (a Disguise Kit,
+// `disguised`), "hood" (presentedIdentity.js#wasHooded: a helm face or a hood's alias) or "forced" (a
+// public name like Apex Form's Beast). Null for a line said under their own name.
+function lineLookKind(row) {
+  if (!row?.concealedAlias) return null;
+  if (row.disguised) return "disguise";
+  return wasHooded(row) ? "hood" : "forced";
+}
+
 // A page of transcript rows, shaped for the browser. Goes through feedRowShape rather
 // than around it — the archive names the character behind every hood but must still not hand the browser the pieces to correlate a hooded line with a named one by id; feedRowShape withholds `characterId` and substitutes `speakerKey`, and re-shaping by hand would quietly undo that. The archive DOES render `alias (Real Name)` where the feed shows only the alias — deliberate, and why the page stays shut until the game is over — so `realName` rides along explicitly rather than being smuggled into `name`. One `?v=` per character, not per row (see withAvatarVersions).
 async function archiveRowsShape(prisma, rows) {
@@ -181,6 +191,8 @@ async function archiveRowsShape(prisma, rows) {
       threadName: row.threadName ?? null,
       channelKind: row.channelKind ?? null,
       realName: row.characterName ?? null,
+      // Hood, disguise or a public name: what the alias beside realName was (lineLookKind).
+      presentedKind: lineLookKind(row),
       action: row.action ?? null,
     });
   });
@@ -413,6 +425,7 @@ async function retractArchiveRow(prisma, id) {
 }
 
 module.exports = {
+  lineLookKind,
   FEED_ROW_SELECT,
   ARCHIVE_ROW_SELECT,
   feedRowShape,

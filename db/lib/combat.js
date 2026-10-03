@@ -21,6 +21,7 @@
 // already refuses a held person's way out keeps working. It is re-derived from the participant rows by
 // settleHold, never written by hand.
 const { presentedStateFrom } = require("./examineSnapshot");
+const { presentationOf, stampPresentation } = require("./gmPresentation");
 const {
   IDENTITY_SELECT,
   HELD_REASON,
@@ -529,6 +530,9 @@ function participantData(row, { side, role, status, turnId, distance = null, fro
     alert,
     snapshot: snapshotOf(row),
     snapshotAt: now,
+    // GM only: hooded or disguised as they came in, and what as. The snapshot keeps tag ids, but a
+    // disguise's tag goes once nobody holds it, so its name is written down here (gmPresentation.js).
+    presentedAs: stampPresentation(presentationOf(row)),
     die: roll.die,
     rolls: roll.rolls,
     advantageSource: roll.advantageSource,

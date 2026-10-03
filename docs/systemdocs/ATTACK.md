@@ -86,7 +86,13 @@ At the moment a fight starts, two things are frozen onto it:
   mood. A GM's desk rehydrates it against the live catalog
   (`actions.js#getCombatSnapshots`), the Caving desk's rule: the kit as it was,
   today's rules on what it adds up to. So health, equipment and fighting band
-  are all read off it.
+  are all read off it. Beside it, `CombatParticipant.presentedAs` freezes
+  what the others saw of them as they came in: hooded, disguised or a public
+  name, and as what (`db/lib/gmPresentation.js`, `STRANGERS.md` §10a). The
+  snapshot keeps tag ids, but a disguise's tag is deleted once nobody holds
+  it, so its name is written down there. The fighter card shows it under the
+  name, with "now: …" when it has changed, and the Combat rail says how many
+  of the people fighting were not showing their own face.
 - **How far everybody in the world is** (`Combat.distances`): every living,
   placed character, in Locations, counting only the ways each of them could
   walk. `locationGraph.js#distancesFrom` runs the mover's own `crossingCheck`

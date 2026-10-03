@@ -10,7 +10,7 @@ import { isSuperadmin } from "@/lib/superadmin";
 import { isHealable } from "@/lib/healRequests";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
 import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib/desireProjection";
-import { concealmentFrom, forcedNameFrom, presentedIdentity } from "@lifeweb/db/lib/presentedIdentity";
+import { loadPresentations } from "@lifeweb/db/lib/gmPresentation";
 import { paperDescriptionGm, paperViewGm } from "@lifeweb/db/lib/paper";
 import { prettifyActionType } from "@/lib/auditNarrative";
 
@@ -376,14 +376,14 @@ export async function loadDevPanelProps(characterId, actingDiscordUserId) {
       // player reports being visible, or unhidden, when they expect otherwise
       // — and `concealed` alone answers half the question, because the column
       // is only a wish: it takes effect solely while something concealing is
-      // equipped (CHAT.md §6a, PROXYING.md §5). So the resolved answer comes
-      // along beside it, from the same function every send path asks.
+      // equipped (CHAT.md §6a, PROXYING.md §5). So what the room actually sees
+      // comes along beside it (db/lib/gmPresentation.js): hooded, disguised, a
+      // public name, or their own face. It is read off its own select, not the
+      // chip rows above, which carry no concealSprite or forcedName — reading
+      // those is why this tile used to say "On, but nothing worn" under a hood.
       discordMirrored: character.discordMirrored,
       concealed: character.concealed,
-      concealedInEffect: presentedIdentity(character, {
-        forcedName: forcedNameFrom(heldTagsComposed, character),
-        concealment: concealmentFrom(heldTagsComposed),
-      }).concealed,
+      look: (await loadPresentations(prisma, [character.id])).get(character.id) ?? null,
       discordRoleId: character.discordRoleId,
       avatarMimeType: character.avatarMimeType,
       hasAvatar: Boolean(character.avatarMimeType),

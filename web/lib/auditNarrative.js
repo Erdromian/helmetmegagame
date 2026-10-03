@@ -205,6 +205,14 @@ const R = {
   // The old request_move_character line is gone; existing rows render through the fallback.
   escort_consented: (d) => [actor(), t("agreed to follow"), target(), t(`until turn ${d.untilTurn}`)],
   request_change_name: (d) => [actor(), t("renamed from"), em(d.previousName), t("to"), em(d.name)],
+  // A Disguise Kit (docs/systemdocs/STRANGERS.md §10): the name it puts on, the job it claims, how long.
+  request_disguise_self: (d) => [
+    actor(),
+    t("put on a disguise as"),
+    em(d?.disguiseName ?? d?.tagName ?? "somebody"),
+    ...(d?.disguiseJob ? [t("claiming to be"), em(d.disguiseJob)] : []),
+    ...(d?.turns ? [t(`for ${d.turns} turns`)] : []),
+  ],
   request_loot_character: (d) => [actor(), t("looted"), target(), ...effectTail(d)],
   request_crucify_character: (d) => [actor(), t("crucified"), target(), ...(d?.locationName ? [t("at"), em(d.locationName)] : [])],
   // Intercept (docs/systemdocs/INTERCEPT.md). `fired` names the person by the face the room saw, never their true name.
@@ -227,6 +235,8 @@ const R = {
     actor(),
     t(d?.mode === "AMBUSH" ? "ambushed" : "intercepted"),
     target(),
+    // The face the watcher caught, when it was not their own (a hood, a disguise): `presented`, flagged `hidden`.
+    ...(d?.hidden && d?.presented ? [t("seen as"), em(d.presented)] : []),
     ...(d?.locationName ? [t("at"), em(d.locationName)] : []),
   ],
   request_intercept_released: () => [actor(), t("let"), target(), t("go")],

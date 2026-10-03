@@ -5,6 +5,7 @@ import HoverCard from "@/app/components/HoverCard";
 import { actionThrowMessage } from "@/app/components/actionThrow";
 import { ALERT_LINE } from "@lifeweb/db/lib/combatMode";
 import { gmCardOf } from "./actions";
+import GmLook from "@/app/components/GmLook";
 
 // A NAME A GM CAN HOVER — the GM seat's twin of NameCard.js, drawn in the
 // same card. A player's card is what they remember of somebody and what they
@@ -86,12 +87,8 @@ function GmNameCardBody({ seq, characterId }) {
           {c.roleTitle}
         </span>
       )}
-      {c.showingAs && (
-        <span className="name-card-text">
-          Showing as {c.showingAs}
-          {c.hooded ? " (hooded)" : ""}.
-        </span>
-      )}
+      {/* On a line: how they looked saying it, and now if that changed. On a person: how they look now. */}
+      <GmLook then={c.look?.then ?? null} now={c.look?.now ?? null} frozen={c.look?.then !== undefined} />
 
       <span className="name-card-label">What the room could see</span>
       {c.alert && <span className="name-card-text">{ALERT_LINE}</span>}
