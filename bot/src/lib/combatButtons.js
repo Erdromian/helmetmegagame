@@ -110,9 +110,17 @@ async function handleCombatButton(interaction) {
     choice,
     discordUserId: interaction.user.id,
   });
-  // An invitation's buttons go once it is answered; a fight's own DM keeps its Write button, so only a refusal
-  // or a call-off that ended the fight clears it.
-  const keep = kind === DM_ACTION.COMBAT && result.ok && !/called off/.test(result.line ?? "");
+  // An invitation's buttons go once it is answered. A fight's own DM keeps its buttons for as long as the
+  // presser is still in that fight — read off their row, not the reply's wording — so a refused Call off (the
+  // lock, a compelled Vampire, a second press) no longer takes Write your attack away with it, and a call-off
+  // that ended the fight clears them.
+  let keep = false;
+  if (kind === DM_ACTION.COMBAT) {
+    const still = await prisma.combatParticipant
+      .findUnique({ where: { id: participantId }, select: { activeTurnId: true } })
+      .catch(() => null);
+    keep = Boolean(still?.activeTurnId);
+  }
   await respond(interaction, keep ? { content: result.line } : { content: result.line, components: [] });
   await sendCombatDms(interaction.client, result.dms);
 }

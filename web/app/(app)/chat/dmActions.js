@@ -29,8 +29,17 @@ import { sendDm } from "@/lib/discordGuild";
 // Best-effort throughout, and each step catches its own — a failed room sync is
 // the channel doctor's problem, not a reason the accept failed.
 async function applySideEffects({ dms, sideEffects }) {
+  // The whole descriptor, not just the text: a fight's Join hands back the joiner's fight DM, and its buttons
+  // (Write your attack, Call off) and `meta` are what Discord and the web thread draw them from — the
+  // chat/actions.js#moveTo shape for the same kind of DM. Never pinging: these lines name people.
   for (const dm of dms ?? []) {
-    await sendDm(dm.discordUserId, dm.content).catch((err) =>
+    await sendDm(dm.discordUserId, dm.content, {
+      kind: dm.kind,
+      components: dm.components,
+      meta: dm.meta,
+      sfx: dm.sfx,
+      allowedMentions: { parse: [] },
+    }).catch((err) =>
       console.error(`DM action fan-out to ${dm.discordUserId} failed:`, err),
     );
   }

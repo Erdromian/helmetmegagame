@@ -149,12 +149,16 @@ function CombatRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
         </span>
         <span className="flex shrink-0 items-center gap-1">
           {row.fromAmbush && <StatusPill tone="neutral">Ambush</StatusPill>}
+          {row.reopened && <StatusPill tone="warn">Reopened</StatusPill>}
           <StatusPill tone={COMBAT_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
         </span>
       </span>
+      {/* Who is actually fighting — not the invitees who said no or never answered, nor anybody who left — and how
+          many of them stepped in, since the title alone doesn't say which names joined later. */}
       <span className="block truncate text-xs text-muted">
         {row.locationName}
-        {row.zoneName ? <> · {row.zoneName}</> : null} · {row.people.length} involved
+        {row.zoneName ? <> · {row.zoneName}</> : null} · {row.fightingCount ?? row.people.length} fighting
+        {row.steppedInCount ? <> · {row.steppedInCount} stepped in</> : null}
       </span>
     </button>
   ));

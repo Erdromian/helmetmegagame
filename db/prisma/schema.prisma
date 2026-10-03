@@ -5851,6 +5851,10 @@ model Combat {
   resultMessage           String?
   resolvedAt              DateTime?
   resolvedByDiscordUserId String?
+  // When somebody came into it after a GM had solved it (combat.js#reopenIfSolved): the Solved
+  // stamp comes off and the lens marks it Reopened, so a GM looks it over again. Kept after a
+  // re-solve, as the record that the ruling was revisited.
+  reopenedAt              DateTime?
 
   participants   CombatParticipant[]
   stagedMessages StagedMessage[]
@@ -5908,6 +5912,17 @@ model CombatParticipant {
   distance         Int?
   fromLocationId   String?
   fromLocationName String?
+
+  // An escort who stepped in for their charge (ATTACK.md §6a): the charge's character id, so the
+  // desk can say whom they came to defend. A plain id, the log-table rule — the charge is a
+  // defender in the same fight, and the desk names them from there.
+  escortOfId String?
+
+  // Back in a fight they had been out of (combat.js#intervene takes their old
+  // row over as their new place): DECLINED — turned the invitation down, then
+  // joined the defenders — or LEFT — taken away, then came back and joined.
+  // Null for everybody who came into it once. For the desk.
+  cameBackFrom CombatStatus?
 
   // What they wrote. Editable until the Move cutoff; alert participants only.
   description String?

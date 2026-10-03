@@ -554,6 +554,14 @@ function answerInvite(db, { participantId, characterId, join, turn, now = new Da
     const combatId = (await db.combatParticipant.findUnique({ where: { id: participantId ?? "" }, select: { combatId: true } }))
       ?.combatId;
     if (!combatId) refuse("That fight is over.");
+    // Joining is fighting, so it asks what intervening asks: somebody tied up or out cold since they were asked
+    // can't come. Declining needs nothing — it only lets them go.
+    if (join) {
+      const row = await db.character.findUnique({ where: { id: characterId }, select: COMBAT_SELECT });
+      if (!row || row.status !== "ALIVE") refuse("You can't do that now.");
+      const stuck = blockerFor(row.tags, ACT);
+      if (stuck) refuse(`You can't fight — you're ${stuck.name}.`);
+    }
     const out = await inTransaction(db, async (tx) => {
       await lockCombat(tx, combatId);
       const p = await tx.combatParticipant.findUnique({
@@ -567,7 +575,8 @@ function answerInvite(db, { participantId, characterId, join, turn, now = new Da
         data: join ? { status: "JOINED", answeredAt: now } : { status: "DECLINED", answeredAt: now, activeTurnId: null },
       });
       await settleHold(tx, characterId, turn, now);
-      return { ...p, status: join ? "JOINED" : "DECLINED" };
+      const reopened = join ? await reopenIfSolved(tx, combatId, now) : false;
+      return { ...p, status: join ? "JOINED" : "DECLINED", reopened };
     });
 
     const me = await db.character.findUnique({ where: { id: characterId }, select: IDENTITY_SELECT });
@@ -581,14 +590,30 @@ function answerInvite(db, { participantId, characterId, join, turn, now = new Da
         dms.push(notice(other.character, `${cap(name)} won't join you.`));
       }
     }
-    if (join) dms.push(fightDm(me, out, ["You join the fight."]));
+    // The DM carries the fight's buttons and the prompt to write; the line itself is the reply's, so it is not
+    // said twice on Discord (where the reply and the DM land in the same place).
+    if (join) dms.push(fightDm(me, out, []));
     return {
       ok: true,
       line: join ? "You join the fight." : "You decide not to get involved. You can go, but you can't help the attacker this turn.",
+      reopened: out.reopened,
       dms: dms.filter(Boolean),
       speak: [],
     };
   });
+}
+
+// Somebody new came into a fight a GM had already ruled on (Bascinet, 2026-10-03): the ruling no longer covers
+// everybody in it, so the Solved stamp comes off and the fight goes back to the top of the Combat lens, marked
+// Reopened, for a GM to look over again. The Result box and anything staged stay as they were. Called inside
+// the transaction that let them in, with the fight's row locked. Returns whether it reopened anything.
+async function reopenIfSolved(tx, combatId, now = new Date()) {
+  if (typeof tx.combat?.updateMany !== "function") return false;
+  const { count } = await tx.combat.updateMany({
+    where: { id: combatId, resolvedAt: { not: null } },
+    data: { resolvedAt: null, resolvedByDiscordUserId: null, reopenedAt: now },
+  });
+  return count > 0;
 }
 
 // Everyone still in a fight, with their faces — for a notice that names somebody to each of them.
@@ -604,7 +629,14 @@ async function liveParticipants(db, combatId, turnId, { not = null } = {}) {
 // involved in combat may intervene and join the combat on either side"). Their roll carries the distance
 // they came from — 1, 2 or 3 Locations away when it started; 4 or more is too late. Their snapshot is
 // taken now, not when it started, and where they were is kept for the GM.
-function intervene(db, { character, combatId, side, turn, line = "You join the fight.", now = new Date() }) {
+//
+// `escortOfId` is the charge an escort stepped in for (§6a), kept on their row so the desk can say so.
+// `standingHere` is for somebody the fight found where it is happening (an escort beside their charge when an
+// ambush catches them): they came no distance, whatever the start-of-fight map said.
+function intervene(
+  db,
+  { character, combatId, side, turn, line = "You join the fight.", escortOfId = null, standingHere = false, now = new Date() },
+) {
   return attempt(async () => {
     if (side !== "ATTACKER" && side !== "DEFENDER") refuse("Pick a side.");
     const row = await db.character.findUnique({ where: { id: character.id }, select: COMBAT_SELECT });
@@ -619,47 +651,74 @@ function intervene(db, { character, combatId, side, turn, line = "You join the f
     });
     if (!combat || combat.endedAt || combat.turnId !== turn.id) refuse("That fight is over.");
     if (combat.locationId !== row.locationId) refuse("That fight isn't here.");
-    // Somebody who turned an invitation to THIS fight down may not join its attackers after all, but may join
-    // its defenders (Bascinet, 2026-09-27). One row per person per fight (the unique on combatId+characterId),
-    // so joining the defenders turns the declined row into their place on that side.
+    // One row per person per fight (the unique on combatId+characterId), so somebody coming back into a fight
+    // they were once part of takes their old row over as their new place in it:
+    // - turned an invitation to THIS fight down: may not join its attackers after all, but may join its defenders
+    //   (Bascinet, 2026-09-27);
+    // - left it (taken away by a GM, a rite, a Relocate to) and come back: may join either side again (Bascinet,
+    //   2026-10-03), with the same gates and the same distance rule as anybody else.
+    // "Still in it" is the one-fight claim itself, `activeTurnId`, not the status: an invitee waiting to answer
+    // holds it, and a row whose holder is out of the fight (declined, left, or put back on the record by the
+    // 20261216000100 repair) does not.
     const earlier = await db.combatParticipant.findFirst({
       where: { combatId: combat.id, characterId: row.id },
-      select: { id: true, status: true },
+      select: { id: true, status: true, activeTurnId: true },
     });
+    if (earlier?.activeTurnId) refuse(ALREADY_FIGHTING);
     if (earlier?.status === "DECLINED" && side === "ATTACKER") refuse(DECLINED_ATTACKERS);
-    if (earlier && earlier.status !== "DECLINED") refuse(ALREADY_FIGHTING);
-    const { hops, fromLocationId } = distanceOf(combat, row.id);
+    const { hops, fromLocationId } = standingHere ? { hops: 0, fromLocationId: null } : distanceOf(combat, row.id);
     if (hops > MAX_INTERVENE_DISTANCE) refuse(TOO_FAR_TO_INTERVENE);
     const from = fromLocationId
       ? await db.location.findUnique({ where: { id: fromLocationId }, select: { id: true, name: true } })
       : null;
-    const data = participantData(row, { side, role: "INTERVENER", status: "JOINED", turnId: turn.id, distance: hops, from, now });
+    const data = {
+      ...participantData(row, { side, role: "INTERVENER", status: "JOINED", turnId: turn.id, distance: hops, from, now }),
+      escortOfId: escortOfId ?? null,
+    };
 
-    await inTransaction(db, async (tx) => {
-      await lockCombat(tx, combat.id);
-      const fresh = await tx.combat.findUnique({ where: { id: combat.id }, select: { endedAt: true } });
-      if (fresh?.endedAt) refuse("That fight is over.");
-      let count = 0;
-      if (earlier) {
-        try {
-          ({ count } = await tx.combatParticipant.updateMany({ where: { id: earlier.id, status: "DECLINED" }, data }));
-        } catch (err) {
-          // The one-fight claim: pulled into another fight since the gate was asked.
-          if (err?.code !== "P2002") throw err;
+    let reopened = false;
+    try {
+      await inTransaction(db, async (tx) => {
+        await lockCombat(tx, combat.id);
+        const fresh = await tx.combat.findUnique({ where: { id: combat.id }, select: { endedAt: true } });
+        if (fresh?.endedAt) refuse("That fight is over.");
+        let count = 0;
+        if (earlier) {
+          // Whatever the old row said about how they were in it before goes: this is a new place in the fight.
+          ({ count } = await tx.combatParticipant.updateMany({
+            where: { id: earlier.id, activeTurnId: null },
+            data: {
+              ...data,
+              cameBackFrom: earlier.status === "DECLINED" ? "DECLINED" : "LEFT",
+              description: null,
+              describedAt: null,
+              callOffAt: null,
+              leftAt: null,
+              leftReason: null,
+              compelled: false,
+            },
+          }));
+        } else {
+          ({ count } = await tx.combatParticipant.createMany({ data: [{ ...data, combatId: combat.id }], skipDuplicates: true }));
         }
-      } else {
-        ({ count } = await tx.combatParticipant.createMany({ data: [{ ...data, combatId: combat.id }], skipDuplicates: true }));
-      }
-      if (count !== 1) refuse(ALREADY_FIGHTING);
-      await settleHold(tx, row.id, turn, now);
-      // The other side may have had nobody to be held BY until now.
-      for (const other of await tx.combatParticipant.findMany({
-        where: { combatId: combat.id, activeTurnId: turn.id, characterId: { not: row.id } },
-        select: { characterId: true },
-      })) {
-        await settleHold(tx, other.characterId, turn, now);
-      }
-    });
+        if (count !== 1) refuse(ALREADY_FIGHTING);
+        await settleHold(tx, row.id, turn, now);
+        // The other side may have had nobody to be held BY until now.
+        for (const other of await tx.combatParticipant.findMany({
+          where: { combatId: combat.id, activeTurnId: turn.id, characterId: { not: row.id } },
+          select: { characterId: true },
+        })) {
+          await settleHold(tx, other.characterId, turn, now);
+        }
+        reopened = await reopenIfSolved(tx, combat.id, now);
+      });
+    } catch (err) {
+      // The one-fight claim on the update path: pulled into another fight since the gate was asked. The unique
+      // violation has already aborted (and so rolled back) the transaction; it is caught out here, never inside
+      // it, where Postgres would refuse every statement after it (schema.prisma, CombatParticipant.activeTurnId).
+      if (err?.code === "P2002") refuse(ALREADY_FIGHTING);
+      throw err;
+    }
     await stopPerformances(db, [row.id], "attack").catch(() => {});
 
     const mine = await db.combatParticipant.findFirst({
@@ -672,7 +731,7 @@ function intervene(db, { character, combatId, side, turn, line = "You join the f
       dms.push(notice(other.character, other.side === side ? `${cap(name)} joins the fight on your side.` : `${cap(name)} joins the fight against you.`));
     }
     dms.push(fightDm(row, mine, [line], { sfx: SFX.BLADE_DRAWN }));
-    return { ok: true, line, dms: dms.filter(Boolean), speak: [] };
+    return { ok: true, line, reopened, participantId: mine?.id ?? null, dms: dms.filter(Boolean), speak: [] };
   });
 }
 
@@ -703,8 +762,10 @@ async function escortsStepIn(db, { combatId, turn, now = new Date() }) {
   const guards = await guardsOf(db, defenders.map((d) => d.characterId), combat.locationId, {
     not: inFight.map((p) => p.characterId),
   });
+  // Standing right there with their charge, so no distance — whatever the map taken when the fight started said
+  // (an ambush's later catch can bring an escort who was far off when it first sprang).
   for (const guard of guards) {
-    const step = await stepIn(db, { guardId: guard.id, chargeId: guard.guardingId, combatId, turn, now });
+    const step = await stepIn(db, { guardId: guard.id, chargeId: guard.guardingId, combatId, turn, now, standingHere: true });
     out.dms.push(...step);
   }
   return out;
@@ -736,8 +797,10 @@ async function escortsArrive(db, { characterIds, locationId, turn, now = new Dat
 }
 
 // One escort into one fight, on the defending side. A refusal is swallowed: an escort who can't fight right
-// now (bound, withdrawing, already in another fight, too far when it started) just isn't in it.
-async function stepIn(db, { guardId, chargeId, combatId, turn, now }) {
+// now (bound, withdrawing, the turn locked, already in another fight, too far when it started) just isn't in
+// it. One who does step in is written down like anybody pressing Join — the charge on their row for the desk,
+// and the `request_attack_intervened` audit row the verb writes for a press (ATTACK.md §13).
+async function stepIn(db, { guardId, chargeId, combatId, turn, now, standingHere = false }) {
   try {
     const name = await seenById(db, guardId, chargeId);
     const joined = await intervene(db, {
@@ -746,9 +809,25 @@ async function stepIn(db, { guardId, chargeId, combatId, turn, now }) {
       side: "DEFENDER",
       turn,
       line: GUARD_LINES.STEP_IN(name),
+      escortOfId: chargeId,
+      standingHere,
       now,
     });
-    return joined.ok ? joined.dms : [];
+    if (!joined.ok) return [];
+    if (typeof db.auditLog?.create === "function") {
+      // Required here, not at the top: auditLog.js reaches the archive modules, which this file must not load
+      // on every require (the dm.js convention in the header).
+      const { logAudit } = require("./auditLog");
+      const guard = await db.character.findUnique({ where: { id: guardId }, select: { discordUserId: true } });
+      await logAudit(db, {
+        actorDiscordUserId: guard?.discordUserId ?? "system",
+        actionType: "request_attack_intervened",
+        targetCharacterId: guardId,
+        turnId: turn.id,
+        details: { combatId, side: "DEFENDER", escortOf: chargeId, ...(joined.reopened ? { reopened: true } : {}) },
+      }).catch((err) => console.error("Escort: audit row failed:", err.message ?? err));
+    }
+    return joined.dms;
   } catch (err) {
     console.error(`Combat: escort ${guardId} stepping in failed:`, err.message ?? err);
     return [];
@@ -802,48 +881,52 @@ function callOff(db, { participantId, characterId, turn, now = new Date() }) {
       if (!p.activeTurnId) refuse("That fight is over.");
       if (p.side !== "ATTACKER" || p.status !== "JOINED") refuse("Only the attackers can call a fight off.");
       if (p.compelled) refuse(COMPELLED_NO_CALL_OFF);
-      if (!p.callOffAt) await tx.combatParticipant.update({ where: { id: p.id }, data: { callOffAt: now } });
+      const already = Boolean(p.callOffAt);
+      if (!already) await tx.combatParticipant.update({ where: { id: p.id }, data: { callOffAt: now } });
       const waiting = await tx.combatParticipant.count({
         where: { combatId, activeTurnId: turn.id, side: "ATTACKER", status: "JOINED", callOffAt: null },
       });
-      if (waiting > 0) return { ended: false, waiting };
+      if (waiting > 0) return { ended: false, waiting, already };
       const touched = await endCombatTx(tx, combatId, { reason: "CALLED_OFF", turn, now });
       return { ended: true, touched };
     });
 
-    const me = await db.character.findUnique({ where: { id: characterId }, select: IDENTITY_SELECT });
     const dms = [];
     if (!result.ended) {
-      for (const other of await liveParticipants(db, combatId, turn.id, { not: characterId })) {
-        if (other.side !== "ATTACKER" || other.status !== "JOINED") continue;
-        dms.push(notice(other.character, `${cap(await seenBy(db, other.character.id, me))} wants to call off the fight.`));
+      // Told once: pressing it again (a second Discord button, the web after Discord) changes nothing, so it
+      // says nothing new to the rest of their side.
+      if (!result.already) {
+        const me = await db.character.findUnique({ where: { id: characterId }, select: IDENTITY_SELECT });
+        for (const other of await liveParticipants(db, combatId, turn.id, { not: characterId })) {
+          if (other.side !== "ATTACKER" || other.status !== "JOINED") continue;
+          dms.push(notice(other.character, `${cap(await seenBy(db, other.character.id, me))} wants to call off the fight.`));
+        }
       }
       const more = result.waiting === 1 ? "1 more person" : `${result.waiting} more people`;
       return { ok: true, ended: false, line: `You want to call it off. Waiting on ${more} on your side.`, dms: dms.filter(Boolean), speak: [] };
     }
-    for (const t of result.touched) {
-      if (t.characterId === characterId) continue;
-      dms.push(
-        notice(
-          t.character,
-          endedLine(
-            t,
-            t.side === "ATTACKER" && t.status === "JOINED"
-              ? "The attack has been called off. You can leave in 30 minutes."
-              : "The fight is called off. You can move again.",
-          ),
-        ),
-      );
-    }
+    dms.push(...calledOffDms(result.touched, { not: characterId }));
     const mine = result.touched.find((t) => t.characterId === characterId);
     return {
       ok: true,
       ended: true,
-      line: endedLine(mine ?? {}, "The attack has been called off. You can leave in 30 minutes."),
+      line: endedLine(mine ?? {}, CALLED_OFF_ATTACKER),
       dms: dms.filter(Boolean),
       speak: [],
     };
   });
+}
+
+const CALLED_OFF_ATTACKER = "The attack has been called off. You can leave in 30 minutes.";
+const CALLED_OFF_OTHERS = "The fight is called off. You can move again.";
+
+// What everybody a called-off fight let go of is told: the attackers that they wait thirty minutes, everybody
+// else that they are free. `not` is the one who pressed last, who reads their own line as the reply.
+function calledOffDms(touched, { not = null } = {}) {
+  return touched
+    .filter((t) => t.characterId !== not)
+    .map((t) => notice(t.character, endedLine(t, t.side === "ATTACKER" && t.status === "JOINED" ? CALLED_OFF_ATTACKER : CALLED_OFF_OTHERS)))
+    .filter(Boolean);
 }
 
 // Ends a fight inside a transaction the caller holds (and has locked). Everybody still in it is let go
@@ -920,38 +1003,54 @@ async function endCombatAsGm(db, { combatId, turn, now = new Date() }) {
 // ─── Leaving, and the push ──────────────────────────────────────────────────
 
 // Somebody left the fight without choosing to: relocated (a GM's teleport, a Bulk Move, a staged Relocate
-// to, a rite — walking off never reaches here, since a held person cannot walk) or dead. They are out of
-// it; the fight stays on the desk for the GM. If that leaves either side with nobody fighting on it, the
-// fight is over and everyone else goes free (Bascinet, 2026-09-27). Returns DMs for the people freed;
-// the callers send them (sendCombatDms).
-async function leaveCombatsFor(db, characterId, reason = "moved") {
+// to, a rite) or dead. They are out of it; the fight stays on the desk for the GM. If that leaves either side
+// with nobody fighting on it, the fight is over and everyone else goes free (Bascinet, 2026-09-27). If it
+// leaves the attackers with only people who have already pressed Call off, the call-off they were waiting on
+// is complete, and it ends the way a call-off ends. Returns DMs for the people freed; the callers send them
+// (sendCombatDms).
+//
+// `unlessAt` is where they have just arrived. Every relocation runs this (locationMove.js#applyArrivalFacts),
+// and that includes a WALK: somebody who walked into an ambush, or an escort who walked in behind their charge,
+// is put into the fight here by performLocationMove before the arrival facts run. A fight at the place they
+// arrived is the one they came into, never one they are leaving — without this they were thrown straight back
+// out of it, and the GM's desk showed them as having left.
+async function leaveCombatsFor(db, characterId, reason = "moved", { unlessAt = null } = {}) {
   if (!characterId) return { left: 0, dms: [] };
   const turn = await db.turn.findFirst({ where: { status: "OPEN" }, select: { id: true, startedAt: true, endsAt: true, turnLengthHours: true } });
   if (!turn) return { left: 0, dms: [] };
   const mine = await db.combatParticipant.findFirst({
     where: { characterId, activeTurnId: turn.id },
-    select: { id: true, combatId: true },
+    select: { id: true, combatId: true, combat: { select: { locationId: true } } },
   });
   if (!mine) return { left: 0, dms: [] };
+  if (unlessAt && mine.combat?.locationId === unlessAt) return { left: 0, dms: [] };
   const now = new Date();
-  const freed = await inTransaction(db, async (tx) => {
+  const out = await inTransaction(db, async (tx) => {
     await lockCombat(tx, mine.combatId);
     await tx.combatParticipant.updateMany({
       where: { id: mine.id, activeTurnId: { not: null } },
       data: { status: "LEFT", activeTurnId: null, leftAt: now, leftReason: reason },
     });
     await settleHold(tx, characterId, turn, now);
-    const joined = await tx.combatParticipant.findMany({
-      where: { combatId: mine.combatId, activeTurnId: turn.id, status: "JOINED" },
-      select: { characterId: true, side: true },
+    const still = await tx.combatParticipant.findMany({
+      where: { combatId: mine.combatId, activeTurnId: turn.id },
+      select: { characterId: true, side: true, status: true, callOffAt: true },
     });
+    const joined = still.filter((p) => p.status === "JOINED");
     const sideEmpty = !joined.some((j) => j.side === "ATTACKER") || !joined.some((j) => j.side === "DEFENDER");
-    if (sideEmpty) return endCombatTx(tx, mine.combatId, { reason: "SIDE_EMPTY", turn, now });
-    // Still going: re-point anybody whose hold named the one who left.
-    for (const j of joined) await settleHold(tx, j.characterId, turn, now);
-    return [];
+    if (sideEmpty) return { reason: "SIDE_EMPTY", touched: await endCombatTx(tx, mine.combatId, { reason: "SIDE_EMPTY", turn, now }) };
+    const attackers = joined.filter((j) => j.side === "ATTACKER");
+    if (attackers.length > 0 && attackers.every((a) => a.callOffAt)) {
+      return { reason: "CALLED_OFF", touched: await endCombatTx(tx, mine.combatId, { reason: "CALLED_OFF", turn, now }) };
+    }
+    // Still going: re-point anybody whose hold named the one who left — an invitee waiting to answer too.
+    for (const p of still) await settleHold(tx, p.characterId, turn, now);
+    return { reason: null, touched: [] };
   });
-  const dms = freed.map((t) => notice(t.character, endedLine(t, "The fight is over. You can move again."))).filter(Boolean);
+  const dms =
+    out.reason === "CALLED_OFF"
+      ? calledOffDms(out.touched)
+      : out.touched.map((t) => notice(t.character, endedLine(t, "The fight is over. You can move again."))).filter(Boolean);
   return { left: 1, dms };
 }
 
@@ -1037,6 +1136,8 @@ async function springAmbush(db, { watch, arrivalId, turn, locationId, now = new 
       const { count } = await tx.combatParticipant.createMany({ data: [{ ...data, combatId: live.id }], skipDuplicates: true });
       if (count !== 1) refuse(ALREADY_FIGHTING);
       await settleHold(tx, row.id, turn, now);
+      // A new target in a fight a GM already ruled on: back to the desk with it (reopenIfSolved).
+      await reopenIfSolved(tx, live.id, now);
     });
     await stopPerformances(db, [row.id], "attack").catch(() => {});
     const mine = await db.combatParticipant.findFirst({

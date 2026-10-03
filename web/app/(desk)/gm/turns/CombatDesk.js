@@ -41,6 +41,20 @@ const GROUPS = [
 const ROLE_LABELS = { INITIATOR: "Started it", COLLABORATOR: "Asked along", TARGET: "Target", INTERVENER: "Intervened" };
 const STATUS_LABELS = { INVITED: "No answer yet", DECLINED: "Declined", LEFT: "Left" };
 
+// Where somebody who stepped in came from, and why they are there: the doc's "featuring … what their original
+// location was when combat first started", plus the escort they came as and whether they were in it before.
+function intervenerLines(person) {
+  const lines = [
+    person.distance === 0
+      ? "Was already here when it started."
+      : `Came ${person.distance} ${person.distance === 1 ? "Location" : "Locations"}${person.fromLocationName ? ` from ${person.fromLocationName}` : ""}.`,
+  ];
+  if (person.escortOfId) lines.push(`Escorting ${person.escortOfName ?? "their charge"} — stepped in to defend them.`);
+  if (person.cameBackFrom === "DECLINED") lines.push("Turned the invitation down, then joined the defenders.");
+  if (person.cameBackFrom === "LEFT") lines.push("Left the fight earlier, then came back and joined.");
+  return lines;
+}
+
 function ParticipantCard({ person, snapshot, onInspect, onMessage, readOnly }) {
   const [open, setOpen] = useState(false);
   const out = person.status === "DECLINED" || person.status === "LEFT";
@@ -61,13 +75,7 @@ function ParticipantCard({ person, snapshot, onInspect, onMessage, readOnly }) {
           ⚀ {person.rollLine}
         </span>
       </div>
-      {person.role === "INTERVENER" && (
-        <p className="text-xs text-muted">
-          {person.distance === 0
-            ? "Was already here when it started."
-            : `Came ${person.distance} ${person.distance === 1 ? "Location" : "Locations"}${person.fromLocationName ? ` from ${person.fromLocationName}` : ""}.`}
-        </p>
-      )}
+      {person.role === "INTERVENER" && <p className="text-xs text-muted">{intervenerLines(person).join(" ")}</p>}
       {person.leftReason ? <p className="text-xs text-muted">Left the fight: {person.leftReason}.</p> : null}
       {/* Always first, whatever they wrote: the game started this fight for a hungry Vampire (moveRows.js#combatRow). */}
       {person.compelledLine ? <p className="text-sm font-bold">{person.compelledLine}</p> : null}
@@ -88,7 +96,13 @@ function ParticipantCard({ person, snapshot, onInspect, onMessage, readOnly }) {
           </button>
         )}
       </div>
-      {open ? snapshot ? <SnapshotBody snap={snapshot} /> : <p className="text-xs text-muted">Loading the snapshot…</p> : null}
+      {open ? (
+        snapshot ? (
+          <SnapshotBody snap={snapshot} />
+        ) : (
+          <p className="text-xs text-muted">{snapshot === undefined ? "Loading the snapshot…" : "No snapshot."}</p>
+        )
+      ) : null}
     </div>
   );
 }
@@ -124,16 +138,21 @@ export default function CombatDesk({
   }, [registerEscape, guardedClose, onClose]);
 
   // Every snapshot at once, on open: a handful of rows, and a GM flicking between cards should not wait.
+  // Reloaded whenever anybody's snapshot changes (combatRow's snapshotKey) — somebody joining, and a declined
+  // row turning into their place on the defenders, which adds nobody to the count but snapshots them afresh.
+  const snapshotKey = `${combat.id}#${combat.snapshotKey ?? combat.people.length}`;
   const [snapshots, setSnapshots] = useState({ key: null, byId: {} });
   useEffect(() => {
     let live = true;
     getCombatSnapshots({ combatId: combat.id })
-      .then((res) => live && setSnapshots({ key: combat.id, byId: res?.ok ? (res.snapshots ?? {}) : {} }))
-      .catch(() => live && setSnapshots({ key: combat.id, byId: {} }));
+      .then((res) => live && setSnapshots({ key: snapshotKey, byId: res?.ok ? (res.snapshots ?? {}) : {} }))
+      .catch(() => live && setSnapshots({ key: snapshotKey, byId: {} }));
     return () => {
       live = false;
     };
-  }, [combat.id, combat.people.length]);
+  }, [combat.id, snapshotKey]);
+  // undefined while the load for the current key is out; null once it is back without one for them.
+  const snapshotFor = (personId) => (snapshots.key === snapshotKey ? (snapshots.byId[personId] ?? null) : undefined);
 
   const [composer, setComposer] = useState(null);
   // A message composer's prefill: "Stage as message" (everyone, the Result text) or "Message them" (one person).
@@ -206,7 +225,11 @@ export default function CombatDesk({
           <p className="mt-1 flex flex-wrap items-center gap-2">
             {combat.fromAmbush && <StatusPill tone="neutral">Ambush</StatusPill>}
             <StatusPill tone={combat.live ? "bad" : "neutral"}>{combat.statusLabel}</StatusPill>
+            {combat.reopened && <StatusPill tone="warn">Reopened</StatusPill>}
           </p>
+          {combat.reopened ? (
+            <p className="mt-1 text-xs text-muted">Somebody came into this fight after it was solved. Look it over again, then Solve.</p>
+          ) : null}
           {combat.openingMessage ? <p className="mt-1 text-sm quote">» {combat.openingMessage}</p> : null}
         </div>
         <div className="flex items-center gap-2">
@@ -231,7 +254,7 @@ export default function CombatDesk({
               <ParticipantCard
                 key={person.id}
                 person={person}
-                snapshot={snapshots.key === combat.id ? snapshots.byId[person.id] : null}
+                snapshot={snapshotFor(person.id)}
                 onInspect={onInspect}
                 readOnly={readOnly}
                 onMessage={(p) => {
@@ -298,6 +321,7 @@ export default function CombatDesk({
           stagingRooms={stagingRooms}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
+          readOnly={readOnly}
           empty="Nothing staged yet."
         />
       </div>

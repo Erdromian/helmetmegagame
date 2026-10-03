@@ -85,7 +85,8 @@ test("they can join its defenders: the declined row becomes their place on that 
   assert.equal(creates.length, 0, "no second row in the same fight");
   const row = updates.find(([, args]) => args.where.id === "p1");
   assert.ok(row, "the declined row is the one rewritten");
-  assert.deepEqual(row[1].where, { id: "p1", status: "DECLINED" });
+  // Claimed only while they hold no place in a fight: the row is theirs again only if it is still out of it.
+  assert.deepEqual(row[1].where, { id: "p1", activeTurnId: null });
   assert.equal(row[1].data.side, "DEFENDER");
   assert.equal(row[1].data.role, "INTERVENER");
   assert.equal(row[1].data.status, "JOINED");

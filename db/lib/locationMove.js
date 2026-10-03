@@ -388,7 +388,9 @@ async function applyArrivalFacts(prisma, { characterId, fromLocationId, toLocati
       console.error(`Move: releasing holds failed for ${characterId}:`, err.message ?? err),
     );
     // The same clear for a FIGHT (docs/systemdocs/ATTACK.md §7). releaseHeldBy deliberately won't touch one — everybody in it is held, and only the participant rows know who is still fighting — so they are what gets ended here: this person is out of it, and if their side is left with nobody the fight is over and the rest go free.
-    await leaveCombatsFor(prisma, characterId, "moved")
+    // Never the fight at the place they just arrived: that is the one an ambush or an escort's charge just put
+    // them in (performLocationMove runs before this), not one they are leaving.
+    await leaveCombatsFor(prisma, characterId, "moved", { unlessAt: toLocationId })
       .then((out) => sendCombatDms(prisma, out.dms))
       .catch((err) => console.error(`Move: leaving the fight failed for ${characterId}:`, err.message ?? err));
     // An old one-on-one Attack still live from the turn the overhaul deployed (db/lib/attack.js, legacy).

@@ -66,6 +66,7 @@ export default function StagingTray({
   stagedEffects,
   stagedMessages,
   moves,
+  combats = [],
   roster,
   presenceZones,
   stagingLocations,
@@ -138,6 +139,9 @@ export default function StagingTray({
 
   const solvedCount = moves.filter((m) => m.reviewStatus === "SOLVED").length;
   const openCount = moves.filter((m) => m.statusLabel === "Open").length;
+  // A fight nobody has solved goes out with the push all the same, read-only in History after it — the
+  // open-Moves warning's reasoning, for the Combat lens.
+  const fightsUnsolved = combats.filter((c) => !c.resolvedAt).length;
 
   // Batches collapse to one line each; singles render as themselves.
   const effectGroups = useMemo(() => {
@@ -210,6 +214,7 @@ export default function StagingTray({
             <span className="mono">{pendingPublic.length} public</span>
             <span className="text-muted">
               {solvedCount} solved · {openCount} open{openCount ? " (will close silently)" : ""}
+              {fightsUnsolved ? ` · ${fightsUnsolved} ${fightsUnsolved === 1 ? "fight" : "fights"} not solved` : ""}
             </span>
             {missedEffects.length + missedMessages.length > 0 && (
               <span className="form-error">

@@ -340,7 +340,10 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
         // solved; a Move a GM never got to (silently closed at push) falls
         // back to whoever staged this specific effect.
         const resolverId =
-          row.move?.reviewedByDiscordUserId ?? row.createdByDiscordUserId ?? "system:staged_push";
+          row.move?.reviewedByDiscordUserId ??
+          row.combat?.resolvedByDiscordUserId ??
+          row.createdByDiscordUserId ??
+          "system:staged_push";
         await logAudit(tx, {
           actorDiscordUserId: resolverId,
           actionType: "gm_staged_tag_applied",
@@ -348,11 +351,12 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
           details: {
             tags: summarizeTagOps(snapshot.tags),
             stagedByDiscordUserId: row.createdByDiscordUserId,
-            resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? null,
+            resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? row.combat?.resolvedByDiscordUserId ?? null,
             gambitCharacterId: row.move?.characterId ?? null,
             gambitCharacterName: row.move?.character?.name ?? null,
             gambitId: row.moveId ?? null,
             moveKind: row.move?.moveKind ?? null,
+            combatId: row.combatId ?? null,
           },
         });
       }
@@ -401,7 +405,10 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
           // Same actor rule as the staged tag audit above.
           await logAudit(tx, {
             actorDiscordUserId:
-              row.move?.reviewedByDiscordUserId ?? row.createdByDiscordUserId ?? "system:staged_push",
+              row.move?.reviewedByDiscordUserId ??
+              row.combat?.resolvedByDiscordUserId ??
+              row.createdByDiscordUserId ??
+              "system:staged_push",
             actionType: "gm_staged_scales_applied",
             targetCharacterId: row.targetCharacterId,
             details: {
@@ -410,9 +417,10 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
               // load stagedScales.js, which carries the vampire's meters (web/lib/auditNarrative.js).
               scalesText: describeAppliedScales(moved).join(", "),
               stagedByDiscordUserId: row.createdByDiscordUserId,
-              resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? null,
+              resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? row.combat?.resolvedByDiscordUserId ?? null,
               gambitCharacterName: row.move?.character?.name ?? null,
               gambitId: row.moveId ?? null,
+              combatId: row.combatId ?? null,
               stagedEffectId: row.id,
             },
           });
@@ -528,6 +536,8 @@ async function runStagedPushPass(prisma, turn) {
           character: { select: { id: true, name: true } },
         },
       },
+      // The same for a row staged on a fight (ATTACK.md §8): the GM who solved the fight.
+      combat: { select: { resolvedByDiscordUserId: true } },
     },
   });
   // Let-ins that actually opened a door, for the thunk's thread add and DM.

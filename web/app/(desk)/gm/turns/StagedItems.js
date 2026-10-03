@@ -35,6 +35,7 @@ export function StagedEffectRow({
   showBatch,
   batchCount,
   gmProfiles,
+  readOnly = false,
 }) {
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
@@ -42,7 +43,8 @@ export function StagedEffectRow({
   const [deleteError, setDeleteError] = useState(null);
 
   const state = effectState(effect);
-  const frozen = effect.applied || Boolean(effect.appliedError);
+  // A past turn read from History (readOnly) is frozen whatever state the row was left in.
+  const frozen = readOnly || effect.applied || Boolean(effect.appliedError);
   // A transfer with no character end — targetCharacterId is null, which can
   // still happen for an old pre-removal room-to-room row — has nothing
   // for the row's name/avatar button to open in the inspector. It also isn't
@@ -182,7 +184,7 @@ export function StagedEffectRow({
   );
 }
 
-export function StagedMessageRow({ message, roster, presenceZones, onInspect, gmProfiles }) {
+export function StagedMessageRow({ message, roster, presenceZones, onInspect, gmProfiles, readOnly = false }) {
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -190,7 +192,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   const [deleteError, setDeleteError] = useState(null);
 
   const state = messageState(message);
-  const frozen = message.sent;
+  const frozen = readOnly || message.sent;
   // The push writes DbNull on a clean send, but an empty array would be
   // truthy — check for actual entries rather than presence.
   const failureCount = Array.isArray(message.deliveryFailures) ? message.deliveryFailures.length : 0;
@@ -199,6 +201,7 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   // A Delivery row that is FAILED is the retryable thing. The blob stays the
   // answer for a message pushed before the table existed.
   const canResend =
+    !readOnly &&
     message.sent &&
     (deliveryRows.length ? deliveryRows.some((d) => d.state === "FAILED") : failureCount > 0);
 
@@ -339,7 +342,20 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   );
 }
 
-export default function StagedItems({ effects, messages, tagCatalog, roster, presenceZones, stagingLocations, stagingRooms, onInspect, empty, gmProfiles }) {
+// `readOnly`: a past turn opened from History (CombatDesk, CavingDesk) — every row frozen, no Delete or Resend.
+export default function StagedItems({
+  effects,
+  messages,
+  tagCatalog,
+  roster,
+  presenceZones,
+  stagingLocations,
+  stagingRooms,
+  onInspect,
+  empty,
+  gmProfiles,
+  readOnly = false,
+}) {
   const tagsById = useMemo(() => tagLookup(tagCatalog), [tagCatalog]);
 
   if (!effects.length && !messages.length) {
@@ -360,6 +376,7 @@ export default function StagedItems({ effects, messages, tagCatalog, roster, pre
           stagingRooms={stagingRooms}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
+          readOnly={readOnly}
         />
       ))}
       {messages.map((m) => (
@@ -370,6 +387,7 @@ export default function StagedItems({ effects, messages, tagCatalog, roster, pre
           presenceZones={presenceZones}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
+          readOnly={readOnly}
         />
       ))}
     </div>

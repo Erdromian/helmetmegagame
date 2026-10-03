@@ -111,7 +111,8 @@ async function interveneImpl({ combatId, side }) {
       characterId: character.id,
       discordUserId: session.discordUserId,
       combatId: String(combatId ?? ""),
-      side: side === "DEFENDER" ? "DEFENDER" : "ATTACKER",
+      // Only the two the dialog sends. Anything else reaches intervene() as no side, which refuses it.
+      side: side === "DEFENDER" || side === "ATTACKER" ? side : null,
       turn,
     }),
   );

@@ -38,6 +38,10 @@ const {
   COMBAT_CALL_OFF_PREFIX,
 } = require("@lifeweb/db/lib/combat");
 const { SURPRISED, DECLINED_ATTACKERS, invitedLine, joinSideLine } = require("@lifeweb/db/lib/combatMode");
+
+// The side a Join button names in its custom id (`A~<combatId>` / `D~<combatId>`). Anything else is no side,
+// which combat.js#intervene refuses rather than reading as the attackers.
+const SIDE_CODES = { A: "ATTACKER", D: "DEFENDER" };
 const { sendCombatDms } = require("../combatButtons");
 const { seenById } = require("@lifeweb/db/lib/intercept");
 const { VIEWER_SELECT, examineRow } = require("@lifeweb/db/lib/examineRow");
@@ -458,7 +462,8 @@ const attack = {
     async side(interaction, payload) {
       await ackStep(interaction);
       const [code, combatId] = String(payload ?? "").split("~");
-      const side = code === "D" ? "DEFENDER" : "ATTACKER";
+      const side = SIDE_CODES[code] ?? null;
+      if (!side) return done(interaction, "Pick a side.");
       const row = new ActionRowBuilder().addComponents(
         new ButtonBuilder().setCustomId(verbId("attack", "sidego", payload)).setLabel("Join").setStyle(ButtonStyle.Danger),
         new ButtonBuilder().setCustomId(verbId("attack", "cancel")).setLabel("Cancel").setStyle(ButtonStyle.Secondary),
@@ -492,7 +497,7 @@ const attack = {
         characterId: actor.id,
         discordUserId: interaction.user.id,
         combatId,
-        side: code === "D" ? "DEFENDER" : "ATTACKER",
+        side: SIDE_CODES[code] ?? null,
         turn,
       });
       if (!result.ok) return done(interaction, result.error);
