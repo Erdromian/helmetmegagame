@@ -247,7 +247,22 @@ test("a fight's opening DMs name him by what he looks like", async () => {
 // The compulsion files no Move of its own any more — the feeding is the fight's
 // attack (db/lib/vampireCompulsion.js) — so what it hands the vampire is the
 // fight's DM, and nothing it writes may name him.
-test("a bloodcrazed vampire's compulsion attacks a young man and stores nothing naming him", async () => {
+//
+// Unlike startCombat above, compelAttack hands back no DMs: it SENDS them (combat.js#sendCombatDms), and
+// that returns before writing anything when there is no DISCORD_TOKEN. So the transport is pinned here —
+// a placeholder token so the send happens, LOCAL_MODE so it is answered locally (db/lib/localMode.js) and
+// never reaches Discord, whatever token the shell happens to export. Without the pin this passed in CI,
+// which sets both, and failed on any machine that set neither.
+test("a bloodcrazed vampire's compulsion attacks a young man and stores nothing naming him", async (t) => {
+  const saved = { DISCORD_TOKEN: process.env.DISCORD_TOKEN, LOCAL_MODE: process.env.LOCAL_MODE };
+  process.env.DISCORD_TOKEN = "test-token-never-used";
+  process.env.LOCAL_MODE = "true";
+  t.after(() => {
+    for (const [key, value] of Object.entries(saved)) {
+      if (value === undefined) delete process.env[key];
+      else process.env[key] = value;
+    }
+  });
   const { compelAttack } = require("../lib/vampireCompulsion");
   const vampire = reader({ tags: [{ equipped: false, tag: { slug: "bloodcrazed", name: "Bloodcrazed" } }] });
   const db = fakeDb({
