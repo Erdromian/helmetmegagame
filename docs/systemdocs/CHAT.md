@@ -307,7 +307,9 @@ on `ArchiveEntry.seq`. A DM has no seq, must never appear in `/archive` or a
 GM's transcript views, and must never be wiped by the turn. So Bascinet is a
 **pseudo-place**: it is in the
 column and it round-trips through the hash (`#gm`, `DM_PLACE_KEY`), and what
-its row opens is a panel of its own, `DmPane.js`, rather than `Feed`.
+its row opens is a panel of its own, `DmPane.js`, rather than `Feed`. It is
+never where Chat opens on its own (§5, `openPlace.js`), so dialogue meant for a
+scene does not land in it by mistake.
 
 **The record is `DirectMessage`, read from the other chair.** The GM desk
 already renders that table as a conversation (`PLAYER-DESK.md` §5), through
@@ -1151,6 +1153,16 @@ a 48px head and a one-line composer:
   patches to keep its copy in step, so the address bar stays right and Back
   still leaves the room the way it came. A remembered place you have since
   left falls back to the first place.
+  **Bascinet's DM (§2b) is the exception: Chat never opens on it by itself.**
+  Players came back to the page on the DM and typed their scene's dialogue to
+  Bascinet. So the DM is never stored as the last place, and it is let go when
+  Chat unmounts. A bare `/chat` opens the place before it, or the street. Only a
+  hash that names it (`#gm`: the row itself, a notification, Back) opens it,
+  and not on a reload: a phone brings back a tab left on `/chat#gm` by
+  reloading it, so on a reload the hash is set aside and taken out of the
+  address bar.
+  The waiting page (no character) is the other way round: the server opens it
+  on the DM, since there is nowhere else to write.
 - **`streamStore.js`** says whether the stream is up, and Chat draws the one
   line for when it is not, under the tab strip — the row that is on screen
   whichever pane is open and on a phone, which is where a stream drops most.

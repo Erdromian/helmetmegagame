@@ -1,11 +1,18 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
+import { DM_PLACE_KEY } from "../../../lib/dmSources.js";
 import { saveLocal } from "../../../lib/localSave.js";
 
 // Which place is open in Chat, per tab — the module store that is the source
 // of truth for the URL hash (CHAT.md §5). Same shape as typingStore.js:
 // module state, useSyncExternalStore, no provider, never a setState in an effect.
+//
+// Bascinet's messages are never where Chat opens. Players kept coming back to
+// the page on the DM and typing their scene's dialogue to Bascinet. So the DM
+// is not remembered as the last place, it is let go when Chat closes, and a
+// reload does not bring it back. Only a hash that names it opens it: the row,
+// a notification, Back.
 
 const LAST_KEY = "bascinet:play:last-place";
 
@@ -22,15 +29,19 @@ function readHash() {
   }
 }
 
+// A stored DM from before the rule above reads as nothing.
 function readLast() {
   try {
-    return window.localStorage.getItem(LAST_KEY);
+    const key = window.localStorage.getItem(LAST_KEY);
+    return key === DM_PLACE_KEY ? null : key;
   } catch {
     return null;
   }
 }
 
+// The DM is not stored, so the place before it stays the one Chat comes back to.
 function remember(key) {
+  if (key === DM_PLACE_KEY) return;
   try {
     saveLocal(LAST_KEY, key);
   } catch {
@@ -38,11 +49,28 @@ function remember(key) {
   }
 }
 
+// A reload is not a way in either. A phone brings back a tab left on /chat#gm
+// by reloading it, and that would open on the DM. So on a reload the DM's hash
+// is set aside for this page load, and taken out of the address bar once Chat
+// has mounted (subscribe).
+let setAside = null;
+
+function reloaded() {
+  try {
+    return window.performance.getEntriesByType("navigation")[0]?.type === "reload";
+  } catch {
+    return false;
+  }
+}
+
 // Read on EVERY snapshot: a ⌘K navigation writes the hash after Chat's first
 // render and router.push never fires hashchange, so a changed hash is
 // adopted here. An absent hash says nothing — the last-open place stands.
 function seed() {
-  const fromHash = readHash();
+  let fromHash = readHash();
+  if (!seeded && fromHash === DM_PLACE_KEY && reloaded()) setAside = fromHash;
+  if (fromHash === setAside) fromHash = null;
+  else setAside = null;
   if (fromHash && fromHash !== current) {
     current = fromHash;
     remember(fromHash);
@@ -84,6 +112,15 @@ function subscribe(cb) {
   if (listeners.size === 0) {
     window.addEventListener("hashchange", onHashChange);
     navigator.serviceWorker?.addEventListener?.("message", onWorkerMessage);
+    // State null, so Next's patched replaceState keeps its URL copy in step
+    // (gm/players/selection.js says why).
+    if (setAside && readHash() === setAside) {
+      try {
+        window.history.replaceState(null, "", window.location.pathname + window.location.search);
+      } catch {
+        // The address bar keeps #gm; the store has already set it aside.
+      }
+    }
   }
   listeners.add(cb);
   return () => {
@@ -91,6 +128,9 @@ function subscribe(cb) {
     if (listeners.size === 0) {
       window.removeEventListener("hashchange", onHashChange);
       navigator.serviceWorker?.removeEventListener?.("message", onWorkerMessage);
+      // Chat has closed (another page of the app). The next bare /chat opens
+      // the street, not the DM; a /chat#gm still opens it.
+      if (current === DM_PLACE_KEY) current = readLast();
     }
   };
 }
