@@ -33,6 +33,8 @@ const { isTradeable } = require("./tradeable");
 const { isResourcesRow } = require("./resourceStack");
 const { seenByIdMany, heldReasonFor } = require("./intercept");
 const { dropCharacterTag } = require("./tagWrites");
+const { isCrateTag } = require("./crates");
+const { chargeCrateHaul } = require("./crateHaul");
 const { characterParty, turnStamp } = require("./economyLedger");
 const { openAccount, bumpBankAccount } = require("./bankAccounts");
 const { ensurePin } = require("./acquaintances");
@@ -314,6 +316,7 @@ async function processGmView(prisma) {
 // One stack from one hand to another, inside the caller's transaction. ONE
 // ledger row for a priced ware (from the giver to the taker), booked on the
 // drop; the landing writes the row by hand so it is not booked a second time.
+// The Tag that moved, or false when the giver no longer holds enough.
 async function handOver(tx, fromId, toId, line) {
   const held = await tx.characterTag.findUnique({
     where: { characterId_tagId: { characterId: fromId, tagId: line.tagId } },
@@ -354,7 +357,7 @@ async function handOver(tx, fromId, toId, line) {
       },
     });
   }
-  return true;
+  return held.tag;
 }
 
 function summary(lines) {
@@ -436,12 +439,21 @@ async function approvePassage(prisma, discordUserId, { passageId, keep = [], giv
         },
       });
       if (claim.count === 0) throw refusal(T.requestGone);
+      // The clerk does the lifting both ways (db/lib/crateHaul.js): a crate kept
+      // is one picked up, a crate given is one handed over.
+      let cratesKept = 0;
+      let cratesGiven = 0;
       for (const line of kept.lines) {
-        if (!(await handOver(tx, asker.id, clerk.id, line))) throw refusal(T.approveTheyLackIt(line.name));
+        const tag = await handOver(tx, asker.id, clerk.id, line);
+        if (!tag) throw refusal(T.approveTheyLackIt(line.name));
+        if (isCrateTag(tag)) cratesKept += line.quantity;
       }
       for (const line of given.lines) {
-        if (!(await handOver(tx, clerk.id, asker.id, line))) throw refusal(T.approveYouLackIt(line.name));
+        const tag = await handOver(tx, clerk.id, asker.id, line);
+        if (!tag) throw refusal(T.approveYouLackIt(line.name));
+        if (isCrateTag(tag)) cratesGiven += line.quantity;
       }
+      await chargeCrateHaul(tx, clerk, { moved: cratesKept + cratesGiven, pickedUp: cratesKept, turn });
       // Through the gate: a relocation, not a crossing, so it spends no Move.
       // The arrival is still announced as a manned gate's would be
       // (db/lib/locationMove.js#announceGateCrossing reads the edge).

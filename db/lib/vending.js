@@ -39,6 +39,8 @@ const { OBOL_SLUG } = require("./depotState");
 const { RESOURCES_SLUG } = require("./resourceStack");
 const { addToStack, dropCharacterTag, lockRoom } = require("./tagWrites");
 const { drawPoisonedUnits } = require("./poison");
+const { isCrateTag } = require("./crates");
+const { chargeCrateHaul } = require("./crateHaul");
 // No `record` here on purpose: every coin and goods movement in this file is
 // booked by the tagWrites hook off the `econ` option, and calling record()
 // beside one books it twice (see insertCoins).
@@ -632,6 +634,8 @@ async function buySlot(prisma, discordUserId, { roomId, tagId, turn = null } = {
         // The GOODS leg, booked by the hook off this one option.
         econ: { from: box, to: me, ...econ },
       });
+      // A crate off the shelf is a crate picked up (db/lib/crateHaul.js).
+      if (isCrateTag(tag)) await chargeCrateHaul(tx, character, { moved: 1, pickedUp: 1, turn });
 
       const after = await tx.vendingMachine.findUnique({
         where: { id: machine.id },
@@ -855,6 +859,8 @@ async function stockMachine(
           },
         });
       }
+      // Lifting a crate onto the shelf is hauling it, though nothing lands in a hand.
+      if (isCrateTag(tag)) await chargeCrateHaul(tx, character, { moved: n, pickedUp: 0, turn });
       await logAudit(tx, {
         actorDiscordUserId: discordUserId,
         actionType: "vending_stock",
@@ -946,6 +952,7 @@ async function unstockMachine(prisma, discordUserId, { roomId, tagId, quantity, 
         poisonPayload: poisoned > 0 ? slot.poisonPayload : null,
         econ: { from: box, to: me, ...econ },
       });
+      if (isCrateTag(tag)) await chargeCrateHaul(tx, character, { moved: take, pickedUp: take, turn });
       await logAudit(tx, {
         actorDiscordUserId: discordUserId,
         actionType: "vending_unstock",

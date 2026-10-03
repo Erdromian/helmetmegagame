@@ -762,10 +762,21 @@ inside, which is always heavier. A sealed one wants the Depot Keycard.
   room at their Location, the newest first — the doc's "if dismounted, two of
   the three will fall onto the floor of a room the character is in". It is the
   hold-limit drop every settle already runs.
-- **Hauling tires you.** The first Transfer (or Loot) in a turn that moves a
-  crate at all — picking one up, handing one over, setting one down — climbs
-  the Tired ladder one rung (`db/lib/fatigue.js`); `Character.crateHauledTurn`
-  is what makes it the first. An Exhausted character climbs nothing further.
+- **Hauling tires you.** The first act in a turn that moves a crate at all —
+  picking one up, handing one over, setting one down — climbs the Tired ladder
+  one rung (`db/lib/fatigue.js`); `Character.crateHauledTurn` is what makes it
+  the first. An Exhausted character climbs nothing further.
+  - The step lands **at once**, partway through the turn, so its clock is set
+    from the turn it lands in. Tired carries into the next turn as it always
+    does, so a second turn of hauling steps you up. **Exhausted lasts only the
+    rest of this turn**, then turns back into Tired at the push. Stamped like a
+    turn close's, it used to hold the rest of this turn and all of the next one
+    (a "2t" badge), which was a bug.
+  - Every way a player moves a crate charges it: Transfer (Take, drop, Steal,
+    Transfer across a counter), Loot, Pickpocket, Package, the vending machine
+    (Buy, Stock, Take out) and the Gatehouse clerk's Approve (the clerk lifts
+    both ways). A crate the carry settle sets down for you (§4) costs nothing:
+    you did not choose to move it.
 - **Picking one up sours you.** Every crate that lands in your own hands by your
   own doing costs 20 mood (`EVENTS.CRATE_HAULED`, `MOOD.md`). Somebody handed a
   crate has not picked it up — the giver hauled it.
@@ -773,8 +784,8 @@ inside, which is always heavier. A sealed one wants the Depot Keycard.
   as Pack Mules; the Merchant starts with Soft Hands and may buy neither Pack
   Mule nor Strong (`excludedRoles` in `docs/tags.yaml`).
 
-The costs are `db/lib/crateHaul.js#chargeCrateHaul`, called inside Transfer's
-and Loot's transactions.
+The costs are `db/lib/crateHaul.js#chargeCrateHaul`, called inside each of those
+acts' own transaction.
 
 Obols are the other end of the ladder: `weight: 0`, the Negligible band, the
 same as a key or a letter. See `docs/systemdocs/DEPOT.md` §0e and §0g.

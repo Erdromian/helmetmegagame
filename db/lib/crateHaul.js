@@ -15,6 +15,16 @@
 // Somebody handed a crate has not picked it up: the giver hauled it. An
 // Exhausted character is already at the top of the ladder and climbs nothing.
 //
+// The step lands mid-turn, not at a close, so the Exhausted it gives is
+// stamped for THIS turn: it turns back into Tired at the push, and never
+// carries a "2t" clock (db/lib/fatigue.js#applyFatigueStep, exhaustedFrom).
+// The Tired it gives carries into the next turn as usual, so hauling on two
+// turns running still wears somebody out.
+//
+// Every way a player moves a crate charges here: Transfer (Take, drop,
+// Steal, across a counter), Loot, Pickpocket, Package, the vending machine
+// (buy, stock, take stock) and the Gatehouse clerk's hand-over.
+//
 // Runs inside the caller's transaction (`tx`), after the goods have moved.
 // Takes `db` first and stays off the barrel; require it by path.
 
@@ -49,7 +59,9 @@ async function chargeCrateHaul(tx, character, { moved = 0, pickedUp = 0, turn = 
         where: { characterId: character.id, tag: { slug: EXHAUSTED_SLUG } },
         select: { id: true },
       });
-      if (!exhausted) out.tired = Boolean(await applyFatigueStep(tx, character.id, turn.number));
+      if (!exhausted) {
+        out.tired = Boolean(await applyFatigueStep(tx, character.id, turn.number, { exhaustedFrom: turn.number }));
+      }
     }
   }
 

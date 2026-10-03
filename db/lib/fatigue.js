@@ -16,7 +16,14 @@ function nextFatigueSlug(heldSlugs) {
 // MOVE_EFFECTS entry that climbs the ladder this way rather than granting Exhausted outright
 // (db/lib/moveEffects.js's `exhausted` entry for Mining, `refined` entry for Refine, `farmed` for Farm).
 // `turnNumber` is the CLOSING turn's number, same "+1" convention as grantRecentlyFarmed.
-async function applyFatigueStep(tx, characterId, turnNumber) {
+//
+// `exhaustedFrom` is for a caller stepping someone up MID-TURN (db/lib/crateHaul.js): the open
+// turn's number. Exhausted is meant to cover one turn — granted at a close, it blocks the next —
+// so one granted partway through turn N is stamped N and turns back into Tired when N closes.
+// Stamped N+1 like a close's, it held the rest of N and all of N+1, a "2t" badge. Tired keeps
+// N+1 either way: it blocks nothing, and carrying into the next turn is what makes a second
+// day's haul step up.
+async function applyFatigueStep(tx, characterId, turnNumber, { exhaustedFrom = null } = {}) {
   const heldTired = await tx.characterTag.findFirst({
     where: { characterId, tag: { slug: TIRED_SLUG } },
     select: { id: true, expiresTurn: true },
@@ -35,13 +42,14 @@ async function applyFatigueStep(tx, characterId, turnNumber) {
   }
   // Escalating: the Tired row is consumed by the upgrade, or the character ends up holding both.
   if (heldTired) await tx.characterTag.delete({ where: { id: heldTired.id } });
+  const firstLiveTurn = targetSlug === EXHAUSTED_SLUG && exhaustedFrom != null ? exhaustedFrom : turnNumber + 1;
   // skipDuplicates: an existing Tired/Exhausted keeps its own clock (same rule as db/lib/tagExpiryPass.js).
   await tx.characterTag.createMany({
     data: [{
       characterId,
       tagId: tag.id,
       source: "EVENT",
-      expiresTurn: expiryFrom(turnNumber + 1, tag.defaultDurationTurns ?? 1),
+      expiresTurn: expiryFrom(firstLiveTurn, tag.defaultDurationTurns ?? 1),
     }],
     skipDuplicates: true,
   });

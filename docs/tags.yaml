@@ -4682,7 +4682,9 @@ tags:
   # Tired — two days running, or two bad nights running — or straight away
   # on a 2–3 when pushing on. durationTurns: 1 is what makes the clock work:
   # granted while turn T closes, it blocks turn T+1 and degrades back into
-  # Tired when T+1 closes.
+  # Tired when T+1 closes. Hauling a crate steps the ladder partway through a
+  # turn instead, so its Exhausted is stamped for that turn and degrades when
+  # it closes (db/lib/crateHaul.js, CARRY.md §10).
   exhausted:
     catalog: gm
     name: Exhausted
