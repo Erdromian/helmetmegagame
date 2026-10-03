@@ -13,7 +13,7 @@ import {
   hasSpectatorRole,
   SPECIAL_CHANNELS,
 } from "@lifeweb/db";
-import { applyDeathWithVampireOverride, announceVampireAsh } from "@lifeweb/db/lib/vampireDeath";
+import { applyDeathToRow } from "@lifeweb/db/lib/characterDeath";
 import { openDeadchatTo } from "@lifeweb/db/lib/deadchat";
 import { ensureCharacterRole as ensureCharacterRoleShared } from "@lifeweb/db/lib/characterRole";
 import { applyDmPrefix, dmLogRow } from "@lifeweb/db/lib/dmPolicy";
@@ -477,26 +477,18 @@ export async function killCharacter(character, reason = null) {
     await deleteCharacterRole(character.discordRoleId).catch(() => {});
   }
 
-  // Shared with the turn engine's catatonic death pass so the two death
-  // paths can't drift. Read fresh, not off `character` — callers hand this
-  // function varying shapes, and the ash announcement below needs the
-  // location row, not just an id.
+  // Shared with every other death path so they can't drift — a vampire's ash
+  // included (VAMPIRE.md §7). locationId is read fresh, not off `character`:
+  // callers hand this function varying shapes, and the ash needs to know
+  // which floor to land on.
   const row = await prisma.character
     .findUnique({ where: { id: character.id }, select: { locationId: true } })
     .catch(() => null);
 
-  await applyDeathWithVampireOverride(prisma, { ...character, locationId: row?.locationId ?? null }, {
+  await applyDeathToRow(prisma, { ...character, locationId: row?.locationId ?? null }, {
     expectStatus: "DEAD",
     content: `${character.name} died.`,
-  })
-    .then(async (result) => {
-      if (!result.ash || !row?.locationId) return;
-      const location = await prisma.location
-        .findUnique({ where: { id: row.locationId }, select: { id: true, name: true, discordChannelId: true } })
-        .catch(() => null);
-      await announceVampireAsh(prisma, character.name, location);
-    })
-    .catch((err) => console.error(`Death row cleanup failed for ${character.id}:`, err));
+  }).catch((err) => console.error(`Death row cleanup failed for ${character.id}:`, err));
 
   // The Deadchat seat (db/lib/deadchat.js) — a per-member overwrite on one channel, replacing the
   // Ghost role that used to go here. Note the order this inherits and must keep: revokeAllCharacterAccess

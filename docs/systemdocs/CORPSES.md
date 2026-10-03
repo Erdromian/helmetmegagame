@@ -59,12 +59,14 @@ components included. It is written at mint and recomputed by
 
 ## 1a. Gibbing — the death that leaves no body
 
-Four deaths in the game vaporise a character outright: the Thanati **Rite of
-Sacrifice**, the **Rite of Judgement**, the **bomb**, and a **GM-staged death
-with Gib checked** (`DeathComposer.js`, `ADJUDICATION.md` §1) — the only one
-of the four a GM triggers by hand rather than a scripted rite or the bomb.
-All four pass `{ gib: true }` to `applyDeathToRow`, and that option is the
-whole definition:
+These deaths vaporise a character outright: the Thanati **Rite of
+Sacrifice**, the **Rite of Judgement**, the **bomb**, the gatehouse
+**Magma**, **Xom**, **Ascension**, and a **GM-staged death with Gib checked**
+(`DeathComposer.js`, `ADJUDICATION.md` §1), the only one a GM triggers by
+hand. All of them pass `{ gib: true }` to `applyDeathToRow`. **Every Vampire's
+death is a gib too**, whatever the caller asked for: `applyDeathToRow` first
+sets their goods on the floor beside a Pile of Ash, then gibs the sheet
+(`VAMPIRE.md` §7). The gib is the whole definition:
 
 - **No corpse is minted at all.** Not minted-then-deleted, which is what the
   two rites used to do — simply never made. So there is nothing to loot, carry,
@@ -79,6 +81,9 @@ whole definition:
   replaces them. Their goods went up with them.
 - **The sheet survives.** The row stays `DEAD` like any other, because the
   end-of-game reveal and the curse rule both read live `Character` rows.
+- **Nobody is left carrying it.** A body can be escorted (`db/lib/escort.js`),
+  so a gib clears the dead row's own `escortedById`: there is nothing left to
+  drag along.
 
 **The one thing the wipe must not take is an antagonist seat tag.**
 `db/lib/epilogue.js` reads seats straight off live rows, and the bomb gibs

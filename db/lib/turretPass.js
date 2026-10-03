@@ -22,6 +22,8 @@ const { applyMood } = require("./mood");
 const { alivePassCharacters } = require("./aliveCharacters");
 const { addToStack } = require("./tagWrites");
 const { logSystemTagChange } = require("./tagAudit");
+const { DYING_SLUG } = require("./constants");
+const { VAMPIRE_SLUG } = require("./secretSlugs");
 
 // Everything a shot needs off a character. Shared so the sweep and arrival
 // roll judge the same sheet. Miss the armour fields and combineArmor sees
@@ -80,9 +82,16 @@ async function sweepTurretAt(prisma, { locationSlug, tableSource = null, spares 
 // bullet does" has one definition; `deathContent` is the only per-turret
 // part, since the archive line has to say which gun it was.
 async function applyTurretShot(prisma, shot, turn, { deathContent, deathReason }) {
-  const { character, severity, tagSlug } = shot;
+  const { character, severity } = shot;
+  let { tagSlug } = shot;
 
-  if (severity === "dead") {
+  // A Vampire does not die to the turret (VAMPIRE.md §7: "or from the turret"). The killing shot
+  // leaves them on death's door instead — Dying, which db/lib/dyingDeathPass.js never runs down
+  // for a vampire — until somebody finishes them off or they Regenerate.
+  const vampire = (character.tags ?? []).some((ct) => ct.tag?.slug === VAMPIRE_SLUG);
+  if (severity === "dead" && vampire) tagSlug = DYING_SLUG;
+
+  if (severity === "dead" && !vampire) {
     // Full death, not a status flip: corpse, archive line, Discord role owed
     // back. `claimed` is false if something else already killed them this
     // turn, which a resumed pass can legitimately hit.
@@ -123,7 +132,9 @@ async function applyTurretShot(prisma, shot, turn, { deathContent, deathReason }
   });
   if (!tag) return { kind: "graze", discordUserId: character.discordUserId };
 
-  const expiresTurn = tag.defaultDurationTurns
+  // An arrival between turns has no turn (rollTurretOnArrivalAt passes null). A wound then lands
+  // clockless, which the passes stamp at the next close (dyingDeathPass does exactly that for Dying).
+  const expiresTurn = tag.defaultDurationTurns && turn?.number != null
     ? expiryFrom(turn.number, tag.defaultDurationTurns)
     : null;
 
