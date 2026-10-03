@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { DM_PLACE_KEY } from "../DmPane";
 import {
   usePlaces,
+  setPlaces,
   useFeed,
   notableSeq,
   seedInitial,
@@ -201,6 +202,22 @@ export default function ChatNext(props) {
   const [placesVersion, setPlacesVersion] = useState(0);
   const bumpPlaces = useCallback(() => setPlacesVersion((n) => n + 1), []);
   const bumpGap = useCallback(() => setGapNonce((n) => n + 1), []);
+
+  // The server's list, seeded again whenever newer props land, until the
+  // stream has spoken. The initializer above seeds from whatever painted
+  // first, and on a return visit that is the browser's stored copy
+  // (web/lib/snapshot) — a list from the last visit, or from a different seat
+  // altogether. Without this, the fresh list never reached the store and the
+  // column showed the stored one until the stream's first `places` frame:
+  // a spectator whose phone had stored the "waiting for a seat" page (Bascinet
+  // and Game) kept seeing only those two wherever the stream was slow to open.
+  // ../Chat.js has carried this guard all along; the rebuild dropped it.
+  // The prop itself, not `places`: that one's `= []` default is a new array
+  // every render, and seeding it would re-render this forever.
+  const serverPlaces = props.initialPlaces;
+  useEffect(() => {
+    if (Array.isArray(serverPlaces) && !streamSpokeRef.current) setPlaces(serverPlaces);
+  }, [serverPlaces]);
 
   const seen = useSeen();
   const notified = useNotified();
