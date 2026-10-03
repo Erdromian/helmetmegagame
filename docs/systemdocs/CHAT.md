@@ -1122,7 +1122,11 @@ a 48px head and a one-line composer:
   (`MembersStrip.js`).
 - **The keyboard.** `web/app/layout.js` exports `viewport.interactiveWidget:
   "resizes-content"`: Chrome on Android otherwise leaves the layout viewport
-  alone when the keys come up and the composer sits under them. The three
+  alone when the keys come up and the composer sits under them. On iOS 26
+  the opposite goes wrong: when the keys go away Safari does not always slide
+  the page back down, and the composer stays stuck halfway up the screen.
+  `web/app/components/KeyboardSettle.js` (mounted in the root layout) checks
+  once the keyboard has gone and scrolls the page back into place. The three
   scrollers carry `overscroll-behavior: none`, and so does the page behind
   them, so the end of the feed is not pull-to-refresh — scrolling back to
   the top of a scene must never reload it. **Refresh** in the head's ⋯ menu
