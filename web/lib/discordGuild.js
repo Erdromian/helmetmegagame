@@ -2,9 +2,6 @@ import { cache } from "react";
 import { auth } from "@/lib/auth";
 import {
   prisma,
-  characterRoleAppearance,
-  formatBareName,
-  CATATONIC_SLUG,
   buildNarrowcastContext,
   computeNarrowcastAccess,
   PLAYER_ROLE_ID,
@@ -17,6 +14,7 @@ import {
 } from "@lifeweb/db";
 import { applyDeathWithVampireOverride, announceVampireAsh } from "@lifeweb/db/lib/vampireDeath";
 import { openDeadchatTo } from "@lifeweb/db/lib/deadchat";
+import { ensureCharacterRole as ensureCharacterRoleShared } from "@lifeweb/db/lib/characterRole";
 import { applyDmPrefix, dmLogRow } from "@lifeweb/db/lib/dmPolicy";
 import {
   revokeAllCharacterAccess as revokeAllCharacterAccessShared,
@@ -385,52 +383,11 @@ export async function setTurnPingRole(discordUserId, optIn) {
 }
 
 
-// Personal Discord role titled after this character, colored
-// deterministically, via db/lib/characterRoleAppearance.js so a Catatonic
-// character's grey and a disguised character's false name stay intact.
+// Personal Discord role titled after this character — minted for every living
+// character, Discord player or not, since /add can only name a character who
+// has one (db/lib/characterRole.js).
 export async function ensureCharacterRole(character) {
-  const guildId = process.env.DISCORD_GUILD_ID;
-  const token = process.env.DISCORD_TOKEN;
-  const bare = formatBareName(character);
-  if (!guildId || !token || !bare) return character.discordRoleId ?? null;
-  // Not mirrored to Discord: no name token to mint or repaint (CHAT.md §6).
-  if (!character.discordMirrored) return character.discordRoleId ?? null;
-
-  const held = await prisma.characterTag.findMany({
-    where: {
-      characterId: character.id,
-      OR: [{ tag: { slug: CATATONIC_SLUG } }, { tag: { forcedName: { not: null } } }],
-    },
-    select: { tag: { select: { slug: true, forcedName: true } } },
-  });
-  const catatonic = held.some((row) => row.tag?.slug === CATATONIC_SLUG);
-  const forcedName = held.find((row) => row.tag?.forcedName)?.tag?.forcedName ?? null;
-  const { name, color } = characterRoleAppearance(bare, { catatonic, forcedName });
-
-  try {
-    if (!character.discordRoleId) {
-      const role = await discordRequest(`/guilds/${guildId}/roles`, {
-        method: "POST",
-        // permissions: "0" is NOT the API default — omitting it copies
-        // @everyone's bits, which made db:prune-orphan-roles' "carries
-        // permissions" gate refuse to ever delete a character role.
-        body: { name, color, hoist: false, mentionable: true, permissions: "0" },
-      });
-
-      // Assigned to NOBODY on purpose — a mentionable name token only.
-      await prisma.character.update({ where: { id: character.id }, data: { discordRoleId: role.id } });
-      return role.id;
-    }
-
-    await discordRequest(`/guilds/${guildId}/roles/${character.discordRoleId}`, {
-      method: "PATCH",
-      body: { name, color },
-    });
-    return character.discordRoleId;
-  } catch (err) {
-    console.error("ensureCharacterRole failed:", err);
-    return character.discordRoleId ?? null;
-  }
+  return ensureCharacterRoleShared(prisma, character);
 }
 
 // Does NOT revoke channel access (a per-member overwrite, not the role) —

@@ -120,7 +120,9 @@ Notes:
   command.
 - Commands taking a character take a **role** option, not a user option, so
   the picker names characters rather than Discord accounts. The role is the
-  character's personal name-token role (`CHANNELS.md` §3).
+  character's personal name-token role (`CHANNELS.md` §3), and every living
+  character has one, playing on Discord or not (`db/lib/characterRole.js`) —
+  without it the picker has nobody to offer.
 
 ### 2b. `/add` and `/remove` in detail
 

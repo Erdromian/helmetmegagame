@@ -143,8 +143,7 @@ export async function updateCharacterProfile(_prevState, formData) {
   // flip above; a refused flip leaves them where they were.
   const mirroredNow = mirrorError ? character.discordMirrored : mirroredWanted;
   await setTurnPingRole(session.discordUserId, updated.turnPingOptIn && mirroredNow).catch(() => {});
-  // discordMirrored not read off `updated` for the same reason as mirroredNow above.
-  await ensureCharacterRole({ ...updated, discordMirrored: mirroredNow }).catch(() => {}); // self-heal: only ever creates a role that went missing
+  await ensureCharacterRole(updated).catch(() => {}); // self-heal: only ever creates a role that went missing
   revalidatePath("/character");
   if (mirrorError) return { error: mirrorError };
   // Has to come back from here — the upload branch is skipped when uploads

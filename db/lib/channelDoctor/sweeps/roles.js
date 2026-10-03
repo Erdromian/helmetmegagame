@@ -5,10 +5,14 @@
 // runChannelDoctor (W2d).
 const { getGuildChannels, deleteGuildRole } = require("../../discordRest");
 const { ghostUserIds } = require("../../ghost");
+const { mintCharacterRole } = require("../../characterRole");
 const { deadchatSeatHolders, openDeadchatTo, closeDeadchatTo } = require("../../deadchat");
 const { managedSpectatorChannels, spectatorDrift, applySpectatorOverwrite } = require("../../spectatorAccess");
 const { looksLikeCharacterRole, standingRoleIds, reconcileRoleMembership } = require("../shared");
 const { runLocationOccupancySweep } = require("./locationOccupancy");
+
+// Character roles one pass may mint (see the character-role check below).
+const MAX_ROLE_MINTS_PER_PASS = 50;
 
 async function runRoleMembershipSweep({
   report,
@@ -72,10 +76,13 @@ async function runRoleMembershipSweep({
   // path for somebody who left the guild mid-death.
   await reconcileDeadchatSeats({ prisma, characters, members, report });
 
-  // Character roles: every ALIVE character's role exists; no orphan
-  // character-signature roles. Creation isn't repaired here (it needs the
-  // name/color pipeline in web/lib/discordGuild.js) — report only. Orphans
-  // are deleted on apply, same conservatism as prune-orphan-roles.
+  // Character roles: every ALIVE character has one, playing on Discord or
+  // not — /add can't name a character without one (db/lib/characterRole.js).
+  // A missing or deleted role is minted on apply, which is also how the
+  // web-only characters made before that rule got theirs. No orphan
+  // character-signature roles: those are deleted on apply, same conservatism
+  // as prune-orphan-roles. The orphan pass reads `liveRoles` as it was before
+  // any minting, so a role minted here is never mistaken for one.
   const claimedRoleIds = new Set(characters.map((c) => c.discordRoleId).filter(Boolean));
   const standing = standingRoleIds();
   // The zone ACCESS roles. Kept narrow on purpose: this same set is what
@@ -85,12 +92,30 @@ async function runRoleMembershipSweep({
   // The per-zone GM seats. Not character roles, so the orphan sweep below
   // must never offer to delete one; nothing else wants them.
   const zoneGmRoleIds = new Set(zones.map((z) => z.gmRoleId).filter(Boolean));
-  for (const c of alive) {
-    if (!c.discordRoleId) {
-      await report("character-role", c.name, "living character has no Discord role recorded");
-    } else if (!rolesById.has(c.discordRoleId)) {
-      await report("character-role", c.name, "recorded character role no longer exists");
+  // Minting is capped per pass and stops at the first refusal: role creation
+  // is a slow per-guild bucket, the bot-start pass is awaited before the bot
+  // is ready, and every 429 counts toward the REST breaker. What is left over
+  // is still reported, and the next pass (every turn's end) mints it.
+  let mints = 0;
+  let mintRefused = false;
+  const mint = (c) => async () => {
+    try {
+      await mintCharacterRole(prisma, c);
+    } catch (err) {
+      mintRefused = true;
+      throw err;
     }
+  };
+  for (const c of alive) {
+    const problem = !c.discordRoleId
+      ? "living character has no Discord role recorded"
+      : !rolesById.has(c.discordRoleId)
+        ? "recorded character role no longer exists"
+        : null;
+    if (!problem) continue;
+    const repair = !mintRefused && mints < MAX_ROLE_MINTS_PER_PASS ? mint(c) : undefined;
+    if (repair) mints += 1;
+    await report("character-role", c.name, problem, repair);
   }
   for (const role of liveRoles) {
     if (

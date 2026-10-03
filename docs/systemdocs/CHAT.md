@@ -2656,6 +2656,16 @@ away because a cooldown had two minutes left on it.
 fiction —
 they still stand there and still appear in Who's here?.
 
+**The personal character role ignores the switch.** It is a name token held by
+nobody (`PROXYING.md` §6), so it says nothing about which account plays whom,
+and it is the only way a Discord player can name a character — `/add`,
+`/remove`, `/heal` and an `@` all pick a role. `db/lib/characterRole.js` mints
+one for every living character, on Discord or not. From 2026-09-15 to
+2026-10-03 it was only minted for characters on Discord, so a Discord player
+could not `/add` anybody playing from the web: the picker had no role to
+offer. The channel doctor's `character-role` check mints any missing role on
+its next apply, which is what gave those characters theirs.
+
 The places column used to carry one quiet `.chip` reading **Playing from the
 web** while the switch was off. It is gone: it named a state the player had
 chosen on purpose, told them nothing they could act on, and took up the one

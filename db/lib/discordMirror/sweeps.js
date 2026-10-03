@@ -30,6 +30,9 @@ async function runSweeps(prisma, { scope, report, errors, live }) {
       select: {
         id: true,
         name: true,
+        // The bare name a missing character role is minted under (db/lib/characterRole.js).
+        firstName: true,
+        lastName: true,
         discordRoleId: true,
         zoneId: true,
         locationId: true,
