@@ -442,6 +442,33 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     }
   }
 
+  // The Combat twin — a ?sel=combat/<id> link naming a fight on a RESOLVED turn (the open turn's
+  // fights are already in `combats`). Workspace flips to History · Combat on arrival.
+  let initialCombat = null;
+  if (parsedSelection?.type === "combat" && !combats.some((c) => c.id === parsedSelection.id)) {
+    const fight = await prisma.combat.findUnique({ where: { id: parsedSelection.id }, include: COMBAT_INCLUDE });
+    if (fight) {
+      const [fightEffects, fightMessages] = await Promise.all([
+        prisma.stagedEffect.findMany({
+          where: { combatId: fight.id },
+          orderBy: { createdAt: "asc" },
+          include: STAGED_EFFECT_INCLUDE,
+        }),
+        prisma.stagedMessage.findMany({
+          where: { combatId: fight.id },
+          orderBy: { createdAt: "asc" },
+          include: STAGED_MESSAGE_INCLUDE,
+        }),
+      ]);
+      initialCombat = {
+        turnId: fight.turnId,
+        combat: combatRow(fight, { usernameById }),
+        effects: fightEffects.map((e) => stagedEffectRow(e, effectCtx)),
+        messages: fightMessages.map((m) => stagedMessageRow(m, messageCtx)),
+      };
+    }
+  }
+
   // `label` uses the same turnLabel() as resolved turns, so History's Turn
   // dropdown needs no second formatting rule. `endsAtMs` lets the push
   // countdown tick against the same turnClock derivation everything else
@@ -468,6 +495,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         initialSelection: parsedSelection,
         initialHistory: initialHistory,
         initialCaving: initialCaving,
+        initialCombat: initialCombat,
         resolvedTurns: resolvedTurns.map((t) => ({ id: t.id, number: t.number, label: turnLabel(t) })),
         openTurn: openTurnDto,
         selectableZones: selectableZones,

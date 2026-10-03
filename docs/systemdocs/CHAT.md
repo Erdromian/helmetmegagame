@@ -2202,8 +2202,29 @@ Four things are read-only:
   place came or went) and ends the moment they get a character of their own or
   the phase leaves RUNNING/ENDED. `/map` gives them the whole plate, every place
   and room, but **never a hidden way** (`map/actions.js`, `hiddenWays: false`).
-  The rail is `SPECTATOR_NAV` (Chat, Map, Documents, Handbook), and `/` sends
-  them to `/chat`.
+  The rail is `SPECTATOR_NAV` (Chat, Map, Actions, Documents, Handbook), and `/`
+  sends them to `/chat`.
+
+  **`/actions`** is the one page that is theirs alone: what came of every
+  **pushed** turn, picked from a Turn dropdown, newest first (the open turn is
+  never offered — it is the GMs' desk still being worked). Three panels:
+  - **Moves** — every confirmed Move, travel left out (it is on the map): who,
+    Gambit or Routine, where it was filed, what they wrote, the GM's **Result**
+    box and every message the push **sent** off it.
+  - **Fights** — the sides (declined and unanswered invites left out), what each
+    fighter wrote, how it ended, the Result and the sent messages.
+  - **Caving** — every result, a caver's 1s folded into one with its severity
+    (`foldCavingRolls`, as on the desk), what they found, what they wrote back,
+    and the sent messages.
+
+  Outcomes, never dice (Bascinet, 2026-10-03): no die, modifier or total, no
+  snapshot, no compelled line, no GM notes, no message still unsent. Real names
+  throughout, as on the desk — a Move keeps no record of how its author looked
+  that turn, and the Result usually names people anyway. All of it is decided in
+  one place, `web/lib/spectatorActions.js`, whose selects are allow-lists and
+  whose rows are built field by field; `web/lib/__tests__/spectatorActions.test.mjs`
+  hands it whole rows, GM-only columns and all, and fails on any that come out.
+  A GM may open the page too, to see what the watchers see; nobody else can.
 
 - **A ghost may look, but not photograph.** The eye in the feed
   (`chat/actions.js#lookAtRow`) resolves them to their last body, so a doctor who

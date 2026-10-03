@@ -37,6 +37,7 @@ const DEFAULT_ROUTES = [
 
   { path: "/archive", as: "gm" }, // conditional on game state; checked as GM to keep the run stable
   { path: "/lifeweb", as: "gm" },
+  { path: "/actions", as: "gm" }, // the spectator's page; a GM may open it to see what they see
 
   { path: "/gm/players", as: "gm" },
   { path: "/gm/turns", as: "gm" },
@@ -68,6 +69,8 @@ const DEFAULT_ROUTES = [
   { path: "/gm/structures", as: "anon", expect: "/" },
   { path: "/gm/dev?s=gamemasters", as: "player", expect: "/character" }, // GM roster now lives here
   { path: "/ledger", as: "anon", expect: "/" },
+  { path: "/actions", as: "player", expect: "/character" },
+  { path: "/actions", as: "anon", expect: "/" },
 ];
 
 // A server component that throws still answers 200: React streams the shell,

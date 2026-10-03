@@ -123,6 +123,22 @@ function findHistoryCaving(historyByTurn, rollId, preloaded) {
   return pre && (pre.id === rollId || pre.memberIds?.includes(rollId)) ? preloaded : null;
 }
 
+// The Combat twin: a past turn's fight and the rows staged on it, from any loaded turn or the
+// deep link's preload (page.js#initialCombat).
+function findHistoryCombat(historyByTurn, combatId, preloaded) {
+  for (const [turnId, entry] of historyByTurn) {
+    const combat = (entry.combats ?? []).find((c) => c.id === combatId);
+    if (!combat) continue;
+    return {
+      turnId,
+      combat,
+      effects: entry.effects.filter((e) => e.combatId === combatId),
+      messages: entry.messages.filter((m) => m.combatId === combatId),
+    };
+  }
+  return preloaded?.combat?.id === combatId ? preloaded : null;
+}
+
 // A folded Caving row's staged rows: everything staged on any of its rolls. New ones attach to
 // the row's own id (the oldest roll); a group from before the fold may carry some on a later one.
 function stagedForCaving(stagedByCaving, row) {
@@ -179,6 +195,7 @@ export default function Workspace({
   initialSelection,
   initialHistory,
   initialCaving,
+  initialCombat,
   resolvedTurns,
   openTurn,
   selectableZones,
@@ -270,10 +287,20 @@ export default function Workspace({
     }
   }
   // A link straight to a fight (?sel=combat/<id>) swings the rail onto the Combat lens, so the row it
-  // opened is the one lit in the queue.
+  // opened is the one lit in the queue — or, for a fight on a past turn (page.js sets initialCombat
+  // only then), onto History · Combat and that fight's turn, the Caving shape above.
   if (typeof window !== "undefined" && initialSelection?.type === "combat" && seenDeepLinkId !== initialSelection.id) {
     setSeenDeepLinkId(initialSelection.id);
-    if (rail.lens !== "combat") setRail((r) => ({ ...r, lens: "combat" }));
+    if (initialCombat) {
+      if (rail.lens !== "history" || rail.historyKind !== "combat") {
+        setRail((r) => ({ ...r, lens: "history", historyKind: "combat" }));
+      }
+      if (initialCombat.turnId && desk.historyTurnId !== initialCombat.turnId) {
+        setDesk((d) => ({ ...d, historyTurnId: initialCombat.turnId }));
+      }
+    } else if (rail.lens !== "combat") {
+      setRail((r) => ({ ...r, lens: "combat" }));
+    }
   }
   // A tab open across the deploy can still hold the deleted "requests" lens
   // in sessionStorage, which would render an empty rail until it was clicked.
@@ -454,7 +481,7 @@ export default function Workspace({
   // The open turn's rows are the live ones page.js shipped; every other turn
   // comes out of the cache.
   const historyEntry = historyIsOpenTurn
-    ? { moves, cavingRolls, effects: stagedEffects, messages: stagedMessages, tagsById }
+    ? { moves, cavingRolls, combats, effects: stagedEffects, messages: stagedMessages, tagsById }
     : historyTurnId
       ? (historyCache.get(historyTurnId) ?? null)
       : null;
@@ -481,6 +508,7 @@ export default function Workspace({
         new Map(prev).set(historyTurnId, {
           moves: res.moves,
           cavingRolls: res.cavingRolls,
+          combats: res.combats ?? [],
           effects: res.effects,
           messages: res.messages,
           tagsById: res.tagsById,
@@ -614,7 +642,14 @@ export default function Workspace({
     }
     return map;
   }, [stagedEffects, stagedMessages]);
-  const selectedCombat = selected?.type === "combat" ? (combats.find((c) => c.id === selected.id) ?? null) : null;
+  // The open turn's fights first; otherwise a History pick from any loaded turn, read-only.
+  const liveCombat = selected?.type === "combat" ? (combats.find((c) => c.id === selected.id) ?? null) : null;
+  const historyCombat =
+    selected?.type === "combat" && !liveCombat ? findHistoryCombat(historyCache, selected.id, initialCombat) : null;
+  const selectedCombat = liveCombat ?? historyCombat?.combat ?? null;
+  const selectedCombatTurnLabel = historyCombat
+    ? (resolvedTurns?.find((t) => t.id === historyCombat.turnId)?.label ?? null)
+    : null;
 
   const solvedCount = moves.filter((m) => m.reviewStatus === "SOLVED").length;
 
@@ -769,6 +804,7 @@ export default function Workspace({
           historyKind={historyKind}
           onHistoryKind={setHistoryKind}
           historyCavingRolls={historyEntry?.cavingRolls ?? []}
+          historyCombats={historyEntry?.combats ?? []}
           historyLoading={historyLoading}
           historyError={historyError}
         />
@@ -845,7 +881,13 @@ export default function Workspace({
             <CombatDesk
               key={selectedCombat.id}
               combat={selectedCombat}
-              staged={stagedByCombat.get(selectedCombat.id) ?? { effects: [], messages: [] }}
+              readOnly={!liveCombat}
+              turnLabel={selectedCombatTurnLabel}
+              staged={
+                liveCombat
+                  ? (stagedByCombat.get(selectedCombat.id) ?? { effects: [], messages: [] })
+                  : { effects: historyCombat?.effects ?? [], messages: historyCombat?.messages ?? [] }
+              }
               tagCatalog={tagCatalog}
               roster={roster}
               presenceZones={presenceZones}
