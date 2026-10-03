@@ -2796,6 +2796,8 @@ export async function packageItemsRequestImpl({
       source: "EVENT",
       stackable: false,
     });
+    // The packed crate lands in the packer's own hands: a crate picked up (db/lib/crateHaul.js).
+    await chargeCrateHaul(tx, character, { moved: 1, pickedUp: 1, turn: openTurn });
 
     const effect = {
       crateTagId: crate.id,

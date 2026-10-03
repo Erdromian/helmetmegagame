@@ -47,6 +47,8 @@ import { CONCEALMENT_TAG_FIELDS } from "@lifeweb/db/lib/presentedIdentity";
 import { resolveTargetKey } from "@lifeweb/db/lib/targetKey";
 import { carryAdmits } from "@lifeweb/db/lib/carry";
 import { holdLimitRefusal } from "@lifeweb/db/lib/mounts";
+import { isCrateTag } from "@lifeweb/db/lib/crates";
+import { chargeCrateHaul } from "@lifeweb/db/lib/crateHaul";
 import { rowWeight, round2 } from "@lifeweb/db/lib/tagWeight";
 import { dropCharacterTag, addToStack } from "@/lib/tagEffects";
 import { afterInventoryChange } from "@/lib/afterInventoryChange";
@@ -492,6 +494,10 @@ export async function pickpocketTakeImpl({ targetKey, tags: rawTags }) {
         },
       });
     }
+
+    // A crate lifted out of somebody's pack is a crate picked up (db/lib/crateHaul.js).
+    const crates = moves.reduce((n, m) => n + (isCrateTag(m.held.tag) ? m.quantity : 0), 0);
+    await chargeCrateHaul(tx, character, { moved: crates, pickedUp: crates, turn: openTurn });
 
     await logAudit(tx, {
       actorDiscordUserId: session.discordUserId,
