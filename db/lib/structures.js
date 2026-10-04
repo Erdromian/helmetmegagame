@@ -21,6 +21,8 @@ function placementOf(tag) {
     music: p.music ?? null,
     provides: Array.isArray(p.provides) ? p.provides : [],
     inscribable: p.inscribable === true,
+    underground: p.underground === true,
+    shelter: p.shelter ?? null,
   };
 }
 
@@ -44,26 +46,37 @@ async function structuresAt(prisma, locationId, { statuses = null } = {}) {
 }
 
 // Where building is refused: indoors (you do not raise a palisade in the
-// Cathedral's nave), CAVE_LEVEL zones (no #summary underground — MAP.md §1), and `noBuild`.
+// Cathedral's nave), CAVE_LEVEL zones for any type not flagged `placement.underground`, and `noBuild`.
 function canBuildHere(location, placement = null) {
   if (!location) return { ok: false, reason: "You can't build here." };
   // Cave first: cave levels are also authored `indoors: true`.
-  if (location.zone?.kind === "CAVE_LEVEL") {
-    return { ok: false, reason: "Nothing can be built down here." };
+  const cave = location.zone?.kind === "CAVE_LEVEL";
+  if (cave && !placement?.underground) {
+    return { ok: false, reason: "That can't be built down here." };
   }
   // Per-TYPE gate; no placement means the ground question alone.
   const sites = placement?.locations ?? [];
   if (sites.length && !sites.includes(location.slug)) {
     return { ok: false, reason: "The brewery can only be built in the inn." };
   }
-  // A NAMED SITE SATISFIES THE INDOORS DEFAULT only — cave and `noBuild` below still stand regardless.
-  if (location.indoors && !sites.length) {
+  // A NAMED SITE SATISFIES THE INDOORS DEFAULT only — cave and `noBuild` still stand regardless.
+  // So does an underground type in a cave: the roof down there is the cave, already answered above.
+  if (location.indoors && !sites.length && !cave) {
     return { ok: false, reason: "You can't build indoors." };
   }
   if (hasAttribute(location, "noBuild")) {
     return { ok: false, reason: "You can't build here." };
   }
   return { ok: true, reason: null };
+}
+
+// What an ordinary type gets, and what an underground one gets, on this ground — the two answers a
+// Craft menu needs to drop a placement it could not raise (craftRecipes.js#placementOfferedHere).
+function buildGround(location) {
+  return {
+    buildable: canBuildHere(location).ok,
+    buildableUnderground: canBuildHere(location, { underground: true }).ok,
+  };
 }
 
 // One word per status, for a chip or aside. Prose lives in locationAttributes.js#structureLines.
@@ -90,6 +103,33 @@ const PRESENT_STATUSES = ["UNDER_CONSTRUCTION", "COMPLETE", "DAMAGED"];
 
 // Statuses in which a structure actually WORKS (defenseNote/mining bonus apply).
 const WORKING_STATUSES = ["COMPLETE", "DAMAGED"];
+
+// locationId -> the best (lowest) `placement.shelter.factor` standing there, for the nightly mood
+// pass. COMPLETE only, the reading mining takes: a damaged camp shelters nobody. Two reads for the whole game.
+async function shelterFactorsByLocation(prisma) {
+  const rows = await prisma.structure.findMany({
+    where: { status: "COMPLETE" },
+    select: { locationId: true, typeSlug: true },
+  });
+  if (!rows.length) return new Map();
+  const types = await prisma.tag.findMany({
+    where: { slug: { in: [...new Set(rows.map((r) => r.typeSlug))] } },
+    select: { slug: true, placement: true },
+  });
+  const factorBySlug = new Map();
+  for (const type of types) {
+    const factor = placementOf(type)?.shelter?.factor;
+    if (Number.isFinite(factor)) factorBySlug.set(type.slug, factor);
+  }
+  const best = new Map();
+  for (const row of rows) {
+    const factor = factorBySlug.get(row.typeSlug);
+    if (factor == null) continue;
+    const have = best.get(row.locationId);
+    if (have == null || factor < have) best.set(row.locationId, factor);
+  }
+  return best;
+}
 
 // --- The lines a site speaks -------------------------------------------
 // Scenery, through ambientLine (CLAUDE.md: `-#` subtext). Posted post-commit, catch-logged,
@@ -151,6 +191,8 @@ module.exports = {
   placementOf,
   structuresAt,
   canBuildHere,
+  buildGround,
+  shelterFactorsByLocation,
   statusWord,
   siteOpenedLine,
   siteAdvancedLine,

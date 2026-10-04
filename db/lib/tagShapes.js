@@ -513,6 +513,10 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.inscribable != null && typeof raw.inscribable !== "boolean") {
     throw new Error(`${label}: placement.inscribable must be a boolean`);
   }
+  // May be raised in a CAVE_LEVEL Location, which refuses everything else (db/lib/structures.js#canBuildHere). Says nothing about the surface: an underground type still goes up anywhere the ground rules allow.
+  if (raw.underground != null && typeof raw.underground !== "boolean") {
+    throw new Error(`${label}: placement.underground must be a boolean`);
+  }
   // Where this type may be raised, by Location slug. ABSENT means anywhere the ground rules allow (opt-in gate). A slug list, not a zone list: `unique` is already per-Location, so naming one Location makes a type one-of-a-kind with no game-wide uniqueness rule.
   if (
     raw.locations != null &&
@@ -577,6 +581,19 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     }
     miningBonus = { amount };
   }
+  // What a bad night here costs with this standing: the WILDERNESS or CAVE place term is multiplied by `factor` (db/lib/moodPass.js). The best one at a Location wins, so two camps are not twice a camp.
+  let shelter = null;
+  if (raw.shelter != null) {
+    if (typeof raw.shelter !== "object" || Array.isArray(raw.shelter)) {
+      throw new Error(`${label}: placement.shelter must be a mapping`);
+    }
+    const factor = Number(raw.shelter.factor);
+    // Strictly between: 1 would be dead config, and 0 is Spelunker and Outsider, which cost a point each and work for one person.
+    if (!Number.isFinite(factor) || factor <= 0 || factor >= 1) {
+      throw new Error(`${label}: placement.shelter.factor must be a number above 0 and below 1`);
+    }
+    shelter = { factor };
+  }
   return {
     unique: raw.unique !== false,
     fieldwork: raw.fieldwork === true,
@@ -590,6 +607,8 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     provides: raw.provides ?? [],
     // The builder may write a line on the finished thing (Structure.inscription), replacing `examine` in the readout. See CRAFTING.md.
     inscribable: raw.inscribable === true,
+    underground: raw.underground === true,
+    shelter,
   };
 }
 

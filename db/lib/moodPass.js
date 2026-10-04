@@ -13,6 +13,7 @@ const {
 const { alivePassCharacters } = require("./aliveCharacters");
 const { HUNGER_SLUG, STARVING_SLUG, NOBILITY_SLUG, HUNGERLESS_SLUG, DYING_SLUG } = require("./constants");
 const { DINED_SLUG } = require("./dined");
+const { shelterFactorsByLocation } = require("./structures");
 
 // db/lib/bind.js reads the slug directly too; a hostage's night is not restful.
 const BOUND_SLUG = "bound";
@@ -54,6 +55,8 @@ async function runMoodPass(prisma, turn, { hold = {} } = {}) {
   }
 
   const corpseLocationIds = await unburiedCorpseLocationIds(prisma);
+  // Where a camp stands, and what it makes of a bad night there (MOOD.md §7).
+  const shelterByLocation = await shelterFactorsByLocation(prisma);
   // One read per character; applyMoodTerms is handed the row rather than re-reading it.
   const watched = [
     ...MULTIPLIER_SLUGS,
@@ -94,7 +97,7 @@ async function runMoodPass(prisma, turn, { hold = {} } = {}) {
     const terms = [];
     const placeClass = placeClassOf(character.location);
     byPlace[placeClass] = (byPlace[placeClass] ?? 0) + 1;
-    terms.push(placeTermFor(placeClass));
+    terms.push(placeTermFor(placeClass, shelterByLocation.get(character.locationId)));
     const drift = driftTermFor(character.mood);
     if (drift) terms.push(drift);
     // One hunger descriptor at a time (db/lib/hunger.js). Full costs nothing.

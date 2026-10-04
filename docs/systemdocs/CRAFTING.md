@@ -611,6 +611,35 @@ The same validator refuses a `customizableSkill` that names no real tag, or
 one left behind on a recipe whose flag has come off: a typo there would close
 the door to everybody rather than fail loudly.
 
+## 4b. Where a structure may stand
+
+A recipe with a `placement:` block raises a `Structure` at the builder's
+Location instead of landing in a pocket. `db/lib/structures.js#canBuildHere` is
+the one rule for the ground, asked by the Craft menu and again by the server:
+
+| The ground | What goes up |
+|---|---|
+| Outdoors, on the surface | anything |
+| Indoors, on the surface | only a type that names this Location in `placement.locations` (the Brewery in the inn) |
+| A cave level (the Caves, the Depths) | only a type flagged `placement.underground: true` |
+| A `noBuild` Location | nothing |
+
+**Six types are flagged for the caves**: the Wayside Shrine, the Barricade, the
+Gallows, the Crucifix, Pit Props (`MINING.md` §4) and the Camp (`MOOD.md` §7).
+Everything else is a thing of open ground or of a town — a palisade, a tower, a
+trebuchet, a rookery — and a cave refuses it with "That can't be built down
+here."
+
+The flag says nothing about the surface: every one of the six still goes up
+anywhere outdoors. Nothing could be built underground at all until 2026-10-04,
+on the reasoning that a cave level has no `#summary` — but a site has always
+spoken into its own Location's channel, and every cave Location has one.
+
+The menu needs two answers for one piece of ground, because a cave says no to
+most types and yes to a few: `structures.js#buildGround` returns `buildable`
+and `buildableUnderground`, and `craftRecipes.js#placementOfferedHere` reads
+whichever the type is entitled to.
+
 ## 5. Destroy
 
 **Destroy is for things you own.** `Tag.removable` is not authored per tag
@@ -652,6 +681,7 @@ only ever fires on a GM-authored custom row.
 | Menu filters | `web/lib/tagRequests.js` (`craftableTags`, `destroyableTags`, `craftFamily`), `web/lib/healRequests.js` (`isHealable`) |
 | Move budget | `web/lib/craftBudget.js` (the cost model and the fractions), `web/lib/requests.js` (`craftAllowance`, the two per-turn counters, `craftFreeUnits`), `requestActions.js` (`resolveCraftMove`, `spendCraftMove`) |
 | Flags in sync | `db/lib/syncTags.js`; catalog `docs/tags.yaml` |
+| Where a build may stand | `db/lib/structures.js` (`canBuildHere`, `buildGround`), `db/lib/craftRecipes.js#placementOfferedHere` |
 | Kit in reach | `db/lib/equipmentReach.js`, `web/lib/tagRequests.js#needsWorkshop` |
 | Tier replacement | `db/lib/tagWrites.js#replaceLowerTiers` |
 | What a GM sees | `/gm/audit` (`request_craft_tag`, `request_destroy_tag`) |

@@ -7,7 +7,8 @@ const test = require("node:test");
 const assert = require("node:assert/strict");
 
 const { normalizePlacement, validatePlacement } = require("../lib/tagShapes");
-const { canBuildHere, placementOf } = require("../lib/structures");
+const { canBuildHere, buildGround, placementOf } = require("../lib/structures");
+const { placementOfferedHere } = require("../lib/craftRecipes");
 const {
   BASE_BIRD_SENDS_PER_DAY,
   ROOKERY_COOLDOWN_MS,
@@ -134,6 +135,73 @@ test("canBuildHere: a named site does NOT override caves or noBuild", () => {
   assert.match(canBuildHere(CAVE, underground).reason, /down here/);
   const atDepot = { ...BREWERY, locations: ["depot"] };
   assert.equal(canBuildHere(DEPOT, atDepot).ok, false);
+});
+
+// --- underground: the types a cave takes ----------------------------------
+
+const SHRINE = { underground: true };
+const CAVE_NO_BUILD = { ...CAVE, attributes: { noBuild: true } };
+
+test("canBuildHere: a cave takes an underground type and nothing else", () => {
+  assert.equal(canBuildHere(CAVE, SHRINE).ok, true);
+  assert.equal(canBuildHere(CAVE, ANYWHERE).ok, false);
+  assert.equal(canBuildHere(CAVE).ok, false);
+  assert.match(canBuildHere(CAVE).reason, /down here/);
+});
+
+test("canBuildHere: an underground type still answers to noBuild and to a named site", () => {
+  assert.equal(canBuildHere(CAVE_NO_BUILD, SHRINE).ok, false);
+  assert.equal(canBuildHere(CAVE, { ...SHRINE, locations: ["somewhere-else"] }).ok, false);
+  assert.equal(canBuildHere(CAVE, { ...SHRINE, locations: ["cave-one"] }).ok, true);
+});
+
+test("canBuildHere: underground says nothing about the surface", () => {
+  assert.equal(canBuildHere(SQUARE, SHRINE).ok, true);
+  // A cave's roof is answered by the flag; a building's is not.
+  assert.equal(canBuildHere(INN, SHRINE).ok, false);
+  assert.match(canBuildHere(INN, SHRINE).reason, /indoors/);
+});
+
+test("buildGround: the two answers a Craft menu filters on", () => {
+  assert.deepEqual(buildGround(SQUARE), { buildable: true, buildableUnderground: true });
+  assert.deepEqual(buildGround(CAVE), { buildable: false, buildableUnderground: true });
+  assert.deepEqual(buildGround(CAVE_NO_BUILD), { buildable: false, buildableUnderground: false });
+  assert.deepEqual(buildGround(INN), { buildable: false, buildableUnderground: false });
+});
+
+test("placementOfferedHere: a cave offers only what is flagged for it", () => {
+  const shrine = { slug: "wayside-shrine", placement: { underground: true } };
+  const palisade = { slug: "palisade", placement: {} };
+  const inCave = { ...buildGround(CAVE), sites: [], locationSlug: "cave-one" };
+  assert.equal(placementOfferedHere(shrine, inCave), true);
+  assert.equal(placementOfferedHere(palisade, inCave), false);
+  // One already standing still closes the offer, cave or not.
+  const standing = [{ typeSlug: "wayside-shrine", status: "COMPLETE" }];
+  assert.equal(placementOfferedHere(shrine, { ...inCave, sites: standing }), false);
+  // And where nothing goes up, the flag buys nothing.
+  assert.equal(placementOfferedHere(shrine, { ...buildGround(CAVE_NO_BUILD), sites: [], locationSlug: "cave-one" }), false);
+  const onSquare = { ...buildGround(SQUARE), sites: [], locationSlug: "town-square" };
+  assert.equal(placementOfferedHere(shrine, onSquare), true);
+  assert.equal(placementOfferedHere(palisade, onSquare), true);
+});
+
+test("placement: underground and shelter survive normalisation, and default off", () => {
+  const p = normalizePlacement({ underground: true, shelter: { factor: 0.5 } });
+  assert.equal(p.underground, true);
+  assert.deepEqual(p.shelter, { factor: 0.5 });
+  const bare = normalizePlacement({ fieldwork: true });
+  assert.equal(bare.underground, false);
+  assert.equal(bare.shelter, null);
+  assert.deepEqual(placementOf({ placement: p }).shelter, { factor: 0.5 });
+  assert.equal(placementOf({ placement: p }).underground, true);
+});
+
+test("placement: a shelter factor is strictly between 0 and 1", () => {
+  for (const factor of [0, 1, 1.5, -0.5, "half", null]) {
+    assert.throws(() => normalizePlacement({ shelter: { factor } }), /shelter\.factor/, String(factor));
+  }
+  assert.throws(() => normalizePlacement({ shelter: 0.5 }), /shelter must be a mapping/);
+  assert.throws(() => normalizePlacement({ underground: "yes" }), /underground must be a boolean/);
 });
 
 test("canBuildHere: no placement asks the ground question only", () => {
