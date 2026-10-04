@@ -146,9 +146,10 @@ async function deliverPrivate(prisma, { stagedMessage, recipients, onlyFailed = 
 // Space — every Location channel — db/lib/publicPostTargets.js). ONE DELIVERY ROW PER CHANNEL, so a
 // fan-out never has to choose between SENT-with-some-channels or FAILED-and-repost.
 // `writeSceneLine`: a resend after a SUCCEEDED post must not write a second /play row; after a FAILED one it must.
+// `place`: publicPostTargets' answer for a declaration staged into one Room or Location — its Hall row is that place's, not the zone's.
 async function deliverPublic(
   prisma,
-  { stagedMessage, targets = [], zone = null, zoneId, writeSceneLine = true },
+  { stagedMessage, targets = [], zone = null, zoneId, place = null, writeSceneLine = true },
 ) {
   const rows = await ensureDeliveries(prisma, { stagedMessage, recipients: targets });
   const placeholderKey = deliveryKeyFor(stagedMessage.id, null);
@@ -156,8 +157,11 @@ async function deliverPublic(
   // Nowhere to post: an unprovisioned #summary for a zone that has one, or Locations with no channels yet for a zone that has not (db/lib/zoneSummary.js).
   if (!targets.length) {
     const failure = {
-      error:
-        zone && !zoneHasSummary(zone)
+      error: place
+        ? place.kind === "gone"
+          ? `${place.name ?? "that place"} no longer exists`
+          : `${place.name ?? "that place"} has no channel yet`
+        : zone && !zoneHasSummary(zone)
           ? "no location channels in this zone"
           : "no summary channel configured",
       status: null,
@@ -242,10 +246,19 @@ async function deliverPublic(
     sent += 1;
   }
 
-  // ONE row per message, never one per channel — the Hall row is the ZONE's.
+  // ONE row per message, never one per channel — the Hall row is the ZONE's, or the one place's a place post went to.
   // Gated on `sent`, so a declaration that reached nobody writes no row and Resend can still write it later.
-  if (writeSceneLine && zoneId && sent > 0) {
-    await sceneLineAt(prisma, { zoneId, text: stagedMessage.content, signed: false }).catch((err) =>
+  // Never both ids: sceneLineAt reads a locationId first, so a Room post passes its roomId alone.
+  const sceneAt =
+    place?.kind === "room"
+      ? { roomId: place.roomId }
+      : place?.kind === "location"
+        ? { locationId: place.locationId }
+        : zoneId
+          ? { zoneId }
+          : null;
+  if (writeSceneLine && sceneAt && sent > 0) {
+    await sceneLineAt(prisma, { ...sceneAt, text: stagedMessage.content, signed: false }).catch((err) =>
       console.error(`Hall row for staged message ${stagedMessage.id} failed:`, err),
     );
   }

@@ -384,6 +384,7 @@ export default function CavingDesk({
       {composer === "effect" && (
         <EffectComposer
           cavingRollId={roll.id}
+          offerObservers
           defaultTarget={{ id: roll.characterId, name: roll.characterName }}
           roster={roster}
           tagCatalog={tagCatalog}
@@ -418,6 +419,8 @@ export default function CavingDesk({
         <PublicComposer
           cavingRollId={roll.id}
           zones={presenceZones}
+          stagingLocations={stagingLocations}
+          stagingRooms={stagingRooms}
           onDone={(patch) => {
             setComposer(null);
             applyDeskPatch(patch);

@@ -1532,6 +1532,8 @@ model Location {
   interceptWatches InterceptWatch[]
   attacks          Attack[]
   combats          Combat[]
+  // Staged declarations posted into this Location's channel (StagedMessage.locationId).
+  stagedPosts      StagedMessage[]
   // Latepartys whose Skinless arrive here (LateParty.skinlessLocationId).
   skinlessParties  LateParty[]     @relation("LatePartySkinlessSpawn")
 
@@ -1906,6 +1908,8 @@ model Room {
   auditLogs     AuditLog[]
   searches      RoomSearchAttempt[]
   cavingFinds   CavingRoll[]
+  // Staged declarations posted into this Room's thread (StagedMessage.roomId).
+  stagedPosts   StagedMessage[]
 
   // The other Locations this room opens onto — a window, a counter. Empty for
   // nearly every room. See RoomSide and docs/systemdocs/MAP.md §2d.
@@ -4735,6 +4739,19 @@ model StagedMessage {
   zoneId String?
   zone   Zone?   @relation(fields: [zoneId], references: [id], onDelete: SetNull)
 
+  // PUBLIC only, optional: post into one place's chat instead of the zone's
+  // #summary — a Room's thread when roomId is set, else a Location's channel
+  // (db/lib/publicPostTargets.js, ADJUDICATION.md §1). zoneId above is still
+  // written, as that place's zone, so every zone filter keeps working.
+  // `placeName` is the snapshot the tray reads, and it is also how the push
+  // knows a place was named at all: SetNull would otherwise turn a post for a
+  // pruned room into a #summary post nobody asked for.
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  roomId     String?
+  room       Room?     @relation(fields: [roomId], references: [id], onDelete: SetNull)
+  placeName  String?
+
   // Snapshot, no FK — same log-table convention as AuditLog's actor.
   createdByDiscordUserId String
 
@@ -4754,6 +4771,9 @@ model StagedMessage {
   @@index([turnId])
   @@index([moveId])
   @@index([combatId])
+  // SetNull on a Location or Room delete, so without these Postgres scans the table for each one.
+  @@index([locationId])
+  @@index([roomId])
 }
 
 // One send, one row. The unit of delivery for a staged message: one per

@@ -240,6 +240,12 @@ export function stagedEffectRow(e, { usernameById, locationNameById, openTurn, l
     // { id, name, locationName }: a staged let-in (db/lib/roomGuests.js#letInAtPush); appliedRoomEntry.already marks a harmless no-op.
     roomEntry: e.payload?.roomEntry ?? null,
     appliedRoomEntry: e.appliedEffect?.roomEntry ?? null,
+    // { locationId, locationName }: an Observer row — everyone standing there at the push whom no other row on
+    // this Move names (db/lib/stagedPush.js#applyObserverRow). appliedObservers is who it reached, by name.
+    observers: e.payload?.observers ?? null,
+    appliedObservers: e.appliedEffect?.observers
+      ? (e.appliedEffect.observers.characters ?? []).map((c) => ({ characterId: c.characterId, name: c.name }))
+      : null,
     // A player's own craft waiting for the push (CRAFTING.md §3a), not a GM's staging — the tray says so.
     craftYield: e.payload?.craftYield === true,
     applied: Boolean(e.appliedAt),
@@ -264,6 +270,10 @@ export function stagedMessageRow(m, { usernameById, openTurn, looks }) {
     zoneId: m.zoneId,
     zoneName: m.zone?.name ?? null,
     zoneKind: m.zone?.kind ?? null,
+    // A PUBLIC row staged into one Room's thread or one Location's channel rather than the #summary (ADJUDICATION.md §1).
+    locationId: m.locationId ?? null,
+    roomId: m.roomId ?? null,
+    placeName: m.placeName ?? null,
     recipients: m.recipients.map((r) => ({
       characterId: r.character.id,
       name: r.character.name,

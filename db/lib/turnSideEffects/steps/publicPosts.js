@@ -15,12 +15,14 @@ async function deliverPublicPosts({ prisma, p, list, step }, deliveryFailures) {
       // (db/lib/publicPostTargets.js) — and a list of channel ids frozen at
       // turn-close and replayed by a resumed push hours later is the same stale
       // -payload problem the turn and the wipe switch are re-read for below.
-      const { zone, targets } = await publicPostTargets(prisma, post.zoneId);
+      // A post staged into one Room or Location (post.roomId / locationId) goes there and only there.
+      const { zone, targets, place } = await publicPostTargets(prisma, post);
       const { sent, failed, skipped, attempted } = await deliverPublic(prisma, {
         stagedMessage,
         targets,
         zone,
         zoneId: post.zoneId,
+        place,
         // The push is always the FIRST attempt at a declaration, so the Hall
         // row is always its to write. Only Resend has a reason to skip it.
         writeSceneLine: true,

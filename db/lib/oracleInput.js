@@ -155,7 +155,7 @@ function rulingsBlock(material, { messages = [], actions = [], zoneName } = {}) 
   const toldToPlayers = [...messages]
     .sort((a, b) => new Date(a.sentAt ?? 0) - new Date(b.sentAt ?? 0))
     .map((m) => {
-      const who = m.kind === "PRIVATE" ? `to ${stagedMessageRecipientLabel(m)}` : zoneName ?? "the zone";
+      const who = m.kind === "PRIVATE" ? `to ${stagedMessageRecipientLabel(m)}` : m.placeName ?? zoneName ?? "the zone";
       const content = String(m.content ?? "").replace(/\s+/g, " ").trim();
       return `- ${stamp(m.sentAt, material.turnNumberById?.get(m.turnId))} ${m.kind} · ${who} — ${content}`;
     });
@@ -298,6 +298,8 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
         kind: true,
         content: true,
         zoneId: true,
+        // A declaration staged into one Room or Location (ADJUDICATION.md §1): named in RULINGS instead of the zone.
+        placeName: true,
         sentAt: true,
         turnId: true,
         recipients: { select: { character: { select: { id: true, zoneId: true, name: true } } } },
@@ -361,7 +363,16 @@ async function loadTurnMaterial(prisma, turn, { includeChat = false } = {}) {
     beats,
     chat,
     stagedMessages,
-    stagedEffects,
+    // An Observer row (ADJUDICATION.md §1c) has no target; each onlooker it reached is placed and described on their own.
+    stagedEffects: stagedEffects.flatMap((e) =>
+      e.appliedEffect?.observers
+        ? (e.appliedEffect.observers.characters ?? []).map((c) => ({
+            targetCharacterId: c.characterId,
+            appliedEffect: c,
+            targetCharacter: { zoneId: e.appliedEffect.observers.zoneId ?? null, name: c.name },
+          }))
+        : [e],
+    ),
     seatByZoneId,
     names,
     threatMembers,

@@ -186,7 +186,16 @@ export function StagedEffectRow({
   );
 }
 
-export function StagedMessageRow({ message, roster, presenceZones, onInspect, gmProfiles, readOnly = false }) {
+export function StagedMessageRow({
+  message,
+  roster,
+  presenceZones,
+  stagingLocations,
+  stagingRooms,
+  onInspect,
+  gmProfiles,
+  readOnly = false,
+}) {
   const confirm = useConfirm();
   const [editing, setEditing] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -212,7 +221,9 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
   // "summary channel" there was simply untrue.
   const recipientNames =
     message.kind === "PUBLIC"
-      ? message.zoneKind === "CAVE_LEVEL"
+      ? message.placeName
+        ? `the ${message.placeName} chat`
+        : message.zoneKind === "CAVE_LEVEL"
         ? `every channel in ${message.zoneName ?? "the caves"}`
         : `the ${message.zoneName ?? "zone's"} summary channel`
       : message.recipients.map((r) => r.name).join(", ") || "nobody";
@@ -255,7 +266,9 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
       <div className="min-w-0 flex-1">
         <p className="text-sm">
           {message.kind === "PUBLIC" ? (
-            <span className="chip">Public{message.zoneName ? ` · ${message.zoneName}` : ""}</span>
+            <span className="chip">
+              Public{message.placeName ? ` · ${message.placeName}` : message.zoneName ? ` · ${message.zoneName}` : ""}
+            </span>
           ) : (
             <span className="flex flex-wrap gap-1">
               {message.recipients.length ? (
@@ -324,6 +337,8 @@ export function StagedMessageRow({ message, roster, presenceZones, onInspect, gm
           <PublicComposer
             existing={message}
             zones={presenceZones}
+            stagingLocations={stagingLocations}
+            stagingRooms={stagingRooms}
             onDone={(patch) => {
               setEditing(false);
               applyDeskPatch(patch);
@@ -388,6 +403,8 @@ export default function StagedItems({
           message={m}
           roster={roster}
           presenceZones={presenceZones}
+          stagingLocations={stagingLocations}
+          stagingRooms={stagingRooms}
           onInspect={onInspect}
           gmProfiles={gmProfiles}
           readOnly={readOnly}

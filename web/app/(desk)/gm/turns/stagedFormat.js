@@ -27,6 +27,7 @@ function partyLabel(party) {
 // renderer can show a real hoverable TagChip. `tagsById` from tagLookup() above.
 // What a staged row is aimed at when it isn't a character; shared wording for the desk and the preview.
 export function effectTargetLabel(effect) {
+  if (effect.observers) return `Observers at ${effect.observers.locationName ?? "?"}`;
   if (effect.room) {
     return effect.room.locationName ? `${effect.room.locationName} — ${effect.room.name}` : effect.room.name;
   }
@@ -76,6 +77,11 @@ export function effectSegments(effect, tagsById) {
   // are the part a GM can't work out from what they typed.
   const scaleLines = effect.appliedScales ? describeAppliedScales(effect.appliedScales) : describeScales(effect.scales);
   for (const line of scaleLines) segs.push({ k: "text", v: line });
+  // Who an Observer row reached, once the push has said.
+  if (effect.appliedObservers?.length) {
+    const names = effect.appliedObservers.map((c) => c.name);
+    segs.push({ k: "text", v: `→ ${names.length > 3 ? `${names.slice(0, 3).join(", ")} +${names.length - 3}` : names.join(", ")}` });
+  }
   return segs;
 }
 
@@ -109,6 +115,8 @@ export function effectState(effect) {
     }
     // The side they stood at was open to all, or they hold a key — nothing to let them into.
     if (effect.appliedRoomEntry?.already) return { label: "No-op — already in", tone: "warn" };
+    // Nobody else was standing there when the turn pushed.
+    if (effect.observers && effect.appliedObservers?.length === 0) return { label: "No-op — nobody watching", tone: "warn" };
     // A scale-only row whose every meter was skipped (Hungerless, not a Vampire…) moved nothing.
     if (isScaleOnly(effect) && allScalesSkipped(effect.appliedScales)) return { label: "No-op", tone: "warn" };
     return { label: "Applied", tone: "good" };

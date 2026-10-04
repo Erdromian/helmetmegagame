@@ -109,6 +109,213 @@ function gambitRollNoticesFor(turn, actions) {
 // caught by runStagedPushPass and stamped errored rather than silently dropped.
 class StagedZoneError extends Error {}
 
+// The character half of a staged row: ⬢, tag points, tags, a relocation and the hidden
+// meters, all against `characterId`. A plain row passes its own target; an Observer row
+// (applyObserverRow below) passes each onlooker in turn. Returns what moved.
+async function applyCharacterKeysInTx(tx, row, characterId, turn, notices = [], scaleNotices = []) {
+  const snapshot = {};
+  const resources = Number.isInteger(row.payload?.resources) ? row.payload.resources : 0;
+  if (resources) {
+    snapshot.resources = await addResources(tx, characterId, resources);
+  }
+
+  const tagPoints = Number.isInteger(row.payload?.tagPoints) ? row.payload.tagPoints : 0;
+  if (tagPoints) {
+    // Unclamped on purpose: tagPoints may legitimately go negative (see
+    // web/lib/characterWrite.js). The snapshot is the delta itself.
+    await tx.character.update({
+      where: { id: characterId },
+      data: { tagPoints: { increment: tagPoints } },
+    });
+    snapshot.tagPoints = tagPoints;
+  }
+
+  let ops = Array.isArray(row.payload?.tagOps) ? row.payload.tagOps : [];
+  const craftYield = row.payload?.craftYield === true;
+  if (ops.length) {
+    const tags = await tx.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
+    const tagsById = new Map(tags.map((t) => [t.id, t]));
+    const heldRows = await tx.characterTag.findMany({
+      where: { characterId: characterId },
+      select: { tagId: true },
+    });
+    const heldIds = new Set(heldRows.map((r) => r.tagId));
+    // Validation runs before any tag write, so a TagOpError here rolls the
+    // whole row back clean, including the claim.
+    validateTagOps(ops, tagsById, heldIds);
+
+    // A player's craft (CRAFTING.md §3a) whose non-stackable product they
+    // already hold by push time — handed one, bought one, picked one up
+    // since the press. addToStack would keep the one on the sheet and
+    // quietly drop the one they paid for, so it is set down in a public room
+    // where they stand instead, the rule an opened crate follows
+    // (misc.js#openCrate). No room to set it in fails the row, which the
+    // tray shows, rather than losing it.
+    if (craftYield) {
+      const spares = ops.filter(
+        (o) => o.op === "add" && heldIds.has(o.tagId) && !tagsById.get(o.tagId)?.stackable,
+      );
+      if (spares.length) {
+        const character = await tx.character.findUnique({
+          where: { id: characterId },
+          select: { locationId: true, discordUserId: true },
+        });
+        const spareRoom = await pickRandomPublicRoom(tx, character?.locationId ?? null);
+        const names = spares.map((o) => tagsById.get(o.tagId).name).join(", ");
+        if (!spareRoom) {
+          throw new TagOpError(`Already holds ${names}, and there is nowhere here to set the spare down.`);
+        }
+        const landingTurn = { ...turn, number: turn.number + 1 };
+        for (const o of spares) {
+          const tag = tagsById.get(o.tagId);
+          await addToRoomStack(tx, spareRoom.id, o.tagId, 1, {
+            expiresTurn: await expiryForGrant(tx, tag, landingTurn, {
+              characterId: characterId,
+              where: "craftYieldSpare",
+            }),
+          });
+        }
+        // The maker's own spare, set down beside them (CARRY.md §6a).
+        await stampLeftOnFloor(tx, spareRoom.id, spares.map((o) => o.tagId));
+        ops = ops.filter((o) => !spares.includes(o));
+        snapshot.craftSpare = {
+          roomId: spareRoom.id,
+          roomName: spareRoom.name,
+          tags: spares.map((o) => ({ tagId: o.tagId, name: tagsById.get(o.tagId).name })),
+        };
+        if (character?.discordUserId) {
+          notices.push({
+            discordUserId: character.discordUserId,
+            content: `Your ${names} arrived, but you already carry one, so the spare was set down in ${spareRoom.name}.`,
+          });
+        }
+      }
+    }
+
+    // The turn handed down is the NEXT one, not the closing one: these tags
+    // land as that turn opens, so a 1-turn tag granted here survives this
+    // rollover's own expiry sweep, same as one granted five minutes earlier.
+    snapshot.tags = ops.length
+      ? await applyTagOpsInTx(tx, {
+          characterId: characterId,
+          ops,
+          tagsById,
+          openTurn: { ...turn, number: turn.number + 1 },
+        })
+      : [];
+
+    // A craft's own arrival is the player's doing, not a GM's: audited as
+    // that, so /gm/audit doesn't read "Ada resolved a gambit for Ada".
+    if (craftYield) {
+      await logAudit(tx, {
+        actorDiscordUserId: row.createdByDiscordUserId ?? "system:staged_push",
+        actionType: "craft_yield_arrived",
+        targetCharacterId: characterId,
+        details: {
+          tags: summarizeTagOps(snapshot.tags),
+          label: row.payload?.craftLabel ?? null,
+          stagedEffectId: row.id,
+          ...(snapshot.craftSpare ? { spare: snapshot.craftSpare } : {}),
+        },
+      });
+    } else if (snapshot.tags?.length) {
+      // The one place a staged tag change actually lands — audit it here,
+      // atomically with the write, rather than at staging time (where the
+      // GM's edits are still just a draft) or not at all (the gap this
+      // closes). "The GM responsible" is whoever solved the Move if it was
+      // solved; a Move a GM never got to (silently closed at push) falls
+      // back to whoever staged this specific effect.
+      const resolverId =
+        row.move?.reviewedByDiscordUserId ??
+        row.combat?.resolvedByDiscordUserId ??
+        row.createdByDiscordUserId ??
+        "system:staged_push";
+      await logAudit(tx, {
+        actorDiscordUserId: resolverId,
+        actionType: "gm_staged_tag_applied",
+        targetCharacterId: characterId,
+        details: {
+          tags: summarizeTagOps(snapshot.tags),
+          stagedByDiscordUserId: row.createdByDiscordUserId,
+          resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? row.combat?.resolvedByDiscordUserId ?? null,
+          gambitCharacterId: row.move?.characterId ?? null,
+          gambitCharacterName: row.move?.character?.name ?? null,
+          gambitId: row.moveId ?? null,
+          moveKind: row.move?.moveKind ?? null,
+          combatId: row.combatId ?? null,
+        },
+      });
+    }
+  }
+
+  // Raw relocation — no Action row, no Move cost, no adjacency check (same
+  // as the Dev Panel's location edit and Bulk Move; doesn't go through
+  // performLocationMove). Re-verified here since the location may since
+  // have been pruned by a zone sync. Writes zoneId alongside — the
+  // denormalization contract on Character.
+  const locationId = row.payload?.locationId ?? null;
+  if (locationId) {
+    const location = await tx.location.findUnique({ where: { id: locationId } });
+    if (!location) {
+      throw new StagedZoneError("That isn't a place a character can stand.");
+    }
+    const before = await tx.character.findUnique({
+      where: { id: characterId },
+      select: { locationId: true, zoneId: true },
+    });
+    await tx.character.update({
+      where: { id: characterId },
+      data: { locationId, zoneId: location.zoneId, escortedById: null },
+    });
+    snapshot.location = {
+      from: before?.locationId ?? null,
+      to: locationId,
+      fromZoneId: before?.zoneId ?? null,
+      toZoneId: location.zoneId,
+    };
+  }
+
+  // Hunger, mood, blood and humanity (ADJUDICATION.md §1b). After the tags,
+  // so a Hungerless or a Vampire seat granted in this same row already
+  // counts. A scale the character can't take (a Hungerless meter, blood on
+  // somebody who isn't a Vampire, anything on a body) is recorded as
+  // skipped, not as a failure.
+  const scales = row.payload?.scales ?? null;
+  if (scales && characterId) {
+    const applied = await applyStagedScalesInTx(tx, { characterId: characterId, scales });
+    if (applied.snapshot) {
+      snapshot.scales = applied.snapshot;
+      scaleNotices.push(...applied.notices);
+      const moved = Object.fromEntries(Object.entries(applied.snapshot).filter(([, entry]) => !entry.skipped));
+      if (Object.keys(moved).length) {
+        // Same actor rule as the staged tag audit above.
+        await logAudit(tx, {
+          actorDiscordUserId:
+            row.move?.reviewedByDiscordUserId ??
+            row.combat?.resolvedByDiscordUserId ??
+            row.createdByDiscordUserId ??
+            "system:staged_push",
+          actionType: "gm_staged_scales_applied",
+          targetCharacterId: characterId,
+          details: {
+            scales: moved,
+            // The sentence, written here: the audit's renderer is in the browser bundle and must not
+            // load stagedScales.js, which carries the vampire's meters (web/lib/auditNarrative.js).
+            scalesText: describeAppliedScales(moved).join(", "),
+            stagedByDiscordUserId: row.createdByDiscordUserId,
+            resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? row.combat?.resolvedByDiscordUserId ?? null,
+            gambitCharacterName: row.move?.character?.name ?? null,
+            gambitId: row.moveId ?? null,
+            combatId: row.combatId ?? null,
+            stagedEffectId: row.id,
+          },
+        });
+      }
+    }
+  }
+  return snapshot;
+}
+
 // One transaction per row, never one around the batch: one bad row must not
 // roll back a hundred good ones. Returns what the row actually moved, for the
 // appliedEffect snapshot. `notices` go out with the Routine DMs, late;
@@ -190,11 +397,6 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
       return snapshot;
     }
 
-    const resources =Number.isInteger(row.payload?.resources) ? row.payload.resources : 0;
-    if (resources) {
-      snapshot.resources = await addResources(tx, row.targetCharacterId, resources);
-    }
-
     // A party-to-party transfer, staged from the tray's composer. Mutually
     // exclusive with `resources`.
     // Applied blind from the snapshot taken at staging time: if the party was
@@ -224,200 +426,8 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
       snapshot.transfer = transfer;
     }
 
-    const tagPoints = Number.isInteger(row.payload?.tagPoints) ? row.payload.tagPoints : 0;
-    if (tagPoints) {
-      // Unclamped on purpose: tagPoints may legitimately go negative (see
-      // web/lib/characterWrite.js). The snapshot is the delta itself.
-      await tx.character.update({
-        where: { id: row.targetCharacterId },
-        data: { tagPoints: { increment: tagPoints } },
-      });
-      snapshot.tagPoints = tagPoints;
-    }
-
-    let ops = Array.isArray(row.payload?.tagOps) ? row.payload.tagOps : [];
-    const craftYield = row.payload?.craftYield === true;
-    if (ops.length) {
-      const tags = await tx.tag.findMany({ where: { id: { in: ops.map((o) => o.tagId) } } });
-      const tagsById = new Map(tags.map((t) => [t.id, t]));
-      const heldRows = await tx.characterTag.findMany({
-        where: { characterId: row.targetCharacterId },
-        select: { tagId: true },
-      });
-      const heldIds = new Set(heldRows.map((r) => r.tagId));
-      // Validation runs before any tag write, so a TagOpError here rolls the
-      // whole row back clean, including the claim.
-      validateTagOps(ops, tagsById, heldIds);
-
-      // A player's craft (CRAFTING.md §3a) whose non-stackable product they
-      // already hold by push time — handed one, bought one, picked one up
-      // since the press. addToStack would keep the one on the sheet and
-      // quietly drop the one they paid for, so it is set down in a public room
-      // where they stand instead, the rule an opened crate follows
-      // (misc.js#openCrate). No room to set it in fails the row, which the
-      // tray shows, rather than losing it.
-      if (craftYield) {
-        const spares = ops.filter(
-          (o) => o.op === "add" && heldIds.has(o.tagId) && !tagsById.get(o.tagId)?.stackable,
-        );
-        if (spares.length) {
-          const character = await tx.character.findUnique({
-            where: { id: row.targetCharacterId },
-            select: { locationId: true, discordUserId: true },
-          });
-          const spareRoom = await pickRandomPublicRoom(tx, character?.locationId ?? null);
-          const names = spares.map((o) => tagsById.get(o.tagId).name).join(", ");
-          if (!spareRoom) {
-            throw new TagOpError(`Already holds ${names}, and there is nowhere here to set the spare down.`);
-          }
-          const landingTurn = { ...turn, number: turn.number + 1 };
-          for (const o of spares) {
-            const tag = tagsById.get(o.tagId);
-            await addToRoomStack(tx, spareRoom.id, o.tagId, 1, {
-              expiresTurn: await expiryForGrant(tx, tag, landingTurn, {
-                characterId: row.targetCharacterId,
-                where: "craftYieldSpare",
-              }),
-            });
-          }
-          // The maker's own spare, set down beside them (CARRY.md §6a).
-          await stampLeftOnFloor(tx, spareRoom.id, spares.map((o) => o.tagId));
-          ops = ops.filter((o) => !spares.includes(o));
-          snapshot.craftSpare = {
-            roomId: spareRoom.id,
-            roomName: spareRoom.name,
-            tags: spares.map((o) => ({ tagId: o.tagId, name: tagsById.get(o.tagId).name })),
-          };
-          if (character?.discordUserId) {
-            notices.push({
-              discordUserId: character.discordUserId,
-              content: `Your ${names} arrived, but you already carry one, so the spare was set down in ${spareRoom.name}.`,
-            });
-          }
-        }
-      }
-
-      // The turn handed down is the NEXT one, not the closing one: these tags
-      // land as that turn opens, so a 1-turn tag granted here survives this
-      // rollover's own expiry sweep, same as one granted five minutes earlier.
-      snapshot.tags = ops.length
-        ? await applyTagOpsInTx(tx, {
-            characterId: row.targetCharacterId,
-            ops,
-            tagsById,
-            openTurn: { ...turn, number: turn.number + 1 },
-          })
-        : [];
-
-      // A craft's own arrival is the player's doing, not a GM's: audited as
-      // that, so /gm/audit doesn't read "Ada resolved a gambit for Ada".
-      if (craftYield) {
-        await logAudit(tx, {
-          actorDiscordUserId: row.createdByDiscordUserId ?? "system:staged_push",
-          actionType: "craft_yield_arrived",
-          targetCharacterId: row.targetCharacterId,
-          details: {
-            tags: summarizeTagOps(snapshot.tags),
-            label: row.payload?.craftLabel ?? null,
-            stagedEffectId: row.id,
-            ...(snapshot.craftSpare ? { spare: snapshot.craftSpare } : {}),
-          },
-        });
-      } else if (snapshot.tags?.length) {
-        // The one place a staged tag change actually lands — audit it here,
-        // atomically with the write, rather than at staging time (where the
-        // GM's edits are still just a draft) or not at all (the gap this
-        // closes). "The GM responsible" is whoever solved the Move if it was
-        // solved; a Move a GM never got to (silently closed at push) falls
-        // back to whoever staged this specific effect.
-        const resolverId =
-          row.move?.reviewedByDiscordUserId ??
-          row.combat?.resolvedByDiscordUserId ??
-          row.createdByDiscordUserId ??
-          "system:staged_push";
-        await logAudit(tx, {
-          actorDiscordUserId: resolverId,
-          actionType: "gm_staged_tag_applied",
-          targetCharacterId: row.targetCharacterId,
-          details: {
-            tags: summarizeTagOps(snapshot.tags),
-            stagedByDiscordUserId: row.createdByDiscordUserId,
-            resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? row.combat?.resolvedByDiscordUserId ?? null,
-            gambitCharacterId: row.move?.characterId ?? null,
-            gambitCharacterName: row.move?.character?.name ?? null,
-            gambitId: row.moveId ?? null,
-            moveKind: row.move?.moveKind ?? null,
-            combatId: row.combatId ?? null,
-          },
-        });
-      }
-    }
-
-    // Raw relocation — no Action row, no Move cost, no adjacency check (same
-    // as the Dev Panel's location edit and Bulk Move; doesn't go through
-    // performLocationMove). Re-verified here since the location may since
-    // have been pruned by a zone sync. Writes zoneId alongside — the
-    // denormalization contract on Character.
-    const locationId = row.payload?.locationId ?? null;
-    if (locationId) {
-      const location = await tx.location.findUnique({ where: { id: locationId } });
-      if (!location) {
-        throw new StagedZoneError("That isn't a place a character can stand.");
-      }
-      const before = await tx.character.findUnique({
-        where: { id: row.targetCharacterId },
-        select: { locationId: true, zoneId: true },
-      });
-      await tx.character.update({
-        where: { id: row.targetCharacterId },
-        data: { locationId, zoneId: location.zoneId, escortedById: null },
-      });
-      snapshot.location = {
-        from: before?.locationId ?? null,
-        to: locationId,
-        fromZoneId: before?.zoneId ?? null,
-        toZoneId: location.zoneId,
-      };
-    }
-
-    // Hunger, mood, blood and humanity (ADJUDICATION.md §1b). After the tags,
-    // so a Hungerless or a Vampire seat granted in this same row already
-    // counts. A scale the character can't take (a Hungerless meter, blood on
-    // somebody who isn't a Vampire, anything on a body) is recorded as
-    // skipped, not as a failure.
-    const scales = row.payload?.scales ?? null;
-    if (scales && row.targetCharacterId) {
-      const applied = await applyStagedScalesInTx(tx, { characterId: row.targetCharacterId, scales });
-      if (applied.snapshot) {
-        snapshot.scales = applied.snapshot;
-        scaleNotices.push(...applied.notices);
-        const moved = Object.fromEntries(Object.entries(applied.snapshot).filter(([, entry]) => !entry.skipped));
-        if (Object.keys(moved).length) {
-          // Same actor rule as the staged tag audit above.
-          await logAudit(tx, {
-            actorDiscordUserId:
-              row.move?.reviewedByDiscordUserId ??
-              row.combat?.resolvedByDiscordUserId ??
-              row.createdByDiscordUserId ??
-              "system:staged_push",
-            actionType: "gm_staged_scales_applied",
-            targetCharacterId: row.targetCharacterId,
-            details: {
-              scales: moved,
-              // The sentence, written here: the audit's renderer is in the browser bundle and must not
-              // load stagedScales.js, which carries the vampire's meters (web/lib/auditNarrative.js).
-              scalesText: describeAppliedScales(moved).join(", "),
-              stagedByDiscordUserId: row.createdByDiscordUserId,
-              resolvedByDiscordUserId: row.move?.reviewedByDiscordUserId ?? row.combat?.resolvedByDiscordUserId ?? null,
-              gambitCharacterName: row.move?.character?.name ?? null,
-              gambitId: row.moveId ?? null,
-              combatId: row.combatId ?? null,
-              stagedEffectId: row.id,
-            },
-          });
-        }
-      }
-    }
+    // ⬢, tag points, tags, a relocation and the scales — none of which a transfer or a room row carries.
+    Object.assign(snapshot, await applyCharacterKeysInTx(tx, row, row.targetCharacterId, turn, notices, scaleNotices));
 
     // A room's stash — tags left on a floor and the room's own ⬢
     // (docs/systemdocs/CARRY.md). A row carrying `room` has no target
@@ -479,6 +489,98 @@ async function applyOneStagedEffect(prisma, row, turn, notices = [], scaleNotice
   });
 }
 
+// Who an Observer row leaves out (ADJUDICATION.md §1c): everybody another row on
+// the SAME Move, fight or Caving roll already names — a staged effect's target,
+// either character end of a transfer, a private message's recipients. Other
+// Observer rows name nobody, so two of them never exclude each other's crowd.
+async function observerExclusions(tx, row) {
+  const anchor = {
+    ...(row.moveId ? { moveId: row.moveId } : {}),
+    ...(row.combatId ? { combatId: row.combatId } : {}),
+    ...(row.cavingRollId ? { cavingRollId: row.cavingRollId } : {}),
+  };
+  const excluded = new Set();
+  if (!Object.keys(anchor).length) return excluded;
+  const effects = await tx.stagedEffect.findMany({
+    where: { turnId: row.turnId, ...anchor, id: { not: row.id } },
+    select: { targetCharacterId: true, payload: true },
+  });
+  for (const e of effects) {
+    if (e.payload?.observers) continue;
+    if (e.targetCharacterId) excluded.add(e.targetCharacterId);
+    for (const end of [e.payload?.transfer?.from, e.payload?.transfer?.to]) {
+      if (end?.kind === "character" && end.id) excluded.add(end.id);
+    }
+  }
+  const messages = await tx.stagedMessage.findMany({
+    where: { turnId: row.turnId, ...anchor, kind: "PRIVATE" },
+    select: { recipients: { select: { characterId: true } } },
+  });
+  for (const m of messages) for (const r of m.recipients) excluded.add(r.characterId);
+  return excluded;
+}
+
+// An Observer row (ADJUDICATION.md §1c): `payload.observers` names a Location
+// and there is no target. Whoever is standing there alive when this row's turn
+// comes round — after every plain row, so a staged Relocate has already landed —
+// and is not excluded above gets the row's character keys, each through the
+// same helper a plain row uses. One transaction for the whole crowd, so a
+// resumed push can never apply it to half of them twice. Returns null when a
+// crashed run already claimed it, else the snapshot and any relocations.
+async function applyObserverRow(prisma, row, turn, notices = [], scaleNotices = []) {
+  return prisma.$transaction(
+    async (tx) => {
+      const claim = await tx.stagedEffect.updateMany({
+        where: { id: row.id, appliedAt: null },
+        data: { appliedAt: new Date() },
+      });
+      if (claim.count === 0) return null;
+
+      const location = row.payload.observers.locationId
+        ? await tx.location.findUnique({
+            where: { id: row.payload.observers.locationId },
+            select: { id: true, name: true, zoneId: true },
+          })
+        : null;
+      if (!location) throw new StagedZoneError("The place they were watching from no longer exists.");
+
+      const excluded = await observerExclusions(tx, row);
+      const people = await tx.character.findMany({
+        where: {
+          locationId: location.id,
+          status: "ALIVE",
+          ...(excluded.size ? { id: { notIn: [...excluded] } } : {}),
+        },
+        orderBy: { name: "asc" },
+        select: { id: true, name: true, discordUserId: true },
+      });
+
+      const characters = [];
+      const moves = [];
+      for (const person of people) {
+        const applied = await applyCharacterKeysInTx(tx, row, person.id, turn, notices, scaleNotices);
+        characters.push({ characterId: person.id, name: person.name, ...applied });
+        if (applied.location && person.discordUserId) {
+          moves.push({
+            characterId: person.id,
+            discordUserId: person.discordUserId,
+            fromLocationId: applied.location.from,
+            toLocationId: applied.location.to,
+          });
+        }
+      }
+
+      const snapshot = {
+        observers: { locationId: location.id, locationName: location.name, zoneId: location.zoneId, characters },
+      };
+      await tx.stagedEffect.update({ where: { id: row.id }, data: { appliedEffect: snapshot } });
+      return { snapshot, moves };
+    },
+    // A crowd is many characters' worth of writes, not one.
+    { timeout: 60_000, maxWait: 10_000 },
+  );
+}
+
 async function runStagedPushPass(prisma, turn) {
   const failures = [];
 
@@ -536,8 +638,11 @@ async function runStagedPushPass(prisma, turn) {
   // Every let-in goes after every other row, whatever order they were staged
   // in: a let-in reads where its target stands, and a Relocate staged beside it
   // has to have landed first or the row fails for a move that was coming.
+  // Observer rows go between the two: they read who is standing somewhere, so
+  // every plain row's Relocate has landed first, and a let-in moves nobody.
   const ordered = [
-    ...stagedEffects.filter((row) => !row.payload?.roomEntry),
+    ...stagedEffects.filter((row) => !row.payload?.roomEntry && !row.payload?.observers),
+    ...stagedEffects.filter((row) => row.payload?.observers),
     ...stagedEffects.filter((row) => row.payload?.roomEntry),
   ];
   for (const row of ordered) {
@@ -545,6 +650,22 @@ async function runStagedPushPass(prisma, turn) {
       // Queued per row and kept only once that row commits, so a rolled-back row never tells anyone anything.
       const rowNotices = [];
       const rowScaleNotices = [];
+      if (row.payload?.observers) {
+        const result = await applyObserverRow(prisma, row, turn, rowNotices, rowScaleNotices);
+        if (result) {
+          effectsApplied += 1;
+          craftNotices.push(...rowNotices);
+          scaleNotices.push(...rowScaleNotices);
+          for (const move of result.moves) {
+            const existing = zoneMovesByCharacter.get(move.characterId);
+            zoneMovesByCharacter.set(move.characterId, {
+              ...move,
+              fromLocationId: existing ? existing.fromLocationId : move.fromLocationId,
+            });
+          }
+        }
+        continue;
+      }
       const snapshot = await applyOneStagedEffect(prisma, row, turn, rowNotices, rowScaleNotices);
       if (snapshot) {
         effectsApplied += 1;
@@ -757,6 +878,11 @@ async function runStagedPushPass(prisma, turn) {
         // Every PUBLIC row carries a real (non-CAVE_GROUP) zone. The zone is
         // all the thunk needs: it resolves the channels itself.
         zoneId: message.zoneId ?? null,
+        // Or one place's chat (ADJUDICATION.md §1). placeName rides along so a
+        // place pruned since staging fails the post rather than reaching #summary.
+        locationId: message.locationId ?? null,
+        roomId: message.roomId ?? null,
+        placeName: message.placeName ?? null,
       });
       continue;
     }

@@ -144,6 +144,26 @@ test("the nightly passes hold only the meters a GM asked for and actually moved"
   assert.deepEqual(Object.keys(heldScalesFrom(null)), SCALES.map((s) => s.key));
 });
 
+test("an Observer row holds each onlooker's meter, not the row's", () => {
+  const held = heldScalesFrom([
+    {
+      targetCharacterId: null,
+      payload: { scales: { mood: { op: "add", value: -10 } }, observers: { locationId: "pub" } },
+      appliedEffect: {
+        observers: {
+          locationId: "pub",
+          characters: [
+            { characterId: "x", name: "X", scales: { mood: { from: 0, to: -10 } } },
+            // Imperturbable: the meter was skipped, so it is not held.
+            { characterId: "y", name: "Y", scales: { mood: { skipped: SKIP_REASONS.imperturbable } } },
+          ],
+        },
+      },
+    },
+  ]);
+  assert.deepEqual([...held.mood], ["x"]);
+});
+
 // ─── Against a real database ─────────────────────────────────────────────
 
 const NEEDED = [

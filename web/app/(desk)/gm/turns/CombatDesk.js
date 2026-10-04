@@ -332,6 +332,7 @@ export default function CombatDesk({
       {composer === "effect" && (
         <EffectComposer
           combatId={combat.id}
+          offerObservers
           quickPicks={everyone}
           roster={roster}
           tagCatalog={tagCatalog}
@@ -378,7 +379,14 @@ export default function CombatDesk({
         />
       )}
       {composer === "public" && (
-        <PublicComposer combatId={combat.id} zones={presenceZones} onDone={done} onCancel={() => setComposer(null)} />
+        <PublicComposer
+          combatId={combat.id}
+          zones={presenceZones}
+          stagingLocations={stagingLocations}
+          stagingRooms={stagingRooms}
+          onDone={done}
+          onCancel={() => setComposer(null)}
+        />
       )}
 
       {combat.resolvedByUsername && (
