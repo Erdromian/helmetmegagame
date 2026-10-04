@@ -112,13 +112,16 @@ opens nothing.
   travel note reads "Your ring grants you access." rather than naming a key
   nobody holds (`web/lib/travelCost.js#openedByLabel`).
 - Things that check for an item: the Censor's warrant badge
-  (`WARRANT_BADGE_SLUGS`, `censors-key`), the Depot keycard on the manifests
-  and crates, the refinery's rooms.
+  (`WARRANT_BADGE_SLUGS`, `censors-key`), the Depot keycard on the manifests,
+  the refinery's rooms.
 - Things only a ring opens, where a held tag of the same slug does not count:
   the collar remote and Unlock Collar (`COLLAR.md`), the Black Market
   terminal in the Exactor's Office (`black-market-key`, `DEPOT.md` §0n), and
   the Merchant's Terminal at the Depot (`merchants-terminal-key`, the Merchant's
-  ring only, `DEPOT.md` §0c — the Merchant's License held opens it too).
+  ring only, `DEPOT.md` §0c — the Merchant's License held opens it too), and
+  every shipped or packed crate (`crate-key`, the Merchant's and the Baron's
+  rings, `DEPOT.md` §0e — sealed or not; the catalog's crate props open for
+  anybody).
 - `depot-keycard`, on the Merchant's and the Dockers' rings, opens the locked
   way between the Storefront and the Depot and the Cargo Bay (`DEPOT.md` §0b).
 - `gatehouse-key`, on the Baron's, the Hand's, the Incarn's, the Censor's, the

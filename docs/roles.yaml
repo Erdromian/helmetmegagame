@@ -199,7 +199,9 @@ groups:
       whitelist: true
       ring:
         spawns: true
-        opens: [armory-key, cerberus-key, barons-key, tower-key, elevator-key, gatehouse-key, portcullis-key]
+        # crate-key: opens shipped and packed crates (DEPOT.md §0e), the
+        # Merchant's ring and this one only.
+        opens: [armory-key, cerberus-key, barons-key, tower-key, elevator-key, gatehouse-key, portcullis-key, crate-key]
         authorised_by: barons-scepter
         seal_office: Baron
         seal_mark: "A raven clutching a banner, the seal of the Baron."
@@ -1021,7 +1023,9 @@ groups:
         spawns: true
         # depot-keycard: the Storefront's way through to the Depot, and the Cargo
         # Bay. merchants-terminal-key: the Merchant's Terminal (DEPOT.md §0c).
-        opens: [depot-keycard, merchants-terminal-key]
+        # crate-key: opens shipped and packed crates, sealed or not (DEPOT.md
+        # §0e) — this ring and the Baron's only.
+        opens: [depot-keycard, merchants-terminal-key, crate-key]
         authorised_by: merchants-license
         seal_office: Merchant
         seal_mark: "The initials {initials} emblazoned on a shield, the seal of the Merchant."

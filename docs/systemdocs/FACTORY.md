@@ -193,6 +193,8 @@ halving.
 already on the sheet opens it. A Depot crate is opened the same way now
 (`DEPOT.md` §0e), though it takes its own road out of the consume path, since
 what falls out of one is a list of runtime tag IDs rather than catalog slugs.
+Either kind opens only for somebody wearing the Merchant's or the Baron's ring
+(`DEPOT.md` §0e), so a Banneret packs Squeeze but does not unpack it again.
 
 A crate cannot go inside a crate. Halving twice is a free carry exploit, and it
 would nest a `consumesInto` chain arbitrarily deep. Refused on both faces.

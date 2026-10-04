@@ -12064,6 +12064,24 @@ tags:
     purchasable: false
     purchasableAfterStart: false
 
+  # Never an item: the token the Merchant's and the Baron's rings carry, and
+  # nobody else's. Worn on the ring, it opens a shipped or packed crate, sealed
+  # or not (db/lib/depotCrates.js#canOpenCrate, DEPOT.md §0e). Ring only: this
+  # tag held in hand opens nothing. The catalog's crate props (Cargo Crate,
+  # Flooded Crate, Crate RV-6207-M) still open for anybody.
+  crate-key:
+    catalog: gm
+    name: Crate Key
+    category: items
+    group: items-keys
+    description: "It opens shipped and packed crates."
+    pointCost: 0
+    weight: 0
+    stackable: true
+    visible: false
+    purchasable: false
+    purchasableAfterStart: false
+
   # Never an item: two tokens rings carry (RINGS.md §3), from Incarn and
   # gates.docx (docs/systemdocs/GATEHOUSE.md). gatehouse-key is on the Baron's,
   # the Hand's, the Incarn's, the Censor's, the Cerberi's and the Squires'
