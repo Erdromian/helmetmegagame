@@ -368,45 +368,6 @@ function src(file) {
   return `/assets/sfx/${file.includes(".") ? file : `${file}.ogg`}`;
 }
 
-// WHAT IS SOUNDING RIGHT NOW, for anything that wants to make room for it. The Den's
-// jukebox drops almost to nothing under a cue and comes back after it (InstrumentListener.js,
-// music.js#duckLayer): a song on a speaker in the corner should not drown the door, the
-// dice or the gunshot. One-shot cues only — a drone or a phone's ring is minutes long,
-// and a jukebox held down for all of it would simply be off.
-//
-// A track counts from play() until it ends, pauses or fails, and never longer than
-// CUE_MAX_MS, so a cue whose `ended` never arrives cannot hold anything down for good.
-const CUE_MAX_MS = 15_000;
-const sounding = new Map();
-const soundingListeners = new Set();
-
-function emitSounding() {
-  const on = sounding.size > 0;
-  for (const cb of [...soundingListeners]) cb(on);
-}
-
-function stoppedSounding(track) {
-  const timer = sounding.get(track);
-  if (timer === undefined) return;
-  window.clearTimeout(timer);
-  sounding.delete(track);
-  if (sounding.size === 0) emitSounding();
-}
-
-function startedSounding(track) {
-  const was = sounding.size;
-  window.clearTimeout(sounding.get(track));
-  sounding.set(track, window.setTimeout(() => stoppedSounding(track), CUE_MAX_MS));
-  if (was === 0) emitSounding();
-}
-
-/** Hear `cb(true)` when a one-shot cue starts over silence and `cb(false)` when the last one
- * stops. Returns the unsubscribe. */
-export function onCuesSounding(cb) {
-  soundingListeners.add(cb);
-  return () => soundingListeners.delete(cb);
-}
-
 function pool(file) {
   let list = pools.get(file);
   if (!list) {
@@ -414,7 +375,6 @@ function pool(file) {
     for (let i = 0; i < POOL; i += 1) {
       const track = new window.Audio(src(file));
       track.preload = "auto";
-      for (const done of ["ended", "pause", "error"]) track.addEventListener(done, () => stoppedSounding(track));
       list.tracks.push(track);
     }
     pools.set(file, list);
@@ -462,8 +422,7 @@ export function playSfx(name) {
     track.currentTime = 0;
     // A refused play is the browser's business, not the player's. Swallowed, never surfaced.
     const started = track.play();
-    startedSounding(track);
-    if (started && typeof started.catch === "function") started.catch(() => stoppedSounding(track));
+    if (started && typeof started.catch === "function") started.catch(() => {});
   } catch {
     // An element that will not build (no codec, storage refused) is not worth an error.
   }

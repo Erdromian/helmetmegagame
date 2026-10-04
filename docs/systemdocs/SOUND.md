@@ -120,7 +120,7 @@ thing above it ends it is still where you left it. Takeover is a 1.2-second
 crossfade; the ambient bed takes 10 seconds to give way.
 
 `LAYER_MODE` is the one concession to bandwidth: `ambient` and `event` are
-`"continue"` (a wind loop restarted at 0:00 under a jukebox is audible, and a
+`"continue"` (a wind loop restarted at 0:00 under a lute is audible, and a
 siren that pauses and resumes is a siren twice), everything else is `"pause"` (a
 4 MB song should not stream through ten silent minutes of somebody's data plan).
 
@@ -190,11 +190,8 @@ while the layer is heard, in place of `OPEN_HZ`, and `setTone(layer, { gain, hz 
 it and the gain without restarting or re-seeking the song. The filter is still built in
 `state()` and nowhere else.
 
-**`duckLayer(layer, factor, ms)` holds a layer at a fraction of its own gain** until it
-is lifted with `1`. It is how the bus makes room for something OUTSIDE it — the jukebox
-under a sound effect (§6c) — and it is separate from `COEXIST`, which is one layer making
-room for another. The factor lives in a per-layer map, so it survives the priority pass
-and a new song, and ducking a layer that has not played yet builds nothing.
+Nothing outside the bus moves a layer's level. Sound effects play over the jukebox
+without ducking it (§6c).
 
 ### Muting, and where a track comes back
 
@@ -450,14 +447,21 @@ long track; it just belongs somewhere now.
     same test against the new place's spots.
   - A characterless GM follows the same rule, with Chat's open place as where they
     stand. Going to a GM panel is not a move, so it fades nothing.
-  A performance — a jukebox or somebody playing — still covers a piece rather than
-  ending it, and §3's rules handle that. A drug's song is the exception: it covers
-  the performance.
+  Somebody playing an instrument covers a piece rather than ending it, and §3's rules
+  handle that. A drug's song is the exception: it covers the performance. The Den's
+  jukebox ends a piece instead (`setJukebox`, below).
 - **`setHold(true)` holds the timeline** — MusicDirector's, for a characterless GM on a
   `/gm/` page. A piece or spot that comes due while held waits, and one already playing
   finishes. Let go, whatever waited starts after the same 5–20 s as a first visit; a
   silence gap still counting down just carries on, so bouncing on and off a desk never
   cuts the silence short.
+- **`setJukebox(true)` stops the ambience** — InstrumentListener's, while the Den's
+  jukebox is issued, for a living character and a characterless GM alike (§6c). The
+  ambient piece in the air fades out over 1.2 s, as the jukebox fades in, and no new one
+  starts while it plays. A silence gap still counting down is left alone. `false` picks
+  a fresh piece after the same 5–20 s as a first visit, unless `setHold` still holds the
+  timeline. Spots are not touched (they go silent under the jukebox, §3), and neither
+  is a drug's song on `dose`.
 - **About 75% of in-game time is silence**, which is the document's first rule for
   an ambience track. After a piece that lasted *d*, the gap is *d* × 3, ±30%,
   never under 2 minutes (`SILENCE_SHARE`, `MIN_GAP_MS`). Scaling the gap to the
@@ -915,7 +919,7 @@ raises the music notify (§6b) for the Den and the Den Interior.
 (`undertown-9`), in every room. `jukeboxAt(prisma, locationId)` answers `{ songKey,
 startedAt, quietRoomIds }` there and null anywhere else. `quietRoomIds` are that
 Location's soundproof rooms: with one of them open in Chat (the Exactor's Office) the song
-is heard through the wall, darker and at 0.35 of its level.
+is heard through the wall: darker, at the same level.
 
 **How it reaches a browser.** Two ways, the live one first. The feed's `music` frame
 carries `jukebox` beside `performances` (`web/lib/feedHub.js`), so Chat hears a change
@@ -937,18 +941,17 @@ poll's `denJukebox`, asked for GMs only. The browser decides whether the place o
 in the Den (`gmPlaces.js`). A GM still hears no instrument.
 
 **How it sounds.** `InstrumentListener.js` plays it on `room`: looped, anchored, through
-a 2.8 kHz lowpass (500 Hz behind a soundproof wall). As the top of the bus it ducks the
-place's ambience to silence while it plays, and the bed comes back when it stops. An
+a 2.8 kHz lowpass (500 Hz behind a soundproof wall). It has one level: it is on at it, or
+it is off. While it plays the place's ambience song is stopped and no new one starts
+(`musicConductor.js#setJukebox`, §4); a fresh one is picked after the usual short wait
+once it goes off. Spots go silent under it, as under any layer above them (§3). An
 instrument beats it: while anybody here is playing, `room` is not issued, and it comes
 back at wherever its loop has got to when the last of them stops (a song running out on
 its own is caught by a timer, since it raises no frame). A drug's song beats it too, for
 the one who took the drug: the jukebox goes silent for them until the song ends (§3).
 
-**Sound effects play over it**, because they are the other engine (§1). While a one-shot
-cue is sounding (`sfx.js#onCuesSounding`) the jukebox drops to 0.15 of its level in
-150 ms, and comes back over a second once the last cue has finished, after a 300 ms hold
-so two cues close together do not make it pump. Drones and a phone's ring do not duck it:
-they last minutes, and a jukebox held down for all of them would simply be off.
+**Sound effects play over it**, because they are the other engine (§1), and they do not
+move it. It used to drop to 0.15 of its level under every one-shot cue; that is gone.
 
 ---
 

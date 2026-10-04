@@ -27,12 +27,17 @@ import { placeHas } from "./placeAmbience";
 // HOLD the timeline (setHold) — nothing new starts there, not a piece and not a spot, until
 // the GM is back on a page that is not one.
 //
-// A performance — a jukebox or somebody playing — still covers a piece rather than ending
-// it, and music.js handles that on its own.
+// The Den's jukebox ENDS a piece: while it is heard, the ambience song in the air fades out
+// and no new one starts, and a fresh pick follows the same short wait as a first visit once
+// it goes off (setJukebox). Spots carry on as before, silent under it (music.js). A drug's
+// song is not ambience, and still plays over everything. Somebody playing an instrument
+// only covers a piece, and music.js handles that on its own.
 //
 // Module scope, so a soft navigation (/character → /chat) never restarts it.
 // MusicDirector.js calls start() and stop() when in-game play begins and ends, setPlace()
-// whenever where you are standing changes, and setHold() as a GM goes on and off the desks. The rules live in musicSchedule.js.
+// whenever where you are standing changes, and setHold() as a GM goes on and off the desks.
+// InstrumentListener.js calls setJukebox() as the jukebox goes on and off. The rules live in
+// musicSchedule.js.
 
 const AMBIENT_FADE_IN_MS = 3000;
 const ONESHOT_TAIL_MS = 2000;
@@ -40,6 +45,8 @@ const TEXTURE_TAIL_MS = 6000;
 // A piece whose place you walked out of, and a piece an interrupter cuts.
 const LEAVE_FADE_MS = 4000;
 const INTERRUPT_FADE_MS = 1500;
+// A piece the jukebox stops: as long as the jukebox takes to fade in, so the two cross.
+const JUKEBOX_FADE_MS = 1200;
 // Before the first piece of a visit, and while waiting for the page to learn where you are.
 const FIRST_WAIT_MS = [5_000, 20_000];
 const NO_PLACE_RETRY_MS = 30_000;
@@ -62,6 +69,9 @@ let pending = null;
 // came due, so lifting the hold can start it.
 let held = false;
 let heldNext = false;
+// While the Den's jukebox is heard. It blocks the next piece the way `held` does, and
+// shares heldNext with it. Set from InstrumentListener.js, so start() and stop() leave it be.
+let jukebox = false;
 let heldSpot = false;
 
 let timer = null;
@@ -170,7 +180,7 @@ function finish() {
 
 function playNext() {
   if (!running) return;
-  if (held) {
+  if (held || jukebox) {
     heldNext = true;
     return;
   }
@@ -261,14 +271,41 @@ export function stop() {
 export function setHold(on) {
   held = Boolean(on);
   if (held || !running) return;
-  if (heldNext) {
-    heldNext = false;
-    wait(roll(FIRST_WAIT_MS), playNext);
-  }
+  resumeNext();
   if (heldSpot) {
     heldSpot = false;
     scheduleSpot(roll(SPOT_GAP_MS));
   }
+}
+
+// A piece that came due while held or under the jukebox, started once neither is in the way.
+function resumeNext() {
+  if (!heldNext || held || jukebox || !running) return;
+  heldNext = false;
+  wait(roll(FIRST_WAIT_MS), playNext);
+}
+
+/**
+ * The Den's jukebox is heard, or it has gone off. On, the ambience song in the air fades out
+ * and nothing new starts while it plays. A silence gap still counting down is left alone: it
+ * just finds the jukebox in the way when it ends. Off, the next piece is picked after the
+ * same short wait as a first visit, unless a GM panel still holds the timeline. Spots and a
+ * drug's song are not touched.
+ */
+export function setJukebox(on) {
+  const next = Boolean(on);
+  if (next === jukebox) return;
+  jukebox = next;
+  if (!running) return;
+  if (!jukebox) {
+    resumeNext();
+    return;
+  }
+  if (piece?.layer !== "ambient") return;
+  debug(`jukebox on; stopping ${piece.src}`);
+  dropPiece();
+  stopLayer("ambient", { fadeMs: JUKEBOX_FADE_MS });
+  heldNext = true;
 }
 
 /**
