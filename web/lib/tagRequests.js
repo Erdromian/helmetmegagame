@@ -97,11 +97,6 @@ export function transferableTags(characterTags = []) {
     .map((ct) => ({ ...ct.tag, quantity: ct.quantity ?? 1, poisonMarker: Boolean(ct.poisonMarker) }));
 }
 
-// Crates/mounts excluded: nesting a crate would compound the halving exploit; packageItemsRequest refuses it too.
-export function isCrate(tag) {
-  return Boolean(tag?.custom && (tag?.crateContents || tag?.crate));
-}
-
 // MOUNT-slot tags carry no weight. Depot is the deliberate exception (FACTORY.md §5, DEPOT.md §0e).
 export function isMount(tag) {
   return tag?.equipSlot === "MOUNT";

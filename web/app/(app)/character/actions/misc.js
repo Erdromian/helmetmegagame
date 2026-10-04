@@ -76,7 +76,6 @@ import {
 } from "@/lib/moveSpend";
 import {
   isTradeable,
-  isCrate,
 } from "@/lib/tagRequests";
 import {
   addToStack,
@@ -637,7 +636,7 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
     const special =
       held.tag.consumeChoice?.length ||
       held.tag.paperKind === "SEALED" ||
-      isCrate(held.tag) ||
+      isCrateTag(held.tag) ||
       [CAMERA_SLUG, POINTER_DEVICE_KIT_SLUG, RAVENHEART_MAP_SLUG, BOX_OF_JUNK_SLUG, MULLIGAN_SLUG, STEPSTONE_SLUG].includes(held.tag.slug);
     if (special || !held.tag.stackable || held.tag.administerSkill) throw new UserError("One at a time.");
     if (n > held.quantity) throw new UserError("You don't have that many.");
@@ -678,7 +677,12 @@ export async function consumeTagRequestImpl({ tagId, targetCharacterId, choice, 
   // thing (it has no `cures` and isn't `administerable`), so that case falls
   // through to the ordinary path below, which already refuses it with the
   // same message any other non-curative item gets.
-  if (isCrate(held.tag) && (!targetCharacterId || targetCharacterId === character.id)) {
+  //
+  // Only a crate with a manifest takes this road. The catalog's three crates
+  // (crates.js#CATALOG_CRATE_SLUGS) are crates to every other rule, but what
+  // falls out of them is written in `consumesInto`, so they open on the
+  // ordinary path below.
+  if (isCrateTag(held.tag) && Array.isArray(held.tag.crateContents) && (!targetCharacterId || targetCharacterId === character.id)) {
     return openCrateRequestImpl({ session, character, held });
   }
 

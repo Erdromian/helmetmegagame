@@ -35,6 +35,7 @@ const { seenByIdMany, heldReasonFor } = require("./intercept");
 const { dropCharacterTag } = require("./tagWrites");
 const { isCrateTag } = require("./crates");
 const { chargeCrateHaul } = require("./crateHaul");
+const { holdLimitRefusal } = require("./mounts");
 const { characterParty, turnStamp } = require("./economyLedger");
 const { openAccount, bumpBankAccount } = require("./bankAccounts");
 const { ensurePin } = require("./acquaintances");
@@ -313,6 +314,24 @@ async function processGmView(prisma) {
   return { ok: true, ...lists, yours: [], history };
 }
 
+// The hold limits (db/lib/mounts.js) — one crate or three with a Cart, one
+// mount, three young arelitz — for one side of an Approve. `tags` is what they
+// hold now, `out` the lines leaving them and `incoming` the lines arriving (with
+// the giver's `fromTags` to read each Tag from). Counted on what they will hold
+// AFTER the swap, so a clerk handing their own crate out may take one in. The
+// refusal sentence, or null.
+function swapRefusal(tags, out, incoming, fromTags) {
+  const leaving = new Map(out.map((l) => [l.tagId, l.quantity]));
+  const after = (tags ?? [])
+    .map((ct) => ({ ...ct, quantity: (ct.quantity ?? 1) - (leaving.get(ct.tagId) ?? 0) }))
+    .filter((ct) => ct.quantity > 0);
+  const tagOf = new Map((fromTags ?? []).map((ct) => [ct.tagId, ct.tag]));
+  return holdLimitRefusal(
+    after,
+    incoming.map((l) => ({ slug: tagOf.get(l.tagId)?.slug, tag: tagOf.get(l.tagId), quantity: l.quantity })),
+  );
+}
+
 // One stack from one hand to another, inside the caller's transaction. ONE
 // ledger row for a priced ware (from the giver to the taker), booked on the
 // drop; the landing writes the row by hand so it is not booked a second time.
@@ -417,6 +436,12 @@ async function approvePassage(prisma, discordUserId, { passageId, keep = [], giv
   if (kept.error) return fail(T.approveTheyLackIt(kept.name ?? "that"));
   const given = pickLines(give, handable(clerk.tags), { strict: true });
   if (given.error) return fail(T.approveYouLackIt(given.name ?? "that"));
+  // Refused here, like a Transfer, rather than landing and being set down
+  // again by the carry settle (CARRY.md §10).
+  const clerkFull = swapRefusal(clerk.tags, given.lines, kept.lines, asker.tags);
+  if (clerkFull) return fail(clerkFull);
+  const askerFull = swapRefusal(asker.tags, kept.lines, given.lines, clerk.tags);
+  if (askerFull) return fail(T.approveTheyCantTake(askerFull));
 
   const destination = await prisma.location.findUnique({
     where: { slug: row.direction === "IN" ? SQUARE_SLUG : BRIDGE_SLUG },
@@ -911,5 +936,6 @@ module.exports = {
   // For tests.
   pickLines,
   liveOffer,
+  swapRefusal,
   handable,
 };
