@@ -11,6 +11,7 @@ const { THANATI_SLUG, THANATI_LEADER_SLUG } = require("./thanati");
 const { resourcesOf } = require("./resourceStack");
 const { ACT, slugsBlocking } = require("./incapacitation");
 const { SKINLESS_TAG_SLUG } = require("./skinless");
+const { isOffRoad } = require("./offRoad");
 
 const BOUND_SLUG = "bound";
 // A shackled person is a bound-person ingredient too (db/lib/bind.js#RESTRAINT_SLUGS).
@@ -250,6 +251,12 @@ async function resolveIngredients(db, rite, room, { participants = [] } = {}) {
       : null;
     if (slugs.has(PIOUS_SLUG) || onHallowedGround(at)) missing.push("target");
   }
+
+  // Summoning brings the cult to the room, and aboard the Charon that would be
+  // every cultist past the six seats, or into orbit. A place with no road is
+  // reached by its own door alone (db/lib/offRoad.js). Refused up here rather
+  // than skipped in the effect, so the circle keeps its floor.
+  if (rite.key === "summoning" && (await isOffRoad(db, room.locationId ?? room.location?.id))) missing.push("place");
 
   // "Your leader must be present!" — Conversion and Fulfillment. Present means CHANTING: a leader who is in the room but silent is not in the
   // circle. The leader may walk in later, so a missing one is a rearm, not a failure.

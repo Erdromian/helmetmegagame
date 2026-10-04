@@ -11,8 +11,12 @@ const { blockerFor, ACT } = require("./incapacitation");
 const { heldReasonFor } = require("./intercept");
 const { activeFightOf } = require("./combat");
 const { cavingRestrictionsFor, standingZoneKind } = require("./cavingPass");
+const { isOffRoad } = require("./offRoad");
 
 const IN_A_FIGHT = "You're in a fight. You can't move until it's over.";
+// Aboard the Charon. A place with no road is left by its own door alone
+// (db/lib/offRoad.js), and orbit is one-way.
+const NO_ROAD_FROM = "There's nowhere to fly from here.";
 const CAVING_HOLD =
   "You rolled a 1 on the Caving Die, so you can't take Bat Form until the turn ends and you receive the results of your caving die.";
 
@@ -53,7 +57,9 @@ async function batFormRefusal(db, character, { turn = null, intoZoneKind = null 
   if (caving.stuck) return caving.stuck;
   if (caving.hold) return CAVING_HOLD;
 
+  if (await isOffRoad(db, character.locationId)) return NO_ROAD_FROM;
+
   return null;
 }
 
-module.exports = { batFormRefusal, batFormHeldReason, IN_A_FIGHT, CAVING_HOLD };
+module.exports = { batFormRefusal, batFormHeldReason, IN_A_FIGHT, CAVING_HOLD, NO_ROAD_FROM };

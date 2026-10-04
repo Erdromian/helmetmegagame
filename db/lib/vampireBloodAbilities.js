@@ -143,6 +143,9 @@ const ABILITIES = Object.freeze([
   },
 ]);
 
+// Zero requires, like this file, so the posture above holds.
+const { onRoadsWhere } = require("./offRoad");
+
 const ABILITIES_BY_KEY = new Map(ABILITIES.map((a) => [a.key, a]));
 
 function abilityByKey(key) {
@@ -169,13 +172,14 @@ function requiredTagName(ability) {
 // the honest test for somewhere nobody is meant to arrive unannounced — the
 // Charon docked above the Keep has none (its only door is the Panic Room's
 // button, six seats, docs/systemdocs/CHARON.md), and neither does the ship in
-// orbit. The same test locationVisits.js#revealSurface uses. The menu lists
-// with it and the action looks the destination up with it, so they agree.
+// orbit. The same test as every other raw relocation (db/lib/offRoad.js). The
+// menu lists with it and the action looks the destination up with it, so they
+// agree. Flying OFF the ship is refused in db/lib/batForm.js.
 function batFormDestinationWhere() {
   return {
     retiredAt: null,
     zone: { slug: { in: abilityByKey("bat-form").destinationZoneSlugs }, retiredAt: null },
-    OR: [{ linksA: { some: {} } }, { linksB: { some: {} } }],
+    ...onRoadsWhere(),
   };
 }
 

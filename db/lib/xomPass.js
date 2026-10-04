@@ -25,6 +25,7 @@ const { applyDeathToRow } = require("./characterDeath");
 const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
 const { seenByPlace } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
+const { arrivableWhere, offRoadLocationIds } = require("./offRoad");
 const {
   OLD_WAYS_XOM_SLUG,
   FECES_SLUG,
@@ -105,6 +106,8 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
   const notices = [];
   const deaths = [];
   const teleports = [];
+  // Read once, and only if somebody draws the lonely teleport.
+  let offRoad = null;
   const conversations = [];
   const shouts = [];
   const outcomes = {};
@@ -252,12 +255,16 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
         break;
 
       case "lonely": {
+        // Not off the Charon either: a place with no road is left by its own
+        // door and nothing else (db/lib/offRoad.js), and orbit is one-way.
+        offRoad ??= await offRoadLocationIds(prisma);
+        if (offRoad.has(character.locationId)) { outcome = "nothing"; break; }
         // Nobody else standing anywhere.
         const target = await pickCompany(prisma, character.id, rng);
         if (!target) { outcome = "nothing"; break; }
         const from = character.locationId;
         const moved = await prisma.character
-          .update({ where: { id: character.id }, data: { locationId: target.locationId } })
+          .update({ where: { id: character.id }, data: { locationId: target.locationId, zoneId: target.zoneId } })
           .catch((err) => {
             console.error(`runXomPass: teleport failed for ${character.id}:`, err.message ?? err);
             return null;
@@ -306,14 +313,23 @@ async function runXomPass(prisma, turn, { rng = Math.random } = {}) {
 
 // A random other living character standing somewhere. Read fresh per
 // teleport, not from a snapshot, so a just-gibbed character is already gone.
+// Never somebody aboard the Charon: the god does not get you a seat on the ship
+// (db/lib/offRoad.js), and a retired place is nowhere anybody should land.
 async function pickCompany(prisma, characterId, rng) {
   const candidates = await alivePassCharacters(prisma, {
-    where: { id: { not: characterId }, locationId: { not: null } },
-    select: { id: true, name: true, locationId: true, location: { select: { name: true } } },
+    where: { id: { not: characterId }, locationId: { not: null }, location: arrivableWhere() },
+    select: { id: true, name: true, locationId: true, location: { select: { name: true, zoneId: true } } },
   });
   if (candidates.length === 0) return null;
   const pick = candidates[Math.floor(rng() * candidates.length)] ?? candidates[0];
-  return { id: pick.id, name: pick.name, locationId: pick.locationId, locationName: pick.location?.name ?? null };
+  return {
+    id: pick.id,
+    name: pick.name,
+    locationId: pick.locationId,
+    // Written beside locationId: every writer of one writes the other.
+    zoneId: pick.location?.zoneId ?? null,
+    locationName: pick.location?.name ?? null,
+  };
 }
 
 // Madness on every living clergy character at once, roller included — the god
@@ -354,4 +370,11 @@ async function strikeTheClergy(prisma, turn, madnessTag) {
   return struck;
 }
 
-module.exports = { runXomPass, CLERGY_GROUP_SLUG, NOTICES, GIB_REASON };
+module.exports = {
+  runXomPass,
+  CLERGY_GROUP_SLUG,
+  NOTICES,
+  GIB_REASON,
+  // Exported for db/test/charonSealed.test.js. Nothing else calls it from outside.
+  pickCompany,
+};

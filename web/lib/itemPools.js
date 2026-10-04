@@ -6,6 +6,7 @@ import { isLooseCollarSlug } from "@lifeweb/db/lib/collarGlyphs";
 import { canWorkRemote, canUnlockCollar } from "@lifeweb/db/lib/collar";
 import { wornRingTokens } from "@lifeweb/db/lib/roomAccess";
 import { SKINLESS_TAG_SLUG } from "@lifeweb/db/lib/skinless";
+import { stepstoneTargets as stoneTargets } from "@lifeweb/db/lib/verbs/self";
 
 // The held-item flags — what is in YOUR pockets, and nothing about the room —
 // that decide which of the registry's rows show (actionRegistry.js). Shared by
@@ -22,19 +23,9 @@ export async function itemPools(prisma, character, heldSlugs) {
   const has = (slug) => heldSlugs.has(slug);
   const ringTokens = await wornRingTokens(prisma, character.id);
   const hasStepstone = has("stepstone");
-  const stepstoneTargets = hasStepstone
-    ? (
-        await prisma.location.findMany({
-          // SURFACE rather than "not a cave", so a new zone kind stays out by default.
-          where: {
-            zone: { kind: "SURFACE" },
-            ...(character.locationId ? { id: { not: character.locationId } } : {}),
-          },
-          select: { id: true, name: true, zone: { select: { name: true } } },
-          orderBy: [{ zone: { sortOrder: "asc" } }, { name: "asc" }],
-        })
-      ).map((l) => ({ id: l.id, name: l.name, zoneName: l.zone?.name ?? null }))
-    : [];
+  // The same list Discord's /stepstone offers, off the same function, so the
+  // two faces cannot disagree about where the stone goes.
+  const stepstoneTargets = hasStepstone ? await stoneTargets(prisma, character) : [];
   return {
     canButcher: has(BUTCHER_SLUG),
     // A Skinless is plainly one whatever name they give (db/lib/skinless.js).

@@ -1,6 +1,7 @@
 // The fog behind /map. The ONE module reading or writing LocationVisit, same
 // reason db/lib/locationGraph.js is the one for LocationLink. `stood` is "I have been here"; without it, "seen from next door" (hollow). Deliberately NOT on the @lifeweb/db barrel — require by path.
 const { travelOptions } = require("./locationGraph");
+const { onRoadsWhere } = require("./offRoad");
 
 // Called from applyLocationMoveSideEffects, run by every writer of Character.locationId (MAP.md §4).
 //
@@ -72,13 +73,13 @@ async function knownLocations(prisma, characterId) {
 // learns the ship exists — so a map item sweeping every SURFACE Location was
 // handing it to whoever spent one. The Charon's orbit is the same shape. An
 // edgeless Location is the honest test rather than a slug check: you cannot
-// walk to it, so a picture of the roads has nothing to draw.
+// walk to it, so a picture of the roads has nothing to draw (db/lib/offRoad.js).
 async function revealSurface(prisma, characterId) {
   if (!characterId) return;
   const locations = await prisma.location.findMany({
     where: {
       zone: { kind: "SURFACE" },
-      OR: [{ linksA: { some: {} } }, { linksB: { some: {} } }],
+      ...onRoadsWhere(),
     },
     select: { id: true },
   });

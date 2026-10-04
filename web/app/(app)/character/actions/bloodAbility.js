@@ -29,7 +29,8 @@ import {
   batFormDestinationWhere,
 } from "@lifeweb/db/lib/vampireBloodAbilities";
 import { applyLocationMoveSideEffects } from "@lifeweb/db/lib/locationMove";
-import { batFormRefusal, batFormHeldReason } from "@lifeweb/db/lib/batForm";
+import { batFormRefusal, batFormHeldReason, NO_ROAD_FROM } from "@lifeweb/db/lib/batForm";
+import { isOffRoad } from "@lifeweb/db/lib/offRoad";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
 import { sendDm } from "@/lib/discordGuild";
 import { requireCharacter, revalidateAll, lockCharacter } from "./shared.js";
@@ -200,6 +201,9 @@ async function castMenuAbilityImpl({
       const held = batFormHeldReason(fresh);
       if (held) throw new UserError(held);
       if (fresh.locationId === destination.id) throw new UserError("You're already there.");
+      // Where they stand now, not when the request came in: they may have
+      // boarded the Charon in another tab since (db/lib/offRoad.js).
+      if (await isOffRoad(tx, fresh.locationId)) throw new UserError(NO_ROAD_FROM);
     }
     const freshCooldowns = fresh.vampireBloodAbilityCooldowns ?? {};
     if (isOnCooldown(freshCooldowns, ability.key, openTurn.number)) {

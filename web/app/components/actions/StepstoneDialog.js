@@ -10,9 +10,11 @@ import { stepstoneRequest } from "@/app/(app)/character/requestActions";
 
 // The Stepstone: break it and stand somewhere else.
 //
-// The list is every SURFACE Location, built server-side in character/page.js
-// and re-checked by stepstoneRequest, which refuses a posted id for anywhere
-// underground. It is long on purpose, which is what the search box is for.
+// The list is every SURFACE Location on the roads, built server-side by
+// db/lib/verbs/self.js#stepstoneTargets and re-checked by stepstoneRequest,
+// which refuses a posted id for anywhere underground or anywhere with no road
+// (the Charon). Empty when standing somewhere with no road. It is long on
+// purpose, which is what the search box is for.
 export default function StepstoneDialog({ onDone, onClose }) {
   const pools = useActionPools();
   const places = pools.stepstoneTargets ?? [];
@@ -37,7 +39,7 @@ export default function StepstoneDialog({ onDone, onClose }) {
       submitLabel="Step"
       busy={busy}
       error={error}
-      empty={places.length === 0 ? "You haven't been anywhere else yet." : null}
+      empty={places.length === 0 ? "There's nowhere for the stone to take you." : null}
       canSubmit={Boolean(locationId)}
       onClose={onClose}
       onSubmit={() =>
