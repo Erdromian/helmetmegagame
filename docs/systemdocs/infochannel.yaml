@@ -46,7 +46,7 @@ banner: assets/info-banner.png
 main_message: |-
   Bascinet is a large-scale, rules-light story generator, 60% roleplay and 40% strategy, set in an ethereal barony below the barren surface of the planet Evergreen. It's intended to be serious, grim, heroic, and occasionally funny.
 
-  The game runs for several weekly sessions, anywhere from 10 to 30 days depending on the game. Bascinet's main system is Gambits, moves that consume your turn. When you make Gambits, you roll a die, and a Gamemaster adjudicates the situation depending on your character's Tags.
+  The game runs for several weekly sessions, anywhere from 10 to 30 days depending on the game. During this period, players can submit actions every 24 hours, roleplaying during the time in between.
 
 categories:
   - name: General
@@ -55,7 +55,7 @@ categories:
         body: |-
           ① **Basic** — You must be 18+.
           - Erotic roleplay is not allowed, however romance is.
-          - Contemporary slurs and hatespeech have no place in Bascinet. Bigotry is tolerated so long as its purpose is to forward the story and drive conflict between characters, use your head and you'll be fine.
+          - Contemporary slurs and hatespeech have no place in Bascinet. In-game bigotry is tolerated so long as its purpose is to forward the story and drive conflict between characters, use your head and you'll be fine.
           - Hostility should only be between people's in game characters. Bascinet contains many infuriating characters, channeling that frustration towards being toxic to your fellow players is not acceptable.
 
           ② **IC Rules** — Anything that can be reasonably justified is perfectly acceptable.
@@ -106,9 +106,9 @@ categories:
     threads:
       - title: Turns
         body: |-
-          The game is synced to real time. You don't have to play 24/7; asynchronous play is better.
+          Turns span over 24 hour periods. You don't have to play 24/7; asynchronous play is better.
 
-          Every turn, you can take actions such as cooking, crafting, and traveling. However, you can also take a Gambit. Gambit moves are actions that could affect the narrative and could go any way. Fighting, trying to discover a bandit outpost, and stealing from the Inn are all Gambits. Gambits require a 1d6 roll and take your entire turn.
+          Every turn, you can take actions such as cooking, crafting, and traveling. However, you can also take a Gambit or engage in combat. Gambits and combat allow you to submit a custom action that your character would like to attempt. Whether or not they succeed is dependent on a lot of factors, and controlled by the GMs. Gambits are for custom actions such as searching a location, looking for clues, investigating something or some other peaceful activity. Combat is distinct from Gambits, and is specifically for the purpose of fighting other characters.
 
           Like Mafia, Moves are collectively adjudicated by the Gamemasters at the end of every turn.
       - title: Roleplay
