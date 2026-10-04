@@ -71,14 +71,18 @@ async function handleWhosHere(interaction, locationId) {
   }
   // A GM gets the truth: every real name, with what the room sees beside it (a hood, a disguise, a public
   // name), the way the web's GM aside lists them (db/lib/whosHere.js#whosHereGm).
-  const rows = await whosHere(prisma, viewer, { locationId, withAcross: true });
   if (isGmMember(interaction)) {
-    // The people across a gate or over a counter stay as they were: the far side, read as a player reads it.
+    // The people across a gate or over a counter, read with no viewer — a GM's readout. Every multi-locational
+    // room at this anchor, not only the ones the GM's own character holds a key to
+    // (db/lib/whosHere.js#crossRoomGroups), and no stranger lens, since there is nobody to be a stranger to.
+    // Hoods stay hoods, as they do on the web's far-side rows.
+    const rows = await whosHere(prisma, { locationId }, { locationId, withAcross: true });
     const far = whosHereLines({ named: [], concealed: [], across: rows.across ?? [], rooms: rows.rooms ?? [] });
     const lines = [...gmWhosHereLines(await whosHereGm(prisma, locationId)), ...far];
     await respond(interaction, lines.length ? lines.join("\n") : "Nobody is here.");
     return;
   }
+  const rows = await whosHere(prisma, viewer, { locationId, withAcross: true });
   const lines = whosHereLines(rows);
   if (lines.length === 0) {
     await respond(interaction, "Nobody is here.");

@@ -503,6 +503,12 @@ overlaid; a new reader of "the rooms here" should use it rather than
   (`db/lib/feedAccess.js`). Hearing and learning names follow
   (`memoryHearing.js#presentWhere` → `roomSides.js#roomPresenceWhere`), and so
   does a mention's earshot (`characterMentions.js#earshotForPlaceKey`).
+- **Tagging somebody.** A mention is talking, not a verb on a person, so it
+  crosses: the `/chat` composer's `@` list names the room's other sides while
+  you type in the room (`web/lib/mentionRoster.js`), an `@role` typed in one
+  side's Discord thread reaches the other side (the bot asks
+  `characterMentions.js#canHearPing` for a room), and the DM's link goes to the
+  reader's own side's thread (PROXYING.md §6).
 - **Its stash.** Transfer, Steal, the Things drawer, `/storage` and the Storage
   button reach it from any side whose gate lets you in (`CARRY.md` §6).
 - **Who is in it.** Who's here? lists the far side under the room's name

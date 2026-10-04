@@ -20,6 +20,7 @@ import { chunkMessage } from "@lifeweb/db/lib/chunkText";
 import { MAX_SAY_PIECES, tooManyPieces } from "@lifeweb/db/lib/sayLimits";
 import { capitalizeSentences, fixContractions } from "@lifeweb/db/lib/textCorrection";
 import { readDraft, writeDraft } from "../draftStore";
+import { mentionRosterFor } from "@/lib/mentionRoster";
 
 // THE COMPOSER: what voice you are in, your hands, the words, and the send.
 //
@@ -106,10 +107,11 @@ export default function Composer({
 
   useComposerAutosize(textareaRef, draft, command);
 
-  // The @ list: the people standing where you stand, nobody else.
+  // The @ list: the people standing where you stand, and inside a room that
+  // opens onto more than one Location, its people on the other sides too.
   const mentionMatches = useMemo(
-    () => (mention ? matchRoster(roster, mention.query) : []),
-    [mention, roster],
+    () => (mention ? matchRoster(mentionRosterFor(roster, people, placeKey), mention.query) : []),
+    [mention, roster, people, placeKey],
   );
 
   const insertMention = useCallback(
