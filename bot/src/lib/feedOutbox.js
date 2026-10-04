@@ -28,6 +28,7 @@ const {
   parsePlaceKey,
 } = require("@lifeweb/db/lib/placeKey");
 const { relayRow, crossRoomPlaceKeys } = require("./roomRelay");
+const { linkForReader, roomThreads } = require("./mentions");
 const {
   tokensToRoles,
   earshotForPlaceKey,
@@ -120,11 +121,14 @@ async function relayWebMentions({ row, characters, named = [], concealed, channe
   }
 
   const parsed = parsePlaceKey(row.placeKey);
-  const [earshot, context, memberIds, witnessIds] = await Promise.all([
+  const anyTagged = wanted.some((entry) => entry.tagged);
+  const [earshot, context, memberIds, witnessIds, threads] = await Promise.all([
     earshotForPlaceKey(prisma, row.placeKey),
     archiveContextForPlaceKey(prisma, row.placeKey), // same zone/thread names /archive uses
     parsed?.kind === "conv" ? conversationMemberIds(prisma, parsed.id) : null,
-    wanted.some((entry) => entry.tagged) ? witnessIdsAt(prisma, row.placeKey, row.characterId) : null,
+    anyTagged ? witnessIdsAt(prisma, row.placeKey, row.characterId) : null,
+    // A room's threads, one per side, so a far-side reader's DM links to a thread they can open.
+    anyTagged ? roomThreads(row.placeKey) : [],
   ]);
   const place = context.zoneName ?? "somewhere";
   const where = context.threadName ? `${place} · ${context.threadName}` : place;
@@ -138,7 +142,14 @@ async function relayWebMentions({ row, characters, named = [], concealed, channe
     if (!inEarshot(target, earshot)) continue;
     if (memberIds && !memberIds.includes(target.id)) continue;
     if (tagged && link && witnessIds?.has(target.id)) {
-      await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.*\n${link}`, {
+      const theirLink = linkForReader({
+        link,
+        threads,
+        originThreadId: channelId,
+        readerLocationId: target.locationId,
+        guildId: process.env.DISCORD_GUILD_ID,
+      });
+      await sendDm(prisma, target.discordUserId, `*You were mentioned in ${where}.*\n${theirLink}`, {
         source: MENTION_SOURCE,
         meta: { placeKey: row.placeKey, where },
       }).catch((err) => console.error(`Feed outbox couldn't DM a mention to ${target.name}:`, err?.message ?? err));

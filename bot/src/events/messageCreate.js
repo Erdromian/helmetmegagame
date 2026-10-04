@@ -21,9 +21,11 @@ const { ghostCharacterFor } = require("@lifeweb/db/lib/ghost");
 const { charactersNamedNearby } = require("@lifeweb/db/lib/characterMentions");
 const {
   canHearPing,
+  linkForReader,
   messageLink,
   notifyMentioned,
   resolveMentionedCharacters,
+  roomThreads,
 } = require("../lib/mentions");
 
 // How many character-role mentions one message may relay. Each one is a
@@ -256,16 +258,21 @@ async function handleMentions({ message, channel, proxied, mentionedRoleIds, spe
     ? await witnessIdsAt(prisma, placeKey, speakerId).catch(() => null)
     : null;
   const link = proxied?.id ? messageLink(message.guildId, channel.id, proxied.id) : null;
+  // A room's threads, one per side, so a far-side reader's DM links to a thread they can open.
+  const threads = link && relayed.some((entry) => entry.tagged) ? await roomThreads(placeKey) : [];
 
   for (const { target, tagged } of relayed) {
     // A bare-name target came out of the earshot query itself, so it has already
     // passed this; a role target has not, and a ping must not carry further than
     // a voice would (PROXYING.md §6).
-    const heard = (!tagged || (await canHearPing(target, context))) && (!memberIds || memberIds.includes(target.id));
+    const heard = (!tagged || (await canHearPing(target, context, placeKey))) && (!memberIds || memberIds.includes(target.id));
     const dm = heard && tagged && Boolean(link) && Boolean(witnessIds?.has(target.id));
+    const theirLink = dm
+      ? linkForReader({ link, threads, originThreadId: channel.id, readerLocationId: target.locationId, guildId: message.guildId })
+      : null;
     console.log(`[mentions] ${target.name}: ${heard ? (dm ? "DM'd" : "notified") : "out of earshot, not notified"}`);
     if (heard) {
-      await notifyMentioned(target, context, { placeKey, dm: dm ? { client: message.client, link } : null });
+      await notifyMentioned(target, context, { placeKey, dm: dm ? { client: message.client, link: theirLink } : null });
     }
   }
 }

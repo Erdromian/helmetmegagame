@@ -1,14 +1,20 @@
 const { prisma, buildNarrowcastContext, computeNarrowcastAccess, NARROWCAST_SLUGS } = require("@lifeweb/db");
 const { pushToUser } = require("@lifeweb/db/lib/webPush");
 const { MENTION_SOURCE } = require("@lifeweb/db/lib/dmKinds");
+const { parsePlaceKey, discordTargetsForPlaceKey } = require("@lifeweb/db/lib/placeKey");
+const characterMentions = require("@lifeweb/db/lib/characterMentions");
 const { sendDm } = require("./dm");
 
 // Character-role mentions: who was pinged, and may they hear it. Character.discordRoleId is
 // @unique, so a mentioned role resolves to one character.
 
 // A ping must not carry further than a voice would: Location gates on location, zone's #summary
-// on zone, special channels on db/lib/specialChannels.js.
-async function canHearPing(character, context) {
+// on zone, special channels on db/lib/specialChannels.js. A room that opens onto several
+// Locations (db/lib/roomSides.js) carries a voice to every side, and a thread's parent channel
+// only names the side it hangs off, so a room asks the shared rule, which knows every side —
+// the one the web's relay and the bare-name lookup already ask (MAP.md §2d).
+async function canHearPing(character, context, placeKey = null) {
+  if (parsePlaceKey(placeKey)?.kind === "room") return characterMentions.canHearPing(prisma, character, placeKey);
   if (NARROWCAST_SLUGS.includes(context.channelKind)) {
     const ctx = await buildNarrowcastContext(prisma, character.id);
     return Boolean(computeNarrowcastAccess(ctx)[context.channelKind]?.view);
@@ -30,6 +36,26 @@ async function resolveMentionedCharacters(roleIds) {
 
 function messageLink(guildId, channelId, messageId) {
   return `https://discord.com/channels/${guildId}/${channelId}/${messageId}`;
+}
+
+// Every thread of a room that opens onto several Locations, each with the Location it hangs
+// off (db/lib/placeKey.js#discordTargetsForPlaceKey); [] for any other place, which has one.
+async function roomThreads(placeKey) {
+  if (parsePlaceKey(placeKey)?.kind !== "room") return [];
+  return discordTargetsForPlaceKey(prisma, placeKey).catch(() => []);
+}
+
+// The link a mention DM carries, for one reader. A Discord thread can only be opened by somebody
+// who can see its parent channel, so the link to the line where it was said is dead for a reader
+// on another side of the room. Theirs is their own side's thread, where the relay
+// (./roomRelay.js) puts its copy — the copy is posted after the DM, so the link is to the thread
+// rather than the message. Pure: `threads` is roomThreads()'s answer.
+function linkForReader({ link, threads, originThreadId, readerLocationId, guildId }) {
+  if (!link || !Array.isArray(threads) || threads.length < 2 || !readerLocationId || !guildId) return link;
+  const origin = threads.find((t) => t.threadId === originThreadId);
+  if (!origin || origin.locationId === readerLocationId) return link;
+  const theirs = threads.find((t) => t.locationId === readerLocationId && t.threadId);
+  return theirs ? `https://discord.com/channels/${guildId}/${theirs.threadId}` : link;
 }
 
 // A browser notification, plus a Discord DM when `dm` is given ({ client, link }) — the caller
@@ -62,7 +88,9 @@ async function notifyMentioned(character, context, { placeKey = null, dm = null 
 
 module.exports = {
   canHearPing,
+  linkForReader,
   messageLink,
+  roomThreads,
   notifyMentioned,
   resolveMentionedCharacters,
 };

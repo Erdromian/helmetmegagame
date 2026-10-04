@@ -3,9 +3,11 @@
 import { memo } from "react";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 
-// The composer's @ list: the people standing where you stand, nobody else. Roster is whosHere().named, the same
-// list CharacterMentionsProvider resolves a {char:…} against on the way back — a mention stays honest both ways.
-// Concealed people are deliberately absent: a hood is choosing not to be addressable.
+// The composer's @ list: the people standing where you stand, and — inside a room that opens onto more than one
+// Location — its people on the other sides, who hear every line said there (web/lib/mentionRoster.js). Roster is
+// whosHere().named, the same list CharacterMentionsProvider resolves a {char:…} against on the way back; a far
+// side's face resolves through the page's mention directory. Concealed people are deliberately absent: a hood is
+// choosing not to be addressable.
 
 const MentionMenu = memo(function MentionMenu({ matches, active, onPick, onHover }) {
   if (matches.length === 0) return null;

@@ -515,7 +515,10 @@ async function FreshChat({ userId }) {
 
   // The @ list, and the lookup a {char:…} in a row resolves against — one
   // roster for both, so a mention can only ever name somebody the writer could
-  // see and only ever render for a reader who could see them too. Concealed
+  // see and only ever render for a reader who could see them too. Inside a
+  // multi-locational room the composer adds that room's other sides from
+  // `people.rooms` (web/lib/mentionRoster.js), and their faces resolve through
+  // the directory below. Concealed
   // people are deliberately absent: whosHere() puts them in `concealed`, which
   // carries an alias and no id.
   const mentionRoster = (aside?.people?.named ?? []).map((person) => ({

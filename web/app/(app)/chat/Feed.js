@@ -56,6 +56,7 @@ import { chunkMessage } from "@lifeweb/db/lib/chunkText";
 import { MESSAGE_LIMIT, MAX_SAY_PIECES, COUNT_FROM, tooManyPieces } from "@lifeweb/db/lib/sayLimits";
 import { capitalizeSentences, fixContractions } from "@lifeweb/db/lib/textCorrection";
 import MentionMenu, { mentionQueryAt, matchRoster } from "./MentionMenu";
+import { mentionRosterFor } from "@/lib/mentionRoster";
 import CommandMenu from "./CommandMenu";
 import CommandStrip from "./CommandStrip";
 import MembersStrip from "./MembersStrip";
@@ -971,9 +972,10 @@ export default function Feed({
     };
   }, []);
 
+  // Plus a multi-locational room's other sides, while typing in that room (web/lib/mentionRoster.js).
   const matches = useMemo(
-    () => (mention ? matchRoster(roster, mention.query) : []),
-    [mention, roster],
+    () => (mention ? matchRoster(mentionRosterFor(roster, people, placeKey), mention.query) : []),
+    [mention, roster, people, placeKey],
   );
 
   // Only two kinds of place have a guest list at all: a conversation, and a

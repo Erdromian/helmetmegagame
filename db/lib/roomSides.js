@@ -13,7 +13,8 @@
 // `homeLocationId`, and `sideId` is null at home.
 //
 // What crosses between sides is the room itself — its feed, its stash, who is
-// in it. What never crosses is a Location: every verb on a PERSON stays
+// in it, and so who can be tagged in it (a mention is talking, not a verb on a
+// person). What never crosses is a Location: every verb on a PERSON stays
 // Location-grain (db/lib/presence.js#isHere, db/lib/whosHere.js#presentRows),
 // which is the doc's "cannot target characters on the other location".
 //

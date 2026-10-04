@@ -1548,7 +1548,9 @@ a 48px head and a one-line composer:
   resolve live, so a disguise or a Mulligan rename rewrote what every past line
   had said. PROXYING.md §6 has the whole argument. The composer's `@`
   autocomplete (`MentionMenu.js`) runs over `whosHere().named` — the people
-  standing here, concealed ones deliberately absent — and inserts the token;
+  standing here, concealed ones deliberately absent, plus a multi-locational
+  room's other sides while you type in it (`web/lib/mentionRoster.js`,
+  PROXYING.md §6) — and inserts the token;
   `CharacterMentionsProvider` is mounted on the page with the same roster, so
   the chip renders back. What crosses to Discord is `<@&roleId>`, rewritten by
   the outbox; what comes back from Discord is rewritten to the token in

@@ -274,7 +274,7 @@ Obols are the universal currency within the game. They have no weight or carryin
 
 Transfer is give-only, both ways — you can never take ⬢ or an item from another character with it. The only way to take something from someone is **Loot**, and only if they're dead or helpless; a mugging plays out that way, not through Transfer.
 
-A few rooms open onto two places at once — a counter, a window, a gate. If you're in one, you can also hand things to anyone in it on the other side: they show up in Transfer's list with the room's name beside them, and under the room's name in the Here list. Nothing else reaches across.
+A few rooms open onto two places at once — a counter, a window, a gate. If you're in one, you can also hand things to anyone in it on the other side: they show up in Transfer's list with the room's name beside them, and under the room's name in the Here list. You can talk with them and tag them with @ in the room, too. Nothing else reaches across.
 
 The **Storage** button on a room's first post lists what's there.
 

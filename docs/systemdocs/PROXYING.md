@@ -973,6 +973,16 @@ The composer on `/chat` writes tokens directly, over an `@` autocomplete of
 `whosHere().named`: you can only name somebody you can see, and a row only
 renders a name its reader could have seen too (CHAT.md §5).
 
+**Inside a room that opens onto more than one Location** — the Gate, the
+Gatehouse Window, the Meistery Window, the Merchant's Counter (`MAP.md` §2d) —
+the `@` list also names the people on the room's other sides, because they are
+in it and hear every line said there. They come from `whosHere().rooms`, the
+same groups Who's here? lists them under, and only while you type in that
+room (`web/lib/mentionRoster.js`): in the street they cannot hear you. Named
+rows only, the same as your own side, so a hood or a stranger across the
+counter is never offered. Their chip renders through the page's mention
+directory, which holds everybody alive.
+
 ### The `@` menu opens inside `/ooc` and `/shout` too
 
 The composer's `@` list used to be switched off for the whole of **command
@@ -1023,6 +1033,14 @@ words — goes out only when both of these hold:
   Never somebody asleep or deaf. A special channel has no witnesses, so an `@`
   there gets the push and no DM.
 
+The jump link goes to the line where it was said — except for a reader on
+another side of a multi-locational room. A Discord thread can only be opened by
+somebody who can see its parent channel, and each side's thread hangs off its
+own Location (`CHANNELS.md` §4), so the link for them is their own side's
+thread instead, where the room relay puts its copy
+(`bot/src/lib/mentions.js#linkForReader`). It is the thread, not the message,
+because the copy is posted after the DM goes.
+
 History, so nobody undoes it by accident: the DM once went out for every
 mention, bare names included, and players did not want one every time somebody
 said their name, so PR #359 took it out entirely. It came back narrowed to the
@@ -1052,7 +1070,12 @@ kinds of channel mean different things by "in earshot":
 
 - **Location channels** (and the Rooms and Conversations under them) gate on
   the **location** — you can call for someone standing where you stand, not
-  for someone across the zone.
+  for someone across the zone. A Room that opens onto several Locations carries
+  a voice to every one of them, so its earshot is every side's Location. On
+  Discord a thread's parent channel names only the side it hangs off, so the
+  bot asks the shared `canHearPing(prisma, character, placeKey)` for a Room
+  (below) rather than comparing Locations; it used to compare them, and an `@`
+  typed in one side's thread reached nobody on the other.
 - **The special channels** have no zone at all, so they gate on whether the
   target currently *hears that channel* — `computeNarrowcastAccess` from
   `db/lib/specialChannels.js`, keyed on `NARROWCAST_SLUGS` rather than a
