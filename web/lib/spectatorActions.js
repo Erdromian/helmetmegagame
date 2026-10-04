@@ -108,6 +108,8 @@ const MESSAGE_SELECT = {
   content: true,
   createdAt: true,
   zone: { select: { name: true } },
+  // Set when it went into one Room or Location's chat rather than the zone's #summary.
+  placeName: true,
   recipients: { select: { character: { select: { name: true } } } },
 };
 
@@ -116,10 +118,10 @@ function messageRow(m) {
     id: m.id,
     kind: m.kind === "PUBLIC" ? "PUBLIC" : "PRIVATE",
     content: m.content,
-    // A private message names who got it; a public one, the zone it was posted to.
+    // A private message names who got it; a public one, the zone or the place it was posted to.
     to:
       m.kind === "PUBLIC"
-        ? (m.zone?.name ?? "")
+        ? (m.placeName ?? m.zone?.name ?? "")
         : m.recipients.map((r) => r.character?.name ?? "somebody").join(", "),
   };
 }

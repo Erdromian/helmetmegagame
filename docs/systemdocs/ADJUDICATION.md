@@ -20,7 +20,7 @@ day of work survives a refresh):
 | What | Model | At the push |
 |---|---|---|
 | **Private messages** | `StagedMessage` (kind `PRIVATE`) + `StagedMessageRecipient` | One DM per recipient character's player, `»`-prefixed, logged to `DirectMessage` like every DM. |
-| **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`** — except underground, where there is no `#summary` at all: a `CAVE_LEVEL` zone (Caves, Depths) fans the declaration out to **every Location channel in the level**, one `Delivery` row per channel (`db/lib/publicPostTargets.js`). Full size and verbatim in both places; a declaration is a GM speaking, not scenery, so it wears no `-#`. If there is nowhere at all to post — an unprovisioned `#summary`, or a cave whose Locations have no channels yet — the post is skipped and recorded on `deliveryFailures`, never lost. A post survives the wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). The cave copies then live under the Location cadence, which is **every** turn rather than Dawn-only, so they get one turn where a `#summary` copy gets up to two. |
+| **Public declarations** | `StagedMessage` (kind `PUBLIC`, required `zoneId`) | Posted to **the row's own zone `#summary`** — except underground, where there is no `#summary` at all: a `CAVE_LEVEL` zone (Caves, Depths) fans the declaration out to **every Location channel in the level**, one `Delivery` row per channel (`db/lib/publicPostTargets.js`). Full size and verbatim in both places; a declaration is a GM speaking, not scenery, so it wears no `-#`. If there is nowhere at all to post — an unprovisioned `#summary`, or a cave whose Locations have no channels yet — the post is skipped and recorded on `deliveryFailures`, never lost. A post survives the wipe that runs later in the same push: the wipe only deletes what predates the push (`CHANNELS.md` §8). The cave copies then live under the Location cadence, which is **every** turn rather than Dawn-only, so they get one turn where a `#summary` copy gets up to two. **Or one place's chat:** the composer's **Post to** picks Zone summary, a Location's chat or a Room's chat. A place post writes `locationId` or `roomId` beside its zone (still set, as that place's zone, so the zone filters keep working) and a `placeName` snapshot, and posts into that Location's channel or that Room's thread and nowhere else, keyed `public:loc:<id>` / `public:room:<id>`. Its `/play` row is that place's, not the zone's Hall. A place deleted since staging fails the post rather than falling back to `#summary` — that is what `placeName` is for, since `SetNull` empties the ids. A Room post reaches whoever can read that thread, so a private room's post stays private. |
 | **Mechanical adjustments** | `StagedEffect` — `payload` `{ resources?, tagPoints?, tagOps?, locationId?, scales? }` per target character | `scales` is hunger, mood, blood and humanity, set or moved (§1b). Resources through `addResources`' clamp, tag ops through `db/lib/tagOps.js` — the same engine the Dev Panel applies with, so a staged `remove` leaves the tag's treated-wound aftermath behind (`Tag.removesInto`, `TAGS.md` §5c) and records it as `granted` on the snapshot. `tagPoints` is an unclamped increment (a GM may take points back, and negative is legal). `appliedEffect` snapshots what actually moved (the payload-vs-effect rule from `REQUESTS.md` §2). EffectComposer's `+ Add` row carries a quantity stepper for a **stackable** tag, so a GM can stage several at once; a non-stackable tag is a holds-it-or-doesn't flag and gets no stepper, because nobody may hold two of one (`TAGS.md` §5a). |
 | **Transfers** | `StagedEffect` — `payload` `{ transfer: { from, to, amount } }`, mutually exclusive with `resources` | A character-to-character ⬢ move, not a mint/burn from nowhere, via `db/lib/parties.js` and `db/lib/resourceTransfer.js#applyTransfer` (the same primitive a player's Transfer and every GM transfer surface use). Staged from the tray's own "+ Transfer" button (`TransferComposer.js`), separate from the multi-target Effect composer because a transfer is 1:1 by nature. |
 | **Room adjustments** | `StagedEffect` — `payload` `{ room: {id, name, locationName}, roomTagOps?, roomResources? }`, `targetCharacterId` **null** and mutually exclusive with every character key above | What is lying on a room's floor, and the room's own ⬢ (`CARRY.md`). The ⬢ is a **mint/burn** clamped at 0 (`db/lib/roomStash.js#addRoomResources`), not a transfer — there is no other end to balance against, so the snapshot records what actually moved. Tags go through `db/lib/roomTagOps.js`, **not** `tagOps.js`: a floor has no equip slots, no hands, and no treated-wound aftermath (`Tag.removesInto` chains are skipped on purpose — a scar is a fact about a body), and above all **no non-stackable pin** — two players can each leave their Longbow here, so a room takes any quantity of anything. Adds still carry `expiresTurn`, because the nightly sweep deletes `RoomTag` rows on the same clock it uses for characters. A `remove` the stack can't cover **fails the row** rather than taking what is there. Never batched: one room per row, like a transfer. Staged from "+ Room" on the tray and on a Move or Caving row (`RoomEffectComposer.js`). |
@@ -255,6 +255,35 @@ Each applied row writes one `gm_staged_scales_applied` audit row, with the
 before and after of every meter it moved. The actor is the GM who solved the
 Move, falling back to whoever staged the row (the `gm_staged_tag_applied`
 rule).
+
+### 1c. Observers
+
+The Effect composer on a Move, fight or Caving desk offers one more target,
+**+ Observers**: everyone standing where it happened when the turn pushes. It
+stages as one more row in the batch, with `targetCharacterId` null and
+`payload.observers` = `{ locationId, locationName }` beside the ordinary
+character keys (⬢, tag points, tags, Relocate, scales).
+
+- **Where** is fixed at staging: the Move's stamped Location (else where its
+  author stands, `moveWhere.js`'s rule), the fight's Location, or the Caving
+  roll's. The tray has no anchor, so it does not offer Observers.
+- **Who** is read at the push (`db/lib/stagedPush.js#applyObserverRow`):
+  every ALIVE character standing at that Location, **minus anyone another row
+  on the same Move, fight or Caving roll names** — a staged effect's target,
+  either character end of a transfer, a private message's recipients. A row on
+  some other Move does not count, so a bystander with their own Gambit result
+  still gets it. Other Observer rows name nobody, so two of them never exclude
+  each other's crowd. The Move's own author is not left out unless something
+  on the Move names them.
+- **When:** after every plain row and before the let-ins, so a staged
+  Relocate has already moved its target in or out.
+- Each onlooker goes through the same helper a plain row uses
+  (`applyCharacterKeysInTx`), audits and scale notices included, all in one
+  transaction for the crowd, so a resumed push can never reach half of them
+  twice. The snapshot is `appliedEffect.observers.characters`, one entry per
+  person reached; the tray names them, and an empty crowd reads
+  **No-op — nobody watching**. The held-meter rule in §1b and the Oracle's
+  STAGED EFFECTS both read each onlooker from there.
 
 ## 2. What a Move is now
 
@@ -1129,7 +1158,7 @@ the open turn it deployed into, only where the character's zone still matched th
 | `web/lib/pgClock.js` | `pgNowMs()` — the database's clock, which is the only stamp the store reconciles on. Shared with the player desk's `inboxDelta.js` |
 | `.../MoveDesk.js` / `CavingDesk.js` | The desks |
 | `.../MoveHistoryDesk.js` | The read-only desk for a Move on a pushed turn |
-| `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit) |
+| `.../EffectComposer.js` / `MessageComposer.js` / `PublicComposer.js` | The staging composers (create + edit). EffectComposer carries the Observers target (§1c); PublicComposer's **Post to** picks a zone, a Location or a Room (§1) |
 | `.../ScaleFields.js` | The Effect composer's Scales group (§1b) — hunger, mood, blood and humanity, with each target's number as it stands |
 | `db/lib/stagedScales.js` | The scales: their ranges, the validator the desk and the push share, who can't take which (`scaleBlockFor`), and the tray's wording. Prisma-free, so the composer reads it too |
 | `db/lib/stagedScalesApply.js` | What a staged scale change does at the push, knock-ons and notices included (§1b) |

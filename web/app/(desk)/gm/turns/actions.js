@@ -140,7 +140,40 @@ async function requireCombatAnchor(combatId) {
   if (!found) throw new UserError("That fight is gone.");
 }
 
-async function createStagedMessageImpl({ kind, content, recipientCharacterIds, moveId, cavingRollId, combatId, zoneId }) {
+// Where a PUBLIC row posts (ADJUDICATION.md §1): a zone's #summary, or one
+// place's chat — a Room's thread when roomId is given, else a Location's
+// channel. A place post still carries its zone, so the zone filters keep
+// working, and a placeName snapshot for the tray and for the push (a place
+// pruned since must fail the post, not fall back to #summary).
+async function normalizePublicTarget({ zoneId, locationId, roomId }) {
+  const roomKey = roomId?.toString().trim() || null;
+  const locationKey = locationId?.toString().trim() || null;
+  if (roomKey) {
+    const room = await prisma.room.findUnique({
+      where: { id: roomKey },
+      select: { id: true, name: true, retiredAt: true, location: { select: { id: true, name: true, zoneId: true } } },
+    });
+    if (!room || room.retiredAt) throw new UserError("That room no longer exists.");
+    return {
+      zoneId: room.location.zoneId,
+      locationId: null,
+      roomId: room.id,
+      placeName: `${room.location.name} — ${room.name}`,
+    };
+  }
+  if (locationKey) {
+    const location = await prisma.location.findUnique({
+      where: { id: locationKey },
+      select: { id: true, name: true, zoneId: true },
+    });
+    if (!location) throw new UserError("That location no longer exists.");
+    return { zoneId: location.zoneId, locationId: location.id, roomId: null, placeName: location.name };
+  }
+  if (!zoneId) throw new UserError("Pick a zone.");
+  return { zoneId, locationId: null, roomId: null, placeName: null };
+}
+
+async function createStagedMessageImpl({ kind, content, recipientCharacterIds, moveId, cavingRollId, combatId, zoneId, locationId, roomId }) {
   await requireCombatAnchor(combatId);
   const session = await requireGm();
   if (!["PRIVATE", "PUBLIC"].includes(kind)) throw new UserError("Unknown message kind.");
@@ -148,7 +181,10 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
   const openTurn = await requireOpenTurn();
 
   const recipients = kind === "PRIVATE" ? await normalizeRecipients(recipientCharacterIds) : [];
-  if (kind === "PUBLIC" && !zoneId) throw new UserError("Pick a zone.");
+  const where =
+    kind === "PUBLIC"
+      ? await normalizePublicTarget({ zoneId, locationId, roomId })
+      : { zoneId: null, locationId: null, roomId: null, placeName: null };
 
   const row = await prisma.stagedMessage.create({
     data: {
@@ -158,7 +194,7 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
       combatId: combatId || null,
       kind,
       content: text,
-      zoneId: (kind === "PUBLIC" && zoneId) || null,
+      ...where,
       createdByDiscordUserId: session.discordUserId,
       recipients: { create: recipients.map((characterId) => ({ characterId })) },
     },
@@ -176,6 +212,7 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
         cavingRollId: cavingRollId || null,
         combatId: combatId || null,
         recipients: recipients.length,
+        ...(where.placeName ? { placeName: where.placeName } : {}),
       },
     },
   });
@@ -183,7 +220,7 @@ async function createStagedMessageImpl({ kind, content, recipientCharacterIds, m
   return { id: row.id, patch: await deskPatchFor({ stagedMessageIds: [row.id] }) };
 }
 
-async function updateStagedMessageImpl({ stagedMessageId, content, recipientCharacterIds, zoneId }) {
+async function updateStagedMessageImpl({ stagedMessageId, content, recipientCharacterIds, zoneId, locationId, roomId }) {
   const session = await requireGm();
   const existing = await prisma.stagedMessage.findUnique({ where: { id: stagedMessageId ?? "" } });
   if (!existing) throw new UserError("That staged message is gone.");
@@ -191,7 +228,7 @@ async function updateStagedMessageImpl({ stagedMessageId, content, recipientChar
 
   const text = normalizeMessageContent(content);
   const recipients = existing.kind === "PRIVATE" ? await normalizeRecipients(recipientCharacterIds) : null;
-  if (existing.kind === "PUBLIC" && !zoneId) throw new UserError("Pick a zone.");
+  const where = existing.kind === "PUBLIC" ? await normalizePublicTarget({ zoneId, locationId, roomId }) : null;
 
   await prisma.$transaction(async (tx) => {
     // Conditional on sentAt: an edit racing the push loses cleanly.
@@ -199,7 +236,7 @@ async function updateStagedMessageImpl({ stagedMessageId, content, recipientChar
       where: { id: existing.id, sentAt: null },
       data: {
         content: text,
-        ...(existing.kind === "PUBLIC" ? { zoneId: zoneId || null } : {}),
+        ...(where ?? {}),
       },
     });
     if (!claimed.count) throw new UserError("That message just went out — it can't be edited.");
@@ -379,12 +416,17 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
   } else {
     // One #summary for a surface zone; every Location channel for a cave
     // level, which has none (db/lib/publicPostTargets.js, ADJUDICATION.md §1).
-    const { zone, targets } = await publicPostTargets(prisma, existing.zoneId);
+    // Or the one Room or Location it was staged into.
+    const { zone, targets, place } = await publicPostTargets(prisma, existing);
     if (!targets.length) {
       throw new UserError(
-        zone?.kind === "CAVE_LEVEL"
-          ? "That cave has no Location channels to post into yet."
-          : "That zone has no summary channel configured.",
+        place
+          ? place.kind === "gone"
+            ? `${place.name ?? "That place"} no longer exists.`
+            : `${place.name ?? "That place"} has no channel to post into yet.`
+          : zone?.kind === "CAVE_LEVEL"
+            ? "That cave has no Location channels to post into yet."
+            : "That zone has no summary channel configured.",
       );
     }
     // A declaration that reached Discord already has its Hall row; one that
@@ -397,6 +439,7 @@ async function resendStagedMessageImpl({ stagedMessageId }) {
       targets,
       zone,
       zoneId: existing.zoneId,
+      place,
       writeSceneLine: !posted,
     });
     resent = sent;
@@ -529,11 +572,41 @@ function normalizeStagedRoomOps(tagOps) {
   });
 }
 
-async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, combatId, resources, tagPoints, tagOps, locationId, scales }) {
+// The place an Observer row watches from (ADJUDICATION.md §1c): where the Move
+// happened (its stamped Location, else where its author stands — moveWhere.js's
+// rule), where the fight is, or where the Caving roll was thrown. Snapshotted
+// into the payload at staging; WHO is standing there is read at the push.
+async function observerPlaceFor({ moveId, cavingRollId, combatId }) {
+  let locationId = null;
+  if (moveId) {
+    const move = await prisma.action.findUnique({
+      where: { id: String(moveId) },
+      select: { locationId: true, character: { select: { locationId: true } } },
+    });
+    locationId = move?.locationId ?? move?.character?.locationId ?? null;
+  } else if (combatId) {
+    const combat = await prisma.combat.findUnique({ where: { id: String(combatId) }, select: { locationId: true } });
+    locationId = combat?.locationId ?? null;
+  } else if (cavingRollId) {
+    const roll = await prisma.cavingRoll.findUnique({ where: { id: String(cavingRollId) }, select: { locationId: true } });
+    locationId = roll?.locationId ?? null;
+  } else {
+    throw new UserError("Observers are staged from a Move, a fight or a Caving roll — there is no room to watch from here.");
+  }
+  const location = locationId
+    ? await prisma.location.findUnique({ where: { id: locationId }, select: { id: true, name: true } })
+    : null;
+  if (!location) throw new UserError("That has no place recorded, so there is nobody to watch it.");
+  return { locationId: location.id, locationName: location.name };
+}
+
+async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollId, combatId, resources, tagPoints, tagOps, locationId, scales, observers }) {
   await requireCombatAnchor(combatId);
   const session = await requireGm();
   const targets = [...new Set((targetCharacterIds ?? []).filter(Boolean))];
-  if (!targets.length) throw new UserError("Pick at least one target.");
+  // An Observer row is one more row in the batch, with no target of its own.
+  const watching = observers === true ? await observerPlaceFor({ moveId, cavingRollId, combatId }) : null;
+  if (!targets.length && !watching) throw new UserError("Pick at least one target.");
 
   const delta = normalizeStagedResources(resources);
   const points = normalizeStagedTagPoints(tagPoints);
@@ -557,10 +630,13 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
 
   const found = await prisma.character.findMany({ where: { id: { in: targets } }, select: { id: true } });
   if (found.length !== targets.length) throw new UserError("One of those characters no longer exists.");
-  await assertScalesFit(scaleChanges, targets);
+  // Only the named targets: who the Observers are is not known until the push,
+  // which skips a meter an onlooker can't take, the way it does for any target.
+  if (targets.length) await assertScalesFit(scaleChanges, targets);
 
   const openTurn = await requireOpenTurn();
-  const batchId = targets.length > 1 ? crypto.randomUUID() : null;
+  const rowCount = targets.length + (watching ? 1 : 0);
+  const batchId = rowCount > 1 ? crypto.randomUUID() : null;
   const payload = {
     ...(delta ? { resources: delta } : {}),
     ...(points ? { tagPoints: points } : {}),
@@ -570,7 +646,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
   };
 
   const created = await prisma.$transaction(
-    targets.map((targetCharacterId) =>
+    [...targets, ...(watching ? [null] : [])].map((targetCharacterId) =>
       prisma.stagedEffect.create({
         data: {
           turnId: openTurn.id,
@@ -580,7 +656,7 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
           targetCharacterId,
           createdByDiscordUserId: session.discordUserId,
           batchId,
-          payload,
+          payload: targetCharacterId ? payload : { ...payload, observers: watching },
         },
         select: { id: true },
       }),
@@ -592,7 +668,13 @@ async function createStagedEffectsImpl({ targetCharacterIds, moveId, cavingRollI
     data: {
       actorDiscordUserId: session.discordUserId,
       actionType: "staged_effects_created",
-      details: { batchId, targets: targets.length, moveId: moveId || null, payload },
+      details: {
+        batchId,
+        targets: targets.length,
+        moveId: moveId || null,
+        payload,
+        ...(watching ? { observers: watching } : {}),
+      },
     },
   });
 
@@ -989,6 +1071,8 @@ async function updateStagedEffectImpl({ stagedEffectId, resources, tagPoints, ta
         ...(place ? { locationId: place } : {}),
         ...(scaleChanges ? { scales: scaleChanges } : {}),
         ...(craft ?? {}),
+        // An Observer row stays one: its place is fixed once staged, like any row's target.
+        ...(existing.payload?.observers ? { observers: existing.payload.observers } : {}),
       },
       batchId: null,
     },

@@ -212,7 +212,8 @@ async function applyStagedScalesInTx(tx, { characterId, scales }) {
 // ran still holds the same meters. See db/lib/stagedScales.js#heldScalesFrom.
 async function loadHeldScales(prisma, turn) {
   const rows = await prisma.stagedEffect.findMany({
-    where: { turnId: turn.id, appliedAt: { not: null }, targetCharacterId: { not: null } },
+    // No targetCharacterId filter: an Observer row has none, and holds its onlookers' meters (heldScalesFrom).
+    where: { turnId: turn.id, appliedAt: { not: null } },
     select: { targetCharacterId: true, payload: true, appliedEffect: true },
   });
   return heldScalesFrom(rows);

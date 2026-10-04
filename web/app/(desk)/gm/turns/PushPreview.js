@@ -106,7 +106,7 @@ export default function PushPreview({ moves, stagedEffects, stagedMessages, tagC
               {publicPosts.map((p) => (
                 <li key={p.id}>
                   <button type="button" className="desk-preview-line" onClick={() => onReveal?.(p.id)}>
-                    {p.zoneName ? <span className="chip">{p.zoneName}</span> : null} {truncate(p.content, 120)}
+                    {p.placeName || p.zoneName ? <span className="chip">{p.placeName ?? p.zoneName}</span> : null} {truncate(p.content, 120)}
                     {chunkCount(p.content) > 1 && <span className="chip ml-1">{chunkCount(p.content)} msgs</span>}
                   </button>
                 </li>

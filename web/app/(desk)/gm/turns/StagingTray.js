@@ -15,7 +15,7 @@ import PublicComposer from "./PublicComposer";
 import { retargetMissedStaging } from "./actions";
 import { applyDeskPatch } from "./deskStore";
 import { mutationErrorMessage, noteActionVersion } from "@/app/components/useDeskVersion";
-import { tagLookup } from "./stagedFormat";
+import { effectTargetLabel, tagLookup } from "./stagedFormat";
 
 // The bottom tray: everything queued for the push, in one honest list —
 // including rows detached from a rejected Move, mass-apply batches, and the
@@ -292,7 +292,7 @@ export default function StagingTray({
           {filteredBatches.map((group) => (
             <div key={group[0].batchId} className="desk-tray-batch">
               <p className="text-xs text-muted">
-                Mass apply · {group.length} targets · {group.map((g) => g.targetName).join(", ")}
+                Mass apply · {group.length} targets · {group.map((g) => g.targetName ?? effectTargetLabel(g)).join(", ")}
               </p>
               <StagedEffectRow
                 effect={group[0]}
@@ -329,6 +329,8 @@ export default function StagingTray({
               message={m}
               roster={roster}
               presenceZones={presenceZones}
+              stagingLocations={stagingLocations}
+              stagingRooms={stagingRooms}
               onInspect={onInspect}
               gmProfiles={gmProfiles}
             />
@@ -410,6 +412,8 @@ export default function StagingTray({
       {composer === "public" && (
         <PublicComposer
           zones={presenceZones}
+          stagingLocations={stagingLocations}
+          stagingRooms={stagingRooms}
           onDone={(patch) => {
             setComposer(null);
             applyDeskPatch(patch);

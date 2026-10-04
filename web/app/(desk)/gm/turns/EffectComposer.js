@@ -40,6 +40,8 @@ export default function EffectComposer({
   combatId = null,
   // [{ id, name }] — a fight's participants, one tap each (QuickPicks.js).
   quickPicks = null,
+  // A Move, fight or Caving desk: the Observers target is on offer (ADJUDICATION.md §1c).
+  offerObservers = false,
   existing = null,
   defaultTarget = null,
   declaredDelta = null,
@@ -51,9 +53,13 @@ export default function EffectComposer({
   onCancel,
 }) {
   const [targets, setTargets] = useState(() => {
+    if (existing?.observers) return [];
     if (existing) return [{ id: existing.targetCharacterId, name: existing.targetName }];
     return defaultTarget ? [defaultTarget] : [];
   });
+  // Everyone standing where this happened when the turn pushes, bar anyone
+  // another row on it names — one more row in the batch, read at the push.
+  const [observers, setObservers] = useState(() => Boolean(existing?.observers));
   const [resources, setResources] = useState(() => {
     const v = existing?.resources ?? 0;
     return v ? String(v) : "";
@@ -173,8 +179,8 @@ export default function EffectComposer({
   );
 
   // Only meaningful with exactly one target — a batch stage has no single
-  // "their tags" to show.
-  const soleTargetId = targets.length === 1 ? targets[0].id : null;
+  // "their tags" to show, and Observers make it a batch.
+  const soleTargetId = targets.length === 1 && !observers ? targets[0].id : null;
   const heldEntry = soleTargetId ? (heldByCharacter.get(soleTargetId) ?? null) : null;
 
   useEffect(() => {
@@ -377,6 +383,7 @@ export default function EffectComposer({
               tagOps,
               locationId,
               scales: scaleChanges,
+              observers,
             });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
@@ -421,8 +428,41 @@ export default function EffectComposer({
                 {!existing && " ✕"}
               </button>
             ))}
-            {!targets.length && <span className="text-sm text-muted">nobody yet</span>}
+            {observers && (
+              <button
+                type="button"
+                className="chip"
+                disabled={Boolean(existing)}
+                onClick={() => {
+                  setObservers(false);
+                  markDirty();
+                }}
+                title={existing ? undefined : "Remove target"}
+              >
+                {existing?.observers?.locationName ? `Observers at ${existing.observers.locationName}` : "Observers"}
+                {!existing && " ✕"}
+              </button>
+            )}
+            {!observers && offerObservers && !existing && (
+              <button
+                type="button"
+                className="chip"
+                onClick={() => {
+                  setObservers(true);
+                  markDirty();
+                }}
+              >
+                + Observers
+              </button>
+            )}
+            {!targets.length && !observers && <span className="text-sm text-muted">nobody yet</span>}
           </div>
+          {observers && (
+            <p className="text-xs text-muted">
+              Everyone alive where this happened when the turn pushes, except anyone another effect or private message
+              on it names.
+            </p>
+          )}
           {!existing && (
             <QuickPicks
               picks={quickPicks}
@@ -536,7 +576,8 @@ export default function EffectComposer({
             markDirty();
           }}
           readings={readings}
-          readingsFailed={readingsFailed}
+          // Who the Observers are is only known at the push, so whether one is a Vampire can't be told either.
+          readingsFailed={readingsFailed || observers}
           existing={existing?.scales}
         />
 
@@ -707,9 +748,10 @@ export default function EffectComposer({
   );
 }
 
-// The relocation picker's <optgroup>s. Locations arrive already ordered by
-// zone then sortOrder, so one pass keeps them in docs/zones.yaml order.
-function groupByZone(locations) {
+// The relocation picker's <optgroup>s, and PublicComposer's Location picker's.
+// Locations arrive already ordered by zone then sortOrder, so one pass keeps
+// them in docs/zones.yaml order.
+export function groupByZone(locations) {
   const groups = [];
   for (const l of locations ?? []) {
     const last = groups[groups.length - 1];

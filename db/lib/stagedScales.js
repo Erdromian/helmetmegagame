@@ -226,14 +226,21 @@ function allScalesSkipped(applied) {
 // wasn't skipped — a knock-on (the mood an onset cost, the humanity
 // Bloodcrazed took) is not the GM's figure, so it is not held. The nightly
 // passes leave a held meter where the GM put it (ADJUDICATION.md §1b).
+// An Observer row (ADJUDICATION.md §1c) has no target: each onlooker it reached
+// carries their own `scales` snapshot under appliedEffect.observers.characters.
 function heldScalesFrom(rows) {
   const held = Object.fromEntries(SCALES.map((s) => [s.key, new Set()]));
+  const hold = (characterId, asked, applied) => {
+    if (!characterId || !asked || !applied) return;
+    for (const { key } of SCALES) {
+      if (asked[key] && applied[key] && !applied[key].skipped) held[key].add(characterId);
+    }
+  };
   for (const row of rows ?? []) {
     const asked = row?.payload?.scales;
-    const applied = row?.appliedEffect?.scales;
-    if (!row?.targetCharacterId || !asked || !applied) continue;
-    for (const { key } of SCALES) {
-      if (asked[key] && applied[key] && !applied[key].skipped) held[key].add(row.targetCharacterId);
+    hold(row?.targetCharacterId, asked, row?.appliedEffect?.scales);
+    for (const onlooker of row?.appliedEffect?.observers?.characters ?? []) {
+      hold(onlooker?.characterId, asked, onlooker?.scales);
     }
   }
   return held;

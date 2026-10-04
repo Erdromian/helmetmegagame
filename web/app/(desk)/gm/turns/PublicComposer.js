@@ -10,12 +10,17 @@ import { mutationErrorMessage } from "@/app/components/useDeskVersion";
 import useEscapeLayer from "./escapeLayers";
 import { GM_MESSAGE_MAX_LENGTH } from "@/lib/constants";
 import { chunkMessage } from "@lifeweb/db/lib/chunkText";
+import { groupByLocation } from "./RoomEffectComposer";
+import { groupByZone } from "./EffectComposer";
 
-// Stage a public declaration. Posts to the declaration's zone's #summary
-// channel at the push. `defaultZoneId` seeds the picker from the Move's own
-// zone when staging from a Move desk — leave it null from the tray, where
+// Stage a public declaration. Posts at the push to the zone's #summary
+// channel, or into one place's chat: a Location's channel or a Room's thread
+// (ADJUDICATION.md §1). `defaultZoneId` seeds the zone picker from the Move's
+// own zone when staging from a Move desk — leave it null from the tray, where
 // there's no Move to infer a zone from, so the GM has to choose rather than
 // silently posting to whatever zone happens to sort first.
+const WHERE_LABELS = { zone: "Zone summary", location: "A Location's chat", room: "A Room's chat" };
+
 export default function PublicComposer({
   moveId = null,
   cavingRollId = null,
@@ -23,11 +28,16 @@ export default function PublicComposer({
   existing = null,
   defaultZoneId = null,
   zones,
+  stagingLocations = [],
+  stagingRooms = [],
   onDone,
   onCancel,
 }) {
   const [content, setContent] = useState(existing?.content ?? "");
   const [zoneId, setZoneId] = useState(existing?.zoneId ?? defaultZoneId ?? "");
+  const [where, setWhere] = useState(existing?.roomId ? "room" : existing?.locationId ? "location" : "zone");
+  const [locationId, setLocationId] = useState(existing?.locationId ?? "");
+  const [roomId, setRoomId] = useState(existing?.roomId ?? "");
   const [error, setError] = useState(null);
   const [pending, startTransition] = useTransition();
   const { markDirty, markClean, guardedClose } = useDirtyGuard({
@@ -46,16 +56,22 @@ export default function PublicComposer({
   // A cave level has no #summary channel and never did, so a declaration there
   // posts into every Location channel in the level instead (ADJUDICATION.md
   // §1). Worth saying before the GM writes it, not after it has gone out.
-  const underground = zones.find((z) => z.id === zoneId)?.kind === "CAVE_LEVEL";
+  const underground = where === "zone" && zones.find((z) => z.id === zoneId)?.kind === "CAVE_LEVEL";
+  const roomGroups = useMemo(() => groupByLocation(stagingRooms), [stagingRooms]);
+  const locationGroups = useMemo(() => groupByZone(stagingLocations), [stagingLocations]);
 
   function submit() {
     setError(null);
-    if (!zoneId) return setError("Pick a zone.");
+    if (where === "zone" && !zoneId) return setError("Pick a zone.");
+    if (where === "location" && !locationId) return setError("Pick a Location.");
+    if (where === "room" && !roomId) return setError("Pick a Room.");
+    // Exactly one of the three goes to the server, which works a place's zone out itself.
+    const target = where === "room" ? { roomId } : where === "location" ? { locationId } : { zoneId };
     startTransition(async () => {
       try {
         const res = existing
-          ? await updateStagedMessage({ stagedMessageId: existing.id, content, zoneId })
-          : await createStagedMessage({ kind: "PUBLIC", content, zoneId, moveId, cavingRollId, combatId });
+          ? await updateStagedMessage({ stagedMessageId: existing.id, content, ...target })
+          : await createStagedMessage({ kind: "PUBLIC", content, ...target, moveId, cavingRollId, combatId });
         if (!res?.ok) return setError(res?.error ?? "Something went wrong.");
         markClean();
         onDone(res.patch);
@@ -88,9 +104,11 @@ export default function PublicComposer({
               markDirty();
             }}
             placeholder={
-              underground
-                ? "What everyone learns when the turn ends. Posts to every Location channel down here."
-                : "What everyone learns when the turn ends. Posts to the summary channel."
+              where !== "zone"
+                ? "What everyone there sees when the turn ends. Posts into that chat."
+                : underground
+                  ? "What everyone learns when the turn ends. Posts to every Location channel down here."
+                  : "What everyone learns when the turn ends. Posts to the summary channel."
             }
           />
           {over ? (
@@ -102,29 +120,98 @@ export default function PublicComposer({
           ) : null}
         </label>
 
-        <label className="field" style={{ width: "14rem" }}>
-          <span className="field-label">Zone</span>
-          <Select
-            value={zoneId ?? ""}
-            onChange={(e) => {
-              setZoneId(e.target.value);
-              markDirty();
-            }}
-            required
-          >
-            {!zoneId && <option value="">Pick a zone…</option>}
-            {zones.map((z) => (
-              <option key={z.id} value={z.id}>
-                {z.name}
-              </option>
-            ))}
-          </Select>
-          {underground && (
-            <span className="text-xs text-muted">
-              No summary channel down here — this lands in every Location in the zone.
-            </span>
+        <div className="flex flex-wrap items-start gap-3">
+          <label className="field" style={{ width: "12rem" }}>
+            <span className="field-label">Post to</span>
+            <Select
+              value={where}
+              onChange={(e) => {
+                setWhere(e.target.value);
+                markDirty();
+              }}
+            >
+              {Object.entries(WHERE_LABELS).map(([key, label]) => (
+                <option key={key} value={key}>
+                  {label}
+                </option>
+              ))}
+            </Select>
+          </label>
+
+          {where === "zone" && (
+            <label className="field" style={{ width: "14rem" }}>
+              <span className="field-label">Zone</span>
+              <Select
+                value={zoneId ?? ""}
+                onChange={(e) => {
+                  setZoneId(e.target.value);
+                  markDirty();
+                }}
+                required
+              >
+                {!zoneId && <option value="">Pick a zone…</option>}
+                {zones.map((z) => (
+                  <option key={z.id} value={z.id}>
+                    {z.name}
+                  </option>
+                ))}
+              </Select>
+              {underground && (
+                <span className="text-xs text-muted">
+                  No summary channel down here — this lands in every Location in the zone.
+                </span>
+              )}
+            </label>
           )}
-        </label>
+
+          {where === "location" && (
+            <label className="field" style={{ width: "14rem" }}>
+              <span className="field-label">Location</span>
+              <Select
+                value={locationId}
+                onChange={(e) => {
+                  setLocationId(e.target.value);
+                  markDirty();
+                }}
+              >
+                {!locationId && <option value="">Pick a Location…</option>}
+                {locationGroups.map((group) => (
+                  <optgroup key={group.zoneId ?? "loose"} label={group.zoneName ?? "Unzoned"}>
+                    {group.locations.map((l) => (
+                      <option key={l.id} value={l.id}>
+                        {l.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </Select>
+            </label>
+          )}
+
+          {where === "room" && (
+            <label className="field" style={{ width: "16rem" }}>
+              <span className="field-label">Room</span>
+              <Select
+                value={roomId}
+                onChange={(e) => {
+                  setRoomId(e.target.value);
+                  markDirty();
+                }}
+              >
+                {!roomId && <option value="">Pick a Room…</option>}
+                {roomGroups.map((group) => (
+                  <optgroup key={group.locationId} label={group.locationName}>
+                    {group.rooms.map((r) => (
+                      <option key={r.id} value={r.id}>
+                        {r.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                ))}
+              </Select>
+            </label>
+          )}
+        </div>
 
         <FormError>{error}</FormError>
 

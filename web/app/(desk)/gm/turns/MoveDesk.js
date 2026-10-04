@@ -480,6 +480,7 @@ export default function MoveDesk({
       {composer === "effect" && (
         <EffectComposer
           moveId={move.id}
+          offerObservers
           defaultTarget={{ id: move.characterId, name: move.characterName }}
           declaredDelta={move.resourceDelta ?? null}
           roster={roster}
@@ -516,6 +517,8 @@ export default function MoveDesk({
           moveId={move.id}
           defaultZoneId={move.zoneId}
           zones={presenceZones}
+          stagingLocations={stagingLocations}
+          stagingRooms={stagingRooms}
           onDone={(patch) => {
             setComposer(null);
             applyDeskPatch(patch);
