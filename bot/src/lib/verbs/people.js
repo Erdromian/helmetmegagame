@@ -65,6 +65,7 @@ const {
 } = require("@lifeweb/db/lib/escort");
 const { syncPartyMembership } = require("@lifeweb/db/lib/partyChat");
 const { setEscort, stopEscort, escortPicker } = require("@lifeweb/db/lib/verbs/guard");
+const { GUARD_LINES } = require("@lifeweb/db/lib/guard");
 const { DM_KIND } = require("@lifeweb/db/lib/dmKinds");
 const { sendDm } = require("@lifeweb/db/lib/dm");
 const { rosterHere, pickerName } = require("@lifeweb/db/lib/peopleHere");
@@ -897,15 +898,31 @@ async function sendGuardDms(dms) {
   }
 }
 
-// web: character/guardActions.js#startEscort. The picker is everybody here, a hood by its token;
-// db/lib/verbs/guard.js re-checks combat mode and the key on the pick.
+// The web dialog's two boxes, as one menu (a select with defaults sends nothing until it changes, so four
+// plain choices rather than a pair of ticks). The first is what the boxes start on.
+const GUARD_WHEN = [
+  { value: "defend", label: "Defend them if they're attacked", defends: true, attacks: false },
+  { value: "both", label: "Defend them, and join their attacks", defends: true, attacks: true },
+  { value: "attack", label: "Only join their attacks", defends: false, attacks: true },
+  { value: "follow", label: "Just follow them", defends: false, attacks: false },
+];
+
+// web: character/guardActions.js#startEscort. The picker is everybody here, a hood by its token, then when
+// to step in; db/lib/verbs/guard.js re-checks combat mode and the key on the last step. Pressed while
+// escorting somebody, it is the off switch, the web dialog's way (ATTACK.md §6a).
 const guard = {
+  // Stopping is never gated, so the press itself isn't; escortPicker's `blocked` (guard.js#guardBlock, which
+  // asks ACT) still shuts the picker.
+  needs: null,
   async start(interaction, { character }) {
     const view = await escortPicker(prisma, { character });
+    if (view.current) {
+      return confirm(interaction, "guard", null, { prompt: GUARD_LINES.CONFIRM_STOP(view.current.name), label: "Stop escorting" });
+    }
     if (view.blocked) return done(interaction, view.blocked);
     return pickFrom(interaction, "guard", "pick", {
-      prompt: view.current ? `You're escorting ${view.current.name}. Who do you want to escort?` : "Who do you want to escort?",
-      options: view.people.filter((p) => !p.current).map((p) => ({ label: p.name, value: p.key })),
+      prompt: "Who do you want to escort?",
+      options: view.people.map((p) => ({ label: p.name, value: p.key })),
       empty: "There's nobody here to escort.",
     });
   },
@@ -914,7 +931,33 @@ const guard = {
       await ackStep(interaction);
       const actor = await actorOrRefuse(interaction);
       if (!actor) return;
-      const result = await setEscort(prisma, { character: actor, discordUserId: actor.discordUserId, targetKey: picked(interaction).value });
+      return pickFrom(interaction, "guard", "when", {
+        prompt: "When should you step in?",
+        payload: picked(interaction).value,
+        options: GUARD_WHEN.map((w) => ({ label: w.label, value: w.value })),
+      });
+    },
+    async when(interaction, payload) {
+      await ackStep(interaction);
+      const actor = await actorOrRefuse(interaction);
+      if (!actor) return;
+      const when = GUARD_WHEN.find((w) => w.value === picked(interaction).value) ?? GUARD_WHEN[0];
+      const result = await setEscort(prisma, {
+        character: actor,
+        discordUserId: actor.discordUserId,
+        targetKey: payload,
+        defends: when.defends,
+        attacks: when.attacks,
+      });
+      if (!result.ok) return done(interaction, result.error);
+      await sendGuardDms(result.dms);
+      return done(interaction, result.line);
+    },
+    async go(interaction) {
+      await ackStep(interaction);
+      const actor = await actorOrRefuse(interaction, { needs: null });
+      if (!actor) return;
+      const result = await stopEscort(prisma, { character: actor, discordUserId: actor.discordUserId });
       if (!result.ok) return done(interaction, result.error);
       await sendGuardDms(result.dms);
       return done(interaction, result.line);

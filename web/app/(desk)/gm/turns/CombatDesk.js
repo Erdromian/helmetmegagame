@@ -50,7 +50,10 @@ function intervenerLines(person) {
       ? "Was already here when it started."
       : `Came ${person.distance} ${person.distance === 1 ? "Location" : "Locations"}${person.fromLocationName ? ` from ${person.fromLocationName}` : ""}.`,
   ];
-  if (person.escortOfId) lines.push(`Escorting ${person.escortOfName ?? "their charge"} — stepped in to defend them.`);
+  if (person.escortOfId) {
+    const charge = person.escortOfName ?? "their charge";
+    lines.push(person.side === "ATTACKER" ? `Escorting ${charge} — joined their attack.` : `Escorting ${charge} — stepped in to defend them.`);
+  }
   if (person.cameBackFrom === "DECLINED") lines.push("Turned the invitation down, then joined the defenders.");
   if (person.cameBackFrom === "LEFT") lines.push("Left the fight earlier, then came back and joined.");
   return lines;

@@ -2,9 +2,11 @@
 // code calls it GUARD so it never gets muddled with db/lib/escort.js, which is the party you carry and
 // runs the other way round. There, a leader walks and followers are brought along for nothing. Here, the
 // guard walks after their charge under their own power, spending their own travel and then their Move,
-// and steps into a fight on the charge's side when the charge is attacked.
+// and steps into a fight on the charge's side when the charge is attacked (or, if they asked to, when the
+// charge attacks somebody — escortSide below).
 //
-// Character.guardingId is the whole state: who this character is escorting. One at a time. Needs combat
+// Character.guardingId is the state: who this character is escorting, one at a time, with guardDefends and
+// guardAttacks saying which fights they step into. Needs combat
 // mode to set (Bascinet, 2026-09-30), and ends when combat mode goes off. A guard who is not standing with
 // their charge neither follows nor defends, and picks up again once they are together — "the escort
 // waits" (Bascinet, 2026-09-30). So a stale row is inert, the escortedById posture.
@@ -22,7 +24,14 @@ const GUARD_LINES = {
   NOT_HERE: "They aren't here any more.",
   NOT_YOURSELF: "You can't escort yourself.",
   ALREADY: (name) => `You're already escorting ${name}.`,
-  STARTED: (name) => `You're escorting ${name}. You'll follow them when they travel, and step in if they're attacked.`,
+  STARTED: (name, { defends = true, attacks = false } = {}) => {
+    const also = [defends ? "step in if they're attacked" : null, attacks ? "join them if they attack someone" : null].filter(Boolean);
+    const follow = "You'll follow them when they travel";
+    if (also.length === 0) return `You're escorting ${name}. ${follow}.`;
+    if (also.length === 1) return `You're escorting ${name}. ${follow}, and ${also[0]}.`;
+    return `You're escorting ${name}. ${follow}, ${also[0]}, and ${also[1]}.`;
+  },
+  CONFIRM_STOP: (name) => `You're escorting ${name}. Stop escorting them?`,
   TOLD_CHARGE: (name) => `${cap(name)} is escorting you.`,
   STOPPED: (name) => `You stop escorting ${name}.`,
   NOT_GUARDING: "You aren't escorting anybody.",
@@ -32,7 +41,20 @@ const GUARD_LINES = {
   FOLLOW_COST_MOVE: "It cost you your Move.",
   LOST: (name) => `${cap(name)} left, and you couldn't follow.`,
   STEP_IN: (name) => `You step in to defend ${name}.`,
+  STEP_IN_ATTACK: (name) => `You join ${name}'s attack.`,
 };
+
+// Which side of a fight an escort joins, given the side their charge is on — or null when the escort's
+// boxes say to stay out. The Escort dialog's two boxes (Bascinet, 2026-10-04): `guardDefends` (on by
+// default) steps in when the charge is defending, `guardAttacks` (off by default) joins the charge on the
+// attacking side, however they got there — their own Attack, their ambush, an invite they took, or
+// intervening with the attackers. A row missing either field reads as the defaults.
+function escortSide(guard, chargeSide) {
+  if (!guard) return null;
+  if (chargeSide === "DEFENDER") return guard.guardDefends === false ? null : "DEFENDER";
+  if (chargeSide === "ATTACKER") return guard.guardAttacks === true ? "ATTACKER" : null;
+  return null;
+}
 
 // What refuses setting an escort, as one sentence or null — the heldReasonFor shape, so a greyed button,
 // the server action and the Discord verb can never disagree about why. `actor` needs id, locationId,
@@ -65,7 +87,7 @@ async function guardsOf(db, chargeIds, locationId, { select = { id: true, guardi
       locationId,
       ...(not.length ? { id: { notIn: [...not] } } : {}),
     },
-    select: { ...select, guardingId: true },
+    select: { ...select, guardingId: true, guardDefends: true, guardAttacks: true },
     orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
   });
 }
@@ -114,4 +136,5 @@ module.exports = {
   endGuardsFor,
   releaseGuards,
   guardNote: note,
+  escortSide,
 };

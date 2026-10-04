@@ -43,12 +43,15 @@ async function loadEscortImpl() {
   return { ok: true, ...(await escortPicker(prisma, { character })) };
 }
 
-async function setEscortImpl({ targetKey }) {
+async function setEscortImpl({ targetKey, defends, attacks }) {
   const { session, character } = await me();
   const result = await setEscort(prisma, {
     character,
     discordUserId: session.discordUserId,
     targetKey: String(targetKey ?? ""),
+    // The dialog's two boxes. Anything but a real boolean reads as that box's default.
+    defends: defends !== false,
+    attacks: attacks === true,
   });
   if (!result.ok) throw new UserError(result.error);
   tell(result.dms);

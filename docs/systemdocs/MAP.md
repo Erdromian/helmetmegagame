@@ -1158,7 +1158,9 @@ Discord call to the facts half and it fails by name.
 from §3a. There, a leader walks and the party is carried along for nothing. Here,
 the **escort walks after their charge, under their own power**, and pays for it.
 `Character.guardingId` is the whole state, and `db/lib/guard.js` owns it. It is
-called "guard" in code so it never gets confused with the party.
+called "guard" in code so it never gets confused with the party. Every escort
+follows. The Escort dialog's two boxes only decide which fights they join
+(`ATTACK.md` §6a), and pressing Escort again stops it.
 
 **How it runs.** At the end of `performLocationMove`, after the move commits and
 after `fireWatches`, every row in `moved` (the mover and any party they carried)
