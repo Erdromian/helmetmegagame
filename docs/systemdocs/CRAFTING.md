@@ -664,8 +664,10 @@ Everything else follows from that being the whole mechanism:
   typo fails loudly and nobody raises a Refinery.
 - **Refused where the attribute already is.** Destroying the structure takes
   the attribute off, so a second one would take an authored one down with it.
-- **Damage does not revoke.** A damaged board is a board. This is unlike the
-  kits and bonuses, which serve only while `COMPLETE`.
+- **Damage does not revoke.** A damaged Field Kitchen still cooks. This is
+  unlike the kits and bonuses, which serve only while `COMPLETE`. The
+  Noticeboard never reaches the question: it is `placement.fragile`, so a
+  Damage ruling destroys it outright (`PAPERWORK.md` §7).
 - **It lasts one game**, like a `/gm/dev/zones` edit. Restart Game deletes the
   structure and `db:sync-zones` puts attributes back to the YAML. Run by hand
   mid-game, that sync would take a built one's attribute off while the

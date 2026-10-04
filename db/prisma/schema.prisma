@@ -4015,6 +4015,8 @@ model Tag {
   //     inscribable: Bool (the builder may write a line on it),
   //     underground: Bool (default false — true is the only thing a
   //       CAVE_LEVEL Location takes; says nothing about the surface),
+  //     fragile: Bool (default false — true means a GM's Damage ruling
+  //       destroys it; it never stands DAMAGED),
   //     grants: attributeKey — finished, it sets that attribute on its
   //       Location (db/lib/structureGrants.js); destroyed, it takes it back.
   //       Only a key the registry marks `buildable`,

@@ -23,6 +23,7 @@ function placementOf(tag) {
     inscribable: p.inscribable === true,
     underground: p.underground === true,
     grants: typeof p.grants === "string" ? p.grants : null,
+    fragile: p.fragile === true,
     shelter: p.shelter ?? null,
   };
 }

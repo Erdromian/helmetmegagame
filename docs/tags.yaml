@@ -6555,6 +6555,9 @@ tags:
       underground: true
       # No `examine`: standing, it is the Location's own Noticeboard line.
       grants: noticeboard
+      # Planks on a post: the first Damage ruling brings it down (and its
+      # notices with it), so a board is never left standing damaged.
+      fragile: true
 
   # A kitchen where there was none: Lavish meals can be cooked where it stands
   # (COOKING.md). Grants the `kitchen` attribute the Inn, the Keep and the

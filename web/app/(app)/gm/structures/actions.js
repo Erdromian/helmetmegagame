@@ -12,6 +12,7 @@ import { enqueueMirror } from "@lifeweb/db/lib/discordMirror/queue";
 import {
   PRESENT_STATUSES,
   WORKING_STATUSES,
+  placementOf,
   stakeholderCharacterIds,
   structureDamagedLine,
   structureRepairedLine,
@@ -95,6 +96,10 @@ function refreshViews() {
 async function damageStructureImpl({ structureId }) {
   const session = await requireGm();
   const site = await loadSite(structureId);
+  // A fragile type (the Noticeboard) cannot stand damaged: the same ruling
+  // destroys it, by the one path Destroy takes, and the audit row says how.
+  const type = await prisma.tag.findUnique({ where: { slug: site.typeSlug }, select: { placement: true } });
+  if (placementOf(type)?.fragile) return destroySite(session, site, { viaDamage: true });
   await prisma.$transaction(async (tx) => {
     const claim = await tx.structure.updateMany({
       where: { id: site.id, status: "COMPLETE" },
@@ -131,7 +136,10 @@ async function repairStructureImpl({ structureId }) {
 // Clear is what sweeps it.
 async function destroyStructureImpl({ structureId }) {
   const session = await requireGm();
-  const site = await loadSite(structureId);
+  return destroySite(session, await loadSite(structureId));
+}
+
+async function destroySite(session, site, extra = {}) {
   let revoked = null;
   await prisma.$transaction(async (tx) => {
     // Lock the row and read the status FRESH — the pre-transaction load is
@@ -150,6 +158,7 @@ async function destroyStructureImpl({ structureId }) {
     // one never granted anything.
     if (WORKING_STATUSES.includes(wasStatus)) revoked = await revokeOnDestroy(tx, site);
     await logOp(tx, session, "structure_destroyed", site, {
+      ...extra,
       wasStatus,
       revoked: revoked?.key,
       noticesDestroyed: revoked?.noticesDestroyed,

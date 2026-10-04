@@ -377,10 +377,13 @@ Kitchen.
   the Location, each with its runtime paper row — the `ephemeral` guard the
   expiry pass uses (`noticeboard.js#destroyNoticesAt`). The audit row carries
   `noticesDestroyed`. Once the wreck is cleared, anybody can raise a new one.
-- **Damaged, it still works.** Only Destroy takes the board down.
+- **One Damage destroys it.** The Noticeboard is `placement.fragile`, so a
+  GM's Damage ruling on one is a Destroy, by the same path and with the same
+  result: there is no damaged board. The confirm on `/gm/structures` says so,
+  and the audit row is `structure_destroyed` with `viaDamage: true`.
 - **Examine says it once.** The Location's own Noticeboard line is the board,
-  so a standing Noticeboard structure prints no line of its own; damaged or
-  ruined, it does.
+  so a standing Noticeboard structure prints no line of its own; ruined, it
+  does.
 
 **A running game does not get the six structures by itself.** They are seeded
 at Restart and Start Game (`worldSeed.js`). Until then a board that was there

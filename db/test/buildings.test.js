@@ -244,6 +244,23 @@ test("placement: grants takes a buildable attribute and nothing else", () => {
   }
 });
 
+test("placement: fragile survives normalisation and defaults off", () => {
+  assert.equal(normalizePlacement({ fragile: true }).fragile, true);
+  assert.equal(normalizePlacement({ fieldwork: true }).fragile, false);
+  assert.equal(placementOf({ placement: { fragile: true } }).fragile, true);
+  assert.equal(placementOf({ placement: {} }).fragile, false);
+  assert.throws(() => normalizePlacement({ fragile: "very" }), /fragile must be a boolean/);
+});
+
+test("docs/tags.yaml: the Noticeboard is the fragile one", () => {
+  const tags = yaml.load(fs.readFileSync(path.join(DOCS, "tags.yaml"), "utf8"));
+  const catalog = tags.tags ?? tags;
+  const fragile = Object.entries(catalog)
+    .filter(([, t]) => t?.placement?.fragile)
+    .map(([slug]) => slug);
+  assert.deepEqual(fragile, ["noticeboard"]);
+});
+
 // grantOnFinish and revokeOnDestroy against a stand-in transaction: the only
 // two writers of a granted attribute, so what they leave behind is the whole
 // contract.

@@ -517,6 +517,10 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.underground != null && typeof raw.underground !== "boolean") {
     throw new Error(`${label}: placement.underground must be a boolean`);
   }
+  // Too slight to stand damaged: a GM's Damage ruling destroys it outright (web/app/(app)/gm/structures/actions.js).
+  if (raw.fragile != null && typeof raw.fragile !== "boolean") {
+    throw new Error(`${label}: placement.fragile must be a boolean`);
+  }
   // A Location attribute this gives its ground for as long as it stands (db/lib/structureGrants.js). Only the
   // ones the registry marks `buildable`: a typo would grant nothing, and a Refinery is not a thing anybody raises.
   if (raw.grants != null && (typeof raw.grants !== "string" || !ATTRIBUTES[raw.grants]?.buildable)) {
@@ -614,6 +618,7 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     inscribable: raw.inscribable === true,
     underground: raw.underground === true,
     grants: raw.grants ?? null,
+    fragile: raw.fragile === true,
     shelter,
   };
 }

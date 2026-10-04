@@ -1094,6 +1094,13 @@ DM: the stakeholders already heard about the destruction or abandonment, and
 still under construction destroys the work done, never silently — the crew
 still get the destruction DM, same as a finished structure's contributors.
 
+**Damage on a fragile type is Destroy.** A type carrying `placement.fragile`
+— the Noticeboard, today — has no damaged state: the Damage button runs the
+Destroy path, lands on `RUINED`, and writes `structure_destroyed` with
+`viaDamage: true`. The confirm on a fragile row says so before the click. A
+destroyed Noticeboard also takes its board and every notice on it
+(`PAPERWORK.md` §7).
+
 **Player demolition is a GAMBIT adjudicated at the desk, never an apply-first
 Request.** The GM resolves the die, stages the public outcome through the
 ordinary composer (§1), and clicks Destroy (or Damage, for a lesser outcome)
