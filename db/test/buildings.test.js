@@ -9,6 +9,7 @@ const assert = require("node:assert/strict");
 const { normalizePlacement, validatePlacement } = require("../lib/tagShapes");
 const { canBuildHere, buildGround, placementOf } = require("../lib/structures");
 const { placementOfferedHere } = require("../lib/craftRecipes");
+const { raiseBoard, razeBoard, hasNoticeboard } = require("../lib/noticeboard");
 const {
   BASE_BIRD_SENDS_PER_DAY,
   ROOKERY_COOLDOWN_MS,
@@ -202,6 +203,87 @@ test("placement: a shelter factor is strictly between 0 and 1", () => {
   }
   assert.throws(() => normalizePlacement({ shelter: 0.5 }), /shelter must be a mapping/);
   assert.throws(() => normalizePlacement({ underground: "yes" }), /underground must be a boolean/);
+});
+
+// --- the buildable Noticeboard --------------------------------------------
+
+const BOARD = { underground: true, noticeboard: true };
+
+test("canBuildHere: a Noticeboard is refused where a board already is", () => {
+  const withBoard = { ...SQUARE, attributes: { noticeboard: true } };
+  assert.equal(canBuildHere(SQUARE, BOARD).ok, true);
+  assert.equal(canBuildHere(CAVE, BOARD).ok, true);
+  assert.equal(canBuildHere(withBoard, BOARD).ok, false);
+  assert.match(canBuildHere(withBoard, BOARD).reason, /already a noticeboard/);
+  // Anything else still goes up beside a board.
+  assert.equal(canBuildHere(withBoard, SHRINE).ok, true);
+});
+
+test("placement: noticeboard survives normalisation and defaults off", () => {
+  assert.equal(normalizePlacement({ noticeboard: true }).noticeboard, true);
+  assert.equal(normalizePlacement({ fieldwork: true }).noticeboard, false);
+  assert.equal(placementOf({ placement: { noticeboard: true } }).noticeboard, true);
+  assert.throws(() => normalizePlacement({ noticeboard: "yes" }), /noticeboard must be a boolean/);
+});
+
+// raiseBoard and razeBoard against a stand-in transaction: the only two
+// writers of a BUILT board, so what they leave behind is the whole contract.
+function fakeTx({ attributes, posts = [], tags = [] }) {
+  const state = { attributes, posts: [...posts], tags: [...tags] };
+  return {
+    state,
+    location: {
+      findUnique: async () => ({ attributes: state.attributes }),
+      update: async ({ data }) => {
+        state.attributes = data.attributes;
+      },
+    },
+    noticePost: {
+      findMany: async ({ where }) => state.posts.filter((p) => p.locationId === where.locationId),
+      deleteMany: async ({ where }) => {
+        state.posts = state.posts.filter((p) => !where.id.in.includes(p.id));
+      },
+    },
+    tag: {
+      deleteMany: async ({ where }) => {
+        state.tags = state.tags.filter((t) => !(where.id.in.includes(t.id) && t.ephemeral === where.ephemeral));
+      },
+    },
+  };
+}
+
+test("raiseBoard: the Location gains the attribute and keeps its others", async () => {
+  const tx = fakeTx({ attributes: { wilderness: true } });
+  assert.equal(await raiseBoard(tx, "loc"), true);
+  assert.deepEqual(tx.state.attributes, { wilderness: true, noticeboard: true });
+  assert.equal(hasNoticeboard({ attributes: tx.state.attributes }), true);
+});
+
+test("razeBoard: the attribute goes, and every notice here with its paper", async () => {
+  const tx = fakeTx({
+    attributes: { wilderness: true, noticeboard: true },
+    posts: [
+      { id: "p1", tagId: "t1", locationId: "loc" },
+      { id: "p2", tagId: "t2", locationId: "loc" },
+      { id: "p3", tagId: "t3", locationId: "elsewhere" },
+    ],
+    tags: [
+      { id: "t1", ephemeral: true },
+      // A catalog tag on a wall survives being torn off it.
+      { id: "t2", ephemeral: false },
+      { id: "t3", ephemeral: true },
+    ],
+  });
+  assert.equal(await razeBoard(tx, "loc"), 2);
+  assert.deepEqual(tx.state.attributes, { wilderness: true });
+  assert.deepEqual(tx.state.posts.map((p) => p.id), ["p3"]);
+  assert.deepEqual(tx.state.tags.map((t) => t.id), ["t2", "t3"]);
+});
+
+test("razeBoard: a bare board comes down without a paper to its name", async () => {
+  const tx = fakeTx({ attributes: { noticeboard: true } });
+  assert.equal(await razeBoard(tx, "loc"), 0);
+  assert.deepEqual(tx.state.attributes, {});
 });
 
 test("canBuildHere: no placement asks the ground question only", () => {

@@ -7,8 +7,12 @@ import { getGmSession } from "@/lib/discordGuild";
 import { UserError, guarded } from "@/lib/actionResult";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
+import { razeBoard } from "@lifeweb/db/lib/noticeboard";
+import { enqueueMirror } from "@lifeweb/db/lib/discordMirror/queue";
 import {
   PRESENT_STATUSES,
+  WORKING_STATUSES,
+  placementOf,
   stakeholderCharacterIds,
   structureDamagedLine,
   structureRepairedLine,
@@ -129,6 +133,9 @@ async function repairStructureImpl({ structureId }) {
 async function destroyStructureImpl({ structureId }) {
   const session = await requireGm();
   const site = await loadSite(structureId);
+  const type = await prisma.tag.findUnique({ where: { slug: site.typeSlug }, select: { placement: true } });
+  const isBoard = placementOf(type)?.noticeboard === true;
+  let boardRazed = false;
   await prisma.$transaction(async (tx) => {
     // Lock the row and read the status FRESH — the pre-transaction load is
     // a snapshot, and the audit detail must not record a state another GM
@@ -141,8 +148,14 @@ async function destroyStructureImpl({ structureId }) {
       data: { status: "RUINED" },
     });
     if (claim.count === 0) throw new UserError("That structure is already down — reload.");
-    await logOp(tx, session, "structure_destroyed", site, { wasStatus });
+    // A Noticeboard that was standing takes its board and every notice on it
+    // down with it (PAPERWORK.md §7). A half-built one never raised a board.
+    boardRazed = isBoard && WORKING_STATUSES.includes(wasStatus);
+    const noticesDestroyed = boardRazed ? await razeBoard(tx, site.locationId) : undefined;
+    await logOp(tx, session, "structure_destroyed", site, { wasStatus, noticesDestroyed });
   });
+  // The mirror takes the Noticeboard button back off the Discord anchor.
+  if (boardRazed) await enqueueMirror(prisma, "location", site.locationId, "a noticeboard was destroyed here");
   speak(site, structureDestroyedLine(site));
   dmStakeholders(site, `The ${site.typeName} at ${site.location?.name ?? "its ground"} has been destroyed.`);
   refreshViews();

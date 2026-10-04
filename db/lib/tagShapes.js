@@ -517,6 +517,10 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.underground != null && typeof raw.underground !== "boolean") {
     throw new Error(`${label}: placement.underground must be a boolean`);
   }
+  // A board to pin paper to, for as long as it stands (db/lib/noticeboard.js#raiseBoard).
+  if (raw.noticeboard != null && typeof raw.noticeboard !== "boolean") {
+    throw new Error(`${label}: placement.noticeboard must be a boolean`);
+  }
   // Where this type may be raised, by Location slug. ABSENT means anywhere the ground rules allow (opt-in gate). A slug list, not a zone list: `unique` is already per-Location, so naming one Location makes a type one-of-a-kind with no game-wide uniqueness rule.
   if (
     raw.locations != null &&
@@ -608,6 +612,7 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     // The builder may write a line on the finished thing (Structure.inscription), replacing `examine` in the readout. See CRAFTING.md.
     inscribable: raw.inscribable === true,
     underground: raw.underground === true,
+    noticeboard: raw.noticeboard === true,
     shelter,
   };
 }

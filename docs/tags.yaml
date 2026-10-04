@@ -6527,6 +6527,33 @@ tags:
       # the examine above in the readout. Blank keeps the stock text.
       inscribable: true
 
+  # Gives its Location a working noticeboard while it stands — the same
+  # `noticeboard` attribute docs/zones.yaml authors on the Square, set by the
+  # finished structure (db/lib/noticeboard.js#raiseBoard). Refused where a
+  # board already is. Destroyed, it takes every notice on it along
+  # (PAPERWORK.md §7). Cheap and unskilled on purpose: it is planks and nails.
+  noticeboard:
+    catalog: all
+    name: Noticeboard
+    category: assets
+    group: assets-structures
+    description: "A few planks nailed to a post. Anyone standing where it is raised can pin paper to it, read what is pinned, or tear it down."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      gambit: false
+    placement:
+      fieldwork: true
+      underground: true
+      # No `examine`: standing, it is the Location's own Noticeboard line.
+      noticeboard: true
+
   # The Claim Stake stood here and was removed on 2026-09-20: 6 ⬢ for a
   # permanent +1 was strictly better than the tool that does the same thing.
   # Pit Props carry the same `placement.miningBonus` at five times the price

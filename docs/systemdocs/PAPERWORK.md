@@ -349,7 +349,43 @@ so nothing downstream needs to know how it arrived.
 `noticeboard: true` in a Location's `attributes:` map
 (`docs/zones.yaml`, registered in `db/lib/locationAttributes.js`, which refuses
 an unregistered key). Set on the Square, the Courtyard, the Garrison, the
-Factory and the Depot.
+Factory, the Depot, the cave Entrance and the Steel Wall.
+
+### A board somebody built
+
+A board can also be **built**: the Noticeboard structure (`noticeboard` in
+`docs/tags.yaml`, `placement.noticeboard: true`) — 4 ⬢, 1 turn, no skill,
+anywhere a structure may stand including underground (`CRAFTING.md` §4b).
+
+**A built board is the same attribute.** When the structure finishes,
+`db/lib/noticeboard.js#raiseBoard` sets `noticeboard: true` on the Location row
+— what a GM ticking the box on `/gm/dev/zones` does — and enqueues the
+Location's mirror job, which is what puts the button on the Discord anchor. So
+nothing that asks `hasNoticeboard()` knows or cares which kind it is looking at:
+the panel, the pins, the expiry clock and the anonymous lines are all the
+ordinary ones.
+
+- **Refused where a board already is** (`canBuildHere`: "There's already a
+  noticeboard here."). Otherwise tearing the built one down would take an
+  authored board with it.
+- **Destroyed, it takes everything pinned to it.** A GM's Destroy on
+  `/gm/structures` calls `razeBoard`: the attribute comes off, every
+  `NoticePost` at the Location is deleted, and each runtime paper row goes with
+  it — the `ephemeral` guard the expiry pass uses. The audit row carries
+  `noticesDestroyed`. A half-built one never raised a board, so destroying that
+  touches nothing.
+- **Damaged, it still works.** Only Destroy takes the board down.
+- **It lasts one game**, like any `/gm/dev/zones` edit: Restart Game deletes
+  the structure and `db:sync-zones` puts the attributes back to the YAML. Run
+  by hand mid-game, that sync would take a built board's attribute off while
+  the structure still stood.
+- **Examine says it once.** The Location's own Noticeboard line is the board,
+  so a standing Noticeboard structure prints no line of its own
+  (`locationAttributes.js#structureLines`); damaged or ruined, it does.
+- **Author the attribute, not the structure.** A `structures: [noticeboard]`
+  in `docs/zones.yaml` is seeded by `worldSeed.js` already standing, past the
+  build path that raises the board, so it would stand with none. A place that should start with one says
+  `noticeboard: true`.
 
 The button is the **fifth** on the Location anchor, which is exactly Discord's
 per-row cap — anything after this needs a second row. `locationAnchorRow` takes

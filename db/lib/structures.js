@@ -4,6 +4,7 @@
 
 const { ambientLine } = require("./ambientLine");
 const { hasAttribute } = require("./locationAttributes");
+const { hasNoticeboard } = require("./noticeboard");
 
 // placement with defaults applied; defaults here must agree with Tag.placement in schema.prisma.
 function placementOf(tag) {
@@ -22,6 +23,7 @@ function placementOf(tag) {
     provides: Array.isArray(p.provides) ? p.provides : [],
     inscribable: p.inscribable === true,
     underground: p.underground === true,
+    noticeboard: p.noticeboard === true,
     shelter: p.shelter ?? null,
   };
 }
@@ -66,6 +68,11 @@ function canBuildHere(location, placement = null) {
   }
   if (hasAttribute(location, "noBuild")) {
     return { ok: false, reason: "You can't build here." };
+  }
+  // A built board IS the Location's `noticeboard` attribute while it stands (noticeboard.js#raiseBoard),
+  // and tearing one down takes the attribute with it. A second one would take an authored board down too.
+  if (placement?.noticeboard && hasNoticeboard(location)) {
+    return { ok: false, reason: "There's already a noticeboard here." };
   }
   return { ok: true, reason: null };
 }

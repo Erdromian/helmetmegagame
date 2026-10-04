@@ -6,7 +6,11 @@
 // Deliberately open: anyone standing there may pin, read, or tear down any
 // notice, including a rival's — a board nobody can strip is a bulletin the
 // game is enforcing.
-// Pure of Prisma except boardFor() below, which takes `prisma` as a
+// A board can also be BUILT (Tag.placement.noticeboard, CRAFTING.md §4b). The
+// finished structure sets the same attribute on its Location that the YAML
+// authors, so nothing that asks hasNoticeboard() has to know the difference;
+// raiseBoard and razeBoard below are the only two writers.
+// Pure of Prisma except boardFor() and those two, which take `prisma` as a
 // parameter the way db/lib/dm.js does — require it by path, not the barrel.
 
 const NOTICEBOARD_ATTRIBUTE = "noticeboard";
@@ -85,8 +89,42 @@ async function destroyNotice(prisma, post) {
   return claimed;
 }
 
+// A BUILT board goes up: the Location gains the attribute. Takes the caller's
+// transaction, so the board and the structure that raised it commit together.
+// The caller enqueues the Location's mirror job afterwards — that is what
+// puts the Noticeboard button on the Discord anchor.
+async function raiseBoard(tx, locationId) {
+  const row = await tx.location.findUnique({ where: { id: locationId }, select: { attributes: true } });
+  if (!row) return false;
+  await tx.location.update({
+    where: { id: locationId },
+    data: { attributes: { ...(row.attributes ?? {}), [NOTICEBOARD_ATTRIBUTE]: true } },
+  });
+  return true;
+}
+
+// A built board comes down, and everything pinned to it goes with it: the
+// attribute off the Location, every NoticePost there, and each runtime paper
+// row — the same `ephemeral` guard destroyNotice and the expiry pass use.
+// Returns how many notices were destroyed, for the audit row.
+async function razeBoard(tx, locationId) {
+  const row = await tx.location.findUnique({ where: { id: locationId }, select: { attributes: true } });
+  if (row) {
+    const attributes = { ...(row.attributes ?? {}) };
+    delete attributes[NOTICEBOARD_ATTRIBUTE];
+    await tx.location.update({ where: { id: locationId }, data: { attributes } });
+  }
+  const posts = await tx.noticePost.findMany({ where: { locationId }, select: { id: true, tagId: true } });
+  if (posts.length === 0) return 0;
+  await tx.noticePost.deleteMany({ where: { id: { in: posts.map((p) => p.id) } } });
+  await tx.tag.deleteMany({ where: { id: { in: posts.map((p) => p.tagId) }, ephemeral: true } });
+  return posts.length;
+}
+
 module.exports = {
   boardFor,
+  raiseBoard,
+  razeBoard,
   destroyNotice,
   BOARD_OPTION_LIMIT,
   hasNoticeboard,

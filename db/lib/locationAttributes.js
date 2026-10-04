@@ -165,6 +165,8 @@ function structureLines(ctx = {}) {
       case "UNDER_CONSTRUCTION":
         return [`**${typeName}**: going up, ${structure.turnsDone} of ${structure.turnsNeeded} ${ctx.dayLongTurn === false ? "turns" : "days"} done.`];
       case "COMPLETE":
+        // A standing board is already said by the Location's own Noticeboard line, which it is the source of (noticeboard.js#raiseBoard).
+        if (structure.placement?.noticeboard) return [];
         return [
           inscribed
             ? `**${typeName}**: » ${inscribed}`
