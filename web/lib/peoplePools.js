@@ -15,6 +15,7 @@ import { acrossRecipients } from "@lifeweb/db/lib/whosHere";
 import { rosterName } from "@lifeweb/db/lib/presentedIdentity";
 import { medicallyVisibleTags } from "@lifeweb/db/lib/medicalVision";
 import { isTradeable } from "@/lib/tagRequests";
+import { isCrateTag } from "@lifeweb/db/lib/crates";
 import { chipSelect, chipContextFor, composeChipTag } from "@/lib/referenceData";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { craftMoveCost } from "@/lib/craftBudget";
@@ -496,6 +497,9 @@ export async function loadPeoplePools(character, { discordUserId, openTurn } = {
         // Assets weigh nothing on your back (CARRY.md §1), the same rule the
         // room rows and the sheet's own source apply.
         weightLbs: ct.tag.category === "Assets" ? 0 : (ct.tag.weightLbs ?? 0),
+        // The dialog's crate warning (crates.js#haulWarning). The row's name
+        // already says it is one.
+        crate: isCrateTag(ct.tag),
       })),
   }));
 
@@ -790,6 +794,7 @@ export async function loadStashRooms(character, { scope = "location", chipCtx = 
       quantity: rt.quantity,
       stackable: rt.tag.stackable,
       weightLbs: rt.tag.category === "Assets" ? 0 : (rt.tag.weightLbs ?? 0),
+      crate: isCrateTag(rt.tag),
       // The chip's own copy. composeChipTag runs exactly the filters this
       // used to spell out by hand — a dish names its taste and not its
       // ingredients, a weightless tag ships neither weight column — AND
