@@ -127,6 +127,10 @@ export default function PlacesColumn({
   you = null,
   // The phone drawer's nav links, or a GM's zone picker. Null on desktop.
   foot = null,
+  // The phone drawer's nav links, drawn ABOVE the places instead of under
+  // them. A spectator's only way to /actions from a phone, and under a list
+  // as long as theirs the foot is screens down. Null on desktop.
+  head = null,
 }) {
   const [collapsed, toggle] = useFolds();
 
@@ -214,6 +218,7 @@ export default function PlacesColumn({
 
   return (
     <nav className="chat-places" aria-label="Places">
+      {head && <div className="chat-places-head">{head}</div>}
       <p className="bar">Places</p>
 
       {/* Bare rows, no heading and no fold — see `pinnedRows` above. They keep a

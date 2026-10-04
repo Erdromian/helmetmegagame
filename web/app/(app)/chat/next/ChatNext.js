@@ -703,10 +703,12 @@ export default function ChatNext(props) {
     return () => setChatBar(null);
   }, [onMarkAllSeen]);
 
-  // The app's links, at the foot of the phone's drawer. The GM's zone picker
+  // The app's links, at the foot of the phone's drawer — at its head for a
+  // spectator, whose list of every place in the game left them screens down,
+  // and who had no other way to /actions on a phone. The GM's zone picker
   // does NOT ride here: it belongs to the right column, and that column has
   // its own drawer to fold into.
-  const placesFoot =
+  const drawerNav =
     narrow && navItems.length > 0 ? (
       <nav className="chat-drawer-nav" aria-label="Main">
         {navItems.map((item) => {
@@ -759,7 +761,8 @@ export default function ChatNext(props) {
           />
         ) : null
       }
-      foot={placesFoot}
+      head={spectator ? drawerNav : null}
+      foot={spectator ? null : drawerNav}
     />
   );
 
