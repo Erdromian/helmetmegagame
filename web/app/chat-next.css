@@ -805,6 +805,18 @@
   flex: 1 0 100%;
 }
 
+/* The same links over the places instead, for a spectator (PlacesColumn.js
+   `head`): the tail's ground and rule, turned the other way up. */
+[data-chat-next] .chat-places-head {
+  padding: var(--sp-2);
+  background: var(--surface-raised);
+  border-bottom: 1px solid var(--border);
+}
+
+[data-chat-next] .chat-places-head > .chat-drawer-nav {
+  padding-top: 0;
+}
+
 [data-chat-next] .chat-view-as {
   padding: 0;
 }
