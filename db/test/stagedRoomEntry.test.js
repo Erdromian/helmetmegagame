@@ -50,6 +50,8 @@ function fakeTx() {
       findMany: async ({ where }) =>
         where.characterId === "keyed" ? [{ equipped: false, tag: { slug: "counting-key" } }] : [],
     },
+    // No open quest lists anybody here (roomAccess.js#allowedRoomIds).
+    quest: { findMany: async () => [] },
     roomGuest: {
       upsert: async (args) => {
         upserts.push(args);

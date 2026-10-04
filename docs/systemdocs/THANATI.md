@@ -97,6 +97,15 @@ for them either (`COMMANDS.md` §2g): the Actions menu is the Discord way in.
 - **Set Hideout** (leader only) — picks a room at the leader's current
   Location that `accessibleRooms` says they can enter; writes
   `GameState.thanatiHideoutRoomId` (a snapshot id, no FK). Re-settable.
+  **The hideout lets in every cultist**, whatever key its door takes:
+  `db/lib/roomAccess.js#allowedRoomIds` puts it on the list of rooms that admit
+  a holder of `thanati` by name, the way a quest's allowlist does
+  (`QUESTS.md` §3). So a cultist converted mid-game, who holds `thanati` and
+  nothing else, gets in exactly as one seated at the start does, and every
+  door check agrees: walking in, Purchase Gear, `/add` and `/remove`, and the
+  room's Discord thread. Setting the hideout re-syncs every living cultist's
+  threads (the new room opens, the old one shuts), and accepting the Rite of
+  Conversion syncs the convert's at once.
 - **Purchase Gear** — greyed unless standing at the hideout's Location. Pays
   from **four pools**: the hideout room's ⬢ and its `obol` stack, and the
   buyer's own of each. The two controls are PREFERENCES, not restrictions —

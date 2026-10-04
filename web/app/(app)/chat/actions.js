@@ -3171,7 +3171,7 @@ async function conversationHere(character, placeKey, { sightings = null } = {}) 
 }
 
 // The private room behind a `room:` key: your feet at its Location AND a way
-// in (a key or a guest row) — the same pair db/lib/roomGuests.js#doorwayFor tests.
+// in (a key, a guest row or a place on its list) — the same three db/lib/roomGuests.js#doorwayFor tests.
 async function privateRoomHere(character, placeKey) {
   const parsed = parsePlaceKey(placeKey);
   if (!parsed || parsed.kind !== "room") return { error: "That isn't a room." };
@@ -3187,7 +3187,9 @@ async function privateRoomHere(character, placeKey) {
   if (room.kind !== "PRIVATE") return { error: "Anyone standing here can already walk in." };
   const keys = await roomAccessKeys(prisma, character.id);
   const inside =
-    room.accessTagSlugs.some((slug) => keys.heldSlugs.has(slug)) || keys.guestRoomIds.has(room.id);
+    room.accessTagSlugs.some((slug) => keys.heldSlugs.has(slug)) ||
+    keys.guestRoomIds.has(room.id) ||
+    keys.allowedRoomIds.has(room.id);
   if (!inside) return { error: "You are not inside that room." };
   return { room };
 }

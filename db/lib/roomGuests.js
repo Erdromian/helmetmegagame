@@ -5,7 +5,7 @@
 // A room that opens onto several Locations (db/lib/roomSides.js) is worked one side at a time: the door is the side the
 // actor stands at (a GM's, the target's), checked against THAT side's gate, and the pass is good on that side only.
 
-const { heldTagSlugs, recordRoomThread, roomAccessKeys } = require("./roomAccess");
+const { allowedRoomIds, heldTagSlugs, recordRoomThread, roomAccessKeys } = require("./roomAccess");
 const { addThreadMember, removeThreadMember } = require("./discordRest");
 const { presentedMembers, presentedNameOf } = require("./presentedMembers");
 const { hiddenFrom } = require("./whosHere");
@@ -57,10 +57,12 @@ async function doorwayFor(prisma, { actor, roomId, characterId, gm = false, byTo
   if (room && room.kind !== "PRIVATE") return { error: "Anyone standing here can already walk in." };
 
   if (!gm) {
-    // Standing at the Location is NOT being inside the room. A key or a guest row is what being inside means, the same pair accessibleRooms() tests.
+    // Standing at the Location is NOT being inside the room. A key, a guest row or a place on its list (a quest's, the hideout's) is what being inside means, the same three accessibleRooms() tests.
     const keys = await roomAccessKeys(prisma, actor.id);
     const inside =
-      room.accessTagSlugs.some((slug) => keys.heldSlugs.has(slug)) || keys.guestRoomIds.has(room.id);
+      room.accessTagSlugs.some((slug) => keys.heldSlugs.has(slug)) ||
+      keys.guestRoomIds.has(room.id) ||
+      keys.allowedRoomIds.has(room.id);
     if (!inside) return { error: "You aren't inside that room." };
   }
 
@@ -120,7 +122,8 @@ async function removeRoomGuest(prisma, { actor = null, roomId, characterId, gm =
   const { room, target } = found;
 
   const held = await heldTagSlugs(prisma, target.id);
-  if (room.accessTagSlugs.some((slug) => held.has(slug))) {
+  // On the room's list counts as a key: a guest row was never what let them in, and the next sync would put them back.
+  if (room.accessTagSlugs.some((slug) => held.has(slug)) || (await allowedRoomIds(prisma, target.id, held)).has(room.id)) {
     return { ok: false, error: "You can't remove them; they have a key." };
   }
 
@@ -163,7 +166,9 @@ async function letInAtPush(tx, { roomId, characterId }) {
   if (room.kind !== "PRIVATE") return { room, target, already: "open" };
 
   const held = await heldTagSlugs(tx, target.id);
-  if (room.accessTagSlugs.some((slug) => held.has(slug))) return { room, target, already: "key" };
+  if (room.accessTagSlugs.some((slug) => held.has(slug)) || (await allowedRoomIds(tx, target.id, held)).has(room.id)) {
+    return { room, target, already: "key" };
+  }
 
   await tx.roomGuest.upsert({
     where: { roomId_characterId: { roomId: room.id, characterId: target.id } },

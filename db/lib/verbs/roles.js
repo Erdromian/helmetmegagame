@@ -12,7 +12,7 @@
 // tags[].tag.slug.
 const { THANATI_SLUG, THANATI_LEADER_SLUG, RECOVERABLE_SLUGS, listComrades } = require("../thanati");
 const { presentationStamp } = require("../gmPresentation");
-const { accessibleRooms, roomAccessKeys } = require("../roomAccess");
+const { accessibleRooms, roomAccessKeys, syncCharacterRoomAccess } = require("../roomAccess");
 const { accessSlugsOf } = require("../rings");
 const { grantTagSlugs, dropCharacterTag } = require("../tagWrites");
 const { WANTED_SLUG, CERBERON_SLUG, WARRANT_BADGE_SLUGS, warrantTargets, unwarrantTargets, listWanted } = require("../wanted");
@@ -149,6 +149,17 @@ function setHideout(prisma, { character, discordUserId, roomId }) {
       targetCharacterId: character.id,
       details: { roomId: room.id, room: room.name },
     });
+    // Every cultist's way in moved with the pointer (roomAccess.js#allowedRoomIds):
+    // the new room's thread opens to them and the old one's shuts behind them.
+    const cultists = await prisma.character.findMany({
+      where: { status: "ALIVE", tags: { some: { tag: { slug: THANATI_SLUG } } } },
+      select: { id: true, status: true, locationId: true, discordUserId: true },
+    });
+    for (const cultist of cultists) {
+      await syncCharacterRoomAccess(prisma, cultist).catch((err) =>
+        console.error(`Hideout room sync for ${cultist.id} failed:`, err.message ?? err),
+      );
+    }
     return { room: room.name, line: `The hideout is ${room.name} now.` };
   });
 }

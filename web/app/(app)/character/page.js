@@ -17,7 +17,7 @@ import {
 import {
   accessibleRooms,
   guestRoomIds as roomGuestIds,
-  questAllowedRoomIds,
+  allowedRoomIds,
 } from "@lifeweb/db/lib/roomAccess";
 import { loadRoomsAt } from "@lifeweb/db/lib/roomSides";
 import { mayCustomize } from "@/lib/customCraft";
@@ -724,7 +724,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const heldSlugsForRooms = accessSlugsOf(character.tags);
   // Rooms somebody let this character into by hand — the reason this page and the Transfer gate agree.
   const guestRoomIds = await roomGuestIds(prisma, character.id);
-  const questRoomIds = await questAllowedRoomIds(prisma, character.id);
+  // Rooms that let this character in by name: a quest's list, and the hideout for a Thanati.
+  const listedRoomIds = await allowedRoomIds(prisma, character.id, heldSlugsForRooms);
   // A room that opens onto here from next door counts, gated from this side (db/lib/roomSides.js).
   const roomRowsHere = character.locationId
     ? await loadRoomsAt(prisma, character.locationId, {
@@ -767,7 +768,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   // Livestock (ARELITZ.md §5) concatenates onto the same list — both row
   // shapes carry `livestock`/`yields` now, so BodyDialog.js never has to
   // tell the two apart.
-  const reachableRoomsForBodies = accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds, questRoomIds);
+  const reachableRoomsForBodies = accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds, listedRoomIds);
   const [corpsesHere, livestockHere] = await Promise.all([
     corpsesInReach(prisma, character, { rooms: reachableRoomsForBodies }),
     livestockInReach(prisma, character, { rooms: reachableRoomsForBodies }),
@@ -1156,7 +1157,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
   const atHideout = Boolean(hideout && hideout.locationId === character.locationId);
   // Set Hideout's picker: rooms at this Location the leader can get into.
   const hideoutRooms = isThanatiLeader
-    ? accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds, questRoomIds).map((r) => ({
+    ? accessibleRooms(roomsHere, heldSlugsForRooms, guestRoomIds, listedRoomIds).map((r) => ({
         id: r.id,
         name: r.name,
         current: r.id === hideout?.id,
