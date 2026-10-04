@@ -13,6 +13,12 @@ import { projectDesireTemplateForGates, loadRoleBySlugForTemplates } from "@/lib
 import { loadPresentations } from "@lifeweb/db/lib/gmPresentation";
 import { paperDescriptionGm, paperViewGm } from "@lifeweb/db/lib/paper";
 import { prettifyActionType } from "@/lib/auditNarrative";
+import { FEED_ROW_SELECT, withAvatarVersions } from "@lifeweb/db/lib/archive";
+import { scrambleEntry, scrambleFields } from "@lifeweb/db/lib/memoryScramble";
+import { ROLE_GROUPS } from "@lifeweb/db/lib/roleGroups";
+import { createLens } from "@lifeweb/db/lib/strangers";
+import { loadMemoryOwner, placeNames, starKey, scrambleJournal, scrambleLine } from "@/lib/memories";
+import { loadMentionDirectory, loadOfferableMentions } from "@/lib/mentionDirectory";
 
 // The whole data-assembly behind the Dev Character Panel, extracted so it can
 // be shared by the standalone page (/gm/dev/characters/[characterId]) and the
@@ -594,5 +600,174 @@ export async function loadDevPanelRecord(characterId, discordUserId) {
       content: m.content,
       createdAt: m.createdAt.toISOString(),
     })),
+  };
+}
+
+// The Memories tab (docs/systemdocs/MEMORIES.md §8): the same five sections
+// /memories draws for a player, for one character by id, whatever their
+// status. Lazy like the Record tab above — fetched on the first click.
+//
+// A GM reads the REAL words. Where the character's own head garbles an item
+// today (Concussed, Amnesiac), the item carries `garbled` so the tab can say
+// so, but it is never drawn as nonsense and never locked against editing.
+// Notes and Highlights belong to the ACCOUNT, as on /memories: every one of the
+// player's own, plus any note the game wrote into THIS character.
+export async function loadDevPanelMemories(characterId) {
+  const owner = await loadMemoryOwner(characterId);
+  if (!owner) return null;
+  const { character, state, dayNumber } = owner;
+  const { discordUserId } = character;
+
+  const [entries, roles, heard, journalEntries, notes, roster, directory] = await Promise.all([
+    prisma.acquaintance.findMany({
+      where: { ownerId: character.id },
+      orderBy: [{ name: "asc" }],
+      select: {
+        id: true,
+        subjectId: true,
+        name: true,
+        roleText: true,
+        roleSlug: true,
+        notes: true,
+        source: true,
+        disguiseKey: true,
+        subject: { select: { name: true, updatedAt: true } },
+      },
+    }),
+    prisma.role.findMany({ select: { slug: true, groupSlug: true } }),
+    dayNumber != null
+      ? prisma.heardLine.findMany({ where: { characterId: character.id, dayNumber }, select: { seq: true } })
+      : [],
+    discordUserId
+      ? prisma.journalEntry.findMany({
+          where: { discordUserId, OR: [{ characterId: null }, { characterId: character.id }] },
+          orderBy: { updatedAt: "desc" },
+        })
+      : [],
+    discordUserId
+      ? prisma.note.findMany({
+          where: { discordUserId },
+          orderBy: { sentAt: "desc" },
+          include: { zone: { select: { name: true } }, character: { select: { name: true, updatedAt: true } } },
+        })
+      : [],
+    // The Journal's two rosters, the same pair /memories hands MemoriesBoard:
+    // what the composer may offer after an @, and what a saved {char:…} draws.
+    loadOfferableMentions({ includeUnburiedDead: true, viewerId: character.id }),
+    loadMentionDirectory({ includeUnburiedDead: true, viewerId: character.id }),
+  ]);
+
+  // ---- Friends: filed by the role the OWNER holds for them, as on /memories.
+  const groupOf = new Map(roles.map((r) => [r.slug, r.groupSlug]));
+  const friends = entries.map((entry) => {
+    const group = entry.roleSlug ? (groupOf.get(entry.roleSlug) ?? null) : null;
+    return {
+      id: entry.id,
+      name: entry.name,
+      roleText: entry.roleText,
+      notes: entry.notes,
+      group: ROLE_GROUPS.some((g) => g.slug === group) ? group : null,
+      faceId: entry.subjectId,
+      faceVersion: entry.subject?.updatedAt?.getTime?.() ?? null,
+      // Who the entry is really about, when that is somebody — what the
+      // character recognises (STRANGERS.md). Only shown when it differs from
+      // what they call them.
+      subjectName: entry.subject?.name ?? null,
+      disguise: Boolean(entry.disguiseKey),
+      scrambled: false,
+      garbled: scrambleEntry(state, entry).anyScrambled,
+      handMade: entry.source === "MANUAL",
+    };
+  });
+
+  // ---- Who am I? — the real values. Name, age and role edit on Identity.
+  const self = {
+    name: character.name,
+    pin: character.pin ?? null,
+    roleTitle: character.roleTitle ?? character.role?.name ?? null,
+    age: character.age == null ? null : String(character.age),
+  };
+
+  // ---- Memories of the day: through the character's own lens, so the GM
+  // sees the name they heard; the real speaker rides beside it.
+  const seqs = heard.map((h) => h.seq);
+  const lineRows = seqs.length
+    ? await prisma.archiveEntry.findMany({
+        where: { seq: { in: seqs }, deletedAt: null },
+        select: FEED_ROW_SELECT,
+        orderBy: { seq: "asc" },
+      })
+    : [];
+  const lens = createLens(prisma, { characterId: character.id });
+  const [shaped, places] = await Promise.all([
+    withAvatarVersions(prisma, lineRows).then((rows) => lens.all(rows)),
+    placeNames([...new Set(lineRows.map((r) => r.placeKey).filter(Boolean))]),
+  ]);
+  const day = shaped.map((row, i) => {
+    const raw = lineRows[i];
+    const narrated = !raw.characterId || raw.source === "SYSTEM";
+    return {
+      seq: String(row.seq),
+      name: narrated ? null : row.name,
+      realName: !narrated && raw.characterName && raw.characterName !== row.name ? raw.characterName : null,
+      characterId: row.characterId,
+      avatarPath: row.avatarPath,
+      unknownFace: row.unknownFace,
+      avatarVersion: row.avatarVersion,
+      roleGroup: row.roleGroup,
+      content: row.content,
+      place: places.get(raw.placeKey) ?? null,
+      sentAt: row.sentAt,
+      sentAtMs: raw.sentAt ? new Date(raw.sentAt).getTime() : 0,
+      narrated,
+      scrambled: false,
+      garbled: scrambleLine(state, raw.seq, row).scrambled,
+    };
+  });
+
+  // ---- Notes (the Journal).
+  const journal = journalEntries.map((e) => ({
+    id: e.id,
+    title: e.title,
+    body: e.body,
+    pinned: e.pinned,
+    turnNumber: e.turnNumber,
+    labels: e.labels,
+    updatedAt: e.updatedAt.toISOString(),
+    updatedAtMs: e.updatedAt.getTime(),
+    // Account-wide notes follow the player to every character; a
+    // character-bound one is the game's, and dies with this character.
+    forCharacter: Boolean(e.characterId),
+    scrambled: false,
+    garbled: scrambleJournal(state, e).scrambled,
+  }));
+
+  // ---- Highlights. The GM sees the real face, never the alias's: the
+  // name the line was filed under is still printed as it was.
+  const starred = notes.map((n) => ({
+    id: n.id,
+    characterName: n.characterName,
+    avatarPath: n.presentedAvatarPath ?? null,
+    characterId: n.characterId,
+    avatarVersion: n.character?.updatedAt?.getTime?.() ?? null,
+    unknownFace: !n.presentedAvatarPath && !n.characterId,
+    zoneName: n.zone?.name ?? null,
+    content: n.content,
+    sentAt: n.sentAt.toISOString(),
+    sentAtMs: n.sentAt.getTime(),
+    garbled: scrambleFields(state, starKey(n.id), { characterName: n.characterName, content: n.content }).scrambled,
+  }));
+
+  return {
+    hasAccount: Boolean(discordUserId),
+    foggy: state.active,
+    friends,
+    self,
+    day,
+    journal,
+    starred,
+    roster,
+    directory,
+    currentTurnNumber: owner.turnNumber,
   };
 }

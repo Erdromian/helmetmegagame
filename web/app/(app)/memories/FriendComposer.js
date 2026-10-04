@@ -4,7 +4,10 @@ import { useState, useTransition } from "react";
 import Modal from "@/app/components/Modal";
 import FormError from "@/app/components/FormError";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
+import Select from "@/app/components/Select";
 import { createFriend, updateFriend } from "./friendActions";
+
+const PLAYER_SAVE = { create: createFriend, update: updateFriend };
 
 // Add somebody by hand, or rewrite what you remember of them. Anything goes —
 // a nickname, a wrong role, a note to yourself — and it is exactly what a look
@@ -12,13 +15,18 @@ import { createFriend, updateFriend } from "./friendActions";
 //
 // Mounted only while open, so its fields reset between openings for free, the
 // same shell JournalComposer.js uses.
+//
+// The GM's Dev Panel mounts it too (MemoriesTab.js), with its own `save` pair
+// and a `roster`: a GM may tie a new entry to a real character, which a player
+// never can (MEMORIES.md §8).
 export default function FriendComposer({ open, ...props }) {
   if (!open) return null;
   return <FriendComposerBody {...props} />;
 }
 
-function FriendComposerBody({ friend, onClose }) {
+function FriendComposerBody({ friend, onClose, save = PLAYER_SAVE, roster = null }) {
   const isEditing = Boolean(friend?.id);
+  const [subjectId, setSubjectId] = useState("");
   const [name, setName] = useState(friend?.name ?? "");
   const [roleText, setRoleText] = useState(friend?.roleText ?? "");
   const [notes, setNotes] = useState(friend?.notes ?? "");
@@ -30,8 +38,9 @@ function FriendComposerBody({ friend, onClose }) {
     e.preventDefault();
     setError(null);
     const fields = { name, roleText, notes };
+    if (roster && subjectId) fields.subjectId = subjectId;
     startTransition(async () => {
-      const res = isEditing ? await updateFriend(friend.id, fields) : await createFriend(fields);
+      const res = isEditing ? await save.update(friend.id, fields) : await save.create(fields);
       if (!res?.ok) {
         setError(res?.error ?? "Something went wrong.");
         return;
@@ -56,6 +65,30 @@ function FriendComposerBody({ friend, onClose }) {
             required
           />
         </label>
+        {roster && !isEditing && (
+          <label className="field">
+            <span className="field-label">Linked to</span>
+            <Select
+              value={subjectId}
+              onChange={(e) => {
+                const next = e.target.value;
+                setSubjectId(next);
+                // Picking somebody fills an empty name with theirs.
+                const picked = roster.find((c) => c.id === next);
+                if (picked && !name.trim()) setName(picked.name);
+                markDirty();
+              }}
+            >
+              <option value="">Nobody (a name only)</option>
+              {roster.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </Select>
+            <span className="text-xs text-muted">A linked entry lets them recognise that person by sight.</span>
+          </label>
+        )}
         <label className="field">
           <span className="field-label">Role</span>
           <input

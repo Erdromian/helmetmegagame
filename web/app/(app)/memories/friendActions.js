@@ -6,6 +6,7 @@ import { scrambleEntry } from "@lifeweb/db/lib/memoryScramble";
 import { auth } from "@/lib/auth";
 import { UserError, guarded } from "@/lib/actionResult";
 import { loadMemoryViewer } from "@/lib/memories";
+import { cleanFriend as clean, roleSlugFor } from "@/lib/memoryEdits";
 
 // The Friends section's three verbs (docs/systemdocs/MEMORIES.md §2c). Every
 // entry is the owner's to rewrite however they like, true or not — the game
@@ -14,38 +15,12 @@ import { loadMemoryViewer } from "@/lib/memories";
 // session's living character, never a posted id, and an entry the player
 // currently sees as nonsense cannot be saved over.
 
-const NAME_MAX = 80;
-const ROLE_MAX = 60;
-const NOTES_MAX = 2000;
-
 async function requireOwner() {
   const session = await auth();
   if (!session?.discordUserId) throw new UserError("You need to be signed in.");
   const viewer = await loadMemoryViewer(session.discordUserId);
   if (!viewer.character) throw new UserError("You need a living character to remember anybody.");
   return viewer;
-}
-
-// A typed role that is exactly a seat's name files the entry under that seat's
-// estate on the page. Anything else is still kept, word for word, and files
-// under "Unknown".
-async function roleSlugFor(roleText) {
-  if (!roleText) return null;
-  const role = await prisma.role.findFirst({
-    where: { name: { equals: roleText, mode: "insensitive" } },
-    select: { slug: true },
-  });
-  return role?.slug ?? null;
-}
-
-function clean({ name, roleText, notes }) {
-  const cleanName = String(name ?? "").trim().replace(/\s+/g, " ").slice(0, NAME_MAX);
-  if (!cleanName) throw new UserError("Give them a name, even a made-up one.");
-  return {
-    name: cleanName,
-    roleText: String(roleText ?? "").trim().replace(/\s+/g, " ").slice(0, ROLE_MAX) || null,
-    notes: String(notes ?? "").trim().slice(0, NOTES_MAX),
-  };
 }
 
 export async function createFriend(input) {

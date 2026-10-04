@@ -179,7 +179,7 @@ can't disagree about what an affliction is.
   should already have, which is what `db:mirror` and the channel doctor do on
   every bot start anyway — so it could only ever confirm that nothing was
   wrong.
-- **Tabs** — Identity · Tags · Turn · Goals · Record · Notes, on the existing
+- **Tabs** — Identity · Tags · Turn · Goals · Memories · Record · Notes, on the existing
   `.tab-bar` / `.tab-item` classes. The Notes tab's own label reads
   **"Notes (N)"** once N is above zero — `adminNotesCount`, a plain
   `prisma.adminNote.count()` in `web/lib/devPanelData.js`, so a GM sees there
@@ -194,7 +194,12 @@ can't disagree about what an affliction is.
   `loadRecord` machinery either, because it fetches on mount and the mount is
   the fetch. One consequence worth knowing rather than discovering: a half-typed
   note is **not** dirty-guarded, so closing the modal with text still in the box
-  loses it, the same way the Tags tab behaves. Identity's place field is a **Zone**
+  loses it, the same way the Tags tab behaves. **Memories** is the character's whole
+  `/memories`, true words and all, and every part of it is editable: Friends
+  (a GM may link a new entry to a real character, which a player never can),
+  the PIN, the day's heard lines, the account's Notes and Highlights.
+  Every change commits at once, tells the player nothing, and writes a
+  `gm_memory_*` audit row. `MEMORIES.md` §8 has the rules. Identity's place field is a **Zone**
   select, listing presence zones only (the Caves group is a container, not a
   place); Apply swaps the zone's Discord role, and the empty option is a real
   choice meaning "nowhere, and no zone channel access". The band's identity
@@ -606,6 +611,14 @@ and the result is cached for the life of the mount. `openTurnAction` used to
 be found inside that 100-row Moves list; it is now its own small `findFirst`
 in the main batch.
 
+**The Memories tab is not in it either.** `loadDevPanelMemories(characterId)`,
+behind `getDevPanelMemories`, loads on the first click of that tab the same
+way. It differs in two places. Every call fetches and only the newest answer
+lands (a sequence number, not Record's in-flight guard), so the refetch after
+an edit is never swallowed by one already running. And a refresh while the GM
+is on the tab refetches in place rather than dropping the data, so the open
+sections never blink back to "Loading…".
+
 `DevCharacterButton` (`web/app/components/DevCharacterButton.js`) is the
 shared jump button everywhere a `CharacterLink` might want one. Given an
 `onOpen` callback it opens the modal instead of navigating to the standalone
@@ -903,10 +916,10 @@ db:collapse-games`, off a command line and behind a dry run.
 | Concern | File |
 |---|---|
 | Page shell | `web/app/(app)/gm/dev/characters/[characterId]/page.js` |
-| Shared DTO assembly (page + desk modal) — `loadDevPanelProps` to open, `loadDevPanelRecord` for the deferred Record tab | `web/lib/devPanelData.js` |
+| Shared DTO assembly (page + desk modal) — `loadDevPanelProps` to open, `loadDevPanelRecord` and `loadDevPanelMemories` for the deferred Record and Memories tabs | `web/lib/devPanelData.js` |
 | Staged state, tabs, Apply bar, the "modal" frame | `DevPanel.js` |
 | Microaction row and its dialogs | `ActionBar.js` |
-| Tabs | `IdentityTab.js`, `TagEditor.js`, `TurnTab.js`, `GoalsTab.js`, `RecordTab.js`, and the shared `web/app/components/AdminNotes.js` + `adminNoteActions.js` |
+| Tabs | `IdentityTab.js`, `TagEditor.js`, `TurnTab.js`, `GoalsTab.js`, `MemoriesTab.js` (its writes in `memoryActions.js`), `RecordTab.js`, and the shared `web/app/components/AdminNotes.js` + `adminNoteActions.js` |
 | Server actions | `actions.js` (same directory) |
 | Validation, diff, tag ops, effect plan | `web/lib/characterWrite.js` |
 | Turn economy, the Move lock predicate | `web/lib/moveEconomy.js` |
@@ -919,7 +932,7 @@ db:collapse-games`, off a command line and behind a dry run.
 | `expiresInto`'s shape + rules, shared with `db:sync-tags` | `db/lib/tagShapes.js` |
 | Shared catalog browser (categories, search, grouping, multi-select) | `web/app/components/TagCatalogBrowser.js` |
 | Panel styling | `.dev-state-strip`, `.dev-state-group`, `.dev-bar-sep`, `.dev-apply-bar`, `.dev-tag-row`, `.dev-tag-group-head`, `.dev-modal-panel`, and `.qty` / `.qty-btn` / `.qty-input` in `globals.css` |
-| Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
+| Desk modal mount (shared by turns/players desks) + `prefetchDevPanel`, and its server actions (`getDevPanelData`, `getDevPanelRecord`, `getDevPanelMemories`) | `web/app/components/DevPanelModal.js`, `devPanelActions.js` |
 | The game-level panel (§11) — page shell + section rail | `web/app/(desk)/gm/dev/page.js`, `web/app/(desk)/gm/dev/OpsNav.js` |
 | History (§11c) — every game there has ever been, and the way into each transcript | `web/app/(desk)/gm/dev/PastGames.js`, and `web/lib/gameLabel.js` for what a game is called |
 | Bulk actions (§11b) — the six verbs and the shell that draws them | `web/app/(desk)/gm/dev/BulkActions.js`, `web/app/(desk)/gm/dev/bulkVerbs.js` |

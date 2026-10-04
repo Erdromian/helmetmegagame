@@ -1,10 +1,12 @@
 import { prisma } from "@lifeweb/db";
 import { scrambleState, scrambleFields } from "@lifeweb/db/lib/memoryScramble";
 import { ensurePin } from "@lifeweb/db/lib/acquaintances";
+import { parsePlaceKey } from "@lifeweb/db/lib/placeKey";
 
 // The one server-side answer to "whose memories, and can they read them today"
-// for /memories and its actions (docs/systemdocs/MEMORIES.md). Every caller
-// starts from the session's discordUserId, never a posted id.
+// for /memories and its actions (docs/systemdocs/MEMORIES.md). Every player
+// caller starts from the session's discordUserId, never a posted id; the GM's
+// Dev Panel tab starts from a character id, behind its own GM gate.
 //
 // The Friends section and the day's lines belong to the CHARACTER — a new
 // character starts knowing only what their seat knows — while Notes and
@@ -49,6 +51,53 @@ export async function loadMemoryViewer(discordUserId) {
   }
   const state = scrambleState({ characterId: character?.id ?? null, tags: character?.tags ?? [], dayNumber: dayNumber ?? 0 });
   return { character, state, dayNumber, turnNumber: openTurn?.number ?? null };
+}
+
+// The same answer for one character by id, whatever their status — the GM's
+// Dev Panel tab (MEMORIES.md §8), which reads the dead and the gibbed as
+// readily as the living. Null when there is no such character. It mints no
+// PIN: a GM looking is not the character remembering.
+export async function loadMemoryOwner(characterId) {
+  const [character, openTurn] = await Promise.all([
+    characterId
+      ? prisma.character.findUnique({ where: { id: characterId }, select: { ...VIEWER_SELECT, discordUserId: true } })
+      : null,
+    prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true, dayNumber: true } }),
+  ]);
+  if (!character) return null;
+  const dayNumber = openTurn?.dayNumber ?? null;
+  const state = scrambleState({ characterId: character.id, tags: character.tags, dayNumber: dayNumber ?? 0 });
+  return { character, state, dayNumber, turnNumber: openTurn?.number ?? null };
+}
+
+// Where a line was said, as a place name — best-effort, and only for the keys
+// a day's line can carry. Several keys resolve with one query per kind.
+export async function placeNames(placeKeys) {
+  const ids = { room: new Set(), loc: new Set(), zone: new Set(), conv: new Set(), party: new Set() };
+  for (const key of placeKeys) {
+    const parsed = parsePlaceKey(key);
+    if (parsed && ids[parsed.kind]) ids[parsed.kind].add(parsed.id);
+  }
+  const [rooms, locations, zones, threads, parties] = await Promise.all([
+    ids.room.size
+      ? prisma.room.findMany({ where: { id: { in: [...ids.room] } }, select: { id: true, name: true, location: { select: { name: true } } } })
+      : [],
+    ids.loc.size ? prisma.location.findMany({ where: { id: { in: [...ids.loc] } }, select: { id: true, name: true } }) : [],
+    ids.zone.size ? prisma.zone.findMany({ where: { id: { in: [...ids.zone] } }, select: { id: true, name: true } }) : [],
+    ids.conv.size
+      ? prisma.playerThread.findMany({ where: { id: { in: [...ids.conv] } }, select: { id: true, location: { select: { name: true } } } })
+      : [],
+    ids.party.size ? prisma.partyThread.findMany({ where: { id: { in: [...ids.party] } }, select: { id: true, name: true } }) : [],
+  ]);
+  const names = new Map();
+  for (const r of rooms) names.set(`room:${r.id}`, r.location?.name ? `${r.name}, ${r.location.name}` : r.name);
+  for (const l of locations) names.set(`loc:${l.id}`, l.name);
+  for (const z of zones) names.set(`zone:${z.id}`, `${z.name} summary`);
+  // A conversation's own title is somebody's private choice of words; where it
+  // happened is enough to jog a memory.
+  for (const t of threads) names.set(`conv:${t.id}`, t.location?.name ? `A conversation, ${t.location.name}` : "A conversation");
+  for (const p of parties) names.set(`party:${p.id}`, p.name);
+  return names;
 }
 
 // The item keys, in one place, so the page and the edit guards garble exactly

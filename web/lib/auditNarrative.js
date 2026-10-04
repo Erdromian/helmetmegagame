@@ -314,6 +314,19 @@ const R = {
   // No possessives anywhere in this table: .audit-line's gap would render "X" + "'s turn" as "X 's turn".
   gm_turn_spent: (d) => [actor(), t("spent a turn for"), target(), ...(d.turn ? [t(`on turn ${d.turn}`)] : [])],
   gm_turn_restored: () => [actor(), t("restored a turn for"), target()],
+  // The Dev Panel's Memories tab (MEMORIES.md §7). Silent to the player, so
+  // this log is the only trace of it.
+  gm_memory_friend_added: (d) => [actor(), t("made"), target(), t("remember"), em(d.name)],
+  gm_memory_friend_edited: (d) => [actor(), t("rewrote the memory of"), em(d.from?.name ?? d.to?.name), t("held by"), target()],
+  gm_memory_friend_forgotten: (d) => [actor(), t("made"), target(), t("forget"), em(d.name)],
+  gm_memory_pin_set: () => [actor(), t("changed the PIN of"), target()],
+  gm_memory_note_added: (d) => [actor(), t("wrote a note"), em(d.title), t("for"), target()],
+  gm_memory_note_edited: (d) => [actor(), t("rewrote the note"), em(d.from?.title ?? d.to?.title), t("for"), target()],
+  gm_memory_note_pinned: (d) => [actor(), t(d.pinned ? "pinned a note for" : "unpinned a note for"), target()],
+  gm_memory_note_deleted: (d) => [actor(), t("deleted the note"), em(d.title), t("for"), target()],
+  gm_memory_highlight_edited: () => [actor(), t("rewrote a Highlight for"), target()],
+  gm_memory_highlight_removed: () => [actor(), t("removed a Highlight for"), target()],
+  gm_memory_line_forgotten: () => [actor(), t("took a line of today out of the memories of"), target()],
   gm_dm_sent: (d) => [actor(), t("DM'd"), target(), ...lengthTail(d)],
   // A DM reply's target is a Discord user; the inspector links the id under Details.
   gm_dm_reply: (d, e) => [

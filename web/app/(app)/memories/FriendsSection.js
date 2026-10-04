@@ -8,7 +8,11 @@ import IconButton from "@/app/components/IconButton";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import { EditIcon, TrashIcon } from "@/app/components/icons";
 import FriendComposer from "./FriendComposer";
-import { deleteFriend } from "./friendActions";
+import { createFriend, updateFriend, deleteFriend } from "./friendActions";
+
+// The player's own three verbs. The GM's Dev Panel passes its own trio
+// (MemoriesTab.js), which writes to the character it is looking at instead.
+const PLAYER_ACTIONS = { create: createFriend, update: updateFriend, remove: deleteFriend };
 
 // The estates, in the order the creation picker shows them, then everybody
 // whose seat the player does not know (or wrote in their own words). Labels
@@ -36,6 +40,11 @@ const SEARCH_FIELDS = [(f) => f.name, (f) => f.roleText ?? "", (f) => f.notes ??
 const FILTER_DEFS = [{ key: "estate", label: "Estate", value: (f) => groupName(f.group) }];
 
 function FriendCard({ friend, onEdit, onDelete }) {
+  const gmFacts = [
+    friend.subjectName && friend.subjectName !== friend.name ? `Really ${friend.subjectName}` : null,
+    friend.disguise ? "A disguise" : null,
+    friend.garbled ? "Garbled for them today" : null,
+  ].filter(Boolean);
   return (
     <div className="memory-card">
       <div className="flex items-start justify-between gap-3">
@@ -50,6 +59,10 @@ function FriendCard({ friend, onEdit, onDelete }) {
           />
           <div className="flex flex-col" style={{ minWidth: 0 }}>
             <span className="font-bold">{friend.name}</span>
+            {/* GM view only (MemoriesTab.js): the truth behind the entry, and
+                whether the owner can read it today. A player's own list never
+                carries these fields. */}
+            {gmFacts.length > 0 && <span className="text-xs text-muted">{gmFacts.join(" · ")}</span>}
             {friend.roleText ? (
               <span
                 className="text-xs memory-role"
@@ -79,7 +92,7 @@ function FriendCard({ friend, onEdit, onDelete }) {
   );
 }
 
-export default function FriendsSection({ friends, hasCharacter }) {
+export default function FriendsSection({ friends, hasCharacter, actions = PLAYER_ACTIONS, roster = null }) {
   const confirm = useConfirm();
   const [removed, setRemoved] = useState(new Set());
   const [editing, setEditing] = useState(null); // null closed, {} new, {...} editing
@@ -120,7 +133,7 @@ export default function FriendsSection({ friends, hasCharacter }) {
       return;
     setRemoved((prev) => new Set(prev).add(friend.id));
     startTransition(() => {
-      deleteFriend(friend.id);
+      actions.remove(friend.id);
     });
   }
 
@@ -165,7 +178,13 @@ export default function FriendsSection({ friends, hasCharacter }) {
         </EmptyState>
       )}
 
-      <FriendComposer open={editing !== null} friend={editing} onClose={() => setEditing(null)} />
+      <FriendComposer
+        open={editing !== null}
+        friend={editing}
+        save={actions}
+        roster={roster}
+        onClose={() => setEditing(null)}
+      />
     </div>
   );
 }

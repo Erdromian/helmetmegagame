@@ -11,6 +11,8 @@ import { JOURNAL_TITLE_MAX_LENGTH, JOURNAL_BODY_MAX_LENGTH, JOURNAL_MAX_LABELS }
 import { createEntry, updateEntry } from "./journalActions";
 import { findMentionQuery, rankRoster, insertMention } from "./mention";
 
+const PLAYER_SAVE = { create: createEntry, update: updateEntry };
+
 // Only ever mounted while the modal is actually open — see the shell below.
 // That means every `useState` here initializes fresh on each open, exactly
 // the pattern RequestDialog.js already uses ("the shell only mounts its body
@@ -22,8 +24,12 @@ export default function JournalComposer({ open, ...props }) {
   return <JournalComposerBody {...props} />;
 }
 
-function JournalComposerBody({ entry, roster, currentTurnNumber, onClose }) {
+// `save` and `offerCharacterScope` are the GM's (the Dev Panel's Memories tab,
+// MEMORIES.md §8): its own create/update pair, and a box that files a new note
+// on the character rather than the player's account.
+function JournalComposerBody({ entry, roster, currentTurnNumber, onClose, save = PLAYER_SAVE, offerCharacterScope = false }) {
   const isEditing = Boolean(entry?.id);
+  const [forCharacter, setForCharacter] = useState(false);
 
   const [title, setTitle] = useState(entry?.title ?? "");
   const [value, setValue] = useState(entry?.body ?? "");
@@ -148,8 +154,9 @@ function JournalComposerBody({ entry, roster, currentTurnNumber, onClose }) {
       pinned,
       turnNumber: isEditing ? entry.turnNumber : currentTurnNumber,
     };
+    if (offerCharacterScope && !isEditing) fields.forCharacter = forCharacter;
     startTransition(async () => {
-      const res = isEditing ? await updateEntry(entry.id, fields) : await createEntry(fields);
+      const res = isEditing ? await save.update(entry.id, fields) : await save.create(fields);
       if (!res?.ok) {
         setError(res?.error ?? "Something went wrong.");
         return;
@@ -278,6 +285,18 @@ function JournalComposerBody({ entry, roster, currentTurnNumber, onClose }) {
         >
           Pin to top
         </CheckField>
+
+        {offerCharacterScope && !isEditing && (
+          <CheckField
+            checked={forCharacter}
+            onChange={(e) => {
+              setForCharacter(e.target.checked);
+              markDirty();
+            }}
+          >
+            Only this character remembers it (it does not follow the player to their next character)
+          </CheckField>
+        )}
 
         <FormError>{error}</FormError>
 

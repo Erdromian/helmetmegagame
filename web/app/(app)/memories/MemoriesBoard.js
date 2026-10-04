@@ -19,7 +19,9 @@ import JournalComposer from "./JournalComposer";
 // Notes and Highlights are the old /notes page's two tabs, moved over as they
 // were — the Journal and the starred list keep their own filter, sort and
 // paging, and still never share state.
-function Section({ title, count, open = false, children }) {
+//
+// Exported for the GM's Dev Panel Memories tab, which draws the same five.
+export function Section({ title, count, open = false, children }) {
   return (
     <details className="panel memory-section" open={open}>
       <summary>

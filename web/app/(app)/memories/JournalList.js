@@ -10,6 +10,9 @@ import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { EditIcon, TrashIcon, PinIcon } from "@/app/components/icons";
 import { deleteEntry, togglePin } from "./journalActions";
 
+// The GM's Dev Panel passes its own pair (MemoriesTab.js).
+const PLAYER_ACTIONS = { remove: deleteEntry, setPinned: togglePin };
+
 const SEARCH_FIELDS = [(e) => e.title, (e) => e.body, (e) => e.labels.join(" ")];
 
 // DataTable's filterDefs compares one value per row, so a multi-label entry files
@@ -59,7 +62,7 @@ function EntryBody({ text }) {
   );
 }
 
-export default function JournalList({ entries, onEdit }) {
+export default function JournalList({ entries, onEdit, actions = PLAYER_ACTIONS }) {
   const confirm = useConfirm();
   const [removed, setRemoved] = useState(new Set());
   const [pendingPins, setPendingPins] = useState(new Map()); // id -> optimistic pinned
@@ -99,7 +102,7 @@ export default function JournalList({ entries, onEdit }) {
       return;
     setRemoved((prev) => new Set(prev).add(entry.id));
     startTransition(() => {
-      deleteEntry(entry.id);
+      actions.remove(entry.id);
     });
   }
 
@@ -107,7 +110,7 @@ export default function JournalList({ entries, onEdit }) {
     const next = !entry.pinned;
     setPendingPins((prev) => new Map(prev).set(entry.id, next));
     startTransition(async () => {
-      const res = await togglePin(entry.id, next);
+      const res = await actions.setPinned(entry.id, next);
       // A failure reverts the optimistic override; the next server read is the truth.
       if (!res?.ok) {
         setPendingPins((prev) => {
@@ -156,6 +159,9 @@ export default function JournalList({ entries, onEdit }) {
               {entry.turnNumber != null ? `Turn ${entry.turnNumber}` : null}
               {entry.turnNumber != null ? " · " : null}
               edited {new Date(entry.updatedAt).toLocaleString()}
+              {/* GM view only (MemoriesTab.js). */}
+              {entry.forCharacter && " · this character only"}
+              {entry.garbled && " · garbled for them today"}
             </div>
             <EntryBody text={entry.body} />
             {entry.labels.length > 0 && (

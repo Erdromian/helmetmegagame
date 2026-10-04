@@ -345,7 +345,48 @@ look frozen at the line (`db/lib/examineRow.js#examineRowForGm`: no medical
 sight, no memories, the hood honoured). On a list name it is what anybody
 standing there could see now. Clicking still opens the character panel.
 
-## 8. Where the code lives
+## 8. The GM's view: the Dev Panel's Memories tab
+
+A GM reads and changes every part of a character's memories from the
+character Dev Panel (`/gm/dev/characters/[id]`, and the same panel as a modal
+over `/gm/turns` and `/gm/players`), under the **Memories** tab between Goals
+and Record. It works for any character, dead, gibbed or asleep included, so a
+dead character's Friends list is still there to read until the character row
+is deleted.
+
+**What the GM sees is the truth.** The five sections are the player's own
+components (`FriendsSection`, `DaySection`, `JournalList`, `StarredList`, and
+the two composers), with the GM's verbs plugged in. Nothing is scrambled.
+Where Concussed or Amnesiac garbles an item for the character today, the item
+says "garbled for them today" instead, and the GM can still edit it. A Friends
+entry tied to somebody says who it really is when the name written on it is
+different ("Really Ada Marrow"), and a disguise entry says so. A line of the
+day shows the name the character heard it under, with the real speaker beside
+it when those differ.
+
+**What the GM can change:**
+
+| Section | Verbs |
+|---|---|
+| Friends | Add, edit, forget. A new entry may be **linked** to a living character: that makes it a recognition, not just a name, so from then on the owner sees that person's real name instead of a stranger's alias (`STRANGERS.md`). A player can never make a linked entry. A linked GM entry is filed as `SEED`, as if they had always known them; an unlinked one is `MANUAL`. A second entry for the same person is refused. |
+| Who am I? | The infoterminal PIN, exactly 4 digits. Name, role and age stay on the Identity tab. |
+| Memories of the day | Forget one line. Only this character's `HeardLine` goes; the line stays in the archive, and everybody else who was there still heard it. |
+| Notes | Add, edit, pin, delete. A new note is the player's account's by default (it follows them to their next character). Ticking "Only this character remembers it" files it on the character instead (`JournalEntry.characterId`, like the bomb's note in `NUKE.md`). The tab shows only the account's notes and this character's, never a note filed on the player's other characters. |
+| Highlights | Rewrite what one says, or remove it. |
+
+Notes and Highlights belong to the player's account, so a character with no
+player behind it has none, and the tab says so.
+
+**Every change is silent and audited.** Nothing tells the player: no DM, no
+notice. A GM planting or wiping a memory is meant to be part of the fiction.
+Each write leaves one `AuditLog` row in the same transaction, `gm_memory_*`
+(`web/lib/auditNarrative.js` gives each its sentence), so the Record tab and
+`/gm/audit` show who changed what, with the old and new words in the details.
+
+The tab loads on its first click, like Record (`DEV-PANEL.md` §10), and
+reloads in place after every change.
+
+## 9. Where the code lives
 
 | Concern | File |
 |---|---|
@@ -358,4 +399,6 @@ standing there could see now. Clicking still opens the character panel.
 | Inspect | `db/lib/examineRow.js`, `db/lib/examine.js` |
 | The hover card on a name (§7a) | `web/app/components/NameCard.js` |
 | Page and actions | `web/app/(app)/memories/`, `web/lib/memories.js` |
+| What a memory may hold (both writers) | `web/lib/memoryEdits.js` |
+| The GM's tab (§8) | `web/lib/devPanelData.js#loadDevPanelMemories`, `web/app/(app)/gm/dev/characters/[characterId]/MemoriesTab.js` and `memoryActions.js` |
 | Tests | `db/test/memoryLessons.test.js`, `memoryScramble.test.js`, `roleKnows.test.js`, `examineRoleTitle.test.js` |
