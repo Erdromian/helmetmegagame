@@ -8,8 +8,9 @@
 // (db/lib/zonesSync.js). The script is for looking first, and
 // for bringing a game in progress up to the YAML by hand. Run that way it
 // writes only the authored columns: nothing lying in a room moves, no gate
-// opens or shuts, and a stash seed that changed reaches the room at the next
-// game's pour.
+// opens or shuts, a stash seed that changed reaches the room at the next
+// game's pour, and a board or kitchen a structure put up or took down stays
+// the way the game left it.
 require("dotenv").config();
 const { prisma } = require("../../index");
 const { syncZonesFromYaml } = require("../../lib/zonesSync");

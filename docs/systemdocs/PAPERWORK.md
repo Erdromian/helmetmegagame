@@ -463,6 +463,8 @@ Wanted and Debtor notices ride this same machinery rather than a bespoke one —
 on a board (the Square for Wanted, the Depot's board for a debt to the
 Merchant) with two more loose sheets scattered in nearby rooms, on a 30-turn
 clock. A debt to the Exactor is the two loose sheets in the Den and no pin.
+If a GM has destroyed that board (§7), nothing is pinned and only the loose
+sheets go out.
 
 That machinery is a **character-creation** thing only. The Censor's and the
 Sheriff's Arrest Warrant button (`REQUESTS.md` §5g) grants the Wanted tag and

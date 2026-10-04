@@ -669,9 +669,11 @@ Everything else follows from that being the whole mechanism:
   Noticeboard never reaches the question: it is `placement.fragile`, so a
   Damage ruling destroys it outright (`PAPERWORK.md` §7).
 - **It lasts one game**, like a `/gm/dev/zones` edit. Restart Game deletes the
-  structure and `db:sync-zones` puts attributes back to the YAML. Run by hand
-  mid-game, that sync would take a built one's attribute off while the
-  structure still stood, and put a destroyed authored one's back.
+  structure and the zones sync puts attributes back to the YAML. Run by hand
+  mid-game, `db:sync-zones` leaves the `buildable` keys as the game has them,
+  so it never takes a built one's attribute off or puts a destroyed one's back
+  (`SYNC.md` §1a). The flip side: a YAML edit to `noticeboard` or `kitchen`
+  reaches the game at the next Restart, not before.
 - **An authored structure authors the attribute too.** `worldSeed.js` raises
   `structures:` already standing, past the build path, so the Location must say
   `noticeboard: true` itself. `db/test/buildings.test.js` holds the two lists

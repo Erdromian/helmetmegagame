@@ -66,7 +66,13 @@ changed is emptied and its `seededStashSlugs` cleared so the world seed pours
 the new seed, a way's authored open state resets it, and a mining rate starts
 from its new base. `npm run db:sync-zones` is the same code without that: a
 dry run by default, and with `-- --apply` on a game in progress it writes only
-the authored columns, for the next game to pick up.
+the authored columns, for the next game to pick up. It also leaves alone the
+Location attributes a structure grants (`noticeboard`, `kitchen`: the ones
+`db/lib/locationAttributes.js` marks `buildable`, `CRAFTING.md` §4b). Building
+or destroying the structure set those, so mid-game they belong to the game: a
+board somebody built stays up, and one a GM destroyed stays down. Restart Game
+puts them back to the YAML with everything else, after the wipe has taken
+every structure down, and the world seed raises the authored ones again.
 
 Each run that writes leaves one `zones_synced_from_yaml` audit row, and the
 wipe report shows the counts under **zone sync**.
