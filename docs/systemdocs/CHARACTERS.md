@@ -205,6 +205,15 @@ are *not* recalled: they are paper, on their own clock (`PAPERWORK.md` §7).
 A Disguise Kit hides the tag for three turns; this takes it off for good.
 See `REQUESTS.md` §5g and `TAGS.md` (`visible: named`).
 
+**And nobody knows the new face.** Every Friends entry anybody else held for
+the drinker is unlinked in the same transaction. Each one stays on its owner's
+page as a loose note with the old name, role and notes, but it recognises
+nobody, so the drinker reads as a stranger to the whole town. Their seat
+can never be learned again either (`Character.roleUnteachable`): saying it
+teaches nothing, and nobody is seeded an entry for them. The new name is
+learned the ordinary way, by hearing it said. Voice numbers survive the
+potion. See `MEMORIES.md` §2e.
+
 The potion is brewable (`brewing-skilled`, 2 turns, 8 ⬢) and stocked at the
 Depot, so it is a thing a player can actually get. It re-validates the same cap
 and dynasty-lock rules every other writer of `Character.name` enforces, and runs the same

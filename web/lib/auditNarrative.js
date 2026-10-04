@@ -204,7 +204,11 @@ const R = {
   ],
   // The old request_move_character line is gone; existing rows render through the fallback.
   escort_consented: (d) => [actor(), t("agreed to follow"), target(), t(`until turn ${d.untilTurn}`)],
-  request_change_name: (d) => [actor(), t("renamed from"), em(d.previousName), t("to"), em(d.name)],
+  // A Mulligan Potion. `unlinkedFriends` is how many Friends entries about them it untied (MEMORIES.md §2e).
+  request_change_name: (d) => [
+    actor(), t("renamed from"), em(d.previousName), t("to"), em(d.name),
+    ...(d.unlinkedFriends ? [t(`— ${d.unlinkedFriends} ${d.unlinkedFriends === 1 ? "person" : "people"} no longer know them`)] : []),
+  ],
   // A Disguise Kit (docs/systemdocs/STRANGERS.md §10): the name it puts on, the job it claims, how long.
   request_disguise_self: (d) => [
     actor(),

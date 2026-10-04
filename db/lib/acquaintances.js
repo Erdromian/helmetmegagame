@@ -29,6 +29,7 @@ const PERSON_SELECT = {
   lastName: true,
   name: true,
   roleTitle: true,
+  roleUnteachable: true,
   role: { select: { slug: true, name: true, knowsRoleSlugs: true } },
 };
 
@@ -52,8 +53,11 @@ function seededEntry(ownerId, subject) {
 }
 
 // Pure: the rows seeding `character` writes, given everybody else alive. Both
-// directions, never an entry about yourself. Exported for
-// db/test/acquaintanceSeed.test.js.
+// directions, never an entry about yourself, and never one about somebody who
+// drank a Mulligan Potion: nobody knows that face from their seat, and an entry
+// seeded now would undo the unlinking the potion did (MEMORIES.md §2e). The
+// drinker still knows the people their own seat knows. Exported for
+// db/test/roleKnows.test.js.
 function seedRows(character, others) {
   const mine = character?.role?.slug ?? null;
   const knows = new Set(character?.role?.knowsRoleSlugs ?? []);
@@ -61,8 +65,10 @@ function seedRows(character, others) {
   for (const other of others ?? []) {
     if (!other?.id || other.id === character.id) continue;
     const theirs = other.role?.slug ?? null;
-    if (theirs && knows.has(theirs)) rows.push(seededEntry(character.id, other));
-    if (mine && (other.role?.knowsRoleSlugs ?? []).includes(mine)) rows.push(seededEntry(other.id, character));
+    if (theirs && knows.has(theirs) && !other.roleUnteachable) rows.push(seededEntry(character.id, other));
+    if (mine && !character.roleUnteachable && (other.role?.knowsRoleSlugs ?? []).includes(mine)) {
+      rows.push(seededEntry(other.id, character));
+    }
   }
   return rows;
 }

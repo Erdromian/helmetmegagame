@@ -2352,6 +2352,15 @@ model Character {
   roleId    String?
   role      Role?   @relation(fields: [roleId], references: [id])
 
+  // Set by drinking a Mulligan Potion, and never cleared by the game: this
+  // character's seat is no longer anybody's to learn. Nobody is seeded an entry
+  // for them (db/lib/acquaintances.js#seedRows), and saying their role beside
+  // their name teaches nothing (db/lib/memoryLessons.js#roleWordsFor), the way
+  // a secret seat already works. The name can still be learned by hearing it,
+  // and a player or GM can still type any role into an entry by hand
+  // (docs/systemdocs/MEMORIES.md §2e).
+  roleUnteachable Boolean @default(false)
+
   // The late party this character was made in, if any (db/lib/lateParty.js).
   // It is what a party's slots are counted off -- the characters it made, dead
   // or alive -- so an existing fate the party reopens is counted apart from the
