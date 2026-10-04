@@ -16,7 +16,8 @@ import {
   isOnCooldown,
   requiredTagName,
 } from "@lifeweb/db/lib/vampireBloodAbilities";
-import { batFormHeldReason } from "@lifeweb/db/lib/batForm";
+import { batFormHeldReason, NO_ROAD_FROM } from "@lifeweb/db/lib/batForm";
+import { isOffRoad } from "@lifeweb/db/lib/offRoad";
 
 const URGENCY_LABELS = {
   flush: "Flush",
@@ -40,6 +41,8 @@ export async function loadVampireBlood(character, { here, openTurn }) {
   const cooldowns = character.vampireBloodAbilityCooldowns ?? {};
   const variable = await resolveCooldownVariable();
   const openTurnNumber = openTurn?.number ?? 0;
+  // Aboard the Charon, Bat Form has nowhere to leave from (db/lib/offRoad.js).
+  const offRoad = await isOffRoad(prisma, character.locationId);
 
   const abilities = ABILITIES.map((ability) => {
     const reasons = [];
@@ -52,6 +55,7 @@ export async function loadVampireBlood(character, { here, openTurn }) {
     if (ability.effect === "teleport") {
       const held = batFormHeldReason(character);
       if (held) reasons.push(held);
+      if (offRoad) reasons.push(NO_ROAD_FROM);
     }
     if (bloodLevel < ability.bloodCost) reasons.push("Not enough blood.");
     if (isOnCooldown(cooldowns, ability.key, openTurnNumber)) reasons.push("Recovering.");

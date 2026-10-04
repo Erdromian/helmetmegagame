@@ -578,8 +578,10 @@ database half of a move. It does **no Discord work** — same split
 a gateway client and the web app only has REST.
 
 **A first placement is free.** A character with no `locationId` yet can land
-anywhere, spends nothing, and files no Action — it isn't travel, it's
-arrival. The adjacency gate is skipped entirely.
+anywhere live with a road, spends nothing, and files no Action — it isn't
+travel, it's arrival. The adjacency gate is skipped entirely. A retired place
+or one with no road (the Charon, `CHARON.md` §2) is refused, because a client
+can post any id.
 
 **A hop inside the same zone is free, on a cooldown.**
 `GameConfig.locationMoveCooldownSeconds` (default 30, edited on `/gm/dev`; it
@@ -955,7 +957,8 @@ plain to see. See [`INTERCEPT.md`](INTERCEPT.md).
 A `catalog: secret` item that a player spends to stand somewhere else. It is a
 **raw relocation**, the same shape the Dev Panel's Teleport uses: no ⬢, no Move,
 no adjacency check, no cooldown, and no Action filed. It reaches **every
-surface Location, known or not** — the fog behind /map does not narrow it.
+surface Location on the roads, known or not** — the fog behind /map does not
+narrow it.
 
 **The one refusal is the underground.** A `CAVE_LEVEL` zone is never a target,
 and `stepstoneRequest` re-checks that server-side rather than trusting the
@@ -965,17 +968,23 @@ phrasing it positively keeps a zone kind added later out of the stone's reach
 until somebody decides it should be in. Destination only — stepping *out* of
 the caves is fine.
 
+**The other refusal is a place with no road**, at either end: the Charon on
+the ground and in orbit (`db/lib/offRoad.js`, `CHARON.md` §2). Both sit in
+`SURFACE` zones, so the zone test alone let a stone drop somebody straight into
+orbit. The stone will not land on one, and will not leave one either: orbit is
+one-way, and the ground ship has its own Leave. A retired Location is never a
+target.
+
 **There is no STOOD-only restriction, deliberately, and the consequence is
 real: the stone is a way past every locked gate on the surface.** The `seen`
 half of the fog is written for every **listed** neighbour, and §2 above is
 explicit that `listed` is weaker than `passable` — a locked door or a shut
 portcullis is listed on purpose, so you know it's there and cannot open it.
-The stone does not care. The Undercroft is reached
-by a `hidden: elevator-key` connection and the Charon is down there; the
-ravine camp, the Keep and the Underquarter are all surface Locations behind
-gates a stone-holder no longer needs to open. The caves are the one thing still
-walled off, which is what keeps the caving gate and the Caving Die meaning
-something.
+The stone does not care. The ravine camp, the Keep and the Underquarter are
+all surface Locations behind gates a stone-holder no longer needs to open. The
+caves and the Charon are the only things still walled off: the caves keep the
+caving gate and the Caving Die meaning something, and the ship keeps its six
+seats and its one door.
 
 **A hold stops it**, the same as it stops a walk (`INTERCEPT.md`): an ambush is
 a hand on your shoulder, and the stone is not the way out of one.

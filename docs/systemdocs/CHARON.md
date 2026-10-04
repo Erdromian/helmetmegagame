@@ -49,6 +49,40 @@ draw, and the orbit above it is the same shape.
 and its orbit included. It uses the same no-road test now
 (`vampireBloodAbilities.js#batFormDestinationWhere`, `VAMPIRE.md` §6).
 
+### No road in, no road out
+
+Then players stepped straight into orbit with a **Stepstone**. Both Charons sit
+in `SURFACE` zones, and the stone's only rule was "surface". A sweep for every
+other raw relocation a player can set off found three more doors:
+
+- **A first placement.** A character with no Location yet could post any id to
+  `performLocationMove`, and the bot's picker listed both ships.
+- **Xom's lonely teleport.** It drops you beside a random living character, and
+  that could be somebody aboard.
+- **The Rite of Summoning.** Worked in the Cockpit or the Habitation, it would
+  pull every living cultist aboard, past the six seats and into orbit.
+
+So the rule is one module now, `db/lib/offRoad.js`, and it holds at **both
+ends**. A place with no `LocationLink` is reached by its own door alone (Enter
+on the Panic Room, the launch, a GM's Teleport) and left by its own door alone
+(Leave on the ground, Sleep in orbit, a GM). **Orbit is one-way.** Every one of
+the five asks it:
+
+| | Onto the ship | Off the ship |
+|---|---|---|
+| Stepstone (`verbs/self.js#stepstone`) | "The stone will not carry you there." The picker leaves both ships out | "The stone will not carry you from here." The picker is empty |
+| First placement (`locationTravel.js#performLocationMove`) | refused, and the bot's picker leaves them out | — (nothing to leave) |
+| Bat Form (`batForm.js`) | the destination list never had them | "There's nowhere to fly from here." The Fly button greys |
+| Xom, lonely (`xomPass.js`) | nobody aboard is ever picked as company | nothing happens |
+| Summoning (`riteIngredients.js`, `riteEffects.js`) | the rite never fires aboard. It rearms and keeps its floor | a cultist aboard is skipped, like one on hallowed ground |
+
+Leave on the ground ship still works: it is the ship's own door. A GM's
+Teleport and a staged Relocate to are GM acts and are not touched.
+
+`db/test/charonSealed.test.js` pins each of these. **A new way to move somebody
+that crosses no link must ask `offRoad.js` at both ends**, or it is the next
+door into orbit.
+
 ## 3. Getting aboard
 
 **Enter the Charon**, on the Panic Room, for anybody who can get into the Panic
@@ -204,6 +238,7 @@ in orbit. It was split out of the death path for this.
 | | |
 |---|---|
 | `db/lib/charon.js` | the mechanism, both faces call in |
+| `db/lib/offRoad.js` | the no-road rule every raw relocation asks at both ends (§2) |
 | `db/lib/charonPlaces.js` | the slugs alone, zero requires, so `placeAffordances.js` can draw buttons without importing the move pipeline |
 | `db/lib/charonSweep.js` | the countdown, on the bot's five-second tick |
 | `db/lib/bodies.js` | what a body is, shared by `curse.js` and `ghost.js` |

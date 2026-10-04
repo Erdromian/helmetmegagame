@@ -18,6 +18,7 @@ const { RESTRAINT_SLUGS } = require("../bind");
 const { DISGUISE_KIT_SLUG, DISGUISE_TURNS, normalizeDisguiseName, mintDisguise, activeDisguise, resolveDisguiseJob } = require("../disguiseMint");
 const { namesCharacter } = require("../disguises");
 const { heldReasonFor } = require("../intercept");
+const { arrivableWhere, isArrivable, isOffRoad } = require("../offRoad");
 const { cavingRestrictionsFor, cavingRefusalFor, standingZoneKind } = require("../cavingPass");
 const { isPointerDeviceSlug, partnerSlugOf, locatePointerPartner } = require("../pointerMint");
 const { FAST_TRAVEL_SLUGS } = require("../mounts");
@@ -34,6 +35,8 @@ const {
 const { refuse, asResult, requireFreeMove, fileAutoRoutine, parseCount } = require("./common");
 
 const STEPSTONE_SLUG = "stepstone";
+const STEPSTONE_NOT_THERE = "The stone will not carry you there.";
+const STEPSTONE_NOT_FROM_HERE = "The stone will not carry you from here.";
 
 // --- Destroy (web: destroyTagRequestImpl) ------------------------------------
 
@@ -174,6 +177,10 @@ function disguiseSelf(prisma, { character, discordUserId, name: rawName, job: ra
 // 1 this turn stops it from underground, as they stop the walk up. The move's
 // side effects (applyLocationMoveSideEffects, the caving roll) are the face's
 // to run after this returns — `moved` carries what they need.
+//
+// Never onto or off a place with no road (db/lib/offRoad.js): the Charon has a
+// door of its own, and the stone is not it. Both Charons sit in SURFACE zones,
+// so the zone test alone let a stone drop somebody straight into orbit.
 function stepstone(prisma, { character, discordUserId, locationId, openTurn }) {
   return asResult(async () => {
     const held = character.tags.find((ct) => ct.tag.slug === STEPSTONE_SLUG && ct.quantity > 0);
@@ -193,8 +200,9 @@ function stepstone(prisma, { character, discordUserId, locationId, openTurn }) {
     if (!location) refuse("There's no such place.");
     // SURFACE only, tested that way round so a new zone kind stays out by default.
     if (location.zone?.kind !== "SURFACE") refuse("The stone will not carry you underground.");
+    if (!(await isArrivable(prisma, location.id))) refuse(STEPSTONE_NOT_THERE);
 
-    const fromLocationId = character.locationId;
+    let fromLocationId = character.locationId;
     const restore = { tagId: held.tagId, source: held.source, expiresTurn: held.expiresTurn, quantity: 1 };
     await prisma.$transaction(async (tx) => {
       await lockCharacter(tx, character.id);
@@ -203,6 +211,12 @@ function stepstone(prisma, { character, discordUserId, locationId, openTurn }) {
         select: { id: true },
       });
       if (!stillHeld) refuse("You aren't carrying a Stepstone.");
+      // Where they stand NOW, under the lock: a second tab may have walked them
+      // through the Panic Room since the row was read.
+      const standing = await tx.character.findUnique({ where: { id: character.id }, select: { locationId: true } });
+      fromLocationId = standing?.locationId ?? null;
+      if (fromLocationId === location.id) refuse("You're already there.");
+      if (await isOffRoad(tx, fromLocationId)) refuse(STEPSTONE_NOT_FROM_HERE);
       await dropCharacterTag(tx, character.id, held.tagId, 1);
       await tx.character.update({
         where: { id: character.id },
@@ -232,12 +246,14 @@ function stepstone(prisma, { character, discordUserId, locationId, openTurn }) {
   });
 }
 
-// Where the stone may take somebody: every SURFACE place but where they stand,
-// the list the web's dialog draws (web/lib/itemPools.js).
+// Where the stone may take somebody: every live SURFACE place on the roads but
+// where they stand, the list the web's dialog draws (web/lib/itemPools.js).
+// Nothing at all from a place with no road, since the stone will not leave one.
 async function stepstoneTargets(prisma, character) {
+  if (await isOffRoad(prisma, character.locationId)) return [];
   const rows = await prisma.location.findMany({
     where: {
-      zone: { kind: "SURFACE" },
+      AND: [{ zone: { kind: "SURFACE" } }, arrivableWhere()],
       ...(character.locationId ? { id: { not: character.locationId } } : {}),
     },
     select: { id: true, name: true, zone: { select: { name: true } } },

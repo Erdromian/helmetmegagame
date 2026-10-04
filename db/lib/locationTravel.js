@@ -26,6 +26,7 @@ const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
 const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
 const { linkBetween, crossingCheck, partyKeyFor } = require("./locationGraph");
 const { withRingTokens } = require("./roomAccess");
+const { isArrivable } = require("./offRoad");
 const { crossingCost, FAR_CROSSING_COST, formatTravel } = require("./crossingCost");
 const { MOTION_SICKNESS_SLUG, VOMITING_SLUG } = require("./constants");
 const { expiryForGrant } = require("./grantExpiry");
@@ -477,6 +478,12 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
     // `edge` marks the one refusal an escort following them must never be told the reason for (§3d):
     // naming a hidden way's refusal would announce the way is there (MAP.md §2a).
     if (!gate.passable) return { ok: false, reason: gate.refusal, edge: true };
+  } else if (!(await isArrivable(prisma, targetLocation.id))) {
+    // A first placement crosses no edge, so nothing above asked whether the
+    // target is a place anybody may be set down: a retired one, or one with no
+    // road (the Charon, on the ground or in orbit — db/lib/offRoad.js). The
+    // picker leaves them out; a client can post any id.
+    return { ok: false, reason: "You can't get there directly from here." };
   }
 
   // A first placement (no current location) is free — it isn't travel, it's arrival. A walk inside the zone is free on the cooldown. Only a hop whose edge crosses into another zone files the Move.

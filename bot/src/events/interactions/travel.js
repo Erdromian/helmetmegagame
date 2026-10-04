@@ -47,12 +47,14 @@ const { escortCandidates, partyOf } = require("@lifeweb/db/lib/escort");
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
 const { arrivalLinksLine } = require("@lifeweb/db/lib/syncZones/bodies");
 const { loadRoomsAt } = require("@lifeweb/db/lib/roomSides");
+const { arrivableWhere } = require("@lifeweb/db/lib/offRoad");
 const { GATE_CHARACTER_SELECT, toggleGate, holdKeyedOpen } = require("@lifeweb/db/lib/gates");
 const { ack, respond, scheduleDismiss } = require("../../lib/respond");
 
 // loc:open, and its /location twin. Offers the Locations connected to where
 // the character stands — or, on a first placement, every Location outside the
-// caves, because arriving is not travel.
+// caves, because arriving is not travel. Never one with no road (the Charon,
+// db/lib/offRoad.js): performLocationMove refuses it, so it is not offered.
 async function handleTravelOpen(interaction) {
   await ack(interaction);
 
@@ -71,7 +73,7 @@ async function handleTravelOpen(interaction) {
   const squeezeIds = new Set();
   if (!character.locationId) {
     destinations = await prisma.location.findMany({
-      where: { retiredAt: null, zone: { kind: { not: "CAVE_GROUP" } } },
+      where: { AND: [{ zone: { kind: { not: "CAVE_GROUP" } } }, arrivableWhere()] },
       include: { zone: true },
     });
     destinations.sort(

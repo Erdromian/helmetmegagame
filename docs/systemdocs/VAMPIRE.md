@@ -319,8 +319,10 @@ Keep), `town`, `undertown`, `hills`, `caves` and `depths` — never a retired
 zone or Location, and only one with a road at either end. Space, and any zone
 added later, is out until it is put on that list. The road rule keeps out the
 Charon docked above the Keep, whose only door is the Panic Room's button
-(`CHARON.md`); it is the same test `revealSurface` uses. It asks only that a
-road exists, not that it is open, since this is flight. The menu lists with it,
+(`CHARON.md`); it is the same test `revealSurface` uses (`db/lib/offRoad.js`).
+It asks only that a road exists, not that it is open, since this is flight.
+Nor does a vampire fly **off** the ship, docked or in orbit: "There's nowhere
+to fly from here.", and the Fly button greys with the same line. The menu lists with it,
 minus the Location you stand in, and the action looks the destination up with
 it again, since a server action is a public endpoint.
 

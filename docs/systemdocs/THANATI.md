@@ -493,7 +493,7 @@ words where a room or a player hears anything:
 | Reanimation | a corpse on the floor, 1 heart, 5 ⬢ | `reviveByRite`: ALIVE in this Location with `ghoul`, `servant-of-tzchernobog`, `hungerless`; role, Cursed and placement restored |
 | Stupidity | 1 squeeze, a photograph (floor first, then hands), 5 ⬢ | target gets `stupid`; the print is spent |
 | Omniscience | 1 skinless-brain, a photograph | every participant is DMed the target's full tag list; print spent |
-| Summoning | 1 saltpeter, 15 ⬢ | every living Thanati not on hallowed ground moves to this Location and is unbound |
+| Summoning | 1 saltpeter, 15 ⬢ | every living Thanati not on hallowed ground and not aboard the Charon moves to this Location and is unbound. Never fires aboard the Charon: it rearms and keeps its floor (`CHARON.md` §2) |
 | Panic | 1 heart, 20 ⬢ | room hears "Name a zone."; status **AWAITING**; the next participant line naming a Zone (else a Location) sets everyone there to mood −100, Panicking (`answerPanic`) |
 | Reflection | 1 black-robes (floor), 15 ⬢ | `shimmering-robes` on the floor (counts as robes for chanting) |
 | Rage | 1 ravenheart-red | every participant gets `rage`: every mood harm ×0, Desires locked but cruelty and violence |

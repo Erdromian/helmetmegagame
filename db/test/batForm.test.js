@@ -3,7 +3,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { batFormRefusal, batFormHeldReason, IN_A_FIGHT, CAVING_HOLD } = require("../lib/batForm");
+const { batFormRefusal, batFormHeldReason, IN_A_FIGHT, CAVING_HOLD, NO_ROAD_FROM } = require("../lib/batForm");
 const { HELD_REASON } = require("../lib/intercept");
 const { CAVING_STUCK_REASON } = require("../lib/cavingPass");
 const { GATE_MESSAGES, CAVING_TRAVEL_LOCKED } = require("../lib/turnGate");
@@ -12,8 +12,9 @@ const HOUR = 60 * 60 * 1000;
 const OPEN_TURN = { id: "turn1", number: 3 };
 
 // `turn` is only offered when a test wants the pre-push lock read: a client
-// with no Turn model is never locked (turnGate.js#travelLockReason).
-function fakeDb({ config = {}, state = { phase: "RUNNING" }, turn = null, fight = null, troubles = 0, zoneKind = "SURFACE" } = {}) {
+// with no Turn model is never locked (turnGate.js#travelLockReason). `roads`
+// is how many links the place they stand in has (db/lib/offRoad.js).
+function fakeDb({ config = {}, state = { phase: "RUNNING" }, turn = null, fight = null, troubles = 0, zoneKind = "SURFACE", roads = 1 } = {}) {
   return {
     gameConfig: { findUnique: async () => config },
     gameState: { findUnique: async () => state },
@@ -21,6 +22,7 @@ function fakeDb({ config = {}, state = { phase: "RUNNING" }, turn = null, fight 
     combatParticipant: { findFirst: async () => fight },
     cavingRoll: { count: async () => troubles },
     zone: { findUnique: async () => ({ kind: zoneKind }) },
+    location: { count: async () => roads },
   };
 }
 
@@ -88,4 +90,11 @@ test("the Caving Die: a 1 holds, severity 10 stops, and only underground", async
     CAVING_STUCK_REASON,
   );
   assert.equal(await batFormRefusal(fakeDb({ troubles: 1, zoneKind: "SURFACE" }), vampire(), { turn: OPEN_TURN }), null);
+});
+
+// Aboard the Charon, docked or in orbit: a place with no road is left by its
+// own door alone, and orbit is one-way (CHARON.md §2).
+test("no flight off a place with no road", async () => {
+  assert.equal(await batFormRefusal(fakeDb({ roads: 0 }), vampire(), { turn: OPEN_TURN }), NO_ROAD_FROM);
+  assert.equal(await batFormRefusal(fakeDb({ roads: 2 }), vampire(), { turn: OPEN_TURN }), null);
 });

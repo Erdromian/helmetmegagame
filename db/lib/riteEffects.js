@@ -32,6 +32,7 @@ const { SFX } = require("./sfx");
 const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
 const { seenByPlace } = require("./intercept");
 const { capitalizeFirst } = require("./concealedIdentity");
+const { offRoadLocationIds } = require("./offRoad");
 // roomStash's addRoomResources, NOT resourceStack's. The bare stack writer moves
 // the ⬢ and books nothing; this one records the ledger row and the CLAMP
 // shortfall. A rite minting ⬢ onto a floor is real money appearing out of
@@ -366,9 +367,13 @@ const EFFECTS = {
       where: { status: "ALIVE", tags: { some: { quantity: { gt: 0 }, tag: { slug: THANATI_SLUG } } } },
       select: { id: true, name: true, locationId: true, location: { select: { slug: true } } },
     });
+    // Nobody is pulled off the Charon either: a place with no road is left by
+    // its own door alone (db/lib/offRoad.js), and orbit is one-way. The other
+    // half, never summoning INTO one, is riteIngredients.js's refusal.
+    const offRoad = await offRoadLocationIds(db);
     const moved = [];
     for (const c of cultists) {
-      if (c.locationId === location.id || onHallowedGround(c.location)) continue;
+      if (c.locationId === location.id || onHallowedGround(c.location) || offRoad.has(c.locationId)) continue;
       await db.$transaction(async (tx) => {
         await tx.character.update({ where: { id: c.id }, data: { locationId: location.id, zoneId: location.zoneId, escortedById: null } });
         for (const r of restraints) await dropCharacterTag(tx, c.id, r.id);
