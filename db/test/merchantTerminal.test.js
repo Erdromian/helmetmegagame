@@ -20,6 +20,7 @@ const {
   crateHoldLimit,
   cratesHeld,
   hauls,
+  haulWarning,
 } = require("../lib/crates");
 const { holdLimitRefusal, holdLimitExcess } = require("../lib/mounts");
 const { canSink, NEVER_SINKS_ROOM_SLUGS } = require("../lib/floorSettle");
@@ -193,6 +194,16 @@ test("Pack Mule and Strong haul for free; everybody else pays", () => {
   assert.equal(hauls([{ tag: { slug: "strong" } }]), false);
   assert.equal(hauls([{ tag: { slug: "soft-hands" } }]), true);
   assert.equal(hauls([]), true);
+});
+
+test("the dialogs warn before a crate lands in your hands, unless you are built for it", () => {
+  const softHands = [{ tag: { slug: "soft-hands" } }];
+  assert.match(haulWarning(softHands, 1), /sours your mood/);
+  assert.match(haulWarning(softHands, 3), /tires you/);
+  // Nothing picked up, nothing to warn about: giving one away is not picking one up.
+  assert.equal(haulWarning(softHands, 0), null);
+  assert.equal(haulWarning([{ tag: { slug: "pack-mule" } }], 2), null);
+  assert.equal(haulWarning([{ tag: { slug: "strong" } }], 2), null);
 });
 
 test("a crate never sinks under a floor, and nothing on the Railway or in the Cargo Bay does", () => {

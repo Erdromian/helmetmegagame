@@ -112,6 +112,14 @@ function hauls(characterTags) {
   return !(characterTags ?? []).some((ct) => CRATE_HAULER_SLUGS.has(tagOf(ct)?.slug));
 }
 
+// What a dialog says before crates land in somebody's own hands by their own
+// doing (CARRY.md §10), or null when it will cost them nothing. No number: a
+// player reads their mood as a word, never a figure (MOOD.md).
+function haulWarning(characterTags, pickedUp) {
+  if (!(pickedUp > 0) || !hauls(characterTags)) return null;
+  return "Picking up a crate sours your mood, and the first crate you move in a turn tires you.";
+}
+
 module.exports = {
   CATALOG_CRATE_SLUGS,
   CRATE_HAULER_SLUGS,
@@ -125,4 +133,5 @@ module.exports = {
   crateHoldLimit,
   cratesHeld,
   hauls,
+  haulWarning,
 };

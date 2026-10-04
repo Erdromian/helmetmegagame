@@ -10,6 +10,7 @@ import useSubmit from "./useSubmit";
 import { useActionPools } from "./poolsContext";
 import { transferableTags } from "@/lib/tagRequests";
 import { markdownName } from "@lifeweb/db/lib/markdownName";
+import { isCrateTag, haulWarning } from "@lifeweb/db/lib/crates";
 import { transferRequest, lootCharacterRequest, stealRequest } from "@/app/(app)/character/requestActions";
 
 // Moving things: one dialog for Transfer, Loot, Take, Drop and Give.
@@ -141,6 +142,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
         stackable: t.stackable,
         // Assets weigh nothing on your back (CARRY.md §1).
         weightLbs: t.category === "Assets" ? 0 : (t.weightLbs ?? 0),
+        crate: isCrateTag(t),
         // Detector surface (M4 fix round) — only meaningful from YOUR own
         // stack (own-sheet detection is the design); a room's own tags or a
         // person's own pockets below carry no such field and render nothing.
@@ -153,6 +155,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
           held: t.quantity,
           stackable: t.stackable,
           weightLbs: t.weightLbs ?? 0,
+          crate: t.crate === true,
         }))
       : (fromRoom?.tags ?? []).map((t) => ({
           id: t.tagId,
@@ -161,6 +164,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
           held: t.quantity,
           stackable: t.stackable,
           weightLbs: t.weightLbs ?? 0,
+          crate: t.crate === true,
         }));
   // A non-stackable tag pins at one per character, so a pull out of a room
   // to a person is one at a time.
@@ -195,6 +199,12 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
   // carryStatus stopped returning a ⬢ balance when the second cap went.
   if (carry && fromSelf) projected = { weight: round(carry.weightUsed - lbs) };
   else if (carry && toSelf && !fromPerson) projected = { weight: round(carry.weightUsed + lbs) };
+  // Crates that would land in your own hands, and what that costs you unless
+  // you are a Pack Mule or Strong (CARRY.md §10). The server charges it.
+  const cratesTaken = toSelf
+    ? lines.reduce((n, l) => n + (rows.find((r) => r.id === l.tagId)?.crate ? l.quantity : 0), 0)
+    : 0;
+  const crateWarning = haulWarning(roster?.self?.characterTags ?? [], cratesTaken);
   const overAfter = projected && projected.weight > carry.weightCap;
   const refusedAfter = projected && projected.weight > carry.weightHardCap;
 
@@ -322,6 +332,7 @@ export default function MoveThingsDialog({ mode, presets, onDone, onClose }) {
               : ""}
         </p>
       )}
+      {crateWarning && <p className="text-xs text-accent">{crateWarning}</p>}
     </ActionDialog>
   );
 }

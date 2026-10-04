@@ -11,6 +11,7 @@ import { packageItemsRequest } from "@/app/(app)/character/requestActions";
 // Safe from a client component: db/lib/constants.js is a leaf of bare strings
 // and numbers with no requires at all.
 import { PACKAGE_MAX_LBS, PACKAGE_LABEL_MAX } from "@lifeweb/db/lib/constants";
+import { haulWarning } from "@lifeweb/db/lib/crates";
 
 // Package (docs/systemdocs/FACTORY.md): what goes in the crate, as rows with
 // a count, and — optionally — the line printed on its side. The lb readout is
@@ -38,6 +39,8 @@ export default function PackageDialog({ onDone, onClose }) {
   const lines = pickedLines(picks);
   const packedLbs = lines.reduce((sum, l) => sum + (packable.find((t) => t.id === l.tagId)?.weightLbs ?? 0) * l.quantity, 0);
   const crateLbs = Math.max(1, Math.ceil(packedLbs / 2));
+  // The packed crate lands in your own hands, which is a crate picked up.
+  const crateWarning = haulWarning(roster?.self?.characterTags ?? [], lines.length > 0 ? 1 : 0);
 
   return (
     <ActionDialog
@@ -88,6 +91,7 @@ export default function PackageDialog({ onDone, onClose }) {
             ? "Nobody checks the line on the side against what's actually in there."
             : null}
       </p>
+      {crateWarning && <p className="text-xs text-accent">The crate lands in your hands. {crateWarning}</p>}
     </ActionDialog>
   );
 }
