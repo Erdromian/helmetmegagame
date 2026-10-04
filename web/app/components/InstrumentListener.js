@@ -3,8 +3,8 @@
 import { useEffect, useRef, useState } from "react";
 import { songByKey } from "@lifeweb/db/lib/instrumentSongs";
 import { jukeboxSongByKey } from "@lifeweb/db/lib/jukeboxSongs";
-import { duckLayer, isWanted, playOn, setTone, stopLayer, voicesOn } from "./music";
-import { onCuesSounding } from "./sfx";
+import { isWanted, playOn, setTone, stopLayer, voicesOn } from "./music";
+import { setJukebox } from "./musicConductor";
 import { fileGain } from "./musicGain";
 import { JUKEBOX_LOCATION_SLUGS } from "@lifeweb/db/lib/jukeboxText";
 import { useFramedDenJukebox, useFramedJukebox, useMutedPerformers, usePerformances } from "./performanceStore";
@@ -26,11 +26,12 @@ import { standingForKey, useGmPlaces } from "./gmPlaces";
 //
 // THE JUKEBOX is the `room` layer: one song, on loop, anchored to when it was put on so
 // the whole Den hears the same bar, and through a lowpass — "Muffle the sound to imitate a
-// low quality speaker". Being the top of the bus it ducks the place's ambience to silence
-// while it plays. Sound effects are a different engine (sfx.js) and play over it, and while
-// one is sounding the jukebox drops very low and comes back after (DUCK_* below).
+// low quality speaker". It is on at one level or it is off: sound effects (sfx.js) play
+// over it without moving it, and through a soundproof wall it is darker but no quieter.
+// While it plays, the place's ambience song is stopped and no new one starts
+// (musicConductor.js#setJukebox); a fresh one is picked once it goes off.
 // Where it comes from: Chat's feed frame while the stream is open, the phase poll's
-// `standing.jukebox` otherwise. In a soundproof room it is heard through the wall.
+// `standing.jukebox` otherwise.
 //
 // A GM with no character hears it too, while the place they have open in Chat — or had
 // open last — is in the Den or the Den Interior. That is the same place their ambience
@@ -44,16 +45,8 @@ import { standingForKey, useGmPlaces } from "./gmPlaces";
 
 // The speaker: a lowpass that keeps the voice and the beat and loses the air.
 const SPEAKER_HZ = 2800;
-// Through a soundproof wall: much darker, and a good deal quieter.
+// Through a soundproof wall: much darker, at the same level.
 const WALL_HZ = 500;
-const WALL_GAIN = 0.35;
-// Under a sound effect the jukebox all but stops, fast, and comes back slowly once the last
-// cue has finished — so the door, the dice or the gunshot is what you hear. HOLD bridges the
-// gap between two cues close together, so the song does not pump up and down between them.
-const DUCK_FACTOR = 0.15;
-const DUCK_DOWN_MS = 150;
-const DUCK_UP_MS = 1000;
-const DUCK_HOLD_MS = 300;
 
 export default function InstrumentListener() {
   const performances = usePerformances();
@@ -123,13 +116,16 @@ export default function InstrumentListener() {
     if (!song || wanted.size > 0) {
       if (isWanted("room")) stopLayer("room");
       room.current = null;
+      setJukebox(false);
     } else {
       const want = {
         src: song.src,
         startedAt: jukeboxStartedAt,
-        gain: fileGain(song.src) * (behindWall ? WALL_GAIN : 1),
+        gain: fileGain(song.src),
         hz: behindWall ? WALL_HZ : SPEAKER_HZ,
       };
+      // Before playOn, so the ambience song fades out as the jukebox fades in.
+      setJukebox(true);
       const was = room.current;
       // A layer something else stopped (a voice starting, stopAllMusic) is not playing,
       // whatever this ref remembers, so it is issued again.
@@ -142,9 +138,9 @@ export default function InstrumentListener() {
           anchor: { startedAt: want.startedAt },
           fadeInMs: 1200,
         });
-      } else if (was.gain !== want.gain || was.hz !== want.hz) {
-        // The same song from the other side of a wall: re-levelled, never restarted.
-        setTone("room", { gain: want.gain, hz: want.hz });
+      } else if (was.hz !== want.hz) {
+        // The same song from the other side of a wall: darkened, never restarted.
+        setTone("room", { hz: want.hz });
       }
       room.current = want;
     }
@@ -168,21 +164,8 @@ export default function InstrumentListener() {
     return () => window.clearTimeout(id);
   }, [performances, tick]);
 
-  // Sound effects over the jukebox. Only the `room` layer: an instrument somebody is playing
-  // is a person in front of you, and holds its own against a cue.
-  useEffect(() => {
-    let release = null;
-    const off = onCuesSounding((on) => {
-      window.clearTimeout(release);
-      if (on) duckLayer("room", DUCK_FACTOR, DUCK_DOWN_MS);
-      else release = window.setTimeout(() => duckLayer("room", 1, DUCK_UP_MS), DUCK_HOLD_MS);
-    });
-    return () => {
-      off();
-      window.clearTimeout(release);
-      duckLayer("room", 1, 0);
-    };
-  }, []);
+  // Unmounted, there is no jukebox to keep the ambience off.
+  useEffect(() => () => setJukebox(false), []);
 
   return null;
 }

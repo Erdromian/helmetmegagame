@@ -74,7 +74,8 @@ import { soundSetting } from "./soundStore";
 export const LAYERS = ["ambient", "spot", "music", "event", "room", "player", "dose"];
 
 // What a layer does while something above it is playing. The bed keeps rolling, because a
-// wind loop restarted at 0:00 under a jukebox is audible; everything else pauses, because
+// wind loop restarted at 0:00 under a lute is audible (the Den's jukebox is different: the
+// conductor stops the bed outright for it, musicConductor.js#setJukebox); everything else pauses, because
 // a 4 MB song should not stream through ten silent minutes of somebody's data plan. An
 // event keeps rolling for a different reason: it is short, it is usually still audible
 // under whatever beat it, and a siren that pauses and resumes is a siren twice.
@@ -126,14 +127,6 @@ const MUFFLE_MS = 600;
 // is where that filter rests while the layer is heard — its parked cutoff, in place of
 // OPEN_HZ — and setTone() moves it without restarting the track.
 const TONED = new Set(["room"]);
-
-// What duckLayer() is holding a layer down to, by base layer: a fraction of its own gain,
-// and absent means 1. Separate from COEXIST, which is one layer making room for another on
-// the bus; this is the bus making room for something outside it (sfx.js).
-const ducks = new Map();
-function duckOf(layer) {
-  return ducks.get(baseOf(layer)) ?? 1;
-}
 
 const CROSSFADE_MS = 1200;
 // The bed gives way slowly, so a song over it arrives rather than cuts in.
@@ -384,7 +377,7 @@ function applyPriority() {
       // sounds like somebody turning a siren down, not like a wall going up.
       ramp(
         entry,
-        (under ? entry.wanted.gain * rule.duck : entry.wanted.gain) * duckOf(layer),
+        under ? entry.wanted.gain * rule.duck : entry.wanted.gain,
         under ? MUFFLE_MS : entry.wanted.fadeInMs ?? CROSSFADE_MS,
       );
       muffle(entry, under ? rule.hz : restingHz(entry), MUFFLE_MS);
@@ -546,21 +539,6 @@ export function setTone(layer, { gain, hz = null } = {}) {
     fadeInMs: MUFFLE_MS,
   };
   applyPriority();
-}
-
-/**
- * Hold a layer down to `factor` of its own level, or let it back up with 1 — over `ms`,
- * without touching the track. The Den's jukebox under a sound effect (sfx.js#onCuesSounding).
- * The factor stays on the layer across the priority pass and a new song, until it is lifted.
- */
-export function duckLayer(layer, factor, ms = MUFFLE_MS) {
-  const next = Number.isFinite(factor) ? Math.min(1, Math.max(0, factor)) : 1;
-  if (duckOf(layer) === next) return;
-  if (next === 1) ducks.delete(baseOf(layer));
-  else ducks.set(baseOf(layer), next);
-  const entry = layers.get(layer);
-  if (!entry?.wanted || entry.seeking || !audibleNow(layer)) return;
-  ramp(entry, entry.wanted.gain * next, Math.max(0, ms));
 }
 
 /** Take a layer off. Ramps its gain down over `fadeMs`, then pauses and releases it. */
