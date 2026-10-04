@@ -157,6 +157,23 @@ test("a title naming a secret seat teaches the cover seat instead", () => {
   assert.deepEqual(lessons("Vampire Lord, at your service.", titled, [titled]), []);
 });
 
+test("a Mulligan drinker's seat is never learned, but the new name is", () => {
+  const drinker = { ...MARROW, roleUnteachable: true };
+  assert.equal(teachableRoleText(drinker), null);
+  // Owning up to it teaches the name and nothing else.
+  const own = only(lessons("Marrow Kell, Sheriff of this town.", drinker, [drinker]));
+  assert.equal(own.name, true);
+  assert.equal(own.role, false);
+  assert.equal(own.entry.roleText, null);
+  assert.equal(own.entry.roleSlug, null);
+  // The seat on its own teaches nothing at all.
+  assert.deepEqual(lessons("I am the Sheriff here.", drinker, [drinker]), []);
+  // Nor does somebody who has learned the new name saying it beside the seat.
+  const told = only(lessons("This is the Sheriff, Marrow.", ADA, [drinker, ADA], KNOWS_MARROW));
+  assert.equal(told.name, true);
+  assert.equal(told.role, false);
+});
+
 test("a mention chip reads as the name it froze", () => {
   const l = only(lessons("Ask {char:m|Marrow Kell} about it.", ADA, [MARROW, ADA], KNOWS_MARROW));
   assert.equal(l.name, true);

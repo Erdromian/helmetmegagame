@@ -2452,6 +2452,11 @@ export async function claimDesireImpl({
 // other identity rule (the personal Discord role, a wanted poster, a Disguise
 // that is supposed to be temporary) mean less than it should. A Disguise is
 // the temporary answer; this is the permanent one. See CHARACTERS.md.
+//
+// A new name is a new face, too. Every Friends entry anybody else held for
+// the drinker is unlinked, so they read as a stranger to the whole town, and
+// their seat is no longer anybody's to learn (Character.roleUnteachable,
+// MEMORIES.md §2e). The entries stay on their owners' pages as loose notes.
 const MULLIGAN_SLUG = "mulligan-potion";
 
 export async function changeNameRequestImpl({
@@ -2531,7 +2536,15 @@ export async function changeNameRequestImpl({
     if (!stillHeld) throw new UserError("You need a Mulligan Potion to take a new name.");
     updated = await tx.character.update({
       where: { id: character.id },
-      data: next,
+      data: { ...next, roleUnteachable: true },
+    });
+    // Nobody recognises the new face. An entry stays where its owner wrote
+    // it, name, role and notes and all, but tied to nobody, the shape a
+    // hand-written MANUAL entry has. A disguise's entry is already tied to
+    // nobody, and the drinker's own entries about other people stay linked.
+    const { count: unlinkedFriends } = await tx.acquaintance.updateMany({
+      where: { subjectId: character.id },
+      data: { subjectId: null, source: "MANUAL" },
     });
     // Drunk, not merely held — one name per bottle.
     await dropCharacterTag(tx, character.id, potion.tagId, 1);
@@ -2551,6 +2564,7 @@ export async function changeNameRequestImpl({
         previousTitle: previous.title,
         title: next.title,
         potionTagId: potion.tagId,
+        unlinkedFriends,
         ...(warrant ? { clearedWanted: true } : {}),
       },
     });

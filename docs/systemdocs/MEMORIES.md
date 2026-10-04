@@ -205,6 +205,38 @@ The Thanati still recognise each other through their own sight (`THANATI.md`),
 which writes no memory. A player may still type anything into their own
 entries by hand.
 
+### 2e. A Mulligan Potion is a new face
+
+Drinking a Mulligan Potion (`CHARACTERS.md`, "A name is immutable") makes the
+drinker a stranger to everybody:
+
+- **Every entry anybody else held for them is unlinked**, in the same
+  transaction as the rename (`changeNameRequestImpl`). Each entry stays on its
+  owner's page with the old name, role and notes as they were, but it is tied
+  to nobody now (`subjectId` null, `MANUAL`), the shape of an entry made by
+  hand. So it recognises nobody, and the drinker reads as "a young man" until
+  somebody learns the new name again. The drinker's own entries about other
+  people are untouched, and so is any entry for a disguise.
+- **Their seat can never be learned again.** `Character.roleUnteachable` is set,
+  and from then on the drinker is treated like a secret seat (§2d), but for
+  the whole character: none of their words is a role word
+  (`memoryLessons.js#roleWordsFor`), nothing teaches their role
+  (`teachableRoleText`), and nobody is seeded an entry for them, either at a
+  new arrival's creation or by a re-run of `db/scripts/ops/seed-acquaintances.js`
+  (`acquaintances.js#seedRows`). The new name is still learned the ordinary
+  way (§2b), with no role on the entry. A disguise's claimed job is still
+  learned as usual, since that is the disguise's, not the seat's.
+- **Voices are kept.** A `VoiceMemory` number survives the potion
+  (`STRANGERS.md` §4), so a listener who once heard the drinker under an alias
+  may still know the voice.
+
+A player or GM can still type any role into an entry by hand. A GM can also
+link an entry back to the drinker from the Dev Panel (§8).
+
+Migration `20261222000000_mulligan_unlinks_friends` did this to the one
+character on the running game who had already drunk a potion (Discord user
+`436238225401446401`), and writes one `mulligan_friends_unlinked` audit row.
+
 ### 2c. By hand
 
 "+ Add someone" makes an unlinked entry (`MANUAL`). It is never linked to a
@@ -400,5 +432,6 @@ reloads in place after every change.
 | The hover card on a name (§7a) | `web/app/components/NameCard.js` |
 | Page and actions | `web/app/(app)/memories/`, `web/lib/memories.js` |
 | What a memory may hold (both writers) | `web/lib/memoryEdits.js` |
+| A Mulligan Potion unlinking entries (§2e) | `web/app/(app)/character/actions/misc.js#changeNameRequestImpl` |
 | The GM's tab (§8) | `web/lib/devPanelData.js#loadDevPanelMemories`, `web/app/(app)/gm/dev/characters/[characterId]/MemoriesTab.js` and `memoryActions.js` |
 | Tests | `db/test/memoryLessons.test.js`, `memoryScramble.test.js`, `roleKnows.test.js`, `examineRoleTitle.test.js` |

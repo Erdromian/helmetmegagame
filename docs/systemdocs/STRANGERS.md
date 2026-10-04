@@ -117,7 +117,9 @@ saw before. Nor is there one when a GM has switched it off (§9).
 Learning a name (`MEMORIES.md` §2b) turns a stranger into somebody you know, at
 once and everywhere. That includes their older lines, which are drawn through
 the lens again on the next read. Forgetting somebody on `/memories` makes them a
-stranger again.
+stranger again. Drinking a Mulligan Potion makes the drinker a stranger to
+everybody at once: every entry about them is unlinked (`MEMORIES.md` §2e). Their
+voice numbers (§4) are kept.
 
 ## 3. Labels
 

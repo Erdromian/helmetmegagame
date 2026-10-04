@@ -127,7 +127,10 @@ function namesSecretSeat(text) {
 // A secret seat is exempt from memory altogether (MEMORIES.md §2d), so a title
 // that names one — a GM writing "Thanati" into the box — is never taught; the
 // cover seat's own name is taught in its place, the same as for anybody.
+// Somebody who drank a Mulligan Potion has no seat to teach at all (MEMORIES.md
+// §2e).
 function teachableRoleText(person) {
+  if (person?.roleUnteachable) return null;
   const seat = person?.role?.name ?? null;
   const title = person?.roleTitle ?? null;
   if (title && !namesSecretSeat(title)) return title;
@@ -137,10 +140,12 @@ function teachableRoleText(person) {
 // The words a role is heard by: the seat's own name and the character's title.
 // Every seat can be learned now, the Tribunal and the Bastard's host included —
 // they are invaders, not secrets. Only a secret seat's words are never among
-// them, so saying "Marrow is a Thanati" teaches nothing, true or not.
+// them, so saying "Marrow is a Thanati" teaches nothing, true or not. Nor
+// is anything a Mulligan drinker's role word, so their seat said beside their
+// new name, or by them, teaches nobody (MEMORIES.md §2e).
 function roleWordsFor(candidate) {
   const role = candidate.role;
-  if (!role) return [];
+  if (!role || candidate.roleUnteachable) return [];
   return [...new Set([capitalised(role.name), capitalised(candidate.roleTitle)].filter((w) => w && !namesSecretSeat(w)))];
 }
 

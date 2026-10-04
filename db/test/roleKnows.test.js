@@ -90,3 +90,12 @@ test("the character's own title is what is remembered", () => {
   assert.equal(row.roleText, "Disgraced Knight");
   assert.equal(row.roleSlug, "courtier");
 });
+
+test("nobody is seeded an entry about a Mulligan drinker, either way", () => {
+  const drinker = { ...person("d", "servant", ["baron"]), roleUnteachable: true };
+  const baron = person("b", "baron", ["servant"]);
+  // Seeding the drinker: they still know the Baron, and the Baron gets nothing.
+  assert.deepEqual(seedRows(drinker, [baron]).map((r) => `${r.ownerId}>${r.subjectId}`), ["d>b"]);
+  // A new Baron arriving later is not seeded the drinker either.
+  assert.deepEqual(seedRows(baron, [drinker]).map((r) => `${r.ownerId}>${r.subjectId}`), ["d>b"]);
+});
