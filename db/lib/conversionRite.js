@@ -43,6 +43,7 @@ const { fulfillObjectives } = require("./objectives");
 const { logSystemTagChange, mapGrantedTags } = require("./tagAudit");
 const { applyMood } = require("./mood");
 const { THANATI_SLUG } = require("./thanati");
+const { syncCharacterRoomAccess } = require("./roomAccess");
 const { convertCandidates } = require("./riteIngredients");
 const { IDENTITY_SELECT, seenBy } = require("./intercept");
 const { SFX } = require("./sfx");
@@ -453,6 +454,11 @@ async function acceptConversion(prisma, offer, responder) {
     [ACCEPTED_DM, conflicts && describeSeatConflicts(conflicts)].filter(Boolean).join("\n"),
     { source: "rite" },
   ).catch(log(`acceptance DM to ${target.name}`));
+
+  // The hideout lets in whoever holds the faith (roomAccess.js#allowedRoomIds),
+  // so its Discord thread opens to them now rather than at their next move.
+  const row = await prisma.character.findUnique({ where: { id: target.id } }).catch(() => null);
+  if (row) await syncCharacterRoomAccess(prisma, row).catch(log(`room access sync for ${target.name}`));
 
   // Bascinet's call: the sound of somebody finding out what they have joined.
   const room = roomFromOffer(offer);

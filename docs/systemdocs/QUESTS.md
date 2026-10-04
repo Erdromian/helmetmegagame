@@ -95,6 +95,8 @@ accessibleRooms(rooms, heldSlugs, guestRoomIds, allowedRoomIds)
 It defaults to an empty Set, so every caller written before quests asks exactly
 the question it always asked. `roomAccessKeys` returns `allowedRoomIds`
 alongside the other two, which is how the door-deciding call sites get it.
+The set is `roomAccess.js#allowedRoomIds`, and it carries one more room: the
+Thanati hideout, for anybody holding `thanati` (`THANATI.md` §3).
 
 The gates are stored on the Quest **as well as** the Room because closing a
 quest deletes its Room, and the record has to outlive the door.

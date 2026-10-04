@@ -9,6 +9,7 @@ const { addThreadMember, removeThreadMember } = require("./discordRest");
 const { notifyPresence } = require("./presenceNotify");
 const { accessSlugsOf, RING_ACCESS_TAG_FIELDS } = require("./rings");
 const { WITH_SIDES, membershipKey, roomViews } = require("./roomSides");
+const { THANATI_SLUG } = require("./thanati");
 
 // Some pushes can never succeed, and the diff below cannot tell: it only
 // records a membership Discord ACCEPTED, so a refusal is retried on the next
@@ -55,7 +56,7 @@ function clearRefusal(characterId, roomId) {
 }
 
 // Rooms this character may enter. `guestRoomIds` defaults empty for a keys-only caller, but
-// anything deciding what a PERSON can reach must pass it. `allowedRoomIds` is Quests' door (docs/systemdocs/QUESTS.md).
+// anything deciding what a PERSON can reach must pass it. `allowedRoomIds` is Quests' door (docs/systemdocs/QUESTS.md) and the Thanati hideout's (allowedRoomIds below).
 function accessibleRooms(rooms, heldSlugs, guestRoomIds = new Set(), allowedRoomIds = new Set()) {
   return rooms.filter(
     (room) =>
@@ -74,6 +75,29 @@ async function questAllowedRoomIds(prisma, characterId) {
     })
     .catch(() => []);
   return new Set(rows.map((q) => q.room?.id).filter(Boolean));
+}
+
+// The cult's hideout (db/lib/thanati.js#hideoutRoom) lets in whoever holds the
+// faith, by name like a quest's allowlist. A cultist seated at the start and one
+// converted mid-game hold the same `thanati` tag and nothing else in common, so a
+// key the room happens to be locked with must not decide which of them gets in.
+async function hideoutRoomId(prisma) {
+  const state = await prisma.gameState
+    .findUnique({ where: { id: 1 }, select: { thanatiHideoutRoomId: true } })
+    .catch(() => null);
+  return state?.thanatiHideoutRoomId ?? null;
+}
+
+// Every room that admits this character by name rather than by key: the open
+// quests that list them, and the hideout if they are Thanati. `heldSlugs` is
+// what the caller already loaded (held tags plus ring tokens).
+async function allowedRoomIds(prisma, characterId, heldSlugs) {
+  const [quests, hideoutId] = await Promise.all([
+    questAllowedRoomIds(prisma, characterId),
+    heldSlugs?.has(THANATI_SLUG) ? hideoutRoomId(prisma) : null,
+  ]);
+  if (hideoutId) quests.add(hideoutId);
+  return quests;
 }
 
 // Every door token the character has: what they hold, plus what the signet
@@ -131,11 +155,11 @@ function privateThreadUnits(rooms) {
 }
 
 async function roomAccessKeys(prisma, characterId) {
-  const [heldSlugs, guests, allowed] = await Promise.all([
+  const [heldSlugs, guests] = await Promise.all([
     heldTagSlugs(prisma, characterId),
     guestRoomIds(prisma, characterId),
-    questAllowedRoomIds(prisma, characterId),
   ]);
+  const allowed = await allowedRoomIds(prisma, characterId, heldSlugs);
   return { heldSlugs, guestRoomIds: guests, allowedRoomIds: allowed };
 }
 
@@ -180,7 +204,7 @@ async function syncCharacterRoomAccess(prisma, character, { tagSlugs = null } = 
   // side it was given at (RoomGuest.locationId), and the sweep above has spent the rest.
   const held = alive ? tagSlugs ?? (await heldTagSlugs(prisma, character.id)) : new Set();
   const guests = alive ? await guestRoomIds(prisma, character.id) : new Set();
-  const allowed = alive ? await questAllowedRoomIds(prisma, character.id) : new Set();
+  const allowed = alive ? await allowedRoomIds(prisma, character.id, held) : new Set();
   const entitled = new Set(
     alive
       ? units
@@ -269,5 +293,6 @@ module.exports = {
   withRingTokens,
   guestRoomIds,
   questAllowedRoomIds,
+  allowedRoomIds,
   roomAccessKeys,
 };

@@ -145,7 +145,9 @@ async function purchaseGearImpl({ items, currency, purse }) {
   // THE BUYER'S OWN KEY, not the leader's. Standing at the Location was the
   // only gate before, so a cultist who could not open the hideout door still
   // spent what was behind it — and the goods landed in a room they could not
-  // enter. Set Hideout has always run this check; this is the same one.
+  // enter. Set Hideout has always run this check; this is the same one. Holding
+  // the faith is itself a way into the hideout (roomAccess.js#allowedRoomIds),
+  // so a convert gets in exactly as a cultist seated at the start does.
   const buyerKeys = await roomAccessKeys(prisma, me.id);
   if (accessibleRooms([hideout], buyerKeys.heldSlugs, buyerKeys.guestRoomIds, buyerKeys.allowedRoomIds).length === 0) {
     throw new UserError("That door is locked.");
