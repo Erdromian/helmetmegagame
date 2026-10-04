@@ -1,6 +1,5 @@
-// Crates: what a shipment looks like when the shuttle sets it down — packed into a random number of crates that must be opened (worth paying a Docker for, delays "bought" from "holding", and leaves a crate on the landing pad crackable by whoever's there). A crate is a TAG, created at runtime with custom: true — db/lib/pruneTags.js already skips custom rows so db:prune-tags won't eat them, and being a tag gives crates carry weight, transfers, room stashes and theft for free. One Tag row per crate, swept once the last instance is gone. Manifest printed on the crate, Bascinet's format: `[SHIPMENT ID RV-4471-K]: Coal x 4 | Bandage x 6 | ML-23`, or `[SHIPMENT ID RV-4471-K]: SEALED` if anything in it ships sealed — only a Depot Keycard opens a sealed crate, and one sealed line item seals the whole crate, so nobody knows which crate the dangerous thing is in.
+// Crates: what a shipment looks like when the shuttle sets it down — packed into a random number of crates that must be opened (worth paying a Docker for, delays "bought" from "holding", and leaves a crate on the landing pad crackable by whoever's there). A crate is a TAG, created at runtime with custom: true — db/lib/pruneTags.js already skips custom rows so db:prune-tags won't eat them, and being a tag gives crates carry weight, transfers, room stashes and theft for free. One Tag row per crate, swept once the last instance is gone. Manifest printed on the crate, Bascinet's format: `[SHIPMENT ID RV-4471-K]: Coal x 4 | Bandage x 6 | ML-23`, or `[SHIPMENT ID RV-4471-K]: SEALED` if anything in it ships sealed — one sealed line item seals the whole crate, so nobody knows which crate the dangerous thing is in. Only the Merchant's or the Baron's ring opens a crate, sealed or not (canOpenCrate).
 
-const { DEPOT_KEYCARD_SLUG } = require("./depotState");
 const { PACKAGE_MAX_LBS, PACKAGE_MAX_UNITS, TAG_CATEGORY } = require("./constants");
 const { crateValue, crateSaleFields } = require("./crates");
 
@@ -108,10 +107,12 @@ function crateDescription(shipment, crate) {
   return `[SHIPMENT ID ${shipment}]: ${parts.join(" | ")}`;
 }
 
-// Who may open this crate: a sealed one needs the keycard, an open one needs nothing since its manifest is printed on the side with no lock to pick. Takes held slugs as a Set, the shape roomAccess.js already builds.
-function canOpenCrate(crateTag, heldSlugs) {
-  if (!crateTag?.sealedShipping) return true;
-  return Boolean(heldSlugs?.has?.(DEPOT_KEYCARD_SLUG));
+// The token only the Merchant's and the Baron's rings carry (docs/roles.yaml), and the one thing that opens a shipped or packed crate.
+const CRATE_OPEN_TOKEN = "crate-key";
+
+// Who may open a shipped or packed crate: whoever wears the Merchant's or the Baron's ring, sealed or not. Ring only — it takes the worn ring's tokens (rings.js#wornRingAccess), so a crate-key tag held in hand opens nothing. The catalog's crate props open on the ordinary consume path and never come here.
+function canOpenCrate(ringTokens) {
+  return (ringTokens ?? []).includes(CRATE_OPEN_TOKEN);
 }
 
 // A crate's tag slug, server-generated with the "custom-" prefix every runtime tag uses (Tag.custom in schema.prisma), so it can never collide with a docs/tags.yaml slug and get upserted over by a sync.
@@ -156,4 +157,5 @@ module.exports = {
   crateTagData,
   crateWeight,
   canOpenCrate,
+  CRATE_OPEN_TOKEN,
 };

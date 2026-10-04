@@ -291,8 +291,12 @@ The catalog's three crate props — `cargo-crate`, `crate-rv-6207-m`,
 creation bundle, does not.
 
 **A crate is opened by consuming it** from your own hands (`/character` or the
-Things drawer), through `openCrateRequestImpl`. A sealed crate wants the Depot
-Keycard. Consuming only ever happens in your hands, never on a floor, so a crate
+Things drawer), through `openCrateRequestImpl`. **Only the Merchant's or the
+Baron's ring opens one**, sealed or not: both rings carry the `crate-key` token,
+and nothing else does (`depotCrates.js#canOpenCrate`, ring only — the token held
+as a tag opens nothing). Everybody else hauls a crate to one of them. The
+catalog's three crate props open on the ordinary consume path and anybody may
+open them. Consuming only ever happens in your hands, never on a floor, so a crate
 on the Railway has to be picked up and carried before it can be opened — the
 doc's "crates cannot be unpacked/packed in the railyard; they must be
 transferred to or from elsewhere first". The Package button refuses packaging
@@ -820,7 +824,7 @@ token's tag row), `db:sync-roles` (which refreshes the rings already worn),
 room stashes. It keeps the row while somebody is holding one; such a chip opens
 nothing now, and a GM can take it off the sheet from `/gm/dev`.
 An order already placed at the counter still rides the next train; if it
-carried a sealed Black Market ware, only a Depot Keycard opens its crate now.
+carried a sealed Black Market ware, only the Merchant's or the Baron's ring opens its crate now (§0e).
 
 ## 1. What it is
 
@@ -838,7 +842,7 @@ prohibitive — a working person saves for a Boombox and never sees a pistol.
 | Page | none — `/depot` redirects to `/chat` (§0k). The Merchant's Terminal is a fixture on the Depot (§0c) |
 | Location | `undertown-5` — the Depot, in Undertown, with its own edge to Customs and a ring-locked one to the Storefront. `db/lib/depot.js#DEPOT_LOCATION_SLUG` names it |
 | Rooms | the Railway, the Merchant's Office and the Cargo Bay, and the Merchant's Counter opens onto it from the Storefront (§0b). The Inn's and the Den's bars carry infoterminals of their own (§0l) |
-| Gates | the Merchant's License or the Merchant's ring (`merchants-terminal-key`) for the terminal (§0c); `depot-keycard` for the way through, the Cargo Bay and a sealed crate. The Black Market terminal gates on the `black-market-key` ring token (§0n). The Meister's Terminal gates on standing in the Tower with the Meister's, the Hand's or the Baron's ring (§0h, `MEISTERY.md` §2) |
+| Gates | the Merchant's License or the Merchant's ring (`merchants-terminal-key`) for the terminal (§0c); `depot-keycard` for the way through and the Cargo Bay; `crate-key`, on the Merchant's and the Baron's rings only, for opening a shipped or packed crate (§0e). The Black Market terminal gates on the `black-market-key` ring token (§0n). The Meister's Terminal gates on standing in the Tower with the Meister's, the Hand's or the Baron's ring (§0h, `MEISTERY.md` §2) |
 | Audit kinds | `merchant_terminal_insert`, `merchant_terminal_withdraw`, `merchant_terminal_order`, `merchant_terminal_order_edit`, `merchant_terminal_order_remove`, `train_import`, `train_export`, `train_ran`, `request_depot_atm`, `request_depot_send`, `request_depot_crate_open`, `depot_turret_toggled`, `sell_tax_rate_set`. Retired, still in old rows: `request_depot_order`, `request_depot_drop`, `request_depot_credit`, `request_depot_account_open` |
 | Constants | `db/lib/depot.js`, `db/lib/train.js`, `db/lib/crates.js`, `db/lib/merchantTerminalText.js` |
 

@@ -11,6 +11,7 @@ import {
   isDynastyMember,
   canOpenCrate,
 } from "@lifeweb/db";
+import { wornRingAccess } from "@lifeweb/db/lib/rings";
 import {
   COLLAR_SELECT,
   wearsCollar,
@@ -355,8 +356,10 @@ async function pointerDeviceKitRequestImpl({ session, character, held }) {
 // made sense once a crate walked out of the landing pad and got carried
 // somewhere else entirely. See docs/systemdocs/DEPOT.md §0e.
 //
-// A SEALED crate still wants the keycard, checked here rather than trusted
-// from whatever surface offered the button.
+// Only the Merchant's or the Baron's ring opens one, sealed or not
+// (depotCrates.js#canOpenCrate), checked here rather than trusted from
+// whatever surface offered the button. The catalog's crate props open on the
+// ordinary path and anybody may open them.
 //
 // A crate's real contents live in `crateContents`, not `consumesInto`: the
 // ordinary consume path resolves a grant through resolveConsumeGrants and
@@ -367,11 +370,11 @@ async function openCrateRequestImpl({ session, character, held }) {
   const crate = held.tag;
   const contents = Array.isArray(crate.crateContents) ? crate.crateContents : null;
   if (!contents) throw new UserError("That isn't a crate.");
+  if (!canOpenCrate(wornRingAccess(character.tags))) {
+    throw new UserError("It's locked. Only the Merchant's or the Baron's ring opens it.");
+  }
 
   const inner = await prisma.tag.findMany({ where: { id: { in: contents.map((c) => c.tagId).filter(Boolean) } } });
-  if (!canOpenCrate(crate, heldSlugsOf(character.tags))) {
-    throw new UserError("It's sealed, and the lock wants a Depot Keycard.");
-  }
 
   const openTurn = await getOpenTurn();
   const byId = new Map(inner.map((t) => [t.id, t]));

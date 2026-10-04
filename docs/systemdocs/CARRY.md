@@ -748,7 +748,9 @@ Both kinds are runtime `Tag` rows, `custom: true`, with a `custom-crate-…`
 slug; the catalog's three crate props count as crates too (`isCrateTag`).
 They count against the cap, and can be transferred, stashed and stolen.
 Opening one (Consume, in your own hands) replaces its weight with whatever was
-inside, which is always heavier. A sealed one wants the Depot Keycard.
+inside, which is always heavier. Only the Merchant's or the Baron's ring opens a
+shipped or packed crate, sealed or not (`DEPOT.md` §0e); the three props open
+for anybody.
 
 ### Carrying them (Depot Overhaul.docx)
 
