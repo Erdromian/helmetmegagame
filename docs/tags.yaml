@@ -6484,7 +6484,7 @@ tags:
     name: Cart
     category: assets
     group: assets-property
-    description: "A standard hand-cart to better move items. Upgrades personal carrying capacity while equipped and improves the {tag:arelitz}, letting it carry up to 6 people total. {carry:cart}."
+    description: "A standard hand-cart to better move items. Upgrades personal carrying capacity while equipped and improves the {tag:arelitz}, letting it carry up to 6 people total. With it equipped you can haul 3 crates at a time instead of 1. {carry:cart}"
     pointCost: 9
     visible: true
     tradeable: true
