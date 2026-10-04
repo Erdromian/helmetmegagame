@@ -48,8 +48,10 @@ const ATTRIBUTES = {
   },
 
   // A kitchen: Lavish meals can only be cooked where there is one (db/lib/meals.js).
+  // `buildable`: a structure may grant this to its Location (Tag.placement.grants, db/lib/structureGrants.js).
   kitchen: {
     type: "boolean",
+    buildable: true,
     describe: () => "**Kitchen**: you can cook a lavish meal here.",
   },
 
@@ -68,6 +70,7 @@ const ATTRIBUTES = {
   // A public board to pin a paper to. What Noticeboard matches on. See docs/systemdocs/PAPERWORK.md.
   noticeboard: {
     type: "boolean",
+    buildable: true,
     describe: () => "**Noticeboard**: you can pin paper here.",
   },
 
@@ -165,8 +168,8 @@ function structureLines(ctx = {}) {
       case "UNDER_CONSTRUCTION":
         return [`**${typeName}**: going up, ${structure.turnsDone} of ${structure.turnsNeeded} ${ctx.dayLongTurn === false ? "turns" : "days"} done.`];
       case "COMPLETE":
-        // A standing board is already said by the Location's own Noticeboard line, which it is the source of (noticeboard.js#raiseBoard).
-        if (structure.placement?.noticeboard) return [];
+        // What it grants is already said by the Location's own attribute line, which it is the source of (structureGrants.js).
+        if (structure.placement?.grants) return [];
         return [
           inscribed
             ? `**${typeName}**: » ${inscribed}`

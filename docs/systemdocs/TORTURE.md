@@ -58,7 +58,7 @@ Hardest wins when several apply, which in practice means Relentless over Brave
 
 | Bonus | Read how |
 |---|---|
-| Torturing Equipment in reach | `hasEquipmentInReach` — held, in a Room stash you can get into here, or provided by a structure; the same three reaches as Surgical Equipment |
+| Torturing Equipment in reach | `hasEquipmentInReach` — held, in a Room stash you can get into here, or provided by a structure; the same three reaches as Surgical Equipment. The structure is the **Torture Rack** (`torture-rack`: 8 ⬢, 2 turns, Torturer, `provides: [torturing-equipment]`), which goes up outdoors or underground and, like any kit a structure provides, serves only while `COMPLETE` |
 | Trench Knife | carried, any quantity; it need not be drawn |
 | `cruel` | held |
 

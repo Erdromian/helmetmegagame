@@ -27,7 +27,7 @@ import {
   siteCancelledLine,
   stakeholderCharacterIds,
 } from "@lifeweb/db/lib/structures";
-import { raiseBoard } from "@lifeweb/db/lib/noticeboard";
+import { grantOnFinish } from "@lifeweb/db/lib/structureGrants";
 import { enqueueMirror } from "@lifeweb/db/lib/discordMirror/queue";
 import { postMessage } from "@lifeweb/db/lib/discordRest";
 import { notifyCharacter } from "@/lib/notifyCharacter";
@@ -117,21 +117,16 @@ async function finishStructure(
       actionId: action?.id ?? null,
     },
   });
-  // A finished Noticeboard gives its Location a board (PAPERWORK.md §7). Read
-  // off the type rather than handed in: a join holds the site, not the tag.
-  const type = await tx.tag.findUnique({
-    where: { slug: site.typeSlug },
-    select: { placement: true },
-  });
-  if (!placementOf(type)?.noticeboard) return { boardRaised: false };
-  return { boardRaised: await raiseBoard(tx, site.locationId) };
+  // What the finished thing gives its ground: a Noticeboard's board, a Field
+  // Kitchen's kitchen (db/lib/structureGrants.js). Null for everything else.
+  return { granted: await grantOnFinish(tx, site) };
 }
 
 // The Noticeboard button rides on the Location's Discord anchor, and the
 // mirror is what redraws it. After the commit, never inside it: a queue row
 // that failed inside the transaction would take the build down with it.
-async function redrawAnchorForBoard(locationId) {
-  await enqueueMirror(prisma, "location", locationId, "a noticeboard was built here");
+async function redrawAnchor(locationId, granted) {
+  await enqueueMirror(prisma, "location", locationId, `a structure granted ${granted} here`);
 }
 
 // The one-per-place rule. The wreck statuses (RUINED, ABANDONED) are
@@ -187,7 +182,7 @@ export async function openBuildSiteImpl(
 
   const done = turns <= 1;
   let structureId = null;
-  let boardRaised = false;
+  let granted = null;
   await prisma.$transaction(async (tx) => {
     // The ground was judged outside this transaction, so two tabs can both
     // have passed. The Location row is the lock — every open here serialises
@@ -235,7 +230,7 @@ export async function openBuildSiteImpl(
       },
     });
     if (done) {
-      ({ boardRaised } = await finishStructure(tx, {
+      ({ granted } = await finishStructure(tx, {
         session,
         character,
         site,
@@ -266,7 +261,7 @@ export async function openBuildSiteImpl(
     payer.kind === "character" ? payer.id : null,
   ]);
   await payerNotice(character, payer, cost, tag);
-  if (boardRaised) await redrawAnchorForBoard(location.id);
+  if (granted) await redrawAnchor(location.id, granted);
   const spoken = { typeName: tag.name, turnsNeeded: turns };
   speakAtSite(
     location.discordChannelId,
@@ -310,7 +305,7 @@ export async function joinBuildSiteImpl({ structureId }) {
   const next = site.turnsDone + 1;
   const done = next >= site.turnsNeeded;
 
-  let boardRaised = false;
+  let granted = null;
   await prisma.$transaction(async (tx) => {
     let work;
     try {
@@ -356,7 +351,7 @@ export async function joinBuildSiteImpl({ structureId }) {
     if (claim.count === 0)
       throw new UserError("The work moved on without you — reload.");
     if (done) {
-      ({ boardRaised } = await finishStructure(tx, {
+      ({ granted } = await finishStructure(tx, {
         session,
         character,
         site: { ...site, turnsDone: next },
@@ -384,7 +379,7 @@ export async function joinBuildSiteImpl({ structureId }) {
   // No afterInventoryChange: nothing on any sheet moved. A join spends a Move
   // and nothing else, and finishing moves nothing either — a structure is
   // never a CharacterTag, and the ⬢ left the payer when the site opened.
-  if (boardRaised) await redrawAnchorForBoard(site.locationId);
+  if (granted) await redrawAnchor(site.locationId, granted);
   speakAtSite(
     location?.discordChannelId,
     done ? siteCompletedLine(site) : siteAdvancedLine(site, next),

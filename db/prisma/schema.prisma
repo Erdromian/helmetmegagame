@@ -4015,9 +4015,9 @@ model Tag {
   //     inscribable: Bool (the builder may write a line on it),
   //     underground: Bool (default false — true is the only thing a
   //       CAVE_LEVEL Location takes; says nothing about the surface),
-  //     noticeboard: Bool — finished, it sets the Location's `noticeboard`
-  //       attribute (db/lib/noticeboard.js#raiseBoard); destroyed, it takes
-  //       the attribute and every notice there with it,
+  //     grants: attributeKey — finished, it sets that attribute on its
+  //       Location (db/lib/structureGrants.js); destroyed, it takes it back.
+  //       Only a key the registry marks `buildable`,
   //     shelter: { factor: Number, above 0 and below 1 } — what a WILDERNESS
   //       or CAVE night costs with this standing (db/lib/moodPass.js);
   //       lowest at the Location wins,

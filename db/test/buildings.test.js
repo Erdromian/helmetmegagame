@@ -5,11 +5,18 @@
 // how many birds are owed.
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const yaml = require("js-yaml");
+
+const DOCS = path.join(__dirname, "../../docs");
 
 const { normalizePlacement, validatePlacement } = require("../lib/tagShapes");
 const { canBuildHere, buildGround, placementOf } = require("../lib/structures");
 const { placementOfferedHere } = require("../lib/craftRecipes");
-const { raiseBoard, razeBoard, hasNoticeboard } = require("../lib/noticeboard");
+const { hasNoticeboard } = require("../lib/noticeboard");
+const { grantOnFinish, revokeOnDestroy } = require("../lib/structureGrants");
+const { parseZonesYaml } = require("../lib/syncZones/parse");
 const {
   BASE_BIRD_SENDS_PER_DAY,
   ROOKERY_COOLDOWN_MS,
@@ -205,30 +212,42 @@ test("placement: a shelter factor is strictly between 0 and 1", () => {
   assert.throws(() => normalizePlacement({ underground: "yes" }), /underground must be a boolean/);
 });
 
-// --- the buildable Noticeboard --------------------------------------------
+// --- structures that grant a Location attribute ---------------------------
 
-const BOARD = { underground: true, noticeboard: true };
+const BOARD = { underground: true, grants: "noticeboard" };
+const KITCHEN = { grants: "kitchen" };
 
-test("canBuildHere: a Noticeboard is refused where a board already is", () => {
+test("canBuildHere: a granting type is refused where the attribute already is", () => {
   const withBoard = { ...SQUARE, attributes: { noticeboard: true } };
   assert.equal(canBuildHere(SQUARE, BOARD).ok, true);
   assert.equal(canBuildHere(CAVE, BOARD).ok, true);
   assert.equal(canBuildHere(withBoard, BOARD).ok, false);
   assert.match(canBuildHere(withBoard, BOARD).reason, /already a noticeboard/);
-  // Anything else still goes up beside a board.
+  // Anything else still goes up beside a board, a kitchen included.
   assert.equal(canBuildHere(withBoard, SHRINE).ok, true);
+  assert.equal(canBuildHere(withBoard, KITCHEN).ok, true);
+  const withKitchen = { ...SQUARE, attributes: { kitchen: true } };
+  assert.match(canBuildHere(withKitchen, KITCHEN).reason, /already a kitchen/);
+  // A Field Kitchen is for open ground: no cave, no roof.
+  assert.equal(canBuildHere(CAVE, KITCHEN).ok, false);
+  assert.equal(canBuildHere(INN, KITCHEN).ok, false);
 });
 
-test("placement: noticeboard survives normalisation and defaults off", () => {
-  assert.equal(normalizePlacement({ noticeboard: true }).noticeboard, true);
-  assert.equal(normalizePlacement({ fieldwork: true }).noticeboard, false);
-  assert.equal(placementOf({ placement: { noticeboard: true } }).noticeboard, true);
-  assert.throws(() => normalizePlacement({ noticeboard: "yes" }), /noticeboard must be a boolean/);
+test("placement: grants takes a buildable attribute and nothing else", () => {
+  assert.equal(normalizePlacement({ grants: "noticeboard" }).grants, "noticeboard");
+  assert.equal(normalizePlacement({ grants: "kitchen" }).grants, "kitchen");
+  assert.equal(normalizePlacement({ fieldwork: true }).grants, null);
+  assert.equal(placementOf({ placement: { grants: "kitchen" } }).grants, "kitchen");
+  // Real attributes nobody may raise, a typo, and the wrong shape.
+  for (const grants of ["refinery", "godflesh", "lifeweb", "haven", "noticebord", true, ["kitchen"]]) {
+    assert.throws(() => normalizePlacement({ grants }), /grants must be a buildable Location attribute/, String(grants));
+  }
 });
 
-// raiseBoard and razeBoard against a stand-in transaction: the only two
-// writers of a BUILT board, so what they leave behind is the whole contract.
-function fakeTx({ attributes, posts = [], tags = [] }) {
+// grantOnFinish and revokeOnDestroy against a stand-in transaction: the only
+// two writers of a granted attribute, so what they leave behind is the whole
+// contract.
+function fakeTx({ attributes, grants = null, posts = [], tags = [] }) {
   const state = { attributes, posts: [...posts], tags: [...tags] };
   return {
     state,
@@ -245,23 +264,33 @@ function fakeTx({ attributes, posts = [], tags = [] }) {
       },
     },
     tag: {
+      findUnique: async () => ({ placement: grants ? { grants } : {} }),
       deleteMany: async ({ where }) => {
         state.tags = state.tags.filter((t) => !(where.id.in.includes(t.id) && t.ephemeral === where.ephemeral));
       },
     },
   };
 }
+const SITE = { typeSlug: "anything", locationId: "loc" };
 
-test("raiseBoard: the Location gains the attribute and keeps its others", async () => {
-  const tx = fakeTx({ attributes: { wilderness: true } });
-  assert.equal(await raiseBoard(tx, "loc"), true);
+test("grantOnFinish: the Location gains the attribute and keeps its others", async () => {
+  const tx = fakeTx({ attributes: { wilderness: true }, grants: "noticeboard" });
+  assert.equal(await grantOnFinish(tx, SITE), "noticeboard");
   assert.deepEqual(tx.state.attributes, { wilderness: true, noticeboard: true });
   assert.equal(hasNoticeboard({ attributes: tx.state.attributes }), true);
 });
 
-test("razeBoard: the attribute goes, and every notice here with its paper", async () => {
+test("grantOnFinish: a type that grants nothing leaves the ground alone", async () => {
+  const tx = fakeTx({ attributes: { wilderness: true } });
+  assert.equal(await grantOnFinish(tx, SITE), null);
+  assert.equal(await revokeOnDestroy(tx, SITE), null);
+  assert.deepEqual(tx.state.attributes, { wilderness: true });
+});
+
+test("revokeOnDestroy: a board goes, and every notice here with its paper", async () => {
   const tx = fakeTx({
     attributes: { wilderness: true, noticeboard: true },
+    grants: "noticeboard",
     posts: [
       { id: "p1", tagId: "t1", locationId: "loc" },
       { id: "p2", tagId: "t2", locationId: "loc" },
@@ -274,16 +303,51 @@ test("razeBoard: the attribute goes, and every notice here with its paper", asyn
       { id: "t3", ephemeral: true },
     ],
   });
-  assert.equal(await razeBoard(tx, "loc"), 2);
+  assert.deepEqual(await revokeOnDestroy(tx, SITE), { key: "noticeboard", noticesDestroyed: 2 });
   assert.deepEqual(tx.state.attributes, { wilderness: true });
   assert.deepEqual(tx.state.posts.map((p) => p.id), ["p3"]);
   assert.deepEqual(tx.state.tags.map((t) => t.id), ["t2", "t3"]);
 });
 
-test("razeBoard: a bare board comes down without a paper to its name", async () => {
-  const tx = fakeTx({ attributes: { noticeboard: true } });
-  assert.equal(await razeBoard(tx, "loc"), 0);
-  assert.deepEqual(tx.state.attributes, {});
+test("revokeOnDestroy: a kitchen takes its attribute and touches no notice", async () => {
+  const tx = fakeTx({
+    attributes: { kitchen: true, noticeboard: true },
+    grants: "kitchen",
+    posts: [{ id: "p1", tagId: "t1", locationId: "loc" }],
+    tags: [{ id: "t1", ephemeral: true }],
+  });
+  assert.deepEqual(await revokeOnDestroy(tx, SITE), { key: "kitchen", noticesDestroyed: undefined });
+  assert.deepEqual(tx.state.attributes, { noticeboard: true });
+  assert.equal(tx.state.posts.length, 1);
+});
+
+// --- the two masters, held together ---------------------------------------
+
+// worldSeed.js raises an authored structure already standing, past the build
+// path that grants its attribute. So a Location that authors a granting
+// structure must author the attribute too, or the board stands with no board.
+test("docs/zones.yaml: a seeded structure that grants an attribute has it authored", () => {
+  const tags = yaml.load(fs.readFileSync(path.join(DOCS, "tags.yaml"), "utf8"));
+  const catalog = tags.tags ?? tags;
+  const grantsBySlug = new Map(
+    Object.entries(catalog)
+      .filter(([, t]) => t?.placement?.grants)
+      .map(([slug, t]) => [slug, t.placement.grants]),
+  );
+  assert.deepEqual([...grantsBySlug].sort(), [["field-kitchen", "kitchen"], ["noticeboard", "noticeboard"]]);
+  const { locationEntries } = parseZonesYaml(yaml.load(fs.readFileSync(path.join(DOCS, "zones.yaml"), "utf8")));
+  const seededBoards = [];
+  for (const location of locationEntries) {
+    for (const slug of location.structures ?? []) {
+      const key = grantsBySlug.get(slug);
+      if (!key) continue;
+      assert.ok(location.attributes?.[key], `${location.slug} seeds "${slug}" but does not author ${key}: true`);
+      if (slug === "noticeboard") seededBoards.push(location.slug);
+    }
+  }
+  // Every authored board is a structure a GM can tear down, except the Steel Wall's.
+  const authoredBoards = locationEntries.filter((l) => l.attributes?.noticeboard).map((l) => l.slug);
+  assert.deepEqual(authoredBoards.filter((slug) => !seededBoards.includes(slug)), ["depths-1"]);
 });
 
 test("canBuildHere: no placement asks the ground question only", () => {

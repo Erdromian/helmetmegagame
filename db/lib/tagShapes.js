@@ -517,9 +517,10 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.underground != null && typeof raw.underground !== "boolean") {
     throw new Error(`${label}: placement.underground must be a boolean`);
   }
-  // A board to pin paper to, for as long as it stands (db/lib/noticeboard.js#raiseBoard).
-  if (raw.noticeboard != null && typeof raw.noticeboard !== "boolean") {
-    throw new Error(`${label}: placement.noticeboard must be a boolean`);
+  // A Location attribute this gives its ground for as long as it stands (db/lib/structureGrants.js). Only the
+  // ones the registry marks `buildable`: a typo would grant nothing, and a Refinery is not a thing anybody raises.
+  if (raw.grants != null && (typeof raw.grants !== "string" || !ATTRIBUTES[raw.grants]?.buildable)) {
+    throw new Error(`${label}: placement.grants must be a buildable Location attribute (db/lib/locationAttributes.js)`);
   }
   // Where this type may be raised, by Location slug. ABSENT means anywhere the ground rules allow (opt-in gate). A slug list, not a zone list: `unique` is already per-Location, so naming one Location makes a type one-of-a-kind with no game-wide uniqueness rule.
   if (
@@ -612,7 +613,7 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     // The builder may write a line on the finished thing (Structure.inscription), replacing `examine` in the readout. See CRAFTING.md.
     inscribable: raw.inscribable === true,
     underground: raw.underground === true,
-    noticeboard: raw.noticeboard === true,
+    grants: raw.grants ?? null,
     shelter,
   };
 }
@@ -949,6 +950,7 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
 // The `fighting:` block — what a tag does in a fight (docs/systemdocs/COMBAT.md). db/lib/fightingSkill.js is the read side and trusts this shape.
 // The YAML authors TIERS and this stores POINTS: tiers match tag prose ("counts as 2 tiers higher"), points is what the decimal-free running-total arithmetic wants.
 const { BANDS, POINTS_PER_TIER, WEAPON_CLASSES } = require("./fightingSkill");
+const { ATTRIBUTES } = require("./locationAttributes");
 
 const FIGHTING_TREES = new Set(["melee", "ranged", "both"]);
 const FIGHTING_BAND_KEYS = new Set(BANDS.map((b) => b.key));

@@ -6527,11 +6527,13 @@ tags:
       # the examine above in the readout. Blank keeps the stock text.
       inscribable: true
 
-  # Gives its Location a working noticeboard while it stands — the same
-  # `noticeboard` attribute docs/zones.yaml authors on the Square, set by the
-  # finished structure (db/lib/noticeboard.js#raiseBoard). Refused where a
-  # board already is. Destroyed, it takes every notice on it along
-  # (PAPERWORK.md §7). Cheap and unskilled on purpose: it is planks and nails.
+  # Gives its Location a working noticeboard while it stands — the Location's
+  # own `noticeboard` attribute, set by the finished structure
+  # (db/lib/structureGrants.js). Refused where a board already is. Destroyed,
+  # it takes every notice on it along (PAPERWORK.md §7). Cheap and unskilled
+  # on purpose: it is planks and nails. The boards docs/zones.yaml starts the
+  # game with are this same structure, seeded standing — all but the one at
+  # the Steel Wall, which is nobody's to tear down.
   noticeboard:
     catalog: all
     name: Noticeboard
@@ -6552,7 +6554,61 @@ tags:
       fieldwork: true
       underground: true
       # No `examine`: standing, it is the Location's own Noticeboard line.
-      noticeboard: true
+      grants: noticeboard
+
+  # A kitchen where there was none: Lavish meals can be cooked where it stands
+  # (COOKING.md). Grants the `kitchen` attribute the Inn, the Keep and the
+  # Poorhouse are authored with, so it is refused at those three — and, like
+  # anything with no named site, indoors. It is a kitchen for open ground.
+  field-kitchen:
+    catalog: all
+    name: Field Kitchen
+    category: assets
+    group: assets-structures
+    description: "A stone hearth, a spit and a trestle under an awning. Lavish meals can be cooked where it stands."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 15
+      skills: [builder-skilled]
+      gambit: false
+    # The Forge's price, and fieldwork where the Forge is not: a hearth and a
+    # trestle are stone and timber, not smith's work.
+    placement:
+      fieldwork: true
+      grants: kitchen
+
+  # Torturing Equipment for a whole Location: `provides` puts the kit in reach
+  # of everyone standing there (db/lib/equipmentReach.js), which TORTURE.md §3
+  # already counts. Gated on Torturer like the kit itself, so nobody else is
+  # offered the recipe. Underground on purpose — a cave is where one is hidden.
+  torture-rack:
+    catalog: all
+    name: Torture Rack
+    category: assets
+    group: assets-structures
+    description: "A frame, a windlass and a tray of irons. Torture-related Gambits attempted where it stands gain +1."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 8
+      skills: [torturer]
+      gambit: false
+    placement:
+      fieldwork: true
+      underground: true
+      examine: "straps hang loose, irons laid out."
+      provides: [torturing-equipment]
 
   # The Claim Stake stood here and was removed on 2026-09-20: 6 ⬢ for a
   # permanent +1 was strictly better than the tool that does the same thing.
