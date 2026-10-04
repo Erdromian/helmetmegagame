@@ -9,6 +9,7 @@
 // presentedAvatarPath), so this reads them back rather than recomputing an
 // identity that has since moved.
 const { placesFor } = require("./feedAccess");
+const { feedWipeFloors, seqFilterAbove } = require("./feedWipe");
 
 // A concealed row whose face was never recorded cannot be given one now
 // (guessing from today's tags could unmask somebody); `unknownFace` draws the
@@ -40,9 +41,10 @@ async function lastSightings(prisma, character, { gm = false, ghost = false, dis
   const empty = new Map();
   if (!character?.id && !gm) return empty;
 
-  const [places, open] = await Promise.all([
+  const [places, open, floors] = await Promise.all([
     placesFor(prisma, character, { gm, ghost, discordUserId }),
     prisma.turn.findFirst({ where: { status: "OPEN" }, select: { number: true } }),
+    feedWipeFloors(prisma),
   ]);
   // Between turns nobody has been seen — every face withheld, the safe
   // direction to fail in.
@@ -63,6 +65,11 @@ async function lastSightings(prisma, character, { gm = false, ghost = false, dis
         kind: "MESSAGE",
         placeKey: { in: keys },
         turnNumber: open.number,
+        // Turn numbers start again every game, so the number alone also matched the same turn of
+        // every game Restart Game kept: 17,775 old rows against 38 of this game's, on 2026-10-04.
+        // The game floor (feedWipe.js) is this game's start, and a seq range is one the indexes can
+        // narrow on. A floor that failed to load is 0n, which filters nothing.
+        seq: seqFilterAbove(floors.persist),
         deletedAt: null,
         characterId: { not: null },
       },

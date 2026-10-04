@@ -22,28 +22,59 @@ async function markFeedWiped(prisma, { summaries = false } = {}) {
 
 // Always-on floor for everything from a PREVIOUS game (Restart Game keeps
 // ArchiveEntry, LOBBY.md §8). Highest seq NOT in this game, not lowest seq in it, so a fresh empty game shows empty Chat, not yesterday's.
+//
+// The read walks back through every row of the current game (tens of thousands by mid-game), so it
+// runs once at a time and stops running at all once its answer can no longer move. It can move only
+// early on: for up to half a minute after a wipe, a process holding a stale archive.js#currentGameId
+// memo still stamps rows with the OLD game id, above the new game's first seqs. Past
+// GAME_FLOOR_SETTLE_MS nothing can, and the floor is final for the life of the game. On 2026-10-04
+// eighty copies of this query, all fired by one expired memo, stalled the database at a turn end.
 const GAME_FLOOR_TTL_MS = 30 * 1000;
-let gameFloorMemo = { gameId: null, seq: 0n, at: 0 };
+const GAME_FLOOR_SETTLE_MS = 5 * 60 * 1000;
+const NO_GAME_FLOOR = { gameId: null, seq: 0n, at: 0, final: false, pending: null };
+let gameFloorMemo = NO_GAME_FLOOR;
 
 async function previousGameFloor(prisma) {
-  const state = await prisma.gameState.findUnique({ where: { id: 1 }, select: { gameId: true } });
+  const state = await prisma.gameState.findUnique({
+    where: { id: 1 },
+    select: { gameId: true, game: { select: { createdAt: true } } },
+  });
   const gameId = state?.gameId ?? null;
   // No current game means no way to tell old rows from new; safe answer is to hide nothing.
   if (!gameId) return 0n;
 
   const now = Date.now();
-  if (gameFloorMemo.gameId === gameId && now - gameFloorMemo.at < GAME_FLOOR_TTL_MS) {
-    return gameFloorMemo.seq;
+  const memo = gameFloorMemo;
+  if (memo.gameId === gameId) {
+    if (memo.final || (memo.at > 0 && now - memo.at < GAME_FLOOR_TTL_MS)) return memo.seq;
+    // Every caller waits on the one read already in flight rather than starting its own.
+    if (memo.pending) return memo.pending;
   }
 
-  const rows = await prisma.$queryRaw`
-    SELECT MAX("seq") AS "seq"
-    FROM "ArchiveEntry"
-    WHERE "gameId" IS NULL OR "gameId" <> ${gameId}
-  `;
-  const seq = rows?.[0]?.seq == null ? 0n : BigInt(rows[0].seq);
-  gameFloorMemo = { gameId, seq, at: now };
-  return seq;
+  const createdAt = state?.game?.createdAt ? new Date(state.game.createdAt).getTime() : null;
+  const pending = (async () => {
+    const rows = await prisma.$queryRaw`
+      SELECT MAX("seq") AS "seq"
+      FROM "ArchiveEntry"
+      WHERE "gameId" IS NULL OR "gameId" <> ${gameId}
+    `;
+    return rows?.[0]?.seq == null ? 0n : BigInt(rows[0].seq);
+  })();
+  const keep = memo.gameId === gameId ? memo : { ...NO_GAME_FLOOR, gameId };
+  gameFloorMemo = { ...keep, pending };
+
+  try {
+    const seq = await pending;
+    // A wipe (forgetGameFloor) or another game's read may have replaced the memo meanwhile.
+    if (gameFloorMemo.pending === pending) {
+      const final = createdAt !== null && now - createdAt > GAME_FLOOR_SETTLE_MS;
+      gameFloorMemo = { gameId, seq, at: now, final, pending: null };
+    }
+    return seq;
+  } catch (err) {
+    if (gameFloorMemo.pending === pending) gameFloorMemo = { ...gameFloorMemo, pending: null };
+    throw err;
+  }
 }
 
 async function feedWipeFloors(prisma) {
@@ -108,7 +139,7 @@ function lowestFloor(floors) {
 }
 
 function forgetGameFloor() {
-  gameFloorMemo = { gameId: null, seq: 0n, at: 0 };
+  gameFloorMemo = NO_GAME_FLOOR;
 }
 
 function seqFilterAbove(floor, extra = {}) {
