@@ -2416,6 +2416,11 @@ model Character {
   guardingId String?
   guarding   Character?  @relation("Guarding", fields: [guardingId], references: [id], onDelete: SetNull)
   guardedBy  Character[] @relation("Guarding")
+  // The Escort dialog's two boxes, read only while guardingId is set: step in
+  // when the charge is attacked (on by default), and join in when the charge
+  // is on the attacking side of a fight (off by default). guard.js#escortSide.
+  guardDefends Boolean @default(true)
+  guardAttacks Boolean @default(false)
 
   // The conceal toggle (/conceal, or the switch on /character). While on,
   // every message proxies under the concealedAlias with the unknown avatar,

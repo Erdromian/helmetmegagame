@@ -257,9 +257,21 @@ join that did it carries `reopened: true`.
 **Escort** is a verb of its own (the Escort dialog on the web, `/escort guard`
 and `/escort stop` on Discord, `db/lib/verbs/guard.js` for both). You pick one
 person standing with you, and you guard them: you follow them when they travel
-(`MAP.md` §3d), and **if they are attacked you join the fight on their side**.
-`Character.guardingId` is the state, one charge at a time, and `db/lib/guard.js`
-owns the rule and the words.
+(`MAP.md` §3d), and you join their fights on their side the way two boxes in the
+dialog say (Bascinet, 2026-10-04):
+
+- **Defend them if they're attacked** — on by default (`Character.guardDefends`).
+- **Join them if they attack someone** — off by default (`Character.guardAttacks`).
+
+Discord asks the same as one menu after the target pick ("Defend them if they're
+attacked", "Defend them, and join their attacks", "Only join their attacks",
+"Just follow them"). `Character.guardingId` is the state, one charge at a time,
+and `db/lib/guard.js` owns the rule (`escortSide`) and the words.
+
+**Pressing Escort again stops it** (Bascinet, 2026-10-04). While you are escorting
+somebody the web dialog opens as "Stop escorting" with one button, and
+`/escort guard` answers with a Stop escorting button; `/escort stop` still works.
+To change charges or the boxes, stop and escort again.
 
 - **It needs combat mode** to set (Bascinet, 2026-09-30), and it **ends when
   combat mode goes off** — pressed off (`verbs/combatMode.js`, the escort reads
@@ -275,27 +287,33 @@ owns the rule and the words.
 
 **Stepping in is an intervention** (§6), through `combat.js#intervene` and every
 gate it asks: combat mode, the lock, ACT, one fight at a time, the distance rule.
-So an escort who could not have pressed Join the defenders is left out, silently.
-They join as an `INTERVENER` on the `DEFENDER` side, and read "You step in to
-defend X." instead of "You join the fight." Two ways in:
+So an escort who could not have pressed Join is left out, silently. They join as
+an `INTERVENER` on their charge's side, and read "You step in to defend X." (or
+"You join X's attack.") instead of "You join the fight." Three ways in:
 
 - **`escortsStepIn`** — the fight's own. When a fight starts (`startCombat`, so
   an Attack, an ambush's first catch and a Vampire's compulsion alike) or an
-  ambush adds a target, everybody escorting one of its defenders who is standing
-  there steps in. Distance 0, no penalty — whatever the start-of-fight map said,
-  since an ambush's later catch can bring an escort who was far off when it
-  first sprang (`intervene`'s `standingHere`).
+  ambush adds a target, everybody escorting somebody in it who is standing there
+  steps in, if their boxes cover the side their charge is on. Distance 0, no
+  penalty — whatever the start-of-fight map said, since an ambush's later catch
+  can bring an escort who was far off when it first sprang (`intervene`'s
+  `standingHere`).
+- **The charge joins the attackers** — takes an invitation (`answerInvite`) or
+  intervenes on the attacking side. `escortsStepIn` runs for that one person,
+  and pulls in an escort who ticked "Join them if they attack someone".
 - **`escortsArrive`** — the escort's. An escort who has just arrived (following,
-  or on their own feet) and finds their charge defending in a live fight here
-  joins it, from `performLocationMove`. Distance comes off the fight's snapshot,
-  so a late escort pays the usual −1/−2/−3, and one 4 or more away when it
-  started is too late.
+  or on their own feet) and finds their charge in a live fight here joins it,
+  from `performLocationMove`, if their boxes cover the charge's side. Distance
+  comes off the fight's snapshot, so a late escort pays the usual −1/−2/−3, and
+  one 4 or more away when it started is too late.
 
-**Only a charge who is attacked** pulls an escort in. A charge who attacks, or
-who is asked along as a collaborator, is not being attacked.
+**A charge who joins the defenders** (intervening, or an invite) is not being
+attacked, and pulls nobody in. **An escort stepping in never pulls in their own
+escort**, so one escort can't drag in the next.
 
 **An escort's row says whose escort they are** (`CombatParticipant.escortOfId`):
-the desk's card reads "Escorting Bo — stepped in to defend them.", and the step-in
+the desk's card reads "Escorting Bo — stepped in to defend them." (or "— joined
+their attack."), and the step-in
 writes the same `request_attack_intervened` audit row a press of Join does, with
 `escortOf` in its details (§13).
 

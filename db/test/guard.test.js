@@ -5,7 +5,7 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
 
-const { guardBlock, GUARD_LINES } = require("../lib/guard");
+const { guardBlock, escortSide, GUARD_LINES } = require("../lib/guard");
 const { actionFor } = require("../lib/actionCatalog");
 
 const alert = (extra = {}) => ({ id: "g", locationId: "loc-1", combatModeSinceTurn: 3, tags: [], ...extra });
@@ -50,4 +50,42 @@ test("both faces offer it: Escort to set, Stop escorting only while escorting", 
   assert.ok(set.web);
   const stop = actionFor("guardstop");
   assert.equal(stop.show, "isGuarding");
+});
+
+test("an escort defends by default and stays out of their charge's attacks (Bascinet, 2026-10-04)", () => {
+  assert.equal(escortSide({}, "DEFENDER"), "DEFENDER");
+  assert.equal(escortSide({}, "ATTACKER"), null);
+  assert.equal(escortSide({ guardDefends: true, guardAttacks: false }, "ATTACKER"), null);
+});
+
+test("the two boxes decide which of the charge's fights the escort joins, always on the charge's side", () => {
+  const cases = [
+    [{ guardDefends: true, guardAttacks: true }, "DEFENDER", "DEFENDER"],
+    [{ guardDefends: true, guardAttacks: true }, "ATTACKER", "ATTACKER"],
+    [{ guardDefends: false, guardAttacks: true }, "DEFENDER", null],
+    [{ guardDefends: false, guardAttacks: true }, "ATTACKER", "ATTACKER"],
+    [{ guardDefends: false, guardAttacks: false }, "DEFENDER", null],
+    [{ guardDefends: false, guardAttacks: false }, "ATTACKER", null],
+  ];
+  for (const [guard, side, want] of cases) assert.equal(escortSide(guard, side), want, `${JSON.stringify(guard)} ${side}`);
+  // Not in the fight, or no escort: nobody joins.
+  assert.equal(escortSide({ guardDefends: true }, undefined), null);
+  assert.equal(escortSide(null, "DEFENDER"), null);
+});
+
+test("the confirm line says what the escort will step into", () => {
+  assert.equal(
+    GUARD_LINES.STARTED("Ada"),
+    "You're escorting Ada. You'll follow them when they travel, and step in if they're attacked.",
+  );
+  assert.equal(
+    GUARD_LINES.STARTED("Ada", { defends: true, attacks: true }),
+    "You're escorting Ada. You'll follow them when they travel, step in if they're attacked, and join them if they attack someone.",
+  );
+  assert.equal(
+    GUARD_LINES.STARTED("Ada", { defends: false, attacks: true }),
+    "You're escorting Ada. You'll follow them when they travel, and join them if they attack someone.",
+  );
+  assert.equal(GUARD_LINES.STARTED("Ada", { defends: false, attacks: false }), "You're escorting Ada. You'll follow them when they travel.");
+  assert.equal(GUARD_LINES.STEP_IN_ATTACK("a young man"), "You join a young man's attack.");
 });

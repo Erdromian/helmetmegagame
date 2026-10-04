@@ -21,6 +21,8 @@ const ACTOR_SELECT = {
   status: true,
   locationId: true,
   guardingId: true,
+  guardDefends: true,
+  guardAttacks: true,
   combatModeSinceTurn: true,
   discordUserId: true,
   tags: { where: { quantity: { gt: 0 } }, select: { tag: { select: { slug: true, name: true } } } },
@@ -33,8 +35,10 @@ async function loadActor(prisma, characterId) {
 }
 
 // `targetKey` is a picker key (db/lib/targetKey.js): "character:<id>" for a bare face, "hood:<token>"
-// for a mask, so no hood's id ever comes from a browser.
-function setEscort(prisma, { character, discordUserId, targetKey }) {
+// for a mask, so no hood's id ever comes from a browser. `defends` and `attacks` are the dialog's two
+// boxes (guard.js#escortSide); left out, they are the defaults the boxes start on.
+function setEscort(prisma, { character, discordUserId, targetKey, defends = true, attacks = false }) {
+  const flags = { guardDefends: defends !== false, guardAttacks: attacks === true };
   return asResult(async () => {
     const gate = await autoMovesOpen(prisma);
     if (!gate.ok) refuse(gate.message);
@@ -49,17 +53,25 @@ function setEscort(prisma, { character, discordUserId, targetKey }) {
     if (why) refuse(why);
 
     const name = await seenBy(prisma, actor.id, target);
-    if (actor.guardingId === target.id) return { line: GUARD_LINES.ALREADY(name), changed: false, dms: [] };
+    const started = GUARD_LINES.STARTED(name, { defends: flags.guardDefends, attacks: flags.guardAttacks });
+    if (actor.guardingId === target.id) {
+      // Escorting them already, so only the boxes can have changed. The charge was told when it began.
+      if (actor.guardDefends === flags.guardDefends && actor.guardAttacks === flags.guardAttacks) {
+        return { line: GUARD_LINES.ALREADY(name), changed: false, dms: [] };
+      }
+      await prisma.character.update({ where: { id: actor.id }, data: flags });
+      return { line: started, changed: true, dms: [] };
+    }
 
     const previousId = actor.guardingId;
-    await prisma.character.update({ where: { id: actor.id }, data: { guardingId: target.id } });
+    await prisma.character.update({ where: { id: actor.id }, data: { guardingId: target.id, ...flags } });
     await logAudit(prisma, {
       actorDiscordUserId: discordUserId ?? "",
       actionType: "request_escort_set",
       targetCharacterId: target.id,
       turnId: turn.id,
       // By the face the escort saw, never the true name (the intercept.js rule for a hood).
-      details: { charge: name, replaced: Boolean(previousId) },
+      details: { charge: name, replaced: Boolean(previousId), defends: flags.guardDefends, attacks: flags.guardAttacks },
     });
 
     const dms = [];
@@ -68,7 +80,7 @@ function setEscort(prisma, { character, discordUserId, targetKey }) {
       if (previous) dms.push(guardNote(previous, GUARD_LINES.TOLD_CHARGE_STOPPED(await seenById(prisma, previous.id, actor.id))));
     }
     dms.push(guardNote(target, GUARD_LINES.TOLD_CHARGE(await seenById(prisma, target.id, actor.id))));
-    return { line: GUARD_LINES.STARTED(name), changed: true, dms: dms.filter(Boolean) };
+    return { line: started, changed: true, dms: dms.filter(Boolean) };
   });
 }
 
@@ -111,6 +123,8 @@ async function escortPicker(prisma, { character }) {
     current = {
       name: await seenById(prisma, actor.id, actor.guardingId),
       here: Boolean(charge && charge.status === "ALIVE" && charge.locationId === actor.locationId),
+      defends: actor.guardDefends,
+      attacks: actor.guardAttacks,
     };
   }
   const room = await whosHere(prisma, actor, { includeSelf: false, withSightings: true, withHoodIds: true });
