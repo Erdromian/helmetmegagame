@@ -4013,6 +4013,16 @@ model Tag {
   //     fieldwork: Bool (default false — true skips needsWorkshop()),
   //     examine: String, defenseNote: String,
   //     inscribable: Bool (the builder may write a line on it),
+  //     underground: Bool (default false — true is the only thing a
+  //       CAVE_LEVEL Location takes; says nothing about the surface),
+  //     fragile: Bool (default false — true means a GM's Damage ruling
+  //       destroys it; it never stands DAMAGED),
+  //     grants: attributeKey — finished, it sets that attribute on its
+  //       Location (db/lib/structureGrants.js); destroyed, it takes it back.
+  //       Only a key the registry marks `buildable`,
+  //     shelter: { factor: Number, above 0 and below 1 } — what a WILDERNESS
+  //       or CAVE night costs with this standing (db/lib/moodPass.js);
+  //       lowest at the Location wins,
   //     miningBonus: { amount: Int },
   //     provides: [tagSlug, ...],
   //     locations: [locationSlug, ...] — where it may be raised at all;

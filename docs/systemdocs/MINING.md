@@ -386,14 +386,18 @@ multiply by occupancy. Ties keep the older structure. A structure must be
 `COMPLETE` — the same reading `equipmentReach.js` takes, which is what gives
 Damage teeth.
 
-**Nothing uses that today.** The Claim Stake was the only structure carrying a
-`placement.miningBonus`, and it was deleted on 2026-09-20 — a 6 ⬢ Builder-Skilled
-build for a permanent +1 at one Location was strictly better than carrying the
-tool that does the same thing, and it made the good seams campable in exactly the
-way the drift pass (§6) exists to prevent. So `structureTools()` returns `[]` for
-every Location in the game. The machinery is left standing on purpose: it is a
-general rule with no example right now, and adding a structure back is one YAML
-block with no code change.
+**Pit Props are the one structure that carries it**: +1 to everyone mining
+where they stand, for 30 ⬢ and 3 turns of Building I. They are flagged
+`placement.underground`, so they go up in the Caves and the Depths as well as
+the Black Hills (`CRAFTING.md` §4b).
+
+The price is the point. The Claim Stake carried the same +1 and was deleted on
+2026-09-20: at 6 ⬢ it was strictly better than carrying the tool that does the
+same thing, and it made the good seams campable in exactly the way the drift
+pass (§6) exists to prevent. Pit Props cost five times that and three days of a
+builder, so one pays back after about 30 miner-days at the seam it stands on —
+and the seam still drifts under it. If the caves turn into a row of propped
+seams anyway, the number to raise is `resourceCost` in `docs/tags.yaml`.
 
 **Weapon bonuses do not stack either** — only the best-paying weapon counts.
 Nothing mining carries one today, but the rule is cheap and a pick is one edit

@@ -33,7 +33,7 @@ const {
 const { resolveMiningRate } = require("./mining");
 const { workVerbFor } = require("./gathering");
 const { hasEquipmentInReach } = require("./equipmentReach");
-const { structuresAt, canBuildHere, WORKING_STATUSES } = require("./structures");
+const { structuresAt, buildGround, WORKING_STATUSES } = require("./structures");
 const {
   PACKAGING_EQUIPMENT_SLUG,
   WORKSHOP_EQUIPMENT_SLUG,
@@ -163,11 +163,11 @@ async function craftFlags(prisma, character, { heldIds, satisfied, sites }) {
     nonAllGroupSlugs,
   });
   const gateById = tagsById([...catalog, ...character.tags.map((ct) => ct.tag).filter(Boolean)]);
-  const buildable = canBuildHere(character.location).ok;
+  const ground = buildGround(character.location);
   const locationSlug = character.location?.slug ?? null;
   const craftable = craftableTags(catalog, heldIds, knownRecipeIds)
     .filter((t) => heldHigherTiers(t, gateById, heldIds).length === 0)
-    .filter((t) => placementOfferedHere(t, { buildable, sites, locationSlug }));
+    .filter((t) => placementOfferedHere(t, { ...ground, sites, locationSlug }));
   if (craftable.length > 0) return true;
   if (sites.some((s) => s.status === "UNDER_CONSTRUCTION")) return true;
   const projects = await prisma.craftProject.count({ where: { characterId: character.id, status: "ACTIVE" } });

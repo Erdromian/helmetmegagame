@@ -112,10 +112,13 @@ export default function RequestActionsProvider({
   craftAllowances = {},
   // Building (db/lib/structures.js). `sitesHere` is every structure at this
   // Location, all statuses; `buildable` is whether the ground takes anything
-  // new at all. Both decided server-side in character/page.js, and both are
-  // menu hygiene — openBuildSiteImpl re-checks each refusal.
+  // new at all, and `buildableUnderground` is the same answer for a type
+  // flagged `placement.underground` — the only kind a cave takes. All decided
+  // server-side in character/page.js, and all menu hygiene —
+  // openBuildSiteImpl re-checks each refusal.
   sitesHere = [],
   buildable = false,
+  buildableUnderground = false,
   // The Location's own slug, for the per-type site gate
   // (Tag.placement.locations). Null just means the gate is left to the
   // server — placementOfferedHere fails open on it.
@@ -326,9 +329,9 @@ export default function RequestActionsProvider({
         // A placement you could not raise on this ground is dropped rather
         // than offered and refused.
         .filter((t) =>
-          placementOfferedHere(t, { buildable, sites: sitesHere, locationSlug }),
+          placementOfferedHere(t, { buildable, buildableUnderground, sites: sitesHere, locationSlug }),
         ),
-    [catalog, heldIds, knownRecipeIds, gateById, buildable, sitesHere, locationSlug],
+    [catalog, heldIds, knownRecipeIds, gateById, buildable, buildableUnderground, sitesHere, locationSlug],
   );
   const removable = useMemo(
     () => destroyableTags(characterTags),

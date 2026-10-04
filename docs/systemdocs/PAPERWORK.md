@@ -349,7 +349,47 @@ so nothing downstream needs to know how it arrived.
 `noticeboard: true` in a Location's `attributes:` map
 (`docs/zones.yaml`, registered in `db/lib/locationAttributes.js`, which refuses
 an unregistered key). Set on the Square, the Courtyard, the Garrison, the
-Factory and the Depot.
+Factory, the Depot, the cave Entrance and the Steel Wall.
+
+### A board is a structure
+
+Every board but one is a **Noticeboard structure** (`noticeboard` in
+`docs/tags.yaml`, `placement.grants: noticeboard`): the six that
+`docs/zones.yaml` starts the game with, seeded standing by `structures:
+[noticeboard]`, and any a player builds — 4 ⬢, 1 turn, no skill, anywhere a
+structure may stand including underground (`CRAFTING.md` §4b). The one
+exception is the Steel Wall's, in the Depths, which is the attribute alone and
+so is nobody's to tear down.
+
+**The attribute is still the board.** `hasNoticeboard()` reads
+`noticeboard: true` off the Location row and nothing else, so the panel, the
+pins, the expiry clock and the anonymous lines know nothing about structures.
+The structure is what makes a board something that can be **built** and
+**destroyed**; `CRAFTING.md` §4c is the general rule, shared with the Field
+Kitchen.
+
+- **Built**, the finished structure sets the attribute and enqueues the
+  Location's mirror job, which is what puts the button on the Discord anchor.
+- **Refused where a board already is** ("There's already a noticeboard
+  here."), the Steel Wall included.
+- **Destroyed, it takes everything pinned to it.** A GM's Destroy on
+  `/gm/structures` takes the attribute off and deletes every `NoticePost` at
+  the Location, each with its runtime paper row — the `ephemeral` guard the
+  expiry pass uses (`noticeboard.js#destroyNoticesAt`). The audit row carries
+  `noticesDestroyed`. Once the wreck is cleared, anybody can raise a new one.
+- **One Damage destroys it.** The Noticeboard is `placement.fragile`, so a
+  GM's Damage ruling on one is a Destroy, by the same path and with the same
+  result: there is no damaged board. The confirm on `/gm/structures` says so,
+  and the audit row is `structure_destroyed` with `viaDamage: true`.
+- **Examine says it once.** The Location's own Noticeboard line is the board,
+  so a standing Noticeboard structure prints no line of its own; ruined, it
+  does.
+
+**A running game does not get the six structures by itself.** They are seeded
+at Restart and Start Game (`worldSeed.js`). Until then a board that was there
+before this change is the attribute alone, exactly as it was, and nothing on
+`/gm/structures` can take it down. No hand-run script raises them mid-game:
+`db:import-zones` seeds structures only for a Location it has just created.
 
 The button is the **fifth** on the Location anchor, which is exactly Discord's
 per-row cap — anything after this needs a second row. `locationAnchorRow` takes
@@ -423,6 +463,8 @@ Wanted and Debtor notices ride this same machinery rather than a bespoke one —
 on a board (the Square for Wanted, the Depot's board for a debt to the
 Merchant) with two more loose sheets scattered in nearby rooms, on a 30-turn
 clock. A debt to the Exactor is the two loose sheets in the Den and no pin.
+If a GM has destroyed that board (§7), nothing is pinned and only the loose
+sheets go out.
 
 That machinery is a **character-creation** thing only. The Censor's and the
 Sheriff's Arrest Warrant button (`REQUESTS.md` §5g) grants the Wanted tag and

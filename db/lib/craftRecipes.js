@@ -86,13 +86,18 @@ function computeKnownRecipeIds(
 }
 
 // Menu hygiene mirroring db/lib/structures.js; openBuildSiteImpl refuses server-side too.
-function placementOfferedHere(tag, { buildable = false, sites = [], locationSlug = null } = {}) {
+function placementOfferedHere(
+  tag,
+  { buildable = false, buildableUnderground = false, sites = [], locationSlug = null } = {},
+) {
   if (!tag?.placement) return true;
   const gate = tag.placement.locations;
   const named = Array.isArray(gate) && gate.length > 0;
   if (named && locationSlug && !gate.includes(locationSlug)) return false;
   const namedHere = named && Boolean(locationSlug) && gate.includes(locationSlug);
-  if (!buildable && !namedHere) return false;
+  // structures.js#buildGround: an underground type is judged on its own answer, which is the only one a cave gives.
+  const groundOk = buildable || (buildableUnderground && tag.placement.underground === true);
+  if (!groundOk && !namedHere) return false;
   const PRESENT = ["UNDER_CONSTRUCTION", "COMPLETE", "DAMAGED"];
   const sameType = sites.filter((s) => s.typeSlug === tag.slug && PRESENT.includes(s.status));
   if (sameType.some((s) => s.status === "UNDER_CONSTRUCTION")) return false;

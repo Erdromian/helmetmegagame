@@ -125,7 +125,7 @@ import { findOpenTurnAction } from "@/lib/moveEconomy";
 import { isSuperadmin } from "@/lib/superadmin";
 import { formatTagRequirement } from "@/lib/formatTagRequirement";
 import { computeKnownRecipeIds } from "@/lib/tagRequests";
-import { canBuildHere, structuresAt } from "@lifeweb/db/lib/structures";
+import { buildGround, structuresAt } from "@lifeweb/db/lib/structures";
 // For the SEARCH offers' presented faces only — see pendingOffers below.
 import { seenByMany, IDENTITY_SELECT } from "@lifeweb/db/lib/intercept";
 import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
@@ -1118,7 +1118,8 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       mine: s.builderCharacterId === character.id, // only the opener may call a site off; cancelBuildSite re-checks it
     }),
   );
-  const buildable = canBuildHere(character.location).ok; // craftRequest judges the same ground again with the same function
+  // What this ground takes: ordinary types, and the ones flagged for a cave. openBuildSiteImpl judges the same ground again with canBuildHere.
+  const { buildable, buildableUnderground } = buildGround(character.location);
 
   // Everything in your pockets that lights a verb (web/lib/itemPools.js) —
   // /chat reads the same helper, so an item's verb is lit on the same facts in
@@ -1428,6 +1429,7 @@ export async function FreshCharacter({ userId, searchParams, scope = "character"
       craftAllowances: craftAllowances,
       sitesHere: sitesHere,
       buildable: buildable,
+      buildableUnderground: buildableUnderground,
       locationSlug: character.location?.slug ?? null,
       teachers: teachers,
       learners: learners,

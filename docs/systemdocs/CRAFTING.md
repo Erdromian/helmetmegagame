@@ -611,6 +611,75 @@ The same validator refuses a `customizableSkill` that names no real tag, or
 one left behind on a recipe whose flag has come off: a typo there would close
 the door to everybody rather than fail loudly.
 
+## 4b. Where a structure may stand
+
+A recipe with a `placement:` block raises a `Structure` at the builder's
+Location instead of landing in a pocket. `db/lib/structures.js#canBuildHere` is
+the one rule for the ground, asked by the Craft menu and again by the server:
+
+| The ground | What goes up |
+|---|---|
+| Outdoors, on the surface | anything |
+| Indoors, on the surface | only a type that names this Location in `placement.locations` (the Brewery in the inn) |
+| A cave level (the Caves, the Depths) | only a type flagged `placement.underground: true` |
+| A `noBuild` Location | nothing |
+
+**Eight types are flagged for the caves**: the Wayside Shrine, the Barricade,
+the Gallows, the Crucifix, Pit Props (`MINING.md` §4), the Camp (`MOOD.md` §7),
+the Noticeboard (`PAPERWORK.md` §7) and the Torture Rack (`TORTURE.md` §3).
+Everything else is a thing of open ground or of a town — a palisade, a tower, a
+trebuchet, a rookery — and a cave refuses it with "That can't be built down
+here."
+
+The flag says nothing about the surface: every one of the eight still goes up
+anywhere outdoors. Nothing could be built underground at all until 2026-10-04,
+on the reasoning that a cave level has no `#summary` — but a site has always
+spoken into its own Location's channel, and every cave Location has one.
+
+The menu needs two answers for one piece of ground, because a cave says no to
+most types and yes to a few: `structures.js#buildGround` returns `buildable`
+and `buildableUnderground`, and `craftRecipes.js#placementOfferedHere` reads
+whichever the type is entitled to.
+
+## 4c. A structure that grants its Location an attribute
+
+`placement.grants: <attribute>` — the Noticeboard's `noticeboard`, the Field
+Kitchen's `kitchen`. While it stands, the Location carries that attribute, the
+same key `docs/zones.yaml` authors and `/gm/dev/zones` ticks.
+
+**It is written onto the Location row, not derived.** The readers of an
+attribute are on both faces and most hold nothing but a Location, so a finished
+structure sets the real thing and no reader has to know a structure exists.
+`db/lib/structureGrants.js` holds the only two writers:
+
+| When | What |
+|---|---|
+| A build finishes (`grantOnFinish`) | the attribute goes on, and the Location's mirror job is enqueued so the Discord anchor redraws |
+| A GM destroys one that was standing (`revokeOnDestroy`) | the attribute comes off; a Noticeboard also takes every notice at the Location |
+
+Everything else follows from that being the whole mechanism:
+
+- **Only an attribute the registry marks `buildable`** may be granted
+  (`db/lib/locationAttributes.js`). The tag sync refuses any other key, so a
+  typo fails loudly and nobody raises a Refinery.
+- **Refused where the attribute already is.** Destroying the structure takes
+  the attribute off, so a second one would take an authored one down with it.
+- **Damage does not revoke.** A damaged Field Kitchen still cooks. This is
+  unlike the kits and bonuses, which serve only while `COMPLETE`. The
+  Noticeboard never reaches the question: it is `placement.fragile`, so a
+  Damage ruling destroys it outright (`PAPERWORK.md` §7).
+- **It lasts one game**, like a `/gm/dev/zones` edit. Restart Game deletes the
+  structure and the zones sync puts attributes back to the YAML. Run by hand
+  mid-game, `db:sync-zones` leaves the `buildable` keys as the game has them,
+  so it never takes a built one's attribute off or puts a destroyed one's back
+  (`SYNC.md` §1a). The flip side: a YAML edit to `noticeboard` or `kitchen`
+  reaches the game at the next Restart, not before.
+- **An authored structure authors the attribute too.** `worldSeed.js` raises
+  `structures:` already standing, past the build path, so the Location must say
+  `noticeboard: true` itself. `db/test/buildings.test.js` holds the two lists
+  together.
+- **Examine prints the attribute's line**, not a second one for the structure.
+
 ## 5. Destroy
 
 **Destroy is for things you own.** `Tag.removable` is not authored per tag
@@ -652,6 +721,8 @@ only ever fires on a GM-authored custom row.
 | Menu filters | `web/lib/tagRequests.js` (`craftableTags`, `destroyableTags`, `craftFamily`), `web/lib/healRequests.js` (`isHealable`) |
 | Move budget | `web/lib/craftBudget.js` (the cost model and the fractions), `web/lib/requests.js` (`craftAllowance`, the two per-turn counters, `craftFreeUnits`), `requestActions.js` (`resolveCraftMove`, `spendCraftMove`) |
 | Flags in sync | `db/lib/syncTags.js`; catalog `docs/tags.yaml` |
+| What a structure grants its ground | `db/lib/structureGrants.js`, `db/lib/locationAttributes.js` (`buildable`) |
+| Where a build may stand | `db/lib/structures.js` (`canBuildHere`, `buildGround`), `db/lib/craftRecipes.js#placementOfferedHere` |
 | Kit in reach | `db/lib/equipmentReach.js`, `web/lib/tagRequests.js#needsWorkshop` |
 | Tier replacement | `db/lib/tagWrites.js#replaceLowerTiers` |
 | What a GM sees | `/gm/audit` (`request_craft_tag`, `request_destroy_tag`) |

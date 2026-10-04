@@ -317,9 +317,17 @@ function placeClassOf(location) {
 // kind so Rough Camper and friends can find it; comfort is plain PLACE and
 // carries `capAtFine`, because OPEN, INDOORS and HAVEN are all degrees of
 // "nothing is hurting me" rather than degrees of delight.
-function placeTermFor(placeClass) {
+//
+// `shelterFactor` is a camp standing there (Tag.placement.shelter, read by
+// db/lib/structures.js#shelterFactorsByLocation). It scales the BASE of a bad
+// night and keeps the kind, so it multiplies with Rough Camper and the phobias
+// the way they multiply with each other. A good night has nothing to soften.
+function placeTermFor(placeClass, shelterFactor = null) {
   const base = PLACE_TERMS[placeClass];
-  if (base < 0) return { kind: placeClass, base };
+  if (base < 0) {
+    const sheltered = Number.isFinite(shelterFactor) && shelterFactor > 0 && shelterFactor < 1;
+    return { kind: placeClass, base: sheltered ? base * shelterFactor : base };
+  }
   return { kind: "PLACE", base, capAtFine: true };
 }
 

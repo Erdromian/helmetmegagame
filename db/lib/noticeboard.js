@@ -6,8 +6,13 @@
 // Deliberately open: anyone standing there may pin, read, or tear down any
 // notice, including a rival's — a board nobody can strip is a bulletin the
 // game is enforcing.
-// Pure of Prisma except boardFor() below, which takes `prisma` as a
-// parameter the way db/lib/dm.js does — require it by path, not the barrel.
+// A board can also be BUILT (Tag.placement.grants, CRAFTING.md §4b). The
+// finished structure sets the same attribute on its Location that the YAML
+// authors (db/lib/structureGrants.js), so nothing that asks hasNoticeboard()
+// has to know the difference.
+// Pure of Prisma except boardFor(), destroyNotice() and destroyNoticesAt(),
+// which take `prisma` as a parameter the way db/lib/dm.js does — require it by
+// path, not the barrel.
 
 const NOTICEBOARD_ATTRIBUTE = "noticeboard";
 
@@ -85,8 +90,21 @@ async function destroyNotice(prisma, post) {
   return claimed;
 }
 
+// Everything pinned at a Location, destroyed: each NoticePost, and each runtime
+// paper row behind it — the same `ephemeral` guard destroyNotice and the expiry
+// pass use. What a Noticeboard structure does when it is destroyed
+// (db/lib/structureGrants.js). Returns how many went, for the audit row.
+async function destroyNoticesAt(tx, locationId) {
+  const posts = await tx.noticePost.findMany({ where: { locationId }, select: { id: true, tagId: true } });
+  if (posts.length === 0) return 0;
+  await tx.noticePost.deleteMany({ where: { id: { in: posts.map((p) => p.id) } } });
+  await tx.tag.deleteMany({ where: { id: { in: posts.map((p) => p.tagId) }, ephemeral: true } });
+  return posts.length;
+}
+
 module.exports = {
   boardFor,
+  destroyNoticesAt,
   destroyNotice,
   BOARD_OPTION_LIMIT,
   hasNoticeboard,

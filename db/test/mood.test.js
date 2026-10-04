@@ -234,6 +234,24 @@ test("a night somewhere: harm keeps its kind, comfort is plain PLACE and caps at
   assert.deepEqual(placeTermFor("OPEN"), { kind: "PLACE", base: PLACE_TERMS.OPEN, capAtFine: true });
 });
 
+test("a camp halves a bad night, keeps its kind, and does nothing for a good one", () => {
+  assert.deepEqual(placeTermFor("CAVE", 0.5), { kind: "CAVE", base: PLACE_TERMS.CAVE / 2 });
+  assert.deepEqual(placeTermFor("WILDERNESS", 0.5), { kind: "WILDERNESS", base: PLACE_TERMS.WILDERNESS / 2 });
+  // Nobody has one standing here: undefined off the Map, and the night is whole.
+  assert.deepEqual(placeTermFor("CAVE", undefined), placeTermFor("CAVE"));
+  // A roof is already the absence of a bad night.
+  assert.deepEqual(placeTermFor("INDOORS", 0.5), placeTermFor("INDOORS"));
+  assert.deepEqual(placeTermFor("HAVEN", 0.5), placeTermFor("HAVEN"));
+  // The kind is what the tags read, so the camp multiplies with Rough Camper
+  // and is beaten outright by Spelunker.
+  const night = (held) =>
+    resolveDelta({ ...placeTermFor("CAVE", 0.5), heldSlugs: new Set(held), intensity: 1 });
+  assert.equal(night([]), -7);
+  assert.equal(night(["rough-camper"]), -3.5);
+  assert.equal(night(["spelunker", "rough-camper"]), 0);
+  assert.equal(night(["claustrophobia"]), -14);
+});
+
 // The designer's three checks, walked with the signs the mood dial uses.
 test("seven wilderness walks and a night out land a character Uncomfortable", () => {
   const steps = 7 * EVENTS.WILDERNESS_MOVE;

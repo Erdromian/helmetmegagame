@@ -513,6 +513,19 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
   if (raw.inscribable != null && typeof raw.inscribable !== "boolean") {
     throw new Error(`${label}: placement.inscribable must be a boolean`);
   }
+  // May be raised in a CAVE_LEVEL Location, which refuses everything else (db/lib/structures.js#canBuildHere). Says nothing about the surface: an underground type still goes up anywhere the ground rules allow.
+  if (raw.underground != null && typeof raw.underground !== "boolean") {
+    throw new Error(`${label}: placement.underground must be a boolean`);
+  }
+  // Too slight to stand damaged: a GM's Damage ruling destroys it outright (web/app/(app)/gm/structures/actions.js).
+  if (raw.fragile != null && typeof raw.fragile !== "boolean") {
+    throw new Error(`${label}: placement.fragile must be a boolean`);
+  }
+  // A Location attribute this gives its ground for as long as it stands (db/lib/structureGrants.js). Only the
+  // ones the registry marks `buildable`: a typo would grant nothing, and a Refinery is not a thing anybody raises.
+  if (raw.grants != null && (typeof raw.grants !== "string" || !ATTRIBUTES[raw.grants]?.buildable)) {
+    throw new Error(`${label}: placement.grants must be a buildable Location attribute (db/lib/locationAttributes.js)`);
+  }
   // Where this type may be raised, by Location slug. ABSENT means anywhere the ground rules allow (opt-in gate). A slug list, not a zone list: `unique` is already per-Location, so naming one Location makes a type one-of-a-kind with no game-wide uniqueness rule.
   if (
     raw.locations != null &&
@@ -577,6 +590,19 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     }
     miningBonus = { amount };
   }
+  // What a bad night here costs with this standing: the WILDERNESS or CAVE place term is multiplied by `factor` (db/lib/moodPass.js). The best one at a Location wins, so two camps are not twice a camp.
+  let shelter = null;
+  if (raw.shelter != null) {
+    if (typeof raw.shelter !== "object" || Array.isArray(raw.shelter)) {
+      throw new Error(`${label}: placement.shelter must be a mapping`);
+    }
+    const factor = Number(raw.shelter.factor);
+    // Strictly between: 1 would be dead config, and 0 is Spelunker and Outsider, which cost a point each and work for one person.
+    if (!Number.isFinite(factor) || factor <= 0 || factor >= 1) {
+      throw new Error(`${label}: placement.shelter.factor must be a number above 0 and below 1`);
+    }
+    shelter = { factor };
+  }
   return {
     unique: raw.unique !== false,
     fieldwork: raw.fieldwork === true,
@@ -590,6 +616,10 @@ function normalizePlacement(raw, label = "docs/tags.yaml") {
     provides: raw.provides ?? [],
     // The builder may write a line on the finished thing (Structure.inscription), replacing `examine` in the readout. See CRAFTING.md.
     inscribable: raw.inscribable === true,
+    underground: raw.underground === true,
+    grants: raw.grants ?? null,
+    fragile: raw.fragile === true,
+    shelter,
   };
 }
 
@@ -925,6 +955,7 @@ function validatePlacement(placement, { slug, tag, knownSlugs, label = "docs/tag
 // The `fighting:` block — what a tag does in a fight (docs/systemdocs/COMBAT.md). db/lib/fightingSkill.js is the read side and trusts this shape.
 // The YAML authors TIERS and this stores POINTS: tiers match tag prose ("counts as 2 tiers higher"), points is what the decimal-free running-total arithmetic wants.
 const { BANDS, POINTS_PER_TIER, WEAPON_CLASSES } = require("./fightingSkill");
+const { ATTRIBUTES } = require("./locationAttributes");
 
 const FIGHTING_TREES = new Set(["melee", "ranged", "both"]);
 const FIGHTING_BAND_KEYS = new Set(BANDS.map((b) => b.key));

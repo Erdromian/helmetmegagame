@@ -6520,15 +6520,152 @@ tags:
       gambit: false
     placement:
       fieldwork: true
+      # Stacked stones go up in a cave as well as on a road (canBuildHere).
+      underground: true
       examine: "it stands at the wayside."
       # The builder may write a line on it (CRAFTING.md): their words REPLACE
       # the examine above in the readout. Blank keeps the stock text.
       inscribable: true
 
-  # The Claim Stake stood here and was removed on 2026-09-20. It was the only
-  # structure in the game carrying a `placement.miningBonus`, so that block is
-  # now a mechanism with no user — see MINING.md §4. Nothing else has to change
-  # to add one back.
+  # Gives its Location a working noticeboard while it stands — the Location's
+  # own `noticeboard` attribute, set by the finished structure
+  # (db/lib/structureGrants.js). Refused where a board already is. Destroyed,
+  # it takes every notice on it along (PAPERWORK.md §7). Cheap and unskilled
+  # on purpose: it is planks and nails. The boards docs/zones.yaml starts the
+  # game with are this same structure, seeded standing — all but the one at
+  # the Steel Wall, which is nobody's to tear down.
+  noticeboard:
+    catalog: all
+    name: Noticeboard
+    category: assets
+    group: assets-structures
+    description: "A few planks nailed to a post. Anyone standing where it is raised can pin paper to it, read what is pinned, or tear it down."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 4
+      gambit: false
+    placement:
+      fieldwork: true
+      underground: true
+      # No `examine`: standing, it is the Location's own Noticeboard line.
+      grants: noticeboard
+      # Planks on a post: the first Damage ruling brings it down (and its
+      # notices with it), so a board is never left standing damaged.
+      fragile: true
+
+  # A kitchen where there was none: Lavish meals can be cooked where it stands
+  # (COOKING.md). Grants the `kitchen` attribute the Inn, the Keep and the
+  # Poorhouse are authored with, so it is refused at those three — and, like
+  # anything with no named site, indoors. It is a kitchen for open ground.
+  field-kitchen:
+    catalog: all
+    name: Field Kitchen
+    category: assets
+    group: assets-structures
+    description: "A stone hearth, a spit and a trestle under an awning. Lavish meals can be cooked where it stands."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 15
+      skills: [builder-skilled]
+      gambit: false
+    # The Forge's price, and fieldwork where the Forge is not: a hearth and a
+    # trestle are stone and timber, not smith's work.
+    placement:
+      fieldwork: true
+      grants: kitchen
+
+  # Torturing Equipment for a whole Location: `provides` puts the kit in reach
+  # of everyone standing there (db/lib/equipmentReach.js), which TORTURE.md §3
+  # already counts. Gated on Torturer like the kit itself, so nobody else is
+  # offered the recipe. Underground on purpose — a cave is where one is hidden.
+  torture-rack:
+    catalog: all
+    name: Torture Rack
+    category: assets
+    group: assets-structures
+    description: "A frame, a windlass and a tray of irons. Torture-related Gambits attempted where it stands gain +1."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 2
+      resourceCost: 8
+      skills: [torturer]
+      gambit: false
+    placement:
+      fieldwork: true
+      underground: true
+      examine: "straps hang loose, irons laid out."
+      provides: [torturing-equipment]
+
+  # The Claim Stake stood here and was removed on 2026-09-20: 6 ⬢ for a
+  # permanent +1 was strictly better than the tool that does the same thing.
+  # Pit Props carry the same `placement.miningBonus` at five times the price
+  # and three times the work — see MINING.md §4.
+  pit-props:
+    catalog: all
+    name: Pit Props
+    category: assets
+    group: assets-structures
+    description: "Timber posts and lintels braced against the rock. Everyone mining where they stand turns up an additional 1 ⬢."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 3
+      resourceCost: 30
+      skills: [builder-skilled]
+      gambit: false
+    # Fieldwork by the Palisade's logic: it is cut timber and wedges.
+    placement:
+      fieldwork: true
+      underground: true
+      examine: "timber braces the rock overhead."
+      miningBonus: { amount: 1 }
+
+  # A night in the WILDERNESS or a CAVE costs half with one of these standing
+  # (MOOD.md §7). No skill on purpose: anybody can lay a fire and a bedroll.
+  # It softens a bad night and never makes a good one, so it does nothing on
+  # settled ground.
+  camp:
+    catalog: all
+    name: Camp
+    category: assets
+    group: assets-structures
+    description: "A fire ring, bedrolls and a windbreak. A night spent out in the wilds or down in the caves is half as hard on everyone where it stands."
+    pointCost: 0
+    visible: false
+    tradeable: false
+    purchasable: false
+    purchasableAfterStart: false
+    craftable: true
+    requirement:
+      turnsCost: 1
+      resourceCost: 10
+      gambit: false
+    placement:
+      fieldwork: true
+      underground: true
+      examine: "a fire is laid, bedrolls set around it."
+      shelter: { factor: 0.5 }
 
   forge:
     catalog: all
@@ -6711,6 +6848,8 @@ tags:
     # unilateral map edit for pocket change. Cover prose only.
     placement:
       fieldwork: true
+      # A tunnel is the best place there is to heap one.
+      underground: true
       examine: "heaped timber and carts cross this ground."
       defenseNote: "a small obstacle for enemies."
 
@@ -6816,6 +6955,7 @@ tags:
     # forge kit for it would be absurd. Reverse at will.
     placement:
       fieldwork: true
+      underground: true
       examine: "rope coiled at the post."
 
   # NAMED "Crucifix", not "Cross", and that is not a preference: Tag.name is
@@ -6849,6 +6989,7 @@ tags:
       gambit: false
     placement:
       fieldwork: true
+      underground: true
       examine: "a cross stands ready."
 
   # Dungeons: never built by a player. The validator requires `craftable` on

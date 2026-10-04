@@ -13,7 +13,16 @@ import { damageStructure, repairStructure, destroyStructure, clearStructure } fr
 const DESTROY_CONFIRM = {
   title: "Destroy this structure?",
   message:
-    "It becomes a ruin on Examine. A ruin cannot be repaired from this page — only cleared. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared.",
+    "It becomes a ruin on Examine. A ruin cannot be repaired from this page — only cleared. If this resolves a player assault, remember the two-turn rule: the attack was declared publicly LAST turn — a siege never resolves the turn it is declared. A standing Noticeboard takes every notice pinned to it down with it.",
+  confirmLabel: "Destroy",
+};
+
+// A fragile type (the Noticeboard) has no damaged state: Damage is Destroy,
+// and the confirm says so, because the button's own word no longer does.
+const FRAGILE_DAMAGE_CONFIRM = {
+  title: "Damage this structure?",
+  message:
+    "It is too slight to stand damaged, so this destroys it: it becomes a ruin on Examine, and a Noticeboard takes every notice pinned to it down with it. A ruin cannot be repaired from this page — only cleared.",
   confirmLabel: "Destroy",
 };
 
@@ -76,6 +85,12 @@ const VERBS = {
     },
   ],
 };
+
+function verbsFor(row) {
+  const verbs = VERBS[row.status] ?? [];
+  if (!row.fragile) return verbs;
+  return verbs.map((verb) => (verb.action === damageStructure ? { ...verb, confirm: FRAGILE_DAMAGE_CONFIRM } : verb));
+}
 
 const FILTER_DEFS = [
   { key: "zone", label: "Zone", value: (row) => row.zoneName },
@@ -162,7 +177,7 @@ export default function StructuresTable({ structures }) {
               </td>
               <td>
                 <div className="flex flex-wrap gap-2">
-                  {(VERBS[row.status] ?? []).map((verb) => (
+                  {verbsFor(row).map((verb) => (
                     <button
                       key={verb.label}
                       type="button"

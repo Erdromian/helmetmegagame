@@ -6,7 +6,7 @@ import StructuresView from "./StructuresView";
 import Loading from "../../Skeleton";
 import { prisma } from "@lifeweb/db";
 import { getGmSession } from "@/lib/discordGuild";
-import { statusWord } from "@lifeweb/db/lib/structures";
+import { placementOf, statusWord } from "@lifeweb/db/lib/structures";
 
 // Every structure in the world, with the GM's Damage/Repair/Destroy/Clear
 // verbs (docs/systemdocs/ADJUDICATION.md carries the conventions — the
@@ -53,6 +53,16 @@ async function FreshStructures({ userId }) {
     : [];
   const crewBySite = new Map(work.map((w) => [w.structureId, w._count._all]));
 
+  // Which types a Damage ruling destroys outright (Tag.placement.fragile), so
+  // the confirm can say so before the click rather than after it.
+  const types = rows.length
+    ? await prisma.tag.findMany({
+        where: { slug: { in: [...new Set(rows.map((r) => r.typeSlug))] } },
+        select: { slug: true, placement: true },
+      })
+    : [];
+  const fragileSlugs = new Set(types.filter((t) => placementOf(t)?.fragile).map((t) => t.slug));
+
   // DTOs only — the Prisma rows carry Dates and payer keys the client table
   // has no business holding.
   const structures = rows.map((row) => ({
@@ -60,6 +70,7 @@ async function FreshStructures({ userId }) {
     zoneName: row.location?.zone?.name ?? "—",
     locationName: row.location?.name ?? "—",
     typeName: row.typeName,
+    fragile: fragileSlugs.has(row.typeSlug),
     status: row.status,
     statusLabel: statusWord(row.status),
     turnsDone: row.turnsDone,

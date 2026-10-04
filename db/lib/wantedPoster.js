@@ -11,6 +11,7 @@ const { expiryFrom } = require("./turnFormat");
 const { DEBTOR_SLUG, DEBTOR_EXACTOR_SLUG } = require("./constants");
 // The tag itself lives in wanted.js; this file is only the paper. Both re-exported below.
 const { WANTED_SLUG, isWanted } = require("./wanted");
+const { hasNoticeboard } = require("./noticeboard");
 
 const DEBTOR_DEBT_OBOLS = 40;
 const DEBTOR_STARTING_OBOLS = 20;
@@ -78,8 +79,11 @@ async function postNotices(prisma, character, openTurn, spec) {
     select: { id: true },
   });
   const board = spec.boardLocationSlug
-    ? await prisma.location.findUnique({ where: { slug: spec.boardLocationSlug }, select: { id: true } })
+    ? await prisma.location.findUnique({ where: { slug: spec.boardLocationSlug }, select: { id: true, attributes: true } })
     : null;
+  // The board can be gone: a GM may destroy a Noticeboard structure (db/lib/structureGrants.js). A notice pinned where there is no board
+  // is one nobody can read, and it would come back the moment somebody built a new board there. The loose sheets still go out.
+  const boardStands = board != null && hasNoticeboard(board);
 
   // One transaction per sheet rather than one for all three — Postgres aborts a whole transaction on the first failed statement, so batching
   // would turn one unlucky waybill code into three lost posters.
@@ -93,7 +97,7 @@ async function postNotices(prisma, character, openTurn, spec) {
   }
 
   let pinned = false;
-  if (board && turnNumber != null) {
+  if (boardStands && turnNumber != null) {
     await prisma.$transaction(async (tx) => {
       const tag = await mintUnownedPaper(tx, `${character.id}-${board.id}`, spec.author, text);
       await tx.noticePost.create({

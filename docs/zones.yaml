@@ -284,8 +284,11 @@ zones:
         attributes:
           noticeboard: true
         # The cross the description promises is a real Structure, so the
-        # Crucify button works here from day one.
-        structures: [crucifix]
+        # Crucify button works here from day one. The board is one too
+        # (docs/tags.yaml `noticeboard`): the attribute above is what makes it
+        # a board, the structure is what lets a GM tear it down, notices and
+        # all. Every authored board carries both, except the Steel Wall's.
+        structures: [crucifix, noticeboard]
         description: >-
           An open clearing with a crucifix in the center. There's a stagnant pond, still and calm aside from the occasional rat seeking water. A solemn gargoyle perches on the central pillar, its eyes long dry since the waterworks broke down.
         rooms:
@@ -656,7 +659,7 @@ zones:
         attributes:
           noticeboard: true
         # The Shackle button works where Dungeons stand (docs/tags.yaml).
-        structures: [dungeons]
+        structures: [dungeons, noticeboard]
         description: >-
           The garrison tower and its offshoot buildings surround the training yard. A home for those who walk the cobbles at night.
         rooms:
@@ -757,6 +760,7 @@ zones:
         name: Courtyard
         attributes:
           noticeboard: true
+        structures: [noticeboard]
         description: >-
           Grass rises rebelliously around the manicured paths, illuminated by searchlight. Past the portcullis, old stone stairs rise towards the Court, and further yet, to the Keep. The Gatehouse itself has several watchtowers and a murder hole over the gate. A winch system controls the portcullis.
         rooms:
@@ -1243,6 +1247,7 @@ zones:
         attributes:
           depot: true
           noticeboard: true
+        structures: [noticeboard]
         description: >-
           Sometimes, wealthier migrants arrive here, but mostly it's for cargo goods.
         rooms:
@@ -1905,6 +1910,7 @@ zones:
         attributes:
           refinery: true
           noticeboard: true
+        structures: [noticeboard]
         rooms:
           factory-logistics-room:
             name: Logistics Room
@@ -1982,6 +1988,7 @@ zones:
             indoors: true
             attributes:
               noticeboard: true
+            structures: [noticeboard]
             description: >-
               The caves are dark, but there are a few dying where mercenaries and migrants recently setup camp.
             rooms:
@@ -2149,6 +2156,8 @@ zones:
           depths-1:
             name: Steel Wall
             indoors: true
+            # The one board with no Noticeboard structure behind it: a fact
+            # about the place, which no ruling on /gm/structures can take down.
             attributes:
               noticeboard: true
             description: >-

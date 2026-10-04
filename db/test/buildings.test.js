@@ -5,9 +5,18 @@
 // how many birds are owed.
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const path = require("node:path");
+const yaml = require("js-yaml");
+
+const DOCS = path.join(__dirname, "../../docs");
 
 const { normalizePlacement, validatePlacement } = require("../lib/tagShapes");
-const { canBuildHere, placementOf } = require("../lib/structures");
+const { canBuildHere, buildGround, placementOf } = require("../lib/structures");
+const { placementOfferedHere } = require("../lib/craftRecipes");
+const { hasNoticeboard } = require("../lib/noticeboard");
+const { grantOnFinish, revokeOnDestroy } = require("../lib/structureGrants");
+const { parseZonesYaml } = require("../lib/syncZones/parse");
 const {
   BASE_BIRD_SENDS_PER_DAY,
   ROOKERY_COOLDOWN_MS,
@@ -134,6 +143,228 @@ test("canBuildHere: a named site does NOT override caves or noBuild", () => {
   assert.match(canBuildHere(CAVE, underground).reason, /down here/);
   const atDepot = { ...BREWERY, locations: ["depot"] };
   assert.equal(canBuildHere(DEPOT, atDepot).ok, false);
+});
+
+// --- underground: the types a cave takes ----------------------------------
+
+const SHRINE = { underground: true };
+const CAVE_NO_BUILD = { ...CAVE, attributes: { noBuild: true } };
+
+test("canBuildHere: a cave takes an underground type and nothing else", () => {
+  assert.equal(canBuildHere(CAVE, SHRINE).ok, true);
+  assert.equal(canBuildHere(CAVE, ANYWHERE).ok, false);
+  assert.equal(canBuildHere(CAVE).ok, false);
+  assert.match(canBuildHere(CAVE).reason, /down here/);
+});
+
+test("canBuildHere: an underground type still answers to noBuild and to a named site", () => {
+  assert.equal(canBuildHere(CAVE_NO_BUILD, SHRINE).ok, false);
+  assert.equal(canBuildHere(CAVE, { ...SHRINE, locations: ["somewhere-else"] }).ok, false);
+  assert.equal(canBuildHere(CAVE, { ...SHRINE, locations: ["cave-one"] }).ok, true);
+});
+
+test("canBuildHere: underground says nothing about the surface", () => {
+  assert.equal(canBuildHere(SQUARE, SHRINE).ok, true);
+  // A cave's roof is answered by the flag; a building's is not.
+  assert.equal(canBuildHere(INN, SHRINE).ok, false);
+  assert.match(canBuildHere(INN, SHRINE).reason, /indoors/);
+});
+
+test("buildGround: the two answers a Craft menu filters on", () => {
+  assert.deepEqual(buildGround(SQUARE), { buildable: true, buildableUnderground: true });
+  assert.deepEqual(buildGround(CAVE), { buildable: false, buildableUnderground: true });
+  assert.deepEqual(buildGround(CAVE_NO_BUILD), { buildable: false, buildableUnderground: false });
+  assert.deepEqual(buildGround(INN), { buildable: false, buildableUnderground: false });
+});
+
+test("placementOfferedHere: a cave offers only what is flagged for it", () => {
+  const shrine = { slug: "wayside-shrine", placement: { underground: true } };
+  const palisade = { slug: "palisade", placement: {} };
+  const inCave = { ...buildGround(CAVE), sites: [], locationSlug: "cave-one" };
+  assert.equal(placementOfferedHere(shrine, inCave), true);
+  assert.equal(placementOfferedHere(palisade, inCave), false);
+  // One already standing still closes the offer, cave or not.
+  const standing = [{ typeSlug: "wayside-shrine", status: "COMPLETE" }];
+  assert.equal(placementOfferedHere(shrine, { ...inCave, sites: standing }), false);
+  // And where nothing goes up, the flag buys nothing.
+  assert.equal(placementOfferedHere(shrine, { ...buildGround(CAVE_NO_BUILD), sites: [], locationSlug: "cave-one" }), false);
+  const onSquare = { ...buildGround(SQUARE), sites: [], locationSlug: "town-square" };
+  assert.equal(placementOfferedHere(shrine, onSquare), true);
+  assert.equal(placementOfferedHere(palisade, onSquare), true);
+});
+
+test("placement: underground and shelter survive normalisation, and default off", () => {
+  const p = normalizePlacement({ underground: true, shelter: { factor: 0.5 } });
+  assert.equal(p.underground, true);
+  assert.deepEqual(p.shelter, { factor: 0.5 });
+  const bare = normalizePlacement({ fieldwork: true });
+  assert.equal(bare.underground, false);
+  assert.equal(bare.shelter, null);
+  assert.deepEqual(placementOf({ placement: p }).shelter, { factor: 0.5 });
+  assert.equal(placementOf({ placement: p }).underground, true);
+});
+
+test("placement: a shelter factor is strictly between 0 and 1", () => {
+  for (const factor of [0, 1, 1.5, -0.5, "half", null]) {
+    assert.throws(() => normalizePlacement({ shelter: { factor } }), /shelter\.factor/, String(factor));
+  }
+  assert.throws(() => normalizePlacement({ shelter: 0.5 }), /shelter must be a mapping/);
+  assert.throws(() => normalizePlacement({ underground: "yes" }), /underground must be a boolean/);
+});
+
+// --- structures that grant a Location attribute ---------------------------
+
+const BOARD = { underground: true, grants: "noticeboard" };
+const KITCHEN = { grants: "kitchen" };
+
+test("canBuildHere: a granting type is refused where the attribute already is", () => {
+  const withBoard = { ...SQUARE, attributes: { noticeboard: true } };
+  assert.equal(canBuildHere(SQUARE, BOARD).ok, true);
+  assert.equal(canBuildHere(CAVE, BOARD).ok, true);
+  assert.equal(canBuildHere(withBoard, BOARD).ok, false);
+  assert.match(canBuildHere(withBoard, BOARD).reason, /already a noticeboard/);
+  // Anything else still goes up beside a board, a kitchen included.
+  assert.equal(canBuildHere(withBoard, SHRINE).ok, true);
+  assert.equal(canBuildHere(withBoard, KITCHEN).ok, true);
+  const withKitchen = { ...SQUARE, attributes: { kitchen: true } };
+  assert.match(canBuildHere(withKitchen, KITCHEN).reason, /already a kitchen/);
+  // A Field Kitchen is for open ground: no cave, no roof.
+  assert.equal(canBuildHere(CAVE, KITCHEN).ok, false);
+  assert.equal(canBuildHere(INN, KITCHEN).ok, false);
+});
+
+test("placement: grants takes a buildable attribute and nothing else", () => {
+  assert.equal(normalizePlacement({ grants: "noticeboard" }).grants, "noticeboard");
+  assert.equal(normalizePlacement({ grants: "kitchen" }).grants, "kitchen");
+  assert.equal(normalizePlacement({ fieldwork: true }).grants, null);
+  assert.equal(placementOf({ placement: { grants: "kitchen" } }).grants, "kitchen");
+  // Real attributes nobody may raise, a typo, and the wrong shape.
+  for (const grants of ["refinery", "godflesh", "lifeweb", "haven", "noticebord", true, ["kitchen"]]) {
+    assert.throws(() => normalizePlacement({ grants }), /grants must be a buildable Location attribute/, String(grants));
+  }
+});
+
+test("placement: fragile survives normalisation and defaults off", () => {
+  assert.equal(normalizePlacement({ fragile: true }).fragile, true);
+  assert.equal(normalizePlacement({ fieldwork: true }).fragile, false);
+  assert.equal(placementOf({ placement: { fragile: true } }).fragile, true);
+  assert.equal(placementOf({ placement: {} }).fragile, false);
+  assert.throws(() => normalizePlacement({ fragile: "very" }), /fragile must be a boolean/);
+});
+
+test("docs/tags.yaml: the Noticeboard is the fragile one", () => {
+  const tags = yaml.load(fs.readFileSync(path.join(DOCS, "tags.yaml"), "utf8"));
+  const catalog = tags.tags ?? tags;
+  const fragile = Object.entries(catalog)
+    .filter(([, t]) => t?.placement?.fragile)
+    .map(([slug]) => slug);
+  assert.deepEqual(fragile, ["noticeboard"]);
+});
+
+// grantOnFinish and revokeOnDestroy against a stand-in transaction: the only
+// two writers of a granted attribute, so what they leave behind is the whole
+// contract.
+function fakeTx({ attributes, grants = null, posts = [], tags = [] }) {
+  const state = { attributes, posts: [...posts], tags: [...tags] };
+  return {
+    state,
+    location: {
+      findUnique: async () => ({ attributes: state.attributes }),
+      update: async ({ data }) => {
+        state.attributes = data.attributes;
+      },
+    },
+    noticePost: {
+      findMany: async ({ where }) => state.posts.filter((p) => p.locationId === where.locationId),
+      deleteMany: async ({ where }) => {
+        state.posts = state.posts.filter((p) => !where.id.in.includes(p.id));
+      },
+    },
+    tag: {
+      findUnique: async () => ({ placement: grants ? { grants } : {} }),
+      deleteMany: async ({ where }) => {
+        state.tags = state.tags.filter((t) => !(where.id.in.includes(t.id) && t.ephemeral === where.ephemeral));
+      },
+    },
+  };
+}
+const SITE = { typeSlug: "anything", locationId: "loc" };
+
+test("grantOnFinish: the Location gains the attribute and keeps its others", async () => {
+  const tx = fakeTx({ attributes: { wilderness: true }, grants: "noticeboard" });
+  assert.equal(await grantOnFinish(tx, SITE), "noticeboard");
+  assert.deepEqual(tx.state.attributes, { wilderness: true, noticeboard: true });
+  assert.equal(hasNoticeboard({ attributes: tx.state.attributes }), true);
+});
+
+test("grantOnFinish: a type that grants nothing leaves the ground alone", async () => {
+  const tx = fakeTx({ attributes: { wilderness: true } });
+  assert.equal(await grantOnFinish(tx, SITE), null);
+  assert.equal(await revokeOnDestroy(tx, SITE), null);
+  assert.deepEqual(tx.state.attributes, { wilderness: true });
+});
+
+test("revokeOnDestroy: a board goes, and every notice here with its paper", async () => {
+  const tx = fakeTx({
+    attributes: { wilderness: true, noticeboard: true },
+    grants: "noticeboard",
+    posts: [
+      { id: "p1", tagId: "t1", locationId: "loc" },
+      { id: "p2", tagId: "t2", locationId: "loc" },
+      { id: "p3", tagId: "t3", locationId: "elsewhere" },
+    ],
+    tags: [
+      { id: "t1", ephemeral: true },
+      // A catalog tag on a wall survives being torn off it.
+      { id: "t2", ephemeral: false },
+      { id: "t3", ephemeral: true },
+    ],
+  });
+  assert.deepEqual(await revokeOnDestroy(tx, SITE), { key: "noticeboard", noticesDestroyed: 2 });
+  assert.deepEqual(tx.state.attributes, { wilderness: true });
+  assert.deepEqual(tx.state.posts.map((p) => p.id), ["p3"]);
+  assert.deepEqual(tx.state.tags.map((t) => t.id), ["t2", "t3"]);
+});
+
+test("revokeOnDestroy: a kitchen takes its attribute and touches no notice", async () => {
+  const tx = fakeTx({
+    attributes: { kitchen: true, noticeboard: true },
+    grants: "kitchen",
+    posts: [{ id: "p1", tagId: "t1", locationId: "loc" }],
+    tags: [{ id: "t1", ephemeral: true }],
+  });
+  assert.deepEqual(await revokeOnDestroy(tx, SITE), { key: "kitchen", noticesDestroyed: undefined });
+  assert.deepEqual(tx.state.attributes, { noticeboard: true });
+  assert.equal(tx.state.posts.length, 1);
+});
+
+// --- the two masters, held together ---------------------------------------
+
+// worldSeed.js raises an authored structure already standing, past the build
+// path that grants its attribute. So a Location that authors a granting
+// structure must author the attribute too, or the board stands with no board.
+test("docs/zones.yaml: a seeded structure that grants an attribute has it authored", () => {
+  const tags = yaml.load(fs.readFileSync(path.join(DOCS, "tags.yaml"), "utf8"));
+  const catalog = tags.tags ?? tags;
+  const grantsBySlug = new Map(
+    Object.entries(catalog)
+      .filter(([, t]) => t?.placement?.grants)
+      .map(([slug, t]) => [slug, t.placement.grants]),
+  );
+  assert.deepEqual([...grantsBySlug].sort(), [["field-kitchen", "kitchen"], ["noticeboard", "noticeboard"]]);
+  const { locationEntries } = parseZonesYaml(yaml.load(fs.readFileSync(path.join(DOCS, "zones.yaml"), "utf8")));
+  const seededBoards = [];
+  for (const location of locationEntries) {
+    for (const slug of location.structures ?? []) {
+      const key = grantsBySlug.get(slug);
+      if (!key) continue;
+      assert.ok(location.attributes?.[key], `${location.slug} seeds "${slug}" but does not author ${key}: true`);
+      if (slug === "noticeboard") seededBoards.push(location.slug);
+    }
+  }
+  // Every authored board is a structure a GM can tear down, except the Steel Wall's.
+  const authoredBoards = locationEntries.filter((l) => l.attributes?.noticeboard).map((l) => l.slug);
+  assert.deepEqual(authoredBoards.filter((slug) => !seededBoards.includes(slug)), ["depths-1"]);
 });
 
 test("canBuildHere: no placement asks the ground question only", () => {

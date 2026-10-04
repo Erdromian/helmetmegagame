@@ -37,7 +37,9 @@
 // restart already poured the old one); a way whose authored state changed is
 // set to it; a mining rate starts again from its new base. Without it — the
 // ops script, run on a game in progress — only the authored columns move and
-// the next game picks them up.
+// the next game picks them up, and a Location attribute a structure grants
+// (`noticeboard`, `kitchen`) is left as the game has it: a board somebody
+// built stays up, and one a GM destroyed stays down (BUILT_ATTRIBUTE_KEYS).
 //
 // Takes `prisma` as a parameter and stays off the @lifeweb/db barrel; require
 // it by path. Dry run by default, like the importer.
@@ -48,6 +50,7 @@ const { docsPath } = require("./repoPaths");
 const { parseZonesYaml } = require("./syncZones/parse");
 const { importZonesFromYaml } = require("./importZones");
 const { enqueueMirror } = require("./discordMirror/queue");
+const { ATTRIBUTES } = require("./locationAttributes");
 // Whole module, not destructured, so a test can stub one export.
 const placeDeletable = require("./placeDeletable");
 
@@ -279,9 +282,28 @@ async function dbModel(prisma) {
   return { model, rows };
 }
 
+// The Location attributes a structure can give its ground (`buildable` in
+// db/lib/locationAttributes.js: a Noticeboard's board, a Field Kitchen's
+// kitchen). While a game runs they belong to the game, because building or
+// destroying the structure is what set them (db/lib/structureGrants.js), so
+// a sync on a game in progress leaves them as they stand. Before play the
+// YAML wins on them like everything else; the wipe has taken the structures
+// down by then, and the world seed raises the authored ones after.
+const BUILT_ATTRIBUTE_KEYS = Object.keys(ATTRIBUTES).filter((key) => ATTRIBUTES[key].buildable);
+
+function keepBuiltAttributes(yamlAttributes, dbAttributes) {
+  const out = { ...(yamlAttributes ?? {}) };
+  for (const key of BUILT_ATTRIBUTE_KEYS) {
+    if (dbAttributes && Object.hasOwn(dbAttributes, key)) out[key] = dbAttributes[key];
+    else delete out[key];
+  }
+  return out;
+}
+
 // What to do, decided from two models: `yaml` and `db`, both as they are now.
 // Pure, so the rule at the top of this file is testable without a database.
-function planZonesSync(yamlM, dbM) {
+// `keepBuilt` is a sync on a game in progress (see BUILT_ATTRIBUTE_KEYS).
+function planZonesSync(yamlM, dbM, { keepBuilt = false } = {}) {
   const plan = { creates: [], updates: [], retires: [], deletes: [], reportOnly: [] };
   for (const kind of KINDS) {
     const y = yamlM[kind] ?? {};
@@ -299,8 +321,10 @@ function planZonesSync(yamlM, dbM) {
         continue;
       }
       if (dv.retired) plan.updates.push({ kind, key, field: "retired", from: true, to: false });
+      const want =
+        kind === "locations" && keepBuilt ? { ...yv, attributes: keepBuiltAttributes(yv.attributes, dv.attributes) } : yv;
       for (const field of FIELDS[kind]) {
-        if (!same(yv[field], dv[field])) plan.updates.push({ kind, key, field, from: dv[field], to: yv[field] });
+        if (!same(want[field], dv[field])) plan.updates.push({ kind, key, field, from: dv[field], to: want[field] });
       }
     }
   }
@@ -500,7 +524,8 @@ async function syncZonesFromYaml(prisma, { apply = false, doc = null, beforePlay
   const yamlM = yamlModel(parseZonesYaml(source));
 
   const before = await dbModel(prisma);
-  const plan = planZonesSync(yamlM, before.model);
+  const keepBuilt = !beforePlay;
+  const plan = planZonesSync(yamlM, before.model, { keepBuilt });
   const imported = await importZonesFromYaml(prisma, { apply, doc: source });
 
   const report = {
@@ -524,7 +549,7 @@ async function syncZonesFromYaml(prisma, { apply = false, doc = null, beforePlay
   // what is there now. Anything it created now matches the YAML, so this adds
   // no work — it only finds the new ids and drops the creates it handled.
   const after = await dbModel(prisma);
-  const final = planZonesSync(yamlM, after.model);
+  const final = planZonesSync(yamlM, after.model, { keepBuilt });
   await applyPlan(prisma, final, after.rows, yamlM, report, { beforePlay });
 
   const createdCount = Object.values(imported.created).reduce((n, list) => n + list.length, 0);

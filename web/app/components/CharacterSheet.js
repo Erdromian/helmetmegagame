@@ -141,6 +141,7 @@ export default function CharacterSheet({
   // whether the ground takes anything new. Both built in character/page.js.
   sitesHere = [],
   buildable = false,
+  buildableUnderground = false,
   locationSlug = null,
   teachers = [],
   learners = [],
@@ -288,6 +289,7 @@ export default function CharacterSheet({
         craftAllowances={craftAllowances}
         sitesHere={sitesHere}
         buildable={buildable}
+        buildableUnderground={buildableUnderground}
         locationSlug={locationSlug}
         teachers={teachers}
         learners={learners}

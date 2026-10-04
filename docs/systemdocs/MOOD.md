@@ -101,8 +101,8 @@ key on.
 |---|---|---|---|
 | Arrive at a WILDERNESS Location | WILDERNESS | −2 | `applyArrivalMood`, from `locationMove.js` — **capped, below** |
 | Arrive at a CAVE Location | CAVE | −3 | same, and capped with it |
-| End the turn in the WILDERNESS | WILDERNESS | −10 | mood pass |
-| End the turn in a CAVE | CAVE | −14 | mood pass |
+| End the turn in the WILDERNESS | WILDERNESS | −10, halved by a Camp (§7) | mood pass |
+| End the turn in a CAVE | CAVE | −14, halved by a Camp (§7) | mood pass |
 | A new wound tag lands (`health-wounds`, `health-maiming`, `health-infection`) | WOUND | by rung, §5 | `applyWoundMood`, four writers |
 | `dying` granted, by any path | DYING | −40 | `applyWoundMood` |
 | The Caving Die rolls a 1 | CAVE_TROUBLE | −10 | `cavingPass.js#rollCaving` |
@@ -435,6 +435,23 @@ Afraid… may cause Panic" sentences went with it. The cancel tag is named
 Spelunker because `caving` is already a Skills tag and role kits resolve tags
 by display name.
 
+**A Camp halves a bad night for everybody at its Location.** It is a structure
+(`camp` in `docs/tags.yaml`, `placement.shelter: { factor: 0.5 }`), and the
+nightly pass multiplies the WILDERNESS or CAVE place term's **base** by that
+factor before any tag is read. The kind is untouched, so it composes with the
+table above: a Rough Camper beside a camp in the caves pays ×0.25, a
+claustrophobe pays the plain −14, and Spelunker still pays nothing.
+
+- **The night only.** Walking in still costs the −2 or −3 arrival.
+- **It softens and never lifts.** A camp on settled ground does nothing; OPEN,
+  INDOORS and HAVEN nights are untouched.
+- **`COMPLETE` only**, the reading mining takes of a structure. A damaged camp
+  shelters nobody, which gives a GM's Damage ruling something to take away.
+- **The best one wins.** Two shelters at one Location are not twice a shelter.
+
+The factor is validated strictly between 0 and 1 (`db/lib/tagShapes.js`): a 0
+would be Spelunker and Outsider for a whole Location at the price of neither.
+
 Outsider stopped requiring Rough Camper on 2026-09-20 and is a base tag now;
 Spelunker still asks for it. Rough Camper dropped to 1 point in the same pass.
 
@@ -524,6 +541,7 @@ hooks in the same tick cannot race a stale read past either end.
   `setMood`, `consumeReliefFor`, `setMoodDmSender`, `loadIntensity`). Off the
   barrel; require by subpath.
 - `db/lib/moodPass.js` — the nightly settle.
+- `db/lib/structures.js#shelterFactorsByLocation` — where a Camp stands (§7).
 - `db/lib/gambitModifier.js` — Ecstatic +1, Afraid −1, Panicking −2, read off
   the band.
 - `db/lib/torture.js` — the TORTURED hit's caller side (TORTURE.md).

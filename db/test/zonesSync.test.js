@@ -142,3 +142,35 @@ test("a seed compares by what it pours, not how it was written", () => {
   });
   assert.equal(canonical({ b: 1, a: [2] }), canonical({ a: [2], b: 1 }));
 });
+
+// A structure's grant (db/lib/structureGrants.js) is the game's while it runs:
+// a built board stays up and a destroyed one stays down. Before play the YAML
+// wins on it like everything else.
+test("on a game in progress, a built or destroyed board is left as it stands", () => {
+  const doc = clone(fixture);
+  doc.zones[0].locations[0].attributes = { noticeboard: true, haven: true };
+  const y = yamlOf(doc);
+  const db = dbFrom(y);
+  delete db.locations.den.attributes.noticeboard; // a GM destroyed the Den's board
+  db.locations.slums.attributes = { kitchen: true }; // somebody built a Field Kitchen
+  assert.deepEqual(planZonesSync(y, db, { keepBuilt: true }).updates, []);
+
+  // Everything else still goes back to the YAML, the attribute line included.
+  db.locations.den.attributes.haven = false;
+  const plan = planZonesSync(y, db, { keepBuilt: true });
+  assert.deepEqual(fields(plan), ["locations/den.attributes"]);
+  assert.deepEqual(plan.updates[0].to, { haven: true });
+});
+
+test("before play, the YAML wins on a structure's grant too", () => {
+  const doc = clone(fixture);
+  doc.zones[0].locations[0].attributes = { noticeboard: true };
+  const y = yamlOf(doc);
+  const db = dbFrom(y);
+  delete db.locations.den.attributes.noticeboard;
+  db.locations.slums.attributes = { kitchen: true };
+  const plan = planZonesSync(y, db);
+  assert.deepEqual(fields(plan), ["locations/den.attributes", "locations/slums.attributes"]);
+  assert.deepEqual(plan.updates.find((u) => u.key === "den").to, { noticeboard: true });
+  assert.deepEqual(plan.updates.find((u) => u.key === "slums").to, {});
+});
