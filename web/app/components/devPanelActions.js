@@ -1,7 +1,7 @@
 "use server";
 
 import { getGmSession } from "@/lib/discordGuild";
-import { loadDevPanelProps, loadDevPanelRecord } from "@/lib/devPanelData";
+import { loadDevPanelProps, loadDevPanelRecord, loadDevPanelMemories } from "@/lib/devPanelData";
 import { prisma } from "@lifeweb/db";
 import { UserError, guarded } from "@/lib/actionResult";
 
@@ -47,5 +47,17 @@ export async function getDevPanelRecord(input) {
     });
     if (!character) throw new UserError("Character not found.");
     return { record: await loadDevPanelRecord(character.id, character.discordUserId) };
+  });
+}
+
+// The Memories tab's five sections (MEMORIES.md §8), fetched on the first
+// click of that tab, the same way as the Record tab. The account they read
+// Notes and Highlights from is resolved from the character row server-side.
+export async function getDevPanelMemories(input) {
+  return guarded(async () => {
+    await requireGm();
+    const memories = input?.characterId ? await loadDevPanelMemories(input.characterId) : null;
+    if (!memories) throw new UserError("Character not found.");
+    return { memories };
   });
 }

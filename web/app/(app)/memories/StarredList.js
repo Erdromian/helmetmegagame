@@ -9,6 +9,8 @@ import ChatMarkdown from "@/app/components/ChatMarkdown";
 import EmptyState from "@/app/components/EmptyState";
 import { useTableState, FilterBar } from "@/app/components/DataTable";
 import Pager from "@/app/components/Pager";
+import IconButton from "@/app/components/IconButton";
+import { EditIcon } from "@/app/components/icons";
 
 const FILTER_DEFS = [{ key: "zone", label: "Zone", value: (n) => n.zoneName }];
 
@@ -21,7 +23,9 @@ const SORT_OPTIONS = [
   { key: "sentAtMs", dir: "asc", label: "Oldest first" },
 ];
 
-export default function StarredList({ notes }) {
+// `remove` and `onEdit` are the GM's (the Dev Panel's Memories tab): a player
+// can only unstar, a GM can also rewrite what the highlight says.
+export default function StarredList({ notes, remove = unstarNote, onEdit = null }) {
   const confirm = useConfirm();
   const [removed, setRemoved] = useState(new Set());
   const [isPending, startTransition] = useTransition();
@@ -45,7 +49,7 @@ export default function StarredList({ notes }) {
       return;
     setRemoved((prev) => new Set(prev).add(id));
     startTransition(() => {
-      unstarNote(id);
+      remove(id);
     });
   }
 
@@ -85,18 +89,22 @@ export default function StarredList({ notes }) {
                   </span>
                 </div>
               </div>
-              <Tooltip text="Unstar">
-                <button
-                  type="button"
-                  className="btn-quiet"
-                  onClick={() => handleUnstar(note.id)}
-                  disabled={isPending}
-                  aria-label="Unstar this note"
-                >
-                  [★]
-                </button>
-              </Tooltip>
+              <div className="flex items-center gap-1">
+                {onEdit && <IconButton icon={EditIcon} label="Edit highlight" onClick={() => onEdit(note)} />}
+                <Tooltip text="Unstar">
+                  <button
+                    type="button"
+                    className="btn-quiet"
+                    onClick={() => handleUnstar(note.id)}
+                    disabled={isPending}
+                    aria-label="Unstar this note"
+                  >
+                    [★]
+                  </button>
+                </Tooltip>
+              </div>
             </div>
+            {note.garbled && <span className="text-xs text-muted">Garbled for them today</span>}
             {/* The same renderer /chat draws the line with. A starred card is a
                 verbatim copy of a scene line, so anything less than the scene's
                 own renderer shows the reader the plumbing: this used to be a

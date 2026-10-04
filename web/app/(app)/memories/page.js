@@ -6,16 +6,16 @@ import MemoriesView from "./MemoriesView";
 import Loading from "./Skeleton";
 import { prisma } from "@lifeweb/db";
 import { FEED_ROW_SELECT, withAvatarVersions } from "@lifeweb/db/lib/archive";
-import { parsePlaceKey } from "@lifeweb/db/lib/placeKey";
 import { scrambleEntry, scrambleFields, scrambleText } from "@lifeweb/db/lib/memoryScramble";
 import { ROLE_GROUPS } from "@lifeweb/db/lib/roleGroups";
 import { createLens } from "@lifeweb/db/lib/strangers";
 import { getGmSession } from "@/lib/discordGuild";
-import { loadMemoryViewer, starKey, scrambleJournal, scrambleLine } from "@/lib/memories";
+import { loadMemoryViewer, placeNames, starKey, scrambleJournal, scrambleLine } from "@/lib/memories";
 import { loadMentionDirectory, loadOfferableMentions } from "@/lib/mentionDirectory";
 
 // A character's memories (docs/systemdocs/MEMORIES.md) — five sections, and
-// all of them personal: nothing here is ever a shared or GM view.
+// all of them personal: nothing here is ever a shared view. A GM reads and
+// edits the same five on the Dev Panel's Memories tab instead (§8).
 //
 //   Friends              the people this character knows (Acquaintance)
 //   Who am I?            their own PIN, seat and age
@@ -42,36 +42,6 @@ export default async function MemoriesPage() {
       </Suspense>
     </SnapshotPage>
   );
-}
-
-// Where a line was said, as a place name — best-effort, and only for the keys
-// a day's line can carry. Several keys resolve with one query per kind.
-async function placeNames(placeKeys) {
-  const ids = { room: new Set(), loc: new Set(), zone: new Set(), conv: new Set(), party: new Set() };
-  for (const key of placeKeys) {
-    const parsed = parsePlaceKey(key);
-    if (parsed && ids[parsed.kind]) ids[parsed.kind].add(parsed.id);
-  }
-  const [rooms, locations, zones, threads, parties] = await Promise.all([
-    ids.room.size
-      ? prisma.room.findMany({ where: { id: { in: [...ids.room] } }, select: { id: true, name: true, location: { select: { name: true } } } })
-      : [],
-    ids.loc.size ? prisma.location.findMany({ where: { id: { in: [...ids.loc] } }, select: { id: true, name: true } }) : [],
-    ids.zone.size ? prisma.zone.findMany({ where: { id: { in: [...ids.zone] } }, select: { id: true, name: true } }) : [],
-    ids.conv.size
-      ? prisma.playerThread.findMany({ where: { id: { in: [...ids.conv] } }, select: { id: true, location: { select: { name: true } } } })
-      : [],
-    ids.party.size ? prisma.partyThread.findMany({ where: { id: { in: [...ids.party] } }, select: { id: true, name: true } }) : [],
-  ]);
-  const names = new Map();
-  for (const r of rooms) names.set(`room:${r.id}`, r.location?.name ? `${r.name}, ${r.location.name}` : r.name);
-  for (const l of locations) names.set(`loc:${l.id}`, l.name);
-  for (const z of zones) names.set(`zone:${z.id}`, `${z.name} summary`);
-  // A conversation's own title is somebody's private choice of words; where it
-  // happened is enough to jog a memory.
-  for (const t of threads) names.set(`conv:${t.id}`, t.location?.name ? `A conversation, ${t.location.name}` : "A conversation");
-  for (const p of parties) names.set(`party:${p.id}`, p.name);
-  return names;
 }
 
 async function FreshMemories() {

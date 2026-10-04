@@ -7,6 +7,8 @@ import EmptyState from "@/app/components/EmptyState";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import Tooltip from "@/app/components/Tooltip";
+import IconButton from "@/app/components/IconButton";
+import { TrashIcon } from "@/app/components/icons";
 import { useNotice } from "@/app/components/NoticeProvider";
 import { starMemory } from "./dayActions";
 
@@ -27,7 +29,9 @@ function time(iso) {
   return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 }
 
-export default function DaySection({ lines, hasCharacter }) {
+// `onForget` is the GM's (the Dev Panel's Memories tab): it swaps the ☆ for a
+// Forget button, which takes the line out of this character's day.
+export default function DaySection({ lines, hasCharacter, onForget = null }) {
   const notice = useNotice();
   const [starred, setStarred] = useState(new Set());
   const [pending, startTransition] = useTransition();
@@ -82,14 +86,17 @@ export default function DaySection({ lines, hasCharacter }) {
                     {line.name}
                   </span>
                 )}
+                {line.realName && ` (really ${line.realName})`}
                 {!line.narrated && " · "}
                 {line.place ?? "Somewhere"} · <span className="mono">{time(line.sentAt)}</span>
+                {line.garbled && " · garbled for them today"}
               </div>
               <div className="text-sm">
                 <ChatMarkdown content={line.content} />
               </div>
             </div>
-            {!line.scrambled && (
+            {onForget && <IconButton icon={TrashIcon} label="Forget this line" onClick={() => onForget(line)} />}
+            {!onForget && !line.scrambled && (
               <Tooltip text={starred.has(line.seq) ? "In your Highlights" : "Save to Highlights"}>
                 <button
                   type="button"

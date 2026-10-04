@@ -12,14 +12,15 @@ import TagEditor from "./TagEditor";
 import TurnTab from "./TurnTab";
 import GoalsTab from "./GoalsTab";
 import RecordTab from "./RecordTab";
+import MemoriesTab from "./MemoriesTab";
 import DevPanelPoller from "./DevPanelPoller";
 import AdminNotes from "@/app/components/AdminNotes";
 import { applyCharacterEdits } from "./actions";
-import { getDevPanelRecord } from "@/app/components/devPanelActions";
+import { getDevPanelRecord, getDevPanelMemories } from "@/app/components/devPanelActions";
 import { useConfirm } from "@/app/components/ConfirmProvider";
 import useDirtyGuard from "@/app/components/useDirtyGuard";
 
-const TABS = ["Identity", "Tags", "Turn", "Goals", "Record", "Notes"];
+const TABS = ["Identity", "Tags", "Turn", "Goals", "Memories", "Record", "Notes"];
 
 // The Dev Character Panel's shell: it owns the staged edit state, the tab, and
 // the Apply/Cancel footer. Everything else is a presentational tab.
@@ -123,17 +124,44 @@ export default function DevPanel({
       });
   }
 
+  // The Memories tab (MEMORIES.md §8) loads the same way, on its first click.
+  // A sequence number rather than Record's in-flight guard: a refetch after an
+  // edit must not be swallowed by one already running, so every call fetches
+  // and only the newest answer lands.
+  const [memories, setMemories] = useState(null);
+  const [memoriesError, setMemoriesError] = useState(null);
+  const memoriesSeq = useRef(0);
+
+  function loadMemories() {
+    const seq = ++memoriesSeq.current;
+    setMemoriesError(null);
+    getDevPanelMemories({ characterId: character.id })
+      .then((res) => {
+        if (seq !== memoriesSeq.current) return;
+        if (res?.ok) setMemories(res.memories);
+        else setMemoriesError(res?.error ?? "Something went wrong.");
+      })
+      .catch((err) => {
+        if (seq === memoriesSeq.current) setMemoriesError(err?.message ?? "Something went wrong.");
+      });
+  }
+
   function openTab(next) {
     setTab(next);
     if (next === "Record" && !record) loadRecord();
+    if (next === "Memories" && !memories) loadMemories();
   }
 
   // Every microaction writes an audit row (and some a DM), so a Record tab
   // fetched before the action is stale the moment it lands. Refetch if the
   // GM is looking at it; otherwise just drop it so the next click refetches.
+  // Memories go the same way, but are refetched IN PLACE while showing, so
+  // the sections (and whatever the GM has open in them) never blink out.
   function invalidateRecord() {
     setRecord(null);
     if (tab === "Record") loadRecord();
+    if (tab === "Memories") loadMemories();
+    else setMemories(null);
   }
 
   // Staged core fields, keyed the same as the server's EDITABLE_FIELDS. Only
@@ -327,6 +355,16 @@ export default function DevPanel({
           desireCatalog={desireCatalog}
           desireFamilies={desireFamilies}
           desireCooldowns={desireCooldowns}
+        />
+      )}
+
+      {tab === "Memories" && (
+        <MemoriesTab
+          characterId={character.id}
+          memories={memories}
+          error={memoriesError}
+          linkRoster={transferRoster.filter((c) => c.id !== character.id)}
+          onChanged={refresh}
         />
       )}
 
