@@ -3145,9 +3145,10 @@ model Tag {
 
   // Mutually exclusive with every other tag carrying this flag IN THE SAME
   // GROUP: a character may hold at most one of them per group. Set on the
-  // Beliefs (Post-Christian, Atheist, Existentialist, Fundamentalist, the
-  // four Old Ways), which are meant to be a single answer rather than a
-  // collection. The one exception is
+  // Beliefs (Post-Christian, Atheist, Fundamentalist, the Old Ways, Thanati),
+  // which are meant to be a single answer rather than a collection.
+  // Existentialist sits in the same group without it: it is a philosophy,
+  // not a religion, so it stacks on any of them. The one exception is
   // a pair joined by requiredTag — Fundamentalist requires Post-Christian and
   // so stacks on it. Enforced by exclusiveConflict()
   // (web/lib/characterCreation.js), called from PointBuy, createCharacter,
