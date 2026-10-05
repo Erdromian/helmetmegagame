@@ -268,6 +268,9 @@ One `caving_auto_resolved` audit row per push names every roll and caver it let
 go — "who can suddenly walk out of the Caves" being the question that row is
 there to answer.
 
+Before any of that, the push freezes where everybody stood if the bot's
+minute cron missed the lock (§5c), so History still groups the turn by place.
+
 ### 2e. Severity 10 and you go nowhere
 
 Caving.docx: *"Having a pending cave result of a severity of 10 inhibits all
@@ -498,14 +501,16 @@ storage). Unresolved results rank first, and the Status filter still narrows to
 "Needs attention" or "Resolved". When everything matching is hidden, the empty
 line says how many other rolls the box would bring back.
 
-Rows show the die face, the kind, the character, the zone, and — for a `FIND`
-— the tier and what was found. A caver's `TROUBLE` rows on the turn are ONE
-row (§5a), which says its severity — *"Severity 3"*, and *"Severity 1"* for a
-lone 1 — and at 10 (§2e) wears a **Stuck** pill, with the desk header saying so
-in a sentence. The pill and the sentence are for the open turn only: History
-keeps the severity but drops both, since that turn's push already let the caver
-go. The
-fold is `foldCavingRolls` in `web/lib/cavingLabels.js`, recomputed from the rows the desk already holds
+Rows show the die face, the kind, the character, the place, the zone, and —
+for a `FIND` — the tier and what was found. A caver's `TROUBLE` rows on the
+turn are ONE row (§5a), which says its severity — *"Severity 3"*, and
+*"Severity 1"* for a lone 1 — and at 10 (§2e) wears a **Stuck** pill, with the
+caver's card on the desk saying so in a sentence. Once the turn locks, a row is
+a whole Location instead (§5c). The pill and the sentence are for the open turn
+only: History keeps the severity but drops both, since that turn's push already
+let the caver go. The
+fold is `foldCavingResults` in `web/lib/cavingLabels.js` (built on the per-caver
+`foldCavingRolls`), recomputed from the rows the desk already holds
 rather than fetched, so the live stream keeps it current; that module carries
 its own copy of `CAVING_TROUBLE_CAP`, since `cavingPass.js` cannot reach a
 client bundle, and `db/test/cavingTally.test.js` fails if the two disagree.
@@ -536,21 +541,29 @@ on both levels into two results; the design says one.
   failing, so a GM's selection and keyboard cursor hold. The Result box and
   everything staged on the desk hang off that one id. A link to any later roll
   opens its group (`groupOf`).
-- **Shows the newest roll** — its die, its room, its zone, its time — and its
-  severity ("Severity 3").
+- **Names where the caver stands NOW** (Bascinet, 2026-10-05), not where their
+  newest 1 was. A 3 rolled after a 1 moves the caver, and the result goes with
+  them; so does a GM's Teleport. It is read off the caver's **standing**
+  (`web/lib/moveRows.js#cavingStandingRow`), one per character with any roll
+  on the turn, which every roll the desk hears about refreshes. History has no
+  "now", so a past turn's result falls back to the newest 1's place — or the
+  place the lock froze, for a turn that locked (§5c).
+- **Shows the newest roll's** die, zone and time, and its severity
+  ("Severity 3").
 - **Needs attention while any 1 in it does.** A fresh failure after a GM marked
   the group resolved reopens it, and the rail and desk say how many are new.
 - **Save and Mark resolved act on the group**, worked out on the server from
-  the roll (`db/lib/cavingPass.js#troubleGroupWhere`), never from ids the desk
+  the roll (`db/lib/cavingStand.js#cavingResultMembers`, which falls back to
+  `cavingPass.js#troubleGroupWhere` before the lock), never from ids the desk
   sent. Resolve stamps every unresolved member. The audit row lists them all.
 - The desk header's "Caving to answer" counts results, not rolls.
 
 **The snapshot.** Every `TROUBLE` row stores the caver as they stood at that 1,
 in `CavingRoll.presentedState` — the same shape a chat line freezes
 (`db/lib/examineSnapshot.js`): tags with their equipped flags, and whether they
-were in combat mode (`COMBAT-MODE.md`). The desk's **At their last failed roll**
-panel reads the newest one that has a snapshot (`getCavingSnapshot` in
-`web/app/(desk)/gm/turns/actions.js`): combat mode on or off, the Combat tile,
+were in combat mode (`COMBAT-MODE.md`). Each caver's **At their last failed roll**
+panel reads their newest 1 that has a snapshot (`getCavingSnapshots` in
+`web/app/(desk)/gm/turns/actions.js`, one load for everybody in the result): combat mode on or off, the Combat tile,
 what they were wearing and their health tags. The tags are read against the
 live catalog, the snapshot rule everywhere. A roll from before this has no
 snapshot, and the panel says so. `CavingRoll.presentedAs` freezes beside it
@@ -660,6 +673,68 @@ their response since this was resolved." and offers Mark resolved again, which
 restamps every 1 in the result. A result the push let go is not reopened: the
 turn is over, and the write refuses anyway.
 
+### 5c. At the lock, one result per place
+
+Bascinet, 2026-10-05: everybody standing in the same Location when the turn
+locks is **one result** on the Caving lens, each character's severity,
+response and snapshot shown — and the result **includes the characters there
+who had no failed roll** that turn, rolled or not. Until the lock each caver's
+1s stay their own result (§5a); the two layouts meet at the lock.
+
+**The freeze.** The lock has no event of its own, so `db/lib/cavingStand.js`
+runs on the bot's minute cron beside the Gambit settle pass
+(`runCavingCutoff`, sharing `turnClock.js#cutoffReached`, `TURN-ENGINE.md`).
+At the first tick inside the lock it writes a **`CavingStand`** row — turn,
+character, Location, zone, the `examineSnapshot.js` snapshot, the
+`gmPresentation.js` stamp and combat mode — for:
+
+- every **living** character standing in a `CAVE_LEVEL` Location, and
+- every character with a 1 on the turn, wherever they stand (a GM may already
+  have moved one up, and their result still needs a place).
+
+Cave walking is shut in the lock (§2f), so where they stand then is where they
+wait for the push. A later tick only ever adds somebody who arrived since — a
+GM's Teleport in — and never moves a row already written; that place is the one
+the desk merged them by. The push freezes a turn whose lock the bot missed
+(`freezeCavingStandsAtPush`, before the staged push) and leaves a turn that
+never locked — a frozen clock, a turn shorter than its window — one result
+per caver, the way the desk showed it. The migration added the table with no
+backfill: every turn before it stays one result per caver.
+
+**The fold.** `foldCavingResults` groups every caver with a stand by its
+Location. One result per place, keyed by the **oldest 1 of anybody in it** —
+the Result box, Save, Mark resolved and everything staged hang off that id, and
+the server works the same anchor out from any roll in it
+(`cavingStand.js#cavingResultMembers`). It carries:
+
+- `members` — each caver with 1s, worst first: their severity, Stuck at 10,
+  combat mode and response (both still per caver, §5b), their snapshot from
+  their newest 1, and "now in X" if a GM has moved them since the lock;
+- `bystanders` — everybody stamped there with no 1: "No failed rolls", never
+  asked for a response, and the snapshot their stand took at the lock.
+
+A place where nobody failed makes no result at all. The result needs attention
+while any 1 in it does, or while any caver's response is newer than the
+ruling (§5b). The merged Result box is the earliest caver's own box; anything a
+GM wrote in another caver's box before the lock shows on that caver's card as
+**Their result before the lock**, read-only. A staged message defaults to
+everybody in the result, and an effect, death or let-in to the worst-off
+caver.
+
+**The rail** draws a merged result as the place, a stack of avatars and each
+caver's severity ("Bram Holt · Severity 2, Ada Marrow · Severity 1"), with the
+bystanders named after. Search matches any name in it. "Caving to answer"
+counts places.
+
+**Live.** A `CavingStand_notify` trigger announces the character a stand was
+written for, type `stand`, and the desk re-reads that caver's standing
+(`deskRows.js#loadCavingStandings`), so an open desk regroups at the lock
+without a reload. History reads the stands of the turn it shows.
+
+**Not on `/actions`.** The spectator page (`CHAT.md` §5a) still shows one
+outcome per caver — it is about what happened to each person, not about how
+the GMs ruled.
+
 ## 6. `sellable` / `sellablePrice`
 
 Two `Tag` columns, the seller's half of `purchasable`/`purchasableAfterStart`
@@ -734,6 +809,7 @@ now `radio-system-cerberon` / `radio-bracelet-cerberon` ("Radio System
 | The trigger's callers | `db/lib/locationTravel.js#performLocationMove` (mover + dragged), the Dev Panel's `teleportCharacterImpl`, `web/app/(app)/gm/dev/actions.js#applyBulkAction` (its Move verb) |
 | Arrival DM senders | whichever face's location-move caller runs `performLocationMove` sends `moved[].cavingDm`; the two GM paths send their own |
 | Kind labels, the fold, the severity label, the failures-only filter | `web/lib/cavingLabels.js` |
+| Where everybody stood at the lock, and which rolls and people a result covers | `db/lib/cavingStand.js` (§5c) |
 | Loot grant, and taking it back | `db/lib/cavingPass.js`, `web/app/(desk)/gm/turns/actions.js#undoCavingFind` |
 | Where a doubled non-stackable find is left | `db/lib/cavingPass.js#roomToLeaveIn` (§2g) |
 | Consume mechanics | `web/lib/consumeGrants.js`, `db/lib/syncTags.js` |

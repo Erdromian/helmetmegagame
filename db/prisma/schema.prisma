@@ -1523,6 +1523,7 @@ model Location {
   actions          Action[]
   threatSpawns     ThreatSpawn[]
   cavingRolls      CavingRoll[]
+  cavingStands     CavingStand[]
   visits           LocationVisit[]
   vantages         Vantage[]
   auditLogs        AuditLog[]
@@ -2861,6 +2862,7 @@ model Character {
   deliveries              Delivery[]
   stagedEffects           StagedEffect[]
   cavingRolls             CavingRoll[]
+  cavingStands            CavingStand[]
   craftProjects           CraftProject[]
   roomGuestOf             RoomGuest[]
   questInteractions       QuestInteraction[]
@@ -4576,6 +4578,7 @@ model Turn {
   stagedMessages StagedMessage[]
   stagedEffects  StagedEffect[]
   cavingRolls    CavingRoll[]
+  cavingStands   CavingStand[]
   offers         Offer[]
   oraclePages    OracleSynopsis[]
   phoneCalls     PhoneCall[]
@@ -6524,6 +6527,44 @@ model CavingRoll {
   // that unique gave the cascade delete off Character.
   @@index([characterId])
   @@index([turnId, resolvedAt])
+}
+
+// Where one character stood when the turn LOCKED (docs/systemdocs/CAVING.md §5c). Until the lock
+// each caver's 1s are their own result on the Caving lens; at the lock everybody standing in one
+// Location becomes ONE result, and this is the record of who stood where. Written by
+// db/lib/cavingStand.js#freezeCavingStands: the bot's per-minute cutoff poll, with a backstop at
+// the push. One row for every living character underground at the lock, and every character with
+// a 1 on the turn wherever they were. A row is never rewritten — a later row only adds somebody
+// who arrived after the freeze (a GM's Teleport in the lock).
+//
+// A snapshot, not live state: the place is frozen here so History groups a past turn the way it
+// was adjudicated, whoever has walked off since. `presentedState` is the bystander's snapshot (a
+// caver with 1s is read off their newest 1 instead). No backfill: a turn that never froze keeps
+// one result per caver.
+model CavingStand {
+  id          String    @id @default(cuid())
+  turnId      String
+  turn        Turn      @relation(fields: [turnId], references: [id])
+  characterId String
+  character   Character @relation(fields: [characterId], references: [id], onDelete: Cascade)
+
+  // SET NULL so a place's hard delete is never blocked by a past turn's record of it; a stand
+  // with no place is grouped as a result of its own.
+  locationId String?
+  location   Location? @relation(fields: [locationId], references: [id], onDelete: SetNull)
+  // The zone, as a plain id beside it, for the lens's zone filter. No FK, the snapshot rule.
+  zoneId     String?
+
+  // The examineSnapshot.js shape, gmPresentation.js's stamp and combat mode, at the lock.
+  presentedState Json?
+  presentedAs    Json?
+  alert          Boolean @default(false)
+
+  createdAt DateTime @default(now())
+
+  @@unique([turnId, characterId])
+  @@index([turnId, locationId])
+  @@index([characterId])
 }
 
 // One letter carried by a bird (docs/systemdocs/BIRD.md). Live state, not a

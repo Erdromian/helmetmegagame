@@ -1749,6 +1749,8 @@ might need to reach a real environment:
   (`SOUND.md` §6b). `Combat_notify` and `CombatParticipant_notify` are the
   desk's Combat lens (`ATTACK.md` §8), the same answer as the four above; the
   second announces its PARENT fight, the `Delivery_notify` shape.
+  `CavingStand_notify` is the same answer again (`CAVING.md` §5c): it
+  announces the CHARACTER a stand belongs to, type `stand`.
 - The **Dev Panel doesn't surface the REST breaker yet.** `GameConfig` now
   carries `restInvalidCount` / `restInvalidWindowStart` /
   `restBreakerOpenUntil`, and `getInvalidResponseStats()` reads them, but the

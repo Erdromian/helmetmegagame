@@ -628,7 +628,10 @@ without taking the sentence with it.
 The other GMs' half. Four Postgres triggers announce every change to an
 `Action` (column-scoped), a `CavingRoll`, a `StagedEffect` or a `StagedMessage`
 on `bascinet_desk` (`db/lib/deskNotify.js`, migration
-`20260921030000_desk_notify`); `web/lib/feedHub.js` fans the bare `{t, id, op}`
+`20260921030000_desk_notify`). A fifth, `CavingStand_notify`
+(`20261223000000_caving_stands`), announces the **character** whose place the
+lock froze, type `stand`, and the desk re-reads that caver's standing
+(`CAVING.md` §5c); `web/lib/feedHub.js` fans the bare `{t, id, op}`
 out to every open desk; `/api/gm/desk-stream` coalesces a quarter-second of ids
 and re-reads them in **one** `deskPatchFor()` call; `DeskStream.js` folds the
 result through the very same `applyDeskPatch()` a button's patch goes through.

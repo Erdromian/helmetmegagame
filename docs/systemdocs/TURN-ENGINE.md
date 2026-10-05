@@ -984,7 +984,7 @@ may act is `db/lib/turnGate.js#movesOpen`, which asks about the session first
 and the window second. Read `locked` alone and a game between sittings is wide
 open.
 
-**Two things fire on the cutoff itself.** The Oracle drafts the turn's
+**Three things fire on the cutoff itself.** The Oracle drafts the turn's
 chronicle a couple of minutes after the lock, off the bot's minute cron
 (`db/lib/oracleCutoff.js`), so a GM has it in front of them for the whole
 adjudication window rather than after the push. It used to run at turn close.
@@ -998,6 +998,15 @@ character was when the day closed. It is also what finally shuts the edit
 window on a turn where `hasLock` is false — a settled `diceModifier` is the
 mark `moveIsEditable` reads when there is no cutoff to compare against. The
 staged push runs it again as the backstop. See `ADJUDICATION.md`.
+
+The third is the **Caving freeze** (`db/lib/cavingStand.js#runCavingCutoff`),
+on the same minute cron and the same `cutoffReached`. It writes a
+`CavingStand` row for every living character underground and every character
+with a 1 on the turn: where each one stood at the lock. From then on the
+Caving lens shows one result per Location instead of one per caver
+(`CAVING.md` §5c). Each later tick only stamps a newcomer. The push freezes a
+turn the bot missed, before the staged push (`cavingFreeze`), and only when
+the turn had a lock at all.
 
 Enforced in the bot at both `move:open` (the `#turns` button and `/move`) and
 on modal submit — a modal can sit open on screen across the cutoff — with an

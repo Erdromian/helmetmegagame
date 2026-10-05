@@ -35,9 +35,9 @@ import {
   oocRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
-import { deskLooks, deskRowContext, structuresByLocation } from "@/lib/deskRows";
-import { troubleGroupWhere } from "@lifeweb/db/lib/cavingPass";
-import { foldCavingRolls } from "@/lib/cavingLabels";
+import { cavingStandingRows, deskLooks, deskRowContext, loadCavingStandings, structuresByLocation } from "@/lib/deskRows";
+import { cavingResultMembers } from "@lifeweb/db/lib/cavingStand";
+import { foldCavingResults } from "@/lib/cavingLabels";
 import { pgNowMs } from "@/lib/pgClock";
 import {
   ATTACK_INCLUDE,
@@ -121,6 +121,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
   const [
     actions,
     cavingRolls,
+    cavingStandings,
     combats,
     attacks,
     interceptHits,
@@ -156,6 +157,8 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           include: CAVING_ROLL_INCLUDE,
         })
       : [],
+    // Where each of those cavers stands now, and where they stood at the lock (CAVING.md §5c).
+    loadCavingStandings({ turnId: openTurn?.id ?? null }),
     // The Combat lens — every fight on the open turn, live or over (docs/systemdocs/ATTACK.md §8).
     openTurn
       ? prisma.combat.findMany({
@@ -319,6 +322,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
     deskLooks({
       actions,
       cavingRolls,
+      cavingStands: cavingStandings.stands,
       combats,
       effects: stagedEffects,
       messages: stagedMessages,
@@ -344,6 +348,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
 
 
   const cavingRows = cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds, looks }));
+  const cavingStandingRowsOut = cavingStandingRows(cavingStandings, { usernameById, catatonicIds, looks });
 
   // What each person filed this turn, for the Other lens's Move chips. Built
   // off `moves`, not `actions` — a chip can then only exist for a Move the
@@ -431,13 +436,15 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
       include: CAVING_ROLL_INCLUDE,
     });
     if (roll) {
-      // A 1 is shown folded with the caver's other 1s that turn (CAVING.md §5), so the
-      // link loads the whole group and its staged rows, not only the roll it names.
-      const members =
-        roll.kind === "TROUBLE"
-          ? await prisma.cavingRoll.findMany({ where: troubleGroupWhere(roll), include: CAVING_ROLL_INCLUDE })
-          : [roll];
+      // A 1 is shown folded into its result (CAVING.md §5a, §5c) — the caver's other 1s that turn, or
+      // everybody at their Location once it locked — so the link loads the whole result, the standings
+      // of everybody in it, and its staged rows, not only the roll it names.
+      const { rolls: members, bystanderIds } = await cavingResultMembers(prisma, roll, { include: CAVING_ROLL_INCLUDE });
       const memberIds = members.map((m) => m.id);
+      const standings = await loadCavingStandings({
+        turnId: roll.turnId,
+        characterIds: [...members.map((m) => m.characterId), ...bystanderIds],
+      });
       const [rollEffects, rollMessages] = await Promise.all([
         prisma.stagedEffect.findMany({
           where: { cavingRollId: { in: memberIds } },
@@ -450,10 +457,20 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
           include: STAGED_MESSAGE_INCLUDE,
         }),
       ]);
-      const rollLooks = await deskLooks({ cavingRolls: members, effects: rollEffects, messages: rollMessages });
+      const rollLooks = await deskLooks({
+        cavingRolls: members,
+        cavingStands: standings.stands,
+        effects: rollEffects,
+        messages: rollMessages,
+      });
+      // Only ever a past turn here (the open turn's rolls are already in cavingRows), so no "now".
+      const rollCtx = { usernameById, catatonicIds, looks: rollLooks };
       initialCaving = {
         turnId: roll.turnId,
-        roll: foldCavingRolls(members.map((m) => cavingRollRow(m, { usernameById, catatonicIds, looks: rollLooks }))).rows[0],
+        roll: foldCavingResults(
+          members.map((m) => cavingRollRow(m, rollCtx)),
+          cavingStandingRows(standings, { ...rollCtx, live: false }),
+        ).rows[0],
         effects: rollEffects.map((e) => stagedEffectRow(e, { ...effectCtx, looks: rollLooks })),
         messages: rollMessages.map((m) => stagedMessageRow(m, { ...messageCtx, looks: rollLooks })),
       };
@@ -537,6 +554,7 @@ async function FreshTurnsWorkspace({ searchParams, userId }) {
         stagingRooms: stagingRooms,
         moves: moves,
         cavingRolls: cavingRows,
+        cavingStandings: cavingStandingRowsOut,
         combats: combats.map((c) => combatRow(c, { usernameById, looks })),
         otherRows: otherRows,
         desireRows: desireRows,
