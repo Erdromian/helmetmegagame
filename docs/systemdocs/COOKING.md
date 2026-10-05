@@ -86,8 +86,8 @@ Inn's key.
 **A Field Kitchen is a fourth.** It is a structure (`field-kitchen` in
 `docs/tags.yaml`: 15 ⬢, 2 turns, Building I) that grants the same attribute to
 the Location it stands on, by the rule in `CRAFTING.md` §4c. It goes up on open
-ground only — not indoors, not in a cave — and is refused where a kitchen
-already is. A GM's Destroy takes the kitchen away again; a damaged one still
+ground or in a cave, never indoors, and is refused where a kitchen already
+is. A GM's Destroy takes the kitchen away again; a damaged one still
 cooks.
 
 ### 2b. A meal is a minted row

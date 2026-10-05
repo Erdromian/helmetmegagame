@@ -228,9 +228,10 @@ test("canBuildHere: a granting type is refused where the attribute already is", 
   assert.equal(canBuildHere(withBoard, KITCHEN).ok, true);
   const withKitchen = { ...SQUARE, attributes: { kitchen: true } };
   assert.match(canBuildHere(withKitchen, KITCHEN).reason, /already a kitchen/);
-  // A Field Kitchen is for open ground: no cave, no roof.
+  // Granting buys no ground: an unflagged type still meets the cave rule, and any type the roof.
   assert.equal(canBuildHere(CAVE, KITCHEN).ok, false);
-  assert.equal(canBuildHere(INN, KITCHEN).ok, false);
+  assert.equal(canBuildHere(CAVE, { ...KITCHEN, underground: true }).ok, true);
+  assert.equal(canBuildHere(INN, { ...KITCHEN, underground: true }).ok, false);
 });
 
 test("placement: grants takes a buildable attribute and nothing else", () => {
@@ -250,6 +251,29 @@ test("placement: fragile survives normalisation and defaults off", () => {
   assert.equal(placementOf({ placement: { fragile: true } }).fragile, true);
   assert.equal(placementOf({ placement: {} }).fragile, false);
   assert.throws(() => normalizePlacement({ fragile: "very" }), /fragile must be a boolean/);
+});
+
+test("docs/tags.yaml: which structures a cave takes", () => {
+  const tags = yaml.load(fs.readFileSync(path.join(DOCS, "tags.yaml"), "utf8"));
+  const catalog = tags.tags ?? tags;
+  const underground = Object.entries(catalog)
+    .filter(([, t]) => t?.placement?.underground)
+    .map(([slug]) => slug)
+    .sort();
+  // A deliberate list, so a twelfth is a decision and not a slip — CRAFTING.md §4b names them.
+  assert.deepEqual(underground, [
+    "barricade",
+    "camp",
+    "crucifix",
+    "field-kitchen",
+    "gallows",
+    "makeshift-stage",
+    "noticeboard",
+    "palisade",
+    "pit-props",
+    "torture-rack",
+    "wayside-shrine",
+  ]);
 });
 
 test("docs/tags.yaml: the Noticeboard is the fragile one", () => {

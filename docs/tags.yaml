@@ -6562,7 +6562,8 @@ tags:
   # A kitchen where there was none: Lavish meals can be cooked where it stands
   # (COOKING.md). Grants the `kitchen` attribute the Inn, the Keep and the
   # Poorhouse are authored with, so it is refused at those three — and, like
-  # anything with no named site, indoors. It is a kitchen for open ground.
+  # anything with no named site, indoors. Open ground or a cave: a cook fire
+  # goes anywhere there is no roof to smoke out.
   field-kitchen:
     catalog: all
     name: Field Kitchen
@@ -6584,6 +6585,7 @@ tags:
     # trestle are stone and timber, not smith's work.
     placement:
       fieldwork: true
+      underground: true
       grants: kitchen
 
   # Torturing Equipment for a whole Location: `provides` puts the kit in reach
@@ -6771,6 +6773,8 @@ tags:
       gambit: false
     placement:
       fieldwork: true
+      # Music carries in a cavern, and mood is what the caves cost.
+      underground: true
       examine: "a haphazard construction waiting for a boombox."
       # The boombox is a RUNNING requirement, not a build cost — which is why
       # this carries no requirement.items, a pairing the sync refuses outright
@@ -6800,6 +6804,8 @@ tags:
     # fragment.
     placement:
       fieldwork: true
+      # Stakes across a tunnel, where the Barricade already goes.
+      underground: true
       examine: "sharpened stakes ring this ground."
       defenseNote: "a ring of sharpened stakes, forming a formidable wall."
 
