@@ -641,6 +641,21 @@ most types and yes to a few: `structures.js#buildGround` returns `buildable`
 and `buildableUnderground`, and `craftRecipes.js#placementOfferedHere` reads
 whichever the type is entitled to.
 
+**Who can raise what.** The Building skill has two tiers, 5 points each, and
+no role starts with either. `docs/tags.yaml` is the source; this is the split
+as of 2026-10-04, when six types moved up so the second tier was worth buying:
+
+| Needs | Structures |
+|---|---|
+| nothing | Crucifix, Noticeboard, Wayside Shrine, Camp, Makeshift Stage |
+| Torturer | Torture Rack |
+| Building I | Barricade, Gallows, Brewery, Field Kitchen, Pit Props (and the Cart, an item) |
+| Building II | Forge, Rookery, Watchtower, Battering Ram, Surgical Theater, Palisade, Lazarette, Trebuchet |
+
+Building I is rough work: heaped timber, a beam, a hearth. Building II is
+anything engineered or fitted out — the siege engines, the tower, the wall and
+the specialist buildings.
+
 ## 4c. A structure that grants its Location an attribute
 
 `placement.grants: <attribute>` — the Noticeboard's `noticeboard`, the Field

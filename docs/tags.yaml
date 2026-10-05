@@ -3429,7 +3429,7 @@ tags:
     category: skills
     group: skills-crafting
     teachable: true
-    description: "You can build more complex things than the average person, like a cart, a palisade, or a staircase."
+    description: "You can build more complex things than the average person, like a cart, a barricade, or a staircase."
     pointCost: 5
     visible: false
     purchasable: true
@@ -6682,7 +6682,7 @@ tags:
     requirement:
       turnsCost: 2
       resourceCost: 15
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     # Deliberately NOT fieldwork: raising a forge is smith's work itself, so
     # the first one needs Workshop Equipment hauled into reach — the item is
@@ -6740,7 +6740,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 25
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     placement:
       fieldwork: true
@@ -6794,7 +6794,7 @@ tags:
       # crew-turns is most of a week alone or one day with friends.
       turnsCost: 4
       resourceCost: 40
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     # The defense prose is the whole effect. defenseNote is a spliced
     # fragment.
@@ -6818,7 +6818,7 @@ tags:
     requirement:
       turnsCost: 2
       resourceCost: 20
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     # Half a Palisade in every number. Fieldwork by the Palisade's logic: it
     # is stakes and lashings, not smith's work.
@@ -6868,7 +6868,7 @@ tags:
     requirement:
       turnsCost: 2
       resourceCost: 20
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     # Deliberately NOT fieldwork — the siege-camp logistics beat: raising a
     # ram outside somebody's gate means hauling Workshop Equipment there
@@ -14957,7 +14957,7 @@ tags:
     requirement:
       turnsCost: 3
       resourceCost: 30
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     placement:
       examine: "instruments laid out, lamps hung."
