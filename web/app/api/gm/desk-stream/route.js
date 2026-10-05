@@ -19,6 +19,8 @@ const COALESCE_MS = 250;
 const TYPES = {
   move: "moveIds",
   caving: "cavingRollIds",
+  // A caver's place frozen at the lock — the CavingStand_notify trigger names the CHARACTER (caving_stands migration).
+  stand: "cavingStandingIds",
   // A fight, and every participant row announcing its parent (the combat overhaul migration's triggers).
   combat: "combatIds",
   effect: "stagedEffectIds",
@@ -50,7 +52,7 @@ export async function GET(request) {
       let resyncPending = false;
 
       function newPending() {
-        return { move: new Set(), caving: new Set(), combat: new Set(), effect: new Set(), message: new Set() };
+        return { move: new Set(), caving: new Set(), stand: new Set(), combat: new Set(), effect: new Set(), message: new Set() };
       }
 
       // Declared and wired BEFORE the first await, or a disconnecting consumer leaks the interval/subscription.

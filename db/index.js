@@ -58,6 +58,7 @@ const { runMiningYieldPass } = require("./lib/miningYield");
 const { runStagedPushPass } = require("./lib/stagedPush");
 const { loadHeldScales } = require("./lib/stagedScalesApply");
 const { releaseUnresolvedCavingRolls } = require("./lib/cavingPass");
+const { freezeCavingStandsAtPush } = require("./lib/cavingStand");
 const { runOfferExpiryPass } = require("./lib/offerExpiryPass");
 const { runConfessionPass } = require("./lib/confessionPass");
 const { runHealGambitPass } = require("./lib/healGambitPass");
@@ -543,6 +544,12 @@ async function resolveNeeds(turn, config) {
   if (trinket && (trinket.resolved || trinket.failed)) {
     await audit("trinket_resolved", trinketSummary, "Trinket");
   }
+
+  // Where everybody stood at the lock (db/lib/cavingStand.js), for a turn that
+  // locked while the bot's per-minute freeze was down. Before the staged push,
+  // which may move or kill somebody a GM adjudicated. Idempotent, and a turn
+  // that never locked is left alone; not in TURN_PASSES, the cavingRelease shape.
+  await runPass("cavingFreeze", "Caving freeze", async () => (await freezeCavingStandsAtPush(prisma, turn)) ?? true);
 
   // The staged-arbitration push (db/lib/stagedPush.js). Slot is
   // load-bearing: before tagExpiry/expirySweep (a staged grant/cure must land

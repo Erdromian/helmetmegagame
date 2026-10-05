@@ -491,6 +491,62 @@ export function cavingRollRow(c, { usernameById, catatonicIds, looks }) {
   };
 }
 
+// One caver's "standing" on a turn (CAVING.md §5c): where they stand NOW, and where they stood when the
+// turn locked, if it has. One row per character with any Caving roll or a stand on the turn, keyed by
+// the character's id. The Caving lens names a result's place off this rather than off its newest 1
+// (web/lib/cavingLabels.js#foldCavingResults), and once a stand exists merges everybody stamped at one
+// Location into one result — bystanders with no 1s included.
+export const CAVING_STANDING_CHARACTER_SELECT = {
+  id: true,
+  name: true,
+  discordUserId: true,
+  updatedAt: true,
+  roleTitle: true,
+  status: true,
+  locationId: true,
+  location: { select: { name: true, zone: { select: { name: true } } } },
+};
+
+export const CAVING_STAND_SELECT = {
+  characterId: true,
+  locationId: true,
+  zoneId: true,
+  alert: true,
+  presentedAs: true,
+  // Only whether there is one: the desk loads the snapshot itself on demand (actions.js#getCavingSnapshots).
+  presentedState: true,
+  createdAt: true,
+  location: { select: { name: true, zone: { select: { name: true } } } },
+};
+
+// `live` is false for a past turn: where somebody stands today says nothing about a turn already pushed,
+// so the "now" half is left empty and the fold falls back to the rolls' own places.
+export function cavingStandingRow(c, stand, { usernameById, catatonicIds, looks, live = true }) {
+  return {
+    id: c.id,
+    characterId: c.id,
+    characterName: c.name,
+    discordUsername: usernameById?.get?.(c.discordUserId) ?? c.discordUserId ?? "",
+    avatarVersion: c.updatedAt.getTime(),
+    catatonic: catatonicIds?.has(c.id) ?? false,
+    roleTitle: c.roleTitle ?? "",
+    status: c.status,
+    // Hooded, disguised or a public name: at the lock if they have a stand, and now.
+    look: lookPair(stand?.presentedAs, c.id, looks),
+    nowLocationId: live ? (c.locationId ?? null) : null,
+    nowLocationName: live ? (c.location?.name ?? null) : null,
+    nowZoneName: live ? (c.location?.zone?.name ?? null) : null,
+    frozen: Boolean(stand),
+    standLocationId: stand?.locationId ?? null,
+    standLocationName: stand ? (stand.location?.name ?? null) : null,
+    standZoneId: stand?.zoneId ?? null,
+    standZoneName: stand ? (stand.location?.zone?.name ?? null) : null,
+    standAlert: Boolean(stand?.alert),
+    hasStandSnapshot: stand?.presentedState != null,
+    frozenAtMs: stand ? stand.createdAt.getTime() : null,
+  };
+}
+
 // The Combat lens (docs/systemdocs/ATTACK.md §8). One row per fight, everybody in it riding along with what
 // the GM adjudicates from: side, role, whether they were on guard, the roll, where an intervener came from,
 // and what they wrote. Real names throughout — this is the GM's desk, and the presented-face rule is about

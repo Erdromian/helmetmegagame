@@ -48,7 +48,7 @@ import { muteDurationLabel, oocMuteFor } from "@lifeweb/db/lib/ooc";
 import { deleteActionRestoringTurn, MOVE_LOCK_TTL_MS, lockIsLive } from "@/lib/moveEconomy";
 import { GM_MESSAGE_MAX_LENGTH, MAX_REASON_LENGTH } from "@/lib/constants";
 import { chipSelect, composeChipTag, GM_CHIP_CTX } from "@/lib/referenceData";
-import { troubleGroupWhere } from "@lifeweb/db/lib/cavingPass";
+import { cavingResultMembers } from "@lifeweb/db/lib/cavingStand";
 import { readPresentedState } from "@lifeweb/db/lib/examineSnapshot";
 import { MOVE_REVIEW_LABELS, moveKindLabel, rollLabel } from "@/lib/moves";
 import {
@@ -66,7 +66,7 @@ import {
   cavingRollRow,
   tagsByIdFor,
 } from "@/lib/moveRows";
-import { deskLooks, deskPatchFor } from "@/lib/deskRows";
+import { cavingStandingRows, deskLooks, deskPatchFor, loadCavingStandings } from "@/lib/deskRows";
 import { loadPresentations, readStamp } from "@lifeweb/db/lib/gmPresentation";
 import { lineLookKind } from "@lifeweb/db/lib/archive";
 import { DM_KIND } from "@lifeweb/db/lib/dmKinds";
@@ -1432,17 +1432,11 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "
   const roll = await prisma.cavingRoll.findUnique({ where: { id: cavingRollId ?? "" } });
   if (!roll) throw new UserError("Caving roll not found.");
 
-  // A 1 is one of a caver's folded failed rolls (CAVING.md §5): Save and Mark resolved act on the
-  // whole group, worked out here from the roll rather than from ids the desk sent. The notes live
-  // on the oldest, the id the desk keys the group by.
-  const members =
-    roll.kind === "TROUBLE"
-      ? await prisma.cavingRoll.findMany({
-          where: troubleGroupWhere(roll),
-          orderBy: [{ createdAt: "asc" }, { id: "asc" }],
-          select: { id: true, resolvedAt: true },
-        })
-      : [{ id: roll.id, resolvedAt: roll.resolvedAt }];
+  // A 1 is one of a result's folded failed rolls (CAVING.md §5a): the caver's own 1s, or once the
+  // turn has locked every 1 rolled by anybody at their Location (§5c). Save and Mark resolved act on
+  // the whole result, worked out here from the roll rather than from ids the desk sent. The notes
+  // live on the oldest, the id the desk keys the result by.
+  const { rolls: members, bystanderIds } = await cavingResultMembers(prisma, roll);
   const ids = members.map((m) => m.id);
   const notesId = ids[0] ?? roll.id;
 
@@ -1468,7 +1462,15 @@ async function resolveCavingRollImpl({ cavingRollId, gmNotes: rawNotes, mode = "
     actorDiscordUserId: session.discordUserId,
     actionType: mode === "save" ? "caving_roll_saved" : "caving_roll_resolved",
     targetCharacterId: roll.characterId,
-    details: { cavingRollId: notesId, cavingRollIds: ids, die: roll.die, kind: roll.kind },
+    details: {
+      cavingRollId: notesId,
+      cavingRollIds: ids,
+      die: roll.die,
+      kind: roll.kind,
+      // Everybody the result covers: the cavers with 1s, and anybody who stood with them at the lock.
+      characterIds: [...new Set(members.map((m) => m.characterId))],
+      ...(bystanderIds.length ? { bystanderIds } : {}),
+    },
   });
 
   const patch = await deskPatchFor({ cavingRollIds: ids });
@@ -1566,41 +1568,68 @@ async function endCombatAsGmImpl({ combatId }) {
 // uses when adjudicating a failed cave result is from the most recent failed roll"). Frozen tags with
 // their equipped flags read against the LIVE catalog, the examineSnapshot.js rule — so the band a
 // GM sees uses today's rules on that moment's kit. Null when no roll in the group has one.
-async function getCavingSnapshotImpl({ cavingRollId }) {
+//
+// One per person in the result, keyed by character id: a caver's newest 1 that has a snapshot, and for
+// somebody who stood there at the lock without failing, the snapshot their stand took then (CAVING.md §5c).
+async function getCavingSnapshotsImpl({ cavingRollId }) {
   await requireGm();
   const roll = await prisma.cavingRoll.findUnique({ where: { id: cavingRollId ?? "" } });
   if (!roll) throw new UserError("Caving roll not found.");
-  if (roll.kind !== "TROUBLE") return { snapshot: null };
-  const latest = await prisma.cavingRoll.findFirst({
-    where: { ...troubleGroupWhere(roll), NOT: { presentedState: { equals: Prisma.DbNull } } },
+  if (roll.kind !== "TROUBLE") return { snapshots: {} };
+  const { rolls, stands, bystanderIds } = await cavingResultMembers(prisma, roll);
+  const cavers = [...new Set(rolls.map((r) => r.characterId))];
+  const withState = await prisma.cavingRoll.findMany({
+    where: { id: { in: rolls.map((r) => r.id) }, NOT: { presentedState: { equals: Prisma.DbNull } } },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-    select: { id: true, createdAt: true, presentedState: true, alert: true, location: { select: { name: true } } },
+    select: { id: true, characterId: true, createdAt: true, presentedState: true, alert: true, location: { select: { name: true } } },
   });
-  const state = readPresentedState(latest?.presentedState);
-  if (!state) return { snapshot: null };
-  const catalog = await prisma.tag.findMany({
-    where: { id: { in: state.tags.map((t) => t.tagId) } },
-    select: { id: true, ...chipSelect({ equippable: true, stackable: true }) },
-  });
-  const byId = new Map(catalog.map((tag) => [tag.id, tag]));
-  const tags = state.tags
-    .map((row) => {
-      const tag = byId.get(row.tagId);
-      if (!tag) return null;
-      return { tagId: row.tagId, equipped: row.equipped, expiresTurn: row.expiresTurn, quantity: 1, tag: composeChipTag(tag, GM_CHIP_CTX) };
-    })
-    .filter(Boolean);
-  return {
-    snapshot: {
-      rollId: latest.id,
+  // Newest first, so the first one seen for each caver is their latest 1 with a snapshot.
+  const sources = new Map();
+  for (const r of withState) {
+    if (sources.has(r.characterId)) continue;
+    sources.set(r.characterId, {
+      rollId: r.id,
+      state: readPresentedState(r.presentedState),
       // The row's own column, read in the roll's transaction (COMBAT-MODE.md §6). The same answer as the
       // snapshot's `m` for every row with one; the migration copied it across for rows rolled before.
-      combatMode: Boolean(latest.alert),
-      locationName: latest.location?.name ?? null,
-      atLabel: latest.createdAt.toISOString().slice(0, 16).replace("T", " "),
-      tags,
-    },
-  };
+      combatMode: Boolean(r.alert),
+      locationName: r.location?.name ?? null,
+      at: r.createdAt,
+      atLock: false,
+    });
+  }
+  const standOf = new Map(stands.map((s) => [s.characterId, s]));
+  for (const id of bystanderIds) {
+    const s = standOf.get(id);
+    if (!s) continue;
+    sources.set(id, { rollId: null, state: readPresentedState(s.presentedState), combatMode: Boolean(s.alert), locationName: null, at: s.createdAt, atLock: true });
+  }
+
+  const tagIds = [...new Set([...sources.values()].flatMap((src) => (src.state?.tags ?? []).map((t) => t.tagId)))];
+  const catalog = tagIds.length
+    ? await prisma.tag.findMany({ where: { id: { in: tagIds } }, select: { id: true, ...chipSelect({ equippable: true, stackable: true }) } })
+    : [];
+  const byId = new Map(catalog.map((tag) => [tag.id, tag]));
+  const snapshots = {};
+  for (const id of [...cavers, ...bystanderIds]) {
+    const src = sources.get(id);
+    if (!src?.state) continue;
+    snapshots[id] = {
+      rollId: src.rollId,
+      combatMode: src.combatMode,
+      locationName: src.locationName,
+      atLock: src.atLock,
+      atLabel: src.at.toISOString().slice(0, 16).replace("T", " "),
+      tags: src.state.tags
+        .map((row) => {
+          const tag = byId.get(row.tagId);
+          if (!tag) return null;
+          return { tagId: row.tagId, equipped: row.equipped, expiresTurn: row.expiresTurn, quantity: 1, tag: composeChipTag(tag, GM_CHIP_CTX) };
+        })
+        .filter(Boolean),
+    };
+  }
+  return { snapshots };
 }
 
 // "Reject" on the desk. Deletes the Action outright, since the turn-economy
@@ -1829,9 +1858,11 @@ async function getMoveHistoryImpl({ turnId }) {
   if (!turn) throw new UserError("That turn no longer exists.");
   if (turn.status !== "RESOLVED") throw new UserError("That turn hasn't been pushed yet.");
 
-  const [actions, cavingRolls, combats, members, stagingLocations, openTurn] = await Promise.all([
+  const [actions, cavingRolls, cavingStandings, combats, members, stagingLocations, openTurn] = await Promise.all([
     prisma.action.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: MOVE_INCLUDE }),
     prisma.cavingRoll.findMany({ where: { turnId: id }, orderBy: { createdAt: "desc" }, include: CAVING_ROLL_INCLUDE }),
+    // Where everybody stood when that turn locked (CAVING.md §5c), so its results group the way they were adjudicated.
+    loadCavingStandings({ turnId: id }),
     // Combat.turnId is a plain string, not a relation (schema.prisma), so this filters on it directly.
     prisma.combat.findMany({ where: { turnId: id }, orderBy: { startedAt: "desc" }, include: COMBAT_INCLUDE }),
     listGuildMembers(),
@@ -1868,7 +1899,14 @@ async function getMoveHistoryImpl({ turnId }) {
   const usernameById = new Map(members.map((m) => [m.id, m.username]));
   const locationNameById = new Map(stagingLocations.map((l) => [l.id, l.name]));
   const now = new Date();
-  const looks = await deskLooks({ actions, cavingRolls, combats, effects: stagedEffects, messages: stagedMessages });
+  const looks = await deskLooks({
+    actions,
+    cavingRolls,
+    cavingStands: cavingStandings.stands,
+    combats,
+    effects: stagedEffects,
+    messages: stagedMessages,
+  });
 
   return {
     // structuresByLocationId is deliberately not passed: this lens shows a
@@ -1876,6 +1914,8 @@ async function getMoveHistoryImpl({ turnId }) {
     // history desk renders no Standing-here line, so nothing is missing it.
     moves: actions.map((a) => moveRow(a, { usernameById, now, looks })),
     cavingRolls: cavingRolls.map((c) => cavingRollRow(c, { usernameById, catatonicIds: new Set(), looks })),
+    // No "now" on a pushed turn: where they stand today says nothing about it.
+    cavingStandings: cavingStandingRows(cavingStandings, { usernameById, catatonicIds: new Set(), looks, live: false }),
     combats: combats.map((c) => combatRow(c, { usernameById, looks })),
     effects: stagedEffects.map((e) => stagedEffectRow(e, { usernameById, locationNameById, openTurn, looks })),
     messages: stagedMessages.map((m) => stagedMessageRow(m, { usernameById, openTurn, looks })),
@@ -2489,8 +2529,8 @@ export async function getCombatSnapshots(input) {
 export async function endCombatAsGmAction(input) {
   return guarded(() => endCombatAsGmImpl(input));
 }
-export async function getCavingSnapshot(input) {
-  return guarded(() => getCavingSnapshotImpl(input));
+export async function getCavingSnapshots(input) {
+  return guarded(() => getCavingSnapshotsImpl(input));
 }
 export async function undoCavingFind(input) {
   return guarded(() => undoCavingFindImpl(input));

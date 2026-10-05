@@ -10,7 +10,7 @@ import MoveDesk from "./MoveDesk";
 import MoveHistoryDesk from "./MoveHistoryDesk";
 import CavingDesk from "./CavingDesk";
 import CombatDesk from "./CombatDesk";
-import { foldCavingRolls } from "@/lib/cavingLabels";
+import { foldCavingResults } from "@/lib/cavingLabels";
 import DesireDesk from "./DesireDesk";
 import OocDesk from "./OocDesk";
 import { getMoveHistory } from "./actions";
@@ -103,11 +103,11 @@ function findHistoryMove(historyByTurn, moveId, preloaded) {
   return preloaded?.move?.id === moveId ? preloaded : null;
 }
 
-// The Caving twin of findHistoryMove, answering with the FOLDED row a roll is shown under
-// (web/lib/cavingLabels.js#foldCavingRolls) and the staged rows of every roll in it.
+// The Caving twin of findHistoryMove, answering with the result a roll is shown under
+// (web/lib/cavingLabels.js#foldCavingResults) and the staged rows of every roll in it.
 function findHistoryCaving(historyByTurn, rollId, preloaded) {
   for (const [turnId, entry] of historyByTurn) {
-    const { rows, groupOf } = foldCavingRolls(entry.cavingRolls ?? []);
+    const { rows, groupOf } = foldCavingResults(entry.cavingRolls ?? [], entry.cavingStandings ?? []);
     const groupId = groupOf.get(rollId) ?? rollId;
     const roll = rows.find((c) => c.id === groupId);
     if (!roll) continue;
@@ -209,6 +209,7 @@ export default function Workspace({
   stagingRooms,
   moves: moveRows,
   cavingRolls: cavingRollRows,
+  cavingStandings: cavingStandingRowsProp = [],
   combats: combatRowsProp = [],
   otherRows,
   desireRows,
@@ -238,16 +239,18 @@ export default function Workspace({
       turnId,
       moves: moveRows,
       cavingRolls: cavingRollRows,
+      cavingStandings: cavingStandingRowsProp,
       combats: combatRowsProp,
       stagedEffects: stagedEffectRows,
       stagedMessages: stagedMessageRows,
     });
-  }, [asOfMs, turnId, moveRows, cavingRollRows, combatRowsProp, stagedEffectRows, stagedMessageRows]);
+  }, [asOfMs, turnId, moveRows, cavingRollRows, cavingStandingRowsProp, combatRowsProp, stagedEffectRows, stagedMessageRows]);
 
   // Until the first seed lands (one tick after mount) the props ARE the rows.
   const deskRows = useDeskRows();
   const moves = deskRows.seeded ? deskRows.moves : moveRows;
   const cavingRolls = deskRows.seeded ? deskRows.cavingRolls : cavingRollRows;
+  const cavingStandings = deskRows.seeded ? deskRows.cavingStandings : cavingStandingRowsProp;
   const combats = deskRows.seeded ? deskRows.combats : combatRowsProp;
   const stagedEffects = deskRows.seeded ? deskRows.stagedEffects : stagedEffectRows;
   const stagedMessages = deskRows.seeded ? deskRows.stagedMessages : stagedMessageRows;
@@ -481,7 +484,7 @@ export default function Workspace({
   // The open turn's rows are the live ones page.js shipped; every other turn
   // comes out of the cache.
   const historyEntry = historyIsOpenTurn
-    ? { moves, cavingRolls, combats, effects: stagedEffects, messages: stagedMessages, tagsById }
+    ? { moves, cavingRolls, cavingStandings, combats, effects: stagedEffects, messages: stagedMessages, tagsById }
     : historyTurnId
       ? (historyCache.get(historyTurnId) ?? null)
       : null;
@@ -508,6 +511,7 @@ export default function Workspace({
         new Map(prev).set(historyTurnId, {
           moves: res.moves,
           cavingRolls: res.cavingRolls,
+          cavingStandings: res.cavingStandings ?? [],
           combats: res.combats ?? [],
           effects: res.effects,
           messages: res.messages,
@@ -550,8 +554,9 @@ export default function Workspace({
   const selectedMove = selected?.type === "move" ? moves.find((m) => m.id === selected.id) : null;
   // Resolves against live open-turn rolls first; otherwise a History-lens
   // pick found across every loaded turn.
-  // Folded: one row per caver per zone (CAVING.md §5), found by any of its rolls' ids.
-  const foldedCaving = useMemo(() => foldCavingRolls(cavingRolls), [cavingRolls]);
+  // Folded: one result per caver, or per Location once the turn has locked (CAVING.md §5a, §5c),
+  // found by any of its rolls' ids.
+  const foldedCaving = useMemo(() => foldCavingResults(cavingRolls, cavingStandings), [cavingRolls, cavingStandings]);
   const liveCaving =
     selected?.type === "caving"
       ? (foldedCaving.rows.find((c) => c.id === (foldedCaving.groupOf.get(selected.id) ?? selected.id)) ?? null)
@@ -781,6 +786,7 @@ export default function Workspace({
         <QueueRail
           moves={moves}
           cavingRolls={cavingRolls}
+          cavingStandings={cavingStandings}
           combats={combats}
           otherRows={otherRows}
           desireRows={desireRows}
@@ -804,6 +810,7 @@ export default function Workspace({
           historyKind={historyKind}
           onHistoryKind={setHistoryKind}
           historyCavingRolls={historyEntry?.cavingRolls ?? []}
+          historyCavingStandings={historyEntry?.cavingStandings ?? []}
           historyCombats={historyEntry?.combats ?? []}
           historyLoading={historyLoading}
           historyError={historyError}

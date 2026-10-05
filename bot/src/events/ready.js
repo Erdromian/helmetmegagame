@@ -21,6 +21,7 @@ const { PHONE_RING_INTERVAL_MS } = require("@lifeweb/db/lib/phoneText");
 const { runCharonSweep } = require("@lifeweb/db/lib/charonSweep");
 const { runOracleAtCutoff } = require("@lifeweb/db/lib/oracleCutoff");
 const { runGambitCutoff } = require("@lifeweb/db/lib/gambitCutoff");
+const { runCavingCutoff } = require("@lifeweb/db/lib/cavingStand");
 const { runStagePlay } = require("../lib/stagePlay");
 const { getGameState } = require("@lifeweb/db/lib/gameState");
 const { startDeathSmell } = require("../lib/deathSmell");
@@ -399,6 +400,24 @@ module.exports = {
         .catch((err) => console.error("Gambit cutoff check failed:", err))
         .finally(() => {
           gambitCutoffRunning = false;
+        });
+    });
+
+    // At the same moment, where everybody stands in the caves is frozen (db/lib/cavingStand.js), and the
+    // Caving lens merges everybody in one Location into one result (CAVING.md §5c). Every minute for the
+    // reason above, and it only ever adds rows, so each tick after the first stamps nobody but a
+    // newcomer. The push freezes anything this missed.
+    let cavingCutoffRunning = false;
+    cron.schedule("* * * * *", () => {
+      if (cavingCutoffRunning) return;
+      cavingCutoffRunning = true;
+      runCavingCutoff(prisma)
+        .then(({ ran, stamped, turnNumber }) => {
+          if (ran && stamped) console.log(`Caving cutoff: froze ${stamped} cavers' places for turn #${turnNumber}.`);
+        })
+        .catch((err) => console.error("Caving cutoff check failed:", err))
+        .finally(() => {
+          cavingCutoffRunning = false;
         });
     });
 

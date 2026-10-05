@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore
 import DeskRail from "@/app/components/DeskRail";
 import CheckField from "@/app/components/CheckField";
 import StatusPill from "@/app/components/StatusPill";
-import { foldCavingRolls, isCavingFailure, severityLabel } from "@/lib/cavingLabels";
+import { foldCavingResults, isCavingFailure, severityLabel } from "@/lib/cavingLabels";
 import Select from "@/app/components/Select";
 import GmAvatar from "@/app/components/GmAvatar";
 import CharacterAvatar from "@/app/components/CharacterAvatar";
@@ -109,7 +109,9 @@ const CAVING_FILTER_DEFS = [
   { key: "status", label: "Status", value: (r) => r.statusLabel, options: CAVING_STATUS_OPTIONS },
 ];
 const cavingSearchMap = (r) => ({
-  name: r.characterName,
+  // Everybody in a result, not only the caver it is keyed by (cavingLabels.js#foldCavingResults).
+  name: r.searchNames ?? r.characterName,
+  where: r.locationName,
   username: r.discordUsername,
   role: r.roleTitle,
   zone: r.zoneName,
@@ -355,15 +357,17 @@ function MoveRows({
 }
 
 
-// A caver's failed rolls arrive folded into one row (web/lib/cavingLabels.js#foldCavingRolls,
-// CAVING.md §5), with its severity. At severity 10 the caver stops moving (§2e), and the row says so rather than
-// leaving a GM to adjudicate an ordinary encounter for somebody already as good as dead.
-// `showStuck` is off for History: a past turn's cavers were let go at its push, so the pill would
-// claim a stop that is no longer on them.
+// A caver's failed rolls arrive folded into one row (web/lib/cavingLabels.js#foldCavingResults,
+// CAVING.md §5), with its severity — or, once the turn has locked, everybody in one Location as one row
+// (§5c), named by the place, each caver's severity listed. At severity 10 a caver stops moving (§2e), and
+// the row says so rather than leaving a GM to adjudicate an ordinary encounter for somebody already as
+// good as dead. `showStuck` is off for History: a past turn's cavers were let go at its push, so the
+// pill would claim a stop that is no longer on them.
 function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKey = "caving", showStuck = true }) {
   return rows.map((row) => {
     // A link to any one of the folded rolls lights its group.
     const active = selected?.type === "caving" && (selected.id === row.id || Boolean(row.memberIds?.includes(selected.id)));
+    if (row.merged) return <MergedCavingRow key={row.id} {...{ row, matchFor, onSelect, active, kbdId, kbdLens, lensKey, showStuck }} />;
     const severityText = severityLabel(row);
     return (
       <button
@@ -391,6 +395,8 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
           </span>
         </span>
         <span className="block truncate text-xs text-muted">
+          {/* Where they stand now, for a 1 (CAVING.md §5a); where the die rolled, for anything else. */}
+          {row.locationName ? <>{row.locationName} · </> : null}
           {row.zoneName} · {row.kindLabel}
           {severityText && <> · {severityText}</>}
           {row.newSinceResolved > 0 && <> · {row.newSinceResolved} new since resolved</>}
@@ -401,6 +407,54 @@ function CavingRows({ rows, matchFor, selected, onSelect, kbdId, kbdLens, lensKe
       </button>
     );
   });
+}
+
+// A Location's result at the lock: the place, everybody in it, and each caver's own severity.
+function MergedCavingRow({ row, matchFor, onSelect, active, kbdId, kbdLens, lensKey, showStuck }) {
+  const people = [...row.members, ...row.bystanders];
+  const onGuard = row.members.filter((m) => m.alertCount > 0).length;
+  const responded = row.members.filter((m) => m.response).length;
+  return (
+    <button
+      type="button"
+      className="desk-queue-row"
+      data-active={active}
+      data-urgent={row.statusLabel === "Needs attention" || undefined}
+      data-kbd={kbdLens === lensKey && kbdId === row.id ? "" : undefined}
+      data-row-key={row.id}
+      onClick={() => onSelect({ type: "caving", id: row.id })}
+    >
+      <span className="flex items-center justify-between gap-2">
+        <span className="flex items-center gap-1.5 truncate font-medium">
+          <span className="flex shrink-0 items-center -space-x-1.5">
+            {people.slice(0, 4).map((p) => (
+              <CharacterAvatar key={p.characterId} characterId={p.characterId} name={p.characterName} version={p.avatarVersion} catatonic={p.catatonic} />
+            ))}
+          </span>
+          <span className="truncate">
+            ⚀ — {row.locationName ?? "Somewhere underground"}
+          </span>
+          <MatchHint match={matchFor(row)} />
+        </span>
+        <span className="flex shrink-0 items-center gap-1">
+          {showStuck && row.stuck && <StatusPill tone="bad">Stuck</StatusPill>}
+          <StatusPill tone={CAVING_TONES[row.statusLabel] ?? "neutral"}>{row.statusLabel}</StatusPill>
+        </span>
+      </span>
+      <span className="block truncate text-xs text-muted">
+        {row.zoneName} · {severityLabel(row)}
+        {row.bystanders.length > 0 && (
+          <> · {row.bystanders.map((b) => b.characterName).join(", ")} · no failed rolls</>
+        )}
+      </span>
+      <span className="block truncate text-xs text-muted">
+        {people.length} {people.length === 1 ? "person" : "people"} here
+        {row.newSinceResolved > 0 && <> · {row.newSinceResolved} new since resolved</>}
+        {onGuard > 0 && <> · {onGuard} in combat mode{responded ? ` · ${responded} responded` : ""}</>}
+        {row.respondedSinceResolved && <> · response changed</>}
+      </span>
+    </button>
+  );
 }
 
 // One held pair. It opens the INSPECTOR on the person being held rather than a
@@ -802,6 +856,7 @@ function OtherRows({ rows, matchFor, onInspect, onOpenMove, kbdId, kbdLens, open
 export default function QueueRail({
   moves,
   cavingRolls,
+  cavingStandings = [],
   combats = [],
   otherRows,
   desireRows,
@@ -825,6 +880,7 @@ export default function QueueRail({
   historyKind,
   onHistoryKind,
   historyCavingRolls,
+  historyCavingStandings = [],
   historyCombats,
   historyLoading,
   historyError,
@@ -882,8 +938,11 @@ export default function QueueRail({
 
   // Folded over every roll of the turn, before the zone filter and the search:
   // a 1 counts toward the stop whether or not this GM can see the row.
-  const foldedCaving = useMemo(() => foldCavingRolls(cavingRolls).rows, [cavingRolls]);
-  const foldedHistoryCaving = useMemo(() => foldCavingRolls(historyCavingRolls).rows, [historyCavingRolls]);
+  const foldedCaving = useMemo(() => foldCavingResults(cavingRolls, cavingStandings).rows, [cavingRolls, cavingStandings]);
+  const foldedHistoryCaving = useMemo(
+    () => foldCavingResults(historyCavingRolls, historyCavingStandings).rows,
+    [historyCavingRolls, historyCavingStandings],
+  );
 
   const rankedCavingRolls = useMemo(
     () =>

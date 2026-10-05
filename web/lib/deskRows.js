@@ -10,14 +10,44 @@ import {
   STAGED_EFFECT_INCLUDE,
   STAGED_MESSAGE_INCLUDE,
   CAVING_ROLL_INCLUDE,
+  CAVING_STANDING_CHARACTER_SELECT,
+  CAVING_STAND_SELECT,
   COMBAT_INCLUDE,
   moveRow,
   moveLocationId,
   stagedEffectRow,
   stagedMessageRow,
   cavingRollRow,
+  cavingStandingRow,
   combatRow,
 } from "./moveRows";
+
+// Every caver's standing on one turn (moveRows.js#cavingStandingRow): the characters with a Caving roll or
+// a stand on it, or just `characterIds` when a patch names them. Raw rows, so a caller can feed the stands'
+// stamps to deskLooks before mapping; `cavingStandingRows` below maps them.
+export async function loadCavingStandings({ turnId, characterIds = null } = {}) {
+  if (!turnId) return { characters: [], stands: [] };
+  let ids = characterIds;
+  if (!ids) {
+    const [rolls, stands] = await Promise.all([
+      prisma.cavingRoll.findMany({ where: { turnId }, distinct: ["characterId"], select: { characterId: true } }),
+      prisma.cavingStand.findMany({ where: { turnId }, select: { characterId: true } }),
+    ]);
+    ids = [...rolls, ...stands].map((r) => r.characterId);
+  }
+  ids = [...new Set(ids.filter(Boolean))];
+  if (!ids.length) return { characters: [], stands: [] };
+  const [characters, stands] = await Promise.all([
+    prisma.character.findMany({ where: { id: { in: ids } }, select: CAVING_STANDING_CHARACTER_SELECT }),
+    prisma.cavingStand.findMany({ where: { turnId, characterId: { in: ids } }, select: CAVING_STAND_SELECT }),
+  ]);
+  return { characters, stands };
+}
+
+export function cavingStandingRows({ characters, stands }, ctx) {
+  const standOf = new Map(stands.map((s) => [s.characterId, s]));
+  return characters.map((c) => cavingStandingRow(c, standOf.get(c.id) ?? null, ctx));
+}
 
 // Every structure standing at a set of Locations, in ONE pair of queries (mirrors db/lib/structures.js#structuresAt).
 export async function structuresByLocation(locationIds) {
@@ -48,9 +78,21 @@ export async function structuresByLocation(locationIds) {
 // (db/lib/gmPresentation.js). Takes the rows as Prisma returned them (the *_INCLUDE shapes), so a stamp
 // is read straight off its column; `characterIds` adds anybody else the payload names. Two or three
 // queries for a whole desk, however many rows.
-export async function deskLooks({ actions = [], cavingRolls = [], combats = [], effects = [], messages = [], characterIds = [] } = {}) {
+export async function deskLooks({
+  actions = [],
+  cavingRolls = [],
+  cavingStands = [],
+  combats = [],
+  effects = [],
+  messages = [],
+  characterIds = [],
+} = {}) {
   const ids = [...characterIds];
   const stamps = [];
+  for (const s of cavingStands) {
+    ids.push(s.characterId);
+    stamps.push(s.presentedAs);
+  }
   for (const a of actions) {
     ids.push(a.characterId);
     stamps.push(a.presentedAs);
@@ -112,6 +154,9 @@ export async function deskRowContext({ openTurn } = {}) {
 export async function deskPatchFor({
   moveIds = [],
   cavingRollIds = [],
+  // Character ids whose Caving standing changed — a stand written at the lock (the CavingStand_notify trigger).
+  // The standings of every patched roll's caver ride along too, so a walk keeps "where they are now" fresh.
+  cavingStandingIds = [],
   combatIds = [],
   stagedEffectIds = [],
   stagedMessageIds = [],
@@ -148,9 +193,23 @@ export async function deskPatchFor({
   const liveEffects = onDesk(effects, (e) => ofOpenTurn(e) || e.appliedAt == null);
   const liveMessages = onDesk(messages, (m) => ofOpenTurn(m) || m.sentAt == null);
 
+  // Only ever the open turn's: a past turn's standings come with History (actions.js#getMoveHistory).
+  const standingIds = [...new Set([...cavingStandingIds, ...liveRolls.map((r) => r.characterId)])];
+  const standings =
+    openTurnId && standingIds.length
+      ? await loadCavingStandings({ turnId: openTurnId, characterIds: standingIds })
+      : { characters: [], stands: [] };
+
   const [structuresByLocationId, looks] = await Promise.all([
     structuresByLocation(liveActions.map(moveLocationId)),
-    deskLooks({ actions: liveActions, cavingRolls: liveRolls, combats: liveCombats, effects: liveEffects, messages: liveMessages }),
+    deskLooks({
+      actions: liveActions,
+      cavingRolls: liveRolls,
+      cavingStands: standings.stands,
+      combats: liveCombats,
+      effects: liveEffects,
+      messages: liveMessages,
+    }),
   ]);
   const rowCtx = { ...ctx, looks };
 
@@ -169,12 +228,15 @@ export async function deskPatchFor({
     turnId: openTurnId,
     moves: liveActions.map((a) => moveRow(a, { ...rowCtx, structuresByLocationId })),
     cavingRolls: liveRolls.map((c) => cavingRollRow(c, rowCtx)),
+    cavingStandings: cavingStandingRows(standings, rowCtx),
     combats: liveCombats.map((c) => combatRow(c, rowCtx)),
     stagedEffects: liveEffects.map((e) => stagedEffectRow(e, rowCtx)),
     stagedMessages: liveMessages.map((m) => stagedMessageRow(m, rowCtx)),
     removed: {
       moveIds: [...(removed.moveIds ?? []), ...gone(moveIds, actions)],
       cavingRollIds: [...(removed.cavingRollIds ?? []), ...gone(cavingRollIds, rolls)],
+      // A character deleted since (the stand's cascade) is gone from the lens with them.
+      cavingStandingIds: openTurnId ? gone(cavingStandingIds, standings.characters) : [],
       combatIds: [...(removed.combatIds ?? []), ...gone(combatIds, combats)],
       stagedEffectIds: [...(removed.stagedEffectIds ?? []), ...gone(stagedEffectIds, effects)],
       stagedMessageIds: [...(removed.stagedMessageIds ?? []), ...gone(stagedMessageIds, messages)],

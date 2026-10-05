@@ -10,6 +10,7 @@ const EMPTY_VIEWS = Object.freeze({
   seeded: false,
   moves: Object.freeze([]),
   cavingRolls: Object.freeze([]),
+  cavingStandings: Object.freeze([]),
   combats: Object.freeze([]),
   stagedEffects: Object.freeze([]),
   stagedMessages: Object.freeze([]),
@@ -21,6 +22,9 @@ const TOMBSTONE_CAP = 2000;
 const state = {
   moves: new Map(),
   caving: new Map(),
+  // One per caver on the turn, keyed by character id: where they stand now and where they stood at the lock
+  // (web/lib/moveRows.js#cavingStandingRow). The Caving lens folds results with them.
+  standings: new Map(),
   combats: new Map(),
   effects: new Map(),
   messages: new Map(),
@@ -102,6 +106,7 @@ function rebuildViews() {
     seeded: state.seeded,
     moves: Object.freeze(liveRows(state.moves).sort(byCreatedDesc)),
     cavingRolls: Object.freeze(liveRows(state.caving).sort(byCreatedDesc)),
+    cavingStandings: Object.freeze(liveRows(state.standings)),
     combats: Object.freeze(liveRows(state.combats).sort(byCreatedDesc)),
     stagedEffects: Object.freeze(liveRows(state.effects).sort(byCreatedAsc)),
     stagedMessages: Object.freeze(liveRows(state.messages).sort(byCreatedAsc)),
@@ -111,6 +116,7 @@ function rebuildViews() {
 const TYPES = [
   ["moves", "moves", "moveIds"],
   ["caving", "cavingRolls", "cavingRollIds"],
+  ["standings", "cavingStandings", "cavingStandingIds"],
   ["combats", "combats", "combatIds"],
   ["effects", "stagedEffects", "stagedEffectIds"],
   ["messages", "stagedMessages", "stagedMessageIds"],
@@ -125,6 +131,7 @@ export function seedDesk(payload) {
   if (payload.turnId !== state.turnId && !older) {
     state.moves = new Map();
     state.caving = new Map();
+    state.standings = new Map();
     state.combats = new Map();
     state.effects = new Map();
     state.messages = new Map();
@@ -172,7 +179,7 @@ export function seedDesk(payload) {
   }
 }
 
-// What a server action hands back: the rows it touched and the ids it removed. NO membership authority — a patch says "these changed", never "and nothing else exists". Shape: { asOfMs, turnId, moves, cavingRolls, stagedEffects, stagedMessages, removed: { moveIds, cavingRollIds, stagedEffectIds, stagedMessageIds } }
+// What a server action hands back: the rows it touched and the ids it removed. NO membership authority — a patch says "these changed", never "and nothing else exists". Shape: { asOfMs, turnId, moves, cavingRolls, cavingStandings, combats, stagedEffects, stagedMessages, removed: { moveIds, cavingRollIds, cavingStandingIds, combatIds, stagedEffectIds, stagedMessageIds } }
 export function applyDeskPatch(patch) {
   if (!patch || !Number.isFinite(patch.asOfMs)) return;
   // THE TURN GATE (deskRows.js#deskPatchFor): a Solve landing across the turn-end push could hold a row from the
