@@ -123,9 +123,12 @@ category instead, as `demoness-heal` and `demoness-seductive` do.
   are a single answer rather than a collection, on the six Addictions
   (`general-addictions`), and on the six courtier wax seals (`items-paper`,
   `PAPERWORK.md` §5) — so a character holds at most one belief, at most one
-  Addiction and at most one personal seal, independently.
+  Addiction and at most one personal seal, independently. Pilgrim, Saint and
+  **Existentialist** sit in `general-beliefs` without the flag and stack on
+  top of a belief. Existentialism is a philosophy, not a religion, so an
+  Atheist Existentialist is a legal character, and Xom's Pray leaves it on.
 
-  The seals are the one case where the flag sits in a group that also holds
+  The seals are the other case where the flag sits in a group that also holds
   tags **without** it — blank paper, the eight office stamps, and every note
   anybody writes. That is fine and is what "per tag group" means: the rule only
   ever compares two tags that BOTH carry the flag, so nothing else in

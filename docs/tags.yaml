@@ -2327,8 +2327,10 @@ tags:
   # may hold at most one exclusive tag — the one exception being a pair joined
   # by requiredTag, which is how Fundamentalist stacks on Post-Christian.
   # Checked at creation, at /store checkout and in the Add Tag request; a GM
-  # grant bypasses it like every other gate. Pilgrim and Saint sit in this same
-  # group and are deliberately NOT exclusive: they stack on top of a belief.
+  # grant bypasses it like every other gate. Pilgrim, Saint and Existentialist
+  # sit in this same group and are deliberately NOT exclusive: they stack on
+  # top of a belief. Existentialism is a philosophy, not a religion, so an
+  # Atheist or a Post-Christian may hold it too, and Xom's Pray leaves it on.
   # See docs/systemdocs/TAGS.md §5.
   #
   # A belief cannot be dropped from the sheet. Destroy is for items now
@@ -2373,7 +2375,6 @@ tags:
     pointCost: 2
     purchasable: true
     purchasableAfterStart: true
-    exclusive: true
 
   # Sign flip 2026-08-31 (Desires rework): removed and re-added under the
   # same slug as a +2 Interest rather than a -2 drawback. Existing holders

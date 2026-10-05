@@ -18,8 +18,9 @@ const OLD_WAYS_XOM_SLUG = "old-ways-xom";
 // Must match the room id in docs/zones.yaml exactly.
 const XOM_SHRINE_ROOM_SLUG = "depths-7-4";
 
-// The Beliefs group. Every tag carries `exclusive: true`, enforced by buy
+// The Beliefs group. The religions carry `exclusive: true`, enforced by buy
 // paths but not by a grant — Pray has to enforce it itself. See grantXom below.
+// Pilgrim, Saint and Existentialist are not exclusive, so Pray leaves them on.
 const BELIEF_GROUP_SLUG = "general-beliefs";
 
 // The one Belief Xom will not take off somebody: {tag:thanati} is the cult's
