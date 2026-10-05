@@ -3429,7 +3429,7 @@ tags:
     category: skills
     group: skills-crafting
     teachable: true
-    description: "You can build more complex things than the average person, like a cart, a palisade, or a staircase."
+    description: "You can build more complex things than the average person, like a cart, a barricade, or a staircase."
     pointCost: 5
     visible: false
     purchasable: true
@@ -6562,7 +6562,8 @@ tags:
   # A kitchen where there was none: Lavish meals can be cooked where it stands
   # (COOKING.md). Grants the `kitchen` attribute the Inn, the Keep and the
   # Poorhouse are authored with, so it is refused at those three — and, like
-  # anything with no named site, indoors. It is a kitchen for open ground.
+  # anything with no named site, indoors. Open ground or a cave: a cook fire
+  # goes anywhere there is no roof to smoke out.
   field-kitchen:
     catalog: all
     name: Field Kitchen
@@ -6584,6 +6585,7 @@ tags:
     # trestle are stone and timber, not smith's work.
     placement:
       fieldwork: true
+      underground: true
       grants: kitchen
 
   # Torturing Equipment for a whole Location: `provides` puts the kit in reach
@@ -6682,7 +6684,7 @@ tags:
     requirement:
       turnsCost: 2
       resourceCost: 15
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     # Deliberately NOT fieldwork: raising a forge is smith's work itself, so
     # the first one needs Workshop Equipment hauled into reach — the item is
@@ -6740,7 +6742,7 @@ tags:
     requirement:
       turnsCost: 1
       resourceCost: 25
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     placement:
       fieldwork: true
@@ -6771,6 +6773,8 @@ tags:
       gambit: false
     placement:
       fieldwork: true
+      # Music carries in a cavern, and mood is what the caves cost.
+      underground: true
       examine: "a haphazard construction waiting for a boombox."
       # The boombox is a RUNNING requirement, not a build cost — which is why
       # this carries no requirement.items, a pairing the sync refuses outright
@@ -6794,12 +6798,14 @@ tags:
       # crew-turns is most of a week alone or one day with friends.
       turnsCost: 4
       resourceCost: 40
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     # The defense prose is the whole effect. defenseNote is a spliced
     # fragment.
     placement:
       fieldwork: true
+      # Stakes across a tunnel, where the Barricade already goes.
+      underground: true
       examine: "sharpened stakes ring this ground."
       defenseNote: "a ring of sharpened stakes, forming a formidable wall."
 
@@ -6818,7 +6824,7 @@ tags:
     requirement:
       turnsCost: 2
       resourceCost: 20
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     # Half a Palisade in every number. Fieldwork by the Palisade's logic: it
     # is stakes and lashings, not smith's work.
@@ -6868,7 +6874,7 @@ tags:
     requirement:
       turnsCost: 2
       resourceCost: 20
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     # Deliberately NOT fieldwork — the siege-camp logistics beat: raising a
     # ram outside somebody's gate means hauling Workshop Equipment there
@@ -14957,7 +14963,7 @@ tags:
     requirement:
       turnsCost: 3
       resourceCost: 30
-      skills: [builder-skilled]
+      skills: [builder-expert]
       gambit: false
     placement:
       examine: "instruments laid out, lamps hung."

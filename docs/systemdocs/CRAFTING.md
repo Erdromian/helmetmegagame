@@ -624,14 +624,15 @@ the one rule for the ground, asked by the Craft menu and again by the server:
 | A cave level (the Caves, the Depths) | only a type flagged `placement.underground: true` |
 | A `noBuild` Location | nothing |
 
-**Eight types are flagged for the caves**: the Wayside Shrine, the Barricade,
-the Gallows, the Crucifix, Pit Props (`MINING.md` §4), the Camp (`MOOD.md` §7),
-the Noticeboard (`PAPERWORK.md` §7) and the Torture Rack (`TORTURE.md` §3).
-Everything else is a thing of open ground or of a town — a palisade, a tower, a
-trebuchet, a rookery — and a cave refuses it with "That can't be built down
-here."
+**Eleven types are flagged for the caves**: the Wayside Shrine, the Barricade,
+the Palisade, the Gallows, the Crucifix, Pit Props (`MINING.md` §4), the Camp
+(`MOOD.md` §7), the Noticeboard (`PAPERWORK.md` §7), the Torture Rack
+(`TORTURE.md` §3), the Field Kitchen (`COOKING.md`) and the Makeshift Stage.
+Everything else needs sky, light or clean air — a tower, a trebuchet, a
+rookery, a forge, a surgery — and a cave refuses it with "That can't be built
+down here."
 
-The flag says nothing about the surface: every one of the eight still goes up
+The flag says nothing about the surface: every one of the eleven still goes up
 anywhere outdoors. Nothing could be built underground at all until 2026-10-04,
 on the reasoning that a cave level has no `#summary` — but a site has always
 spoken into its own Location's channel, and every cave Location has one.
@@ -640,6 +641,21 @@ The menu needs two answers for one piece of ground, because a cave says no to
 most types and yes to a few: `structures.js#buildGround` returns `buildable`
 and `buildableUnderground`, and `craftRecipes.js#placementOfferedHere` reads
 whichever the type is entitled to.
+
+**Who can raise what.** The Building skill has two tiers, 5 points each, and
+no role starts with either. `docs/tags.yaml` is the source; this is the split
+as of 2026-10-04, when six types moved up so the second tier was worth buying:
+
+| Needs | Structures |
+|---|---|
+| nothing | Crucifix, Noticeboard, Wayside Shrine, Camp, Makeshift Stage |
+| Torturer | Torture Rack |
+| Building I | Barricade, Gallows, Brewery, Field Kitchen, Pit Props (and the Cart, an item) |
+| Building II | Forge, Rookery, Watchtower, Battering Ram, Surgical Theater, Palisade, Lazarette, Trebuchet |
+
+Building I is rough work: heaped timber, a beam, a hearth. Building II is
+anything engineered or fitted out — the siege engines, the tower, the wall and
+the specialist buildings.
 
 ## 4c. A structure that grants its Location an attribute
 
