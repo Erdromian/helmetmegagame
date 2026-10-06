@@ -66,6 +66,9 @@ test("a three-hop road is found, origin excluded and the target last", async () 
   assert.equal(route.ok, true);
   assert.equal(route.hops, 3);
   assert.deepEqual(route.path.map((l) => l.slug), ["square", "market", "keep"]);
+  // The hops as edges, one per step onto path[i] — what a party is judged
+  // against before the leader commits (locationTravel.js#partyRoadJudge).
+  assert.deepEqual(route.links.map((l) => l.id), ["gate~square", "market~square", "keep~market"]);
 });
 
 test("a shorter road through somewhere they have never seen is not taken", async () => {

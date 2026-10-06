@@ -109,6 +109,7 @@ import { capitalizeFirst } from "@lifeweb/db/lib/concealedIdentity";
 import { waitingLetter } from "@lifeweb/db/lib/bird";
 import { equippedSlugs, fastTravelCapacity } from "@lifeweb/db/lib/mounts";
 import {
+  partyWarningFor,
   performLocationMove,
   freeMovesLeft,
   freeMovesBreakdown,
@@ -553,6 +554,10 @@ export async function loadTravel() {
     prisma.action.findFirst({ where: { characterId: character.id, turn: { status: "OPEN" } }, select: { id: true } }),
   ]);
   const acted = Boolean(action);
+  // Who each way out would leave standing (MAP.md §3a) — the same judge the
+  // move runs, asked ahead of Go so the leader is warned rather than told.
+  const standingZoneKind = graph.locations.find((l) => l.id === character.locationId)?.zone?.kind ?? null;
+  const leftBehindOn = await partyWarningFor(prisma, { mover: character, party, standingZoneKind });
 
   return {
     ok: true,
@@ -618,6 +623,10 @@ export async function loadTravel() {
         // they hold (locationGraph.js#crossingCheck), so there is nothing here to
         // leak.
         openedBy: row.openedBy ?? null,
+        // Followers this way would not take, named as this leader knows them,
+        // with `held` for the one reason said out loud. The strip prints
+        // leftBehindWarning() off it and the confirm asks again.
+        leftBehind: row.passable ? leftBehindOn([row.link], row.location.zone?.kind) : [],
         // crossingCheck's field is `refusal`, not `reason` — this was silently
         // dropping the actual message (e.g. the locked/shut wording) and
         // falling back to the node's generic "no way".

@@ -44,6 +44,8 @@ const { answerDmAction } = require("@lifeweb/db/lib/dmAnswer");
 const { DM_ACTION, DM_CHOICE } = require("@lifeweb/db/lib/dmActions");
 const { sendDm } = require("../../lib/dm");
 const { escortCandidates, partyOf } = require("@lifeweb/db/lib/escort");
+const { partyWarningFor } = require("@lifeweb/db/lib/locationTravel");
+const { leftBehindWarning } = require("@lifeweb/db/lib/leftBehindText");
 const { refreshLocationAnchor, refreshGateRooms } = require("@lifeweb/db/lib/syncZones");
 const { arrivalLinksLine } = require("@lifeweb/db/lib/syncZones/bodies");
 const { loadRoomsAt } = require("@lifeweb/db/lib/roomSides");
@@ -277,9 +279,10 @@ async function handleTravelPick(interaction) {
   // travel the walker is (MAP.md §3a).
   const breakdown = crossing ? freeMovesBreakdown(character, config, openTurn, party.length) : null;
   // What this crossing spends: ½ between the town zones, 1 anywhere else
-  // (db/lib/crossingCost.js) — the same number the mover charges.
-  const fromZone = crossing && character.zoneId
-    ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true } })
+  // (db/lib/crossingCost.js) — the same number the mover charges. The zone's
+  // kind rides along for the party's Caving hold (partyWarningFor below).
+  const fromZone = character.zoneId
+    ? await prisma.zone.findUnique({ where: { id: character.zoneId }, select: { slug: true, kind: true } })
     : null;
   const cost = crossing ? crossingCost(fromZone?.slug, target.zone?.slug) || FAR_CROSSING_COST : 0;
   const affords = crossing && left >= cost;
@@ -344,6 +347,14 @@ async function handleTravelPick(interaction) {
         ? "-# A tight squeeze on the way. No Giant fits through it."
         : null;
 
+  // Who this road would leave standing (MAP.md §3a), before Confirm rather
+  // than a DM after — the move's own judge, over the way next door or every
+  // hop of the walk. Never why (MAP.md §2a). The web's card says the same.
+  const road = adjacentLink ? [adjacentLink] : walk?.ok ? walk.links : [];
+  const leftBehindOn = await partyWarningFor(prisma, { mover: character, party, standingZoneKind: fromZone?.kind ?? null });
+  const warning = character.locationId ? leftBehindWarning(leftBehindOn(road, target.zone?.kind)) : null;
+  const leftBehindLine = warning ? `-# ${warning}` : null;
+
   const stowed = crossing ? stowedMounts(character.tags) : [];
   const stowedLine =
     stowed.length > 0
@@ -357,6 +368,7 @@ async function handleTravelPick(interaction) {
         `Travel to **${target.name}**?`,
         costLine,
         squeezeLine,
+        leftBehindLine,
         seatWarning ? `-# ${seatWarning}` : null,
         stowedLine,
         overflow > 0 ? `-# ${overflow} more not shown — Discord caps this list at 25.` : null,

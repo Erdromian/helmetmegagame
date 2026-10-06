@@ -21,8 +21,9 @@
 import { formatTravel } from "@lifeweb/db/lib/crossingCost";
 import { RING_SLUG } from "@lifeweb/db/lib/rings";
 import { RING_TEXT } from "@lifeweb/db/lib/ringText";
+import { leftBehindWarning } from "@lifeweb/db/lib/leftBehindText";
 
-export { formatTravel };
+export { formatTravel, leftBehindWarning };
 
 export function affordsCrossing(option, freeLeft) {
   return (freeLeft ?? 0) >= (option.cost ?? 1);
@@ -119,37 +120,58 @@ function crossingWarning(option) {
 // freeMovesBreakdown): while the mount has a ride left, the ride is what this
 // crossing spends — one ride covers any crossing, near or far — so the price
 // line says so instead of quoting travel the rider is not about to spend.
-export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false, breakdown = null } = {}) {
+//
+// `leftBehind` is who the way would NOT take ([{ name, held }], the server's
+// partyWarningFor): they are named, and taken off the count of who comes.
+export function crossingConfirm(option, freeLeft, partySize = 0, { exert = false, breakdown = null, leftBehind = [] } = {}) {
   // Said out loud because it is the half of an accidental crossing that costs
   // somebody else their afternoon too.
+  const coming = Math.max(0, partySize - (leftBehind?.length ?? 0));
   const party =
-    partySize > 0
-      ? partySize === 1
+    coming > 0
+      ? coming === 1
         ? " One person comes with you."
-        : ` ${partySize} people come with you.`
+        : ` ${coming} people come with you.`
       : "";
+  const warning = leftBehindWarning(leftBehind);
+  const left = warning ? ` ${warning}` : "";
   if (exert) {
     const note = option.exertNote ? ` ${option.exertNote}` : "";
     return {
       title: `Push on to ${option.zoneName}?`,
-      message: `${option.name} is in ${option.zoneName} and you don't have the travel left for it. You can choose to push yourself, risking exhaustion and possible injury.${note}${party}`,
+      message: `${option.name} is in ${option.zoneName} and you don't have the travel left for it. You can choose to push yourself, risking exhaustion and possible injury.${note}${party}${left}`,
       confirmLabel: "Push on",
       cancelLabel: "Stay",
     };
   }
   const cost = option.cost ?? 1;
-  const left = freeLeft ?? 0;
+  const have = freeLeft ?? 0;
   const rides = breakdown?.ridesLeft ?? 0;
   const price = rides > 0 && breakdown?.mount
     ? `Your ${breakdown.mount} carries you across: 1 of its ${rides} ${rides === 1 ? "ride" : "rides"} this turn.`
     : affordsCrossing(option, freeLeft)
-    ? `This spends ${formatTravel(cost)} of your ${formatTravel(left)} travel.`
-    : left > 0
-      ? `This costs ${formatTravel(cost)} travel and you only have ${formatTravel(left)} left, so it spends your Move for the turn.`
+    ? `This spends ${formatTravel(cost)} of your ${formatTravel(have)} travel.`
+    : have > 0
+      ? `This costs ${formatTravel(cost)} travel and you only have ${formatTravel(have)} left, so it spends your Move for the turn.`
       : "You have no travel left, so this spends your Move for the turn.";
   return {
     title: `Cross into ${option.zoneName}?`,
-    message: `${option.name} is in ${option.zoneName}. ${price}${party}`,
+    message: `${option.name} is in ${option.zoneName}. ${price}${party}${left}`,
+    confirmLabel: "Go",
+    cancelLabel: "Stay",
+  };
+}
+
+// The question asked before a hop INSIDE a zone that would leave somebody
+// standing (MAP.md §3a). A local hop is otherwise never asked about — it is
+// free and lands at once — and the map's double-click takes one with no strip
+// at all, so this is the one thing that stops a gesture walking off without a
+// friend. A zone crossing carries the same warning inside crossingConfirm
+// instead, so a crossing is still asked once.
+export function leaveBehindConfirm(option, leftBehind) {
+  return {
+    title: "Go on without them?",
+    message: `To ${option.name}. ${leftBehindWarning(leftBehind)}`,
     confirmLabel: "Go",
     cancelLabel: "Stay",
   };

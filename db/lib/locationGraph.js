@@ -99,12 +99,29 @@ function shouldPromptKeyed(link, { tagSlugs, now = new Date() } = {}) {
 
 // The lock a party leader opens for everybody they bring along (MAP.md §3a). A key is a door: whoever holds it walks their party through, so the follower is judged as if they held it too. Only a KEY is lent — a held tag the catalog files under Items, or a worn ring's door token (RINGS.md). A skill or trait in the lock (caving, climbing, strong-swimmer, tunnel-rat) is the follower's own body, never lent: a climb the leader can make is still a climb their companion can't. Returns the slug to add to each follower's tags, or null. `leader.tags` is CHARACTER_SELECT's shape.
 async function partyKeyFor(prisma, link, leader) {
+  if (!link?.requiredTagSlug || !leader?.id) return null;
+  return partyKeyWith(link, await leaderKeys(prisma, leader));
+}
+
+// Everything a leader could lend at a door, read once: the worn ring's tokens
+// and the Items tags in their hands. Two queries for a whole road of edges,
+// where partyKeyFor paid them per edge — the pickers judge a party against
+// every way out at once (partyRoadJudge in locationTravel.js). `leader.tags` is
+// CHARACTER_SELECT's shape.
+async function leaderKeys(prisma, leader) {
+  const ringTokens = new Set(leader?.id ? await wornRingTokens(prisma, leader.id) : []);
+  const held = [...new Set((leader?.tags ?? []).map((ct) => ct.tag?.slug).filter(Boolean))];
+  const items = held.length
+    ? await prisma.tag.findMany({ where: { slug: { in: held }, category: TAG_CATEGORY.ITEMS }, select: { slug: true } })
+    : [];
+  return { ringTokens, itemSlugs: new Set(items.map((t) => t.slug)) };
+}
+
+// partyKeyFor's verdict off already-loaded keys: the slug to lend, or null.
+function partyKeyWith(link, keys) {
   const slug = link?.requiredTagSlug;
-  if (!slug || !leader?.id) return null;
-  if ((await wornRingTokens(prisma, leader.id)).includes(slug)) return slug;
-  if (!(leader.tags ?? []).some((ct) => ct.tag?.slug === slug)) return null;
-  const tag = await prisma.tag.findUnique({ where: { slug }, select: { category: true } });
-  return tag?.category === TAG_CATEGORY.ITEMS ? slug : null;
+  if (!slug || !keys) return null;
+  return keys.ringTokens.has(slug) || keys.itemSlugs.has(slug) ? slug : null;
 }
 
 // TIGHT SQUEEZE: fixed to the one tag it blocks, unconditionally — see the
@@ -442,16 +459,16 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
 
   const slugOf = (id) => byId.get(id)?.slug ?? "";
   const adjacency = new Map();
-  const join = (a, b, verdict) => {
+  const join = (a, b, verdict, link) => {
     if (!adjacency.has(a)) adjacency.set(a, []);
-    adjacency.get(a).push({ id: b, tightSqueeze: Boolean(verdict.tightSqueeze) });
+    adjacency.get(a).push({ id: b, link, tightSqueeze: Boolean(verdict.tightSqueeze) });
   };
   for (const link of links) {
     if (!usable(link.aId) || !usable(link.bId)) continue;
     const verdict = crossingCheck(link, { tagSlugs, onFootBlocked, now });
     if (!verdict.passable) continue;
-    join(link.aId, link.bId, verdict);
-    join(link.bId, link.aId, verdict);
+    join(link.aId, link.bId, verdict, link);
+    join(link.bId, link.aId, verdict, link);
   }
   // Sorted by slug so two equally short roads always resolve to the same one —
   // soundRange's reason, sharper here: the surface that SHOWS the route and the
@@ -462,6 +479,10 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
   }
 
   const prev = new Map();
+  // The edge each place was reached BY, so a route can hand back its hops as
+  // links — what a party is judged against, one follower at a time, before
+  // the leader commits (locationTravel.js#partyRoadJudge).
+  const viaLink = new Map();
   // A walk that goes through a tight squeeze at any hop is a walk a Giant companion cannot finish, and the party leader is told so before they commit rather than after the Giant is refused mid-road.
   const squeezeBy = new Map([[from, false]]);
   // Which hop first reached each place — a later road of the SAME length may
@@ -472,6 +493,7 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
 
   const take = (nodeId, neighbor) => {
     prev.set(neighbor.id, nodeId);
+    viaLink.set(neighbor.id, neighbor.link);
     squeezeBy.set(neighbor.id, Boolean(squeezeBy.get(nodeId)) || neighbor.tightSqueeze);
   };
 
@@ -508,12 +530,19 @@ async function routesWithinZone(prisma, character, { known, maxHops = WALK_HOPS,
     for (let at = id; at && at !== from; at = prev.get(at)) steps.unshift(byId.get(at));
     return steps;
   };
+  // The road's edges in the same order as `path`: links[i] is the hop onto path[i].
+  const linksTo = (id) => {
+    const steps = [];
+    for (let at = id; at && at !== from; at = prev.get(at)) steps.unshift(viaLink.get(at));
+    return steps;
+  };
 
   return found
     .map((row) => ({
       location: byId.get(row.id),
       hops: row.hops,
       path: pathTo(row.id),
+      links: linksTo(row.id),
       tightSqueeze: Boolean(squeezeBy.get(row.id)),
     }))
     .sort((x, y) => x.hops - y.hops || x.location.slug.localeCompare(y.location.slug));
@@ -530,7 +559,7 @@ async function pathWithinZone(prisma, character, targetLocationId, { known } = {
   const routes = await routesWithinZone(prisma, character, { known });
   const hit = routes.find((row) => row.location.id === targetLocationId);
   if (!hit) return { ok: false, reason: NO_WALK };
-  return { ok: true, hops: hit.hops, path: hit.path, tightSqueeze: hit.tightSqueeze };
+  return { ok: true, hops: hit.hops, path: hit.path, links: hit.links, tightSqueeze: hit.tightSqueeze };
 }
 
 // How long a propped door stays propped. Real hours, not turns: a physical door somebody wedged, and the point is that people can follow within the day.
@@ -625,6 +654,8 @@ module.exports = {
   isHeldOpen,
   shouldPromptKeyed,
   partyKeyFor,
+  leaderKeys,
+  partyKeyWith,
   resolveNeighbors,
   travelOptions,
 };

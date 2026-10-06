@@ -9,7 +9,7 @@ import ChipLabel from "@/app/components/ChipLabel";
 import ChatMarkdown from "@/app/components/ChatMarkdown";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, openedByLabel, tightSqueezeNote, affordsCrossing, formatTravel } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, leaveBehindConfirm, leftBehindWarning, travelFoot, openedByLabel, tightSqueezeNote, affordsCrossing, formatTravel } from "@/lib/travelCost";
 import SqueezeChip from "@/app/components/SqueezeChip";
 import { loadTravel, travelTo } from "./actions";
 import { nudgePhase } from "../../components/PhaseProvider";
@@ -117,10 +117,16 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
   //
   // Push on is the same door with a die in it (MAP.md §3): its own confirm,
   // then the same action with `exert` set.
+  //
+  // A hop that would leave somebody in your party standing asks too, even inside
+  // the zone (MAP.md §3a) — the double-click below is otherwise a walk with no
+  // strip in front of it.
   const go = async (option, { exert = false } = {}) => {
     if (option.crossesZone) {
-      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert, breakdown: data.breakdown });
+      const asked = crossingConfirm(option, option.freeLeft, data.partySize, { exert, breakdown: data.breakdown, leftBehind: option.leftBehind });
       if (!(await confirm(asked))) return;
+    } else if (option.leftBehind?.length > 0) {
+      if (!(await confirm(leaveBehindConfirm(option, option.leftBehind)))) return;
     }
     run(travelTo, { locationId: option.id, exert }, {
       onOk: (res) => {
@@ -229,6 +235,11 @@ export default function TravelNodes({ onDone, pick = null, showTitle = true, sho
             <p className="chat-quiet-line">
               {data.partySize === 1 ? "One person" : `${data.partySize} people`} with you.
             </p>
+          )}
+          {/* Who this way would leave standing (MAP.md §3a) — said before Go,
+              never why: a hidden way's refusal would announce the way. */}
+          {chosen.leftBehind?.length > 0 && (
+            <p className="text-sm chat-travel-warning">{leftBehindWarning(chosen.leftBehind)}</p>
           )}
 
           <FormError>{error}</FormError>

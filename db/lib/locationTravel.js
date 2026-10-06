@@ -23,8 +23,8 @@ const { rideMount } = require("./mountRides");
 const { rollWithEdge, edgeFor } = require("./advantage");
 const { nextFatigueSlug } = require("./fatigue");
 const { partyOf, escortAuthority, ESCORT_SELECT } = require("./escort");
-const { heldReasonFor, fireWatches, NOT_A_FIGHT } = require("./intercept");
-const { linkBetween, crossingCheck, partyKeyFor } = require("./locationGraph");
+const { heldReasonFor, fireWatches, NOT_A_FIGHT, seenByIdMany } = require("./intercept");
+const { linkBetween, crossingCheck, leaderKeys, partyKeyWith } = require("./locationGraph");
 const { withRingTokens } = require("./roomAccess");
 const { isArrivable } = require("./offRoad");
 const { crossingCost, FAR_CROSSING_COST, formatTravel } = require("./crossingCost");
@@ -402,6 +402,101 @@ class MoveRefused extends Error {
   }
 }
 
+// WHO THE ROAD WOULD LEAVE BEHIND, and why — the one rule performLocationMove
+// acts on and every picker warns from, so what a leader is told before Go is
+// exactly what happens after it (MAP.md §3a). Two phases on purpose: this reads
+// everything a follower is judged by ONCE (their own held slugs and ring, the
+// Caving Die's hold on the party, the keys the leader can lend), and the
+// returned `leftBehind(links, targetZoneKind)` is then pure, so a picker can ask
+// it about every way out of here — and every hop of every walk — for no further
+// query. `links` is the road: one edge next door, several for a walk, none on a
+// first placement; a follower is judged against each in turn and dropped at the
+// first that refuses them. `db` may be a transaction.
+//
+// The reasons, in the order they are asked, and each one's reader:
+// - "held" / "stuck": somebody (or nobody — a caught thief, THEFT.md §1e) has
+//   hold of them. A follower is walked by an updateMany and never comes past
+//   the mover's own gate, so without this a friend could carry somebody straight
+//   out of an ambush. ABOVE escortAuthority on purpose, though that refuses a
+//   held character too: its refusal reads as "gone", while "held" is the ONE
+//   reason the leader is told out loud (somebody holding your friend is plain
+//   to see) — ordered the other way, they'd never hear it.
+// - "caving": the Die has hold of them (the way up) or has stopped them (every
+//   way). Its own word, not intercept's, and only ever set underground.
+// - "gone": no longer theirs to bring — wandered off, dead, buried.
+// - "edge": the way refuses THEM, judged against the follower's own tags and
+//   mount — a crawl the leader has the Caving for is still a crawl their
+//   unskilled companion can't follow, and nobody holding a mount or a Cart can
+//   be led through an onFoot gap. The one thing the leader lends is a KEY: a
+//   locked door the leader opens lets their party through behind them. Never
+//   told WHY to anybody (MAP.md §2a).
+async function partyRoadJudge(db, { mover, party, standingZoneKind = null, now = new Date() }) {
+  const rows = party ?? [];
+  // One query for the whole party, and only underground — a surface follower can have neither.
+  const cavingParty = await cavingPartyRestrictions(db, rows.map((row) => row.id), standingZoneKind);
+  const keys = rows.length > 0 ? await leaderKeys(db, mover) : null;
+  const feet = new Map();
+  for (const row of rows) {
+    feet.set(row.id, { slugs: await withRingTokens(db, row.id, row.tags), onFootBlocked: blocksOnFoot(row.tags) });
+  }
+  const underground = standingZoneKind === "CAVE_LEVEL";
+
+  return {
+    leftBehind(links, targetZoneKind) {
+      // The hold only matters on the way up to the surface; the stop matters on every hop.
+      const cavingHeld = underground && targetZoneKind !== "CAVE_LEVEL" ? cavingParty.held : cavingParty.stuck;
+      const road = (links ?? []).filter(Boolean);
+      const coming = [];
+      const leftBehind = [];
+      for (const row of rows) {
+        if (heldReasonFor(row, now)) {
+          leftBehind.push({ row, reason: row.heldById ? "held" : "stuck" });
+          continue;
+        }
+        if (cavingHeld.has(row.id)) {
+          leftBehind.push({ row, reason: "caving" });
+          continue;
+        }
+        if (!escortAuthority(mover, row)) {
+          leftBehind.push({ row, reason: "gone" });
+          continue;
+        }
+        const own = feet.get(row.id);
+        const refused = road.some((link) => {
+          const tagSlugs = new Set(own.slugs);
+          const key = partyKeyWith(link, keys);
+          if (key) tagSlugs.add(key);
+          return !crossingCheck(link, { tagSlugs, onFootBlocked: own.onFootBlocked, now }).passable;
+        });
+        if (refused) {
+          leftBehind.push({ row, reason: "edge" });
+          continue;
+        }
+        coming.push(row);
+      }
+      return { coming, leftBehind };
+    },
+  };
+}
+
+// The warning's input for one leader, about every way out at once:
+// `(links, targetZoneKind) => [{ name, held }]`, for leftBehindText.js to put
+// into a sentence. Names are what the LEADER reads this person as
+// (intercept.js#seenById) — a party can carry a hood — and `held` marks the one
+// reason they are told out loud. An empty party answers [] and costs nothing.
+async function partyWarningFor(db, { mover, party, standingZoneKind = null }) {
+  if (!party?.length) return () => [];
+  const [judge, names] = await Promise.all([
+    partyRoadJudge(db, { mover, party, standingZoneKind }),
+    seenByIdMany(db, mover.id, party.map((row) => row.id)),
+  ]);
+  const nameOf = new Map(party.map((row, i) => [row.id, names[i]]));
+  return (links, targetZoneKind) =>
+    judge
+      .leftBehind(links, targetZoneKind)
+      .leftBehind.map((e) => ({ name: nameOf.get(e.row.id) ?? "somebody", held: e.reason === "held" }));
+}
+
 // `character` is the mover as loaded by the caller (needs id, name,
 // locationId, zoneId, discordUserId, tags);
 // `targetLocation` must include its zone.
@@ -499,7 +594,6 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   // hop, the next room included; any 1 this turn stops only the way up to the
   // surface — the Caves and the Depths stay open to each other, resolved or
   // not, until the push.
-  const underground = currentLocation?.zone?.kind === "CAVE_LEVEL";
   const caving = await cavingRestrictionsFor(prisma, character.id, currentLocation?.zone?.kind);
   const cavingRefusal = cavingRefusalFor(caving, targetLocation.zone.kind);
   if (cavingRefusal) return { ok: false, reason: cavingRefusal };
@@ -537,8 +631,6 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
   // follower inside the transaction. Null on a first placement, which has no
   // edge to check.
   const followerLink = currentLocation ? await linkBetween(prisma, currentLocation.id, targetLocation.id) : null;
-  // The leader's key, if a key is what opens this way — lent to every follower below, since the leader unlocks the door for the people they bring (MAP.md §3a). Null for a skill lock or when nobody here holds the key.
-  const partyKey = await partyKeyFor(prisma, followerLink, character);
 
   try {
     await prisma.$transaction(async (tx) => {
@@ -547,44 +639,11 @@ async function performLocationMove(prisma, character, targetLocation, { exert = 
       const party = await partyOf(prisma, character.id, { tx });
       if (party.length > 0) {
         const mover = await tx.character.findUnique({ where: { id: character.id }, select: ESCORT_SELECT });
-        // Which of them the Caving Die has hold of, and which it has stopped outright — one query for the whole party rather than one per follower, and only underground, since a surface follower can have neither. The hold only matters on the way up to the surface; the stop matters on every hop.
-        const cavingParty = await cavingPartyRestrictions(tx, party.map((row) => row.id), currentLocation?.zone?.kind);
-        const cavingHeld = underground && targetLocation.zone.kind !== "CAVE_LEVEL" ? cavingParty.held : cavingParty.stuck;
-        const coming = [];
-        for (const row of party) {
-          // Held where they stand — a follower is walked by an updateMany and never comes
-          // past the mover's own gate, so without this a friend could carry somebody straight out of an ambush. ABOVE escortAuthority on purpose, though that refuses a held character too: its refusal reads here as "gone", while "held" is the ONE leftBehind reason told to the leader out loud (somebody holding your friend is plain to see) — ordered the other way, they'd never hear it.
-          if (heldReasonFor(row)) {
-            // "held" reads to the leader as "Somebody has hold of X", so it needs a somebody. A hold with no holder (a
-            // caught thief, THEFT.md §1e) is "stuck", which every reader draws as the plain "couldn't follow".
-            outcome.leftBehind.push({ row, reason: row.heldById ? "held" : "stuck" });
-            continue;
-          }
-          // The Die has hold of them, same shape and reason: a follower never comes past
-          // the mover's own gate, so without this a friend carries the caver out of their own unadjudicated encounter — or, at ten 1s, walks somebody the Die has stopped into the next room. Its own reason, not "held" (intercept's word) — an unknown reason falls through to the plain "couldn't follow" everywhere it's read.
-          if (cavingHeld.has(row.id)) {
-            outcome.leftBehind.push({ row, reason: "caving" });
-            continue;
-          }
-          if (!escortAuthority(mover, row)) {
-            outcome.leftBehind.push({ row, reason: "gone" });
-            continue;
-          }
-          // The edge, judged against the FOLLOWER's own tags and mount — a crawl the leader has the Caving for is still a crawl their unskilled companion can't follow, and nobody holding a mount or a Cart can be led through an onFoot gap. The one thing the leader lends is a KEY (partyKey above): a locked door the leader opens lets their party through behind them.
-          if (currentLocation) {
-            const followerSlugs = await withRingTokens(prisma, row.id, row.tags);
-            if (partyKey) followerSlugs.add(partyKey);
-            const gate = crossingCheck(followerLink, {
-              tagSlugs: followerSlugs,
-              onFootBlocked: blocksOnFoot(row.tags),
-            });
-            if (!gate.passable) {
-              outcome.leftBehind.push({ row, reason: "edge" });
-              continue;
-            }
-          }
-          coming.push(row);
-        }
+        // The same judge every picker warned from (partyRoadJudge below), run again here where it counts.
+        const judge = await partyRoadJudge(tx, { mover, party, standingZoneKind: currentLocation?.zone?.kind ?? null, now });
+        const verdict = judge.leftBehind(currentLocation ? [followerLink] : [], targetLocation.zone.kind);
+        outcome.leftBehind.push(...verdict.leftBehind);
+        const coming = verdict.coming;
         if (outcome.leftBehind.length > 0) {
           await tx.character.updateMany({
             where: { id: { in: outcome.leftBehind.map((e) => e.row.id) } },
@@ -940,6 +999,8 @@ async function followCharge(prisma, { guard, chargeId, targetLocation, crossedZo
 
 module.exports = {
   performLocationMove,
+  partyRoadJudge,
+  partyWarningFor,
   freeZoneMoves,
   freeMovesLeft,
   freeZoneMovesReason,

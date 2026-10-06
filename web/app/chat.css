@@ -2385,6 +2385,13 @@
   margin-bottom: var(--sp-2);
 }
 
+/* Who this way would leave standing (MAP.md §3a), under the confirm strip and
+   the map's card. The gold of a warning rather than the red of a refusal: the
+   way is open, and Go still goes — it is the friend who stays. */
+.chat-travel-warning {
+  color: var(--warning);
+}
+
 /* "Reconnecting…" and "The connection dropped." — shared by both chat builds.
    DRAWN OVER the scene, never in the column's flow: in flow it inserted a
    padded row flush under the 26px head girder, which read as the header

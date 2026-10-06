@@ -907,6 +907,22 @@ nothing. Dragging used to throw the whole hop away instead. **The leader's DM
 must never say why**: naming a hidden edge's refusal would announce that the
 edge is there (§2a). It says only "You can't move X through here."
 
+**The leader is warned before they go, not told after.** Every travel surface
+asks the move's own judge ahead of Go — `partyRoadJudge` in
+`db/lib/locationTravel.js`, the one list `performLocationMove` acts on, read
+once for every way out of here and every hop of every walk — and prints who it
+would drop: "Ada can't follow you this way. You would leave them behind."
+(`db/lib/leftBehindText.js`, the one sentence all three faces use). `/chat`'s
+confirm strip and `/map`'s card carry it under the party count; the bot's
+**Travel to X?** step carries it as `-#` subtext; and a zone crossing's confirm
+dialog folds it in and counts only who actually comes. A hop *inside* a zone
+that would leave somebody stops at the shared confirm too ("Go on without
+them?"), which is the one thing between the map's double-click and a friend
+left on the road. Same rule as the DM: it says **who**, never why. The one
+reason said out loud is a hold — "somebody has hold of Bo" — because somebody
+holding your friend is plain to see. Names come through the leader's own lens
+(`intercept.js#seenById`), so a hood in the party is warned about as a hood.
+
 **Walking under your own power detaches you.** Every branch of
 `performLocationMove` clears the mover's own `escortedById`, so a willing
 follower leaves by leaving. A helpless one never reaches that line. Death

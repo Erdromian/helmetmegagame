@@ -22,6 +22,7 @@ import {
   exertRefusal,
   exertEdgeFor,
   exertEdgeSentence,
+  partyWarningFor,
 } from "@lifeweb/db/lib/locationTravel";
 import { plateOf, plates } from "@/lib/mapPlates";
 import { zoneKey } from "@/lib/zones";
@@ -198,7 +199,7 @@ async function buildMap({ character, unfogged, canReveal, hiddenWays = unfogged 
   // The tags that open a gated way, by name, for the hover on its line
   // (Map.docx). Only the slugs some way actually names — a dozen rows.
   const gateSlugs = [...new Set(links.map((l) => l.requiredTagSlug).filter(Boolean))];
-  const [neighbours, walks, inside, gateTags, ringRoles, headcounts] = await Promise.all([
+  const [neighbours, walks, inside, gateTags, ringRoles, headcounts, leftBehindOn] = await Promise.all([
     // Same call the Travel panel makes, so the two never disagree about a hop.
     character?.locationId ? travelOptions(prisma, character, character.locationId, { graph }) : [],
     // Everywhere in their own zone they could WALK to (MAP.md §3c). Fed the very
@@ -219,6 +220,10 @@ async function buildMap({ character, unfogged, canReveal, hiddenWays = unfogged 
     // stand and the lit streets in this zone, and nowhere else (MAP.md §6j).
     // Theirs even on a GM's Show all: that lifts the fog, not the rule here.
     mapHeadcounts(prisma, character, standing),
+    // Who each way out — and each hop of each walk — would leave standing
+    // (MAP.md §3a): the move's own judge, asked ahead of Go. Nobody to bring
+    // and it costs nothing.
+    partyWarningFor(prisma, { mover: character, party, standingZoneKind: standing?.zone?.kind ?? null }),
   ]);
   const gateNames = new Map(gateTags.map((t) => [t.slug, t.name]));
   const ringTokens = new Set(ringRoles.flatMap((r) => r.ringAccessSlugs ?? []));
@@ -324,6 +329,14 @@ async function buildMap({ character, unfogged, canReveal, hiddenWays = unfogged 
       // its Giant friend cannot follow.
       walkTightSqueeze: Boolean(walk?.tightSqueeze),
       tightSqueeze: Boolean(near?.tightSqueeze),
+      // Followers the road would not take, as this leader knows them — the
+      // way next door, or any hop of the walk. The card prints
+      // leftBehindWarning() off it and Go asks again (MAP.md §3a).
+      leftBehind: near?.passable
+        ? leftBehindOn([near.link], location.zone?.kind)
+        : walk
+          ? leftBehindOn(walk.links, location.zone?.kind)
+          : [],
       crossesZone: Boolean(near?.crossesZone),
       // What the crossing spends in travel — ½ between the town zones, 1
       // anywhere else (db/lib/crossingCost.js), 0 inside the zone.

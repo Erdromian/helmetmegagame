@@ -9,7 +9,7 @@ import ChipLabel from "@/app/components/ChipLabel";
 import { ChevronDownIcon } from "@/app/components/icons";
 import { useTags } from "@/app/components/TagsProvider";
 import { useConfirm } from "@/app/components/ConfirmProvider";
-import { crossingConfirm, crossingLine, travelFoot, walkFoot, walkLine, openedByLabel, WALK_HINT, affordsCrossing } from "@/lib/travelCost";
+import { crossingConfirm, crossingLine, leaveBehindConfirm, leftBehindWarning, travelFoot, walkFoot, walkLine, openedByLabel, WALK_HINT, affordsCrossing } from "@/lib/travelCost";
 import SqueezeChip from "@/app/components/SqueezeChip";
 import { loadMap, loadHeadcounts } from "./actions";
 import { renderPlate, glyphPath } from "./plateRender";
@@ -949,10 +949,17 @@ export default function MapBoard({ onClose = null, initial = null }) {
   //
   // Push on is the same door with a die in it (MAP.md §3): its own confirm,
   // then the same action with `exert` set.
+  //
+  // A hop or walk that would leave somebody in your party standing asks too
+  // (MAP.md §3a) — the double-click and Enter take a walk with no strip in
+  // front of them, so this is what keeps a gesture from walking off without a
+  // friend.
   const go = async (node, { exert = false } = {}) => {
     if (node.crossesZone) {
-      const asked = crossingConfirm(node, node.freeLeft ?? 0, data?.travel?.partySize ?? 0, { exert, breakdown: data?.travel?.breakdown });
+      const asked = crossingConfirm(node, node.freeLeft ?? 0, data?.travel?.partySize ?? 0, { exert, breakdown: data?.travel?.breakdown, leftBehind: node.leftBehind });
       if (!(await confirm(asked))) return;
+    } else if (node.leftBehind?.length > 0) {
+      if (!(await confirm(leaveBehindConfirm(node, node.leftBehind)))) return;
     }
     setNote(null);
     run(travelTo, { locationId: node.id, exert }, {
@@ -1650,6 +1657,11 @@ function MapCard({ node, here, travel, pending, error, note, stairs = null, onCa
                 <p className="chat-quiet-line">
                   {travel.partySize === 1 ? "One person" : `${travel.partySize} people`} with you.
                 </p>
+              )}
+              {/* Who this road would leave standing (MAP.md §3a) — said before
+                  Go, never why: a hidden way's refusal would announce the way. */}
+              {node.leftBehind?.length > 0 && (
+                <p className="text-sm chat-travel-warning">{leftBehindWarning(node.leftBehind)}</p>
               )}
               <FormError>{error}</FormError>
               <div className="chat-buttons">

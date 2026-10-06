@@ -12,7 +12,8 @@ const CATEGORY = { "den-key": "Items", caving: "Skills", "tunnel-rat": "General"
 function fakePrisma({ ring = null } = {}) {
   return {
     characterTag: { findFirst: async () => (ring ? { tag: { ringAccessSlugs: ring } } : null) },
-    tag: { findUnique: async ({ where }) => (CATEGORY[where.slug] ? { category: CATEGORY[where.slug] } : null) },
+    // leaderKeys asks once for every held slug the catalog files under Items.
+    tag: { findMany: async ({ where }) => where.slug.in.filter((slug) => CATEGORY[slug] === where.category).map((slug) => ({ slug })) },
   };
 }
 
